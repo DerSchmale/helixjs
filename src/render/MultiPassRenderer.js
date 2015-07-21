@@ -9,6 +9,11 @@ HX.MultiPassRenderer = function()
 
 HX.MultiPassRenderer.prototype = Object.create(HX.ScreenRenderer.prototype);
 
+HX.MultiPassRenderer.prototype._updateGBufferFBO = function()
+{
+
+};
+
 HX.MultiPassRenderer.prototype._renderToGBuffer = function()
 {
     var clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT;

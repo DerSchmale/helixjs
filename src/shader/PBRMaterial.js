@@ -54,7 +54,7 @@ HX.PBRMaterial.prototype._updatePasses = function()
     }
     else {
         this._initPass(HX.MaterialPass.GEOMETRY_ALBEDO_PASS, albedoDefines, "default_albedo_vertex.glsl", "default_albedo_fragment.glsl");
-        this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_normal_vertex.glsl", "default_normal_fragment.glsl");
+        this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_normals_vertex.glsl", "default_normals_fragment.glsl");
         this._initPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS, specularDefines, "default_specular_vertex.glsl", "default_specular_fragment.glsl");
     }
 

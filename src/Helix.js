@@ -30,13 +30,18 @@ HX.initFromContext = function(glContext, options)
     HX.OPTIONS = options || new HX.InitOptions();
     HX.GL = glContext;
 
+    var defines = "";
     if (HX.OPTIONS.useLinearSpace !== false)
-        HX.GLSLIncludeGeneral = "#define HX_LINEAR_SPACE\n" + HX.GLSLIncludeGeneral;
+        defines += "#define HX_LINEAR_SPACE\n";
 
     if (!HX.OPTIONS.ignoreDrawBuffers)
         HX.EXT_DRAW_BUFFERS = HX.GL.getExtension('WEBGL_draw_buffers');
 
-    if (!HX.EXT_DRAW_BUFFERS) console.warn('WEBGL_draw_buffers extension not supported!');
+    if (!HX.EXT_DRAW_BUFFERS) {
+        defines += "#define HX_SEPARATE_GEOMETRY_PASSES\n";
+        console.warn('WEBGL_draw_buffers extension not supported!');
+    }
+
     HX.MaterialPass.NUM_TOTAL_PASS_TYPES = HX.MaterialPass.NUM_PASS_TYPES + (HX.EXT_DRAW_BUFFERS ? 0 : 2);
 
     HX.EXT_FLOAT_TEXTURES = HX.GL.getExtension('OES_texture_float');
@@ -52,7 +57,10 @@ HX.initFromContext = function(glContext, options)
     if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR) console.warn('OES_texture_half_float_linear extension not supported!');
 
     HX.EXT_DEPTH_TEXTURE = HX.GL.getExtension('WEBGL_depth_texture');
-    if (!HX.EXT_DEPTH_TEXTURE) console.warn('WEBGL_depth_texture extension not supported!');
+    if (!HX.EXT_DEPTH_TEXTURE) {
+        defines += "#define HX_STORE_EXPLICIT_DEPTH\n";
+        console.warn('WEBGL_depth_texture extension not supported!');
+    }
 
     HX.EXT_STANDARD_DERIVATIVES = HX.GL.getExtension('OES_standard_derivatives');
     if (!HX.EXT_STANDARD_DERIVATIVES) console.warn('OES_standard_derivatives extension not supported!');
@@ -68,6 +76,8 @@ HX.initFromContext = function(glContext, options)
     if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR || !HX.EXT_HALF_FLOAT_TEXTURES) {
         HX.OPTIONS.useHDR = false;
     }
+
+    HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
 
     // shortcuts
     HX.TEXTURE_FILTER = {};

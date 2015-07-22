@@ -1,5 +1,75 @@
 precision mediump float;
 
+#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) { hx_processGeometryMRT(albedo, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2]); }
+
+// see Aras' blog post: http://aras-p.info/blog/2009/07/30/encoding-floats-to-rgba-the-final/
+// Only for 0 - 1
+vec4 hx_floatToRGBA8(float value)
+{
+    vec4 enc = vec4(1.0, 255.0, 65025.0, 16581375.0) * value;
+    enc = fract(enc);
+    return enc - enc.yzww * vec4(1.0/255.0,1.0/255.0,1.0/255.0,0.0);
+}
+
+float hx_RGBA8ToFloat(vec4 rgba)
+{
+    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));
+}
+
+vec2 hx_floatToRG8(float value)
+{
+    vec2 enc = vec2(1.0, 255.0) * value;
+    enc = fract(enc);
+    enc.x -= enc.y / 255.0;
+    return enc;
+}
+
+float hx_RG8ToFloat(vec2 rgba)
+{
+    return dot(rgba, vec2(1.0, 1.0/255.0));
+}
+
+vec4 hx_encodeNormalDepth(vec3 normal, float depth)
+{
+	#ifdef HX_STORE_EXPLICIT_DEPTH
+    	vec4 data;
+    	// xy contain normal
+		data.xy = normal.xy * .5 + .5;
+		data.zw = hx_floatToRG8(depth);
+		// use some of the lower precision depth to encode store normal sign
+		data.w *= sign(normal.z) * data.w * .5 + .5;
+		return data;
+	#else
+		return vec4(normal * .5 + .5, 1.0);
+    #endif
+}
+
+void hx_decodeNormalDepth(vec4 data, out vec3 normal, out float depth)
+{
+	#ifdef HX_STORE_EXPLICIT_DEPTH
+    	normal.xy = data.xy;
+		normal.z = sqrt(1.0 - data.x * data.x - data.y * data.y);
+		data.w = data.w * 2.0 - 1.0;
+		normal.z *= sign(data.w);
+		data.w *= sign(data.w);
+		depth = hx_RG8ToFloat(data.zw);
+    #else
+    	normal = data.xyz * 2.0 - 1.0;
+    #endif
+}
+
+void hx_processGeometryMRT(vec4 albedo, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 albedoData, out vec4 normalData, out vec4 specularData)
+{
+    albedoData = albedo;
+	normalData = hx_encodeNormalDepth(normal, depth);
+
+    specularData.x = metallicness;
+    // scale specular reflectivity by 5 to have better precision since we only need the range ~[0, .2] (.17 = diamond)
+    specularData.y = specularNormalReflection * 5.0;
+    specularData.z = roughness;
+    specularData.w = 1.0;
+}
+
 vec4 hx_gammaToLinear(vec4 color)
 {
     #ifdef HX_LINEAR_SPACE
@@ -40,20 +110,6 @@ vec3 hx_linearToGamma(vec3 linear)
     return linear;
 }
 
-// see Aras' blog post: http://aras-p.info/blog/2009/07/30/encoding-floats-to-rgba-the-final/ 
-// Only for 0 - 1
-vec4 hx_floatToRGBA8(float value)
-{
-    vec4 enc = vec4(1.0, 255.0, 65025.0, 16581375.0) * value;
-    enc = fract(enc);
-    return enc - enc.yzww * vec4(1.0/255.0,1.0/255.0,1.0/255.0,0.0);
-}
-
-float hx_RGBA8ToFloat(vec4 rgba)
-{
-    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));
-}
-
 float hx_sampleLinearDepth(sampler2D tex, vec2 uv)
 {
     return hx_RGBA8ToFloat(texture2D(tex, uv));
@@ -83,13 +139,6 @@ vec4 hx_decodeSpecular(vec4 data)
 {
     // scale specular reflectivity by 5 to have better precision since we only need the range ~[0, .2] (.17 = diamond)
     data.y *= .2;
-    return data;
-}
-
-vec4 hx_encodeSpecular(vec4 data)
-{
-    // scale specular reflectivity by 5 to have better precision since we only need the range ~[0, .2] (.17 = diamond)
-    data.y *= 5.0;
     return data;
 }
 

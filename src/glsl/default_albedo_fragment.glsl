@@ -1,5 +1,3 @@
-#includeHelix
-
 #if defined(ALBEDO_MAP)
 varying vec2 texCoords;
 

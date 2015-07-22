@@ -7,6 +7,7 @@ var del = require('del');
 
 var sourceFiles = [
     "src/Helix.js",
+    "./build/tmp/*.js",
     "src/shader/glslinclude.js",
 
     // TODO: find better way, so order doesn't matter
@@ -29,8 +30,7 @@ var sourceFiles = [
     "src/render/*.js",
     "src/effect/*.js",
     "src/io/*.js",
-    "src/utils/*.js",
-    "./build/tmp/*.js"
+    "src/utils/*.js"
 ];
 
 gulp.task('package', ['glsl', 'main', 'clean']);

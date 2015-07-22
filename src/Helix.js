@@ -31,10 +31,11 @@ HX.initFromContext = function(glContext, options)
     HX.GL = glContext;
 
     if (HX.OPTIONS.useLinearSpace !== false)
-        HX.GLSLIncludeDeferredPass = "#define HX_LINEAR_SPACE\n" + HX.GLSLIncludeDeferredPass;
+        HX.GLSLIncludeGeneral = "#define HX_LINEAR_SPACE\n" + HX.GLSLIncludeGeneral;
 
-    if (!options.ignoreDrawBuffers)
+    if (!HX.OPTIONS.ignoreDrawBuffers)
         HX.EXT_DRAW_BUFFERS = HX.GL.getExtension('WEBGL_draw_buffers');
+
     if (!HX.EXT_DRAW_BUFFERS) console.warn('WEBGL_draw_buffers extension not supported!');
     HX.MaterialPass.NUM_TOTAL_PASS_TYPES = HX.MaterialPass.NUM_PASS_TYPES + (HX.EXT_DRAW_BUFFERS ? 0 : 2);
 

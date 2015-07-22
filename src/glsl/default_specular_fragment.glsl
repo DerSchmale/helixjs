@@ -1,5 +1,3 @@
-#includeHelix
-
 uniform float specularNormalReflection;
 uniform float metallicness;
 uniform float roughness;

@@ -1,5 +1,3 @@
-#includeHelix
-
 varying vec3 normal;
 
 void main()

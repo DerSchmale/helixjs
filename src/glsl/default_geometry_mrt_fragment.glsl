@@ -1,7 +1,5 @@
 #extension GL_EXT_draw_buffers : require
 
-#includeHelix
-
 #if defined(ALBEDO_MAP) || defined(NORMAL_GLOSS_MAP)
 varying vec2 texCoords;
 #endif

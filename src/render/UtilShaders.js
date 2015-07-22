@@ -71,7 +71,7 @@ HX.ApplyGammaShader = function()
 {
     HX.Shader.call(this);
 
-    this.init(HX.ApplyGammaShader._vertexShader, HX.GLSLIncludeDeferredPass + HX.ApplyGammaShader._fragmentShader);
+    this.init(HX.ApplyGammaShader._vertexShader, HX.GLSLIncludeGeneral + HX.ApplyGammaShader._fragmentShader);
 
     this._textureLocation = HX.GL.getUniformLocation(this._program, "sampler");
     this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
@@ -218,7 +218,7 @@ HX.LinearizeDepthShader._vertexShader = "\
         gl_Position = hx_position;\
     }";
 
-HX.LinearizeDepthShader.fragmentShader = HX.GLSLIncludeDeferredPass + "\
+HX.LinearizeDepthShader.fragmentShader = HX.GLSLIncludeGeneral + "\
         precision mediump float;\
         \
         varying vec2 uv;\

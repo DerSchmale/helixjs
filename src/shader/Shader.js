@@ -18,8 +18,8 @@ HX.Shader = function(vertexShaderCode, fragmentShaderCode)
     this._renderOrderHint = ++HX.Shader.ID_COUNTER;
 
     if (vertexShaderCode && fragmentShaderCode) {
-        vertexShaderCode = HX.GLSLIncludeDeferredPass + "\n" + vertexShaderCode;
-        fragmentShaderCode = HX.GLSLIncludeDeferredPass + "\n" + fragmentShaderCode;
+        vertexShaderCode = HX.GLSLIncludeGeneral + "\n" + vertexShaderCode;
+        fragmentShaderCode = HX.GLSLIncludeGeneral + "\n" + fragmentShaderCode;
         this.init(vertexShaderCode, fragmentShaderCode);
     }
 };
@@ -33,8 +33,8 @@ HX.Shader.prototype = {
 
     init: function(vertexShaderCode, fragmentShaderCode)
     {
-        vertexShaderCode = vertexShaderCode.replace("#includeHelix", HX.GLSLIncludeShaders);
-        fragmentShaderCode = fragmentShaderCode.replace("#includeHelix", HX.GLSLIncludeShaders);
+        vertexShaderCode = vertexShaderCode.replace("#includeHelix", HX.GLSLIncludeGeneral);
+        fragmentShaderCode = fragmentShaderCode.replace("#includeHelix", HX.GLSLIncludeGeneral);
 
         this._vertexShader = HX.GL.createShader(HX.GL.VERTEX_SHADER);
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {

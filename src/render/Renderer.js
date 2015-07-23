@@ -92,12 +92,12 @@ HX.Renderer.prototype =
 /**
  * GBUFFER LAYOUT:
  * 0: ALBEDO: (albedo.XYZ, unused)
- * 1: NORMALS: (normals.XYZ, transmission.W) -> transmission adds flipped normals to the mix
- * 2: REFLECTION: (metallicness, normalSpecularReflection, roughness, tbd)
+ * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw)
+ * 2: REFLECTION: (metallicness, normalSpecularReflection, roughness, unused)
  * 3: LINEAR DEPTH: (not explicitly written to by user), 0 - 1 linear depth encoded as RGBA
  *
  * DEPTH STENCIL:
- * Stencil can be used for certain post passes (fe: skin rendering) if stencil value is the same (can we & stencil values for bitmask?)
+ * Stencil can be used for certain post passes (fe: skin rendering) if stencil value is the same
  * Then just render post-pass with the given stencil
  *
  *
@@ -117,6 +117,7 @@ HX.ScreenRenderer = function()
     this._copyYChannel = new HX.CopyTextureShader("y");
     this._copyZChannel = new HX.CopyTextureShader("z");
     this._copyWChannel = new HX.CopyTextureShader("w");
+    this._debugDepth = new HX.DebugDepthShader();
     this._applyGamma = new HX.ApplyGammaShader();
     this._gammaApplied = false;
     this._linearizeDepthShader = new HX.LinearizeDepthShader();
@@ -249,7 +250,7 @@ HX.ScreenRenderer.prototype._linearizeDepth = function()
     HX.GL.disable(HX.GL.CULL_FACE);
 
     HX.setRenderTarget(this._linearDepthFBO);
-    this._linearizeDepthShader.execute(this._rectMesh, this._depthBuffer, this._camera)
+    this._linearizeDepthShader.execute(this._rectMesh, HX.EXT_DEPTH_TEXTURE? this._depthBuffer : this._gbuffer[2], this._camera)
     this._linearDepthInvalid = false;
 }
 
@@ -305,7 +306,7 @@ HX.ScreenRenderer.prototype._renderToScreen = function(dt)
             break;
         case HX.ScreenRenderer.DEBUG_DEPTH:
             HX.setRenderTarget(null);
-            this._copyTexture.execute(this._rectMesh, this._gbuffer[3]);
+            this._debugDepth.execute(this._rectMesh, this._gbuffer[3]);
             break;
         case HX.ScreenRenderer.DEBUG_LIGHT_ACCUM:
             this._renderLightAccumulation();
@@ -450,9 +451,14 @@ HX.ScreenRenderer.prototype._renderEffects = function(dt, effects)
 
 HX.ScreenRenderer.prototype._createGBuffer = function()
 {
-    this._depthBuffer = new HX.Texture2D();
-    this._depthBuffer.setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
-    this._depthBuffer.setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
+    if (HX.EXT_DEPTH_TEXTURE) {
+        this._depthBuffer = new HX.Texture2D();
+        this._depthBuffer.setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
+        this._depthBuffer.setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
+    }
+    else {
+        this._depthBuffer = HX.GL.createRenderbuffer();
+    }
 
     this._gbuffer = [];
 
@@ -494,7 +500,8 @@ HX.ScreenRenderer.prototype._createHDRBuffers = function ()
 
 HX.ScreenRenderer.prototype._updateGBuffer = function (width, height)
 {
-    this._depthBuffer.initEmpty(width, height, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
+    if (HX.EXT_DEPTH_TEXTURE)
+        this._depthBuffer.initEmpty(width, height, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
 
     for (var i = 0; i < this._gbuffer.length; ++i) {
         this._gbuffer[i].initEmpty(width, height, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);

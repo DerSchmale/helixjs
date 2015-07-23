@@ -7,7 +7,8 @@ HX.InitOptions = function()
 {
     this.useHDR = false;   // only if available
     this.useLinearSpace = true;
-    this.ignoreDrawBuffers = false;     // for debug purposes, forces multiple passes for the GBuffer
+    this.ignoreDrawBuffersExtension = false;     // for debug purposes, forces multiple passes for the GBuffer
+    this.ignoreDepthTexturesExtension = false;     // for debug purposes, forces storing depth info explicitly
 };
 
 HX.ShaderLibrary = {
@@ -34,7 +35,7 @@ HX.initFromContext = function(glContext, options)
     if (HX.OPTIONS.useLinearSpace !== false)
         defines += "#define HX_LINEAR_SPACE\n";
 
-    if (!HX.OPTIONS.ignoreDrawBuffers)
+    if (!HX.OPTIONS.ignoreDrawBuffersExtension)
         HX.EXT_DRAW_BUFFERS = HX.GL.getExtension('WEBGL_draw_buffers');
 
     if (!HX.EXT_DRAW_BUFFERS) {
@@ -56,7 +57,9 @@ HX.initFromContext = function(glContext, options)
     HX.EXT_HALF_FLOAT_TEXTURES_LINEAR = HX.GL.getExtension('OES_texture_half_float_linear');
     if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR) console.warn('OES_texture_half_float_linear extension not supported!');
 
-    HX.EXT_DEPTH_TEXTURE = HX.GL.getExtension('WEBGL_depth_texture');
+    if (!HX.OPTIONS.ignoreDepthTexturesExtension)
+        HX.EXT_DEPTH_TEXTURE = HX.GL.getExtension('WEBGL_depth_texture');
+
     if (!HX.EXT_DEPTH_TEXTURE) {
         defines += "#define HX_STORE_EXPLICIT_DEPTH\n";
         console.warn('WEBGL_depth_texture extension not supported!');
@@ -147,7 +150,11 @@ HX.createRenderer = function()
  */
 HX.initFromCanvas = function(canvas, options)
 {
-    var context = canvas.getContext('webgl', { antialias:false }) || canvas.getContext('experimental-webgl', { antialias:false });
+    var options = {
+        antialias:false,
+        premultipliedAlpha: false
+    };
+    var context = canvas.getContext('webgl', options) || canvas.getContext('experimental-webgl', options);
     HX.initFromContext(context, options);
 
     if (!HX.GL) throw "WebGL not supported";

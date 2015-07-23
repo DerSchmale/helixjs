@@ -24,5 +24,5 @@ void main()
         albedo = vec4(albedoColor, 1.0);
     #endif
 
-    hx_processGeometry(albedo, normal, gl_FragCoord.z, metallicness, specularNormalReflection, roughness);
+    hx_processGeometry(albedo, normal, gl_FragCoord.z / gl_FragCoord.w, metallicness, specularNormalReflection, roughness);
 }

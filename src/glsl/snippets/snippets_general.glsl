@@ -44,6 +44,18 @@ vec4 hx_encodeNormalDepth(vec3 normal, float depth)
     #endif
 }
 
+float hx_readDepth(sampler2D sampler, vec2 uv)
+{
+	#ifdef HX_STORE_EXPLICIT_DEPTH
+		vec4 data = texture2D(sampler, uv);
+		data.w = data.w * 2.0 - 1.0;
+		data.w *= sign(data.w);
+		return hx_RG8ToFloat(data);
+    #else
+    	return texture2D(sampler, uv).x;
+    #endif
+}
+
 void hx_decodeNormalDepth(vec4 data, out vec3 normal, out float depth)
 {
 	#ifdef HX_STORE_EXPLICIT_DEPTH
@@ -171,3 +183,4 @@ float hx_luminance(vec3 color)
 {
     return dot(color, vec3(.30, 0.59, .11));
 }
+

@@ -25,8 +25,8 @@ HX.FrameBuffer = function(colorTextures, depthMode, depthBuffer)
     this._fbo = HX.GL.createFramebuffer();
 
     if (this._depthMode == HX.FrameBuffer.DEPTH_MODE_WRITE_ONLY) {
-        if (depthBuffer) throw "Pass null or undefined for depthBuffer when depthMode is HX.FrameBuffer.DEPTH_MODE_WRITE_ONLY!";
-        this._depthBuffer = HX.GL.createRenderbuffer();
+        //if (depthBuffer) throw "Pass null or undefined for depthBuffer when depthMode is HX.FrameBuffer.DEPTH_MODE_WRITE_ONLY!";
+        this._depthBuffer = depthBuffer || HX.GL.createRenderbuffer();
     }
     else {
         this._depthBuffer = depthBuffer;

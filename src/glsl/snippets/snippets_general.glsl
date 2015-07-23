@@ -70,16 +70,16 @@ void hx_decodeNormalDepth(vec4 data, out vec3 normal, out float depth)
     #endif
 }
 
+vec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness)
+{
+	return vec4(metallicness, specularNormalReflection * 5.0, roughness, 1.0);
+}
+
 void hx_processGeometryMRT(vec4 albedo, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 albedoData, out vec4 normalData, out vec4 specularData)
 {
     albedoData = albedo;
 	normalData = hx_encodeNormalDepth(normal, depth);
-
-    specularData.x = metallicness;
-    // scale specular reflectivity by 5 to have better precision since we only need the range ~[0, .2] (.17 = diamond)
-    specularData.y = specularNormalReflection * 5.0;
-    specularData.z = roughness;
-    specularData.w = 1.0;
+    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness);
 }
 
 vec4 hx_gammaToLinear(vec4 color)

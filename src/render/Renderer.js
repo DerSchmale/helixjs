@@ -112,12 +112,13 @@ HX.ScreenRenderer = function()
     this._viewportWidth = 0;
     this._viewportHeight = 0;
 
-    this._copyTexture = new HX.CopyTextureShader();
-    this._copyXChannel = new HX.CopyTextureShader("x");
-    this._copyYChannel = new HX.CopyTextureShader("y");
-    this._copyZChannel = new HX.CopyTextureShader("z");
-    this._copyWChannel = new HX.CopyTextureShader("w");
+    this._copyTexture = new HX.CopyChannelsShader();
+    this._copyXChannel = new HX.CopyChannelsShader("x");
+    this._copyYChannel = new HX.CopyChannelsShader("y");
+    this._copyZChannel = new HX.CopyChannelsShader("z");
+    this._copyWChannel = new HX.CopyChannelsShader("w");
     this._debugDepth = new HX.DebugDepthShader();
+    this._debugNormals = new HX.DebugNormalsShader();
     this._applyGamma = new HX.ApplyGammaShader();
     this._gammaApplied = false;
     this._linearizeDepthShader = new HX.LinearizeDepthShader();
@@ -250,7 +251,7 @@ HX.ScreenRenderer.prototype._linearizeDepth = function()
     HX.GL.disable(HX.GL.CULL_FACE);
 
     HX.setRenderTarget(this._linearDepthFBO);
-    this._linearizeDepthShader.execute(this._rectMesh, HX.EXT_DEPTH_TEXTURE? this._depthBuffer : this._gbuffer[2], this._camera)
+    this._linearizeDepthShader.execute(this._rectMesh, HX.EXT_DEPTH_TEXTURE? this._depthBuffer : this._gbuffer[1], this._camera)
     this._linearDepthInvalid = false;
 }
 
@@ -290,7 +291,7 @@ HX.ScreenRenderer.prototype._renderToScreen = function(dt)
             break;
         case HX.ScreenRenderer.DEBUG_NORMALS:
             HX.setRenderTarget(null);
-            this._copyTexture.execute(this._rectMesh, this._gbuffer[1]);
+            this._debugNormals.execute(this._rectMesh, this._gbuffer[1]);
             break;
         case HX.ScreenRenderer.DEBUG_METALLICNESS:
             HX.setRenderTarget(null);

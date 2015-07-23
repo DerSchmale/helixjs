@@ -150,11 +150,11 @@ HX.createRenderer = function()
  */
 HX.initFromCanvas = function(canvas, options)
 {
-    var options = {
+    var webglFlags = {
         antialias:false,
         premultipliedAlpha: false
     };
-    var context = canvas.getContext('webgl', options) || canvas.getContext('experimental-webgl', options);
+    var context = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
     HX.initFromContext(context, options);
 
     if (!HX.GL) throw "WebGL not supported";

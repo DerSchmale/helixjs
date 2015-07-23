@@ -24,9 +24,9 @@ vec2 hx_floatToRG8(float value)
     return enc;
 }
 
-float hx_RG8ToFloat(vec2 rgba)
+float hx_RG8ToFloat(vec2 rg)
 {
-    return dot(rgba, vec2(1.0, 1.0/255.0));
+    return dot(rg, vec2(1.0, 1.0/255.0));
 }
 
 vec4 hx_encodeNormalDepth(vec3 normal, float depth)
@@ -37,22 +37,24 @@ vec4 hx_encodeNormalDepth(vec3 normal, float depth)
 		data.xy = normal.xy * .5 + .5;
 		data.zw = hx_floatToRG8(depth);
 		// use some of the lower precision depth to encode store normal sign
-		data.w *= sign(normal.z) * data.w * .5 + .5;
+		data.w = sign(normal.z) * data.w * .5 + .5;
 		return data;
 	#else
 		return vec4(normal * .5 + .5, 1.0);
     #endif
 }
 
-float hx_readDepth(sampler2D sampler, vec2 uv)
+vec3 hx_decodeNormal(vec4 data)
 {
-	#ifdef HX_STORE_EXPLICIT_DEPTH
-		vec4 data = texture2D(sampler, uv);
+    #ifdef HX_STORE_EXPLICIT_DEPTH
+    	vec3 normal;
+    	normal.xy = data.xy * 2.0 - 1.0;
+		normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));
 		data.w = data.w * 2.0 - 1.0;
-		data.w *= sign(data.w);
-		return hx_RG8ToFloat(data);
+		normal.z *= sign(data.w);
+		return normal;
     #else
-    	return texture2D(sampler, uv).x;
+    	return data.xyz * 2.0 - 1.0;
     #endif
 }
 

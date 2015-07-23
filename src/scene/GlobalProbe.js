@@ -60,12 +60,6 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
 HX.GlobalSpecularProbe.vertexShader =
     "precision mediump float;\n\
     \n\
-    attribute vec4 hx_position;\n\
-    attribute vec2 hx_texCoord;\n\
-    \n\
-    uniform mat4 hx_inverseViewProjectionMatrix;\n\
-    uniform vec3 hx_cameraWorldPosition;\n\
-    \n\
     varying vec3 viewWorldDir;\n\
     varying vec2 uv;\n\
     \n\

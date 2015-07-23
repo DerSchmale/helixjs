@@ -21,11 +21,6 @@ HX.ScreenSpaceReflections.prototype = Object.create(HX.Effect.prototype);
 HX.ScreenSpaceReflections._vertexShader =
     "precision mediump float;\n\
     \n\
-    attribute vec4 hx_position;\n\
-    attribute vec2 hx_texCoord;\n\
-    \n\
-    uniform mat4 hx_inverseProjectionMatrix;\n\
-    \n\
     varying vec2 uv;\n\
     varying vec3 viewDir;\n\
     varying vec3 nearViewPos;\n\
@@ -44,18 +39,6 @@ HX.ScreenSpaceReflections.getFragmentShader = function(numSamples)
             \n\
             varying vec2 uv;\n\
             varying vec3 viewDir;\n\
-            \n\
-            uniform sampler2D hx_source;\n\
-            uniform sampler2D hx_gbufferAlbedo;\n\
-            uniform sampler2D hx_gbufferNormals;\n\
-            uniform sampler2D hx_gbufferDepth;\n\
-            uniform sampler2D hx_gbufferSpecular;\n\
-            \n\
-            uniform mat4 hx_projectionMatrix;\n\
-            uniform mat4 hx_viewMatrix;\n\
-            uniform float hx_cameraFrustumRange;\n\
-            uniform float hx_cameraNearPlaneDistance;\n\
-            uniform vec2 hx_renderTargetResolution;\n\
             \n\
             uniform float stepSize;\n\
             uniform float nearSampleRatio;\n\

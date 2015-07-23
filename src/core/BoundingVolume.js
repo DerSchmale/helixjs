@@ -671,18 +671,12 @@ HX.BoundingVolume._debugMaterialXML = '\
 <material>\n\
     <shaders>\n\
         <shader id="vertexShader">\n\
-            attribute vec4 hx_position;\n\
-            \n\
-            uniform mat4 hx_wvpMatrix;\n\
-            \n\
             void main()\n\
             {\n\
                 gl_Position = hx_wvpMatrix * hx_position;\n\
             }\n\
         </shader>\n\
         <shader id="fragmentShader">\n\
-            precision mediump float;\n\
-            \n\
             uniform vec4 color;\n\
             \n\
             void main()\n\

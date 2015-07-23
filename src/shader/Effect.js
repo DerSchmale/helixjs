@@ -163,12 +163,7 @@ HX.Effect.prototype =
 };
 
 HX.EffectPass.DEFAULT_VERTEX_SHADER =
-        "precision mediump float;\
-        \
-        attribute vec4 hx_position;\
-        attribute vec2 hx_texCoord;\
-        \
-        varying vec2 uv;\
+        "varying vec2 uv;\
         \
         void main()\
         {\

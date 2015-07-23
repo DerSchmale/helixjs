@@ -77,9 +77,6 @@ HX.AmbientLight.prototype._initLightPass =  function()
 HX.AmbientLight.vertexShader =
     "precision mediump float;\
     \
-    attribute vec4 hx_position;\
-    attribute vec2 hx_texCoord;\
-    \
     varying vec2 uv;\
     \
     void main()\

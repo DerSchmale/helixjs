@@ -126,12 +126,6 @@ HX.FogEffect.prototype.setHeight = function(value)
 HX.FogPass._vertexShader =
     "precision mediump float;\n\
     \n\
-    attribute vec4 hx_position;\n\
-    attribute vec2 hx_texCoord;\n\
-    \n\
-    uniform mat4 hx_inverseProjectionMatrix;\n\
-    uniform mat4 hx_cameraWorldMatrix;\n\
-    \n\
     varying vec2 uv;\n\
     varying vec3 viewWorldDir;\n\
     \n\
@@ -151,14 +145,6 @@ HX.FogPass._fragmentShader =
     uniform float density;\n\
     uniform float startDistance;\n\
     uniform float height;\n\
-    \n\
-    uniform vec3 hx_cameraWorldPosition;\n\
-    uniform float hx_cameraFrustumRange;\n\
-    uniform float hx_cameraNearPlaneDistance;\n\
-    uniform mat4 hx_projectionMatrix;\n\
-    \n\
-    uniform sampler2D hx_source;\n\
-    uniform sampler2D hx_gbufferDepth;\n\
     \n\
     void main()\n\
     {\n\

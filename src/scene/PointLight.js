@@ -205,12 +205,6 @@ HX.PointLight.prototype._initLightPasses =  function()
 HX.PointLight.fullScreenVertexShader =
     "precision mediump float;\
     \
-    attribute vec4 hx_position;\
-    attribute vec2 hx_texCoord;\
-    \
-    uniform mat4 hx_inverseProjectionMatrix;\
-    uniform mat4 hx_cameraWorldMatrix;\
-    \
     varying vec2 uv;\
     varying vec3 viewWorldDir;\
     \
@@ -232,16 +226,6 @@ HX.PointLight.getFullScreenFragmentShader = function(numLights)
         uniform vec3 lightColor[LIGHTS_PER_BATCH];\
         uniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\
         uniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\
-        \
-        uniform mat4 hx_projectionMatrix;\
-        uniform vec3 hx_cameraWorldPosition;\
-        uniform float hx_cameraFrustumRange;\n\
-        uniform float hx_cameraNearPlaneDistance;\n\
-        \
-        uniform sampler2D hx_gbufferAlbedo;\
-        uniform sampler2D hx_gbufferNormals;\
-        uniform sampler2D hx_gbufferSpecular;\
-        uniform sampler2D hx_gbufferDepth;\
         \
         void main()\
         {\

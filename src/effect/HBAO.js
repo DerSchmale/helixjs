@@ -165,11 +165,6 @@ HX.HBAO.prototype._initDitherTexture = function()
 HX.HBAO.getVertexShader = function()
 {
     return "\
-        attribute vec4 hx_position;\n\
-        attribute vec2 hx_texCoord;\n\
-        \n\
-        uniform mat4 hx_inverseProjectionMatrix;\n\
-        \n\
         varying vec2 uv;\n\
         varying vec3 viewDir;\n\
         varying vec3 frustumCorner;\n\
@@ -186,17 +181,8 @@ HX.HBAO.getVertexShader = function()
 HX.HBAO.getFragmentShader = function(numRays, numSamplesPerRay)
 {
     return "#define NUM_RAYS " + numRays + "\n" +
-            "#define NUM_SAMPLES_PER_RAY " + numSamplesPerRay + "\n";
-
+            "#define NUM_SAMPLES_PER_RAY " + numSamplesPerRay + "\n" +
         "\n\
-        uniform mat4 hx_projectionMatrix;\n\
-        uniform mat4 hx_viewMatrix;\n\
-        uniform mat4 hx_cameraWorldMatrix;\n\
-        uniform vec2 hx_renderTargetResolution;\n\
-        uniform vec2 hx_rcpRenderTargetResolution;\n\
-        uniform float hx_cameraFrustumRange;\n\
-        uniform float hx_cameraNearPlaneDistance;\n\
-        \n\
         uniform int numRays;\n\
         uniform int numSamplesPerRay;\n\
         uniform float strengthPerRay;\n\
@@ -204,8 +190,6 @@ HX.HBAO.getFragmentShader = function(numRays, numSamplesPerRay)
         uniform float bias;\n\
         uniform float rcpFallOffDistance;\n\
         \n\
-        uniform sampler2D hx_gbufferNormals;\n\
-        uniform sampler2D hx_gbufferDepth;\n\
         uniform sampler2D sampleDirTexture;\n\
         uniform sampler2D ditherTexture;\n\
         \n\

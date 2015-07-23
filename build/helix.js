@@ -8,7 +8,7 @@ HX.InitOptions = function()
     this.useHDR = false;   // only if available
     this.useLinearSpace = true;
     this.ignoreDrawBuffersExtension = true;     // for debug purposes, forces multiple passes for the GBuffer
-    this.ignoreDepthTexturesExtension = false;     // for debug purposes, forces storing depth info explicitly
+    this.ignoreDepthTexturesExtension = true;     // for debug purposes, forces storing depth info explicitly
 };
 
 HX.ShaderLibrary = {
@@ -260,7 +260,7 @@ HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = '#extension GL_EXT_draw
 
 HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = '#if defined(ALBEDO_MAP) || defined(NORMAL_GLOSS_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldMatrix * hx_normal;\n\n    #if defined(ALBEDO_MAP) || defined(NORMAL_GLOSS_MAP)\n    texCoords = hx_texCoord;\n    #endif\n}';
 
-HX.ShaderLibrary['default_normals_fragment.glsl'] = 'varying vec3 normal;\n\nvoid main()\n{\n    gl_FragColor = vec4(normal * .5 + .5, 1.0);\n}';
+HX.ShaderLibrary['default_normals_fragment.glsl'] = 'varying vec3 normal;\n\nvoid main()\n{\n    gl_FragColor = hx_encodeNormalDepth(normal, gl_FragCoord.z);\n}';
 
 HX.ShaderLibrary['default_normals_vertex.glsl'] = 'varying vec3 normal;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldMatrix * hx_normal;\n}';
 

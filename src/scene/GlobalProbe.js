@@ -90,10 +90,6 @@ HX.GlobalSpecularProbe.getFragmentShader = function(specular) {
         varying vec3 viewWorldDir;\n\
         varying vec2 uv;\n\
         \n\
-        uniform sampler2D hx_gbufferAlbedo;\n\
-        uniform sampler2D hx_gbufferNormals;\n\
-        uniform sampler2D hx_gbufferSpecular;\n\
-        \n\
         uniform samplerCube specularProbeSampler;\n\
         uniform float numMips;\n\
         uniform float mipOffset;\n\

@@ -1,12 +1,4 @@
-attribute vec4 hx_position;
-attribute vec3 hx_normal;
-
-uniform mat4 hx_wvpMatrix;
-uniform mat3 hx_normalWorldMatrix;
-
 #if defined(ALBEDO_MAP) || defined(NORMAL_GLOSS_MAP)
-attribute vec2 hx_texCoord;
-
 varying vec2 texCoords;
 #endif
 

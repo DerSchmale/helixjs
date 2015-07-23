@@ -9,7 +9,7 @@ float hx_lightVisibility(in vec3 normal, in vec3 viewDir, float roughness, float
 	return 1.0/(g1*g2);
 }
 
-void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, float transmittance, out vec3 diffuseColor, out vec3 specularColor) 
+void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)
 {
 	float nDotL = -dot(lightDir, normal);
 	float nDotLClamped = max(nDotL, 0.0);
@@ -34,11 +34,11 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;
 
 	//approximated fresnel-based energy conservation
-	diffuseColor = irradiance * (1.0 - fresnel) + max(-nDotL, 0.0) * lightColor * transmittance;
+	diffuseColor = irradiance * (1.0 - fresnel);
 	specularColor = irradiance * fresnel * microfacet;
 }
 
-void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, float transmittance, out vec3 diffuseColor, out vec3 specularColor)
+/*void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, float transmittance, out vec3 diffuseColor, out vec3 specularColor)
 {
 	float nDotL = -dot(lightDir, normal);
 	float nDotLClamped = max(nDotL, 0.0);
@@ -53,4 +53,4 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 
 	diffuseColor = irradiance;
 	specularColor = irradiance * microfacet;
-}
+}*/

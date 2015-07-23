@@ -352,8 +352,7 @@ HX.PointLight.sphericalFragmentShader =
         vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\
         float depth = texture2D(hx_gbufferDepth, uv).x;\
         \
-        float zView = hx_depthToViewZ(depth, hx_projectionMatrix);\
-        vec3 worldPosition = hx_cameraWorldPosition + zView * viewWorldDir;\
+        vec3 worldPos = hx_cameraWorldPosition + viewZ * viewWorldDir;\
         \
         vec3 normal = normalize(normalSample.xyz - .5);\
         albedoSample = hx_gammaToLinear(albedoSample);\

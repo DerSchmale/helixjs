@@ -31,8 +31,8 @@ HX.Shader.prototype = {
 
     init: function(vertexShaderCode, fragmentShaderCode)
     {
-        vertexShaderCode = HX.GLSLIncludeGeneral + vertexShaderCode;
-        fragmentShaderCode = HX.GLSLIncludeGeneral + fragmentShaderCode;
+        vertexShaderCode = HX.GLSLIncludeVertexShaders + vertexShaderCode;
+        fragmentShaderCode = HX.GLSLIncludeFragmentShaders + fragmentShaderCode;
 
         this._vertexShader = HX.GL.createShader(HX.GL.VERTEX_SHADER);
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {

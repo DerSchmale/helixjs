@@ -1,10 +1,4 @@
-attribute vec4 hx_position;
-
-uniform mat4 hx_wvpMatrix;
-
 #if defined(ALBEDO_MAP)
-attribute vec2 hx_texCoord;
-
 varying vec2 texCoords;
 #endif
 

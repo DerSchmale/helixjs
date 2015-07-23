@@ -94,11 +94,6 @@ HX.AmbientLight.getFragmentShader = function(useAO)
             "precision mediump float;\n\
             uniform vec3 lightColor;\n\
             \n\
-            uniform sampler2D hx_gbufferAlbedo;\n\
-            #ifdef USE_AO\n\
-            uniform sampler2D hx_source;    // contains AO \n\
-            #endif\n\
-            \n\
             varying vec2 uv;\n\
             \n\
             void main()\n\

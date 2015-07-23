@@ -1,8 +1,6 @@
 varying vec2 uv;
 
 uniform sampler2D sampler;
-uniform float hx_rcpCameraFrustumRange;
-uniform mat4 hx_projectionMatrix;
 
 float readDepth(sampler2D sampler, vec2 uv)
 {

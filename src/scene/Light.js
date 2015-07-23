@@ -7,7 +7,7 @@
 HX.Light = function (type)
 {
     HX.SceneNode.call(this);
-    this._luminance = 1.0;
+    this._luminance = 3.1415;
     this._luminanceBound = 1 / 255;
     this._type = type; // used for sorting (TODO: Does this work?)
     this._color = new HX.Color(1.0, 1.0, 1.0);

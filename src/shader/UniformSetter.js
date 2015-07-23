@@ -43,6 +43,7 @@ HX.UniformSetter._init = function()
     HX.UniformSetter._table.hx_cameraWorldPosition = HX.CameraWorldPosSetter;
     HX.UniformSetter._table.hx_cameraWorldMatrix = HX.CameraWorldMatrixSetter;
     HX.UniformSetter._table.hx_cameraFrustumRange = HX.CameraFrustumRangeSetter;
+    HX.UniformSetter._table.hx_rcpCameraFrustumRange = HX.RCPCameraFrustumRangeSetter;
     HX.UniformSetter._table.hx_cameraNearPlaneDistance = HX.CameraNearPlaneDistanceSetter;
     HX.UniformSetter._table.hx_cameraFarPlaneDistance = HX.CameraFarPlaneDistanceSetter;
     HX.UniformSetter._table.hx_renderTargetResolution = HX.RenderTargetResolutionSetter;
@@ -187,6 +188,15 @@ HX.CameraFrustumRangeSetter = function()
 HX.CameraFrustumRangeSetter.prototype.execute = function (worldMatrix, camera)
 {
     HX.GL.uniform1f(this.location, camera.getFarDistance() - camera.getNearDistance());
+};
+
+HX.RCPCameraFrustumRangeSetter = function()
+{
+};
+
+HX.RCPCameraFrustumRangeSetter.prototype.execute = function (worldMatrix, camera)
+{
+    HX.GL.uniform1f(this.location, 1.0 / (camera.getFarDistance() - camera.getNearDistance()));
 };
 
 HX.CameraNearPlaneDistanceSetter = function()

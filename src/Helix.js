@@ -80,7 +80,8 @@ HX.initFromContext = function(glContext, options)
         HX.OPTIONS.useHDR = false;
     }
 
-    HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
+    HX.GLSLIncludeVertexShaders = defines + HX.GLSLIncludeVertexShaders;
+    HX.GLSLIncludeFragmentShaders = defines + HX.GLSLIncludeFragmentShaders;
 
     // shortcuts
     HX.TEXTURE_FILTER = {};

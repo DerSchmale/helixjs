@@ -179,8 +179,15 @@ HX.DirectionalLight.prototype._updateWorldBounds = function()
 
 HX.DirectionalLight.prototype._initLightPass =  function()
 {
-    var vertexShader = HX.DirectionalLight.getVertexShader(this._castsShadows);
-    var fragmentShader = HX.DirectionalLight.getFragmentShader(this._castsShadows? this._numCascades : 0, this._numShadowSamples);
+    var defines = "";
+
+    if (this._castsShadows) {
+        defines += "#define CAST_SHADOWS\n";
+        defines += "#define NUM_CASCADES " + this._numCascades + "\n";
+        defines += "#define NUM_SHADOW_SAMPLES " + this._numShadowSamples + "\n";
+    }
+    var vertexShader = defines + HX.ShaderLibrary.get("directional_light_vertex.glsl");
+    var fragmentShader = HX.DEFERRED_LIGHT_MODEL + defines + HX.ShaderLibrary.get("directional_light_fragment.glsl");
     var pass = new HX.EffectPass(vertexShader, fragmentShader, HX.Light._rectMesh);
 
     this._dirLocation = pass.getUniformLocation("lightWorldDirection");
@@ -214,156 +221,4 @@ HX.DirectionalLight.prototype._invalidateLightPass = function()
         this._shadowSoftnessLocation = null;
         this._matrixData = null;
     }
-}
-
-HX.DirectionalLight.getVertexShader = function(castsShadows)
-{
-    return (castsShadows? "#define CAST_SHADOWS\n" : "") +
-    "precision mediump float;\n\
-    \n\
-    attribute vec4 hx_position;\n\
-    attribute vec2 hx_texCoord;\n\
-    \n\
-    #ifdef CAST_SHADOWS\n\
-    uniform mat4 hx_inverseProjectionMatrix;\n\
-    uniform mat4 hx_cameraWorldMatrix;\n\
-    #else\n\
-    uniform mat4 hx_inverseViewProjectionMatrix;\n\
-    uniform vec3 hx_cameraWorldPosition;\n\
-    #endif\n\
-    \n\
-    varying vec2 uv;\n\
-    varying vec3 viewWorldDir;\n\
-    \n\
-    void main()\n\
-    {\n\
-            uv = hx_texCoord;\n\
-            #ifdef CAST_SHADOWS\n\
-                vec4 unproj = hx_inverseProjectionMatrix * vec4(hx_position.xy, 0.0, 1.0);\n\
-                vec3 viewDir = unproj.xyz / unproj.w;\n\
-                viewDir /= viewDir.z;\n\
-                viewWorldDir = mat3(hx_cameraWorldMatrix) * viewDir;\n\
-            #else\n\
-                vec4 unproj = hx_inverseViewProjectionMatrix * vec4(hx_position.xy, 0.0, 1.0);\n\
-                unproj /= unproj.w;\n\
-                viewWorldDir = unproj.xyz - hx_cameraWorldPosition;\n\
-            #endif\n\
-            gl_Position = hx_position;\n\
-    }";
-}
-
-HX.DirectionalLight.getFragmentShader = function(numCascades, numShadowSamples)
-{
-    return  (numCascades > 0? "#define NUM_CASCADES " + numCascades + "\n" : "") +
-            (numShadowSamples > 1? "#define NUM_SHADOW_SAMPLES " + numShadowSamples + "\n" : "") +
-    HX.DEFERRED_LIGHT_MODEL +
-    "varying vec2 uv;\n\
-    varying vec3 viewWorldDir;\n\
-    \n\
-    uniform vec3 lightColor;\n\
-    uniform vec3 lightWorldDirection;\n\
-    \n\
-    uniform sampler2D hx_gbufferAlbedo;\n\
-    uniform sampler2D hx_gbufferNormals;\n\
-    uniform sampler2D hx_gbufferSpecular;\n\
-    \n\
-    #ifdef NUM_CASCADES\n\
-        uniform sampler2D shadowMap;\n\
-        uniform sampler2D hx_gbufferDepth;\n\
-        uniform float hx_cameraFrustumRange;\n\
-        \n\
-        uniform vec3 hx_cameraWorldPosition;\n\
-        uniform mat4 hx_projectionMatrix;\n\
-        uniform mat4 shadowMapMatrices[NUM_CASCADES];\n\
-        uniform float splitDistances[NUM_CASCADES];\n\
-        uniform float depthBias;\n\
-        \n\
-        #ifdef NUM_SHADOW_SAMPLES\n\
-            uniform sampler2D hx_dither2D;\n\
-            uniform vec2 hx_dither2DTextureScale;\n\
-            \n\
-            uniform vec2 shadowMapSoftnesses[NUM_CASCADES];\n\
-            uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];\n\
-        #endif\n\
-        \n\
-        // view-space position\n\
-        #ifdef NUM_SHADOW_SAMPLES\n\
-        void getShadowMapCoord(in vec3 worldPos, in float viewZ, out vec4 coord, out vec2 softness)\n\
-        #else\n\
-        void getShadowMapCoord(in vec3 worldPos, in float viewZ, out vec4 coord)\n\
-        #endif\n\
-        {\n\
-            mat4 shadowMapMatrix = shadowMapMatrices[NUM_CASCADES - 1];\n\
-            \n\
-            for (int i = 0; i < NUM_CASCADES - 1; ++i) {\n\
-                if (viewZ < splitDistances[i]) {\n\
-                    shadowMapMatrix = shadowMapMatrices[i];\n\
-                    #ifdef NUM_SHADOW_SAMPLES\n\
-                        softness = shadowMapSoftnesses[i];\n\
-                    #endif\n\
-                    break;\n\
-                }\n\
-            }\n\
-            coord = shadowMapMatrix * vec4(worldPos, 1.0);\n\
-        }\n\
-    #endif\n\
-    \n\
-    void main()\n\
-    {\n\
-        vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);\n\
-        vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n\
-        vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n\
-        vec3 normal = normalize(normalSample.xyz - .5);\n\
-        vec3 normalSpecularReflectance;\n\
-        \n\
-        albedoSample = hx_gammaToLinear(albedoSample);\n\
-        vec3 normalizedWorldView = normalize(viewWorldDir);\n\
-        #ifdef NUM_CASCADES\n\
-            normalizedWorldView = -normalizedWorldView;\n\
-        #endif\n\
-        \n\
-        float roughness;\n\
-        hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness);\n\
-        vec3 diffuseReflection;\n\
-        vec3 specularReflection;\n\
-        hx_lighting(normal, lightWorldDirection, normalizedWorldView, lightColor, normalSpecularReflectance, roughness, normalSample.w, diffuseReflection, specularReflection);\n\
-        diffuseReflection *= albedoSample.xyz * (1.0 - specularSample.x);\n\
-        vec3 totalReflection = diffuseReflection + specularReflection;\n\
-        \n\
-        #ifdef NUM_CASCADES\n\
-            float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n\
-            float viewZ = -depth * hx_cameraFrustumRange;\n\
-            vec3 worldPos = hx_cameraWorldPosition + viewZ * viewWorldDir;\n\
-            \n\
-            vec4 shadowMapCoord;\n\
-            #ifdef NUM_SHADOW_SAMPLES\n\
-                vec2 radii;\n\
-                getShadowMapCoord(worldPos, -viewZ, shadowMapCoord, radii);\n\
-                float shadowTest = 0.0;\n\
-                vec4 dither = texture2D(hx_dither2D, uv * hx_dither2DTextureScale);\n\
-                dither *= radii.xxyy;  // add radius scale\n\
-                for (int i = 0; i < NUM_SHADOW_SAMPLES; ++i) {\n\
-                    vec2 offset;\
-                    offset.x = dot(dither.xy, hx_poissonDisk[i]);\n\
-                    offset.y = dot(dither.zw, hx_poissonDisk[i]);\n\
-                    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy + offset).x;\n\
-                    float diff = shadowMapCoord.z - shadowSample;\n\
-                    if (diff < depthBias) diff = -1.0;\n\
-                    shadowTest += float(diff < 0.0);\n\
-                }\n\
-                shadowTest /= float(NUM_SHADOW_SAMPLES);\n\
-                \n\
-            #else\n\
-                getShadowMapCoord(worldPos, -viewZ, shadowMapCoord);\n\
-                float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n\
-                float diff = shadowMapCoord.z - shadowSample;\n\
-                if (diff < .005) diff = -1.0;\n\
-                float shadowTest = float(diff < 0.0);\n\
-            #endif\n\
-            totalReflection *= shadowTest;\n\
-        \n\
-        #endif\n\
-        \n\
-        gl_FragColor = vec4(totalReflection, 0.0);\n\
-    }";
-}
+};

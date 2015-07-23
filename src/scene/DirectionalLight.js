@@ -15,7 +15,7 @@ HX.DirectionalLight = function()
     this._shadowSoftness = .05;
     this._depthBias = .01;
 
-    this.setDirection(new HX.Float4(1.0, -1.0, 1.0, 0.0));
+    this.setDirection(new HX.Float4(-1.0, -1.0, -1.0, 0.0));
     this._matrixData = null;
     this._shadowSoftnessData = null;
 

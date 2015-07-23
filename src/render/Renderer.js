@@ -1,3 +1,15 @@
+HX.DebugRenderMode = {
+    DEBUG_NONE: 0,
+    DEBUG_ALBEDO: 1,
+    DEBUG_NORMALS: 2,
+    DEBUG_METALLICNESS: 3,
+    DEBUG_SPECULAR_NORMAL_REFLECTION: 4,
+    DEBUG_ROUGHNESS: 5,
+    DEBUG_DEPTH: 6,
+    DEBUG_LIGHT_ACCUM: 7,
+    DEBUG_AO: 8
+};
+
 /**
  *
  * @constructor
@@ -140,21 +152,11 @@ HX.ScreenRenderer = function()
 
     this._linearDepthInvalid = true;
 
-    this._debugMode = HX.ScreenRenderer.DEBUG_NONE;
+    this._debugMode = HX.DebugRenderMode.DEBUG_NONE;
     this._camera = null;
 };
 
 HX.ScreenRenderer.prototype = Object.create(HX.Renderer.prototype);
-
-HX.ScreenRenderer.DEBUG_NONE = 0;
-HX.ScreenRenderer.DEBUG_ALBEDO = 1;
-HX.ScreenRenderer.DEBUG_NORMALS = 2;
-HX.ScreenRenderer.DEBUG_METALLICNESS = 3;
-HX.ScreenRenderer.DEBUG_SPECULAR_NORMAL_REFLECTION = 4;
-HX.ScreenRenderer.DEBUG_ROUGHNESS = 5;
-HX.ScreenRenderer.DEBUG_DEPTH = 6;
-HX.ScreenRenderer.DEBUG_LIGHT_ACCUM = 7;
-HX.ScreenRenderer.DEBUG_AO = 8;
 
 HX.ScreenRenderer.prototype.setDebugMode = function(value)
 {
@@ -285,36 +287,36 @@ HX.ScreenRenderer.prototype._renderPostGBufferPass = function(gbufferIndex, pass
 HX.ScreenRenderer.prototype._renderToScreen = function(dt)
 {
     switch (this._debugMode) {
-        case HX.ScreenRenderer.DEBUG_ALBEDO:
+        case HX.DebugRenderMode.DEBUG_ALBEDO:
             HX.setRenderTarget(null);
             this._copyTexture.execute(this._rectMesh, this._gbuffer[0]);
             break;
-        case HX.ScreenRenderer.DEBUG_NORMALS:
+        case HX.DebugRenderMode.DEBUG_NORMALS:
             HX.setRenderTarget(null);
             this._debugNormals.execute(this._rectMesh, this._gbuffer[1]);
             break;
-        case HX.ScreenRenderer.DEBUG_METALLICNESS:
+        case HX.DebugRenderMode.DEBUG_METALLICNESS:
             HX.setRenderTarget(null);
             this._copyXChannel.execute(this._rectMesh, this._gbuffer[2]);
             break;
-        case HX.ScreenRenderer.DEBUG_SPECULAR_NORMAL_REFLECTION:
+        case HX.DebugRenderMode.DEBUG_SPECULAR_NORMAL_REFLECTION:
             HX.setRenderTarget(null);
             this._copyYChannel.execute(this._rectMesh, this._gbuffer[2]);
             break;
-        case HX.ScreenRenderer.DEBUG_ROUGHNESS:
+        case HX.DebugRenderMode.DEBUG_ROUGHNESS:
             HX.setRenderTarget(null);
             this._copyZChannel.execute(this._rectMesh, this._gbuffer[2]);
             break;
-        case HX.ScreenRenderer.DEBUG_DEPTH:
+        case HX.DebugRenderMode.DEBUG_DEPTH:
             HX.setRenderTarget(null);
             this._debugDepth.execute(this._rectMesh, this._gbuffer[3]);
             break;
-        case HX.ScreenRenderer.DEBUG_LIGHT_ACCUM:
+        case HX.DebugRenderMode.DEBUG_LIGHT_ACCUM:
             this._renderLightAccumulation();
             HX.setRenderTarget(null);
             this._applyGamma.execute(this._rectMesh, this._hdrBuffers[0]);
             break;
-        case HX.ScreenRenderer.DEBUG_AO:
+        case HX.DebugRenderMode.DEBUG_AO:
             HX.setRenderTarget(null);
             this._copyWChannel.execute(this._rectMesh, this._aoEffect.getAOTexture());
             break;

@@ -28,7 +28,7 @@ uniform vec3 lightWorldDirection;
 		for (int i = 0; i < NUM_CASCADES - 1; ++i) {
 			if (viewZ < splitDistances[i]) {
 				shadowMapMatrix = shadowMapMatrices[i];
-				#ifdef NUM_SHADOW_SAMPLES
+				#if NUM_SHADOW_SAMPLES > 1
 					softness = shadowMapSoftnesses[i];
 				#endif
 				break;
@@ -43,30 +43,33 @@ void main()
 	vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);
 	vec4 normalSample = texture2D(hx_gbufferNormals, uv);
 	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);
-	vec3 normal = normalize(normalSample.xyz - .5);
+	vec3 normal = hx_decodeNormal(normalSample);
 	vec3 normalSpecularReflectance;
 
 	albedoSample = hx_gammaToLinear(albedoSample);
 	vec3 normalizedWorldView = normalize(viewWorldDir);
-	#ifdef NUM_CASCADES
+
+	// not sure what this is about?
+	#ifdef CAST_SHADOWS
 		normalizedWorldView = -normalizedWorldView;
 	#endif
 
 	float roughness;
-	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness);
+	float metallicness;
+	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness, metallicness);
 	vec3 diffuseReflection;
 	vec3 specularReflection;
 	hx_lighting(normal, lightWorldDirection, normalizedWorldView, lightColor, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);
 	diffuseReflection *= albedoSample.xyz * (1.0 - specularSample.x);
 	vec3 totalReflection = diffuseReflection + specularReflection;
 
-	#ifdef NUM_CASCADES
+	#ifdef CAST_SHADOWS
 		float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
 		float viewZ = -depth * hx_cameraFrustumRange;
 		vec3 worldPos = hx_cameraWorldPosition + viewZ * viewWorldDir;
 
 		vec4 shadowMapCoord;
-		#ifdef NUM_SHADOW_SAMPLES
+		#if NUM_SHADOW_SAMPLES > 1
 			vec2 radii;
 			getShadowMapCoord(worldPos, -viewZ, shadowMapCoord, radii);
 			float shadowTest = 0.0;

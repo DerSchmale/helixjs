@@ -159,9 +159,10 @@ vec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSp
     return mix(vec3(insulatorNormalSpecularReflectance), albedo, metallicness);
 }
 
-void hx_decodeReflectionData(in vec4 albedoSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness)
+void hx_decodeReflectionData(in vec4 albedoSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)
 {
-    normalSpecularReflectance = mix(vec3(specularSample.y * .2), albedoSample.xyz, specularSample.x);
+	metallicness = specularSample.x;
+    normalSpecularReflectance = mix(vec3(specularSample.y * .2), albedoSample.xyz, metallicness);
     //prevent from being 0 
     roughness = clamp(specularSample.z, .01, .99);
 }

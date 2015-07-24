@@ -11,8 +11,8 @@ HX.MeshData = function ()
     this._vertexAttributes = [];
 }
 
-HX.MeshData.DEFAULT_VERTEX_SIZE = 14;
-HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE = 15;
+HX.MeshData.DEFAULT_VERTEX_SIZE = 11;
+HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE = 12;
 
 HX.MeshData.createDefaultEmpty = function()
 {
@@ -20,8 +20,7 @@ HX.MeshData.createDefaultEmpty = function()
     data.addVertexAttribute('hx_position', 0, 3, HX.MeshData.DEFAULT_VERTEX_SIZE);
     data.addVertexAttribute('hx_normal', 3, 3, HX.MeshData.DEFAULT_VERTEX_SIZE);
     data.addVertexAttribute('hx_tangent', 6, 3, HX.MeshData.DEFAULT_VERTEX_SIZE);
-    data.addVertexAttribute('hx_bitangent', 9, 3, HX.MeshData.DEFAULT_VERTEX_SIZE);
-    data.addVertexAttribute('hx_texCoord', 12, 2, HX.MeshData.DEFAULT_VERTEX_SIZE);
+    data.addVertexAttribute('hx_texCoord', 9, 2, HX.MeshData.DEFAULT_VERTEX_SIZE);
     return data;
 };
 
@@ -31,9 +30,8 @@ HX.MeshData.createDefaultBatchEmpty = function()
     data.addVertexAttribute('hx_position', 0, 3, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
     data.addVertexAttribute('hx_normal', 3, 3, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
     data.addVertexAttribute('hx_tangent', 6, 3, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
-    data.addVertexAttribute('hx_bitangent', 9, 3, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
-    data.addVertexAttribute('hx_texCoord', 12, 2, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
-    data.addVertexAttribute('hx_instanceID', 14, 1, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
+    data.addVertexAttribute('hx_texCoord', 9, 2, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
+    data.addVertexAttribute('hx_instanceID', 11, 1, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
     return data;
 };
 

@@ -5,21 +5,19 @@ HX.NormalTangentGenerator = function()
     this._positionOffset = 0;
     this._normalOffset = 0;
     this._tangentOffset = 0;
-    this._bitangentOffset = 0;
     this._faceNormals = null;
     this._faceTangents = null;
 };
 
 HX.NormalTangentGenerator.MODE_NORMALS = 1;
 HX.NormalTangentGenerator.MODE_TANGENTS = 2;
-HX.NormalTangentGenerator.MODE_BITANGENTS = 4;
 
 HX.NormalTangentGenerator.prototype =
 {
     generate: function(meshData, mode, useFaceWeights)
     {
         if (useFaceWeights === undefined) useFaceWeights = true;
-        this._mode = mode === undefined? HX.NormalTangentGenerator.MODE_NORMALS | HX.NormalTangentGenerator.MODE_TANGENTS | HX.NormalTangentGenerator.MODE_BITANGENTS : mode;
+        this._mode = mode === undefined? HX.NormalTangentGenerator.MODE_NORMALS | HX.NormalTangentGenerator.MODE_TANGENTS : mode;
 
         this._meshData = meshData;
 
@@ -27,12 +25,10 @@ HX.NormalTangentGenerator.prototype =
         this._positionOffset = meshData.getVertexAttribute("hx_position").offset;
         this._normalOffset = meshData.getVertexAttribute("hx_normal").offset;
         this._tangentOffset = meshData.getVertexAttribute("hx_tangent").offset;
-        this._bitangentOffset = meshData.getVertexAttribute("hx_bitangent").offset;
         this._uvOffset = meshData.getVertexAttribute("hx_texCoord").offset;
         this._positionStride = meshData.getVertexAttribute("hx_position").stride;
         this._normalStride = meshData.getVertexAttribute("hx_normal").stride;
         this._tangentStride = meshData.getVertexAttribute("hx_tangent").stride;
-        this._bitangentStride = meshData.getVertexAttribute("hx_bitangent").stride;
         this._uvStride = meshData.getVertexAttribute("hx_texCoord").stride;
 
         this._calculateFaceVectors(useFaceWeights);
@@ -149,10 +145,8 @@ HX.NormalTangentGenerator.prototype =
         var numVertices = vertexData.length / this._positionStride;
         var normalIndex  = this._normalOffset;
         var tangentIndex  = this._tangentOffset;
-        var bitangentIndex = this._bitangentOffset;
         var normal = new HX.Float4();
         var tangent = new HX.Float4();
-        var bitangent = new HX.Float4();
 
         for (var i = 0; i < numVertices; ++i) {
             normal.x = vertexData[normalIndex];
@@ -174,18 +168,9 @@ HX.NormalTangentGenerator.prototype =
                 vertexData[tangentIndex + 1] = tangent.y;
                 vertexData[tangentIndex + 2] = tangent.z;
             }
-            // cross:
-            if (this._mode & HX.NormalTangentGenerator.MODE_BITANGENTS) {
-                // TODO: calculate bitangents correctly, similar to tangents!
-                bitangent.cross(tangent, normal);
-                vertexData[bitangentIndex] = bitangent.x;
-                vertexData[bitangentIndex + 1] = bitangent.y;
-                vertexData[bitangentIndex + 2] = bitangent.z;
-            }
 
             normalIndex += this._normalStride;
             tangentIndex += this._tangentStride;
-            bitangentIndex += this._bitangentStride;
         }
     },
 

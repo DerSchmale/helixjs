@@ -37,7 +37,7 @@ HX.FrameTicker = function()
     this._isRunning = false;
     this._callback = undefined;
     this._dt = 0;
-    this._playheadTime = 0;
+    this._currentTime = 0;
 }
 
 HX.FrameTicker.prototype = {
@@ -49,7 +49,7 @@ HX.FrameTicker.prototype = {
      */
     start: function(callback) {
         this._callback = callback;
-        this._playheadTime = this._getTime();
+        this._currentTime = this._getTime();
         this._isRunning = true;
         this._tick();
         this._tick._this = this;
@@ -76,8 +76,10 @@ HX.FrameTicker.prototype = {
         self.requestAnimationFrame(this._tick.bind(this));
 
         var currentTime = this._getTime();
-        this._dt = currentTime - this._playheadTime;
-        this._playheadTime = currentTime;
+        this._dt = currentTime - this._currentTime;
+        // IsNan (on Safari?)
+        if (this._dt !== this._dt) this._dt = 0;
+        this._currentTime = currentTime;
 
         this._callback();
     },

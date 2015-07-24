@@ -5,7 +5,7 @@ HX.PBRMaterial = function()
 {
     HX.Material.call(this);
     this._diffuseColor = new HX.Color();
-    this._diffuseTexture = null;
+    this._diffuseMap = null;
     this._updatePasses();
     this.setMetallicness(0.0);
     this.setRoughness(0.3);
@@ -22,7 +22,13 @@ HX.PBRMaterial.prototype.setDiffuseColor = function(value)
 
 HX.PBRMaterial.prototype.setDiffuseMap = function(value)
 {
-    this._diffuseTexture = value;
+    this._diffuseMap = value;
+    this._passesInvalid = true;
+};
+
+HX.PBRMaterial.prototype.setNormalMap = function(value)
+{
+    this._normalMap = value;
     this._passesInvalid = true;
 };
 
@@ -59,24 +65,20 @@ HX.PBRMaterial.prototype._updatePasses = function()
     }
 
     this.setUniform("albedoColor", this._diffuseColor);
-    this.setTexture("albedoMap", this._diffuseTexture);
+    if (this._diffuseMap) this.setTexture("albedoMap", this._diffuseMap);
+    if (this._normalMap) this.setTexture("normalMap", this._normalMap);
 
     this._passesInvalid = false;
 };
 
 HX.PBRMaterial.prototype._generateAlbedoDefines = function()
 {
-    var str = "";
-    if (!!this._diffuseTexture) {
-        str += "#define ALBEDO_MAP\n";
-    }
-    return str;
+    return !!this._diffuseMap? "#define ALBEDO_MAP\n" : "";
 };
 
 HX.PBRMaterial.prototype._generateNormalDefines = function()
 {
-    var str = "";
-    return str;
+    return !!this._normalMap? "#define NORMAL_MAP\n" : "";
 };
 
 HX.PBRMaterial.prototype._generateSpecularDefines = function()

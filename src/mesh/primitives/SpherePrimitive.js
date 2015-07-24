@@ -52,8 +52,7 @@ HX.SpherePrimitive.createMeshData = function(definition)
             vertices[vertexIndex] = normalX*radius; vertices[vertexIndex + 1] = normalY*radius; vertices[vertexIndex + 2] = normalZ*radius;
             vertices[vertexIndex + 3] = normalX * flipSign; vertices[vertexIndex + 4] = normalY * flipSign; vertices[vertexIndex + 5] = normalZ * flipSign;
             vertices[vertexIndex + 6] = -normalZ; vertices[vertexIndex + 7] = 0; vertices[vertexIndex + 8] = normalX;
-            vertices[vertexIndex + 9] = 0; vertices[vertexIndex + 10] = normalY*flipSign; vertices[vertexIndex + 11] = -normalZ*flipSign;
-            vertices[vertexIndex + 12] = 1.0 - ratioU*scaleU; vertices[vertexIndex + 13] = ratioV*scaleV;
+            vertices[vertexIndex + 9] = 1.0 - ratioU*scaleU; vertices[vertexIndex + 10] = ratioV*scaleV;
 
             vertexIndex += VERTEX_SIZE;
         }

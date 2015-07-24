@@ -93,8 +93,7 @@ HX.PlanePrimitive.create = function(definition)
             vertices[vertexIndex] = posX; vertices[vertexIndex + 1] = posY; vertices[vertexIndex + 2] = posZ;
             vertices[vertexIndex + 3] = normalX; vertices[vertexIndex + 4] = normalY; vertices[vertexIndex + 5] = normalZ;
             vertices[vertexIndex + 6] = tangentX; vertices[vertexIndex + 7] = tangentY; vertices[vertexIndex + 8] = tangentZ;
-            vertices[vertexIndex + 9] = bitangentX; vertices[vertexIndex + 10] = bitangentY; vertices[vertexIndex + 11] = bitangentZ;
-            vertices[vertexIndex + 12] = uvU; vertices[vertexIndex + 13] = uvV;
+            vertices[vertexIndex + 9] = uvU; vertices[vertexIndex + 10] = uvV;
 
             vertexIndex += VERTEX_SIZE;
 
@@ -103,8 +102,7 @@ HX.PlanePrimitive.create = function(definition)
                 vertices[vertexIndex] = posX; vertices[vertexIndex + 1] = posY; vertices[vertexIndex + 2] = posZ;
                 vertices[vertexIndex + 3] = -normalX; vertices[vertexIndex + 4] = -normalY; vertices[vertexIndex + 5] = -normalZ;
                 vertices[vertexIndex + 6] = -tangentX; vertices[vertexIndex + 7] = -tangentY; vertices[vertexIndex + 8] = -tangentZ;
-                vertices[vertexIndex + 9] = bitangentX; vertices[vertexIndex + 10] = bitangentY; vertices[vertexIndex + 11] = bitangentZ;
-                vertices[vertexIndex + 12] = 1.0 - uvU; vertices[vertexIndex + 13] = uvV;
+                vertices[vertexIndex + 9] = 1.0 - uvU; vertices[vertexIndex + 10] = uvV;
 
                 vertexIndex += VERTEX_SIZE;
             }

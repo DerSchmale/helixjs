@@ -6,7 +6,7 @@
 HX.FPSCounter = function(numFrames)
 {
     this._numFrames = numFrames || 1;
-    this._frames = [];
+    this._frames = [ ];
     this._maxFPS = undefined;
     this._minFPS = undefined;
     this._currentFPS = 0;

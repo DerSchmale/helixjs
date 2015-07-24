@@ -15,16 +15,15 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI
 
 	vec3 halfVector = normalize(lightDir + viewDir);
-	float halfDotLight = dot(halfVector, lightDir);
 
-	float roughSqr = roughness*roughness;
+	highp float roughSqr = roughness*roughness;
 	roughSqr *= roughSqr;
-	float specular = max(-dot(halfVector, normal), 0.0);
-	float distribution = pow(specular, 2.0/roughSqr - 2.0)/roughSqr;
+	highp float halfDotNormal = max(-dot(halfVector, normal), 0.0);
+	highp float distribution = pow(halfDotNormal, 2.0/roughSqr - 2.0)/roughSqr;
 
 	float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);
-	float microfacet = .25 * distribution * visibility;
 
+	float halfDotLight = dot(halfVector, lightDir);
 	float cosAngle = 1.0 - halfDotLight;
 	// to the 5th power
 	float power = cosAngle*cosAngle;
@@ -34,5 +33,6 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 
 	//approximated fresnel-based energy conservation
 	diffuseColor = irradiance;
-	specularColor = irradiance * fresnel * microfacet;
+
+	specularColor = .25 * irradiance * fresnel * distribution * visibility;
 }

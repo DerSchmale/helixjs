@@ -52,21 +52,7 @@ vec3 hx_decodeNormal(vec4 data)
 		normal.z *= sign(data.w);
 		return normal;
     #else
-    	return data.xyz * 2.0 - 1.0;
-    #endif
-}
-
-void hx_decodeNormalDepth(vec4 data, out vec3 normal, out float depth)
-{
-	#ifdef HX_STORE_EXPLICIT_DEPTH
-    	normal.xy = data.xy;
-		normal.z = sqrt(1.0 - data.x * data.x - data.y * data.y);
-		data.w = data.w * 2.0 - 1.0;
-		normal.z *= sign(data.w);
-		data.w *= sign(data.w);
-		depth = hx_RG8ToFloat(data.zw);
-    #else
-    	normal = data.xyz * 2.0 - 1.0;
+    	return normalize(data.xyz - .5);
     #endif
 }
 

@@ -8,7 +8,7 @@ HX.PBRMaterial = function()
     this._diffuseTexture = null;
     this._updatePasses();
     this.setMetallicness(0.0);
-    this.setRoughness(0.5);
+    this.setRoughness(0.3);
     this.setSpecularNormalReflection(0.027);
 };
 

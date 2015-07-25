@@ -103,6 +103,19 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
     return end;
 };
 
+HX.PointLight.prototype.initFullScreenPass = function (passIndex)
+{
+    var defines = "#define LIGHTS_PER_BATCH " + (passIndex + 1) + "\n";
+    var pass = new HX.EffectPass(
+        defines + HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl"),
+        HX.DEFERRED_LIGHT_MODEL + defines + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl"),
+        HX.Light._rectMesh);
+    HX.PointLight._fullScreenPositionLocations[passIndex] = pass.getUniformLocation("lightWorldPosition[0]");
+    HX.PointLight._fullScreenColorLocations[passIndex] = pass.getUniformLocation("lightColor[0]");
+    HX.PointLight._fullScreenAttenuationFixFactorsLocations[passIndex] = pass.getUniformLocation("attenuationFixFactors[0]");
+    HX.PointLight._fullScreenLightPasses[passIndex] = pass;
+};
+
 HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, startIndex)
 {
     HX.GL.disable(HX.GL.CULL_FACE);
@@ -140,6 +153,11 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
     }
 
     var passIndex = i - startIndex - 1;
+
+    if (!HX.PointLight._fullScreenLightPasses[passIndex]) {
+        this.initFullScreenPass(passIndex);
+    }
+
     HX.PointLight._fullScreenLightPasses[passIndex].updateGlobalState(camera, this._gbuffer, this._occlusion);
     HX.PointLight._fullScreenLightPasses[passIndex].updateRenderState();
 
@@ -187,17 +205,6 @@ HX.PointLight.prototype._initLightPasses =  function()
     HX.PointLight._fullScreenAttenuationFixFactorsLocations = [];
     var pass;
     var defines;
-    for (var i = 0; i < HX.PointLight.LIGHTS_PER_BATCH; ++i) {
-        defines = "#define LIGHTS_PER_BATCH " + (i + 1) + "\n";
-        pass = new HX.EffectPass(
-            defines + HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl"),
-            HX.DEFERRED_LIGHT_MODEL + defines + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl"),
-            HX.Light._rectMesh);
-        HX.PointLight._fullScreenPositionLocations[i] = pass.getUniformLocation("lightWorldPosition[0]");
-        HX.PointLight._fullScreenColorLocations[i] = pass.getUniformLocation("lightColor[0]");
-        HX.PointLight._fullScreenAttenuationFixFactorsLocations[i] = pass.getUniformLocation("attenuationFixFactors[0]");
-        HX.PointLight._fullScreenLightPasses[i] = pass;
-    }
 
     defines = "#define LIGHTS_PER_BATCH " + HX.PointLight.LIGHTS_PER_BATCH + "\n";
     pass = new HX.EffectPass(

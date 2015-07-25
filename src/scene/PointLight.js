@@ -198,19 +198,18 @@ HX.PointLight.prototype.getRadius = function()
 
 HX.PointLight.prototype._initLightPasses =  function()
 {
-
+    // the full screen passes will be generated on demand
     HX.PointLight._fullScreenLightPasses = [];
     HX.PointLight._fullScreenPositionLocations = [];
     HX.PointLight._fullScreenColorLocations = [];
     HX.PointLight._fullScreenAttenuationFixFactorsLocations = [];
-    var pass;
-    var defines;
 
-    defines = "#define LIGHTS_PER_BATCH " + HX.PointLight.LIGHTS_PER_BATCH + "\n";
-    pass = new HX.EffectPass(
+    var defines = "#define LIGHTS_PER_BATCH " + HX.PointLight.LIGHTS_PER_BATCH + "\n";
+    var pass = new HX.EffectPass(
         defines + HX.ShaderLibrary.get("point_light_spherical_vertex.glsl"),
         HX.DEFERRED_LIGHT_MODEL + defines + HX.ShaderLibrary.get("point_light_spherical_fragment.glsl"),
         HX.PointLight._sphereMesh);
+
     HX.PointLight._sphericalLightPass = pass;
     HX.PointLight._sphericalPositionLocation = pass.getUniformLocation("lightWorldPosition[0]");
     HX.PointLight._sphericalColorLocation = pass.getUniformLocation("lightColor[0]");

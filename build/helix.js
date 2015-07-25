@@ -8,7 +8,7 @@ HX.InitOptions = function()
     this.useHDR = false;   // only if available
     this.useLinearSpace = true;
     this.ignoreDrawBuffersExtension = false;     // for debug purposes, forces multiple passes for the GBuffer
-    this.ignoreDepthTexturesExtension = true;     // for debug purposes, forces storing depth info explicitly
+    this.ignoreDepthTexturesExtension = false;     // for debug purposes, forces storing depth info explicitly
 };
 
 HX.ShaderLibrary = {
@@ -938,10 +938,13 @@ HX.FileMaterial.prototype = Object.create(HX.Material.prototype);
 HX.SceneNode = function()
 {
     this._effects = null;
+    this._transform = new HX.Transform();
+    this._transform.onChange.bind(this, this._onTransformChange);
     this._transformMatrix = new HX.Matrix4x4();
     this._worldTransformMatrix = new HX.Matrix4x4();
     this._worldBoundsInvalid = true;
-    this._worldTransformationInvalid = true;
+    this._matrixInvalid = true;
+    this._worldMatrixInvalid = true;
     this._parent = null;
     this._worldBounds = this._createBoundingVolume();
     this._debugBounds = null;
@@ -955,6 +958,35 @@ HX.SceneNode = function()
 HX.SceneNode.prototype = {
     constructor: HX.SceneNode,
 
+    getTransform: function()
+    {
+        return this._transform;
+    },
+
+    /**
+     * Copies the transform from a Transform object to this object's transform object. If no value is passed in, the
+     * Transform object is disabled for this object, allowing static objects with a fixed transformation matrix.
+     * @param value
+     */
+    setTransform: function(value)
+    {
+        if (value) {
+            if (!this._transform) {
+                this._transform = new HX.Transform();
+                this._transform.onChange.bind(this, this._onTransformChange);
+            }
+
+            this._transform.copyFrom(value);
+            this._invalidateTransformationMatrix();
+        }
+        else if (this._transform) {
+            // whatever was still set on old transform must be stored first
+            if (this._matrixInvalid) this._updateTransformationMatrix();
+            this._transform.onChange.unbind(this._onTransformChange);
+            this._transform = null;
+        }
+    },
+
     getEffects: function(value)
     {
         return this._effects;
@@ -967,18 +999,26 @@ HX.SceneNode.prototype = {
 
     getTransformationMatrix: function()
     {
+        if (this._matrixInvalid)
+            this._updateTransformationMatrix();
+
         return this._transformMatrix;
     },
 
     setTransformationMatrix: function(matrix)
     {
-        this._transformMatrix = matrix;
-        this._invalidateWorldTransformation();
+        this._transformMatrix.copyFrom(matrix);
+        this._matrixInvalid = false;
+
+        if (this._transform)
+            this._transformMatrix.decompose(this._transform);
+
+        this._invalidateWorldTransformationMatrix();
     },
 
     getWorldMatrix: function()
     {
-        if (this._worldTransformationInvalid)
+        if (this._worldMatrixInvalid)
             this._updateWorldTransformationMatrix();
 
         return this._worldTransformMatrix;
@@ -1015,15 +1055,27 @@ HX.SceneNode.prototype = {
 
         if (value) {
             this._debugBounds = new HX.ModelNode(this._worldBounds.getDebugModelInstance());
+            this._debugBounds.setTransform(null);
             this._updateDebugBounds();
         }
         else
             this._debugBounds = null;
     },
 
-    _invalidateWorldTransformation: function ()
+    _onTransformChange: function()
     {
-        this._worldTransformationInvalid = true;
+        this._invalidateTransformationMatrix();
+    },
+
+    _invalidateTransformationMatrix: function ()
+    {
+        this._matrixInvalid = true;
+        this._invalidateWorldTransformationMatrix();
+    },
+
+    _invalidateWorldTransformationMatrix: function ()
+    {
+        this._worldMatrixInvalid = true;
         this._invalidateWorldBounds();
     },
 
@@ -1053,14 +1105,21 @@ HX.SceneNode.prototype = {
         this._debugBounds.setTransformationMatrix(matrix);
     },
 
+    _updateTransformationMatrix: function()
+    {
+        this._transformMatrix.compose(this._transform);
+        this._matrixInvalid = false;
+        this._worldBoundsInvalid = true;
+    },
+
     _updateWorldTransformationMatrix: function()
     {
         if (this._parent)
-            this._worldTransformMatrix.product(this._parent.getWorldMatrix(), this._transformMatrix);
+            this._worldTransformMatrix.product(this._parent.getWorldMatrix(), this.getTransformationMatrix());
         else
             this._worldTransformMatrix.copyFrom(this._transformMatrix);
 
-        this._worldTransformationInvalid = false;
+        this._worldMatrixInvalid = false;
     },
 
     // override for better matches
@@ -1134,13 +1193,13 @@ HX.BoundingHierarchyNode.prototype._invalidateWorldBounds = function()
         this._children[i]._invalidateWorldBounds(false); // false = parent (ie: this) does not need to know, it already knows
 };
 
-HX.BoundingHierarchyNode.prototype._invalidateWorldTransformation = function()
+HX.BoundingHierarchyNode.prototype._invalidateWorldTransformationMatrix = function()
 {
-    HX.SceneNode.prototype._invalidateWorldTransformation.call(this);
+    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
 
     var len = this._children.length;
     for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldTransformation();
+        this._children[i]._invalidateWorldTransformationMatrix();
 };
 
 HX.BoundingHierarchyNode.prototype._updateWorldBounds = function()
@@ -1233,12 +1292,12 @@ HX.ModelNode.prototype.acceptVisitor = function(visitor)
 {
     HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
     visitor.visitModelInstance(this._modelInstance, this.getWorldMatrix(), this.getWorldBounds());
-}
+};
 
 HX.ModelNode.prototype.getModelInstance = function()
 {
     return this._modelInstance;
-}
+};
 
 HX.ModelNode.prototype.setModelInstance = function(value)
 {
@@ -1249,7 +1308,7 @@ HX.ModelNode.prototype.setModelInstance = function(value)
 
     this._modelInstance.onChange.bind(this, HX.ModelNode.prototype._invalidateWorldBounds);
     this._invalidateWorldBounds();
-}
+};
 
 // override for better matches
 HX.ModelNode.prototype._updateWorldBounds = function()
@@ -1258,7 +1317,7 @@ HX.ModelNode.prototype._updateWorldBounds = function()
         this._worldBounds.transformFrom(this._modelInstance.getLocalBounds(), this.getWorldMatrix());
 
     HX.SceneNode.prototype._updateWorldBounds.call(this);
-}
+};
 /**
  * Subclasses must implement:
  * prototype.activate
@@ -3724,27 +3783,38 @@ HX.Matrix4x4.prototype = {
     },
 
     /**
-     * Should this return a Transformation object instead?
+     * Generates a matrix from a transform object
      */
-    decompose: function ()
+    compose: function(transform)
     {
-        var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2], m3 = this._m[3];
-        var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6], m7 = this._m[7];
-        var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10], m11 = this._m[11];
+        this.fromQuaternion(transform.rotation);
+        var scale = transform.scale;
+        this.appendScale(scale.x, scale.y, scale.z);
+        this.fromQuaternion(transform.rotation);
+    },
 
-        var scale = new HX.Float4();
-        scale.x = Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
-        scale.y = Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
-        scale.z = Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
+    /**
+     * Decomposes an affine transformation matrix into a Transform object.
+     * @param target An optional target object to decompose into. If omitted, a new object will be created and returned.
+     */
+    decompose: function (target)
+    {
+        target = target || new Transform();
+        var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2];
+        var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
+        var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
 
-        var rotation = new HX.Quaternion();
-        rotation.fromMatrix(this);
+        target.scale.x = Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
+        target.scale.y = Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
+        target.scale.z = Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
 
-        var translation = this.getColumn(3);
+        target.rotation.fromMatrix(this);
 
-        return [ scale, rotation, translation ];
+        target.position.copyFrom(this.getColumn(3));
+
+        return target;
     }
-}
+};
 
 HX.Matrix4x4.IDENTITY = new HX.Matrix4x4();
 HX.Matrix4x4.ZERO = new HX.Matrix4x4(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -3944,7 +4014,7 @@ HX.Quaternion.prototype = {
         this.x = axis.x * factor;
         this.y = axis.y * factor;
         this.z = axis.z * factor;
-        this.w = Math.cos(angle * .5);
+        this.w = Math.cos(radians * .5);
     },
 
     fromPitchYawRoll: function(pitch, yaw, roll)
@@ -3965,9 +4035,9 @@ HX.Quaternion.prototype = {
         if (trace > 0.0) {
             trace += 1.0;
             var s = 1.0/Math.sqrt(trace)*.5;
-            this.x = s*(m._m.getColumn(1, 2) - m._m(2, 1));
-            this.y = s*(m._m(2, 0) - m._m[2]);
-            this.z = s*(m._m[1] - m._m(1, 0));
+            this.x = s*(m._m[6] - m._m[9]);
+            this.y = s*(m._m[8] - m._m[2]);
+            this.z = s*(m._m[1] - m._m[4]);
             this.w = s*trace;
         }
         else if (m00 > m11 && m00 > m22) {
@@ -4165,6 +4235,70 @@ HX.Quaternion.prototype = {
     }
 
 }
+/**
+ * An object using position, rotation quaternion and scale to describe an object's transformation.
+ *
+ * @constructor
+ */
+HX.Transform = function()
+{
+    this._position = new HX.Float4(0.0, 0.0, 0.0, 1.0);
+    this._rotation = new HX.Quaternion();
+    this._scale = new HX.Float4(1.0, 1.0, 1.0, 1.0);
+
+    this._changeListener = new HX.PropertyListener();
+    this._changeListener.add(this._position, "x");
+    this._changeListener.add(this._position, "y");
+    this._changeListener.add(this._position, "z");
+    this._changeListener.add(this._rotation, "x");
+    this._changeListener.add(this._rotation, "y");
+    this._changeListener.add(this._rotation, "z");
+    this._changeListener.add(this._rotation, "w");
+    this._changeListener.add(this._scale, "x");
+    this._changeListener.add(this._scale, "y");
+    this._changeListener.add(this._scale, "z");
+    this.onChange = this._changeListener.onChange;
+};
+
+HX.Transform.prototype =
+{
+    get position() {
+        return this._position;
+    },
+
+    set position(value) {
+        // make sure position object never changes
+        this._position.copyFrom(value);
+    },
+
+    get rotation() {
+        return this._rotation;
+    },
+
+    set rotation(value) {
+        // make sure position object never changes
+        this._rotation.copyFrom(value);
+    },
+
+    get scale() {
+        return this._scale;
+    },
+
+    set scale(value) {
+        // make sure position object never changes
+        this._scale.copyFrom(value);
+    },
+
+    copyFrom: function(transform)
+    {
+        this._changeListener.setEnabled(false);
+        this.position.copyFrom(transform.position);
+        this.rotation.copyFrom(transform.rotation);
+        this.scale.copyFrom(transform.scale);
+        this._changeListener.setEnabled(true);
+        this.onChange.dispatch();
+    }
+};
 HX.shuffle = function(array)
 {
     var currentIndex = array.length, temporaryValue, randomIndex ;
@@ -4985,6 +5119,66 @@ HX.IndexBuffer.prototype = {
         HX.GL.bindBuffer(HX.GL.ELEMENT_ARRAY_BUFFER, this._buffer);
     }
 }
+// hijacks a general property (must not be a function) and triggers a signal if so
+// experimental class, really should only be used internally for private objects by its owner
+HX.PropertyListener = function()
+{
+    this._enabled = true;
+    this.onChange = new HX.Signal();
+    this._targets = [];
+};
+
+HX.PropertyListener.prototype =
+{
+    getEnabled: function()
+    {
+        return this._enabled;
+    },
+
+    setEnabled: function(value)
+    {
+        this._enabled = value;
+    },
+
+    add: function(targetObj, propertyName)
+    {
+        var index = this._targets.length;
+        this._targets.push(
+            {
+                object: targetObj,
+                propertyName: propertyName,
+                value: targetObj[propertyName]
+            }
+        );
+
+        var wrapper = this;
+        Object.defineProperty(targetObj, propertyName, {
+            get: function() {
+                return wrapper._targets[index].value;
+            },
+            set: function(val) {
+                var target = wrapper._targets[index];
+                if (val !== target.value) {
+                    target.value = val;
+                    if (wrapper._enabled)
+                        wrapper.onChange.dispatch();
+                }
+            }
+        });
+    },
+
+    detach: function(obj, propertyName)
+    {
+        for (var i = 0; i < this._targets.length; ++i) {
+            var target = this._targets[i];
+            if (target.object === obj && target.propertyName === propertyName) {
+                delete target.object[target.propertyName];
+                target.object[target.propertyName] = target.value;
+                this._targets.splice(i--, 1);
+            }
+        }
+    }
+};
 HX.Signal = function()
 {
     this._listeners = [];

@@ -6,10 +6,13 @@
 HX.SceneNode = function()
 {
     this._effects = null;
+    this._transform = new HX.Transform();
+    this._transform.onChange.bind(this, this._onTransformChange);
     this._transformMatrix = new HX.Matrix4x4();
     this._worldTransformMatrix = new HX.Matrix4x4();
     this._worldBoundsInvalid = true;
-    this._worldTransformationInvalid = true;
+    this._matrixInvalid = true;
+    this._worldMatrixInvalid = true;
     this._parent = null;
     this._worldBounds = this._createBoundingVolume();
     this._debugBounds = null;
@@ -23,6 +26,35 @@ HX.SceneNode = function()
 HX.SceneNode.prototype = {
     constructor: HX.SceneNode,
 
+    getTransform: function()
+    {
+        return this._transform;
+    },
+
+    /**
+     * Copies the transform from a Transform object to this object's transform object. If no value is passed in, the
+     * Transform object is disabled for this object, allowing static objects with a fixed transformation matrix.
+     * @param value
+     */
+    setTransform: function(value)
+    {
+        if (value) {
+            if (!this._transform) {
+                this._transform = new HX.Transform();
+                this._transform.onChange.bind(this, this._onTransformChange);
+            }
+
+            this._transform.copyFrom(value);
+            this._invalidateTransformationMatrix();
+        }
+        else if (this._transform) {
+            // whatever was still set on old transform must be stored first
+            if (this._matrixInvalid) this._updateTransformationMatrix();
+            this._transform.onChange.unbind(this._onTransformChange);
+            this._transform = null;
+        }
+    },
+
     getEffects: function(value)
     {
         return this._effects;
@@ -35,18 +67,26 @@ HX.SceneNode.prototype = {
 
     getTransformationMatrix: function()
     {
+        if (this._matrixInvalid)
+            this._updateTransformationMatrix();
+
         return this._transformMatrix;
     },
 
     setTransformationMatrix: function(matrix)
     {
-        this._transformMatrix = matrix;
-        this._invalidateWorldTransformation();
+        this._transformMatrix.copyFrom(matrix);
+        this._matrixInvalid = false;
+
+        if (this._transform)
+            this._transformMatrix.decompose(this._transform);
+
+        this._invalidateWorldTransformationMatrix();
     },
 
     getWorldMatrix: function()
     {
-        if (this._worldTransformationInvalid)
+        if (this._worldMatrixInvalid)
             this._updateWorldTransformationMatrix();
 
         return this._worldTransformMatrix;
@@ -83,15 +123,27 @@ HX.SceneNode.prototype = {
 
         if (value) {
             this._debugBounds = new HX.ModelNode(this._worldBounds.getDebugModelInstance());
+            this._debugBounds.setTransform(null);
             this._updateDebugBounds();
         }
         else
             this._debugBounds = null;
     },
 
-    _invalidateWorldTransformation: function ()
+    _onTransformChange: function()
     {
-        this._worldTransformationInvalid = true;
+        this._invalidateTransformationMatrix();
+    },
+
+    _invalidateTransformationMatrix: function ()
+    {
+        this._matrixInvalid = true;
+        this._invalidateWorldTransformationMatrix();
+    },
+
+    _invalidateWorldTransformationMatrix: function ()
+    {
+        this._worldMatrixInvalid = true;
         this._invalidateWorldBounds();
     },
 
@@ -121,14 +173,21 @@ HX.SceneNode.prototype = {
         this._debugBounds.setTransformationMatrix(matrix);
     },
 
+    _updateTransformationMatrix: function()
+    {
+        this._transformMatrix.compose(this._transform);
+        this._matrixInvalid = false;
+        this._worldBoundsInvalid = true;
+    },
+
     _updateWorldTransformationMatrix: function()
     {
         if (this._parent)
-            this._worldTransformMatrix.product(this._parent.getWorldMatrix(), this._transformMatrix);
+            this._worldTransformMatrix.product(this._parent.getWorldMatrix(), this.getTransformationMatrix());
         else
             this._worldTransformMatrix.copyFrom(this._transformMatrix);
 
-        this._worldTransformationInvalid = false;
+        this._worldMatrixInvalid = false;
     },
 
     // override for better matches
@@ -202,13 +261,13 @@ HX.BoundingHierarchyNode.prototype._invalidateWorldBounds = function()
         this._children[i]._invalidateWorldBounds(false); // false = parent (ie: this) does not need to know, it already knows
 };
 
-HX.BoundingHierarchyNode.prototype._invalidateWorldTransformation = function()
+HX.BoundingHierarchyNode.prototype._invalidateWorldTransformationMatrix = function()
 {
-    HX.SceneNode.prototype._invalidateWorldTransformation.call(this);
+    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
 
     var len = this._children.length;
     for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldTransformation();
+        this._children[i]._invalidateWorldTransformationMatrix();
 };
 
 HX.BoundingHierarchyNode.prototype._updateWorldBounds = function()
@@ -301,12 +360,12 @@ HX.ModelNode.prototype.acceptVisitor = function(visitor)
 {
     HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
     visitor.visitModelInstance(this._modelInstance, this.getWorldMatrix(), this.getWorldBounds());
-}
+};
 
 HX.ModelNode.prototype.getModelInstance = function()
 {
     return this._modelInstance;
-}
+};
 
 HX.ModelNode.prototype.setModelInstance = function(value)
 {
@@ -317,7 +376,7 @@ HX.ModelNode.prototype.setModelInstance = function(value)
 
     this._modelInstance.onChange.bind(this, HX.ModelNode.prototype._invalidateWorldBounds);
     this._invalidateWorldBounds();
-}
+};
 
 // override for better matches
 HX.ModelNode.prototype._updateWorldBounds = function()
@@ -326,4 +385,4 @@ HX.ModelNode.prototype._updateWorldBounds = function()
         this._worldBounds.transformFrom(this._modelInstance.getLocalBounds(), this.getWorldMatrix());
 
     HX.SceneNode.prototype._updateWorldBounds.call(this);
-}
+};

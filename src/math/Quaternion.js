@@ -28,7 +28,7 @@ HX.Quaternion.prototype = {
         this.x = axis.x * factor;
         this.y = axis.y * factor;
         this.z = axis.z * factor;
-        this.w = Math.cos(angle * .5);
+        this.w = Math.cos(radians * .5);
     },
 
     fromPitchYawRoll: function(pitch, yaw, roll)
@@ -49,9 +49,9 @@ HX.Quaternion.prototype = {
         if (trace > 0.0) {
             trace += 1.0;
             var s = 1.0/Math.sqrt(trace)*.5;
-            this.x = s*(m._m.getColumn(1, 2) - m._m(2, 1));
-            this.y = s*(m._m(2, 0) - m._m[2]);
-            this.z = s*(m._m[1] - m._m(1, 0));
+            this.x = s*(m._m[6] - m._m[9]);
+            this.y = s*(m._m[8] - m._m[2]);
+            this.z = s*(m._m[1] - m._m[4]);
             this.w = s*trace;
         }
         else if (m00 > m11 && m00 > m22) {

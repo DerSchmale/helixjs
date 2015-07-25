@@ -1263,27 +1263,38 @@ HX.Matrix4x4.prototype = {
     },
 
     /**
-     * Should this return a Transformation object instead?
+     * Generates a matrix from a transform object
      */
-    decompose: function ()
+    compose: function(transform)
     {
-        var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2], m3 = this._m[3];
-        var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6], m7 = this._m[7];
-        var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10], m11 = this._m[11];
+        this.fromQuaternion(transform.rotation);
+        var scale = transform.scale;
+        this.appendScale(scale.x, scale.y, scale.z);
+        this.fromQuaternion(transform.rotation);
+    },
 
-        var scale = new HX.Float4();
-        scale.x = Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
-        scale.y = Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
-        scale.z = Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
+    /**
+     * Decomposes an affine transformation matrix into a Transform object.
+     * @param target An optional target object to decompose into. If omitted, a new object will be created and returned.
+     */
+    decompose: function (target)
+    {
+        target = target || new Transform();
+        var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2];
+        var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
+        var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
 
-        var rotation = new HX.Quaternion();
-        rotation.fromMatrix(this);
+        target.scale.x = Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
+        target.scale.y = Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
+        target.scale.z = Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
 
-        var translation = this.getColumn(3);
+        target.rotation.fromMatrix(this);
 
-        return [ scale, rotation, translation ];
+        target.position.copyFrom(this.getColumn(3));
+
+        return target;
     }
-}
+};
 
 HX.Matrix4x4.IDENTITY = new HX.Matrix4x4();
 HX.Matrix4x4.ZERO = new HX.Matrix4x4(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);

@@ -54,14 +54,18 @@ HX.PBRMaterial.prototype._updatePasses = function()
     var normalDefines = this._generateNormalDefines();
     var specularDefines = this._generateSpecularDefines();
 
+    // TODO: this is something every material should have to do, so perhaps it should work differently?
     if (HX.EXT_DRAW_BUFFERS) {
         var defines = albedoDefines + normalDefines + specularDefines;
         this._initPass(HX.MaterialPass.GEOMETRY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
     else {
-        this._initPass(HX.MaterialPass.GEOMETRY_ALBEDO_PASS, albedoDefines, "default_albedo_vertex.glsl", "default_albedo_fragment.glsl");
-        this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_normals_vertex.glsl", "default_normals_fragment.glsl");
-        this._initPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS, specularDefines, "default_specular_vertex.glsl", "default_specular_fragment.glsl");
+        albedoDefines = "#define NO_MRT_GBUFFER_ALBEDO\n" + albedoDefines;
+        normalDefines = "#define NO_MRT_GBUFFER_NORMALS\n" + normalDefines;
+        specularDefines = "#define NO_MRT_GBUFFER_SPECULAR\n" + specularDefines;
+        this._initPass(HX.MaterialPass.GEOMETRY_ALBEDO_PASS, albedoDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+        this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+        this._initPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS, specularDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
 
     this.setUniform("albedoColor", this._diffuseColor);
@@ -89,9 +93,9 @@ HX.PBRMaterial.prototype._generateSpecularDefines = function()
 
 HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fragmentShaderID)
 {
-    var vertexShader = defines + HX.ShaderLibrary.get(vertexShaderID);
-    var fragmentShader = defines + HX.ShaderLibrary.get(fragmentShaderID);
-    var shader = new HX.Shader(vertexShader, fragmentShader);
+    var vertexShader = HX.ShaderLibrary.get(vertexShaderID);
+    var fragmentShader = HX.ShaderLibrary.get(fragmentShaderID);
+    var shader = new HX.Shader(vertexShader, fragmentShader, defines, defines);
     var pass = new HX.MaterialPass(shader);
     this.setPass(type, pass);
 };

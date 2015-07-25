@@ -1,4 +1,12 @@
-#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) { hx_processGeometryMRT(albedo, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2]); }
+#if defined(NO_MRT_GBUFFER_ALBEDO)
+#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = albedo)
+#elif defined(NO_MRT_GBUFFER_NORMALS)
+#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))
+#elif defined(NO_MRT_GBUFFER_SPECULAR)
+#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness))
+#else
+#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(albedo, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])
+#endif
 
 // see Aras' blog post: http://aras-p.info/blog/2009/07/30/encoding-floats-to-rgba-the-final/
 // Only for 0 - 1

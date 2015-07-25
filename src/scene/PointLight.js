@@ -168,7 +168,7 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
     HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
 
     return end;
-}
+};
 
 HX.PointLight.prototype._updateScaledIrradiance  = function ()
 {
@@ -183,7 +183,7 @@ HX.PointLight.prototype._updateScaledIrradiance  = function ()
 HX.PointLight.prototype._createBoundingVolume = function()
 {
     return new HX.BoundingSphere();
-}
+};
 
 HX.PointLight.prototype._updateWorldBounds = function()
 {

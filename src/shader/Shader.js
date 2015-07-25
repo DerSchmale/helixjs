@@ -2,9 +2,11 @@
  *
  * @param vertexShaderCode
  * @param fragmentShaderCode
+ * @param preVertexCode Can contain defines and other things that need to be in there before any other includes
+ * @param preFragmentCode
  * @constructor
  */
-HX.Shader = function(vertexShaderCode, fragmentShaderCode)
+HX.Shader = function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
 {
     // can be vertex or fragment shader
     // Mesh object's vertexLayout should have a map of attrib names + offset into vertex buffer
@@ -18,7 +20,7 @@ HX.Shader = function(vertexShaderCode, fragmentShaderCode)
     this._renderOrderHint = ++HX.Shader.ID_COUNTER;
 
     if (vertexShaderCode && fragmentShaderCode) {
-        this.init(vertexShaderCode, fragmentShaderCode);
+        this.init(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode);
     }
 };
 
@@ -29,10 +31,12 @@ HX.Shader.prototype = {
 
     isReady: function() { return this._ready; },
 
-    init: function(vertexShaderCode, fragmentShaderCode)
+    init: function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
     {
-        vertexShaderCode = HX.GLSLIncludeVertexShaders + vertexShaderCode;
-        fragmentShaderCode = HX.GLSLIncludeFragmentShaders + fragmentShaderCode;
+        preVertexCode = preVertexCode || "";
+        preFragmentCode = preFragmentCode || "";
+        vertexShaderCode = preVertexCode + HX.GLSLIncludeVertexShaders + vertexShaderCode;
+        fragmentShaderCode = preFragmentCode + HX.GLSLIncludeFragmentShaders + fragmentShaderCode;
 
         this._vertexShader = HX.GL.createShader(HX.GL.VERTEX_SHADER);
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {

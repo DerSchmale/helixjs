@@ -1,4 +1,6 @@
+#ifndef HX_SEPARATE_GEOMETRY_PASSES
 #extension GL_EXT_draw_buffers : require
+#endif
 
 #if defined(ALBEDO_MAP) || defined(NORMAL_MAP)
 varying vec2 texCoords;

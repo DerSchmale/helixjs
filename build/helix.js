@@ -248,22 +248,6 @@ HX._init2DDitherTexture = function(width, height)
 };
 HX.ShaderLibrary['lighting_blinn_phong.glsl'] = 'float hx_lightVisibility(in vec3 normal, in vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	// roughness remapping, this is essentially: sqrt(2 * roughness * roughness / PI)\n	// this remaps beckman distribution roughness to SmithSchlick\n	roughness *= .63772;\n	float g1 = nDotV*(1.0 - roughness) + roughness;\n	float g2 = nDotL*(1.0 - roughness) + roughness;\n	return 1.0/(g1*g2);\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	highp float roughSqr = roughness*roughness;\n	roughSqr *= roughSqr;\n	highp float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	highp float distribution = pow(halfDotNormal, 2.0/roughSqr - 2.0)/roughSqr;\n\n	float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = .25 * irradiance * fresnel * distribution * visibility;\n}';
 
-HX.ShaderLibrary['default_albedo_fragment.glsl'] = '#if defined(ALBEDO_MAP)\nvarying vec2 texCoords;\n\nuniform sampler2D albedoMap;\n#endif\n\nuniform vec3 albedoColor;\n\nvoid main()\n{\n    #ifdef ALBEDO_MAP\n        gl_FragColor = texture2D(albedoMap, texCoords);\n    #else\n        gl_FragColor = vec4(albedoColor, 1.0);\n    #endif\n}';
-
-HX.ShaderLibrary['default_albedo_vertex.glsl'] = '#if defined(ALBEDO_MAP)\nvarying vec2 texCoords;\n#endif\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n\n    #if defined(ALBEDO_MAP)\n    texCoords = hx_texCoord;\n    #endif\n}';
-
-HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = '#extension GL_EXT_draw_buffers : require\n\n#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\n#ifdef ALBEDO_MAP\nuniform sampler2D albedoMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform vec3 albedoColor;\nuniform float specularNormalReflection;\nuniform float metallicness;\nuniform float roughness;\n\nvoid main()\n{\n    vec4 albedo;\n    #ifdef ALBEDO_MAP\n        albedo = texture2D(albedoMap, texCoords);\n    #else\n        albedo = vec4(albedoColor, 1.0);\n    #endif\n\n    vec3 fragNormal;\n    #ifdef NORMAL_MAP\n        vec3 normalSample = texture2D(normalMap, texCoords).xyz * 2.0 - 1.0;\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = cross(TBN[0], TBN[2]);\n\n        fragNormal = TBN * normalSample;\n    #else\n        fragNormal = normal;\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(albedo, fragNormal, gl_FragCoord.z, metallicness, specularNormalReflection, roughness);\n}';
-
-HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = '#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldMatrix) * hx_tangent;\n#endif\n\n#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
-
-HX.ShaderLibrary['default_normals_fragment.glsl'] = 'varying vec3 normal;\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec2 texCoords;\n\nuniform sampler2D normalMap;\n#endif\n\nvoid main()\n{\n    vec3 fragNormal;\n    #ifdef NORMAL_MAP\n        vec3 normalSample = texture2D(normalMap, texCoords).xyz * 2.0 - 1.0;\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = cross(TBN[0], TBN[2]);\n\n        fragNormal = TBN * normalSample;\n    #else\n        fragNormal = normal;\n    #endif\n\n    gl_FragColor = hx_encodeNormalDepth(fragNormal, gl_FragCoord.z);\n}';
-
-HX.ShaderLibrary['default_normals_vertex.glsl'] = 'varying vec3 normal;\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec2 texCoords;\n#endif\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    texCoords = hx_texCoord;\n    tangent = mat3(hx_worldMatrix) * hx_tangent;\n#endif\n}';
-
-HX.ShaderLibrary['default_specular_fragment.glsl'] = 'uniform float specularNormalReflection;\nuniform float metallicness;\nuniform float roughness;\n\nvoid main()\n{\n    gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness);\n}';
-
-HX.ShaderLibrary['default_specular_vertex.glsl'] = 'void main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
-
 HX.ShaderLibrary['ambient_light_fragment.glsl'] = 'uniform vec3 lightColor;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	vec3 albedoSample = texture2D(hx_gbufferAlbedo, uv).xyz;\n#ifdef USE_AO\n	float occlusionSample = texture2D(hx_source, uv).w;\n	albedoSample *= occlusionSample;\n#endif\n\n	albedoSample = hx_gammaToLinear(albedoSample);\n\n	gl_FragColor = vec4(lightColor * albedoSample, 0.0);\n}';
 
 HX.ShaderLibrary['ambient_light_vertex.glsl'] = 'varying vec2 uv;\n\nvoid main()\n{\n		uv = hx_texCoord;\n		gl_Position = hx_position;\n}';
@@ -288,9 +272,13 @@ HX.ShaderLibrary['point_light_spherical_fragment.glsl'] = 'varying vec2 uv;\nvar
 
 HX.ShaderLibrary['point_light_spherical_vertex.glsl'] = 'uniform float lightRadius[LIGHTS_PER_BATCH];\nuniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\nuniform vec3 lightColor[LIGHTS_PER_BATCH];\nuniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\n\nvarying vec2 uv;\nvarying vec3 viewWorldDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nvoid main()\n{\n	int instance = int(hx_instanceID);\n	vec4 worldPos = hx_position;\n	lightPositionVar = lightWorldPosition[instance];\n	lightColorVar = lightColor[instance];\n	attenuationFixVar = attenuationFixFactors[instance];\n	worldPos.xyz *= lightRadius[instance];\n	worldPos.xyz += lightPositionVar;\n\n	vec4 viewPos = hx_viewMatrix * worldPos;\n	vec4 proj = hx_projectionMatrix * viewPos;\n\n	viewWorldDir = mat3(hx_cameraWorldMatrix) * (viewPos.xyz / viewPos.z);\n\n	/* render as flat disk, prevent clipping */\n	proj /= proj.w;\n	proj.z = 0.0;\n	uv = proj.xy/proj.w * .5 + .5;\n	gl_Position = proj;\n}';
 
+HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = '#ifndef HX_SEPARATE_GEOMETRY_PASSES\n#extension GL_EXT_draw_buffers : require\n#endif\n\n#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\n#ifdef ALBEDO_MAP\nuniform sampler2D albedoMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform vec3 albedoColor;\nuniform float specularNormalReflection;\nuniform float metallicness;\nuniform float roughness;\n\nvoid main()\n{\n    vec4 albedo;\n    #ifdef ALBEDO_MAP\n        albedo = texture2D(albedoMap, texCoords);\n    #else\n        albedo = vec4(albedoColor, 1.0);\n    #endif\n\n    vec3 fragNormal;\n    #ifdef NORMAL_MAP\n        vec3 normalSample = texture2D(normalMap, texCoords).xyz * 2.0 - 1.0;\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = cross(TBN[0], TBN[2]);\n\n        fragNormal = TBN * normalSample;\n    #else\n        fragNormal = normal;\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(albedo, fragNormal, gl_FragCoord.z, metallicness, specularNormalReflection, roughness);\n}';
+
+HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = '#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldMatrix) * hx_tangent;\n#endif\n\n#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
+
 HX.ShaderLibrary['snippets_attributes.glsl'] = '// defines predefined vertex attributes for use\nattribute vec4 hx_position;\nattribute vec3 hx_normal;\nattribute vec3 hx_tangent;\nattribute vec2 hx_texCoord;\nattribute float hx_instanceID;';
 
-HX.ShaderLibrary['snippets_general.glsl'] = '#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) { hx_processGeometryMRT(albedo, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2]); }\n\n// see Aras\' blog post: http://aras-p.info/blog/2009/07/30/encoding-floats-to-rgba-the-final/\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = vec4(1.0, 255.0, 65025.0, 16581375.0) * value;\n    enc = fract(enc);\n    return enc - enc.yzww * vec4(1.0/255.0,1.0/255.0,1.0/255.0,0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc = fract(enc);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec4 hx_encodeNormalDepth(vec3 normal, float depth)\n{\n	#ifdef HX_STORE_EXPLICIT_DEPTH\n    	vec4 data;\n    	// xy contain normal\n		data.xy = normal.xy * .5 + .5;\n		data.zw = hx_floatToRG8(depth);\n		// use some of the lower precision depth to encode store normal sign\n		data.w = sign(normal.z) * data.w * .5 + .5;\n		return data;\n	#else\n		return vec4(normal * .5 + .5, 1.0);\n    #endif\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    #ifdef HX_STORE_EXPLICIT_DEPTH\n    	vec3 normal;\n    	normal.xy = data.xy * 2.0 - 1.0;\n		normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));\n		data.w = data.w * 2.0 - 1.0;\n		normal.z *= sign(data.w);\n		return normal;\n    #else\n    	return normalize(data.xyz - .5);\n    #endif\n}\n\nvec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness)\n{\n	return vec4(metallicness, specularNormalReflection * 5.0, roughness, 1.0);\n}\n\nvoid hx_processGeometryMRT(vec4 albedo, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 albedoData, out vec4 normalData, out vec4 specularData)\n{\n    albedoData = albedo;\n	normalData = hx_encodeNormalDepth(normal, depth);\n    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness);\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #ifdef HX_LINEAR_SPACE\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #ifdef HX_LINEAR_SPACE\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #ifdef HX_LINEAR_SPACE\n        linear.x = pow(linear.x, 0.45);\n        linear.y = pow(linear.y, 0.45);\n        linear.z = pow(linear.z, 0.45);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #ifdef HX_LINEAR_SPACE\n        linear.x = pow(linear.x, 0.45);\n        linear.y = pow(linear.y, 0.45);\n        linear.z = pow(linear.z, 0.45);\n    #endif\n    return linear;\n}\n\nfloat hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec4 hx_decodeSpecular(vec4 data)\n{\n    // scale specular reflectivity by 5 to have better precision since we only need the range ~[0, .2] (.17 = diamond)\n    data.y *= .2;\n    return data;\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 albedo)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), albedo, metallicness);\n}\n\nvoid hx_decodeReflectionData(in vec4 albedoSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)\n{\n	metallicness = specularSample.x;\n    normalSpecularReflectance = mix(vec3(specularSample.y * .2), albedoSample.xyz, metallicness);\n    //prevent from being 0 \n    roughness = clamp(specularSample.z, .01, .99);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n';
+HX.ShaderLibrary['snippets_general.glsl'] = '#if defined(NO_MRT_GBUFFER_ALBEDO)\n#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = albedo)\n#elif defined(NO_MRT_GBUFFER_NORMALS)\n#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))\n#elif defined(NO_MRT_GBUFFER_SPECULAR)\n#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness))\n#else\n#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(albedo, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])\n#endif\n\n// see Aras\' blog post: http://aras-p.info/blog/2009/07/30/encoding-floats-to-rgba-the-final/\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = vec4(1.0, 255.0, 65025.0, 16581375.0) * value;\n    enc = fract(enc);\n    return enc - enc.yzww * vec4(1.0/255.0,1.0/255.0,1.0/255.0,0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc = fract(enc);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec4 hx_encodeNormalDepth(vec3 normal, float depth)\n{\n	#ifdef HX_STORE_EXPLICIT_DEPTH\n    	vec4 data;\n    	// xy contain normal\n		data.xy = normal.xy * .5 + .5;\n		data.zw = hx_floatToRG8(depth);\n		// use some of the lower precision depth to encode store normal sign\n		data.w = sign(normal.z) * data.w * .5 + .5;\n		return data;\n	#else\n		return vec4(normal * .5 + .5, 1.0);\n    #endif\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    #ifdef HX_STORE_EXPLICIT_DEPTH\n    	vec3 normal;\n    	normal.xy = data.xy * 2.0 - 1.0;\n		normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));\n		data.w = data.w * 2.0 - 1.0;\n		normal.z *= sign(data.w);\n		return normal;\n    #else\n    	return normalize(data.xyz - .5);\n    #endif\n}\n\nvec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness)\n{\n	return vec4(metallicness, specularNormalReflection * 5.0, roughness, 1.0);\n}\n\nvoid hx_processGeometryMRT(vec4 albedo, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 albedoData, out vec4 normalData, out vec4 specularData)\n{\n    albedoData = albedo;\n	normalData = hx_encodeNormalDepth(normal, depth);\n    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness);\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #ifdef HX_LINEAR_SPACE\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #ifdef HX_LINEAR_SPACE\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #ifdef HX_LINEAR_SPACE\n        linear.x = pow(linear.x, 0.45);\n        linear.y = pow(linear.y, 0.45);\n        linear.z = pow(linear.z, 0.45);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #ifdef HX_LINEAR_SPACE\n        linear.x = pow(linear.x, 0.45);\n        linear.y = pow(linear.y, 0.45);\n        linear.z = pow(linear.z, 0.45);\n    #endif\n    return linear;\n}\n\nfloat hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec4 hx_decodeSpecular(vec4 data)\n{\n    // scale specular reflectivity by 5 to have better precision since we only need the range ~[0, .2] (.17 = diamond)\n    data.y *= .2;\n    return data;\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 albedo)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), albedo, metallicness);\n}\n\nvoid hx_decodeReflectionData(in vec4 albedoSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)\n{\n	metallicness = specularSample.x;\n    normalSpecularReflectance = mix(vec3(specularSample.y * .2), albedoSample.xyz, metallicness);\n    //prevent from being 0 \n    roughness = clamp(specularSample.z, .01, .99);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n';
 
 HX.ShaderLibrary['snippets_samplers.glsl'] = '// defines predefined textures for use in fragment shaders\n\n// Where the GBuffer is available for sampling:\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\n\n// for effects\nuniform sampler2D hx_source;\n\n// standard textures\nuniform sampler2D hx_dither2D;';
 
@@ -314,9 +302,11 @@ HX.ShaderLibrary['linearize_depth_vertex.glsl'] = 'varying vec2 uv;\n\nvoid main
  *
  * @param vertexShaderCode
  * @param fragmentShaderCode
+ * @param preVertexCode Can contain defines and other things that need to be in there before any other includes
+ * @param preFragmentCode
  * @constructor
  */
-HX.Shader = function(vertexShaderCode, fragmentShaderCode)
+HX.Shader = function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
 {
     // can be vertex or fragment shader
     // Mesh object's vertexLayout should have a map of attrib names + offset into vertex buffer
@@ -330,7 +320,7 @@ HX.Shader = function(vertexShaderCode, fragmentShaderCode)
     this._renderOrderHint = ++HX.Shader.ID_COUNTER;
 
     if (vertexShaderCode && fragmentShaderCode) {
-        this.init(vertexShaderCode, fragmentShaderCode);
+        this.init(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode);
     }
 };
 
@@ -341,10 +331,12 @@ HX.Shader.prototype = {
 
     isReady: function() { return this._ready; },
 
-    init: function(vertexShaderCode, fragmentShaderCode)
+    init: function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
     {
-        vertexShaderCode = HX.GLSLIncludeVertexShaders + vertexShaderCode;
-        fragmentShaderCode = HX.GLSLIncludeFragmentShaders + fragmentShaderCode;
+        preVertexCode = preVertexCode || "";
+        preFragmentCode = preFragmentCode || "";
+        vertexShaderCode = preVertexCode + HX.GLSLIncludeVertexShaders + vertexShaderCode;
+        fragmentShaderCode = preFragmentCode + HX.GLSLIncludeFragmentShaders + fragmentShaderCode;
 
         this._vertexShader = HX.GL.createShader(HX.GL.VERTEX_SHADER);
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {
@@ -717,13 +709,7 @@ HX.Material.parseFromXML = function(xml)
 
 HX.Material._parseXMLTo = function(xml, material)
 {
-    if (HX.EXT_DRAW_BUFFERS) {
-        HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_PASS, "geometry", material);
-    } else {
-        HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_ALBEDO_PASS, "geometryAlbedo", material);
-        HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_NORMAL_PASS, "geometryNormals", material);
-        HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "geometrySpecular", material);
-    }
+    HX.Material._parseGeometryPassFromXML(xml, material);
 
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS, "geometryPostAlbedo", material);
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS, "geometryPostNormal", material);
@@ -794,11 +780,37 @@ HX.Material._decodeHTML = function(value)
     return e.childNodes.length === 0 ? "" : e.childNodes[0].nodeValue;
 }
 
-// TODO: Does not work in IE (but entire Helix does not anyway)
+HX.Material._addParsedPass = function (vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType, geometryTypeDef)
+{
+    if (geometryTypeDef) {
+        geometryTypeDef = "#define " + geometryTypeDef + "\n";
+    }
+
+    var shader = new HX.Shader(vertexShader, fragmentShader, geometryTypeDef, geometryTypeDef);
+    var pass = new HX.MaterialPass(shader);
+
+    if (elements)
+        pass.setElementType(HX.Material._translateProperty(elements.innerHTML));
+
+    if (cullmode)
+        pass.setCullMode(HX.Material._translateProperty(cullmode.innerHTML));
+
+    if (blend) {
+        var source = blend.getElementsByTagName("source")[0];
+        var dest = blend.getElementsByTagName("destination")[0];
+        var op = blend.getElementsByTagName("operator")[0];
+        source = source ? HX.Material._translateProperty(source.innerHTML) : HX.GL.ONE;
+        dest = dest ? HX.Material._translateProperty(dest.innerHTML) : HX.GL.ZERO;
+        op = source ? HX.Material._translateProperty(op.innerHTML) : HX.GL.FUNC_ADD;
+        pass.setBlendMode(source, dest, op);
+    }
+
+    targetMaterial.setPass(passType, pass);
+};
 HX.Material._parsePassFromXML = function(xml, passType, tagName, targetMaterial)
 {
     var common = xml.getElementsByTagName("common")[0];
-    common = common? common.innerHTML : "";
+    common = common ? common.innerHTML : "";
     var tags = xml.getElementsByTagName(tagName);
     if (tags === undefined || tags.length === 0) return;
     var passDef = tags[0];
@@ -813,26 +825,15 @@ HX.Material._parsePassFromXML = function(xml, passType, tagName, targetMaterial)
     var fragmentShader = common + xml.querySelector("[id=" + fragmentShaderID + "]").innerHTML;
     vertexShader = HX.Material._decodeHTML(vertexShader);
     fragmentShader = HX.Material._decodeHTML(fragmentShader);
-    var shader = new HX.Shader(vertexShader, fragmentShader);
-    var pass = new HX.MaterialPass(shader);
 
-    if (elements)
-        pass.setElementType(HX.Material._translateProperty(elements.innerHTML));
-
-    if (cullmode)
-        pass.setCullMode(HX.Material._translateProperty(cullmode.innerHTML));
-
-    if (blend) {
-        var source = blend.getElementsByTagName("source")[0];
-        var dest = blend.getElementsByTagName("destination")[0];
-        var op = blend.getElementsByTagName("operator")[0];
-        source = source? HX.Material._translateProperty(source.innerHTML) : HX.GL.ONE;
-        dest = dest? HX.Material._translateProperty(dest.innerHTML) : HX.GL.ZERO;
-        op = source? HX.Material._translateProperty(op.innerHTML) : HX.GL.FUNC_ADD;
-        pass.setBlendMode(source, dest, op);
+    if (passType === HX.MaterialPass.GEOMETRY_PASS && !HX.EXT_DRAW_BUFFERS) {
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
     }
-
-    targetMaterial.setPass(passType, pass);
+    else {
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_ALBEDO_PASS, "NO_MRT_GBUFFER_ALBEDO");
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_NORMAL_PASS, "NO_MRT_GBUFFER_NORMALS");
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_SPECULAR_PASS, "NO_MRT_GBUFFER_SPECULAR");
+    }
 };
 
 HX.Material.ID_COUNTER = 0;
@@ -5606,14 +5607,18 @@ HX.PBRMaterial.prototype._updatePasses = function()
     var normalDefines = this._generateNormalDefines();
     var specularDefines = this._generateSpecularDefines();
 
+    // TODO: this is something every material should have to do, so perhaps it should work differently?
     if (HX.EXT_DRAW_BUFFERS) {
         var defines = albedoDefines + normalDefines + specularDefines;
         this._initPass(HX.MaterialPass.GEOMETRY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
     else {
-        this._initPass(HX.MaterialPass.GEOMETRY_ALBEDO_PASS, albedoDefines, "default_albedo_vertex.glsl", "default_albedo_fragment.glsl");
-        this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_normals_vertex.glsl", "default_normals_fragment.glsl");
-        this._initPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS, specularDefines, "default_specular_vertex.glsl", "default_specular_fragment.glsl");
+        albedoDefines = "#define NO_MRT_GBUFFER_ALBEDO\n" + albedoDefines;
+        normalDefines = "#define NO_MRT_GBUFFER_NORMALS\n" + normalDefines;
+        specularDefines = "#define NO_MRT_GBUFFER_SPECULAR\n" + specularDefines;
+        this._initPass(HX.MaterialPass.GEOMETRY_ALBEDO_PASS, albedoDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+        this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+        this._initPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS, specularDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
 
     this.setUniform("albedoColor", this._diffuseColor);
@@ -5641,9 +5646,9 @@ HX.PBRMaterial.prototype._generateSpecularDefines = function()
 
 HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fragmentShaderID)
 {
-    var vertexShader = defines + HX.ShaderLibrary.get(vertexShaderID);
-    var fragmentShader = defines + HX.ShaderLibrary.get(fragmentShaderID);
-    var shader = new HX.Shader(vertexShader, fragmentShader);
+    var vertexShader = HX.ShaderLibrary.get(vertexShaderID);
+    var fragmentShader = HX.ShaderLibrary.get(fragmentShaderID);
+    var shader = new HX.Shader(vertexShader, fragmentShader, defines, defines);
     var pass = new HX.MaterialPass(shader);
     this.setPass(type, pass);
 };
@@ -6822,7 +6827,7 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
     HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
 
     return end;
-}
+};
 
 HX.PointLight.prototype._updateScaledIrradiance  = function ()
 {
@@ -6837,7 +6842,7 @@ HX.PointLight.prototype._updateScaledIrradiance  = function ()
 HX.PointLight.prototype._createBoundingVolume = function()
 {
     return new HX.BoundingSphere();
-}
+};
 
 HX.PointLight.prototype._updateWorldBounds = function()
 {

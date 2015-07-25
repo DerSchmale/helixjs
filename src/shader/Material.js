@@ -303,13 +303,7 @@ HX.Material.parseFromXML = function(xml)
 
 HX.Material._parseXMLTo = function(xml, material)
 {
-    if (HX.EXT_DRAW_BUFFERS) {
-        HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_PASS, "geometry", material);
-    } else {
-        HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_ALBEDO_PASS, "geometryAlbedo", material);
-        HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_NORMAL_PASS, "geometryNormals", material);
-        HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "geometrySpecular", material);
-    }
+    HX.Material._parseGeometryPassFromXML(xml, material);
 
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS, "geometryPostAlbedo", material);
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS, "geometryPostNormal", material);
@@ -380,11 +374,37 @@ HX.Material._decodeHTML = function(value)
     return e.childNodes.length === 0 ? "" : e.childNodes[0].nodeValue;
 }
 
-// TODO: Does not work in IE (but entire Helix does not anyway)
+HX.Material._addParsedPass = function (vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType, geometryTypeDef)
+{
+    if (geometryTypeDef) {
+        geometryTypeDef = "#define " + geometryTypeDef + "\n";
+    }
+
+    var shader = new HX.Shader(vertexShader, fragmentShader, geometryTypeDef, geometryTypeDef);
+    var pass = new HX.MaterialPass(shader);
+
+    if (elements)
+        pass.setElementType(HX.Material._translateProperty(elements.innerHTML));
+
+    if (cullmode)
+        pass.setCullMode(HX.Material._translateProperty(cullmode.innerHTML));
+
+    if (blend) {
+        var source = blend.getElementsByTagName("source")[0];
+        var dest = blend.getElementsByTagName("destination")[0];
+        var op = blend.getElementsByTagName("operator")[0];
+        source = source ? HX.Material._translateProperty(source.innerHTML) : HX.GL.ONE;
+        dest = dest ? HX.Material._translateProperty(dest.innerHTML) : HX.GL.ZERO;
+        op = source ? HX.Material._translateProperty(op.innerHTML) : HX.GL.FUNC_ADD;
+        pass.setBlendMode(source, dest, op);
+    }
+
+    targetMaterial.setPass(passType, pass);
+};
 HX.Material._parsePassFromXML = function(xml, passType, tagName, targetMaterial)
 {
     var common = xml.getElementsByTagName("common")[0];
-    common = common? common.innerHTML : "";
+    common = common ? common.innerHTML : "";
     var tags = xml.getElementsByTagName(tagName);
     if (tags === undefined || tags.length === 0) return;
     var passDef = tags[0];
@@ -399,26 +419,15 @@ HX.Material._parsePassFromXML = function(xml, passType, tagName, targetMaterial)
     var fragmentShader = common + xml.querySelector("[id=" + fragmentShaderID + "]").innerHTML;
     vertexShader = HX.Material._decodeHTML(vertexShader);
     fragmentShader = HX.Material._decodeHTML(fragmentShader);
-    var shader = new HX.Shader(vertexShader, fragmentShader);
-    var pass = new HX.MaterialPass(shader);
 
-    if (elements)
-        pass.setElementType(HX.Material._translateProperty(elements.innerHTML));
-
-    if (cullmode)
-        pass.setCullMode(HX.Material._translateProperty(cullmode.innerHTML));
-
-    if (blend) {
-        var source = blend.getElementsByTagName("source")[0];
-        var dest = blend.getElementsByTagName("destination")[0];
-        var op = blend.getElementsByTagName("operator")[0];
-        source = source? HX.Material._translateProperty(source.innerHTML) : HX.GL.ONE;
-        dest = dest? HX.Material._translateProperty(dest.innerHTML) : HX.GL.ZERO;
-        op = source? HX.Material._translateProperty(op.innerHTML) : HX.GL.FUNC_ADD;
-        pass.setBlendMode(source, dest, op);
+    if (passType === HX.MaterialPass.GEOMETRY_PASS && !HX.EXT_DRAW_BUFFERS) {
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
     }
-
-    targetMaterial.setPass(passType, pass);
+    else {
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_ALBEDO_PASS, "NO_MRT_GBUFFER_ALBEDO");
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_NORMAL_PASS, "NO_MRT_GBUFFER_NORMALS");
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_SPECULAR_PASS, "NO_MRT_GBUFFER_SPECULAR");
+    }
 };
 
 HX.Material.ID_COUNTER = 0;

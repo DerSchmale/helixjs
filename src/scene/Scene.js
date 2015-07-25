@@ -185,7 +185,7 @@ HX.SceneNode.prototype = {
         if (this._parent)
             this._worldTransformMatrix.product(this._parent.getWorldMatrix(), this.getTransformationMatrix());
         else
-            this._worldTransformMatrix.copyFrom(this._transformMatrix);
+            this._worldTransformMatrix.copyFrom(this.getTransformationMatrix());
 
         this._worldMatrixInvalid = false;
     },

@@ -248,9 +248,29 @@ HX._init2DDitherTexture = function(width, height)
 };
 HX.ShaderLibrary['lighting_blinn_phong.glsl'] = 'float hx_lightVisibility(in vec3 normal, in vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	// roughness remapping, this is essentially: sqrt(2 * roughness * roughness / PI)\n	// this remaps beckman distribution roughness to SmithSchlick\n	roughness *= .63772;\n	float g1 = nDotV*(1.0 - roughness) + roughness;\n	float g2 = nDotL*(1.0 - roughness) + roughness;\n	return 1.0/(g1*g2);\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	highp float roughSqr = roughness*roughness;\n	roughSqr *= roughSqr;\n	highp float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	highp float distribution = pow(halfDotNormal, 2.0/roughSqr - 2.0)/roughSqr;\n\n	float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = .25 * irradiance * fresnel * distribution * visibility;\n}';
 
-HX.ShaderLibrary['directional_light_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewWorldDir;\n\nuniform vec3 lightColor;\nuniform vec3 lightWorldDirection;\n\n#ifdef CAST_SHADOWS\n	uniform sampler2D shadowMap;\n\n	uniform mat4 shadowMapMatrices[NUM_CASCADES];\n	uniform float splitDistances[NUM_CASCADES];\n	uniform float depthBias;\n\n	#if NUM_SHADOW_SAMPLES > 1\n		uniform vec2 shadowMapSoftnesses[NUM_CASCADES];\n		uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];\n	#endif\n\n	// view-space position\n	#if NUM_SHADOW_SAMPLES > 1\n	void getShadowMapCoord(in vec3 worldPos, in float viewZ, out vec4 coord, out vec2 softness)\n	#else\n	void getShadowMapCoord(in vec3 worldPos, in float viewZ, out vec4 coord)\n	#endif\n	{\n		mat4 shadowMapMatrix = shadowMapMatrices[NUM_CASCADES - 1];\n\n		for (int i = 0; i < NUM_CASCADES - 1; ++i) {\n			if (viewZ < splitDistances[i]) {\n				shadowMapMatrix = shadowMapMatrices[i];\n				#if NUM_SHADOW_SAMPLES > 1\n					softness = shadowMapSoftnesses[i];\n				#endif\n				break;\n			}\n		}\n		coord = shadowMapMatrix * vec4(worldPos, 1.0);\n	}\n#endif\n\nvoid main()\n{\n	vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	vec3 normal = hx_decodeNormal(normalSample);\n	vec3 normalSpecularReflectance;\n\n	albedoSample = hx_gammaToLinear(albedoSample);\n	vec3 normalizedWorldView = normalize(viewWorldDir);\n\n	// not sure what this is about?\n	#ifdef CAST_SHADOWS\n		normalizedWorldView = -normalizedWorldView;\n	#endif\n\n	float roughness;\n	float metallicness;\n	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n	vec3 diffuseReflection;\n	vec3 specularReflection;\n	hx_lighting(normal, lightWorldDirection, normalizedWorldView, lightColor, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);\n	diffuseReflection *= albedoSample.xyz * (1.0 - specularSample.x);\n	vec3 totalReflection = diffuseReflection + specularReflection;\n\n	#ifdef CAST_SHADOWS\n		float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n		float viewZ = -depth * hx_cameraFrustumRange;\n		vec3 worldPos = hx_cameraWorldPosition + viewZ * viewWorldDir;\n\n		vec4 shadowMapCoord;\n		#if NUM_SHADOW_SAMPLES > 1\n			vec2 radii;\n			getShadowMapCoord(worldPos, -viewZ, shadowMapCoord, radii);\n			float shadowTest = 0.0;\n			vec4 dither = texture2D(hx_dither2D, uv * hx_dither2DTextureScale);\n			dither *= radii.xxyy;  // add radius scale\n			for (int i = 0; i < NUM_SHADOW_SAMPLES; ++i) {\n				vec2 offset;\n				offset.x = dot(dither.xy, hx_poissonDisk[i]);\n				offset.y = dot(dither.zw, hx_poissonDisk[i]);\n				float shadowSample = texture2D(shadowMap, shadowMapCoord.xy + offset).x;\n				float diff = shadowMapCoord.z - shadowSample;\n				if (diff < depthBias) diff = -1.0;\n				shadowTest += float(diff < 0.0);\n			}\n			shadowTest /= float(NUM_SHADOW_SAMPLES);\n\n		#else\n			getShadowMapCoord(worldPos, -viewZ, shadowMapCoord);\n			float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n			float diff = shadowMapCoord.z - shadowSample;\n			if (diff < .005) diff = -1.0;\n			float shadowTest = float(diff < 0.0);\n		#endif\n		totalReflection *= shadowTest;\n\n	#endif\n\n	gl_FragColor = vec4(totalReflection, 0.0);\n}';
+HX.ShaderLibrary['ambient_light_fragment.glsl'] = 'uniform vec3 lightColor;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	vec3 albedoSample = texture2D(hx_gbufferAlbedo, uv).xyz;\n#ifdef USE_AO\n	float occlusionSample = texture2D(hx_source, uv).w;\n	albedoSample *= occlusionSample;\n#endif\n\n	albedoSample = hx_gammaToLinear(albedoSample);\n\n	gl_FragColor = vec4(lightColor * albedoSample, 0.0);\n}';
+
+HX.ShaderLibrary['ambient_light_vertex.glsl'] = 'varying vec2 uv;\n\nvoid main()\n{\n		uv = hx_texCoord;\n		gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['directional_light_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewWorldDir;\n\nuniform vec3 lightColor;\nuniform vec3 lightWorldDirection;\n\n#ifdef CAST_SHADOWS\n	uniform sampler2D shadowMap;\n\n	uniform mat4 shadowMapMatrices[NUM_CASCADES];\n	uniform float splitDistances[NUM_CASCADES];\n	uniform float depthBias;\n\n	#if NUM_SHADOW_SAMPLES > 1\n		uniform vec2 shadowMapSoftnesses[NUM_CASCADES];\n		uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];\n	#endif\n\n	// view-space position\n	#if NUM_SHADOW_SAMPLES > 1\n	void getShadowMapCoord(in vec3 worldPos, in float viewZ, out vec4 coord, out vec2 softness)\n	#else\n	void getShadowMapCoord(in vec3 worldPos, in float viewZ, out vec4 coord)\n	#endif\n	{\n		mat4 shadowMapMatrix = shadowMapMatrices[NUM_CASCADES - 1];\n\n		for (int i = 0; i < NUM_CASCADES - 1; ++i) {\n			if (viewZ < splitDistances[i]) {\n				shadowMapMatrix = shadowMapMatrices[i];\n				#if NUM_SHADOW_SAMPLES > 1\n					softness = shadowMapSoftnesses[i];\n				#endif\n				break;\n			}\n		}\n		coord = shadowMapMatrix * vec4(worldPos, 1.0);\n	}\n#endif\n\nvoid main()\n{\n	vec4 albedoSample = hx_gammaToLinear(texture2D(hx_gbufferAlbedo, uv));\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	vec3 normal = hx_decodeNormal(normalSample);\n	vec3 normalSpecularReflectance;\n	float roughness;\n	float metallicness;\n\n	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n\n	vec3 normalizedWorldView = normalize(viewWorldDir);\n\n	// not sure what this is about?\n	#ifdef CAST_SHADOWS\n		normalizedWorldView = -normalizedWorldView;\n	#endif\n\n	vec3 diffuseReflection;\n	vec3 specularReflection;\n	hx_lighting(normal, lightWorldDirection, normalizedWorldView, lightColor, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);\n	diffuseReflection *= albedoSample.xyz * (1.0 - metallicness);\n	vec3 totalReflection = diffuseReflection + specularReflection;\n\n	#ifdef CAST_SHADOWS\n		float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n		float viewZ = -depth * hx_cameraFrustumRange;\n		vec3 worldPos = hx_cameraWorldPosition + viewZ * viewWorldDir;\n\n		vec4 shadowMapCoord;\n		#if NUM_SHADOW_SAMPLES > 1\n			vec2 radii;\n			getShadowMapCoord(worldPos, -viewZ, shadowMapCoord, radii);\n			float shadowTest = 0.0;\n			vec4 dither = texture2D(hx_dither2D, uv * hx_dither2DTextureScale);\n			dither *= radii.xxyy;  // add radius scale\n			for (int i = 0; i < NUM_SHADOW_SAMPLES; ++i) {\n				vec2 offset;\n				offset.x = dot(dither.xy, hx_poissonDisk[i]);\n				offset.y = dot(dither.zw, hx_poissonDisk[i]);\n				float shadowSample = texture2D(shadowMap, shadowMapCoord.xy + offset).x;\n				float diff = shadowMapCoord.z - shadowSample;\n				if (diff < depthBias) diff = -1.0;\n				shadowTest += float(diff < 0.0);\n			}\n			shadowTest /= float(NUM_SHADOW_SAMPLES);\n\n		#else\n			getShadowMapCoord(worldPos, -viewZ, shadowMapCoord);\n			float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n			float diff = shadowMapCoord.z - shadowSample;\n			if (diff < .005) diff = -1.0;\n			float shadowTest = float(diff < 0.0);\n		#endif\n		totalReflection *= shadowTest;\n\n	#endif\n\n	gl_FragColor = vec4(totalReflection, 0.0);\n}';
 
 HX.ShaderLibrary['directional_light_vertex.glsl'] = 'varying vec2 uv;\nvarying vec3 viewWorldDir;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	#ifdef CAST_SHADOWS\n		vec4 unproj = hx_inverseProjectionMatrix * vec4(hx_position.xy, 0.0, 1.0);\n		vec3 viewDir = unproj.xyz / unproj.w;\n		viewDir /= viewDir.z;\n		viewWorldDir = mat3(hx_cameraWorldMatrix) * viewDir;\n	#else\n		vec4 unproj = hx_inverseViewProjectionMatrix * vec4(hx_position.xy, 0.0, 1.0);\n		unproj /= unproj.w;\n		viewWorldDir = unproj.xyz - hx_cameraWorldPosition;\n	#endif\n	gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['global_irradiance_probe_fragment.glsl'] = 'varying vec3 viewWorldDir;\nvarying vec2 uv;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormals;\n\nuniform samplerCube irradianceProbeSampler;\n\nvoid main()\n{\n	vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec3 normal = normalize(normalSample.xyz - .5);\n	vec3 totalLight = vec3(0.0);\n	albedoSample = hx_gammaToLinear(albedoSample);\n\n	#ifdef USE_AO\n		vec4 occlusionSample = texture2D(hx_source, uv);\n		albedoSample.xyz *= occlusionSample.w;\n	#endif\n	vec4 irradianceSample = textureCube(irradianceProbeSampler, normal);\n	irradianceSample = hx_gammaToLinear(irradianceSample);\n	#ifdef IRRADIANCE_HDR_FROM_ALPHA\n		irradianceSample.xyz *= irradianceSample.w * IRRADIANCE_HDR_FROM_ALPHA;\n	#endif\n	//irradianceSample.xyz *= (1.0 - specularSample.x);\n	totalLight += irradianceSample.xyz * albedoSample.xyz;\n\n	gl_FragColor = vec4(totalLight, 1.0);\n}';
+
+HX.ShaderLibrary['global_irradiance_probe_vertex.glsl'] = 'varying vec3 viewWorldDir;\nvarying vec2 uv;\n\n// using rect mesh for rendering skyboxes!\nvoid main()\n{\n	vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n	viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n	viewWorldDir.y = viewWorldDir.y;\n	vec4 pos = hx_position;\n	pos.z = 1.0;\n	gl_Position = pos;\n	uv = hx_texCoord;\n}';
+
+HX.ShaderLibrary['global_specular_probe_fragment.glsl'] = 'varying vec3 viewWorldDir;\nvarying vec2 uv;\n\nuniform samplerCube specularProbeSampler;\nuniform float numMips;\nuniform float mipOffset;\nuniform float maxMipFactor;\n\nvoid main()\n{\n	vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	vec3 normal = normalize(normalSample.xyz - .5);\n	vec3 totalLight = vec3(0.0);\n	albedoSample = hx_gammaToLinear(albedoSample);\n\n	vec3 reflectedViewDir = reflect(normalize(viewWorldDir), normal);\n	vec3 normalSpecularReflectance;\n	float roughness;\n	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness);\n	#ifdef USE_TEX_LOD\n	// knald method:\n		float power = 2.0/(roughness * roughness) - 2.0;\n		float factor = (exp2(-10.0/sqrt(power)) - K0)/K1;\n		float mipLevel = numMips*(1.0 - clamp(factor/maxMipFactor, 0.0, 1.0));\n		vec4 specProbeSample = textureCubeLodEXT(specularProbeSampler, reflectedViewDir, mipLevel);\n	#else\n		vec4 specProbeSample = textureCube(specularProbeSampler, reflectedViewDir);\n	#endif\n	specProbeSample = hx_gammaToLinear(specProbeSample);\n	#ifdef SPECULAR_HDR_FROM_ALPHA\n		specProbeSample.xyz *= specProbeSample.w * SPECULAR_HDR_FROM_ALPHA;\n	#endif\n	vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflectedViewDir, normal);\n	// not physically correct, but attenuation is required to look good\n	fresnel *= (1.0 - roughness);\n	totalLight += fresnel * specProbeSample.xyz;\n\n	gl_FragColor = vec4(totalLight, 1.0);\n}';
+
+HX.ShaderLibrary['global_specular_probe_vertex.glsl'] = 'varying vec3 viewWorldDir;\nvarying vec2 uv;\n\nvoid main()\n{\n	vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n	viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n	viewWorldDir.y = viewWorldDir.y;\n	vec4 pos = hx_position;\n	pos.z = 1.0;\n	gl_Position = pos;\n	uv = hx_texCoord;\n}';
+
+HX.ShaderLibrary['point_light_fullscreen_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewWorldDir;\n\nuniform vec3 lightColor[LIGHTS_PER_BATCH];\nuniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\nuniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\n\nvoid main()\n{\n	vec4 albedoSample = hx_gammaToLinear(texture2D(hx_gbufferAlbedo, uv));\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	vec3 normal = hx_decodeNormal(normalSample);\n	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n	vec3 normalSpecularReflectance;\n	float roughness;\n	float metallicness;\n\n	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n\n	float absViewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 worldPosition = hx_cameraWorldPosition + absViewZ * viewWorldDir;\n\n	vec3 viewDir = normalize(viewWorldDir);\n\n\n	vec3 totalDiffuse = vec3(0.0);\n	vec3 totalSpecular = vec3(0.0);\n	vec3 diffuseReflection;\n	vec3 specularReflection;\n\n	for (int i = 0; i < LIGHTS_PER_BATCH; ++i) {\n		vec3 lightWorldDirection = worldPosition - lightWorldPosition[i];\n		float attenuation = 1.0/dot(lightWorldDirection, lightWorldDirection);\n		/* normalize:*/\n		lightWorldDirection *= sqrt(attenuation);\n\n		/*rescale attenuation so that irradiance at bounding edge really is 0*/\n		attenuation = max(0.0, (attenuation - attenuationFixFactors[i].x) * attenuationFixFactors[i].y);\n		hx_lighting(normal, lightWorldDirection, viewDir, lightColor[i] * attenuation, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);\n		totalDiffuse += diffuseReflection;\n		totalSpecular += specularReflection;\n	}\n	totalDiffuse *= albedoSample.xyz * (1.0 - metallicness);\n	gl_FragColor = vec4(totalDiffuse + totalSpecular, 1.0);\n}';
+
+HX.ShaderLibrary['point_light_fullscreen_vertex.glsl'] = 'varying vec2 uv;\nvarying vec3 viewWorldDir;\n\nvoid main()\n{\n		uv = hx_texCoord;\n		vec3 frustumVector = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n		viewWorldDir = mat3(hx_cameraWorldMatrix) * frustumVector;\n		gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['point_light_spherical_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewWorldDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nvoid main()\n{\n	vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n\n	float viewZ = -depth * hx_cameraFrustumRange;\n	vec3 worldPosition = hx_cameraWorldPosition + viewZ * viewWorldDir;\n\n	vec3 normal = normalize(normalSample.xyz - .5);\n	albedoSample = hx_gammaToLinear(albedoSample);\n	vec3 viewDir = -normalize(viewWorldDir);\n\n	vec3 normalSpecularReflectance;\n	float roughness;\n	float metallicness;\n	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n	vec3 diffuseReflection;\n	vec3 specularReflection;\n\n	vec3 lightWorldDirection = worldPosition - lightPositionVar;\n	float attenuation = 1.0/dot(lightWorldDirection, lightWorldDirection);\n	/* normalize:*/\n	lightWorldDirection *= sqrt(attenuation);\n\n	/*rescale attenuation so that irradiance at bounding edge really is 0*/\n	attenuation = max(0.0, (attenuation - attenuationFixVar.x) * attenuationFixVar.y);\n	hx_lighting(normal, lightWorldDirection, viewDir, lightColorVar * attenuation, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);\n\n	diffuseReflection *= albedoSample.xyz * (1.0 - metallicness);\n	gl_FragColor = vec4(diffuseReflection + specularReflection, 0.0);\n}';
+
+HX.ShaderLibrary['point_light_spherical_vertex.glsl'] = 'uniform float lightRadius[LIGHTS_PER_BATCH];\nuniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\nuniform vec3 lightColor[LIGHTS_PER_BATCH];\nuniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\n\nvarying vec2 uv;\nvarying vec3 viewWorldDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nvoid main()\n{\n	int instance = int(hx_instanceID);\n	vec4 worldPos = hx_position;\n	lightPositionVar = lightWorldPosition[instance];\n	lightColorVar = lightColor[instance];\n	attenuationFixVar = attenuationFixFactors[instance];\n	worldPos.xyz *= lightRadius[instance];\n	worldPos.xyz += lightPositionVar;\n\n	vec4 viewPos = hx_viewMatrix * worldPos;\n	vec4 proj = hx_projectionMatrix * viewPos;\n\n	viewWorldDir = mat3(hx_cameraWorldMatrix) * (viewPos.xyz / viewPos.z);\n\n	/* render as flat disk, prevent clipping */\n	proj /= proj.w;\n	proj.z = 0.0;\n	uv = proj.xy/proj.w * .5 + .5;\n	gl_Position = proj;\n}';
 
 HX.ShaderLibrary['default_albedo_fragment.glsl'] = '#if defined(ALBEDO_MAP)\nvarying vec2 texCoords;\n\nuniform sampler2D albedoMap;\n#endif\n\nuniform vec3 albedoColor;\n\nvoid main()\n{\n    #ifdef ALBEDO_MAP\n        gl_FragColor = texture2D(albedoMap, texCoords);\n    #else\n        gl_FragColor = vec4(albedoColor, 1.0);\n    #endif\n}';
 
@@ -1117,7 +1137,7 @@ HX.SceneNode.prototype = {
         if (this._parent)
             this._worldTransformMatrix.product(this._parent.getWorldMatrix(), this.getTransformationMatrix());
         else
-            this._worldTransformMatrix.copyFrom(this._transformMatrix);
+            this._worldTransformMatrix.copyFrom(this.getTransformationMatrix());
 
         this._worldMatrixInvalid = false;
     },
@@ -1403,7 +1423,7 @@ HX.Light.prototype.luminance = function ()
 HX.Light.prototype._updateScaledIrradiance = function ()
 {
     // this includes 1/PI radiance->irradiance factor
-    var scale = this._luminance / (Math.PI * this._color.luminance());
+    var scale = this._luminance / Math.PI;
 
     this._scaledIrradiance.r = this._color.r * scale;
     this._scaledIrradiance.g = this._color.g * scale;
@@ -3789,8 +3809,9 @@ HX.Matrix4x4.prototype = {
     {
         this.fromQuaternion(transform.rotation);
         var scale = transform.scale;
+        var position = transform.position;
         this.appendScale(scale.x, scale.y, scale.z);
-        this.fromQuaternion(transform.rotation);
+        this.appendTranslation(position.x, position.y, position.z);
     },
 
     /**
@@ -5152,12 +5173,12 @@ HX.PropertyListener.prototype =
         );
 
         var wrapper = this;
+        var target = wrapper._targets[index];
         Object.defineProperty(targetObj, propertyName, {
             get: function() {
-                return wrapper._targets[index].value;
+                return target.value;
             },
             set: function(val) {
-                var target = wrapper._targets[index];
                 if (val !== target.value) {
                     target.value = val;
                     if (wrapper._enabled)
@@ -5958,6 +5979,7 @@ HX.AmbientLight.prototype.renderBatch = function(lightCollection, startIndex, ca
         colorG += color.g;
         colorB += color.b;
     }
+
     HX.GL.uniform3f(HX.AmbientLight._colorLocation, colorR, colorG, colorB);
 
     // render rect mesh
@@ -5974,44 +5996,16 @@ HX.AmbientLight.prototype._updateWorldBounds = function()
 
 HX.AmbientLight.prototype._initLightPass =  function()
 {
-    var pass = new HX.EffectPass(HX.AmbientLight.vertexShader, HX.AmbientLight.getFragmentShader(this._useAO), HX.Light._rectMesh);
+    var defines = "";
+    if (this._useAO) defines += "#define USE_AO\n";
+    var pass = new HX.EffectPass(
+        HX.ShaderLibrary.get("ambient_light_vertex.glsl"),
+        defines + HX.ShaderLibrary.get("ambient_light_fragment.glsl"),
+        HX.Light._rectMesh);
 
     HX.AmbientLight._colorLocation = pass.getUniformLocation("lightColor");
 
     HX.AmbientLight._lightPass = pass;
-};
-
-HX.AmbientLight.vertexShader =
-    "precision mediump float;\
-    \
-    varying vec2 uv;\
-    \
-    void main()\
-    {\
-            uv = hx_texCoord;\
-            gl_Position = hx_position;\
-    }";
-
-HX.AmbientLight.getFragmentShader = function(useAO)
-{
-    return (useAO? "#define USE_AO\n" : "") +
-            "precision mediump float;\n\
-            uniform vec3 lightColor;\n\
-            \n\
-            varying vec2 uv;\n\
-            \n\
-            void main()\n\
-            {\n\
-                vec3 albedoSample = texture2D(hx_gbufferAlbedo, uv).xyz;\n\
-                #ifdef USE_AO\n\
-                float occlusionSample = texture2D(hx_source, uv).w;\n\
-                albedoSample *= occlusionSample;\n\
-                #endif\n\
-                \n\
-                albedoSample = hx_gammaToLinear(albedoSample);\n\
-                \n\
-                gl_FragColor = vec4(lightColor * albedoSample, 0.0);\n\
-            }";
 };
 /**
  *
@@ -6106,11 +6100,7 @@ HX.Camera = function()
     this._farDistance = 1000;
     this._frustum = new HX.Frustum();
 
-    var mtx = new HX.Matrix4x4();
-    //mtx.rotationAxisAngle(HX.Float4.Y_AXIS, Math.PI);
-    //mtx.appendTranslation(0.0, 0.0, -1.0);
-    mtx.appendTranslation(0.0, 0.0, 1.0);
-    this.setTransformationMatrix(mtx);
+    this.getTransform().position.set(0.0, 0.0, 1.0);
 };
 
 HX.Camera.prototype = Object.create(HX.SceneNode.prototype);
@@ -6507,6 +6497,7 @@ HX.DirectionalLight.prototype._initLightPass =  function()
         this._splitDistancesLocation = this._lightPass.getUniformLocation("splitDistances[0]");
         this._shadowMatrixLocation = this._lightPass.getUniformLocation("shadowMapMatrices[0]");
         this._depthBiasLocation = this._lightPass.getUniformLocation("depthBias");
+
         if (this._numShadowSamples > 1) {
             this._shadowSoftnessLocation = this._lightPass.getUniformLocation("shadowMapSoftnesses[0]");
             this._shadowSoftnessData = new Float32Array(2 * this._numCascades);
@@ -6573,7 +6564,22 @@ HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
 
 HX.GlobalSpecularProbe.prototype._initPass = function()
 {
-    var pass = new HX.EffectPass(HX.GlobalSpecularProbe.vertexShader, HX.GlobalSpecularProbe.getFragmentShader(this._texture), HX.Light._rectMesh);
+    var defines = "";
+
+    if (HX.EXT_SHADER_TEXTURE_LOD)
+        defines += "#extension GL_EXT_shader_texture_lod : require\n#define USE_TEX_LOD\n";
+
+    if (specular._hdrInAlphaRange > 0)
+        defines += "#define SPECULAR_HDR_FROM_ALPHA float(" + specular._hdrInAlphaRange + ")\n";
+
+    defines += "#define K0 " + HX.GlobalSpecularProbe.powerRange0 +  "\n";
+    defines += "#define K1 " + HX.GlobalSpecularProbe.powerRange1 +  "\n";
+
+    var pass = new HX.EffectPass(
+        HX.ShaderLibrary.get("global_specular_probe_vertex.glsl"),
+        defines + HX.ShaderLibrary.get("global_specular_probe_fragment.glsl"),
+        HX.Light._rectMesh
+    );
 
     this._numMipsLocation = pass.getUniformLocation("numMips");
 
@@ -6585,73 +6591,6 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
     pass.setUniform("maxMipFactor", maxMipFactor);
 
     return pass;
-};
-
-HX.GlobalSpecularProbe.vertexShader =
-    "precision mediump float;\n\
-    \n\
-    varying vec3 viewWorldDir;\n\
-    varying vec2 uv;\n\
-    \n\
-    // using rect mesh for rendering skyboxes!\n\
-    void main()\n\
-    {\n\
-        vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n\
-        viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n\
-        viewWorldDir.y = viewWorldDir.y;\n\
-        vec4 pos = hx_position;\n\
-        pos.z = 1.0;\n\
-        gl_Position = pos;\n\
-        uv = hx_texCoord;\n\
-    }";
-
-HX.GlobalSpecularProbe.getFragmentShader = function(specular) {
-    return (HX.EXT_SHADER_TEXTURE_LOD? "#extension GL_EXT_shader_texture_lod : require\n#define USE_TEX_LOD\n" : "") +
-        (specular._hdrInAlphaRange > 0? "#define SPECULAR_HDR_FROM_ALPHA float(" + specular._hdrInAlphaRange + ")\n" : "") +
-        HX.DEFERRED_LIGHT_MODEL +
-        "#define K0 " + HX.GlobalSpecularProbe.powerRange0 +  "\n\
-        #define K1 " + HX.GlobalSpecularProbe.powerRange1 +  "\n\
-        varying vec3 viewWorldDir;\n\
-        varying vec2 uv;\n\
-        \n\
-        uniform samplerCube specularProbeSampler;\n\
-        uniform float numMips;\n\
-        uniform float mipOffset;\n\
-        uniform float maxMipFactor;\n\
-        \n\
-        void main()\n\
-        {\n\
-            vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);\n\
-            vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n\
-            vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n\
-            vec3 normal = normalize(normalSample.xyz - .5);\n\
-            vec3 totalLight = vec3(0.0);\n\
-            albedoSample = hx_gammaToLinear(albedoSample);\n\
-            \n\
-            vec3 reflectedViewDir = reflect(normalize(viewWorldDir), normal);\n\
-            vec3 normalSpecularReflectance;\n\
-            float roughness;\n\
-            hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness);\n\
-            #ifdef USE_TEX_LOD\n\
-            // knald method:\n\
-                float power = 2.0/(roughness * roughness) - 2.0;\n\
-                float factor = (exp2(-10.0/sqrt(power)) - K0)/K1;\n\
-                float mipLevel = numMips*(1.0 - clamp(factor/maxMipFactor, 0.0, 1.0));\n\
-                vec4 specProbeSample = textureCubeLodEXT(specularProbeSampler, reflectedViewDir, mipLevel);\n\
-            #else\n\
-                vec4 specProbeSample = textureCube(specularProbeSampler, reflectedViewDir);\n\
-            #endif\n\
-            specProbeSample = hx_gammaToLinear(specProbeSample);\n\
-            #ifdef SPECULAR_HDR_FROM_ALPHA\n\
-                specProbeSample.xyz *= specProbeSample.w * SPECULAR_HDR_FROM_ALPHA;\n\
-            #endif\n\
-            vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflectedViewDir, normal);\n\
-            // not physically correct, but attenuation is required to look good\n\
-            fresnel *= (1.0 - roughness);\n\
-            totalLight += fresnel * specProbeSample.xyz;\n\
-            \n\
-            gl_FragColor = vec4(totalLight, 1.0);\n\
-        }";
 };
 
 
@@ -6696,87 +6635,22 @@ HX.GlobalIrradianceProbe.prototype._updateWorldBounds = function()
 
 HX.GlobalIrradianceProbe.prototype._initPass = function()
 {
-    var pass = new HX.EffectPass(HX.GlobalIrradianceProbe.vertexShader, HX.GlobalIrradianceProbe.getFragmentShader(this._texture, this._usingAO), HX.Light._rectMesh);
+    var defines = "";
+
+    if (this._usingAO) defines += "#define USE_AO\n";
+    if (this._texture._hdrInAlphaRange > 0) defines += "#define IRRADIANCE_HDR_FROM_ALPHA float(" + this._texture._hdrInAlphaRange + ")\n";
+
+    var pass = new HX.EffectPass(
+        HX.ShaderLibrary.get("global_irradiance_probe_vertex.glsl"),
+        HX.ShaderLibrary.get(defines + "global_irradiance_probe_fragment.glsl"),
+        HX.Light._rectMesh
+    );
 
     this._numMipsLocation = pass.getUniformLocation("numMips");
 
     pass.setTexture("irradianceProbeSampler", this._texture);
 
     return pass;
-};
-
-HX.GlobalIrradianceProbe.vertexShader =
-    "precision mediump float;\n\
-    \n\
-    attribute vec4 hx_position;\n\
-    attribute vec2 hx_texCoord;\n\
-    \n\
-    uniform mat4 hx_inverseViewProjectionMatrix;\n\
-    uniform vec3 hx_cameraWorldPosition;\n\
-    \n\
-    varying vec3 viewWorldDir;\n\
-    varying vec2 uv;\n\
-    \n\
-    // using rect mesh for rendering skyboxes!\n\
-    void main()\n\
-    {\n\
-        vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n\
-        viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n\
-        viewWorldDir.y = viewWorldDir.y;\n\
-        vec4 pos = hx_position;\n\
-        pos.z = 1.0;\n\
-        gl_Position = pos;\n\
-        uv = hx_texCoord;\n\
-    }";
-
-HX.GlobalIrradianceProbe.getFragmentShader = function(irradiance, useAO) {
-    return (useAO && irradiance? "#define USE_AO\n" : "") +
-        (irradiance._hdrInAlphaRange > 0? "#define IRRADIANCE_HDR_FROM_ALPHA float(" + irradiance._hdrInAlphaRange + ")\n" : "") +
-        (HX.OPTIONS.useBentNormals? "#define BENT_NORMALS\n" : "") +
-        HX.DEFERRED_LIGHT_MODEL +
-        "varying vec3 viewWorldDir;\n\
-        varying vec2 uv;\n\
-        \n\
-        uniform sampler2D hx_gbufferAlbedo;\n\
-        uniform sampler2D hx_gbufferNormals;\n\
-        \n\
-        #ifdef USE_AO\n\
-            uniform sampler2D hx_source;    //contains AO \n\
-        #endif\n\
-        uniform samplerCube irradianceProbeSampler;\n\
-        \n\
-        void main()\n\
-        {\n\
-            vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);\n\
-            vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n\
-            vec3 normal = normalize(normalSample.xyz - .5);\n\
-            vec3 totalLight = vec3(0.0);\n\
-            albedoSample = hx_gammaToLinear(albedoSample);\n\
-            \n\
-            #ifdef USE_AO\n\
-                vec4 occlusionSample = texture2D(hx_source, uv);\n\
-                #ifdef BENT_NORMALS\n\
-                    vec3 irrNormal = occlusionSample.xyz * 2.0 - 1.0; // use bent normal\n\
-                #else\n\
-                    vec3 irrNormal = normal;\n\
-                #endif\n\
-                albedoSample.xyz *= occlusionSample.w;\n\
-            #else\n\
-                vec3 irrNormal = normal;\n\
-            #endif\n\
-            vec4 irradianceSample = textureCube(irradianceProbeSampler, irrNormal);\n\
-            irradianceSample = hx_gammaToLinear(irradianceSample);\n\
-            #ifdef IRRADIANCE_HDR_FROM_ALPHA\n\
-                irradianceSample.xyz *= irradianceSample.w * IRRADIANCE_HDR_FROM_ALPHA;\n\
-            #endif\n\
-            #ifdef ENABLE_SPECULAR\n\
-                irradianceSample.xyz *= (vec3(1.0) - fresnel);\n\
-            #endif\n\
-            //irradianceSample.xyz *= (1.0 - specularSample.x);\n\
-            totalLight += irradianceSample.xyz * albedoSample.xyz;\n\
-            \n\
-            gl_FragColor = vec4(totalLight, 1.0);\n\
-        }";
 };
 /**
  *
@@ -6960,186 +6834,36 @@ HX.PointLight.prototype.getRadius = function()
 
 HX.PointLight.prototype._initLightPasses =  function()
 {
+
     HX.PointLight._fullScreenLightPasses = [];
     HX.PointLight._fullScreenPositionLocations = [];
     HX.PointLight._fullScreenColorLocations = [];
     HX.PointLight._fullScreenAttenuationFixFactorsLocations = [];
     var pass;
+    var defines;
     for (var i = 0; i < HX.PointLight.LIGHTS_PER_BATCH; ++i) {
-        pass = new HX.EffectPass(HX.PointLight.fullScreenVertexShader, HX.PointLight.getFullScreenFragmentShader(i + 1), HX.Light._rectMesh);
+        defines = "#define LIGHTS_PER_BATCH " + (i + 1) + "\n";
+        pass = new HX.EffectPass(
+            defines + HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl"),
+            HX.DEFERRED_LIGHT_MODEL + defines + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl"),
+            HX.Light._rectMesh);
         HX.PointLight._fullScreenPositionLocations[i] = pass.getUniformLocation("lightWorldPosition[0]");
         HX.PointLight._fullScreenColorLocations[i] = pass.getUniformLocation("lightColor[0]");
         HX.PointLight._fullScreenAttenuationFixFactorsLocations[i] = pass.getUniformLocation("attenuationFixFactors[0]");
         HX.PointLight._fullScreenLightPasses[i] = pass;
     }
 
-    pass = new HX.EffectPass(HX.PointLight.sphericalVertexShader, HX.PointLight.sphericalFragmentShader, HX.PointLight._sphereMesh);
+    defines = "#define LIGHTS_PER_BATCH " + HX.PointLight.LIGHTS_PER_BATCH + "\n";
+    pass = new HX.EffectPass(
+        defines + HX.ShaderLibrary.get("point_light_spherical_vertex.glsl"),
+        HX.DEFERRED_LIGHT_MODEL + defines + HX.ShaderLibrary.get("point_light_spherical_fragment.glsl"),
+        HX.PointLight._sphereMesh);
     HX.PointLight._sphericalLightPass = pass;
     HX.PointLight._sphericalPositionLocation = pass.getUniformLocation("lightWorldPosition[0]");
     HX.PointLight._sphericalColorLocation = pass.getUniformLocation("lightColor[0]");
     HX.PointLight._sphericalAttenuationFixFactorsLocation = pass.getUniformLocation("attenuationFixFactors[0]");
     HX.PointLight._sphericalLightRadiusLocation = pass.getUniformLocation("lightRadius[0]");
 };
-
-
-HX.PointLight.fullScreenVertexShader =
-    "precision mediump float;\
-    \
-    varying vec2 uv;\
-    varying vec3 viewWorldDir;\
-    \
-    void main()\
-    {\
-            uv = hx_texCoord;\
-            vec3 frustumVector = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\
-            viewWorldDir = mat3(hx_cameraWorldMatrix) * frustumVector;\
-            gl_Position = hx_position;\
-    }";
-
-HX.PointLight.getFullScreenFragmentShader = function(numLights)
-{
-    return HX.DEFERRED_LIGHT_MODEL +
-        "#define LIGHTS_PER_BATCH " + numLights + "\n" +
-        "varying vec2 uv;\
-        varying vec3 viewWorldDir;\
-        \
-        uniform vec3 lightColor[LIGHTS_PER_BATCH];\
-        uniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\
-        uniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\
-        \
-        void main()\
-        {\
-            vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);\
-            vec4 normalSample = texture2D(hx_gbufferNormals, uv);\
-            vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\
-            float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\
-            float absViewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n\
-            \
-            vec3 worldPosition = hx_cameraWorldPosition + absViewZ * viewWorldDir;\
-            \
-            vec3 normal = normalize(normalSample.xyz - .5);\
-            \
-            albedoSample = hx_gammaToLinear(albedoSample);\
-            vec3 viewDir = normalize(viewWorldDir);\
-            \
-            vec3 normalSpecularReflectance;\
-            float roughness;\
-            hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness);\
-            vec3 totalDiffuse = vec3(0.0);\
-            vec3 totalSpecular = vec3(0.0);\
-            vec3 diffuseReflection;\
-            vec3 specularReflection;\
-            \
-            for (int i = 0; i < LIGHTS_PER_BATCH; ++i) {\
-                vec3 lightWorldDirection = worldPosition - lightWorldPosition[i];\
-                float attenuation = 1.0/dot(lightWorldDirection, lightWorldDirection);\
-                /* normalize:*/\
-                lightWorldDirection *= sqrt(attenuation);\
-                \
-                /*rescale attenuation so that irradiance at bounding edge really is 0*/ \
-                attenuation = max(0.0, (attenuation - attenuationFixFactors[i].x) * attenuationFixFactors[i].y);\
-                hx_lighting(normal, lightWorldDirection, viewDir, lightColor[i] * attenuation, normalSpecularReflectance, roughness, normalSample.w, diffuseReflection, specularReflection);\
-                totalDiffuse += diffuseReflection;\
-                totalSpecular += specularReflection;\
-            }\
-            totalDiffuse *= albedoSample.xyz * (1.0 - specularSample.x);\
-            gl_FragColor = vec4(totalDiffuse + totalSpecular, 1.0);\
-        }";
-};
-
-HX.PointLight.sphericalVertexShader =
-    "#define LIGHTS_PER_BATCH " + HX.PointLight.LIGHTS_PER_BATCH + "\n" +
-    "\
-    precision mediump float;\
-    \
-    attribute vec4 hx_position;\
-    attribute float hx_instanceID;\
-    \
-    uniform mat4 hx_viewMatrix;\
-    uniform mat4 hx_projectionMatrix;\
-    uniform mat4 hx_cameraWorldMatrix;\
-    \
-    uniform float lightRadius[LIGHTS_PER_BATCH];\
-    uniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\
-    uniform vec3 lightColor[LIGHTS_PER_BATCH];\
-    uniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\
-    \
-    varying vec2 uv;\
-    varying vec3 viewWorldDir;\
-    varying vec3 lightColorVar;\
-    varying vec3 lightPositionVar;\
-    varying vec2 attenuationFixVar;\
-    \
-    void main()\
-    {\
-            int instance = int(hx_instanceID);\
-            vec4 worldPos = hx_position;\
-            lightPositionVar = lightWorldPosition[instance];\
-            lightColorVar = lightColor[instance];\
-            attenuationFixVar = attenuationFixFactors[instance];\
-            worldPos.xyz *= lightRadius[instance];\
-            worldPos.xyz += lightPositionVar;\
-            \
-            vec4 viewPos = hx_viewMatrix * worldPos;\
-            vec4 proj = hx_projectionMatrix * viewPos;\
-            \
-            viewWorldDir = mat3(hx_cameraWorldMatrix) * (viewPos.xyz / viewPos.z);\
-            \
-            /* render as flat disk, prevent clipping */ \
-            proj /= proj.w;\
-            proj.z = 0.0;\
-            uv = proj.xy/proj.w * .5 + .5;\
-            gl_Position = proj;\
-    }";
-
-HX.PointLight.sphericalFragmentShader =
-    HX.DEFERRED_LIGHT_MODEL +
-    "\
-    uniform mat4 hx_projectionMatrix;\
-    uniform vec3 hx_cameraWorldPosition;\
-    \
-    uniform sampler2D hx_gbufferAlbedo;\
-    uniform sampler2D hx_gbufferNormals;\
-    uniform sampler2D hx_gbufferSpecular;\
-    uniform sampler2D hx_gbufferDepth;\
-    \
-    varying vec2 uv;\
-    varying vec3 viewWorldDir;\
-    varying vec3 lightColorVar;\
-    varying vec3 lightPositionVar;\
-    varying vec2 attenuationFixVar;\
-    \
-    void main()\
-    {\
-        vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);\
-        vec4 normalSample = texture2D(hx_gbufferNormals, uv);\
-        vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\
-        float depth = texture2D(hx_gbufferDepth, uv).x;\
-        \
-        vec3 worldPos = hx_cameraWorldPosition + viewZ * viewWorldDir;\
-        \
-        vec3 normal = normalize(normalSample.xyz - .5);\
-        albedoSample = hx_gammaToLinear(albedoSample);\
-        vec3 viewDir = -normalize(viewWorldDir);\
-        \
-        vec3 normalSpecularReflectance;\
-        float roughness;\
-        hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness);\
-        vec3 diffuseReflection;\
-        vec3 specularReflection;\
-        \
-        vec3 lightWorldDirection = worldPosition - lightPositionVar;\
-        float attenuation = 1.0/dot(lightWorldDirection, lightWorldDirection);\
-        /* normalize:*/\
-        lightWorldDirection *= sqrt(attenuation);\
-        \
-        /*rescale attenuation so that irradiance at bounding edge really is 0*/ \
-        attenuation = max(0.0, (attenuation - attenuationFixVar.x) * attenuationFixVar.y);\
-        hx_lighting(normal, lightWorldDirection, viewDir, lightColorVar * attenuation, normalSpecularReflectance, roughness, normalSample.w, diffuseReflection, specularReflection);\
-        \
-        diffuseReflection *= albedoSample.xyz * (1.0 - specularSample.x);\
-        gl_FragColor = vec4(diffuseReflection + specularReflection, 0.0);\
-    }";
 /**
  *
  * @param material
@@ -11318,6 +11042,7 @@ HX.FrameTicker.prototype = {
      * @returns {number} The time passed in between two frames
      */
     get dt() { return this._dt; },
+    get time() { return this._currentTime; },
 
     /**
      * @private

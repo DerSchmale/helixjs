@@ -66,6 +66,7 @@ HX.FrameTicker.prototype = {
      * @returns {number} The time passed in between two frames
      */
     get dt() { return this._dt; },
+    get time() { return this._currentTime; },
 
     /**
      * @private

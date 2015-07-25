@@ -40,13 +40,16 @@ uniform vec3 lightWorldDirection;
 
 void main()
 {
-	vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);
+	vec4 albedoSample = hx_gammaToLinear(texture2D(hx_gbufferAlbedo, uv));
 	vec4 normalSample = texture2D(hx_gbufferNormals, uv);
 	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);
 	vec3 normal = hx_decodeNormal(normalSample);
 	vec3 normalSpecularReflectance;
+	float roughness;
+	float metallicness;
 
-	albedoSample = hx_gammaToLinear(albedoSample);
+	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness, metallicness);
+
 	vec3 normalizedWorldView = normalize(viewWorldDir);
 
 	// not sure what this is about?
@@ -54,13 +57,10 @@ void main()
 		normalizedWorldView = -normalizedWorldView;
 	#endif
 
-	float roughness;
-	float metallicness;
-	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness, metallicness);
 	vec3 diffuseReflection;
 	vec3 specularReflection;
 	hx_lighting(normal, lightWorldDirection, normalizedWorldView, lightColor, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);
-	diffuseReflection *= albedoSample.xyz * (1.0 - specularSample.x);
+	diffuseReflection *= albedoSample.xyz * (1.0 - metallicness);
 	vec3 totalReflection = diffuseReflection + specularReflection;
 
 	#ifdef CAST_SHADOWS

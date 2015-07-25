@@ -91,11 +91,7 @@ HX.Camera = function()
     this._farDistance = 1000;
     this._frustum = new HX.Frustum();
 
-    var mtx = new HX.Matrix4x4();
-    //mtx.rotationAxisAngle(HX.Float4.Y_AXIS, Math.PI);
-    //mtx.appendTranslation(0.0, 0.0, -1.0);
-    mtx.appendTranslation(0.0, 0.0, 1.0);
-    this.setTransformationMatrix(mtx);
+    this.getTransform().position.set(0.0, 0.0, 1.0);
 };
 
 HX.Camera.prototype = Object.create(HX.SceneNode.prototype);

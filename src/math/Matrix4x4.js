@@ -1269,8 +1269,9 @@ HX.Matrix4x4.prototype = {
     {
         this.fromQuaternion(transform.rotation);
         var scale = transform.scale;
+        var position = transform.position;
         this.appendScale(scale.x, scale.y, scale.z);
-        this.fromQuaternion(transform.rotation);
+        this.appendTranslation(position.x, position.y, position.z);
     },
 
     /**

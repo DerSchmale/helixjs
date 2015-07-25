@@ -180,183 +180,33 @@ HX.PointLight.prototype.getRadius = function()
 
 HX.PointLight.prototype._initLightPasses =  function()
 {
+
     HX.PointLight._fullScreenLightPasses = [];
     HX.PointLight._fullScreenPositionLocations = [];
     HX.PointLight._fullScreenColorLocations = [];
     HX.PointLight._fullScreenAttenuationFixFactorsLocations = [];
     var pass;
+    var defines;
     for (var i = 0; i < HX.PointLight.LIGHTS_PER_BATCH; ++i) {
-        pass = new HX.EffectPass(HX.PointLight.fullScreenVertexShader, HX.PointLight.getFullScreenFragmentShader(i + 1), HX.Light._rectMesh);
+        defines = "#define LIGHTS_PER_BATCH " + (i + 1) + "\n";
+        pass = new HX.EffectPass(
+            defines + HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl"),
+            HX.DEFERRED_LIGHT_MODEL + defines + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl"),
+            HX.Light._rectMesh);
         HX.PointLight._fullScreenPositionLocations[i] = pass.getUniformLocation("lightWorldPosition[0]");
         HX.PointLight._fullScreenColorLocations[i] = pass.getUniformLocation("lightColor[0]");
         HX.PointLight._fullScreenAttenuationFixFactorsLocations[i] = pass.getUniformLocation("attenuationFixFactors[0]");
         HX.PointLight._fullScreenLightPasses[i] = pass;
     }
 
-    pass = new HX.EffectPass(HX.PointLight.sphericalVertexShader, HX.PointLight.sphericalFragmentShader, HX.PointLight._sphereMesh);
+    defines = "#define LIGHTS_PER_BATCH " + HX.PointLight.LIGHTS_PER_BATCH + "\n";
+    pass = new HX.EffectPass(
+        defines + HX.ShaderLibrary.get("point_light_spherical_vertex.glsl"),
+        HX.DEFERRED_LIGHT_MODEL + defines + HX.ShaderLibrary.get("point_light_spherical_fragment.glsl"),
+        HX.PointLight._sphereMesh);
     HX.PointLight._sphericalLightPass = pass;
     HX.PointLight._sphericalPositionLocation = pass.getUniformLocation("lightWorldPosition[0]");
     HX.PointLight._sphericalColorLocation = pass.getUniformLocation("lightColor[0]");
     HX.PointLight._sphericalAttenuationFixFactorsLocation = pass.getUniformLocation("attenuationFixFactors[0]");
     HX.PointLight._sphericalLightRadiusLocation = pass.getUniformLocation("lightRadius[0]");
 };
-
-
-HX.PointLight.fullScreenVertexShader =
-    "precision mediump float;\
-    \
-    varying vec2 uv;\
-    varying vec3 viewWorldDir;\
-    \
-    void main()\
-    {\
-            uv = hx_texCoord;\
-            vec3 frustumVector = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\
-            viewWorldDir = mat3(hx_cameraWorldMatrix) * frustumVector;\
-            gl_Position = hx_position;\
-    }";
-
-HX.PointLight.getFullScreenFragmentShader = function(numLights)
-{
-    return HX.DEFERRED_LIGHT_MODEL +
-        "#define LIGHTS_PER_BATCH " + numLights + "\n" +
-        "varying vec2 uv;\
-        varying vec3 viewWorldDir;\
-        \
-        uniform vec3 lightColor[LIGHTS_PER_BATCH];\
-        uniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\
-        uniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\
-        \
-        void main()\
-        {\
-            vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);\
-            vec4 normalSample = texture2D(hx_gbufferNormals, uv);\
-            vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\
-            float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\
-            float absViewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n\
-            \
-            vec3 worldPosition = hx_cameraWorldPosition + absViewZ * viewWorldDir;\
-            \
-            vec3 normal = normalize(normalSample.xyz - .5);\
-            \
-            albedoSample = hx_gammaToLinear(albedoSample);\
-            vec3 viewDir = normalize(viewWorldDir);\
-            \
-            vec3 normalSpecularReflectance;\
-            float roughness;\
-            hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness);\
-            vec3 totalDiffuse = vec3(0.0);\
-            vec3 totalSpecular = vec3(0.0);\
-            vec3 diffuseReflection;\
-            vec3 specularReflection;\
-            \
-            for (int i = 0; i < LIGHTS_PER_BATCH; ++i) {\
-                vec3 lightWorldDirection = worldPosition - lightWorldPosition[i];\
-                float attenuation = 1.0/dot(lightWorldDirection, lightWorldDirection);\
-                /* normalize:*/\
-                lightWorldDirection *= sqrt(attenuation);\
-                \
-                /*rescale attenuation so that irradiance at bounding edge really is 0*/ \
-                attenuation = max(0.0, (attenuation - attenuationFixFactors[i].x) * attenuationFixFactors[i].y);\
-                hx_lighting(normal, lightWorldDirection, viewDir, lightColor[i] * attenuation, normalSpecularReflectance, roughness, normalSample.w, diffuseReflection, specularReflection);\
-                totalDiffuse += diffuseReflection;\
-                totalSpecular += specularReflection;\
-            }\
-            totalDiffuse *= albedoSample.xyz * (1.0 - specularSample.x);\
-            gl_FragColor = vec4(totalDiffuse + totalSpecular, 1.0);\
-        }";
-};
-
-HX.PointLight.sphericalVertexShader =
-    "#define LIGHTS_PER_BATCH " + HX.PointLight.LIGHTS_PER_BATCH + "\n" +
-    "\
-    precision mediump float;\
-    \
-    attribute vec4 hx_position;\
-    attribute float hx_instanceID;\
-    \
-    uniform mat4 hx_viewMatrix;\
-    uniform mat4 hx_projectionMatrix;\
-    uniform mat4 hx_cameraWorldMatrix;\
-    \
-    uniform float lightRadius[LIGHTS_PER_BATCH];\
-    uniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\
-    uniform vec3 lightColor[LIGHTS_PER_BATCH];\
-    uniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\
-    \
-    varying vec2 uv;\
-    varying vec3 viewWorldDir;\
-    varying vec3 lightColorVar;\
-    varying vec3 lightPositionVar;\
-    varying vec2 attenuationFixVar;\
-    \
-    void main()\
-    {\
-            int instance = int(hx_instanceID);\
-            vec4 worldPos = hx_position;\
-            lightPositionVar = lightWorldPosition[instance];\
-            lightColorVar = lightColor[instance];\
-            attenuationFixVar = attenuationFixFactors[instance];\
-            worldPos.xyz *= lightRadius[instance];\
-            worldPos.xyz += lightPositionVar;\
-            \
-            vec4 viewPos = hx_viewMatrix * worldPos;\
-            vec4 proj = hx_projectionMatrix * viewPos;\
-            \
-            viewWorldDir = mat3(hx_cameraWorldMatrix) * (viewPos.xyz / viewPos.z);\
-            \
-            /* render as flat disk, prevent clipping */ \
-            proj /= proj.w;\
-            proj.z = 0.0;\
-            uv = proj.xy/proj.w * .5 + .5;\
-            gl_Position = proj;\
-    }";
-
-HX.PointLight.sphericalFragmentShader =
-    HX.DEFERRED_LIGHT_MODEL +
-    "\
-    uniform mat4 hx_projectionMatrix;\
-    uniform vec3 hx_cameraWorldPosition;\
-    \
-    uniform sampler2D hx_gbufferAlbedo;\
-    uniform sampler2D hx_gbufferNormals;\
-    uniform sampler2D hx_gbufferSpecular;\
-    uniform sampler2D hx_gbufferDepth;\
-    \
-    varying vec2 uv;\
-    varying vec3 viewWorldDir;\
-    varying vec3 lightColorVar;\
-    varying vec3 lightPositionVar;\
-    varying vec2 attenuationFixVar;\
-    \
-    void main()\
-    {\
-        vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);\
-        vec4 normalSample = texture2D(hx_gbufferNormals, uv);\
-        vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\
-        float depth = texture2D(hx_gbufferDepth, uv).x;\
-        \
-        vec3 worldPos = hx_cameraWorldPosition + viewZ * viewWorldDir;\
-        \
-        vec3 normal = normalize(normalSample.xyz - .5);\
-        albedoSample = hx_gammaToLinear(albedoSample);\
-        vec3 viewDir = -normalize(viewWorldDir);\
-        \
-        vec3 normalSpecularReflectance;\
-        float roughness;\
-        hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness);\
-        vec3 diffuseReflection;\
-        vec3 specularReflection;\
-        \
-        vec3 lightWorldDirection = worldPosition - lightPositionVar;\
-        float attenuation = 1.0/dot(lightWorldDirection, lightWorldDirection);\
-        /* normalize:*/\
-        lightWorldDirection *= sqrt(attenuation);\
-        \
-        /*rescale attenuation so that irradiance at bounding edge really is 0*/ \
-        attenuation = max(0.0, (attenuation - attenuationFixVar.x) * attenuationFixVar.y);\
-        hx_lighting(normal, lightWorldDirection, viewDir, lightColorVar * attenuation, normalSpecularReflectance, roughness, normalSample.w, diffuseReflection, specularReflection);\
-        \
-        diffuseReflection *= albedoSample.xyz * (1.0 - specularSample.x);\
-        gl_FragColor = vec4(diffuseReflection + specularReflection, 0.0);\
-    }";

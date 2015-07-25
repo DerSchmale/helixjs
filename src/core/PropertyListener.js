@@ -31,12 +31,12 @@ HX.PropertyListener.prototype =
         );
 
         var wrapper = this;
+        var target = wrapper._targets[index];
         Object.defineProperty(targetObj, propertyName, {
             get: function() {
-                return wrapper._targets[index].value;
+                return target.value;
             },
             set: function(val) {
-                var target = wrapper._targets[index];
                 if (val !== target.value) {
                     target.value = val;
                     if (wrapper._enabled)

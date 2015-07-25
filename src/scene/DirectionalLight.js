@@ -201,6 +201,7 @@ HX.DirectionalLight.prototype._initLightPass =  function()
         this._splitDistancesLocation = this._lightPass.getUniformLocation("splitDistances[0]");
         this._shadowMatrixLocation = this._lightPass.getUniformLocation("shadowMapMatrices[0]");
         this._depthBiasLocation = this._lightPass.getUniformLocation("depthBias");
+
         if (this._numShadowSamples > 1) {
             this._shadowSoftnessLocation = this._lightPass.getUniformLocation("shadowMapSoftnesses[0]");
             this._shadowSoftnessData = new Float32Array(2 * this._numCascades);

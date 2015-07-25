@@ -51,6 +51,7 @@ HX.AmbientLight.prototype.renderBatch = function(lightCollection, startIndex, ca
         colorG += color.g;
         colorB += color.b;
     }
+
     HX.GL.uniform3f(HX.AmbientLight._colorLocation, colorR, colorG, colorB);
 
     // render rect mesh
@@ -67,42 +68,14 @@ HX.AmbientLight.prototype._updateWorldBounds = function()
 
 HX.AmbientLight.prototype._initLightPass =  function()
 {
-    var pass = new HX.EffectPass(HX.AmbientLight.vertexShader, HX.AmbientLight.getFragmentShader(this._useAO), HX.Light._rectMesh);
+    var defines = "";
+    if (this._useAO) defines += "#define USE_AO\n";
+    var pass = new HX.EffectPass(
+        HX.ShaderLibrary.get("ambient_light_vertex.glsl"),
+        defines + HX.ShaderLibrary.get("ambient_light_fragment.glsl"),
+        HX.Light._rectMesh);
 
     HX.AmbientLight._colorLocation = pass.getUniformLocation("lightColor");
 
     HX.AmbientLight._lightPass = pass;
-};
-
-HX.AmbientLight.vertexShader =
-    "precision mediump float;\
-    \
-    varying vec2 uv;\
-    \
-    void main()\
-    {\
-            uv = hx_texCoord;\
-            gl_Position = hx_position;\
-    }";
-
-HX.AmbientLight.getFragmentShader = function(useAO)
-{
-    return (useAO? "#define USE_AO\n" : "") +
-            "precision mediump float;\n\
-            uniform vec3 lightColor;\n\
-            \n\
-            varying vec2 uv;\n\
-            \n\
-            void main()\n\
-            {\n\
-                vec3 albedoSample = texture2D(hx_gbufferAlbedo, uv).xyz;\n\
-                #ifdef USE_AO\n\
-                float occlusionSample = texture2D(hx_source, uv).w;\n\
-                albedoSample *= occlusionSample;\n\
-                #endif\n\
-                \n\
-                albedoSample = hx_gammaToLinear(albedoSample);\n\
-                \n\
-                gl_FragColor = vec4(lightColor * albedoSample, 0.0);\n\
-            }";
 };

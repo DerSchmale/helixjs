@@ -49,13 +49,27 @@ HX.Color.prototype =
         return this.r*.30 + this.g*0.59 + this.b*.11;
     },
 
-    gammaToLinear: function()
+    gammaToLinear: function(target)
     {
-        return new HX.Color(Math.pow(this.r, 2.2), Math.pow(this.g, 2.2), Math.pow(this.b, 2.2), this.a);
+        target = target || new HX.Color();
+
+        target.r = Math.pow(this.r, 2.2);
+        target.g = Math.pow(this.g, 2.2);
+        target.b = Math.pow(this.b, 2.2);
+        target.a = this.a;
+
+        return target;
     },
 
-    linearToGamma: function()
+    linearToGamma: function(target)
     {
-        return new HX.Color(Math.pow(this.r,.454545), Math.pow(this.g, .454545), Math.pow(this.b, .454545), this.a);
+        target = target || new HX.Color();
+
+        target.r = Math.pow(this.r,.454545);
+        target.g = Math.pow(this.g,.454545);
+        target.b = Math.pow(this.b,.454545);
+        target.a = this.a;
+
+        return target;
     }
 };

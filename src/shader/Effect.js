@@ -3,7 +3,7 @@
  */
 HX.EffectPass = function(vertexShader, fragmentShader, mesh)
 {
-    vertexShader = vertexShader || HX.EffectPass.DEFAULT_VERTEX_SHADER;
+    vertexShader = vertexShader || HX.ShaderLibrary.get("default_post_vertex.glsl");
     var shader = new HX.Shader(vertexShader, fragmentShader);
     HX.MaterialPass.call(this, shader);
     this._uniformSetters = HX.UniformSetter.getSetters(this._shader);
@@ -161,15 +161,3 @@ HX.Effect.prototype =
         }
     }
 };
-
-HX.EffectPass.DEFAULT_VERTEX_SHADER =
-        "attribute vec4 hx_position;\
-        attribute vec2 hx_texCoord;\
-        \
-        varying vec2 uv;\
-        \
-        void main()\
-        {\
-                uv = hx_texCoord;\n\
-                gl_Position = hx_position;\n\
-        }";

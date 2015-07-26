@@ -4,7 +4,7 @@
  */
 HX.BloomThresholdPass = function()
 {
-    HX.EffectPass.call(this, null, HX.BloomThresholdPass._fragmentShader);
+    HX.EffectPass.call(this, null, HX.ShaderLibrary.get("bloom_threshold_fragment.glsl"));
     this.setThresholdLuminance(1.0);
 };
 
@@ -28,8 +28,14 @@ HX.BloomBlurPass = function(kernelSizes, weights, directionX, directionY, resolu
 {
     this._initWeights(kernelSizes, weights);
 
-    var vertex = HX.BloomBlurPass.getVertexShader(this._kernelSize, directionX, directionY, resolutionX, resolutionY);
-    var fragment = HX.BloomBlurPass.getFragmentShader(this._kernelSize, directionX, directionY, resolutionX, resolutionY)
+    var defines = "";
+    defines += "#define SOURCE_RES vec2(float(" + resolutionX + "), float(" + resolutionY + "))\n";
+    defines += "#define RADIUS float(" + Math.ceil(this._kernelSize * .5) + ")\n";
+    defines += "#define DIRECTION vec2(" + directionX + ", " + directionY + ")\n";
+    defines += "#define NUM_SAMPLES " + this._kernelSize + "\n";
+
+    var vertex = defines + HX.ShaderLibrary.get("bloom_blur_vertex.glsl");
+    var fragment = defines + HX.ShaderLibrary.get("bloom_blur_fragment.glsl");
 
     HX.EffectPass.call(this, vertex, fragment);
 
@@ -69,7 +75,7 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSizes, weights)
  */
 HX.BloomCompositePass = function()
 {
-    HX.EffectPass.call(this, HX.BloomCompositePass._vertexShader, HX.BloomCompositePass._fragmentShader);
+    HX.EffectPass.call(this, HX.ShaderLibrary.get("bloom_composite_vertex.glsl"), HX.ShaderLibrary.get("bloom_composite_fragment.glsl"));
 };
 
 HX.BloomCompositePass.prototype = Object.create(HX.EffectPass.prototype);
@@ -204,87 +210,4 @@ HX.BloomEffect.prototype.getThresholdLuminance = function()
 HX.BloomEffect.prototype.setThresholdLuminance = function(value)
 {
     return this.getPass(0).setThresholdLuminance(value);
-};
-
-HX.BloomThresholdPass._fragmentShader =
-    "varying vec2 uv;\n\
-    \n\
-    #includeHelix\n\
-    \n\
-    uniform sampler2D hx_source;\n\
-    \n\
-    uniform float threshold;\n\
-    \n\
-    void main()\n\
-    {\n\
-        vec4 color = texture2D(hx_source, uv);\n\
-        float originalLuminance = .05 + hx_luminance(color);\n\
-        float targetLuminance = max(originalLuminance - threshold, 0.0);\n\
-        gl_FragColor = color * targetLuminance / originalLuminance;\n\
-    }";
-
-HX.BloomCompositePass._vertexShader =
-    "varying vec2 uv;\
-       \
-       void main()\
-       {\
-               uv = hx_texCoord;\n\
-               gl_Position = hx_position;\n\
-       }";
-
-HX.BloomCompositePass._fragmentShader =
-    "varying vec2 uv;\n\
-    \n\
-    uniform sampler2D hx_source;\n\
-    uniform sampler2D bloomTexture;\n\
-    \n\
-    void main()\n\
-    {\n\
-        gl_FragColor = texture2D(hx_source, uv) + texture2D(bloomTexture, uv);\n\
-    }";
-
-HX.BloomBlurPass.getVertexShader = function(kernelSize, directionX, directionY, resolutionX, resolutionY)
-{
-    return  "#define SOURCE_RES vec2(float(" + resolutionX + "), float(" + resolutionY + "))\n\
-            #define RADIUS float(" + Math.ceil(kernelSize * .5) + ")\n\
-            #define DIRECTION vec2(" + directionX + ", " + directionY + ")\n\
-            precision mediump float;\n\
-            \n\
-            attribute vec4 hx_position;\n\
-            attribute vec2 hx_texCoord;\n\
-            \n\
-            varying vec2 uv;\n\
-            \n\
-            void main()\n\
-            {\n\
-                    uv = hx_texCoord - RADIUS * DIRECTION / SOURCE_RES;\n\
-                    gl_Position = hx_position;\n\
-            }";
-};
-
-HX.BloomBlurPass.getFragmentShader = function(kernelSize, directionX, directionY, resolutionX, resolutionY)
-{
-    return  "#define SOURCE_RES vec2(float(" + resolutionX + "), float(" + resolutionY + "))\n\
-            #define NUM_SAMPLES " + kernelSize + "\n\
-            #define DIRECTION vec2(" + directionX + ", " + directionY + ")\n\
-            \n\
-            varying vec2 uv;\n\
-            \n\
-            uniform sampler2D sourceTexture;\n\
-            \n\
-            uniform float gaussianWeights[NUM_SAMPLES];\n\
-            \n\
-            void main()\n\
-            {\n\
-                vec4 total = vec4(0.0);\n\
-                vec2 sampleUV = uv;\n\
-                vec2 stepSize = DIRECTION / SOURCE_RES;\n\
-                float totalWeight = 0.0;\n\
-                for (int i = 0; i < NUM_SAMPLES; ++i) {\n\
-                    vec4 sample = texture2D(sourceTexture, sampleUV);\n\
-                    total += sample * gaussianWeights[i];\n\
-                    sampleUV += stepSize;\n\
-                }\n\
-                gl_FragColor = total;\n\
-            }";
 };

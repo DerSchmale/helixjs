@@ -85,8 +85,19 @@ HX.Light.prototype._updateScaledIrradiance = function ()
     // this includes 1/PI radiance->irradiance factor
     var scale = this._luminance / Math.PI;
 
-    this._scaledIrradiance.r = this._color.r * scale;
-    this._scaledIrradiance.g = this._color.g * scale;
-    this._scaledIrradiance.b = this._color.b * scale;
+    if (HX.OPTIONS.useLinearSpace) {
+        this._color.gammaToLinear(this._scaledIrradiance);
+        console.log(this._color.r, this._color.g, this._color.b);
+        console.log(this._scaledIrradiance.r, this._scaledIrradiance.g, this._scaledIrradiance.b);
+    }
+    else {
+        this._scaledIrradiance.r = this._color.r;
+        this._scaledIrradiance.g = this._color.g;
+        this._scaledIrradiance.b = this._color.b;
+    }
+
+    this._scaledIrradiance.r *= scale;
+    this._scaledIrradiance.g *= scale;
+    this._scaledIrradiance.b *= scale;
     this._invalidateWorldBounds();
 };

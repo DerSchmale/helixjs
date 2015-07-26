@@ -5,7 +5,7 @@ HX = {
 
 HX.InitOptions = function()
 {
-    this.useHDR = false;   // only if available
+    this.useHDR = true;   // only if available
     this.useLinearSpace = true;
     this.ignoreDrawBuffersExtension = false;     // for debug purposes, forces multiple passes for the GBuffer
     this.ignoreDepthTexturesExtension = false;     // for debug purposes, forces storing depth info explicitly
@@ -251,6 +251,10 @@ HX._init2DDitherTexture = function(width, height)
 };
 HX.ShaderLibrary['lighting_blinn_phong.glsl'] = 'float hx_lightVisibility(in vec3 normal, in vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	// roughness remapping, this is essentially: sqrt(2 * roughness * roughness / PI)\n	// this remaps beckman distribution roughness to SmithSchlick\n	roughness *= .63772;\n	float g1 = nDotV*(1.0 - roughness) + roughness;\n	float g2 = nDotL*(1.0 - roughness) + roughness;\n	return 1.0/(g1*g2);\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	highp float roughSqr = roughness*roughness;\n	roughSqr *= roughSqr;\n	highp float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	highp float distribution = pow(halfDotNormal, 2.0/roughSqr - 2.0)/roughSqr;\n\n	float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = .25 * irradiance * fresnel * distribution * visibility;\n}';
 
+HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = '#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\n#ifdef ALBEDO_MAP\nuniform sampler2D albedoMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform vec3 albedoColor;\nuniform float specularNormalReflection;\nuniform float metallicness;\nuniform float roughness;\n\nvoid main()\n{\n    vec4 albedo;\n    #ifdef ALBEDO_MAP\n        albedo = texture2D(albedoMap, texCoords);\n    #else\n        albedo = vec4(albedoColor, 1.0);\n    #endif\n\n    vec3 fragNormal;\n    #ifdef NORMAL_MAP\n        vec3 normalSample = texture2D(normalMap, texCoords).xyz * 2.0 - 1.0;\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = cross(TBN[0], TBN[2]);\n\n        fragNormal = TBN * normalSample;\n    #else\n        fragNormal = normal;\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(albedo, fragNormal, gl_FragCoord.z, metallicness, specularNormalReflection, roughness);\n}';
+
+HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldMatrix;\n\nvarying vec3 normal;\n\n#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n\n#ifdef NORMAL_MAP\nattribute vec3 hx_tangent;\n\nuniform mat4 hx_worldMatrix;\n\nvarying vec3 tangent;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldMatrix) * hx_tangent;\n#endif\n\n#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
+
 HX.ShaderLibrary['ambient_light_fragment.glsl'] = 'uniform vec3 lightColor;\n\nuniform sampler2D hx_gbufferAlbedo;\n\n#ifdef USE_AO\nuniform sampler2D hx_source;\n#endif\n\nvarying vec2 uv;\n\nvoid main()\n{\n	vec3 albedoSample = texture2D(hx_gbufferAlbedo, uv).xyz;\n#ifdef USE_AO\n	float occlusionSample = texture2D(hx_source, uv).w;\n	albedoSample *= occlusionSample;\n#endif\n\n	albedoSample = hx_gammaToLinear(albedoSample);\n\n	gl_FragColor = vec4(lightColor * albedoSample, 0.0);\n}';
 
 HX.ShaderLibrary['ambient_light_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
@@ -275,9 +279,17 @@ HX.ShaderLibrary['point_light_spherical_fragment.glsl'] = 'varying vec2 uv;\nvar
 
 HX.ShaderLibrary['point_light_spherical_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute float hx_instanceID;\n\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform mat4 hx_projectionMatrix;\n\nuniform float lightRadius[LIGHTS_PER_BATCH];\nuniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\nuniform vec3 lightColor[LIGHTS_PER_BATCH];\nuniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\n\n\n\nvarying vec2 uv;\nvarying vec3 viewWorldDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nvoid main()\n{\n	int instance = int(hx_instanceID);\n	vec4 worldPos = hx_position;\n	lightPositionVar = lightWorldPosition[instance];\n	lightColorVar = lightColor[instance];\n	attenuationFixVar = attenuationFixFactors[instance];\n	worldPos.xyz *= lightRadius[instance];\n	worldPos.xyz += lightPositionVar;\n\n	vec4 viewPos = hx_viewMatrix * worldPos;\n	vec4 proj = hx_projectionMatrix * viewPos;\n\n	viewWorldDir = mat3(hx_cameraWorldMatrix) * (viewPos.xyz / viewPos.z);\n\n	/* render as flat disk, prevent clipping */\n	proj /= proj.w;\n	proj.z = 0.0;\n	uv = proj.xy/proj.w * .5 + .5;\n	gl_Position = proj;\n}';
 
-HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = '#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\n#ifdef ALBEDO_MAP\nuniform sampler2D albedoMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform vec3 albedoColor;\nuniform float specularNormalReflection;\nuniform float metallicness;\nuniform float roughness;\n\nvoid main()\n{\n    vec4 albedo;\n    #ifdef ALBEDO_MAP\n        albedo = texture2D(albedoMap, texCoords);\n    #else\n        albedo = vec4(albedoColor, 1.0);\n    #endif\n\n    vec3 fragNormal;\n    #ifdef NORMAL_MAP\n        vec3 normalSample = texture2D(normalMap, texCoords).xyz * 2.0 - 1.0;\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = cross(TBN[0], TBN[2]);\n\n        fragNormal = TBN * normalSample;\n    #else\n        fragNormal = normal;\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(albedo, fragNormal, gl_FragCoord.z, metallicness, specularNormalReflection, roughness);\n}';
+HX.ShaderLibrary['bloom_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform float gaussianWeights[NUM_SAMPLES];\n\nvoid main()\n{\n	vec4 total = vec4(0.0);\n	vec2 sampleUV = uv;\n	vec2 stepSize = DIRECTION / SOURCE_RES;\n	float totalWeight = 0.0;\n	for (int i = 0; i < NUM_SAMPLES; ++i) {\n		total += texture2D(sourceTexture, sampleUV) * gaussianWeights[i];\n		sampleUV += stepSize;\n	}\n	gl_FragColor = total;\n}';
 
-HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldMatrix;\n\nvarying vec3 normal;\n\n#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n\n#ifdef NORMAL_MAP\nattribute vec3 hx_tangent;\n\nuniform mat4 hx_worldMatrix;\n\nvarying vec3 tangent;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldMatrix) * hx_tangent;\n#endif\n\n#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
+HX.ShaderLibrary['bloom_blur_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord - RADIUS * DIRECTION / SOURCE_RES;\n	gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_source;\nuniform sampler2D bloomTexture;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_source, uv) + texture2D(bloomTexture, uv);\n}';
+
+HX.ShaderLibrary['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['bloom_threshold_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_source;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_source, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        gl_FragColor = color * targetLuminance / originalLuminance;\n}\n';
+
+HX.ShaderLibrary['default_post_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
 
 HX.ShaderLibrary['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n}\n';
 
@@ -3370,14 +3382,28 @@ HX.Color.prototype =
         return this.r*.30 + this.g*0.59 + this.b*.11;
     },
 
-    gammaToLinear: function()
+    gammaToLinear: function(target)
     {
-        return new HX.Color(Math.pow(this.r, 2.2), Math.pow(this.g, 2.2), Math.pow(this.b, 2.2), this.a);
+        target = target || new HX.Color();
+
+        target.r = Math.pow(this.r, 2.2);
+        target.g = Math.pow(this.g, 2.2);
+        target.b = Math.pow(this.b, 2.2);
+        target.a = this.a;
+
+        return target;
     },
 
-    linearToGamma: function()
+    linearToGamma: function(target)
     {
-        return new HX.Color(Math.pow(this.r,.454545), Math.pow(this.g, .454545), Math.pow(this.b, .454545), this.a);
+        target = target || new HX.Color();
+
+        target.r = Math.pow(this.r,.454545);
+        target.g = Math.pow(this.g,.454545);
+        target.b = Math.pow(this.b,.454545);
+        target.a = this.a;
+        
+        return target;
     }
 };
 /**
@@ -4742,9 +4768,20 @@ HX.Light.prototype._updateScaledIrradiance = function ()
     // this includes 1/PI radiance->irradiance factor
     var scale = this._luminance / Math.PI;
 
-    this._scaledIrradiance.r = this._color.r * scale;
-    this._scaledIrradiance.g = this._color.g * scale;
-    this._scaledIrradiance.b = this._color.b * scale;
+    if (HX.OPTIONS.useLinearSpace) {
+        this._color.gammaToLinear(this._scaledIrradiance);
+        console.log(this._color.r, this._color.g, this._color.b);
+        console.log(this._scaledIrradiance.r, this._scaledIrradiance.g, this._scaledIrradiance.b);
+    }
+    else {
+        this._scaledIrradiance.r = this._color.r;
+        this._scaledIrradiance.g = this._color.g;
+        this._scaledIrradiance.b = this._color.b;
+    }
+
+    this._scaledIrradiance.r *= scale;
+    this._scaledIrradiance.g *= scale;
+    this._scaledIrradiance.b *= scale;
     this._invalidateWorldBounds();
 };
 /**
@@ -5365,7 +5402,7 @@ HX.ScreenRenderer.prototype._switchPass = function(oldPass, newPass)
  */
 HX.EffectPass = function(vertexShader, fragmentShader, mesh)
 {
-    vertexShader = vertexShader || HX.EffectPass.DEFAULT_VERTEX_SHADER;
+    vertexShader = vertexShader || HX.ShaderLibrary.get("default_post_vertex.glsl");
     var shader = new HX.Shader(vertexShader, fragmentShader);
     HX.MaterialPass.call(this, shader);
     this._uniformSetters = HX.UniformSetter.getSetters(this._shader);
@@ -5523,18 +5560,6 @@ HX.Effect.prototype =
         }
     }
 };
-
-HX.EffectPass.DEFAULT_VERTEX_SHADER =
-        "attribute vec4 hx_position;\
-        attribute vec2 hx_texCoord;\
-        \
-        varying vec2 uv;\
-        \
-        void main()\
-        {\
-                uv = hx_texCoord;\n\
-                gl_Position = hx_position;\n\
-        }";
 HX.GLSLIncludeGeneral =
     "precision mediump float;\n\n" +
     HX.ShaderLibrary.get("snippets_general.glsl") + "\n\n";
@@ -9110,7 +9135,7 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera)
  */
 HX.BloomThresholdPass = function()
 {
-    HX.EffectPass.call(this, null, HX.BloomThresholdPass._fragmentShader);
+    HX.EffectPass.call(this, null, HX.ShaderLibrary.get("bloom_threshold_fragment.glsl"));
     this.setThresholdLuminance(1.0);
 };
 
@@ -9134,8 +9159,14 @@ HX.BloomBlurPass = function(kernelSizes, weights, directionX, directionY, resolu
 {
     this._initWeights(kernelSizes, weights);
 
-    var vertex = HX.BloomBlurPass.getVertexShader(this._kernelSize, directionX, directionY, resolutionX, resolutionY);
-    var fragment = HX.BloomBlurPass.getFragmentShader(this._kernelSize, directionX, directionY, resolutionX, resolutionY)
+    var defines = "";
+    defines += "#define SOURCE_RES vec2(float(" + resolutionX + "), float(" + resolutionY + "))\n";
+    defines += "#define RADIUS float(" + Math.ceil(this._kernelSize * .5) + ")\n";
+    defines += "#define DIRECTION vec2(" + directionX + ", " + directionY + ")\n";
+    defines += "#define NUM_SAMPLES " + this._kernelSize + "\n";
+
+    var vertex = defines + HX.ShaderLibrary.get("bloom_blur_vertex.glsl");
+    var fragment = defines + HX.ShaderLibrary.get("bloom_blur_fragment.glsl");
 
     HX.EffectPass.call(this, vertex, fragment);
 
@@ -9175,7 +9206,7 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSizes, weights)
  */
 HX.BloomCompositePass = function()
 {
-    HX.EffectPass.call(this, HX.BloomCompositePass._vertexShader, HX.BloomCompositePass._fragmentShader);
+    HX.EffectPass.call(this, HX.ShaderLibrary.get("bloom_composite_vertex.glsl"), HX.ShaderLibrary.get("bloom_composite_fragment.glsl"));
 };
 
 HX.BloomCompositePass.prototype = Object.create(HX.EffectPass.prototype);
@@ -9310,89 +9341,6 @@ HX.BloomEffect.prototype.getThresholdLuminance = function()
 HX.BloomEffect.prototype.setThresholdLuminance = function(value)
 {
     return this.getPass(0).setThresholdLuminance(value);
-};
-
-HX.BloomThresholdPass._fragmentShader =
-    "varying vec2 uv;\n\
-    \n\
-    #includeHelix\n\
-    \n\
-    uniform sampler2D hx_source;\n\
-    \n\
-    uniform float threshold;\n\
-    \n\
-    void main()\n\
-    {\n\
-        vec4 color = texture2D(hx_source, uv);\n\
-        float originalLuminance = .05 + hx_luminance(color);\n\
-        float targetLuminance = max(originalLuminance - threshold, 0.0);\n\
-        gl_FragColor = color * targetLuminance / originalLuminance;\n\
-    }";
-
-HX.BloomCompositePass._vertexShader =
-    "varying vec2 uv;\
-       \
-       void main()\
-       {\
-               uv = hx_texCoord;\n\
-               gl_Position = hx_position;\n\
-       }";
-
-HX.BloomCompositePass._fragmentShader =
-    "varying vec2 uv;\n\
-    \n\
-    uniform sampler2D hx_source;\n\
-    uniform sampler2D bloomTexture;\n\
-    \n\
-    void main()\n\
-    {\n\
-        gl_FragColor = texture2D(hx_source, uv) + texture2D(bloomTexture, uv);\n\
-    }";
-
-HX.BloomBlurPass.getVertexShader = function(kernelSize, directionX, directionY, resolutionX, resolutionY)
-{
-    return  "#define SOURCE_RES vec2(float(" + resolutionX + "), float(" + resolutionY + "))\n\
-            #define RADIUS float(" + Math.ceil(kernelSize * .5) + ")\n\
-            #define DIRECTION vec2(" + directionX + ", " + directionY + ")\n\
-            precision mediump float;\n\
-            \n\
-            attribute vec4 hx_position;\n\
-            attribute vec2 hx_texCoord;\n\
-            \n\
-            varying vec2 uv;\n\
-            \n\
-            void main()\n\
-            {\n\
-                    uv = hx_texCoord - RADIUS * DIRECTION / SOURCE_RES;\n\
-                    gl_Position = hx_position;\n\
-            }";
-};
-
-HX.BloomBlurPass.getFragmentShader = function(kernelSize, directionX, directionY, resolutionX, resolutionY)
-{
-    return  "#define SOURCE_RES vec2(float(" + resolutionX + "), float(" + resolutionY + "))\n\
-            #define NUM_SAMPLES " + kernelSize + "\n\
-            #define DIRECTION vec2(" + directionX + ", " + directionY + ")\n\
-            \n\
-            varying vec2 uv;\n\
-            \n\
-            uniform sampler2D sourceTexture;\n\
-            \n\
-            uniform float gaussianWeights[NUM_SAMPLES];\n\
-            \n\
-            void main()\n\
-            {\n\
-                vec4 total = vec4(0.0);\n\
-                vec2 sampleUV = uv;\n\
-                vec2 stepSize = DIRECTION / SOURCE_RES;\n\
-                float totalWeight = 0.0;\n\
-                for (int i = 0; i < NUM_SAMPLES; ++i) {\n\
-                    vec4 sample = texture2D(sourceTexture, sampleUV);\n\
-                    total += sample * gaussianWeights[i];\n\
-                    sampleUV += stepSize;\n\
-                }\n\
-                gl_FragColor = total;\n\
-            }";
 };
 /**
  *

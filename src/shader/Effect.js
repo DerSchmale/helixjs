@@ -67,6 +67,7 @@ HX.EffectPass.prototype.updateGlobalState = function(camera, gbuffer, source)
  */
 HX.Effect = function()
 {
+    this._isSupported = true;
     this._passes = [];
     this._mesh = null;
     this._hdrSourceIndex = -1;
@@ -75,6 +76,11 @@ HX.Effect = function()
 
 HX.Effect.prototype =
 {
+    isSupported: function()
+    {
+        return this._isSupported;
+    },
+
     getPass: function (index)
     {
         return this._passes[index];

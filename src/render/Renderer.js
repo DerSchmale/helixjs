@@ -447,8 +447,10 @@ HX.ScreenRenderer.prototype._renderEffects = function(dt, effects)
 
     for (var i = 0; i < len; ++i) {
         var effect = effects[i];
-        effect.setMesh(this._rectMesh);
-        this._renderEffect(effect, dt);
+        if (effect.isSupported()) {
+            effect.setMesh(this._rectMesh);
+            this._renderEffect(effect, dt);
+        }
     }
 };
 

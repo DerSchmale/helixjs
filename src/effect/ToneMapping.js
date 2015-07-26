@@ -3,9 +3,12 @@ HX.ToneMapEffect = function(toneMapPass)
     HX.Effect.call(this);
     this._toneMapPass = toneMapPass;
 
-    if (!HX.EXT_HALF_FLOAT_TEXTURES) return;
+    if (!HX.EXT_SHADER_TEXTURE_LOD || !HX.EXT_HALF_FLOAT_TEXTURES) {
+        this._isSupported = false;
+        return;
+    }
 
-    this.addPass(new HX.EffectPass(null, HX.ToneMapEffect._referenceLuminanceFragmentShader));
+    this.addPass(new HX.EffectPass(null, HX.ShaderLibrary.get("tonemap_reference_fragment.glsl")));
     this.addPass(this._toneMapPass);
 
     this._luminanceMap = new HX.Texture2D();
@@ -70,7 +73,12 @@ HX.ToneMapEffect.prototype.draw = function(dt)
  */
 HX.ReinhardToneMapEffect = function()
 {
-    HX.ToneMapEffect.call(this, new HX.EffectPass(null, HX.ReinhardToneMapEffect._fragmentShader));
+    if (!HX.EXT_SHADER_TEXTURE_LOD || !HX.EXT_HALF_FLOAT_TEXTURES) {
+        this._isSupported = false;
+        return;
+    }
+
+    HX.ToneMapEffect.call(this, new HX.EffectPass(null, HX.ShaderLibrary.get("tonemap_reinhard_fragment.glsl")));
 
     this.setKey(.18);
 };
@@ -85,7 +93,8 @@ HX.ReinhardToneMapEffect.prototype.getKey = function()
 HX.ReinhardToneMapEffect.prototype.setKey = function(value)
 {
     this._key = value;
-    this._toneMapPass.setUniform("key", value);
+    if (this._isSupported)
+        this._toneMapPass.setUniform("key", value);
 };
 
 /**
@@ -94,7 +103,12 @@ HX.ReinhardToneMapEffect.prototype.setKey = function(value)
  */
 HX.FilmicToneMapEffect = function()
 {
-    HX.ToneMapEffect.call(this, new HX.EffectPass(null, HX.FilmicToneMapEffect._fragmentShader));
+    if (!HX.EXT_SHADER_TEXTURE_LOD || !HX.EXT_HALF_FLOAT_TEXTURES) {
+        this._isSupported = false;
+        return;
+    }
+
+    HX.ToneMapEffect.call(this, new HX.EffectPass(null, HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl")));
     this._outputsGamma = true;
     this.setKey(.18);
 };
@@ -109,60 +123,6 @@ HX.FilmicToneMapEffect.prototype.getKey = function()
 HX.FilmicToneMapEffect.prototype.setKey = function(value)
 {
     this._key = value;
-    this._toneMapPass.setUniform("key", value);
+    if (this._isSupported)
+        this._toneMapPass.setUniform("key", value);
 };
-
-HX.ToneMapEffect._referenceLuminanceFragmentShader =
-    "varying vec2 uv;\n\
-    \n\
-    #includeHelix\n\
-    \n\
-    uniform sampler2D hx_source;\n\
-    \n\
-    void main()\n\
-    {\n\
-        vec4 color = texture2D(hx_source, uv);\n\
-        float l = log(.001 + hx_luminance(color));\n\
-        gl_FragColor = vec4(l, l, l, 1.0);\n\
-    }";
-
-
-HX.ReinhardToneMapEffect._fragmentShader =
-    "#extension GL_EXT_shader_texture_lod : require\n\
-    varying vec2 uv;\n\
-    \n\
-    #includeHelix\n\
-    \n\
-    uniform sampler2D hx_source;\n\
-    uniform sampler2D hx_luminanceMap;\n\
-    uniform float hx_luminanceMipLevel;\n\
-    uniform float key;\n\
-    \n\
-    void main()\n\
-    {\n\
-        vec4 color = texture2D(hx_source, uv);\n\
-        float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x - .001);\n\
-        color *= key / referenceLuminance;\
-        gl_FragColor = color / (1.0 + color);\n\
-    }";
-
-
-HX.FilmicToneMapEffect._fragmentShader =
-    "#extension GL_EXT_shader_texture_lod : require\n\
-    varying vec2 uv;\n\
-    \n\
-    #includeHelix\n\
-    \n\
-    uniform sampler2D hx_source;\n\
-    uniform sampler2D hx_luminanceMap;\n\
-    uniform float hx_luminanceMipLevel;\n\
-    uniform float key;\n\
-    \n\
-    void main()\n\
-    {\n\
-        vec4 color = texture2D(hx_source, uv);\n\
-        float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x - .001);\n\
-        color *= key / referenceLuminance;\n\
-        vec3 x = max(vec3(0.0), color.xyz - 0.004);\n\
-        gl_FragColor = vec4((x * (6.2 * x + .5))/(x * (6.2 * x + 1.7) + 0.06), 1.0);\n\
-    }";

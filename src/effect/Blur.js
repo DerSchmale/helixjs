@@ -93,7 +93,13 @@ HX.DirectionalBlurPass.getVertexShader = function(kernelSize, directionX, direct
             #define NUM_SAMPLES " + Math.ceil(kernelSize/2) + "\n\
             #define DIRECTION vec2(" + directionX + ", " + directionY + ")\n\
     \n\
+    attribute vec4 hx_position;\n\
+    attribute vec2 hx_texCoord;\n\
+    \n\
+    uniform vec2 hx_renderTargetResolution;\n\
+    \n\
     varying vec2 uv;\n\
+    \n\
     void main()\n\
     {\n\
             vec2 firstPixel = floor(hx_texCoord * SOURCE_RES - DIRECTION * float(NUM_SAMPLES));\

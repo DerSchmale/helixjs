@@ -4,14 +4,24 @@ varying vec3 viewWorldDir;
 uniform vec3 lightColor;
 uniform vec3 lightWorldDirection;
 
+uniform sampler2D hx_gbufferAlbedo;
+uniform sampler2D hx_gbufferNormals;
+uniform sampler2D hx_gbufferSpecular;
+
 #ifdef CAST_SHADOWS
+	uniform sampler2D hx_gbufferDepth;
 	uniform sampler2D shadowMap;
+
+	uniform float hx_cameraFrustumRange;
+	uniform float hx_cameraWorldPosition;
 
 	uniform mat4 shadowMapMatrices[NUM_CASCADES];
 	uniform float splitDistances[NUM_CASCADES];
 	uniform float depthBias;
 
 	#if NUM_SHADOW_SAMPLES > 1
+		uniform vec2 hx_dither2DTextureScale;
+
 		uniform vec2 shadowMapSoftnesses[NUM_CASCADES];
 		uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];
 	#endif

@@ -9,6 +9,7 @@ HX.InitOptions = function()
     this.useLinearSpace = true;
     this.ignoreDrawBuffersExtension = false;     // for debug purposes, forces multiple passes for the GBuffer
     this.ignoreDepthTexturesExtension = false;     // for debug purposes, forces storing depth info explicitly
+    this.throwOnShaderError = true;
 };
 
 HX.ShaderLibrary = {
@@ -41,6 +42,9 @@ HX.initFromContext = function(glContext, options)
     if (!HX.EXT_DRAW_BUFFERS) {
         defines += "#define HX_SEPARATE_GEOMETRY_PASSES\n";
         console.warn('WEBGL_draw_buffers extension not supported!');
+    }
+    else {
+        defines += "#extension GL_EXT_draw_buffers : require\n";
     }
 
     HX.MaterialPass.NUM_TOTAL_PASS_TYPES = HX.MaterialPass.NUM_PASS_TYPES + (HX.EXT_DRAW_BUFFERS ? 0 : 2);
@@ -80,8 +84,7 @@ HX.initFromContext = function(glContext, options)
         HX.OPTIONS.useHDR = false;
     }
 
-    HX.GLSLIncludeVertexShaders = defines + HX.GLSLIncludeVertexShaders;
-    HX.GLSLIncludeFragmentShaders = defines + HX.GLSLIncludeFragmentShaders;
+    HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
 
     // shortcuts
     HX.TEXTURE_FILTER = {};

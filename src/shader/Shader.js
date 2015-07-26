@@ -35,22 +35,33 @@ HX.Shader.prototype = {
     {
         preVertexCode = preVertexCode || "";
         preFragmentCode = preFragmentCode || "";
-        vertexShaderCode = preVertexCode + HX.GLSLIncludeVertexShaders + vertexShaderCode;
-        fragmentShaderCode = preFragmentCode + HX.GLSLIncludeFragmentShaders + fragmentShaderCode;
+        vertexShaderCode = preVertexCode + HX.GLSLIncludeGeneral + vertexShaderCode;
+        fragmentShaderCode = preFragmentCode + HX.GLSLIncludeGeneral + fragmentShaderCode;
 
         this._vertexShader = HX.GL.createShader(HX.GL.VERTEX_SHADER);
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {
-            console.log("Failed generating vertex shader");
-            console.log(vertexShaderCode);
             this.dispose();
+            if (HX.OPTIONS.throwOnShaderError) {
+                throw new Error("Failed generating vertex shader");
+            }
+            else {
+                console.log("Failed generating vertex shader");
+                console.log(vertexShaderCode);
+            }
+
             return;
         }
 
         this._fragmentShader = HX.GL.createShader(HX.GL.FRAGMENT_SHADER);
         if (!this._initShader(this._fragmentShader, fragmentShaderCode)) {
-            console.log("Failed generating fragment shader:");
-            console.log(fragmentShaderCode);
             this.dispose();
+            if (HX.OPTIONS.throwOnShaderError) {
+                throw new Error("Failed generating fragment shader");
+            }
+            else {
+                console.log("Failed generating fragment shader:");
+                console.log(fragmentShaderCode);
+            }
             return;
         }
 
@@ -61,8 +72,14 @@ HX.Shader.prototype = {
         HX.GL.linkProgram(this._program);
 
         if (!HX.GL.getProgramParameter(this._program, HX.GL.LINK_STATUS)) {
-            console.warn("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
             this.dispose();
+            if (HX.OPTIONS.throwOnShaderError) {
+                throw new Error("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
+            }
+            else {
+                console.warn("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
+            }
+
             return;
         }
 

@@ -1,10 +1,22 @@
-#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)
-varying vec2 texCoords;
-#endif
+attribute vec4 hx_position;
+attribute vec3 hx_normal;
+
+uniform mat4 hx_wvpMatrix;
+uniform mat3 hx_normalWorldMatrix;
 
 varying vec3 normal;
 
+#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)
+attribute vec2 hx_texCoord;
+varying vec2 texCoords;
+#endif
+
+
 #ifdef NORMAL_MAP
+attribute vec3 hx_tangent;
+
+uniform mat4 hx_worldMatrix;
+
 varying vec3 tangent;
 #endif
 

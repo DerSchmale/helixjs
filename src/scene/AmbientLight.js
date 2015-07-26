@@ -8,6 +8,8 @@ HX.AmbientLight = function()
 
     HX.Light._rectMesh = HX.Light._rectMesh || new HX.RectMesh.create();
 
+    // asume only one ambient light
+    this._colorLocation = null;
     this._lightPass = null;
     this._useAO = false;
 
@@ -28,8 +30,8 @@ HX.AmbientLight.prototype.activate = function(camera, gbuffer, occlusion)
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
 
-    HX.AmbientLight._lightPass.updateGlobalState(camera, gbuffer, occlusion);
-    HX.AmbientLight._lightPass.updateRenderState();
+    this._lightPass.updateGlobalState(camera, gbuffer, occlusion);
+    this._lightPass.updateRenderState();
 };
 
 // returns the index of the FIRST UNRENDERED light
@@ -37,27 +39,27 @@ HX.AmbientLight.prototype.renderBatch = function(lightCollection, startIndex, ca
 {
     this._occlusion = occlusion;
     var colorR = 0, colorG = 0, colorB = 0;
-    var end = lightCollection.length;
+    //var end = lightCollection.length;
 
-    for (var i = startIndex; i < end; ++i) {
-        var light = lightCollection[i];
+    //for (var i = startIndex; i < end; ++i) {
+        var light = lightCollection[startIndex];
         var color = light._scaledIrradiance;
 
-        if (light._type != this._type) {
-            end = i;
-            break;
-        }
+        //if (light._type != this._type) {
+        //    end = i;
+        //    break;
+        //}
         colorR += color.r;
         colorG += color.g;
         colorB += color.b;
-    }
+    //}
 
-    HX.GL.uniform3f(HX.AmbientLight._colorLocation, colorR, colorG, colorB);
+    HX.GL.uniform3f(this._colorLocation, colorR, colorG, colorB);
 
     // render rect mesh
     HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
 
-    return end;
+    return startIndex + 1;
 };
 
 HX.AmbientLight.prototype._updateWorldBounds = function()
@@ -73,9 +75,10 @@ HX.AmbientLight.prototype._initLightPass =  function()
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("ambient_light_vertex.glsl"),
         defines + HX.ShaderLibrary.get("ambient_light_fragment.glsl"),
-        HX.Light._rectMesh);
+        HX.Light._rectMesh
+    );
 
-    HX.AmbientLight._colorLocation = pass.getUniformLocation("lightColor");
+    this._colorLocation = pass.getUniformLocation("lightColor");
 
-    HX.AmbientLight._lightPass = pass;
+    this._lightPass = pass;
 };

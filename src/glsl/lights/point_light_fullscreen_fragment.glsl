@@ -1,6 +1,15 @@
 varying vec2 uv;
 varying vec3 viewWorldDir;
 
+uniform sampler2D hx_gbufferAlbedo;
+uniform sampler2D hx_gbufferNormals;
+uniform sampler2D hx_gbufferSpecular;
+uniform sampler2D hx_gbufferDepth;
+
+uniform float hx_cameraFrustumRange;
+uniform float hx_cameraNearPlaneDistance;
+uniform vec3 hx_cameraWorldPosition;
+
 uniform vec3 lightColor[LIGHTS_PER_BATCH];
 uniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];
 uniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];

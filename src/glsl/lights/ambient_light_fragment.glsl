@@ -1,5 +1,11 @@
 uniform vec3 lightColor;
 
+uniform sampler2D hx_gbufferAlbedo;
+
+#ifdef USE_AO
+uniform sampler2D hx_source;
+#endif
+
 varying vec2 uv;
 
 void main()

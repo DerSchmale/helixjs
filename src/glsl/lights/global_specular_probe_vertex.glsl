@@ -1,3 +1,5 @@
+attribute vec2 hx_texCoord;
+
 varying vec3 viewWorldDir;
 varying vec2 uv;
 

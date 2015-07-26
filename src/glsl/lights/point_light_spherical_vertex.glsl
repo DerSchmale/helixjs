@@ -1,7 +1,16 @@
+attribute vec4 hx_position;
+attribute float hx_instanceID;
+
+uniform mat4 hx_viewMatrix;
+uniform mat4 hx_cameraWorldMatrix;
+uniform mat4 hx_projectionMatrix;
+
 uniform float lightRadius[LIGHTS_PER_BATCH];
 uniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];
 uniform vec3 lightColor[LIGHTS_PER_BATCH];
 uniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];
+
+
 
 varying vec2 uv;
 varying vec3 viewWorldDir;

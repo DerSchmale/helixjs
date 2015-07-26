@@ -4,6 +4,15 @@ varying vec3 lightColorVar;
 varying vec3 lightPositionVar;
 varying vec2 attenuationFixVar;
 
+uniform sampler2D hx_gbufferAlbedo;
+uniform sampler2D hx_gbufferNormals;
+uniform sampler2D hx_gbufferSpecular;
+uniform sampler2D hx_gbufferDepth;
+
+uniform float hx_cameraFrustumRange;
+uniform vec3 hx_cameraWorldPosition;
+
+
 void main()
 {
 	vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);

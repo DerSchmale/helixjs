@@ -134,6 +134,9 @@ HX.MaterialPass.prototype = {
         HX.GL.useProgram(this._shader._program);
 
         var uniform = this._uniforms[slotName];
+
+        if (!uniform) return;
+
         var location = uniform.location;
 
         var slot = null;
@@ -141,7 +144,7 @@ HX.MaterialPass.prototype = {
         // reuse if location is already used
         var len = this._textureSlots.length;
         for (var i = 0; i < len; ++i) {
-            if (this._textureSlots[i].location == location) {
+            if (this._textureSlots[i].location === location) {
                 slot = this._textureSlots[i];
                 break;
             }
@@ -150,7 +153,6 @@ HX.MaterialPass.prototype = {
         if (slot == null) {
             slot = new HX.TextureSlot();
             this._textureSlots.push(slot);
-
             HX.GL.uniform1i(location, i);
             slot.location = location;
         }

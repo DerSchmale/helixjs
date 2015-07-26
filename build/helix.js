@@ -5,11 +5,11 @@ HX = {
 
 HX.InitOptions = function()
 {
-    this.useHDR = true;   // only if available
+    this.useHDR = false;   // only if available
     this.useLinearSpace = true;
     this.ignoreDrawBuffersExtension = false;     // for debug purposes, forces multiple passes for the GBuffer
     this.ignoreDepthTexturesExtension = false;     // for debug purposes, forces storing depth info explicitly
-    this.throwOnShaderError = false;
+    this.throwOnShaderError = true;
 };
 
 HX.ShaderLibrary = {
@@ -295,1771 +295,6 @@ HX.ShaderLibrary['linearize_depth_vertex.glsl'] = 'attribute vec4 hx_position;\n
 
 HX.ShaderLibrary['snippets_general.glsl'] = '#if defined(NO_MRT_GBUFFER_ALBEDO)\n#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = albedo)\n#elif defined(NO_MRT_GBUFFER_NORMALS)\n#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))\n#elif defined(NO_MRT_GBUFFER_SPECULAR)\n#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness))\n#else\n#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(albedo, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])\n#endif\n\n// see Aras\' blog post: http://aras-p.info/blog/2009/07/30/encoding-floats-to-rgba-the-final/\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = vec4(1.0, 255.0, 65025.0, 16581375.0) * value;\n    enc = fract(enc);\n    return enc - enc.yzww * vec4(1.0/255.0,1.0/255.0,1.0/255.0,0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc = fract(enc);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec4 hx_encodeNormalDepth(vec3 normal, float depth)\n{\n	#ifdef HX_STORE_EXPLICIT_DEPTH\n    	vec4 data;\n    	// xy contain normal\n		data.xy = normal.xy * .5 + .5;\n		data.zw = hx_floatToRG8(depth);\n		// use some of the lower precision depth to encode store normal sign\n		data.w = sign(normal.z) * data.w * .5 + .5;\n		return data;\n	#else\n		return vec4(normal * .5 + .5, 1.0);\n    #endif\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    #ifdef HX_STORE_EXPLICIT_DEPTH\n    	vec3 normal;\n    	normal.xy = data.xy * 2.0 - 1.0;\n		normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));\n		data.w = data.w * 2.0 - 1.0;\n		normal.z *= sign(data.w);\n		return normal;\n    #else\n    	return normalize(data.xyz - .5);\n    #endif\n}\n\nvec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness)\n{\n	return vec4(metallicness, specularNormalReflection * 5.0, roughness, 1.0);\n}\n\nvoid hx_processGeometryMRT(vec4 albedo, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 albedoData, out vec4 normalData, out vec4 specularData)\n{\n    albedoData = albedo;\n	normalData = hx_encodeNormalDepth(normal, depth);\n    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness);\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #ifdef HX_LINEAR_SPACE\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #ifdef HX_LINEAR_SPACE\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #ifdef HX_LINEAR_SPACE\n        linear.x = pow(linear.x, 0.45);\n        linear.y = pow(linear.y, 0.45);\n        linear.z = pow(linear.z, 0.45);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #ifdef HX_LINEAR_SPACE\n        linear.x = pow(linear.x, 0.45);\n        linear.y = pow(linear.y, 0.45);\n        linear.z = pow(linear.z, 0.45);\n    #endif\n    return linear;\n}\n\nfloat hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec4 hx_decodeSpecular(vec4 data)\n{\n    // scale specular reflectivity by 5 to have better precision since we only need the range ~[0, .2] (.17 = diamond)\n    data.y *= .2;\n    return data;\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 albedo)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), albedo, metallicness);\n}\n\nvoid hx_decodeReflectionData(in vec4 albedoSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)\n{\n	metallicness = specularSample.x;\n    normalSpecularReflectance = mix(vec3(specularSample.y * .2), albedoSample.xyz, metallicness);\n    //prevent from being 0 \n    roughness = clamp(specularSample.z, .01, .99);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n';
 
-/**
- *
- * @param vertexShaderCode
- * @param fragmentShaderCode
- * @param preVertexCode Can contain defines and other things that need to be in there before any other includes
- * @param preFragmentCode
- * @constructor
- */
-HX.Shader = function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
-{
-    // can be vertex or fragment shader
-    // Mesh object's vertexLayout should have a map of attrib names + offset into vertex buffer
-    // - on meshInstance creation:
-    //      -> create map of attribute index -> buffer offset
-    //      -> this by binding programme and asking gl for attrib locations
-    this._ready = false;
-    this._vertexShader = null;
-    this._fragmentShader = null;
-    this._program = null;
-    this._renderOrderHint = ++HX.Shader.ID_COUNTER;
-
-    if (vertexShaderCode && fragmentShaderCode) {
-        this.init(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode);
-    }
-};
-
-HX.Shader.ID_COUNTER = 0;
-
-HX.Shader.prototype = {
-    constructor: HX.Shader,
-
-    isReady: function() { return this._ready; },
-
-    init: function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
-    {
-        preVertexCode = preVertexCode || "";
-        preFragmentCode = preFragmentCode || "";
-        vertexShaderCode = preVertexCode + HX.GLSLIncludeGeneral + vertexShaderCode;
-        fragmentShaderCode = preFragmentCode + HX.GLSLIncludeGeneral + fragmentShaderCode;
-
-        this._vertexShader = HX.GL.createShader(HX.GL.VERTEX_SHADER);
-        if (!this._initShader(this._vertexShader, vertexShaderCode)) {
-            this.dispose();
-            if (HX.OPTIONS.throwOnShaderError) {
-                throw new Error("Failed generating vertex shader");
-            }
-            else {
-                console.log("Failed generating vertex shader");
-                console.log(vertexShaderCode);
-            }
-
-            return;
-        }
-
-        this._fragmentShader = HX.GL.createShader(HX.GL.FRAGMENT_SHADER);
-        if (!this._initShader(this._fragmentShader, fragmentShaderCode)) {
-            this.dispose();
-            if (HX.OPTIONS.throwOnShaderError) {
-                throw new Error("Failed generating fragment shader");
-            }
-            else {
-                console.log("Failed generating fragment shader:");
-                console.log(fragmentShaderCode);
-            }
-            return;
-        }
-
-        this._program = HX.GL.createProgram();
-
-        HX.GL.attachShader(this._program, this._vertexShader);
-        HX.GL.attachShader(this._program, this._fragmentShader);
-        HX.GL.linkProgram(this._program);
-
-        if (!HX.GL.getProgramParameter(this._program, HX.GL.LINK_STATUS)) {
-            this.dispose();
-            if (HX.OPTIONS.throwOnShaderError) {
-                throw new Error("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
-            }
-            else {
-                console.warn("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
-            }
-
-            return;
-        }
-
-        this._ready = true;
-    },
-
-    updateRenderState: function()
-    {
-        HX.GL.useProgram(this._program);
-    },
-
-    _initShader: function(shader, code)
-    {
-        HX.GL.shaderSource(shader, code);
-        HX.GL.compileShader(shader);
-
-        // Check the compile status, return an error if failed
-        if (!HX.GL.getShaderParameter(shader, HX.GL.COMPILE_STATUS)) {
-            console.warn(HX.GL.getShaderInfoLog(shader));
-            return false;
-        }
-
-        return true;
-    },
-
-    dispose: function()
-    {
-        HX.GL.deleteShader(this._vertexShader);
-        HX.GL.deleteShader(this._fragmentShader);
-        HX.GL.deleteProgram(this._program);
-
-        this._ready = false;
-    },
-
-    getProgram: function() { return this._program; },
-
-    getVertexAttributeIndex: function(name)
-    {
-        return HX.GL.getAttribLocation(this._program, name);
-    }
-};
-HX.TextureSlot = function() {
-    this.location = -1;
-    this.texture = null;
-};
-
-/**
- *
- * @param shader
- * @constructor
- */
-HX.MaterialPass = function (shader)
-{
-    this._shader = shader;
-    this._textureSlots = [];
-    this._uniforms = {};
-    this._elementType = HX.GL.TRIANGLES;
-    this._cullMode = HX.GL.BACK;
-    this._blending = false;
-    this._blendSource = HX.GL.ONE;
-    this._blendDest = HX.GL.ZERO;
-    this._blendOperator = HX.GL.FUNC_ADD;
-    this._gbuffer = null;
-    this._enabled = true;
-
-    this._storeUniforms();
-};
-
-HX.MaterialPass.GEOMETRY_PASS = 0;
-HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS = 1;
-HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS = 2;
-HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS = 3;
-// used for post-lighting
-HX.MaterialPass.PRE_EFFECT_PASS = 4;
-HX.MaterialPass.POST_PASS = 5;
-
-// the individual pass type are not taken into account, they will be dealt with specially
-HX.MaterialPass.NUM_PASS_TYPES = 6;
-
-// only used by the old renderer, will be removed at some point
-// use diffuse as alias for geometry pass
-HX.MaterialPass.GEOMETRY_ALBEDO_PASS = HX.MaterialPass.GEOMETRY_PASS;
-HX.MaterialPass.GEOMETRY_NORMAL_PASS = HX.MaterialPass.NUM_PASS_TYPES++;
-HX.MaterialPass.GEOMETRY_SPECULAR_PASS = HX.MaterialPass.NUM_PASS_TYPES++;
-
-HX.MaterialPass.prototype = {
-    constructor: HX.MaterialPass,
-
-    getShader: function ()
-    {
-        return this._shader;
-    },
-
-    setElementType: function(value)
-    {
-        this._elementType = value;
-    },
-
-    getElementType: function()
-    {
-        return this._elementType;
-    },
-
-    // use null for disabled
-    setCullMode: function(value)
-    {
-        this._cullMode = value;
-    },
-
-    getCullMode: function()
-    {
-        return this._cullMode;
-    },
-
-    disableBlendMode: function()
-    {
-        this._blending = false;
-    },
-
-    setBlendMode: function(source, dest, op)
-    {
-        this._blending = true;
-        this._blendSource = source;
-        this._blendDest = dest;
-        this._blendOperator = op;
-    },
-
-    assignGBuffer: function(gbuffer)
-    {
-        // todo: only do this when gbuffer changed
-        if (this._gbuffer != gbuffer) {
-            this._gbuffer = gbuffer;
-            this.setTexture("hx_gbufferAlbedo", gbuffer[0]);
-            this.setTexture("hx_gbufferNormals", gbuffer[1]);
-            this.setTexture("hx_gbufferSpecular", gbuffer[2]);
-            this.setTexture("hx_gbufferDepth", gbuffer[3]);
-        }
-    },
-
-    updateRenderState: function ()
-    {
-        this._shader.updateRenderState();
-
-        var len = this._textureSlots.length;
-
-        for (var i = 0; i < len; ++i) {
-            var slot = this._textureSlots[i];
-            var texture = slot.texture;
-
-            if (texture.isReady()) {
-                texture.bind(i);
-            }
-            else {
-                texture._default.bind(i);
-            }
-        }
-    },
-
-    _storeUniforms: function()
-    {
-        var len = HX.GL.getProgramParameter(this._shader._program, HX.GL.ACTIVE_UNIFORMS);
-
-        for (var i = 0; i < len; ++i) {
-            var uniform = HX.GL.getActiveUniform(this._shader._program, i)
-            var name = uniform.name;
-            var location = HX.GL.getUniformLocation(this._shader._program, name);
-            this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
-        }
-    },
-
-    getTextureSlot: function(slotName)
-    {
-        if (!this._uniforms.hasOwnProperty(slotName)) return null;
-
-        HX.GL.useProgram(this._shader._program);
-
-        var uniform = this._uniforms[slotName];
-
-        if (!uniform) return;
-
-        var location = uniform.location;
-
-        var slot = null;
-
-        // reuse if location is already used
-        var len = this._textureSlots.length;
-        for (var i = 0; i < len; ++i) {
-            if (this._textureSlots[i].location === location) {
-                slot = this._textureSlots[i];
-                break;
-            }
-        }
-
-        if (slot == null) {
-            slot = new HX.TextureSlot();
-            this._textureSlots.push(slot);
-            HX.GL.uniform1i(location, i);
-            slot.location = location;
-        }
-
-        return slot;
-    },
-
-    setTexture: function(slotName, texture)
-    {
-        var slot = this.getTextureSlot(slotName);
-        if (slot)
-            slot.texture = texture;
-    },
-
-    getUniformLocation: function(name)
-    {
-        if (this._uniforms.hasOwnProperty(name))
-            return this._uniforms[name].location;
-    },
-
-    setUniformArray: function(name, value)
-    {
-        name = name + "[0]";
-
-        if (!this._uniforms.hasOwnProperty(name))
-            return;
-
-        var uniform = this._uniforms[name];
-
-        HX.GL.useProgram(this._shader._program);
-
-        switch(uniform.type) {
-            case HX.GL.FLOAT:
-                HX.GL.uniform1fv(uniform.location, value);
-                break;
-            case HX.GL.FLOAT_VEC2:
-                HX.GL.uniform2fv(uniform.location, value);
-                break;
-            case HX.GL.FLOAT_VEC3:
-                HX.GL.uniform3fv(uniform.location, value);
-                break;
-            case HX.GL.FLOAT_VEC4:
-                HX.GL.uniform4fv(uniform.location, value);
-                break;
-            case HX.GL.INT:
-                HX.GL.uniform1iv(uniform.location, value);
-                break;
-            case HX.GL.INT_VEC2:
-                HX.GL.uniform2iv(uniform.location, value);
-                break;
-            case HX.GL.INT_VEC3:
-                HX.GL.uniform3iv(uniform.location, value);
-                break;
-            case HX.GL.INT_VEC4:
-                HX.GL.uniform1iv(uniform.location, value);
-                break;
-            case HX.GL.BOOL:
-                HX.GL.uniform1bv(uniform.location, value);
-                break;
-            case HX.GL.BOOL_VEC2:
-                HX.GL.uniform2bv(uniform.location, value);
-                break;
-            case HX.GL.BOOL_VEC3:
-                HX.GL.uniform3bv(uniform.location, value);
-                break;
-            case HX.GL.BOOL_VEC4:
-                HX.GL.uniform4bv(uniform.location, value);
-                break;
-            default:
-                throw "Unsupported uniform format for setting. May be a todo.";
-
-        }
-    },
-
-    setUniform: function(name, value)
-    {
-        if (!this._uniforms.hasOwnProperty(name))
-            return;
-
-        var uniform = this._uniforms[name];
-
-        HX.GL.useProgram(this._shader._program);
-
-        switch(uniform.type) {
-            case HX.GL.FLOAT:
-                HX.GL.uniform1f(uniform.location, value);
-                break;
-            case HX.GL.FLOAT_VEC2:
-                HX.GL.uniform2f(uniform.location, value.x, value.y);
-                break;
-            case HX.GL.FLOAT_VEC3:
-                HX.GL.uniform3f(uniform.location, value.x || value.r, value.y || value.g, value.z || value.b );
-                break;
-            case HX.GL.FLOAT_VEC4:
-                HX.GL.uniform4f(uniform.location, value.x || value.r, value.y || value.g, value.z || value.b, value.w || value.a);
-                break;
-            case HX.GL.INT:
-                HX.GL.uniform1i(uniform.location, value);
-                break;
-            case HX.GL.INT_VEC2:
-                HX.GL.uniform2i(uniform.location, value.x, value.y);
-                break;
-            case HX.GL.INT_VEC3:
-                HX.GL.uniform3i(uniform.location, value.x, value.y, value.z);
-                break;
-            case HX.GL.INT_VEC4:
-                HX.GL.uniform1i(uniform.location, value.x, value.y, value.z, value.w);
-                break;
-            case HX.GL.BOOL:
-                HX.GL.uniform1i(uniform.location, value);
-                break;
-            case HX.GL.BOOL_VEC2:
-                HX.GL.uniform2i(uniform.location, value.x, value.y);
-                break;
-            case HX.GL.BOOL_VEC3:
-                HX.GL.uniform3i(uniform.location, value.x, value.y, value.z);
-                break;
-            case HX.GL.BOOL_VEC4:
-                HX.GL.uniform4i(uniform.location, value.x, value.y, value.z, value.w);
-                break;
-            default:
-                throw "Unsupported uniform format for setting. May be a todo.";
-
-        }
-    },
-
-    isEnabled: function() { return this._enabled; },
-    setEnabled: function(value) { this._enabled = value; }
-};
-
-/**
- *
- * @constructor
- */
-HX.Material = function ()
-{
-    this._passes = new Array(HX.Material.NUM_TOTAL_PASS_TYPES);
-    this._renderOrderHint = ++HX.Material.ID_COUNTER;
-    this.onChange = new HX.Signal();
-    this._textures = {};
-    this._uniforms = {};
-};
-
-HX.Material.parseFromXML = function(xml)
-{
-    var material = new HX.Material();
-    HX.Material._parseXMLTo(xml, material);
-    return material;
-};
-
-HX.Material._parseXMLTo = function(xml, material)
-{
-    HX.Material._parseGeometryPassFromXML(xml, material);
-
-    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS, "geometryPostAlbedo", material);
-    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS, "geometryPostNormal", material);
-    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS, "geometryPostSpecular", material);
-    HX.Material._parsePassFromXML(xml, HX.MaterialPass.PRE_EFFECT_PASS, "preEffect", material);
-    HX.Material._parsePassFromXML(xml, HX.MaterialPass.POST_PASS, "post", material);
-
-    var uniforms = xml.getElementsByTagName("uniforms")[0];
-
-    if (uniforms) {
-        var node = uniforms.firstChild;
-
-        while (node) {
-            if (node.nodeName != "#text") {
-                var value = node.getAttribute("value").split(",");
-                if (value.length == 1)
-                    material.setUniform(node.nodeName, Number(value[0]), false);
-                else
-                    material.setUniform(node.nodeName, {x: Number(value[0]), y: Number(value[1]), z: Number(value[2]), w: Number(value[3])}, false);
-            }
-
-            node = node.nextSibling;
-        }
-    }
-
-    // assign default textures
-    material.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
-};
-
-HX.Material._translateProperty = function(value)
-{
-    if (!HX.Material._properties) {
-        HX.Material._properties = {
-            back: HX.GL.BACK,
-            front: HX.GL.FRONT,
-            both: HX.GL.FRONT_AND_BACK,
-            disabled: null,
-            lines: HX.GL.LINES,
-            points: HX.GL.POINTS,
-            triangles: HX.GL.TRIANGLES,
-            one: HX.GL.ONE,
-            zero: HX.GL.ZERO,
-            sourceColor: HX.GL.SRC_COLOR,
-            oneMinusSourceColor: HX.GL.ONE_MINUS_SRC_COLOR,
-            sourceAlpha: HX.GL.SRC_ALPHA,
-            oneMinusSourceAlpha: HX.GL.ONE_MINUS_SRC_ALPHA,
-            destinationAlpha: HX.GL.DST_ALPHA,
-            oneMinusDestinationAlpha: HX.GL.ONE_MINUS_DST_ALPHA,
-            destinationColor: HX.GL.DST_COLOR,
-            sourceAlphaSaturate: HX.GL.SRC_ALPHA_SATURATE,
-            add: HX.GL.FUNC_ADD,
-            subtract: HX.GL.FUNC_SUBTRACT,
-            reverseSubtract: HX.GL.FUNC_REVERSE_SUBTRACT
-        }
-    }
-
-    return HX.Material._properties[value];
-};
-
-HX.MaterialPass.DST_ALPHA = "disabled";
-HX.MaterialPass.ONE_MINUS_SRC_COLOR = "disabled";
-
-
-HX.Material._decodeHTML = function(value)
-{
-    var e = document.createElement('div');
-    e.innerHTML = value;
-    return e.childNodes.length === 0 ? "" : e.childNodes[0].nodeValue;
-}
-
-HX.Material._addParsedPass = function (vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType, geometryTypeDef)
-{
-    if (geometryTypeDef) {
-        geometryTypeDef = "#define " + geometryTypeDef + "\n";
-    }
-
-    var shader = new HX.Shader(vertexShader, fragmentShader, geometryTypeDef, geometryTypeDef);
-    var pass = new HX.MaterialPass(shader);
-
-    if (elements)
-        pass.setElementType(HX.Material._translateProperty(elements.innerHTML));
-
-    if (cullmode)
-        pass.setCullMode(HX.Material._translateProperty(cullmode.innerHTML));
-
-    if (blend) {
-        var source = blend.getElementsByTagName("source")[0];
-        var dest = blend.getElementsByTagName("destination")[0];
-        var op = blend.getElementsByTagName("operator")[0];
-        source = source ? HX.Material._translateProperty(source.innerHTML) : HX.GL.ONE;
-        dest = dest ? HX.Material._translateProperty(dest.innerHTML) : HX.GL.ZERO;
-        op = source ? HX.Material._translateProperty(op.innerHTML) : HX.GL.FUNC_ADD;
-        pass.setBlendMode(source, dest, op);
-    }
-
-    targetMaterial.setPass(passType, pass);
-};
-HX.Material._parsePassFromXML = function(xml, passType, tagName, targetMaterial)
-{
-    var common = xml.getElementsByTagName("common")[0];
-    common = common ? common.innerHTML : "";
-    var tags = xml.getElementsByTagName(tagName);
-    if (tags === undefined || tags.length === 0) return;
-    var passDef = tags[0];
-
-    var vertexShaderID = passDef.getElementsByTagName("vertex")[0].innerHTML;
-    var fragmentShaderID = passDef.getElementsByTagName("fragment")[0].innerHTML;
-    var elements = passDef.getElementsByTagName("element")[0];
-    var cullmode = passDef.getElementsByTagName("cullmode")[0];
-    var blend = passDef.getElementsByTagName("blend")[0];
-
-    var vertexShader = common + xml.querySelector("[id=" + vertexShaderID + "]").innerHTML;
-    var fragmentShader = common + xml.querySelector("[id=" + fragmentShaderID + "]").innerHTML;
-    vertexShader = HX.Material._decodeHTML(vertexShader);
-    fragmentShader = HX.Material._decodeHTML(fragmentShader);
-
-    if (passType === HX.MaterialPass.GEOMETRY_PASS && !HX.EXT_DRAW_BUFFERS) {
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
-    }
-    else {
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_ALBEDO_PASS, "NO_MRT_GBUFFER_ALBEDO");
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_NORMAL_PASS, "NO_MRT_GBUFFER_NORMALS");
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_SPECULAR_PASS, "NO_MRT_GBUFFER_SPECULAR");
-    }
-};
-
-HX.Material.ID_COUNTER = 0;
-
-HX.Material.prototype = {
-    constructor: HX.Material,
-
-    getPass: function (type)
-    {
-        return this._passes[type];
-    },
-
-    setPass: function (type, pass)
-    {
-        this._passes[type] = pass;
-
-        if (pass) {
-            pass._renderOrderHint = this._renderOrderHint;
-            for (var slotName in this._textures) {
-                if (this._textures.hasOwnProperty(slotName))
-                    pass.setTexture(slotName, this._textures[slotName]);
-            }
-
-            for (var uniformName in this._uniforms)
-                if (this._uniforms.hasOwnProperty(uniformName)) {
-                    if (uniformName.charAt(uniformName.length-1) == ']')
-                        pass.setUniformArray(uniformName.substr(0, uniformName.length - 3), this._uniforms[uniformName]);
-                    else
-                        pass.setUniform(uniformName, this._uniforms[uniformName]);
-                }
-        }
-
-        this.onChange.dispatch();
-    },
-
-    hasPass: function (type)
-    {
-        return this._passes[type] !== undefined;
-    },
-
-    setTexture: function(slotName, texture)
-    {
-        this._textures[slotName] = texture;
-
-        for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i)
-            if (this._passes[i]) this._passes[i].setTexture(slotName, texture);
-    },
-
-    /**
-     *
-     * @param name
-     * @param value
-     * @param overwrite (Optional) If the value was already set, ignore the new value.
-     */
-    setUniform: function(name, value, overwrite)
-    {
-        if (overwrite === undefined) overwrite = true;
-
-        if (!overwrite && this._uniforms.hasOwnProperty(name))
-            return;
-
-        this._uniforms[name] = value;
-
-        for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i) {
-            if (this._passes[i])
-                this._passes[i].setUniform(name, value);
-        }
-    },
-
-    /**
-     *
-     * @param name
-     * @param value
-     * @param overwrite (Optional) If the value was already set, ignore the new value.
-     */
-    setUniformArray: function(name, value, overwrite)
-    {
-        if (overwrite === undefined) overwrite = true;
-
-        if (!overwrite && this._uniforms.hasOwnProperty(name + '[0]'))
-            return;
-
-        this._uniforms[name + '[0]'] = value;
-
-        for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i) {
-            if (this._passes[i])
-                this._passes[i].setUniformArray(name, value);
-        }
-    }
-
-};
-
-HX.FileMaterial = function(url, onComplete, onError)
-{
-    HX.Material.call(this);
-
-    var urlLoader = new HX.URLLoader();
-    var material = this;
-
-    urlLoader.onComplete = function(data) {
-        var parser = new DOMParser();
-        var xml = parser.parseFromString(data, "text/xml");
-
-        HX.Material._parseXMLTo(xml, material);
-
-        if (onComplete) onComplete();
-    };
-
-    urlLoader.onError = function(code) {
-        console.warn("Failed loading " + url + ". Error code: " + code);
-        if (onError) onError(code);
-    };
-
-    urlLoader.load(url);
-};
-
-HX.FileMaterial.prototype = Object.create(HX.Material.prototype);
-// basic version is non-hierarchical, for use with lights etc
-/**
- *
- * @constructor
- */
-HX.SceneNode = function()
-{
-    this._effects = null;
-    this._transform = new HX.Transform();
-    this._transform.onChange.bind(this, this._onTransformChange);
-    this._transformMatrix = new HX.Matrix4x4();
-    this._worldTransformMatrix = new HX.Matrix4x4();
-    this._worldBoundsInvalid = true;
-    this._matrixInvalid = true;
-    this._worldMatrixInvalid = true;
-    this._parent = null;
-    this._worldBounds = this._createBoundingVolume();
-    this._debugBounds = null;
-
-    // used to determine sorting index for the render loop
-    // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
-    // intersection with near plane, etc
-    this._renderOrderHint = 0.0;
-};
-
-HX.SceneNode.prototype = {
-    constructor: HX.SceneNode,
-
-    get transform()
-    {
-        return this._transform;
-    },
-
-    /**
-     * Copies the transform from a Transform object to this object's transform object. If no value is passed in, the
-     * Transform object is disabled for this object, allowing static objects with a fixed transformation matrix.
-     * @param value
-     */
-    set transform(value)
-    {
-        if (value) {
-            if (!this._transform) {
-                this._transform = new HX.Transform();
-                this._transform.onChange.bind(this, this._onTransformChange);
-            }
-
-            this._transform.copyFrom(value);
-            this._invalidateTransformationMatrix();
-        }
-        else if (this._transform) {
-            // whatever was still set on old transform must be stored first
-            if (this._matrixInvalid) this._updateTransformationMatrix();
-            this._transform.onChange.unbind(this._onTransformChange);
-            this._transform = null;
-        }
-    },
-
-    getEffects: function(value)
-    {
-        return this._effects;
-    },
-
-    setEffects: function(value)
-    {
-        this._effects = value;
-    },
-
-    getTransformationMatrix: function()
-    {
-        if (this._matrixInvalid)
-            this._updateTransformationMatrix();
-
-        return this._transformMatrix;
-    },
-
-    setTransformationMatrix: function(matrix)
-    {
-        this._transformMatrix.copyFrom(matrix);
-        this._matrixInvalid = false;
-
-        if (this._transform)
-            this._transformMatrix.decompose(this._transform);
-
-        this._invalidateWorldTransformationMatrix();
-    },
-
-    getWorldMatrix: function()
-    {
-        if (this._worldMatrixInvalid)
-            this._updateWorldTransformationMatrix();
-
-        return this._worldTransformMatrix;
-    },
-
-    // always go through here to get to world bounds!
-    getWorldBounds: function()
-    {
-        if (this._worldBoundsInvalid) {
-            this._updateWorldBounds();
-            this._worldBoundsInvalid = false;
-        }
-
-        return this._worldBounds;
-    },
-
-    acceptVisitor: function(visitor)
-    {
-        if (this._effects)
-            visitor.visitEffects(this._effects, this);
-
-        if (this._debugBounds)
-            this._debugBounds.acceptVisitor(visitor);
-    },
-
-    getShowDebugBounds: function()
-    {
-        return this._debugBounds !== null;
-    },
-
-    setShowDebugBounds: function(value)
-    {
-        if (this.getShowDebugBounds() === value) return;
-
-        if (value) {
-            this._debugBounds = new HX.ModelNode(this._worldBounds.getDebugModelInstance());
-            this._debugBounds.setTransform(null);
-            this._updateDebugBounds();
-        }
-        else
-            this._debugBounds = null;
-    },
-
-    _onTransformChange: function()
-    {
-        this._invalidateTransformationMatrix();
-    },
-
-    _invalidateTransformationMatrix: function ()
-    {
-        this._matrixInvalid = true;
-        this._invalidateWorldTransformationMatrix();
-    },
-
-    _invalidateWorldTransformationMatrix: function ()
-    {
-        this._worldMatrixInvalid = true;
-        this._invalidateWorldBounds();
-    },
-
-    _invalidateWorldBounds: function (tellParent)
-    {
-        if (this._worldBoundsInvalid) return;
-
-        this._worldBoundsInvalid = true;
-
-        if (tellParent !== false && this._parent)
-            this._parent._invalidateWorldBounds();
-    },
-
-    _updateWorldBounds: function ()
-    {
-        if (this._debugBounds)
-            this._updateDebugBounds();
-    },
-
-    _updateDebugBounds: function()
-    {
-        var matrix = this._debugBounds.getTransformationMatrix();
-        var bounds = this._worldBounds;
-
-        matrix.scaleMatrix(bounds._halfExtentX * 2.0, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
-        matrix.appendTranslation(bounds._centerX, bounds._centerY, bounds._centerZ);
-        this._debugBounds.setTransformationMatrix(matrix);
-    },
-
-    _updateTransformationMatrix: function()
-    {
-        this._transformMatrix.compose(this._transform);
-        this._matrixInvalid = false;
-        this._worldBoundsInvalid = true;
-    },
-
-    _updateWorldTransformationMatrix: function()
-    {
-        if (this._parent)
-            this._worldTransformMatrix.product(this._parent.getWorldMatrix(), this.getTransformationMatrix());
-        else
-            this._worldTransformMatrix.copyFrom(this.getTransformationMatrix());
-
-        this._worldMatrixInvalid = false;
-    },
-
-    // override for better matches
-    _createBoundingVolume: function()
-    {
-        return new HX.BoundingAABB();
-    }
-};
-
-/**
- *
- * @constructor
- */
-HX.BoundingHierarchyNode = function()
-{
-    HX.SceneNode.call(this);
-    this._children = [];
-};
-
-HX.BoundingHierarchyNode.prototype = Object.create(HX.SceneNode.prototype);
-
-HX.BoundingHierarchyNode.prototype.attach = function(child)
-{
-    if (child._parent)
-        throw "Child is already parented!";
-
-    child._parent = this;
-
-    this._children.push(child);
-    this._invalidateWorldBounds();
-};
-
-HX.BoundingHierarchyNode.prototype.detach = function(child)
-{
-    var index = this._children.indexOf(child);
-
-    if (index < 0)
-        throw "Trying to remove a scene object that is not a child";
-
-    child._parent = null;
-
-    this._children.splice(index, 1);
-    this._invalidateWorldBounds();
-};
-
-HX.BoundingHierarchyNode.prototype.numChildren = function() { return this._children.length; };
-
-HX.BoundingHierarchyNode.prototype.getChild = function(index) { return this._children[index]; };
-
-
-HX.BoundingHierarchyNode.prototype.acceptVisitor = function(visitor)
-{
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
-
-    var len = this._children.length;
-
-    for (var i = 0; i < len; ++i) {
-        var child = this._children[i];
-        if (visitor.qualifies(child))
-            child.acceptVisitor(visitor);
-    }
-};
-
-
-HX.BoundingHierarchyNode.prototype._invalidateWorldBounds = function()
-{
-    HX.SceneNode.prototype._invalidateWorldBounds.call(this);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldBounds(false); // false = parent (ie: this) does not need to know, it already knows
-};
-
-HX.BoundingHierarchyNode.prototype._invalidateWorldTransformationMatrix = function()
-{
-    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldTransformationMatrix();
-};
-
-HX.BoundingHierarchyNode.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.clear();
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._worldBounds.growToIncludeBound(this._children[i].getWorldBounds());
-
-    HX.SceneNode.prototype._updateWorldBounds.call(this);
-};
-
-/**
- * Creates a new Scene object
- * @param rootNode (optional) A rootnode to be used, allowing different partition types to be used as the root.
- * @constructor
- */
-HX.Scene = function(rootNode)
-{
-    // the default partition is a BVH node
-    //  -> or this may need to become an infinite bound node?
-    this._rootNode = rootNode || new HX.BoundingHierarchyNode();
-    this._skyBox = null;
-};
-
-HX.Scene.prototype = {
-    constructor: HX.Scene,
-
-    getSkyBox: function() { return this._skyBox; },
-    setSkyBox: function(value) { this._skyBox = value; },
-
-    getEffects: function(value)
-    {
-        return this._rootNode._effects;
-    },
-
-    setEffects: function(value)
-    {
-        this._rootNode._effects = value;
-    },
-
-    attach: function(child)
-    {
-        this._rootNode.attach(child);
-    },
-
-    detach: function(child)
-    {
-        this._rootNode.detach(child);
-    },
-
-    numChildren: function()
-    {
-        return this._rootNode.numChildren();
-    },
-
-    getChild: function(index)
-    {
-        return this._rootNode.getChild(index);
-    },
-
-    contains: function(child)
-    {
-        this._rootNode.contains(child);
-    },
-
-    acceptVisitor: function(visitor)
-    {
-        visitor.visitScene(this);
-        // assume root node will always qualify
-        this._rootNode.acceptVisitor(visitor);
-    }
-};
-
-/**
- *
- * @param modelInstance
- * @constructor
- */
-HX.ModelNode = function(modelInstance)
-{
-    HX.SceneNode.call(this);
-    this.setModelInstance(modelInstance);
-};
-
-HX.ModelNode.prototype = Object.create(HX.SceneNode.prototype);
-
-HX.ModelNode.prototype.acceptVisitor = function(visitor)
-{
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
-    visitor.visitModelInstance(this._modelInstance, this.getWorldMatrix(), this.getWorldBounds());
-};
-
-HX.ModelNode.prototype.getModelInstance = function()
-{
-    return this._modelInstance;
-};
-
-HX.ModelNode.prototype.setModelInstance = function(value)
-{
-    if (this._modelInstance)
-        this._modelInstance.onChange.unbind(this, HX.ModelNode.prototype._invalidateWorldBounds);
-
-    this._modelInstance = value;
-
-    this._modelInstance.onChange.bind(this, HX.ModelNode.prototype._invalidateWorldBounds);
-    this._invalidateWorldBounds();
-};
-
-// override for better matches
-HX.ModelNode.prototype._updateWorldBounds = function()
-{
-    if (this._modelInstance)
-        this._worldBounds.transformFrom(this._modelInstance.getLocalBounds(), this.getWorldMatrix());
-
-    HX.SceneNode.prototype._updateWorldBounds.call(this);
-};
-/**
- * Subclasses must implement:
- * prototype.activate
- * prototype.prepareBatch
- * @constructor
- */
-HX.Light = function (type)
-{
-    HX.SceneNode.call(this);
-    this._luminance = 3.1415;
-    this._luminanceBound = 1 / 255;
-    this._type = type; // used for sorting (TODO: Does this work?)
-    this._color = new HX.Color(1.0, 1.0, 1.0);
-    this._scaledIrradiance = new HX.Color();
-    this._castsShadows = false;
-    this._updateScaledIrradiance();
-};
-
-HX.Light.prototype = Object.create(HX.SceneNode.prototype);
-
-HX.Light.prototype.acceptVisitor = function (visitor)
-{
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
-    visitor.visitLight(this);
-};
-
-HX.Light.prototype.getLuminance = function ()
-{
-    return this._luminance;
-};
-
-HX.Light.prototype.setLuminance = function (value)
-{
-    this._luminance = value;
-    this._updateScaledIrradiance();
-};
-
-HX.Light.prototype.getColor = function ()
-{
-    return this._color;
-};
-
-HX.Light.prototype.activate = function(camera, gbuffer, occlusion)
-{
-
-};
-
-// returns the index of the FIRST UNRENDERED light
-HX.Light.prototype.renderBatch = function(lightCollection, startIndex, camera, gbuffer, occlusion)
-{
-    throw "Abstract method!";
-};
-
-/**
- * Value can be hex or ColorRGBA
- */
-HX.Light.prototype.setColor = function (value)
-{
-    this._color = isNaN(value) ? value : new HX.Color(value);
-
-    this._updateScaledIrradiance();
-};
-
-/**
- * The minimum luminance to be considered as "contributing to the lighting", used to define bounds. Any amount below this will be zeroed. Defaults to 1/255.
- */
-HX.Light.prototype.getLuminanceBound = function ()
-{
-    return this._luminanceBound;
-};
-
-HX.Light.prototype.setLuminanceBound = function (value)
-{
-    this._luminanceBound = value;
-    this._updateWorldBounds();
-};
-
-HX.Light.prototype.luminance = function ()
-{
-    return this._color.luminance() * this._luminance;
-};
-
-HX.Light.prototype._updateScaledIrradiance = function ()
-{
-    // this includes 1/PI radiance->irradiance factor
-    var scale = this._luminance / Math.PI;
-
-    this._scaledIrradiance.r = this._color.r * scale;
-    this._scaledIrradiance.g = this._color.g * scale;
-    this._scaledIrradiance.b = this._color.b * scale;
-    this._invalidateWorldBounds();
-};
-/**
- *
- * @constructor
- */
-HX.RenderItem = function()
-{
-    this.worldMatrix = null;
-    this.meshInstance = null;
-    this.pass = null;
-    this.camera = null;
-    this.uniformSetters = null;
-};
-
-HX.RenderItem.prototype = {
-    // set state per instance
-    draw: function()
-    {
-        if (this.uniformSetters) {
-            var len = this.uniformSetters.length;
-            for (var i = 0; i < len; ++i) {
-                this.uniformSetters[i].execute(this.worldMatrix, this.camera);
-            }
-        }
-
-        // TODO: Provide different render modes?
-        HX.GL.drawElements(this.pass._elementType, this.meshInstance._mesh.numIndices(), HX.GL.UNSIGNED_SHORT, 0);
-    }
-};
-
-/**
- *
- * @constructor
- */
-HX.SceneVisitor = function()
-{
-
-};
-
-HX.SceneVisitor.prototype =
-{
-    collect: function(camera, scene) {},
-    qualifies: function(object) {},
-    visitLight: function(light) {},
-    visitModelInstance: function (modelInstance, worldMatrix) {},
-    visitScene: function (scene) {},
-    visitEffects: function(effects, ownerNode) {}
-};
-HX.DebugRenderMode = {
-    DEBUG_NONE: 0,
-    DEBUG_ALBEDO: 1,
-    DEBUG_NORMALS: 2,
-    DEBUG_METALLICNESS: 3,
-    DEBUG_SPECULAR_NORMAL_REFLECTION: 4,
-    DEBUG_ROUGHNESS: 5,
-    DEBUG_DEPTH: 6,
-    DEBUG_LIGHT_ACCUM: 7,
-    DEBUG_AO: 8
-};
-
-/**
- *
- * @constructor
- */
-HX.Renderer = function()
-{
-};
-
-HX.Renderer.prototype =
-{
-    constructor: HX.Renderer,
-
-
-    /**
-     * Renders a scene with a given camera. IMPORTANT: Helix does not clear the canvas. This may be useful to have 3D content
-     * on top of a 2D gpu-based interface.
-     * @param camera
-     * @param scene
-     */
-    render: function (camera, scene, dt)
-    {
-
-    },
-
-    dispose: function()
-    {
-
-    },
-
-    _renderPass: function (passType, renderItems)
-    {
-        var len = renderItems.length;
-        var activeShader = null;
-        var activePass = null;
-        var lastMesh = null;
-
-        for(var i = 0; i < len; ++i) {
-            var renderItem = renderItems[i];
-            var meshInstance = renderItem.meshInstance;
-            var pass = renderItem.pass;
-            var shader = pass._shader;
-
-            if (shader !== activeShader) {
-                shader.updateRenderState();
-                activeShader = shader;
-            }
-
-            if (pass !== activePass) {
-                this._switchPass(activePass, pass);
-                activePass = pass;
-
-                lastMesh = null;    // need to reset mesh data too
-            }
-
-            if (lastMesh != meshInstance._mesh) {
-                meshInstance.updateRenderState(passType);
-                lastMesh = meshInstance._mesh;
-            }
-
-            renderItem.draw();
-        }
-
-        if (activePass && activePass._blending) HX.GL.disable(HX.GL.BLEND);
-    },
-
-    _switchPass: function(oldPass, newPass)
-    {
-        // clean up old pass
-        if (!oldPass || oldPass._cullMode !== oldPass._cullMode) {
-            if (newPass._cullMode == null)
-                HX.GL.disable(HX.GL.CULL_FACE);
-            else {
-                HX.GL.enable(HX.GL.CULL_FACE);
-                HX.GL.cullFace(newPass._cullMode);
-            }
-        }
-
-        if (!oldPass || oldPass._blending !== oldPass._blending) {
-            if (newPass._blending) {
-                HX.GL.enable(HX.GL.BLEND);
-                HX.GL.blendFunc(newPass._blendSource, newPass._blendDest);
-                HX.GL.blendEquation(newPass._blendOperator);
-            }
-            else
-                HX.GL.disable(HX.GL.BLEND);
-        }
-
-        newPass.updateRenderState();
-    }
-};
-
-/**
- * GBUFFER LAYOUT:
- * 0: ALBEDO: (albedo.XYZ, unused)
- * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw)
- * 2: REFLECTION: (metallicness, normalSpecularReflection, roughness, unused)
- * 3: LINEAR DEPTH: (not explicitly written to by user), 0 - 1 linear depth encoded as RGBA
- *
- * DEPTH STENCIL:
- * Stencil can be used for certain post passes (fe: skin rendering) if stencil value is the same
- * Then just render post-pass with the given stencil
- *
- *
- * @constructor
- */
-HX.ScreenRenderer = function()
-{
-    HX.Renderer.call(this);
-
-    this._viewportX = 0;
-    this._viewportY = 0;
-    this._viewportWidth = 0;
-    this._viewportHeight = 0;
-
-    this._copyTexture = new HX.CopyChannelsShader();
-    this._copyXChannel = new HX.CopyChannelsShader("x");
-    this._copyYChannel = new HX.CopyChannelsShader("y");
-    this._copyZChannel = new HX.CopyChannelsShader("z");
-    this._copyWChannel = new HX.CopyChannelsShader("w");
-    this._debugDepth = new HX.DebugDepthShader();
-    this._debugNormals = new HX.DebugNormalsShader();
-    this._applyGamma = new HX.ApplyGammaShader();
-    this._gammaApplied = false;
-    this._linearizeDepthShader = new HX.LinearizeDepthShader();
-    this._rectMesh = HX.RectMesh.create({alignment: HX.PlanePrimitive.ALIGN_XY});
-
-    this._renderCollector = new HX.RenderCollector();
-    this._gbufferFBO = null;
-    this._linearDepthFBO = null;
-    this._hdrSourceIndex = 0;
-    this._hdrTargets = null;
-    this._hdrTargetsDepth = null;
-    this._depthBuffer = null;
-    this._aoEffect = null;
-    this._localReflections = null;
-    this._passSourceTexture = null;
-
-    this._createGBuffer();
-    this._createHDRBuffers();
-
-    this._linearDepthInvalid = true;
-
-    this._debugMode = HX.DebugRenderMode.DEBUG_NONE;
-    this._camera = null;
-};
-
-HX.ScreenRenderer.prototype = Object.create(HX.Renderer.prototype);
-
-HX.ScreenRenderer.prototype.setDebugMode = function(value)
-{
-    this._debugMode = value;
-};
-
-HX.ScreenRenderer.prototype.getAmbientOcclusion = function()
-{
-    return this._aoEffect;
-};
-
-HX.ScreenRenderer.prototype.setAmbientOcclusion = function(value)
-{
-    this._aoEffect = value;
-    this._aoEffect.setMesh(this._rectMesh);
-};
-
-HX.ScreenRenderer.prototype.setLocalReflections = function(value)
-{
-    this._localReflections = value;
-    this._localReflections.setMesh(this._rectMesh);
-};
-
-HX.ScreenRenderer.prototype.setViewportRect = function(x, y, width, height)
-{
-    if (this._viewportWidth != width || this._viewportHeight != height) {
-        this._updateGBuffer(width, height);
-        this._updateHDRBuffers(width, height);
-    }
-
-    this._viewportX = 0;
-    this._viewportY = 0;
-    this._viewportWidth = width;
-    this._viewportHeight = height;
-};
-
-HX.ScreenRenderer.prototype.render = function(camera, scene, dt)
-{
-    this._gammaApplied = false;
-    this._passSourceTexture = null;
-    this._hdrSourceIndex = 0;
-    this._camera = camera;
-    this._scene = scene;
-
-    HX.GL.enable(HX.GL.DEPTH_TEST);
-    HX.GL.enable(HX.GL.CULL_FACE);
-    HX.GL.cullFace(HX.GL.BACK);
-    HX.GL.depthFunc(HX.GL.LESS);
-
-    camera._setRenderTargetResolution(this._viewportWidth, this._viewportHeight);
-    this._renderCollector.collect(camera, scene);
-
-    this._renderShadowCasters();
-
-    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
-    this._renderToGBuffer();
-    this._linearizeDepth();
-    this._renderPostToGBuffer();
-    if (this._linearDepthInvalid) this._linearizeDepth();
-
-    HX.GL.disable(HX.GL.BLEND);
-    HX.GL.disable(HX.GL.DEPTH_TEST);
-    HX.GL.disable(HX.GL.CULL_FACE);
-
-    if (this._aoEffect != null)
-        this._renderEffect(this._aoEffect, dt);
-
-    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
-    this._renderToScreen(dt);
-};
-
-HX.ScreenRenderer.prototype._renderShadowCasters = function()
-{
-    HX.GL.colorMask(false, false, false, false);
-
-    var casters = this._renderCollector.getShadowCasters();
-    var len = casters.length;
-
-    for (var i = 0; i < len; ++i) {
-        casters[i].render(this._camera, this._scene)
-    }
-
-    HX.GL.colorMask(true, true, true, true);
-};
-
-HX.ScreenRenderer.prototype._renderToGBuffer = function()
-{
-    throw "Abstract method";
-};
-
-HX.ScreenRenderer.prototype._linearizeDepth = function()
-{
-    HX.GL.disable(HX.GL.DEPTH_TEST);
-    HX.GL.disable(HX.GL.CULL_FACE);
-
-    HX.setRenderTarget(this._linearDepthFBO);
-    this._linearizeDepthShader.execute(this._rectMesh, HX.EXT_DEPTH_TEXTURE? this._depthBuffer : this._gbuffer[1], this._camera)
-    this._linearDepthInvalid = false;
-}
-
-HX.ScreenRenderer.prototype._renderEffect = function(effect, dt)
-{
-    this._gammaApplied = this._gammaApplied || effect._outputsGamma;
-    this._hdrSourceIndex = effect.render(this, dt);
-};
-
-HX.ScreenRenderer.prototype._renderPostToGBuffer = function()
-{
-    HX.GL.enable(HX.GL.CULL_FACE);
-    HX.GL.enable(HX.GL.DEPTH_TEST);
-    HX.GL.depthFunc(HX.GL.LEQUAL);
-
-    // normals first, because diffuse + specular may want to abuse calculated normals (water)
-    this._renderPostGBufferPass(1, HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS);
-    this._renderPostGBufferPass(0, HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS);
-    this._renderPostGBufferPass(2, HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS);
-}
-
-HX.ScreenRenderer.prototype._renderPostGBufferPass = function(gbufferIndex, passType)
-{
-    if (this._renderCollector.getRenderList(passType).length > 0) {
-        HX.setRenderTarget(this._gbufferSingleFBOs[gbufferIndex]);
-        this._renderPass(passType);
-        this._linearDepthInvalid = true;
-    }
-}
-
-HX.ScreenRenderer.prototype._renderToScreen = function(dt)
-{
-    switch (this._debugMode) {
-        case HX.DebugRenderMode.DEBUG_ALBEDO:
-            HX.setRenderTarget(null);
-            this._copyTexture.execute(this._rectMesh, this._gbuffer[0]);
-            break;
-        case HX.DebugRenderMode.DEBUG_NORMALS:
-            HX.setRenderTarget(null);
-            this._debugNormals.execute(this._rectMesh, this._gbuffer[1]);
-            break;
-        case HX.DebugRenderMode.DEBUG_METALLICNESS:
-            HX.setRenderTarget(null);
-            this._copyXChannel.execute(this._rectMesh, this._gbuffer[2]);
-            break;
-        case HX.DebugRenderMode.DEBUG_SPECULAR_NORMAL_REFLECTION:
-            HX.setRenderTarget(null);
-            this._copyYChannel.execute(this._rectMesh, this._gbuffer[2]);
-            break;
-        case HX.DebugRenderMode.DEBUG_ROUGHNESS:
-            HX.setRenderTarget(null);
-            this._copyZChannel.execute(this._rectMesh, this._gbuffer[2]);
-            break;
-        case HX.DebugRenderMode.DEBUG_DEPTH:
-            HX.setRenderTarget(null);
-            this._debugDepth.execute(this._rectMesh, this._gbuffer[3]);
-            break;
-        case HX.DebugRenderMode.DEBUG_LIGHT_ACCUM:
-            this._renderLightAccumulation();
-            HX.setRenderTarget(null);
-            this._applyGamma.execute(this._rectMesh, this._hdrBuffers[0]);
-            break;
-        case HX.DebugRenderMode.DEBUG_AO:
-            HX.setRenderTarget(null);
-            this._copyWChannel.execute(this._rectMesh, this._aoEffect.getAOTexture());
-            break;
-        default:
-            this._renderLightAccumulation(dt);
-
-            this._renderPostPass(this._hdrTargetsDepth[this._hdrSourceIndex], HX.MaterialPass.PRE_EFFECT_PASS);
-            this._renderEffects(dt, this._renderCollector._effects);
-            this._renderPostPass(this._hdrTargetsDepth[this._hdrSourceIndex], HX.MaterialPass.POST_PASS);
-            this._renderEffects(dt, this._camera._effects);
-
-            HX.setRenderTarget(null);
-
-            // TODO: render directly to screen if last post process effect?
-            // OR, provide toneMap property on camera, which gets special treatment
-            if (this._gammaApplied)
-                this._copyTexture.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
-            else
-                this._applyGamma.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
-    }
-};
-
-HX.ScreenRenderer.prototype._renderLightAccumulation = function(dt)
-{
-    HX.GL.enable(HX.GL.BLEND);
-    HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
-    HX.GL.blendEquation(HX.GL.FUNC_ADD);
-
-    HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
-    HX.clear();
-
-    this._renderLights();
-    this._renderGI(dt);
-
-    HX.GL.disable(HX.GL.BLEND);
-};
-
-HX.ScreenRenderer.prototype._renderLights = function()
-{
-    var lights = this._renderCollector.getLights();
-    var len = lights.length;
-    var activeType = undefined;
-
-    var i = 0;
-    var camera = this._camera;
-    var gbuffer = this._gbuffer;
-    var occlusion = this._aoEffect? this._aoEffect.getAOTexture() : null;
-
-    while (i < len) {
-        var light = lights[i];
-
-        if (light._type !== activeType) {
-            light.activate(camera, gbuffer, occlusion);
-            activeType = light._type;
-        }
-
-        i = light.renderBatch(lights, i, camera, gbuffer, occlusion);
-    }
-};
-
-HX.ScreenRenderer.prototype._renderGI = function(dt)
-{
-    var occlusion = this._aoEffect? this._aoEffect.getAOTexture() : null;
-
-    HX.GL.disable(HX.GL.CULL_FACE);
-
-    if (this._renderCollector._globalIrradianceProbe)
-        this._renderCollector._globalIrradianceProbe.render(this._camera, this._gbuffer, occlusion);
-
-    if (this._localReflections != null) {
-        HX.GL.disable(HX.GL.BLEND);
-        this._renderEffect(this._localReflections, dt);
-        HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
-        HX.GL.enable(HX.GL.BLEND);
-    }
-
-    // dest alpha contains amount of GI already present
-    HX.GL.blendFunc(HX.GL.DST_ALPHA, HX.GL.ONE);
-
-    if (this._renderCollector._globalSpecularProbe)
-        this._renderCollector._globalSpecularProbe.render(this._camera, this._gbuffer, occlusion);
-};
-
-HX.ScreenRenderer.prototype._renderPass = function(passType, renderItems)
-{
-    renderItems = renderItems || this._renderCollector.getRenderList(passType);
-
-    HX.Renderer.prototype._renderPass.call(this, passType, renderItems);
-};
-
-HX.ScreenRenderer.prototype._renderPostPass = function(target, passType)
-{
-    if (this._renderCollector.getRenderList(passType).length == 0)
-        return;
-
-    // TODO: only perform this if any pass in the list has a hx_source slot
-    this._copySource();
-
-    HX.GL.enable(HX.GL.CULL_FACE);
-    HX.GL.enable(HX.GL.DEPTH_TEST);
-    HX.GL.depthFunc(HX.GL.LEQUAL);
-
-    HX.setRenderTarget(target);
-    this._renderPass(passType);
-};
-
-HX.ScreenRenderer.prototype._copySource = function()
-{
-    var source = this._hdrBuffers[this._hdrSourceIndex];
-    var hdrTarget = 1 - this._hdrSourceIndex;
-    HX.setRenderTarget(this._hdrTargets[hdrTarget]);
-    HX.GL.disable(HX.GL.BLEND);
-    HX.GL.disable(HX.GL.DEPTH_TEST);
-    HX.GL.disable(HX.GL.CULL_FACE);
-    this._copyTexture.execute(this._rectMesh, source);
-    this._passSourceTexture = this._hdrBuffers[hdrTarget];
-}
-
-HX.ScreenRenderer.prototype._renderEffects = function(dt, effects)
-{
-    if (!effects || effects.length == 0)
-        return;
-
-    HX.GL.disable(HX.GL.DEPTH_TEST);
-    HX.GL.disable(HX.GL.CULL_FACE);
-
-    var len = effects.length;
-
-    for (var i = 0; i < len; ++i) {
-        var effect = effects[i];
-        effect.setMesh(this._rectMesh);
-        this._renderEffect(effect, dt);
-    }
-};
-
-HX.ScreenRenderer.prototype._createGBuffer = function()
-{
-    if (HX.EXT_DEPTH_TEXTURE) {
-        this._depthBuffer = new HX.Texture2D();
-        this._depthBuffer.setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
-        this._depthBuffer.setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
-    }
-    else {
-        this._depthBuffer = HX.GL.createRenderbuffer();
-    }
-
-    this._gbuffer = [];
-
-    for (var i = 0; i < 4; ++i) {
-        this._gbuffer[i] = new HX.Texture2D();
-        this._gbuffer[i].setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
-        this._gbuffer[i].setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
-    }
-
-    this._gbufferSingleFBOs = [];
-
-    for (var i = 0; i < 3; ++i)
-        this._gbufferSingleFBOs[i] = new HX.FrameBuffer([ this._gbuffer[i] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
-
-    this._createGBufferFBO();
-    this._linearDepthFBO = new HX.FrameBuffer(this._gbuffer[3], HX.FrameBuffer.DEPTH_MODE_DISABLED, null);
-};
-
-HX.ScreenRenderer.prototype._createGBufferFBO = function()
-{
-    throw "Abstract method";
-};
-
-HX.ScreenRenderer.prototype._createHDRBuffers = function ()
-{
-    this._hdrBuffers = [ new HX.Texture2D(), new HX.Texture2D() ];
-    this._hdrTargets = [ ];
-
-    for (var i = 0; i < this._hdrBuffers.length; ++i) {
-        this._hdrBuffers[i].setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
-        this._hdrBuffers[i].setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
-        this._hdrTargets[i] = new HX.FrameBuffer([ this._hdrBuffers[i] ], HX.FrameBuffer.DEPTH_MODE_DISABLED);
-    }
-
-    this._hdrTargetsDepth = [];
-    this._hdrTargetsDepth[0] = new HX.FrameBuffer([ this._hdrBuffers[0] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
-    this._hdrTargetsDepth[1] = new HX.FrameBuffer([ this._hdrBuffers[1] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
-};
-
-HX.ScreenRenderer.prototype._updateGBuffer = function (width, height)
-{
-    if (HX.EXT_DEPTH_TEXTURE)
-        this._depthBuffer.initEmpty(width, height, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
-
-    for (var i = 0; i < this._gbuffer.length; ++i) {
-        this._gbuffer[i].initEmpty(width, height, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
-    }
-
-    for (var i = 0; i < this._gbufferSingleFBOs.length; ++i)
-        this._gbufferSingleFBOs[i].init();
-
-    this._updateGBufferFBO();
-    this._linearDepthFBO.init();
-};
-
-HX.ScreenRenderer.prototype._updateGBufferFBO = function()
-{
-    throw "Abstract method";
-};
-
-HX.ScreenRenderer.prototype._updateHDRBuffers = function(width, height)
-{
-    var hdrFormat = HX.OPTIONS.useHDR? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX.GL.UNSIGNED_BYTE;
-
-    for (var i = 0; i < this._hdrBuffers.length; ++i) {
-        this._hdrBuffers[i].initEmpty(width, height, HX.GL.RGBA, hdrFormat);
-        this._hdrTargets[i].init();
-        this._hdrTargetsDepth[i].init();
-    }
-};
-
-HX.ScreenRenderer.prototype.dispose = function()
-{
-    this._applyGamma.dispose();
-    this._copyTexture.dispose();
-    this._copyXChannel.dispose();
-    this._copyYChannel.dispose();
-    this._copyZChannel.dispose();
-    this._copyWChannel.dispose();
-    this._rectMesh.dispose();
-
-    for (var i = 0; i < this._hdrBuffers.length; ++i) {
-        this._hdrBuffers[i].dispose();
-        this._hdrTargets[i].dispose();
-        this._hdrTargetsDepth[i].dispose();
-    }
-
-    for (var i = 0; i < this._gbuffer.length; ++i)
-        this._gbuffer[i].dispose();
-
-    for (var i = 0; i < this._gbufferFBO.length; ++i)
-        this._gbufferFBO[i].dispose();
-};
-
-HX.ScreenRenderer.prototype._switchPass = function(oldPass, newPass)
-{
-    HX.Renderer.prototype._switchPass.call(this, oldPass, newPass);
-    newPass.assignGBuffer(this._gbuffer);
-    if (this._passSourceTexture) {
-        newPass.setTexture("hx_source", this._passSourceTexture);
-    }
-};
 /**
  * Creates a new Float2 object
  * @class
@@ -4283,6 +2518,7 @@ HX.Transform = function()
     this._position = new HX.Float4(0.0, 0.0, 0.0, 1.0);
     this._rotation = new HX.Quaternion();
     this._scale = new HX.Float4(1.0, 1.0, 1.0, 1.0);
+    this._matrix = new HX.Matrix4x4();
 
     this._changeListener = new HX.PropertyListener();
     this._changeListener.add(this._position, "x");
@@ -4295,7 +2531,7 @@ HX.Transform = function()
     this._changeListener.add(this._scale, "x");
     this._changeListener.add(this._scale, "y");
     this._changeListener.add(this._scale, "z");
-    this.onChange = this._changeListener.onChange;
+    this._changeListener.onChange.bind(this, this._invalidateTransformationMatrix);
 };
 
 HX.Transform.prototype =
@@ -4334,7 +2570,36 @@ HX.Transform.prototype =
         this.rotation.copyFrom(transform.rotation);
         this.scale.copyFrom(transform.scale);
         this._changeListener.setEnabled(true);
-        this.onChange.dispatch();
+    },
+
+    getTransformationMatrix: function()
+    {
+        if (this._matrixInvalid)
+            this._updateTransformationMatrix();
+
+        return this._matrix;
+    },
+
+    setTransformationMatrix: function(matrix)
+    {
+        this._matrix.copyFrom(matrix);
+        this._matrixInvalid = false;
+
+        if (this._transform)
+            matrix.decompose(this._transform);
+
+        this._invalidateWorldTransformationMatrix();
+    },
+
+    _invalidateTransformationMatrix: function ()
+    {
+        this._matrixInvalid = true;
+    },
+
+    _updateTransformationMatrix: function()
+    {
+        this._matrix.compose(this);
+        this._matrixInvalid = false;
     }
 };
 HX.shuffle = function(array)
@@ -5386,6 +3651,1716 @@ HX.VertexBuffer.prototype = {
     }
 }
 /**
+ *
+ * @param vertexShaderCode
+ * @param fragmentShaderCode
+ * @param preVertexCode Can contain defines and other things that need to be in there before any other includes
+ * @param preFragmentCode
+ * @constructor
+ */
+HX.Shader = function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
+{
+    // can be vertex or fragment shader
+    // Mesh object's vertexLayout should have a map of attrib names + offset into vertex buffer
+    // - on meshInstance creation:
+    //      -> create map of attribute index -> buffer offset
+    //      -> this by binding programme and asking gl for attrib locations
+    this._ready = false;
+    this._vertexShader = null;
+    this._fragmentShader = null;
+    this._program = null;
+    this._renderOrderHint = ++HX.Shader.ID_COUNTER;
+
+    if (vertexShaderCode && fragmentShaderCode) {
+        this.init(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode);
+    }
+};
+
+HX.Shader.ID_COUNTER = 0;
+
+HX.Shader.prototype = {
+    constructor: HX.Shader,
+
+    isReady: function() { return this._ready; },
+
+    init: function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
+    {
+        preVertexCode = preVertexCode || "";
+        preFragmentCode = preFragmentCode || "";
+        vertexShaderCode = preVertexCode + HX.GLSLIncludeGeneral + vertexShaderCode;
+        fragmentShaderCode = preFragmentCode + HX.GLSLIncludeGeneral + fragmentShaderCode;
+
+        this._vertexShader = HX.GL.createShader(HX.GL.VERTEX_SHADER);
+        if (!this._initShader(this._vertexShader, vertexShaderCode)) {
+            this.dispose();
+            if (HX.OPTIONS.throwOnShaderError) {
+                throw new Error("Failed generating vertex shader: \n" + vertexShaderCode);
+            }
+            else {
+                console.log("Failed generating vertex shader");
+                console.log(vertexShaderCode);
+            }
+
+            return;
+        }
+
+        this._fragmentShader = HX.GL.createShader(HX.GL.FRAGMENT_SHADER);
+        if (!this._initShader(this._fragmentShader, fragmentShaderCode)) {
+            this.dispose();
+            if (HX.OPTIONS.throwOnShaderError) {
+                throw new Error("Failed generating fragment shader: \n" + fragmentShaderCode);
+            }
+            else {
+                console.log("Failed generating fragment shader:");
+                console.log(fragmentShaderCode);
+            }
+            return;
+        }
+
+        this._program = HX.GL.createProgram();
+
+        HX.GL.attachShader(this._program, this._vertexShader);
+        HX.GL.attachShader(this._program, this._fragmentShader);
+        HX.GL.linkProgram(this._program);
+
+        if (!HX.GL.getProgramParameter(this._program, HX.GL.LINK_STATUS)) {
+            this.dispose();
+            if (HX.OPTIONS.throwOnShaderError) {
+                throw new Error("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
+            }
+            else {
+                console.warn("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
+            }
+
+            return;
+        }
+
+        this._ready = true;
+    },
+
+    updateRenderState: function()
+    {
+        HX.GL.useProgram(this._program);
+    },
+
+    _initShader: function(shader, code)
+    {
+        HX.GL.shaderSource(shader, code);
+        HX.GL.compileShader(shader);
+
+        // Check the compile status, return an error if failed
+        if (!HX.GL.getShaderParameter(shader, HX.GL.COMPILE_STATUS)) {
+            throw new Error(HX.GL.getShaderInfoLog(shader));
+            console.warn(HX.GL.getShaderInfoLog(shader));
+            return false;
+        }
+
+        return true;
+    },
+
+    dispose: function()
+    {
+        HX.GL.deleteShader(this._vertexShader);
+        HX.GL.deleteShader(this._fragmentShader);
+        HX.GL.deleteProgram(this._program);
+
+        this._ready = false;
+    },
+
+    getProgram: function() { return this._program; },
+
+    getVertexAttributeIndex: function(name)
+    {
+        return HX.GL.getAttribLocation(this._program, name);
+    }
+};
+HX.TextureSlot = function() {
+    this.location = -1;
+    this.texture = null;
+};
+
+/**
+ *
+ * @param shader
+ * @constructor
+ */
+HX.MaterialPass = function (shader)
+{
+    this._shader = shader;
+    this._textureSlots = [];
+    this._uniforms = {};
+    this._elementType = HX.GL.TRIANGLES;
+    this._cullMode = HX.GL.BACK;
+    this._blending = false;
+    this._blendSource = HX.GL.ONE;
+    this._blendDest = HX.GL.ZERO;
+    this._blendOperator = HX.GL.FUNC_ADD;
+    this._gbuffer = null;
+    this._enabled = true;
+
+    this._storeUniforms();
+};
+
+HX.MaterialPass.GEOMETRY_PASS = 0;
+HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS = 1;
+HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS = 2;
+HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS = 3;
+// used for post-lighting
+HX.MaterialPass.PRE_EFFECT_PASS = 4;
+HX.MaterialPass.POST_PASS = 5;
+
+// the individual pass type are not taken into account, they will be dealt with specially
+HX.MaterialPass.NUM_PASS_TYPES = 6;
+
+// only used by the old renderer, will be removed at some point
+// use diffuse as alias for geometry pass
+HX.MaterialPass.GEOMETRY_ALBEDO_PASS = HX.MaterialPass.GEOMETRY_PASS;
+HX.MaterialPass.GEOMETRY_NORMAL_PASS = HX.MaterialPass.NUM_PASS_TYPES++;
+HX.MaterialPass.GEOMETRY_SPECULAR_PASS = HX.MaterialPass.NUM_PASS_TYPES++;
+
+HX.MaterialPass.prototype = {
+    constructor: HX.MaterialPass,
+
+    getShader: function ()
+    {
+        return this._shader;
+    },
+
+    setElementType: function(value)
+    {
+        this._elementType = value;
+    },
+
+    getElementType: function()
+    {
+        return this._elementType;
+    },
+
+    // use null for disabled
+    setCullMode: function(value)
+    {
+        this._cullMode = value;
+    },
+
+    getCullMode: function()
+    {
+        return this._cullMode;
+    },
+
+    disableBlendMode: function()
+    {
+        this._blending = false;
+    },
+
+    setBlendMode: function(source, dest, op)
+    {
+        this._blending = true;
+        this._blendSource = source;
+        this._blendDest = dest;
+        this._blendOperator = op;
+    },
+
+    assignGBuffer: function(gbuffer)
+    {
+        // todo: only do this when gbuffer changed
+        if (this._gbuffer != gbuffer) {
+            this._gbuffer = gbuffer;
+            this.setTexture("hx_gbufferAlbedo", gbuffer[0]);
+            this.setTexture("hx_gbufferNormals", gbuffer[1]);
+            this.setTexture("hx_gbufferSpecular", gbuffer[2]);
+            this.setTexture("hx_gbufferDepth", gbuffer[3]);
+        }
+    },
+
+    updateRenderState: function ()
+    {
+        this._shader.updateRenderState();
+
+        var len = this._textureSlots.length;
+
+        for (var i = 0; i < len; ++i) {
+            var slot = this._textureSlots[i];
+            var texture = slot.texture;
+
+            if (texture.isReady()) {
+                texture.bind(i);
+            }
+            else {
+                texture._default.bind(i);
+            }
+        }
+    },
+
+    _storeUniforms: function()
+    {
+        var len = HX.GL.getProgramParameter(this._shader._program, HX.GL.ACTIVE_UNIFORMS);
+
+        for (var i = 0; i < len; ++i) {
+            var uniform = HX.GL.getActiveUniform(this._shader._program, i)
+            var name = uniform.name;
+            var location = HX.GL.getUniformLocation(this._shader._program, name);
+            this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
+        }
+    },
+
+    getTextureSlot: function(slotName)
+    {
+        if (!this._uniforms.hasOwnProperty(slotName)) return null;
+
+        HX.GL.useProgram(this._shader._program);
+
+        var uniform = this._uniforms[slotName];
+
+        if (!uniform) return;
+
+        var location = uniform.location;
+
+        var slot = null;
+
+        // reuse if location is already used
+        var len = this._textureSlots.length;
+        for (var i = 0; i < len; ++i) {
+            if (this._textureSlots[i].location === location) {
+                slot = this._textureSlots[i];
+                break;
+            }
+        }
+
+        if (slot == null) {
+            slot = new HX.TextureSlot();
+            this._textureSlots.push(slot);
+            HX.GL.uniform1i(location, i);
+            slot.location = location;
+        }
+
+        return slot;
+    },
+
+    setTexture: function(slotName, texture)
+    {
+        var slot = this.getTextureSlot(slotName);
+        if (slot)
+            slot.texture = texture;
+    },
+
+    getUniformLocation: function(name)
+    {
+        if (this._uniforms.hasOwnProperty(name))
+            return this._uniforms[name].location;
+    },
+
+    setUniformArray: function(name, value)
+    {
+        name = name + "[0]";
+
+        if (!this._uniforms.hasOwnProperty(name))
+            return;
+
+        var uniform = this._uniforms[name];
+
+        HX.GL.useProgram(this._shader._program);
+
+        switch(uniform.type) {
+            case HX.GL.FLOAT:
+                HX.GL.uniform1fv(uniform.location, value);
+                break;
+            case HX.GL.FLOAT_VEC2:
+                HX.GL.uniform2fv(uniform.location, value);
+                break;
+            case HX.GL.FLOAT_VEC3:
+                HX.GL.uniform3fv(uniform.location, value);
+                break;
+            case HX.GL.FLOAT_VEC4:
+                HX.GL.uniform4fv(uniform.location, value);
+                break;
+            case HX.GL.INT:
+                HX.GL.uniform1iv(uniform.location, value);
+                break;
+            case HX.GL.INT_VEC2:
+                HX.GL.uniform2iv(uniform.location, value);
+                break;
+            case HX.GL.INT_VEC3:
+                HX.GL.uniform3iv(uniform.location, value);
+                break;
+            case HX.GL.INT_VEC4:
+                HX.GL.uniform1iv(uniform.location, value);
+                break;
+            case HX.GL.BOOL:
+                HX.GL.uniform1bv(uniform.location, value);
+                break;
+            case HX.GL.BOOL_VEC2:
+                HX.GL.uniform2bv(uniform.location, value);
+                break;
+            case HX.GL.BOOL_VEC3:
+                HX.GL.uniform3bv(uniform.location, value);
+                break;
+            case HX.GL.BOOL_VEC4:
+                HX.GL.uniform4bv(uniform.location, value);
+                break;
+            default:
+                throw "Unsupported uniform format for setting. May be a todo.";
+
+        }
+    },
+
+    setUniform: function(name, value)
+    {
+        if (!this._uniforms.hasOwnProperty(name))
+            return;
+
+        var uniform = this._uniforms[name];
+
+        HX.GL.useProgram(this._shader._program);
+
+        switch(uniform.type) {
+            case HX.GL.FLOAT:
+                HX.GL.uniform1f(uniform.location, value);
+                break;
+            case HX.GL.FLOAT_VEC2:
+                HX.GL.uniform2f(uniform.location, value.x, value.y);
+                break;
+            case HX.GL.FLOAT_VEC3:
+                HX.GL.uniform3f(uniform.location, value.x || value.r, value.y || value.g, value.z || value.b );
+                break;
+            case HX.GL.FLOAT_VEC4:
+                HX.GL.uniform4f(uniform.location, value.x || value.r, value.y || value.g, value.z || value.b, value.w || value.a);
+                break;
+            case HX.GL.INT:
+                HX.GL.uniform1i(uniform.location, value);
+                break;
+            case HX.GL.INT_VEC2:
+                HX.GL.uniform2i(uniform.location, value.x, value.y);
+                break;
+            case HX.GL.INT_VEC3:
+                HX.GL.uniform3i(uniform.location, value.x, value.y, value.z);
+                break;
+            case HX.GL.INT_VEC4:
+                HX.GL.uniform1i(uniform.location, value.x, value.y, value.z, value.w);
+                break;
+            case HX.GL.BOOL:
+                HX.GL.uniform1i(uniform.location, value);
+                break;
+            case HX.GL.BOOL_VEC2:
+                HX.GL.uniform2i(uniform.location, value.x, value.y);
+                break;
+            case HX.GL.BOOL_VEC3:
+                HX.GL.uniform3i(uniform.location, value.x, value.y, value.z);
+                break;
+            case HX.GL.BOOL_VEC4:
+                HX.GL.uniform4i(uniform.location, value.x, value.y, value.z, value.w);
+                break;
+            default:
+                throw "Unsupported uniform format for setting. May be a todo.";
+
+        }
+    },
+
+    isEnabled: function() { return this._enabled; },
+    setEnabled: function(value) { this._enabled = value; }
+};
+
+/**
+ *
+ * @constructor
+ */
+HX.Material = function ()
+{
+    this._passes = new Array(HX.Material.NUM_TOTAL_PASS_TYPES);
+    this._renderOrderHint = ++HX.Material.ID_COUNTER;
+    this.onChange = new HX.Signal();
+    this._textures = {};
+    this._uniforms = {};
+};
+
+HX.Material.parseFromXML = function(xml)
+{
+    var material = new HX.Material();
+    HX.Material._parseXMLTo(xml, material);
+    return material;
+};
+
+HX.Material._parseXMLTo = function(xml, material)
+{
+    HX.Material._parseGeometryPassFromXML(xml, material);
+
+    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS, "geometryPostAlbedo", material);
+    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS, "geometryPostNormal", material);
+    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS, "geometryPostSpecular", material);
+    HX.Material._parsePassFromXML(xml, HX.MaterialPass.PRE_EFFECT_PASS, "preEffect", material);
+    HX.Material._parsePassFromXML(xml, HX.MaterialPass.POST_PASS, "post", material);
+
+    var uniforms = xml.getElementsByTagName("uniforms")[0];
+
+    if (uniforms) {
+        var node = uniforms.firstChild;
+
+        while (node) {
+            if (node.nodeName != "#text") {
+                var value = node.getAttribute("value").split(",");
+                if (value.length == 1)
+                    material.setUniform(node.nodeName, Number(value[0]), false);
+                else
+                    material.setUniform(node.nodeName, {x: Number(value[0]), y: Number(value[1]), z: Number(value[2]), w: Number(value[3])}, false);
+            }
+
+            node = node.nextSibling;
+        }
+    }
+
+    // assign default textures
+    material.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
+};
+
+HX.Material._translateProperty = function(value)
+{
+    if (!HX.Material._properties) {
+        HX.Material._properties = {
+            back: HX.GL.BACK,
+            front: HX.GL.FRONT,
+            both: HX.GL.FRONT_AND_BACK,
+            disabled: null,
+            lines: HX.GL.LINES,
+            points: HX.GL.POINTS,
+            triangles: HX.GL.TRIANGLES,
+            one: HX.GL.ONE,
+            zero: HX.GL.ZERO,
+            sourceColor: HX.GL.SRC_COLOR,
+            oneMinusSourceColor: HX.GL.ONE_MINUS_SRC_COLOR,
+            sourceAlpha: HX.GL.SRC_ALPHA,
+            oneMinusSourceAlpha: HX.GL.ONE_MINUS_SRC_ALPHA,
+            destinationAlpha: HX.GL.DST_ALPHA,
+            oneMinusDestinationAlpha: HX.GL.ONE_MINUS_DST_ALPHA,
+            destinationColor: HX.GL.DST_COLOR,
+            sourceAlphaSaturate: HX.GL.SRC_ALPHA_SATURATE,
+            add: HX.GL.FUNC_ADD,
+            subtract: HX.GL.FUNC_SUBTRACT,
+            reverseSubtract: HX.GL.FUNC_REVERSE_SUBTRACT
+        }
+    }
+
+    return HX.Material._properties[value];
+};
+
+HX.MaterialPass.DST_ALPHA = "disabled";
+HX.MaterialPass.ONE_MINUS_SRC_COLOR = "disabled";
+
+
+HX.Material._decodeHTML = function(value)
+{
+    var e = document.createElement('div');
+    e.innerHTML = value;
+    return e.childNodes.length === 0 ? "" : e.childNodes[0].nodeValue;
+}
+
+HX.Material._addParsedPass = function (vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType, geometryTypeDef)
+{
+    if (geometryTypeDef) {
+        geometryTypeDef = "#define " + geometryTypeDef + "\n";
+    }
+
+    var shader = new HX.Shader(vertexShader, fragmentShader, geometryTypeDef, geometryTypeDef);
+    var pass = new HX.MaterialPass(shader);
+
+    if (elements)
+        pass.setElementType(HX.Material._translateProperty(elements.innerHTML));
+
+    if (cullmode)
+        pass.setCullMode(HX.Material._translateProperty(cullmode.innerHTML));
+
+    if (blend) {
+        var source = blend.getElementsByTagName("source")[0];
+        var dest = blend.getElementsByTagName("destination")[0];
+        var op = blend.getElementsByTagName("operator")[0];
+        source = source ? HX.Material._translateProperty(source.innerHTML) : HX.GL.ONE;
+        dest = dest ? HX.Material._translateProperty(dest.innerHTML) : HX.GL.ZERO;
+        op = source ? HX.Material._translateProperty(op.innerHTML) : HX.GL.FUNC_ADD;
+        pass.setBlendMode(source, dest, op);
+    }
+
+    targetMaterial.setPass(passType, pass);
+};
+HX.Material._parsePassFromXML = function(xml, passType, tagName, targetMaterial)
+{
+    var common = xml.getElementsByTagName("common")[0];
+    common = common ? common.innerHTML : "";
+    var tags = xml.getElementsByTagName(tagName);
+    if (tags === undefined || tags.length === 0) return;
+    var passDef = tags[0];
+
+    var vertexShaderID = passDef.getElementsByTagName("vertex")[0].innerHTML;
+    var fragmentShaderID = passDef.getElementsByTagName("fragment")[0].innerHTML;
+    var elements = passDef.getElementsByTagName("element")[0];
+    var cullmode = passDef.getElementsByTagName("cullmode")[0];
+    var blend = passDef.getElementsByTagName("blend")[0];
+
+    var vertexShader = common + xml.querySelector("[id=" + vertexShaderID + "]").innerHTML;
+    var fragmentShader = common + xml.querySelector("[id=" + fragmentShaderID + "]").innerHTML;
+    vertexShader = HX.Material._decodeHTML(vertexShader);
+    fragmentShader = HX.Material._decodeHTML(fragmentShader);
+
+    if (passType === HX.MaterialPass.GEOMETRY_PASS && !HX.EXT_DRAW_BUFFERS) {
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
+    }
+    else {
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_ALBEDO_PASS, "NO_MRT_GBUFFER_ALBEDO");
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_NORMAL_PASS, "NO_MRT_GBUFFER_NORMALS");
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_SPECULAR_PASS, "NO_MRT_GBUFFER_SPECULAR");
+    }
+};
+
+HX.Material.ID_COUNTER = 0;
+
+HX.Material.prototype = {
+    constructor: HX.Material,
+
+    getPass: function (type)
+    {
+        return this._passes[type];
+    },
+
+    setPass: function (type, pass)
+    {
+        this._passes[type] = pass;
+
+        if (pass) {
+            pass._renderOrderHint = this._renderOrderHint;
+            for (var slotName in this._textures) {
+                if (this._textures.hasOwnProperty(slotName))
+                    pass.setTexture(slotName, this._textures[slotName]);
+            }
+
+            for (var uniformName in this._uniforms)
+                if (this._uniforms.hasOwnProperty(uniformName)) {
+                    if (uniformName.charAt(uniformName.length-1) == ']')
+                        pass.setUniformArray(uniformName.substr(0, uniformName.length - 3), this._uniforms[uniformName]);
+                    else
+                        pass.setUniform(uniformName, this._uniforms[uniformName]);
+                }
+        }
+
+        this.onChange.dispatch();
+    },
+
+    hasPass: function (type)
+    {
+        return this._passes[type] !== undefined;
+    },
+
+    setTexture: function(slotName, texture)
+    {
+        this._textures[slotName] = texture;
+
+        for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i)
+            if (this._passes[i]) this._passes[i].setTexture(slotName, texture);
+    },
+
+    /**
+     *
+     * @param name
+     * @param value
+     * @param overwrite (Optional) If the value was already set, ignore the new value.
+     */
+    setUniform: function(name, value, overwrite)
+    {
+        if (overwrite === undefined) overwrite = true;
+
+        if (!overwrite && this._uniforms.hasOwnProperty(name))
+            return;
+
+        this._uniforms[name] = value;
+
+        for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i) {
+            if (this._passes[i])
+                this._passes[i].setUniform(name, value);
+        }
+    },
+
+    /**
+     *
+     * @param name
+     * @param value
+     * @param overwrite (Optional) If the value was already set, ignore the new value.
+     */
+    setUniformArray: function(name, value, overwrite)
+    {
+        if (overwrite === undefined) overwrite = true;
+
+        if (!overwrite && this._uniforms.hasOwnProperty(name + '[0]'))
+            return;
+
+        this._uniforms[name + '[0]'] = value;
+
+        for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i) {
+            if (this._passes[i])
+                this._passes[i].setUniformArray(name, value);
+        }
+    }
+
+};
+
+HX.FileMaterial = function(url, onComplete, onError)
+{
+    HX.Material.call(this);
+
+    var urlLoader = new HX.URLLoader();
+    var material = this;
+
+    urlLoader.onComplete = function(data) {
+        var parser = new DOMParser();
+        var xml = parser.parseFromString(data, "text/xml");
+
+        HX.Material._parseXMLTo(xml, material);
+
+        if (onComplete) onComplete();
+    };
+
+    urlLoader.onError = function(code) {
+        console.warn("Failed loading " + url + ". Error code: " + code);
+        if (onError) onError(code);
+    };
+
+    urlLoader.load(url);
+};
+
+HX.FileMaterial.prototype = Object.create(HX.Material.prototype);
+// basic version is non-hierarchical, for use with lights etc
+/**
+ *
+ * @constructor
+ */
+HX.SceneNode = function()
+{
+    HX.Transform.call(this);
+    this._effects = null;
+    this._worldTransformMatrix = new HX.Matrix4x4();
+    this._worldBoundsInvalid = true;
+    this._matrixInvalid = true;
+    this._worldMatrixInvalid = true;
+    this._parent = null;
+    this._worldBounds = this._createBoundingVolume();
+    this._debugBounds = null;
+
+    // used to determine sorting index for the render loop
+    // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
+    // intersection with near plane, etc
+    this._renderOrderHint = 0.0;
+};
+
+
+
+HX.SceneNode.prototype = Object.create(HX.Transform.prototype);
+
+HX.SceneNode.prototype.getEffects = function(value)
+{
+    return this._effects;
+};
+
+HX.SceneNode.prototype.setEffects = function(value)
+{
+    this._effects = value;
+};
+
+HX.SceneNode.prototype.getWorldMatrix = function()
+{
+    if (this._worldMatrixInvalid)
+        this._updateWorldTransformationMatrix();
+
+    return this._worldTransformMatrix;
+};
+
+// always go through here to get to world bounds!
+HX.SceneNode.prototype.getWorldBounds = function()
+{
+    if (this._worldBoundsInvalid) {
+        this._updateWorldBounds();
+        this._worldBoundsInvalid = false;
+    }
+
+    return this._worldBounds;
+};
+
+HX.SceneNode.prototype.acceptVisitor = function(visitor)
+{
+    if (this._effects)
+        visitor.visitEffects(this._effects, this);
+
+    if (this._debugBounds)
+        this._debugBounds.acceptVisitor(visitor);
+};
+
+HX.SceneNode.prototype.getShowDebugBounds = function()
+{
+    return this._debugBounds !== null;
+};
+
+HX.SceneNode.prototype.setShowDebugBounds = function(value)
+{
+    if (this.getShowDebugBounds() === value) return;
+
+    if (value) {
+        this._debugBounds = new HX.ModelNode(this._worldBounds.getDebugModelInstance());
+        this._debugBounds.setTransform(null);
+        this._updateDebugBounds();
+    }
+    else
+        this._debugBounds = null;
+};
+
+HX.SceneNode.prototype._invalidateTransformationMatrix = function ()
+{
+    HX.Transform.prototype._invalidateTransformationMatrix.call(this);
+    this._invalidateWorldTransformationMatrix();
+};
+
+HX.SceneNode.prototype._invalidateWorldTransformationMatrix = function ()
+{
+    this._worldMatrixInvalid = true;
+    this._invalidateWorldBounds();
+};
+
+HX.SceneNode.prototype._invalidateWorldBounds = function (tellParent)
+{
+    if (this._worldBoundsInvalid) return;
+
+    this._worldBoundsInvalid = true;
+
+    if (tellParent !== false && this._parent)
+        this._parent._invalidateWorldBounds();
+};
+
+HX.SceneNode.prototype._updateWorldBounds = function ()
+{
+    if (this._debugBounds)
+        this._updateDebugBounds();
+};
+
+HX.SceneNode.prototype._updateDebugBounds = function()
+{
+    var matrix = this._debugBounds.getTransformationMatrix();
+    var bounds = this._worldBounds;
+
+    matrix.scaleMatrix(bounds._halfExtentX * 2.0, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
+    matrix.appendTranslation(bounds._centerX, bounds._centerY, bounds._centerZ);
+    this._debugBounds.setTransformationMatrix(matrix);
+};
+
+HX.SceneNode.prototype._updateTransformationMatrix = function()
+{
+    HX.Transform.prototype._updateTransformationMatrix.call(this);
+    this._worldBoundsInvalid = true;
+};
+
+HX.SceneNode.prototype._updateWorldTransformationMatrix = function()
+{
+    if (this._parent)
+        this._worldTransformMatrix.product(this._parent.getWorldMatrix(), this.getTransformationMatrix());
+    else
+        this._worldTransformMatrix.copyFrom(this.getTransformationMatrix());
+
+    this._worldMatrixInvalid = false;
+};
+
+// override for better matches
+HX.SceneNode.prototype._createBoundingVolume = function()
+{
+    return new HX.BoundingAABB();
+};
+
+/**
+ *
+ * @constructor
+ */
+HX.BoundingHierarchyNode = function()
+{
+    HX.SceneNode.call(this);
+    this._children = [];
+};
+
+HX.BoundingHierarchyNode.prototype = Object.create(HX.SceneNode.prototype);
+
+HX.BoundingHierarchyNode.prototype.attach = function(child)
+{
+    if (child._parent)
+        throw "Child is already parented!";
+
+    child._parent = this;
+
+    this._children.push(child);
+    this._invalidateWorldBounds();
+};
+
+HX.BoundingHierarchyNode.prototype.detach = function(child)
+{
+    var index = this._children.indexOf(child);
+
+    if (index < 0)
+        throw "Trying to remove a scene object that is not a child";
+
+    child._parent = null;
+
+    this._children.splice(index, 1);
+    this._invalidateWorldBounds();
+};
+
+HX.BoundingHierarchyNode.prototype.numChildren = function() { return this._children.length; };
+
+HX.BoundingHierarchyNode.prototype.getChild = function(index) { return this._children[index]; };
+
+
+HX.BoundingHierarchyNode.prototype.acceptVisitor = function(visitor)
+{
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+
+    var len = this._children.length;
+
+    for (var i = 0; i < len; ++i) {
+        var child = this._children[i];
+        if (visitor.qualifies(child))
+            child.acceptVisitor(visitor);
+    }
+};
+
+
+HX.BoundingHierarchyNode.prototype._invalidateWorldBounds = function()
+{
+    HX.SceneNode.prototype._invalidateWorldBounds.call(this);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i]._invalidateWorldBounds(false); // false = parent (ie: this) does not need to know, it already knows
+};
+
+HX.BoundingHierarchyNode.prototype._invalidateWorldTransformationMatrix = function()
+{
+    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i]._invalidateWorldTransformationMatrix();
+};
+
+HX.BoundingHierarchyNode.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.clear();
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._worldBounds.growToIncludeBound(this._children[i].getWorldBounds());
+
+    HX.SceneNode.prototype._updateWorldBounds.call(this);
+};
+
+/**
+ * Creates a new Scene object
+ * @param rootNode (optional) A rootnode to be used, allowing different partition types to be used as the root.
+ * @constructor
+ */
+HX.Scene = function(rootNode)
+{
+    // the default partition is a BVH node
+    //  -> or this may need to become an infinite bound node?
+    this._rootNode = rootNode || new HX.BoundingHierarchyNode();
+    this._skyBox = null;
+};
+
+HX.Scene.prototype = {
+    constructor: HX.Scene,
+
+    getSkyBox: function() { return this._skyBox; },
+    setSkyBox: function(value) { this._skyBox = value; },
+
+    getEffects: function(value)
+    {
+        return this._rootNode._effects;
+    },
+
+    setEffects: function(value)
+    {
+        this._rootNode._effects = value;
+    },
+
+    attach: function(child)
+    {
+        this._rootNode.attach(child);
+    },
+
+    detach: function(child)
+    {
+        this._rootNode.detach(child);
+    },
+
+    numChildren: function()
+    {
+        return this._rootNode.numChildren();
+    },
+
+    getChild: function(index)
+    {
+        return this._rootNode.getChild(index);
+    },
+
+    contains: function(child)
+    {
+        this._rootNode.contains(child);
+    },
+
+    acceptVisitor: function(visitor)
+    {
+        visitor.visitScene(this);
+        // assume root node will always qualify
+        this._rootNode.acceptVisitor(visitor);
+    }
+};
+
+/**
+ *
+ * @param modelInstance
+ * @constructor
+ */
+HX.ModelNode = function(modelInstance)
+{
+    HX.SceneNode.call(this);
+    this.setModelInstance(modelInstance);
+};
+
+HX.ModelNode.prototype = Object.create(HX.SceneNode.prototype);
+
+HX.ModelNode.prototype.acceptVisitor = function(visitor)
+{
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+    visitor.visitModelInstance(this._modelInstance, this.getWorldMatrix(), this.getWorldBounds());
+};
+
+HX.ModelNode.prototype.getModelInstance = function()
+{
+    return this._modelInstance;
+};
+
+HX.ModelNode.prototype.setModelInstance = function(value)
+{
+    if (this._modelInstance)
+        this._modelInstance.onChange.unbind(this, HX.ModelNode.prototype._invalidateWorldBounds);
+
+    this._modelInstance = value;
+
+    this._modelInstance.onChange.bind(this, HX.ModelNode.prototype._invalidateWorldBounds);
+    this._invalidateWorldBounds();
+};
+
+// override for better matches
+HX.ModelNode.prototype._updateWorldBounds = function()
+{
+    if (this._modelInstance)
+        this._worldBounds.transformFrom(this._modelInstance.getLocalBounds(), this.getWorldMatrix());
+
+    HX.SceneNode.prototype._updateWorldBounds.call(this);
+};
+/**
+ * Subclasses must implement:
+ * prototype.activate
+ * prototype.prepareBatch
+ * @constructor
+ */
+HX.Light = function (type)
+{
+    HX.SceneNode.call(this);
+    this._luminance = 3.1415;
+    this._luminanceBound = 1 / 255;
+    this._type = type; // used for sorting (TODO: Does this work?)
+    this._color = new HX.Color(1.0, 1.0, 1.0);
+    this._scaledIrradiance = new HX.Color();
+    this._castsShadows = false;
+    this._updateScaledIrradiance();
+};
+
+HX.Light.prototype = Object.create(HX.SceneNode.prototype);
+
+HX.Light.prototype.acceptVisitor = function (visitor)
+{
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+    visitor.visitLight(this);
+};
+
+HX.Light.prototype.getLuminance = function ()
+{
+    return this._luminance;
+};
+
+HX.Light.prototype.setLuminance = function (value)
+{
+    this._luminance = value;
+    this._updateScaledIrradiance();
+};
+
+HX.Light.prototype.getColor = function ()
+{
+    return this._color;
+};
+
+HX.Light.prototype.activate = function(camera, gbuffer, occlusion)
+{
+
+};
+
+// returns the index of the FIRST UNRENDERED light
+HX.Light.prototype.renderBatch = function(lightCollection, startIndex, camera, gbuffer, occlusion)
+{
+    throw "Abstract method!";
+};
+
+/**
+ * Value can be hex or ColorRGBA
+ */
+HX.Light.prototype.setColor = function (value)
+{
+    this._color = isNaN(value) ? value : new HX.Color(value);
+
+    this._updateScaledIrradiance();
+};
+
+/**
+ * The minimum luminance to be considered as "contributing to the lighting", used to define bounds. Any amount below this will be zeroed. Defaults to 1/255.
+ */
+HX.Light.prototype.getLuminanceBound = function ()
+{
+    return this._luminanceBound;
+};
+
+HX.Light.prototype.setLuminanceBound = function (value)
+{
+    this._luminanceBound = value;
+    this._updateWorldBounds();
+};
+
+HX.Light.prototype.luminance = function ()
+{
+    return this._color.luminance() * this._luminance;
+};
+
+HX.Light.prototype._updateScaledIrradiance = function ()
+{
+    // this includes 1/PI radiance->irradiance factor
+    var scale = this._luminance / Math.PI;
+
+    this._scaledIrradiance.r = this._color.r * scale;
+    this._scaledIrradiance.g = this._color.g * scale;
+    this._scaledIrradiance.b = this._color.b * scale;
+    this._invalidateWorldBounds();
+};
+/**
+ *
+ * @constructor
+ */
+HX.RenderItem = function()
+{
+    this.worldMatrix = null;
+    this.meshInstance = null;
+    this.pass = null;
+    this.camera = null;
+    this.uniformSetters = null;
+};
+
+HX.RenderItem.prototype = {
+    // set state per instance
+    draw: function()
+    {
+        if (this.uniformSetters) {
+            var len = this.uniformSetters.length;
+            for (var i = 0; i < len; ++i) {
+                this.uniformSetters[i].execute(this.worldMatrix, this.camera);
+            }
+        }
+
+        // TODO: Provide different render modes?
+        HX.GL.drawElements(this.pass._elementType, this.meshInstance._mesh.numIndices(), HX.GL.UNSIGNED_SHORT, 0);
+    }
+};
+
+/**
+ *
+ * @constructor
+ */
+HX.SceneVisitor = function()
+{
+
+};
+
+HX.SceneVisitor.prototype =
+{
+    collect: function(camera, scene) {},
+    qualifies: function(object) {},
+    visitLight: function(light) {},
+    visitModelInstance: function (modelInstance, worldMatrix) {},
+    visitScene: function (scene) {},
+    visitEffects: function(effects, ownerNode) {}
+};
+HX.DebugRenderMode = {
+    DEBUG_NONE: 0,
+    DEBUG_ALBEDO: 1,
+    DEBUG_NORMALS: 2,
+    DEBUG_METALLICNESS: 3,
+    DEBUG_SPECULAR_NORMAL_REFLECTION: 4,
+    DEBUG_ROUGHNESS: 5,
+    DEBUG_DEPTH: 6,
+    DEBUG_LIGHT_ACCUM: 7,
+    DEBUG_AO: 8
+};
+
+/**
+ *
+ * @constructor
+ */
+HX.Renderer = function()
+{
+};
+
+HX.Renderer.prototype =
+{
+    constructor: HX.Renderer,
+
+
+    /**
+     * Renders a scene with a given camera. IMPORTANT: Helix does not clear the canvas. This may be useful to have 3D content
+     * on top of a 2D gpu-based interface.
+     * @param camera
+     * @param scene
+     */
+    render: function (camera, scene, dt)
+    {
+
+    },
+
+    dispose: function()
+    {
+
+    },
+
+    _renderPass: function (passType, renderItems)
+    {
+        var len = renderItems.length;
+        var activeShader = null;
+        var activePass = null;
+        var lastMesh = null;
+
+        for(var i = 0; i < len; ++i) {
+            var renderItem = renderItems[i];
+            var meshInstance = renderItem.meshInstance;
+            var pass = renderItem.pass;
+            var shader = pass._shader;
+
+            if (shader !== activeShader) {
+                shader.updateRenderState();
+                activeShader = shader;
+            }
+
+            if (pass !== activePass) {
+                this._switchPass(activePass, pass);
+                activePass = pass;
+
+                lastMesh = null;    // need to reset mesh data too
+            }
+
+            if (lastMesh != meshInstance._mesh) {
+                meshInstance.updateRenderState(passType);
+                lastMesh = meshInstance._mesh;
+            }
+
+            renderItem.draw();
+        }
+
+        if (activePass && activePass._blending) HX.GL.disable(HX.GL.BLEND);
+    },
+
+    _switchPass: function(oldPass, newPass)
+    {
+        // clean up old pass
+        if (!oldPass || oldPass._cullMode !== oldPass._cullMode) {
+            if (newPass._cullMode == null)
+                HX.GL.disable(HX.GL.CULL_FACE);
+            else {
+                HX.GL.enable(HX.GL.CULL_FACE);
+                HX.GL.cullFace(newPass._cullMode);
+            }
+        }
+
+        if (!oldPass || oldPass._blending !== oldPass._blending) {
+            if (newPass._blending) {
+                HX.GL.enable(HX.GL.BLEND);
+                HX.GL.blendFunc(newPass._blendSource, newPass._blendDest);
+                HX.GL.blendEquation(newPass._blendOperator);
+            }
+            else
+                HX.GL.disable(HX.GL.BLEND);
+        }
+
+        newPass.updateRenderState();
+    }
+};
+
+/**
+ * GBUFFER LAYOUT:
+ * 0: ALBEDO: (albedo.XYZ, unused)
+ * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw)
+ * 2: REFLECTION: (metallicness, normalSpecularReflection, roughness, unused)
+ * 3: LINEAR DEPTH: (not explicitly written to by user), 0 - 1 linear depth encoded as RGBA
+ *
+ * DEPTH STENCIL:
+ * Stencil can be used for certain post passes (fe: skin rendering) if stencil value is the same
+ * Then just render post-pass with the given stencil
+ *
+ *
+ * @constructor
+ */
+HX.ScreenRenderer = function()
+{
+    HX.Renderer.call(this);
+
+    this._viewportX = 0;
+    this._viewportY = 0;
+    this._viewportWidth = 0;
+    this._viewportHeight = 0;
+
+    this._copyTexture = new HX.CopyChannelsShader();
+    this._copyXChannel = new HX.CopyChannelsShader("x");
+    this._copyYChannel = new HX.CopyChannelsShader("y");
+    this._copyZChannel = new HX.CopyChannelsShader("z");
+    this._copyWChannel = new HX.CopyChannelsShader("w");
+    this._debugDepth = new HX.DebugDepthShader();
+    this._debugNormals = new HX.DebugNormalsShader();
+    this._applyGamma = new HX.ApplyGammaShader();
+    this._gammaApplied = false;
+    this._linearizeDepthShader = new HX.LinearizeDepthShader();
+    this._rectMesh = HX.RectMesh.create({alignment: HX.PlanePrimitive.ALIGN_XY});
+
+    this._renderCollector = new HX.RenderCollector();
+    this._gbufferFBO = null;
+    this._linearDepthFBO = null;
+    this._hdrSourceIndex = 0;
+    this._hdrTargets = null;
+    this._hdrTargetsDepth = null;
+    this._depthBuffer = null;
+    this._aoEffect = null;
+    this._localReflections = null;
+    this._passSourceTexture = null;
+
+    this._createGBuffer();
+    this._createHDRBuffers();
+
+    this._linearDepthInvalid = true;
+
+    this._debugMode = HX.DebugRenderMode.DEBUG_NONE;
+    this._camera = null;
+};
+
+HX.ScreenRenderer.prototype = Object.create(HX.Renderer.prototype);
+
+HX.ScreenRenderer.prototype.setDebugMode = function(value)
+{
+    this._debugMode = value;
+};
+
+HX.ScreenRenderer.prototype.getAmbientOcclusion = function()
+{
+    return this._aoEffect;
+};
+
+HX.ScreenRenderer.prototype.setAmbientOcclusion = function(value)
+{
+    this._aoEffect = value;
+    this._aoEffect.setMesh(this._rectMesh);
+};
+
+HX.ScreenRenderer.prototype.setLocalReflections = function(value)
+{
+    this._localReflections = value;
+    this._localReflections.setMesh(this._rectMesh);
+};
+
+HX.ScreenRenderer.prototype.setViewportRect = function(x, y, width, height)
+{
+    if (this._viewportWidth != width || this._viewportHeight != height) {
+        this._updateGBuffer(width, height);
+        this._updateHDRBuffers(width, height);
+    }
+
+    this._viewportX = 0;
+    this._viewportY = 0;
+    this._viewportWidth = width;
+    this._viewportHeight = height;
+};
+
+HX.ScreenRenderer.prototype.render = function(camera, scene, dt)
+{
+    this._gammaApplied = false;
+    this._passSourceTexture = null;
+    this._hdrSourceIndex = 0;
+    this._camera = camera;
+    this._scene = scene;
+
+    HX.GL.enable(HX.GL.DEPTH_TEST);
+    HX.GL.enable(HX.GL.CULL_FACE);
+    HX.GL.cullFace(HX.GL.BACK);
+    HX.GL.depthFunc(HX.GL.LESS);
+
+    camera._setRenderTargetResolution(this._viewportWidth, this._viewportHeight);
+    this._renderCollector.collect(camera, scene);
+
+    this._renderShadowCasters();
+
+    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
+    this._renderToGBuffer();
+    this._linearizeDepth();
+    this._renderPostToGBuffer();
+    if (this._linearDepthInvalid) this._linearizeDepth();
+
+    HX.GL.disable(HX.GL.BLEND);
+    HX.GL.disable(HX.GL.DEPTH_TEST);
+    HX.GL.disable(HX.GL.CULL_FACE);
+
+    if (this._aoEffect != null)
+        this._renderEffect(this._aoEffect, dt);
+
+    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
+    this._renderToScreen(dt);
+};
+
+HX.ScreenRenderer.prototype._renderShadowCasters = function()
+{
+    HX.GL.colorMask(false, false, false, false);
+
+    var casters = this._renderCollector.getShadowCasters();
+    var len = casters.length;
+
+    for (var i = 0; i < len; ++i) {
+        casters[i].render(this._camera, this._scene)
+    }
+
+    HX.GL.colorMask(true, true, true, true);
+};
+
+HX.ScreenRenderer.prototype._renderToGBuffer = function()
+{
+    throw "Abstract method";
+};
+
+HX.ScreenRenderer.prototype._linearizeDepth = function()
+{
+    HX.GL.disable(HX.GL.DEPTH_TEST);
+    HX.GL.disable(HX.GL.CULL_FACE);
+
+    HX.setRenderTarget(this._linearDepthFBO);
+    this._linearizeDepthShader.execute(this._rectMesh, HX.EXT_DEPTH_TEXTURE? this._depthBuffer : this._gbuffer[1], this._camera)
+    this._linearDepthInvalid = false;
+}
+
+HX.ScreenRenderer.prototype._renderEffect = function(effect, dt)
+{
+    this._gammaApplied = this._gammaApplied || effect._outputsGamma;
+    this._hdrSourceIndex = effect.render(this, dt);
+};
+
+HX.ScreenRenderer.prototype._renderPostToGBuffer = function()
+{
+    HX.GL.enable(HX.GL.CULL_FACE);
+    HX.GL.enable(HX.GL.DEPTH_TEST);
+    HX.GL.depthFunc(HX.GL.LEQUAL);
+
+    // normals first, because diffuse + specular may want to abuse calculated normals (water)
+    this._renderPostGBufferPass(1, HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS);
+    this._renderPostGBufferPass(0, HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS);
+    this._renderPostGBufferPass(2, HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS);
+}
+
+HX.ScreenRenderer.prototype._renderPostGBufferPass = function(gbufferIndex, passType)
+{
+    if (this._renderCollector.getRenderList(passType).length > 0) {
+        HX.setRenderTarget(this._gbufferSingleFBOs[gbufferIndex]);
+        this._renderPass(passType);
+        this._linearDepthInvalid = true;
+    }
+}
+
+HX.ScreenRenderer.prototype._renderToScreen = function(dt)
+{
+    switch (this._debugMode) {
+        case HX.DebugRenderMode.DEBUG_ALBEDO:
+            HX.setRenderTarget(null);
+            this._copyTexture.execute(this._rectMesh, this._gbuffer[0]);
+            break;
+        case HX.DebugRenderMode.DEBUG_NORMALS:
+            HX.setRenderTarget(null);
+            this._debugNormals.execute(this._rectMesh, this._gbuffer[1]);
+            break;
+        case HX.DebugRenderMode.DEBUG_METALLICNESS:
+            HX.setRenderTarget(null);
+            this._copyXChannel.execute(this._rectMesh, this._gbuffer[2]);
+            break;
+        case HX.DebugRenderMode.DEBUG_SPECULAR_NORMAL_REFLECTION:
+            HX.setRenderTarget(null);
+            this._copyYChannel.execute(this._rectMesh, this._gbuffer[2]);
+            break;
+        case HX.DebugRenderMode.DEBUG_ROUGHNESS:
+            HX.setRenderTarget(null);
+            this._copyZChannel.execute(this._rectMesh, this._gbuffer[2]);
+            break;
+        case HX.DebugRenderMode.DEBUG_DEPTH:
+            HX.setRenderTarget(null);
+            this._debugDepth.execute(this._rectMesh, this._gbuffer[3]);
+            break;
+        case HX.DebugRenderMode.DEBUG_LIGHT_ACCUM:
+            this._renderLightAccumulation();
+            HX.setRenderTarget(null);
+            this._applyGamma.execute(this._rectMesh, this._hdrBuffers[0]);
+            break;
+        case HX.DebugRenderMode.DEBUG_AO:
+            HX.setRenderTarget(null);
+            this._copyWChannel.execute(this._rectMesh, this._aoEffect.getAOTexture());
+            break;
+        default:
+            this._renderLightAccumulation(dt);
+
+            this._renderPostPass(this._hdrTargetsDepth[this._hdrSourceIndex], HX.MaterialPass.PRE_EFFECT_PASS);
+            this._renderEffects(dt, this._renderCollector._effects);
+            this._renderPostPass(this._hdrTargetsDepth[this._hdrSourceIndex], HX.MaterialPass.POST_PASS);
+            this._renderEffects(dt, this._camera._effects);
+
+            HX.setRenderTarget(null);
+
+            // TODO: render directly to screen if last post process effect?
+            // OR, provide toneMap property on camera, which gets special treatment
+            if (this._gammaApplied)
+                this._copyTexture.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
+            else
+                this._applyGamma.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
+    }
+};
+
+HX.ScreenRenderer.prototype._renderLightAccumulation = function(dt)
+{
+    HX.GL.enable(HX.GL.BLEND);
+    HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
+    HX.GL.blendEquation(HX.GL.FUNC_ADD);
+
+    HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
+    HX.clear();
+
+    this._renderLights();
+    this._renderGI(dt);
+
+    HX.GL.disable(HX.GL.BLEND);
+};
+
+HX.ScreenRenderer.prototype._renderLights = function()
+{
+    var lights = this._renderCollector.getLights();
+    var len = lights.length;
+    var activeType = undefined;
+
+    var i = 0;
+    var camera = this._camera;
+    var gbuffer = this._gbuffer;
+    var occlusion = this._aoEffect? this._aoEffect.getAOTexture() : null;
+
+    while (i < len) {
+        var light = lights[i];
+
+        if (light._type !== activeType) {
+            light.activate(camera, gbuffer, occlusion);
+            activeType = light._type;
+        }
+
+        i = light.renderBatch(lights, i, camera, gbuffer, occlusion);
+    }
+};
+
+HX.ScreenRenderer.prototype._renderGI = function(dt)
+{
+    var occlusion = this._aoEffect? this._aoEffect.getAOTexture() : null;
+
+    HX.GL.disable(HX.GL.CULL_FACE);
+
+    if (this._renderCollector._globalIrradianceProbe)
+        this._renderCollector._globalIrradianceProbe.render(this._camera, this._gbuffer, occlusion);
+
+    if (this._localReflections != null) {
+        HX.GL.disable(HX.GL.BLEND);
+        this._renderEffect(this._localReflections, dt);
+        HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
+        HX.GL.enable(HX.GL.BLEND);
+    }
+
+    // dest alpha contains amount of GI already present
+    HX.GL.blendFunc(HX.GL.DST_ALPHA, HX.GL.ONE);
+
+    if (this._renderCollector._globalSpecularProbe)
+        this._renderCollector._globalSpecularProbe.render(this._camera, this._gbuffer, occlusion);
+};
+
+HX.ScreenRenderer.prototype._renderPass = function(passType, renderItems)
+{
+    renderItems = renderItems || this._renderCollector.getRenderList(passType);
+
+    HX.Renderer.prototype._renderPass.call(this, passType, renderItems);
+};
+
+HX.ScreenRenderer.prototype._renderPostPass = function(target, passType)
+{
+    if (this._renderCollector.getRenderList(passType).length == 0)
+        return;
+
+    // TODO: only perform this if any pass in the list has a hx_source slot
+    this._copySource();
+
+    HX.GL.enable(HX.GL.CULL_FACE);
+    HX.GL.enable(HX.GL.DEPTH_TEST);
+    HX.GL.depthFunc(HX.GL.LEQUAL);
+
+    HX.setRenderTarget(target);
+    this._renderPass(passType);
+};
+
+HX.ScreenRenderer.prototype._copySource = function()
+{
+    var source = this._hdrBuffers[this._hdrSourceIndex];
+    var hdrTarget = 1 - this._hdrSourceIndex;
+    HX.setRenderTarget(this._hdrTargets[hdrTarget]);
+    HX.GL.disable(HX.GL.BLEND);
+    HX.GL.disable(HX.GL.DEPTH_TEST);
+    HX.GL.disable(HX.GL.CULL_FACE);
+    this._copyTexture.execute(this._rectMesh, source);
+    this._passSourceTexture = this._hdrBuffers[hdrTarget];
+}
+
+HX.ScreenRenderer.prototype._renderEffects = function(dt, effects)
+{
+    if (!effects || effects.length == 0)
+        return;
+
+    HX.GL.disable(HX.GL.DEPTH_TEST);
+    HX.GL.disable(HX.GL.CULL_FACE);
+
+    var len = effects.length;
+
+    for (var i = 0; i < len; ++i) {
+        var effect = effects[i];
+        effect.setMesh(this._rectMesh);
+        this._renderEffect(effect, dt);
+    }
+};
+
+HX.ScreenRenderer.prototype._createGBuffer = function()
+{
+    if (HX.EXT_DEPTH_TEXTURE) {
+        this._depthBuffer = new HX.Texture2D();
+        this._depthBuffer.setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
+        this._depthBuffer.setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
+    }
+    else {
+        this._depthBuffer = HX.GL.createRenderbuffer();
+    }
+
+    this._gbuffer = [];
+
+    for (var i = 0; i < 4; ++i) {
+        this._gbuffer[i] = new HX.Texture2D();
+        this._gbuffer[i].setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
+        this._gbuffer[i].setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
+    }
+
+    this._gbufferSingleFBOs = [];
+
+    for (var i = 0; i < 3; ++i)
+        this._gbufferSingleFBOs[i] = new HX.FrameBuffer([ this._gbuffer[i] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
+
+    this._createGBufferFBO();
+    this._linearDepthFBO = new HX.FrameBuffer(this._gbuffer[3], HX.FrameBuffer.DEPTH_MODE_DISABLED, null);
+};
+
+HX.ScreenRenderer.prototype._createGBufferFBO = function()
+{
+    throw "Abstract method";
+};
+
+HX.ScreenRenderer.prototype._createHDRBuffers = function ()
+{
+    this._hdrBuffers = [ new HX.Texture2D(), new HX.Texture2D() ];
+    this._hdrTargets = [ ];
+
+    for (var i = 0; i < this._hdrBuffers.length; ++i) {
+        this._hdrBuffers[i].setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
+        this._hdrBuffers[i].setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
+        this._hdrTargets[i] = new HX.FrameBuffer([ this._hdrBuffers[i] ], HX.FrameBuffer.DEPTH_MODE_DISABLED);
+    }
+
+    this._hdrTargetsDepth = [];
+    this._hdrTargetsDepth[0] = new HX.FrameBuffer([ this._hdrBuffers[0] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
+    this._hdrTargetsDepth[1] = new HX.FrameBuffer([ this._hdrBuffers[1] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
+};
+
+HX.ScreenRenderer.prototype._updateGBuffer = function (width, height)
+{
+    if (HX.EXT_DEPTH_TEXTURE)
+        this._depthBuffer.initEmpty(width, height, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
+
+    for (var i = 0; i < this._gbuffer.length; ++i) {
+        this._gbuffer[i].initEmpty(width, height, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
+    }
+
+    for (var i = 0; i < this._gbufferSingleFBOs.length; ++i)
+        this._gbufferSingleFBOs[i].init();
+
+    this._updateGBufferFBO();
+    this._linearDepthFBO.init();
+};
+
+HX.ScreenRenderer.prototype._updateGBufferFBO = function()
+{
+    throw "Abstract method";
+};
+
+HX.ScreenRenderer.prototype._updateHDRBuffers = function(width, height)
+{
+    var hdrFormat = HX.OPTIONS.useHDR? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX.GL.UNSIGNED_BYTE;
+
+    for (var i = 0; i < this._hdrBuffers.length; ++i) {
+        this._hdrBuffers[i].initEmpty(width, height, HX.GL.RGBA, hdrFormat);
+        this._hdrTargets[i].init();
+        this._hdrTargetsDepth[i].init();
+    }
+};
+
+HX.ScreenRenderer.prototype.dispose = function()
+{
+    this._applyGamma.dispose();
+    this._copyTexture.dispose();
+    this._copyXChannel.dispose();
+    this._copyYChannel.dispose();
+    this._copyZChannel.dispose();
+    this._copyWChannel.dispose();
+    this._rectMesh.dispose();
+
+    for (var i = 0; i < this._hdrBuffers.length; ++i) {
+        this._hdrBuffers[i].dispose();
+        this._hdrTargets[i].dispose();
+        this._hdrTargetsDepth[i].dispose();
+    }
+
+    for (var i = 0; i < this._gbuffer.length; ++i)
+        this._gbuffer[i].dispose();
+
+    for (var i = 0; i < this._gbufferFBO.length; ++i)
+        this._gbufferFBO[i].dispose();
+};
+
+HX.ScreenRenderer.prototype._switchPass = function(oldPass, newPass)
+{
+    HX.Renderer.prototype._switchPass.call(this, oldPass, newPass);
+    newPass.assignGBuffer(this._gbuffer);
+    if (this._passSourceTexture) {
+        newPass.setTexture("hx_source", this._passSourceTexture);
+    }
+};
+/**
  * @constructor
  */
 HX.EffectPass = function(vertexShader, fragmentShader, mesh)
@@ -6123,7 +6098,7 @@ HX.Camera = function()
     this._farDistance = 1000;
     this._frustum = new HX.Frustum();
 
-    this.transform.position.set(0.0, 0.0, 1.0);
+    this.position.set(0.0, 0.0, 1.0);
 };
 
 HX.Camera.prototype = Object.create(HX.SceneNode.prototype);
@@ -6704,7 +6679,7 @@ HX.PointLight = function()
     this._radius = 1.0;
 };
 
-HX.PointLight.LIGHTS_PER_BATCH = 40;
+HX.PointLight.LIGHTS_PER_BATCH = 20;
 HX.PointLight.SPHERE_SEGMENTS_W = 16;
 HX.PointLight.SPHERE_SEGMENTS_H = 10;
 HX.PointLight.NUM_SPHERE_INDICES = HX.PointLight.SPHERE_SEGMENTS_W * HX.PointLight.SPHERE_SEGMENTS_H * 6;

@@ -42,7 +42,7 @@ HX.Shader.prototype = {
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {
             this.dispose();
             if (HX.OPTIONS.throwOnShaderError) {
-                throw new Error("Failed generating vertex shader");
+                throw new Error("Failed generating vertex shader: \n" + vertexShaderCode);
             }
             else {
                 console.log("Failed generating vertex shader");
@@ -56,7 +56,7 @@ HX.Shader.prototype = {
         if (!this._initShader(this._fragmentShader, fragmentShaderCode)) {
             this.dispose();
             if (HX.OPTIONS.throwOnShaderError) {
-                throw new Error("Failed generating fragment shader");
+                throw new Error("Failed generating fragment shader: \n" + fragmentShaderCode);
             }
             else {
                 console.log("Failed generating fragment shader:");
@@ -98,6 +98,7 @@ HX.Shader.prototype = {
 
         // Check the compile status, return an error if failed
         if (!HX.GL.getShaderParameter(shader, HX.GL.COMPILE_STATUS)) {
+            throw new Error(HX.GL.getShaderInfoLog(shader));
             console.warn(HX.GL.getShaderInfoLog(shader));
             return false;
         }

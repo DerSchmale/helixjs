@@ -60,7 +60,6 @@ HX.Transform.prototype =
         this.rotation.copyFrom(transform.rotation);
         this.scale.copyFrom(transform.scale);
         this._changeListener.setEnabled(true);
-        this.onTransformChange.dispatch();
     },
 
     getTransformationMatrix: function()

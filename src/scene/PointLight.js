@@ -27,7 +27,7 @@ HX.PointLight = function()
     this._radius = 1.0;
 };
 
-HX.PointLight.LIGHTS_PER_BATCH = 40;
+HX.PointLight.LIGHTS_PER_BATCH = 20;
 HX.PointLight.SPHERE_SEGMENTS_W = 16;
 HX.PointLight.SPHERE_SEGMENTS_H = 10;
 HX.PointLight.NUM_SPHERE_INDICES = HX.PointLight.SPHERE_SEGMENTS_W * HX.PointLight.SPHERE_SEGMENTS_H * 6;

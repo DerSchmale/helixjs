@@ -8,6 +8,7 @@ HX.Transform = function()
     this._position = new HX.Float4(0.0, 0.0, 0.0, 1.0);
     this._rotation = new HX.Quaternion();
     this._scale = new HX.Float4(1.0, 1.0, 1.0, 1.0);
+    this._matrix = new HX.Matrix4x4();
 
     this._changeListener = new HX.PropertyListener();
     this._changeListener.add(this._position, "x");
@@ -20,7 +21,7 @@ HX.Transform = function()
     this._changeListener.add(this._scale, "x");
     this._changeListener.add(this._scale, "y");
     this._changeListener.add(this._scale, "z");
-    this.onChange = this._changeListener.onChange;
+    this._changeListener.onChange.bind(this, this._invalidateTransformationMatrix);
 };
 
 HX.Transform.prototype =
@@ -59,6 +60,36 @@ HX.Transform.prototype =
         this.rotation.copyFrom(transform.rotation);
         this.scale.copyFrom(transform.scale);
         this._changeListener.setEnabled(true);
-        this.onChange.dispatch();
+        this.onTransformChange.dispatch();
+    },
+
+    getTransformationMatrix: function()
+    {
+        if (this._matrixInvalid)
+            this._updateTransformationMatrix();
+
+        return this._matrix;
+    },
+
+    setTransformationMatrix: function(matrix)
+    {
+        this._matrix.copyFrom(matrix);
+        this._matrixInvalid = false;
+
+        if (this._transform)
+            matrix.decompose(this._transform);
+
+        this._invalidateWorldTransformationMatrix();
+    },
+
+    _invalidateTransformationMatrix: function ()
+    {
+        this._matrixInvalid = true;
+    },
+
+    _updateTransformationMatrix: function()
+    {
+        this._matrix.compose(this);
+        this._matrixInvalid = false;
     }
 };

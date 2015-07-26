@@ -10,6 +10,9 @@ var sourceFiles = [
     "./build/tmp/*.js",
     "src/shader/glslinclude.js",
 
+    "src/math/*.js",
+    "src/core/*.js",
+
     // TODO: find better way, so order doesn't matter
     // base classes first
     "src/shader/Shader.js",
@@ -19,8 +22,6 @@ var sourceFiles = [
     "src/render/SceneVisitor.js",
     "src/render/Renderer.js",
 
-    "src/math/*.js",
-    "src/core/*.js",
     "src/shader/*.js",
     "src/shader/*.js",
     "src/scene/*.js",

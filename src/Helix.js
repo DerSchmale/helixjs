@@ -5,7 +5,7 @@ HX = {
 
 HX.InitOptions = function()
 {
-    this.useHDR = true;   // only if available
+    this.useHDR = false   // only if available
     this.useLinearSpace = true;
     this.ignoreDrawBuffersExtension = false;     // for debug purposes, forces multiple passes for the GBuffer
     this.ignoreDepthTexturesExtension = false;     // for debug purposes, forces storing depth info explicitly

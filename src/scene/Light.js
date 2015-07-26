@@ -87,8 +87,6 @@ HX.Light.prototype._updateScaledIrradiance = function ()
 
     if (HX.OPTIONS.useLinearSpace) {
         this._color.gammaToLinear(this._scaledIrradiance);
-        console.log(this._color.r, this._color.g, this._color.b);
-        console.log(this._scaledIrradiance.r, this._scaledIrradiance.g, this._scaledIrradiance.b);
     }
     else {
         this._scaledIrradiance.r = this._color.r;

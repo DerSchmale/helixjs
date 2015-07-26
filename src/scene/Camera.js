@@ -91,7 +91,7 @@ HX.Camera = function()
     this._farDistance = 1000;
     this._frustum = new HX.Frustum();
 
-    this.getTransform().position.set(0.0, 0.0, 1.0);
+    this.transform.position.set(0.0, 0.0, 1.0);
 };
 
 HX.Camera.prototype = Object.create(HX.SceneNode.prototype);

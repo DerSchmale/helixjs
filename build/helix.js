@@ -5,11 +5,11 @@ HX = {
 
 HX.InitOptions = function()
 {
-    this.useHDR = false;   // only if available
+    this.useHDR = true;   // only if available
     this.useLinearSpace = true;
     this.ignoreDrawBuffersExtension = false;     // for debug purposes, forces multiple passes for the GBuffer
     this.ignoreDepthTexturesExtension = false;     // for debug purposes, forces storing depth info explicitly
-    this.throwOnShaderError = true;
+    this.throwOnShaderError = false;
 };
 
 HX.ShaderLibrary = {
@@ -995,7 +995,7 @@ HX.SceneNode = function()
 HX.SceneNode.prototype = {
     constructor: HX.SceneNode,
 
-    getTransform: function()
+    get transform()
     {
         return this._transform;
     },
@@ -1005,7 +1005,7 @@ HX.SceneNode.prototype = {
      * Transform object is disabled for this object, allowing static objects with a fixed transformation matrix.
      * @param value
      */
-    setTransform: function(value)
+    set transform(value)
     {
         if (value) {
             if (!this._transform) {
@@ -6123,7 +6123,7 @@ HX.Camera = function()
     this._farDistance = 1000;
     this._frustum = new HX.Frustum();
 
-    this.getTransform().position.set(0.0, 0.0, 1.0);
+    this.transform.position.set(0.0, 0.0, 1.0);
 };
 
 HX.Camera.prototype = Object.create(HX.SceneNode.prototype);

@@ -26,7 +26,7 @@ HX.SceneNode = function()
 HX.SceneNode.prototype = {
     constructor: HX.SceneNode,
 
-    getTransform: function()
+    get transform()
     {
         return this._transform;
     },
@@ -36,7 +36,7 @@ HX.SceneNode.prototype = {
      * Transform object is disabled for this object, allowing static objects with a fixed transformation matrix.
      * @param value
      */
-    setTransform: function(value)
+    set transform(value)
     {
         if (value) {
             if (!this._transform) {

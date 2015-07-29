@@ -8,7 +8,7 @@ float readDepth(sampler2D sampler, vec2 uv)
 {
 	#ifdef HX_STORE_EXPLICIT_DEPTH
 		vec4 data = texture2D(sampler, uv);
-		return hx_RG8ToFloat(data.zw);
+		return abs(hx_RG8ToFloat(data.zw) * 2.0 - 1.0);
     #else
     	return texture2D(sampler, uv).x;
     #endif

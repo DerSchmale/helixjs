@@ -5,11 +5,14 @@ HX = {
 
 HX.InitOptions = function()
 {
+    // rendering pipeline options
     this.useHDR = false;   // only if available
     this.useLinearSpace = true;
-    this.ignoreDrawBuffersExtension = false;     // for debug purposes, forces multiple passes for the GBuffer
-    this.ignoreDepthTexturesExtension = false;     // for debug purposes, forces storing depth info explicitly
-    this.throwOnShaderError = true;
+
+    // debug-related
+    this.ignoreDrawBuffersExtension = false;     // forces multiple passes for the GBuffer
+    this.ignoreDepthTexturesExtension = false;     // forces storing depth info explicitly
+    this.throwOnShaderError = false;
 };
 
 HX.ShaderLibrary = {
@@ -78,11 +81,16 @@ HX.initFromContext = function(glContext, options)
     HX.EXT_TEXTURE_FILTER_ANISOTROPIC = HX.GL.getExtension('EXT_texture_filter_anisotropic');
     if (!HX.EXT_TEXTURE_FILTER_ANISOTROPIC) console.warn('EXT_texture_filter_anisotropic extension not supported!');
 
+    //HX.EXT_SRGB = HX.GL.getExtension('EXT_sRGB');
+    //if (!HX.EXT_SRGB) console.warn('EXT_sRGB extension not supported!');
+
     HX.DEFAULT_TEXTURE_MAX_ANISOTROPY = HX.EXT_TEXTURE_FILTER_ANISOTROPIC? HX.GL.getParameter(HX.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
 
     if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR || !HX.EXT_HALF_FLOAT_TEXTURES) {
         HX.OPTIONS.useHDR = false;
     }
+
+    HX.HDR_FORMAT = HX.OPTIONS.useHDR? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX.GL.UNSIGNED_BYTE;
 
     HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
 

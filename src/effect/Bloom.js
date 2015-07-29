@@ -134,10 +134,8 @@ HX.BloomEffect.prototype.setThresholdLuminance = function(value)
 
 HX.BloomEffect.prototype._initTextures = function()
 {
-    var hdrFormat = HX.OPTIONS.useHDR? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX.GL.UNSIGNED_BYTE;
-
     for (var i = 0; i < 2; ++i) {
-        this._thresholdMaps[i].initEmpty(Math.ceil(this._targetWidth / this._downScale), Math.ceil(this._targetHeight / this._downScale), HX.GL.RGB, hdrFormat);
+        this._thresholdMaps[i].initEmpty(Math.ceil(this._targetWidth / this._downScale), Math.ceil(this._targetHeight / this._downScale), HX.GL.RGB, HX.HDR_FORMAT);
         this._thresholdFBOs[i].init();
     }
 };

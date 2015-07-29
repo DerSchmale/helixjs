@@ -526,10 +526,8 @@ HX.ScreenRenderer.prototype._updateGBufferFBO = function()
 
 HX.ScreenRenderer.prototype._updateHDRBuffers = function(width, height)
 {
-    var hdrFormat = HX.OPTIONS.useHDR? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX.GL.UNSIGNED_BYTE;
-
     for (var i = 0; i < this._hdrBuffers.length; ++i) {
-        this._hdrBuffers[i].initEmpty(width, height, HX.GL.RGBA, hdrFormat);
+        this._hdrBuffers[i].initEmpty(width, height, HX.GL.RGBA, HX.HDR_FORMAT);
         this._hdrTargets[i].init();
         this._hdrTargetsDepth[i].init();
     }

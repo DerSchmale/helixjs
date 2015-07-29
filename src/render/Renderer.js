@@ -105,7 +105,7 @@ HX.Renderer.prototype =
  * GBUFFER LAYOUT:
  * 0: ALBEDO: (albedo.XYZ, unused)
  * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw)
- * 2: REFLECTION: (metallicness, normalSpecularReflection, roughness, unused)
+ * 2: REFLECTION: (roughness, normalSpecularReflection, metallicness, unused)
  * 3: LINEAR DEPTH: (not explicitly written to by user), 0 - 1 linear depth encoded as RGBA
  *
  * DEPTH STENCIL:

@@ -65,7 +65,7 @@ vec3 hx_decodeNormal(vec4 data)
 
 vec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness)
 {
-	return vec4(metallicness, specularNormalReflection * 5.0, roughness, 1.0);
+	return vec4(roughness, specularNormalReflection * 5.0, metallicness, 1.0);
 }
 
 void hx_processGeometryMRT(vec4 albedo, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 albedoData, out vec4 normalData, out vec4 specularData)
@@ -140,24 +140,19 @@ float hx_depthToViewZ(float depthSample, mat4 projectionMatrix)
     return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);
 }
 
-vec4 hx_decodeSpecular(vec4 data)
-{
-    // scale specular reflectivity by 5 to have better precision since we only need the range ~[0, .2] (.17 = diamond)
-    data.y *= .2;
-    return data;
-}
 
 vec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 albedo)
 {
     return mix(vec3(insulatorNormalSpecularReflectance), albedo, metallicness);
 }
 
+// for use when sampling gbuffer data for lighting
 void hx_decodeReflectionData(in vec4 albedoSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)
 {
-	metallicness = specularSample.x;
+    //prevent from being 0
+    roughness = clamp(specularSample.x, .01, 1.0);
+	metallicness = specularSample.z;
     normalSpecularReflectance = mix(vec3(specularSample.y * .2), albedoSample.xyz, metallicness);
-    //prevent from being 0 
-    roughness = clamp(specularSample.z, .01, .99);
 }
 
 vec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)

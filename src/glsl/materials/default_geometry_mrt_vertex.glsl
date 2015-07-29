@@ -6,7 +6,7 @@ uniform mat3 hx_normalWorldMatrix;
 
 varying vec3 normal;
 
-#if defined(ALBEDO_MAP) || defined(NORMAL_MAP)
+#if defined(ALBEDO_MAP) || defined(NORMAL_MAP) || defined(SPECULAR_MAP)
 attribute vec2 hx_texCoord;
 varying vec2 texCoords;
 #endif

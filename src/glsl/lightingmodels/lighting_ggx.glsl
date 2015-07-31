@@ -9,7 +9,7 @@ float hx_lightVisibility(in vec3 normal, in vec3 viewDir, float roughness, float
 	return 1.0/(g1*g2);
 }
 
-float hx_trowbridgeReitzGGX(float roughness, vec3 normal, vec3 halfVector)
+float hx_trowbridgeReitz(float roughness, vec3 normal, vec3 halfVector)
 {
     float roughSqr = roughness*roughness;
     float halfDotNormal = max(-dot(halfVector, normal), 0.0);

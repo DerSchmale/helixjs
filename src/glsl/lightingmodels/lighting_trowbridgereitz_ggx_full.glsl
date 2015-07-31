@@ -9,13 +9,12 @@ float hx_lightVisibility(in vec3 normal, in vec3 viewDir, float roughness, float
 	return 1.0/(g1*g2);
 }
 
-float hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)
+float hx_trowbridgeReitzGGX(float roughness, vec3 normal, vec3 halfVector)
 {
-	float roughSqr = roughness*roughness;
-	roughSqr *= roughSqr;
-	float halfDotNormal = max(-dot(halfVector, normal), 0.0);
-	// the
-	return pow(halfDotNormal, 2.0/roughSqr - 2.0)/roughSqr;
+    float roughSqr = roughness*roughness;
+    float halfDotNormal = max(-dot(halfVector, normal), 0.0);
+    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;
+    return roughSqr / (denom * denom);
 }
 
 void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)
@@ -25,7 +24,7 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 
 	vec3 halfVector = normalize(lightDir + viewDir);
 
-	float distribution = hx_blinnPhongDistribution(roughness, normal, halfVector);
+	float distribution = hx_trowbridgeReitzGGX(roughness, normal, halfVector);
 
 	float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);
 

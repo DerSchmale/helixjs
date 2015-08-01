@@ -181,17 +181,15 @@ HX.OBJParser.prototype =
             vertices[index+6] = 0;
             vertices[index+7] = 0;
             vertices[index+8] = 0;
-            vertices[index+9] = 0;
-            vertices[index+10] = 0;
-            vertices[index+11] = 0;
-            vertices[index+12] = vertex.uvU;
-            vertices[index+13] = vertex.uvV;
+            vertices[index+9] = 1;
+            vertices[index+10] = vertex.uvU;
+            vertices[index+11] = vertex.uvV;
         }
 
         meshData.setVertexData(vertices);
         meshData.setIndexData(indices);
 
-        var mode = HX.NormalTangentGenerator.MODE_TANGENTS | HX.NormalTangentGenerator.MODE_BITANGENTS;
+        var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
         if (!this._hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
         var generator = new HX.NormalTangentGenerator();
         generator.generate(meshData, mode, true);

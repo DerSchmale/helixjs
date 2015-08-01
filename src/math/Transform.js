@@ -75,10 +75,10 @@ HX.Transform.prototype =
         this._matrix.copyFrom(matrix);
         this._matrixInvalid = false;
 
-        if (this._transform)
-            matrix.decompose(this._transform);
-
-        this._invalidateWorldTransformationMatrix();
+        // matrix decompose will trigger property updates, so disable this
+        this._changeListener.setEnabled(false);
+        matrix.decompose(this);
+        this._changeListener.setEnabled(true);
     },
 
     _invalidateTransformationMatrix: function ()

@@ -4,7 +4,7 @@
 HX.PBRMaterial = function()
 {
     HX.Material.call(this);
-    this._diffuseColor = new HX.Color();
+    this._diffuseColor = new HX.Color(1, 1, 1, 1);
     this._diffuseMap = null;
     this._specularMap = null;
     this._specularMapMode = HX.SPECULAR_MAP_ROUGHNESS_ONLY;

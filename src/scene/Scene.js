@@ -35,6 +35,13 @@ HX.SceneNode.prototype.setEffects = function(value)
     this._effects = value;
 };
 
+HX.SceneNode.prototype.setTransformationMatrix = function(matrix)
+{
+    HX.Transform.prototype.setTransformationMatrix.call(this, matrix);
+
+    this._invalidateWorldTransformationMatrix();
+}
+
 HX.SceneNode.prototype.getWorldMatrix = function()
 {
     if (this._worldMatrixInvalid)

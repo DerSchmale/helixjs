@@ -194,12 +194,10 @@ HX.NormalTangentGenerator.prototype =
                 bitangent.z = bitangents[bitangentIndex + 2];
                 cross.cross(tangent, normal);
 
-                var orientation = HX.dot3(bitangent, cross) > 0.0? 1.0 : -1.0;
-
                 vertexData[tangentIndex] = tangent.x;
                 vertexData[tangentIndex + 1] = tangent.y;
                 vertexData[tangentIndex + 2] = tangent.z;
-                vertexData[tangentIndex + 3] = orientation;
+                vertexData[tangentIndex + 3] = HX.dot3(bitangent, cross) > 0.0? 1.0 : -1.0;
             }
 
             normalIndex += this._vertexStride;

@@ -180,9 +180,9 @@ HX.Camera.prototype._invalidateViewProjectionMatrix = function()
     this._viewProjectionMatrixInvalid = true;
 };
 
-HX.Camera.prototype._invalidateWorldTransformation = function()
+HX.Camera.prototype._invalidateWorldTransformationMatrix = function()
 {
-    HX.SceneNode.prototype._invalidateWorldTransformation.call(this);
+    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
     this._invalidateViewProjectionMatrix();
 };
 

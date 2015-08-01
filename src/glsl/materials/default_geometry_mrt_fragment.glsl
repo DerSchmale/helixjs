@@ -12,6 +12,7 @@ uniform vec3 albedoColor;
 
 #ifdef NORMAL_MAP
 varying vec3 tangent;
+varying vec3 bitangent;
 
 uniform sampler2D normalMap;
 #endif
@@ -43,7 +44,7 @@ void main()
         mat3 TBN;
         TBN[2] = normalize(normal);
         TBN[0] = normalize(tangent);
-        TBN[1] = cross(TBN[0], TBN[2]);
+        TBN[1] = normalize(bitangent);
 
         fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);
 

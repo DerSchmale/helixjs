@@ -11,6 +11,7 @@ HX.VertexLayout = function(mesh, pass)
 
     this._numAttributes = -1;
 
+    var stride = mesh.getVertexStride();
     for (var i = 0; i < mesh.numVertexAttributes(); ++i) {
         var attribute = mesh.getVertexAttribute(i);
         var index = shader.getVertexAttributeIndex(attribute.name);
@@ -19,7 +20,7 @@ HX.VertexLayout = function(mesh, pass)
 
         // convert offset and stride to bytes
         if (index >= 0)
-            this.attributes.push({index: index, offset: attribute.offset * 4, numComponents: attribute.numComponents, stride: attribute.stride * 4});
+            this.attributes.push({index: index, offset: attribute.offset * 4, numComponents: attribute.numComponents, stride: stride * 4});
 
     }
 

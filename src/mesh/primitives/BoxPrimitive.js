@@ -50,14 +50,14 @@ HX.BoxPrimitive._createMeshData = function(definition)
             // front
             vertices[vertexIndex] = x*flipSign; vertices[vertexIndex + 1] = y*flipSign; vertices[vertexIndex + 2] = halfD*flipSign;
             vertices[vertexIndex + 3] = 0; vertices[vertexIndex + 4] = 0; vertices[vertexIndex + 5] = 1;
-            vertices[vertexIndex + 6] = 1; vertices[vertexIndex + 7] = 0; vertices[vertexIndex + 8] = 0;
-            vertices[vertexIndex + 9] = ratioU*scaleU; vertices[vertexIndex + 10] = ratioV*scaleV;
+            vertices[vertexIndex + 6] = 1; vertices[vertexIndex + 7] = 0; vertices[vertexIndex + 8] = 0; vertices[vertexIndex + 9] = 1;
+            vertices[vertexIndex + 10] = ratioU*scaleU; vertices[vertexIndex + 11] = ratioV*scaleV;
 
             // back
             vertices[oppositeVertexIndex] = -x*flipSign; vertices[oppositeVertexIndex + 1] = y*flipSign; vertices[oppositeVertexIndex + 2] = -halfD*flipSign;
             vertices[oppositeVertexIndex + 3] = 0; vertices[oppositeVertexIndex + 4] = 0; vertices[oppositeVertexIndex + 5] = -1;
-            vertices[oppositeVertexIndex + 6] = -1; vertices[oppositeVertexIndex + 7] = 0; vertices[oppositeVertexIndex + 8] = 0;
-            vertices[oppositeVertexIndex + 9] = ratioU*scaleU; vertices[oppositeVertexIndex + 10] = ratioV*scaleV;
+            vertices[oppositeVertexIndex + 6] = -1; vertices[oppositeVertexIndex + 7] = 0; vertices[oppositeVertexIndex + 8] = 0; vertices[vertexIndex + 9] = 1;
+            vertices[oppositeVertexIndex + 10] = ratioU*scaleU; vertices[oppositeVertexIndex + 11] = ratioV*scaleV;
 
             vertexIndex += VERTEX_SIZE;
             oppositeVertexIndex += VERTEX_SIZE;
@@ -78,14 +78,14 @@ HX.BoxPrimitive._createMeshData = function(definition)
             // left
             vertices[vertexIndex] = -halfW; vertices[vertexIndex + 1] = y; vertices[vertexIndex + 2] = z*flipSign;
             vertices[vertexIndex + 3] = -flipSign; vertices[vertexIndex + 4] = 0; vertices[vertexIndex + 5] = 0;
-            vertices[vertexIndex + 6] = 0; vertices[vertexIndex + 7] = 0; vertices[vertexIndex + 8] = flipSign;
-            vertices[vertexIndex + 9] = ratioU*scaleU; vertices[vertexIndex + 10] = ratioV*scaleV;
+            vertices[vertexIndex + 6] = 0; vertices[vertexIndex + 7] = 0; vertices[vertexIndex + 8] = flipSign; vertices[vertexIndex + 9] = 1;
+            vertices[vertexIndex + 10] = ratioU*scaleU; vertices[vertexIndex + 11] = ratioV*scaleV;
 
             // right
             vertices[oppositeVertexIndex] = halfW; vertices[oppositeVertexIndex + 1] = y; vertices[oppositeVertexIndex + 2] = -z*flipSign;
             vertices[oppositeVertexIndex + 3] = flipSign; vertices[oppositeVertexIndex + 4] = 0; vertices[oppositeVertexIndex + 5] = 0;
-            vertices[oppositeVertexIndex + 6] = 0; vertices[oppositeVertexIndex + 7] = 0; vertices[oppositeVertexIndex + 8] = -flipSign;
-            vertices[oppositeVertexIndex + 9] = ratioU*scaleU; vertices[oppositeVertexIndex + 10] = ratioV*scaleV;
+            vertices[oppositeVertexIndex + 6] = 0; vertices[oppositeVertexIndex + 7] = 0; vertices[oppositeVertexIndex + 8] = -flipSign; vertices[vertexIndex + 9] = 1;
+            vertices[oppositeVertexIndex + 10] = ratioU*scaleU; vertices[oppositeVertexIndex + 11] = ratioV*scaleV;
 
             vertexIndex += VERTEX_SIZE;
             oppositeVertexIndex += VERTEX_SIZE;
@@ -106,14 +106,14 @@ HX.BoxPrimitive._createMeshData = function(definition)
             // top
             vertices[vertexIndex] = x; vertices[vertexIndex + 1] = halfH; vertices[vertexIndex + 2] = -z*flipSign;
             vertices[vertexIndex + 3] = 0; vertices[vertexIndex + 4] = flipSign; vertices[vertexIndex + 5] = 0;
-            vertices[vertexIndex + 6] = 1; vertices[vertexIndex + 7] = 0; vertices[vertexIndex + 8] = 0;
-            vertices[vertexIndex + 9] = ratioU*scaleU; vertices[vertexIndex + 10] = ratioV*scaleV;
+            vertices[vertexIndex + 6] = 1; vertices[vertexIndex + 7] = 0; vertices[vertexIndex + 8] = 0; vertices[vertexIndex + 9] = 1;
+            vertices[vertexIndex + 10] = ratioU*scaleU; vertices[vertexIndex + 11] = ratioV*scaleV;
 
             // bottom
             vertices[oppositeVertexIndex] = x; vertices[oppositeVertexIndex + 1] = -halfH; vertices[oppositeVertexIndex + 2] = z*flipSign;
             vertices[oppositeVertexIndex + 3] = 0; vertices[oppositeVertexIndex + 4] = -flipSign; vertices[oppositeVertexIndex + 5] = 0;
-            vertices[oppositeVertexIndex + 6] = 1; vertices[oppositeVertexIndex + 7] = 0; vertices[oppositeVertexIndex + 8] = 0;
-            vertices[oppositeVertexIndex + 9] = ratioU*scaleU; vertices[oppositeVertexIndex + 10] = ratioV*scaleV;
+            vertices[oppositeVertexIndex + 6] = 1; vertices[oppositeVertexIndex + 7] = 0; vertices[oppositeVertexIndex + 8] = 0; vertices[vertexIndex + 9] = 1;
+            vertices[oppositeVertexIndex + 10] = ratioU*scaleU; vertices[oppositeVertexIndex + 11] = ratioV*scaleV;
 
             vertexIndex += VERTEX_SIZE;
             oppositeVertexIndex += VERTEX_SIZE;

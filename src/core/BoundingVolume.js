@@ -146,7 +146,7 @@ HX.BoundingAABB.prototype.growToIncludeMesh = function(meshData)
 
     var attribute = meshData.getVertexAttribute("hx_position");
     var index = attribute.offset;
-    var stride = attribute.stride;
+    var stride = meshData.getVertexStride();
     var vertices = meshData._vertexData;
     var len = vertices.length;
     var minX, minY, minZ;
@@ -421,7 +421,7 @@ HX.BoundingSphere.prototype.growToIncludeMesh = function(meshData)
 
     var attribute = meshData.getVertexAttribute("hx_position");
     var index = attribute.offset;
-    var stride = attribute.stride;
+    var stride = meshData.getVertexStride();
     var vertices = attribute._vertexData;
     var len = vertices.length();
     var minX, minY, minZ;

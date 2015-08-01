@@ -4,6 +4,7 @@
  */
 HX.MeshData = function ()
 {
+    this._vertexStride = 0;
     this._vertexData = undefined;
     this._indexData = undefined;
     this.vertexUsage = HX.GL.STATIC_DRAW;
@@ -11,27 +12,27 @@ HX.MeshData = function ()
     this._vertexAttributes = [];
 }
 
-HX.MeshData.DEFAULT_VERTEX_SIZE = 11;
-HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE = 12;
+HX.MeshData.DEFAULT_VERTEX_SIZE = 12;
+HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE = 13;
 
 HX.MeshData.createDefaultEmpty = function()
 {
     var data = new HX.MeshData();
-    data.addVertexAttribute('hx_position', 0, 3, HX.MeshData.DEFAULT_VERTEX_SIZE);
-    data.addVertexAttribute('hx_normal', 3, 3, HX.MeshData.DEFAULT_VERTEX_SIZE);
-    data.addVertexAttribute('hx_tangent', 6, 3, HX.MeshData.DEFAULT_VERTEX_SIZE);
-    data.addVertexAttribute('hx_texCoord', 9, 2, HX.MeshData.DEFAULT_VERTEX_SIZE);
+    data.addVertexAttribute('hx_position', 3);
+    data.addVertexAttribute('hx_normal', 3);
+    data.addVertexAttribute('hx_tangent', 4);
+    data.addVertexAttribute('hx_texCoord', 2);
     return data;
 };
 
 HX.MeshData.createDefaultBatchEmpty = function()
 {
     var data = new HX.MeshData();
-    data.addVertexAttribute('hx_position', 0, 3, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
-    data.addVertexAttribute('hx_normal', 3, 3, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
-    data.addVertexAttribute('hx_tangent', 6, 3, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
-    data.addVertexAttribute('hx_texCoord', 9, 2, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
-    data.addVertexAttribute('hx_instanceID', 11, 1, HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE);
+    data.addVertexAttribute('hx_position', 3);
+    data.addVertexAttribute('hx_normal', 3);
+    data.addVertexAttribute('hx_tangent', 4);
+    data.addVertexAttribute('hx_texCoord', 2);
+    data.addVertexAttribute('hx_instanceID', 1);
     return data;
 };
 
@@ -55,9 +56,16 @@ HX.MeshData.prototype = {
         this._indexData = new Uint16Array(data);
     },
 
-    addVertexAttribute: function (name, offset, numComponents, stride)
+    /**
+     * Adds a named vertex attribute. All properties are given manually to make it easier to support multiple streams in the future.
+     * @param name The name of the attribute, matching the attribute name used in the vertex shaders.
+     * @param numComponents The amount of components used by the attribute value.
+     */
+    addVertexAttribute: function (name, numComponents)
     {
-        this._vertexAttributes.push({name: name, offset: offset, numComponents: numComponents, stride: stride});
+        var offset = this._vertexStride;
+        this._vertexStride += numComponents;
+        this._vertexAttributes.push({name: name, offset: offset, numComponents: numComponents});
     },
 
     getVertexAttribute: function(name)
@@ -67,6 +75,14 @@ HX.MeshData.prototype = {
             if (this._vertexAttributes[i].name === name)
                 return this._vertexAttributes[i];
         }
+    },
+
+    /**
+     * Returns the stride of each vertex. This matches the total amount of elements used by all vertex attributes combined.
+     */
+    getVertexStride: function()
+    {
+        return this._vertexStride;
     }
 }
 
@@ -84,6 +100,8 @@ HX.Mesh = function (meshData)
     this._indexBuffer.uploadData(meshData._indexData, meshData.indexUsage);
 
     this._numIndices = meshData._indexData.length;
+
+    this._vertexStride = meshData.getVertexStride();
 
     this._vertexAttributes = meshData._vertexAttributes;
     this._renderOrderHint = ++HX.Mesh.ID_COUNTER;
@@ -110,6 +128,12 @@ HX.Mesh.prototype = {
     {
         return this._vertexAttributes.length;
     },
+
+    getVertexStride: function ()
+    {
+        return this._vertexStride;
+    },
+
     getVertexAttribute: function (index)
     {
         return this._vertexAttributes[index];

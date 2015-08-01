@@ -3,8 +3,8 @@ HX.RectMesh = {};
 HX.RectMesh.create = function()
 {
     var data = new HX.MeshData();
-    data.addVertexAttribute('hx_position', 0, 2, 4);
-    data.addVertexAttribute('hx_texCoord', 2, 2, 4);
+    data.addVertexAttribute('hx_position', 2);
+    data.addVertexAttribute('hx_texCoord', 2);
     data.setVertexData([-1, 1, 0, 1,
                         1, 1, 1, 1,
                         1, -1, 1, 0,

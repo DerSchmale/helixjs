@@ -5,7 +5,7 @@
  */
 HX.SSAO = function(numSamples)
 {
-    numSamples = numSamples || 16;
+    numSamples = numSamples || 8;
     if (numSamples > 64) numSamples = 64;
 
     this._numSamples = numSamples;

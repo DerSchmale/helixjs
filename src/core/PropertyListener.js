@@ -1,5 +1,8 @@
-// hijacks a general property (must not be a function) and triggers a signal if so
-// experimental class, really should only be used internally for private objects by its owner
+/**
+ * PropertyListener allows listening to changes to other objects' properties. When a change occurs, the onChange signal will be dispatched.
+ * It's a bit hackish, but it prevents having to dispatch signals in performance-critical classes such as Float4.
+ * @constructor
+ */
 HX.PropertyListener = function()
 {
     this._enabled = true;
@@ -9,16 +12,24 @@ HX.PropertyListener = function()
 
 HX.PropertyListener.prototype =
 {
-    getEnabled: function()
+    /**
+     * If false, prevents the PropertyListener from dispatching change events.
+     */
+    get enabled()
     {
         return this._enabled;
     },
 
-    setEnabled: function(value)
+    set enabled(value)
     {
         this._enabled = value;
     },
 
+    /**
+     * Starts listening to changes for an object's property for changes.
+     * @param targetObj The target object to monitor.
+     * @param propertyName The name of the property for which we'll be listening.
+     */
     add: function(targetObj, propertyName)
     {
         var index = this._targets.length;
@@ -46,11 +57,16 @@ HX.PropertyListener.prototype =
         });
     },
 
-    detach: function(obj, propertyName)
+    /**
+     * Stops listening to a property for changes.
+     * @param targetObj The object to stop monitoring.
+     * @param propertyName The name of the property for which we'll be listening.
+     */
+    remove: function(targetObj, propertyName)
     {
         for (var i = 0; i < this._targets.length; ++i) {
             var target = this._targets[i];
-            if (target.object === obj && target.propertyName === propertyName) {
+            if (target.object === targetObj && target.propertyName === propertyName) {
                 delete target.object[target.propertyName];
                 target.object[target.propertyName] = target.value;
                 this._targets.splice(i--, 1);

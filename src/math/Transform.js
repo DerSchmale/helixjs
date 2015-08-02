@@ -55,11 +55,11 @@ HX.Transform.prototype =
 
     copyFrom: function(transform)
     {
-        this._changeListener.setEnabled(false);
+        this._changeListener.enabled = false;
         this.position.copyFrom(transform.position);
         this.rotation.copyFrom(transform.rotation);
         this.scale.copyFrom(transform.scale);
-        this._changeListener.setEnabled(true);
+        this._changeListener.enabled = true;
     },
 
     getTransformationMatrix: function()
@@ -76,9 +76,9 @@ HX.Transform.prototype =
         this._matrixInvalid = false;
 
         // matrix decompose will trigger property updates, so disable this
-        this._changeListener.setEnabled(false);
+        this._changeListener.enabled = false;
         matrix.decompose(this);
-        this._changeListener.setEnabled(true);
+        this._changeListener.enabled = true;
     },
 
     _invalidateTransformationMatrix: function ()

@@ -11,7 +11,6 @@ HX.HBAO = function(numRays, numSamplesPerRay)
     if (numSamplesPerRay > 32) numSamplesPerRay = 32;
 
     this._numRays = numRays;
-    this._numSamplesPerRay = numSamplesPerRay;
     this._strength = 1.0;
     this._bias = .01;
     this._fallOffDistance = 1.0;
@@ -20,8 +19,12 @@ HX.HBAO = function(numRays, numSamplesPerRay)
     this._ditherTexture = null;
 
     HX.Effect.call(this);
-
-    this.addPass(this._aoPass = new HX.EffectPass(HX.HBAO.getVertexShader(), HX.HBAO.getFragmentShader(numRays, numSamplesPerRay)));
+    var defines = "#define NUM_RAYS " + numRays + "\n" +
+                    "#define NUM_SAMPLES_PER_RAY " + numSamplesPerRay + "\n";
+    this.addPass(this._aoPass = new HX.EffectPass(
+        HX.ShaderLibrary.get("hbao_vertex.glsl"),
+        defines + HX.ShaderLibrary.get("hbao_fragment.glsl")
+    ));
     this.addPass(this._blurPassX = new HX.DirectionalBlurPass(4, 1, 0));
     this.addPass(this._blurPassY = new HX.DirectionalBlurPass(4, 0, 1));
 
@@ -160,135 +163,4 @@ HX.HBAO.prototype._initDitherTexture = function()
     this._ditherTexture.uploadData(new Uint8Array(data), 4, 4, false);
     this._ditherTexture.setFilter(HX.TEXTURE_FILTER.NEAREST_NOMIP);
     this._ditherTexture.setWrapMode(HX.TEXTURE_WRAP_MODE.REPEAT);
-};
-
-HX.HBAO.getVertexShader = function()
-{
-    return "\
-        varying vec2 uv;\n\
-        varying vec3 viewDir;\n\
-        varying vec3 frustumCorner;\n\
-        \n\
-        void main()\
-        {\n\
-                uv = hx_texCoord;\n\
-                viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n\
-                frustumCorner = hx_getLinearDepthViewVector(vec2(1.0, 1.0), hx_inverseProjectionMatrix);\n\
-                gl_Position = hx_position;\n\
-        }";
-};
-
-HX.HBAO.getFragmentShader = function(numRays, numSamplesPerRay)
-{
-    return "#define NUM_RAYS " + numRays + "\n" +
-            "#define NUM_SAMPLES_PER_RAY " + numSamplesPerRay + "\n" +
-        "\n\
-        uniform int numRays;\n\
-        uniform int numSamplesPerRay;\n\
-        uniform float strengthPerRay;\n\
-        uniform float halfSampleRadius;\n\
-        uniform float bias;\n\
-        uniform float rcpFallOffDistance;\n\
-        \n\
-        uniform sampler2D sampleDirTexture;\n\
-        uniform sampler2D ditherTexture;\n\
-        \n\
-        varying vec2 uv;\n\
-        varying vec3 viewDir;\n\
-        varying vec3 frustumCorner;\n\
-        \n\
-        vec3 getViewPos(vec2 sampleUV)\n\
-        {\n\
-            float depth = hx_sampleLinearDepth(hx_gbufferDepth, sampleUV);\n\
-            float viewZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n\
-            vec3 viewPos = frustumCorner * vec3(sampleUV * 2.0 - 1.0, 1.0);\n\
-            return viewPos * viewZ;\n\
-        }\n\
-        \n\
-        // Retrieves the occlusion factor for a particular sample\n\
-        float getSampleOcclusion(vec2 sampleUV, vec3 centerViewPos, vec3 centerNormal, vec3 tangent, inout float topOcclusion)\n\
-        {\n\
-            vec3 sampleViewPos = getViewPos(sampleUV);\n\
-            \n\
-            // get occlusion factor based on candidate horizon elevation\n\
-            vec3 horizonVector = sampleViewPos - centerViewPos;\n\
-            float horizonVectorLength = length(horizonVector);\n\
-            \n\
-            float occlusion;\n\
-            \n\
-            // If the horizon vector points away from the tangent, make an estimate\n\
-            if (dot(tangent, horizonVector) < 0.0)\n\
-                occlusion = .5;\n\
-            else\n\
-                occlusion = dot(centerNormal, horizonVector) / horizonVectorLength;\n\
-            \n\
-            // this adds occlusion only if angle of the horizon vector is higher than the previous highest one without branching\n\
-            float diff = max(occlusion - topOcclusion, 0.0);\n\
-            topOcclusion = max(occlusion, topOcclusion);\n\
-            \n\
-            // attenuate occlusion contribution using distance function 1 - (d/f)^2\n\
-            float distanceFactor = clamp(horizonVectorLength * rcpFallOffDistance, 0.0, 1.0);\n\
-            distanceFactor = 1.0 - distanceFactor * distanceFactor;\n\
-            return diff * distanceFactor;\n\
-        }\n\
-        \n\
-        // Retrieves the occlusion for a given ray\n\
-        float getRayOcclusion(vec2 direction, float jitter, vec2 projectedRadii, vec3 centerViewPos, vec3 centerNormal)\n\
-        {\n\
-            // calculate the nearest neighbour sample along the direction vector\n\
-            vec2 texelSizedStep = direction * hx_rcpRenderTargetResolution;\n\
-            direction *= projectedRadii;\n\
-            \n\
-            // gets the tangent for the current ray, this will be used to handle opposing horizon vectors\n\
-            // Tangent is corrected with respect to face normal by projecting it onto the tangent plane defined by the normal\n\
-            vec3 tangent = getViewPos(uv + texelSizedStep) - centerViewPos;\n\
-            tangent -= dot(centerNormal, tangent) * centerNormal;\n\
-            \n\
-            vec2 stepUV = direction.xy / float(NUM_SAMPLES_PER_RAY - 1);\n\
-            \n\
-            // jitter the starting position for ray marching between the nearest neighbour and the sample step size\n\
-            vec2 jitteredOffset = mix(texelSizedStep, stepUV, jitter);\n\
-            //stepUV *= 1.0 + jitter * .1;\n\
-            vec2 sampleUV = uv + jitteredOffset;\n\
-            \n\
-            // top occlusion keeps track of the occlusion contribution of the last found occluder.\n\
-            // set to bias value to avoid near-occluders\n\
-            float topOcclusion = bias;\n\
-            float occlusion = 0.0;\n\
-            \n\
-            // march!\n\
-            for (int step = 0; step < NUM_SAMPLES_PER_RAY; ++step) {\n\
-                occlusion += getSampleOcclusion(sampleUV, centerViewPos, centerNormal, tangent, topOcclusion);\n\
-                sampleUV += stepUV;\n\
-            }\n\
-            \n\
-            return occlusion;\n\
-        }\n\
-        \n\
-        void main()\n\
-        {\n\
-            vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n\
-            vec3 worldNormal = normalSample.xyz - .5;\n\
-            vec3 centerNormal = mat3(hx_viewMatrix) * worldNormal;\n\
-            float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n\
-            float viewZ = centerDepth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n\
-            vec3 centerViewPos = viewZ * viewDir;\n\
-            \n\
-            vec2 projectedRadii = -halfSampleRadius * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1]) / centerViewPos.z;\n\
-            \n\
-            // do not take more steps than there are pixels\n\
-            float totalOcclusion = 0.0;\n\
-            \n\
-            vec2 randomFactors = texture2D(ditherTexture, uv * hx_renderTargetResolution * .25).xy;\n\
-            \n\
-            vec2 rayUV = vec2(0.0);\n\
-            for (int i = 0; i < NUM_RAYS; ++i) {\n\
-                rayUV.x = (float(i) + randomFactors.x) / float(NUM_RAYS);\n\
-                vec2 sampleDir = texture2D(sampleDirTexture, rayUV).xy * 2.0 - 1.0;\n\
-                totalOcclusion += getRayOcclusion(sampleDir, randomFactors.y, projectedRadii, centerViewPos, centerNormal);\n\
-            }\n\
-            \n\
-            totalOcclusion = 1.0 - clamp(strengthPerRay * totalOcclusion, 0.0, 1.0);\n\
-            gl_FragColor = vec4(totalOcclusion);\n\
-        }";
 };

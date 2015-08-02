@@ -16,7 +16,8 @@ HX.SSAO = function(numSamples)
 
     HX.Effect.call(this);
 
-    this.addPass(this._ssaoPass = new HX.EffectPass(null, HX.SSAO.getFragmentShader(numSamples)));
+    var define = "#define NUM_SAMPLES " + numSamples + "\n";
+    this.addPass(this._ssaoPass = new HX.EffectPass(null, define + HX.ShaderLibrary.get("ssao_fragment.glsl")));
     this.addPass(this._blurPassX = new HX.DirectionalBlurPass(4, 1, 0));
     this.addPass(this._blurPassY = new HX.DirectionalBlurPass(4, 0, 1));
 
@@ -128,66 +129,4 @@ HX.SSAO.prototype._initDitherTexture = function()
     this._ditherTexture.uploadData(new Uint8Array(data), 4, 4, false);
     this._ditherTexture.setFilter(HX.TEXTURE_FILTER.NEAREST_NOMIP);
     this._ditherTexture.setWrapMode(HX.TEXTURE_WRAP_MODE.REPEAT);
-};
-
-HX.SSAO.getFragmentShader = function(numSamples)
-{
-    return "#define NUM_SAMPLES " + numSamples + "\n\
-        uniform mat4 hx_projectionMatrix;\n\
-        uniform mat4 hx_viewMatrix;\n\
-        uniform mat4 hx_cameraWorldMatrix;\n\
-        uniform vec2 hx_renderTargetResolution;\n\
-        uniform float hx_cameraFrustumRange;\n\
-        \n\
-        uniform float strengthPerSample;\n\
-        uniform float rcpFallOffDistance;\n\
-        uniform float sampleRadius;\n\
-        uniform vec3 samples[NUM_SAMPLES]; // w contains bias\n\
-        \n\
-        uniform sampler2D hx_gbufferNormals;\n\
-        uniform sampler2D hx_gbufferDepth;\n\
-        uniform sampler2D ditherTexture;\n\
-        \n\
-        varying vec2 uv;\n\
-        \n\
-        void main()\n\
-        {\n\
-            vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n\
-            vec3 worldNormal = normalSample.xyz - .5;\n\
-            vec3 centerNormal = mat3(hx_viewMatrix) * worldNormal;\n\
-            float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n\
-            float totalOcclusion = 0.0;\n\
-            vec3 dither = texture2D(ditherTexture, uv * hx_renderTargetResolution * .25).xyz;\n\
-            vec3 randomPlaneNormal = normalize(dither - .5);\n\
-            float w = -centerDepth * hx_cameraFrustumRange * hx_projectionMatrix[2][3] + hx_projectionMatrix[3][3];\n\
-            vec3 sampleRadii;\n\
-            sampleRadii.x = sampleRadius * .5 * hx_projectionMatrix[0][0] / w;\n\
-            sampleRadii.y = sampleRadius * .5 * hx_projectionMatrix[1][1] / w;\n\
-            sampleRadii.z = sampleRadius;\n\
-            \n\
-            for (int i = 0; i < NUM_SAMPLES; ++i) {\n\
-                vec3 sampleOffset = reflect(samples[i], randomPlaneNormal);\n\
-                vec3 normOffset = normalize(sampleOffset);\n\
-                float cosFactor = dot(normOffset, centerNormal);\n\
-                float sign = sign(cosFactor);\n\
-                sampleOffset *= sign;\n\
-                cosFactor *= sign;\n\
-                \n\
-                vec3 scaledOffset = sampleOffset * sampleRadii;\n\
-                \n\
-                vec2 samplePos = uv + scaledOffset.xy;\n\
-                float occluderDepth = hx_sampleLinearDepth(hx_gbufferDepth, samplePos);\n\
-                float diffZ = (centerDepth - occluderDepth) * hx_cameraFrustumRange;\n\
-                \n\
-                // distanceFactor: from 1 to 0, near to far\n\
-                float distanceFactor = clamp(diffZ * rcpFallOffDistance, 0.0, 1.0);\n\
-                distanceFactor = 1.0 - distanceFactor;\n\
-                \n\
-                // sampleOcclusion: 1 if occluding, 0 otherwise\n\
-                float sampleOcclusion = float(diffZ > scaledOffset.z);\n\
-                totalOcclusion += sampleOcclusion * distanceFactor * cosFactor;\n\
-                \n\
-            }\n\
-            gl_FragColor = vec4(1.0 - totalOcclusion * strengthPerSample);\n\
-        }"
 };

@@ -6,81 +6,33 @@ HX.PBRMaterial = function()
     HX.Material.call(this);
     this._diffuseColor = new HX.Color(1, 1, 1, 1);
     this._diffuseMap = null;
+    this._normalMap = null;
     this._specularMap = null;
     this._specularMapMode = HX.SPECULAR_MAP_ROUGHNESS_ONLY;
     this._updatePasses();
-    this.setMetallicness(0.0);
-    this.setRoughness(0.3);
-    this.setSpecularNormalReflection(0.027);
+    this._metallicness = 0.0;
+    this._roughness = 0.3;
+    this._specularNormalReflection = 0.027;
+    this.metallicness = 0.0;
+    this.roughness = 0.3;
+    this.specularNormalReflection = 0.027;
 };
 
-// used in setSpecularMap to pass in a specular map using only roughness data
+/**
+ * used for specularMapMode to specify the specular map only uses roughness data
+ */
 HX.PBRMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
-// used in setSpecularMap to pass in a specular map with rgb containing respecitvely roughness, normal reflectance, metallicness
+/**
+ * used for specularMapMode to specify the specular map has rgb channels containing roughness, normal reflectance and metallicness, respectively
+ */
 HX.PBRMaterial.SPECULAR_MAP_ALL = 2;
-// used in setSpecularMap to specify roughness data is in the alpha channel of the normal map
+/**
+ * used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
+ */
 HX.PBRMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 
 HX.PBRMaterial.prototype = Object.create(HX.Material.prototype);
-
-HX.PBRMaterial.prototype.setDiffuseColor = function(value)
-{
-    this._diffuseColor = isNaN(value) ? value : new HX.Color(value);
-    this.setUniform("albedoColor", this._diffuseColor);
-};
-
-HX.PBRMaterial.prototype.setDiffuseMap = function(value)
-{
-    if (!!this._diffuseMap !== !!value)
-        this._passesInvalid = true;
-
-    if (!this._passesInvalid && value)
-        this.setTexture("albedoMap", value);
-
-    this._diffuseMap = value;
-};
-
-/**
- *
- * @param value
- */
-HX.PBRMaterial.prototype.setNormalMap = function(value)
-{
-    if (!!this._normalMap !== !!value)
-        this._passesInvalid = true;
-
-    if (!this._passesInvalid && value)
-        this.setTexture("normalMap", value);
-
-    this._normalMap = value;
-};
-
-/**
- * Specular map expects roughness in X (inverted: black = rough), specular normal reflectance (rarely used in practice), metallicness in Z.
- * @param value A Texture2D object containing a specular map.
- * @param mode Describes the data contained in the specular map. Can be either HX.PBRMaterial.SPECULAR_MAP_ROUGHNESS_ONLY
- * or HX.PBRMaterial.SPECULAR_MAP_ALL. Defaults to HX.PBRMaterial.SPECULAR_MAP_ROUGHNESS_ONLY when omitted. Once assigned,
- * it will keep its value when omitted.
- *
- * An exception can be made to put the roughness data in the alpha channel of the normal map. In that case, simply call
- */
-HX.PBRMaterial.prototype.setSpecularMap = function(value, mode)
-{
-    if (value === HX.PBRMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP)
-        mode = value;
-    else
-        mode = mode || HX.PBRMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
-
-    if ((this._specularMapMode != mode) || (!!this._specularMap !== !!value))
-        this._passesInvalid = true;
-
-    // won't be recompiled, and have something to reassign
-    if (!this._passesInvalid && value)
-        this.setTexture("specularMap", value);
-
-    this._specularMap = value;
-};
 
 HX.PBRMaterial.prototype.hasPass = function(type)
 {
@@ -157,17 +109,99 @@ HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fra
     this.setPass(type, pass);
 };
 
-HX.PBRMaterial.prototype.setMetallicness = function(value)
-{
-    this.setUniform("metallicness", value);
-};
+Object.defineProperty(HX.PBRMaterial.prototype, "diffuseColor",
+    {
+        get: function() { return this._diffuseColor; },
+        set: function(value) {
+            this._diffuseColor = isNaN(value) ? value : new HX.Color(value);
+            this.setUniform("albedoColor", this._diffuseColor);
+        }
+    }
+);
 
-HX.PBRMaterial.prototype.setSpecularNormalReflection = function(value)
-{
-    this.setUniform("specularNormalReflection", value);
-};
+Object.defineProperty(HX.PBRMaterial.prototype, "diffuseMap",
+    {
+        get: function() { return this._diffuseMap; },
+        set: function(value) {
+            if (!!this._diffuseMap !== !!value)
+                this._passesInvalid = true;
 
-HX.PBRMaterial.prototype.setRoughness = function(value)
-{
-    this.setUniform("roughness", value);
-};
+            if (!this._passesInvalid && value)
+                this.setTexture("albedoMap", value);
+
+            this._diffuseMap = value;
+        }
+    }
+);
+
+Object.defineProperty(HX.PBRMaterial.prototype, "normalMap",
+    {
+        get: function() { return this._normalMap; },
+        set: function(value) {
+            if (!!this._normalMap !== !!value)
+                this._passesInvalid = true;
+
+            if (!this._passesInvalid && value)
+                this.setTexture("normalMap", value);
+
+            this._normalMap = value;
+        }
+    }
+);
+
+Object.defineProperty(HX.PBRMaterial.prototype, "specularMap",
+    {
+        get: function() { return this._specularMap; },
+        set: function(value) {
+            if (!!this._normalMap !== !!value)
+                this._passesInvalid = true;
+
+            if (!this._passesInvalid && value)
+                this.setTexture("specularMap", value);
+
+            this._specularMap = value;
+        }
+    }
+);
+
+Object.defineProperty(HX.PBRMaterial.prototype, "specularMapMode",
+    {
+        get: function() { return this._specularMapMode; },
+        set: function(value) {
+            if (this._specularMapMode != value)
+                this._passesInvalid = true;
+
+            this._specularMapMode = value;
+        }
+    }
+);
+
+Object.defineProperty(HX.PBRMaterial.prototype, "metallicness",
+    {
+        get: function() { return this._metallicness; },
+        set: function(value) {
+            this._metallicness = HX.saturate(value);
+            this.setUniform("metallicness", this._metallicness);
+        }
+    }
+);
+
+Object.defineProperty(HX.PBRMaterial.prototype, "specularNormalReflection",
+    {
+        get: function() { return this._specularNormalReflection; },
+        set: function(value) {
+            this._specularNormalReflection = HX.saturate(value);
+            this.setUniform("specularNormalReflection", this._specularNormalReflection);
+        }
+    }
+);
+
+Object.defineProperty(HX.PBRMaterial.prototype, "roughness",
+    {
+        get: function() { return this._roughness; },
+        set: function(value) {
+            this._roughness = HX.saturate(value);
+            this.setUniform("roughness", this._roughness);
+        }
+    }
+);

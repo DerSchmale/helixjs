@@ -179,15 +179,15 @@ HX.DirectionalLight.prototype._updateWorldBounds = function()
 
 HX.DirectionalLight.prototype._initLightPass =  function()
 {
-    var defines = "";
+    var defines = {};
 
     if (this._castsShadows) {
-        defines += "#define CAST_SHADOWS\n";
-        defines += "#define NUM_CASCADES " + this._numCascades + "\n";
-        defines += "#define NUM_SHADOW_SAMPLES " + this._numShadowSamples + "\n";
+        defines.CAST_SHADOWS = 1;
+        defines.NUM_CASCADES = this._numCascades;
+        defines.NUM_SHADOW_SAMPLES = this._numShadowSamples;
     }
-    var vertexShader = defines + HX.ShaderLibrary.get("directional_light_vertex.glsl");
-    var fragmentShader = HX.DEFERRED_LIGHT_MODEL + defines + HX.ShaderLibrary.get("directional_light_fragment.glsl");
+    var vertexShader = HX.ShaderLibrary.get("directional_light_vertex.glsl", defines);
+    var fragmentShader = HX.DEFERRED_LIGHT_MODEL + HX.ShaderLibrary.get("directional_light_fragment.glsl", defines);
     var pass = new HX.EffectPass(vertexShader, fragmentShader, HX.Light._rectMesh);
 
     this._dirLocation = pass.getUniformLocation("lightWorldDirection");

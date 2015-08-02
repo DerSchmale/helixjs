@@ -105,10 +105,12 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
 
 HX.PointLight.prototype.initFullScreenPass = function (passIndex)
 {
-    var defines = "#define LIGHTS_PER_BATCH " + (passIndex + 1) + "\n";
+    var defines = {
+        LIGHTS_PER_BATCH: passIndex + 1
+    };
     var pass = new HX.EffectPass(
-        defines + HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl"),
-        HX.DEFERRED_LIGHT_MODEL + defines + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl"),
+        HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl", defines),
+        HX.DEFERRED_LIGHT_MODEL + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl", defines),
         HX.Light._rectMesh);
     HX.PointLight._fullScreenPositionLocations[passIndex] = pass.getUniformLocation("lightWorldPosition[0]");
     HX.PointLight._fullScreenColorLocations[passIndex] = pass.getUniformLocation("lightColor[0]");
@@ -204,10 +206,12 @@ HX.PointLight.prototype._initLightPasses =  function()
     HX.PointLight._fullScreenColorLocations = [];
     HX.PointLight._fullScreenAttenuationFixFactorsLocations = [];
 
-    var defines = "#define LIGHTS_PER_BATCH " + HX.PointLight.LIGHTS_PER_BATCH + "\n";
+    var defines = {
+        LIGHTS_PER_BATCH: HX.PointLight.LIGHTS_PER_BATCH
+    };
     var pass = new HX.EffectPass(
-        defines + HX.ShaderLibrary.get("point_light_spherical_vertex.glsl"),
-        HX.DEFERRED_LIGHT_MODEL + defines + HX.ShaderLibrary.get("point_light_spherical_fragment.glsl"),
+        HX.ShaderLibrary.get("point_light_spherical_vertex.glsl", defines),
+        HX.DEFERRED_LIGHT_MODEL + HX.ShaderLibrary.get("point_light_spherical_fragment.glsl", defines),
         HX.PointLight._sphereMesh);
 
     HX.PointLight._sphericalLightPass = pass;

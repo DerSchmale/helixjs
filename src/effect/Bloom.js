@@ -28,14 +28,15 @@ HX.BloomBlurPass = function(kernelSizes, weights, directionX, directionY, resolu
 {
     this._initWeights(kernelSizes, weights);
 
-    var defines = "";
-    defines += "#define SOURCE_RES vec2(float(" + resolutionX + "), float(" + resolutionY + "))\n";
-    defines += "#define RADIUS float(" + Math.ceil(this._kernelSize * .5) + ")\n";
-    defines += "#define DIRECTION vec2(" + directionX + ", " + directionY + ")\n";
-    defines += "#define NUM_SAMPLES " + this._kernelSize + "\n";
+    var defines = {
+        SOURCE_RES: "vec2(float(" + resolutionX + "), float(" + resolutionY + "))",
+        RADIUS: "float(" + Math.ceil(this._kernelSize * .5) + ")",
+        DIRECTION: "vec2(" + directionX + ", " + directionY + ")",
+        NUM_SAMPLES: this._kernelSize
+    };
 
-    var vertex = defines + HX.ShaderLibrary.get("bloom_blur_vertex.glsl");
-    var fragment = defines + HX.ShaderLibrary.get("bloom_blur_fragment.glsl");
+    var vertex = HX.ShaderLibrary.get("bloom_blur_vertex.glsl", defines);
+    var fragment = HX.ShaderLibrary.get("bloom_blur_fragment.glsl", defines);
 
     HX.EffectPass.call(this, vertex, fragment);
 

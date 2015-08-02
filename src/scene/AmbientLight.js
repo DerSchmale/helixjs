@@ -70,11 +70,12 @@ HX.AmbientLight.prototype._updateWorldBounds = function()
 
 HX.AmbientLight.prototype._initLightPass =  function()
 {
-    var defines = "";
-    if (this._useAO) defines += "#define USE_AO\n";
+    var defines = {};
+    if (this._useAO) defines.USE_AO = 1;
+
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("ambient_light_vertex.glsl"),
-        defines + HX.ShaderLibrary.get("ambient_light_fragment.glsl"),
+        HX.ShaderLibrary.get("ambient_light_fragment.glsl", defines),
         HX.Light._rectMesh
     );
 

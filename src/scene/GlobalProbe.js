@@ -43,20 +43,23 @@ HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
 
 HX.GlobalSpecularProbe.prototype._initPass = function()
 {
-    var defines = "";
+    var defines = {};
+    var extensions = {};
 
-    if (HX.EXT_SHADER_TEXTURE_LOD)
-        defines += "#extension GL_EXT_shader_texture_lod : require\n#define USE_TEX_LOD\n";
+    if (HX.EXT_SHADER_TEXTURE_LOD) {
+        extensions.push("GL_EXT_shader_texture_lod");
+        defines.USE_TEX_LOD = 1;
+    }
 
     if (specular._hdrInAlphaRange > 0)
-        defines += "#define SPECULAR_HDR_FROM_ALPHA float(" + specular._hdrInAlphaRange + ")\n";
+        defines.SPECULAR_HDR_FROM_ALPHA = "float(" + specular._hdrInAlphaRange + ")";
 
-    defines += "#define K0 " + HX.GlobalSpecularProbe.powerRange0 +  "\n";
-    defines += "#define K1 " + HX.GlobalSpecularProbe.powerRange1 +  "\n";
+    defines.K0 = HX.GlobalSpecularProbe.powerRange0;
+    defines.K1 = HX.GlobalSpecularProbe.powerRange1;
 
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("global_specular_probe_vertex.glsl"),
-        defines + HX.ShaderLibrary.get("global_specular_probe_fragment.glsl"),
+        HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines, extensions),
         HX.Light._rectMesh
     );
 
@@ -114,14 +117,17 @@ HX.GlobalIrradianceProbe.prototype._updateWorldBounds = function()
 
 HX.GlobalIrradianceProbe.prototype._initPass = function()
 {
-    var defines = "";
+    var defines = {};
 
-    if (this._usingAO) defines += "#define USE_AO\n";
-    if (this._texture._hdrInAlphaRange > 0) defines += "#define IRRADIANCE_HDR_FROM_ALPHA float(" + this._texture._hdrInAlphaRange + ")\n";
+    if (this._usingAO)
+        defines.USE_AO = 1;
+
+    if (this._texture._hdrInAlphaRange > 0)
+        defines.IRRADIANCE_HDR_FROM_ALPHA  = "float(" + this._texture._hdrInAlphaRange + ")";
 
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("global_irradiance_probe_vertex.glsl"),
-        HX.ShaderLibrary.get(defines + "global_irradiance_probe_fragment.glsl"),
+        HX.ShaderLibrary.get("global_irradiance_probe_fragment.glsl", defines),
         HX.Light._rectMesh
     );
 

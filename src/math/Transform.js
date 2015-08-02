@@ -53,6 +53,12 @@ HX.Transform.prototype =
         this._scale.copyFrom(value);
     },
 
+    lookAt: function(target)
+    {
+        this._matrix.lookAt(target, this._position, HX.Float4.Y_AXIS);
+        this._applyMatrix();
+    },
+
     copyFrom: function(transform)
     {
         this._changeListener.enabled = false;
@@ -73,12 +79,7 @@ HX.Transform.prototype =
     setTransformationMatrix: function(matrix)
     {
         this._matrix.copyFrom(matrix);
-        this._matrixInvalid = false;
-
-        // matrix decompose will trigger property updates, so disable this
-        this._changeListener.enabled = false;
-        matrix.decompose(this);
-        this._changeListener.enabled = true;
+        this._applyMatrix();
     },
 
     _invalidateTransformationMatrix: function ()
@@ -90,5 +91,14 @@ HX.Transform.prototype =
     {
         this._matrix.compose(this);
         this._matrixInvalid = false;
+    },
+
+    _applyMatrix: function()
+    {
+        this._matrixInvalid = false;
+        // matrix decompose will trigger property updates, so disable this
+        this._changeListener.enabled = false;
+        this._matrix.decompose(this);
+        this._changeListener.enabled = true;
     }
 };

@@ -33,8 +33,8 @@ HX.SSAO = function(numSamples)
     this._ssaoPass.setTexture("ditherTexture", this._ditherTexture);
 
     this._ssaoTexture = new HX.Texture2D();
-    this._ssaoTexture.setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
-    this._ssaoTexture.setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
+    this._ssaoTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
+    this._ssaoTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
     this._fbo = new HX.FrameBuffer(this._ssaoTexture, HX.FrameBuffer.DEPTH_MODE_DISABLED);
 };
 
@@ -131,6 +131,6 @@ HX.SSAO.prototype._initDitherTexture = function()
         0xac, 0x92, 0xf5, 0xff
     ];
     this._ditherTexture.uploadData(new Uint8Array(data), 4, 4, false);
-    this._ditherTexture.setFilter(HX.TEXTURE_FILTER.NEAREST_NOMIP);
-    this._ditherTexture.setWrapMode(HX.TEXTURE_WRAP_MODE.REPEAT);
+    this._ditherTexture.setFilter(HX.TextureFilter.NEAREST_NOMIP);
+    this._ditherTexture.setWrapMode(HX.TextureWrapMode.REPEAT);
 };

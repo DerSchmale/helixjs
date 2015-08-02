@@ -25,15 +25,18 @@ HX.SceneNode = function()
 
 HX.SceneNode.prototype = Object.create(HX.Transform.prototype);
 
-HX.SceneNode.prototype.getEffects = function(value)
-{
-    return this._effects;
-};
+Object.defineProperty(HX.SceneNode.prototype, "effects", {
+    get: function()
+    {
+        return this._effects;
+    },
 
-HX.SceneNode.prototype.setEffects = function(value)
-{
-    this._effects = value;
-};
+    set: function(value)
+    {
+        this._effects = value;
+    }
+});
+
 
 HX.SceneNode.prototype.setTransformationMatrix = function(matrix)
 {
@@ -242,21 +245,21 @@ HX.Scene = function(rootNode)
     // the default partition is a BVH node
     //  -> or this may need to become an infinite bound node?
     this._rootNode = rootNode || new HX.BoundingHierarchyNode();
-    this._skyBox = null;
+    this._skybox = null;
 };
 
 HX.Scene.prototype = {
     constructor: HX.Scene,
 
-    getSkyBox: function() { return this._skyBox; },
-    setSkyBox: function(value) { this._skyBox = value; },
+    get skybox() { return this._skybox; },
+    set skybox(value) { this._skybox = value; },
 
-    getEffects: function(value)
+    get effects()
     {
         return this._rootNode._effects;
     },
 
-    setEffects: function(value)
+    set effects(value)
     {
         this._rootNode._effects = value;
     },

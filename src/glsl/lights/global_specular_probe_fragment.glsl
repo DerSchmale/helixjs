@@ -29,9 +29,6 @@ void main()
 		vec4 specProbeSample = textureCube(specularProbeSampler, reflectedViewDir);
 	#endif
 	specProbeSample = hx_gammaToLinear(specProbeSample);
-	#ifdef SPECULAR_HDR_FROM_ALPHA
-		specProbeSample.xyz *= specProbeSample.w * SPECULAR_HDR_FROM_ALPHA;
-	#endif
 	vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflectedViewDir, normal);
 	// not physically correct, but attenuation is required to look good
 	fresnel *= (1.0 - roughness);

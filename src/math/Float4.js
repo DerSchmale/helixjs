@@ -204,7 +204,7 @@ HX.Float4.prototype = {
         this.z = ax*by - ay*bx;
     },
 
-    lerp: function(a, b, t)
+    lerp: function(a, b, factor)
     {
         var ax = a.x, ay = a.y, az = a.z, aw = a.w;
 

@@ -11,10 +11,10 @@ HX.Texture2D = function()
 
     this.bind();
     // set defaults
-    HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_MIN_FILTER, HX.DEFAULT_TEXTURE_FILTER.min);
-    HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_MAG_FILTER, HX.DEFAULT_TEXTURE_FILTER.mag);
-    HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_WRAP_S, HX.DEFAULT_TEXTURE_WRAP_MODE.s);
-    HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_WRAP_T, HX.DEFAULT_TEXTURE_WRAP_MODE.t);
+    HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_MIN_FILTER, HX.TextureFilter.DEFAULT.min);
+    HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_MAG_FILTER, HX.TextureFilter.DEFAULT.mag);
+    HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_WRAP_S, HX.TextureWrapMode.DEFAULT.s);
+    HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_WRAP_T, HX.TextureWrapMode.DEFAULT.t);
 
     if (HX.EXT_TEXTURE_FILTER_ANISOTROPIC && HX.DEFAULT_TEXTURE_MAX_ANISOTROPY > 0) {
         HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, HX.DEFAULT_TEXTURE_MAX_ANISOTROPY);
@@ -169,14 +169,13 @@ HX.FileTexture2D.prototype = Object.create(HX.Texture2D.prototype);
 HX.TextureCube = function()
 {
     this._default = HX.DEFAULT_TEXTURE_CUBE;
-    this._hdrInAlphaRange = 0;
     this._texture = HX.GL.createTexture();
     this._size = 0;
 
     this.bind();
     // set defaults
-    HX.GL.texParameteri(HX.GL.TEXTURE_CUBE_MAP, HX.GL.TEXTURE_MIN_FILTER, HX.DEFAULT_TEXTURE_FILTER.min);
-    HX.GL.texParameteri(HX.GL.TEXTURE_CUBE_MAP, HX.GL.TEXTURE_MAG_FILTER, HX.DEFAULT_TEXTURE_FILTER.mag);
+    HX.GL.texParameteri(HX.GL.TEXTURE_CUBE_MAP, HX.GL.TEXTURE_MIN_FILTER, HX.TextureFilter.DEFAULT.min);
+    HX.GL.texParameteri(HX.GL.TEXTURE_CUBE_MAP, HX.GL.TEXTURE_MAG_FILTER, HX.TextureFilter.DEFAULT.mag);
 
     if (HX.EXT_TEXTURE_FILTER_ANISOTROPIC && HX.DEFAULT_TEXTURE_MAX_ANISOTROPY > 0) {
         HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, HX.DEFAULT_TEXTURE_MAX_ANISOTROPY);
@@ -193,11 +192,6 @@ HX.TextureCube.prototype =
     {
         HX.GL.deleteTexture(this._texture);
         this._isReady = false;
-    },
-
-    hdrInAlphaRange : function()
-    {
-        return this._hdrInAlphaRange;
     },
 
     generateMipmap: function()
@@ -321,16 +315,13 @@ HX.TextureCube.prototype =
  *
  * @param urls
  * @param generateMipmaps
- * @param hdrInAlphaRange If alpha contains an exposure factor, the maximum multiplier
  * @param onComplete
  * @param onError
  * @constructor
  */
-HX.FileTextureCube = function(urls, generateMipmaps, hdrInAlphaRange, onComplete, onError)
+HX.FileTextureCube = function(urls, generateMipmaps, onComplete, onError)
 {
     HX.TextureCube.call(this);
-
-    this._hdrInAlphaRange = hdrInAlphaRange || 0;
 
     generateMipmaps = generateMipmaps === undefined? true : generateMipmaps;
     var images = [];
@@ -367,12 +358,26 @@ HX.FileTextureCube = function(urls, generateMipmaps, hdrInAlphaRange, onComplete
 HX.FileTextureCube.prototype = Object.create(HX.TextureCube.prototype);
 
 
-// expects images in subfolders 0 - N per mip, and names of posX, negX, etc
-HX.MippedTextureCube = function(path, extension, numMips, hdrInAlphaRange, onComplete, onError)
+/**
+ * A MippedTextureCube that loads an entire mip-chain from files rather than generating it using generateMipmap. This is
+ * useful for precomputed specular mip levels. The files are expected to be in a folder structure and with filenames as
+ * such:
+ * <path>/<mip-level>/posX.<extension>
+ * <path>/<mip-level>/negX.<extension>
+ * <path>/<mip-level>/posY.<extension>
+ * <path>/<mip-level>/negY.<extension>
+ * <path>/<mip-level>/posZ.<extension>
+ * <path>/<mip-level>/negZ.<extension>
+ * @param path The path to the mip-level subdirectories
+ * @param extension The extension of the filenames
+ * @param numMips The number of mips to be loaded
+ * @param onComplete
+ * @param onError
+ * @constructor
+ */
+HX.MippedTextureCube = function(path, extension, numMips, onComplete, onError)
 {
     HX.TextureCube.call(this);
-
-    this._hdrInAlphaRange = hdrInAlphaRange || 0;
 
     var images = [];
     var texture = this;

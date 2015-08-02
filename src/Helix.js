@@ -51,6 +51,7 @@ HX.ShaderLibrary = {
 HX._numActiveAttributes = 0;
 HX._numActiveTextures = 0;
 
+
 /**
  * Initializes the Helix engine. IMPORTANT! This needs to be called before any other Helix functionality.
  * @param glContext The webgl context to be used by the engine. Helix does not manage its own context, since you may use the context yourself for UI work etc.
@@ -121,30 +122,13 @@ HX.initFromContext = function(glContext, options)
     HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
 
     // shortcuts
-    HX.TEXTURE_FILTER = {};
-    HX.TEXTURE_FILTER.NEAREST = {min: HX.GL.NEAREST_MIPMAP_NEAREST, mag: HX.GL.NEAREST};
-    HX.TEXTURE_FILTER.BILINEAR = {min: HX.GL.LINEAR_MIPMAP_NEAREST, mag: HX.GL.LINEAR};
-    HX.TEXTURE_FILTER.TRILINEAR = {min: HX.GL.LINEAR_MIPMAP_LINEAR, mag: HX.GL.LINEAR};
-    if (HX.EXT_TEXTURE_FILTER_ANISOTROPIC) {
-        HX.TEXTURE_FILTER.TRILINEAR_ANISOTROPIC = {min: HX.GL.LINEAR_MIPMAP_LINEAR, mag: HX.GL.LINEAR};
-    }
-
-    HX.TEXTURE_FILTER.NEAREST_NOMIP = { min: HX.GL.NEAREST, mag: HX.GL.NEAREST };
-    HX.TEXTURE_FILTER.BILINEAR_NOMIP = { min: HX.GL.LINEAR, mag: HX.GL.LINEAR };
-
-    HX.TEXTURE_WRAP_MODE = {};
-    HX.TEXTURE_WRAP_MODE.REPEAT = { s: HX.GL.REPEAT, t: HX.GL.REPEAT };
-    HX.TEXTURE_WRAP_MODE.CLAMP = { s: HX.GL.CLAMP_TO_EDGE, t: HX.GL.CLAMP_TO_EDGE };
-
-    // default settings:
-    HX.DEFAULT_TEXTURE_WRAP_MODE = HX.TEXTURE_WRAP_MODE.REPEAT;
-    HX.DEFAULT_TEXTURE_FILTER = HX.TEXTURE_FILTER.TRILINEAR;
+    HX._initGLProperties();
 
     var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
 
     HX.DEFAULT_TEXTURE_2D = new HX.Texture2D();
     HX.DEFAULT_TEXTURE_2D.uploadData(data, 1, 1);
-    HX.DEFAULT_TEXTURE_2D.setFilter(HX.TEXTURE_FILTER.NEAREST_NOMIP);
+    HX.DEFAULT_TEXTURE_2D.setFilter(HX.TextureFilter.NEAREST_NOMIP);
 
     HX.DEFAULT_TEXTURE_CUBE = new HX.TextureCube();
     HX.DEFAULT_TEXTURE_CUBE.uploadData([data, data, data, data, data, data], 1);
@@ -280,6 +264,47 @@ HX._init2DDitherTexture = function(width, height)
     }
 
     HX.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, HX.GL.RGBA, HX.GL.FLOAT);
-    HX.DEFAULT_2D_DITHER_TEXTURE.setFilter(HX.TEXTURE_FILTER.NEAREST_NOMIP);
-    HX.DEFAULT_2D_DITHER_TEXTURE.setWrapMode(HX.TEXTURE_WRAP_MODE.REPEAT);
+    HX.DEFAULT_2D_DITHER_TEXTURE.setFilter(HX.TextureFilter.NEAREST_NOMIP);
+    HX.DEFAULT_2D_DITHER_TEXTURE.setWrapMode(HX.TextureWrapMode.REPEAT);
+};
+
+
+HX._initGLProperties = function()
+{
+    HX.TextureFilter = {};
+    HX.TextureFilter.NEAREST = {min: HX.GL.NEAREST_MIPMAP_NEAREST, mag: HX.GL.NEAREST};
+    HX.TextureFilter.BILINEAR = {min: HX.GL.LINEAR_MIPMAP_NEAREST, mag: HX.GL.LINEAR};
+    HX.TextureFilter.TRILINEAR = {min: HX.GL.LINEAR_MIPMAP_LINEAR, mag: HX.GL.LINEAR};
+
+    if (HX.EXT_TEXTURE_FILTER_ANISOTROPIC)
+        HX.TextureFilter.TRILINEAR_ANISOTROPIC = {min: HX.GL.LINEAR_MIPMAP_LINEAR, mag: HX.GL.LINEAR};
+
+
+    HX.TextureFilter.NEAREST_NOMIP = { min: HX.GL.NEAREST, mag: HX.GL.NEAREST };
+    HX.TextureFilter.BILINEAR_NOMIP = { min: HX.GL.LINEAR, mag: HX.GL.LINEAR };
+
+    HX.TextureWrapMode = {};
+    HX.TextureWrapMode.REPEAT = { s: HX.GL.REPEAT, t: HX.GL.REPEAT };
+    HX.TextureWrapMode.CLAMP = { s: HX.GL.CLAMP_TO_EDGE, t: HX.GL.CLAMP_TO_EDGE };
+
+    // default settings:
+    HX.TextureWrapMode.DEFAULT = HX.TextureWrapMode.REPEAT;
+    HX.TextureFilter.DEFAULT = HX.TextureFilter.TRILINEAR;
+
+    HX.CULL_MODE = {
+        NONE: null,
+        BACK: HX.GL.BACK,
+        FRONT: HX.GL.FRONT,
+        ALL: HX.GL.FRONT_AND_BACK
+    };
+
+    HX.ELEMENT_TYPE = {
+        POINTS: HX.GL.POINTS,
+        LINES: HX.GL.LINES,
+        LINE_STRIP: HX.GL.LINE_STRIP,
+        LINE_LOOP: HX.GL.LINE_LOOP,
+        TRIANGLES: HX.GL.TRIANGLES,
+        TRIANGLE_STRIP: HX.GL.TRIANGLE_STRIP,
+        TRIANGLE_FAN: HX.GL.TRIANGLE_FAN
+    };
 };

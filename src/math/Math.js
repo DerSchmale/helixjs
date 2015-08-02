@@ -27,9 +27,9 @@ HX.clamp = function(value, min, max)
     return  value < min?    min :
             value > max?    max :
                             value;
-}
+};
 
 HX.saturate = function(value)
 {
     return HX.clamp(value, 0.0, 1.0);
-}
+};

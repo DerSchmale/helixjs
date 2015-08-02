@@ -20,9 +20,6 @@ void main()
 	#endif
 	vec4 irradianceSample = textureCube(irradianceProbeSampler, normal);
 	irradianceSample = hx_gammaToLinear(irradianceSample);
-	#ifdef IRRADIANCE_HDR_FROM_ALPHA
-		irradianceSample.xyz *= irradianceSample.w * IRRADIANCE_HDR_FROM_ALPHA;
-	#endif
 	//irradianceSample.xyz *= (1.0 - specularSample.x);
 	totalLight += irradianceSample.xyz * colorSample.xyz;
 

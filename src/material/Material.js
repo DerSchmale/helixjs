@@ -13,8 +13,8 @@ HX.MaterialPass = function (shader)
     this._shader = shader;
     this._textureSlots = [];
     this._uniforms = {};
-    this._elementType = HX.GL.TRIANGLES;
-    this._cullMode = HX.GL.BACK;
+    this._elementType = HX.ELEMENT_TYPE.TRIANGLES;
+    this._cullMode = HX.CULL_MODE.BACK;
     this._blending = false;
     this._blendSource = HX.GL.ONE;
     this._blendDest = HX.GL.ZERO;
@@ -340,7 +340,7 @@ HX.Material._translateProperty = function(value)
     if (!HX.Material._properties) {
         HX.Material._properties = {
             back: HX.GL.BACK,
-            front: HX.GL.FRONT,
+            front: HX.CullMode.FRONT,
             both: HX.GL.FRONT_AND_BACK,
             disabled: null,
             lines: HX.GL.LINES,

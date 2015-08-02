@@ -79,7 +79,7 @@ HX.Renderer.prototype =
     {
         // clean up old pass
         if (!oldPass || oldPass._cullMode !== oldPass._cullMode) {
-            if (newPass._cullMode == null)
+            if (newPass._cullMode === null)
                 HX.GL.disable(HX.GL.CULL_FACE);
             else {
                 HX.GL.enable(HX.GL.CULL_FACE);
@@ -458,8 +458,8 @@ HX.ScreenRenderer.prototype._createGBuffer = function()
 {
     if (HX.EXT_DEPTH_TEXTURE) {
         this._depthBuffer = new HX.Texture2D();
-        this._depthBuffer.setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
-        this._depthBuffer.setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
+        this._depthBuffer.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
+        this._depthBuffer.setWrapMode(HX.TextureWrapMode.CLAMP);
     }
     else {
         this._depthBuffer = HX.GL.createRenderbuffer();
@@ -469,8 +469,8 @@ HX.ScreenRenderer.prototype._createGBuffer = function()
 
     for (var i = 0; i < 4; ++i) {
         this._gbuffer[i] = new HX.Texture2D();
-        this._gbuffer[i].setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
-        this._gbuffer[i].setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
+        this._gbuffer[i].setFilter(HX.TextureFilter.BILINEAR_NOMIP);
+        this._gbuffer[i].setWrapMode(HX.TextureWrapMode.CLAMP);
     }
 
     this._gbufferSingleFBOs = [];
@@ -493,8 +493,8 @@ HX.ScreenRenderer.prototype._createHDRBuffers = function ()
     this._hdrTargets = [ ];
 
     for (var i = 0; i < this._hdrBuffers.length; ++i) {
-        this._hdrBuffers[i].setFilter(HX.TEXTURE_FILTER.BILINEAR_NOMIP);
-        this._hdrBuffers[i].setWrapMode(HX.TEXTURE_WRAP_MODE.CLAMP);
+        this._hdrBuffers[i].setFilter(HX.TextureFilter.BILINEAR_NOMIP);
+        this._hdrBuffers[i].setWrapMode(HX.TextureWrapMode.CLAMP);
         this._hdrTargets[i] = new HX.FrameBuffer([ this._hdrBuffers[i] ], HX.FrameBuffer.DEPTH_MODE_DISABLED);
     }
 

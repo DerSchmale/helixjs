@@ -22,7 +22,6 @@ HX.RenderCollector.prototype = Object.create(HX.SceneVisitor.prototype);
 HX.RenderCollector.prototype.getRenderList = function(passType) { return this._passes[passType]; };
 HX.RenderCollector.prototype.getLights = function() { return this._lights; };
 HX.RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
-HX.RenderCollector.prototype.getSkyBox = function() { return this._skyBox; };
 HX.RenderCollector.prototype.getEffects = function() { return this._effects; };
 HX.RenderCollector.prototype.getGlobalSpecularProbe = function() { return this._globalSpecularProbe; };
 HX.RenderCollector.prototype.getGlobalIrradianceProbe = function() { return this._globalIrradianceProbe; };
@@ -56,11 +55,11 @@ HX.RenderCollector.prototype.qualifies = function(object)
 
 HX.RenderCollector.prototype.visitScene = function (scene)
 {
-    var skyBox = scene._skyBox;
-    if (skyBox) {
-        this.visitModelInstance(skyBox._modelInstance, null);
-        this._globalSpecularProbe = skyBox.getGlobalSpecularProbe();
-        this._globalIrradianceProbe = skyBox.getGlobalIrradianceProbe();
+    var skybox = scene._skybox;
+    if (skybox) {
+        this.visitModelInstance(skybox._modelInstance, null);
+        this._globalSpecularProbe = skybox.getGlobalSpecularProbe();
+        this._globalIrradianceProbe = skybox.getGlobalIrradianceProbe();
     }
 };
 

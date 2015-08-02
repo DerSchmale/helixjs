@@ -16,14 +16,14 @@ var sourceFiles = [
     // TODO: find better way, so order doesn't matter
     // base classes first
     "src/shader/Shader.js",
-    "src/shader/Material.js",
+    "src/material/Material.js",
     "src/scene/Scene.js",
     "src/scene/Light.js",
     "src/render/SceneVisitor.js",
     "src/render/Renderer.js",
 
     "src/shader/*.js",
-    "src/shader/*.js",
+    "src/material/*.js",
     "src/scene/*.js",
     "src/mesh/*.js",
     "src/mesh/primitives/*.js",

@@ -1,17 +1,21 @@
 /**
- *
- * @param material
+ * Skybox provides a backdrop "at infinity" for the scene.
+ * @param materialOrTexture Either a texture or a material used to render the skybox. If a texture is passed,
+ * HX.SkyboxMaterial is used as material.
  * @constructor
  */
-HX.SkyBox = function(material)
+HX.Skybox = function(materialOrTexture)
 {
-    this._modelInstance = new HX.ModelInstance(HX.PlanePrimitive.create({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2}), [material]);
+    if (!(materialOrTexture instanceof HX.Material))
+        materialOrTexture = new HX.SkyboxMaterial(materialOrTexture);
+
+    this._modelInstance = new HX.ModelInstance(HX.PlanePrimitive.create({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2}), materialOrTexture);
     this._globalSpecularProbe = null;
     this._globalIrradianceProbe = null;
 };
 
 // TODO: Not sure if we want to always be stuck to a skybox for global probes?
-HX.SkyBox.prototype =
+HX.Skybox.prototype =
 {
     getGlobalSpecularProbe: function()
     {

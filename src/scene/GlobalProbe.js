@@ -51,9 +51,6 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
         defines.USE_TEX_LOD = 1;
     }
 
-    if (specular._hdrInAlphaRange > 0)
-        defines.SPECULAR_HDR_FROM_ALPHA = "float(" + specular._hdrInAlphaRange + ")";
-
     defines.K0 = HX.GlobalSpecularProbe.powerRange0;
     defines.K1 = HX.GlobalSpecularProbe.powerRange1;
 
@@ -121,9 +118,6 @@ HX.GlobalIrradianceProbe.prototype._initPass = function()
 
     if (this._usingAO)
         defines.USE_AO = 1;
-
-    if (this._texture._hdrInAlphaRange > 0)
-        defines.IRRADIANCE_HDR_FROM_ALPHA  = "float(" + this._texture._hdrInAlphaRange + ")";
 
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("global_irradiance_probe_vertex.glsl"),

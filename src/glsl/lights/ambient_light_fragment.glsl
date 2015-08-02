@@ -1,6 +1,6 @@
 uniform vec3 lightColor;
 
-uniform sampler2D hx_gbufferAlbedo;
+uniform sampler2D hx_gbufferColor;
 
 #ifdef USE_AO
 uniform sampler2D hx_source;
@@ -10,13 +10,13 @@ varying vec2 uv;
 
 void main()
 {
-	vec3 albedoSample = texture2D(hx_gbufferAlbedo, uv).xyz;
+	vec3 colorSample = texture2D(hx_gbufferColor, uv).xyz;
 #ifdef USE_AO
 	float occlusionSample = texture2D(hx_source, uv).w;
-	albedoSample *= occlusionSample;
+	colorSample *= occlusionSample;
 #endif
 
-	albedoSample = hx_gammaToLinear(albedoSample);
+	colorSample = hx_gammaToLinear(colorSample);
 
-	gl_FragColor = vec4(lightColor * albedoSample, 0.0);
+	gl_FragColor = vec4(lightColor * colorSample, 0.0);
 }

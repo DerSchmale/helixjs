@@ -4,7 +4,7 @@ varying vec3 lightColorVar;
 varying vec3 lightPositionVar;
 varying vec2 attenuationFixVar;
 
-uniform sampler2D hx_gbufferAlbedo;
+uniform sampler2D hx_gbufferColor;
 uniform sampler2D hx_gbufferNormals;
 uniform sampler2D hx_gbufferSpecular;
 uniform sampler2D hx_gbufferDepth;
@@ -15,7 +15,7 @@ uniform vec3 hx_cameraWorldPosition;
 
 void main()
 {
-	vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);
+	vec4 colorSample = texture2D(hx_gbufferColor, uv);
 	vec4 normalSample = texture2D(hx_gbufferNormals, uv);
 	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);
 	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
@@ -24,13 +24,13 @@ void main()
 	vec3 worldPosition = hx_cameraWorldPosition + viewZ * viewWorldDir;
 
 	vec3 normal = normalize(normalSample.xyz - .5);
-	albedoSample = hx_gammaToLinear(albedoSample);
+	colorSample = hx_gammaToLinear(colorSample);
 	vec3 viewDir = -normalize(viewWorldDir);
 
 	vec3 normalSpecularReflectance;
 	float roughness;
 	float metallicness;
-	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness, metallicness);
+	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);
 	vec3 diffuseReflection;
 	vec3 specularReflection;
 
@@ -43,6 +43,6 @@ void main()
 	attenuation = max(0.0, (attenuation - attenuationFixVar.x) * attenuationFixVar.y);
 	hx_lighting(normal, lightWorldDirection, viewDir, lightColorVar * attenuation, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);
 
-	diffuseReflection *= albedoSample.xyz * (1.0 - metallicness);
+	diffuseReflection *= colorSample.xyz * (1.0 - metallicness);
 	gl_FragColor = vec4(diffuseReflection + specularReflection, 0.0);
 }

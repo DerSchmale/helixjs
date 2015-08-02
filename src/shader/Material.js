@@ -26,7 +26,7 @@ HX.MaterialPass = function (shader)
 };
 
 HX.MaterialPass.GEOMETRY_PASS = 0;
-HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS = 1;
+HX.MaterialPass.GEOMETRY_POST_COLOR_PASS = 1;
 HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS = 2;
 HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS = 3;
 // used for post-lighting
@@ -38,7 +38,7 @@ HX.MaterialPass.NUM_PASS_TYPES = 6;
 
 // only used by the old renderer, will be removed at some point
 // use diffuse as alias for geometry pass
-HX.MaterialPass.GEOMETRY_ALBEDO_PASS = HX.MaterialPass.GEOMETRY_PASS;
+HX.MaterialPass.GEOMETRY_COLOR_PASS = HX.MaterialPass.GEOMETRY_PASS;
 HX.MaterialPass.GEOMETRY_NORMAL_PASS = HX.MaterialPass.NUM_PASS_TYPES++;
 HX.MaterialPass.GEOMETRY_SPECULAR_PASS = HX.MaterialPass.NUM_PASS_TYPES++;
 
@@ -89,7 +89,7 @@ HX.MaterialPass.prototype = {
         // todo: only do this when gbuffer changed
         if (this._gbuffer != gbuffer) {
             this._gbuffer = gbuffer;
-            this.setTexture("hx_gbufferAlbedo", gbuffer[0]);
+            this.setTexture("hx_gbufferColor", gbuffer[0]);
             this.setTexture("hx_gbufferNormals", gbuffer[1]);
             this.setTexture("hx_gbufferSpecular", gbuffer[2]);
             this.setTexture("hx_gbufferDepth", gbuffer[3]);
@@ -307,7 +307,7 @@ HX.Material._parseXMLTo = function(xml, material)
 {
     HX.Material._parseGeometryPassFromXML(xml, material);
 
-    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS, "geometryPostAlbedo", material);
+    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_COLOR_PASS, "geometryPostColor", material);
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS, "geometryPostNormal", material);
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS, "geometryPostSpecular", material);
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.PRE_EFFECT_PASS, "preEffect", material);
@@ -426,7 +426,7 @@ HX.Material._parsePassFromXML = function(xml, passType, tagName, targetMaterial)
         this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
     }
     else {
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_ALBEDO_PASS, "NO_MRT_GBUFFER_ALBEDO");
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_COLOR_PASS, "NO_MRT_GBUFFER_COLOR");
         this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_NORMAL_PASS, "NO_MRT_GBUFFER_NORMALS");
         this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_SPECULAR_PASS, "NO_MRT_GBUFFER_SPECULAR");
     }

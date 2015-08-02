@@ -4,7 +4,7 @@ varying vec3 viewWorldDir;
 uniform vec3 lightColor;
 uniform vec3 lightWorldDirection;
 
-uniform sampler2D hx_gbufferAlbedo;
+uniform sampler2D hx_gbufferColor;
 uniform sampler2D hx_gbufferNormals;
 uniform sampler2D hx_gbufferSpecular;
 
@@ -50,7 +50,7 @@ uniform sampler2D hx_gbufferSpecular;
 
 void main()
 {
-	vec4 albedoSample = hx_gammaToLinear(texture2D(hx_gbufferAlbedo, uv));
+	vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));
 	vec4 normalSample = texture2D(hx_gbufferNormals, uv);
 	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);
 	vec3 normal = hx_decodeNormal(normalSample);
@@ -58,7 +58,7 @@ void main()
 	float roughness;
 	float metallicness;
 
-	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness, metallicness);
+	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);
 
 	vec3 normalizedWorldView = normalize(viewWorldDir);
 
@@ -70,7 +70,7 @@ void main()
 	vec3 diffuseReflection;
 	vec3 specularReflection;
 	hx_lighting(normal, lightWorldDirection, normalizedWorldView, lightColor, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);
-	diffuseReflection *= albedoSample.xyz * (1.0 - metallicness);
+	diffuseReflection *= colorSample.xyz * (1.0 - metallicness);
 	vec3 totalReflection = diffuseReflection + specularReflection;
 
 	#ifdef CAST_SHADOWS

@@ -45,12 +45,12 @@ HX.ScreenSpaceReflections.getFragmentShader = function(numSamples)
             \n\
             void main()\n\
             {\n\
-                vec4 albedoSample = hx_gammaToLinear(texture2D(hx_gbufferAlbedo, uv));\n\
+                vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n\
                 vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n\
                 float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n\
                 vec3 normalSpecularReflectance;\n\
                 float roughness;\n\
-                hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness);\n\
+                hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness);\n\
                 vec3 normal = mat3(hx_viewMatrix) * (texture2D(hx_gbufferNormals, uv).xyz * 2.0 - 1.0);\n\
                 vec3 reflDir = reflect(normalize(viewDir), normal);\n\
                 float fadeFactor = clamp(-reflDir.z * 10000.0, 0.0, 1.0); \n\

@@ -1,6 +1,6 @@
 HX.DebugRenderMode = {
     DEBUG_NONE: 0,
-    DEBUG_ALBEDO: 1,
+    DEBUG_COLOR: 1,
     DEBUG_NORMALS: 2,
     DEBUG_METALLICNESS: 3,
     DEBUG_SPECULAR_NORMAL_REFLECTION: 4,
@@ -103,7 +103,7 @@ HX.Renderer.prototype =
 
 /**
  * GBUFFER LAYOUT:
- * 0: ALBEDO: (albedo.XYZ, unused)
+ * 0: COLOR: (color.XYZ, unused)
  * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw)
  * 2: REFLECTION: (roughness, normalSpecularReflection, metallicness, unused)
  * 3: LINEAR DEPTH: (not explicitly written to by user), 0 - 1 linear depth encoded as RGBA
@@ -271,7 +271,7 @@ HX.ScreenRenderer.prototype._renderPostToGBuffer = function()
 
     // normals first, because diffuse + specular may want to abuse calculated normals (water)
     this._renderPostGBufferPass(1, HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS);
-    this._renderPostGBufferPass(0, HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS);
+    this._renderPostGBufferPass(0, HX.MaterialPass.GEOMETRY_POST_COLOR_PASS);
     this._renderPostGBufferPass(2, HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS);
 }
 
@@ -287,7 +287,7 @@ HX.ScreenRenderer.prototype._renderPostGBufferPass = function(gbufferIndex, pass
 HX.ScreenRenderer.prototype._renderToScreen = function(dt)
 {
     switch (this._debugMode) {
-        case HX.DebugRenderMode.DEBUG_ALBEDO:
+        case HX.DebugRenderMode.DEBUG_COLOR:
             HX.setRenderTarget(null);
             this._copyTexture.execute(this._rectMesh, this._gbuffer[0]);
             break;

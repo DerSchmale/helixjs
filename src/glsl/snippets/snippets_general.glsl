@@ -1,11 +1,11 @@
-#if defined(NO_MRT_GBUFFER_ALBEDO)
-#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = albedo)
+#if defined(NO_MRT_GBUFFER_COLOR)
+#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = color)
 #elif defined(NO_MRT_GBUFFER_NORMALS)
-#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))
+#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))
 #elif defined(NO_MRT_GBUFFER_SPECULAR)
-#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness))
+#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness))
 #else
-#define hx_processGeometry(albedo, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(albedo, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])
+#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])
 #endif
 
 // see Aras' blog post: http://aras-p.info/blog/2009/07/30/encoding-floats-to-rgba-the-final/
@@ -68,9 +68,9 @@ vec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, f
 	return vec4(roughness, specularNormalReflection * 5.0, metallicness, 1.0);
 }
 
-void hx_processGeometryMRT(vec4 albedo, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 albedoData, out vec4 normalData, out vec4 specularData)
+void hx_processGeometryMRT(vec4 color, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 colorData, out vec4 normalData, out vec4 specularData)
 {
-    albedoData = albedo;
+    colorData = color;
 	normalData = hx_encodeNormalDepth(normal, depth);
     specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness);
 }
@@ -141,18 +141,18 @@ float hx_depthToViewZ(float depthSample, mat4 projectionMatrix)
 }
 
 
-vec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 albedo)
+vec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)
 {
-    return mix(vec3(insulatorNormalSpecularReflectance), albedo, metallicness);
+    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);
 }
 
 // for use when sampling gbuffer data for lighting
-void hx_decodeReflectionData(in vec4 albedoSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)
+void hx_decodeReflectionData(in vec4 colorSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)
 {
     //prevent from being 0
     roughness = clamp(specularSample.x, .01, 1.0);
 	metallicness = specularSample.z;
-    normalSpecularReflectance = mix(vec3(specularSample.y * .2), albedoSample.xyz, metallicness);
+    normalSpecularReflectance = mix(vec3(specularSample.y * .2), colorSample.xyz, metallicness);
 }
 
 vec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)

@@ -4,8 +4,8 @@
 HX.PBRMaterial = function()
 {
     HX.Material.call(this);
-    this._diffuseColor = new HX.Color(1, 1, 1, 1);
-    this._diffuseMap = null;
+    this._color = new HX.Color(1, 1, 1, 1);
+    this._colorMap = null;
     this._normalMap = null;
     this._specularMap = null;
     this._specularMapMode = HX.SPECULAR_MAP_ROUGHNESS_ONLY;
@@ -52,35 +52,35 @@ HX.PBRMaterial.prototype.getPass = function(type)
 
 HX.PBRMaterial.prototype._updatePasses = function()
 {
-    var albedoDefines = this._generateAlbedoDefines();
+    var colorDefines = this._generateColorDefines();
     var normalDefines = this._generateNormalDefines();
     var specularDefines = this._generateSpecularDefines();
 
     // TODO: this is something every material should have to do, so perhaps it should work differently?
     if (HX.EXT_DRAW_BUFFERS) {
-        var defines = albedoDefines + normalDefines + specularDefines;
+        var defines = colorDefines + normalDefines + specularDefines;
         this._initPass(HX.MaterialPass.GEOMETRY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
     else {
-        albedoDefines = "#define NO_MRT_GBUFFER_ALBEDO\n" + albedoDefines;
+        colorDefines = "#define NO_MRT_GBUFFER_COLOR\n" + colorDefines;
         normalDefines = "#define NO_MRT_GBUFFER_NORMALS\n" + normalDefines;
         specularDefines = "#define NO_MRT_GBUFFER_SPECULAR\n" + specularDefines;
-        this._initPass(HX.MaterialPass.GEOMETRY_ALBEDO_PASS, albedoDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+        this._initPass(HX.MaterialPass.GEOMETRY_COLOR_PASS, colorDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
         this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
         this._initPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS, specularDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
 
-    this.setUniform("albedoColor", this._diffuseColor);
-    if (this._diffuseMap) this.setTexture("albedoMap", this._diffuseMap);
+    this.setUniform("color", this._color);
+    if (this._colorMap) this.setTexture("colorMap", this._colorMap);
     if (this._normalMap) this.setTexture("normalMap", this._normalMap);
     if (this._specularMap) this.setTexture("specularMap", this._specularMap);
 
     this._passesInvalid = false;
 };
 
-HX.PBRMaterial.prototype._generateAlbedoDefines = function()
+HX.PBRMaterial.prototype._generateColorDefines = function()
 {
-    return !!this._diffuseMap? "#define ALBEDO_MAP\n" : "";
+    return !!this._colorMap? "#define COLOR_MAP\n" : "";
 };
 
 HX.PBRMaterial.prototype._generateNormalDefines = function()
@@ -109,27 +109,27 @@ HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fra
     this.setPass(type, pass);
 };
 
-Object.defineProperty(HX.PBRMaterial.prototype, "diffuseColor",
+Object.defineProperty(HX.PBRMaterial.prototype, "color",
     {
-        get: function() { return this._diffuseColor; },
+        get: function() { return this._color; },
         set: function(value) {
-            this._diffuseColor = isNaN(value) ? value : new HX.Color(value);
-            this.setUniform("albedoColor", this._diffuseColor);
+            this._color = isNaN(value) ? value : new HX.Color(value);
+            this.setUniform("color", this._color);
         }
     }
 );
 
-Object.defineProperty(HX.PBRMaterial.prototype, "diffuseMap",
+Object.defineProperty(HX.PBRMaterial.prototype, "colorMap",
     {
-        get: function() { return this._diffuseMap; },
+        get: function() { return this._colorMap; },
         set: function(value) {
-            if (!!this._diffuseMap !== !!value)
+            if (!!this._colorMap !== !!value)
                 this._passesInvalid = true;
 
             if (!this._passesInvalid && value)
-                this.setTexture("albedoMap", value);
+                this.setTexture("colorMap", value);
 
-            this._diffuseMap = value;
+            this._colorMap = value;
         }
     }
 );

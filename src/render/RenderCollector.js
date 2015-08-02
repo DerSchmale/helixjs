@@ -37,7 +37,7 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
     scene.acceptVisitor(this);
 
     this._passes[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques);
-    this._passes[HX.MaterialPass.GEOMETRY_POST_ALBEDO_PASS].sort(this._sortBlended);
+    this._passes[HX.MaterialPass.GEOMETRY_POST_COLOR_PASS].sort(this._sortBlended);
     this._passes[HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS].sort(this._sortBlended);
     this._passes[HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS].sort(this._sortBlended);
     // may want to use sort for blended instead?
@@ -148,13 +148,13 @@ HX.RenderCollector.prototype._sortLights = function(a, b)
 
 HX.RenderCollector.prototype._copyLegacyPasses = function(a, b)
 {
-    var diffusePasses = this._passes[HX.MaterialPass.GEOMETRY_ALBEDO_PASS];
+    var colorPasses = this._passes[HX.MaterialPass.GEOMETRY_COLOR_PASS];
     var normalPasses = this._passes[HX.MaterialPass.GEOMETRY_NORMAL_PASS];
     var specularPasses = this._passes[HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
-    var len = diffusePasses.length;
+    var len = colorPasses.length;
 
     for (var i = 0; i < len; ++i) {
-        var renderItem = diffusePasses[i];
+        var renderItem = colorPasses[i];
         var normalItem = new HX.RenderItem();
         var specItem = new HX.RenderItem();
         var meshInstance = renderItem.meshInstance;

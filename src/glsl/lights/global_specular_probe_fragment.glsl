@@ -8,17 +8,17 @@ uniform float maxMipFactor;
 
 void main()
 {
-	vec4 albedoSample = texture2D(hx_gbufferAlbedo, uv);
+	vec4 colorSample = texture2D(hx_gbufferColor, uv);
 	vec4 normalSample = texture2D(hx_gbufferNormals, uv);
 	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);
 	vec3 normal = normalize(normalSample.xyz - .5);
 	vec3 totalLight = vec3(0.0);
-	albedoSample = hx_gammaToLinear(albedoSample);
+	colorSample = hx_gammaToLinear(colorSample);
 
 	vec3 reflectedViewDir = reflect(normalize(viewWorldDir), normal);
 	vec3 normalSpecularReflectance;
 	float roughness;
-	hx_decodeReflectionData(albedoSample, specularSample, normalSpecularReflectance, roughness);
+	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness);
 	#ifdef USE_TEX_LOD
 	// knald method:
 		float power = 2.0/(roughness * roughness) - 2.0;

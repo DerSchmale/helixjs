@@ -1,13 +1,13 @@
-#if defined(ALBEDO_MAP) || defined(NORMAL_MAP) || defined(SPECULAR_MAP)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(SPECULAR_MAP)
 varying vec2 texCoords;
 #endif
 
 varying vec3 normal;
 
-#ifdef ALBEDO_MAP
-uniform sampler2D albedoMap;
+#ifdef COLOR_MAP
+uniform sampler2D colorMap;
 #else
-uniform vec3 albedoColor;
+uniform vec3 color;
 #endif
 
 #ifdef NORMAL_MAP
@@ -27,11 +27,11 @@ uniform sampler2D specularMap;
 
 void main()
 {
-    vec4 albedo;
-    #ifdef ALBEDO_MAP
-        albedo = texture2D(albedoMap, texCoords);
+    vec4 outputColor;
+    #ifdef COLOR_MAP
+        outputColor = texture2D(colorMap, texCoords);
     #else
-        albedo = vec4(albedoColor, 1.0);
+        outputColor = vec4(color, 1.0);
     #endif
 
     float metallicnessOut = metallicness;
@@ -64,5 +64,5 @@ void main()
     #endif
 
     // todo: should we linearize depth here instead?
-    hx_processGeometry(albedo, fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);
+    hx_processGeometry(outputColor, fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);
 }

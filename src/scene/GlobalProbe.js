@@ -44,7 +44,7 @@ HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
 HX.GlobalSpecularProbe.prototype._initPass = function()
 {
     var defines = {};
-    var extensions = {};
+    var extensions = [];
 
     if (HX.EXT_SHADER_TEXTURE_LOD) {
         extensions.push("GL_EXT_shader_texture_lod");
@@ -57,7 +57,7 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("global_specular_probe_vertex.glsl"),
         HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines, extensions),
-        HX.Light._rectMesh
+        HX.GlobalSpecularProbe._rectMesh
     );
 
     this._numMipsLocation = pass.getUniformLocation("numMips");
@@ -122,10 +122,8 @@ HX.GlobalIrradianceProbe.prototype._initPass = function()
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("global_irradiance_probe_vertex.glsl"),
         HX.ShaderLibrary.get("global_irradiance_probe_fragment.glsl", defines),
-        HX.Light._rectMesh
+        HX.GlobalIrradianceProbe._rectMesh
     );
-
-    this._numMipsLocation = pass.getUniformLocation("numMips");
 
     pass.setTexture("irradianceProbeSampler", this._texture);
 

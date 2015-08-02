@@ -6,6 +6,10 @@ uniform float numMips;
 uniform float mipOffset;
 uniform float maxMipFactor;
 
+uniform sampler2D hx_gbufferColor;
+uniform sampler2D hx_gbufferNormals;
+uniform sampler2D hx_gbufferSpecular;
+
 void main()
 {
 	vec4 colorSample = texture2D(hx_gbufferColor, uv);
@@ -18,7 +22,8 @@ void main()
 	vec3 reflectedViewDir = reflect(normalize(viewWorldDir), normal);
 	vec3 normalSpecularReflectance;
 	float roughness;
-	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness);
+	float metallicness;
+	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);
 	#ifdef USE_TEX_LOD
 	// knald method:
 		float power = 2.0/(roughness * roughness) - 2.0;
@@ -31,7 +36,8 @@ void main()
 	specProbeSample = hx_gammaToLinear(specProbeSample);
 	vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflectedViewDir, normal);
 	// not physically correct, but attenuation is required to look good
-	fresnel *= (1.0 - roughness);
+	float attenuation = mix(1.0 - roughness, 1.0, metallicness);
+	fresnel *= attenuation;
 	totalLight += fresnel * specProbeSample.xyz;
 
 	gl_FragColor = vec4(totalLight, 1.0);

@@ -1,4 +1,8 @@
+attribute vec4 hx_position;
 attribute vec2 hx_texCoord;
+
+uniform mat4 hx_inverseViewProjectionMatrix;
+uniform vec3 hx_cameraWorldPosition;
 
 varying vec3 viewWorldDir;
 varying vec2 uv;

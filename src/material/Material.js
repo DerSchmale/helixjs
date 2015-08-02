@@ -13,12 +13,12 @@ HX.MaterialPass = function (shader)
     this._shader = shader;
     this._textureSlots = [];
     this._uniforms = {};
-    this._elementType = HX.ELEMENT_TYPE.TRIANGLES;
-    this._cullMode = HX.CULL_MODE.BACK;
+    this._elementType = HX.ElementType.TRIANGLES;
+    this._cullMode = HX.CullMode.BACK;
     this._blending = false;
-    this._blendSource = HX.GL.ONE;
-    this._blendDest = HX.GL.ZERO;
-    this._blendOperator = HX.GL.FUNC_ADD;
+    this._blendSource = HX.BlendFactor.ONE;
+    this._blendDest = HX.BlendFactor.ZERO;
+    this._blendOperator = HX.BlendOperation.ADD;
     this._gbuffer = null;
     this._enabled = true;
 
@@ -341,24 +341,24 @@ HX.Material._translateProperty = function(value)
         HX.Material._properties = {
             back: HX.GL.BACK,
             front: HX.CullMode.FRONT,
-            both: HX.GL.FRONT_AND_BACK,
-            disabled: null,
-            lines: HX.GL.LINES,
-            points: HX.GL.POINTS,
-            triangles: HX.GL.TRIANGLES,
-            one: HX.GL.ONE,
-            zero: HX.GL.ZERO,
-            sourceColor: HX.GL.SRC_COLOR,
-            oneMinusSourceColor: HX.GL.ONE_MINUS_SRC_COLOR,
-            sourceAlpha: HX.GL.SRC_ALPHA,
-            oneMinusSourceAlpha: HX.GL.ONE_MINUS_SRC_ALPHA,
-            destinationAlpha: HX.GL.DST_ALPHA,
-            oneMinusDestinationAlpha: HX.GL.ONE_MINUS_DST_ALPHA,
-            destinationColor: HX.GL.DST_COLOR,
-            sourceAlphaSaturate: HX.GL.SRC_ALPHA_SATURATE,
-            add: HX.GL.FUNC_ADD,
-            subtract: HX.GL.FUNC_SUBTRACT,
-            reverseSubtract: HX.GL.FUNC_REVERSE_SUBTRACT
+            both: HX.CullMode.ALL,
+            none: null,
+            lines: HX.ElementType.LINES,
+            points: HX.ElementType.POINTS,
+            triangles: HX.ElementType.TRIANGLES,
+            one: HX.BlendFactor.ONE,
+            zero: HX.BlendFactor.ZERO,
+            sourceColor: HX.BlendFactor.SOURCE_COLOR,
+            oneMinusSourceColor: HX.BlendFactor.ONE_MINUS_SOURCE_COLOR,
+            sourceAlpha: HX.BlendFactor.SOURCE_ALPHA,
+            oneMinusSourceAlpha: HX.BlendFactor.ONE_MINUS_SOURCE_ALPHA,
+            destinationAlpha: HX.BlendFactor.DST_ALPHA,
+            oneMinusDestinationAlpha: HX.BlendFactor.ONE_MINUS_DESTINATION_ALPHA,
+            destinationColor: HX.BlendFactor.DESTINATION_COLOR,
+            sourceAlphaSaturate: HX.BlendFactor.SOURCE_ALPHA_SATURATE,
+            add: HX.BlendOperation.ADD,
+            subtract: HX.BlendOperation.SUBTRACT,
+            reverseSubtract: HX.BlendOperation.REVERSE_SUBTRACT
         }
     }
 

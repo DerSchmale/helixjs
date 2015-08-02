@@ -9,7 +9,7 @@ HX.SkyboxMaterial = function(texture)
     var fragmentShader = HX.ShaderLibrary.get("default_skybox_fragment.glsl");
     var shader = new HX.Shader(vertexShader, fragmentShader);
     var pass = new HX.MaterialPass(shader);
-    pass.setCullMode(HX.CULL_MODE.NONE);
+    pass.setCullMode(HX.CullMode.NONE);
     this.setPass(HX.MaterialPass.POST_PASS, pass);
 
     this.setTexture("hx_skybox", texture);

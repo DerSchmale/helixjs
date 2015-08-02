@@ -291,14 +291,14 @@ HX._initGLProperties = function()
     HX.TextureWrapMode.DEFAULT = HX.TextureWrapMode.REPEAT;
     HX.TextureFilter.DEFAULT = HX.TextureFilter.TRILINEAR;
 
-    HX.CULL_MODE = {
+    HX.CullMode = {
         NONE: null,
         BACK: HX.GL.BACK,
         FRONT: HX.GL.FRONT,
         ALL: HX.GL.FRONT_AND_BACK
     };
 
-    HX.ELEMENT_TYPE = {
+    HX.ElementType = {
         POINTS: HX.GL.POINTS,
         LINES: HX.GL.LINES,
         LINE_STRIP: HX.GL.LINE_STRIP,
@@ -306,5 +306,25 @@ HX._initGLProperties = function()
         TRIANGLES: HX.GL.TRIANGLES,
         TRIANGLE_STRIP: HX.GL.TRIANGLE_STRIP,
         TRIANGLE_FAN: HX.GL.TRIANGLE_FAN
+    };
+
+    HX.BlendFactor = {
+        ZERO: HX.GL.ZERO,
+        ONE: HX.GL.ONE,
+        SOURCE_COLOR: HX.GL.SRC_COLOR,
+        ONE_MINUS_SOURCE_COLOR: HX.GL.ONE_MINUS_SRC_COLOR,
+        DESTINATION_COLOR: HX.GL.DST_COLOR,
+        ONE_MINUS_DESTINATION_COLOR: HX.GL.ONE_MINUS_DST_COLOR,
+        SOURCE_ALPHA: HX.GL.SRC_ALPHA,
+        ONE_MINUS_SOURCE_ALPHA: HX.GL.ONE_MINUS_SRC_ALPHA,
+        DESTINATION_ALPHA: HX.GL.DST_ALPHA,
+        ONE_MINUS_DESTINATION_ALPHA: HX.GL.ONE_MINUS_DST_ALPHA,
+        SOURCE_ALPHA_SATURATE: HX.GL.SRC_ALPHA_SATURATE
+    };
+
+    HX.BlendOperation = {
+        ADD: HX.GL.FUNC_ADD,
+        SUBTRACT: HX.GL.FUNC_SUBTRACT,
+        REVERSE_SUBTRACT: HX.GL.FUNC_REVERSE_SUBTRACT
     };
 };

@@ -15,7 +15,7 @@ void main()
 	vec4 colorSample = texture2D(hx_gbufferColor, uv);
 	vec4 normalSample = texture2D(hx_gbufferNormals, uv);
 	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);
-	vec3 normal = normalize(normalSample.xyz - .5);
+	vec3 normal = hx_decodeNormal(normalSample);
 	vec3 totalLight = vec3(0.0);
 	colorSample = hx_gammaToLinear(colorSample);
 

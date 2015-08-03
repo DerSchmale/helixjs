@@ -92,7 +92,7 @@ float getRayOcclusion(vec2 direction, float jitter, vec2 projectedRadii, vec3 ce
 void main()
 {
     vec4 normalSample = texture2D(hx_gbufferNormals, uv);
-    vec3 worldNormal = normalSample.xyz - .5;
+    vec3 worldNormal = hx_decodeNormal(normalSample);
     vec3 centerNormal = mat3(hx_viewMatrix) * worldNormal;
     float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
     float viewZ = centerDepth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;

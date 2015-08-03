@@ -17,7 +17,8 @@ varying vec2 uv;
 
 void main()
 {
-    vec3 centerNormal = texture2D(hx_gbufferNormals, uv).xyz - .5;
+    vec4 normalSample = texture2D(hx_gbufferNormals, uv);
+    vec3 centerNormal = hx_decodeNormal(normalSample);
     centerNormal = mat3(hx_viewMatrix) * centerNormal.xyz;
     float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
     float totalOcclusion = 0.0;

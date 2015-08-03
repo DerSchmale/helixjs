@@ -23,7 +23,7 @@ void main()
 	float viewZ = -depth * hx_cameraFrustumRange;
 	vec3 worldPosition = hx_cameraWorldPosition + viewZ * viewWorldDir;
 
-	vec3 normal = normalize(normalSample.xyz - .5);
+	vec3 normal = hx_decodeNormal(normalSample);
 	colorSample = hx_gammaToLinear(colorSample);
 	vec3 viewDir = -normalize(viewWorldDir);
 

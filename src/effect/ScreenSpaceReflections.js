@@ -51,7 +51,9 @@ HX.ScreenSpaceReflections.getFragmentShader = function(numSamples)
                 vec3 normalSpecularReflectance;\n\
                 float roughness;\n\
                 hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness);\n\
-                vec3 normal = mat3(hx_viewMatrix) * (texture2D(hx_gbufferNormals, uv).xyz * 2.0 - 1.0);\n\
+                vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n\
+                vec3 normal = hx_decodeNormal(normalSample);\n\
+                normal = mat3(hx_viewMatrix) * normal;\n\
                 vec3 reflDir = reflect(normalize(viewDir), normal);\n\
                 float fadeFactor = clamp(-reflDir.z * 10000.0, 0.0, 1.0); \n\
                 vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n\

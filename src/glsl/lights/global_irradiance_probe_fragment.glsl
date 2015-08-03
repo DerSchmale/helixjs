@@ -18,7 +18,7 @@ void main()
 
 	colorSample = hx_gammaToLinear(colorSample);
 
-	vec3 normal = normalize(normalSample.xyz - .5);
+	vec3 normal = hx_decodeNormal(normalSample);
 	vec3 totalLight = vec3(0.0);
 
 

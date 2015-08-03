@@ -110,7 +110,7 @@ HX.BloomEffect = function(blurSizes, weights)
         this._thresholdMaps[i] = new HX.Texture2D();
         this._thresholdMaps[i].setFilter(HX.TextureFilter.BILINEAR_NOMIP);
         this._thresholdMaps[i].setWrapMode(HX.TextureWrapMode.CLAMP);
-        this._thresholdFBOs[i] = new HX.FrameBuffer([this._thresholdMaps[i]], HX.FrameBuffer.DEPTH_MODE_DISABLED);
+        this._thresholdFBOs[i] = new HX.FrameBuffer([this._thresholdMaps[i]]);
     }
 
     this._blurSizes = blurSizes || [ 512, 256 ];

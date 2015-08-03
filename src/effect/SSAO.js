@@ -35,7 +35,7 @@ HX.SSAO = function(numSamples)
     this._ssaoTexture = new HX.Texture2D();
     this._ssaoTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
     this._ssaoTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
-    this._fbo = new HX.FrameBuffer(this._ssaoTexture, HX.FrameBuffer.DEPTH_MODE_DISABLED);
+    this._fbo = new HX.FrameBuffer(this._ssaoTexture);
 };
 
 HX.SSAO.prototype = Object.create(HX.Effect.prototype);

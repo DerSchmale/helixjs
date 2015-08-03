@@ -41,7 +41,7 @@ HX.HBAO = function(numRays, numSamplesPerRay)
     this._aoTexture = new HX.Texture2D();
     this._aoTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
     this._aoTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
-    this._fbo = new HX.FrameBuffer(this._aoTexture, HX.FrameBuffer.DEPTH_MODE_DISABLED);
+    this._fbo = new HX.FrameBuffer(this._aoTexture);
 };
 
 HX.HBAO.prototype = Object.create(HX.Effect.prototype);

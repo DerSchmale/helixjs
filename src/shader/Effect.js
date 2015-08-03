@@ -1,10 +1,10 @@
 /**
  * @constructor
  */
-HX.EffectPass = function(vertexShader, fragmentShader, mesh)
+HX.EffectPass = function(vertexShader, fragmentShader, mesh, preVertexCode, preFragmentCode)
 {
     vertexShader = vertexShader || HX.ShaderLibrary.get("default_post_vertex.glsl");
-    var shader = new HX.Shader(vertexShader, fragmentShader);
+    var shader = new HX.Shader(vertexShader, fragmentShader, preVertexCode, preFragmentCode);
     HX.MaterialPass.call(this, shader);
     this._uniformSetters = HX.UniformSetter.getSetters(this._shader);
     this._gbuffer = null;

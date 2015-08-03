@@ -462,7 +462,7 @@ HX.ScreenRenderer.prototype._createGBuffer = function()
         this._depthBuffer.setWrapMode(HX.TextureWrapMode.CLAMP);
     }
     else {
-        this._depthBuffer = HX.GL.createRenderbuffer();
+        this._depthBuffer = new HX.ReadOnlyDepthBuffer();
     }
 
     this._gbuffer = [];
@@ -476,10 +476,10 @@ HX.ScreenRenderer.prototype._createGBuffer = function()
     this._gbufferSingleFBOs = [];
 
     for (var i = 0; i < 3; ++i)
-        this._gbufferSingleFBOs[i] = new HX.FrameBuffer([ this._gbuffer[i] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
+        this._gbufferSingleFBOs[i] = new HX.FrameBuffer([ this._gbuffer[i] ], this._depthBuffer);
 
     this._createGBufferFBO();
-    this._linearDepthFBO = new HX.FrameBuffer(this._gbuffer[3], HX.FrameBuffer.DEPTH_MODE_DISABLED, null);
+    this._linearDepthFBO = new HX.FrameBuffer(this._gbuffer[3], null);
 };
 
 HX.ScreenRenderer.prototype._createGBufferFBO = function()
@@ -495,18 +495,20 @@ HX.ScreenRenderer.prototype._createHDRBuffers = function ()
     for (var i = 0; i < this._hdrBuffers.length; ++i) {
         this._hdrBuffers[i].setFilter(HX.TextureFilter.BILINEAR_NOMIP);
         this._hdrBuffers[i].setWrapMode(HX.TextureWrapMode.CLAMP);
-        this._hdrTargets[i] = new HX.FrameBuffer([ this._hdrBuffers[i] ], HX.FrameBuffer.DEPTH_MODE_DISABLED);
+        this._hdrTargets[i] = new HX.FrameBuffer([ this._hdrBuffers[i] ]);
     }
 
     this._hdrTargetsDepth = [];
-    this._hdrTargetsDepth[0] = new HX.FrameBuffer([ this._hdrBuffers[0] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
-    this._hdrTargetsDepth[1] = new HX.FrameBuffer([ this._hdrBuffers[1] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
+    this._hdrTargetsDepth[0] = new HX.FrameBuffer([ this._hdrBuffers[0] ], this._depthBuffer);
+    this._hdrTargetsDepth[1] = new HX.FrameBuffer([ this._hdrBuffers[1] ], this._depthBuffer);
 };
 
 HX.ScreenRenderer.prototype._updateGBuffer = function (width, height)
 {
     if (HX.EXT_DEPTH_TEXTURE)
         this._depthBuffer.initEmpty(width, height, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
+    else
+        this._depthBuffer.init(width, height);
 
     for (var i = 0; i < this._gbuffer.length; ++i) {
         this._gbuffer[i].initEmpty(width, height, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);

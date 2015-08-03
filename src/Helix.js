@@ -16,6 +16,8 @@ HX.InitOptions = function()
     // debug-related
     this.ignoreDrawBuffersExtension = false;     // forces multiple passes for the GBuffer
     this.ignoreDepthTexturesExtension = false;     // forces storing depth info explicitly
+    this.ignoreTextureLODExtension = false;     // forces storing depth info explicitly
+    this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
     this.throwOnShaderError = false;
 };
 
@@ -32,15 +34,10 @@ HX.ShaderLibrary = {
      * @param extensions (Optional) An array of extensions to be required
      * @returns A string containing the shader code from the files with defines prepended
      */
-    get: function(filename, defines, extensions)
+    get: function(filename, defines)
     {
         var defineString = "";
 
-        if (extensions) {
-            for (var i = 0; i < extensions.length; ++i) {
-                defineString += "#extension " + extensions[i] + " : require\n";
-            }
-        }
         for (var key in defines) {
             if (defines.hasOwnProperty(key)) {
                 defineString += "#define " + key + " " + defines[key] + "\n";
@@ -86,7 +83,8 @@ HX.initFromContext = function(glContext, options)
     HX.EXT_FLOAT_TEXTURES = HX.GL.getExtension('OES_texture_float');
     if (!HX.EXT_FLOAT_TEXTURES) console.warn('OES_texture_float extension not supported!');
 
-    HX.EXT_HALF_FLOAT_TEXTURES = HX.GL.getExtension('OES_texture_half_float');
+    if (!HX.OPTIONS.ignoreHalfFloatTextureExtension)
+        HX.EXT_HALF_FLOAT_TEXTURES = HX.GL.getExtension('OES_texture_half_float');
     if (!HX.EXT_HALF_FLOAT_TEXTURES) console.warn('OES_texture_half_float extension not supported!');
 
     HX.EXT_FLOAT_TEXTURES_LINEAR = HX.GL.getExtension('OES_texture_float_linear');
@@ -106,7 +104,9 @@ HX.initFromContext = function(glContext, options)
     HX.EXT_STANDARD_DERIVATIVES = HX.GL.getExtension('OES_standard_derivatives');
     if (!HX.EXT_STANDARD_DERIVATIVES) console.warn('OES_standard_derivatives extension not supported!');
 
-    HX.EXT_SHADER_TEXTURE_LOD = HX.GL.getExtension('EXT_shader_texture_lod');
+    if (!HX.OPTIONS.ignoreTextureLODExtension)
+        HX.EXT_SHADER_TEXTURE_LOD = HX.GL.getExtension('EXT_shader_texture_lod');
+
     if (!HX.EXT_SHADER_TEXTURE_LOD) console.warn('EXT_shader_texture_lod extension not supported!');
 
     HX.EXT_TEXTURE_FILTER_ANISOTROPIC = HX.GL.getExtension('EXT_texture_filter_anisotropic');
@@ -131,11 +131,12 @@ HX.initFromContext = function(glContext, options)
     var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
 
     HX.DEFAULT_TEXTURE_2D = new HX.Texture2D();
-    HX.DEFAULT_TEXTURE_2D.uploadData(data, 1, 1);
+    HX.DEFAULT_TEXTURE_2D.uploadData(data, 1, 1, true);
     HX.DEFAULT_TEXTURE_2D.setFilter(HX.TextureFilter.NEAREST_NOMIP);
 
     HX.DEFAULT_TEXTURE_CUBE = new HX.TextureCube();
-    HX.DEFAULT_TEXTURE_CUBE.uploadData([data, data, data, data, data, data], 1);
+    HX.DEFAULT_TEXTURE_CUBE.uploadData([data, data, data, data, data, data], 1, true);
+    HX.DEFAULT_TEXTURE_CUBE.setFilter(HX.TextureFilter.NEAREST_NOMIP);
 
     // TODO: Pregenerate
     var poissonDisk = new HX.PoissonDisk();

@@ -2,8 +2,8 @@
  *
  * @param vertexShaderCode
  * @param fragmentShaderCode
- * @param preVertexCode Can contain defines and other things that need to be in there before any other includes
- * @param preFragmentCode
+ * @param preVertexCode Can contain defines and other things that need to be in there before any other includes (fe: extensions)
+ * @param preFragmentCode Can contain defines and other things that need to be in there before any other includes
  * @constructor
  */
 HX.Shader = function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
@@ -33,8 +33,8 @@ HX.Shader.prototype = {
 
     init: function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
     {
-        preVertexCode = preVertexCode || "";
-        preFragmentCode = preFragmentCode || "";
+        preVertexCode = (preVertexCode || "") + "\n";
+        preFragmentCode = (preFragmentCode || "") + "\n";
         vertexShaderCode = preVertexCode + HX.GLSLIncludeGeneral + vertexShaderCode;
         fragmentShaderCode = preFragmentCode + HX.GLSLIncludeGeneral + fragmentShaderCode;
 

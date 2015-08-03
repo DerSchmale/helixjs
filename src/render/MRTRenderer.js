@@ -19,7 +19,7 @@ HX.MRTRenderer.prototype._renderToGBuffer = function()
 HX.MRTRenderer.prototype._createGBufferFBO = function()
 {
     var targets = [ this._gbuffer[0], this._gbuffer[1], this._gbuffer[2] ];
-    this._gbufferFBO = new HX.FrameBuffer(targets, HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
+    this._gbufferFBO = new HX.FrameBuffer(targets, this._depthBuffer);
 };
 
 HX.MRTRenderer.prototype._updateGBufferFBO = function ()

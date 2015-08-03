@@ -16,6 +16,8 @@ HX.InitOptions = function()
     // debug-related
     this.ignoreDrawBuffersExtension = false;     // forces multiple passes for the GBuffer
     this.ignoreDepthTexturesExtension = false;     // forces storing depth info explicitly
+    this.ignoreTextureLODExtension = false;     // forces storing depth info explicitly
+    this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
     this.throwOnShaderError = false;
 };
 
@@ -32,15 +34,10 @@ HX.ShaderLibrary = {
      * @param extensions (Optional) An array of extensions to be required
      * @returns A string containing the shader code from the files with defines prepended
      */
-    get: function(filename, defines, extensions)
+    get: function(filename, defines)
     {
         var defineString = "";
 
-        if (extensions) {
-            for (var i = 0; i < extensions.length; ++i) {
-                defineString += "#extension " + extensions[i] + " : require\n";
-            }
-        }
         for (var key in defines) {
             if (defines.hasOwnProperty(key)) {
                 defineString += "#define " + key + " " + defines[key] + "\n";
@@ -86,7 +83,8 @@ HX.initFromContext = function(glContext, options)
     HX.EXT_FLOAT_TEXTURES = HX.GL.getExtension('OES_texture_float');
     if (!HX.EXT_FLOAT_TEXTURES) console.warn('OES_texture_float extension not supported!');
 
-    HX.EXT_HALF_FLOAT_TEXTURES = HX.GL.getExtension('OES_texture_half_float');
+    if (!HX.OPTIONS.ignoreHalfFloatTextureExtension)
+        HX.EXT_HALF_FLOAT_TEXTURES = HX.GL.getExtension('OES_texture_half_float');
     if (!HX.EXT_HALF_FLOAT_TEXTURES) console.warn('OES_texture_half_float extension not supported!');
 
     HX.EXT_FLOAT_TEXTURES_LINEAR = HX.GL.getExtension('OES_texture_float_linear');
@@ -106,7 +104,9 @@ HX.initFromContext = function(glContext, options)
     HX.EXT_STANDARD_DERIVATIVES = HX.GL.getExtension('OES_standard_derivatives');
     if (!HX.EXT_STANDARD_DERIVATIVES) console.warn('OES_standard_derivatives extension not supported!');
 
-    HX.EXT_SHADER_TEXTURE_LOD = HX.GL.getExtension('EXT_shader_texture_lod');
+    if (!HX.OPTIONS.ignoreTextureLODExtension)
+        HX.EXT_SHADER_TEXTURE_LOD = HX.GL.getExtension('EXT_shader_texture_lod');
+
     if (!HX.EXT_SHADER_TEXTURE_LOD) console.warn('EXT_shader_texture_lod extension not supported!');
 
     HX.EXT_TEXTURE_FILTER_ANISOTROPIC = HX.GL.getExtension('EXT_texture_filter_anisotropic');
@@ -131,11 +131,12 @@ HX.initFromContext = function(glContext, options)
     var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
 
     HX.DEFAULT_TEXTURE_2D = new HX.Texture2D();
-    HX.DEFAULT_TEXTURE_2D.uploadData(data, 1, 1);
+    HX.DEFAULT_TEXTURE_2D.uploadData(data, 1, 1, true);
     HX.DEFAULT_TEXTURE_2D.setFilter(HX.TextureFilter.NEAREST_NOMIP);
 
     HX.DEFAULT_TEXTURE_CUBE = new HX.TextureCube();
-    HX.DEFAULT_TEXTURE_CUBE.uploadData([data, data, data, data, data, data], 1);
+    HX.DEFAULT_TEXTURE_CUBE.uploadData([data, data, data, data, data, data], 1, true);
+    HX.DEFAULT_TEXTURE_CUBE.setFilter(HX.TextureFilter.NEAREST_NOMIP);
 
     // TODO: Pregenerate
     var poissonDisk = new HX.PoissonDisk();
@@ -3827,8 +3828,8 @@ HX.VertexBuffer.prototype = {
  *
  * @param vertexShaderCode
  * @param fragmentShaderCode
- * @param preVertexCode Can contain defines and other things that need to be in there before any other includes
- * @param preFragmentCode
+ * @param preVertexCode Can contain defines and other things that need to be in there before any other includes (fe: extensions)
+ * @param preFragmentCode Can contain defines and other things that need to be in there before any other includes
  * @constructor
  */
 HX.Shader = function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
@@ -3858,8 +3859,8 @@ HX.Shader.prototype = {
 
     init: function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
     {
-        preVertexCode = preVertexCode || "";
-        preFragmentCode = preFragmentCode || "";
+        preVertexCode = (preVertexCode || "") + "\n";
+        preFragmentCode = (preFragmentCode || "") + "\n";
         vertexShaderCode = preVertexCode + HX.GLSLIncludeGeneral + vertexShaderCode;
         fragmentShaderCode = preFragmentCode + HX.GLSLIncludeGeneral + fragmentShaderCode;
 
@@ -5450,7 +5451,7 @@ HX.ScreenRenderer.prototype._createGBuffer = function()
         this._depthBuffer.setWrapMode(HX.TextureWrapMode.CLAMP);
     }
     else {
-        this._depthBuffer = HX.GL.createRenderbuffer();
+        this._depthBuffer = new HX.ReadOnlyDepthBuffer();
     }
 
     this._gbuffer = [];
@@ -5464,10 +5465,10 @@ HX.ScreenRenderer.prototype._createGBuffer = function()
     this._gbufferSingleFBOs = [];
 
     for (var i = 0; i < 3; ++i)
-        this._gbufferSingleFBOs[i] = new HX.FrameBuffer([ this._gbuffer[i] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
+        this._gbufferSingleFBOs[i] = new HX.FrameBuffer([ this._gbuffer[i] ], this._depthBuffer);
 
     this._createGBufferFBO();
-    this._linearDepthFBO = new HX.FrameBuffer(this._gbuffer[3], HX.FrameBuffer.DEPTH_MODE_DISABLED, null);
+    this._linearDepthFBO = new HX.FrameBuffer(this._gbuffer[3], null);
 };
 
 HX.ScreenRenderer.prototype._createGBufferFBO = function()
@@ -5483,18 +5484,20 @@ HX.ScreenRenderer.prototype._createHDRBuffers = function ()
     for (var i = 0; i < this._hdrBuffers.length; ++i) {
         this._hdrBuffers[i].setFilter(HX.TextureFilter.BILINEAR_NOMIP);
         this._hdrBuffers[i].setWrapMode(HX.TextureWrapMode.CLAMP);
-        this._hdrTargets[i] = new HX.FrameBuffer([ this._hdrBuffers[i] ], HX.FrameBuffer.DEPTH_MODE_DISABLED);
+        this._hdrTargets[i] = new HX.FrameBuffer([ this._hdrBuffers[i] ]);
     }
 
     this._hdrTargetsDepth = [];
-    this._hdrTargetsDepth[0] = new HX.FrameBuffer([ this._hdrBuffers[0] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
-    this._hdrTargetsDepth[1] = new HX.FrameBuffer([ this._hdrBuffers[1] ], HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
+    this._hdrTargetsDepth[0] = new HX.FrameBuffer([ this._hdrBuffers[0] ], this._depthBuffer);
+    this._hdrTargetsDepth[1] = new HX.FrameBuffer([ this._hdrBuffers[1] ], this._depthBuffer);
 };
 
 HX.ScreenRenderer.prototype._updateGBuffer = function (width, height)
 {
     if (HX.EXT_DEPTH_TEXTURE)
         this._depthBuffer.initEmpty(width, height, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
+    else
+        this._depthBuffer.init(width, height);
 
     for (var i = 0; i < this._gbuffer.length; ++i) {
         this._gbuffer[i].initEmpty(width, height, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
@@ -5555,10 +5558,10 @@ HX.ScreenRenderer.prototype._switchPass = function(oldPass, newPass)
 /**
  * @constructor
  */
-HX.EffectPass = function(vertexShader, fragmentShader, mesh)
+HX.EffectPass = function(vertexShader, fragmentShader, mesh, preVertexCode, preFragmentCode)
 {
     vertexShader = vertexShader || HX.ShaderLibrary.get("default_post_vertex.glsl");
-    var shader = new HX.Shader(vertexShader, fragmentShader);
+    var shader = new HX.Shader(vertexShader, fragmentShader, preVertexCode, preFragmentCode);
     HX.MaterialPass.call(this, shader);
     this._uniformSetters = HX.UniformSetter.getSetters(this._shader);
     this._gbuffer = null;
@@ -6210,7 +6213,7 @@ HX.SkyboxMaterial = function(texture)
     var shader = new HX.Shader(vertexShader, fragmentShader);
     var pass = new HX.MaterialPass(shader);
     pass.setCullMode(HX.CullMode.NONE);
-    this.setPass(HX.MaterialPass.POST_PASS, pass);
+    this.setPass(HX.MaterialPass.PRE_EFFECT_PASS, pass);
 
     this.setTexture("hx_skybox", texture);
 };
@@ -6859,10 +6862,10 @@ HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
 HX.GlobalSpecularProbe.prototype._initPass = function()
 {
     var defines = {};
-    var extensions = [];
+    var extensions;
 
     if (HX.EXT_SHADER_TEXTURE_LOD) {
-        extensions.push("GL_EXT_shader_texture_lod");
+        extensions = "#extension GL_EXT_shader_texture_lod : require";
         defines.USE_TEX_LOD = 1;
     }
 
@@ -6871,8 +6874,10 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
 
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("global_specular_probe_vertex.glsl"),
-        HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines, extensions),
-        HX.GlobalSpecularProbe._rectMesh
+        HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines),
+        HX.GlobalSpecularProbe._rectMesh,
+        null,
+        extensions
     );
 
     this._numMipsLocation = pass.getUniformLocation("numMips");
@@ -8115,17 +8120,15 @@ HX.SpherePrimitive.create = function(definition)
     return new HX.Model(modelData);
 }
 /**
- * If depth mode is WRITE ONLY, depthBuffer must not be passed, but will be managed internally.
- * TODO: This is not ideal, may want to use same depth buffer across app, so should be passed in too.
  * @constructor
  */
-HX.FrameBuffer = function(colorTextures, depthMode, depthBuffer)
+HX.FrameBuffer = function(colorTextures, depthBuffer)
 {
     if (colorTextures && colorTextures[0] === undefined) colorTextures = [ colorTextures ];
 
-    this._depthMode = depthMode === undefined? HX.FrameBuffer.DEPTH_MODE_WRITE_ONLY : depthMode;
     this._colorTextures = colorTextures;
     this._numColorTextures = this._colorTextures? this._colorTextures.length : 0;
+    this._depthBuffer = depthBuffer;
 
     if (this._colorTextures && this._numColorTextures > 1) {
 
@@ -8139,19 +8142,7 @@ HX.FrameBuffer = function(colorTextures, depthMode, depthBuffer)
     }
 
     this._fbo = HX.GL.createFramebuffer();
-
-    if (this._depthMode == HX.FrameBuffer.DEPTH_MODE_WRITE_ONLY) {
-        //if (depthBuffer) throw "Pass null or undefined for depthBuffer when depthMode is HX.FrameBuffer.DEPTH_MODE_WRITE_ONLY!";
-        this._depthBuffer = depthBuffer || HX.GL.createRenderbuffer();
-    }
-    else {
-        this._depthBuffer = depthBuffer;
-    }
 };
-
-HX.FrameBuffer.DEPTH_MODE_DISABLED = 0;
-HX.FrameBuffer.DEPTH_MODE_WRITE_ONLY = 1;
-HX.FrameBuffer.DEPTH_MODE_READ_WRITE = 2;
 
 HX.FrameBuffer.prototype = {
     constructor: HX.FrameBuffer,
@@ -8174,7 +8165,7 @@ HX.FrameBuffer.prototype = {
             this._width = this._colorTextures[0]._width;
             this._height = this._colorTextures[0]._height;
         }
-        else {
+        else  {
             this._width = this._depthBuffer._width;
             this._height = this._depthBuffer._height;
         }
@@ -8189,13 +8180,15 @@ HX.FrameBuffer.prototype = {
                 HX.GL.framebufferTexture2D(HX.GL.FRAMEBUFFER, HX.GL.COLOR_ATTACHMENT0 + i, HX.GL.TEXTURE_2D, texture._texture, 0);
         }
 
-        if (this._depthMode == HX.FrameBuffer.DEPTH_MODE_WRITE_ONLY) {
-            HX.GL.bindRenderbuffer(HX.GL.RENDERBUFFER, this._depthBuffer);
-            HX.GL.renderbufferStorage(HX.GL.RENDERBUFFER, HX.GL.DEPTH_STENCIL, this._colorTextures[0].width(), this._colorTextures[0].height());
-            HX.GL.framebufferRenderbuffer(HX.GL.FRAMEBUFFER, HX.GL.DEPTH_STENCIL_ATTACHMENT, HX.GL.RENDERBUFFER, this._depthBuffer);
-        }
-        else if (this._depthMode == HX.FrameBuffer.DEPTH_MODE_READ_WRITE) {
-            HX.GL.framebufferTexture2D(HX.GL.FRAMEBUFFER, HX.GL.DEPTH_STENCIL_ATTACHMENT, HX.GL.TEXTURE_2D, this._depthBuffer._texture, 0);
+
+        if (this._depthBuffer) {
+            if (this._depthBuffer instanceof HX.Texture2D) {
+                HX.GL.framebufferTexture2D(HX.GL.FRAMEBUFFER, HX.GL.DEPTH_STENCIL_ATTACHMENT, HX.GL.TEXTURE_2D, this._depthBuffer._texture, 0);
+            }
+            else {
+                HX.GL.bindRenderbuffer(HX.GL.RENDERBUFFER, this._depthBuffer._renderBuffer);
+                HX.GL.framebufferRenderbuffer(HX.GL.FRAMEBUFFER, HX.GL.DEPTH_STENCIL_ATTACHMENT, HX.GL.RENDERBUFFER, this._depthBuffer._renderBuffer);
+            }
         }
 
         var status = HX.GL.checkFramebufferStatus(HX.GL.FRAMEBUFFER);
@@ -8221,9 +8214,41 @@ HX.FrameBuffer.prototype = {
     dispose: function()
     {
         HX.GL.deleteFramebuffer(this._fbo);
+    }
+};
+/**
+ * @constructor
+ */
+HX.ReadOnlyDepthBuffer = function()
+{
+    this._renderBuffer = HX.GL.createRenderbuffer();
+};
 
-        if (this._depthMode === HX.FrameBuffer.DEPTH_MODE_WRITE_ONLY)
-            HX.GL.deleteRenderBuffer(this._depthBuffer);
+HX.ReadOnlyDepthBuffer.prototype = {
+    constructor: HX.FrameBuffer,
+
+    width: function() { return this._width; },
+    height: function() { return this._height; },
+
+    /**
+     *
+     * @param width
+     * @param height
+     * @param formats An Array of formats for each color buffer. If only one provided, it will be used for all. Defaults to [ HX.GL.RGBA ]
+     * @param dataTypes An Array of data types for each color buffer. If only one provided, it will be used for all. Defaults to [ HX.GL.UNSIGNED_BYTE ]
+     */
+    init: function(width, height)
+    {
+        this._width = width;
+        this._height = height;
+
+        HX.GL.bindRenderbuffer(HX.GL.RENDERBUFFER, this._renderBuffer);
+        HX.GL.renderbufferStorage(HX.GL.RENDERBUFFER, HX.GL.DEPTH_STENCIL, width, height);
+    },
+
+    dispose: function()
+    {
+        HX.GL.deleteRenderBuffer(this._fbo);
     }
 };
 /**
@@ -8762,7 +8787,7 @@ HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
     this._shadowMapSize = shadowMapSize || 1024;
     this._shadowMapInvalid = true;
     this._shadowMap = new HX.Texture2D();
-    this._fbo = new HX.FrameBuffer(null, HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._shadowMap);
+    this._fbo = new HX.FrameBuffer(null, this._shadowMap);
     this._shadowMap.setFilter(HX.TextureFilter.NEAREST_NOMIP);
     this._shadowMap.setWrapMode(HX.TextureWrapMode.CLAMP);
     this._shadowMatrices = [ new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4() ];
@@ -9078,7 +9103,7 @@ HX.MRTRenderer.prototype._renderToGBuffer = function()
 HX.MRTRenderer.prototype._createGBufferFBO = function()
 {
     var targets = [ this._gbuffer[0], this._gbuffer[1], this._gbuffer[2] ];
-    this._gbufferFBO = new HX.FrameBuffer(targets, HX.FrameBuffer.DEPTH_MODE_READ_WRITE, this._depthBuffer);
+    this._gbufferFBO = new HX.FrameBuffer(targets, this._depthBuffer);
 };
 
 HX.MRTRenderer.prototype._updateGBufferFBO = function ()
@@ -9547,7 +9572,7 @@ HX.BloomEffect = function(blurSizes, weights)
         this._thresholdMaps[i] = new HX.Texture2D();
         this._thresholdMaps[i].setFilter(HX.TextureFilter.BILINEAR_NOMIP);
         this._thresholdMaps[i].setWrapMode(HX.TextureWrapMode.CLAMP);
-        this._thresholdFBOs[i] = new HX.FrameBuffer([this._thresholdMaps[i]], HX.FrameBuffer.DEPTH_MODE_DISABLED);
+        this._thresholdFBOs[i] = new HX.FrameBuffer([this._thresholdMaps[i]]);
     }
 
     this._blurSizes = blurSizes || [ 512, 256 ];
@@ -9988,7 +10013,7 @@ HX.HBAO = function(numRays, numSamplesPerRay)
     this._aoTexture = new HX.Texture2D();
     this._aoTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
     this._aoTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
-    this._fbo = new HX.FrameBuffer(this._aoTexture, HX.FrameBuffer.DEPTH_MODE_DISABLED);
+    this._fbo = new HX.FrameBuffer(this._aoTexture);
 };
 
 HX.HBAO.prototype = Object.create(HX.Effect.prototype);
@@ -10264,7 +10289,7 @@ HX.SSAO = function(numSamples)
     this._ssaoTexture = new HX.Texture2D();
     this._ssaoTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
     this._ssaoTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
-    this._fbo = new HX.FrameBuffer(this._ssaoTexture, HX.FrameBuffer.DEPTH_MODE_DISABLED);
+    this._fbo = new HX.FrameBuffer(this._ssaoTexture);
 };
 
 HX.SSAO.prototype = Object.create(HX.Effect.prototype);
@@ -10363,24 +10388,24 @@ HX.SSAO.prototype._initDitherTexture = function()
     this._ditherTexture.setFilter(HX.TextureFilter.NEAREST_NOMIP);
     this._ditherTexture.setWrapMode(HX.TextureWrapMode.REPEAT);
 };
-HX.ToneMapEffect = function(toneMapPass, adaptive)
+HX.ToneMapEffect = function(adaptive)
 {
     this._adaptive = adaptive === undefined? false : adaptive;
 
     if (this._adaptive && (!HX.EXT_SHADER_TEXTURE_LOD || !HX.EXT_HALF_FLOAT_TEXTURES)) {
-        this._isSupported = false;
+        console.log("Warning: adaptive tone mapping not supported, using non-adaptive");
+        this._adaptive = false;
         return;
     }
 
     HX.Effect.call(this);
-    this._toneMapPass = toneMapPass;
 
     if (this._adaptive) {
         this.addPass(new HX.EffectPass(null, HX.ShaderLibrary.get("tonemap_reference_fragment.glsl")));
 
         this._luminanceMap = new HX.Texture2D();
         this._luminanceMap.initEmpty(256, 256, HX.GL.RGBA, HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
-        this._luminanceFBO = new HX.FrameBuffer([this._luminanceMap], HX.FrameBuffer.DEPTH_MODE_DISABLED);
+        this._luminanceFBO = new HX.FrameBuffer([this._luminanceMap]);
         this._luminanceFBO.init();
 
         this._adaptationRate = 500.0;
@@ -10389,6 +10414,7 @@ HX.ToneMapEffect = function(toneMapPass, adaptive)
         this._toneMapPass.setUniform("hx_luminanceMipLevel", Math.log(this._luminanceMap._width) / Math.log(2));
     }
 
+    this._toneMapPass = this._createToneMapPass();
     this.addPass(this._toneMapPass);
 
     this.referenceLuminance = .3;
@@ -10396,6 +10422,12 @@ HX.ToneMapEffect = function(toneMapPass, adaptive)
 };
 
 HX.ToneMapEffect.prototype = Object.create(HX.Effect.prototype);
+
+HX.ToneMapEffect.prototype._createToneMapPass = function()
+{
+    throw new Error("Abstract method called!");
+}
+
 
 HX.ToneMapEffect.prototype.dispose = function()
 {
@@ -10479,22 +10511,29 @@ Object.defineProperty(HX.ToneMapEffect.prototype, "adaptationRate", {
  */
 HX.ReinhardToneMapEffect = function(adaptive)
 {
-    var defines = {};
-    var extensions = [];
-
-    if (adaptive) {
-        defines.ADAPTIVE = 1;
-        extensions.push("GL_EXT_shader_texture_lod");
-    }
-
-    var pass = new HX.EffectPass(
-        null,
-        HX.ShaderLibrary.get("tonemap_reinhard_fragment.glsl", defines, extensions)
-    );
     HX.ToneMapEffect.call(this, pass, adaptive);
 };
 
 HX.ReinhardToneMapEffect.prototype = Object.create(HX.ToneMapEffect.prototype);
+
+HX.ReinhardToneMapEffect.prototype._createToneMapPass = function()
+{
+    var defines = {};
+    var extensions;
+
+    if (this._adaptive) {
+        defines.ADAPTIVE = 1;
+        extensions = "#extension GL_EXT_shader_texture_lod : require";
+    }
+
+    return new HX.EffectPass(
+        null,
+        HX.ShaderLibrary.get("tonemap_reinhard_fragment.glsl", defines, extensions),
+        null,
+        null,
+        extensions
+    );
+};
 
 /**
  *
@@ -10502,26 +10541,31 @@ HX.ReinhardToneMapEffect.prototype = Object.create(HX.ToneMapEffect.prototype);
  */
 HX.FilmicToneMapEffect = function(adaptive)
 {
-    var defines = {};
-    var extensions = [];
-
-    if (adaptive) {
-        defines.ADAPTIVE = 1;
-        extensions.push("GL_EXT_shader_texture_lod");
-    }
-
-    var pass = new HX.EffectPass(
-        null,
-        HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl", defines, extensions)
-    );
-
-
-    HX.ToneMapEffect.call(this, pass, adaptive);
+    HX.ToneMapEffect.call(this, adaptive);
     this._outputsGamma = true;
 
 };
 
 HX.FilmicToneMapEffect.prototype = Object.create(HX.ToneMapEffect.prototype);
+
+HX.FilmicToneMapEffect.prototype._createToneMapPass = function()
+{
+    var defines = {};
+    var extensions;
+
+    if (this._adaptive) {
+        defines.ADAPTIVE = 1;
+        extensions = "#extension GL_EXT_shader_texture_lod : require";
+    }
+
+    return new HX.EffectPass(
+        null,
+        HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl", defines, extensions),
+        null,
+        null,
+        extensions
+    );
+};
 HX.ModelParser =
 {
     _registeredParsers: []

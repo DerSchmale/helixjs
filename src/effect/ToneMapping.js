@@ -1,21 +1,21 @@
-HX.ToneMapEffect = function(toneMapPass, adaptive)
+HX.ToneMapEffect = function(adaptive)
 {
     this._adaptive = adaptive === undefined? false : adaptive;
 
     if (this._adaptive && (!HX.EXT_SHADER_TEXTURE_LOD || !HX.EXT_HALF_FLOAT_TEXTURES)) {
-        this._isSupported = false;
+        console.log("Warning: adaptive tone mapping not supported, using non-adaptive");
+        this._adaptive = false;
         return;
     }
 
     HX.Effect.call(this);
-    this._toneMapPass = toneMapPass;
 
     if (this._adaptive) {
         this.addPass(new HX.EffectPass(null, HX.ShaderLibrary.get("tonemap_reference_fragment.glsl")));
 
         this._luminanceMap = new HX.Texture2D();
         this._luminanceMap.initEmpty(256, 256, HX.GL.RGBA, HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
-        this._luminanceFBO = new HX.FrameBuffer([this._luminanceMap], HX.FrameBuffer.DEPTH_MODE_DISABLED);
+        this._luminanceFBO = new HX.FrameBuffer([this._luminanceMap]);
         this._luminanceFBO.init();
 
         this._adaptationRate = 500.0;
@@ -24,6 +24,7 @@ HX.ToneMapEffect = function(toneMapPass, adaptive)
         this._toneMapPass.setUniform("hx_luminanceMipLevel", Math.log(this._luminanceMap._width) / Math.log(2));
     }
 
+    this._toneMapPass = this._createToneMapPass();
     this.addPass(this._toneMapPass);
 
     this.referenceLuminance = .3;
@@ -31,6 +32,12 @@ HX.ToneMapEffect = function(toneMapPass, adaptive)
 };
 
 HX.ToneMapEffect.prototype = Object.create(HX.Effect.prototype);
+
+HX.ToneMapEffect.prototype._createToneMapPass = function()
+{
+    throw new Error("Abstract method called!");
+}
+
 
 HX.ToneMapEffect.prototype.dispose = function()
 {
@@ -114,22 +121,29 @@ Object.defineProperty(HX.ToneMapEffect.prototype, "adaptationRate", {
  */
 HX.ReinhardToneMapEffect = function(adaptive)
 {
-    var defines = {};
-    var extensions = [];
-
-    if (adaptive) {
-        defines.ADAPTIVE = 1;
-        extensions.push("GL_EXT_shader_texture_lod");
-    }
-
-    var pass = new HX.EffectPass(
-        null,
-        HX.ShaderLibrary.get("tonemap_reinhard_fragment.glsl", defines, extensions)
-    );
     HX.ToneMapEffect.call(this, pass, adaptive);
 };
 
 HX.ReinhardToneMapEffect.prototype = Object.create(HX.ToneMapEffect.prototype);
+
+HX.ReinhardToneMapEffect.prototype._createToneMapPass = function()
+{
+    var defines = {};
+    var extensions;
+
+    if (this._adaptive) {
+        defines.ADAPTIVE = 1;
+        extensions = "#extension GL_EXT_shader_texture_lod : require";
+    }
+
+    return new HX.EffectPass(
+        null,
+        HX.ShaderLibrary.get("tonemap_reinhard_fragment.glsl", defines, extensions),
+        null,
+        null,
+        extensions
+    );
+};
 
 /**
  *
@@ -137,23 +151,28 @@ HX.ReinhardToneMapEffect.prototype = Object.create(HX.ToneMapEffect.prototype);
  */
 HX.FilmicToneMapEffect = function(adaptive)
 {
-    var defines = {};
-    var extensions = [];
-
-    if (adaptive) {
-        defines.ADAPTIVE = 1;
-        extensions.push("GL_EXT_shader_texture_lod");
-    }
-
-    var pass = new HX.EffectPass(
-        null,
-        HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl", defines, extensions)
-    );
-
-
-    HX.ToneMapEffect.call(this, pass, adaptive);
+    HX.ToneMapEffect.call(this, adaptive);
     this._outputsGamma = true;
 
 };
 
 HX.FilmicToneMapEffect.prototype = Object.create(HX.ToneMapEffect.prototype);
+
+HX.FilmicToneMapEffect.prototype._createToneMapPass = function()
+{
+    var defines = {};
+    var extensions;
+
+    if (this._adaptive) {
+        defines.ADAPTIVE = 1;
+        extensions = "#extension GL_EXT_shader_texture_lod : require";
+    }
+
+    return new HX.EffectPass(
+        null,
+        HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl", defines, extensions),
+        null,
+        null,
+        extensions
+    );
+};

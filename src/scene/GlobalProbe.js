@@ -44,10 +44,10 @@ HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
 HX.GlobalSpecularProbe.prototype._initPass = function()
 {
     var defines = {};
-    var extensions = [];
+    var extensions;
 
     if (HX.EXT_SHADER_TEXTURE_LOD) {
-        extensions.push("GL_EXT_shader_texture_lod");
+        extensions = "#extension GL_EXT_shader_texture_lod : require";
         defines.USE_TEX_LOD = 1;
     }
 
@@ -56,8 +56,10 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
 
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("global_specular_probe_vertex.glsl"),
-        HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines, extensions),
-        HX.GlobalSpecularProbe._rectMesh
+        HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines),
+        HX.GlobalSpecularProbe._rectMesh,
+        null,
+        extensions
     );
 
     this._numMipsLocation = pass.getUniformLocation("numMips");

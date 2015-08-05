@@ -10,6 +10,8 @@ HX.ToneMapEffect = function(adaptive)
 
     HX.Effect.call(this);
 
+    this._toneMapPass = this._createToneMapPass();
+
     if (this._adaptive) {
         this.addPass(new HX.EffectPass(null, HX.ShaderLibrary.get("tonemap_reference_fragment.glsl")));
 
@@ -24,11 +26,9 @@ HX.ToneMapEffect = function(adaptive)
         this._toneMapPass.setUniform("hx_luminanceMipLevel", Math.log(this._luminanceMap._width) / Math.log(2));
     }
 
-    this._toneMapPass = this._createToneMapPass();
     this.addPass(this._toneMapPass);
 
-    this.referenceLuminance = .3;
-    this.exposure = 1.0;
+    this.exposure = 0.0;
 };
 
 HX.ToneMapEffect.prototype = Object.create(HX.Effect.prototype);
@@ -82,21 +82,7 @@ Object.defineProperty(HX.ToneMapEffect.prototype, "exposure", {
     {
         this._exposure = value;
         if (this._isSupported)
-            this._toneMapPass.setUniform("exposure", value);
-    }
-});
-
-Object.defineProperty(HX.ToneMapEffect.prototype, "referenceLuminance", {
-    get: function()
-    {
-        return this._referenceLuminance;
-    },
-
-    set: function(value)
-    {
-        this._referenceLuminance = value;
-        if (!this._adaptive)
-            this._toneMapPass.setUniform("referenceLuminance", value);
+            this._toneMapPass.setUniform("hx_exposure", Math.pow(2.0, value));
     }
 });
 
@@ -121,7 +107,7 @@ Object.defineProperty(HX.ToneMapEffect.prototype, "adaptationRate", {
  */
 HX.ReinhardToneMapEffect = function(adaptive)
 {
-    HX.ToneMapEffect.call(this, pass, adaptive);
+    HX.ToneMapEffect.call(this, adaptive);
 };
 
 HX.ReinhardToneMapEffect.prototype = Object.create(HX.ToneMapEffect.prototype);
@@ -138,7 +124,8 @@ HX.ReinhardToneMapEffect.prototype._createToneMapPass = function()
 
     return new HX.EffectPass(
         null,
-        HX.ShaderLibrary.get("tonemap_reinhard_fragment.glsl", defines, extensions),
+        HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" +
+        HX.ShaderLibrary.get("tonemap_reinhard_fragment.glsl"),
         null,
         null,
         extensions
@@ -170,7 +157,8 @@ HX.FilmicToneMapEffect.prototype._createToneMapPass = function()
 
     return new HX.EffectPass(
         null,
-        HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl", defines, extensions),
+        HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" +
+        HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl"),
         null,
         null,
         extensions

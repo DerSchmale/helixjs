@@ -150,8 +150,6 @@ HX.ScreenRenderer = function()
     this._createGBuffer();
     this._createHDRBuffers();
 
-    this._linearDepthInvalid = true;
-
     this._debugMode = HX.DebugRenderMode.DEBUG_NONE;
     this._camera = null;
 };
@@ -214,8 +212,6 @@ HX.ScreenRenderer.prototype.render = function(camera, scene, dt)
     HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
     this._renderToGBuffer();
     this._linearizeDepth();
-    this._renderPostToGBuffer();
-    if (this._linearDepthInvalid) this._linearizeDepth();
 
     HX.GL.disable(HX.GL.BLEND);
     HX.GL.disable(HX.GL.DEPTH_TEST);
@@ -254,7 +250,6 @@ HX.ScreenRenderer.prototype._linearizeDepth = function()
 
     HX.setRenderTarget(this._linearDepthFBO);
     this._linearizeDepthShader.execute(this._rectMesh, HX.EXT_DEPTH_TEXTURE? this._depthBuffer : this._gbuffer[1], this._camera)
-    this._linearDepthInvalid = false;
 }
 
 HX.ScreenRenderer.prototype._renderEffect = function(effect, dt)
@@ -262,27 +257,6 @@ HX.ScreenRenderer.prototype._renderEffect = function(effect, dt)
     this._gammaApplied = this._gammaApplied || effect._outputsGamma;
     this._hdrSourceIndex = effect.render(this, dt);
 };
-
-HX.ScreenRenderer.prototype._renderPostToGBuffer = function()
-{
-    HX.GL.enable(HX.GL.CULL_FACE);
-    HX.GL.enable(HX.GL.DEPTH_TEST);
-    HX.GL.depthFunc(HX.GL.LEQUAL);
-
-    // normals first, because diffuse + specular may want to abuse calculated normals (water)
-    this._renderPostGBufferPass(1, HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS);
-    this._renderPostGBufferPass(0, HX.MaterialPass.GEOMETRY_POST_COLOR_PASS);
-    this._renderPostGBufferPass(2, HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS);
-}
-
-HX.ScreenRenderer.prototype._renderPostGBufferPass = function(gbufferIndex, passType)
-{
-    if (this._renderCollector.getRenderList(passType).length > 0) {
-        HX.setRenderTarget(this._gbufferSingleFBOs[gbufferIndex]);
-        this._renderPass(passType);
-        this._linearDepthInvalid = true;
-    }
-}
 
 HX.ScreenRenderer.prototype._renderToScreen = function(dt)
 {

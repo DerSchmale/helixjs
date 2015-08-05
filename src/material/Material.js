@@ -26,15 +26,12 @@ HX.MaterialPass = function (shader)
 };
 
 HX.MaterialPass.GEOMETRY_PASS = 0;
-HX.MaterialPass.GEOMETRY_POST_COLOR_PASS = 1;
-HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS = 2;
-HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS = 3;
 // used for post-lighting
-HX.MaterialPass.PRE_EFFECT_PASS = 4;
-HX.MaterialPass.POST_PASS = 5;
+HX.MaterialPass.PRE_EFFECT_PASS = 1;
+HX.MaterialPass.POST_PASS = 2;
 
 // the individual pass type are not taken into account, they will be dealt with specially
-HX.MaterialPass.NUM_PASS_TYPES = 6;
+HX.MaterialPass.NUM_PASS_TYPES = 3;
 
 // only used by the old renderer, will be removed at some point
 // use diffuse as alias for geometry pass

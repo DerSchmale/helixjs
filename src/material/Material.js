@@ -23,15 +23,22 @@ HX.MaterialPass = function (shader)
     this._enabled = true;
 
     this._storeUniforms();
+    //this._sourceSlot = this.getTextureSlot("hx_source");
 };
 
 HX.MaterialPass.GEOMETRY_PASS = 0;
+
 // used for post-lighting
-HX.MaterialPass.PRE_EFFECT_PASS = 1;
-HX.MaterialPass.POST_PASS = 2;
+HX.MaterialPass.POST_LIGHT_PASS = 1;
+
+// used for transparent rendering
+HX.MaterialPass.TRANSPARENT_DIFFUSE_PASS = 2;
+HX.MaterialPass.TRANSPARENT_SPECULAR_PASS = 3;
+
+HX.MaterialPass.POST_PASS = 4;
 
 // the individual pass type are not taken into account, they will be dealt with specially
-HX.MaterialPass.NUM_PASS_TYPES = 3;
+HX.MaterialPass.NUM_PASS_TYPES = 5;
 
 // only used by the old renderer, will be removed at some point
 // use diffuse as alias for geometry pass
@@ -79,6 +86,12 @@ HX.MaterialPass.prototype = {
         this._blendSource = source;
         this._blendDest = dest;
         this._blendOperator = op;
+    },
+
+    assignSourceBuffer: function(source)
+    {
+        if (this._sourceSlot)
+            this._sourceSlot.texture = source;
     },
 
     assignGBuffer: function(gbuffer)
@@ -304,10 +317,7 @@ HX.Material._parseXMLTo = function(xml, material)
 {
     HX.Material._parseGeometryPassFromXML(xml, material);
 
-    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_COLOR_PASS, "geometryPostColor", material);
-    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_NORMAL_PASS, "geometryPostNormal", material);
-    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_POST_SPECULAR_PASS, "geometryPostSpecular", material);
-    HX.Material._parsePassFromXML(xml, HX.MaterialPass.PRE_EFFECT_PASS, "preEffect", material);
+    HX.Material._parsePassFromXML(xml, HX.MaterialPass.POST_LIGHT_PASS, "preEffect", material);
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.POST_PASS, "post", material);
 
     var uniforms = xml.getElementsByTagName("uniforms")[0];
@@ -464,7 +474,7 @@ HX.Material.prototype = {
 
     hasPass: function (type)
     {
-        return this._passes[type] !== undefined;
+        return !!this._passes[type];
     },
 
     setTexture: function(slotName, texture)
@@ -472,7 +482,7 @@ HX.Material.prototype = {
         this._textures[slotName] = texture;
 
         for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i)
-            if (this._passes[i]) this._passes[i].setTexture(slotName, texture);
+            if (this.hasPass(i)) this._passes[i].setTexture(slotName, texture);
     },
 
     /**

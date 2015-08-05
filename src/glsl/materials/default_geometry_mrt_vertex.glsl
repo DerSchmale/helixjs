@@ -6,7 +6,7 @@ uniform mat3 hx_normalWorldMatrix;
 
 varying vec3 normal;
 
-#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(SPECULAR_MAP)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(TRANSPARENT_REFRACT)
 attribute vec2 hx_texCoord;
 varying vec2 texCoords;
 #endif
@@ -32,7 +32,7 @@ void main()
     bitangent = cross(tangent, normal) * hx_tangent.w;
 #endif
 
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(TRANSPARENT_REFRACT)
     texCoords = hx_texCoord;
 #endif
 }

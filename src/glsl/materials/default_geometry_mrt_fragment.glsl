@@ -1,4 +1,4 @@
-#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(SPECULAR_MAP)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(TRANSPARENT_REFRACT)
 varying vec2 texCoords;
 #endif
 
@@ -23,6 +23,16 @@ uniform float metallicness;
 
 #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
 uniform sampler2D specularMap;
+#endif
+
+#ifdef TRANSPARENT_REFRACT
+// when used as TRANSPARENT_DIFFUSE, hx_source is a copy of the render target:
+uniform sampler2D hx_source;
+uniform sampler2D hx_gbufferDepth;
+
+uniform mat4 hx_projectionMatrix;
+uniform float hx_cameraFrustumRange;
+uniform float refractionStrength;   // sort of per meter. TODO: Must improve
 #endif
 
 void main()
@@ -54,13 +64,22 @@ void main()
     #endif
 
     #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
-          vec4 specSample = texture2D(specularMap, uv);
+          vec4 specSample = texture2D(specularMap, texCoords);
           roughnessOut = 1.0 - (1.0 - roughnessOut) * specularMap.x;
 
           #ifdef SPECULAR_MAP
               specNormalReflOut *= specularMap.y;
               metallicnessOut *= specularMap.z;
           #endif
+    #endif
+
+    #ifdef TRANSPARENT_REFRACT
+        float depth = hx_sampleLinearDepth(hx_gbufferDepth, texCoords);
+        float viewZ = hx_depthToViewZ(gl_FragCoord.z, hx_projectionMatrix);
+        float distance = max(viewZ - depth * hx_cameraFrustumRange, 0.0);
+        vec2 displacement = normal.xy * distance * refractionStrength;
+        vec4 background = texture2D(hx_source, texCoords + displacement);
+        outputColor *= background;
     #endif
 
     // todo: should we linearize depth here instead?

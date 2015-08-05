@@ -36,7 +36,8 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
     scene.acceptVisitor(this);
 
     this._passes[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques);
-    // may want to use sort for blended instead?
+    this._passes[HX.MaterialPass.TRANSPARENT_DIFFUSE_PASS].sort(this._sortBlended);
+    this._passes[HX.MaterialPass.TRANSPARENT_SPECULAR_PASS].sort(this._sortBlended);
     this._passes[HX.MaterialPass.POST_PASS].sort(this._sortOpaques);
 
     if (!HX.EXT_DRAW_BUFFERS)

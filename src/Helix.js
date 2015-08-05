@@ -14,6 +14,7 @@ HX.InitOptions = function()
     this.useLinearSpace = true;
 
     // debug-related
+    this.debug = false;   // requires webgl-debug.js:
     this.ignoreDrawBuffersExtension = false;     // forces multiple passes for the GBuffer
     this.ignoreDepthTexturesExtension = false;     // forces storing depth info explicitly
     this.ignoreTextureLODExtension = false;     // forces storing depth info explicitly
@@ -181,7 +182,11 @@ HX.initFromCanvas = function(canvas, options)
         antialias:false,
         premultipliedAlpha: false
     };
+
     var context = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
+    if (options && options.debug) {
+        eval("context = WebGLDebugUtils.makeDebugContext(context);");
+    }
     HX.initFromContext(context, options);
 
     if (!HX.GL) throw "WebGL not supported";

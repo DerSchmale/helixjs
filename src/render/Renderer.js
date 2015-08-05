@@ -79,7 +79,7 @@ HX.Renderer.prototype =
     {
         // clean up old pass
         if (!oldPass || oldPass._cullMode !== oldPass._cullMode) {
-            if (newPass._cullMode === null)
+            if (newPass._cullMode === HX.CullMode.NONE)
                 HX.GL.disable(HX.GL.CULL_FACE);
             else {
                 HX.GL.enable(HX.GL.CULL_FACE);
@@ -297,9 +297,14 @@ HX.ScreenRenderer.prototype._renderToScreen = function(dt)
         default:
             this._renderLightAccumulation(dt);
 
-            this._renderPostPass(this._hdrTargetsDepth[this._hdrSourceIndex], HX.MaterialPass.PRE_EFFECT_PASS);
+            this._renderPostPass(HX.MaterialPass.POST_LIGHT_PASS);
+
+            // TODO: only perform this if any pass in the list has a hx_source slot
+            this._copySource();
+            this._renderPostPass(HX.MaterialPass.TRANSPARENT_DIFFUSE_PASS);
+
             this._renderEffects(dt, this._renderCollector._effects);
-            this._renderPostPass(this._hdrTargetsDepth[this._hdrSourceIndex], HX.MaterialPass.POST_PASS);
+            this._renderPostPass(HX.MaterialPass.POST_PASS);
             this._renderEffects(dt, this._camera._effects);
 
             HX.setRenderTarget(null);
@@ -381,33 +386,34 @@ HX.ScreenRenderer.prototype._renderPass = function(passType, renderItems)
     HX.Renderer.prototype._renderPass.call(this, passType, renderItems);
 };
 
-HX.ScreenRenderer.prototype._renderPostPass = function(target, passType)
-{
-    if (this._renderCollector.getRenderList(passType).length == 0)
-        return;
-
-    // TODO: only perform this if any pass in the list has a hx_source slot
-    this._copySource();
-
-    HX.GL.enable(HX.GL.CULL_FACE);
-    HX.GL.enable(HX.GL.DEPTH_TEST);
-    HX.GL.depthFunc(HX.GL.LEQUAL);
-
-    HX.setRenderTarget(target);
-    this._renderPass(passType);
-};
-
 HX.ScreenRenderer.prototype._copySource = function()
 {
     var source = this._hdrBuffers[this._hdrSourceIndex];
     var hdrTarget = 1 - this._hdrSourceIndex;
+
     HX.setRenderTarget(this._hdrTargets[hdrTarget]);
     HX.GL.disable(HX.GL.BLEND);
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
     this._copyTexture.execute(this._rectMesh, source);
+
     this._passSourceTexture = this._hdrBuffers[hdrTarget];
-}
+};
+
+HX.ScreenRenderer.prototype._renderPostPass = function(passType)
+{
+
+    if (this._renderCollector.getRenderList(passType).length == 0)
+        return;
+
+    HX.setRenderTarget(this._hdrTargetsDepth[this._hdrSourceIndex]);
+
+    HX.GL.enable(HX.GL.CULL_FACE);
+    HX.GL.enable(HX.GL.DEPTH_TEST);
+    HX.GL.depthFunc(HX.GL.LEQUAL);
+
+    this._renderPass(passType);
+};
 
 HX.ScreenRenderer.prototype._renderEffects = function(dt, effects)
 {
@@ -464,17 +470,15 @@ HX.ScreenRenderer.prototype._createGBufferFBO = function()
 HX.ScreenRenderer.prototype._createHDRBuffers = function ()
 {
     this._hdrBuffers = [ new HX.Texture2D(), new HX.Texture2D() ];
-    this._hdrTargets = [ ];
+    this._hdrTargets = [];
+    this._hdrTargetsDepth = [];
 
     for (var i = 0; i < this._hdrBuffers.length; ++i) {
         this._hdrBuffers[i].setFilter(HX.TextureFilter.BILINEAR_NOMIP);
         this._hdrBuffers[i].setWrapMode(HX.TextureWrapMode.CLAMP);
         this._hdrTargets[i] = new HX.FrameBuffer([ this._hdrBuffers[i] ]);
+        this._hdrTargetsDepth[i] = new HX.FrameBuffer([ this._hdrBuffers[i] ], this._depthBuffer);
     }
-
-    this._hdrTargetsDepth = [];
-    this._hdrTargetsDepth[0] = new HX.FrameBuffer([ this._hdrBuffers[0] ], this._depthBuffer);
-    this._hdrTargetsDepth[1] = new HX.FrameBuffer([ this._hdrBuffers[1] ], this._depthBuffer);
 };
 
 HX.ScreenRenderer.prototype._updateGBuffer = function (width, height)
@@ -534,9 +538,11 @@ HX.ScreenRenderer.prototype.dispose = function()
 
 HX.ScreenRenderer.prototype._switchPass = function(oldPass, newPass)
 {
-    HX.Renderer.prototype._switchPass.call(this, oldPass, newPass);
     newPass.assignGBuffer(this._gbuffer);
-    if (this._passSourceTexture) {
+
+    // this is slow!
+    if (this._passSourceTexture)
         newPass.setTexture("hx_source", this._passSourceTexture);
-    }
+
+    HX.Renderer.prototype._switchPass.call(this, oldPass, newPass);
 };

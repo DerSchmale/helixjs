@@ -6027,13 +6027,13 @@ HX.PBRMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 HX.PBRMaterial.prototype = Object.create(HX.Material.prototype);
 
-HX.PBRMaterial.prototype.hasPass = function(type)
-{
-    if (this._passesInvalid)
-        this._updatePasses();
+//HX.PBRMaterial.prototype.hasPass = function(type)
+//{
+    //if (this._passesInvalid)
+    //    this._updatePasses();
 
-    return HX.Material.prototype.hasPass.call(this, type);
-};
+    //return HX.Material.prototype.hasPass.call(this, type);
+//};
 
 HX.PBRMaterial.prototype.getPass = function(type)
 {
@@ -6060,12 +6060,12 @@ HX.PBRMaterial.prototype._updatePasses = function()
     // TODO: this is something every material should have to do, so perhaps it should work differently?
     if (this._transparent) {
         // this is actually the same code as simple albedo output, but multiplicative blending
-        colorDefines = "#define NO_MRT_GBUFFER_COLOR\n" + colorDefines;
+        var defines = "#define NO_MRT_GBUFFER_COLOR\n" + normalDefines + colorDefines;
 
         if (this._refract)
-            colorDefines = "#define TRANSPARENT_REFRACT\n" + colorDefines;
+            defines = "#define TRANSPARENT_REFRACT\n" + defines;
 
-        var pass = this._initPass(HX.MaterialPass.TRANSPARENT_DIFFUSE_PASS, colorDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+        var pass = this._initPass(HX.MaterialPass.TRANSPARENT_DIFFUSE_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
 
         if (!this._refract)
             pass.setBlendMode(HX.BlendFactor.ZERO, HX.BlendFactor.SOURCE_COLOR, HX.BlendOperation.ADD);

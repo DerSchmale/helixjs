@@ -13,7 +13,7 @@ HX.PBRMaterial = function()
     this._metallicness = 0.0;
     this._roughness = 0.3;
     this._specularNormalReflection = 0.027;
-    this._refractionStrength = 0.001;
+    this._refractionRatio = 0.01;
     this.metallicness = 0.0;
     this.roughness = 0.3;
     this.specularNormalReflection = 0.027;
@@ -254,12 +254,12 @@ Object.defineProperty(HX.PBRMaterial.prototype, "refract",
     }
 );
 
-Object.defineProperty(HX.PBRMaterial.prototype, "refractionStrength",
+Object.defineProperty(HX.PBRMaterial.prototype, "refractionRatio",
     {
-        get: function() { return this._refractionStrength; },
+        get: function() { return this._refractionRatio; },
         set: function(value) {
-            this._refractionStrength = value;
-            this.setUniform("refractionStrength", value);
+            this._refractionRatio = value;
+            this.setUniform("refractionRatio", value);
         }
     }
 );

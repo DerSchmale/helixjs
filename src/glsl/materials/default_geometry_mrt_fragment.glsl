@@ -26,13 +26,15 @@ uniform sampler2D specularMap;
 #endif
 
 #ifdef TRANSPARENT_REFRACT
+varying vec3 viewVector;
+
 // when used as TRANSPARENT_DIFFUSE, hx_source is a copy of the render target:
 uniform sampler2D hx_source;
 uniform sampler2D hx_gbufferDepth;
 
 uniform mat4 hx_projectionMatrix;
 uniform float hx_cameraFrustumRange;
-uniform float refractionStrength;   // sort of per meter. TODO: Must improve
+uniform float refractionRatio;   // the ratio of refractive indices
 #endif
 
 void main()
@@ -74,10 +76,14 @@ void main()
     #endif
 
     #ifdef TRANSPARENT_REFRACT
+        // use the immediate background depth value for a distance estimate
         float depth = hx_sampleLinearDepth(hx_gbufferDepth, texCoords);
         float viewZ = hx_depthToViewZ(gl_FragCoord.z, hx_projectionMatrix);
+        vec3 viewDir = normalize(viewVector);
+        vec3 refractionVector = refract(viewDir, normal, refractionRatio);
         float distance = max(viewZ - depth * hx_cameraFrustumRange, 0.0);
-        vec2 displacement = normal.xy * distance * refractionStrength;
+        vec2 displacement = refractionVector.xy * distance;
+        displacement -= displacement.y;
         vec4 background = texture2D(hx_source, texCoords + displacement);
         outputColor *= background;
     #endif

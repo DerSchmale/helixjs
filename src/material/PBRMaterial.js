@@ -13,10 +13,11 @@ HX.PBRMaterial = function()
     this._metallicness = 0.0;
     this._roughness = 0.3;
     this._specularNormalReflection = 0.027;
-    this._refractionRatio = 0.01;
-    this.metallicness = 0.0;
-    this.roughness = 0.3;
-    this.specularNormalReflection = 0.027;
+    this._refractiveRatio = .9;
+    this.metallicness = this._metallicness;
+    this.roughness = this._roughness;
+    this.specularNormalReflection = this._specularNormalReflection;
+    this.refractiveRatio = this._refractiveRatio;
     this._transparent = false;
     this._refract = false;
 };
@@ -94,6 +95,7 @@ HX.PBRMaterial.prototype._updatePasses = function()
     }
 
     this.setUniform("color", this._color);
+
     if (this._colorMap) this.setTexture("colorMap", this._colorMap);
     if (this._normalMap) this.setTexture("normalMap", this._normalMap);
     if (this._specularMap) this.setTexture("specularMap", this._specularMap);
@@ -254,12 +256,12 @@ Object.defineProperty(HX.PBRMaterial.prototype, "refract",
     }
 );
 
-Object.defineProperty(HX.PBRMaterial.prototype, "refractionRatio",
+Object.defineProperty(HX.PBRMaterial.prototype, "refractiveRatio",
     {
-        get: function() { return this._refractionRatio; },
+        get: function() { return this._refractiveRatio; },
         set: function(value) {
-            this._refractionRatio = value;
-            this.setUniform("refractionRatio", value);
+            this._refractiveRatio = value;
+            this.setUniform("refractiveRatio", value);
         }
     }
 );

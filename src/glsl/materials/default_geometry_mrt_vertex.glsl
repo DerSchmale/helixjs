@@ -40,7 +40,7 @@ void main()
 #endif
 
 #ifdef TRANSPARENT_REFRACT
-    viewVector = (hx_worldMatrix * hx_position).xyz - hx_cameraWorldPosition;
+    viewVector = hx_cameraWorldPosition - (hx_worldMatrix * hx_position).xyz;
 #endif
 
 #if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(TRANSPARENT_REFRACT)

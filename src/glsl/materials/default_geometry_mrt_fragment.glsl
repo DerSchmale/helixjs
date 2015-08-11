@@ -33,8 +33,12 @@ uniform sampler2D hx_source;
 uniform sampler2D hx_gbufferDepth;
 
 uniform mat4 hx_projectionMatrix;
+uniform mat4 hx_viewProjectionMatrix;
+uniform vec3 hx_cameraWorldPosition;
+uniform float hx_cameraNearPlaneDistance;
 uniform float hx_cameraFrustumRange;
-uniform float refractionRatio;   // the ratio of refractive indices
+
+uniform float refractiveRatio;   // the ratio of refractive indices
 #endif
 
 void main()
@@ -78,13 +82,18 @@ void main()
     #ifdef TRANSPARENT_REFRACT
         // use the immediate background depth value for a distance estimate
         float depth = hx_sampleLinearDepth(hx_gbufferDepth, texCoords);
+
+        // this can be done in vertex shader
         float viewZ = hx_depthToViewZ(gl_FragCoord.z, hx_projectionMatrix);
-        vec3 viewDir = normalize(viewVector);
-        vec3 refractionVector = refract(viewDir, normal, refractionRatio);
-        float distance = max(viewZ - depth * hx_cameraFrustumRange, 0.0);
-        vec2 displacement = refractionVector.xy * distance;
-        displacement -= displacement.y;
-        vec4 background = texture2D(hx_source, texCoords + displacement);
+
+        vec3 viewDir = normalize(-viewVector);
+        vec3 refractionVector = refract(viewDir, fragNormal, refractiveRatio);
+        float distance = depth * hx_cameraFrustumRange - viewZ - hx_cameraNearPlaneDistance;
+        vec3 refractedPoint = hx_cameraWorldPosition - viewVector + refractionVector * distance;
+        vec4 samplePos = hx_viewProjectionMatrix * vec4(refractedPoint, 1.0);
+        samplePos.xy = samplePos.xy / samplePos.w * .5 + .5;
+
+        vec4 background = texture2D(hx_source, samplePos.xy);
         outputColor *= background;
     #endif
 

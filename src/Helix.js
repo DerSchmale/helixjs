@@ -166,13 +166,6 @@ HX.initFromContext = function(glContext, options)
 };
 
 /**
- * Creates a renderer best suited for the given hardware config.
- */
-HX.createRenderer = function()
-{
-    return HX.EXT_DRAW_BUFFERS? new HX.MRTRenderer() : new HX.MultiPassRenderer();
-}
-/**
  * Initializes Helix and creates a WebGL context from a given canvas
  * @param canvas The canvas to create the gl context from.
  */

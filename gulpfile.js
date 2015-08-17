@@ -13,7 +13,7 @@ var sourceFiles = [
     "src/math/*.js",
     "src/core/*.js",
 
-    // TODO: find better way, so order doesn't matter
+    // TODO: find better way for dependency management, but don't want something like exports
     // base classes first
     "src/shader/Shader.js",
     "src/material/Material.js",

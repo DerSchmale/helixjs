@@ -1,4 +1,22 @@
 /**
+ * The debug render mode to inspect properties in the GBuffer, the lighting accumulation buffer, AO, etc.
+ */
+HX.DebugRenderMode = {
+    DEBUG_NONE: 0,
+    DEBUG_COLOR: 1,
+    DEBUG_NORMALS: 2,
+    DEBUG_METALLICNESS: 3,
+    DEBUG_SPECULAR_NORMAL_REFLECTION: 4,
+    DEBUG_ROUGHNESS: 5,
+    DEBUG_DEPTH: 6,
+    DEBUG_LIGHT_ACCUM: 7,
+    DEBUG_AO: 8
+};
+
+
+/**
+ * ScreenRenderer is the main renderer for drawing a Scene to the screen.
+ *
  * GBUFFER LAYOUT:
  * 0: COLOR: (color.XYZ, unused)
  * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw)
@@ -135,9 +153,55 @@ HX.ScreenRenderer.prototype._renderShadowCasters = function()
     HX.GL.colorMask(true, true, true, true);
 };
 
+HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function()
+{
+    var clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT;
+    var passIndices = [ HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
+
+    for (var i = 0; i < 3; ++i) {
+        HX.setRenderTarget(this._gbufferSingleFBOs[i]);
+        HX.GL.clear(clearMask);
+        this._renderPass(passIndices[i]);
+
+        if (i == 0) {
+            clearMask = HX.GL.COLOR_BUFFER_BIT;
+            // important to use the same clip space calculations for all!
+            HX.GL.depthFunc(HX.GL.EQUAL);
+        }
+    }
+};
+
 HX.ScreenRenderer.prototype._renderToGBuffer = function()
 {
-    throw "Abstract method";
+    if (HX.EXT_DRAW_BUFFERS)
+        this._renderToGBufferMRT();
+    else
+        this._renderToGBufferMultiPass();
+};
+
+HX.ScreenRenderer.prototype._renderToGBufferMRT = function()
+{
+    HX.setRenderTarget(this._gbufferFBO);
+    HX.clear();
+    this._renderPass(HX.MaterialPass.GEOMETRY_PASS);
+};
+
+HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function()
+{
+    var clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT;
+    var passIndices = [ HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
+
+    for (var i = 0; i < 3; ++i) {
+        HX.setRenderTarget(this._gbufferSingleFBOs[i]);
+        HX.GL.clear(clearMask);
+        this._renderPass(passIndices[i]);
+
+        if (i == 0) {
+            clearMask = HX.GL.COLOR_BUFFER_BIT;
+            // important to use the same clip space calculations for all!
+            HX.GL.depthFunc(HX.GL.EQUAL);
+        }
+    }
 };
 
 HX.ScreenRenderer.prototype._linearizeDepth = function()
@@ -361,7 +425,10 @@ HX.ScreenRenderer.prototype._createGBuffer = function()
 
 HX.ScreenRenderer.prototype._createGBufferFBO = function()
 {
-    throw "Abstract method";
+    if (HX.EXT_DRAW_BUFFERS) {
+        var targets = [ this._gbuffer[0], this._gbuffer[1], this._gbuffer[2] ];
+        this._gbufferFBO = new HX.FrameBuffer(targets, this._depthBuffer);
+    }
 };
 
 HX.ScreenRenderer.prototype._createHDRBuffers = function ()
@@ -398,7 +465,8 @@ HX.ScreenRenderer.prototype._updateGBuffer = function (width, height)
 
 HX.ScreenRenderer.prototype._updateGBufferFBO = function()
 {
-    throw "Abstract method";
+    if (HX.EXT_DRAW_BUFFERS)
+        this._gbufferFBO.init();
 };
 
 HX.ScreenRenderer.prototype._updateHDRBuffers = function(width, height)
@@ -429,8 +497,11 @@ HX.ScreenRenderer.prototype.dispose = function()
     for (var i = 0; i < this._gbuffer.length; ++i)
         this._gbuffer[i].dispose();
 
-    for (var i = 0; i < this._gbufferFBO.length; ++i)
-        this._gbufferFBO[i].dispose();
+    for (var i = 0; i < this._gbufferSingleFBOs.length; ++i)
+        this._gbufferSingleFBOs[i].dispose();
+
+    if (this._gbufferFBO)
+        this._gbufferFBO.dispose();
 };
 
 HX.ScreenRenderer.prototype._switchPass = function(oldPass, newPass)
@@ -442,6 +513,4 @@ HX.ScreenRenderer.prototype._switchPass = function(oldPass, newPass)
         newPass.setTexture("hx_source", this._passSourceTexture);
 
     HX.Renderer.prototype._switchPass.call(this, oldPass, newPass);
-};/**
- * Created by david on 17/08/2015.
- */
+};

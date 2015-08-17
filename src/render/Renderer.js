@@ -1,17 +1,5 @@
-HX.DebugRenderMode = {
-    DEBUG_NONE: 0,
-    DEBUG_COLOR: 1,
-    DEBUG_NORMALS: 2,
-    DEBUG_METALLICNESS: 3,
-    DEBUG_SPECULAR_NORMAL_REFLECTION: 4,
-    DEBUG_ROUGHNESS: 5,
-    DEBUG_DEPTH: 6,
-    DEBUG_LIGHT_ACCUM: 7,
-    DEBUG_AO: 8
-};
-
 /**
- *
+ * The base class for any render pipeline. This can be a shadow map renderer, the default deferred render, ...
  * @constructor
  */
 HX.Renderer = function()

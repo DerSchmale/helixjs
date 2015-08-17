@@ -21,6 +21,7 @@ var sourceFiles = [
     "src/scene/Light.js",
     "src/render/SceneVisitor.js",
     "src/render/Renderer.js",
+    "src/render/ScreenRenderer.js",
 
     "src/shader/*.js",
     "src/material/*.js",

@@ -344,6 +344,36 @@ HX.ShaderLibrary['lighting_blinn_phong_simple.glsl'] = 'void hx_lighting(in vec3
 
 HX.ShaderLibrary['lighting_ggx.glsl'] = 'float hx_lightVisibility(in vec3 normal, in vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	// roughness remapping, this is essentially: sqrt(2 * roughness * roughness / PI)\n	// this remaps beckman distribution roughness to SmithSchlick\n	roughness *= .63772;\n	float g1 = nDotV*(1.0 - roughness) + roughness;\n	float g2 = nDotL*(1.0 - roughness) + roughness;\n	return 1.0/(g1*g2);\n}\n\nfloat hx_trowbridgeReitz(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_trowbridgeReitzGGX(roughness, normal, halfVector);\n\n	float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = .25 * irradiance * fresnel * distribution * visibility;\n}';
 
+HX.ShaderLibrary['bloom_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform float gaussianWeights[NUM_SAMPLES];\n\nvoid main()\n{\n	vec4 total = vec4(0.0);\n	vec2 sampleUV = uv;\n	vec2 stepSize = DIRECTION / SOURCE_RES;\n	float totalWeight = 0.0;\n	for (int i = 0; i < NUM_SAMPLES; ++i) {\n		total += texture2D(sourceTexture, sampleUV) * gaussianWeights[i];\n		sampleUV += stepSize;\n	}\n	gl_FragColor = total;\n}';
+
+HX.ShaderLibrary['bloom_blur_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord - RADIUS * DIRECTION / SOURCE_RES;\n	gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_source;\nuniform sampler2D bloomTexture;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_source, uv) + texture2D(bloomTexture, uv);\n}';
+
+HX.ShaderLibrary['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['bloom_threshold_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_source;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_source, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        gl_FragColor = color * targetLuminance / originalLuminance;\n}\n';
+
+HX.ShaderLibrary['default_post_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['fog_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewWorldDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float height;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_source;\nuniform sampler2D hx_gbufferDepth;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_source, uv);\n	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n	// do not fog up skybox\n	if (depth == 1.0) depth = -1.0;\n	float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewDir = viewWorldDir * viewZ;\n	float worldY = viewDir.y + hx_cameraWorldPosition.y;\n	float s = sign(hx_cameraWorldPosition.y - height);\n\n	float ratioUnder = clamp(s * (height - worldY) / abs(viewDir.y), 0.0, 1.0);\n\n	if (hx_cameraWorldPosition.y < height)\n		ratioUnder = 1.0 - ratioUnder;\n\n	float distance = length(viewDir) * ratioUnder;\n\n	distance -= startDistance;\n\n	float fog = clamp(exp2(-distance * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	gl_FragColor = color;\n}';
+
+HX.ShaderLibrary['fog_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\nvarying vec3 viewWorldDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	vec3 frustumVector = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n	viewWorldDir = mat3(hx_cameraWorldMatrix) * frustumVector;\n	gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['fxaa_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_source;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform float edgeThreshold;\nuniform float edgeThresholdMin;\nuniform float edgeSharpness;\n\nfloat luminanceHint(vec4 color)\n{\n	return .30/.59 * color.r + color.g;\n}\n\nvoid main()\n{\n	vec4 center = texture2D(hx_source, uv);\n	vec2 halfRes = vec2(hx_rcpRenderTargetResolution.x, hx_rcpRenderTargetResolution.y) * .5;\n	float topLeftLum = luminanceHint(texture2D(hx_source, uv + vec2(-halfRes.x, halfRes.y)));\n	float bottomLeftLum = luminanceHint(texture2D(hx_source, uv + vec2(-halfRes.x, -halfRes.y)));\n	float topRightLum = luminanceHint(texture2D(hx_source, uv + vec2(halfRes.x, halfRes.y)));\n	float bottomRightLum = luminanceHint(texture2D(hx_source, uv + vec2(halfRes.x, -halfRes.y)));\n\n	float centerLum = luminanceHint(center);\n	float minLum = min(min(topLeftLum, bottomLeftLum), min(topRightLum, bottomRightLum));\n	float maxLum = max(max(topLeftLum, bottomLeftLum), max(topRightLum, bottomRightLum));\n	float range = max(centerLum, maxLum) - min(centerLum, minLum);\n	float threshold = max(edgeThresholdMin, maxLum * edgeThreshold);\n	float applyFXAA = range < threshold? 0.0 : 1.0;\n\n	float diagDiff1 = bottomLeftLum - topRightLum;\n	float diagDiff2 = bottomRightLum - topLeftLum;\n	vec2 dir1 = normalize(vec2(diagDiff1 + diagDiff2, diagDiff1 - diagDiff2));\n	vec4 sampleNeg1 = texture2D(hx_source, uv - halfRes * dir1);\n	vec4 samplePos1 = texture2D(hx_source, uv + halfRes * dir1);\n\n	float minComp = min(abs(dir1.x), abs(dir1.y)) * edgeSharpness;\n	vec2 dir2 = clamp(dir1.xy / minComp, -2.0, 2.0) * 2.0;\n	vec4 sampleNeg2 = texture2D(hx_source, uv - hx_rcpRenderTargetResolution * dir2);\n	vec4 samplePos2 = texture2D(hx_source, uv + hx_rcpRenderTargetResolution * dir2);\n	vec4 tap1 = sampleNeg1 + samplePos1;\n	vec4 fxaa = (tap1 + sampleNeg2 + samplePos2) * .25;\n	float fxaaLum = luminanceHint(fxaa);\n	if ((fxaaLum < minLum) || (fxaaLum > maxLum))\n		fxaa = tap1 * .5;\n	gl_FragColor = mix(center, fxaa, applyFXAA);\n}';
+
+HX.ShaderLibrary['hbao_fragment.glsl'] = 'uniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec2 hx_renderTargetResolution;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_projectionMatrix;\n\nuniform int numRays;\nuniform int numSamplesPerRay;\nuniform float strengthPerRay;\nuniform float halfSampleRadius;\nuniform float bias;\nuniform float rcpFallOffDistance;\n\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D sampleDirTexture;\nuniform sampler2D ditherTexture;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 frustumCorner;\n\nvec3 getViewPos(vec2 sampleUV)\n{\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, sampleUV);\n    float viewZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n    vec3 viewPos = frustumCorner * vec3(sampleUV * 2.0 - 1.0, 1.0);\n    return viewPos * viewZ;\n}\n\n// Retrieves the occlusion factor for a particular sample\nfloat getSampleOcclusion(vec2 sampleUV, vec3 centerViewPos, vec3 centerNormal, vec3 tangent, inout float topOcclusion)\n{\n    vec3 sampleViewPos = getViewPos(sampleUV);\n\n    // get occlusion factor based on candidate horizon elevation\n    vec3 horizonVector = sampleViewPos - centerViewPos;\n    float horizonVectorLength = length(horizonVector);\n\n    float occlusion;\n\n    // If the horizon vector points away from the tangent, make an estimate\n    if (dot(tangent, horizonVector) < 0.0)\n        occlusion = .5;\n    else\n        occlusion = dot(centerNormal, horizonVector) / horizonVectorLength;\n\n    // this adds occlusion only if angle of the horizon vector is higher than the previous highest one without branching\n    float diff = max(occlusion - topOcclusion, 0.0);\n    topOcclusion = max(occlusion, topOcclusion);\n\n    // attenuate occlusion contribution using distance function 1 - (d/f)^2\n    float distanceFactor = clamp(horizonVectorLength * rcpFallOffDistance, 0.0, 1.0);\n    distanceFactor = 1.0 - distanceFactor * distanceFactor;\n    return diff * distanceFactor;\n}\n\n// Retrieves the occlusion for a given ray\nfloat getRayOcclusion(vec2 direction, float jitter, vec2 projectedRadii, vec3 centerViewPos, vec3 centerNormal)\n{\n    // calculate the nearest neighbour sample along the direction vector\n    vec2 texelSizedStep = direction * hx_rcpRenderTargetResolution;\n    direction *= projectedRadii;\n\n    // gets the tangent for the current ray, this will be used to handle opposing horizon vectors\n    // Tangent is corrected with respect to face normal by projecting it onto the tangent plane defined by the normal\n    vec3 tangent = getViewPos(uv + texelSizedStep) - centerViewPos;\n    tangent -= dot(centerNormal, tangent) * centerNormal;\n\n    vec2 stepUV = direction.xy / float(NUM_SAMPLES_PER_RAY - 1);\n\n    // jitter the starting position for ray marching between the nearest neighbour and the sample step size\n    vec2 jitteredOffset = mix(texelSizedStep, stepUV, jitter);\n    //stepUV *= 1.0 + jitter * .1;\n    vec2 sampleUV = uv + jitteredOffset;\n\n    // top occlusion keeps track of the occlusion contribution of the last found occluder.\n    // set to bias value to avoid near-occluders\n    float topOcclusion = bias;\n    float occlusion = 0.0;\n\n    // march!\n    for (int step = 0; step < NUM_SAMPLES_PER_RAY; ++step) {\n        occlusion += getSampleOcclusion(sampleUV, centerViewPos, centerNormal, tangent, topOcclusion);\n        sampleUV += stepUV;\n    }\n\n    return occlusion;\n}\n\nvoid main()\n{\n    vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n    vec3 worldNormal = hx_decodeNormal(normalSample);\n    vec3 centerNormal = mat3(hx_viewMatrix) * worldNormal;\n    float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    float viewZ = centerDepth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n    vec3 centerViewPos = viewZ * viewDir;\n\n    vec2 projectedRadii = -halfSampleRadius * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1]) / centerViewPos.z;\n\n    // do not take more steps than there are pixels\n    float totalOcclusion = 0.0;\n\n    vec2 randomFactors = texture2D(ditherTexture, uv * hx_renderTargetResolution * .25).xy;\n\n    vec2 rayUV = vec2(0.0);\n    for (int i = 0; i < NUM_RAYS; ++i) {\n        rayUV.x = (float(i) + randomFactors.x) / float(NUM_RAYS);\n        vec2 sampleDir = texture2D(sampleDirTexture, rayUV).xy * 2.0 - 1.0;\n        totalOcclusion += getRayOcclusion(sampleDir, randomFactors.y, projectedRadii, centerViewPos, centerNormal);\n    }\n\n    totalOcclusion = 1.0 - clamp(strengthPerRay * totalOcclusion, 0.0, 1.0);\n    gl_FragColor = vec4(totalOcclusion);\n}';
+
+HX.ShaderLibrary['hbao_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 frustumCorner;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    frustumCorner = hx_getLinearDepthViewVector(vec2(1.0, 1.0), hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['ssao_fragment.glsl'] = 'uniform mat4 hx_projectionMatrix;\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform vec2 hx_renderTargetResolution;\nuniform float hx_cameraFrustumRange;\n\nuniform float strengthPerSample;\nuniform float rcpFallOffDistance;\nuniform float sampleRadius;\nuniform vec3 samples[NUM_SAMPLES]; // w contains bias\n\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D ditherTexture;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n    vec3 centerNormal = hx_decodeNormal(normalSample);\n    centerNormal = mat3(hx_viewMatrix) * centerNormal.xyz;\n    float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    float totalOcclusion = 0.0;\n    vec3 dither = texture2D(ditherTexture, uv * hx_renderTargetResolution * .25).xyz;\n    vec3 randomPlaneNormal = normalize(dither - .5);\n    float w = -centerDepth * hx_cameraFrustumRange * hx_projectionMatrix[2][3] + hx_projectionMatrix[3][3];\n    vec3 sampleRadii;\n    sampleRadii.x = sampleRadius * .5 * hx_projectionMatrix[0][0] / w;\n    sampleRadii.y = sampleRadius * .5 * hx_projectionMatrix[1][1] / w;\n    sampleRadii.z = sampleRadius;\n\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        vec3 sampleOffset = reflect(samples[i], randomPlaneNormal);\n        vec3 normOffset = normalize(sampleOffset);\n        float cosFactor = dot(normOffset, centerNormal);\n        float sign = sign(cosFactor);\n        sampleOffset *= sign;\n        cosFactor *= sign;\n\n        vec3 scaledOffset = sampleOffset * sampleRadii;\n\n        vec2 samplePos = uv + scaledOffset.xy;\n        float occluderDepth = hx_sampleLinearDepth(hx_gbufferDepth, samplePos);\n        float diffZ = (centerDepth - occluderDepth) * hx_cameraFrustumRange;\n\n        // distanceFactor: from 1 to 0, near to far\n        float distanceFactor = clamp(diffZ * rcpFallOffDistance, 0.0, 1.0);\n        distanceFactor = 1.0 - distanceFactor;\n\n        // sampleOcclusion: 1 if occluding, 0 otherwise\n        float sampleOcclusion = float(diffZ > scaledOffset.z);\n        totalOcclusion += sampleOcclusion * distanceFactor * cosFactor;\n\n    }\n    gl_FragColor = vec4(1.0 - totalOcclusion * strengthPerSample);\n}';
+
+HX.ShaderLibrary['tonemap_filmic_fragment.glsl'] = '// This approach is by Jim Hejl and Richard Burgess-Dawson\nvoid main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	vec3 x = max(vec3(0.0), color.xyz - 0.004);\n	gl_FragColor = vec4((x * (6.2 * x + .5))/(x * (6.2 * x + 1.7) + 0.06), 1.0);\n}';
+
+HX.ShaderLibrary['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_source;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_source, uv);\n	float l = log(.001 + hx_luminance(color));\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
+
+HX.ShaderLibrary['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	gl_FragColor = color / (1.0 + color);\n}';
+
 HX.ShaderLibrary['ambient_light_fragment.glsl'] = 'uniform vec3 lightColor;\n\nuniform sampler2D hx_gbufferColor;\n\n#ifdef USE_AO\nuniform sampler2D hx_source;\n#endif\n\nvarying vec2 uv;\n\nvoid main()\n{\n	vec3 colorSample = texture2D(hx_gbufferColor, uv).xyz;\n#ifdef USE_AO\n	float occlusionSample = texture2D(hx_source, uv).w;\n	colorSample *= occlusionSample;\n#endif\n\n	colorSample = hx_gammaToLinear(colorSample);\n\n	gl_FragColor = vec4(lightColor * colorSample, 0.0);\n}';
 
 HX.ShaderLibrary['ambient_light_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
@@ -375,36 +405,6 @@ HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_positi
 HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nvoid main()\n{\n    vec4 color = textureCube(hx_skybox, viewWorldDir);\n    gl_FragColor = hx_gammaToLinear(color);\n}';
 
 HX.ShaderLibrary['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_inverseViewProjectionMatrix;\nuniform vec3 hx_cameraWorldPosition;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube\nvoid main()\n{\n    vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n    viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n    vec4 pos = hx_position;\n    pos.z = 1.0;\n    gl_Position = pos;\n}';
-
-HX.ShaderLibrary['bloom_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform float gaussianWeights[NUM_SAMPLES];\n\nvoid main()\n{\n	vec4 total = vec4(0.0);\n	vec2 sampleUV = uv;\n	vec2 stepSize = DIRECTION / SOURCE_RES;\n	float totalWeight = 0.0;\n	for (int i = 0; i < NUM_SAMPLES; ++i) {\n		total += texture2D(sourceTexture, sampleUV) * gaussianWeights[i];\n		sampleUV += stepSize;\n	}\n	gl_FragColor = total;\n}';
-
-HX.ShaderLibrary['bloom_blur_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord - RADIUS * DIRECTION / SOURCE_RES;\n	gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_source;\nuniform sampler2D bloomTexture;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_source, uv) + texture2D(bloomTexture, uv);\n}';
-
-HX.ShaderLibrary['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['bloom_threshold_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_source;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_source, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        gl_FragColor = color * targetLuminance / originalLuminance;\n}\n';
-
-HX.ShaderLibrary['default_post_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['fog_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewWorldDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float height;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_source;\nuniform sampler2D hx_gbufferDepth;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_source, uv);\n	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n	// do not fog up skybox\n	if (depth == 1.0) depth = -1.0;\n	float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewDir = viewWorldDir * viewZ;\n	float worldY = viewDir.y + hx_cameraWorldPosition.y;\n	float s = sign(hx_cameraWorldPosition.y - height);\n\n	float ratioUnder = clamp(s * (height - worldY) / abs(viewDir.y), 0.0, 1.0);\n\n	if (hx_cameraWorldPosition.y < height)\n		ratioUnder = 1.0 - ratioUnder;\n\n	float distance = length(viewDir) * ratioUnder;\n\n	distance -= startDistance;\n\n	float fog = clamp(exp2(-distance * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	gl_FragColor = color;\n}';
-
-HX.ShaderLibrary['fog_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\nvarying vec3 viewWorldDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	vec3 frustumVector = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n	viewWorldDir = mat3(hx_cameraWorldMatrix) * frustumVector;\n	gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['fxaa_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_source;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform float edgeThreshold;\nuniform float edgeThresholdMin;\nuniform float edgeSharpness;\n\nfloat luminanceHint(vec4 color)\n{\n	return .30/.59 * color.r + color.g;\n}\n\nvoid main()\n{\n	vec4 center = texture2D(hx_source, uv);\n	vec2 halfRes = vec2(hx_rcpRenderTargetResolution.x, hx_rcpRenderTargetResolution.y) * .5;\n	float topLeftLum = luminanceHint(texture2D(hx_source, uv + vec2(-halfRes.x, halfRes.y)));\n	float bottomLeftLum = luminanceHint(texture2D(hx_source, uv + vec2(-halfRes.x, -halfRes.y)));\n	float topRightLum = luminanceHint(texture2D(hx_source, uv + vec2(halfRes.x, halfRes.y)));\n	float bottomRightLum = luminanceHint(texture2D(hx_source, uv + vec2(halfRes.x, -halfRes.y)));\n\n	float centerLum = luminanceHint(center);\n	float minLum = min(min(topLeftLum, bottomLeftLum), min(topRightLum, bottomRightLum));\n	float maxLum = max(max(topLeftLum, bottomLeftLum), max(topRightLum, bottomRightLum));\n	float range = max(centerLum, maxLum) - min(centerLum, minLum);\n	float threshold = max(edgeThresholdMin, maxLum * edgeThreshold);\n	float applyFXAA = range < threshold? 0.0 : 1.0;\n\n	float diagDiff1 = bottomLeftLum - topRightLum;\n	float diagDiff2 = bottomRightLum - topLeftLum;\n	vec2 dir1 = normalize(vec2(diagDiff1 + diagDiff2, diagDiff1 - diagDiff2));\n	vec4 sampleNeg1 = texture2D(hx_source, uv - halfRes * dir1);\n	vec4 samplePos1 = texture2D(hx_source, uv + halfRes * dir1);\n\n	float minComp = min(abs(dir1.x), abs(dir1.y)) * edgeSharpness;\n	vec2 dir2 = clamp(dir1.xy / minComp, -2.0, 2.0) * 2.0;\n	vec4 sampleNeg2 = texture2D(hx_source, uv - hx_rcpRenderTargetResolution * dir2);\n	vec4 samplePos2 = texture2D(hx_source, uv + hx_rcpRenderTargetResolution * dir2);\n	vec4 tap1 = sampleNeg1 + samplePos1;\n	vec4 fxaa = (tap1 + sampleNeg2 + samplePos2) * .25;\n	float fxaaLum = luminanceHint(fxaa);\n	if ((fxaaLum < minLum) || (fxaaLum > maxLum))\n		fxaa = tap1 * .5;\n	gl_FragColor = mix(center, fxaa, applyFXAA);\n}';
-
-HX.ShaderLibrary['hbao_fragment.glsl'] = 'uniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec2 hx_renderTargetResolution;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_projectionMatrix;\n\nuniform int numRays;\nuniform int numSamplesPerRay;\nuniform float strengthPerRay;\nuniform float halfSampleRadius;\nuniform float bias;\nuniform float rcpFallOffDistance;\n\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D sampleDirTexture;\nuniform sampler2D ditherTexture;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 frustumCorner;\n\nvec3 getViewPos(vec2 sampleUV)\n{\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, sampleUV);\n    float viewZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n    vec3 viewPos = frustumCorner * vec3(sampleUV * 2.0 - 1.0, 1.0);\n    return viewPos * viewZ;\n}\n\n// Retrieves the occlusion factor for a particular sample\nfloat getSampleOcclusion(vec2 sampleUV, vec3 centerViewPos, vec3 centerNormal, vec3 tangent, inout float topOcclusion)\n{\n    vec3 sampleViewPos = getViewPos(sampleUV);\n\n    // get occlusion factor based on candidate horizon elevation\n    vec3 horizonVector = sampleViewPos - centerViewPos;\n    float horizonVectorLength = length(horizonVector);\n\n    float occlusion;\n\n    // If the horizon vector points away from the tangent, make an estimate\n    if (dot(tangent, horizonVector) < 0.0)\n        occlusion = .5;\n    else\n        occlusion = dot(centerNormal, horizonVector) / horizonVectorLength;\n\n    // this adds occlusion only if angle of the horizon vector is higher than the previous highest one without branching\n    float diff = max(occlusion - topOcclusion, 0.0);\n    topOcclusion = max(occlusion, topOcclusion);\n\n    // attenuate occlusion contribution using distance function 1 - (d/f)^2\n    float distanceFactor = clamp(horizonVectorLength * rcpFallOffDistance, 0.0, 1.0);\n    distanceFactor = 1.0 - distanceFactor * distanceFactor;\n    return diff * distanceFactor;\n}\n\n// Retrieves the occlusion for a given ray\nfloat getRayOcclusion(vec2 direction, float jitter, vec2 projectedRadii, vec3 centerViewPos, vec3 centerNormal)\n{\n    // calculate the nearest neighbour sample along the direction vector\n    vec2 texelSizedStep = direction * hx_rcpRenderTargetResolution;\n    direction *= projectedRadii;\n\n    // gets the tangent for the current ray, this will be used to handle opposing horizon vectors\n    // Tangent is corrected with respect to face normal by projecting it onto the tangent plane defined by the normal\n    vec3 tangent = getViewPos(uv + texelSizedStep) - centerViewPos;\n    tangent -= dot(centerNormal, tangent) * centerNormal;\n\n    vec2 stepUV = direction.xy / float(NUM_SAMPLES_PER_RAY - 1);\n\n    // jitter the starting position for ray marching between the nearest neighbour and the sample step size\n    vec2 jitteredOffset = mix(texelSizedStep, stepUV, jitter);\n    //stepUV *= 1.0 + jitter * .1;\n    vec2 sampleUV = uv + jitteredOffset;\n\n    // top occlusion keeps track of the occlusion contribution of the last found occluder.\n    // set to bias value to avoid near-occluders\n    float topOcclusion = bias;\n    float occlusion = 0.0;\n\n    // march!\n    for (int step = 0; step < NUM_SAMPLES_PER_RAY; ++step) {\n        occlusion += getSampleOcclusion(sampleUV, centerViewPos, centerNormal, tangent, topOcclusion);\n        sampleUV += stepUV;\n    }\n\n    return occlusion;\n}\n\nvoid main()\n{\n    vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n    vec3 worldNormal = hx_decodeNormal(normalSample);\n    vec3 centerNormal = mat3(hx_viewMatrix) * worldNormal;\n    float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    float viewZ = centerDepth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n    vec3 centerViewPos = viewZ * viewDir;\n\n    vec2 projectedRadii = -halfSampleRadius * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1]) / centerViewPos.z;\n\n    // do not take more steps than there are pixels\n    float totalOcclusion = 0.0;\n\n    vec2 randomFactors = texture2D(ditherTexture, uv * hx_renderTargetResolution * .25).xy;\n\n    vec2 rayUV = vec2(0.0);\n    for (int i = 0; i < NUM_RAYS; ++i) {\n        rayUV.x = (float(i) + randomFactors.x) / float(NUM_RAYS);\n        vec2 sampleDir = texture2D(sampleDirTexture, rayUV).xy * 2.0 - 1.0;\n        totalOcclusion += getRayOcclusion(sampleDir, randomFactors.y, projectedRadii, centerViewPos, centerNormal);\n    }\n\n    totalOcclusion = 1.0 - clamp(strengthPerRay * totalOcclusion, 0.0, 1.0);\n    gl_FragColor = vec4(totalOcclusion);\n}';
-
-HX.ShaderLibrary['hbao_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 frustumCorner;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    frustumCorner = hx_getLinearDepthViewVector(vec2(1.0, 1.0), hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['ssao_fragment.glsl'] = 'uniform mat4 hx_projectionMatrix;\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform vec2 hx_renderTargetResolution;\nuniform float hx_cameraFrustumRange;\n\nuniform float strengthPerSample;\nuniform float rcpFallOffDistance;\nuniform float sampleRadius;\nuniform vec3 samples[NUM_SAMPLES]; // w contains bias\n\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D ditherTexture;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n    vec3 centerNormal = hx_decodeNormal(normalSample);\n    centerNormal = mat3(hx_viewMatrix) * centerNormal.xyz;\n    float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    float totalOcclusion = 0.0;\n    vec3 dither = texture2D(ditherTexture, uv * hx_renderTargetResolution * .25).xyz;\n    vec3 randomPlaneNormal = normalize(dither - .5);\n    float w = -centerDepth * hx_cameraFrustumRange * hx_projectionMatrix[2][3] + hx_projectionMatrix[3][3];\n    vec3 sampleRadii;\n    sampleRadii.x = sampleRadius * .5 * hx_projectionMatrix[0][0] / w;\n    sampleRadii.y = sampleRadius * .5 * hx_projectionMatrix[1][1] / w;\n    sampleRadii.z = sampleRadius;\n\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        vec3 sampleOffset = reflect(samples[i], randomPlaneNormal);\n        vec3 normOffset = normalize(sampleOffset);\n        float cosFactor = dot(normOffset, centerNormal);\n        float sign = sign(cosFactor);\n        sampleOffset *= sign;\n        cosFactor *= sign;\n\n        vec3 scaledOffset = sampleOffset * sampleRadii;\n\n        vec2 samplePos = uv + scaledOffset.xy;\n        float occluderDepth = hx_sampleLinearDepth(hx_gbufferDepth, samplePos);\n        float diffZ = (centerDepth - occluderDepth) * hx_cameraFrustumRange;\n\n        // distanceFactor: from 1 to 0, near to far\n        float distanceFactor = clamp(diffZ * rcpFallOffDistance, 0.0, 1.0);\n        distanceFactor = 1.0 - distanceFactor;\n\n        // sampleOcclusion: 1 if occluding, 0 otherwise\n        float sampleOcclusion = float(diffZ > scaledOffset.z);\n        totalOcclusion += sampleOcclusion * distanceFactor * cosFactor;\n\n    }\n    gl_FragColor = vec4(1.0 - totalOcclusion * strengthPerSample);\n}';
-
-HX.ShaderLibrary['tonemap_filmic_fragment.glsl'] = '// This approach is by Jim Hejl and Richard Burgess-Dawson\nvoid main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	vec3 x = max(vec3(0.0), color.xyz - 0.004);\n	gl_FragColor = vec4((x * (6.2 * x + .5))/(x * (6.2 * x + 1.7) + 0.06), 1.0);\n}';
-
-HX.ShaderLibrary['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_source;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_source, uv);\n	float l = log(.001 + hx_luminance(color));\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
-
-HX.ShaderLibrary['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	gl_FragColor = color / (1.0 + color);\n}';
 
 HX.ShaderLibrary['snippets_general.glsl'] = '#if defined(NO_MRT_GBUFFER_COLOR)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = color)\n#elif defined(NO_MRT_GBUFFER_NORMALS)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))\n#elif defined(NO_MRT_GBUFFER_SPECULAR)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness))\n#else\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])\n#endif\n\n// see Aras\' blog post: http://aras-p.info/blog/2009/07/30/encoding-floats-to-rgba-the-final/\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = vec4(1.0, 255.0, 65025.0, 16581375.0) * value;\n    enc = fract(enc);\n    return enc - enc.yzww * vec4(1.0/255.0,1.0/255.0,1.0/255.0,0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc = fract(enc);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec4 hx_encodeNormalDepth(vec3 normal, float depth)\n{\n	#ifdef HX_STORE_EXPLICIT_DEPTH\n    	vec4 data;\n    	// xy contain normal\n		data.xy = normal.xy * .5 + .5;\n		// use some of the depth precision to encode store normal sign\n		data.zw = hx_floatToRG8(depth * sign(normal.z) * .5 + .5);\n		return data;\n	#else\n		return vec4(normal * .5 + .5, 1.0);\n    #endif\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    #ifdef HX_STORE_EXPLICIT_DEPTH\n    	vec3 normal;\n    	normal.xy = data.xy * 2.0 - 1.0;\n		normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));\n		float depth = hx_RG8ToFloat(data.zw) * 2.0 - 1.0;\n		normal.z *= sign(depth);\n		return normal;\n    #else\n    	return normalize(data.xyz - .5);\n    #endif\n}\n\nvec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness)\n{\n	return vec4(roughness, specularNormalReflection * 5.0, metallicness, 1.0);\n}\n\nvoid hx_processGeometryMRT(vec4 color, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 colorData, out vec4 normalData, out vec4 specularData)\n{\n    colorData = color;\n	normalData = hx_encodeNormalDepth(normal, depth);\n    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness);\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #ifdef HX_LINEAR_SPACE\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #ifdef HX_LINEAR_SPACE\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #ifdef HX_LINEAR_SPACE\n        linear.x = pow(linear.x, 0.45);\n        linear.y = pow(linear.y, 0.45);\n        linear.z = pow(linear.z, 0.45);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #ifdef HX_LINEAR_SPACE\n        linear.x = pow(linear.x, 0.45);\n        linear.y = pow(linear.y, 0.45);\n        linear.z = pow(linear.z, 0.45);\n    #endif\n    return linear;\n}\n\nfloat hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\n// for use when sampling gbuffer data for lighting\nvoid hx_decodeReflectionData(in vec4 colorSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)\n{\n    //prevent from being 0\n    roughness = clamp(specularSample.x, .01, 1.0);\n	metallicness = specularSample.z;\n    normalSpecularReflectance = mix(vec3(specularSample.y * .2), colorSample.xyz, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n';
 
@@ -5103,7 +5103,6 @@ HX.Renderer.prototype =
         newPass.updateRenderState();
     }
 };
-
 /**
  * GBUFFER LAYOUT:
  * 0: COLOR: (color.XYZ, unused)
@@ -5548,7 +5547,10 @@ HX.ScreenRenderer.prototype._switchPass = function(oldPass, newPass)
         newPass.setTexture("hx_source", this._passSourceTexture);
 
     HX.Renderer.prototype._switchPass.call(this, oldPass, newPass);
-};
+};/**
+ * Created by david on 17/08/2015.
+ */
+
 /**
  * @constructor
  */
@@ -6003,7 +6005,7 @@ HX.PBRMaterial = function()
     this._metallicness = 0.0;
     this._roughness = 0.3;
     this._specularNormalReflection = 0.027;
-    this._refractiveRatio = 1.0/.9;
+    this._refractiveRatio = .9;
     this.metallicness = this._metallicness;
     this.roughness = this._roughness;
     this.specularNormalReflection = this._specularNormalReflection;
@@ -9943,17 +9945,6 @@ HX.CopyTexturePass.prototype.setSourceTexture = function(value)
 {
     this.setTexture("sampler", value);
 };
-HX.FXAA = function()
-{
-    HX.Effect.call(this);
-
-    this.addPass(new HX.EffectPass(null, HX.ShaderLibrary.get("fxaa_fragment.glsl")));
-    this.setUniform("edgeThreshold", 1/8);
-    this.setUniform("edgeThresholdMin", 1/16);
-    this.setUniform("edgeSharpness", 4.0);
-};
-
-HX.FXAA.prototype = Object.create(HX.Effect.prototype);
 /**
  *
  * @param density
@@ -10022,6 +10013,17 @@ HX.FogEffect.prototype.setHeight = function(value)
     this._height = value;
     this.setUniform("height", value);
 };
+HX.FXAA = function()
+{
+    HX.Effect.call(this);
+
+    this.addPass(new HX.EffectPass(null, HX.ShaderLibrary.get("fxaa_fragment.glsl")));
+    this.setUniform("edgeThreshold", 1/8);
+    this.setUniform("edgeThresholdMin", 1/16);
+    this.setUniform("edgeSharpness", 4.0);
+};
+
+HX.FXAA.prototype = Object.create(HX.Effect.prototype);
 /**
  *
  * @param numSamples
@@ -10192,6 +10194,123 @@ HX.HBAO.prototype._initDitherTexture = function()
 /**
  *
  * @param numSamples
+ * @param range
+ * @constructor
+ */
+HX.ScreenSpaceReflections = function(numSamples, range)
+{
+    HX.Effect.call(this);
+    numSamples = numSamples || 5;
+    range = range || 1.0;
+    this._numSamples = numSamples;
+    var pass = new HX.EffectPass(HX.ScreenSpaceReflections._vertexShader, HX.ScreenSpaceReflections.getFragmentShader(numSamples));
+    this.addPass(pass);
+    this.setUniform("stepSize", range/numSamples);
+    this.setUniform("nearSampleRatio",.1);
+};
+
+HX.ScreenSpaceReflections.prototype = Object.create(HX.Effect.prototype);
+
+HX.ScreenSpaceReflections._vertexShader =
+    "precision mediump float;\n\
+    \n\
+    varying vec2 uv;\n\
+    varying vec3 viewDir;\n\
+    varying vec3 nearViewPos;\n\
+    \n\
+    void main()\
+    {\n\
+            uv = hx_texCoord;\n\
+            viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n\
+            gl_Position = hx_position;\n\
+    }";
+
+// TODO: Perform stencil test to rule out based on distance & angle
+HX.ScreenSpaceReflections.getFragmentShader = function(numSamples)
+{
+    return "#define NUM_SAMPLES " + numSamples + "\n\
+            \n\
+            varying vec2 uv;\n\
+            varying vec3 viewDir;\n\
+            \n\
+            uniform float stepSize;\n\
+            uniform float nearSampleRatio;\n\
+            \n\
+            void main()\n\
+            {\n\
+                vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n\
+                vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n\
+                float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n\
+                vec3 normalSpecularReflectance;\n\
+                float roughness;\n\
+                hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness);\n\
+                vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n\
+                vec3 normal = hx_decodeNormal(normalSample);\n\
+                normal = mat3(hx_viewMatrix) * normal;\n\
+                vec3 reflDir = reflect(normalize(viewDir), normal);\n\
+                float fadeFactor = clamp(-reflDir.z * 10000.0, 0.0, 1.0); \n\
+                vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n\
+                // not physically correct, but attenuation is required to look good\n\
+                fresnel *= (1.0 - roughness);\n\
+                bool hitFound = false;\n\
+                // TURNS SAMPLE_POS.z > 0\n\
+                vec3 projScale = vec3(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1], -1.0);\n\
+                float absViewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n\
+                vec3 viewPos = absViewZ * viewDir;\n\
+                vec3 samplePos = viewPos * projScale;\n\
+                float perspStepSize = stepSize * max(1.0, samplePos.z);\n\
+                vec3 sampleStep = reflDir * perspStepSize * projScale / length(reflDir.xy);\n\
+                float depthStep = sampleStep.z / hx_cameraFrustumRange;\n\
+                \n\
+                float originalDepth = depth;\n\
+                float prevDepth = depth;\n\
+                float finalHitDepth;\n\
+                float finalPrevHitDepth;\n\
+                float finalMarchDepth;\n\
+                vec3 finalSamplePos;\n\
+                \n\
+                samplePos += sampleStep * nearSampleRatio;\n\
+                depth += depthStep * nearSampleRatio;\n\
+                \n\
+                for (int i = 0; i < NUM_SAMPLES; ++i) {\n\
+                    \n\
+                    vec2 sampleUV = samplePos.xy / samplePos.z * .5 + .5;\n\
+                    float hitDepth = hx_sampleLinearDepth(hx_gbufferDepth, sampleUV);\n\
+                    \n\
+                    if (depth > hitDepth && !hitFound) {\n\
+                        finalMarchDepth = depth;\n\
+                        finalSamplePos = samplePos;\n\
+                        finalHitDepth = hitDepth;\n\
+                        finalPrevHitDepth = prevDepth;\n\
+                        hitFound = true;\n\
+                    }\n\
+                    prevDepth = hitDepth;\n\
+                    samplePos += sampleStep;\n\
+                    depth += depthStep;\n\
+                }\n\
+                \n\
+                // interpolation for first hit breaks for some reason \n\
+                if (finalPrevHitDepth != originalDepth) {\n\
+                    float deltaDepth = finalHitDepth - finalPrevHitDepth;\n\
+                    float d = depthStep - deltaDepth;\n\
+                    float t = (finalMarchDepth - finalHitDepth) / d;\n\
+                    finalSamplePos -= sampleStep * t;\n\
+                }\n\
+                vec2 sampleUV = finalSamplePos.xy / finalSamplePos.z;\n\
+                vec2 borderFactors = abs(sampleUV);\n\
+                borderFactors = (1.0 - borderFactors) * 10.0;\n\
+                sampleUV = sampleUV * .5 + .5;\n\
+                fadeFactor *= clamp((finalHitDepth - originalDepth)/.0001, 0.1, 1.1) - .1;\n\
+                fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);\n\
+                vec4 reflColor = texture2D(hx_source, sampleUV);\n\
+                vec4 srcColor = texture2D(hx_source, uv);\n\
+                float amountUsed = hitFound? fadeFactor : 0.0;\n\
+                gl_FragColor = vec4(srcColor.xyz + fresnel * reflColor.xyz * amountUsed, 1.0 - amountUsed);\n\
+            }";
+};
+/**
+ *
+ * @param numSamples
  * @constructor
  */
 HX.SSAO = function(numSamples)
@@ -10324,123 +10443,6 @@ HX.SSAO.prototype._initDitherTexture = function()
     this._ditherTexture.uploadData(new Uint8Array(data), 4, 4, false);
     this._ditherTexture.setFilter(HX.TextureFilter.NEAREST_NOMIP);
     this._ditherTexture.setWrapMode(HX.TextureWrapMode.REPEAT);
-};
-/**
- *
- * @param numSamples
- * @param range
- * @constructor
- */
-HX.ScreenSpaceReflections = function(numSamples, range)
-{
-    HX.Effect.call(this);
-    numSamples = numSamples || 5;
-    range = range || 1.0;
-    this._numSamples = numSamples;
-    var pass = new HX.EffectPass(HX.ScreenSpaceReflections._vertexShader, HX.ScreenSpaceReflections.getFragmentShader(numSamples));
-    this.addPass(pass);
-    this.setUniform("stepSize", range/numSamples);
-    this.setUniform("nearSampleRatio",.1);
-};
-
-HX.ScreenSpaceReflections.prototype = Object.create(HX.Effect.prototype);
-
-HX.ScreenSpaceReflections._vertexShader =
-    "precision mediump float;\n\
-    \n\
-    varying vec2 uv;\n\
-    varying vec3 viewDir;\n\
-    varying vec3 nearViewPos;\n\
-    \n\
-    void main()\
-    {\n\
-            uv = hx_texCoord;\n\
-            viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n\
-            gl_Position = hx_position;\n\
-    }";
-
-// TODO: Perform stencil test to rule out based on distance & angle
-HX.ScreenSpaceReflections.getFragmentShader = function(numSamples)
-{
-    return "#define NUM_SAMPLES " + numSamples + "\n\
-            \n\
-            varying vec2 uv;\n\
-            varying vec3 viewDir;\n\
-            \n\
-            uniform float stepSize;\n\
-            uniform float nearSampleRatio;\n\
-            \n\
-            void main()\n\
-            {\n\
-                vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n\
-                vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n\
-                float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n\
-                vec3 normalSpecularReflectance;\n\
-                float roughness;\n\
-                hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness);\n\
-                vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n\
-                vec3 normal = hx_decodeNormal(normalSample);\n\
-                normal = mat3(hx_viewMatrix) * normal;\n\
-                vec3 reflDir = reflect(normalize(viewDir), normal);\n\
-                float fadeFactor = clamp(-reflDir.z * 10000.0, 0.0, 1.0); \n\
-                vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n\
-                // not physically correct, but attenuation is required to look good\n\
-                fresnel *= (1.0 - roughness);\n\
-                bool hitFound = false;\n\
-                // TURNS SAMPLE_POS.z > 0\n\
-                vec3 projScale = vec3(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1], -1.0);\n\
-                float absViewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n\
-                vec3 viewPos = absViewZ * viewDir;\n\
-                vec3 samplePos = viewPos * projScale;\n\
-                float perspStepSize = stepSize * max(1.0, samplePos.z);\n\
-                vec3 sampleStep = reflDir * perspStepSize * projScale / length(reflDir.xy);\n\
-                float depthStep = sampleStep.z / hx_cameraFrustumRange;\n\
-                \n\
-                float originalDepth = depth;\n\
-                float prevDepth = depth;\n\
-                float finalHitDepth;\n\
-                float finalPrevHitDepth;\n\
-                float finalMarchDepth;\n\
-                vec3 finalSamplePos;\n\
-                \n\
-                samplePos += sampleStep * nearSampleRatio;\n\
-                depth += depthStep * nearSampleRatio;\n\
-                \n\
-                for (int i = 0; i < NUM_SAMPLES; ++i) {\n\
-                    \n\
-                    vec2 sampleUV = samplePos.xy / samplePos.z * .5 + .5;\n\
-                    float hitDepth = hx_sampleLinearDepth(hx_gbufferDepth, sampleUV);\n\
-                    \n\
-                    if (depth > hitDepth && !hitFound) {\n\
-                        finalMarchDepth = depth;\n\
-                        finalSamplePos = samplePos;\n\
-                        finalHitDepth = hitDepth;\n\
-                        finalPrevHitDepth = prevDepth;\n\
-                        hitFound = true;\n\
-                    }\n\
-                    prevDepth = hitDepth;\n\
-                    samplePos += sampleStep;\n\
-                    depth += depthStep;\n\
-                }\n\
-                \n\
-                // interpolation for first hit breaks for some reason \n\
-                if (finalPrevHitDepth != originalDepth) {\n\
-                    float deltaDepth = finalHitDepth - finalPrevHitDepth;\n\
-                    float d = depthStep - deltaDepth;\n\
-                    float t = (finalMarchDepth - finalHitDepth) / d;\n\
-                    finalSamplePos -= sampleStep * t;\n\
-                }\n\
-                vec2 sampleUV = finalSamplePos.xy / finalSamplePos.z;\n\
-                vec2 borderFactors = abs(sampleUV);\n\
-                borderFactors = (1.0 - borderFactors) * 10.0;\n\
-                sampleUV = sampleUV * .5 + .5;\n\
-                fadeFactor *= clamp((finalHitDepth - originalDepth)/.0001, 0.1, 1.1) - .1;\n\
-                fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);\n\
-                vec4 reflColor = texture2D(hx_source, sampleUV);\n\
-                vec4 srcColor = texture2D(hx_source, uv);\n\
-                float amountUsed = hitFound? fadeFactor : 0.0;\n\
-                gl_FragColor = vec4(srcColor.xyz + fresnel * reflColor.xyz * amountUsed, 1.0 - amountUsed);\n\
-            }";
 };
 HX.ToneMapEffect = function(adaptive)
 {

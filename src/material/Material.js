@@ -31,20 +31,18 @@ HX.MaterialPass.GEOMETRY_PASS = 0;
 // used for post-lighting
 HX.MaterialPass.POST_LIGHT_PASS = 1;
 
-// used for transparent rendering
-HX.MaterialPass.TRANSPARENT_DIFFUSE_PASS = 2;
-HX.MaterialPass.TRANSPARENT_SPECULAR_PASS = 3;
-
-HX.MaterialPass.POST_PASS = 4;
+// used for post-effects with composite available
+HX.MaterialPass.POST_PASS = 2;
 
 // the individual pass type are not taken into account, they will be dealt with specially
-HX.MaterialPass.NUM_PASS_TYPES = 5;
+HX.MaterialPass.NUM_PASS_TYPES = 3;
 
 // only used by the old renderer, will be removed at some point
 // use diffuse as alias for geometry pass
+// NUM_PASS_TYPES WILL BE SET UPON INITIALISATION DEPENDING ON DRAWBUFFER SUPPORT
 HX.MaterialPass.GEOMETRY_COLOR_PASS = HX.MaterialPass.GEOMETRY_PASS;
-HX.MaterialPass.GEOMETRY_NORMAL_PASS = HX.MaterialPass.NUM_PASS_TYPES++;
-HX.MaterialPass.GEOMETRY_SPECULAR_PASS = HX.MaterialPass.NUM_PASS_TYPES++;
+HX.MaterialPass.GEOMETRY_NORMAL_PASS = HX.MaterialPass.NUM_PASS_TYPES + 1;
+HX.MaterialPass.GEOMETRY_SPECULAR_PASS = HX.MaterialPass.NUM_PASS_TYPES + 2;
 
 HX.MaterialPass.prototype = {
     constructor: HX.MaterialPass,
@@ -299,7 +297,7 @@ HX.MaterialPass.prototype = {
  */
 HX.Material = function ()
 {
-    this._passes = new Array(HX.Material.NUM_TOTAL_PASS_TYPES);
+    this._passes = new Array(HX.Material.NUM_PASS_TYPES);
     this._renderOrderHint = ++HX.Material.ID_COUNTER;
     this.onChange = new HX.Signal();
     this._textures = {};
@@ -481,7 +479,7 @@ HX.Material.prototype = {
     {
         this._textures[slotName] = texture;
 
-        for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i)
+        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
             if (this.hasPass(i)) this._passes[i].setTexture(slotName, texture);
     },
 
@@ -500,7 +498,7 @@ HX.Material.prototype = {
 
         this._uniforms[name] = value;
 
-        for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i) {
+        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
             if (this._passes[i])
                 this._passes[i].setUniform(name, value);
         }
@@ -521,7 +519,7 @@ HX.Material.prototype = {
 
         this._uniforms[name + '[0]'] = value;
 
-        for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i) {
+        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
             if (this._passes[i])
                 this._passes[i].setUniformArray(name, value);
         }

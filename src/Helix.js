@@ -13,6 +13,9 @@ HX.InitOptions = function()
     this.useHDR = false;   // only if available
     this.useLinearSpace = true;
 
+    // provide an array of light types if you wish to extend the direct lights with your own types
+    this.customLights = [];
+
     // debug-related
     this.debug = false;   // requires webgl-debug.js:
     this.ignoreDrawBuffersExtension = false;     // forces multiple passes for the GBuffer
@@ -64,6 +67,8 @@ HX.initFromContext = function(glContext, options)
     HX.OPTIONS = options || new HX.InitOptions();
     HX.GL = glContext;
 
+    HX._initLights();
+
     var defines = "";
     if (HX.OPTIONS.useLinearSpace !== false)
         defines += "#define HX_LINEAR_SPACE\n";
@@ -79,7 +84,8 @@ HX.initFromContext = function(glContext, options)
         defines += "#extension GL_EXT_draw_buffers : require\n";
     }
 
-    HX.MaterialPass.NUM_TOTAL_PASS_TYPES = HX.MaterialPass.NUM_PASS_TYPES + (HX.EXT_DRAW_BUFFERS ? 0 : 2);
+    // include individual geometry shaders
+    HX.MaterialPass.NUM_PASS_TYPES += HX.EXT_DRAW_BUFFERS ? 0 : 2;
 
     HX.EXT_FLOAT_TEXTURES = HX.GL.getExtension('OES_texture_float');
     if (!HX.EXT_FLOAT_TEXTURES) console.warn('OES_texture_float extension not supported!');
@@ -239,6 +245,16 @@ HX.enableAttributes = function(count)
 
     HX._numActiveAttributes = 2;
 }
+
+HX._initLights = function()
+{
+    HX.LIGHT_TYPES = [ HX.AmbientLight, HX.DirectionalLight, HX.PointLight ].concat(HX.OPTIONS.customLights);
+
+    for (var i = 0; i < HX.LIGHT_TYPES.length; ++i) {
+        var type = HX.LIGHT_TYPES[i];
+        type.prototype.getTypeID = function() { return i; }
+    }
+};
 
 HX._init2DDitherTexture = function(width, height)
 {

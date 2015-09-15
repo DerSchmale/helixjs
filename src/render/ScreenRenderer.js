@@ -67,6 +67,8 @@ HX.ScreenRenderer = function()
 
     this._debugMode = HX.DebugRenderMode.DEBUG_NONE;
     this._camera = null;
+
+    // should we allow registering direct light types?
 };
 
 HX.ScreenRenderer.prototype = Object.create(HX.Renderer.prototype);
@@ -262,11 +264,9 @@ HX.ScreenRenderer.prototype._renderToScreen = function(dt)
 
             // TODO: only perform this if any pass in the list has a hx_source slot
             this._copySource();
-            this._renderPostPass(HX.MaterialPass.TRANSPARENT_DIFFUSE_PASS);
-            this._renderForwardPass(HX.MaterialPass.TRANSPARENT_SPECULAR_PASS);
+            this._renderPostPass(HX.MaterialPass.POST_PASS);
 
             this._renderEffects(dt, this._renderCollector._effects);
-            this._renderPostPass(HX.MaterialPass.POST_PASS);
             this._renderEffects(dt, this._camera._effects);
 
             HX.setRenderTarget(null);
@@ -289,13 +289,13 @@ HX.ScreenRenderer.prototype._renderLightAccumulation = function(dt)
     HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
     HX.clear();
 
-    this._renderLights();
-    this._renderGI(dt);
+    this._renderDirectLights();
+    this._renderGlobalIllumination(dt);
 
     HX.GL.disable(HX.GL.BLEND);
 };
 
-HX.ScreenRenderer.prototype._renderLights = function()
+HX.ScreenRenderer.prototype._renderDirectLights = function()
 {
     var lights = this._renderCollector.getLights();
     var len = lights.length;
@@ -318,7 +318,7 @@ HX.ScreenRenderer.prototype._renderLights = function()
     }
 };
 
-HX.ScreenRenderer.prototype._renderGI = function(dt)
+HX.ScreenRenderer.prototype._renderGlobalIllumination = function(dt)
 {
     var occlusion = this._aoEffect? this._aoEffect.getAOTexture() : null;
 
@@ -360,44 +360,6 @@ HX.ScreenRenderer.prototype._copySource = function()
     this._copyTexture.execute(this._rectMesh, source);
 
     this._passSourceTexture = this._hdrBuffers[hdrTarget];
-};
-
-HX.ScreenRenderer.prototype._renderForwardPass = function(passType)
-{
-    var renderItems = this._renderCollector.getRenderList(passType);
-    var len = renderItems.length;
-    var activeShader = null;
-    var activePass = null;
-    var lastMesh = null;
-
-    for(var i = 0; i < len; ++i) {
-        var renderItem = renderItems[i];
-        var meshInstance = renderItem.meshInstance;
-        var pass = renderItem.pass;
-        var shader = pass._shader;
-
-        if (shader !== activeShader) {
-            shader.updateRenderState();
-            activeShader = shader;
-        }
-
-        if (pass !== activePass) {
-            this._switchPass(activePass, pass);
-            activePass = pass;
-
-            lastMesh = null;    // need to reset mesh data too
-        }
-
-        if (lastMesh != meshInstance._mesh) {
-            meshInstance.updateRenderState(passType);
-            lastMesh = meshInstance._mesh;
-        }
-
-        // todo: loop through lights assigning to object
-        renderItem.draw();
-    }
-
-    if (activePass && activePass._blending) HX.GL.disable(HX.GL.BLEND);
 };
 
 HX.ScreenRenderer.prototype._renderPostPass = function(passType)

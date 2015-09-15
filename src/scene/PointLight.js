@@ -4,7 +4,7 @@
  */
 HX.PointLight = function()
 {
-    HX.Light.call(this, HX.PointLight);
+    HX.Light.call(this);
 
     HX.Light._rectMesh = HX.Light._rectMesh || new HX.RectMesh.create();
     HX.PointLight._sphereMesh = HX.PointLight._sphereMesh || new HX.Mesh(HX.MeshBatch.create(new HX.SpherePrimitive.createMeshData(

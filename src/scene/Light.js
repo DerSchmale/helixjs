@@ -4,12 +4,13 @@
  * prototype.prepareBatch
  * @constructor
  */
-HX.Light = function (type)
+HX.Light = function ()
 {
     HX.SceneNode.call(this);
+    // this is for faster access
+    this._type = this.getTypeID();
     this._luminance = 3.1415;
     this._luminanceBound = 1 / 255;
-    this._type = type; // used for sorting (TODO: Does this work?)
     this._color = new HX.Color(1.0, 1.0, 1.0);
     this._scaledIrradiance = new HX.Color();
     this._castsShadows = false;
@@ -17,6 +18,11 @@ HX.Light = function (type)
 };
 
 HX.Light.prototype = Object.create(HX.SceneNode.prototype);
+
+HX.Light.prototype.getTypeID = function()
+{
+    throw "Light is not registered! Be sure to pass the light type into the customLights array upon Helix initialization.";
+}
 
 HX.Light.prototype.acceptVisitor = function (visitor)
 {

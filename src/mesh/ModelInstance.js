@@ -93,8 +93,8 @@ HX.MeshInstance.prototype = {
 
     _initVertexLayouts: function()
     {
-        this._vertexLayouts = new Array(HX.MaterialPass.NUM_TOTAL_PASS_TYPES);
-        for (var type = 0; type < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++type) {
+        this._vertexLayouts = new Array(HX.MaterialPass.NUM_PASS_TYPES);
+        for (var type = 0; type < HX.MaterialPass.NUM_PASS_TYPES; ++type) {
             var pass = this._material.getPass(type);
             if (pass)
                 this._vertexLayouts[type] = new HX.VertexLayout(this._mesh, pass);
@@ -105,9 +105,9 @@ HX.MeshInstance.prototype = {
     {
         this._initVertexLayouts();
 
-        this._uniformSetters = new Array( HX.MaterialPass.NUM_TOTAL_PASS_TYPES );
+        this._uniformSetters = new Array( HX.MaterialPass.NUM_PASS_TYPES );
 
-        for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i) {
+        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
             if (this._material.hasPass(i)) {
                 var pass = this._material.getPass(i);
                 this._uniformSetters[i] = HX.UniformSetter.getSetters(pass._shader);

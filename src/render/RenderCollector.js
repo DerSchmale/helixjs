@@ -7,7 +7,7 @@ HX.RenderCollector = function()
     HX.SceneVisitor.call(this);
 
     // linked lists of RenderItem
-    this._passes = new Array( HX.MaterialPass.NUM_TOTAL_PASS_TYPES ); // add in individual pass types
+    this._passes = new Array( HX.MaterialPass.NUM_PASS_TYPES ); // add in individual pass types
     this._camera = null;
     this._frustum = null;
     this._lights = null;
@@ -36,8 +36,6 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
     scene.acceptVisitor(this);
 
     this._passes[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques);
-    this._passes[HX.MaterialPass.TRANSPARENT_DIFFUSE_PASS].sort(this._sortBlended);
-    this._passes[HX.MaterialPass.TRANSPARENT_SPECULAR_PASS].sort(this._sortBlended);
     this._passes[HX.MaterialPass.POST_PASS].sort(this._sortOpaques);
 
     if (!HX.EXT_DRAW_BUFFERS)
@@ -108,7 +106,7 @@ HX.RenderCollector.prototype.visitLight = function(light)
 
 HX.RenderCollector.prototype._reset = function()
 {
-    for (var i = 0; i < HX.MaterialPass.NUM_TOTAL_PASS_TYPES; ++i)
+    for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
         this._passes[i] = [];
 
     this._lights = [];
@@ -137,10 +135,10 @@ HX.RenderCollector.prototype._sortBlended = function(a, b)
 HX.RenderCollector.prototype._sortLights = function(a, b)
 {
     return  a._type == b._type?
-                a._castsShadows == b._castsShadows ?
-                    a._renderOrderHint - b._renderOrderHint :
+                    a._castsShadows == b._castsShadows ?
+                        a._renderOrderHint - b._renderOrderHint :
                     a._castsShadows? 1 : -1 :
-            a._type < b._type? -1 : 1;
+            a._type - b._type;
 };
 
 HX.RenderCollector.prototype._copyLegacyPasses = function(a, b)

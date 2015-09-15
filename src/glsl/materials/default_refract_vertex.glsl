@@ -1,19 +1,15 @@
 attribute vec4 hx_position;
 attribute vec3 hx_normal;
-
-uniform mat4 hx_wvpMatrix;
-uniform mat3 hx_normalWorldMatrix;
+attribute vec2 hx_texCoord;
 
 varying vec3 normal;
-
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)
-attribute vec2 hx_texCoord;
 varying vec2 texCoords;
-#endif
+varying vec3 viewVector;
 
-#ifdef NORMAL_MAP
+uniform mat4 hx_wvpMatrix;
 uniform mat4 hx_worldMatrix;
-#endif
+uniform mat3 hx_normalWorldMatrix;
+uniform vec3 hx_cameraWorldPosition;
 
 #ifdef NORMAL_MAP
 attribute vec4 hx_tangent;
@@ -33,7 +29,6 @@ void main()
     bitangent = cross(tangent, normal) * hx_tangent.w;
 #endif
 
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)
+    viewVector = hx_cameraWorldPosition - (hx_worldMatrix * hx_position).xyz;
     texCoords = hx_texCoord;
-#endif
 }

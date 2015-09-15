@@ -1,4 +1,4 @@
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(TRANSPARENT_REFRACT)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)
 varying vec2 texCoords;
 #endif
 
@@ -23,22 +23,6 @@ uniform float metallicness;
 
 #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
 uniform sampler2D specularMap;
-#endif
-
-#ifdef TRANSPARENT_REFRACT
-varying vec3 viewVector;
-
-// when used as TRANSPARENT_DIFFUSE, hx_source is a copy of the render target:
-uniform sampler2D hx_source;
-uniform sampler2D hx_gbufferDepth;
-
-uniform mat4 hx_projectionMatrix;
-uniform mat4 hx_viewProjectionMatrix;
-uniform vec3 hx_cameraWorldPosition;
-uniform float hx_cameraNearPlaneDistance;
-uniform float hx_cameraFrustumRange;
-
-uniform float refractiveRatio;   // the ratio of refractive indices
 #endif
 
 void main()
@@ -77,24 +61,6 @@ void main()
               specNormalReflOut *= specularMap.y;
               metallicnessOut *= specularMap.z;
           #endif
-    #endif
-
-    #ifdef TRANSPARENT_REFRACT
-        // use the immediate background depth value for a distance estimate
-        float depth = hx_sampleLinearDepth(hx_gbufferDepth, texCoords);
-
-        // this can be done in vertex shader
-        float viewZ = hx_depthToViewZ(gl_FragCoord.z, hx_projectionMatrix);
-
-        vec3 viewDir = normalize(-viewVector);
-        vec3 refractionVector = refract(viewDir, fragNormal, refractiveRatio);
-        float distance = depth * hx_cameraFrustumRange - viewZ - hx_cameraNearPlaneDistance;
-        vec3 refractedPoint = hx_cameraWorldPosition - viewVector + refractionVector * distance;
-        vec4 samplePos = hx_viewProjectionMatrix * vec4(refractedPoint, 1.0);
-        samplePos.xy = samplePos.xy / samplePos.w * .5 + .5;
-
-        vec4 background = texture2D(hx_source, samplePos.xy);
-        outputColor *= background;
     #endif
 
     // todo: should we linearize depth here instead?

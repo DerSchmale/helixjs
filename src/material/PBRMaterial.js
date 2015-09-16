@@ -14,12 +14,14 @@ HX.PBRMaterial = function()
     this._roughness = 0.3;
     this._specularNormalReflection = 0.027;
     this._refractiveRatio = .8;
+    this._transparent = false;
+    this._refract = false;
+
+    // trigger assignments
     this.metallicness = this._metallicness;
     this.roughness = this._roughness;
     this.specularNormalReflection = this._specularNormalReflection;
     this.refractiveRatio = this._refractiveRatio;
-    this._transparent = false;
-    this._refract = false;
 };
 
 /**
@@ -37,14 +39,6 @@ HX.PBRMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 
 HX.PBRMaterial.prototype = Object.create(HX.Material.prototype);
-
-//HX.PBRMaterial.prototype.hasPass = function(type)
-//{
-    //if (this._passesInvalid)
-    //    this._updatePasses();
-
-    //return HX.Material.prototype.hasPass.call(this, type);
-//};
 
 HX.PBRMaterial.prototype.getPass = function(type)
 {

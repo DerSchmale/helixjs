@@ -27,15 +27,27 @@ HX.Renderer.prototype =
 
     },
 
-    _renderPass: function (passType, renderItems)
+    /**
+     *
+     * @param passType
+     * @param renderItems
+     * @param transparencyMode (optional) If provided, it will only render passes with the given transparency mode
+     * @param offsetIndex The index to start rendering.
+     * @returns The index for the first unrendered renderItem in the list (depending on transparencyMode)
+     * @private
+     */
+    _renderPass: function (passType, renderItems, transparencyMode, offsetIndex)
     {
         var len = renderItems.length;
         var activeShader = null;
         var activePass = null;
         var lastMesh = null;
+        var offsetIndex = offsetIndex || 0;
 
-        for(var i = 0; i < len; ++i) {
+        for(var i = offsetIndex; i < len; ++i) {
             var renderItem = renderItems[i];
+            if (transparencyMode !== undefined && renderItem.material._transparencyMode !== transparencyMode)
+                return i;
             var meshInstance = renderItem.meshInstance;
             var pass = renderItem.pass;
             var shader = pass._shader;
@@ -61,6 +73,7 @@ HX.Renderer.prototype =
         }
 
         if (activePass && activePass._blending) HX.GL.disable(HX.GL.BLEND);
+        return len;
     },
 
     _switchPass: function(oldPass, newPass)

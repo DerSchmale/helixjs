@@ -121,6 +121,11 @@ HX.RenderCollector.prototype._reset = function()
 HX.RenderCollector.prototype._sortRenderables = function(a, b)
 {
     var diff;
+
+    // make sure opaques are first
+    diff = a.material._transparencyMode - b.material._transparencyMode;
+    if (diff !== 0) return diff;
+
     diff = a.material._renderOrder - b.material._renderOrder;
     if (diff !== 0) return diff;
 

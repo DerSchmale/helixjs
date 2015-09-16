@@ -127,7 +127,7 @@ HX.ScreenRenderer.prototype.render = function(camera, scene, dt)
     this._renderShadowCasters();
 
     HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
-    this._renderToGBuffer();
+    this._renderToGBuffer(HX.TransparencyMode.OPAQUE, 0);
     this._linearizeDepth();
 
     HX.GL.disable(HX.GL.BLEND);
@@ -155,40 +155,22 @@ HX.ScreenRenderer.prototype._renderShadowCasters = function()
     HX.GL.colorMask(true, true, true, true);
 };
 
-HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function()
-{
-    var clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT;
-    var passIndices = [ HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
-
-    for (var i = 0; i < 3; ++i) {
-        HX.setRenderTarget(this._gbufferSingleFBOs[i]);
-        HX.GL.clear(clearMask);
-        this._renderPass(passIndices[i]);
-
-        if (i == 0) {
-            clearMask = HX.GL.COLOR_BUFFER_BIT;
-            // important to use the same clip space calculations for all!
-            HX.GL.depthFunc(HX.GL.EQUAL);
-        }
-    }
-};
-
-HX.ScreenRenderer.prototype._renderToGBuffer = function()
+HX.ScreenRenderer.prototype._renderToGBuffer = function(transparencyMode, offsetIndex)
 {
     if (HX.EXT_DRAW_BUFFERS)
-        this._renderToGBufferMRT();
+        this._renderToGBufferMRT(transparencyMode, offsetIndex);
     else
-        this._renderToGBufferMultiPass();
+        this._renderToGBufferMultiPass(transparencyMode, offsetIndex);
 };
 
-HX.ScreenRenderer.prototype._renderToGBufferMRT = function()
+HX.ScreenRenderer.prototype._renderToGBufferMRT = function(transparencyMode, offsetIndex)
 {
     HX.setRenderTarget(this._gbufferFBO);
     HX.clear();
-    this._renderPass(HX.MaterialPass.GEOMETRY_PASS);
+    this._renderPass(HX.MaterialPass.GEOMETRY_PASS, null, transparencyMode, offsetIndex);
 };
 
-HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function()
+HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function(transparencyMode, offsetIndex)
 {
     var clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT;
     var passIndices = [ HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
@@ -196,7 +178,7 @@ HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function()
     for (var i = 0; i < 3; ++i) {
         HX.setRenderTarget(this._gbufferSingleFBOs[i]);
         HX.GL.clear(clearMask);
-        this._renderPass(passIndices[i]);
+        this._renderPass(passIndices[i], null, transparencyMode, offsetIndex);
 
         if (i == 0) {
             clearMask = HX.GL.COLOR_BUFFER_BIT;
@@ -341,11 +323,11 @@ HX.ScreenRenderer.prototype._renderGlobalIllumination = function(dt)
         this._renderCollector._globalSpecularProbe.render(this._camera, this._gbuffer, occlusion);
 };
 
-HX.ScreenRenderer.prototype._renderPass = function(passType, renderItems)
+HX.ScreenRenderer.prototype._renderPass = function(passType, renderItems, transparencyMode, offsetIndex)
 {
     renderItems = renderItems || this._renderCollector.getRenderList(passType);
 
-    HX.Renderer.prototype._renderPass.call(this, passType, renderItems);
+    HX.Renderer.prototype._renderPass.call(this, passType, renderItems, transparencyMode, offsetIndex);
 };
 
 HX.ScreenRenderer.prototype._copySource = function()

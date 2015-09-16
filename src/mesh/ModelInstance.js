@@ -42,18 +42,18 @@ HX.MeshInstance = function(mesh, material)
     this._mesh = mesh;
     this._meshMaterialLinkInvalid = false;
 
-    this.setMaterial(material);
+    this.material = material;
 };
 
 HX.MeshInstance.prototype = {
     constructor: HX.MeshInstance,
 
-    getMaterial: function()
+    get material()
     {
         return this._material;
     },
 
-    setMaterial: function(value)
+    set material(value)
     {
         if (this._material)
             this._material.onChange.unbind(this._onMaterialChange);

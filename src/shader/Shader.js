@@ -17,7 +17,6 @@ HX.Shader = function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFra
     this._vertexShader = null;
     this._fragmentShader = null;
     this._program = null;
-    this._renderOrderHint = ++HX.Shader.ID_COUNTER;
 
     if (vertexShaderCode && fragmentShaderCode) {
         this.init(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode);

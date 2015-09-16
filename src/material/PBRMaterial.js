@@ -81,24 +81,36 @@ HX.PBRMaterial.prototype._updatePasses = function()
             pass.setBlendMode(HX.BlendFactor.ZERO, HX.BlendFactor.SOURCE_COLOR, HX.BlendOperation.ADD);
         }
     }
-    else if (HX.EXT_DRAW_BUFFERS) {
+
+    var colorPass;
+    if (HX.EXT_DRAW_BUFFERS) {
         var defines = colorDefines + normalDefines + specularDefines;
-        this._initPass(HX.MaterialPass.GEOMETRY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+        colorPass = this._initPass(HX.MaterialPass.GEOMETRY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
     else {
-        colorDefines = "#define NO_MRT_GBUFFER_COLOR\n" + colorDefines;
+        // do not assign texture if transparent (albedo will be black)
+        if (!this._transparent)
+            colorDefines = "#define NO_MRT_GBUFFER_COLOR\n" + colorDefines;
         normalDefines = "#define NO_MRT_GBUFFER_NORMALS\n" + normalDefines;
         specularDefines = "#define NO_MRT_GBUFFER_SPECULAR\n" + specularDefines;
-        this._initPass(HX.MaterialPass.GEOMETRY_COLOR_PASS, colorDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+        colorPass = this._initPass(HX.MaterialPass.GEOMETRY_COLOR_PASS, colorDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
         this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
         this._initPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS, specularDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
 
     this.setUniform("color", this._color);
-
     if (this._colorMap) this.setTexture("colorMap", this._colorMap);
     if (this._normalMap) this.setTexture("normalMap", this._normalMap);
     if (this._specularMap) this.setTexture("specularMap", this._specularMap);
+
+    if (this._transparent) {
+        if (HX.EXT_DRAW_BUFFERS) {
+            colorPass.setUniform("color", new HX.Color(0, 0, 0, 1));
+            colorPass.setTexture("colorMap", null);
+        }
+    }
+
+
 
     this._passesInvalid = false;
 };
@@ -232,14 +244,20 @@ Object.defineProperty(HX.PBRMaterial.prototype, "roughness",
     }
 );
 
+// TODO: Provide transparency modes:
+//  - alpha
+//  - absorbant
+//  - absorbant no specular (for performance, removes gbuffer passes)
 Object.defineProperty(HX.PBRMaterial.prototype, "transparent",
     {
         get: function() { return this._transparent; },
         set: function(value) {
-            if (!!this._transparent !== !!value)
+            // only specular will be output to hdr buffer, so additive
+            if (this._transparent !== value)
                 this._passesInvalid = true;
 
-            this._transparent = HX.saturate(value);
+            this._transparent = value;
+            this._transparencyMode = value? HX.TransparencyMode.ADDITIVE : HX.TransparencyMode.OPAQUE;
         }
     }
 );

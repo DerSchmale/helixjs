@@ -35,8 +35,8 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
 
     scene.acceptVisitor(this);
 
-    this._passes[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques);
-    this._passes[HX.MaterialPass.POST_PASS].sort(this._sortOpaques);
+    this._passes[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortRenderables);
+    this._passes[HX.MaterialPass.POST_PASS].sort(this._sortRenderables);
 
     if (!HX.EXT_DRAW_BUFFERS)
         this._copyLegacyPasses();
@@ -75,12 +75,14 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
 
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
-        var material = meshInstance.getMaterial();
+        var material = meshInstance.material;
 
         for (var passIndex = 0; passIndex < HX.MaterialPass.NUM_PASS_TYPES; ++passIndex) {
             var pass = material.getPass(passIndex);
             if (pass && pass._enabled) {
+                // TODO: pool items
                 var renderItem = new HX.RenderItem();
+                renderItem.material = material;
                 renderItem.pass = pass;
                 renderItem.meshInstance = meshInstance;
                 renderItem.worldMatrix = worldMatrix;
@@ -116,20 +118,19 @@ HX.RenderCollector.prototype._reset = function()
     this._globalSpecularProbe = null;
 };
 
-HX.RenderCollector.prototype._sortOpaques = function(a, b)
+HX.RenderCollector.prototype._sortRenderables = function(a, b)
 {
-    var diff = a.pass._shader._renderOrderHint - b.pass._shader._renderOrderHint;
+    var diff;
+    diff = a.material._renderOrder - b.material._renderOrder;
     if (diff !== 0) return diff;
 
-    var diff = a.pass._renderOrderHint - b.pass._renderOrderHint;
+    diff = a.pass._shader._renderOrderHint - b.pass._shader._renderOrderHint;
+    if (diff !== 0) return diff;
+
+    diff = a.material._renderOrderHint - b.material._renderOrderHint;
     if (diff !== 0) return diff;
 
     return a.meshInstance._renderOrderHint - b.meshInstance._renderOrderHint;
-};
-
-HX.RenderCollector.prototype._sortBlended = function(a, b)
-{
-    return b.meshInstance._renderOrderHint - a.meshInstance._renderOrderHint;
 };
 
 HX.RenderCollector.prototype._sortLights = function(a, b)
@@ -153,7 +154,7 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(a, b)
         var normalItem = new HX.RenderItem();
         var specItem = new HX.RenderItem();
         var meshInstance = renderItem.meshInstance;
-        var material = meshInstance.getMaterial();
+        var material = meshInstance.material;
         normalItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS);
         specItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS);
         normalItem.uniformSetters = meshInstance._uniformSetters[HX.MaterialPass.GEOMETRY_NORMAL_PASS];

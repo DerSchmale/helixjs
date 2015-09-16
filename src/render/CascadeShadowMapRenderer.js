@@ -66,7 +66,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
 
             for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
                 var meshInstance = modelInstance.getMeshInstance(meshIndex);
-                var material = meshInstance.getMaterial();
+                var material = meshInstance.material;
 
                 // TODO: ignore individual geometry passes if MRT is supported
                 if (material.hasPass(passIndex)) {

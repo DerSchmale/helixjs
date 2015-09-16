@@ -3,6 +3,13 @@ HX.TextureSlot = function() {
     this.texture = null;
 };
 
+HX.TransparencyMode = {
+    OPAQUE: 0,
+    ALPHA: 1,
+    ADDITIVE: 2
+    // multiplicative diffuse would be handled custom as a post pass
+};
+
 /**
  *
  * @param shader
@@ -11,6 +18,7 @@ HX.TextureSlot = function() {
 HX.MaterialPass = function (shader)
 {
     this._shader = shader;
+    this._transparencyMode = HX.TransparencyMode.OPAQUE;
     this._textureSlots = [];
     this._uniforms = {};
     this._elementType = HX.ElementType.TRIANGLES;
@@ -299,6 +307,8 @@ HX.Material = function ()
 {
     this._passes = new Array(HX.Material.NUM_PASS_TYPES);
     this._renderOrderHint = ++HX.Material.ID_COUNTER;
+    // forced render order by user:
+    this._renderOrder = 0;
     this.onChange = new HX.Signal();
     this._textures = {};
     this._uniforms = {};
@@ -442,6 +452,16 @@ HX.Material.ID_COUNTER = 0;
 HX.Material.prototype = {
     constructor: HX.Material,
 
+    get renderOrder()
+    {
+        return this._renderOrder;
+    },
+
+    set renderOrder(value)
+    {
+        this._renderOrder = value;
+    },
+
     getPass: function (type)
     {
         return this._passes[type];
@@ -452,7 +472,6 @@ HX.Material.prototype = {
         this._passes[type] = pass;
 
         if (pass) {
-            pass._renderOrderHint = this._renderOrderHint;
             for (var slotName in this._textures) {
                 if (this._textures.hasOwnProperty(slotName))
                     pass.setTexture(slotName, this._textures[slotName]);

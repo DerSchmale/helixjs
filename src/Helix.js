@@ -22,7 +22,7 @@ HX.InitOptions = function()
     this.ignoreDepthTexturesExtension = false;     // forces storing depth info explicitly
     this.ignoreTextureLODExtension = false;     // forces storing depth info explicitly
     this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
-    this.throwOnShaderError = false;
+    this.throwOnShaderError = true;
 };
 
 /**
@@ -85,7 +85,7 @@ HX.initFromContext = function(glContext, options)
     }
 
     // include individual geometry shaders
-    HX.MaterialPass.NUM_PASS_TYPES += HX.EXT_DRAW_BUFFERS ? 0 : 2;
+    HX.MaterialPass.NUM_PASS_TYPES += !!HX.EXT_DRAW_BUFFERS ? 0 : 2;
 
     HX.EXT_FLOAT_TEXTURES = HX.GL.getExtension('OES_texture_float');
     if (!HX.EXT_FLOAT_TEXTURES) console.warn('OES_texture_float extension not supported!');

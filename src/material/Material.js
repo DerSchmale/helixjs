@@ -49,8 +49,8 @@ HX.MaterialPass.NUM_PASS_TYPES = 3;
 // use diffuse as alias for geometry pass
 // NUM_PASS_TYPES WILL BE SET UPON INITIALISATION DEPENDING ON DRAWBUFFER SUPPORT
 HX.MaterialPass.GEOMETRY_COLOR_PASS = HX.MaterialPass.GEOMETRY_PASS;
-HX.MaterialPass.GEOMETRY_NORMAL_PASS = HX.MaterialPass.NUM_PASS_TYPES + 1;
-HX.MaterialPass.GEOMETRY_SPECULAR_PASS = HX.MaterialPass.NUM_PASS_TYPES + 2;
+HX.MaterialPass.GEOMETRY_NORMAL_PASS = HX.MaterialPass.NUM_PASS_TYPES;
+HX.MaterialPass.GEOMETRY_SPECULAR_PASS = HX.MaterialPass.NUM_PASS_TYPES + 1;
 
 HX.MaterialPass.prototype = {
     constructor: HX.MaterialPass,

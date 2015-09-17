@@ -125,7 +125,7 @@ HX.RenderCollector.prototype._reset = function()
     for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
         this._opaquePasses[i] = [];
 
-    for (var i = 0; i < this._transparentPasses.length; ++i)
+    for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
         this._transparentPasses[i] = [];
 
     this._lights = [];
@@ -189,8 +189,8 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
         normalItem.worldMatrix = specItem.worldMatrix = renderItem.worldMatrix;
         normalItem.camera = specItem.camera = this._camera;
 
-        normalPasses.push(normalItem);
-        specularPasses.push(specItem);
+        normalPasses[i] = normalItem;
+        specularPasses[i] = specItem;
     }
 
 };

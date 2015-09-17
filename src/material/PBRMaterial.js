@@ -13,7 +13,7 @@ HX.PBRMaterial = function()
     this._metallicness = 0.0;
     this._roughness = 0.3;
     this._specularNormalReflection = 0.027;
-    this._refractiveRatio = .8;
+    this._refractiveRatio = .9;
     this._transparent = false;
     this._refract = false;
 
@@ -82,9 +82,7 @@ HX.PBRMaterial.prototype._updatePasses = function()
         colorPass = this._initPass(HX.MaterialPass.GEOMETRY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
     else {
-        // do not assign texture if transparent (albedo will be black)
-        if (!this._transparent)
-            colorDefines = "#define NO_MRT_GBUFFER_COLOR\n" + colorDefines;
+        colorDefines = "#define NO_MRT_GBUFFER_COLOR\n" + colorDefines;
         normalDefines = "#define NO_MRT_GBUFFER_NORMALS\n" + normalDefines;
         specularDefines = "#define NO_MRT_GBUFFER_SPECULAR\n" + specularDefines;
         colorPass = this._initPass(HX.MaterialPass.GEOMETRY_COLOR_PASS, colorDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
@@ -98,6 +96,7 @@ HX.PBRMaterial.prototype._updatePasses = function()
     if (this._specularMap) this.setTexture("specularMap", this._specularMap);
 
     if (this._transparent) {
+        // do not assign texture or color if transparent (albedo will be black)
         colorPass.setUniform("color", new HX.Color(0, 0, 0, 1));
         colorPass.setTexture("colorMap", null);
     }

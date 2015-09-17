@@ -44,8 +44,7 @@ HX.Shader.prototype = {
                 throw new Error("Failed generating vertex shader: \n" + vertexShaderCode);
             }
             else {
-                console.log("Failed generating vertex shader");
-                console.log(vertexShaderCode);
+                console.warn("Failed generating vertex shader");
             }
 
             return;
@@ -54,13 +53,9 @@ HX.Shader.prototype = {
         this._fragmentShader = HX.GL.createShader(HX.GL.FRAGMENT_SHADER);
         if (!this._initShader(this._fragmentShader, fragmentShaderCode)) {
             this.dispose();
-            if (HX.OPTIONS.throwOnShaderError) {
+            if (HX.OPTIONS.throwOnShaderError)
                 throw new Error("Failed generating fragment shader: \n" + fragmentShaderCode);
-            }
-            else {
-                console.log("Failed generating fragment shader:");
-                console.log(fragmentShaderCode);
-            }
+            console.warn("Failed generating fragment shader:");
             return;
         }
 
@@ -72,12 +67,10 @@ HX.Shader.prototype = {
 
         if (!HX.GL.getProgramParameter(this._program, HX.GL.LINK_STATUS)) {
             this.dispose();
-            if (HX.OPTIONS.throwOnShaderError) {
+            if (HX.OPTIONS.throwOnShaderError)
                 throw new Error("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
-            }
-            else {
-                console.warn("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
-            }
+
+            console.warn("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
 
             return;
         }
@@ -97,8 +90,8 @@ HX.Shader.prototype = {
 
         // Check the compile status, return an error if failed
         if (!HX.GL.getShaderParameter(shader, HX.GL.COMPILE_STATUS)) {
-            throw new Error(HX.GL.getShaderInfoLog(shader));
             console.warn(HX.GL.getShaderInfoLog(shader));
+            console.log(code);
             return false;
         }
 

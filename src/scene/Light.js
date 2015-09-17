@@ -7,7 +7,6 @@
 HX.Light = function ()
 {
     HX.SceneNode.call(this);
-    // this is for faster access
     this._type = this.getTypeID();
     this._intensity = 3.1415;
     this._luminanceBound = 1 / 255;
@@ -50,7 +49,7 @@ Object.defineProperty(HX.Light.prototype, "color", {
     },
 
     /**
-     * Value can be hex or HX.Color
+     * Value can be hex or
      * @param value
      */
     set: function(value)
@@ -82,7 +81,7 @@ HX.Light.prototype.getLuminanceBound = function ()
 HX.Light.prototype.setLuminanceBound = function (value)
 {
     this._luminanceBound = value;
-    this._updateWorldBounds();
+    this._invalidateWorldBounds();
 };
 
 HX.Light.prototype.luminance = function ()

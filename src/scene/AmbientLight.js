@@ -4,7 +4,7 @@
  */
 HX.AmbientLight = function()
 {
-    HX.Light.call(this, HX.AmbientLight);
+    HX.Light.call(this);
 
     HX.Light._rectMesh = HX.Light._rectMesh || new HX.RectMesh.create();
 
@@ -39,31 +39,31 @@ HX.AmbientLight.prototype.renderBatch = function(lightCollection, startIndex, ca
 {
     this._occlusion = occlusion;
     var colorR = 0, colorG = 0, colorB = 0;
-    //var end = lightCollection.length;
+    var end = lightCollection.length;
 
-    //for (var i = startIndex; i < end; ++i) {
-        var light = lightCollection[startIndex];
+    for (var i = startIndex; i < end; ++i) {
+        var light = lightCollection[i];
         var color = light._scaledIrradiance;
 
-        //if (light._type != this._type) {
-        //    end = i;
-        //    break;
-        //}
+        if (light._type != this._type)
+            break;
+
         colorR += color.r;
         colorG += color.g;
         colorB += color.b;
-    //}
+    }
 
     HX.GL.uniform3f(this._colorLocation, colorR, colorG, colorB);
 
     // render rect mesh
     HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
 
-    return startIndex + 1;
+    return i;
 };
 
 HX.AmbientLight.prototype._updateWorldBounds = function()
 {
+    //console.log(new Error().stack);
     this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
     HX.Light.prototype._updateWorldBounds.call(this);
 };

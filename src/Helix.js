@@ -254,7 +254,12 @@ HX._initLights = function()
 
     for (var i = 0; i < HX.LIGHT_TYPES.length; ++i) {
         var type = HX.LIGHT_TYPES[i];
-        type.prototype.getTypeID = function() { return i; }
+        var closure = function() {
+            var j = i;
+            return function() { return j; }
+        };
+
+        type.prototype.getTypeID = closure();
     }
 };
 

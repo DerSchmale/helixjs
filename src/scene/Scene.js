@@ -132,7 +132,7 @@ HX.SceneNode.prototype._updateDebugBounds = function()
 HX.SceneNode.prototype._updateTransformationMatrix = function()
 {
     HX.Transform.prototype._updateTransformationMatrix.call(this);
-    this._worldBoundsInvalid = true;
+    this._invalidateWorldBounds();
 };
 
 HX.SceneNode.prototype._updateWorldTransformationMatrix = function()
@@ -206,14 +206,14 @@ HX.BoundingHierarchyNode.prototype.acceptVisitor = function(visitor)
 };
 
 
-HX.BoundingHierarchyNode.prototype._invalidateWorldBounds = function()
+/*HX.BoundingHierarchyNode.prototype._invalidateWorldBounds = function(tellParent)
 {
-    HX.SceneNode.prototype._invalidateWorldBounds.call(this);
+    HX.SceneNode.prototype._invalidateWorldBounds.call(this, tellParent);
 
     var len = this._children.length;
     for (var i = 0; i < len; ++i)
         this._children[i]._invalidateWorldBounds(false); // false = parent (ie: this) does not need to know, it already knows
-};
+};*/
 
 HX.BoundingHierarchyNode.prototype._invalidateWorldTransformationMatrix = function()
 {

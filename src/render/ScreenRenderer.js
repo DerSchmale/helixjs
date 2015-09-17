@@ -166,8 +166,9 @@ HX.ScreenRenderer.prototype._renderOpaques = function(dt)
     HX.GL.disable(HX.GL.BLEND);
 
     // only render AO for non-transparents
-    if (this._aoEffect != null)
+    if (this._aoEffect != null) {
         this._renderEffect(this._aoEffect, dt);
+    }
 
     HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
 

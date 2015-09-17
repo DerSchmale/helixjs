@@ -223,17 +223,18 @@ HX.ScreenRenderer.prototype._renderTransparents = function()
         HX.GL.enable(HX.GL.BLEND);
         HX.GL.blendEquation(HX.GL.FUNC_ADD);
 
+        HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
+
         switch (transparencyMode) {
             case HX.TransparencyMode.ADDITIVE:
                 HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
+                this._copyTexture.execute(this._rectMesh, this._hdrBuffers[1 - this._hdrSourceIndex]);
                 break;
             case HX.TransparencyMode.ALPHA:
                 HX.GL.blendFunc(HX.GL.SOURCE_ALPHA, HX.GL.ONE_MINUS_SOURCE_ALPHA);
+                // TODO: Provide shader that outputs albedo.w as alpha
                 break;
         }
-
-        HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
-        this._copyTexture.execute(this._rectMesh, this._hdrBuffers[1 - this._hdrSourceIndex]);
 
         HX.GL.disable(HX.GL.BLEND);
     }

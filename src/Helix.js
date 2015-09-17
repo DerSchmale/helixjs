@@ -202,7 +202,7 @@ HX.initFromCanvas = function(canvas, options)
  */
 HX.clear = function()
 {
-    HX.GL.clear(HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT);
+    HX.GL.clear(HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT | HX.GL.STENCIL_BUFFER_BIT);
 };
 
 HX.unbindTextures = function()
@@ -244,7 +244,7 @@ HX.enableAttributes = function(count)
     }
 
     HX._numActiveAttributes = 2;
-}
+};
 
 HX._initLights = function()
 {

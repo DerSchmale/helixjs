@@ -187,7 +187,7 @@ HX.DirectionalLight.prototype._initLightPass =  function()
     }
 
     var vertexShader = HX.ShaderLibrary.get("directional_light_vertex.glsl", defines);
-    var fragmentShader = HX.DEFERRED_LIGHT_MODEL + "\n" +
+    var fragmentShader = HX.LIGHTING_MODEL.getGLSL() + "\n" +
         HX.ShaderLibrary.get("directional_light_fragment.glsl", defines);
 
     var pass = new HX.EffectPass(vertexShader, fragmentShader, HX.Light._rectMesh);

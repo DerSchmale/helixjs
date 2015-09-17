@@ -110,7 +110,7 @@ HX.PointLight.prototype.initFullScreenPass = function (passIndex)
     };
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl", defines),
-        HX.DEFERRED_LIGHT_MODEL + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl", defines),
+        HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl", defines),
         HX.Light._rectMesh);
     HX.PointLight._fullScreenPositionLocations[passIndex] = pass.getUniformLocation("lightWorldPosition[0]");
     HX.PointLight._fullScreenColorLocations[passIndex] = pass.getUniformLocation("lightColor[0]");
@@ -211,7 +211,7 @@ HX.PointLight.prototype._initLightPasses =  function()
     };
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("point_light_spherical_vertex.glsl", defines),
-        HX.DEFERRED_LIGHT_MODEL + HX.ShaderLibrary.get("point_light_spherical_fragment.glsl", defines),
+        HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_spherical_fragment.glsl", defines),
         HX.PointLight._sphereMesh);
 
     HX.PointLight._sphericalLightPass = pass;

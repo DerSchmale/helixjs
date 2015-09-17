@@ -23,6 +23,7 @@ HX.InitOptions = function()
     this.ignoreTextureLODExtension = false;     // forces storing depth info explicitly
     this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
     this.throwOnShaderError = true;
+    this.lightingModel = HX.BlinnPhongSimpleLightingModel;
 };
 
 /**
@@ -68,6 +69,7 @@ HX.initFromContext = function(glContext, options)
     HX.GL = glContext;
 
     HX._initLights();
+    HX.LIGHTING_MODEL = HX.OPTIONS.lightingModel;
 
     var defines = "";
     if (HX.OPTIONS.useLinearSpace !== false)

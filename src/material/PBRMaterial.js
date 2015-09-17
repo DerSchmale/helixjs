@@ -98,13 +98,9 @@ HX.PBRMaterial.prototype._updatePasses = function()
     if (this._specularMap) this.setTexture("specularMap", this._specularMap);
 
     if (this._transparent) {
-        if (HX.EXT_DRAW_BUFFERS) {
-            colorPass.setUniform("color", new HX.Color(0, 0, 0, 1));
-            colorPass.setTexture("colorMap", null);
-        }
+        colorPass.setUniform("color", new HX.Color(0, 0, 0, 1));
+        colorPass.setTexture("colorMap", null);
     }
-
-
 
     this._passesInvalid = false;
 };

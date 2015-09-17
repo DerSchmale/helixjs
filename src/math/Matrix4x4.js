@@ -1176,9 +1176,14 @@ HX.Matrix4x4.prototype = {
         this._m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
     },
 
-    getRow: function (index)
+    getRow: function (index, target)
     {
-        return new HX.Float4(this._m[index], this._m[index | 4], this._m[index | 8], this._m[index | 12]);
+        if (!target) target = new HX.Float4();
+        target.x = this._m[index];
+        target.y = this._m[index | 4];
+        target.z = this._m[index | 8];
+        target.w = this._m[index | 12];
+        return target;
     },
 
     setRow: function (index, v)
@@ -1199,10 +1204,15 @@ HX.Matrix4x4.prototype = {
         this._m[row | (col << 2)] = value;
     },
 
-    getColumn: function (index)
+    getColumn: function (index, target)
     {
+        if (!target) target = new HX.Float4();
         index <<= 2;
-        return new HX.Float4(this._m[index], this._m[index | 1], this._m[index | 2], this._m[index | 3]);
+        target.x = this._m[index];
+        target.y = this._m[index | 1];
+        target.z = this._m[index | 2];
+        target.w = this._m[index | 3];
+        return target;
     },
 
     setColumn: function (index, v)

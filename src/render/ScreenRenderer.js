@@ -126,20 +126,33 @@ HX.ScreenRenderer.prototype.render = function(camera, scene, dt)
 
     this._renderShadowCasters();
 
+    this._renderOpaques(dt);
+    // this._renderTransparents(dt);
+
     HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
-    this._renderToGBuffer(HX.TransparencyMode.OPAQUE, 0);
+    this._renderToScreen(dt);
+};
+
+HX.ScreenRenderer.prototype._renderOpaques = function(dt)
+{
+    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
+
+    HX.GL.enable(HX.GL.STENCIL_TEST);
+    HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
+    this._renderToGBuffer();
+    HX.GL.disable(HX.GL.STENCIL_TEST);
     this._linearizeDepth();
 
     HX.GL.disable(HX.GL.BLEND);
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
 
+    // only render AO for non-transparents
     if (this._aoEffect != null)
         this._renderEffect(this._aoEffect, dt);
 
-    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
-    this._renderToScreen(dt);
-};
+    this._renderLightAccumulation(dt, HX.TransparencyMode.OPAQUE);
+}
 
 HX.ScreenRenderer.prototype._renderShadowCasters = function()
 {
@@ -155,30 +168,30 @@ HX.ScreenRenderer.prototype._renderShadowCasters = function()
     HX.GL.colorMask(true, true, true, true);
 };
 
-HX.ScreenRenderer.prototype._renderToGBuffer = function(transparencyMode, offsetIndex)
+HX.ScreenRenderer.prototype._renderToGBuffer = function()
 {
     if (HX.EXT_DRAW_BUFFERS)
-        this._renderToGBufferMRT(transparencyMode, offsetIndex);
+        return this._renderToGBufferMRT();
     else
-        this._renderToGBufferMultiPass(transparencyMode, offsetIndex);
+        return this._renderToGBufferMultiPass();
 };
 
-HX.ScreenRenderer.prototype._renderToGBufferMRT = function(transparencyMode, offsetIndex)
+HX.ScreenRenderer.prototype._renderToGBufferMRT = function()
 {
     HX.setRenderTarget(this._gbufferFBO);
     HX.clear();
-    this._renderPass(HX.MaterialPass.GEOMETRY_PASS, null, transparencyMode, offsetIndex);
+    return this._renderPass(HX.MaterialPass.GEOMETRY_PASS, this._renderCollector.getOpaqueRenderList(HX.MaterialPass.GEOMETRY_PASS));
 };
 
-HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function(transparencyMode, offsetIndex)
+HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function()
 {
     var clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT;
     var passIndices = [ HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
-
     for (var i = 0; i < 3; ++i) {
         HX.setRenderTarget(this._gbufferSingleFBOs[i]);
         HX.GL.clear(clearMask);
-        this._renderPass(passIndices[i], null, transparencyMode, offsetIndex);
+        var passType = passIndices[i];
+        this._renderPass(passType, this._renderCollector.getOpaqueRenderList(passType));
 
         if (i == 0) {
             clearMask = HX.GL.COLOR_BUFFER_BIT;
@@ -231,7 +244,6 @@ HX.ScreenRenderer.prototype._renderToScreen = function(dt)
             this._debugDepth.execute(this._rectMesh, this._gbuffer[3]);
             break;
         case HX.DebugRenderMode.DEBUG_LIGHT_ACCUM:
-            this._renderLightAccumulation();
             HX.setRenderTarget(null);
             this._applyGamma.execute(this._rectMesh, this._hdrBuffers[0]);
             break;
@@ -240,41 +252,51 @@ HX.ScreenRenderer.prototype._renderToScreen = function(dt)
             this._copyWChannel.execute(this._rectMesh, this._aoEffect.getAOTexture());
             break;
         default:
-            this._renderLightAccumulation(dt);
-
-            this._renderPostPass(HX.MaterialPass.POST_LIGHT_PASS);
-
-            // TODO: only perform this if any pass in the list has a hx_source slot
-            this._copySource();
-            this._renderPostPass(HX.MaterialPass.POST_PASS);
-
-            this._renderEffects(dt, this._renderCollector._effects);
-            this._renderEffects(dt, this._camera._effects);
-
-            HX.setRenderTarget(null);
-
-            // TODO: render directly to screen if last post process effect?
-            // OR, provide toneMap property on camera, which gets special treatment
-            if (this._gammaApplied)
-                this._copyTexture.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
-            else
-                this._applyGamma.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
+            this._composite(dt);
     }
 };
 
-HX.ScreenRenderer.prototype._renderLightAccumulation = function(dt)
+HX.ScreenRenderer.prototype._composite = function(dt)
 {
+    this._renderPostPass(HX.MaterialPass.POST_LIGHT_PASS);
+    this._copySource();
+    this._renderPostPass(HX.MaterialPass.POST_PASS);
+
+    this._renderEffects(dt, this._renderCollector._effects);
+    this._renderEffects(dt, this._camera._effects);
+
+    HX.setRenderTarget(null);
+
+    // TODO: render directly to screen if last post process effect?
+    // OR, provide toneMap property on camera, which gets special treatment
+    if (this._gammaApplied)
+        this._copyTexture.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
+    else
+        this._applyGamma.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
+};
+
+HX.ScreenRenderer.prototype._renderLightAccumulation = function(dt, transparencyMode)
+{
+    HX.GL.enable(HX.GL.STENCIL_TEST);
+    HX.GL.stencilFunc(HX.GL.EQUAL, transparencyMode + 1, 0xff);
+    HX.GL.stencilOp(HX.GL.KEEP, HX.GL.KEEP, HX.GL.KEEP);
+
     HX.GL.enable(HX.GL.BLEND);
     HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
     HX.GL.blendEquation(HX.GL.FUNC_ADD);
 
-    HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
+    var targetIndex = transparencyMode? this._hdrSourceIndex : 1 - this._hdrSourceIndex;
+    HX.setRenderTarget(this._hdrTargets[targetIndex]);
     HX.clear();
 
+    // TODO: use depth/stencil buffer:
     this._renderDirectLights();
     this._renderGlobalIllumination(dt);
 
+    // TODO: blend together if i !== 0
+
     HX.GL.disable(HX.GL.BLEND);
+    HX.GL.disable(HX.GL.STENCIL_TEST);
 };
 
 HX.ScreenRenderer.prototype._renderDirectLights = function()
@@ -323,13 +345,6 @@ HX.ScreenRenderer.prototype._renderGlobalIllumination = function(dt)
         this._renderCollector._globalSpecularProbe.render(this._camera, this._gbuffer, occlusion);
 };
 
-HX.ScreenRenderer.prototype._renderPass = function(passType, renderItems, transparencyMode, offsetIndex)
-{
-    renderItems = renderItems || this._renderCollector.getRenderList(passType);
-
-    HX.Renderer.prototype._renderPass.call(this, passType, renderItems, transparencyMode, offsetIndex);
-};
-
 HX.ScreenRenderer.prototype._copySource = function()
 {
     var source = this._hdrBuffers[this._hdrSourceIndex];
@@ -346,8 +361,10 @@ HX.ScreenRenderer.prototype._copySource = function()
 
 HX.ScreenRenderer.prototype._renderPostPass = function(passType)
 {
+    var opaqueList = this._renderCollector.getOpaqueRenderList(passType);
+    var transparentList = this._renderCollector.getTransparentRenderList(passType);
 
-    if (this._renderCollector.getRenderList(passType).length == 0)
+    if (opaqueList.length === 0 && transparentList.length === 0)
         return;
 
     HX.setRenderTarget(this._hdrTargetsDepth[this._hdrSourceIndex]);
@@ -356,7 +373,8 @@ HX.ScreenRenderer.prototype._renderPostPass = function(passType)
     HX.GL.enable(HX.GL.DEPTH_TEST);
     HX.GL.depthFunc(HX.GL.LEQUAL);
 
-    this._renderPass(passType);
+    this._renderPass(passType, this._renderCollector.getOpaqueRenderList(passType));
+    this._renderPass(passType, this._renderCollector.getTransparentRenderList(passType));
 };
 
 HX.ScreenRenderer.prototype._renderEffects = function(dt, effects)

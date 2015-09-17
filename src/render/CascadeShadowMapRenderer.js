@@ -15,7 +15,7 @@ HX.CascadeShadowCasterCollector = function(numCascades)
 
 HX.CascadeShadowCasterCollector.prototype = Object.create(HX.SceneVisitor.prototype);
 
-HX.CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return this._renderLists[index]; };
+HX.CascadeShadowCasterCollector.prototype.getOpaqueRenderList = function(index) { return this._renderLists[index]; };
 
 HX.CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 {
@@ -166,7 +166,7 @@ HX.CascadeShadowMapRenderer.prototype.render = function(viewCamera, scene)
         var viewport = this._viewports[pass];
         HX.GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
 
-        this._renderPass(HX.MaterialPass.GEOMETRY_PASS, this._casterCollector.getRenderList(pass));
+        this._renderPass(HX.MaterialPass.GEOMETRY_PASS, this._casterCollector.getOpaqueRenderList(pass));
     }
 };
 

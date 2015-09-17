@@ -10,6 +10,7 @@ HX.RenderItem = function()
     this.pass = null;
     this.camera = null;
     this.uniformSetters = null;
+    this.renderOrderHint = 0;
 };
 
 HX.RenderItem.prototype = {

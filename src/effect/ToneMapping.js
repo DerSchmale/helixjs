@@ -60,7 +60,7 @@ HX.ToneMapEffect.prototype.draw = function(dt)
 
         HX.setRenderTarget(this._luminanceFBO);
         HX.GL.viewport(0, 0, this._luminanceFBO._width, this._luminanceFBO._height);
-        this._drawPass(this._passes[0]);
+        this._drawPass(this._opaquePasses[0]);
         this._luminanceMap.generateMipmap();
         HX.GL.disable(HX.GL.BLEND);
     }

@@ -154,10 +154,10 @@ HX.BloomEffect.prototype._initBlurPass = function()
     var width = this._targetWidth / this._downScale;
     var height = this._targetHeight / this._downScale;
     // direction used to provide step size
-    this._passes[1] = new HX.BloomBlurPass(sizesX, this._weights, 1, 0, width, height);
-    this._passes[2] = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
-    this._passes[1].setTexture("sourceTexture", this._thresholdMaps[0]);
-    this._passes[2].setTexture("sourceTexture", this._thresholdMaps[1]);
+    this._opaquePasses[1] = new HX.BloomBlurPass(sizesX, this._weights, 1, 0, width, height);
+    this._opaquePasses[2] = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
+    this._opaquePasses[1].setTexture("sourceTexture", this._thresholdMaps[0]);
+    this._opaquePasses[2].setTexture("sourceTexture", this._thresholdMaps[1]);
 
     var mesh = this._mesh;
     if (mesh) {
@@ -180,7 +180,7 @@ HX.BloomEffect.prototype.draw = function(dt)
 
     for (var i = 0; i < 3; ++i) {
         HX.setRenderTarget(this._thresholdFBOs[targetIndex]);
-        this._drawPass(this._passes[i]);
+        this._drawPass(this._opaquePasses[i]);
         targetIndex = 1 - targetIndex;
     }
 

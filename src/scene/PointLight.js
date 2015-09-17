@@ -176,7 +176,7 @@ HX.PointLight.prototype._updateScaledIrradiance  = function ()
 {
     HX.Light.prototype._updateScaledIrradiance.call(this);
 
-    this._attenuationFix = this._luminanceBound / this._luminance;
+    this._attenuationFix = this._luminanceBound / this._intensity;
     this._radius = Math.sqrt(1.0 / this._attenuationFix);
 
     this._invalidateWorldBounds();

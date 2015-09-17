@@ -9,7 +9,7 @@ HX.Light = function ()
     HX.SceneNode.call(this);
     // this is for faster access
     this._type = this.getTypeID();
-    this._luminance = 3.1415;
+    this._intensity = 3.1415;
     this._luminanceBound = 1 / 255;
     this._color = new HX.Color(1.0, 1.0, 1.0);
     this._scaledIrradiance = new HX.Color();
@@ -30,16 +30,18 @@ HX.Light.prototype.acceptVisitor = function (visitor)
     visitor.visitLight(this);
 };
 
-HX.Light.prototype.getLuminance = function ()
-{
-    return this._luminance;
-};
+Object.defineProperty(HX.Light.prototype, "intensity", {
+    get: function()
+    {
+        return this._intensity;
+    },
 
-HX.Light.prototype.setLuminance = function (value)
-{
-    this._luminance = value;
-    this._updateScaledIrradiance();
-};
+    set: function(value)
+    {
+        this._intensity = value;
+        this._updateScaledIrradiance();
+    }
+});
 
 HX.Light.prototype.getColor = function ()
 {
@@ -83,13 +85,13 @@ HX.Light.prototype.setLuminanceBound = function (value)
 
 HX.Light.prototype.luminance = function ()
 {
-    return this._color.luminance() * this._luminance;
+    return this._color.luminance() * this._intensity;
 };
 
 HX.Light.prototype._updateScaledIrradiance = function ()
 {
     // this includes 1/PI radiance->irradiance factor
-    var scale = this._luminance / Math.PI;
+    var scale = this._intensity / Math.PI;
 
     if (HX.OPTIONS.useLinearSpace) {
         this._color.gammaToLinear(this._scaledIrradiance);

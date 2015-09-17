@@ -5084,9 +5084,12 @@ HX.Renderer.prototype =
      *
      * @param passType
      * @param renderItems
+     * @param transparencyMode (optional) If provided, it will only render passes with the given transparency mode
+     * @param offsetIndex The index to start rendering.
+     * @returns The index for the first unrendered renderItem in the list (depending on transparencyMode)
      * @private
      */
-    _renderPass: function (passType, renderItems)
+    _renderPass: function (passType, renderItems, transparencyMode, offsetIndex)
     {
         var len = renderItems.length;
         var activeShader = null;
@@ -5096,6 +5099,8 @@ HX.Renderer.prototype =
 
         for(var i = offsetIndex; i < len; ++i) {
             var renderItem = renderItems[i];
+            if (transparencyMode !== undefined && renderItem.material._transparencyMode !== transparencyMode)
+                return i;
             var meshInstance = renderItem.meshInstance;
             var pass = renderItem.pass;
             var shader = pass._shader;
@@ -5121,6 +5126,7 @@ HX.Renderer.prototype =
         }
 
         if (activePass && activePass._blending) HX.GL.disable(HX.GL.BLEND);
+        return len;
     },
 
     _switchPass: function(oldPass, newPass)
@@ -5277,32 +5283,19 @@ HX.ScreenRenderer.prototype.render = function(camera, scene, dt)
     this._renderShadowCasters();
 
     this._renderOpaques(dt);
-    // this._renderTransparents(dt);
 
-    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
+    this._renderPostPass(HX.MaterialPass.POST_LIGHT_PASS);
+
+    // TODO: only perform this if any pass in the list has a hx_source slot
+    this._copySource();
+    this._renderPostPass(HX.MaterialPass.POST_PASS);
+    this._renderTransparents();
+
+    HX.GL.disable(HX.GL.CULL_FACE);
+    HX.GL.disable(HX.GL.DEPTH_TEST);
+
     this._renderToScreen(dt);
 };
-
-HX.ScreenRenderer.prototype._renderOpaques = function(dt)
-{
-    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
-
-    HX.GL.enable(HX.GL.STENCIL_TEST);
-    HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
-    this._renderToGBuffer();
-    HX.GL.disable(HX.GL.STENCIL_TEST);
-    this._linearizeDepth();
-
-    HX.GL.disable(HX.GL.BLEND);
-    HX.GL.disable(HX.GL.DEPTH_TEST);
-    HX.GL.disable(HX.GL.CULL_FACE);
-
-    // only render AO for non-transparents
-    if (this._aoEffect != null)
-        this._renderEffect(this._aoEffect, dt);
-
-    this._renderLightAccumulation(dt, HX.TransparencyMode.OPAQUE);
-}
 
 HX.ScreenRenderer.prototype._renderShadowCasters = function()
 {
@@ -5318,30 +5311,135 @@ HX.ScreenRenderer.prototype._renderShadowCasters = function()
     HX.GL.colorMask(true, true, true, true);
 };
 
-HX.ScreenRenderer.prototype._renderToGBuffer = function()
+HX.ScreenRenderer.prototype._renderOpaques = function(dt)
 {
-    if (HX.EXT_DRAW_BUFFERS)
-        return this._renderToGBufferMRT();
-    else
-        return this._renderToGBufferMultiPass();
+    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
+
+    //HX.GL.enable(HX.GL.STENCIL_TEST);
+    //HX.GL.stencilFunc(HX.GL.ALWAYS, 1, 0xff);
+    //HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
+    this._renderToGBuffer();
+    //HX.GL.disable(HX.GL.STENCIL_TEST);
+    this._linearizeDepth();
+
+    HX.GL.disable(HX.GL.BLEND);
+
+    // only render AO for non-transparents
+    if (this._aoEffect != null)
+        this._renderEffect(this._aoEffect, dt);
+
+    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
+
+    this._renderLightAccumulation(dt, HX.TransparencyMode.OPAQUE);
 };
 
-HX.ScreenRenderer.prototype._renderToGBufferMRT = function()
+HX.ScreenRenderer.prototype._renderTransparents = function()
 {
-    HX.setRenderTarget(this._gbufferFBO);
-    HX.clear();
-    return this._renderPass(HX.MaterialPass.GEOMETRY_PASS, this._renderCollector.getOpaqueRenderList(HX.MaterialPass.GEOMETRY_PASS));
+    var renderLists = [];
+
+    var passIndices = HX.EXT_DRAW_BUFFERS
+        ? [ HX.MaterialPass.GEOMETRY_PASS ]
+        : [ HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
+    var numPassTypes = passIndices.length;
+
+    for (var j = 0; j < numPassTypes; ++j) {
+        renderLists[j] = this._renderCollector.getTransparentRenderList(passIndices[j]);
+    }
+
+    this._renderCollector.getTransparentRenderList(HX.MaterialPass.GEOMETRY_PASS);
+
+    var len = renderLists[0].length;
+
+    for (var i = 0; i < len; ++i) {
+        var transparencyMode = renderLists[0][i].material._transparencyMode;
+
+        //HX.GL.enable(HX.GL.STENCIL_TEST);
+        //HX.GL.stencilFunc(HX.GL.ALWAYS, transparencyMode + 1, 0xff);
+        //HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
+
+        for (var j = 0; j < numPassTypes; ++j) {
+            if (HX.EXT_DRAW_BUFFERS)
+                HX.setRenderTarget(this._gbufferFBO);
+            else
+                HX.setRenderTarget(this._gbufferSingleFBOs[j]);
+
+            var passType = passIndices[j];
+            var renderItem = renderLists[j][i];
+
+            var meshInstance = renderItem.meshInstance;
+            var pass = renderItem.pass;
+
+            pass._shader.updateRenderState();
+            this._switchPass(null, pass);
+            meshInstance.updateRenderState(passType);
+            renderItem.draw();
+        }
+
+        //HX.GL.disable(HX.GL.STENCIL_TEST);
+        this._linearizeDepth();
+        this._renderLightAccumulation(0, transparencyMode);
+
+        HX.GL.enable(HX.GL.BLEND);
+        HX.GL.blendEquation(HX.GL.FUNC_ADD);
+
+        switch (transparencyMode) {
+            case HX.TransparencyMode.ADDITIVE:
+                HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
+                break;
+            case HX.TransparencyMode.ALPHA:
+                HX.GL.blendFunc(HX.GL.SOURCE_ALPHA, HX.GL.ONE_MINUS_SOURCE_ALPHA);
+                break;
+        }
+
+        HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
+        this._copyTexture.execute(this._rectMesh, this._hdrBuffers[1 - this._hdrSourceIndex]);
+
+        HX.GL.disable(HX.GL.BLEND);
+    }
 };
 
 HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function()
 {
     var clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT;
     var passIndices = [ HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
+
     for (var i = 0; i < 3; ++i) {
         HX.setRenderTarget(this._gbufferSingleFBOs[i]);
         HX.GL.clear(clearMask);
-        var passType = passIndices[i];
-        this._renderPass(passType, this._renderCollector.getOpaqueRenderList(passType));
+        this._renderPass(passIndices[i]);
+
+        if (i == 0) {
+            clearMask = HX.GL.COLOR_BUFFER_BIT;
+            // important to use the same clip space calculations for all!
+            HX.GL.depthFunc(HX.GL.EQUAL);
+        }
+    }
+};
+
+HX.ScreenRenderer.prototype._renderToGBuffer = function()
+{
+    if (HX.EXT_DRAW_BUFFERS)
+        this._renderToGBufferMRT();
+    else
+        this._renderToGBufferMultiPass();
+};
+
+HX.ScreenRenderer.prototype._renderToGBufferMRT = function()
+{
+    HX.setRenderTarget(this._gbufferFBO);
+    HX.clear();
+    this._renderPass(HX.MaterialPass.GEOMETRY_PASS);
+};
+
+HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function()
+{
+    var clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT;
+    var passIndices = [ HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
+
+    for (var i = 0; i < 3; ++i) {
+        HX.setRenderTarget(this._gbufferSingleFBOs[i]);
+        HX.GL.clear(clearMask);
+        this._renderPass(passIndices[i]);
 
         if (i == 0) {
             clearMask = HX.GL.COLOR_BUFFER_BIT;
@@ -5395,7 +5493,7 @@ HX.ScreenRenderer.prototype._renderToScreen = function(dt)
             break;
         case HX.DebugRenderMode.DEBUG_LIGHT_ACCUM:
             HX.setRenderTarget(null);
-            this._applyGamma.execute(this._rectMesh, this._hdrBuffers[0]);
+            this._applyGamma.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
             break;
         case HX.DebugRenderMode.DEBUG_AO:
             HX.setRenderTarget(null);
@@ -5408,10 +5506,6 @@ HX.ScreenRenderer.prototype._renderToScreen = function(dt)
 
 HX.ScreenRenderer.prototype._composite = function(dt)
 {
-    this._renderPostPass(HX.MaterialPass.POST_LIGHT_PASS);
-    this._copySource();
-    this._renderPostPass(HX.MaterialPass.POST_PASS);
-
     this._renderEffects(dt, this._renderCollector._effects);
     this._renderEffects(dt, this._camera._effects);
 
@@ -5427,26 +5521,18 @@ HX.ScreenRenderer.prototype._composite = function(dt)
 
 HX.ScreenRenderer.prototype._renderLightAccumulation = function(dt, transparencyMode)
 {
-    HX.GL.enable(HX.GL.STENCIL_TEST);
-    HX.GL.stencilFunc(HX.GL.EQUAL, transparencyMode + 1, 0xff);
-    HX.GL.stencilOp(HX.GL.KEEP, HX.GL.KEEP, HX.GL.KEEP);
-
     HX.GL.enable(HX.GL.BLEND);
     HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
     HX.GL.blendEquation(HX.GL.FUNC_ADD);
 
-    var targetIndex = transparencyMode? this._hdrSourceIndex : 1 - this._hdrSourceIndex;
+    var targetIndex = transparencyMode? 1 - this._hdrSourceIndex : this._hdrSourceIndex;
     HX.setRenderTarget(this._hdrTargets[targetIndex]);
     HX.clear();
 
-    // TODO: use depth/stencil buffer:
     this._renderDirectLights();
     this._renderGlobalIllumination(dt);
 
-    // TODO: blend together if i !== 0
-
     HX.GL.disable(HX.GL.BLEND);
-    HX.GL.disable(HX.GL.STENCIL_TEST);
 };
 
 HX.ScreenRenderer.prototype._renderDirectLights = function()
@@ -5493,6 +5579,13 @@ HX.ScreenRenderer.prototype._renderGlobalIllumination = function(dt)
 
     if (this._renderCollector._globalSpecularProbe)
         this._renderCollector._globalSpecularProbe.render(this._camera, this._gbuffer, occlusion);
+};
+
+HX.ScreenRenderer.prototype._renderPass = function(passType, renderItems)
+{
+    renderItems = renderItems || this._renderCollector.getOpaqueRenderList(passType);
+
+    HX.Renderer.prototype._renderPass.call(this, passType, renderItems);
 };
 
 HX.ScreenRenderer.prototype._copySource = function()
@@ -6178,7 +6271,7 @@ HX.PBRMaterial.prototype._updatePasses = function()
         }
         else {
             var defines = "#define NO_MRT_GBUFFER_COLOR\n" + normalDefines + colorDefines;
-            var pass = this._initPass(HX.MaterialPass.POST_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+            var pass = this._initPass(HX.MaterialPass.POST_LIGHT_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
             pass.setBlendMode(HX.BlendFactor.ZERO, HX.BlendFactor.SOURCE_COLOR, HX.BlendOperation.ADD);
         }
     }
@@ -9351,12 +9444,12 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
         var material = meshInstance.material;
-        var list = material._transparencyMode === HX.TransparencyMode.OPAQUE? this._opaquePasses : this._transparentPasses;
 
         for (var passIndex = 0; passIndex < HX.MaterialPass.NUM_PASS_TYPES; ++passIndex) {
             var pass = material.getPass(passIndex);
             if (pass && pass._enabled) {
                 // TODO: pool items
+                var list = material._transparencyMode === HX.TransparencyMode.OPAQUE? this._opaquePasses : this._transparentPasses;
                 var renderItem = new HX.RenderItem();
 
                 renderItem.material = material;
@@ -9409,10 +9502,6 @@ HX.RenderCollector.prototype._sortOpaques = function(a, b)
 {
     var diff;
 
-    // make sure opaques are first
-    diff = a.material._transparencyMode - b.material._transparencyMode;
-    if (diff !== 0) return diff;
-
     diff = a.material._renderOrder - b.material._renderOrder;
     if (diff !== 0) return diff;
 
@@ -9446,12 +9535,14 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
         var normalItem = new HX.RenderItem();
         var specItem = new HX.RenderItem();
         var meshInstance = renderItem.meshInstance;
-        var material = meshInstance.material;
+        var material = renderItem.material;
         normalItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS);
         specItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS);
         normalItem.uniformSetters = meshInstance._uniformSetters[HX.MaterialPass.GEOMETRY_NORMAL_PASS];
         specItem.uniformSetters = meshInstance._uniformSetters[HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
 
+        normalItem.material = specItem.material = renderItem.material;
+        normalItem.renderOrderHint = specItem.renderOrderHint = renderItem.renderOrderHint;
         normalItem.meshInstance = specItem.meshInstance = renderItem.meshInstance;
         normalItem.worldMatrix = specItem.worldMatrix = renderItem.worldMatrix;
         normalItem.camera = specItem.camera = this._camera;

@@ -86,12 +86,12 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
         var material = meshInstance.material;
-        var list = material._transparencyMode === HX.TransparencyMode.OPAQUE? this._opaquePasses : this._transparentPasses;
 
         for (var passIndex = 0; passIndex < HX.MaterialPass.NUM_PASS_TYPES; ++passIndex) {
             var pass = material.getPass(passIndex);
             if (pass && pass._enabled) {
                 // TODO: pool items
+                var list = material._transparencyMode === HX.TransparencyMode.OPAQUE? this._opaquePasses : this._transparentPasses;
                 var renderItem = new HX.RenderItem();
 
                 renderItem.material = material;
@@ -144,10 +144,6 @@ HX.RenderCollector.prototype._sortOpaques = function(a, b)
 {
     var diff;
 
-    // make sure opaques are first
-    diff = a.material._transparencyMode - b.material._transparencyMode;
-    if (diff !== 0) return diff;
-
     diff = a.material._renderOrder - b.material._renderOrder;
     if (diff !== 0) return diff;
 
@@ -181,12 +177,14 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
         var normalItem = new HX.RenderItem();
         var specItem = new HX.RenderItem();
         var meshInstance = renderItem.meshInstance;
-        var material = meshInstance.material;
+        var material = renderItem.material;
         normalItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS);
         specItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS);
         normalItem.uniformSetters = meshInstance._uniformSetters[HX.MaterialPass.GEOMETRY_NORMAL_PASS];
         specItem.uniformSetters = meshInstance._uniformSetters[HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
 
+        normalItem.material = specItem.material = renderItem.material;
+        normalItem.renderOrderHint = specItem.renderOrderHint = renderItem.renderOrderHint;
         normalItem.meshInstance = specItem.meshInstance = renderItem.meshInstance;
         normalItem.worldMatrix = specItem.worldMatrix = renderItem.worldMatrix;
         normalItem.camera = specItem.camera = this._camera;

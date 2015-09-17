@@ -71,7 +71,7 @@ HX.PBRMaterial.prototype._updatePasses = function()
         }
         else {
             var defines = "#define NO_MRT_GBUFFER_COLOR\n" + normalDefines + colorDefines;
-            var pass = this._initPass(HX.MaterialPass.POST_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+            var pass = this._initPass(HX.MaterialPass.POST_LIGHT_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
             pass.setBlendMode(HX.BlendFactor.ZERO, HX.BlendFactor.SOURCE_COLOR, HX.BlendOperation.ADD);
         }
     }

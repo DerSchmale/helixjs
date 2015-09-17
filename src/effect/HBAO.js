@@ -31,7 +31,7 @@ HX.HBAO = function(numRays, numSamplesPerRay)
 
     this._initSampleDirTexture();
     this._initDitherTexture();
-    this._aoPass.setUniform("strengthPerRay", 3.1415 * this._strength / this._numRays);
+    this._aoPass.setUniform("strengthPerRay", this._strength / this._numRays);
     this._aoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
     this._aoPass.setUniform("halfSampleRadius", this._radius *.5);
     this._aoPass.setUniform("bias", this._bias);
@@ -67,7 +67,7 @@ HX.HBAO.prototype.setFallOffDistance = function(value)
 HX.HBAO.prototype.setStrength = function(value)
 {
     this._strength = value;
-    this._aoPass.setUniform("strengthPerRay", 3.1415 * this._strength / this._numRays);
+    this._aoPass.setUniform("strengthPerRay", this._strength / this._numRays);
 };
 
 HX.HBAO.prototype.setBias = function(value)

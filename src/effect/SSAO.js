@@ -27,7 +27,7 @@ HX.SSAO = function(numSamples)
 
     this._initSamples();
     this._initDitherTexture();
-    this._ssaoPass.setUniform("strengthPerSample", 2.0 * 3.1415 * this._strength / this._numSamples);
+    this._ssaoPass.setUniform("strengthPerSample", 2.0 * this._strength / this._numSamples);
     this._ssaoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
     this._ssaoPass.setUniform("sampleRadius", this._radius);
     this._ssaoPass.setTexture("ditherTexture", this._ditherTexture);
@@ -61,7 +61,7 @@ HX.SSAO.prototype.setFallOffDistance = function(value)
 HX.SSAO.prototype.setStrength = function(value)
 {
     this._strength = value;
-    this._ssaoPass.setUniform("strengthPerSample", 2.0 * 3.1415 * this._strength / this._numSamples);
+    this._ssaoPass.setUniform("strengthPerSample", 2.0 * this._strength / this._numSamples);
 };
 
 HX.SSAO.prototype._initSamples = function()

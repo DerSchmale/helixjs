@@ -43,10 +43,22 @@ Object.defineProperty(HX.Light.prototype, "intensity", {
     }
 });
 
-HX.Light.prototype.getColor = function ()
-{
-    return this._color;
-};
+Object.defineProperty(HX.Light.prototype, "color", {
+    get: function()
+    {
+        return this._color;
+    },
+
+    /**
+     * Value can be hex or HX.Color
+     * @param value
+     */
+    set: function(value)
+    {
+        this._color = isNaN(value) ? value : new HX.Color(value);
+        this._updateScaledIrradiance();
+    }
+});
 
 HX.Light.prototype.activate = function(camera, gbuffer, occlusion)
 {
@@ -57,16 +69,6 @@ HX.Light.prototype.activate = function(camera, gbuffer, occlusion)
 HX.Light.prototype.renderBatch = function(lightCollection, startIndex, camera, gbuffer, occlusion)
 {
     throw "Abstract method!";
-};
-
-/**
- * Value can be hex or ColorRGBA
- */
-HX.Light.prototype.setColor = function (value)
-{
-    this._color = isNaN(value) ? value : new HX.Color(value);
-
-    this._updateScaledIrradiance();
 };
 
 /**

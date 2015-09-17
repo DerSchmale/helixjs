@@ -13,7 +13,7 @@ HX.AmbientLight = function()
     this._lightPass = null;
     this._useAO = false;
 
-    this.setColor(new HX.Color(.1,.1,.1));
+    this.color = new HX.Color(.1,.1,.1);
 };
 
 HX.AmbientLight.prototype = Object.create(HX.Light.prototype);

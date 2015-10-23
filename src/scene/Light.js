@@ -12,7 +12,7 @@ HX.Light = function ()
     this._luminanceBound = 1 / 255;
     this._color = new HX.Color(1.0, 1.0, 1.0);
     this._scaledIrradiance = new HX.Color();
-    this._castsShadows = false;
+    this._castShadows = false;
     this._updateScaledIrradiance();
 };
 

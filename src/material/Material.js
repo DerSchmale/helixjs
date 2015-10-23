@@ -1,3 +1,7 @@
+/**
+ *
+ * @constructor
+ */
 HX.TextureSlot = function() {
     this.location = -1;
     this.texture = null;
@@ -178,6 +182,7 @@ HX.MaterialPass.prototype = {
 
     setTexture: function(slotName, texture)
     {
+        console.log(slotName);
         var slot = this.getTextureSlot(slotName);
         if (slot)
             slot.texture = texture;

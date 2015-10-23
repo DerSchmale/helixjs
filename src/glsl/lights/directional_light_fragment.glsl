@@ -13,13 +13,14 @@ uniform sampler2D hx_gbufferSpecular;
 	uniform sampler2D shadowMap;
 
 	uniform float hx_cameraFrustumRange;
-	uniform float hx_cameraWorldPosition;
+	uniform vec3 hx_cameraWorldPosition;
 
 	uniform mat4 shadowMapMatrices[NUM_CASCADES];
 	uniform float splitDistances[NUM_CASCADES];
 	uniform float depthBias;
 
 	#if NUM_SHADOW_SAMPLES > 1
+		uniform sampler2D hx_dither2D;
 		uniform vec2 hx_dither2DTextureScale;
 
 		uniform vec2 shadowMapSoftnesses[NUM_CASCADES];
@@ -35,6 +36,7 @@ uniform sampler2D hx_gbufferSpecular;
 	{
 		mat4 shadowMapMatrix = shadowMapMatrices[NUM_CASCADES - 1];
 
+		#if NUM_CASCADES > 1
 		for (int i = 0; i < NUM_CASCADES - 1; ++i) {
 			if (viewZ < splitDistances[i]) {
 				shadowMapMatrix = shadowMapMatrices[i];
@@ -44,6 +46,12 @@ uniform sampler2D hx_gbufferSpecular;
 				break;
 			}
 		}
+		#else
+			shadowMapMatrix = shadowMapMatrices[0];
+			#if NUM_SHADOW_SAMPLES > 1
+				softness = shadowMapSoftnesses[0];
+			#endif
+		#endif
 		coord = shadowMapMatrix * vec4(worldPos, 1.0);
 	}
 #endif
@@ -52,11 +60,6 @@ uniform sampler2D hx_gbufferSpecular;
 // all hx_calculateLight functions need to be the same
 vec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 worldViewVector, vec3 normalSpecularReflectance, float roughness, float metallicness)
 {
-// not sure what this is about?
-	#ifdef CAST_SHADOWS
-		normal = -normal;
-	#endif
-
 // start extractable code (for fwd)
 	vec3 diffuseReflection;
 	vec3 specularReflection;
@@ -88,7 +91,6 @@ vec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 worl
 				shadowTest += float(diff < 0.0);
 			}
 			shadowTest /= float(NUM_SHADOW_SAMPLES);
-
 		#else
 			getShadowMapCoord(worldPos, -viewZ, shadowMapCoord);
 			float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;

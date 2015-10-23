@@ -47,7 +47,7 @@ HX.CascadeShadowCasterCollector.prototype.setCullPlanes = function(cullPlanes, n
 
 HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
 {
-    if (modelInstance._castsShadows == false) return;
+    if (modelInstance._castShadows == false) return;
 
     this._bounds.growToIncludeBound(worldBounds);
 
@@ -189,7 +189,7 @@ HX.CascadeShadowMapRenderer.prototype._updateCollectorCamera = function(viewCame
     this._minZ = min.z;
 
     this._collectorCamera.getTransformationMatrix().copyFrom(this._light.getWorldMatrix());
-    this._collectorCamera._invalidateWorldTransformation();
+    this._collectorCamera._invalidateWorldTransformationMatrix();
     this._collectorCamera.setBounds(min.x, max.x + 1, max.y + 1, min.y);
     this._collectorCamera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
 };
@@ -225,7 +225,7 @@ HX.CascadeShadowMapRenderer.prototype._updateCascadeCameras = function(viewCamer
         camera.setNearDistance(-maxBound.z);
 
         camera.getTransformationMatrix().copyFrom(this._light.getWorldMatrix());
-        camera._invalidateWorldTransformation();
+        camera._invalidateWorldTransformationMatrix();
 
         // figure out frustum bound
         for (var i = 0; i < 4; ++i) {
@@ -304,7 +304,7 @@ HX.CascadeShadowMapRenderer.prototype._updateCullPlanes = function(viewCamera)
     frustum = viewCamera.getFrustum();
     planes = frustum._planes;
 
-    var dir = this._light.getDirection();
+    var dir = this._light.direction;
 
     for (var j = 0; j < 6; ++j) {
         var plane = planes[j];

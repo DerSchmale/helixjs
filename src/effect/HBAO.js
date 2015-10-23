@@ -1,4 +1,5 @@
 /**
+ * TODO: allow scaling down of textures
  *
  * @param numSamples
  * @constructor

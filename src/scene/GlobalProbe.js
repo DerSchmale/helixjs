@@ -9,6 +9,7 @@ HX.GlobalSpecularProbe = function(texture)
     // could just use a HX global rect mesh
     HX.GlobalSpecularProbe._rectMesh = HX.GlobalSpecularProbe._rectMesh || new HX.RectMesh.create();
     this._pass = this._initPass();
+    this._usingAO = false;
 };
 
 // conversion range for spec power to mip
@@ -19,6 +20,12 @@ HX.GlobalSpecularProbe.prototype = Object.create(HX.Light.prototype);
 
 HX.GlobalSpecularProbe.prototype.render = function(camera, gbuffer, occlusion)
 {
+    var usingAO = occlusion != null;
+    if (this._usingAO != usingAO || !this._pass) {
+        this._usingAO = usingAO;
+        this._pass = this._initPass();
+    }
+
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
 
@@ -50,6 +57,9 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
         extensions = "#extension GL_EXT_shader_texture_lod : require";
         defines.USE_TEX_LOD = 1;
     }
+
+    if (this._usingAO)
+        defines.USE_AO = 1;
 
     defines.K0 = HX.GlobalSpecularProbe.powerRange0;
     defines.K1 = HX.GlobalSpecularProbe.powerRange1;

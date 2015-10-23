@@ -112,7 +112,7 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
 HX.RenderCollector.prototype.visitLight = function(light)
 {
     this._lights.push(light);
-    if (light._castsShadows) this._shadowCasters.push(light._shadowMapRenderer);
+    if (light._castShadows) this._shadowCasters.push(light._shadowMapRenderer);
 
     var bounds = light.getWorldBounds();
     var near = this._nearPlane;
@@ -159,9 +159,9 @@ HX.RenderCollector.prototype._sortOpaques = function(a, b)
 HX.RenderCollector.prototype._sortLights = function(a, b)
 {
     return  a._type == b._type?
-                    a._castsShadows == b._castsShadows ?
+                    a._castShadows == b._castShadows ?
                         a._renderOrderHint - b._renderOrderHint :
-                    a._castsShadows? 1 : -1 :
+                    a._castShadows? 1 : -1 :
             a._type - b._type;
 };
 

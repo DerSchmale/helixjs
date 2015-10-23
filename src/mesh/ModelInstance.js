@@ -135,7 +135,7 @@ HX.ModelInstance = function(model, materials)
 {
     this._model = model;
     this._meshInstances = [];
-    this._castsShadows = true;
+    this._castShadows = true;
     this.onChange = new HX.Signal();
     this._model.onChange.bind(this, this._onModelChange);
 
@@ -149,8 +149,8 @@ HX.ModelInstance.prototype = {
 
     getModel: function() { return this._model; },
 
-    getCastsShadows: function() { return this._castsShadows; },
-    setCastsShadows: function(value) { this._castsShadows = value; },
+    get castShadows() { return this._castShadows; },
+    set castShadows(value) { this._castShadows = value; },
 
     numMeshInstances: function() { return this._meshInstances.length; },
     getMeshInstance: function(index) { return this._meshInstances[index]; },

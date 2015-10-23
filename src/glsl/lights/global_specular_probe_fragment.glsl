@@ -10,6 +10,10 @@ uniform sampler2D hx_gbufferColor;
 uniform sampler2D hx_gbufferNormals;
 uniform sampler2D hx_gbufferSpecular;
 
+#ifdef USE_AO
+uniform sampler2D hx_source;
+#endif
+
 void main()
 {
 	vec4 colorSample = texture2D(hx_gbufferColor, uv);
@@ -39,6 +43,11 @@ void main()
 	float attenuation = mix(1.0 - roughness, 1.0, metallicness);
 	fresnel *= attenuation;
 	totalLight += fresnel * specProbeSample.xyz;
+
+	#ifdef USE_AO
+		vec4 occlusionSample = texture2D(hx_source, uv);
+		totalLight *= occlusionSample.w;
+	#endif
 
 	gl_FragColor = vec4(totalLight, 1.0);
 }

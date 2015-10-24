@@ -6,7 +6,7 @@ uniform float hx_rcpCameraFrustumRange;
 
 float readDepth(sampler2D sampler, vec2 uv)
 {
-	#ifdef HX_STORE_EXPLICIT_DEPTH
+	#ifdef HX_NO_DEPTH_TEXTURES
 		vec4 data = texture2D(sampler, uv);
 		return abs(hx_RG8ToFloat(data.zw) * 2.0 - 1.0);
     #else

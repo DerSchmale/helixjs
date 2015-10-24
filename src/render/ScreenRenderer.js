@@ -244,7 +244,7 @@ HX.ScreenRenderer.prototype._renderTransparents = function()
 HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function()
 {
     var clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT | HX.GL.STENCIL_BUFFER_BIT;
-    var passIndices = [ HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
+    var passIndices = [ HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS ];
 
     for (var i = 0; i < 3; ++i) {
         HX.setRenderTarget(this._gbufferSingleFBOs[i]);

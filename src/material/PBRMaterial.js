@@ -70,7 +70,7 @@ HX.PBRMaterial.prototype._updatePasses = function()
             this._initPass(HX.MaterialPass.POST_PASS, defines, "default_refract_vertex.glsl", "default_refract_fragment.glsl");
         }
         else {
-            var defines = "#define NO_MRT_GBUFFER_COLOR\n" + normalDefines + colorDefines;
+            var defines = "#define HX_NO_MRT_GBUFFER_COLOR\n" + normalDefines + colorDefines;
             var pass = this._initPass(HX.MaterialPass.POST_LIGHT_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
             pass.setBlendMode(HX.BlendFactor.ZERO, HX.BlendFactor.SOURCE_COLOR, HX.BlendOperation.ADD);
         }
@@ -82,12 +82,18 @@ HX.PBRMaterial.prototype._updatePasses = function()
         colorPass = this._initPass(HX.MaterialPass.GEOMETRY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
     else {
-        colorDefines = "#define NO_MRT_GBUFFER_COLOR\n" + colorDefines;
-        normalDefines = "#define NO_MRT_GBUFFER_NORMALS\n" + normalDefines;
-        specularDefines = "#define NO_MRT_GBUFFER_SPECULAR\n" + specularDefines;
+        colorDefines = "#define HX_NO_MRT_GBUFFER_COLOR\n" + colorDefines;
+        normalDefines = "#define HX_NO_MRT_GBUFFER_NORMALS\n" + normalDefines;
+        specularDefines = "#define HX_NO_MRT_GBUFFER_SPECULAR\n" + specularDefines;
         colorPass = this._initPass(HX.MaterialPass.GEOMETRY_COLOR_PASS, colorDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
         this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
         this._initPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS, specularDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+    }
+
+    // need to initialize shadow map pass if its index is not -1
+    if (HX.MaterialPass.SHADOW_MAP_PASS !== -1) {
+        var defines = "#define HX_SHADOW_MAP_PASS\n";
+        this._initPass(HX.MaterialPass.SHADOW_MAP_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
 
     this.setUniform("color", this._color);

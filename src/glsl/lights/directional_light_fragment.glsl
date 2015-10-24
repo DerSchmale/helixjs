@@ -27,6 +27,15 @@ uniform sampler2D hx_gbufferSpecular;
 		uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];
 	#endif
 
+	float readDepth(vec2 uv)
+	{
+	#ifdef HX_NO_DEPTH_TEXTURES
+		return hx_RGBA8ToFloat(texture2D(shadowMap, uv));
+	#else
+		return texture2D(shadowMap, uv).x;
+	#endif
+	}
+
 	// view-space position
 	#if NUM_SHADOW_SAMPLES > 1
 	void getShadowMapCoord(in vec3 worldPos, in float viewZ, out vec4 coord, out vec2 softness)
@@ -85,7 +94,7 @@ vec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 worl
 				vec2 offset;
 				offset.x = dot(dither.xy, hx_poissonDisk[i]);
 				offset.y = dot(dither.zw, hx_poissonDisk[i]);
-				float shadowSample = texture2D(shadowMap, shadowMapCoord.xy + offset).x;
+				float shadowSample = readDepth(shadowMapCoord.xy + offset);
 				float diff = shadowMapCoord.z - shadowSample;
 				if (diff < depthBias) diff = -1.0;
 				shadowTest += float(diff < 0.0);
@@ -93,7 +102,7 @@ vec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 worl
 			shadowTest /= float(NUM_SHADOW_SAMPLES);
 		#else
 			getShadowMapCoord(worldPos, -viewZ, shadowMapCoord);
-			float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;
+			float shadowSample = readDepth(shadowMapCoord.xy);
 			float diff = shadowMapCoord.z - shadowSample;
 			if (diff < .005) diff = -1.0;
 			float shadowTest = float(diff < 0.0);

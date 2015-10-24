@@ -12,14 +12,12 @@ varying vec2 texCoords;
 #endif
 
 #ifdef NORMAL_MAP
-uniform mat4 hx_worldMatrix;
-#endif
-
-#ifdef NORMAL_MAP
 attribute vec4 hx_tangent;
 
 varying vec3 tangent;
 varying vec3 bitangent;
+
+uniform mat4 hx_worldMatrix;
 #endif
 
 

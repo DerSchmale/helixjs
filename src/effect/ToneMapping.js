@@ -28,7 +28,7 @@ HX.ToneMapEffect = function(adaptive)
 
     this.addPass(this._toneMapPass);
 
-    this.exposure = 0.0;
+    this._exposure = 0.0;
 };
 
 HX.ToneMapEffect.prototype = Object.create(HX.Effect.prototype);

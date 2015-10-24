@@ -11,6 +11,7 @@ HX.CascadeShadowCasterCollector = function(numCascades)
     this._cullPlanes = null;
     this._numCullPlanes = 0;
     this._renderLists = [];
+    this._passType = null;
 };
 
 HX.CascadeShadowCasterCollector.prototype = Object.create(HX.SceneVisitor.prototype);
@@ -19,6 +20,7 @@ HX.CascadeShadowCasterCollector.prototype.getOpaqueRenderList = function(index) 
 
 HX.CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 {
+    this._passType = HX.MaterialPass.SHADOW_MAP_PASS === -1? HX.MaterialPass.GEOMETRY_PASS : HX.MaterialPass.SHADOW_MAP_PASS;
     this._collectorCamera = camera;
     this._bounds.clear();
 
@@ -51,7 +53,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
 
     this._bounds.growToIncludeBound(worldBounds);
 
-    var passIndex = HX.MaterialPass.GEOMETRY_PASS;
+    var passIndex = this._passType;
 
     var numCascades = this._numCascades;
     var numMeshes = modelInstance.numMeshInstances();
@@ -105,7 +107,7 @@ HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
     this._shadowMapSize = shadowMapSize || 1024;
     this._shadowMapInvalid = true;
     this._shadowMap = new HX.Texture2D();
-    this._fbo = new HX.FrameBuffer(null, this._shadowMap);
+    this._fbo = null;
     this._shadowMap.setFilter(HX.TextureFilter.NEAREST_NOMIP);
     this._shadowMap.setWrapMode(HX.TextureWrapMode.CLAMP);
     this._shadowMatrices = [ new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4() ];
@@ -159,14 +161,23 @@ HX.CascadeShadowMapRenderer.prototype.render = function(viewCamera, scene)
     this._updateCascadeCameras(viewCamera, this._casterCollector.getBounds());
 
     HX.setRenderTarget(this._fbo);
-    HX.GL.clear(HX.GL.DEPTH_BUFFER_BIT);
 
-    for (var pass = 0; pass < this._numCascades; ++pass)
+    var passType;
+    if (HX.MaterialPass.SHADOW_MAP_PASS === -1) {
+        HX.GL.clear(HX.GL.DEPTH_BUFFER_BIT);
+        passType = HX.MaterialPass.GEOMETRY_COLOR_PASS;
+    }
+    else {
+        HX.clear();
+        passType = HX.MaterialPass.SHADOW_MAP_PASS;
+    }
+
+
+    for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex)
     {
-        var viewport = this._viewports[pass];
+        var viewport = this._viewports[cascadeIndex];
         HX.GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-
-        this._renderPass(HX.MaterialPass.GEOMETRY_PASS, this._casterCollector.getOpaqueRenderList(pass));
+        this._renderPass(passType, this._casterCollector.getOpaqueRenderList(cascadeIndex));
     }
 };
 
@@ -335,6 +346,10 @@ HX.CascadeShadowMapRenderer.prototype.getShadowMatrix = function(cascade)
 HX.CascadeShadowMapRenderer.prototype.dispose = function()
 {
     HX.Renderer.call.dispose(this);
+    if (this._depthBuffer) {
+        this._depthBuffer.dispose();
+        this._depthBuffer = null;
+    }
     this._shadowMap.dispose();
     this._shadowMap = null;
 };
@@ -349,8 +364,20 @@ HX.CascadeShadowMapRenderer.prototype._initShadowMap = function()
     var numMapsW = this._numCascades > 1? 2 : 1;
     var numMapsH = Math.ceil(this._numCascades / 2);
 
+    var texWidth = this._shadowMapSize * numMapsW;
+    var texHeight = this._shadowMapSize * numMapsH;
+
     // TODO: Check if 16 bits is enough
-    this._shadowMap.initEmpty(this._shadowMapSize * numMapsW, this._shadowMapSize * numMapsH, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
+    if (HX.EXT_DEPTH_TEXTURE) {
+        this._shadowMap.initEmpty(texWidth, texHeight, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
+        if (!this._fbo) this._fbo = new HX.FrameBuffer(null, this._shadowMap);
+    }
+    else {
+        this._shadowMap.initEmpty(this._shadowMapSize * numMapsW, this._shadowMapSize * numMapsH, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
+        if (!this._depthBuffer) this._depthBuffer = new HX.ReadOnlyDepthBuffer();
+        this._depthBuffer.init(this._shadowMapSize * numMapsW, this._shadowMapSize * numMapsH);
+        if (!this._fbo) this._fbo = new HX.FrameBuffer(this._shadowMap, this._depthBuffer);
+    }
     this._fbo.init();
     this._shadowMapInvalid = false;
 

@@ -49,12 +49,13 @@ HX.MaterialPass.POST_PASS = 2;
 // the individual pass type are not taken into account, they will be dealt with specially
 HX.MaterialPass.NUM_PASS_TYPES = 3;
 
-// only used by the old renderer, will be removed at some point
 // use diffuse as alias for geometry pass
-// NUM_PASS_TYPES WILL BE SET UPON INITIALISATION DEPENDING ON DRAWBUFFER SUPPORT
+// NUM_PASS_TYPES WILL BE SET PROPERLY UPON INITIALISATION DEPENDING ON DRAWBUFFER SUPPORT
 HX.MaterialPass.GEOMETRY_COLOR_PASS = HX.MaterialPass.GEOMETRY_PASS;
 HX.MaterialPass.GEOMETRY_NORMAL_PASS = HX.MaterialPass.NUM_PASS_TYPES;
 HX.MaterialPass.GEOMETRY_SPECULAR_PASS = HX.MaterialPass.NUM_PASS_TYPES + 1;
+// ALSO SET UPON INITIALISATION
+HX.MaterialPass.SHADOW_MAP_PASS = -1;
 
 HX.MaterialPass.prototype = {
     constructor: HX.MaterialPass,
@@ -182,7 +183,6 @@ HX.MaterialPass.prototype = {
 
     setTexture: function(slotName, texture)
     {
-        console.log(slotName);
         var slot = this.getTextureSlot(slotName);
         if (slot)
             slot.texture = texture;
@@ -447,9 +447,9 @@ HX.Material._parsePassFromXML = function(xml, passType, tagName, targetMaterial)
         this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
     }
     else {
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_COLOR_PASS, "NO_MRT_GBUFFER_COLOR");
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_NORMAL_PASS, "NO_MRT_GBUFFER_NORMALS");
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.GEOMETRY_SPECULAR_PASS, "NO_MRT_GBUFFER_SPECULAR");
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_COLOR_PASS, "HX_NO_MRT_GBUFFER_COLOR");
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_NORMAL_PASS, "HX_NO_MRT_GBUFFER_NORMALS");
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "HX_NO_MRT_GBUFFER_SPECULAR");
     }
 };
 

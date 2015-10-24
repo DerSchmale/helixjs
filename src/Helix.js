@@ -68,6 +68,13 @@ HX.initFromContext = function(glContext, options)
     HX.OPTIONS = options || new HX.InitOptions();
     HX.GL = glContext;
 
+    var extensions  = HX.GL.getSupportedExtensions();
+
+    function _getExtension(name)
+    {
+        return extensions.indexOf(name) >= 0 ? HX.GL.getExtension(name) : null;
+    }
+
     HX._initLights();
     HX.LIGHTING_MODEL = HX.OPTIONS.lightingModel;
 
@@ -76,52 +83,54 @@ HX.initFromContext = function(glContext, options)
         defines += "#define HX_LINEAR_SPACE\n";
 
     if (!HX.OPTIONS.ignoreDrawBuffersExtension)
-        HX.EXT_DRAW_BUFFERS = HX.GL.getExtension('WEBGL_draw_buffers');
+        HX.EXT_DRAW_BUFFERS = _getExtension('WEBGL_draw_buffers');
 
-    if (!HX.EXT_DRAW_BUFFERS) {
-        defines += "#define HX_SEPARATE_GEOMETRY_PASSES\n";
-        console.warn('WEBGL_draw_buffers extension not supported!');
+    if (HX.EXT_DRAW_BUFFERS && HX.EXT_DRAW_BUFFERS.MAX_DRAW_BUFFERS_WEBGL >= 3) {
+        defines += "#extension GL_EXT_draw_buffers : require\n";
     }
     else {
-        defines += "#extension GL_EXT_draw_buffers : require\n";
+        defines += "#define HX_SEPARATE_GEOMETRY_PASSES\n";
+        console.warn('WEBGL_draw_buffers extension not supported!');
+        HX.EXT_DRAW_BUFFERS = null;
     }
 
     // include individual geometry shaders
     HX.MaterialPass.NUM_PASS_TYPES += !!HX.EXT_DRAW_BUFFERS ? 0 : 2;
 
-    HX.EXT_FLOAT_TEXTURES = HX.GL.getExtension('OES_texture_float');
+    HX.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
     if (!HX.EXT_FLOAT_TEXTURES) console.warn('OES_texture_float extension not supported!');
 
     if (!HX.OPTIONS.ignoreHalfFloatTextureExtension)
-        HX.EXT_HALF_FLOAT_TEXTURES = HX.GL.getExtension('OES_texture_half_float');
+        HX.EXT_HALF_FLOAT_TEXTURES = _getExtension('OES_texture_half_float');
     if (!HX.EXT_HALF_FLOAT_TEXTURES) console.warn('OES_texture_half_float extension not supported!');
 
-    HX.EXT_FLOAT_TEXTURES_LINEAR = HX.GL.getExtension('OES_texture_float_linear');
+    HX.EXT_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_float_linear');
     if (!HX.EXT_FLOAT_TEXTURES_LINEAR) console.warn('OES_texture_float_linear extension not supported!');
 
-    HX.EXT_HALF_FLOAT_TEXTURES_LINEAR = HX.GL.getExtension('OES_texture_half_float_linear');
+    HX.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_half_float_linear');
     if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR) console.warn('OES_texture_half_float_linear extension not supported!');
 
     if (!HX.OPTIONS.ignoreDepthTexturesExtension)
-        HX.EXT_DEPTH_TEXTURE = HX.GL.getExtension('WEBGL_depth_texture');
+        HX.EXT_DEPTH_TEXTURE = _getExtension('WEBGL_depth_texture');
 
     if (!HX.EXT_DEPTH_TEXTURE) {
-        defines += "#define HX_STORE_EXPLICIT_DEPTH\n";
         console.warn('WEBGL_depth_texture extension not supported!');
+        defines += "#define HX_NO_DEPTH_TEXTURES\n";
+        HX.MaterialPass.SHADOW_MAP_PASS = HX.MaterialPass.NUM_PASS_TYPES++;
     }
 
-    HX.EXT_STANDARD_DERIVATIVES = HX.GL.getExtension('OES_standard_derivatives');
+    HX.EXT_STANDARD_DERIVATIVES = _getExtension('OES_standard_derivatives');
     if (!HX.EXT_STANDARD_DERIVATIVES) console.warn('OES_standard_derivatives extension not supported!');
 
     if (!HX.OPTIONS.ignoreTextureLODExtension)
-        HX.EXT_SHADER_TEXTURE_LOD = HX.GL.getExtension('EXT_shader_texture_lod');
+        HX.EXT_SHADER_TEXTURE_LOD = _getExtension('EXT_shader_texture_lod');
 
     if (!HX.EXT_SHADER_TEXTURE_LOD) console.warn('EXT_shader_texture_lod extension not supported!');
 
-    HX.EXT_TEXTURE_FILTER_ANISOTROPIC = HX.GL.getExtension('EXT_texture_filter_anisotropic');
+    HX.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension('EXT_texture_filter_anisotropic');
     if (!HX.EXT_TEXTURE_FILTER_ANISOTROPIC) console.warn('EXT_texture_filter_anisotropic extension not supported!');
 
-    //HX.EXT_SRGB = HX.GL.getExtension('EXT_sRGB');
+    //HX.EXT_SRGB = _getExtension('EXT_sRGB');
     //if (!HX.EXT_SRGB) console.warn('EXT_sRGB extension not supported!');
 
     HX.DEFAULT_TEXTURE_MAX_ANISOTROPY = HX.EXT_TEXTURE_FILTER_ANISOTROPIC? HX.GL.getParameter(HX.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;

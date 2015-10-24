@@ -443,14 +443,20 @@ HX.Material._parsePassFromXML = function(xml, passType, tagName, targetMaterial)
     vertexShader = HX.Material._decodeHTML(vertexShader);
     fragmentShader = HX.Material._decodeHTML(fragmentShader);
 
-    if (passType === HX.MaterialPass.GEOMETRY_PASS && !HX.EXT_DRAW_BUFFERS) {
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
+    if (passType === HX.MaterialPass.GEOMETRY_PASS) {
+        if (HX.EXT_DRAW_BUFFERS)
+            this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
+        else {
+            this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_COLOR_PASS, "HX_NO_MRT_GBUFFER_COLOR");
+            this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_NORMAL_PASS, "HX_NO_MRT_GBUFFER_NORMALS");
+            this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "HX_NO_MRT_GBUFFER_SPECULAR");
+        }
+
+        if (HX.MaterialPass.SHADOW_MAP_PASS !== -1)
+            this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.SHADOW_MAP_PASS, "HX_SHADOW_MAP_PASS");
     }
-    else {
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_COLOR_PASS, "HX_NO_MRT_GBUFFER_COLOR");
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_NORMAL_PASS, "HX_NO_MRT_GBUFFER_NORMALS");
-        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "HX_NO_MRT_GBUFFER_SPECULAR");
-    }
+
+
 };
 
 HX.Material.ID_COUNTER = 0;

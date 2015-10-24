@@ -104,7 +104,7 @@ vec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 worl
 			getShadowMapCoord(worldPos, -viewZ, shadowMapCoord);
 			float shadowSample = readDepth(shadowMapCoord.xy);
 			float diff = shadowMapCoord.z - shadowSample;
-			if (diff < .005) diff = -1.0;
+			if (diff < depthBias) diff = -1.0;
 			float shadowTest = float(diff < 0.0);
 		#endif
 		totalReflection *= shadowTest;

@@ -16,7 +16,7 @@ HX.CascadeShadowCasterCollector = function(numCascades)
 
 HX.CascadeShadowCasterCollector.prototype = Object.create(HX.SceneVisitor.prototype);
 
-HX.CascadeShadowCasterCollector.prototype.getOpaqueRenderList = function(index) { return this._renderLists[index]; };
+HX.CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return this._renderLists[index]; };
 
 HX.CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 {
@@ -106,8 +106,9 @@ HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
     if (this._numCascades > 4) this._numCascades = 4;
     this._shadowMapSize = shadowMapSize || 1024;
     this._shadowMapInvalid = true;
-    this._shadowMap = new HX.Texture2D();
     this._fbo = null;
+    this._depthBuffer = null;   // only used if depth textures aren't supported
+    this._shadowMap = new HX.Texture2D();
     this._shadowMap.setFilter(HX.TextureFilter.NEAREST_NOMIP);
     this._shadowMap.setWrapMode(HX.TextureWrapMode.CLAMP);
     this._shadowMatrices = [ new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4() ];
@@ -168,16 +169,16 @@ HX.CascadeShadowMapRenderer.prototype.render = function(viewCamera, scene)
         passType = HX.MaterialPass.GEOMETRY_COLOR_PASS;
     }
     else {
+        HX.GL.clearColor(1, 1, 1, 1);
         HX.clear();
         passType = HX.MaterialPass.SHADOW_MAP_PASS;
     }
-
 
     for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex)
     {
         var viewport = this._viewports[cascadeIndex];
         HX.GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-        this._renderPass(passType, this._casterCollector.getOpaqueRenderList(cascadeIndex));
+        this._renderPass(passType, this._casterCollector.getRenderList(cascadeIndex));
     }
 };
 
@@ -290,7 +291,7 @@ HX.CascadeShadowMapRenderer.prototype._updateCascadeCameras = function(viewCamer
 
         // TODO: Reenable!
         var softness = 0;
-        //var softness = light->GetShadowSoftness();
+        //var softness = light.shadowSoftness;
 
         camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 
@@ -367,16 +368,16 @@ HX.CascadeShadowMapRenderer.prototype._initShadowMap = function()
     var texWidth = this._shadowMapSize * numMapsW;
     var texHeight = this._shadowMapSize * numMapsH;
 
-    // TODO: Check if 16 bits is enough
+    // TODO: Check if 16 bits is enough?
     if (HX.EXT_DEPTH_TEXTURE) {
         this._shadowMap.initEmpty(texWidth, texHeight, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
         if (!this._fbo) this._fbo = new HX.FrameBuffer(null, this._shadowMap);
     }
     else {
-        this._shadowMap.initEmpty(this._shadowMapSize * numMapsW, this._shadowMapSize * numMapsH, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
+        this._shadowMap.initEmpty(texWidth, texHeight, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
         if (!this._depthBuffer) this._depthBuffer = new HX.ReadOnlyDepthBuffer();
-        this._depthBuffer.init(this._shadowMapSize * numMapsW, this._shadowMapSize * numMapsH);
         if (!this._fbo) this._fbo = new HX.FrameBuffer(this._shadowMap, this._depthBuffer);
+        this._depthBuffer.init(texWidth, texHeight);
     }
     this._fbo.init();
     this._shadowMapInvalid = false;

@@ -140,7 +140,8 @@ HX.ScreenRenderer.prototype.render = function(camera, scene, dt)
 
 HX.ScreenRenderer.prototype._renderShadowCasters = function()
 {
-    HX.GL.colorMask(false, false, false, false);
+    if (HX.MaterialPass.SHADOW_MAP_PASS === -1)
+        HX.GL.colorMask(false, false, false, false);
 
     var casters = this._renderCollector.getShadowCasters();
     var len = casters.length;
@@ -149,7 +150,8 @@ HX.ScreenRenderer.prototype._renderShadowCasters = function()
         casters[i].render(this._camera, this._scene)
     }
 
-    HX.GL.colorMask(true, true, true, true);
+    if (HX.MaterialPass.SHADOW_MAP_PASS === -1)
+        HX.GL.colorMask(true, true, true, true);
 };
 
 HX.ScreenRenderer.prototype._renderOpaques = function(dt)
@@ -159,6 +161,7 @@ HX.ScreenRenderer.prototype._renderOpaques = function(dt)
     HX.GL.enable(HX.GL.STENCIL_TEST);
     HX.GL.stencilFunc(HX.GL.ALWAYS, 1, 0xff);
     HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
+    HX.GL.clearColor(0, 0, 0, 1);
     this._renderToGBuffer();
     HX.GL.disable(HX.GL.STENCIL_TEST);
     this._linearizeDepth();

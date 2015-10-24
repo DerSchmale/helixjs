@@ -171,26 +171,38 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
     var normalPasses = list[HX.MaterialPass.GEOMETRY_NORMAL_PASS];
     var specularPasses = list[HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
     var len = colorPasses.length;
+    var n = 0;
+    var s = 0;
 
     for (var i = 0; i < len; ++i) {
         var renderItem = colorPasses[i];
-        var normalItem = new HX.RenderItem();
-        var specItem = new HX.RenderItem();
         var meshInstance = renderItem.meshInstance;
         var material = renderItem.material;
-        normalItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS);
-        specItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS);
-        normalItem.uniformSetters = meshInstance._uniformSetters[HX.MaterialPass.GEOMETRY_NORMAL_PASS];
-        specItem.uniformSetters = meshInstance._uniformSetters[HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
 
-        normalItem.material = specItem.material = renderItem.material;
-        normalItem.renderOrderHint = specItem.renderOrderHint = renderItem.renderOrderHint;
-        normalItem.meshInstance = specItem.meshInstance = renderItem.meshInstance;
-        normalItem.worldMatrix = specItem.worldMatrix = renderItem.worldMatrix;
-        normalItem.camera = specItem.camera = this._camera;
+        // for unlit lighting models, these passes may be unavailable
+        if (material.hasPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS)) {
+            var normalItem = new HX.RenderItem();
+            normalItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS);
+            normalItem.uniformSetters = meshInstance._uniformSetters[HX.MaterialPass.GEOMETRY_NORMAL_PASS];
+            normalItem.material = renderItem.material;
+            normalItem.renderOrderHint = renderItem.renderOrderHint;
+            normalItem.meshInstance = renderItem.meshInstance;
+            normalItem.worldMatrix = renderItem.worldMatrix;
+            normalItem.camera = this._camera;
+            normalPasses[n++] = normalItem;
+        }
 
-        normalPasses[i] = normalItem;
-        specularPasses[i] = specItem;
+        if (material.hasPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS)) {
+            var specItem = new HX.RenderItem();
+            specItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS);
+            specItem.uniformSetters = meshInstance._uniformSetters[HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
+            specItem.material = renderItem.material;
+            specItem.renderOrderHint = renderItem.renderOrderHint;
+            specItem.meshInstance = renderItem.meshInstance;
+            specItem.worldMatrix = renderItem.worldMatrix;
+            specItem.camera = this._camera;
+            specularPasses[s++] = specItem;
+        }
     }
 
 };

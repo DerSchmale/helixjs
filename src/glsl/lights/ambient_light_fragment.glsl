@@ -16,7 +16,5 @@ void main()
 	colorSample *= occlusionSample;
 #endif
 
-	colorSample = hx_gammaToLinear(colorSample);
-
 	gl_FragColor = vec4(lightColor * colorSample, 0.0);
 }

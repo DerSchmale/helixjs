@@ -77,6 +77,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
                     renderItem.meshInstance = meshInstance;
                     renderItem.worldMatrix = worldMatrix;
                     renderItem.camera = renderCamera;
+                    renderItem.material = material;
                     renderItem.uniformSetters = meshInstance._uniformSetters[passIndex];
 
                     renderList.push(renderItem);

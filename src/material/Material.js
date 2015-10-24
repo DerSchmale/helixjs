@@ -318,6 +318,9 @@ HX.Material = function ()
     this.onChange = new HX.Signal();
     this._textures = {};
     this._uniforms = {};
+
+    // practically unused, except for unlit (0)
+    this._lightingModelID = 1;
 };
 
 HX.Material.parseFromXML = function(xml)

@@ -24,7 +24,6 @@ void main()
 	vec3 worldPosition = hx_cameraWorldPosition + viewZ * viewWorldDir;
 
 	vec3 normal = hx_decodeNormal(normalSample);
-	colorSample = hx_gammaToLinear(colorSample);
 	vec3 viewDir = -normalize(viewWorldDir);
 
 	vec3 normalSpecularReflectance;

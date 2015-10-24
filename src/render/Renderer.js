@@ -46,8 +46,15 @@ HX.Renderer.prototype =
 
         for(var i = offsetIndex; i < len; ++i) {
             var renderItem = renderItems[i];
-            if (transparencyMode !== undefined && renderItem.material._transparencyMode !== transparencyMode)
+            var material = renderItem.material;
+
+            if (transparencyMode !== undefined && material._transparencyMode !== transparencyMode)
                 return i;
+
+            // lighting model 0 means unlit
+            var stencilValue = (material._lightingModelID << 1) | material._transparencyMode;
+            HX.GL.stencilFunc(HX.GL.ALWAYS, stencilValue, 0xff);
+
             var meshInstance = renderItem.meshInstance;
             var pass = renderItem.pass;
             var shader = pass._shader;

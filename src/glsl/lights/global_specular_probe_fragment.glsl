@@ -14,6 +14,12 @@ uniform sampler2D hx_gbufferSpecular;
 uniform sampler2D hx_source;
 #endif
 
+// cheap geometric shadowing function, not at all physically correct
+float hx_reflectionVisibility(vec3 normal, vec3 reflection, float roughness)
+{
+	return 1.0 - roughness*roughness;
+}
+
 void main()
 {
 	vec4 colorSample = texture2D(hx_gbufferColor, uv);
@@ -39,7 +45,9 @@ void main()
 	specProbeSample = hx_gammaToLinear(specProbeSample);
 	vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflectedViewDir, normal);
 	// not physically correct, but attenuation is required to look good
-	float attenuation = mix(1.0 - roughness, 1.0, metallicness);
+//	float attenuation = mix(1.0 - roughness, 1.0, metallicness);
+	float attenuation = mix(hx_reflectionVisibility(normal, reflectedViewDir, roughness), 1.0, metallicness);
+
 	fresnel *= attenuation;
 	totalLight += fresnel * specProbeSample.xyz;
 

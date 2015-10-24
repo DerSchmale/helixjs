@@ -1,4 +1,4 @@
-float hx_lightVisibility(in vec3 normal, in vec3 viewDir, float roughness, float nDotL)
+float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
 {
 	float nDotV = max(-dot(normal, viewDir), 0.0);
 	// roughness remapping, this is essentially: sqrt(2 * roughness * roughness / PI)

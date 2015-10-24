@@ -50,14 +50,14 @@ HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, came
     var intersectsNearPlane = lightCollection[startIndex]._renderOrderHint < 0;
 
     if (intersectsNearPlane) {
-        return this._renderFullscreenBatch(lightCollection, startIndex);
+        return this._renderFullscreenBatch(lightCollection, startIndex, camera);
     }
     else {
-        return this._renderSphereBatch(lightCollection, startIndex);
+        return this._renderSphereBatch(lightCollection, startIndex, camera);
     }
 };
 
-HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startIndex)
+HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startIndex, camera)
 {
     HX.PointLight._sphericalLightPass.updateRenderState();
     HX.GL.enable(HX.GL.CULL_FACE);
@@ -69,6 +69,8 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
     var colorData = HX.PointLight._colorData;
     var attData = HX.PointLight._attenuationData;
     var radiusData = HX.PointLight._radiusData;
+    var pos = new HX.Float4();
+    var viewMatrix = camera.getViewMatrix();
 
     var v1i = 0, v2i = 0, v3i = 0;
 
@@ -78,8 +80,8 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
             end = i;
             continue;
         }
-
-        var pos = light.getWorldMatrix().getColumn(3);
+        light.getWorldMatrix().getColumn(3, pos);
+        viewMatrix.transformPoint(pos, pos);
         var color = light._scaledIrradiance;
 
         posData[v3i] = pos.x;
@@ -112,13 +114,13 @@ HX.PointLight.prototype.initFullScreenPass = function (passIndex)
         HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl", defines),
         HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl", defines),
         HX.Light._rectMesh);
-    HX.PointLight._fullScreenPositionLocations[passIndex] = pass.getUniformLocation("lightWorldPosition[0]");
+    HX.PointLight._fullScreenPositionLocations[passIndex] = pass.getUniformLocation("lightViewPosition[0]");
     HX.PointLight._fullScreenColorLocations[passIndex] = pass.getUniformLocation("lightColor[0]");
     HX.PointLight._fullScreenAttenuationFixFactorsLocations[passIndex] = pass.getUniformLocation("attenuationFixFactors[0]");
     HX.PointLight._fullScreenLightPasses[passIndex] = pass;
 };
 
-HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, startIndex)
+HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, startIndex, camera)
 {
     HX.GL.disable(HX.GL.CULL_FACE);
 
@@ -129,6 +131,8 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
     var posData = HX.PointLight._positionData;
     var colorData = HX.PointLight._colorData;
     var attData = HX.PointLight._attenuationData;
+    var pos = new HX.Float4();
+    var viewMatrix = camera.getViewMatrix();
 
     var v3i = 0, v2i = 0;
 
@@ -141,7 +145,9 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
             continue;
         }
 
-        var pos = light.getWorldMatrix().getColumn(3);
+        light.getWorldMatrix().getColumn(3, pos);
+        viewMatrix.transformPoint(pos, pos);
+
         var color = light._scaledIrradiance;
 
         posData[v3i] = pos.x;
@@ -215,7 +221,7 @@ HX.PointLight.prototype._initLightPasses =  function()
         HX.PointLight._sphereMesh);
 
     HX.PointLight._sphericalLightPass = pass;
-    HX.PointLight._sphericalPositionLocation = pass.getUniformLocation("lightWorldPosition[0]");
+    HX.PointLight._sphericalPositionLocation = pass.getUniformLocation("lightViewPosition[0]");
     HX.PointLight._sphericalColorLocation = pass.getUniformLocation("lightColor[0]");
     HX.PointLight._sphericalAttenuationFixFactorsLocation = pass.getUniformLocation("attenuationFixFactors[0]");
     HX.PointLight._sphericalLightRadiusLocation = pass.getUniformLocation("lightRadius[0]");

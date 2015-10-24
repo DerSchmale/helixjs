@@ -2,7 +2,6 @@ uniform float hx_cameraFrustumRange;
 uniform float hx_cameraNearPlaneDistance;
 uniform vec2 hx_renderTargetResolution;
 uniform vec2 hx_rcpRenderTargetResolution;
-uniform mat4 hx_viewMatrix;
 uniform mat4 hx_projectionMatrix;
 
 uniform int numRays;
@@ -92,8 +91,7 @@ float getRayOcclusion(vec2 direction, float jitter, vec2 projectedRadii, vec3 ce
 void main()
 {
     vec4 normalSample = texture2D(hx_gbufferNormals, uv);
-    vec3 worldNormal = hx_decodeNormal(normalSample);
-    vec3 centerNormal = mat3(hx_viewMatrix) * worldNormal;
+    vec3 centerNormal = hx_decodeNormal(normalSample);
     float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
     float viewZ = centerDepth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;
     vec3 centerViewPos = viewZ * viewDir;

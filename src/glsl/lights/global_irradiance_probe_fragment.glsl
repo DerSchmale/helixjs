@@ -10,13 +10,15 @@ uniform sampler2D hx_source;
 
 uniform samplerCube irradianceProbeSampler;
 
+uniform mat4 hx_cameraWorldMatrix;
+
 void main()
 {
 	vec4 colorSample = texture2D(hx_gbufferColor, uv);
 	vec4 normalSample = texture2D(hx_gbufferNormals, uv);
 	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);
 
-	vec3 normal = hx_decodeNormal(normalSample);
+	vec3 normal = mat3(hx_cameraWorldMatrix) * hx_decodeNormal(normalSample);
 	vec3 totalLight = vec3(0.0);
 
 

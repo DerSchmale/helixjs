@@ -1,5 +1,4 @@
 uniform mat4 hx_projectionMatrix;
-uniform mat4 hx_viewMatrix;
 uniform mat4 hx_cameraWorldMatrix;
 uniform vec2 hx_renderTargetResolution;
 uniform float hx_cameraFrustumRange;
@@ -19,7 +18,6 @@ void main()
 {
     vec4 normalSample = texture2D(hx_gbufferNormals, uv);
     vec3 centerNormal = hx_decodeNormal(normalSample);
-    centerNormal = mat3(hx_viewMatrix) * centerNormal.xyz;
     float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
     float totalOcclusion = 0.0;
     vec3 dither = texture2D(ditherTexture, uv * hx_renderTargetResolution * .25).xyz;

@@ -14,6 +14,8 @@ uniform sampler2D hx_gbufferSpecular;
 uniform sampler2D hx_source;
 #endif
 
+uniform mat4 hx_cameraWorldMatrix;
+
 // cheap geometric shadowing function, not at all physically correct
 float hx_reflectionVisibility(vec3 normal, vec3 reflection, float roughness)
 {
@@ -25,7 +27,7 @@ void main()
 	vec4 colorSample = texture2D(hx_gbufferColor, uv);
 	vec4 normalSample = texture2D(hx_gbufferNormals, uv);
 	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);
-	vec3 normal = hx_decodeNormal(normalSample);
+	vec3 normal = mat3(hx_cameraWorldMatrix) * hx_decodeNormal(normalSample);
 	vec3 totalLight = vec3(0.0);
 
 	vec3 reflectedViewDir = reflect(normalize(viewWorldDir), normal);

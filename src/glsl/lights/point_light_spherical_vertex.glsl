@@ -10,10 +10,8 @@ uniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];
 uniform vec3 lightColor[LIGHTS_PER_BATCH];
 uniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];
 
-
-
 varying vec2 uv;
-varying vec3 viewWorldDir;
+varying vec3 viewDir;
 varying vec3 lightColorVar;
 varying vec3 lightPositionVar;
 varying vec2 attenuationFixVar;
@@ -31,7 +29,9 @@ void main()
 	vec4 viewPos = hx_viewMatrix * worldPos;
 	vec4 proj = hx_projectionMatrix * viewPos;
 
-	viewWorldDir = mat3(hx_cameraWorldMatrix) * (viewPos.xyz / viewPos.z);
+	lightPositionVar = (hx_viewMatrix * vec4(lightPositionVar, 1.0)).xyz;
+
+	viewDir = viewPos.xyz / viewPos.z;
 
 	/* render as flat disk, prevent clipping */
 	proj /= proj.w;

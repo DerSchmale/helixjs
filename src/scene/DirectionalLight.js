@@ -138,7 +138,7 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
     this._lightPass.updateRenderState();
 
     var light = lightCollection[startIndex];
-    var dir = light.direction;
+    var dir = camera.getViewMatrix().transform(light.direction);
     var color = light._scaledIrradiance;
 
     HX.GL.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
@@ -153,7 +153,9 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
         var l = 0;
         var len = this._numCascades;
         for (var i = 0; i < len; ++i) {
-            var m = this._shadowMapRenderer.getShadowMatrix(i)._m;
+            var matrix = new HX.Matrix4x4();
+            matrix.product(this._shadowMapRenderer.getShadowMatrix(i), camera.getWorldMatrix());
+            var m = matrix._m;
             for (var j = 0; j < 16; ++j) {
                 this._matrixData[k++] = m[j];
             }
@@ -198,7 +200,7 @@ HX.DirectionalLight.prototype._initLightPass =  function()
 
     var pass = new HX.EffectPass(vertexShader, fragmentShader, HX.Light._rectMesh);
 
-    this._dirLocation = pass.getUniformLocation("lightWorldDirection");
+    this._dirLocation = pass.getUniformLocation("lightViewDirection");
     this._colorLocation = pass.getUniformLocation("lightColor");
 
     this._lightPass = pass;

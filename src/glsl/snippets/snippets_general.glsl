@@ -41,10 +41,8 @@ vec4 hx_encodeNormalDepth(vec3 normal, float depth)
 {
 	#ifdef HX_NO_DEPTH_TEXTURES
     	vec4 data;
-    	// xy contain normal
-		data.xy = normal.xy * .5 + .5;
-		// use some of the depth precision to encode store normal sign
-		data.zw = hx_floatToRG8(depth * sign(normal.z) * .5 + .5);
+    	data.xy = normal.xy * .5 + .5;
+		data.zw = hx_floatToRG8(depth);
 		return data;
 	#else
 		return vec4(normal * .5 + .5, 1.0);
@@ -56,9 +54,8 @@ vec3 hx_decodeNormal(vec4 data)
     #ifdef HX_NO_DEPTH_TEXTURES
     	vec3 normal;
     	normal.xy = data.xy * 2.0 - 1.0;
-		normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));
-		float depth = hx_RG8ToFloat(data.zw) * 2.0 - 1.0;
-		normal.z *= sign(depth);
+		normal.z = 1.0 - dot(normal.xy, normal.xy);
+		normal.z = sqrt(normal.z);
 		return normal;
     #else
     	return normalize(data.xyz - .5);

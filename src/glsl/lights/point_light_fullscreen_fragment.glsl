@@ -1,5 +1,5 @@
 varying vec2 uv;
-varying vec3 viewWorldDir;
+varying vec3 viewDir;
 
 uniform sampler2D hx_gbufferColor;
 uniform sampler2D hx_gbufferNormals;
@@ -8,10 +8,9 @@ uniform sampler2D hx_gbufferDepth;
 
 uniform float hx_cameraFrustumRange;
 uniform float hx_cameraNearPlaneDistance;
-uniform vec3 hx_cameraWorldPosition;
 
 uniform vec3 lightColor[LIGHTS_PER_BATCH];
-uniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];
+uniform vec3 lightViewPosition[LIGHTS_PER_BATCH];
 uniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];
 
 void main()
@@ -28,9 +27,9 @@ void main()
 	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);
 
 	float absViewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
-	vec3 worldPosition = hx_cameraWorldPosition + absViewZ * viewWorldDir;
+	vec3 viewPosition = absViewZ * viewDir;
 
-	vec3 viewDir = normalize(viewWorldDir);
+	vec3 viewDirNorm = normalize(viewDir);
 
 
 	vec3 totalDiffuse = vec3(0.0);
@@ -39,14 +38,14 @@ void main()
 	vec3 specularReflection;
 
 	for (int i = 0; i < LIGHTS_PER_BATCH; ++i) {
-		vec3 lightWorldDirection = worldPosition - lightWorldPosition[i];
-		float attenuation = 1.0/dot(lightWorldDirection, lightWorldDirection);
-		/* normalize:*/
-		lightWorldDirection *= sqrt(attenuation);
+		vec3 lightViewDirection = viewPosition - lightViewPosition[i];
+		float attenuation = 1.0/dot(lightViewDirection, lightViewDirection);
+		// normalize:
+		lightViewDirection *= sqrt(attenuation);
 
-		/*rescale attenuation so that irradiance at bounding edge really is 0*/
+		// rescale attenuation so that irradiance at bounding edge really is 0
 		attenuation = max(0.0, (attenuation - attenuationFixFactors[i].x) * attenuationFixFactors[i].y);
-		hx_lighting(normal, lightWorldDirection, viewDir, lightColor[i] * attenuation, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);
+		hx_lighting(normal, lightViewDirection, viewDirNorm, lightColor[i] * attenuation, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);
 		totalDiffuse += diffuseReflection;
 		totalSpecular += specularReflection;
 	}

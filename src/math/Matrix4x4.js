@@ -32,31 +32,34 @@ HX.Matrix4x4.prototype = {
     /**
      * Transforms a Float4 object (use for homogeneous general case of Float4)
      */
-    transform: function (v)
+    transform: function (v, target)
     {
+        var target = target || new HX.Float4();
         var x = v.x, y = v.y, z = v.z, w = v.w;
+        var m = this._m;
 
-        return new HX.Float4(
-                this._m[0] * x + this._m[4] * y + this._m[8] * z + this._m[12] * w,
-                this._m[1] * x + this._m[5] * y + this._m[9] * z + this._m[13] * w,
-                this._m[2] * x + this._m[6] * y + this._m[10] * z + this._m[14] * w,
-                this._m[3] * x + this._m[7] * y + this._m[11] * z + this._m[15] * w
-        );
+        target.x = m[0] * x + m[4] * y + m[8] * z + m[12] * w;
+        target.y = m[1] * x + m[5] * y + m[9] * z + m[13] * w;
+        target.z = m[2] * x + m[6] * y + m[10] * z + m[14] * w;
+        target.w = m[3] * x + m[7] * y + m[11] * z + m[15] * w;
+
+        return target;
     },
 
     /**
      * Transforms a Float4 object, treating it as a point. Slightly faster than transform for points.
      */
-    transformPoint: function (v)
+    transformPoint: function (v, target)
     {
+        var target = target || new HX.Float4();
         var x = v.x, y = v.y, z = v.z;
+        var m = this._m;
 
-        return new HX.Float4(
-                this._m[0] * x + this._m[4] * y + this._m[8] * z + this._m[12],
-                this._m[1] * x + this._m[5] * y + this._m[9] * z + this._m[13],
-                this._m[2] * x + this._m[6] * y + this._m[10] * z + this._m[14],
-                1.0
-        );
+        target.x = m[0] * x + m[4] * y + m[8] * z + m[12];
+        target.y = m[1] * x + m[5] * y + m[9] * z + m[13];
+        target.z = m[2] * x + m[6] * y + m[10] * z + m[14];
+        target.w = 1.0;
+        return target;
     },
 
     /**

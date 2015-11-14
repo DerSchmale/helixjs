@@ -15,7 +15,7 @@ HX.DirectionalLight = function()
 
     // these two don't need getters/setters (saves on filesize)
     this.shadowSoftness = .02;
-    this.depthBias = .01;
+    this.depthBias = .02;
 
     this.direction = new HX.Float4(-1.0, -1.0, -1.0, 0.0);
     this._matrixData = null;

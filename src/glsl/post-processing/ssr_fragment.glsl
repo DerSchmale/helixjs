@@ -82,7 +82,7 @@ float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
     rcpW += dRcpW * dither.z;
 //    rayDepth = rayPerspDepth / rcpW;
 
-//    float sampleCount;
+    float sampleCount;
     for (int i = 0; i < NUM_SAMPLES; ++i) {
 //        prevRayDepth = rayDepth;
         // easier to think in positive Z
@@ -95,6 +95,7 @@ float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
         if (rayDepth > sceneDepth + .001) {
             // do not count beyond far plane intersections, depth = 0 due to encoding flaw
             amount = float(sceneDepth > 0.01);
+            sampleCount = float(i);
             break;
         }
 
@@ -114,6 +115,7 @@ float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
     hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;
 
     // TODO: fade out last samples
+    amount *= clamp((1.0 - (sampleCount - float(NUM_SAMPLES)) / float(NUM_SAMPLES)) * 5.0, 0.0, 1.0);
     return amount;
 }
 

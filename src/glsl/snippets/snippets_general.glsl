@@ -126,6 +126,7 @@ vec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)
     return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;
 }
 
+// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position
 vec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)
 {
     vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);
@@ -171,4 +172,3 @@ float hx_luminance(vec3 color)
 {
     return dot(color, vec3(.30, 0.59, .11));
 }
-

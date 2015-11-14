@@ -24,7 +24,7 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 
 	vec3 halfVector = normalize(lightDir + viewDir);
 
-	float distribution = hx_trowbridgeReitzGGX(roughness, normal, halfVector);
+	float distribution = hx_trowbridgeReitz(roughness, normal, halfVector);
 
 	float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);
 

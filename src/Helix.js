@@ -276,26 +276,27 @@ HX._init2DDitherTexture = function(width, height)
 {
     HX.DEFAULT_2D_DITHER_TEXTURE = new HX.Texture2D();
     var len = width * height;
+    var minValue = 1.0 / len;
     var data = [];
     var k = 0;
-    var angles = [];
+    var values = [];
 
     for (var i = 0; i < len; ++i) {
-        angles.push(i / len * Math.PI * 2.0);
+        values.push(i / len);
     }
 
-    HX.shuffle(angles);
+    HX.shuffle(values);
 
     for (var i = 0; i < len; ++i) {
-        var angle = angles[i];
+        var angle = values[i] * Math.PI * 2.0;
         var cos = Math.cos(angle);
         var sin = Math.sin(angle);
         // store rotation matrix
         // RGBA:
         data[k++] = cos;
-        data[k++] = -sin;
         data[k++] = sin;
-        data[k++] = cos;
+        data[k++] = minValue + values[i];
+        data[k++] = 1.0;
     }
 
     HX.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, HX.GL.RGBA, HX.GL.FLOAT);

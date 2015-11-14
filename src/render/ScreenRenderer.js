@@ -423,6 +423,10 @@ HX.ScreenRenderer.prototype._renderGlobalIllumination = function(dt)
 
     HX.GL.disable(HX.GL.CULL_FACE);
 
+    // TODO:
+    // Should we render all specular GI to a separate global reflections texture?
+    // Would allow planar reflections to be rendered there too
+
     if (this._renderCollector._globalIrradianceProbe)
         this._renderCollector._globalIrradianceProbe.render(this._camera, this._gbuffer, occlusion);
 
@@ -433,8 +437,7 @@ HX.ScreenRenderer.prototype._renderGlobalIllumination = function(dt)
         HX.GL.enable(HX.GL.BLEND);
     }
 
-    // dest alpha contains amount of GI already present
-    HX.GL.blendFunc(HX.GL.DST_ALPHA, HX.GL.ONE);
+    HX.GL.blendFunc(HX.GL.ONE_MINUS_DST_ALPHA, HX.GL.ONE);
 
     if (this._renderCollector._globalSpecularProbe)
         this._renderCollector._globalSpecularProbe.render(this._camera, this._gbuffer, occlusion);

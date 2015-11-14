@@ -138,9 +138,19 @@ HX.Texture2D.prototype =
     }
 };
 
+/**
+ *
+ * @param url
+ * @param generateMipmaps
+ * @param onComplete
+ * @param onError
+ * @constructor
+ */
 HX.FileTexture2D = function(url, generateMipmaps, onComplete, onError)
 {
     HX.Texture2D.call(this);
+
+    this.initEmpty(1, 1);
 
     generateMipmaps = generateMipmaps === undefined? true : generateMipmaps;
     var image = new Image();

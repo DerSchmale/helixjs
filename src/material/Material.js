@@ -389,10 +389,6 @@ HX.Material._translateProperty = function(value)
     return HX.Material._properties[value];
 };
 
-HX.MaterialPass.DST_ALPHA = "disabled";
-HX.MaterialPass.ONE_MINUS_SRC_COLOR = "disabled";
-
-
 HX.Material._decodeHTML = function(value)
 {
     var e = document.createElement('div');

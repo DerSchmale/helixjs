@@ -79,7 +79,7 @@ vec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 view
 
 	#ifdef CAST_SHADOWS
 		float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
-		float viewZ = depth * hx_cameraFrustumRange/* + hx_cameraNearPlaneDistance*/;
+		float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
 		vec3 viewPos = viewZ * viewVector;
 
 		vec4 shadowMapCoord;
@@ -88,7 +88,7 @@ vec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 view
 			getShadowMapCoord(viewPos, shadowMapCoord, radii);
 			float shadowTest = 0.0;
 			vec4 dither = texture2D(hx_dither2D, uv * hx_dither2DTextureScale);
-			dither *= radii.xxyy;  // add radius scale
+			dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale
 			for (int i = 0; i < NUM_SHADOW_SAMPLES; ++i) {
 				vec2 offset;
 				offset.x = dot(dither.xy, hx_poissonDisk[i]);
@@ -125,7 +125,6 @@ void main()
 
 	vec3 totalReflection = hx_calculateLight(colorSample.xyz, normal, lightViewDirection, viewDir, normalSpecularReflectance, roughness, metallicness);
 
-//	gl_FragColor = vec4(totalReflection, 0.0);
 	gl_FragColor = vec4(totalReflection, 0.0);
 
 }

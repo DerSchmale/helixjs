@@ -10,6 +10,7 @@ uniform sampler2D hx_gbufferSpecular;
 uniform sampler2D hx_gbufferDepth;
 
 uniform float hx_cameraFrustumRange;
+uniform float hx_cameraNearPlaneDistance;
 
 
 void main()
@@ -19,11 +20,11 @@ void main()
 	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);
 	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
 
-	float viewZ = -depth * hx_cameraFrustumRange;
+	float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
 	vec3 viewPosition = viewZ * viewDir;
 
 	vec3 normal = hx_decodeNormal(normalSample);
-	vec3 viewDirNorm = -normalize(viewDir);
+	vec3 viewDirNorm = normalize(viewDir);
 
 	vec3 normalSpecularReflectance;
 	float roughness;

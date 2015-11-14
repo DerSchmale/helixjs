@@ -48,6 +48,7 @@ void main()
 	vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflectedViewDir, normal);
 	// not physically correct, but attenuation is required to look good
 //	float attenuation = mix(1.0 - roughness, 1.0, metallicness);
+
 	float attenuation = mix(hx_reflectionVisibility(normal, reflectedViewDir, roughness), 1.0, metallicness);
 
 	fresnel *= attenuation;

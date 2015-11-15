@@ -46,23 +46,45 @@ HX.SSAO.prototype.getAOTexture = function()
     return this._ssaoTexture;
 };
 
-HX.SSAO.prototype.setSampleRadius = function(value)
-{
-    this._radius = value;
-    this._ssaoPass.setUniform("sampleRadius", this._radius);
-};
+Object.defineProperty(HX.SSAO.prototype, "sampleRadius",
+    {
+        get: function ()
+        {
+            return this._radius;
+        },
+        set: function (value)
+        {
+            this._radius = value;
+            this._ssaoPass.setUniform("sampleRadius", this._radius);
+        }
+    });
 
-HX.SSAO.prototype.setFallOffDistance = function(value)
-{
-    this._fallOffDistance = value;
-    this._ssaoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
-};
+Object.defineProperty(HX.SSAO.prototype, "fallOffDistance",
+    {
+        get: function ()
+        {
+            this._fallOffDistance = value;
+        },
+        set: function (value)
+        {
+            this._fallOffDistance = value;
+            this._ssaoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
+        }
+    });
 
-HX.SSAO.prototype.setStrength = function(value)
-{
-    this._strength = value;
-    this._ssaoPass.setUniform("strengthPerSample", 2.0 * this._strength / this._numSamples);
-};
+
+Object.defineProperty(HX.SSAO.prototype, "strength",
+    {
+        get: function()
+        {
+            return this._strength;
+        },
+        set: function (value)
+        {
+            this._strength = value;
+            this._ssaoPass.setUniform("strengthPerSample", 2.0 * this._strength / this._numSamples);
+        }
+    });
 
 HX.SSAO.prototype._initSamples = function()
 {

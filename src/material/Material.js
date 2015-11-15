@@ -332,7 +332,7 @@ HX.Material.parseFromXML = function(xml)
 
 HX.Material._parseXMLTo = function(xml, material)
 {
-    HX.Material._parseGeometryPassFromXML(xml, material);
+    HX.Material._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_PASS, "geometry", material);
 
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.POST_LIGHT_PASS, "preEffect", material);
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.POST_PASS, "post", material);

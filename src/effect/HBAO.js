@@ -53,29 +53,58 @@ HX.HBAO.prototype.getAOTexture = function()
     return this._aoTexture;
 };
 
-HX.HBAO.prototype.setSampleRadius = function(value)
-{
-    this._radius = value;
-    this._aoPass.setUniform("halfSampleRadius", this._radius *.5);
-};
+Object.defineProperty(HX.HBAO.prototype, "sampleRadius",
+    {
+        get: function ()
+        {
+            return this._radius;
+        },
+        set: function (value)
+        {
+            this._radius = value;
+            this._aoPass.setUniform("halfSampleRadius", this._radius *.5);
+        }
+    });
 
-HX.HBAO.prototype.setFallOffDistance = function(value)
-{
-    this._fallOffDistance = value;
-    this._aoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
-};
 
-HX.HBAO.prototype.setStrength = function(value)
-{
-    this._strength = value;
-    this._aoPass.setUniform("strengthPerRay", this._strength / this._numRays);
-};
+Object.defineProperty(HX.HBAO.prototype, "fallOffDistance",
+    {
+        get: function ()
+        {
+            this._fallOffDistance = value;
+        },
+        set: function (value)
+        {
+            this._fallOffDistance = value;
+            this._aoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
+        }
+    });
 
-HX.HBAO.prototype.setBias = function(value)
-{
-    this._bias = value;
-    this._aoPass.setUniform("bias", this._bias);
-};
+Object.defineProperty(HX.HBAO.prototype, "strength",
+    {
+        get: function()
+        {
+            return this._strength;
+        },
+        set: function (value)
+        {
+            this._strength = value;
+            this._aoPass.setUniform("strengthPerRay", this._strength / this._numRays);
+        }
+    });
+
+Object.defineProperty(HX.HBAO.prototype, "bias",
+    {
+        get: function()
+        {
+            return this._bias;
+        },
+        set: function (value)
+        {
+            this._bias = value;
+            this._aoPass.setUniform("bias", this._bias);
+        }
+    });
 
 HX.HBAO.prototype._initTargetTexture = function(width, height)
 {

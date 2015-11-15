@@ -68,27 +68,44 @@ HX.ScreenRenderer = function()
 
 HX.ScreenRenderer.prototype = Object.create(HX.Renderer.prototype);
 
-HX.ScreenRenderer.prototype.setDebugMode = function(value)
+Object.defineProperty(HX.ScreenRenderer.prototype, "debugMode",
 {
-    this._debugMode = value;
-};
+    get: function()
+    {
+        return this._debugMode;
+    },
+    set: function(value)
+    {
+        this._debugMode = value;
+    }
+});
 
-HX.ScreenRenderer.prototype.getAmbientOcclusion = function()
+Object.defineProperty(HX.ScreenRenderer.prototype, "ambientOcclusion",
 {
-    return this._aoEffect;
-};
+    get: function()
+    {
+        return this._aoEffect;
+    },
+    set: function(value)
+    {
+        this._aoEffect = value;
+        this._aoEffect.setMesh(this._rectMesh);
+    }
+});
 
-HX.ScreenRenderer.prototype.setAmbientOcclusion = function(value)
-{
-    this._aoEffect = value;
-    this._aoEffect.setMesh(this._rectMesh);
-};
+Object.defineProperty(HX.ScreenRenderer.prototype, "localReflections",
+    {
+        get: function()
+        {
+            return this._localReflections;
+        },
 
-HX.ScreenRenderer.prototype.setLocalReflections = function(value)
-{
-    this._localReflections = value;
-    this._localReflections.setMesh(this._rectMesh);
-};
+        set: function(value)
+        {
+            this._localReflections = value;
+            this._localReflections.setMesh(this._rectMesh);
+        }
+    });
 
 HX.ScreenRenderer.prototype.setViewportRect = function(x, y, width, height)
 {
@@ -435,9 +452,8 @@ HX.ScreenRenderer.prototype._renderGlobalIllumination = function(dt)
         this._renderEffect(this._localReflections, dt);
         HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
         HX.GL.enable(HX.GL.BLEND);
+        HX.GL.blendFunc(HX.GL.ONE_MINUS_DST_ALPHA, HX.GL.ONE);
     }
-
-    HX.GL.blendFunc(HX.GL.ONE_MINUS_DST_ALPHA, HX.GL.ONE);
 
     if (this._renderCollector._globalSpecularProbe)
         this._renderCollector._globalSpecularProbe.render(this._camera, this._gbuffer, occlusion);

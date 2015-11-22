@@ -7,12 +7,17 @@ HX.TextureSlot = function() {
     this.texture = null;
 };
 
+/**
+ * Careful! Transparency and blending are two separate concepts!
+ * Transparency represents actual transparent objects and affects how the light interacting with the object is
+ * added to the rest of the lit scene.
+ * Blending merely applies to how passes are applied to their render targets.
+ */
 HX.TransparencyMode = {
-    OPAQUE: 0,
-    ALPHA: 1,
-    ADDITIVE: 2,
+    OPAQUE: 0,      // light coming from behind the object is blocked.
+    ALPHA: 1,       // light from behind is transparently blended with incoming light
+    ADDITIVE: 2,    // light from behind the object is completely unblocked and added in. Useful for specular-only lighting such as glass, or when refracted diffuse is applied in a post pass.
     NUM_MODES: 3
-    // multiplicative diffuse would be handled custom as a post pass
 };
 
 /**
@@ -65,23 +70,23 @@ HX.MaterialPass.prototype = {
         return this._shader;
     },
 
-    setElementType: function(value)
+    set elementType(value)
     {
         this._elementType = value;
     },
 
-    getElementType: function()
+    get elementType()
     {
         return this._elementType;
     },
 
     // use null for disabled
-    setCullMode: function(value)
+    set cullMode(value)
     {
         this._cullMode = value;
     },
 
-    getCullMode: function()
+    get cullMode()
     {
         return this._cullMode;
     },
@@ -319,7 +324,7 @@ HX.Material = function ()
     this._textures = {};
     this._uniforms = {};
 
-    // practically unused, except for unlit (0)
+    // practically unused atm, except for unlit (0)
     this._lightingModelID = 1;
 };
 
@@ -336,6 +341,8 @@ HX.Material._parseXMLTo = function(xml, material)
 
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.POST_LIGHT_PASS, "preEffect", material);
     HX.Material._parsePassFromXML(xml, HX.MaterialPass.POST_PASS, "post", material);
+
+    material.transparencyMode = HX.Material._translateTransparencyMode(xml.documentElement.getAttribute("transparencyMode"));
 
     var uniforms = xml.getElementsByTagName("uniforms")[0];
 
@@ -357,6 +364,18 @@ HX.Material._parseXMLTo = function(xml, material)
 
     // assign default textures
     material.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
+};
+
+HX.Material._translateTransparencyMode = function(value)
+{
+    switch(value) {
+        case "additive":
+            return HX.TransparencyMode.ADDITIVE;
+        case "alpha":
+            return HX.TransparencyMode.ALPHA;
+        default:
+            return HX.TransparencyMode.OPAQUE;
+    }
 };
 
 HX.Material._translateProperty = function(value)
@@ -406,10 +425,10 @@ HX.Material._addParsedPass = function (vertexShader, fragmentShader, elements, c
     var pass = new HX.MaterialPass(shader);
 
     if (elements)
-        pass.setElementType(HX.Material._translateProperty(elements.innerHTML));
+        pass.elementType = HX.Material._translateProperty(elements.innerHTML);
 
     if (cullmode)
-        pass.setCullMode(HX.Material._translateProperty(cullmode.innerHTML));
+        pass.cullMode = HX.Material._translateProperty(cullmode.innerHTML);
 
     if (blend) {
         var source = blend.getElementsByTagName("source")[0];
@@ -423,6 +442,7 @@ HX.Material._addParsedPass = function (vertexShader, fragmentShader, elements, c
 
     targetMaterial.setPass(passType, pass);
 };
+
 HX.Material._parsePassFromXML = function(xml, passType, tagName, targetMaterial)
 {
     var common = xml.getElementsByTagName("common")[0];
@@ -454,6 +474,9 @@ HX.Material._parsePassFromXML = function(xml, passType, tagName, targetMaterial)
         if (HX.MaterialPass.SHADOW_MAP_PASS !== -1)
             this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.SHADOW_MAP_PASS, "HX_SHADOW_MAP_PASS");
     }
+    else {
+        this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
+    }
 
 
 };
@@ -462,6 +485,16 @@ HX.Material.ID_COUNTER = 0;
 
 HX.Material.prototype = {
     constructor: HX.Material,
+
+    get transparencyMode()
+    {
+        return this._transparencyMode;
+    },
+
+    set transparencyMode(value)
+    {
+        this._transparencyMode = value;
+    },
 
     get renderOrder()
     {

@@ -187,7 +187,7 @@ HX.CameraFrustumRangeSetter = function()
 
 HX.CameraFrustumRangeSetter.prototype.execute = function (worldMatrix, camera)
 {
-    HX.GL.uniform1f(this.location, camera.getFarDistance() - camera.getNearDistance());
+    HX.GL.uniform1f(this.location, camera._farDistance - camera._nearDistance);
 };
 
 HX.RCPCameraFrustumRangeSetter = function()
@@ -196,7 +196,7 @@ HX.RCPCameraFrustumRangeSetter = function()
 
 HX.RCPCameraFrustumRangeSetter.prototype.execute = function (worldMatrix, camera)
 {
-    HX.GL.uniform1f(this.location, 1.0 / (camera.getFarDistance() - camera.getNearDistance()));
+    HX.GL.uniform1f(this.location, 1.0 / (camera._farDistance - camera._nearDistance));
 };
 
 HX.CameraNearPlaneDistanceSetter = function()
@@ -205,7 +205,7 @@ HX.CameraNearPlaneDistanceSetter = function()
 
 HX.CameraNearPlaneDistanceSetter.prototype.execute = function (worldMatrix, camera)
 {
-    HX.GL.uniform1f(this.location, camera.getNearDistance());
+    HX.GL.uniform1f(this.location, camera._nearDistance);
 };
 
 HX.CameraFarPlaneDistanceSetter = function()
@@ -214,7 +214,7 @@ HX.CameraFarPlaneDistanceSetter = function()
 
 HX.CameraFarPlaneDistanceSetter.prototype.execute = function (worldMatrix, camera)
 {
-    HX.GL.uniform1f(this.location, camera.getFarDistance());
+    HX.GL.uniform1f(this.location, camera._farDistance);
 };
 
 HX.ViewMatrixSetter = function()

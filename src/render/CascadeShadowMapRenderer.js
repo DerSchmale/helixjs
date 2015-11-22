@@ -209,8 +209,8 @@ HX.CascadeShadowMapRenderer.prototype._updateCollectorCamera = function(viewCame
 
 HX.CascadeShadowMapRenderer.prototype._updateSplitDistances = function(viewCamera)
 {
-    var nearDist = viewCamera.getNearDistance();
-    var frustumRange = viewCamera.getFarDistance() - nearDist;
+    var nearDist = viewCamera.nearDistance;
+    var frustumRange = viewCamera.farDistance - nearDist;
 
     for (var i = 0; i < this._numCascades; ++i)
         this._splitDistances[i] = nearDist + this._splitRatios[i]*frustumRange;
@@ -235,7 +235,7 @@ HX.CascadeShadowMapRenderer.prototype._updateCascadeCameras = function(viewCamer
         var farRatio = this._splitRatios[cascade];
         var camera = this._shadowMapCameras[cascade];
 
-        camera.setNearDistance(-maxBound.z);
+        camera.nearDistance = -maxBound.z;
 
         camera.getTransformationMatrix().copyFrom(this._light.getWorldMatrix());
         camera._invalidateWorldTransformationMatrix();
@@ -296,7 +296,7 @@ HX.CascadeShadowMapRenderer.prototype._updateCascadeCameras = function(viewCamer
 
         camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 
-        camera.setFarDistance(-min.z);
+        camera.farDistance = -min.z;
 
         camera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
 

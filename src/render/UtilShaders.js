@@ -44,17 +44,62 @@ HX.CustomCopyShader.prototype.execute = function(rect, texture)
  * @param channel Can be either x, y, z, w or any 4-component swizzle. default is xyzw, meaning a simple copy
  * @constructor
  */
-HX.CopyChannelsShader = function(channel)
+HX.CopyChannelsShader = function(channel, copyAlpha)
 {
     channel = channel || "xyzw";
+    copyAlpha = copyAlpha === undefined? true : copyAlpha;
 
     var define = "#define extractChannels(src) ((src)." + channel + ")\n";
+
+    if (copyAlpha) define += "#define COPY_ALPHA\n";
 
     HX.CustomCopyShader.call(this, define + HX.ShaderLibrary.get("copy_fragment.glsl"));
 };
 
 HX.CopyChannelsShader.prototype = Object.create(HX.CustomCopyShader.prototype);
 
+
+/**
+ * Copies data in one texture, using a second texture's alpha information
+ * @constructor
+ */
+HX.CopyWithSeparateAlpha = function()
+{
+    HX.Shader.call(this);
+    this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), HX.ShaderLibrary.get("copy_with_separate_alpha_fragment.glsl"));
+
+    this._textureLocation = HX.GL.getUniformLocation(this._program, "sampler");
+    this._alphaLocation = HX.GL.getUniformLocation(this._program, "alphaSource");
+    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+
+    HX.GL.useProgram(this._program);
+    HX.GL.uniform1i(this._textureLocation, 0);
+    HX.GL.uniform1i(this._alphaLocation, 1);
+};
+
+HX.CopyWithSeparateAlpha.prototype = Object.create(HX.Shader.prototype);
+
+HX.CopyWithSeparateAlpha.prototype.execute = function(rect, texture, alphaTexture)
+{
+    HX.GL.disable(HX.GL.DEPTH_TEST);
+    HX.GL.disable(HX.GL.CULL_FACE);
+
+    rect._vertexBuffer.bind();
+    rect._indexBuffer.bind();
+
+    this.updateRenderState();
+
+    texture.bind(0);
+    alphaTexture.bind(1);
+
+    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
+    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+
+    HX.enableAttributes(2);
+
+    HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
+};
 
 /**
  * Unpack and draw depth values to screen
@@ -99,13 +144,14 @@ HX.LinearizeDepthShader = function()
 
     this.init(HX.ShaderLibrary.get("linearize_depth_vertex.glsl"), HX.ShaderLibrary.get("linearize_depth_fragment.glsl"));
 
+    HX.GL.useProgram(this._program);
+
     this._textureLocation = HX.GL.getUniformLocation(this._program, "sampler");
     this._rcpFrustumRangeLocation = HX.GL.getUniformLocation(this._program, "hx_rcpCameraFrustumRange");
     this._projectionLocation = HX.GL.getUniformLocation(this._program, "hx_projectionMatrix");
     this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
     this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.useProgram(this._program);
     HX.GL.uniform1i(this._textureLocation, 0);
 };
 
@@ -125,7 +171,7 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera)
 
     HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
     HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
-    HX.GL.uniform1f(this._rcpFrustumRangeLocation, 1.0/(camera.getNearDistance() - camera.getFarDistance()));
+    HX.GL.uniform1f(this._rcpFrustumRangeLocation, 1.0/(camera.nearDistance - camera.farDistance));
     HX.GL.uniformMatrix4fv(this._projectionLocation, false, camera.getProjectionMatrix()._m);
 
     HX.enableAttributes(2);

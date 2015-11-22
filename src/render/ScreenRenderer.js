@@ -18,8 +18,8 @@ HX.DebugRenderMode = {
  * ScreenRenderer is the main renderer for drawing a Scene to the screen.
  *
  * GBUFFER LAYOUT:
- * 0: COLOR: (color.XYZ, unused)
- * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw)
+ * 0: COLOR: (color.XYZ, transparency (only when using transparencyMode))
+ * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw if depth texture not supported)
  * 2: REFLECTION: (roughness, normalSpecularReflection, metallicness, unused)
  * 3: LINEAR DEPTH: (not explicitly written to by user), 0 - 1 linear depth encoded as RGBA
  *
@@ -35,12 +35,14 @@ HX.ScreenRenderer = function()
     this._viewportHeight = 0;
 
     this._copyTexture = new HX.CopyChannelsShader();
+    this._copyTextureToScreen = new HX.CopyChannelsShader("xyzw", true);
     this._copyXChannel = new HX.CopyChannelsShader("x");
     this._copyYChannel = new HX.CopyChannelsShader("y");
     this._copyZChannel = new HX.CopyChannelsShader("z");
     this._copyWChannel = new HX.CopyChannelsShader("w");
     this._debugDepth = new HX.DebugDepthShader();
     this._debugNormals = new HX.DebugNormalsShader();
+    this._applyAlphaTransparency = new HX.CopyWithSeparateAlpha();
     this._applyGamma = new HX.ApplyGammaShader();
     this._gammaApplied = false;
     this._linearizeDepthShader = new HX.LinearizeDepthShader();
@@ -188,7 +190,16 @@ HX.ScreenRenderer.prototype._renderOpaques = function(dt)
     HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
 
     // no other lighting models are currently supported:
-    this._renderLightAccumulation(dt, HX.TransparencyMode.OPAQUE);
+    HX.GL.enable(HX.GL.STENCIL_TEST);
+    HX.GL.stencilOp(HX.GL.KEEP, HX.GL.KEEP, HX.GL.KEEP);
+
+    var lightingModelID = 1;
+    var stencilValue = lightingModelID << 1;
+    HX.GL.stencilFunc(HX.GL.EQUAL, stencilValue, 0xff);
+
+    this._renderLightAccumulation(dt, this._hdrTargetsDepth[this._hdrSourceIndex]);
+
+    HX.GL.disable(HX.GL.STENCIL_TEST);
 };
 
 HX.ScreenRenderer.prototype._renderTransparents = function()
@@ -204,18 +215,18 @@ HX.ScreenRenderer.prototype._renderTransparents = function()
         renderLists[j] = this._renderCollector.getTransparentRenderList(passIndices[j]);
     }
 
-    this._renderCollector.getTransparentRenderList(HX.MaterialPass.GEOMETRY_PASS);
+    var baseList = renderLists[0];
+    var len = baseList.length;
 
-    var len = renderLists[0].length;
+    HX.GL.enable(HX.GL.STENCIL_TEST);
 
-    // set all others to unlit
-    HX.GL.clear(HX.GL.STENCIL_BUFFER_BIT);
-
+    // TODO: Should we render all transparent objects with the same transparency mode?
     for (var i = 0; i < len; ++i) {
-        var transparencyMode = renderLists[0][i].material._transparencyMode;
+        var material = baseList[i].material;
+        var transparencyMode = material._transparencyMode;
 
-        HX.GL.enable(HX.GL.STENCIL_TEST);
-        //HX.GL.stencilFunc(HX.GL.ALWAYS, transparencyMode + 1, 0xff);
+        var stencilValue = (material._lightingModelID << 1) | transparencyMode;
+        HX.GL.stencilFunc(HX.GL.ALWAYS, stencilValue, 0xff);
         HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
 
         for (var j = 0; j < numPassTypes; ++j) {
@@ -236,15 +247,16 @@ HX.ScreenRenderer.prototype._renderTransparents = function()
             renderItem.draw();
         }
 
-        HX.GL.disable(HX.GL.STENCIL_TEST);
+        HX.GL.stencilFunc(HX.GL.EQUAL, stencilValue, 0xff);
+        HX.GL.stencilOp(HX.GL.KEEP, HX.GL.KEEP, HX.GL.KEEP);
+
         this._linearizeDepth();
-        // no other lighting models are currently supported:
-        this._renderLightAccumulation(0, transparencyMode);
+        this._renderLightAccumulation(0, this._hdrTargetsDepth[1 - this._hdrSourceIndex]);
 
         HX.GL.enable(HX.GL.BLEND);
         HX.GL.blendEquation(HX.GL.FUNC_ADD);
 
-        HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
+        HX.setRenderTarget(this._hdrTargetsDepth[this._hdrSourceIndex]);
 
         switch (transparencyMode) {
             case HX.TransparencyMode.ADDITIVE:
@@ -252,13 +264,15 @@ HX.ScreenRenderer.prototype._renderTransparents = function()
                 this._copyTexture.execute(this._rectMesh, this._hdrBuffers[1 - this._hdrSourceIndex]);
                 break;
             case HX.TransparencyMode.ALPHA:
-                HX.GL.blendFunc(HX.GL.SOURCE_ALPHA, HX.GL.ONE_MINUS_SOURCE_ALPHA);
-                // TODO: Provide shader that outputs albedo.w as alpha
+                HX.GL.blendFunc(HX.GL.SRC_ALPHA, HX.GL.ONE_MINUS_SRC_ALPHA);
+                this._applyAlphaTransparency.execute(this._rectMesh, this._hdrBuffers[1 - this._hdrSourceIndex], this._gbuffer[0]);
                 break;
         }
 
         HX.GL.disable(HX.GL.BLEND);
     }
+
+    HX.GL.disable(HX.GL.STENCIL_TEST);
 };
 
 HX.ScreenRenderer.prototype._renderToGBufferMultiPass = function()
@@ -377,12 +391,12 @@ HX.ScreenRenderer.prototype._composite = function(dt)
     // TODO: render directly to screen if last post process effect?
     // OR, provide toneMap property on camera, which gets special treatment
     if (this._gammaApplied)
-        this._copyTexture.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
+        this._copyTextureToScreen.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
     else
         this._applyGamma.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
 };
 
-HX.ScreenRenderer.prototype._renderLightAccumulation = function(dt, transparencyMode)
+HX.ScreenRenderer.prototype._renderLightAccumulation = function(dt, target)
 {
     HX.GL.disable(HX.GL.CULL_FACE);
     HX.GL.disable(HX.GL.DEPTH_TEST);
@@ -392,22 +406,13 @@ HX.ScreenRenderer.prototype._renderLightAccumulation = function(dt, transparency
     HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
     HX.GL.blendEquation(HX.GL.FUNC_ADD);
 
-    HX.GL.enable(HX.GL.STENCIL_TEST);
-    HX.GL.stencilOp(HX.GL.KEEP, HX.GL.KEEP, HX.GL.KEEP);
-
-    var lightingModelID = 1;
-    var stencilValue = (lightingModelID << 1) | transparencyMode;
-    HX.GL.stencilFunc(HX.GL.EQUAL, stencilValue, 0xff);
-
-    var targetIndex = transparencyMode? 1 - this._hdrSourceIndex : this._hdrSourceIndex;
-    HX.setRenderTarget(this._hdrTargetsDepth[targetIndex]);
+    HX.setRenderTarget(target);
     HX.GL.clear(HX.GL.COLOR_BUFFER_BIT);
 
     this._renderDirectLights();
     this._renderGlobalIllumination(dt);
 
     HX.GL.disable(HX.GL.BLEND);
-    HX.GL.disable(HX.GL.STENCIL_TEST);
     HX.GL.depthMask(true);
 };
 
@@ -482,6 +487,8 @@ HX.ScreenRenderer.prototype._copySource = function()
 
 HX.ScreenRenderer.prototype._renderPostPass = function(passType, copySource)
 {
+    HX.GL.disable(HX.GL.STENCIL_TEST);
+
     var opaqueList = this._renderCollector.getOpaqueRenderList(passType);
     var transparentList = this._renderCollector.getTransparentRenderList(passType);
 
@@ -493,7 +500,6 @@ HX.ScreenRenderer.prototype._renderPostPass = function(passType, copySource)
 
     HX.setRenderTarget(this._hdrTargetsDepth[this._hdrSourceIndex]);
 
-    HX.GL.disable(HX.GL.STENCIL_TEST);
     HX.GL.enable(HX.GL.CULL_FACE);
     HX.GL.enable(HX.GL.DEPTH_TEST);
     HX.GL.depthFunc(HX.GL.LEQUAL);

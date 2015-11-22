@@ -665,7 +665,7 @@ HX.FixedAABB = function()
 
 HX.FixedAABB.prototype = Object.create(HX.BoundingAABB.prototype);
 
-
+// TODO: put in separate material & glsl files
 HX.BoundingVolume._debugMaterialXML = '\
 <?xml version="1.0" encoding="UTF-8"?>\n\
 <material>\n\

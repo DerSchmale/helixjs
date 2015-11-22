@@ -1,6 +1,7 @@
 varying vec2 texCoords;
 varying vec3 normal;
 varying vec3 viewVector;
+varying vec2 screenUV;
 
 #ifdef COLOR_MAP
 uniform sampler2D colorMap;
@@ -15,13 +16,9 @@ varying vec3 bitangent;
 uniform sampler2D normalMap;
 #endif
 
-// when used as TRANSPARENT_DIFFUSE, hx_source is a copy of the render target:
 uniform sampler2D hx_source;
 uniform sampler2D hx_gbufferDepth;
 
-uniform mat4 hx_projectionMatrix;
-uniform mat4 hx_viewProjectionMatrix;
-uniform vec3 hx_cameraWorldPosition;
 uniform float hx_cameraNearPlaneDistance;
 uniform float hx_cameraFrustumRange;
 
@@ -48,18 +45,13 @@ void main()
     #endif
 
     // use the immediate background depth value for a distance estimate
+    // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering
+
     float depth = hx_sampleLinearDepth(hx_gbufferDepth, texCoords);
+    float distance = depth * hx_cameraFrustumRange - viewVector.z - hx_cameraNearPlaneDistance;
 
-    // this can be done in vertex shader
-    float viewZ = hx_depthToViewZ(gl_FragCoord.z, hx_projectionMatrix);
+    vec2 samplePos = screenUV + getPreciseRefractedUVOffset(viewVector, fragNormal, refractiveRatio, distance);
 
-    vec3 viewDir = normalize(-viewVector);
-    vec3 refractionVector = refract(viewDir, fragNormal, refractiveRatio);
-    float distance = depth * hx_cameraFrustumRange - viewZ - hx_cameraNearPlaneDistance;
-    vec3 refractedPoint = hx_cameraWorldPosition - viewVector + refractionVector * distance;
-    vec4 samplePos = hx_viewProjectionMatrix * vec4(refractedPoint, 1.0);
-    samplePos.xy = samplePos.xy / samplePos.w * .5 + .5;
-
-    vec4 background = texture2D(hx_source, samplePos.xy);
+    vec4 background = texture2D(hx_source, samplePos);
     gl_FragColor = outputColor * background;
 }

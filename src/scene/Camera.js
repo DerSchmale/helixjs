@@ -147,27 +147,28 @@ HX.Camera.prototype.getViewMatrix = function()
     return this._viewMatrix;
 };
 
-HX.Camera.prototype.getNearDistance = function()
-{
-    return this._nearDistance;
-};
+Object.defineProperties(HX.Camera.prototype, {
+    nearDistance: {
+        get: function() {
+            return this._nearDistance;
+        },
 
-HX.Camera.prototype.setNearDistance = function(value)
-{
-    this._nearDistance = value;
-    this._invalidateProjectionMatrix();
-};
+        set: function(value) {
+            this._nearDistance = value;
+            this._invalidateProjectionMatrix();
+        }
+    },
+    farDistance: {
+        get: function() {
+            return this._farDistance;
+        },
 
-HX.Camera.prototype.getFarDistance = function()
-{
-    return this._farDistance;
-};
-
-HX.Camera.prototype.setFarDistance = function(value)
-{
-    this._farDistance = value;
-    this._invalidateProjectionMatrix();
-};
+        set: function(value) {
+            this._farDistance = value;
+            this._invalidateProjectionMatrix();
+        }
+    }
+});
 
 HX.Camera.prototype._setRenderTargetResolution = function(width, height)
 {
@@ -223,19 +224,22 @@ HX.PerspectiveCamera = function ()
     this._aspectRatio = 0;
 };
 
+
 HX.PerspectiveCamera.prototype = Object.create(HX.Camera.prototype);
 
-// radians!
-HX.PerspectiveCamera.prototype.getVerticalFOV = function()
-{
-    return this._vFOV;
-};
-
-HX.PerspectiveCamera.prototype.setVerticalFOV = function(value)
-{
-    this._nearDistance = value;
-    this._invalidateProjectionMatrix();
-};
+Object.defineProperties(HX.PerspectiveCamera.prototype, {
+    verticalFOV: {
+        get: function()
+        {
+            return this._vFOV;
+        },
+        set: function(value)
+        {
+            this._vFOV = value;
+            this._invalidateProjectionMatrix();
+        }
+    }
+});
 
 HX.PerspectiveCamera.prototype._setAspectRatio = function(value)
 {

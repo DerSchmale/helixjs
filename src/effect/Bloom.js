@@ -158,12 +158,6 @@ HX.BloomEffect.prototype._initBlurPass = function()
     this._opaquePasses[2] = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
     this._opaquePasses[1].setTexture("sourceTexture", this._thresholdMaps[0]);
     this._opaquePasses[2].setTexture("sourceTexture", this._thresholdMaps[1]);
-
-    var mesh = this._mesh;
-    if (mesh) {
-        this._mesh = null;
-        this.setMesh(mesh);
-    }
 };
 
 HX.BloomEffect.prototype.draw = function(dt)

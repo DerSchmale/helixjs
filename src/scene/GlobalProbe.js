@@ -6,8 +6,6 @@ HX.GlobalSpecularProbe = function(texture)
 {
     this._texture = texture;
 
-    // could just use a HX global rect mesh
-    HX.GlobalSpecularProbe._rectMesh = HX.GlobalSpecularProbe._rectMesh || new HX.RectMesh.create();
     this._pass = this._initPass();
     this._usingAO = false;
 };
@@ -67,7 +65,6 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("global_specular_probe_vertex.glsl"),
         HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines),
-        HX.GlobalSpecularProbe._rectMesh,
         null,
         extensions
     );
@@ -92,9 +89,6 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
 HX.GlobalIrradianceProbe = function(texture)
 {
     this._texture = texture;
-
-    // could just use a HX global rect mesh
-    HX.GlobalIrradianceProbe._rectMesh = HX.GlobalIrradianceProbe._rectMesh || new HX.RectMesh.create();
     this._usingAO = false;
 };
 
@@ -133,8 +127,7 @@ HX.GlobalIrradianceProbe.prototype._initPass = function()
 
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("global_irradiance_probe_vertex.glsl"),
-        HX.ShaderLibrary.get("global_irradiance_probe_fragment.glsl", defines),
-        HX.GlobalIrradianceProbe._rectMesh
+        HX.ShaderLibrary.get("global_irradiance_probe_fragment.glsl", defines)
     );
 
     pass.setTexture("irradianceProbeSampler", this._texture);

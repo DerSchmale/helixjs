@@ -180,6 +180,8 @@ HX.initFromContext = function(glContext, options)
     }
 
     HX._init2DDitherTexture(32, 32);
+
+    HX.DEFAULT_RECT_MESH = HX.RectMesh.create();
 };
 
 /**

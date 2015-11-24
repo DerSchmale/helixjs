@@ -19,7 +19,7 @@ HX.ScreenSpaceReflections = function(numSamples)
     var vertexShader = HX.ShaderLibrary.get("ssr_vertex.glsl", defines);
     var fragmentShader = HX.ShaderLibrary.get("ssr_fragment.glsl", defines);
 
-    var pass = new HX.EffectPass(vertexShader, fragmentShader, null, null, extensions);
+    var pass = new HX.EffectPass(vertexShader, fragmentShader, null, extensions);
     this.addPass(pass);
     this.stepSize = Math.max(500.0 / numSamples, 1.0);
     this.maxDistance = 500.0;

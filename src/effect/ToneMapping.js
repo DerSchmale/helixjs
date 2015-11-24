@@ -124,9 +124,7 @@ HX.ReinhardToneMapEffect.prototype._createToneMapPass = function()
 
     return new HX.EffectPass(
         null,
-        HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" +
-        HX.ShaderLibrary.get("tonemap_reinhard_fragment.glsl"),
-        null,
+        HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" + HX.ShaderLibrary.get("tonemap_reinhard_fragment.glsl"),
         null,
         extensions
     );
@@ -157,9 +155,7 @@ HX.FilmicToneMapEffect.prototype._createToneMapPass = function()
 
     return new HX.EffectPass(
         null,
-        HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" +
-        HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl"),
-        null,
+        HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" + HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl"),
         null,
         extensions
     );

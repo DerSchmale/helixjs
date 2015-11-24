@@ -6,8 +6,6 @@ HX.AmbientLight = function()
 {
     HX.Light.call(this);
 
-    HX.Light._rectMesh = HX.Light._rectMesh || new HX.RectMesh.create();
-
     // asume only one ambient light
     this._colorLocation = null;
     this._lightPass = null;
@@ -75,8 +73,7 @@ HX.AmbientLight.prototype._initLightPass =  function()
 
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("ambient_light_vertex.glsl"),
-        HX.ShaderLibrary.get("ambient_light_fragment.glsl", defines),
-        HX.Light._rectMesh
+        HX.ShaderLibrary.get("ambient_light_fragment.glsl", defines)
     );
 
     this._colorLocation = pass.getUniformLocation("lightColor");

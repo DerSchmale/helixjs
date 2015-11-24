@@ -1,18 +1,15 @@
 /**
  * @constructor
  */
-HX.EffectPass = function(vertexShader, fragmentShader, mesh, preVertexCode, preFragmentCode)
+HX.EffectPass = function(vertexShader, fragmentShader, preVertexCode, preFragmentCode)
 {
     vertexShader = vertexShader || HX.ShaderLibrary.get("default_post_vertex.glsl");
     var shader = new HX.Shader(vertexShader, fragmentShader, preVertexCode, preFragmentCode);
     HX.MaterialPass.call(this, shader);
     this._uniformSetters = HX.UniformSetter.getSetters(this._shader);
     this._gbuffer = null;
-    this._mesh = null;
     this._vertexLayout = null;
-
-    if (mesh != undefined)
-        this.setMesh(mesh);
+    this.setMesh(HX.DEFAULT_RECT_MESH);
 
     this.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
     this._sourceSlot = this.getTextureSlot("hx_source");
@@ -22,7 +19,7 @@ HX.EffectPass.prototype = Object.create(HX.MaterialPass.prototype);
 
 HX.EffectPass.prototype.setMesh = function(mesh)
 {
-    if (this._mesh == mesh) return;
+    if (this._mesh === mesh) return;
     this._mesh = mesh;
     this._vertexLayout = new HX.VertexLayout(this._mesh, this);
 };
@@ -151,19 +148,6 @@ HX.Effect.prototype =
         for (var i = 0; i < len; ++i) {
             if (this._opaquePasses[i])
                 this._opaquePasses[i].setUniform(name, value);
-        }
-    },
-
-    setMesh: function(mesh)
-    {
-        if (this._mesh != mesh) {
-            this._mesh = mesh;
-            var len = this._opaquePasses.length;
-
-            for (var i = 0; i < len; ++i) {
-                if (this._opaquePasses[i])
-                    this._opaquePasses[i].setMesh(mesh);
-            }
         }
     }
 };

@@ -6,8 +6,6 @@ HX.DirectionalLight = function()
 {
     HX.Light.call(this);
 
-    HX.Light._rectMesh = HX.Light._rectMesh || new HX.RectMesh.create();
-
     this._numCascades = 1;
     this._shadowMapSize = 1024;
     // hard shadows by default
@@ -198,7 +196,7 @@ HX.DirectionalLight.prototype._initLightPass =  function()
     var fragmentShader = HX.LIGHTING_MODEL.getGLSL() + "\n" +
         HX.ShaderLibrary.get("directional_light_fragment.glsl", defines);
 
-    var pass = new HX.EffectPass(vertexShader, fragmentShader, HX.Light._rectMesh);
+    var pass = new HX.EffectPass(vertexShader, fragmentShader);
 
     this._dirLocation = pass.getUniformLocation("lightViewDirection");
     this._colorLocation = pass.getUniformLocation("lightColor");

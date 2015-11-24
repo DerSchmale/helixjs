@@ -46,7 +46,6 @@ HX.ScreenRenderer = function()
     this._applyGamma = new HX.ApplyGammaShader();
     this._gammaApplied = false;
     this._linearizeDepthShader = new HX.LinearizeDepthShader();
-    this._rectMesh = HX.RectMesh.create({alignment: HX.PlanePrimitive.ALIGN_XY});
 
     this._renderCollector = new HX.RenderCollector();
     this._gbufferFBO = null;
@@ -64,8 +63,6 @@ HX.ScreenRenderer = function()
 
     this._debugMode = HX.DebugRenderMode.DEBUG_NONE;
     this._camera = null;
-
-    // should we allow registering direct light types?
 };
 
 HX.ScreenRenderer.prototype = Object.create(HX.Renderer.prototype);
@@ -91,7 +88,6 @@ Object.defineProperty(HX.ScreenRenderer.prototype, "ambientOcclusion",
     set: function(value)
     {
         this._aoEffect = value;
-        this._aoEffect.setMesh(this._rectMesh);
     }
 });
 
@@ -105,7 +101,6 @@ Object.defineProperty(HX.ScreenRenderer.prototype, "localReflections",
         set: function(value)
         {
             this._localReflections = value;
-            this._localReflections.setMesh(this._rectMesh);
         }
     });
 
@@ -261,11 +256,11 @@ HX.ScreenRenderer.prototype._renderTransparents = function()
         switch (transparencyMode) {
             case HX.TransparencyMode.ADDITIVE:
                 HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
-                this._copyTexture.execute(this._rectMesh, this._hdrBuffers[1 - this._hdrSourceIndex]);
+                this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._hdrBuffers[1 - this._hdrSourceIndex]);
                 break;
             case HX.TransparencyMode.ALPHA:
                 HX.GL.blendFunc(HX.GL.SRC_ALPHA, HX.GL.ONE_MINUS_SRC_ALPHA);
-                this._applyAlphaTransparency.execute(this._rectMesh, this._hdrBuffers[1 - this._hdrSourceIndex], this._gbuffer[0]);
+                this._applyAlphaTransparency.execute(HX.DEFAULT_RECT_MESH, this._hdrBuffers[1 - this._hdrSourceIndex], this._gbuffer[0]);
                 break;
         }
 
@@ -332,7 +327,7 @@ HX.ScreenRenderer.prototype._linearizeDepth = function()
     HX.GL.disable(HX.GL.CULL_FACE);
 
     HX.setRenderTarget(this._linearDepthFBO);
-    this._linearizeDepthShader.execute(this._rectMesh, HX.EXT_DEPTH_TEXTURE? this._depthBuffer : this._gbuffer[1], this._camera);
+    this._linearizeDepthShader.execute(HX.DEFAULT_RECT_MESH, HX.EXT_DEPTH_TEXTURE? this._depthBuffer : this._gbuffer[1], this._camera);
 };
 
 HX.ScreenRenderer.prototype._renderEffect = function(effect, dt)
@@ -346,35 +341,35 @@ HX.ScreenRenderer.prototype._renderToScreen = function(dt)
     switch (this._debugMode) {
         case HX.DebugRenderMode.DEBUG_COLOR:
             HX.setRenderTarget(null);
-            this._copyTexture.execute(this._rectMesh, this._gbuffer[0]);
+            this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[0]);
             break;
         case HX.DebugRenderMode.DEBUG_NORMALS:
             HX.setRenderTarget(null);
-            this._debugNormals.execute(this._rectMesh, this._gbuffer[1]);
+            this._debugNormals.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[1]);
             break;
         case HX.DebugRenderMode.DEBUG_METALLICNESS:
             HX.setRenderTarget(null);
-            this._copyXChannel.execute(this._rectMesh, this._gbuffer[2]);
+            this._copyXChannel.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[2]);
             break;
         case HX.DebugRenderMode.DEBUG_SPECULAR_NORMAL_REFLECTION:
             HX.setRenderTarget(null);
-            this._copyYChannel.execute(this._rectMesh, this._gbuffer[2]);
+            this._copyYChannel.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[2]);
             break;
         case HX.DebugRenderMode.DEBUG_ROUGHNESS:
             HX.setRenderTarget(null);
-            this._copyZChannel.execute(this._rectMesh, this._gbuffer[2]);
+            this._copyZChannel.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[2]);
             break;
         case HX.DebugRenderMode.DEBUG_DEPTH:
             HX.setRenderTarget(null);
-            this._debugDepth.execute(this._rectMesh, this._gbuffer[3]);
+            this._debugDepth.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[3]);
             break;
         case HX.DebugRenderMode.DEBUG_LIGHT_ACCUM:
             HX.setRenderTarget(null);
-            this._applyGamma.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
+            this._applyGamma.execute(HX.DEFAULT_RECT_MESH, this._hdrBuffers[this._hdrSourceIndex]);
             break;
         case HX.DebugRenderMode.DEBUG_AO:
             HX.setRenderTarget(null);
-            this._copyWChannel.execute(this._rectMesh, this._aoEffect.getAOTexture());
+            this._copyWChannel.execute(HX.DEFAULT_RECT_MESH, this._aoEffect.getAOTexture());
             break;
         default:
             this._composite(dt);
@@ -391,9 +386,9 @@ HX.ScreenRenderer.prototype._composite = function(dt)
     // TODO: render directly to screen if last post process effect?
     // OR, provide toneMap property on camera, which gets special treatment
     if (this._gammaApplied)
-        this._copyTextureToScreen.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
+        this._copyTextureToScreen.execute(HX.DEFAULT_RECT_MESH, this._hdrBuffers[this._hdrSourceIndex]);
     else
-        this._applyGamma.execute(this._rectMesh, this._hdrBuffers[this._hdrSourceIndex]);
+        this._applyGamma.execute(HX.DEFAULT_RECT_MESH, this._hdrBuffers[this._hdrSourceIndex]);
 };
 
 HX.ScreenRenderer.prototype._renderLightAccumulation = function(dt, target)
@@ -480,7 +475,7 @@ HX.ScreenRenderer.prototype._copySource = function()
     HX.GL.disable(HX.GL.BLEND);
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
-    this._copyTexture.execute(this._rectMesh, source);
+    this._copyTexture.execute(HX.DEFAULT_RECT_MESH, source);
 
     this._passSourceTexture = this._hdrBuffers[hdrTarget];
 };
@@ -521,7 +516,6 @@ HX.ScreenRenderer.prototype._renderEffects = function(dt, effects)
     for (var i = 0; i < len; ++i) {
         var effect = effects[i];
         if (effect.isSupported()) {
-            effect.setMesh(this._rectMesh);
             this._renderEffect(effect, dt);
         }
     }
@@ -618,7 +612,6 @@ HX.ScreenRenderer.prototype.dispose = function()
     this._copyYChannel.dispose();
     this._copyZChannel.dispose();
     this._copyWChannel.dispose();
-    this._rectMesh.dispose();
 
     for (var i = 0; i < this._hdrBuffers.length; ++i) {
         this._hdrBuffers[i].dispose();

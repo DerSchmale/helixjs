@@ -26,8 +26,8 @@ HX.FrameBuffer = function(colorTextures, depthBuffer)
 HX.FrameBuffer.prototype = {
     constructor: HX.FrameBuffer,
 
-    width: function() { return this._width; },
-    height: function() { return this._height; },
+    get width() { return this._width; },
+    get height() { return this._height; },
 
     /**
      *

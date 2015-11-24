@@ -31,7 +31,7 @@ HX.GlobalSpecularProbe.prototype.render = function(camera, gbuffer, occlusion)
     this._pass.updateRenderState();
 
     if (this._texture) {
-        var maxMip = Math.floor(Math.log(this._texture.size()) / Math.log(2));
+        var maxMip = Math.floor(Math.log(this._texture.size) / Math.log(2));
         var mipOffset = 0;
         HX.GL.uniform1f(this._numMipsLocation, maxMip - mipOffset);
     }

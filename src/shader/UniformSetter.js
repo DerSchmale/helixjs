@@ -251,7 +251,7 @@ HX.Dither2DTextureScaleSetter = function()
 
 HX.Dither2DTextureScaleSetter.prototype.execute = function (worldMatrix, camera)
 {
-    HX.GL.uniform2f(this.location, camera._renderTargetWidth / HX.DEFAULT_2D_DITHER_TEXTURE.width(), camera._renderTargetHeight / HX.DEFAULT_2D_DITHER_TEXTURE.height());
+    HX.GL.uniform2f(this.location, camera._renderTargetWidth / HX.DEFAULT_2D_DITHER_TEXTURE.width, camera._renderTargetHeight / HX.DEFAULT_2D_DITHER_TEXTURE.height);
 };
 
 HX.PoissonDiskSetter = function()

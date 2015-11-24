@@ -114,10 +114,10 @@ HX.HBAO.prototype._initTargetTexture = function(width, height)
 
 HX.HBAO.prototype.draw = function(dt)
 {
-    var targetWidth = this._hdrTarget.width();
-    var targetHeight = this._hdrTarget.height();
+    var targetWidth = this._hdrTarget.width;
+    var targetHeight = this._hdrTarget.height;
 
-    if (targetWidth != this._aoTexture.width() || targetHeight != this._aoTexture.height())
+    if (targetWidth != this._aoTexture.width || targetHeight != this._aoTexture.height)
         this._initTargetTexture(targetWidth, targetHeight);
 
     HX.setRenderTarget(this._hdrTarget);

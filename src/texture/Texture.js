@@ -59,8 +59,8 @@ HX.Texture2D.prototype =
             HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
     },
 
-    width: function() { return this._width; },
-    height: function() { return this._height; },
+    get width() { return this._width; },
+    get height() { return this._height; },
 
     initEmpty: function(width, height, format, dataType)
     {
@@ -217,7 +217,7 @@ HX.TextureCube.prototype =
         HX.GL.texParameteri(HX.GL.TEXTURE_CUBE_MAP, HX.GL.TEXTURE_MAG_FILTER, filter.mag);
     },
 
-    size: function() { return this._size; },
+    get size() { return this._size; },
 
     initEmpty: function(size, format, dataType)
     {

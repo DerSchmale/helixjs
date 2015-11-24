@@ -113,10 +113,10 @@ HX.SSAO.prototype._initTargetTexture = function(width, height)
 
 HX.SSAO.prototype.draw = function(dt)
 {
-    var targetWidth = this._hdrTarget.width();
-    var targetHeight = this._hdrTarget.height();
+    var targetWidth = this._hdrTarget.width;
+    var targetHeight = this._hdrTarget.height;
 
-    if (targetWidth != this._ssaoTexture.width() || targetHeight != this._ssaoTexture.height())
+    if (targetWidth != this._ssaoTexture.width || targetHeight != this._ssaoTexture.height)
         this._initTargetTexture(targetWidth, targetHeight);
 
     HX.setRenderTarget(this._hdrTarget);

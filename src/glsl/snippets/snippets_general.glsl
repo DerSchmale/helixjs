@@ -1,15 +1,3 @@
-#if defined(HX_NO_MRT_GBUFFER_COLOR)
-#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = color)
-#elif defined(HX_NO_MRT_GBUFFER_NORMALS)
-#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))
-#elif defined(HX_NO_MRT_GBUFFER_SPECULAR)
-#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness))
-#elif defined(HX_SHADOW_MAP_PASS)
-#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_floatToRGBA8(depth))
-#else
-#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])
-#endif
-
 // see Aras' blog post: http://aras-p.info/blog/2009/07/30/encoding-floats-to-rgba-the-final/
 // Only for 0 - 1
 vec4 hx_floatToRGBA8(float value)
@@ -65,13 +53,6 @@ vec3 hx_decodeNormal(vec4 data)
 vec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness)
 {
 	return vec4(roughness, specularNormalReflection * 5.0, metallicness, 1.0);
-}
-
-void hx_processGeometryMRT(vec4 color, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 colorData, out vec4 normalData, out vec4 specularData)
-{
-    colorData = color;
-	normalData = hx_encodeNormalDepth(normal, depth);
-    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness);
 }
 
 vec4 hx_gammaToLinear(vec4 color)

@@ -51,10 +51,8 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
     var defines = {};
     var extensions;
 
-    if (HX.EXT_SHADER_TEXTURE_LOD) {
-        extensions = "#extension GL_EXT_shader_texture_lod : require";
+    if (HX.EXT_SHADER_TEXTURE_LOD)
         defines.USE_TEX_LOD = 1;
-    }
 
     if (this._usingAO)
         defines.USE_AO = 1;
@@ -64,9 +62,7 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
 
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("global_specular_probe_vertex.glsl"),
-        HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines),
-        null,
-        extensions
+        HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines)
     );
 
     this._numMipsLocation = pass.getUniformLocation("numMips");

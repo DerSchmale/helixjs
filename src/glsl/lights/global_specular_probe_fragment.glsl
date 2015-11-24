@@ -1,3 +1,7 @@
+#ifdef USE_TEX_LOD
+#extension GL_EXT_shader_texture_lod : require
+#endif
+
 varying vec3 viewWorldDir;
 varying vec2 uv;
 

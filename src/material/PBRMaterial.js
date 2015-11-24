@@ -134,9 +134,9 @@ HX.PBRMaterial.prototype._generateSpecularDefines = function()
 
 HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fragmentShaderID)
 {
-    var vertexShader = HX.ShaderLibrary.get(vertexShaderID);
-    var fragmentShader = HX.ShaderLibrary.get(fragmentShaderID);
-    var shader = new HX.Shader(vertexShader, fragmentShader, defines, defines);
+    var vertexShader = defines + HX.ShaderLibrary.get(vertexShaderID);
+    var fragmentShader = defines + HX.GLSLIncludeGeometryPass + HX.ShaderLibrary.get(fragmentShaderID);
+    var shader = new HX.Shader(vertexShader, fragmentShader);
     var pass = new HX.MaterialPass(shader);
     this.setPass(type, pass);
     return pass;

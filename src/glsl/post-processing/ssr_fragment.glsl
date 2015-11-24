@@ -1,3 +1,5 @@
+#extension GL_OES_standard_derivatives : enable
+
 uniform sampler2D hx_gbufferColor;
 uniform sampler2D hx_gbufferNormals;
 uniform sampler2D hx_gbufferSpecular;

@@ -2,11 +2,9 @@
  *
  * @param vertexShaderCode
  * @param fragmentShaderCode
- * @param preVertexCode Can contain defines and other things that need to be in there before any other includes (fe: extensions)
- * @param preFragmentCode Can contain defines and other things that need to be in there before any other includes
  * @constructor
  */
-HX.Shader = function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
+HX.Shader = function(vertexShaderCode, fragmentShaderCode)
 {
     // can be vertex or fragment shader
     // Mesh object's vertexLayout should have a map of attrib names + offset into vertex buffer
@@ -18,9 +16,8 @@ HX.Shader = function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFra
     this._fragmentShader = null;
     this._program = null;
 
-    if (vertexShaderCode && fragmentShaderCode) {
-        this.init(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode);
-    }
+    if (vertexShaderCode && fragmentShaderCode)
+        this.init(vertexShaderCode, fragmentShaderCode);
 };
 
 HX.Shader.ID_COUNTER = 0;
@@ -30,12 +27,10 @@ HX.Shader.prototype = {
 
     isReady: function() { return this._ready; },
 
-    init: function(vertexShaderCode, fragmentShaderCode, preVertexCode, preFragmentCode)
+    init: function(vertexShaderCode, fragmentShaderCode)
     {
-        preVertexCode = (preVertexCode || "") + "\n";
-        preFragmentCode = (preFragmentCode || "") + "\n";
-        vertexShaderCode = preVertexCode + HX.GLSLIncludeGeneral + vertexShaderCode;
-        fragmentShaderCode = preFragmentCode + HX.GLSLIncludeGeneral + fragmentShaderCode;
+        vertexShaderCode = HX.GLSLIncludeGeneral + vertexShaderCode;
+        fragmentShaderCode = HX.GLSLIncludeGeneral + fragmentShaderCode;
 
         this._vertexShader = HX.GL.createShader(HX.GL.VERTEX_SHADER);
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {
@@ -66,11 +61,18 @@ HX.Shader.prototype = {
         HX.GL.linkProgram(this._program);
 
         if (!HX.GL.getProgramParameter(this._program, HX.GL.LINK_STATUS)) {
+            var log = HX.GL.getProgramInfoLog(this._program);
             this.dispose();
-            if (HX.OPTIONS.throwOnShaderError)
-                throw new Error("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
 
-            console.warn("Error in program linking:" + HX.GL.getProgramInfoLog(this._program));
+            console.log("**********");
+            console.log(vertexShaderCode);
+            console.log("**********");
+            console.log(fragmentShaderCode);
+
+            if (HX.OPTIONS.throwOnShaderError)
+                throw new Error("Error in program linking:" + log);
+
+            console.warn("Error in program linking:" + log);
 
             return;
         }

@@ -415,13 +415,17 @@ HX.Material._decodeHTML = function(value)
     return e.childNodes.length === 0 ? "" : e.childNodes[0].nodeValue;
 }
 
-HX.Material._addParsedPass = function (vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType, geometryTypeDef)
+HX.Material._addParsedPass = function (vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType, geometryPassTypeDef)
 {
-    if (geometryTypeDef) {
-        geometryTypeDef = "#define " + geometryTypeDef + "\n";
+    fragmentShader = HX.GLSLIncludeGeometryPass + fragmentShader;
+
+    if (geometryPassTypeDef) {
+        var defines = "#define " + geometryPassTypeDef + "\n";
+        vertexShader = defines + vertexShader;
+        fragmentShader = defines + fragmentShader;
     }
 
-    var shader = new HX.Shader(vertexShader, fragmentShader, geometryTypeDef, geometryTypeDef);
+    var shader = new HX.Shader(vertexShader, fragmentShader);
     var pass = new HX.MaterialPass(shader);
 
     if (elements)

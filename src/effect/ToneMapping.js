@@ -115,18 +115,13 @@ HX.ReinhardToneMapEffect.prototype = Object.create(HX.ToneMapEffect.prototype);
 HX.ReinhardToneMapEffect.prototype._createToneMapPass = function()
 {
     var defines = {};
-    var extensions;
 
-    if (this._adaptive) {
+    if (this._adaptive)
         defines.ADAPTIVE = 1;
-        extensions = "#extension GL_EXT_shader_texture_lod : require";
-    }
 
     return new HX.EffectPass(
         null,
-        HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" + HX.ShaderLibrary.get("tonemap_reinhard_fragment.glsl"),
-        null,
-        extensions
+        HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" + HX.ShaderLibrary.get("tonemap_reinhard_fragment.glsl")
     );
 };
 
@@ -148,15 +143,11 @@ HX.FilmicToneMapEffect.prototype._createToneMapPass = function()
     var defines = {};
     var extensions;
 
-    if (this._adaptive) {
+    if (this._adaptive)
         defines.ADAPTIVE = 1;
-        extensions = "#extension GL_EXT_shader_texture_lod : require";
-    }
 
     return new HX.EffectPass(
         null,
-        HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" + HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl"),
-        null,
-        extensions
+        HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" + HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl")
     );
 };

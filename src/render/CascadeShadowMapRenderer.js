@@ -100,7 +100,6 @@ HX.CascadeShadowCasterCollector.prototype.qualifies = function(object)
  */
 HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
 {
-    HX.Renderer.call(this);
     this._light = light;
     this._numCascades = numCascades || 3;
     if (this._numCascades > 4) this._numCascades = 4;
@@ -130,301 +129,302 @@ HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
     this._viewports = [];
 };
 
-HX.CascadeShadowMapRenderer.prototype = Object.create(HX.Renderer.prototype);
-
-HX.CascadeShadowMapRenderer.prototype.setNumCascades = function(value)
+HX.CascadeShadowMapRenderer.prototype =
 {
-    if (this._numCascades == value) return;
-    this._numCascades = value;
-    this._invalidateShadowMap();
-    this._initSplitRatios();
-    this._initCameras();
-    this._casterCollector = new HX.CascadeShadowCasterCollector(value);
-};
-
-HX.CascadeShadowMapRenderer.prototype.setShadowMapSize = function(value)
-{
-    if (this._setShadowMapSize == value) return;
-    this._setShadowMapSize = value;
-    this._invalidateShadowMap();
-};
-
-HX.CascadeShadowMapRenderer.prototype.render = function(viewCamera, scene)
-{
-    if (this._shadowMapInvalid)
-        this._initShadowMap();
-
-    this._inverseLightMatrix.inverseAffineOf(this._light.getWorldMatrix());
-    this._updateCollectorCamera(viewCamera);
-    this._updateSplitDistances(viewCamera);
-    this._updateCullPlanes(viewCamera);
-    this._collectShadowCasters(scene);
-    this._updateCascadeCameras(viewCamera, this._casterCollector.getBounds());
-
-    HX.setRenderTarget(this._fbo);
-
-    var passType;
-    if (HX.MaterialPass.SHADOW_MAP_PASS === -1) {
-        HX.GL.clear(HX.GL.DEPTH_BUFFER_BIT);
-        passType = HX.MaterialPass.GEOMETRY_COLOR_PASS;
-    }
-    else {
-        HX.GL.clearColor(1, 1, 1, 1);
-        HX.clear();
-        passType = HX.MaterialPass.SHADOW_MAP_PASS;
-    }
-
-    for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex)
+    setNumCascades: function(value)
     {
-        var viewport = this._viewports[cascadeIndex];
-        HX.GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-        this._renderPass(passType, this._casterCollector.getRenderList(cascadeIndex));
-    }
-};
+        if (this._numCascades == value) return;
+        this._numCascades = value;
+        this._invalidateShadowMap();
+        this._initSplitRatios();
+        this._initCameras();
+        this._casterCollector = new HX.CascadeShadowCasterCollector(value);
+    },
 
-HX.CascadeShadowMapRenderer.prototype._updateCollectorCamera = function(viewCamera)
-{
-    var corners = viewCamera.getFrustum()._corners;
-    var min = new HX.Float4();
-    var max = new HX.Float4();
-    var tmp = new HX.Float4();
+    setShadowMapSize: function(value)
+    {
+        if (this._setShadowMapSize == value) return;
+        this._setShadowMapSize = value;
+        this._invalidateShadowMap();
+    },
 
-    this._inverseLightMatrix.transformPointTo(corners[0], min);
-    max.copyFrom(min);
+    render: function(viewCamera, scene)
+    {
+        if (this._shadowMapInvalid)
+            this._initShadowMap();
 
-    for (var i = 1; i < 8; ++i) {
-        this._inverseLightMatrix.transformPointTo(corners[i], tmp);
-        min.minimize(tmp);
-        max.maximize(tmp);
-    }
+        this._inverseLightMatrix.inverseAffineOf(this._light.getWorldMatrix());
+        this._updateCollectorCamera(viewCamera);
+        this._updateSplitDistances(viewCamera);
+        this._updateCullPlanes(viewCamera);
+        this._collectShadowCasters(scene);
+        this._updateCascadeCameras(viewCamera, this._casterCollector.getBounds());
 
-    this._minZ = min.z;
+        HX.setRenderTarget(this._fbo);
 
-    this._collectorCamera.getTransformationMatrix().copyFrom(this._light.getWorldMatrix());
-    this._collectorCamera._invalidateWorldTransformationMatrix();
-    this._collectorCamera.setBounds(min.x, max.x + 1, max.y + 1, min.y);
-    this._collectorCamera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
-};
-
-HX.CascadeShadowMapRenderer.prototype._updateSplitDistances = function(viewCamera)
-{
-    var nearDist = viewCamera.nearDistance;
-    var frustumRange = viewCamera.farDistance - nearDist;
-
-    for (var i = 0; i < this._numCascades; ++i)
-        this._splitDistances[i] = nearDist + this._splitRatios[i]*frustumRange;
-};
-
-HX.CascadeShadowMapRenderer.prototype._updateCascadeCameras = function(viewCamera, bounds)
-{
-    this._localBounds.transformFrom(bounds, this._inverseLightMatrix);
-    var minBound = this._localBounds.getMinimum();
-    var maxBound = this._localBounds.getMaximum();
-
-    var scaleSnap = 1.0;	// always scale snap to a meter
-
-    var localNear = new HX.Float4();
-    var localFar = new HX.Float4();
-    var min = new HX.Float4();
-    var max = new HX.Float4();
-
-    var corners = viewCamera.getFrustum().getCorners();
-
-    for (var cascade = 0; cascade < this._numCascades; ++cascade) {
-        var farRatio = this._splitRatios[cascade];
-        var camera = this._shadowMapCameras[cascade];
-
-        camera.nearDistance = -maxBound.z;
-
-        camera.getTransformationMatrix().copyFrom(this._light.getWorldMatrix());
-        camera._invalidateWorldTransformationMatrix();
-
-        // figure out frustum bound
-        for (var i = 0; i < 4; ++i) {
-            var nearCorner = corners[i];
-            var farCorner = corners[i + 4];
-
-            localFar.x = nearCorner.x + (farCorner.x - nearCorner.x)*farRatio;
-            localFar.y = nearCorner.y + (farCorner.y - nearCorner.y)*farRatio;
-            localFar.z = nearCorner.z + (farCorner.z - nearCorner.z)*farRatio;
-
-            this._inverseLightMatrix.transformPointTo(nearCorner, localNear);
-            this._inverseLightMatrix.transformPointTo(localFar, localFar);
-
-            if (i == 0) {
-                min.copyFrom(localNear);
-                max.copyFrom(localNear);
-            }
-            else {
-                min.minimize(localNear);
-                max.maximize(localNear);
-            }
-
-            min.minimize(localFar);
-            max.maximize(localFar);
+        var passType;
+        if (HX.MaterialPass.SHADOW_MAP_PASS === -1) {
+            HX.GL.clear(HX.GL.DEPTH_BUFFER_BIT);
+            passType = HX.MaterialPass.GEOMETRY_COLOR_PASS;
+        }
+        else {
+            HX.GL.clearColor(1, 1, 1, 1);
+            HX.clear();
+            passType = HX.MaterialPass.SHADOW_MAP_PASS;
         }
 
-        // do not render beyond range of view camera or scene depth
-        min.z = Math.max(this._minZ, min.z);
+        for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex)
+        {
+            var viewport = this._viewports[cascadeIndex];
+            HX.GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+            HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
+        }
+    },
 
-        var left = Math.max(min.x, minBound.x);
-        var right = Math.min(max.x, maxBound.x);
-        var bottom = Math.max(min.y, minBound.y);
-        var top = Math.min(max.y, maxBound.y);
-
-        var width = right - left;
-        var height = top - bottom;
-
-        width = Math.ceil(width / scaleSnap) * scaleSnap;
-        height = Math.ceil(height / scaleSnap) * scaleSnap;
-        width = Math.max(width, scaleSnap);
-        height = Math.max(height, scaleSnap);
-
-        // snap to pixels
-        var offsetSnapX = this._shadowMap._width / width * .5;
-        var offsetSnapY = this._shadowMap._height / height * .5;
-
-        left = Math.floor(left * offsetSnapX) / offsetSnapX;
-        bottom = Math.floor(bottom * offsetSnapY) / offsetSnapY;
-        right = left + width;
-        top = bottom + height;
-
-        // TODO: Reenable!
-        var softness = 0;
-        //var softness = light.shadowSoftness;
-
-        camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
-
-        camera.farDistance = -min.z;
-
-        camera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
-
-        this._shadowMatrices[cascade].product(this._transformToUV[cascade], camera.getViewProjectionMatrix());
-    }
-};
-
-HX.CascadeShadowMapRenderer.prototype._updateCullPlanes = function(viewCamera)
-{
-    var frustum = this._collectorCamera.getFrustum();
-    var planes = frustum._planes;
-
-    for (var i = 0; i < 4; ++i)
-        this._cullPlanes[i] = planes[i];
-
-    this._numCullPlanes = 4;
-
-    frustum = viewCamera.getFrustum();
-    planes = frustum._planes;
-
-    var dir = this._light.direction;
-
-    for (var j = 0; j < 6; ++j) {
-        var plane = planes[j];
-
-        // view frustum planes facing away from the light direction mark a boundary beyond which no shadows need to be known
-        if (HX.dot3(plane, dir) < -0.001)
-            this._cullPlanes[this._numCullPlanes++] = plane;
-    }
-};
-
-HX.CascadeShadowMapRenderer.prototype._collectShadowCasters = function(scene)
-{
-    this._casterCollector.setCullPlanes(this._cullPlanes, this._numCullPlanes);
-    this._casterCollector.setRenderCameras(this._shadowMapCameras);
-    this._casterCollector.collect(this._collectorCamera, scene);
-};
-
-HX.CascadeShadowMapRenderer.prototype.getSplitDistances = function()
-{
-    return this._splitDistances
-};
-
-HX.CascadeShadowMapRenderer.prototype.getShadowMatrix = function(cascade)
-{
-    return this._shadowMatrices[cascade];
-};
-
-HX.CascadeShadowMapRenderer.prototype.dispose = function()
-{
-    HX.Renderer.call.dispose(this);
-    if (this._depthBuffer) {
-        this._depthBuffer.dispose();
-        this._depthBuffer = null;
-    }
-    this._shadowMap.dispose();
-    this._shadowMap = null;
-};
-
-HX.CascadeShadowMapRenderer.prototype._invalidateShadowMap = function()
-{
-    this._shadowMapInvalid = true;
-};
-
-HX.CascadeShadowMapRenderer.prototype._initShadowMap = function()
-{
-    var numMapsW = this._numCascades > 1? 2 : 1;
-    var numMapsH = Math.ceil(this._numCascades / 2);
-
-    var texWidth = this._shadowMapSize * numMapsW;
-    var texHeight = this._shadowMapSize * numMapsH;
-
-    // TODO: Check if 16 bits is enough?
-    if (HX.EXT_DEPTH_TEXTURE) {
-        this._shadowMap.initEmpty(texWidth, texHeight, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
-        if (!this._fbo) this._fbo = new HX.FrameBuffer(null, this._shadowMap);
-    }
-    else {
-        this._shadowMap.initEmpty(texWidth, texHeight, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
-        if (!this._depthBuffer) this._depthBuffer = new HX.ReadOnlyDepthBuffer();
-        if (!this._fbo) this._fbo = new HX.FrameBuffer(this._shadowMap, this._depthBuffer);
-        this._depthBuffer.init(texWidth, texHeight);
-    }
-    this._fbo.init();
-    this._shadowMapInvalid = false;
-
-    this._viewports = [];
-    this._viewports.push({x: 0, y: 0, width: this._shadowMapSize, height: this._shadowMapSize});
-    this._viewports.push({x: this._shadowMapSize, y: 0, width: this._shadowMapSize, height: this._shadowMapSize});
-    this._viewports.push({x: 0, y: this._shadowMapSize, width: this._shadowMapSize, height: this._shadowMapSize});
-    this._viewports.push({x: this._shadowMapSize, y: this._shadowMapSize, width: this._shadowMapSize, height: this._shadowMapSize});
-
-    this._initViewportMatrices(1.0 / numMapsW, 1.0 / numMapsH);
-};
-
-HX.CascadeShadowMapRenderer.prototype._initSplitRatios = function()
-{
-    var ratio = 1.0;
-    this._splitRatios = [];
-    this._splitDistances = [0, 0, 0, 0];
-    for (var i = this._numCascades - 1; i >= 0; --i)
+    _updateCollectorCamera: function(viewCamera)
     {
-        this._splitRatios[i] = ratio;
-        this._splitDistances[i] = 0;
-        ratio *= .4;
-    }
-};
+        var corners = viewCamera.getFrustum()._corners;
+        var min = new HX.Float4();
+        var max = new HX.Float4();
+        var tmp = new HX.Float4();
 
-HX.CascadeShadowMapRenderer.prototype._initCameras = function()
-{
-    this._shadowMapCameras = [];
-    for (var i = this._numCascades - 1; i >= 0; --i)
+        this._inverseLightMatrix.transformPointTo(corners[0], min);
+        max.copyFrom(min);
+
+        for (var i = 1; i < 8; ++i) {
+            this._inverseLightMatrix.transformPointTo(corners[i], tmp);
+            min.minimize(tmp);
+            max.maximize(tmp);
+        }
+
+        this._minZ = min.z;
+
+        this._collectorCamera.getTransformationMatrix().copyFrom(this._light.getWorldMatrix());
+        this._collectorCamera._invalidateWorldTransformationMatrix();
+        this._collectorCamera.setBounds(min.x, max.x + 1, max.y + 1, min.y);
+        this._collectorCamera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
+    },
+
+    _updateSplitDistances: function(viewCamera)
     {
-        this._shadowMapCameras[i] = new HX.OrthographicOffCenterCamera();
+        var nearDist = viewCamera.nearDistance;
+        var frustumRange = viewCamera.farDistance - nearDist;
+
+        for (var i = 0; i < this._numCascades; ++i)
+            this._splitDistances[i] = nearDist + this._splitRatios[i]*frustumRange;
+    },
+
+    _updateCascadeCameras: function(viewCamera, bounds)
+    {
+        this._localBounds.transformFrom(bounds, this._inverseLightMatrix);
+        var minBound = this._localBounds.getMinimum();
+        var maxBound = this._localBounds.getMaximum();
+
+        var scaleSnap = 1.0;	// always scale snap to a meter
+
+        var localNear = new HX.Float4();
+        var localFar = new HX.Float4();
+        var min = new HX.Float4();
+        var max = new HX.Float4();
+
+        var corners = viewCamera.getFrustum().getCorners();
+
+        for (var cascade = 0; cascade < this._numCascades; ++cascade) {
+            var farRatio = this._splitRatios[cascade];
+            var camera = this._shadowMapCameras[cascade];
+
+            camera.nearDistance = -maxBound.z;
+
+            camera.getTransformationMatrix().copyFrom(this._light.getWorldMatrix());
+            camera._invalidateWorldTransformationMatrix();
+
+            // figure out frustum bound
+            for (var i = 0; i < 4; ++i) {
+                var nearCorner = corners[i];
+                var farCorner = corners[i + 4];
+
+                localFar.x = nearCorner.x + (farCorner.x - nearCorner.x)*farRatio;
+                localFar.y = nearCorner.y + (farCorner.y - nearCorner.y)*farRatio;
+                localFar.z = nearCorner.z + (farCorner.z - nearCorner.z)*farRatio;
+
+                this._inverseLightMatrix.transformPointTo(nearCorner, localNear);
+                this._inverseLightMatrix.transformPointTo(localFar, localFar);
+
+                if (i == 0) {
+                    min.copyFrom(localNear);
+                    max.copyFrom(localNear);
+                }
+                else {
+                    min.minimize(localNear);
+                    max.maximize(localNear);
+                }
+
+                min.minimize(localFar);
+                max.maximize(localFar);
+            }
+
+            // do not render beyond range of view camera or scene depth
+            min.z = Math.max(this._minZ, min.z);
+
+            var left = Math.max(min.x, minBound.x);
+            var right = Math.min(max.x, maxBound.x);
+            var bottom = Math.max(min.y, minBound.y);
+            var top = Math.min(max.y, maxBound.y);
+
+            var width = right - left;
+            var height = top - bottom;
+
+            width = Math.ceil(width / scaleSnap) * scaleSnap;
+            height = Math.ceil(height / scaleSnap) * scaleSnap;
+            width = Math.max(width, scaleSnap);
+            height = Math.max(height, scaleSnap);
+
+            // snap to pixels
+            var offsetSnapX = this._shadowMap._width / width * .5;
+            var offsetSnapY = this._shadowMap._height / height * .5;
+
+            left = Math.floor(left * offsetSnapX) / offsetSnapX;
+            bottom = Math.floor(bottom * offsetSnapY) / offsetSnapY;
+            right = left + width;
+            top = bottom + height;
+
+            // TODO: Reenable!
+            var softness = 0;
+            //var softness = light.shadowSoftness;
+
+            camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
+
+            camera.farDistance = -min.z;
+
+            camera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
+
+            this._shadowMatrices[cascade].product(this._transformToUV[cascade], camera.getViewProjectionMatrix());
+        }
+    },
+
+    _updateCullPlanes: function(viewCamera)
+    {
+        var frustum = this._collectorCamera.getFrustum();
+        var planes = frustum._planes;
+
+        for (var i = 0; i < 4; ++i)
+            this._cullPlanes[i] = planes[i];
+
+        this._numCullPlanes = 4;
+
+        frustum = viewCamera.getFrustum();
+        planes = frustum._planes;
+
+        var dir = this._light.direction;
+
+        for (var j = 0; j < 6; ++j) {
+            var plane = planes[j];
+
+            // view frustum planes facing away from the light direction mark a boundary beyond which no shadows need to be known
+            if (HX.dot3(plane, dir) < -0.001)
+                this._cullPlanes[this._numCullPlanes++] = plane;
+        }
+    },
+
+    _collectShadowCasters: function(scene)
+    {
+        this._casterCollector.setCullPlanes(this._cullPlanes, this._numCullPlanes);
+        this._casterCollector.setRenderCameras(this._shadowMapCameras);
+        this._casterCollector.collect(this._collectorCamera, scene);
+    },
+
+    getSplitDistances: function()
+    {
+        return this._splitDistances
+    },
+
+    getShadowMatrix: function(cascade)
+    {
+        return this._shadowMatrices[cascade];
+    },
+
+    dispose: function()
+    {
+        HX.Renderer.call.dispose(this);
+        if (this._depthBuffer) {
+            this._depthBuffer.dispose();
+            this._depthBuffer = null;
+        }
+        this._shadowMap.dispose();
+        this._shadowMap = null;
+    },
+
+    _invalidateShadowMap: function()
+    {
+        this._shadowMapInvalid = true;
+    },
+
+    _initShadowMap: function()
+    {
+        var numMapsW = this._numCascades > 1? 2 : 1;
+        var numMapsH = Math.ceil(this._numCascades / 2);
+
+        var texWidth = this._shadowMapSize * numMapsW;
+        var texHeight = this._shadowMapSize * numMapsH;
+
+        // TODO: Check if 16 bits is enough?
+        if (HX.EXT_DEPTH_TEXTURE) {
+            this._shadowMap.initEmpty(texWidth, texHeight, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
+            if (!this._fbo) this._fbo = new HX.FrameBuffer(null, this._shadowMap);
+        }
+        else {
+            this._shadowMap.initEmpty(texWidth, texHeight, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
+            if (!this._depthBuffer) this._depthBuffer = new HX.ReadOnlyDepthBuffer();
+            if (!this._fbo) this._fbo = new HX.FrameBuffer(this._shadowMap, this._depthBuffer);
+            this._depthBuffer.init(texWidth, texHeight);
+        }
+        this._fbo.init();
+        this._shadowMapInvalid = false;
+
+        this._viewports = [];
+        this._viewports.push({x: 0, y: 0, width: this._shadowMapSize, height: this._shadowMapSize});
+        this._viewports.push({x: this._shadowMapSize, y: 0, width: this._shadowMapSize, height: this._shadowMapSize});
+        this._viewports.push({x: 0, y: this._shadowMapSize, width: this._shadowMapSize, height: this._shadowMapSize});
+        this._viewports.push({x: this._shadowMapSize, y: this._shadowMapSize, width: this._shadowMapSize, height: this._shadowMapSize});
+
+        this._initViewportMatrices(1.0 / numMapsW, 1.0 / numMapsH);
+    },
+
+    _initSplitRatios: function()
+    {
+        var ratio = 1.0;
+        this._splitRatios = [];
+        this._splitDistances = [0, 0, 0, 0];
+        for (var i = this._numCascades - 1; i >= 0; --i)
+        {
+            this._splitRatios[i] = ratio;
+            this._splitDistances[i] = 0;
+            ratio *= .4;
+        }
+    },
+
+    _initCameras: function()
+    {
+        this._shadowMapCameras = [];
+        for (var i = this._numCascades - 1; i >= 0; --i)
+        {
+            this._shadowMapCameras[i] = new HX.OrthographicOffCenterCamera();
+        }
+    },
+
+    _initViewportMatrices: function(scaleW, scaleH)
+    {
+        for (var i = 0; i < 4; ++i) {
+            // transform [-1, 1] to [0 - 1] (also for Z)
+            this._transformToUV[i].scaleMatrix(.5, .5, .5);
+            this._transformToUV[i].appendTranslation(.5, .5, .5);
+
+            // transform to tiled size
+            this._transformToUV[i].appendScale(scaleW, scaleH, 1.0);
+        }
+
+        this._transformToUV[1].appendTranslation(0.5, 0.0, 0.0);
+        this._transformToUV[2].appendTranslation(0.0, 0.5, 0.0);
+        this._transformToUV[3].appendTranslation(0.5, 0.5, 0.0);
     }
-}
-
-HX.CascadeShadowMapRenderer.prototype._initViewportMatrices = function(scaleW, scaleH)
-{
-    for (var i = 0; i < 4; ++i) {
-        // transform [-1, 1] to [0 - 1] (also for Z)
-        this._transformToUV[i].scaleMatrix(.5, .5, .5);
-        this._transformToUV[i].appendTranslation(.5, .5, .5);
-
-        // transform to tiled size
-        this._transformToUV[i].appendScale(scaleW, scaleH, 1.0);
-    }
-
-    this._transformToUV[1].appendTranslation(0.5, 0.0, 0.0);
-    this._transformToUV[2].appendTranslation(0.0, 0.5, 0.0);
-    this._transformToUV[3].appendTranslation(0.5, 0.5, 0.0);
 };

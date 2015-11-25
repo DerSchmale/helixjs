@@ -21,11 +21,11 @@ void main()
 	vec3 normal = mat3(hx_cameraWorldMatrix) * hx_decodeNormal(normalSample);
 	vec3 totalLight = vec3(0.0);
 
+#ifdef USE_AO
+    vec4 occlusionSample = texture2D(hx_ambientOcclusion, uv);
+    colorSample.xyz *= occlusionSample.w;
+#endif
 
-	#ifdef USE_AO
-		vec4 occlusionSample = texture2D(hx_ambientOcclusion, uv);
-		colorSample.xyz *= occlusionSample.w;
-	#endif
 	vec4 irradianceSample = textureCube(irradianceProbeSampler, normal);
 	irradianceSample = hx_gammaToLinear(irradianceSample);
 	irradianceSample.xyz *= (1.0 - specularSample.z);

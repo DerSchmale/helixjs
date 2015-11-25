@@ -55,8 +55,7 @@ void main()
 
 	float attenuation = mix(hx_reflectionVisibility(normal, reflectedViewDir, roughness), 1.0, metallicness);
 
-	fresnel *= attenuation;
-	totalLight += fresnel * specProbeSample.xyz;
+	totalLight += fresnel * specProbeSample.xyz * attenuation;
 
 	#ifdef USE_AO
 		vec4 occlusionSample = texture2D(hx_ambientOcclusion, uv);

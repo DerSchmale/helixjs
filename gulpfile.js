@@ -20,8 +20,8 @@ var sourceFiles = [
     "src/scene/Scene.js",
     "src/scene/Light.js",
     "src/render/SceneVisitor.js",
-    "src/render/Renderer.js",
-    "src/render/ScreenRenderer.js",
+    //"src/render/Renderer.js",
+    //"src/render/Renderer.js",
 
     "src/shader/*.js",
     "src/material/*.js",

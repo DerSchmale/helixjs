@@ -5,13 +5,14 @@ uniform sampler2D hx_gbufferNormals;
 uniform sampler2D hx_gbufferSpecular;
 uniform sampler2D hx_gbufferDepth;
 uniform sampler2D hx_dither2D;
-uniform vec2 hx_dither2DTextureScale;
+uniform vec2 hx_renderTargetResolution;
 
 uniform sampler2D source;
 
 varying vec2 uv;
 varying vec3 viewDir;
 
+uniform vec2 ditherTextureScale;
 uniform float hx_cameraNearPlaneDistance;
 uniform float hx_cameraFrustumRange;
 uniform float hx_rcpCameraFrustumRange;
@@ -19,7 +20,6 @@ uniform mat4 hx_projectionMatrix;
 
 uniform float maxDistance;
 uniform float stepSize;
-uniform vec2 halfRenderTargetResolution;
 
 // cheap geometric shadowing function, not at all physically correct
 float hx_reflectionVisibility(vec3 normal, vec3 reflection, float roughness)
@@ -31,7 +31,7 @@ float hx_reflectionVisibility(vec3 normal, vec3 reflection, float roughness)
 // 0 is start, 1 is end
 float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
 {
-    vec4 dither = texture2D(hx_dither2D, uv * hx_dither2DTextureScale);
+    vec4 dither = texture2D(hx_dither2D, uv * ditherTextureScale);
     // Clip to the near plane
 	float rayLength = ((ray0.z + rayDir.z * maxDistance) > -hx_cameraNearPlaneDistance) ?
 						(-hx_cameraNearPlaneDistance - ray0.z) / rayDir.z : maxDistance;
@@ -53,7 +53,7 @@ float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
 
     // line dimensions in pixels:
 
-    vec2 pixelSize = (hom1.xy - hom0.xy) * halfRenderTargetResolution;
+    vec2 pixelSize = (hom1.xy - hom0.xy) * hx_renderTargetResolution * .5;
 
     // line-"width" = max(abs(pixelSize.x), abs(pixelSize.y))
     // ratio pixel/width = 1 / max(abs(pixelSize.x), abs(pixelSize.y))
@@ -136,20 +136,18 @@ void main()
     float hitZ = 0.0;
     vec2 hitUV;
     float amount = raytrace(viewSpacePos, reflDir, hitZ, hitUV);
-    float fadeFactor = clamp(-reflDir.z * 1000.0, 0.0, 1.0);
+    float fadeFactor = 1.0; //clamp(-reflDir.z * 100.0, 0.0, 1.0);
 
     vec2 borderFactors = abs(hitUV * 2.0 - 1.0);
     borderFactors = (1.0 - borderFactors) * 10.0;
     fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);
 
     float diff = viewSpacePos.z - hitZ;
-    fadeFactor *= smoothstep(-0.3, 0.0, diff);
+    fadeFactor *= smoothstep(-3.0, 0.0, diff);
 
     vec4 reflColor = texture2D(source, hitUV);
-    vec4 srcColor = texture2D(source, uv);
 
     float amountUsed = amount * fadeFactor;
-    gl_FragColor = vec4(srcColor.xyz + fresnel * attenuation * reflColor.xyz, amountUsed);
-//    gl_FragColor = vec4(halfRenderTargetResolution.xy, 0.0, 1.0);
+    gl_FragColor = vec4(fresnel * attenuation * reflColor.xyz, amountUsed);
 }
 

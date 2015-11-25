@@ -19,7 +19,7 @@ HX.ScreenSpaceReflections = function(numSamples)
 
     this._pass = new HX.EffectPass(vertexShader, fragmentShader);
     this._sourceTextureSlot = this._pass.getTextureSlot("source");
-    this._scale = 1.0;
+    this._scale = .5;
     this.stepSize = Math.max(500.0 / numSamples, 1.0);
     this.maxDistance = 500.0;
 
@@ -69,6 +69,7 @@ Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
         set: function(value)
         {
             this._scale = value;
+            if (this._scale > 1.0) this._scale = 1.0;
         }
     },
 
@@ -93,10 +94,14 @@ HX.ScreenSpaceReflections.prototype.getSSRTexture = function()
 
 HX.ScreenSpaceReflections.prototype.draw = function(dt)
 {
-    if (HX.TextureUtils.assureSize(this._hdrTarget.width * this._scale, this._hdrTarget.height * this._scale, this._ssrTexture, this._fbo)) {
-        this._pass.setUniform("halfRenderTargetResolution", {x: this._ssrTexture.width *.5, y: this._ssrTexture.height *.5});
+    var w = this._hdrTarget.width * this._scale;
+    var h = this._hdrTarget.height * this._scale;
+    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, this._fbo)) {
+        this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
     }
 
     HX.setRenderTarget(this._fbo);
+    HX.GL.viewport(0, 0, w, h);
     this._drawPass(this._pass);
+    HX.GL.viewport(0, 0, this._hdrTarget.width, this._hdrTarget.height);
 };

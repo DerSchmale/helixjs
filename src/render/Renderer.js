@@ -430,8 +430,10 @@ HX.Renderer.prototype =
 
         if (this._renderCollector._globalSpecularProbe)
             this._renderCollector._globalSpecularProbe.render(this);
-        else if (this._ssrEffect)
+        else if (this._ssrEffect) {
+            HX.GL.blendFunc(HX.GL.SRC_ALPHA, HX.GL.ONE);
             this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._ssrTexture);
+        }
     },
 
     _renderPass: function (passType, renderItems)

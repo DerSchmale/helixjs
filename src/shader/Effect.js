@@ -56,7 +56,6 @@ HX.EffectPass.prototype.updateRenderState = function(renderer, source)
 HX.Effect = function()
 {
     this._isSupported = true;
-    this._passes = [];
     this._mesh = null;
     this._hdrSourceIndex = -1;
     this._outputsGamma = false;
@@ -67,11 +66,6 @@ HX.Effect.prototype =
     isSupported: function()
     {
         return this._isSupported;
-    },
-
-    getPass: function (index)
-    {
-        return this._passes[index];
     },
 
     render: function(renderer, dt)
@@ -91,12 +85,20 @@ HX.Effect.prototype =
 
     draw: function(dt)
     {
+        throw "Abstract method error!";
+    },
+
+    /**
+     * A convenience function for effects that only ping-pong between full resolution buffers
+     */
+    _drawFullResolutionPingPong: function(passes)
+    {
         // the default just swap between two hdr buffers
         var len = this._passes.length;
 
         for (var i = 0; i < len; ++i) {
             HX.setRenderTarget(this._hdrTarget);
-            this._drawPass(this._passes[i]);
+            this._drawPass(passes[i]);
             this._swapHDRBuffers();
         }
     },
@@ -112,31 +114,5 @@ HX.Effect.prototype =
         this._hdrTarget = this._hdrTargets[this._hdrSourceIndex];
         this._hdrSourceIndex = 1 - this._hdrSourceIndex;
         this._hdrSource = this._hdrSources[this._hdrSourceIndex];
-    },
-
-    removePass: function(pass)
-    {
-        var index = this._passes.indexOf(pass);
-        this._passes.splice(index, 1);
-    },
-
-    addPass: function (pass)
-    {
-        this._passes.push(pass);
-    },
-
-    numPasses: function()
-    {
-        return this._passes.length;
-    },
-
-    setUniform: function(name, value)
-    {
-        var len = this._passes.length;
-
-        for (var i = 0; i < len; ++i) {
-            if (this._passes[i])
-                this._passes[i].setUniform(name, value);
-        }
     }
 };

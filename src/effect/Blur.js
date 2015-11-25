@@ -39,11 +39,17 @@ HX.SeparableGaussianBlurPass.prototype._initWeights = function(kernelSize)
 HX.GaussianBlurEffect = function(blurX, blurY)
 {
     HX.Effect.call(this);
-    this.addPass(new HX.SeparableGaussianBlurPass(blurX, 1, 0));
-    this.addPass(new HX.SeparableGaussianBlurPass(blurY, 0, 1));
+    this._passes = [    new HX.SeparableGaussianBlurPass(blurX, 1, 0),
+                        new HX.SeparableGaussianBlurPass(blurY, 0, 1)
+                    ];
 };
 
 HX.GaussianBlurEffect.prototype = Object.create(HX.Effect.prototype);
+
+HX.GaussianBlurEffect.prototype.draw = function(dt)
+{
+    this._drawFullResolutionPingPong(this._passes);
+};
 
 
 /**
@@ -66,19 +72,30 @@ HX.DirectionalBlurPass.prototype = Object.create(HX.EffectPass.prototype);
 HX.DirectionalBlurEffect = function(amount, directionX, directionY)
 {
     HX.Effect.call(this);
-    this.addPass(new HX.DirectionalBlurPass(amount, directionX, directionY));
+    this._passes = [ new HX.DirectionalBlurPass(amount, directionX, directionY) ];
 };
 
 HX.DirectionalBlurEffect.prototype = Object.create(HX.Effect.prototype);
 
+HX.DirectionalBlurEffect.prototype.draw = function(dt)
+{
+    this._drawFullResolutionPingPong(this._passes);
+};
+
+
+
 HX.BoxBlurEffect = function(blurX, blurY)
 {
     HX.Effect.call(this);
-    this.addPass(new HX.DirectionalBlurPass(blurX, 1, 0));
-    this.addPass(new HX.DirectionalBlurPass(blurY, 0, 1));
+    this._passes = [ new HX.DirectionalBlurPass(blurX, 1, 0), new HX.DirectionalBlurPass(blurY, 0, 1) ];
 };
 
 HX.BoxBlurEffect.prototype = Object.create(HX.Effect.prototype);
+
+HX.BoxBlurEffect.prototype.draw = function(dt)
+{
+    this._drawFullResolutionPingPong(this._passes);
+};
 
 HX.DirectionalBlurPass.getVertexShader = function(kernelSize, directionX, directionY, forceSourceResolutionX, forceSourceResolutionY)
 {

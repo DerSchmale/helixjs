@@ -17,8 +17,7 @@ HX.ScreenSpaceReflections = function(numSamples)
     var vertexShader = HX.ShaderLibrary.get("ssr_vertex.glsl", defines);
     var fragmentShader = HX.ShaderLibrary.get("ssr_fragment.glsl", defines);
 
-    var pass = new HX.EffectPass(vertexShader, fragmentShader);
-    this.addPass(pass);
+    this._pass = new HX.EffectPass(vertexShader, fragmentShader);
     this.stepSize = Math.max(500.0 / numSamples, 1.0);
     this.maxDistance = 500.0;
 };
@@ -38,7 +37,7 @@ Object.defineProperty(HX.ScreenSpaceReflections.prototype, "stepSize", {
     set: function(value)
     {
         this._stepSize = value;
-        this.setUniform("stepSize", value);
+        this._pass.setUniform("stepSize", value);
     }
 });
 
@@ -51,6 +50,13 @@ Object.defineProperty(HX.ScreenSpaceReflections.prototype, "maxDistance", {
     set: function(value)
     {
         this._stepSize = value;
-        this.setUniform("maxDistance", value);
+        this._pass.setUniform("maxDistance", value);
     }
 });
+
+HX.ScreenSpaceReflections.prototype.draw = function(dt)
+{
+    HX.setRenderTarget(this._hdrTarget);
+    this._drawPass(this._pass);
+    this._swapHDRBuffers();
+};

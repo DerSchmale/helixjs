@@ -15,14 +15,14 @@ HX.SSAO = function(numSamples)
 
     HX.Effect.call(this);
 
-    this.addPass(this._ssaoPass = new HX.EffectPass(null,
+    this._ssaoPass = new HX.EffectPass(null,
         HX.ShaderLibrary.get("ssao_fragment.glsl",
             {
                 NUM_SAMPLES: numSamples
             }
-        )));
-    this.addPass(this._blurPassX = new HX.DirectionalBlurPass(4, 1, 0));
-    this.addPass(this._blurPassY = new HX.DirectionalBlurPass(4, 0, 1));
+        ));
+    this._blurPassX = new HX.DirectionalBlurPass(4, 1, 0);
+    this._blurPassY = new HX.DirectionalBlurPass(4, 0, 1);
 
     this._initSamples();
     this._initDitherTexture();

@@ -5152,7 +5152,6 @@ HX.EffectPass.prototype.updateRenderState = function(renderer, source)
 HX.Effect = function()
 {
     this._isSupported = true;
-    this._passes = [];
     this._mesh = null;
     this._hdrSourceIndex = -1;
     this._outputsGamma = false;
@@ -5163,11 +5162,6 @@ HX.Effect.prototype =
     isSupported: function()
     {
         return this._isSupported;
-    },
-
-    getPass: function (index)
-    {
-        return this._passes[index];
     },
 
     render: function(renderer, dt)
@@ -5187,12 +5181,20 @@ HX.Effect.prototype =
 
     draw: function(dt)
     {
+        throw "Abstract method error!";
+    },
+
+    /**
+     * A convenience function for effects that only ping-pong between full resolution buffers
+     */
+    _drawFullResolutionPingPong: function(passes)
+    {
         // the default just swap between two hdr buffers
         var len = this._passes.length;
 
         for (var i = 0; i < len; ++i) {
             HX.setRenderTarget(this._hdrTarget);
-            this._drawPass(this._passes[i]);
+            this._drawPass(passes[i]);
             this._swapHDRBuffers();
         }
     },
@@ -5208,32 +5210,6 @@ HX.Effect.prototype =
         this._hdrTarget = this._hdrTargets[this._hdrSourceIndex];
         this._hdrSourceIndex = 1 - this._hdrSourceIndex;
         this._hdrSource = this._hdrSources[this._hdrSourceIndex];
-    },
-
-    removePass: function(pass)
-    {
-        var index = this._passes.indexOf(pass);
-        this._passes.splice(index, 1);
-    },
-
-    addPass: function (pass)
-    {
-        this._passes.push(pass);
-    },
-
-    numPasses: function()
-    {
-        return this._passes.length;
-    },
-
-    setUniform: function(name, value)
-    {
-        var len = this._passes.length;
-
-        for (var i = 0; i < len; ++i) {
-            if (this._passes[i])
-                this._passes[i].setUniform(name, value);
-        }
     }
 };
 HX.GLSLIncludeGeneral =
@@ -10080,11 +10056,17 @@ HX.SeparableGaussianBlurPass.prototype._initWeights = function(kernelSize)
 HX.GaussianBlurEffect = function(blurX, blurY)
 {
     HX.Effect.call(this);
-    this.addPass(new HX.SeparableGaussianBlurPass(blurX, 1, 0));
-    this.addPass(new HX.SeparableGaussianBlurPass(blurY, 0, 1));
+    this._passes = [    new HX.SeparableGaussianBlurPass(blurX, 1, 0),
+                        new HX.SeparableGaussianBlurPass(blurY, 0, 1)
+                    ];
 };
 
 HX.GaussianBlurEffect.prototype = Object.create(HX.Effect.prototype);
+
+HX.GaussianBlurEffect.prototype.draw = function(dt)
+{
+    this._drawFullResolutionPingPong(this._passes);
+};
 
 
 /**
@@ -10107,19 +10089,30 @@ HX.DirectionalBlurPass.prototype = Object.create(HX.EffectPass.prototype);
 HX.DirectionalBlurEffect = function(amount, directionX, directionY)
 {
     HX.Effect.call(this);
-    this.addPass(new HX.DirectionalBlurPass(amount, directionX, directionY));
+    this._passes = [ new HX.DirectionalBlurPass(amount, directionX, directionY) ];
 };
 
 HX.DirectionalBlurEffect.prototype = Object.create(HX.Effect.prototype);
 
+HX.DirectionalBlurEffect.prototype.draw = function(dt)
+{
+    this._drawFullResolutionPingPong(this._passes);
+};
+
+
+
 HX.BoxBlurEffect = function(blurX, blurY)
 {
     HX.Effect.call(this);
-    this.addPass(new HX.DirectionalBlurPass(blurX, 1, 0));
-    this.addPass(new HX.DirectionalBlurPass(blurY, 0, 1));
+    this._passes = [ new HX.DirectionalBlurPass(blurX, 1, 0), new HX.DirectionalBlurPass(blurY, 0, 1) ];
 };
 
 HX.BoxBlurEffect.prototype = Object.create(HX.Effect.prototype);
+
+HX.BoxBlurEffect.prototype.draw = function(dt)
+{
+    this._drawFullResolutionPingPong(this._passes);
+};
 
 HX.DirectionalBlurPass.getVertexShader = function(kernelSize, directionX, directionY, forceSourceResolutionX, forceSourceResolutionY)
 {
@@ -10329,13 +10322,20 @@ HX.FXAA = function()
 {
     HX.Effect.call(this);
 
-    this.addPass(new HX.EffectPass(null, HX.ShaderLibrary.get("fxaa_fragment.glsl")));
-    this.setUniform("edgeThreshold", 1/8);
-    this.setUniform("edgeThresholdMin", 1/16);
-    this.setUniform("edgeSharpness", 4.0);
+    this._pass = new HX.EffectPass(null, HX.ShaderLibrary.get("fxaa_fragment.glsl"));
+    this._pass.setUniform("edgeThreshold", 1/8);
+    this._pass.setUniform("edgeThresholdMin", 1/16);
+    this._pass.setUniform("edgeSharpness", 4.0);
 };
 
 HX.FXAA.prototype = Object.create(HX.Effect.prototype);
+
+HX.FXAA.prototype.draw = function(dt)
+{
+    HX.setRenderTarget(this._hdrTarget);
+    this._drawPass(this._pass);
+    this._swapHDRBuffers();
+};
 /**
  * TODO: allow scaling down of textures
  *
@@ -10358,15 +10358,15 @@ HX.HBAO = function(numRays, numSamplesPerRay)
     this._ditherTexture = null;
 
     HX.Effect.call(this);
-    this.addPass(this._aoPass = new HX.EffectPass(
+    this._aoPass = new HX.EffectPass(
         HX.ShaderLibrary.get("hbao_vertex.glsl"),
         HX.ShaderLibrary.get("hbao_fragment.glsl", {
             NUM_RAYS: numRays,
             NUM_SAMPLES_PER_RAY: numSamplesPerRay
         })
-    ));
-    this.addPass(this._blurPassX = new HX.DirectionalBlurPass(4, 1, 0));
-    this.addPass(this._blurPassY = new HX.DirectionalBlurPass(4, 0, 1));
+    );
+    this._blurPassX = new HX.DirectionalBlurPass(4, 1, 0);
+    this._blurPassY = new HX.DirectionalBlurPass(4, 0, 1);
 
     this._initSampleDirTexture();
     this._initDitherTexture();
@@ -10552,8 +10552,7 @@ HX.ScreenSpaceReflections = function(numSamples)
     var vertexShader = HX.ShaderLibrary.get("ssr_vertex.glsl", defines);
     var fragmentShader = HX.ShaderLibrary.get("ssr_fragment.glsl", defines);
 
-    var pass = new HX.EffectPass(vertexShader, fragmentShader);
-    this.addPass(pass);
+    this._pass = new HX.EffectPass(vertexShader, fragmentShader);
     this.stepSize = Math.max(500.0 / numSamples, 1.0);
     this.maxDistance = 500.0;
 };
@@ -10573,7 +10572,7 @@ Object.defineProperty(HX.ScreenSpaceReflections.prototype, "stepSize", {
     set: function(value)
     {
         this._stepSize = value;
-        this.setUniform("stepSize", value);
+        this._pass.setUniform("stepSize", value);
     }
 });
 
@@ -10586,10 +10585,16 @@ Object.defineProperty(HX.ScreenSpaceReflections.prototype, "maxDistance", {
     set: function(value)
     {
         this._stepSize = value;
-        this.setUniform("maxDistance", value);
+        this._pass.setUniform("maxDistance", value);
     }
 });
 
+HX.ScreenSpaceReflections.prototype.draw = function(dt)
+{
+    HX.setRenderTarget(this._hdrTarget);
+    this._drawPass(this._pass);
+    //this._swapHDRBuffers();
+};
 /**
  *
  * @param numSamples
@@ -10607,14 +10612,14 @@ HX.SSAO = function(numSamples)
 
     HX.Effect.call(this);
 
-    this.addPass(this._ssaoPass = new HX.EffectPass(null,
+    this._ssaoPass = new HX.EffectPass(null,
         HX.ShaderLibrary.get("ssao_fragment.glsl",
             {
                 NUM_SAMPLES: numSamples
             }
-        )));
-    this.addPass(this._blurPassX = new HX.DirectionalBlurPass(4, 1, 0));
-    this.addPass(this._blurPassY = new HX.DirectionalBlurPass(4, 0, 1));
+        ));
+    this._blurPassX = new HX.DirectionalBlurPass(4, 1, 0);
+    this._blurPassY = new HX.DirectionalBlurPass(4, 0, 1);
 
     this._initSamples();
     this._initDitherTexture();
@@ -10762,7 +10767,7 @@ HX.ToneMapEffect = function(adaptive)
     this._toneMapPass = this._createToneMapPass();
 
     if (this._adaptive) {
-        this.addPass(new HX.EffectPass(null, HX.ShaderLibrary.get("tonemap_reference_fragment.glsl")));
+        this._extractLuminancePass = new HX.EffectPass(null, HX.ShaderLibrary.get("tonemap_reference_fragment.glsl"));
 
         this._luminanceMap = new HX.Texture2D();
         this._luminanceMap.initEmpty(256, 256, HX.GL.RGBA, HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
@@ -10774,8 +10779,6 @@ HX.ToneMapEffect = function(adaptive)
         this._toneMapPass.setTexture("hx_luminanceMap", this._luminanceMap);
         this._toneMapPass.setUniform("hx_luminanceMipLevel", Math.log(this._luminanceMap._width) / Math.log(2));
     }
-
-    this.addPass(this._toneMapPass);
 
     this.exposure = 0.0;
 };
@@ -10809,7 +10812,7 @@ HX.ToneMapEffect.prototype.draw = function(dt)
 
         HX.setRenderTarget(this._luminanceFBO);
         HX.GL.viewport(0, 0, this._luminanceFBO._width, this._luminanceFBO._height);
-        this._drawPass(this._passes[0]);
+        this._drawPass(this._extractLuminancePass);
         this._luminanceMap.generateMipmap();
         HX.GL.disable(HX.GL.BLEND);
     }

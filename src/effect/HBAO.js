@@ -20,15 +20,15 @@ HX.HBAO = function(numRays, numSamplesPerRay)
     this._ditherTexture = null;
 
     HX.Effect.call(this);
-    this.addPass(this._aoPass = new HX.EffectPass(
+    this._aoPass = new HX.EffectPass(
         HX.ShaderLibrary.get("hbao_vertex.glsl"),
         HX.ShaderLibrary.get("hbao_fragment.glsl", {
             NUM_RAYS: numRays,
             NUM_SAMPLES_PER_RAY: numSamplesPerRay
         })
-    ));
-    this.addPass(this._blurPassX = new HX.DirectionalBlurPass(4, 1, 0));
-    this.addPass(this._blurPassY = new HX.DirectionalBlurPass(4, 0, 1));
+    );
+    this._blurPassX = new HX.DirectionalBlurPass(4, 1, 0);
+    this._blurPassY = new HX.DirectionalBlurPass(4, 0, 1);
 
     this._initSampleDirTexture();
     this._initDitherTexture();

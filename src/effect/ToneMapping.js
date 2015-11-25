@@ -13,7 +13,7 @@ HX.ToneMapEffect = function(adaptive)
     this._toneMapPass = this._createToneMapPass();
 
     if (this._adaptive) {
-        this.addPass(new HX.EffectPass(null, HX.ShaderLibrary.get("tonemap_reference_fragment.glsl")));
+        this._extractLuminancePass = new HX.EffectPass(null, HX.ShaderLibrary.get("tonemap_reference_fragment.glsl"));
 
         this._luminanceMap = new HX.Texture2D();
         this._luminanceMap.initEmpty(256, 256, HX.GL.RGBA, HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
@@ -25,8 +25,6 @@ HX.ToneMapEffect = function(adaptive)
         this._toneMapPass.setTexture("hx_luminanceMap", this._luminanceMap);
         this._toneMapPass.setUniform("hx_luminanceMipLevel", Math.log(this._luminanceMap._width) / Math.log(2));
     }
-
-    this.addPass(this._toneMapPass);
 
     this.exposure = 0.0;
 };
@@ -60,7 +58,7 @@ HX.ToneMapEffect.prototype.draw = function(dt)
 
         HX.setRenderTarget(this._luminanceFBO);
         HX.GL.viewport(0, 0, this._luminanceFBO._width, this._luminanceFBO._height);
-        this._drawPass(this._passes[0]);
+        this._drawPass(this._extractLuminancePass);
         this._luminanceMap.generateMipmap();
         HX.GL.disable(HX.GL.BLEND);
     }

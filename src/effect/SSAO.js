@@ -11,6 +11,7 @@ HX.SSAO = function(numSamples)
     this._strength = 1.0;
     this._fallOffDistance = 1.0;
     this._radius = .5;
+    this._scale = .5;
     this._ditherTexture = null;
 
     HX.Effect.call(this);
@@ -21,8 +22,7 @@ HX.SSAO = function(numSamples)
                 NUM_SAMPLES: numSamples
             }
         ));
-    this._blurPassX = new HX.DirectionalBlurPass(4, 1, 0);
-    this._blurPassY = new HX.DirectionalBlurPass(4, 0, 1);
+    this._blurPass = new HX.EffectPass(null, HX.ShaderLibrary.get("ao_blur_fragment.glsl"));
 
     this._initSamples();
     this._initDitherTexture();
@@ -30,11 +30,16 @@ HX.SSAO = function(numSamples)
     this._ssaoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
     this._ssaoPass.setUniform("sampleRadius", this._radius);
     this._ssaoPass.setTexture("ditherTexture", this._ditherTexture);
+    this._sourceTextureSlot = this._blurPass.getTextureSlot("source");
 
     this._ssaoTexture = new HX.Texture2D();
     this._ssaoTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
     this._ssaoTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
-    this._fbo = new HX.FrameBuffer(this._ssaoTexture);
+    this._backTexture = new HX.Texture2D();
+    this._backTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
+    this._backTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
+    this._fbo1 = new HX.FrameBuffer(this._ssaoTexture);
+    this._fbo2 = new HX.FrameBuffer(this._backTexture);
 };
 
 HX.SSAO.prototype = Object.create(HX.Effect.prototype);
@@ -45,8 +50,8 @@ HX.SSAO.prototype.getAOTexture = function()
     return this._ssaoTexture;
 };
 
-Object.defineProperty(HX.SSAO.prototype, "sampleRadius",
-    {
+Object.defineProperties(HX.SSAO.prototype, {
+    sampleRadius: {
         get: function ()
         {
             return this._radius;
@@ -56,10 +61,9 @@ Object.defineProperty(HX.SSAO.prototype, "sampleRadius",
             this._radius = value;
             this._ssaoPass.setUniform("sampleRadius", this._radius);
         }
-    });
+    },
 
-Object.defineProperty(HX.SSAO.prototype, "fallOffDistance",
-    {
+    fallOffDistance: {
         get: function ()
         {
             this._fallOffDistance = value;
@@ -69,11 +73,9 @@ Object.defineProperty(HX.SSAO.prototype, "fallOffDistance",
             this._fallOffDistance = value;
             this._ssaoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
         }
-    });
+    },
 
-
-Object.defineProperty(HX.SSAO.prototype, "strength",
-    {
+    strength: {
         get: function()
         {
             return this._strength;
@@ -83,7 +85,14 @@ Object.defineProperty(HX.SSAO.prototype, "strength",
             this._strength = value;
             this._ssaoPass.setUniform("strengthPerSample", 2.0 * this._strength / this._numSamples);
         }
-    });
+    },
+
+    scale: {
+        get: function() { return this._scale; },
+        set: function(value) { this._scale = value; }
+    }
+});
+
 
 HX.SSAO.prototype._initSamples = function()
 {
@@ -106,18 +115,30 @@ HX.SSAO.prototype._initSamples = function()
 
 HX.SSAO.prototype.draw = function(dt)
 {
-    HX.TextureUtils.assureSize(this._hdrTarget.width, this._hdrTarget.height, this._ssaoTexture, this._fbo);
+    var w = this._hdrTarget.width * this._scale;
+    var h = this._hdrTarget.height * this._scale;
 
-    HX.setRenderTarget(this._hdrTarget);
+    if (HX.TextureUtils.assureSize(w, h, this._ssaoTexture, this._fbo1)) {
+        HX.TextureUtils.assureSize(w, h, this._backTexture, this._fbo2);
+        this._ssaoPass.setUniform("ditherScale", {x: w *.25, y: h *.25});
+    }
+
+    HX.GL.viewport(0, 0, w, h);
+
+    HX.setRenderTarget(this._fbo1);
     this._drawPass(this._ssaoPass);
-    this._swapHDRBuffers();
 
-    HX.setRenderTarget(this._hdrTarget);
-    this._drawPass(this._blurPassX);
-    this._swapHDRBuffers();
+    HX.setRenderTarget(this._fbo2);
+    this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
+    this._sourceTextureSlot.texture = this._ssaoTexture;
+    this._drawPass(this._blurPass);
 
-    HX.setRenderTarget(this._fbo);
-    this._drawPass(this._blurPassY);
+    HX.setRenderTarget(this._fbo1);
+    this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
+    this._sourceTextureSlot.texture = this._backTexture;
+    this._drawPass(this._blurPass);
+
+    HX.GL.viewport(0, 0, this._hdrTarget.width, this._hdrTarget.height);
 };
 
 HX.SSAO.prototype._initDitherTexture = function()

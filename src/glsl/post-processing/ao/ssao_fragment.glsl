@@ -1,8 +1,8 @@
 uniform mat4 hx_projectionMatrix;
 uniform mat4 hx_cameraWorldMatrix;
-uniform vec2 hx_renderTargetResolution;
 uniform float hx_cameraFrustumRange;
 
+uniform vec2 ditherScale;
 uniform float strengthPerSample;
 uniform float rcpFallOffDistance;
 uniform float sampleRadius;
@@ -20,7 +20,7 @@ void main()
     vec3 centerNormal = hx_decodeNormal(normalSample);
     float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
     float totalOcclusion = 0.0;
-    vec3 dither = texture2D(ditherTexture, uv * hx_renderTargetResolution * .25).xyz;
+    vec3 dither = texture2D(ditherTexture, uv * ditherScale).xyz;
     vec3 randomPlaneNormal = normalize(dither - .5);
     float w = -centerDepth * hx_cameraFrustumRange * hx_projectionMatrix[2][3] + hx_projectionMatrix[3][3];
     vec3 sampleRadii;

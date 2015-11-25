@@ -300,7 +300,7 @@ HX.MaterialPass.prototype = {
 HX.Material = function ()
 {
     this._transparencyMode = HX.TransparencyMode.OPAQUE;
-    this._opaquePasses = new Array(HX.Material.NUM_PASS_TYPES);
+    this._passes = new Array(HX.Material.NUM_PASS_TYPES);
     this._renderOrderHint = ++HX.Material.ID_COUNTER;
     // forced render order by user:
     this._renderOrder = 0;
@@ -496,12 +496,12 @@ HX.Material.prototype = {
 
     getPass: function (type)
     {
-        return this._opaquePasses[type];
+        return this._passes[type];
     },
 
     setPass: function (type, pass)
     {
-        this._opaquePasses[type] = pass;
+        this._passes[type] = pass;
 
         if (pass) {
             for (var slotName in this._textures) {
@@ -523,7 +523,7 @@ HX.Material.prototype = {
 
     hasPass: function (type)
     {
-        return !!this._opaquePasses[type];
+        return !!this._passes[type];
     },
 
     setTexture: function(slotName, texture)
@@ -531,7 +531,7 @@ HX.Material.prototype = {
         this._textures[slotName] = texture;
 
         for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
-            if (this.hasPass(i)) this._opaquePasses[i].setTexture(slotName, texture);
+            if (this.hasPass(i)) this._passes[i].setTexture(slotName, texture);
     },
 
     /**
@@ -550,8 +550,8 @@ HX.Material.prototype = {
         this._uniforms[name] = value;
 
         for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
-            if (this._opaquePasses[i])
-                this._opaquePasses[i].setUniform(name, value);
+            if (this._passes[i])
+                this._passes[i].setUniform(name, value);
         }
     },
 
@@ -571,8 +571,8 @@ HX.Material.prototype = {
         this._uniforms[name + '[0]'] = value;
 
         for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
-            if (this._opaquePasses[i])
-                this._opaquePasses[i].setUniformArray(name, value);
+            if (this._passes[i])
+                this._passes[i].setUniformArray(name, value);
         }
     }
 

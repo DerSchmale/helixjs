@@ -4312,7 +4312,7 @@ HX.MaterialPass.prototype = {
 HX.Material = function ()
 {
     this._transparencyMode = HX.TransparencyMode.OPAQUE;
-    this._opaquePasses = new Array(HX.Material.NUM_PASS_TYPES);
+    this._passes = new Array(HX.Material.NUM_PASS_TYPES);
     this._renderOrderHint = ++HX.Material.ID_COUNTER;
     // forced render order by user:
     this._renderOrder = 0;
@@ -4508,12 +4508,12 @@ HX.Material.prototype = {
 
     getPass: function (type)
     {
-        return this._opaquePasses[type];
+        return this._passes[type];
     },
 
     setPass: function (type, pass)
     {
-        this._opaquePasses[type] = pass;
+        this._passes[type] = pass;
 
         if (pass) {
             for (var slotName in this._textures) {
@@ -4535,7 +4535,7 @@ HX.Material.prototype = {
 
     hasPass: function (type)
     {
-        return !!this._opaquePasses[type];
+        return !!this._passes[type];
     },
 
     setTexture: function(slotName, texture)
@@ -4543,7 +4543,7 @@ HX.Material.prototype = {
         this._textures[slotName] = texture;
 
         for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
-            if (this.hasPass(i)) this._opaquePasses[i].setTexture(slotName, texture);
+            if (this.hasPass(i)) this._passes[i].setTexture(slotName, texture);
     },
 
     /**
@@ -4562,8 +4562,8 @@ HX.Material.prototype = {
         this._uniforms[name] = value;
 
         for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
-            if (this._opaquePasses[i])
-                this._opaquePasses[i].setUniform(name, value);
+            if (this._passes[i])
+                this._passes[i].setUniform(name, value);
         }
     },
 
@@ -4583,8 +4583,8 @@ HX.Material.prototype = {
         this._uniforms[name + '[0]'] = value;
 
         for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
-            if (this._opaquePasses[i])
-                this._opaquePasses[i].setUniformArray(name, value);
+            if (this._passes[i])
+                this._passes[i].setUniformArray(name, value);
         }
     }
 
@@ -5152,7 +5152,7 @@ HX.EffectPass.prototype.updateRenderState = function(renderer, source)
 HX.Effect = function()
 {
     this._isSupported = true;
-    this._opaquePasses = [];
+    this._passes = [];
     this._mesh = null;
     this._hdrSourceIndex = -1;
     this._outputsGamma = false;
@@ -5167,7 +5167,7 @@ HX.Effect.prototype =
 
     getPass: function (index)
     {
-        return this._opaquePasses[index];
+        return this._passes[index];
     },
 
     render: function(renderer, dt)
@@ -5188,11 +5188,11 @@ HX.Effect.prototype =
     draw: function(dt)
     {
         // the default just swap between two hdr buffers
-        var len = this._opaquePasses.length;
+        var len = this._passes.length;
 
         for (var i = 0; i < len; ++i) {
             HX.setRenderTarget(this._hdrTarget);
-            this._drawPass(this._opaquePasses[i]);
+            this._drawPass(this._passes[i]);
             this._swapHDRBuffers();
         }
     },
@@ -5212,27 +5212,27 @@ HX.Effect.prototype =
 
     removePass: function(pass)
     {
-        var index = this._opaquePasses.indexOf(pass);
-        this._opaquePasses.splice(index, 1);
+        var index = this._passes.indexOf(pass);
+        this._passes.splice(index, 1);
     },
 
     addPass: function (pass)
     {
-        this._opaquePasses.push(pass);
+        this._passes.push(pass);
     },
 
     numPasses: function()
     {
-        return this._opaquePasses.length;
+        return this._passes.length;
     },
 
     setUniform: function(name, value)
     {
-        var len = this._opaquePasses.length;
+        var len = this._passes.length;
 
         for (var i = 0; i < len; ++i) {
-            if (this._opaquePasses[i])
-                this._opaquePasses[i].setUniform(name, value);
+            if (this._passes[i])
+                this._passes[i].setUniform(name, value);
         }
     }
 };
@@ -10029,10 +10029,10 @@ HX.BloomEffect.prototype._initBlurPass = function()
     var width = this._targetWidth / this._downScale;
     var height = this._targetHeight / this._downScale;
     // direction used to provide step size
-    this._opaquePasses[1] = new HX.BloomBlurPass(sizesX, this._weights, 1, 0, width, height);
-    this._opaquePasses[2] = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
-    this._opaquePasses[1].setTexture("sourceTexture", this._thresholdMaps[0]);
-    this._opaquePasses[2].setTexture("sourceTexture", this._thresholdMaps[1]);
+    this._passes[1] = new HX.BloomBlurPass(sizesX, this._weights, 1, 0, width, height);
+    this._passes[2] = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
+    this._passes[1].setTexture("sourceTexture", this._thresholdMaps[0]);
+    this._passes[2].setTexture("sourceTexture", this._thresholdMaps[1]);
 };
 
 HX.BloomEffect.prototype.draw = function(dt)
@@ -10049,7 +10049,7 @@ HX.BloomEffect.prototype.draw = function(dt)
 
     for (var i = 0; i < 3; ++i) {
         HX.setRenderTarget(this._thresholdFBOs[targetIndex]);
-        this._drawPass(this._opaquePasses[i]);
+        this._drawPass(this._passes[i]);
         targetIndex = 1 - targetIndex;
     }
 
@@ -10838,7 +10838,7 @@ HX.ToneMapEffect.prototype.draw = function(dt)
 
         HX.setRenderTarget(this._luminanceFBO);
         HX.GL.viewport(0, 0, this._luminanceFBO._width, this._luminanceFBO._height);
-        this._drawPass(this._opaquePasses[0]);
+        this._drawPass(this._passes[0]);
         this._luminanceMap.generateMipmap();
         HX.GL.disable(HX.GL.BLEND);
     }

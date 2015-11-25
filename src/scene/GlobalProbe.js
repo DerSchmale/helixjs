@@ -16,9 +16,9 @@ HX.GlobalSpecularProbe.powerRange1 = .9921;
 
 HX.GlobalSpecularProbe.prototype = Object.create(HX.Light.prototype);
 
-HX.GlobalSpecularProbe.prototype.render = function(camera, gbuffer, occlusion)
+HX.GlobalSpecularProbe.prototype.render = function(renderer)
 {
-    var usingAO = occlusion != null;
+    var usingAO = renderer._aoEffect != null;
     if (this._usingAO != usingAO || !this._pass) {
         this._usingAO = usingAO;
         this._pass = this._initPass();
@@ -27,7 +27,7 @@ HX.GlobalSpecularProbe.prototype.render = function(camera, gbuffer, occlusion)
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
 
-    this._pass.updateRenderState(camera, gbuffer, occlusion);
+    this._pass.updateRenderState(renderer);
 
     if (this._texture) {
         var maxMip = Math.floor(Math.log(this._texture.size) / Math.log(2));
@@ -48,7 +48,6 @@ HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
 HX.GlobalSpecularProbe.prototype._initPass = function()
 {
     var defines = {};
-    var extensions;
 
     if (HX.EXT_SHADER_TEXTURE_LOD)
         defines.USE_TEX_LOD = 1;
@@ -89,9 +88,9 @@ HX.GlobalIrradianceProbe = function(texture)
 
 HX.GlobalIrradianceProbe.prototype = Object.create(HX.Light.prototype);
 
-HX.GlobalIrradianceProbe.prototype.render = function(camera, gbuffer, occlusion)
+HX.GlobalIrradianceProbe.prototype.render = function(renderer)
 {
-    var usingAO = occlusion != null;
+    var usingAO = renderer._aoEffect != null;
     if (this._usingAO != usingAO || !this._pass) {
         this._usingAO = usingAO;
         this._pass = this._initPass();
@@ -100,7 +99,7 @@ HX.GlobalIrradianceProbe.prototype.render = function(camera, gbuffer, occlusion)
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
 
-    this._pass.updateRenderState(camera, gbuffer, occlusion);
+    this._pass.updateRenderState(renderer);
 
     // render rect mesh
     HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);

@@ -39,9 +39,8 @@ HX.MaterialPass = function (shader)
     this._blendOperator = HX.BlendOperation.ADD;
     this._gbuffer = null;
     this._enabled = true;
-
     this._storeUniforms();
-    //this._sourceSlot = this.getTextureSlot("hx_source");
+    this._textureSetters = HX.TextureSetter.getSetters(this);
 };
 
 HX.MaterialPass.GEOMETRY_PASS = 0;
@@ -105,38 +104,23 @@ HX.MaterialPass.prototype = {
         this._blendOperator = op;
     },
 
-    assignSourceBuffer: function(source)
+    updateRenderState: function (renderer)
     {
-        if (this._sourceSlot)
-            this._sourceSlot.texture = source;
-    },
+        var len = this._textureSetters.length;
 
-    assignGBuffer: function(gbuffer)
-    {
-        // todo: only do this when gbuffer changed
-        if (this._gbuffer != gbuffer) {
-            this._gbuffer = gbuffer;
-            this.setTexture("hx_gbufferColor", gbuffer[0]);
-            this.setTexture("hx_gbufferNormals", gbuffer[1]);
-            this.setTexture("hx_gbufferSpecular", gbuffer[2]);
-            this.setTexture("hx_gbufferDepth", gbuffer[3]);
-        }
-    },
+        for (var i = 0; i < len; ++i)
+            this._textureSetters[i].execute(renderer);
 
-    updateRenderState: function ()
-    {
-        var len = this._textureSlots.length;
+        len = this._textureSlots.length;
 
         for (var i = 0; i < len; ++i) {
             var slot = this._textureSlots[i];
             var texture = slot.texture;
 
-            if (texture.isReady()) {
+            if (texture.isReady())
                 texture.bind(i);
-            }
-            else {
+            else
                 texture._default.bind(i);
-            }
         }
     },
 

@@ -16,7 +16,7 @@ varying vec3 bitangent;
 uniform sampler2D normalMap;
 #endif
 
-uniform sampler2D hx_source;
+uniform sampler2D hx_backbuffer;
 uniform sampler2D hx_gbufferDepth;
 
 uniform float hx_cameraNearPlaneDistance;
@@ -52,6 +52,6 @@ void main()
 
     vec2 samplePos = screenUV + getPreciseRefractedUVOffset(viewVector, fragNormal, refractiveRatio, distance);
 
-    vec4 background = texture2D(hx_source, samplePos);
+    vec4 background = texture2D(hx_backbuffer, samplePos);
     gl_FragColor = outputColor * background;
 }

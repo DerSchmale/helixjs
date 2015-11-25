@@ -59,13 +59,8 @@ Object.defineProperty(HX.Light.prototype, "color", {
     }
 });
 
-HX.Light.prototype.activate = function(camera, gbuffer, occlusion)
-{
-
-};
-
 // returns the index of the FIRST UNRENDERED light
-HX.Light.prototype.renderBatch = function(lightCollection, startIndex, camera, gbuffer, occlusion)
+HX.Light.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
     throw "Abstract method!";
 };

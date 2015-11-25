@@ -122,17 +122,15 @@ Object.defineProperty(HX.DirectionalLight.prototype, "direction", {
     }
 });
 
-HX.DirectionalLight.prototype.activate = function(camera, gbuffer, occlusion)
-{
-};
-
 // returns the index of the FIRST UNRENDERED light
-HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex, camera, gbuffer, occlusion)
+HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
     if (!this._lightPass)
         this._initLightPass();
 
-    this._lightPass.updateRenderState(camera, gbuffer, occlusion);
+    var camera = renderer._camera;
+
+    this._lightPass.updateRenderState(renderer);
 
     var light = lightCollection[startIndex];
     var dir = camera.getViewMatrix().transform(light.direction);

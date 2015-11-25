@@ -16,9 +16,10 @@ HX.AmbientLight = function()
 
 HX.AmbientLight.prototype = Object.create(HX.Light.prototype);
 
-HX.AmbientLight.prototype.activate = function(camera, gbuffer, occlusion)
+// returns the index of the FIRST UNRENDERED light
+HX.AmbientLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
-    var useAO = occlusion != null;
+    var useAO = renderer._aoEffect != null;
 
     if (!this._lightPass || this._useAO != useAO) {
         this._useAO = useAO;
@@ -28,13 +29,8 @@ HX.AmbientLight.prototype.activate = function(camera, gbuffer, occlusion)
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
 
-    this._lightPass.updateRenderState(camera, gbuffer, occlusion);
-};
+    this._lightPass.updateRenderState(renderer);
 
-// returns the index of the FIRST UNRENDERED light
-HX.AmbientLight.prototype.renderBatch = function(lightCollection, startIndex, camera, gbuffer, occlusion)
-{
-    this._occlusion = occlusion;
     var colorR = 0, colorG = 0, colorB = 0;
     var end = lightCollection.length;
 

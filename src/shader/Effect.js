@@ -24,16 +24,14 @@ HX.EffectPass.prototype.setMesh = function(mesh)
     this._vertexLayout = new HX.VertexLayout(this._mesh, this);
 };
 
-HX.EffectPass.prototype.updateRenderState = function(camera, gbuffer, source)
+HX.EffectPass.prototype.updateRenderState = function(renderer, source)
 {
-    this._shader.updateRenderState(null, camera);
+    this._shader.updateRenderState(null, renderer._camera);
 
     if (this._sourceSlot)
         this._sourceSlot.texture = source;
 
-    this.assignGBuffer(gbuffer);
-
-    HX.MaterialPass.prototype.updateRenderState.call(this);
+    HX.MaterialPass.prototype.updateRenderState.call(this, renderer);
 
     this._mesh._vertexBuffer.bind();
     this._mesh._indexBuffer.bind();
@@ -78,8 +76,7 @@ HX.Effect.prototype =
 
     render: function(renderer, dt)
     {
-        this._camera = renderer._camera;
-        this._gbuffer = renderer._gbuffer;
+        this._renderer = renderer;
         this._hdrSourceIndex = renderer._hdrSourceIndex;
         this._hdrSources = renderer._hdrBuffers;
         this._hdrTargets = renderer._hdrTargets;
@@ -106,7 +103,7 @@ HX.Effect.prototype =
 
     _drawPass: function(pass)
     {
-        pass.updateRenderState(this._camera, this._gbuffer, this._hdrSource);
+        pass.updateRenderState(this._renderer, this._hdrSource);
         HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
     },
 

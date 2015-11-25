@@ -4,7 +4,7 @@ uniform sampler2D hx_gbufferColor;
 uniform sampler2D hx_gbufferNormals;
 uniform sampler2D hx_gbufferSpecular;
 uniform sampler2D hx_gbufferDepth;
-uniform sampler2D hx_source;
+uniform sampler2D hx_backbuffer;
 uniform sampler2D hx_dither2D;
 uniform vec2 hx_dither2DTextureScale;
 
@@ -155,8 +155,8 @@ void main()
     float diff = viewSpacePos.z - hitZ;
     fadeFactor *= smoothstep(-0.3, 0.0, diff);
 
-    vec4 reflColor = texture2D(hx_source, hitUV);
-    vec4 srcColor = texture2D(hx_source, uv);
+    vec4 reflColor = texture2D(hx_backbuffer, hitUV);
+    vec4 srcColor = texture2D(hx_backbuffer, uv);
 
     float amountUsed = amount * fadeFactor;
     gl_FragColor = vec4(srcColor.xyz + fresnel * attenuation * reflColor.xyz * amountUsed, amountUsed);

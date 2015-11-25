@@ -15,7 +15,7 @@ uniform sampler2D hx_gbufferNormals;
 uniform sampler2D hx_gbufferSpecular;
 
 #ifdef USE_AO
-uniform sampler2D hx_source;
+uniform sampler2D hx_ambientOcclusion;
 #endif
 
 uniform mat4 hx_cameraWorldMatrix;
@@ -59,7 +59,7 @@ void main()
 	totalLight += fresnel * specProbeSample.xyz;
 
 	#ifdef USE_AO
-		vec4 occlusionSample = texture2D(hx_source, uv);
+		vec4 occlusionSample = texture2D(hx_ambientOcclusion, uv);
 		totalLight *= occlusionSample.w;
 	#endif
 

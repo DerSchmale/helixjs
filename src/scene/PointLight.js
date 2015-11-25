@@ -33,32 +33,31 @@ HX.PointLight.NUM_SPHERE_INDICES = HX.PointLight.SPHERE_SEGMENTS_W * HX.PointLig
 
 HX.PointLight.prototype = Object.create(HX.Light.prototype);
 
-HX.PointLight.prototype.activate = function(camera, gbuffer, occlusion)
-{
-    HX.GL.disable(HX.GL.DEPTH_TEST);
-};
-
 // returns the index of the FIRST UNRENDERED light
-HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, camera, gbuffer, occlusion)
+HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
+    // TODO: depth test should be used in some spherical cases
+    HX.GL.disable(HX.GL.DEPTH_TEST);
+
     var intersectsNearPlane = lightCollection[startIndex]._renderOrderHint < 0;
 
     if (intersectsNearPlane) {
-        return this._renderFullscreenBatch(lightCollection, startIndex, camera, gbuffer, occlusion);
+        return this._renderFullscreenBatch(lightCollection, startIndex, renderer);
     }
     else {
-        return this._renderSphereBatch(lightCollection, startIndex, camera, gbuffer, occlusion);
+        return this._renderSphereBatch(lightCollection, startIndex, renderer);
     }
 };
 
-HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startIndex, camera, gbuffer, occlusion)
+HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startIndex, renderer)
 {
-    HX.PointLight._sphericalLightPass.updateRenderState();
+    HX.PointLight._sphericalLightPass.updateRenderState(renderer);
     HX.GL.enable(HX.GL.CULL_FACE);
 
     var end = startIndex + HX.PointLight.LIGHTS_PER_BATCH;
     if (end > lightCollection.length) end = lightCollection.length;
 
+    var camera = renderer._camera;
     var posData = HX.PointLight._positionData;
     var colorData = HX.PointLight._colorData;
     var attData = HX.PointLight._attenuationData;
@@ -114,7 +113,7 @@ HX.PointLight.prototype.initFullScreenPass = function (passIndex)
     HX.PointLight._fullScreenLightPasses[passIndex] = pass;
 };
 
-HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, startIndex, camera, gbuffer, occlusion)
+HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, startIndex, renderer)
 {
     HX.GL.disable(HX.GL.CULL_FACE);
 
@@ -126,7 +125,7 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
     var colorData = HX.PointLight._colorData;
     var attData = HX.PointLight._attenuationData;
     var pos = new HX.Float4();
-    var viewMatrix = camera.getViewMatrix();
+    var viewMatrix = renderer._camera.getViewMatrix();
 
     var v3i = 0, v2i = 0;
 
@@ -160,7 +159,7 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
         this.initFullScreenPass(passIndex);
     }
 
-    HX.PointLight._fullScreenLightPasses[passIndex].updateRenderState(camera, gbuffer, occlusion);
+    HX.PointLight._fullScreenLightPasses[passIndex].updateRenderState(renderer);
 
     HX.GL.uniform3fv(HX.PointLight._fullScreenPositionLocations[passIndex], posData);
     HX.GL.uniform3fv(HX.PointLight._fullScreenColorLocations[passIndex], colorData);

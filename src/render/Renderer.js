@@ -101,6 +101,6 @@ HX.Renderer.prototype =
                 HX.GL.disable(HX.GL.BLEND);
         }
 
-        newPass.updateRenderState();
+        newPass.updateRenderState(this);
     }
 };

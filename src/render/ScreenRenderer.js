@@ -55,8 +55,8 @@ HX.ScreenRenderer = function()
     this._hdrTargetsDepth = null;
     this._depthBuffer = null;
     this._aoEffect = null;
+    this._aoTexture = null;
     this._localReflections = null;
-    this._passSourceTexture = null;
 
     this._createGBuffer();
     this._createHDRBuffers();
@@ -88,6 +88,7 @@ Object.defineProperty(HX.ScreenRenderer.prototype, "ambientOcclusion",
     set: function(value)
     {
         this._aoEffect = value;
+        this._aoTexture = this._aoEffect? this._aoEffect.getAOTexture() : null;
     }
 });
 
@@ -120,7 +121,6 @@ HX.ScreenRenderer.prototype.setViewportRect = function(x, y, width, height)
 HX.ScreenRenderer.prototype.render = function(camera, scene, dt)
 {
     this._gammaApplied = false;
-    this._passSourceTexture = null;
     this._hdrSourceIndex = 0;
     this._camera = camera;
     this._scene = scene;
@@ -416,29 +416,15 @@ HX.ScreenRenderer.prototype._renderDirectLights = function()
 {
     var lights = this._renderCollector.getLights();
     var len = lights.length;
-    var activeType = undefined;
 
     var i = 0;
-    var camera = this._camera;
-    var gbuffer = this._gbuffer;
-    var occlusion = this._aoEffect? this._aoEffect.getAOTexture() : null;
 
-    while (i < len) {
-        var light = lights[i];
-
-        if (light._type !== activeType) {
-            light.activate(camera, gbuffer, occlusion);
-            activeType = light._type;
-        }
-
-        i = light.renderBatch(lights, i, camera, gbuffer, occlusion);
-    }
+    while (i < len)
+        i = lights[i].renderBatch(lights, i, renderer);
 };
 
 HX.ScreenRenderer.prototype._renderGlobalIllumination = function(dt)
 {
-    var occlusion = this._aoEffect? this._aoEffect.getAOTexture() : null;
-
     HX.GL.disable(HX.GL.CULL_FACE);
 
     // TODO:
@@ -446,7 +432,7 @@ HX.ScreenRenderer.prototype._renderGlobalIllumination = function(dt)
     // Would allow planar reflections to be rendered there too
 
     if (this._renderCollector._globalIrradianceProbe)
-        this._renderCollector._globalIrradianceProbe.render(this._camera, this._gbuffer, occlusion);
+        this._renderCollector._globalIrradianceProbe.render(this);
 
     if (this._localReflections != null) {
         HX.GL.disable(HX.GL.BLEND);
@@ -457,7 +443,7 @@ HX.ScreenRenderer.prototype._renderGlobalIllumination = function(dt)
     }
 
     if (this._renderCollector._globalSpecularProbe)
-        this._renderCollector._globalSpecularProbe.render(this._camera, this._gbuffer, occlusion);
+        this._renderCollector._globalSpecularProbe.render(this);
 };
 
 HX.ScreenRenderer.prototype._renderPass = function(passType, renderItems)
@@ -477,8 +463,6 @@ HX.ScreenRenderer.prototype._copySource = function()
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
     this._copyTexture.execute(HX.DEFAULT_RECT_MESH, source);
-
-    this._passSourceTexture = this._hdrBuffers[hdrTarget];
 };
 
 HX.ScreenRenderer.prototype._renderPostPass = function(passType, copySource)
@@ -628,15 +612,4 @@ HX.ScreenRenderer.prototype.dispose = function()
 
     if (this._gbufferFBO)
         this._gbufferFBO.dispose();
-};
-
-HX.ScreenRenderer.prototype._switchPass = function(oldPass, newPass)
-{
-    newPass.assignGBuffer(this._gbuffer);
-
-    // this is slow!
-    if (this._passSourceTexture)
-        newPass.setTexture("hx_source", this._passSourceTexture);
-
-    HX.Renderer.prototype._switchPass.call(this, oldPass, newPass);
 };

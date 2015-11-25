@@ -96,7 +96,9 @@ void main()
     float viewZ = centerDepth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;
     vec3 centerViewPos = viewZ * viewDir;
 
-    vec2 projectedRadii = -halfSampleRadius * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1]) / centerViewPos.z;
+    // clamp z to a minimum, so the radius does not get excessively large in screen-space
+    float projRadius = halfSampleRadius / max(-centerViewPos.z, 7.0);
+    vec2 projectedRadii = projRadius * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1]);
 
     // do not take more steps than there are pixels
     float totalOcclusion = 0.0;

@@ -116,8 +116,8 @@ Object.defineProperties(HX.HBAO.prototype, {
 
 HX.HBAO.prototype.draw = function(dt)
 {
-    var w = this._hdrTarget.width * this._scale;
-    var h = this._hdrTarget.height * this._scale;
+    var w = this._renderer._width * this._scale;
+    var h = this._renderer._height * this._scale;
 
     if (HX.TextureUtils.assureSize(w, h, this._aoTexture, this._fbo1)) {
         HX.TextureUtils.assureSize(w, h, this._backTexture, this._fbo2);
@@ -139,7 +139,7 @@ HX.HBAO.prototype.draw = function(dt)
     this._sourceTextureSlot.texture = this._backTexture;
     this._drawPass(this._blurPass);
 
-    HX.GL.viewport(0, 0, this._hdrTarget.width, this._hdrTarget.height);
+    HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
 };
 
 HX.HBAO.prototype._initSampleDirTexture = function()

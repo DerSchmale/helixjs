@@ -12,7 +12,6 @@ HX.EffectPass = function(vertexShader, fragmentShader)
     this.setMesh(HX.DEFAULT_RECT_MESH);
 
     this.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
-    this._sourceSlot = this.getTextureSlot("hx_source");
 };
 
 HX.EffectPass.prototype = Object.create(HX.MaterialPass.prototype);
@@ -24,12 +23,9 @@ HX.EffectPass.prototype.setMesh = function(mesh)
     this._vertexLayout = new HX.VertexLayout(this._mesh, this);
 };
 
-HX.EffectPass.prototype.updateRenderState = function(renderer, source)
+HX.EffectPass.prototype.updateRenderState = function(renderer)
 {
     this._shader.updateRenderState(null, renderer._camera);
-
-    if (this._sourceSlot)
-        this._sourceSlot.texture = source;
 
     HX.MaterialPass.prototype.updateRenderState.call(this, renderer);
 
@@ -72,15 +68,27 @@ HX.Effect.prototype =
     {
         this._renderer = renderer;
         this._hdrSourceIndex = renderer._hdrSourceIndex;
-        this._hdrSources = renderer._hdrBuffers;
         this._hdrTargets = renderer._hdrTargets;
-
-        this._hdrSource = this._hdrSources[this._hdrSourceIndex];
-        this._hdrTarget = this._hdrTargets[1 - this._hdrSourceIndex];
 
         this.draw(dt);
 
         return this._hdrSourceIndex;
+    },
+
+    /**
+     * Gets the render target if we can blend with it.
+     */
+    _getCurrentBackBufferFBO: function()
+    {
+        return this._hdrTargets[this._hdrSourceIndex];
+    },
+
+    /**
+     * returns the render target if we need to ping pong (typically when hx_backbuffer is used in the shader).
+     */
+    _getPingPongBackBufferFBO: function()
+    {
+        return this._hdrTargets[1 - this._hdrSourceIndex];
     },
 
     draw: function(dt)
@@ -89,7 +97,7 @@ HX.Effect.prototype =
     },
 
     /**
-     * A convenience function for effects that only ping-pong between full resolution buffers
+     * A convenience method for effects that only ping-pong between full resolution buffers
      */
     _drawFullResolutionPingPong: function(passes)
     {
@@ -97,7 +105,7 @@ HX.Effect.prototype =
         var len = this._passes.length;
 
         for (var i = 0; i < len; ++i) {
-            HX.setRenderTarget(this._hdrTarget);
+            HX.setRenderTarget(this._getPingPongBackBufferFBO());
             this._drawPass(passes[i]);
             this._swapHDRBuffers();
         }
@@ -105,14 +113,12 @@ HX.Effect.prototype =
 
     _drawPass: function(pass)
     {
-        pass.updateRenderState(this._renderer, this._hdrSource);
+        pass.updateRenderState(this._renderer);
         HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
     },
 
     _swapHDRBuffers: function()
     {
-        this._hdrTarget = this._hdrTargets[this._hdrSourceIndex];
         this._hdrSourceIndex = 1 - this._hdrSourceIndex;
-        this._hdrSource = this._hdrSources[this._hdrSourceIndex];
     }
 };

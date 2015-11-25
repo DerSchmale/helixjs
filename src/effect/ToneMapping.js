@@ -20,7 +20,7 @@ HX.ToneMapEffect = function(adaptive)
         this._luminanceFBO = new HX.FrameBuffer([this._luminanceMap]);
         this._luminanceFBO.init();
 
-        this._adaptationRate = 500.0;
+        this._adaptationRate = 2000.0;
 
         this._toneMapPass.setTexture("hx_luminanceMap", this._luminanceMap);
         this._toneMapPass.setUniform("hx_luminanceMipLevel", Math.log(this._luminanceMap._width) / Math.log(2));
@@ -63,8 +63,8 @@ HX.ToneMapEffect.prototype.draw = function(dt)
         HX.GL.disable(HX.GL.BLEND);
     }
 
-    HX.setRenderTarget(this._hdrTarget);
-    HX.GL.viewport(0, 0, this._hdrTarget._width, this._hdrTarget._height);
+    HX.setRenderTarget(this._getPingPongBackBufferFBO());
+    HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
     this._drawPass(this._toneMapPass);
     this._swapHDRBuffers();
 };

@@ -94,8 +94,8 @@ HX.ScreenSpaceReflections.prototype.getSSRTexture = function()
 
 HX.ScreenSpaceReflections.prototype.draw = function(dt)
 {
-    var w = this._hdrTarget.width * this._scale;
-    var h = this._hdrTarget.height * this._scale;
+    var w = this._renderer._width * this._scale;
+    var h = this._renderer._height * this._scale;
     if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, this._fbo)) {
         this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
     }
@@ -103,5 +103,5 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
     HX.setRenderTarget(this._fbo);
     HX.GL.viewport(0, 0, w, h);
     this._drawPass(this._pass);
-    HX.GL.viewport(0, 0, this._hdrTarget.width, this._hdrTarget.height);
+    HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
 };

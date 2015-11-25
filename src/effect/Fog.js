@@ -57,7 +57,7 @@ Object.defineProperty(HX.FogEffect.prototype, "startDistance", {
 
 HX.FogEffect.prototype.draw = function(dt)
 {
-    HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
+    HX.setRenderTarget(this.getCurrentBackBufferFBO());
     HX.GL.enable(HX.GL.BLEND);
     HX.GL.blendFunc(HX.GL.ONE_MINUS_SRC_ALPHA, HX.GL.SRC_ALPHA);
 

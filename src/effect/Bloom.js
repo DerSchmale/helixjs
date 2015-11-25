@@ -121,9 +121,9 @@ HX.BloomEffect.prototype._initBlurPass = function()
 
 HX.BloomEffect.prototype.draw = function(dt)
 {
-    if (this._hdrTarget._width != this._targetWidth || this._hdrTarget._height != this._targetHeight) {
-        this._targetWidth = this._hdrTarget._width;
-        this._targetHeight = this._hdrTarget._height;
+    if (this._renderer._width != this._targetWidth || this._renderer._height != this._targetHeight) {
+        this._targetWidth = this._renderer._width;
+        this._targetHeight = this._renderer._height;
         this._initTextures();
         this._initBlurPass();
     }
@@ -137,10 +137,12 @@ HX.BloomEffect.prototype.draw = function(dt)
         targetIndex = 1 - targetIndex;
     }
 
-    HX.setRenderTarget(this._hdrTarget);
+    HX.setRenderTarget(this._getCurrentBackBufferFBO());
+    HX.GL.enable(HX.GL.BLEND);
+    HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
     HX.GL.viewport(0, 0, this._targetWidth, this._targetHeight);
     this._drawPass(this._compositePass);
-    this._swapHDRBuffers();
+    HX.GL.disable(HX.GL.BLEND);
 };
 
 HX.BloomEffect.prototype.dispose = function()

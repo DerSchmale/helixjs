@@ -10,7 +10,7 @@ HX.FogEffect = function(density, tint, startDistance)
 {
     HX.Effect.call(this);
 
-    this.addPass(new HX.EffectPass(HX.ShaderLibrary.get("fog_vertex.glsl"), HX.ShaderLibrary.get("fog_fragment.glsl")));
+    this._fogPass = new HX.EffectPass(HX.ShaderLibrary.get("fog_vertex.glsl"), HX.ShaderLibrary.get("fog_fragment.glsl"));
 
     this.density = density === undefined? .001 : density;
     this.tint = tint === undefined? new HX.Color(1, 1, 1, 1) : tint;
@@ -27,7 +27,7 @@ Object.defineProperty(HX.FogEffect.prototype, "density", {
     set: function(value)
     {
         this._density = value;
-        this.setUniform("density", value);
+        this._fogPass.setUniform("density", value);
     }
 });
 
@@ -39,7 +39,7 @@ Object.defineProperty(HX.FogEffect.prototype, "tint", {
     set: function(value)
     {
         this._tint = value;
-        this.setUniform("tint", {x: value.r, y: value.g, z: value.b});
+        this._fogPass.setUniform("tint", {x: value.r, y: value.g, z: value.b});
     }
 });
 
@@ -51,6 +51,17 @@ Object.defineProperty(HX.FogEffect.prototype, "startDistance", {
     set: function(value)
     {
         this._startDistance = value;
-        this.setUniform("startDistance", value);
+        this._fogPass.setUniform("startDistance", value);
     }
 });
+
+HX.FogEffect.prototype.draw = function(dt)
+{
+    HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
+    HX.GL.enable(HX.GL.BLEND);
+    HX.GL.blendFunc(HX.GL.ONE_MINUS_SRC_ALPHA, HX.GL.SRC_ALPHA);
+
+    this._drawPass(this._fogPass);
+
+    HX.GL.disable(HX.GL.BLEND);
+};

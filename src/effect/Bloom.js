@@ -1,27 +1,4 @@
 /**
- *
- * @constructor
- */
-HX.BloomThresholdPass = function()
-{
-    HX.EffectPass.call(this, null, HX.ShaderLibrary.get("bloom_threshold_fragment.glsl"));
-    this.setThresholdLuminance(1.0);
-};
-
-HX.BloomThresholdPass.prototype = Object.create(HX.EffectPass.prototype);
-
-HX.BloomThresholdPass.prototype.setThresholdLuminance = function(value)
-{
-    this._thresholdLuminance = value;
-    this.setUniform("threshold", value);
-};
-
-HX.BloomThresholdPass.prototype.getThresholdLuminance = function()
-{
-    return this._thresholdLuminance;
-};
-
-/**
  * @constructor
  */
 HX.BloomBlurPass = function(kernelSizes, weights, directionX, directionY, resolutionX, resolutionY)
@@ -70,17 +47,6 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSizes, weights)
     }
 };
 
-/**
- *
- * @constructor
- */
-HX.BloomCompositePass = function()
-{
-    HX.EffectPass.call(this, HX.ShaderLibrary.get("bloom_composite_vertex.glsl"), HX.ShaderLibrary.get("bloom_composite_fragment.glsl"));
-};
-
-HX.BloomCompositePass.prototype = Object.create(HX.EffectPass.prototype);
-
 
 /**
  *
@@ -95,49 +61,42 @@ HX.BloomEffect = function(blurSizes, weights)
     this._targetWidth = -1;
     this._targetHeight = -1;
 
-    this._thresholdPass = new HX.BloomThresholdPass();
-    this._compositePass = new HX.BloomCompositePass();
-
-    this.addPass(this._thresholdPass);
-    this.addPass(null);
-    this.addPass(null);
-    this.addPass(this._compositePass);
+    this._thresholdPass = new HX.EffectPass(null, HX.ShaderLibrary.get("bloom_threshold_fragment.glsl"));
+    this._compositePass = new HX.EffectPass(HX.ShaderLibrary.get("bloom_composite_vertex.glsl"), HX.ShaderLibrary.get("bloom_composite_fragment.glsl"));
 
     this._thresholdMaps = [];
-    this._thresholdFBOs = [];
+    this._smallFBOs = [];
 
     for (var i = 0; i < 2; ++i) {
         this._thresholdMaps[i] = new HX.Texture2D();
         this._thresholdMaps[i].setFilter(HX.TextureFilter.BILINEAR_NOMIP);
         this._thresholdMaps[i].setWrapMode(HX.TextureWrapMode.CLAMP);
-        this._thresholdFBOs[i] = new HX.FrameBuffer([this._thresholdMaps[i]]);
+        this._smallFBOs[i] = new HX.FrameBuffer([this._thresholdMaps[i]]);
     }
 
     this._blurSizes = blurSizes || [ 512, 256 ];
 
-    if (HX.EXT_HALF_FLOAT_TEXTURES_LINEAR && HX.EXT_HALF_FLOAT_TEXTURES)
-        this._weights = weights || [.05,.05 ];
+    if (HX.EXT_HALF_FLOAT_TEXTURES_LINEAR && HX.EXT_HALF_FLOAT_TEXTURES) {
+        this._weights = weights || [.05, .05];
+        this.thresholdLuminance = 1.0;
+    }
     else {
         this._weights = weights || [1.5, 5.0 ];
-        this.setThresholdLuminance(.9);
+        this.thresholdLuminance = .9;
     }
 
     this._compositePass.setTexture("bloomTexture", this._thresholdMaps[0]);
+
+    this._scaledDownPasses = [ this._thresholdPass, this._blurXPass, this._blurYPass ];
 };
 
 HX.BloomEffect.prototype = Object.create(HX.Effect.prototype);
-
-HX.BloomEffect.prototype.setThresholdLuminance = function(value)
-{
-    this._thresholdLuminance = value;
-    this.setUniform("threshold", value);
-};
 
 HX.BloomEffect.prototype._initTextures = function()
 {
     for (var i = 0; i < 2; ++i) {
         this._thresholdMaps[i].initEmpty(Math.ceil(this._targetWidth / this._downScale), Math.ceil(this._targetHeight / this._downScale), HX.GL.RGB, HX.HDR_FORMAT);
-        this._thresholdFBOs[i].init();
+        this._smallFBOs[i].init();
     }
 };
 
@@ -154,10 +113,10 @@ HX.BloomEffect.prototype._initBlurPass = function()
     var width = this._targetWidth / this._downScale;
     var height = this._targetHeight / this._downScale;
     // direction used to provide step size
-    this._passes[1] = new HX.BloomBlurPass(sizesX, this._weights, 1, 0, width, height);
-    this._passes[2] = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
-    this._passes[1].setTexture("sourceTexture", this._thresholdMaps[0]);
-    this._passes[2].setTexture("sourceTexture", this._thresholdMaps[1]);
+    this._scaledDownPasses[1] = this._blurXPass = new HX.BloomBlurPass(sizesX, this._weights, 1, 0, width, height);
+    this._scaledDownPasses[2] = this._blurYPass = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
+    this._blurXPass.setTexture("sourceTexture", this._thresholdMaps[0]);
+    this._blurYPass.setTexture("sourceTexture", this._thresholdMaps[1]);
 };
 
 HX.BloomEffect.prototype.draw = function(dt)
@@ -173,8 +132,8 @@ HX.BloomEffect.prototype.draw = function(dt)
     HX.GL.viewport(0, 0, this._thresholdMaps[0]._width, this._thresholdMaps[0]._height);
 
     for (var i = 0; i < 3; ++i) {
-        HX.setRenderTarget(this._thresholdFBOs[targetIndex]);
-        this._drawPass(this._passes[i]);
+        HX.setRenderTarget(this._smallFBOs[targetIndex]);
+        this._drawPass(this._scaledDownPasses[i]);
         targetIndex = 1 - targetIndex;
     }
 
@@ -187,20 +146,21 @@ HX.BloomEffect.prototype.draw = function(dt)
 HX.BloomEffect.prototype.dispose = function()
 {
     for (var i = 0; i < 2; ++i) {
-        this._thresholdFBOs[i].dispose();
+        this._smallFBOs[i].dispose();
         this._thresholdMaps[i].dispose();
     }
 
-    this._thresholdFBOs = null;
+    this._smallFBOs = null;
     this._thresholdMaps = null;
 };
 
-HX.BloomEffect.prototype.getThresholdLuminance = function()
-{
-    return this.getPass(0).getThresholdLuminance();
-};
+Object.defineProperty(HX.BloomEffect.prototype, "thresholdLuminance", {
+    get: function() {
+        return this._thresholdLuminance;
+    },
 
-HX.BloomEffect.prototype.setThresholdLuminance = function(value)
-{
-    return this.getPass(0).setThresholdLuminance(value);
-};
+    set: function(value) {
+        this._thresholdLuminance = value;
+        this._thresholdPass.setUniform("threshold", value)
+    }
+});

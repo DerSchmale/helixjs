@@ -420,7 +420,7 @@ HX.ShaderLibrary['bloom_threshold_fragment.glsl'] = 'varying vec2 uv;\n\nuniform
 
 HX.ShaderLibrary['default_post_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
 
-HX.ShaderLibrary['fog_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nuniform sampler2D hx_source;\nuniform sampler2D hx_gbufferDepth;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_source, uv);\n	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n	// do not fog up skybox\n	// this might actually solve itself due to depth map encoding\n	if (depth == 1.0) depth = -1.0;\n	float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n\n	float distance = length(viewDir * viewZ);\n\n	distance -= startDistance;\n\n	float fog = clamp(exp2(-distance * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	gl_FragColor = color;\n}';
+HX.ShaderLibrary['fog_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nuniform sampler2D hx_gbufferDepth;\n\nvoid main()\n{\n	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n	// do not fog up skybox\n	// this might actually solve itself due to depth map encoding\n	if (depth == 1.0) depth = -1.0;\n	float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n\n	float distance = length(viewDir * viewZ);\n\n	distance -= startDistance;\n\n	float fog = clamp(exp2(-distance * density), 0.0, 1.0);\n	gl_FragColor = vec4(tint, fog);\n}';
 
 HX.ShaderLibrary['fog_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n	gl_Position = hx_position;\n}';
 
@@ -9874,29 +9874,6 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera)
     HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
 };
 /**
- *
- * @constructor
- */
-HX.BloomThresholdPass = function()
-{
-    HX.EffectPass.call(this, null, HX.ShaderLibrary.get("bloom_threshold_fragment.glsl"));
-    this.setThresholdLuminance(1.0);
-};
-
-HX.BloomThresholdPass.prototype = Object.create(HX.EffectPass.prototype);
-
-HX.BloomThresholdPass.prototype.setThresholdLuminance = function(value)
-{
-    this._thresholdLuminance = value;
-    this.setUniform("threshold", value);
-};
-
-HX.BloomThresholdPass.prototype.getThresholdLuminance = function()
-{
-    return this._thresholdLuminance;
-};
-
-/**
  * @constructor
  */
 HX.BloomBlurPass = function(kernelSizes, weights, directionX, directionY, resolutionX, resolutionY)
@@ -9945,17 +9922,6 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSizes, weights)
     }
 };
 
-/**
- *
- * @constructor
- */
-HX.BloomCompositePass = function()
-{
-    HX.EffectPass.call(this, HX.ShaderLibrary.get("bloom_composite_vertex.glsl"), HX.ShaderLibrary.get("bloom_composite_fragment.glsl"));
-};
-
-HX.BloomCompositePass.prototype = Object.create(HX.EffectPass.prototype);
-
 
 /**
  *
@@ -9970,49 +9936,42 @@ HX.BloomEffect = function(blurSizes, weights)
     this._targetWidth = -1;
     this._targetHeight = -1;
 
-    this._thresholdPass = new HX.BloomThresholdPass();
-    this._compositePass = new HX.BloomCompositePass();
-
-    this.addPass(this._thresholdPass);
-    this.addPass(null);
-    this.addPass(null);
-    this.addPass(this._compositePass);
+    this._thresholdPass = new HX.EffectPass(null, HX.ShaderLibrary.get("bloom_threshold_fragment.glsl"));
+    this._compositePass = new HX.EffectPass(HX.ShaderLibrary.get("bloom_composite_vertex.glsl"), HX.ShaderLibrary.get("bloom_composite_fragment.glsl"));
 
     this._thresholdMaps = [];
-    this._thresholdFBOs = [];
+    this._smallFBOs = [];
 
     for (var i = 0; i < 2; ++i) {
         this._thresholdMaps[i] = new HX.Texture2D();
         this._thresholdMaps[i].setFilter(HX.TextureFilter.BILINEAR_NOMIP);
         this._thresholdMaps[i].setWrapMode(HX.TextureWrapMode.CLAMP);
-        this._thresholdFBOs[i] = new HX.FrameBuffer([this._thresholdMaps[i]]);
+        this._smallFBOs[i] = new HX.FrameBuffer([this._thresholdMaps[i]]);
     }
 
     this._blurSizes = blurSizes || [ 512, 256 ];
 
-    if (HX.EXT_HALF_FLOAT_TEXTURES_LINEAR && HX.EXT_HALF_FLOAT_TEXTURES)
-        this._weights = weights || [.05,.05 ];
+    if (HX.EXT_HALF_FLOAT_TEXTURES_LINEAR && HX.EXT_HALF_FLOAT_TEXTURES) {
+        this._weights = weights || [.05, .05];
+        this.thresholdLuminance = 1.0;
+    }
     else {
         this._weights = weights || [1.5, 5.0 ];
-        this.setThresholdLuminance(.9);
+        this.thresholdLuminance = .9;
     }
 
     this._compositePass.setTexture("bloomTexture", this._thresholdMaps[0]);
+
+    this._scaledDownPasses = [ this._thresholdPass, this._blurXPass, this._blurYPass ];
 };
 
 HX.BloomEffect.prototype = Object.create(HX.Effect.prototype);
-
-HX.BloomEffect.prototype.setThresholdLuminance = function(value)
-{
-    this._thresholdLuminance = value;
-    this.setUniform("threshold", value);
-};
 
 HX.BloomEffect.prototype._initTextures = function()
 {
     for (var i = 0; i < 2; ++i) {
         this._thresholdMaps[i].initEmpty(Math.ceil(this._targetWidth / this._downScale), Math.ceil(this._targetHeight / this._downScale), HX.GL.RGB, HX.HDR_FORMAT);
-        this._thresholdFBOs[i].init();
+        this._smallFBOs[i].init();
     }
 };
 
@@ -10029,10 +9988,10 @@ HX.BloomEffect.prototype._initBlurPass = function()
     var width = this._targetWidth / this._downScale;
     var height = this._targetHeight / this._downScale;
     // direction used to provide step size
-    this._passes[1] = new HX.BloomBlurPass(sizesX, this._weights, 1, 0, width, height);
-    this._passes[2] = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
-    this._passes[1].setTexture("sourceTexture", this._thresholdMaps[0]);
-    this._passes[2].setTexture("sourceTexture", this._thresholdMaps[1]);
+    this._scaledDownPasses[1] = this._blurXPass = new HX.BloomBlurPass(sizesX, this._weights, 1, 0, width, height);
+    this._scaledDownPasses[2] = this._blurYPass = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
+    this._blurXPass.setTexture("sourceTexture", this._thresholdMaps[0]);
+    this._blurYPass.setTexture("sourceTexture", this._thresholdMaps[1]);
 };
 
 HX.BloomEffect.prototype.draw = function(dt)
@@ -10048,8 +10007,8 @@ HX.BloomEffect.prototype.draw = function(dt)
     HX.GL.viewport(0, 0, this._thresholdMaps[0]._width, this._thresholdMaps[0]._height);
 
     for (var i = 0; i < 3; ++i) {
-        HX.setRenderTarget(this._thresholdFBOs[targetIndex]);
-        this._drawPass(this._passes[i]);
+        HX.setRenderTarget(this._smallFBOs[targetIndex]);
+        this._drawPass(this._scaledDownPasses[i]);
         targetIndex = 1 - targetIndex;
     }
 
@@ -10062,23 +10021,24 @@ HX.BloomEffect.prototype.draw = function(dt)
 HX.BloomEffect.prototype.dispose = function()
 {
     for (var i = 0; i < 2; ++i) {
-        this._thresholdFBOs[i].dispose();
+        this._smallFBOs[i].dispose();
         this._thresholdMaps[i].dispose();
     }
 
-    this._thresholdFBOs = null;
+    this._smallFBOs = null;
     this._thresholdMaps = null;
 };
 
-HX.BloomEffect.prototype.getThresholdLuminance = function()
-{
-    return this.getPass(0).getThresholdLuminance();
-};
+Object.defineProperty(HX.BloomEffect.prototype, "thresholdLuminance", {
+    get: function() {
+        return this._thresholdLuminance;
+    },
 
-HX.BloomEffect.prototype.setThresholdLuminance = function(value)
-{
-    return this.getPass(0).setThresholdLuminance(value);
-};
+    set: function(value) {
+        this._thresholdLuminance = value;
+        this._thresholdPass.setUniform("threshold", value)
+    }
+});
 /**
  *
  * @param blurX
@@ -10310,7 +10270,7 @@ HX.FogEffect = function(density, tint, startDistance)
 {
     HX.Effect.call(this);
 
-    this.addPass(new HX.EffectPass(HX.ShaderLibrary.get("fog_vertex.glsl"), HX.ShaderLibrary.get("fog_fragment.glsl")));
+    this._fogPass = new HX.EffectPass(HX.ShaderLibrary.get("fog_vertex.glsl"), HX.ShaderLibrary.get("fog_fragment.glsl"));
 
     this.density = density === undefined? .001 : density;
     this.tint = tint === undefined? new HX.Color(1, 1, 1, 1) : tint;
@@ -10327,7 +10287,7 @@ Object.defineProperty(HX.FogEffect.prototype, "density", {
     set: function(value)
     {
         this._density = value;
-        this.setUniform("density", value);
+        this._fogPass.setUniform("density", value);
     }
 });
 
@@ -10339,7 +10299,7 @@ Object.defineProperty(HX.FogEffect.prototype, "tint", {
     set: function(value)
     {
         this._tint = value;
-        this.setUniform("tint", {x: value.r, y: value.g, z: value.b});
+        this._fogPass.setUniform("tint", {x: value.r, y: value.g, z: value.b});
     }
 });
 
@@ -10351,9 +10311,20 @@ Object.defineProperty(HX.FogEffect.prototype, "startDistance", {
     set: function(value)
     {
         this._startDistance = value;
-        this.setUniform("startDistance", value);
+        this._fogPass.setUniform("startDistance", value);
     }
 });
+
+HX.FogEffect.prototype.draw = function(dt)
+{
+    HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
+    HX.GL.enable(HX.GL.BLEND);
+    HX.GL.blendFunc(HX.GL.ONE_MINUS_SRC_ALPHA, HX.GL.SRC_ALPHA);
+
+    this._drawPass(this._fogPass);
+
+    HX.GL.disable(HX.GL.BLEND);
+};
 HX.FXAA = function()
 {
     HX.Effect.call(this);

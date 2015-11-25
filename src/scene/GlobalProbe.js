@@ -27,8 +27,7 @@ HX.GlobalSpecularProbe.prototype.render = function(camera, gbuffer, occlusion)
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
 
-    this._pass.updateGlobalState(camera, gbuffer, occlusion);
-    this._pass.updateRenderState();
+    this._pass.updateRenderState(camera, gbuffer, occlusion);
 
     if (this._texture) {
         var maxMip = Math.floor(Math.log(this._texture.size) / Math.log(2));
@@ -101,8 +100,7 @@ HX.GlobalIrradianceProbe.prototype.render = function(camera, gbuffer, occlusion)
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
 
-    this._pass.updateGlobalState(camera, gbuffer, occlusion);
-    this._pass.updateRenderState();
+    this._pass.updateRenderState(camera, gbuffer, occlusion);
 
     // render rect mesh
     HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);

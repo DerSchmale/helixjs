@@ -236,10 +236,11 @@ HX.ScreenRenderer.prototype._renderTransparents = function()
             var meshInstance = renderItem.meshInstance;
             var pass = renderItem.pass;
 
-            pass._shader.updateRenderState();
+            pass._shader.updateRenderState(renderItem.worldMatrix, renderItem.camera);
             this._switchPass(null, pass);
             meshInstance.updateRenderState(passType);
-            renderItem.draw();
+
+            HX.GL.drawElements(pass._elementType, meshInstance._mesh.numIndices(), HX.GL.UNSIGNED_SHORT, 0);
         }
 
         HX.GL.stencilFunc(HX.GL.EQUAL, stencilValue, 0xff);

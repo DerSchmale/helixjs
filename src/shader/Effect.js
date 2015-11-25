@@ -24,8 +24,15 @@ HX.EffectPass.prototype.setMesh = function(mesh)
     this._vertexLayout = new HX.VertexLayout(this._mesh, this);
 };
 
-HX.EffectPass.prototype.updateRenderState = function()
+HX.EffectPass.prototype.updateRenderState = function(camera, gbuffer, source)
 {
+    this._shader.updateRenderState(null, camera);
+
+    if (this._sourceSlot)
+        this._sourceSlot.texture = source;
+
+    this.assignGBuffer(gbuffer);
+
     HX.MaterialPass.prototype.updateRenderState.call(this);
 
     this._mesh._vertexBuffer.bind();
@@ -41,20 +48,6 @@ HX.EffectPass.prototype.updateRenderState = function()
     }
 
     HX.enableAttributes(layout._numAttributes);
-};
-
-HX.EffectPass.prototype.updateGlobalState = function(camera, gbuffer, source)
-{
-    this._shader.updateRenderState();
-
-    if (this._sourceSlot)
-        this._sourceSlot.texture = source;
-
-    this.assignGBuffer(gbuffer);
-
-    var len = this._uniformSetters.length;
-    for (var i = 0; i < len; ++i)
-        this._uniformSetters[i].execute(null, camera);
 };
 
 
@@ -113,8 +106,7 @@ HX.Effect.prototype =
 
     _drawPass: function(pass)
     {
-        pass.updateGlobalState(this._camera, this._gbuffer, this._hdrSource);
-        pass.updateRenderState();
+        pass.updateRenderState(this._camera, this._gbuffer, this._hdrSource);
         HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
     },
 

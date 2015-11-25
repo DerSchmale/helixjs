@@ -105,16 +105,6 @@ HX.MeshInstance.prototype = {
     {
         this._initVertexLayouts();
 
-        this._uniformSetters = new Array( HX.MaterialPass.NUM_PASS_TYPES );
-
-        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
-            if (this._material.hasPass(i)) {
-                var pass = this._material.getPass(i);
-                this._uniformSetters[i] = HX.UniformSetter.getSetters(pass._shader);
-            }
-
-        }
-
         this._meshMaterialLinkInvalid = false;
     },
 

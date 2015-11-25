@@ -36,11 +36,6 @@ HX.PointLight.prototype = Object.create(HX.Light.prototype);
 HX.PointLight.prototype.activate = function(camera, gbuffer, occlusion)
 {
     HX.GL.disable(HX.GL.DEPTH_TEST);
-
-    this._camera = camera;
-    this._gbuffer = gbuffer;
-    this._occlusion = occlusion;
-    HX.PointLight._sphericalLightPass.updateGlobalState(camera, gbuffer, occlusion);
 };
 
 // returns the index of the FIRST UNRENDERED light
@@ -49,14 +44,14 @@ HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, came
     var intersectsNearPlane = lightCollection[startIndex]._renderOrderHint < 0;
 
     if (intersectsNearPlane) {
-        return this._renderFullscreenBatch(lightCollection, startIndex, camera);
+        return this._renderFullscreenBatch(lightCollection, startIndex, camera, gbuffer, occlusion);
     }
     else {
-        return this._renderSphereBatch(lightCollection, startIndex, camera);
+        return this._renderSphereBatch(lightCollection, startIndex, camera, gbuffer, occlusion);
     }
 };
 
-HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startIndex, camera)
+HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startIndex, camera, gbuffer, occlusion)
 {
     HX.PointLight._sphericalLightPass.updateRenderState();
     HX.GL.enable(HX.GL.CULL_FACE);
@@ -119,7 +114,7 @@ HX.PointLight.prototype.initFullScreenPass = function (passIndex)
     HX.PointLight._fullScreenLightPasses[passIndex] = pass;
 };
 
-HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, startIndex, camera)
+HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, startIndex, camera, gbuffer, occlusion)
 {
     HX.GL.disable(HX.GL.CULL_FACE);
 
@@ -165,8 +160,7 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
         this.initFullScreenPass(passIndex);
     }
 
-    HX.PointLight._fullScreenLightPasses[passIndex].updateGlobalState(camera, this._gbuffer, this._occlusion);
-    HX.PointLight._fullScreenLightPasses[passIndex].updateRenderState();
+    HX.PointLight._fullScreenLightPasses[passIndex].updateRenderState(camera, gbuffer, occlusion);
 
     HX.GL.uniform3fv(HX.PointLight._fullScreenPositionLocations[passIndex], posData);
     HX.GL.uniform3fv(HX.PointLight._fullScreenColorLocations[passIndex], colorData);

@@ -15,6 +15,7 @@ HX.Shader = function(vertexShaderCode, fragmentShaderCode)
     this._vertexShader = null;
     this._fragmentShader = null;
     this._program = null;
+    this._uniformSetters = null;
 
     if (vertexShaderCode && fragmentShaderCode)
         this.init(vertexShaderCode, fragmentShaderCode);
@@ -78,11 +79,18 @@ HX.Shader.prototype = {
         }
 
         this._ready = true;
+
+        this._uniformSetters = HX.UniformSetter.getSetters(this);
     },
 
-    updateRenderState: function()
+    updateRenderState: function(worldMatrix, camera)
     {
         HX.GL.useProgram(this._program);
+
+        var len = this._uniformSetters.length;
+        for (var i = 0; i < len; ++i) {
+            this._uniformSetters[i].execute(worldMatrix, camera);
+        }
     },
 
     _initShader: function(shader, code)

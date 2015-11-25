@@ -9,24 +9,7 @@ HX.RenderItem = function()
     this.material = null;
     this.pass = null;
     this.camera = null;
-    this.uniformSetters = null;
     this.renderOrderHint = 0;
-};
-
-HX.RenderItem.prototype = {
-    // set state per instance
-    draw: function()
-    {
-        if (this.uniformSetters) {
-            var len = this.uniformSetters.length;
-            for (var i = 0; i < len; ++i) {
-                this.uniformSetters[i].execute(this.worldMatrix, this.camera);
-            }
-        }
-
-        // TODO: Provide different render modes?
-        HX.GL.drawElements(this.pass._elementType, this.meshInstance._mesh.numIndices(), HX.GL.UNSIGNED_SHORT, 0);
-    }
 };
 
 /**

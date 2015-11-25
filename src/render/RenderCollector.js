@@ -101,7 +101,6 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
                 renderItem.renderOrderHint = worldBounds._centerX * this._cameraZAxis.x + worldBounds._centerY * this._cameraZAxis.y + worldBounds._centerZ * this._cameraZAxis.z;
                 renderItem.worldMatrix = worldMatrix;
                 renderItem.camera = this._camera;
-                renderItem.uniformSetters = meshInstance._uniformSetters[passIndex];
 
                 list[passIndex].push(renderItem);
             }
@@ -183,7 +182,6 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
         if (material.hasPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS)) {
             var normalItem = new HX.RenderItem();
             normalItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS);
-            normalItem.uniformSetters = meshInstance._uniformSetters[HX.MaterialPass.GEOMETRY_NORMAL_PASS];
             normalItem.material = renderItem.material;
             normalItem.renderOrderHint = renderItem.renderOrderHint;
             normalItem.meshInstance = renderItem.meshInstance;
@@ -195,7 +193,6 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
         if (material.hasPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS)) {
             var specItem = new HX.RenderItem();
             specItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS);
-            specItem.uniformSetters = meshInstance._uniformSetters[HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
             specItem.material = renderItem.material;
             specItem.renderOrderHint = renderItem.renderOrderHint;
             specItem.meshInstance = renderItem.meshInstance;

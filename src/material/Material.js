@@ -5,6 +5,7 @@
 HX.TextureSlot = function() {
     this.location = -1;
     this.texture = null;
+    this.name = null;   // for debugging
 };
 
 /**
@@ -124,8 +125,6 @@ HX.MaterialPass.prototype = {
 
     updateRenderState: function ()
     {
-        this._shader.updateRenderState();
-
         var len = this._textureSlots.length;
 
         for (var i = 0; i < len; ++i) {
@@ -178,6 +177,7 @@ HX.MaterialPass.prototype = {
 
         if (slot == null) {
             slot = new HX.TextureSlot();
+            slot.name = slotName;
             this._textureSlots.push(slot);
             HX.GL.uniform1i(location, i);
             slot.location = location;

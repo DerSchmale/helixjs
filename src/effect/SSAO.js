@@ -1,7 +1,6 @@
 /**
  *
  * @param numSamples
- * @constructor
  */
 HX.SSAO = function(numSamples)
 {

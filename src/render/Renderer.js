@@ -39,7 +39,6 @@ HX.Renderer.prototype =
     _renderPass: function (passType, renderItems, transparencyMode, offsetIndex)
     {
         var len = renderItems.length;
-        var activeShader = null;
         var activePass = null;
         var lastMesh = null;
         var offsetIndex = offsetIndex || 0;
@@ -58,11 +57,8 @@ HX.Renderer.prototype =
             var meshInstance = renderItem.meshInstance;
             var pass = renderItem.pass;
             var shader = pass._shader;
-
-            if (shader !== activeShader) {
-                shader.updateRenderState();
-                activeShader = shader;
-            }
+            // make sure renderstate is propagated
+            shader.updateRenderState(renderItem.worldMatrix, renderItem.camera);
 
             if (pass !== activePass) {
                 this._switchPass(activePass, pass);
@@ -76,7 +72,7 @@ HX.Renderer.prototype =
                 lastMesh = meshInstance._mesh;
             }
 
-            renderItem.draw();
+            HX.GL.drawElements(pass._elementType, meshInstance._mesh.numIndices(), HX.GL.UNSIGNED_SHORT, 0);
         }
 
         if (activePass && activePass._blending) HX.GL.disable(HX.GL.BLEND);

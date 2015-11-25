@@ -28,8 +28,7 @@ HX.AmbientLight.prototype.activate = function(camera, gbuffer, occlusion)
     HX.GL.disable(HX.GL.DEPTH_TEST);
     HX.GL.disable(HX.GL.CULL_FACE);
 
-    this._lightPass.updateGlobalState(camera, gbuffer, occlusion);
-    this._lightPass.updateRenderState();
+    this._lightPass.updateRenderState(camera, gbuffer, occlusion);
 };
 
 // returns the index of the FIRST UNRENDERED light

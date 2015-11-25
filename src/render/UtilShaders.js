@@ -26,7 +26,7 @@ HX.CustomCopyShader.prototype.execute = function(rect, texture)
     rect._vertexBuffer.bind();
     rect._indexBuffer.bind();
 
-    this.updateRenderState();
+    this.updateRenderState(null, camera);
 
     texture.bind(0);
 
@@ -165,7 +165,7 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera)
     rect._vertexBuffer.bind();
     rect._indexBuffer.bind();
 
-    this.updateRenderState();
+    this.updateRenderState(null, camera);
 
     texture.bind(0);
 

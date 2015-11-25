@@ -132,8 +132,7 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
     if (!this._lightPass)
         this._initLightPass();
 
-    this._lightPass.updateGlobalState(camera, gbuffer, occlusion);
-    this._lightPass.updateRenderState();
+    this._lightPass.updateRenderState(camera, gbuffer, occlusion);
 
     var light = lightCollection[startIndex];
     var dir = camera.getViewMatrix().transform(light.direction);

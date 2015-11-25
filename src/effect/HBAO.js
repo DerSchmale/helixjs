@@ -121,7 +121,7 @@ HX.HBAO.prototype.draw = function(dt)
 
     if (HX.TextureUtils.assureSize(w, h, this._aoTexture, this._fbo1)) {
         HX.TextureUtils.assureSize(w, h, this._backTexture, this._fbo2);
-        this._aoPass.setUniform("ditherScale", {x: w *.25, y: h *.25});
+        this._aoPass.setUniform("ditherScale", {x: w * .25, y: h * .25});
     }
 
     HX.GL.viewport(0, 0, w, h);

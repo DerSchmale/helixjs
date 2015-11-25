@@ -1,8 +1,8 @@
 uniform float hx_cameraFrustumRange;
 uniform float hx_cameraNearPlaneDistance;
-uniform vec2 hx_renderTargetResolution;
 uniform vec2 hx_rcpRenderTargetResolution;
 uniform mat4 hx_projectionMatrix;
+
 
 uniform int numRays;
 uniform int numSamplesPerRay;
@@ -10,6 +10,7 @@ uniform float strengthPerRay;
 uniform float halfSampleRadius;
 uniform float bias;
 uniform float rcpFallOffDistance;
+uniform vec2 ditherScale;
 
 uniform sampler2D hx_gbufferDepth;
 uniform sampler2D hx_gbufferNormals;
@@ -103,7 +104,7 @@ void main()
     // do not take more steps than there are pixels
     float totalOcclusion = 0.0;
 
-    vec2 randomFactors = texture2D(ditherTexture, uv * hx_renderTargetResolution * .25).xy;
+    vec2 randomFactors = texture2D(ditherTexture, uv * ditherScale).xy;
 
     vec2 rayUV = vec2(0.0);
     for (int i = 0; i < NUM_RAYS; ++i) {

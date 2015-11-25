@@ -53,22 +53,21 @@ HX.HBAO.prototype.getAOTexture = function()
     return this._aoTexture;
 };
 
-Object.defineProperty(HX.HBAO.prototype, "sampleRadius",
-    {
+Object.defineProperties(HX.HBAO.prototype, {
+    sampleRadius: {
         get: function ()
         {
             return this._radius;
         },
+
         set: function (value)
         {
             this._radius = value;
-            this._aoPass.setUniform("halfSampleRadius", this._radius *.5);
+            this._aoPass.setUniform("halfSampleRadius", this._radius * .5);
         }
-    });
+    },
 
-
-Object.defineProperty(HX.HBAO.prototype, "fallOffDistance",
-    {
+    fallOffDistance: {
         get: function ()
         {
             this._fallOffDistance = value;
@@ -78,10 +77,9 @@ Object.defineProperty(HX.HBAO.prototype, "fallOffDistance",
             this._fallOffDistance = value;
             this._aoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
         }
-    });
+    },
 
-Object.defineProperty(HX.HBAO.prototype, "strength",
-    {
+    strength: {
         get: function()
         {
             return this._strength;
@@ -91,10 +89,9 @@ Object.defineProperty(HX.HBAO.prototype, "strength",
             this._strength = value;
             this._aoPass.setUniform("strengthPerRay", this._strength / this._numRays);
         }
-    });
+    },
 
-Object.defineProperty(HX.HBAO.prototype, "bias",
-    {
+    bias: {
         get: function()
         {
             return this._bias;
@@ -104,7 +101,8 @@ Object.defineProperty(HX.HBAO.prototype, "bias",
             this._bias = value;
             this._aoPass.setUniform("bias", this._bias);
         }
-    });
+    }
+});
 
 HX.HBAO.prototype._initTargetTexture = function(width, height)
 {

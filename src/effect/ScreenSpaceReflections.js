@@ -28,29 +28,28 @@ HX.ScreenSpaceReflections.prototype = Object.create(HX.Effect.prototype);
 /**
  * Amount of pixels to skip per sample
  */
-Object.defineProperty(HX.ScreenSpaceReflections.prototype, "stepSize", {
-    get: function()
-    {
-        return this._stepSize;
+Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
+    stepSize: {
+        get: function () {
+            return this._stepSize;
+        },
+
+        set: function (value) {
+            this._stepSize = value;
+            this._pass.setUniform("stepSize", value);
+        }
     },
+    maxDistance: {
+        get: function()
+        {
+            return this._stepSize;
+        },
 
-    set: function(value)
-    {
-        this._stepSize = value;
-        this._pass.setUniform("stepSize", value);
-    }
-});
-
-Object.defineProperty(HX.ScreenSpaceReflections.prototype, "maxDistance", {
-    get: function()
-    {
-        return this._stepSize;
-    },
-
-    set: function(value)
-    {
-        this._stepSize = value;
-        this._pass.setUniform("maxDistance", value);
+        set: function(value)
+        {
+            this._stepSize = value;
+            this._pass.setUniform("maxDistance", value);
+        }
     }
 });
 

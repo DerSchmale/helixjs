@@ -70,34 +70,36 @@ HX.ToneMapEffect.prototype.draw = function(dt)
 };
 
 
-Object.defineProperty(HX.ToneMapEffect.prototype, "exposure", {
-    get: function()
-    {
-        return this._exposure;
+Object.defineProperties(HX.ToneMapEffect.prototype, {
+    exposure: {
+        get: function()
+        {
+            return this._exposure;
+        },
+        set: function(value)
+        {
+            this._exposure = value;
+            if (this._isSupported)
+                this._toneMapPass.setUniform("hx_exposure", Math.pow(2.0, value));
+        }
     },
 
-    set: function(value)
-    {
-        this._exposure = value;
-        if (this._isSupported)
-            this._toneMapPass.setUniform("hx_exposure", Math.pow(2.0, value));
+    /**
+     * The amount of time in milliseconds for the "lens" to adapt to the frame's exposure.
+     */
+    adaptationRate: {
+        get: function()
+        {
+            return this._adaptationRate;
+        },
+
+        set: function(value)
+        {
+            this._adaptationRate = value;
+        }
     }
 });
 
-/**
- * The amount of time in milliseconds for the "lens" to adapt to the frame's exposure.
- */
-Object.defineProperty(HX.ToneMapEffect.prototype, "adaptationRate", {
-    get: function()
-    {
-        return this._adaptationRate;
-    },
-
-    set: function(value)
-    {
-        this._adaptationRate = value;
-    }
-});
 
 /**
  *

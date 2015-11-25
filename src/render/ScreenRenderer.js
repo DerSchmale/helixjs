@@ -29,10 +29,8 @@ HX.ScreenRenderer = function()
 {
     HX.Renderer.call(this);
 
-    this._viewportX = 0;
-    this._viewportY = 0;
-    this._viewportWidth = 0;
-    this._viewportHeight = 0;
+    this._width = 0;
+    this._height = 0;
 
     this._copyTexture = new HX.CopyChannelsShader();
     this._copyTextureToScreen = new HX.CopyChannelsShader("xyzw", true);
@@ -105,17 +103,15 @@ Object.defineProperty(HX.ScreenRenderer.prototype, "localReflections",
         }
     });
 
-HX.ScreenRenderer.prototype.setViewportRect = function(x, y, width, height)
+HX.ScreenRenderer.prototype.resize = function(width, height)
 {
-    if (this._viewportWidth != width || this._viewportHeight != height) {
+    if (this._width != width || this._height != height) {
         this._updateGBuffer(width, height);
         this._updateHDRBuffers(width, height);
     }
 
-    this._viewportX = 0;
-    this._viewportY = 0;
-    this._viewportWidth = width;
-    this._viewportHeight = height;
+    this._width = width;
+    this._height = height;
 };
 
 HX.ScreenRenderer.prototype.render = function(camera, scene, dt)
@@ -130,7 +126,7 @@ HX.ScreenRenderer.prototype.render = function(camera, scene, dt)
     HX.GL.cullFace(HX.GL.BACK);
     HX.GL.depthFunc(HX.GL.LESS);
 
-    camera._setRenderTargetResolution(this._viewportWidth, this._viewportHeight);
+    camera._setRenderTargetResolution(this._width, this._height);
     this._renderCollector.collect(camera, scene);
 
     this._renderShadowCasters();
@@ -166,7 +162,7 @@ HX.ScreenRenderer.prototype._renderShadowCasters = function()
 
 HX.ScreenRenderer.prototype._renderOpaques = function(dt)
 {
-    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
+    HX.GL.viewport(0, 0, this._width, this._height);
 
     HX.GL.enable(HX.GL.STENCIL_TEST);
     HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
@@ -180,9 +176,10 @@ HX.ScreenRenderer.prototype._renderOpaques = function(dt)
     // only render AO for non-transparents
     if (this._aoEffect !== null) {
         this._renderEffect(this._aoEffect, dt);
-    }
 
-    HX.GL.viewport(this._viewportX, this._viewportY, this._viewportWidth, this._viewportHeight);
+        // AO may have scaled down
+        HX.GL.viewport(0, 0, this._width, this._height);
+    }
 
     // no other lighting models are currently supported:
     HX.GL.enable(HX.GL.STENCIL_TEST);

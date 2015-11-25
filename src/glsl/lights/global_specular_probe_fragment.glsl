@@ -18,6 +18,10 @@ uniform sampler2D hx_gbufferSpecular;
 uniform sampler2D hx_ambientOcclusion;
 #endif
 
+#ifdef USE_SSR
+uniform sampler2D hx_localReflections;
+#endif
+
 uniform mat4 hx_cameraWorldMatrix;
 
 // cheap geometric shadowing function, not at all physically correct
@@ -50,12 +54,14 @@ void main()
 	#endif
 	specProbeSample = hx_gammaToLinear(specProbeSample);
 	vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflectedViewDir, normal);
-	// not physically correct, but attenuation is required to look good
-//	float attenuation = mix(1.0 - roughness, 1.0, metallicness);
-
 	float attenuation = mix(hx_reflectionVisibility(normal, reflectedViewDir, roughness), 1.0, metallicness);
 
 	totalLight += fresnel * specProbeSample.xyz * attenuation;
+
+    #ifdef USE_SSR
+        vec4 reflectionSample = texture2D(hx_localReflections, uv);
+        totalLight = mix(totalLight, reflectionSample.xyz, reflectionSample.w);
+    #endif
 
 	#ifdef USE_AO
 		vec4 occlusionSample = texture2D(hx_ambientOcclusion, uv);

@@ -104,19 +104,9 @@ HX.SSAO.prototype._initSamples = function()
     this._ssaoPass.setUniformArray("samples", new Float32Array(samples));
 };
 
-HX.SSAO.prototype._initTargetTexture = function(width, height)
-{
-    this._ssaoTexture.initEmpty(width, height);
-    this._fbo.init();
-};
-
 HX.SSAO.prototype.draw = function(dt)
 {
-    var targetWidth = this._hdrTarget.width;
-    var targetHeight = this._hdrTarget.height;
-
-    if (targetWidth != this._ssaoTexture.width || targetHeight != this._ssaoTexture.height)
-        this._initTargetTexture(targetWidth, targetHeight);
+    HX.TextureUtils.assureSize(this._hdrTarget.width, this._hdrTarget.height, this._ssaoTexture, this._fbo);
 
     HX.setRenderTarget(this._hdrTarget);
     this._drawPass(this._ssaoPass);

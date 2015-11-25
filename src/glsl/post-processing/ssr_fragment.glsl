@@ -4,9 +4,10 @@ uniform sampler2D hx_gbufferColor;
 uniform sampler2D hx_gbufferNormals;
 uniform sampler2D hx_gbufferSpecular;
 uniform sampler2D hx_gbufferDepth;
-uniform sampler2D hx_backbuffer;
 uniform sampler2D hx_dither2D;
 uniform vec2 hx_dither2DTextureScale;
+
+uniform sampler2D source;
 
 varying vec2 uv;
 varying vec3 viewDir;
@@ -14,11 +15,11 @@ varying vec3 viewDir;
 uniform float hx_cameraNearPlaneDistance;
 uniform float hx_cameraFrustumRange;
 uniform float hx_rcpCameraFrustumRange;
-uniform vec2 hx_renderTargetResolution;
 uniform mat4 hx_projectionMatrix;
 
 uniform float maxDistance;
 uniform float stepSize;
+uniform vec2 halfRenderTargetResolution;
 
 // cheap geometric shadowing function, not at all physically correct
 float hx_reflectionVisibility(vec3 normal, vec3 reflection, float roughness)
@@ -52,7 +53,7 @@ float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
 
     // line dimensions in pixels:
 
-    vec2 pixelSize = (hom1.xy - hom0.xy) * hx_renderTargetResolution * .5;
+    vec2 pixelSize = (hom1.xy - hom0.xy) * halfRenderTargetResolution;
 
     // line-"width" = max(abs(pixelSize.x), abs(pixelSize.y))
     // ratio pixel/width = 1 / max(abs(pixelSize.x), abs(pixelSize.y))
@@ -86,12 +87,9 @@ float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
 
     float sampleCount;
     for (int i = 0; i < NUM_SAMPLES; ++i) {
-//        prevRayDepth = rayDepth;
-        // easier to think in positive Z
         rayDepth = rayPerspDepth / rcpW;
         // unprojected uv ray with refldir?
 
-//        prevSceneDepth = sceneDepth;
         sceneDepth = hx_sampleLinearDepth(hx_gbufferDepth, hitUV);
 
         if (rayDepth > sceneDepth + .001) {
@@ -106,14 +104,6 @@ float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
         rcpW += dRcpW;
     }
 
-    // interpolation doesn't always work all that well around discontinuities
-//    float dr = (prevRayDepth - rayDepth);
-//    float ds = (prevSceneDepth - sceneDepth);
-
-//    float t = (rayDepth - sceneDepth) / (ds - dr);
-
-//    hitUV -= t * dUV;
-//    hitZ = (sceneDepth + ds * t) * hx_cameraFrustumRange;
     hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;
 
     // TODO: fade out last samples
@@ -155,10 +145,11 @@ void main()
     float diff = viewSpacePos.z - hitZ;
     fadeFactor *= smoothstep(-0.3, 0.0, diff);
 
-    vec4 reflColor = texture2D(hx_backbuffer, hitUV);
-    vec4 srcColor = texture2D(hx_backbuffer, uv);
+    vec4 reflColor = texture2D(source, hitUV);
+    vec4 srcColor = texture2D(source, uv);
 
     float amountUsed = amount * fadeFactor;
-    gl_FragColor = vec4(srcColor.xyz + fresnel * attenuation * reflColor.xyz * amountUsed, amountUsed);
+    gl_FragColor = vec4(srcColor.xyz + fresnel * attenuation * reflColor.xyz, amountUsed);
+//    gl_FragColor = vec4(halfRenderTargetResolution.xy, 0.0, 1.0);
 }
 

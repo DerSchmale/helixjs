@@ -52,7 +52,7 @@ HX.Renderer = function ()
     this._depthBuffer = null;
     this._aoEffect = null;
     this._aoTexture = null;
-    this._localReflections = null;
+    this._ssrEffect = null;
 
     this._createGBuffer();
     this._createHDRBuffers();
@@ -82,6 +82,17 @@ HX.Renderer.prototype =
     {
         this._aoEffect = value;
         this._aoTexture = this._aoEffect ? this._aoEffect.getAOTexture() : null;
+    },
+
+    get localReflections()
+    {
+        return this._ssrEffect;
+    },
+
+    set localReflections(value)
+    {
+        this._ssrEffect = value;
+        this._ssrTexture = this._ssrEffect? this._ssrEffect.getSSRTexture() : null;
     },
 
     resize: function (width, height)
@@ -384,7 +395,7 @@ HX.Renderer.prototype =
         HX.GL.clear(HX.GL.COLOR_BUFFER_BIT);
 
         this._renderDirectLights();
-        this._renderGlobalIllumination(dt);
+        this._renderGlobalIllumination(dt, target);
 
         HX.GL.disable(HX.GL.BLEND);
         HX.GL.depthMask(true);
@@ -401,27 +412,26 @@ HX.Renderer.prototype =
             i = lights[i].renderBatch(lights, i, renderer);
     },
 
-    _renderGlobalIllumination: function (dt)
+    _renderGlobalIllumination: function (dt, target)
     {
         HX.GL.disable(HX.GL.CULL_FACE);
-
-        // TODO:
-        // Should we render all specular GI to a separate global reflections texture?
-        // Would allow planar reflections to be rendered there too
 
         if (this._renderCollector._globalIrradianceProbe)
             this._renderCollector._globalIrradianceProbe.render(this);
 
-        if (this._localReflections != null) {
+        if (this._ssrEffect != null) {
             HX.GL.disable(HX.GL.BLEND);
-            this._renderEffect(this._localReflections, dt);
-            HX.setRenderTarget(this._hdrTargets[this._hdrSourceIndex]);
+            this._ssrEffect.sourceTexture = target._colorTextures[0];
+            this._ssrEffect.render(this);
+
+            HX.setRenderTarget(target);
             HX.GL.enable(HX.GL.BLEND);
-            HX.GL.blendFunc(HX.GL.ONE_MINUS_DST_ALPHA, HX.GL.ONE);
         }
 
         if (this._renderCollector._globalSpecularProbe)
             this._renderCollector._globalSpecularProbe.render(this);
+        else if (this._ssrEffect)
+            this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._ssrTexture);
     },
 
     _renderPass: function (passType, renderItems)

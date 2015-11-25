@@ -6,8 +6,9 @@ HX.GlobalSpecularProbe = function(texture)
 {
     this._texture = texture;
 
-    this._pass = this._initPass();
+    this._pass = null;  // created deferredly
     this._usingAO = false;
+    this._usingSSR = false;
 };
 
 // conversion range for spec power to mip
@@ -19,8 +20,10 @@ HX.GlobalSpecularProbe.prototype = Object.create(HX.Light.prototype);
 HX.GlobalSpecularProbe.prototype.render = function(renderer)
 {
     var usingAO = renderer._aoEffect != null;
-    if (this._usingAO != usingAO || !this._pass) {
+    var usingSSR = renderer._ssrEffect != null;
+    if (this._usingAO != usingAO || this._usingSSR != usingSSR || !this._pass) {
         this._usingAO = usingAO;
+        this._usingSSR = usingSSR;
         this._pass = this._initPass();
     }
 
@@ -54,6 +57,9 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
 
     if (this._usingAO)
         defines.USE_AO = 1;
+
+    if (this._usingSSR)
+        defines.USE_SSR = 1;
 
     defines.K0 = HX.GlobalSpecularProbe.powerRange0;
     defines.K1 = HX.GlobalSpecularProbe.powerRange1;

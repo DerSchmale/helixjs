@@ -18,8 +18,15 @@ HX.ScreenSpaceReflections = function(numSamples)
     var fragmentShader = HX.ShaderLibrary.get("ssr_fragment.glsl", defines);
 
     this._pass = new HX.EffectPass(vertexShader, fragmentShader);
+    this._sourceTextureSlot = this._pass.getTextureSlot("source");
+    this._scale = 1.0;
     this.stepSize = Math.max(500.0 / numSamples, 1.0);
     this.maxDistance = 500.0;
+
+    this._ssrTexture = new HX.Texture2D();
+    this._ssrTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
+    this._ssrTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
+    this._fbo = new HX.FrameBuffer(this._ssrTexture);
 };
 
 HX.ScreenSpaceReflections.prototype = Object.create(HX.Effect.prototype);
@@ -39,6 +46,7 @@ Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
             this._pass.setUniform("stepSize", value);
         }
     },
+
     maxDistance: {
         get: function()
         {
@@ -50,12 +58,45 @@ Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
             this._stepSize = value;
             this._pass.setUniform("maxDistance", value);
         }
+    },
+
+    scale: {
+        get: function()
+        {
+            return this._scale;
+        },
+
+        set: function(value)
+        {
+            this._scale = value;
+        }
+    },
+
+    sourceTexture: {
+        get: function()
+        {
+            return this._sourceTextureSlot.texture;
+        },
+
+        set: function(value)
+        {
+            this._sourceTextureSlot.texture = value;
+        }
     }
 });
 
+// every SSAO type should implement this
+HX.ScreenSpaceReflections.prototype.getSSRTexture = function()
+{
+    return this._ssrTexture;
+};
+
 HX.ScreenSpaceReflections.prototype.draw = function(dt)
 {
-    HX.setRenderTarget(this._hdrTarget);
+    if (HX.TextureUtils.assureSize(this._hdrTarget.width * this._scale, this._hdrTarget.height * this._scale, this._ssrTexture, this._fbo)) {
+        this._pass.setUniform("halfRenderTargetResolution", {x: this._ssrTexture.width *.5, y: this._ssrTexture.height *.5});
+    }
+
+    HX.setRenderTarget(this._fbo);
     this._drawPass(this._pass);
-    this._swapHDRBuffers();
 };

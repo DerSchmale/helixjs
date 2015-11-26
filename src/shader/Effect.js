@@ -53,7 +53,6 @@ HX.Effect = function()
 {
     this._isSupported = true;
     this._mesh = null;
-    this._hdrSourceIndex = -1;
     this._outputsGamma = false;
 };
 
@@ -67,48 +66,12 @@ HX.Effect.prototype =
     render: function(renderer, dt)
     {
         this._renderer = renderer;
-        this._hdrSourceIndex = renderer._hdrSourceIndex;
-        this._hdrTargets = renderer._hdrTargets;
-
         this.draw(dt);
-
-        return this._hdrSourceIndex;
-    },
-
-    /**
-     * Gets the render target if we can blend with it.
-     */
-    _getCurrentBackBufferFBO: function()
-    {
-        return this._hdrTargets[this._hdrSourceIndex];
-    },
-
-    /**
-     * returns the render target if we need to ping pong (typically when hx_backbuffer is used in the shader).
-     */
-    _getPingPongBackBufferFBO: function()
-    {
-        return this._hdrTargets[1 - this._hdrSourceIndex];
     },
 
     draw: function(dt)
     {
         throw "Abstract method error!";
-    },
-
-    /**
-     * A convenience method for effects that only ping-pong between full resolution buffers
-     */
-    _drawFullResolutionPingPong: function(passes)
-    {
-        // the default just swap between two hdr buffers
-        var len = this._passes.length;
-
-        for (var i = 0; i < len; ++i) {
-            HX.swapRenderTarget(this._getPingPongBackBufferFBO());
-            this._drawPass(passes[i]);
-            this._swapHDRBuffers();
-        }
     },
 
     _drawPass: function(pass)
@@ -117,8 +80,11 @@ HX.Effect.prototype =
         HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
     },
 
+    /**
+     * Used when we need to current render target as a source.
+     */
     _swapHDRBuffers: function()
     {
-        this._hdrSourceIndex = 1 - this._hdrSourceIndex;
+        this._renderer._swapHDRFrontAndBack();
     }
 };

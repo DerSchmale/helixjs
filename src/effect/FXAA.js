@@ -12,7 +12,6 @@ HX.FXAA.prototype = Object.create(HX.Effect.prototype);
 
 HX.FXAA.prototype.draw = function(dt)
 {
-    HX.swapRenderTarget(this._getPingPongBackBufferFBO());
-    this._drawPass(this._pass);
     this._swapHDRBuffers();
+    this._drawPass(this._pass);
 };

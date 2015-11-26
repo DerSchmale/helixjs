@@ -35,6 +35,7 @@ HX.TextureSetter._init = function()
     HX.TextureSetter._table.hx_gbufferSpecular = HX.GBufferSpecularSetter;
     HX.TextureSetter._table.hx_gbufferDepth = HX.GBufferDepthSetter;
     HX.TextureSetter._table.hx_backbuffer = HX.BackbufferSetter;
+    HX.TextureSetter._table.hx_frontbuffer = HX.FrontbufferSetter;
     HX.TextureSetter._table.hx_ambientOcclusion = HX.AmbientOcclusionSetter;
     HX.TextureSetter._table.hx_localReflections = HX.LocalReflectionsSetter;
 };
@@ -80,13 +81,23 @@ HX.GBufferDepthSetter.prototype.execute = function (renderer)
 };
 
 
+HX.FrontbufferSetter = function()
+{
+};
+
+HX.FrontbufferSetter.prototype.execute = function (renderer)
+{
+    this.slot.texture = renderer._hdrFront.texture;
+};
+
+
 HX.BackbufferSetter = function()
 {
 };
 
 HX.BackbufferSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._hdrBuffers[renderer._hdrSourceIndex];
+    this.slot.texture = renderer._hdrBack.texture;
 };
 
 

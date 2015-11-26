@@ -64,11 +64,9 @@ HX.ToneMapEffect.prototype.draw = function(dt)
         HX.popRenderTarget(this._luminanceFBO);
     }
 
-    // TODO: not optimal, render target gets set twice here, after popping
-    HX.swapRenderTarget(this._getPingPongBackBufferFBO());
+    this._swapHDRBuffers();
     HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
     this._drawPass(this._toneMapPass);
-    this._swapHDRBuffers();
 };
 
 

@@ -2,6 +2,9 @@
 
 // Will become an abstraction layer
 
+HX._renderTargetStack = [];
+
+
 /**
  * Default clearing function. Can be called if no special clearing functionality is needed (or in case another api is used that clears)
  * Otherwise, you can manually clear using GL context.
@@ -21,9 +24,6 @@ HX.unbindTextures = function()
     HX._numActiveTextures = 0;
 };
 
-
-HX._renderTargetStack = [];
-
 HX._setRenderTarget = function(frameBuffer)
 {
     if (frameBuffer) {
@@ -34,14 +34,6 @@ HX._setRenderTarget = function(frameBuffer)
     }
     else
         HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, null);
-};
-
-// best not to use this except in Effects when rendering to a ping-ponged version, after popping any pushed ones
-// so only usable between two equal levels (pingpong siblings)
-HX.swapRenderTarget = function(frameBuffer)
-{
-    HX._renderTargetStack[HX._renderTargetStack.length - 1] = frameBuffer;
-    HX._setRenderTarget(frameBuffer);
 };
 
 HX.getCurrentRenderTarget = function()

@@ -144,24 +144,20 @@ HX.SSAO.prototype.draw = function(dt)
 HX.SSAO.prototype._initDitherTexture = function()
 {
     this._ditherTexture = new HX.Texture2D();
-    var data = [
-        0x40, 0x1d, 0x4b, 0xff,
-        0xca, 0x44, 0x2b, 0xff,
-        0x17, 0xaa, 0x44, 0xff,
-        0xa1, 0xd1, 0x24, 0xff,
-        0x5d, 0x2d, 0xda, 0xff,
-        0xe7, 0x54, 0xba, 0xff,
-        0x34, 0xba, 0xd3, 0xff,
-        0xbe, 0xe1, 0xb3, 0xff,
-        0x52, 0x6c, 0x09, 0xff,
-        0xc3, 0x23, 0x46, 0xff,
-        0x88, 0xeb, 0x3c, 0xff,
-        0xf9, 0xa2, 0x78, 0xff,
-        0x05, 0x5c, 0x86, 0xff,
-        0x76, 0x13, 0xc2, 0xff,
-        0x3b, 0xdb, 0xb8, 0xff,
-        0xac, 0x92, 0xf5, 0xff
-    ];
+    var data = [ 126, 255, 126, 255, 135, 253, 105, 255, 116, 51, 26, 255, 137, 57, 233, 255, 139, 254, 121, 255, 56, 61, 210, 255, 227, 185, 73, 255, 191, 179, 30, 255, 107, 245, 173, 255, 205, 89, 34, 255, 191, 238, 138, 255, 56, 233, 125, 255, 198, 228, 161, 255, 85, 13, 164, 255, 140, 248, 168, 255, 147, 237, 65, 255 ];
+
+    // in case you're wondering, this is how the list above is generated, until approved
+    /*var n = new HX.Float4();
+    for (var i = 0; i < 16; ++i) {
+        var azimuthal = Math.random() * Math.PI * 2.0;
+        var polar = Math.random() * Math.PI;
+        n.fromSphericalCoordinates(1.0, azimuthal, polar);
+        data[i * 4] = Math.round((n.x * .5 + .5) * 0xff);
+        data[i * 4 + 1] = Math.round((n.y * .5 + .5) * 0xff);
+        data[i * 4 + 2] = Math.round((n.z * .5 + .5) * 0xff);
+        data[i * 4 + 3] = 0xff;
+    }
+    console.log(data.join(", "));*/
     this._ditherTexture.uploadData(new Uint8Array(data), 4, 4, false);
     this._ditherTexture.setFilter(HX.TextureFilter.NEAREST_NOMIP);
     this._ditherTexture.setWrapMode(HX.TextureWrapMode.REPEAT);

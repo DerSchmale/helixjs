@@ -38,9 +38,9 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 	//approximated fresnel-based energy conservation
 	diffuseColor = irradiance;
 
-	specularColor = .25 * irradiance * fresnel * distribution * visibility;
+	specularColor = .25 * irradiance * fresnel * distribution;
 
-	#ifdef VISIBILITY
-        float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);
-    #endif
+#ifdef VISIBILITY
+    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);
+#endif
 }

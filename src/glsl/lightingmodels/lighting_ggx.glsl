@@ -40,6 +40,6 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 	specularColor = .25 * irradiance * fresnel * distribution;
 
 #ifdef VISIBILITY
-    float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);
+    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);
 #endif
 }

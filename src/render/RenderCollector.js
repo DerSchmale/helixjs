@@ -52,6 +52,16 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
     }
 
     this._lights.sort(this._sortLights);
+
+    var effects = this._camera._effects;
+    // add camera effects at the end
+    if (effects) {
+        var len = effects.length;
+
+        for (var i = 0; i < len; ++i) {
+            this._effects.push(effects[i]);
+        }
+    }
 };
 
 HX.RenderCollector.prototype.qualifies = function(object)
@@ -71,7 +81,7 @@ HX.RenderCollector.prototype.visitScene = function (scene)
 
 HX.RenderCollector.prototype.visitEffects = function(effects, ownerNode)
 {
-    if (ownerNode == this._camera) return;
+    if (ownerNode === this._camera) return;
     var len = effects.length;
 
     for (var i = 0; i < len; ++i) {

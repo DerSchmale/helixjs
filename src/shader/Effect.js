@@ -105,7 +105,7 @@ HX.Effect.prototype =
         var len = this._passes.length;
 
         for (var i = 0; i < len; ++i) {
-            HX.setRenderTarget(this._getPingPongBackBufferFBO());
+            HX.swapRenderTarget(this._getPingPongBackBufferFBO());
             this._drawPass(passes[i]);
             this._swapHDRBuffers();
         }

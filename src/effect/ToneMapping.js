@@ -56,14 +56,16 @@ HX.ToneMapEffect.prototype.draw = function(dt)
         HX.GL.blendFunc(HX.GL.CONSTANT_ALPHA, HX.GL.ONE_MINUS_CONSTANT_ALPHA);
         HX.GL.blendColor(1.0, 1.0, 1.0, amount);
 
-        HX.setRenderTarget(this._luminanceFBO);
+        HX.pushRenderTarget(this._luminanceFBO);
         HX.GL.viewport(0, 0, this._luminanceFBO._width, this._luminanceFBO._height);
         this._drawPass(this._extractLuminancePass);
         this._luminanceMap.generateMipmap();
         HX.GL.disable(HX.GL.BLEND);
+        HX.popRenderTarget(this._luminanceFBO);
     }
 
-    HX.setRenderTarget(this._getPingPongBackBufferFBO());
+    // TODO: not optimal, render target gets set twice here, after popping
+    HX.swapRenderTarget(this._getPingPongBackBufferFBO());
     HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
     this._drawPass(this._toneMapPass);
     this._swapHDRBuffers();

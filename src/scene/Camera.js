@@ -78,6 +78,7 @@ HX.Camera = function()
 {
     HX.BoundingHierarchyNode.call(this);
 
+    // visitor should not collect effects, they will be added separately!
     this._renderTargetWidth = 0;
     this._renderTargetHeight = 0;
     this._viewProjectionMatrixInvalid = true;

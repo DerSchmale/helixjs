@@ -7,6 +7,7 @@ var del = require('del');
 
 var sourceFiles = [
     "src/Helix.js",
+    "src/render/GL.js",
     "./build/tmp/*.js",
     "src/shader/glslinclude.js",
 
@@ -20,8 +21,6 @@ var sourceFiles = [
     "src/scene/Scene.js",
     "src/scene/Light.js",
     "src/render/SceneVisitor.js",
-    //"src/render/Renderer.js",
-    //"src/render/Renderer.js",
 
     "src/shader/*.js",
     "src/material/*.js",

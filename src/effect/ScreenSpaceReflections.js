@@ -117,8 +117,9 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
         this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
     }
 
-    HX.setRenderTarget(this._fbo);
+    HX.pushRenderTarget(this._fbo);
     HX.GL.viewport(0, 0, w, h);
     this._drawPass(this._pass);
     HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
+    HX.popRenderTarget();
 };

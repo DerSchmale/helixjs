@@ -160,7 +160,7 @@ HX.CascadeShadowMapRenderer.prototype =
         this._collectShadowCasters(scene);
         this._updateCascadeCameras(viewCamera, this._casterCollector.getBounds());
 
-        HX.setRenderTarget(this._fbo);
+        HX.pushRenderTarget(this._fbo);
 
         var passType;
         if (HX.MaterialPass.SHADOW_MAP_PASS === -1) {
@@ -179,6 +179,8 @@ HX.CascadeShadowMapRenderer.prototype =
             HX.GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
             HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
         }
+
+        HX.popRenderTarget();
     },
 
     _updateCollectorCamera: function(viewCamera)

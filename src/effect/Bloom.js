@@ -86,8 +86,6 @@ HX.BloomEffect = function(blurSizes, weights)
     }
 
     this._compositePass.setTexture("bloomTexture", this._thresholdMaps[0]);
-
-    this._scaledDownPasses = [ this._thresholdPass, this._blurXPass, this._blurYPass ];
 };
 
 HX.BloomEffect.prototype = Object.create(HX.Effect.prototype);
@@ -113,8 +111,8 @@ HX.BloomEffect.prototype._initBlurPass = function()
     var width = this._targetWidth / this._downScale;
     var height = this._targetHeight / this._downScale;
     // direction used to provide step size
-    this._scaledDownPasses[1] = this._blurXPass = new HX.BloomBlurPass(sizesX, this._weights, 1, 0, width, height);
-    this._scaledDownPasses[2] = this._blurYPass = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
+    this._blurXPass = new HX.BloomBlurPass(sizesX, this._weights, 1, 0, width, height);
+    this._blurYPass = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
     this._blurXPass.setTexture("sourceTexture", this._thresholdMaps[0]);
     this._blurYPass.setTexture("sourceTexture", this._thresholdMaps[1]);
 };
@@ -128,16 +126,23 @@ HX.BloomEffect.prototype.draw = function(dt)
         this._initBlurPass();
     }
 
-    var targetIndex = 0;
     HX.GL.viewport(0, 0, this._thresholdMaps[0]._width, this._thresholdMaps[0]._height);
 
-    for (var i = 0; i < 3; ++i) {
-        HX.setRenderTarget(this._smallFBOs[targetIndex]);
-        this._drawPass(this._scaledDownPasses[i]);
-        targetIndex = 1 - targetIndex;
+    HX.pushRenderTarget(this._smallFBOs[0]);
+    {
+        this._drawPass(this._thresholdPass);
+
+        HX.pushRenderTarget(this._smallFBOs[1]);
+        {
+            this._drawPass(this._blurXPass);
+        }
+        HX.popRenderTarget();
+
+        this._drawPass(this._blurYPass);
     }
 
-    HX.setRenderTarget(this._getCurrentBackBufferFBO());
+    HX.popRenderTarget();
+
     HX.GL.enable(HX.GL.BLEND);
     HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
     HX.GL.viewport(0, 0, this._targetWidth, this._targetHeight);

@@ -30,6 +30,6 @@ HX.ReadOnlyDepthBuffer.prototype = {
 
     dispose: function()
     {
-        HX.GL.deleteRenderBuffer(this._fbo);
+        HX.GL.deleteRenderBuffer(this._renderBuffer);
     }
 };

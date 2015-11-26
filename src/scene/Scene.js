@@ -25,15 +25,36 @@ HX.SceneNode = function()
 
 HX.SceneNode.prototype = Object.create(HX.Transform.prototype);
 
-Object.defineProperty(HX.SceneNode.prototype, "effects", {
-    get: function()
-    {
-        return this._effects;
+Object.defineProperties(HX.SceneNode.prototype, {
+    effects: {
+        get: function ()
+        {
+            return this._effects;
+        },
+
+        set: function (value)
+        {
+            this._effects = value;
+        }
     },
 
-    set: function(value)
-    {
-        this._effects = value;
+    showDebugBounds: {
+        get: function ()
+        {
+            this._debugBounds !== null
+        },
+        set: function(value)
+        {
+            if (this.showDebugBounds === value) return;
+
+            if (value) {
+                this._debugBounds = new HX.ModelNode(this._worldBounds.getDebugModelInstance());
+                this._debugBounds.setTransform(null);
+                this._updateDebugBounds();
+            }
+            else
+                this._debugBounds = null;
+        }
     }
 });
 
@@ -71,24 +92,6 @@ HX.SceneNode.prototype.acceptVisitor = function(visitor)
 
     if (this._debugBounds)
         this._debugBounds.acceptVisitor(visitor);
-};
-
-HX.SceneNode.prototype.getShowDebugBounds = function()
-{
-    return this._debugBounds !== null;
-};
-
-HX.SceneNode.prototype.setShowDebugBounds = function(value)
-{
-    if (this.getShowDebugBounds() === value) return;
-
-    if (value) {
-        this._debugBounds = new HX.ModelNode(this._worldBounds.getDebugModelInstance());
-        this._debugBounds.setTransform(null);
-        this._updateDebugBounds();
-    }
-    else
-        this._debugBounds = null;
 };
 
 HX.SceneNode.prototype._invalidateTransformationMatrix = function ()

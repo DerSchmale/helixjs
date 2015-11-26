@@ -125,18 +125,19 @@ HX.SSAO.prototype.draw = function(dt)
 
     HX.GL.viewport(0, 0, w, h);
 
-    HX.setRenderTarget(this._fbo1);
+    HX.pushRenderTarget(this._fbo1);
     this._drawPass(this._ssaoPass);
 
-    HX.setRenderTarget(this._fbo2);
+    HX.pushRenderTarget(this._fbo2);
     this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
     this._sourceTextureSlot.texture = this._ssaoTexture;
     this._drawPass(this._blurPass);
+    HX.popRenderTarget();
 
-    HX.setRenderTarget(this._fbo1);
     this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
     this._sourceTextureSlot.texture = this._backTexture;
     this._drawPass(this._blurPass);
+    HX.popRenderTarget();
 
     HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
 };

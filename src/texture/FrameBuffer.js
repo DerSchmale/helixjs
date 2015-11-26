@@ -38,7 +38,8 @@ HX.FrameBuffer.prototype = {
      */
     init: function()
     {
-        HX.setRenderTarget(this);
+        // for initialization, important
+        HX.pushRenderTarget(this);
 
         if (this._colorTextures) {
             this._width = this._colorTextures[0]._width;
@@ -87,7 +88,7 @@ HX.FrameBuffer.prototype = {
                 break;
         }
 
-        HX.setRenderTarget(null);
+        HX.popRenderTarget();
     },
 
     dispose: function()

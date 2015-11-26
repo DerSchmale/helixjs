@@ -21,7 +21,7 @@ HX.Light.prototype = Object.create(HX.SceneNode.prototype);
 HX.Light.prototype.getTypeID = function()
 {
     throw "Light is not registered! Be sure to pass the light type into the customLights array upon Helix initialization.";
-}
+};
 
 HX.Light.prototype.acceptVisitor = function (visitor)
 {
@@ -29,33 +29,35 @@ HX.Light.prototype.acceptVisitor = function (visitor)
     visitor.visitLight(this);
 };
 
-Object.defineProperty(HX.Light.prototype, "intensity", {
-    get: function()
-    {
-        return this._intensity;
+Object.defineProperties(HX.Light.prototype, {
+    intensity: {
+        get: function ()
+        {
+            return this._intensity;
+        },
+
+        set: function (value)
+        {
+            this._intensity = value;
+            this._updateScaledIrradiance();
+        }
     },
 
-    set: function(value)
-    {
-        this._intensity = value;
-        this._updateScaledIrradiance();
-    }
-});
+    color: {
+        get: function ()
+        {
+            return this._color;
+        },
 
-Object.defineProperty(HX.Light.prototype, "color", {
-    get: function()
-    {
-        return this._color;
-    },
-
-    /**
-     * Value can be hex or
-     * @param value
-     */
-    set: function(value)
-    {
-        this._color = isNaN(value) ? value : new HX.Color(value);
-        this._updateScaledIrradiance();
+        /**
+         * Value can be hex or
+         * @param value
+         */
+        set: function (value)
+        {
+            this._color = isNaN(value) ? value : new HX.Color(value);
+            this._updateScaledIrradiance();
+        }
     }
 });
 

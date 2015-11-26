@@ -53,10 +53,6 @@ HX.ShaderLibrary = {
     }
 };
 
-// properties to keep track of render state
-HX._numActiveAttributes = 0;
-HX._numActiveTextures = 0;
-
 /**
  * Initializes Helix and creates a WebGL context from a given canvas
  * @param canvas The canvas to create the gl context from.
@@ -168,6 +164,8 @@ HX.init = function(canvas, options)
     HX.DEFAULT_TEXTURE_CUBE.uploadData([data, data, data, data, data, data], 1, true);
     HX.DEFAULT_TEXTURE_CUBE.setFilter(HX.TextureFilter.NEAREST_NOMIP);
 
+    HX.BlendState._initDefaults();
+
     // TODO: Pregenerate
     var poissonDisk = new HX.PoissonDisk();
     var poissonSphere = new HX.PoissonSphere();
@@ -195,9 +193,7 @@ HX.init = function(canvas, options)
 
     HX.DEFAULT_RECT_MESH = HX.RectMesh.create();
 
-    HX.pushRenderTarget(null);
-
-    HX.GL.clearColor(0, 0, 0, 1);
+    HX.setClearColor(HX.Color.BLACK);
 };
 
 

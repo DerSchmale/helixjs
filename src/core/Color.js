@@ -73,3 +73,12 @@ HX.Color.prototype =
         return target;
     }
 };
+
+HX.Color.BLACK = new HX.Color(0, 0, 0, 1);
+HX.Color.RED = new HX.Color(1, 0, 0, 1);
+HX.Color.GREEN = new HX.Color(0, 1, 0, 1);
+HX.Color.BLUE = new HX.Color(0, 0, 1, 1);
+HX.Color.YELLOW = new HX.Color(1, 1, 0, 1);
+HX.Color.MAGENTA = new HX.Color(1, 0, 1, 1);
+HX.Color.CYAN = new HX.Color(0, 1, 1, 1);
+HX.Color.WHITE = new HX.Color(1, 1, 1, 1);

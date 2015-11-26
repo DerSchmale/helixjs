@@ -131,8 +131,6 @@ HX.Renderer.prototype =
         this._updateSize();
 
         HX.GL.enable(HX.GL.DEPTH_TEST);
-        HX.GL.enable(HX.GL.CULL_FACE);
-        HX.GL.cullFace(HX.GL.BACK);
         HX.GL.depthFunc(HX.GL.LESS);
 
         camera._setRenderTargetResolution(this._width, this._height);
@@ -151,7 +149,6 @@ HX.Renderer.prototype =
         }
         HX.popRenderTarget();
 
-        HX.GL.disable(HX.GL.CULL_FACE);
         HX.GL.disable(HX.GL.DEPTH_TEST);
 
         this._renderToScreen(dt);
@@ -180,12 +177,11 @@ HX.Renderer.prototype =
     {
         HX.GL.enable(HX.GL.STENCIL_TEST);
         HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
-        HX.GL.clearColor(0, 0, 0, 1);
+        HX.setClearColor(HX.Color.BLACK);
         this._renderToGBuffer();
+
         HX.GL.disable(HX.GL.STENCIL_TEST);
         this._linearizeDepth();
-
-        HX.GL.disable(HX.GL.BLEND);
 
         // only render AO for non-transparents
         if (this._aoEffect !== null)
@@ -249,7 +245,7 @@ HX.Renderer.prototype =
                 HX.RenderUtils.switchPass(this, null, pass);
                 meshInstance.updateRenderState(passType);
 
-                HX.GL.drawElements(pass._elementType, meshInstance._mesh.numIndices(), HX.GL.UNSIGNED_SHORT, 0);
+                HX.drawElements(pass._elementType, meshInstance._mesh.numIndices(), 0);
 
                 if (!HX.EXT_DRAW_BUFFERS)
                     HX.popRenderTarget();
@@ -267,23 +263,18 @@ HX.Renderer.prototype =
             this._renderLightAccumulation();
             HX.popRenderTarget();
 
-            HX.GL.enable(HX.GL.BLEND);
-            HX.GL.blendEquation(HX.GL.FUNC_ADD);
-
             switch (transparencyMode) {
                 case HX.TransparencyMode.ADDITIVE:
-                    HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
+                    HX.setBlendState(HX.BlendState.ADD);
                     this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._hdrBack.texture);
                     break;
                 case HX.TransparencyMode.ALPHA:
-                    HX.GL.blendFunc(HX.GL.SRC_ALPHA, HX.GL.ONE_MINUS_SRC_ALPHA);
+                    HX.setBlendState(HX.BlendState.ALPHA);
                     this._applyAlphaTransparency.execute(HX.DEFAULT_RECT_MESH, this._hdrBack.texture, this._gbuffer[0]);
                     break;
             }
 
             HX.popRenderTarget();
-
-            HX.GL.disable(HX.GL.BLEND);
         }
 
         HX.GL.disable(HX.GL.STENCIL_TEST);
@@ -300,7 +291,7 @@ HX.Renderer.prototype =
     _renderToGBufferMRT: function ()
     {
         HX.pushRenderTarget(this._gbufferFBO);
-        HX.GL.clear(HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT | HX.GL.STENCIL_BUFFER_BIT);
+        HX.clear();
         this._renderPass(HX.MaterialPass.GEOMETRY_PASS);
         HX.popRenderTarget();
     },
@@ -312,7 +303,7 @@ HX.Renderer.prototype =
 
         for (var i = 0; i < 3; ++i) {
             HX.pushRenderTarget(this._gbufferSingleFBOs[i]);
-            HX.GL.clear(clearMask);
+            HX.clear(clearMask);
             this._renderPass(passIndices[i]);
 
             if (i == 0) {
@@ -327,7 +318,6 @@ HX.Renderer.prototype =
     _linearizeDepth: function ()
     {
         HX.GL.disable(HX.GL.DEPTH_TEST);
-        HX.GL.disable(HX.GL.CULL_FACE);
 
         HX.pushRenderTarget(this._linearDepthFBO);
         this._linearizeDepthShader.execute(HX.DEFAULT_RECT_MESH, HX.EXT_DEPTH_TEXTURE ? this._depthBuffer : this._gbuffer[1], this._camera);
@@ -342,6 +332,7 @@ HX.Renderer.prototype =
 
     _renderToScreen: function (dt)
     {
+        HX.setBlendState(null);
         switch (this._debugMode) {
             case HX.DebugRenderMode.DEBUG_COLOR:
                 this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[0]);
@@ -393,19 +384,13 @@ HX.Renderer.prototype =
 
     _renderLightAccumulation: function ()
     {
-        HX.GL.disable(HX.GL.CULL_FACE);
         HX.GL.disable(HX.GL.DEPTH_TEST);
         HX.GL.depthMask(false);
 
-        HX.GL.enable(HX.GL.BLEND);
-        HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
-        HX.GL.blendEquation(HX.GL.FUNC_ADD);
-
-        HX.GL.clear(HX.GL.COLOR_BUFFER_BIT);
+        HX.clear(HX.GL.COLOR_BUFFER_BIT);
         this._renderDirectLights();
         this._renderGlobalIllumination();
 
-        HX.GL.disable(HX.GL.BLEND);
         HX.GL.depthMask(true);
     },
 
@@ -422,22 +407,19 @@ HX.Renderer.prototype =
 
     _renderGlobalIllumination: function ()
     {
-        HX.GL.disable(HX.GL.CULL_FACE);
-
         if (this._renderCollector._globalIrradianceProbe)
             this._renderCollector._globalIrradianceProbe.render(this);
 
         if (this._ssrEffect != null) {
-            HX.GL.disable(HX.GL.BLEND);
             this._ssrEffect.sourceTexture = HX.getCurrentRenderTarget()._colorTextures[0];
             this._ssrEffect.render(this, 0);
-            HX.GL.enable(HX.GL.BLEND);
         }
 
-        if (this._renderCollector._globalSpecularProbe)
+        if (this._renderCollector._globalSpecularProbe) {
             this._renderCollector._globalSpecularProbe.render(this);
+        }
         else if (this._ssrEffect) {
-            HX.GL.blendFunc(HX.GL.SRC_ALPHA, HX.GL.ONE);
+            HX.setBlendState(HX.BlendState.ADD_WITH_ALPHA);
             this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._ssrTexture);
         }
     },
@@ -452,9 +434,8 @@ HX.Renderer.prototype =
     _copySource: function ()
     {
         HX.pushRenderTarget(HX.pushRenderTarget(this._hdrBack.fbo));
-        HX.GL.disable(HX.GL.BLEND);
+        HX.setBlendState(null);
         HX.GL.disable(HX.GL.DEPTH_TEST);
-        HX.GL.disable(HX.GL.CULL_FACE);
         this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._hdrFront.texture);
         HX.popRenderTarget();
     },
@@ -472,7 +453,6 @@ HX.Renderer.prototype =
         if (copySource)
             this._copySource();
 
-        HX.GL.enable(HX.GL.CULL_FACE);
         HX.GL.enable(HX.GL.DEPTH_TEST);
         HX.GL.depthFunc(HX.GL.LEQUAL);
 
@@ -486,7 +466,6 @@ HX.Renderer.prototype =
             return;
 
         HX.GL.disable(HX.GL.DEPTH_TEST);
-        HX.GL.disable(HX.GL.CULL_FACE);
 
         var len = effects.length;
 

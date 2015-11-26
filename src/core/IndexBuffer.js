@@ -5,7 +5,7 @@
 HX.IndexBuffer = function()
 {
     this._buffer = HX.GL.createBuffer();
-}
+};
 
 HX.IndexBuffer.prototype = {
     constructor: HX.IndexBuffer,
@@ -39,4 +39,4 @@ HX.IndexBuffer.prototype = {
     {
         HX.GL.bindBuffer(HX.GL.ELEMENT_ARRAY_BUFFER, this._buffer);
     }
-}
+};

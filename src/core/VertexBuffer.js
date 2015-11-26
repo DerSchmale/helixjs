@@ -5,7 +5,7 @@
 HX.VertexBuffer = function()
 {
     this._buffer = HX.GL.createBuffer();
-}
+};
 
 HX.VertexBuffer.prototype = {
     constructor: HX.VertexBuffer,
@@ -39,4 +39,4 @@ HX.VertexBuffer.prototype = {
     {
         HX.GL.bindBuffer(HX.GL.ARRAY_BUFFER, this._buffer);
     }
-}
+};

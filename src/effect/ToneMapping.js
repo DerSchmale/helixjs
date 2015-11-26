@@ -14,6 +14,7 @@ HX.ToneMapEffect = function(adaptive)
 
     if (this._adaptive) {
         this._extractLuminancePass = new HX.EffectPass(null, HX.ShaderLibrary.get("tonemap_reference_fragment.glsl"));
+        this._extractLuminancePass.blendState = new HX.BlendState(HX.GL.CONSTANT_ALPHA, HX.GL.ONE_MINUS_CONSTANT_ALPHA, HX.GL.ADD, new HX.Color(1.0, 1.0, 1.0, 1.0));
 
         this._luminanceMap = new HX.Texture2D();
         this._luminanceMap.initEmpty(256, 256, HX.GL.RGBA, HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
@@ -34,7 +35,7 @@ HX.ToneMapEffect.prototype = Object.create(HX.Effect.prototype);
 HX.ToneMapEffect.prototype._createToneMapPass = function()
 {
     throw new Error("Abstract method called!");
-}
+};
 
 
 HX.ToneMapEffect.prototype.dispose = function()
@@ -52,14 +53,11 @@ HX.ToneMapEffect.prototype.draw = function(dt)
         var amount = this._adaptationRate > 0 ? dt / this._adaptationRate : 1.0;
         if (amount > 1) amount = 1;
 
-        HX.GL.enable(HX.GL.BLEND);
-        HX.GL.blendFunc(HX.GL.CONSTANT_ALPHA, HX.GL.ONE_MINUS_CONSTANT_ALPHA);
-        HX.GL.blendColor(1.0, 1.0, 1.0, amount);
+        this._extractLuminancePass.blendState.color.w = amount;
 
         HX.pushRenderTarget(this._luminanceFBO);
         this._drawPass(this._extractLuminancePass);
         this._luminanceMap.generateMipmap();
-        HX.GL.disable(HX.GL.BLEND);
         HX.popRenderTarget(this._luminanceFBO);
     }
 

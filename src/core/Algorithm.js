@@ -16,4 +16,4 @@ HX.shuffle = function(array)
     }
 
     return array;
-}
+};

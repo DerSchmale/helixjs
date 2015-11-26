@@ -10,7 +10,7 @@ HX.MeshData = function ()
     this.vertexUsage = HX.GL.STATIC_DRAW;
     this.indexUsage = HX.GL.STATIC_DRAW;
     this._vertexAttributes = [];
-}
+};
 
 HX.MeshData.DEFAULT_VERTEX_SIZE = 12;
 HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE = 13;
@@ -84,7 +84,7 @@ HX.MeshData.prototype = {
     {
         return this._vertexStride;
     }
-}
+};
 
 /**
  *
@@ -105,7 +105,7 @@ HX.Mesh = function (meshData)
 
     this._vertexAttributes = meshData._vertexAttributes;
     this._renderOrderHint = ++HX.Mesh.ID_COUNTER;
-}
+};
 
 HX.Mesh.ID_COUNTER = 0;
 
@@ -138,7 +138,7 @@ HX.Mesh.prototype = {
     {
         return this._vertexAttributes[index];
     }
-}
+};
 
 /**
  *
@@ -147,7 +147,7 @@ HX.Mesh.prototype = {
 HX.ModelData = function ()
 {
     this._meshDataList = [];
-}
+};
 
 HX.ModelData.prototype = {
     constructor: HX.ModelData,
@@ -164,7 +164,7 @@ HX.ModelData.prototype = {
     {
         this._meshDataList.push(meshData);
     }
-}
+};
 
 /**
  *
@@ -182,7 +182,7 @@ HX.Model = function (modelData)
     }
     else
         this._meshes = [];
-}
+};
 
 HX.Model.prototype = {
     constructor: HX.Model,

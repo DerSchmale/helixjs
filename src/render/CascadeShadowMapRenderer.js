@@ -164,11 +164,11 @@ HX.CascadeShadowMapRenderer.prototype =
 
         var passType;
         if (HX.MaterialPass.SHADOW_MAP_PASS === -1) {
-            HX.GL.clear(HX.GL.DEPTH_BUFFER_BIT);
+            HX.clear(HX.GL.DEPTH_BUFFER_BIT);
             passType = HX.MaterialPass.GEOMETRY_COLOR_PASS;
         }
         else {
-            HX.GL.clearColor(1, 1, 1, 1);
+            HX.setClearColor(HX.Color.WHITE);
             HX.clear();
             passType = HX.MaterialPass.SHADOW_MAP_PASS;
         }
@@ -384,10 +384,10 @@ HX.CascadeShadowMapRenderer.prototype =
         this._shadowMapInvalid = false;
 
         this._viewports = [];
-        this._viewports.push({x: 0, y: 0, width: this._shadowMapSize, height: this._shadowMapSize});
-        this._viewports.push({x: this._shadowMapSize, y: 0, width: this._shadowMapSize, height: this._shadowMapSize});
-        this._viewports.push({x: 0, y: this._shadowMapSize, width: this._shadowMapSize, height: this._shadowMapSize});
-        this._viewports.push({x: this._shadowMapSize, y: this._shadowMapSize, width: this._shadowMapSize, height: this._shadowMapSize});
+        this._viewports.push(new HX.Rect(0, 0, this._shadowMapSize, this._shadowMapSize));
+        this._viewports.push(new HX.Rect(this._shadowMapSize, 0, this._shadowMapSize, this._shadowMapSize));
+        this._viewports.push(new HX.Rect(0, this._shadowMapSize, this._shadowMapSize, this._shadowMapSize));
+        this._viewports.push(new HX.Rect(this._shadowMapSize, this._shadowMapSize, this._shadowMapSize, this._shadowMapSize));
 
         this._initViewportMatrices(1.0 / numMapsW, 1.0 / numMapsH);
     },

@@ -9,6 +9,7 @@ HX.EffectPass = function(vertexShader, fragmentShader)
     this._uniformSetters = HX.UniformSetter.getSetters(this._shader);
     this._gbuffer = null;
     this._vertexLayout = null;
+    this._cullMode = HX.CullMode.NONE;
     this.setMesh(HX.DEFAULT_RECT_MESH);
 
     this.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
@@ -77,7 +78,7 @@ HX.Effect.prototype =
     _drawPass: function(pass)
     {
         pass.updateRenderState(this._renderer);
-        HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
+        HX.drawElements(HX.GL.TRIANGLES, 6, 0);
     },
 
     /**

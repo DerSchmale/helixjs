@@ -49,7 +49,7 @@ HX.AmbientLight.prototype.renderBatch = function(lightCollection, startIndex, re
     HX.GL.uniform3f(this._colorLocation, colorR, colorG, colorB);
 
     // render rect mesh
-    HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
 
     return i;
 };
@@ -70,6 +70,8 @@ HX.AmbientLight.prototype._initLightPass =  function()
         HX.ShaderLibrary.get("ambient_light_vertex.glsl"),
         HX.ShaderLibrary.get("ambient_light_fragment.glsl", defines)
     );
+
+    pass.blendState = HX.BlendState.ADD;
 
     this._colorLocation = pass.getUniformLocation("lightColor");
 

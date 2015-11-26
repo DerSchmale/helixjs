@@ -69,7 +69,7 @@ HX.BoundingVolume._testAABBToSphere = function(aabb, sphere)
     }
 
     return dot < radius * radius;
-}
+};
 
 HX.BoundingVolume.prototype =
 {
@@ -215,7 +215,7 @@ HX.BoundingAABB.prototype.growToIncludeBound = function(bounds)
     }
 
     this._updateCenterAndExtent();
-}
+};
 
 HX.BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
 {
@@ -369,7 +369,7 @@ HX.BoundingAABB.prototype.setExplicit = function(min, max)
     this._maximumZ = max.z;
     this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
     this._updateCenterAndExtent();
-}
+};
 
 HX.BoundingAABB.prototype._updateCenterAndExtent = function()
 {

@@ -104,4 +104,4 @@ HX.SpherePrimitive.create = function(definition)
     modelData.addMeshData(data);
 
     return new HX.Model(modelData);
-}
+};

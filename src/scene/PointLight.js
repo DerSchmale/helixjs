@@ -93,7 +93,7 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
     HX.GL.uniform2fv(HX.PointLight._sphericalAttenuationFixFactorsLocation, attData);
     HX.GL.uniform1fv(HX.PointLight._sphericalLightRadiusLocation, radiusData);
 
-    HX.GL.drawElements(HX.GL.TRIANGLES, HX.PointLight.NUM_SPHERE_INDICES * (end - startIndex), HX.GL.UNSIGNED_SHORT, 0);
+    HX.drawElements(HX.GL.TRIANGLES, HX.PointLight.NUM_SPHERE_INDICES * (end - startIndex), 0);
 
     return end;
 };
@@ -107,6 +107,8 @@ HX.PointLight.prototype.initFullScreenPass = function (passIndex)
         HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl", defines),
         HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl", defines)
     );
+    pass.blendState = HX.BlendState.ADD;
+
     HX.PointLight._fullScreenPositionLocations[passIndex] = pass.getUniformLocation("lightViewPosition[0]");
     HX.PointLight._fullScreenColorLocations[passIndex] = pass.getUniformLocation("lightColor[0]");
     HX.PointLight._fullScreenAttenuationFixFactorsLocations[passIndex] = pass.getUniformLocation("attenuationFixFactors[0]");
@@ -165,7 +167,7 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
     HX.GL.uniform3fv(HX.PointLight._fullScreenColorLocations[passIndex], colorData);
     HX.GL.uniform2fv(HX.PointLight._fullScreenAttenuationFixFactorsLocations[passIndex], attData);
 
-    HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
 
     return end;
 };
@@ -211,6 +213,8 @@ HX.PointLight.prototype._initLightPasses =  function()
         HX.ShaderLibrary.get("point_light_spherical_vertex.glsl", defines),
         HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_spherical_fragment.glsl", defines)
     );
+
+    pass.blendState = HX.BlendState.ADD;
 
     // do not use rect
     pass.setMesh(HX.PointLight._sphereMesh);

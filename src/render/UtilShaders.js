@@ -21,7 +21,7 @@ HX.CustomCopyShader.prototype = Object.create(HX.Shader.prototype);
 HX.CustomCopyShader.prototype.execute = function(rect, texture)
 {
     HX.GL.disable(HX.GL.DEPTH_TEST);
-    HX.GL.disable(HX.GL.CULL_FACE);
+    HX.setCullMode(HX.CullMode.NONE);
 
     rect._vertexBuffer.bind();
     rect._indexBuffer.bind();
@@ -35,7 +35,7 @@ HX.CustomCopyShader.prototype.execute = function(rect, texture)
 
     HX.enableAttributes(2);
 
-    HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
 };
 
 
@@ -83,7 +83,7 @@ HX.CopyWithSeparateAlpha.prototype = Object.create(HX.Shader.prototype);
 HX.CopyWithSeparateAlpha.prototype.execute = function(rect, texture, alphaTexture)
 {
     HX.GL.disable(HX.GL.DEPTH_TEST);
-    HX.GL.disable(HX.GL.CULL_FACE);
+    HX.setCullMode(HX.CullMode.NONE);
 
     rect._vertexBuffer.bind();
     rect._indexBuffer.bind();
@@ -98,7 +98,7 @@ HX.CopyWithSeparateAlpha.prototype.execute = function(rect, texture, alphaTextur
 
     HX.enableAttributes(2);
 
-    HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
 };
 
 /**
@@ -160,7 +160,8 @@ HX.LinearizeDepthShader.prototype = Object.create(HX.Shader.prototype);
 HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera)
 {
     HX.GL.disable(HX.GL.DEPTH_TEST);
-    HX.GL.disable(HX.GL.CULL_FACE);
+    HX.setCullMode(HX.CullMode.NONE);
+    HX.setBlendState(null);
 
     rect._vertexBuffer.bind();
     rect._indexBuffer.bind();
@@ -176,5 +177,5 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera)
 
     HX.enableAttributes(2);
 
-    HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
 };

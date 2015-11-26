@@ -36,4 +36,4 @@ HX.Skybox.prototype =
     {
         this._globalIrradianceProbe = value;
     }
-}
+};

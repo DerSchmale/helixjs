@@ -248,4 +248,4 @@ HX.Quaternion.prototype = {
         this.product(this, q);
     }
 
-}
+};

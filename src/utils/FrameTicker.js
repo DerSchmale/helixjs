@@ -38,7 +38,7 @@ HX.FrameTicker = function()
     this._callback = undefined;
     this._dt = 0;
     this._currentTime = 0;
-}
+};
 
 HX.FrameTicker.prototype = {
     constructor: HX.FrameTicker,
@@ -94,4 +94,4 @@ HX.FrameTicker.prototype = {
         else
             return self.performance.now();
     }
-}
+};

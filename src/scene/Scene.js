@@ -41,7 +41,7 @@ Object.defineProperties(HX.SceneNode.prototype, {
     showDebugBounds: {
         get: function ()
         {
-            this._debugBounds !== null
+            return this._debugBounds !== null
         },
         set: function(value)
         {
@@ -64,7 +64,7 @@ HX.SceneNode.prototype.setTransformationMatrix = function(matrix)
     HX.Transform.prototype.setTransformationMatrix.call(this, matrix);
 
     this._invalidateWorldTransformationMatrix();
-}
+};
 
 HX.SceneNode.prototype.getWorldMatrix = function()
 {

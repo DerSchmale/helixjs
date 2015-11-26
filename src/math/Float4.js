@@ -16,7 +16,7 @@ HX.Float4 = function(x, y, z, w)
     this.y = y || 0;
     this.z = z || 0;
     this.w = w === undefined? 1 : w;
-}
+};
 
 
 /**
@@ -61,7 +61,7 @@ HX.Float4.scale = function(a, s)
         a.z * s,
         a.w * s
     );
-}
+};
 
 HX.Float4.prototype = {
     constructor: HX.Float4,
@@ -259,7 +259,7 @@ HX.Float4.prototype = {
         if (b.y < this.y) this.y = b.y;
         if (b.z < this.z) this.z = b.z;
     }
-}
+};
 
 HX.Float4.ORIGIN_POINT = new HX.Float4(0, 0, 0, 1);
 HX.Float4.ZERO = new HX.Float4(0, 0, 0, 0);

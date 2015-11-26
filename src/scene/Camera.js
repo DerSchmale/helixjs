@@ -12,7 +12,7 @@ HX.Frustum = function()
 
     for (var i = 0; i < 8; ++i)
         this._corners[i] = new HX.Float4();
-}
+};
 
 HX.Frustum.PLANE_LEFT = 0;
 HX.Frustum.PLANE_RIGHT = 1;

@@ -48,7 +48,7 @@ HX.Float2.scale = function(a, s)
         a.x * s,
         a.y * s
     );
-}
+};
 
 HX.Float2.prototype = {
     constructor: HX.Float2,
@@ -169,7 +169,7 @@ HX.Float2.prototype = {
         if (b.x < this.x) this.x = b.x;
         if (b.y < this.y) this.y = b.y;
     }
-}
+};
 
 HX.Float2.ZERO = new HX.Float2(0, 0);
 HX.Float2.X_AXIS = new HX.Float2(1, 0);

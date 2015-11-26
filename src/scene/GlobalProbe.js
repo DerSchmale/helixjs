@@ -39,7 +39,7 @@ HX.GlobalSpecularProbe.prototype.render = function(renderer)
     }
 
     // render rect mesh
-    HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
 };
 
 HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
@@ -68,6 +68,8 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
         HX.ShaderLibrary.get("global_specular_probe_vertex.glsl"),
         HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines)
     );
+
+    pass.blendState = HX.BlendState.ADD;
 
     this._numMipsLocation = pass.getUniformLocation("numMips");
 
@@ -108,7 +110,7 @@ HX.GlobalIrradianceProbe.prototype.render = function(renderer)
     this._pass.updateRenderState(renderer);
 
     // render rect mesh
-    HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
 };
 
 HX.GlobalIrradianceProbe.prototype._updateWorldBounds = function()
@@ -128,6 +130,8 @@ HX.GlobalIrradianceProbe.prototype._initPass = function()
         HX.ShaderLibrary.get("global_irradiance_probe_vertex.glsl"),
         HX.ShaderLibrary.get("global_irradiance_probe_fragment.glsl", defines)
     );
+
+    pass.blendState = HX.BlendState.ADD;
 
     pass.setTexture("irradianceProbeSampler", this._texture);
 

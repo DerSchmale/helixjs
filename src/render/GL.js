@@ -2,40 +2,61 @@
 
 // Will become an abstraction layer
 
-HX._renderTargetStack = [];
+// properties to keep track of render state
+HX._numActiveAttributes = 0;
+HX._numActiveTextures = 0;
+
+HX._renderTargetStack = [ null ];
+HX._renderTargetInvalid = true;
+
+HX._viewport = {x: 0, y: 0, width: 0, height: 0};
+HX._viewportInvalid = true;
+
+HX._cullMode = null;
+HX._cullModeInvalid = false;
+
+HX._blendState = null;
+HX._blendStateInvalid = false;
 
 
 /**
  * Default clearing function. Can be called if no special clearing functionality is needed (or in case another api is used that clears)
  * Otherwise, you can manually clear using GL context.
  */
-HX.clear = function()
+HX.clear = function(clearMask)
 {
-    HX.GL.clear(HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT | HX.GL.STENCIL_BUFFER_BIT);
+    if (clearMask === undefined)
+        clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT | HX.GL.STENCIL_BUFFER_BIT;
+
+    HX._updateRenderState();
+    HX.GL.clear(clearMask);
 };
 
-HX.unbindTextures = function()
+HX.drawElements = function(elementType, numIndices, offset)
 {
-    for (var i = 0; i < HX._numActiveTextures; ++i) {
-        HX.GL.activeTexture(HX.GL.TEXTURE0 + i);
-        HX.GL.bindTexture(HX.GL.TEXTURE_2D, null);
-    }
-
-    HX._numActiveTextures = 0;
+    HX._updateRenderState();
+    HX.GL.drawElements(elementType, numIndices, HX.GL.UNSIGNED_SHORT, offset);
 };
 
-HX._setRenderTarget = function(frameBuffer)
+
+/**
+ *
+ * @param rect Any object with a width and height property, so it can be a Rect or even an FBO. If x and y are present, it will use these too.
+ */
+HX.setViewport = function(rect)
 {
-    if (frameBuffer) {
-        HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, frameBuffer._fbo);
-
-        if (frameBuffer._numColorTextures > 1)
-            HX.EXT_DRAW_BUFFERS.drawBuffersWEBGL(frameBuffer._drawBuffers);
-
-        HX.GL.viewport(0, 0, frameBuffer.width, frameBuffer.height);
+    HX._viewportInvalid = true;
+    if (rect) {
+        HX._viewport.x = rect.x || 0;
+        HX._viewport.y = rect.y || 0;
+        HX._viewport.width = rect.width || 0;
+        HX._viewport.height = rect.height || 0;
     }
     else {
-        HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, null);
+        HX._viewport.x = 0;
+        HX._viewport.y = 0;
+        HX._viewport.width = HX.TARGET_CANVAS.clientWidth;
+        HX._viewport.height = HX.TARGET_CANVAS.clientHeight;
     }
 };
 
@@ -47,13 +68,15 @@ HX.getCurrentRenderTarget = function()
 HX.pushRenderTarget = function(frameBuffer)
 {
     HX._renderTargetStack.push(frameBuffer);
-    HX._setRenderTarget(frameBuffer);
+    HX._renderTargetInvalid = true;
+    HX.setViewport(frameBuffer);
 };
 
 HX.popRenderTarget = function()
 {
     HX._renderTargetStack.pop();
-    HX._setRenderTarget(HX._renderTargetStack[HX._renderTargetStack.length - 1]);
+    HX._renderTargetInvalid = true;
+    HX.setViewport(HX._renderTargetStack[HX._renderTargetStack.length - 1]);
 };
 
 HX.enableAttributes = function(count)
@@ -73,4 +96,71 @@ HX.enableAttributes = function(count)
     }
 
     HX._numActiveAttributes = 2;
+};
+
+HX.setClearColor = function(color)
+{
+    color = isNaN(color) ? color : new HX.Color(color);
+    HX.GL.clearColor(color.r, color.g, color.b, color.a);
+};
+
+HX.setCullMode = function(value)
+{
+    if (HX._cullMode === value) return;
+    HX._cullMode = value;
+    HX._cullModeInvalid = true;
+};
+
+HX.setBlendState = function(value)
+{
+    if (HX._blendState === value) return;
+    HX._blendState = value;
+    HX._blendStateInvalid = true;
+};
+
+HX._updateRenderState = function()
+{
+    if (this._renderTargetInvalid) {
+        var target = HX._renderTargetStack[HX._renderTargetStack.length - 1];
+
+        if (target) {
+            HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, target._fbo);
+
+            if (target._numColorTextures > 1)
+                HX.EXT_DRAW_BUFFERS.drawBuffersWEBGL(target._drawBuffers);
+        }
+        else
+            HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, null);
+
+        HX._renderTargetInvalid = false;
+    }
+
+    if (this._viewportInvalid) {
+        HX.GL.viewport(HX._viewport.x, HX._viewport.y, HX._viewport.width, HX._viewport.height);
+        HX._viewportInvalid = false;
+    }
+
+    if (HX._cullModeInvalid) {
+        if (HX._cullMode === HX.CullMode.NONE)
+            HX.GL.disable(HX.GL.CULL_FACE);
+        else {
+            HX.GL.enable(HX.GL.CULL_FACE);
+            HX.GL.cullFace(HX._cullMode);
+        }
+    }
+
+    if (HX._blendStateInvalid) {
+        var state = HX._blendState;
+        if (state == null || state.enabled === false)
+            HX.GL.disable(HX.GL.BLEND);
+        else {
+            HX.GL.enable(HX.GL.BLEND);
+            HX.GL.blendFunc(state.srcFactor, state.dstFactor);
+            HX.GL.blendEquation(state.operator);
+            var color = state.color;
+            if (color)
+                HX.GL.blendColor(color.r, color.g, color.b, color.a);
+        }
+        HX._blendStateInvalid = false;
+    }
 };

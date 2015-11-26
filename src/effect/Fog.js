@@ -11,6 +11,7 @@ HX.FogEffect = function(density, tint, startDistance)
     HX.Effect.call(this);
 
     this._fogPass = new HX.EffectPass(null, HX.ShaderLibrary.get("fog_fragment.glsl"));
+    this._fogPass.blendState = HX.BlendState.INV_ALPHA;
 
     this.density = density === undefined? .001 : density;
     this.tint = tint === undefined? new HX.Color(1, 1, 1, 1) : tint;
@@ -57,10 +58,5 @@ Object.defineProperty(HX.FogEffect.prototype, "startDistance", {
 
 HX.FogEffect.prototype.draw = function(dt)
 {
-    HX.GL.enable(HX.GL.BLEND);
-    HX.GL.blendFunc(HX.GL.ONE_MINUS_SRC_ALPHA, HX.GL.SRC_ALPHA);
-
     this._drawPass(this._fogPass);
-
-    HX.GL.disable(HX.GL.BLEND);
 };

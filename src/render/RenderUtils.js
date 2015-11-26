@@ -34,7 +34,7 @@ HX.RenderUtils =
             shader.updateRenderState(renderItem.worldMatrix, renderItem.camera);
 
             if (pass !== activePass) {
-                HX.RenderUtils.switchPass(renderer, activePass, pass);
+                pass.updateRenderState(renderer);
                 activePass = pass;
 
                 lastMesh = null;    // need to reset mesh data too
@@ -45,35 +45,10 @@ HX.RenderUtils =
                 lastMesh = meshInstance._mesh;
             }
 
-            HX.GL.drawElements(pass._elementType, meshInstance._mesh.numIndices(), HX.GL.UNSIGNED_SHORT, 0);
+            HX.drawElements(pass._elementType, meshInstance._mesh.numIndices(), 0);
         }
 
-        if (activePass && activePass._blending) HX.GL.disable(HX.GL.BLEND);
+        HX.setBlendState(null);
         return len;
-    },
-
-    switchPass: function(renderer, oldPass, newPass)
-    {
-        // clean up old pass
-        if (!oldPass || oldPass._cullMode !== oldPass._cullMode) {
-            if (newPass._cullMode === HX.CullMode.NONE)
-                HX.GL.disable(HX.GL.CULL_FACE);
-            else {
-                HX.GL.enable(HX.GL.CULL_FACE);
-                HX.GL.cullFace(newPass._cullMode);
-            }
-        }
-
-        if (!oldPass || oldPass._blending !== oldPass._blending) {
-            if (newPass._blending) {
-                HX.GL.enable(HX.GL.BLEND);
-                HX.GL.blendFunc(newPass._blendSource, newPass._blendDest);
-                HX.GL.blendEquation(newPass._blendOperator);
-            }
-            else
-                HX.GL.disable(HX.GL.BLEND);
-        }
-
-        newPass.updateRenderState(renderer);
     }
 };

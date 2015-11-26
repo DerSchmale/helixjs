@@ -38,8 +38,7 @@ HX.FrameBuffer.prototype = {
      */
     init: function()
     {
-        // for initialization, important
-        HX.pushRenderTarget(this);
+        HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, this._fbo);
 
         if (this._colorTextures) {
             this._width = this._colorTextures[0]._width;
@@ -87,8 +86,6 @@ HX.FrameBuffer.prototype = {
                 console.warn("Failed to initialize FBO: FRAMEBUFFER_UNSUPPORTED");
                 break;
         }
-
-        HX.popRenderTarget();
     },
 
     dispose: function()

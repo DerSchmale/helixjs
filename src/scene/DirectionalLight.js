@@ -168,7 +168,7 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
     }
 
     // render rect mesh
-    HX.GL.drawElements(HX.GL.TRIANGLES, 6, HX.GL.UNSIGNED_SHORT, 0);
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
 
     return startIndex + 1;
 };
@@ -194,6 +194,7 @@ HX.DirectionalLight.prototype._initLightPass =  function()
         HX.ShaderLibrary.get("directional_light_fragment.glsl", defines);
 
     var pass = new HX.EffectPass(vertexShader, fragmentShader);
+    pass.blendState = HX.BlendState.ADD;
 
     this._dirLocation = pass.getUniformLocation("lightViewDirection");
     this._colorLocation = pass.getUniformLocation("lightColor");

@@ -33,10 +33,7 @@ HX.MaterialPass = function (shader)
     this._uniforms = {};
     this._elementType = HX.ElementType.TRIANGLES;
     this._cullMode = HX.CullMode.BACK;
-    this._blending = false;
-    this._blendSource = HX.BlendFactor.ONE;
-    this._blendDest = HX.BlendFactor.ZERO;
-    this._blendOperator = HX.BlendOperation.ADD;
+    this._blendState = null;
     this._gbuffer = null;
     this._enabled = true;
     this._storeUniforms();
@@ -91,17 +88,14 @@ HX.MaterialPass.prototype = {
         return this._cullMode;
     },
 
-    disableBlendMode: function()
+    get blendState()
     {
-        this._blending = false;
+        return this._blendState;
     },
 
-    setBlendMode: function(source, dest, op)
+    set blendState(value)
     {
-        this._blending = true;
-        this._blendSource = source;
-        this._blendDest = dest;
-        this._blendOperator = op;
+        this._blendState = value;
     },
 
     updateRenderState: function (renderer)
@@ -122,6 +116,9 @@ HX.MaterialPass.prototype = {
             else
                 texture._default.bind(i);
         }
+
+        HX.setCullMode(this._cullMode);
+        HX.setBlendState(this._blendState);
     },
 
     _storeUniforms: function()
@@ -129,7 +126,7 @@ HX.MaterialPass.prototype = {
         var len = HX.GL.getProgramParameter(this._shader._program, HX.GL.ACTIVE_UNIFORMS);
 
         for (var i = 0; i < len; ++i) {
-            var uniform = HX.GL.getActiveUniform(this._shader._program, i)
+            var uniform = HX.GL.getActiveUniform(this._shader._program, i);
             var name = uniform.name;
             var location = HX.GL.getUniformLocation(this._shader._program, name);
             this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
@@ -397,7 +394,7 @@ HX.Material._decodeHTML = function(value)
     var e = document.createElement('div');
     e.innerHTML = value;
     return e.childNodes.length === 0 ? "" : e.childNodes[0].nodeValue;
-}
+};
 
 HX.Material._addParsedPass = function (vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType, geometryPassTypeDef)
 {
@@ -419,13 +416,14 @@ HX.Material._addParsedPass = function (vertexShader, fragmentShader, elements, c
         pass.cullMode = HX.Material._translateProperty(cullmode.innerHTML);
 
     if (blend) {
+        var blendState = new HX.BlendState();
         var source = blend.getElementsByTagName("source")[0];
         var dest = blend.getElementsByTagName("destination")[0];
         var op = blend.getElementsByTagName("operator")[0];
-        source = source ? HX.Material._translateProperty(source.innerHTML) : HX.GL.ONE;
-        dest = dest ? HX.Material._translateProperty(dest.innerHTML) : HX.GL.ZERO;
-        op = source ? HX.Material._translateProperty(op.innerHTML) : HX.GL.FUNC_ADD;
-        pass.setBlendMode(source, dest, op);
+        blendState.srcFactor = source ? HX.Material._translateProperty(source.innerHTML) : HX.GL.ONE;
+        blendState.dstFactor = dest ? HX.Material._translateProperty(dest.innerHTML) : HX.GL.ZERO;
+        blendState.operator = source ? HX.Material._translateProperty(op.innerHTML) : HX.GL.FUNC_ADD;
+        pass.blendState = blendState;
     }
 
     targetMaterial.setPass(passType, pass);

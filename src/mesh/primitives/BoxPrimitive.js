@@ -148,9 +148,8 @@ HX.BoxPrimitive._createMeshData = function(definition)
 
     if (doubleSided) {
         var i = 0;
-        var len = indexIndex;
 
-        while (i < len) {
+        while (i < indexIndex) {
             indices[indexIndex + i] = indices[i];
             indices[indexIndex + i + 1] = indices[i + 2];
             indices[indexIndex + i + 2] = indices[i + 1];

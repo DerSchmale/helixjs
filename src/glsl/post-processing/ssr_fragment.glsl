@@ -141,6 +141,7 @@ void main()
 
     float diff = viewSpacePos.z - hitZ;
     fadeFactor *= smoothstep(-3.0, 0.0, diff);
+    fadeFactor *= smoothstep(0.5, 0.0, roughness);
 
     vec4 reflColor = texture2D(source, hitUV);
 

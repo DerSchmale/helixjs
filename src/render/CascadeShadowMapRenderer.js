@@ -211,7 +211,7 @@ HX.CascadeShadowMapRenderer.prototype =
         var frustumRange = viewCamera.farDistance - nearDist;
 
         for (var i = 0; i < this._numCascades; ++i)
-            this._splitDistances[i] = nearDist + this._splitRatios[i]*frustumRange;
+            this._splitDistances[i] = -(nearDist + this._splitRatios[i]*frustumRange);
     },
 
     _updateCascadeCameras: function(viewCamera, bounds)

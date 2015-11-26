@@ -46,8 +46,10 @@ uniform sampler2D hx_gbufferSpecular;
 		mat4 shadowMapMatrix = shadowMapMatrices[NUM_CASCADES - 1];
 
 		#if NUM_CASCADES > 1
+		// not very efficient :(
 		for (int i = 0; i < NUM_CASCADES - 1; ++i) {
-			if (viewPos.z < splitDistances[i]) {
+		    // remember, negative Z!
+			if (viewPos.z > splitDistances[i]) {
 				shadowMapMatrix = shadowMapMatrices[i];
 				#if NUM_SHADOW_SAMPLES > 1
 					softness = shadowMapSoftnesses[i];
@@ -104,8 +106,8 @@ vec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 view
 			float diff = shadowMapCoord.z - shadowSample - depthBias;
 			float shadowTest = float(diff < 0.0);
 		#endif
-		totalReflection *= shadowTest;
 
+		totalReflection *= shadowTest;
 	#endif
 
     return totalReflection;

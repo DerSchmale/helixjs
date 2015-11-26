@@ -76,7 +76,7 @@ HX.Frustum.prototype =
  */
 HX.Camera = function()
 {
-    HX.SceneNode.call(this);
+    HX.BoundingHierarchyNode.call(this);
 
     this._renderTargetWidth = 0;
     this._renderTargetHeight = 0;
@@ -94,7 +94,7 @@ HX.Camera = function()
     this.position.set(0.0, 0.0, 1.0);
 };
 
-HX.Camera.prototype = Object.create(HX.SceneNode.prototype);
+HX.Camera.prototype = Object.create(HX.BoundingHierarchyNode.prototype);
 
 HX.Camera.prototype.getViewProjectionMatrix = function ()
 {
@@ -183,7 +183,7 @@ HX.Camera.prototype._invalidateViewProjectionMatrix = function()
 
 HX.Camera.prototype._invalidateWorldTransformationMatrix = function()
 {
-    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
+    HX.BoundingHierarchyNode.prototype._invalidateWorldTransformationMatrix.call(this);
     this._invalidateViewProjectionMatrix();
 };
 

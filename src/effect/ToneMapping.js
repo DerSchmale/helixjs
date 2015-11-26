@@ -18,7 +18,7 @@ HX.ToneMapEffect = function(adaptive)
 
         this._luminanceMap = new HX.Texture2D();
         this._luminanceMap.initEmpty(256, 256, HX.GL.RGBA, HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
-        this._luminanceFBO = new HX.FrameBuffer([this._luminanceMap]);
+        this._luminanceFBO = new HX.FrameBuffer(this._luminanceMap);
         this._luminanceFBO.init();
 
         this._adaptationRate = 2000.0;
@@ -53,12 +53,12 @@ HX.ToneMapEffect.prototype.draw = function(dt)
         var amount = this._adaptationRate > 0 ? dt / this._adaptationRate : 1.0;
         if (amount > 1) amount = 1;
 
-        this._extractLuminancePass.blendState.color.w = amount;
+        this._extractLuminancePass.blendState.color.a = amount;
 
         HX.pushRenderTarget(this._luminanceFBO);
         this._drawPass(this._extractLuminancePass);
         this._luminanceMap.generateMipmap();
-        HX.popRenderTarget(this._luminanceFBO);
+        HX.popRenderTarget();
     }
 
     this._swapHDRBuffers();

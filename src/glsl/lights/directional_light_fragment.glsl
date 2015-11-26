@@ -44,6 +44,7 @@ uniform sampler2D hx_gbufferSpecular;
 	#endif
 	{
 		mat4 shadowMapMatrix = shadowMapMatrices[NUM_CASCADES - 1];
+		softness = shadowMapSoftnesses[NUM_CASCADES - 1];
 
 		#if NUM_CASCADES > 1
 		// not very efficient :(

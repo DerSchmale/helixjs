@@ -290,9 +290,7 @@ HX.CascadeShadowMapRenderer.prototype =
             right = left + width;
             top = bottom + height;
 
-            // TODO: Reenable!
-            var softness = 0;
-            //var softness = light.shadowSoftness;
+            var softness = this._light.shadowSoftness;
 
             camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 

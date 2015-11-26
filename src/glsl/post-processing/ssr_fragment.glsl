@@ -20,12 +20,7 @@ uniform mat4 hx_projectionMatrix;
 
 uniform float maxDistance;
 uniform float stepSize;
-
-// cheap geometric shadowing function, not at all physically correct
-float hx_reflectionVisibility(vec3 normal, vec3 reflection, float roughness)
-{
-	return 1.0 - roughness*roughness;
-}
+uniform float maxRoughness;
 
 // all in viewspace
 // 0 is start, 1 is end
@@ -123,7 +118,6 @@ void main()
 
     vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);
     // not physically correct, but attenuation is required to look good
-    float attenuation = mix(hx_reflectionVisibility(normal, reflDir, roughness), 1.0, metallicness);
 
     // step for every pixel
 
@@ -141,11 +135,11 @@ void main()
 
     float diff = viewSpacePos.z - hitZ;
     fadeFactor *= smoothstep(-3.0, 0.0, diff);
-    fadeFactor *= smoothstep(0.5, 0.0, roughness);
+    fadeFactor *= smoothstep(maxRoughness, 0.0, roughness);
 
     vec4 reflColor = texture2D(source, hitUV);
 
     float amountUsed = amount * fadeFactor;
-    gl_FragColor = vec4(fresnel * attenuation * reflColor.xyz, amountUsed);
+    gl_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);
 }
 

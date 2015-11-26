@@ -22,6 +22,7 @@ HX.ScreenSpaceReflections = function(numSamples)
     this._scale = .5;
     this.stepSize = Math.max(500.0 / numSamples, 1.0);
     this.maxDistance = 500.0;
+    this.maxRoughness = .3;
 
     this._ssrTexture = new HX.Texture2D();
     this._ssrTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
@@ -57,6 +58,22 @@ Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
         {
             this._stepSize = value;
             this._pass.setUniform("maxDistance", value);
+        }
+    },
+
+    /**
+     * The maximum amount of roughness that will show any screen-space reflections
+     */
+    maxRoughness: {
+        get: function()
+        {
+            return this._stepSize;
+        },
+
+        set: function(value)
+        {
+            this._stepSize = value;
+            this._pass.setUniform("maxRoughness", value);
         }
     },
 

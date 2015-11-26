@@ -242,7 +242,7 @@ HX.Renderer.prototype =
                 var pass = renderItem.pass;
 
                 pass._shader.updateRenderState(renderItem.worldMatrix, renderItem.camera);
-                HX.RenderUtils.switchPass(this, null, pass);
+                pass.updateRenderState(this);
                 meshInstance.updateRenderState(passType);
 
                 HX.drawElements(pass._elementType, meshInstance._mesh.numIndices(), 0);
@@ -273,8 +273,6 @@ HX.Renderer.prototype =
                     this._applyAlphaTransparency.execute(HX.DEFAULT_RECT_MESH, this._hdrBack.texture, this._gbuffer[0]);
                     break;
             }
-
-            HX.popRenderTarget();
         }
 
         HX.GL.disable(HX.GL.STENCIL_TEST);
@@ -433,7 +431,7 @@ HX.Renderer.prototype =
 
     _copySource: function ()
     {
-        HX.pushRenderTarget(HX.pushRenderTarget(this._hdrBack.fbo));
+        HX.pushRenderTarget(this._hdrBack.fbo);
         HX.setBlendState(null);
         HX.GL.disable(HX.GL.DEPTH_TEST);
         this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._hdrFront.texture);

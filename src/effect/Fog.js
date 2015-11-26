@@ -10,7 +10,7 @@ HX.FogEffect = function(density, tint, startDistance)
 {
     HX.Effect.call(this);
 
-    this._fogPass = new HX.EffectPass(HX.ShaderLibrary.get("fog_vertex.glsl"), HX.ShaderLibrary.get("fog_fragment.glsl"));
+    this._fogPass = new HX.EffectPass(null, HX.ShaderLibrary.get("fog_fragment.glsl"));
 
     this.density = density === undefined? .001 : density;
     this.tint = tint === undefined? new HX.Color(1, 1, 1, 1) : tint;

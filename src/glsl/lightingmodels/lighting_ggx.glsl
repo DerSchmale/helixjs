@@ -26,8 +26,6 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 
 	float distribution = hx_trowbridgeReitz(roughness, normal, halfVector);
 
-	float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);
-
 	float halfDotLight = dot(halfVector, lightDir);
 	float cosAngle = 1.0 - halfDotLight;
 	// to the 5th power
@@ -39,5 +37,9 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 	//approximated fresnel-based energy conservation
 	diffuseColor = irradiance;
 
-	specularColor = .25 * irradiance * fresnel * distribution * visibility;
+	specularColor = .25 * irradiance * fresnel * distribution;
+
+#ifdef VISIBILITY
+    float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);
+#endif
 }

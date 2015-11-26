@@ -1,5 +1,4 @@
 varying vec2 uv;
-varying vec3 viewDir;
 
 uniform vec3 tint;
 uniform float density;
@@ -15,10 +14,9 @@ void main()
 	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
 	// do not fog up skybox
 	// this might actually solve itself due to depth map encoding
-	if (depth == 1.0) depth = -1.0;
-	float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
+	if (depth > .999) depth = 0.0;
+	float distance = depth * hx_cameraFrustumRange;
 
-	float distance = length(viewDir * viewZ);
 
 	distance -= startDistance;
 

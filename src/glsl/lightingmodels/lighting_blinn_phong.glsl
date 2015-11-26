@@ -27,8 +27,6 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 
 	float distribution = hx_blinnPhongDistribution(roughness, normal, halfVector);
 
-	float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);
-
 	float halfDotLight = dot(halfVector, lightDir);
 	float cosAngle = 1.0 - halfDotLight;
 	// to the 5th power
@@ -41,4 +39,8 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 	diffuseColor = irradiance;
 
 	specularColor = .25 * irradiance * fresnel * distribution * visibility;
+
+	#ifdef VISIBILITY
+        float visibility = hx_lightVisibility(normal, lightDir, roughness, nDotL);
+    #endif
 }

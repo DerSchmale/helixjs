@@ -124,8 +124,6 @@ HX.HBAO.prototype.draw = function(dt)
         this._aoPass.setUniform("ditherScale", {x: w * .25, y: h * .25});
     }
 
-    HX.GL.viewport(0, 0, w, h);
-
     HX.pushRenderTarget(this._fbo1);
     this._drawPass(this._aoPass);
 
@@ -140,8 +138,6 @@ HX.HBAO.prototype.draw = function(dt)
     this._drawPass(this._blurPass);
 
     HX.popRenderTarget();
-
-    HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
 };
 
 HX.HBAO.prototype._initSampleDirTexture = function()

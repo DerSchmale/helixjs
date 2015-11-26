@@ -118,8 +118,6 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
     }
 
     HX.pushRenderTarget(this._fbo);
-    HX.GL.viewport(0, 0, w, h);
     this._drawPass(this._pass);
-    HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
     HX.popRenderTarget();
 };

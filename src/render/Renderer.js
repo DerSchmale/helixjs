@@ -121,24 +121,14 @@ HX.Renderer.prototype =
         this._ssrTexture = this._ssrEffect? this._ssrEffect.getSSRTexture() : null;
     },
 
-    resize: function (width, height)
-    {
-        if (this._width != width || this._height != height) {
-            this._updateGBuffer(width, height);
-            this._hdrBack.resize(width, height);
-            this._hdrFront.resize(width, height);
-        }
-
-        this._width = width;
-        this._height = height;
-    },
-
     render: function (camera, scene, dt)
     {
         var stackSize = HX._renderTargetStack.length;
         this._gammaApplied = false;
         this._camera = camera;
         this._scene = scene;
+
+        this._updateSize();
 
         HX.GL.enable(HX.GL.DEPTH_TEST);
         HX.GL.enable(HX.GL.CULL_FACE);
@@ -188,8 +178,6 @@ HX.Renderer.prototype =
 
     _renderOpaques: function ()
     {
-        HX.GL.viewport(0, 0, this._width, this._height);
-
         HX.GL.enable(HX.GL.STENCIL_TEST);
         HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
         HX.GL.clearColor(0, 0, 0, 1);
@@ -200,12 +188,8 @@ HX.Renderer.prototype =
         HX.GL.disable(HX.GL.BLEND);
 
         // only render AO for non-transparents
-        if (this._aoEffect !== null) {
+        if (this._aoEffect !== null)
             this._aoEffect.render(this, 0);
-
-            // AO may have scaled down
-            HX.GL.viewport(0, 0, this._width, this._height);
-        }
 
         // no other lighting models are currently supported:
         HX.GL.enable(HX.GL.STENCIL_TEST);
@@ -604,5 +588,16 @@ HX.Renderer.prototype =
         this._hdrFront = tmp;
         HX.popRenderTarget();
         HX.pushRenderTarget(this._hdrFront.fbo);
+    },
+
+    _updateSize: function ()
+    {
+        if (this._width !== HX.TARGET_CANVAS.clientWidth || this._height !== HX.TARGET_CANVAS.clientHeight) {
+            this._width = HX.TARGET_CANVAS.clientWidth;
+            this._height = HX.TARGET_CANVAS.clientHeight;
+            this._updateGBuffer(this._width, this._height);
+            this._hdrBack.resize(this._width, this._height);
+            this._hdrFront.resize(this._width, this._height);
+        }
     }
 };

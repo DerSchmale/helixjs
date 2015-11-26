@@ -126,8 +126,6 @@ HX.BloomEffect.prototype.draw = function(dt)
         this._initBlurPass();
     }
 
-    HX.GL.viewport(0, 0, this._thresholdMaps[0]._width, this._thresholdMaps[0]._height);
-
     HX.pushRenderTarget(this._smallFBOs[0]);
     {
         this._drawPass(this._thresholdPass);
@@ -145,7 +143,6 @@ HX.BloomEffect.prototype.draw = function(dt)
 
     HX.GL.enable(HX.GL.BLEND);
     HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
-    HX.GL.viewport(0, 0, this._targetWidth, this._targetHeight);
     this._drawPass(this._compositePass);
     HX.GL.disable(HX.GL.BLEND);
 };

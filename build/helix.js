@@ -57,16 +57,28 @@ HX.ShaderLibrary = {
 HX._numActiveAttributes = 0;
 HX._numActiveTextures = 0;
 
-
 /**
- * Initializes the Helix engine. IMPORTANT! This needs to be called before any other Helix functionality.
- * @param glContext The webgl context to be used by the engine. Helix does not manage its own context, since you may use the context yourself for UI work etc.
- * @param options (optional) An instance of HX.InitOptions
+ * Initializes Helix and creates a WebGL context from a given canvas
+ * @param canvas The canvas to create the gl context from.
  */
-HX.initFromContext = function(glContext, options)
+HX.init = function(canvas, options)
 {
+    HX.TARGET_CANVAS = canvas;
+
+    var webglFlags = {
+        antialias:false,
+        premultipliedAlpha: false
+    };
+
+    var glContext = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
+    if (options && options.debug) {
+        eval("context = WebGLDebugUtils.makeDebugContext(context);");
+    }
+
     HX.OPTIONS = options || new HX.InitOptions();
     HX.GL = glContext;
+
+    if (!HX.GL) throw "WebGL not supported";
 
     var extensions  = HX.GL.getSupportedExtensions();
 
@@ -184,26 +196,6 @@ HX.initFromContext = function(glContext, options)
     HX.DEFAULT_RECT_MESH = HX.RectMesh.create();
 
     HX.pushRenderTarget(null);
-};
-
-/**
- * Initializes Helix and creates a WebGL context from a given canvas
- * @param canvas The canvas to create the gl context from.
- */
-HX.initFromCanvas = function(canvas, options)
-{
-    var webglFlags = {
-        antialias:false,
-        premultipliedAlpha: false
-    };
-
-    var context = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
-    if (options && options.debug) {
-        eval("context = WebGLDebugUtils.makeDebugContext(context);");
-    }
-    HX.initFromContext(context, options);
-
-    if (!HX.GL) throw "WebGL not supported";
 
     HX.GL.clearColor(0, 0, 0, 1);
 };
@@ -349,9 +341,12 @@ HX._setRenderTarget = function(frameBuffer)
 
         if (frameBuffer._numColorTextures > 1)
             HX.EXT_DRAW_BUFFERS.drawBuffersWEBGL(frameBuffer._drawBuffers);
+
+        HX.GL.viewport(0, 0, frameBuffer.width, frameBuffer.height);
     }
-    else
+    else {
         HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, null);
+    }
 };
 
 HX.getCurrentRenderTarget = function()
@@ -9201,24 +9196,14 @@ HX.Renderer.prototype =
         this._ssrTexture = this._ssrEffect? this._ssrEffect.getSSRTexture() : null;
     },
 
-    resize: function (width, height)
-    {
-        if (this._width != width || this._height != height) {
-            this._updateGBuffer(width, height);
-            this._hdrBack.resize(width, height);
-            this._hdrFront.resize(width, height);
-        }
-
-        this._width = width;
-        this._height = height;
-    },
-
     render: function (camera, scene, dt)
     {
         var stackSize = HX._renderTargetStack.length;
         this._gammaApplied = false;
         this._camera = camera;
         this._scene = scene;
+
+        this._updateSize();
 
         HX.GL.enable(HX.GL.DEPTH_TEST);
         HX.GL.enable(HX.GL.CULL_FACE);
@@ -9268,8 +9253,6 @@ HX.Renderer.prototype =
 
     _renderOpaques: function ()
     {
-        HX.GL.viewport(0, 0, this._width, this._height);
-
         HX.GL.enable(HX.GL.STENCIL_TEST);
         HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
         HX.GL.clearColor(0, 0, 0, 1);
@@ -9280,12 +9263,8 @@ HX.Renderer.prototype =
         HX.GL.disable(HX.GL.BLEND);
 
         // only render AO for non-transparents
-        if (this._aoEffect !== null) {
+        if (this._aoEffect !== null)
             this._aoEffect.render(this, 0);
-
-            // AO may have scaled down
-            HX.GL.viewport(0, 0, this._width, this._height);
-        }
 
         // no other lighting models are currently supported:
         HX.GL.enable(HX.GL.STENCIL_TEST);
@@ -9684,6 +9663,17 @@ HX.Renderer.prototype =
         this._hdrFront = tmp;
         HX.popRenderTarget();
         HX.pushRenderTarget(this._hdrFront.fbo);
+    },
+
+    _updateSize: function ()
+    {
+        if (this._width !== HX.TARGET_CANVAS.clientWidth || this._height !== HX.TARGET_CANVAS.clientHeight) {
+            this._width = HX.TARGET_CANVAS.clientWidth;
+            this._height = HX.TARGET_CANVAS.clientHeight;
+            this._updateGBuffer(this._width, this._height);
+            this._hdrBack.resize(this._width, this._height);
+            this._hdrFront.resize(this._width, this._height);
+        }
     }
 };
 HX.RenderUtils =
@@ -10073,8 +10063,6 @@ HX.BloomEffect.prototype.draw = function(dt)
         this._initBlurPass();
     }
 
-    HX.GL.viewport(0, 0, this._thresholdMaps[0]._width, this._thresholdMaps[0]._height);
-
     HX.pushRenderTarget(this._smallFBOs[0]);
     {
         this._drawPass(this._thresholdPass);
@@ -10092,7 +10080,6 @@ HX.BloomEffect.prototype.draw = function(dt)
 
     HX.GL.enable(HX.GL.BLEND);
     HX.GL.blendFunc(HX.GL.ONE, HX.GL.ONE);
-    HX.GL.viewport(0, 0, this._targetWidth, this._targetHeight);
     this._drawPass(this._compositePass);
     HX.GL.disable(HX.GL.BLEND);
 };
@@ -10342,8 +10329,6 @@ HX.HBAO.prototype.draw = function(dt)
         this._aoPass.setUniform("ditherScale", {x: w * .25, y: h * .25});
     }
 
-    HX.GL.viewport(0, 0, w, h);
-
     HX.pushRenderTarget(this._fbo1);
     this._drawPass(this._aoPass);
 
@@ -10358,8 +10343,6 @@ HX.HBAO.prototype.draw = function(dt)
     this._drawPass(this._blurPass);
 
     HX.popRenderTarget();
-
-    HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
 };
 
 HX.HBAO.prototype._initSampleDirTexture = function()
@@ -10545,9 +10528,7 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
     }
 
     HX.pushRenderTarget(this._fbo);
-    HX.GL.viewport(0, 0, w, h);
     this._drawPass(this._pass);
-    HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
     HX.popRenderTarget();
 };
 /**
@@ -10675,8 +10656,6 @@ HX.SSAO.prototype.draw = function(dt)
         this._ssaoPass.setUniform("ditherScale", {x: w *.25, y: h *.25});
     }
 
-    HX.GL.viewport(0, 0, w, h);
-
     HX.pushRenderTarget(this._fbo1);
     this._drawPass(this._ssaoPass);
 
@@ -10690,8 +10669,6 @@ HX.SSAO.prototype.draw = function(dt)
     this._sourceTextureSlot.texture = this._backTexture;
     this._drawPass(this._blurPass);
     HX.popRenderTarget();
-
-    HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
 };
 
 HX.SSAO.prototype._initDitherTexture = function()
@@ -10774,7 +10751,6 @@ HX.ToneMapEffect.prototype.draw = function(dt)
         HX.GL.blendColor(1.0, 1.0, 1.0, amount);
 
         HX.pushRenderTarget(this._luminanceFBO);
-        HX.GL.viewport(0, 0, this._luminanceFBO._width, this._luminanceFBO._height);
         this._drawPass(this._extractLuminancePass);
         this._luminanceMap.generateMipmap();
         HX.GL.disable(HX.GL.BLEND);
@@ -10782,7 +10758,6 @@ HX.ToneMapEffect.prototype.draw = function(dt)
     }
 
     this._swapHDRBuffers();
-    HX.GL.viewport(0, 0, this._renderer._width, this._renderer._height);
     this._drawPass(this._toneMapPass);
 };
 

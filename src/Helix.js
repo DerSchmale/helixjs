@@ -57,16 +57,28 @@ HX.ShaderLibrary = {
 HX._numActiveAttributes = 0;
 HX._numActiveTextures = 0;
 
-
 /**
- * Initializes the Helix engine. IMPORTANT! This needs to be called before any other Helix functionality.
- * @param glContext The webgl context to be used by the engine. Helix does not manage its own context, since you may use the context yourself for UI work etc.
- * @param options (optional) An instance of HX.InitOptions
+ * Initializes Helix and creates a WebGL context from a given canvas
+ * @param canvas The canvas to create the gl context from.
  */
-HX.initFromContext = function(glContext, options)
+HX.init = function(canvas, options)
 {
+    HX.TARGET_CANVAS = canvas;
+
+    var webglFlags = {
+        antialias:false,
+        premultipliedAlpha: false
+    };
+
+    var glContext = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
+    if (options && options.debug) {
+        eval("context = WebGLDebugUtils.makeDebugContext(context);");
+    }
+
     HX.OPTIONS = options || new HX.InitOptions();
     HX.GL = glContext;
+
+    if (!HX.GL) throw "WebGL not supported";
 
     var extensions  = HX.GL.getSupportedExtensions();
 
@@ -184,26 +196,6 @@ HX.initFromContext = function(glContext, options)
     HX.DEFAULT_RECT_MESH = HX.RectMesh.create();
 
     HX.pushRenderTarget(null);
-};
-
-/**
- * Initializes Helix and creates a WebGL context from a given canvas
- * @param canvas The canvas to create the gl context from.
- */
-HX.initFromCanvas = function(canvas, options)
-{
-    var webglFlags = {
-        antialias:false,
-        premultipliedAlpha: false
-    };
-
-    var context = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
-    if (options && options.debug) {
-        eval("context = WebGLDebugUtils.makeDebugContext(context);");
-    }
-    HX.initFromContext(context, options);
-
-    if (!HX.GL) throw "WebGL not supported";
 
     HX.GL.clearColor(0, 0, 0, 1);
 };

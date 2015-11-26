@@ -31,9 +31,12 @@ HX._setRenderTarget = function(frameBuffer)
 
         if (frameBuffer._numColorTextures > 1)
             HX.EXT_DRAW_BUFFERS.drawBuffersWEBGL(frameBuffer._drawBuffers);
+
+        HX.GL.viewport(0, 0, frameBuffer.width, frameBuffer.height);
     }
-    else
+    else {
         HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, null);
+    }
 };
 
 HX.getCurrentRenderTarget = function()

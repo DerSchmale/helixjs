@@ -2,6 +2,8 @@
 // Only for 0 - 1
 vec4 hx_floatToRGBA8(float value)
 {
+// scale to encodable range [0, 1)
+    value *= .99;
     vec4 enc = vec4(1.0, 255.0, 65025.0, 16581375.0) * value;
     enc = fract(enc);
     return enc - enc.yzww * vec4(1.0/255.0,1.0/255.0,1.0/255.0,0.0);
@@ -9,11 +11,13 @@ vec4 hx_floatToRGBA8(float value)
 
 float hx_RGBA8ToFloat(vec4 rgba)
 {
-    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));
+    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0)) / .99;
 }
 
 vec2 hx_floatToRG8(float value)
 {
+// scale to encodable range [0, 1)
+    value *= .99;
     vec2 enc = vec2(1.0, 255.0) * value;
     enc = fract(enc);
     enc.x -= enc.y / 255.0;
@@ -22,7 +26,7 @@ vec2 hx_floatToRG8(float value)
 
 float hx_RG8ToFloat(vec2 rg)
 {
-    return dot(rg, vec2(1.0, 1.0/255.0));
+    return dot(rg, vec2(1.0, 1.0/255.0)) / .99;
 }
 
 vec4 hx_encodeNormalDepth(vec3 normal, float depth)

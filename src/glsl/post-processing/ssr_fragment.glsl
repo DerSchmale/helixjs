@@ -83,18 +83,15 @@ float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
     hitUV += dUV * dither.z;
     rayPerspDepth += dRayD * dither.z;
     rcpW += dRcpW * dither.z;
-//    rayDepth = rayPerspDepth / rcpW;
 
     float sampleCount;
     for (int i = 0; i < NUM_SAMPLES; ++i) {
         rayDepth = rayPerspDepth / rcpW;
-        // unprojected uv ray with refldir?
 
         sceneDepth = hx_sampleLinearDepth(hx_gbufferDepth, hitUV);
 
         if (rayDepth > sceneDepth + .001) {
-            // do not count beyond far plane intersections, depth = 0 due to encoding flaw
-            amount = float(sceneDepth > 0.01);
+            amount = float(sceneDepth < 1.0);
             sampleCount = float(i);
             break;
         }

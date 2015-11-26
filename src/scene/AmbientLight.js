@@ -27,7 +27,6 @@ HX.AmbientLight.prototype.renderBatch = function(lightCollection, startIndex, re
     }
 
     HX.GL.disable(HX.GL.DEPTH_TEST);
-    HX.GL.disable(HX.GL.CULL_FACE);
 
     this._lightPass.updateRenderState(renderer);
 

@@ -52,7 +52,6 @@ HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, rend
 HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startIndex, renderer)
 {
     HX.PointLight._sphericalLightPass.updateRenderState(renderer);
-    HX.GL.enable(HX.GL.CULL_FACE);
 
     var end = startIndex + HX.PointLight.LIGHTS_PER_BATCH;
     if (end > lightCollection.length) end = lightCollection.length;
@@ -117,8 +116,6 @@ HX.PointLight.prototype.initFullScreenPass = function (passIndex)
 
 HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, startIndex, renderer)
 {
-    HX.GL.disable(HX.GL.CULL_FACE);
-
     // TODO: provide a shader for each light count?
     var end = startIndex + HX.PointLight.LIGHTS_PER_BATCH;
     if (end > lightCollection.length) end = lightCollection.length;

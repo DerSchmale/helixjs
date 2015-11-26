@@ -28,7 +28,6 @@ HX.GlobalSpecularProbe.prototype.render = function(renderer)
     }
 
     HX.GL.disable(HX.GL.DEPTH_TEST);
-    HX.GL.disable(HX.GL.CULL_FACE);
 
     this._pass.updateRenderState(renderer);
 
@@ -105,7 +104,6 @@ HX.GlobalIrradianceProbe.prototype.render = function(renderer)
     }
 
     HX.GL.disable(HX.GL.DEPTH_TEST);
-    HX.GL.disable(HX.GL.CULL_FACE);
 
     this._pass.updateRenderState(renderer);
 

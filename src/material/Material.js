@@ -420,9 +420,9 @@ HX.Material._addParsedPass = function (vertexShader, fragmentShader, elements, c
         var source = blend.getElementsByTagName("source")[0];
         var dest = blend.getElementsByTagName("destination")[0];
         var op = blend.getElementsByTagName("operator")[0];
-        blendState.srcFactor = source ? HX.Material._translateProperty(source.innerHTML) : HX.GL.ONE;
-        blendState.dstFactor = dest ? HX.Material._translateProperty(dest.innerHTML) : HX.GL.ZERO;
-        blendState.operator = source ? HX.Material._translateProperty(op.innerHTML) : HX.GL.FUNC_ADD;
+        blendState.srcFactor = source ? HX.Material._translateProperty(source.innerHTML) : HX.BlendFactor.ONE;
+        blendState.dstFactor = dest ? HX.Material._translateProperty(dest.innerHTML) : HX.BlendFactor.ZERO;
+        blendState.operator = source ? HX.Material._translateProperty(op.innerHTML) : HX.BlendOperation.ADD;
         pass.blendState = blendState;
     }
 

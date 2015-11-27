@@ -1,12 +1,11 @@
-float hx_lightVisibility(in vec3 normal, in vec3 viewDir, float roughness, float nDotL)
+float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
 {
+// Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs, Heitz
 	float nDotV = max(-dot(normal, viewDir), 0.0);
-	// roughness remapping, this is essentially: sqrt(2 * roughness * roughness / PI)
-	// this remaps beckman distribution roughness to SmithSchlick
-	roughness *= .63772;
-	float g1 = nDotV*(1.0 - roughness) + roughness;
-	float g2 = nDotL*(1.0 - roughness) + roughness;
-	return 1.0/(g1*g2);
+	float roughSqr = roughness*roughness;
+	float g1 = (nDotV*(1.0 - roughSqr) + roughSqr);
+	float g2 = (nDotL*(1.0 - roughSqr) + roughSqr);
+	return .5/(g1 + g2);
 }
 
 float hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)

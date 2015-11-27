@@ -1,15 +1,14 @@
 float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
 {
+// Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs, Heitz
 	float nDotV = max(-dot(normal, viewDir), 0.0);
-	// roughness remapping, this is essentially: sqrt(2 * roughness * roughness / PI)
-	// this remaps beckman distribution roughness to SmithSchlick
-	roughness *= .63772;
-	float g1 = nDotV*(1.0 - roughness) + roughness;
-	float g2 = nDotL*(1.0 - roughness) + roughness;
-	return 1.0/(g1*g2);
+	float roughSqr = roughness*roughness;
+	float g1 = (nDotV*(1.0 - roughSqr) + roughSqr);
+	float g2 = (nDotL*(1.0 - roughSqr) + roughSqr);
+	return .5/(g1 + g2);
 }
 
-float hx_trowbridgeReitz(float roughness, vec3 normal, vec3 halfVector)
+float hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)
 {
     float roughSqr = roughness*roughness;
     float halfDotNormal = max(-dot(halfVector, normal), 0.0);
@@ -24,7 +23,7 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 
 	vec3 halfVector = normalize(lightDir + viewDir);
 
-	float distribution = hx_trowbridgeReitz(roughness, normal, halfVector);
+	float distribution = hx_ggxDistribution(roughness, normal, halfVector);
 
 	float halfDotLight = dot(halfVector, lightDir);
 	float cosAngle = 1.0 - halfDotLight;

@@ -24,10 +24,10 @@ uniform float hx_cameraFrustumRange;
 
 uniform float refractiveRatio;   // the ratio of refractive indices
 
-vec2 getPreciseRefractedUVOffset(vec3 viewSpacePosition, vec3 normal, float refractiveRatio, float distance)
+vec2 getPreciseRefractedUVOffset(vec3 normal, float distance)
 {
-    vec3 refractionVector = refract(normalize(viewSpacePosition), normal, refractiveRatio);
-    return -refractionVector.xy / (viewSpacePosition.z + refractionVector.z * distance) * distance;
+    vec3 refractionVector = refract(normalize(viewVector), normal, refractiveRatio);   // close enough
+    return -(refractionVector.xy - viewVector.xy) / (viewVector.z + refractionVector.z * distance);
 }
 
 void main()
@@ -56,7 +56,7 @@ void main()
     float depth = hx_sampleLinearDepth(hx_gbufferDepth, texCoords);
     float distance = depth * hx_cameraFrustumRange - viewVector.z - hx_cameraNearPlaneDistance;
 
-    vec2 samplePos = screenUV + getPreciseRefractedUVOffset(viewVector, fragNormal, refractiveRatio, distance);
+    vec2 samplePos = screenUV + getPreciseRefractedUVOffset(fragNormal, distance);
 
     vec4 background = texture2D(hx_backbuffer, samplePos);
     gl_FragColor = outputColor * background;

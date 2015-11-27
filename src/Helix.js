@@ -244,7 +244,18 @@ HX._initGLProperties = function()
         ALL: HX.GL.FRONT_AND_BACK
     };
 
-    HX.DepthTest = {
+    HX.StencilOp = {
+        KEEP: HX.GL.KEEP,
+        ZERO: HX.GL.ZERO,
+        REPLACE: HX.GL.REPLACE,
+        INCREMENT: HX.GL.INCR,
+        INCREMENT_WRAP: HX.GL.INCR_WRAP,
+        DECREMENT: HX.GL.DECR,
+        DECREMENT_WRAP: HX.GL.DECR_WRAP,
+        INVERT: HX.GL.INVERT
+    };
+
+    HX.Comparison = {
         DISABLED: null,
         ALWAYS: HX.GL.ALWAYS,
         NEVER: HX.GL.NEVER,

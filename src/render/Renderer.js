@@ -59,6 +59,18 @@ HX.Renderer = function ()
 
     this._debugMode = HX.DebugRenderMode.DEBUG_NONE;
     this._camera = null;
+
+    this._stencilWriteState = new HX.StencilState();
+    this._stencilWriteState.comparison = HX.Comparison.ALWAYS;
+    this._stencilWriteState.onStencilFail = HX.StencilOp.REPLACE;
+    this._stencilWriteState.onDepthFail = HX.StencilOp.KEEP;
+    this._stencilWriteState.onPass = HX.StencilOp.REPLACE;
+
+    this._stencilReadState = new HX.StencilState();
+    this._stencilReadState.comparison = HX.Comparison.EQUAL;
+    this._stencilReadState.onStencilFail = HX.StencilOp.KEEP;
+    this._stencilReadState.onDepthFail = HX.StencilOp.KEEP;
+    this._stencilReadState.onPass = HX.StencilOp.KEEP;
 };
 
 HX.Renderer.HDRBuffers = function(depthBuffer)
@@ -170,29 +182,29 @@ HX.Renderer.prototype =
 
     _renderOpaques: function ()
     {
-        HX.GL.enable(HX.GL.STENCIL_TEST);
-        HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
+        HX.pushStencilState(this._stencilWriteState);
+
         HX.setClearColor(HX.Color.BLACK);
+
         this._renderToGBuffer();
 
-        HX.GL.disable(HX.GL.STENCIL_TEST);
+        HX.popStencilState();
+
         this._linearizeDepth();
 
         // only render AO for non-transparents
         if (this._aoEffect !== null)
             this._aoEffect.render(this, 0);
 
-        // no other lighting models are currently supported:
-        HX.GL.enable(HX.GL.STENCIL_TEST);
-        HX.GL.stencilOp(HX.GL.KEEP, HX.GL.KEEP, HX.GL.KEEP);
-
+        // no other lighting models are currently supported, but can't shade lightingModel 0, which is unlit:
         var lightingModelID = 1;
-        var stencilValue = lightingModelID << 1;
-        HX.GL.stencilFunc(HX.GL.EQUAL, stencilValue, 0xff);
+        this._stencilReadState.reference = lightingModelID << 1;
+
+        HX.pushStencilState(this._stencilReadState);
 
         this._renderLightAccumulation();
 
-        HX.GL.disable(HX.GL.STENCIL_TEST);
+        HX.popStencilState();
     },
 
     _renderTransparents: function ()
@@ -211,16 +223,13 @@ HX.Renderer.prototype =
         var baseList = renderLists[0];
         var len = baseList.length;
 
-        HX.GL.enable(HX.GL.STENCIL_TEST);
-
         // TODO: Should we render all transparent objects with the same transparency mode?
         for (var i = 0; i < len; ++i) {
             var material = baseList[i].material;
             var transparencyMode = material._transparencyMode;
-
             var stencilValue = (material._lightingModelID << 1) | transparencyMode;
-            HX.GL.stencilFunc(HX.GL.ALWAYS, stencilValue, 0xff);
-            HX.GL.stencilOp(HX.GL.REPLACE, HX.GL.KEEP, HX.GL.REPLACE);
+            this._stencilWriteState.reference = stencilValue;
+            HX.pushStencilState(this._stencilWriteState);
 
             if (HX.EXT_DRAW_BUFFERS)
                 HX.pushRenderTarget(this._gbufferFBO);
@@ -249,8 +258,10 @@ HX.Renderer.prototype =
             if (HX.EXT_DRAW_BUFFERS)
                 HX.popRenderTarget();
 
-            HX.GL.stencilFunc(HX.GL.EQUAL, stencilValue, 0xff);
-            HX.GL.stencilOp(HX.GL.KEEP, HX.GL.KEEP, HX.GL.KEEP);
+            HX.popStencilState();
+
+            this._stencilReadState.reference = stencilValue;
+            HX.pushStencilState(this._stencilReadState);
 
             this._linearizeDepth();
 
@@ -268,9 +279,9 @@ HX.Renderer.prototype =
                     this._applyAlphaTransparency.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture, this._gbuffer[0]);
                     break;
             }
-        }
 
-        HX.GL.disable(HX.GL.STENCIL_TEST);
+            HX.popStencilState(this._stencilReadState);
+        }
     },
 
     _renderToGBuffer: function ()
@@ -330,13 +341,13 @@ HX.Renderer.prototype =
                 this._debugNormals.execute(HX.RectMesh.DEFAULT, this._gbuffer[1]);
                 break;
             case HX.DebugRenderMode.DEBUG_METALLICNESS:
-                this._copyXChannel.execute(HX.RectMesh.DEFAULT, this._gbuffer[2]);
+                this._copyZChannel.execute(HX.RectMesh.DEFAULT, this._gbuffer[2]);
                 break;
             case HX.DebugRenderMode.DEBUG_SPECULAR_NORMAL_REFLECTION:
                 this._copyYChannel.execute(HX.RectMesh.DEFAULT, this._gbuffer[2]);
                 break;
             case HX.DebugRenderMode.DEBUG_ROUGHNESS:
-                this._copyZChannel.execute(HX.RectMesh.DEFAULT, this._gbuffer[2]);
+                this._copyXChannel.execute(HX.RectMesh.DEFAULT, this._gbuffer[2]);
                 break;
             case HX.DebugRenderMode.DEBUG_DEPTH:
                 this._debugDepth.execute(HX.RectMesh.DEFAULT, this._gbuffer[3]);
@@ -429,8 +440,6 @@ HX.Renderer.prototype =
 
     _renderPostPass: function (passType, copySource)
     {
-        HX.GL.disable(HX.GL.STENCIL_TEST);
-
         var opaqueList = this._renderCollector.getOpaqueRenderList(passType);
         var transparentList = this._renderCollector.getTransparentRenderList(passType);
 

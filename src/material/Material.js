@@ -33,7 +33,7 @@ HX.MaterialPass = function (shader)
     this._uniforms = {};
     this._elementType = HX.ElementType.TRIANGLES;
     this._cullMode = HX.CullMode.BACK;
-    this._depthTest = HX.DepthTest.LESS_EQUAL;
+    this._depthTest = HX.Comparison.LESS_EQUAL;
     this._blendState = null;
     this._gbuffer = null;
     this._enabled = true;
@@ -355,7 +355,7 @@ HX.Material.prototype = {
     {
         this._passes[type] = pass;
         if(type === HX.GEOMETRY_NORMAL_PASS || type === HX.GEOMETRY_SPECULAR_PASS)
-            pass.depthTest = HX.DepthTest.EQUAL;
+            pass.depthTest = HX.Comparison.EQUAL;
 
         if (pass) {
             for (var slotName in this._textures) {

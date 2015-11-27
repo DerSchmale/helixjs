@@ -25,7 +25,7 @@ HX.RenderUtils =
 
             // lighting model 0 means unlit
             var stencilValue = (material._lightingModelID << 1) | material._transparencyMode;
-            HX.GL.stencilFunc(HX.GL.ALWAYS, stencilValue, 0xff);
+            HX.updateStencilReference(stencilValue);
 
             var meshInstance = renderItem.meshInstance;
             var pass = renderItem.pass;

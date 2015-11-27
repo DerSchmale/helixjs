@@ -20,6 +20,11 @@ HX._depthTestInvalid = true;
 HX._blendState = null;
 HX._blendStateInvalid = false;
 
+// this is so that effects can push states on the stack
+// the renderer at the root just pushes one single state and invalidates that constantly
+HX._stencilStateStack = [ null ];
+HX._stencilStateInvalid = false;
+
 
 /**
  * Default clearing function. Can be called if no special clearing functionality is needed (or in case another api is used that clears)
@@ -127,6 +132,30 @@ HX.setBlendState = function(value)
     HX._blendStateInvalid = true;
 };
 
+HX.pushStencilState = function(frameBuffer)
+{
+    HX._stencilStateStack.push(frameBuffer);
+    HX._stencilStateInvalid = true;
+};
+
+HX.updateStencilReference = function(value)
+{
+    var currentState = HX._stencilStateStack[HX._stencilStateStack.length - 1];
+
+    if (!currentState) return;
+
+    currentState.reference = value;
+
+    if (!HX._stencilStateInvalid && currentState.enabled)
+        HX.GL.stencilFunc(currentState.comparison, value, currentState.readMask);
+} ;
+
+HX.popStencilState = function()
+{
+    HX._stencilStateStack.pop();
+    HX._stencilStateInvalid = true;
+};
+
 HX._updateRenderState = function()
 {
     if (this._renderTargetInvalid) {
@@ -159,7 +188,7 @@ HX._updateRenderState = function()
     }
 
     if (HX._depthTestInvalid) {
-        if (HX._depthTest === HX.DepthTest.DISABLED)
+        if (HX._depthTest === HX.Comparison.DISABLED)
             HX.GL.disable(HX.GL.DEPTH_TEST);
         else {
             HX.GL.enable(HX.GL.DEPTH_TEST);
@@ -180,5 +209,18 @@ HX._updateRenderState = function()
                 HX.GL.blendColor(color.r, color.g, color.b, color.a);
         }
         HX._blendStateInvalid = false;
+    }
+
+    if (HX._stencilStateInvalid) {
+        var state = HX._stencilStateStack[HX._stencilStateStack.length - 1];
+        if (state == null || state.enabled === false)
+            HX.GL.disable(HX.GL.STENCIL_TEST);
+        else {
+            HX.GL.enable(HX.GL.STENCIL_TEST);
+            HX.GL.stencilFunc(state.comparison, state.reference, state.readMask);
+            HX.GL.stencilOp(state.onStencilFail, state.onDepthFail, state.onPass);
+            HX.GL.stencilMask(state.writeMask);
+        }
+        HX._stencilStateInvalid = false;
     }
 };

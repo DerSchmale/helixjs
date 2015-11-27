@@ -20,7 +20,7 @@ HX.CustomCopyShader.prototype = Object.create(HX.Shader.prototype);
 
 HX.CustomCopyShader.prototype.execute = function(rect, texture)
 {
-    HX.setDepthTest(HX.DepthTest.DISABLED);
+    HX.setDepthTest(HX.Comparison.DISABLED);
     HX.setCullMode(HX.CullMode.NONE);
 
     rect._vertexBuffer.bind();
@@ -82,7 +82,7 @@ HX.CopyWithSeparateAlpha.prototype = Object.create(HX.Shader.prototype);
 
 HX.CopyWithSeparateAlpha.prototype.execute = function(rect, texture, alphaTexture)
 {
-    HX.setDepthTest(HX.DepthTest.DISABLED);
+    HX.setDepthTest(HX.Comparison.DISABLED);
     HX.setCullMode(HX.CullMode.NONE);
 
     rect._vertexBuffer.bind();
@@ -159,7 +159,7 @@ HX.LinearizeDepthShader.prototype = Object.create(HX.Shader.prototype);
 
 HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera)
 {
-    HX.setDepthTest(HX.DepthTest.DISABLED);
+    HX.setDepthTest(HX.Comparison.DISABLED);
     HX.setCullMode(HX.CullMode.NONE);
     HX.setBlendState(null);
 

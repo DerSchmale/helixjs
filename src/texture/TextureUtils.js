@@ -14,7 +14,7 @@ HX.TextureUtils =
             return false;
 
         texture.initEmpty(width, height);
-        fbo.init();
+        if (fbo) fbo.init();
         return true;
     },
 

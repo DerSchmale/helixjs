@@ -33,6 +33,7 @@ HX.MaterialPass = function (shader)
     this._uniforms = {};
     this._elementType = HX.ElementType.TRIANGLES;
     this._cullMode = HX.CullMode.BACK;
+    this._depthTest = HX.DepthTest.LESS_EQUAL;
     this._blendState = null;
     this._gbuffer = null;
     this._enabled = true;
@@ -67,25 +68,35 @@ HX.MaterialPass.prototype = {
         return this._shader;
     },
 
+    get elementType()
+    {
+        return this._elementType;
+    },
+
     set elementType(value)
     {
         this._elementType = value;
     },
 
-    get elementType()
+    get depthTest()
     {
-        return this._elementType;
+        return this._depthTest;
+    },
+
+    set depthTest(value)
+    {
+        this._depthTest = value;
+    },
+
+    get cullMode()
+    {
+        return this._cullMode;
     },
 
     // use null for disabled
     set cullMode(value)
     {
         this._cullMode = value;
-    },
-
-    get cullMode()
-    {
-        return this._cullMode;
     },
 
     get blendState()
@@ -118,6 +129,7 @@ HX.MaterialPass.prototype = {
         }
 
         HX.setCullMode(this._cullMode);
+        HX.setDepthTest(this._depthTest);
         HX.setBlendState(this._blendState);
     },
 
@@ -342,6 +354,8 @@ HX.Material.prototype = {
     setPass: function (type, pass)
     {
         this._passes[type] = pass;
+        if(type === HX.GEOMETRY_NORMAL_PASS || type === HX.GEOMETRY_SPECULAR_PASS)
+            pass.depthTest = HX.DepthTest.EQUAL;
 
         if (pass) {
             for (var slotName in this._textures) {

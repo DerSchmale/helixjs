@@ -244,6 +244,18 @@ HX._initGLProperties = function()
         ALL: HX.GL.FRONT_AND_BACK
     };
 
+    HX.DepthTest = {
+        DISABLED: null,
+        ALWAYS: HX.GL.ALWAYS,
+        NEVER: HX.GL.NEVER,
+        LESS: HX.GL.LESS,
+        EQUAL: HX.GL.EQUAL,
+        LESS_EQUAL: HX.GL.LEQUAL,
+        GREATER: HX.GL.GREATER,
+        NOT_EQUAL: HX.GL.NOTEQUAL,
+        GREATER_EQUAL: HX.GL.GEQUAL
+    };
+
     HX.ElementType = {
         POINTS: HX.GL.POINTS,
         LINES: HX.GL.LINES,

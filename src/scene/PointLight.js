@@ -36,9 +36,6 @@ HX.PointLight.prototype = Object.create(HX.Light.prototype);
 // returns the index of the FIRST UNRENDERED light
 HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
-    // TODO: depth test should be used in some spherical cases
-    HX.GL.disable(HX.GL.DEPTH_TEST);
-
     var intersectsNearPlane = lightCollection[startIndex]._renderOrderHint < 0;
 
     if (intersectsNearPlane) {

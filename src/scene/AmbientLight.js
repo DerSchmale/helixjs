@@ -26,8 +26,6 @@ HX.AmbientLight.prototype.renderBatch = function(lightCollection, startIndex, re
         this._initLightPass();
     }
 
-    HX.GL.disable(HX.GL.DEPTH_TEST);
-
     this._lightPass.updateRenderState(renderer);
 
     var colorR = 0, colorG = 0, colorB = 0;

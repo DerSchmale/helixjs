@@ -12,7 +12,10 @@ HX._viewport = {x: 0, y: 0, width: 0, height: 0};
 HX._viewportInvalid = true;
 
 HX._cullMode = null;
-HX._cullModeInvalid = false;
+HX._cullModeInvalid = true;
+
+HX._depthTest = null;
+HX._depthTestInvalid = true;
 
 HX._blendState = null;
 HX._blendStateInvalid = false;
@@ -110,6 +113,13 @@ HX.setCullMode = function(value)
     HX._cullModeInvalid = true;
 };
 
+HX.setDepthTest = function(value)
+{
+    if (HX._depthTest === value) return;
+    HX._depthTest = value;
+    HX._depthTestInvalid = true;
+};
+
 HX.setBlendState = function(value)
 {
     if (HX._blendState === value) return;
@@ -145,6 +155,15 @@ HX._updateRenderState = function()
         else {
             HX.GL.enable(HX.GL.CULL_FACE);
             HX.GL.cullFace(HX._cullMode);
+        }
+    }
+
+    if (HX._depthTestInvalid) {
+        if (HX._depthTest === HX.DepthTest.DISABLED)
+            HX.GL.disable(HX.GL.DEPTH_TEST);
+        else {
+            HX.GL.enable(HX.GL.DEPTH_TEST);
+            HX.GL.depthFunc(HX._depthTest);
         }
     }
 

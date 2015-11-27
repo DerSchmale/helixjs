@@ -130,9 +130,6 @@ HX.Renderer.prototype =
 
         this._updateSize();
 
-        HX.GL.enable(HX.GL.DEPTH_TEST);
-        HX.GL.depthFunc(HX.GL.LESS);
-
         camera._setRenderTargetResolution(this._width, this._height);
         this._renderCollector.collect(camera, scene);
 
@@ -148,8 +145,6 @@ HX.Renderer.prototype =
             this._renderTransparents();
         }
         HX.popRenderTarget();
-
-        HX.GL.disable(HX.GL.DEPTH_TEST);
 
         this._renderToScreen(dt);
 
@@ -304,19 +299,15 @@ HX.Renderer.prototype =
             HX.clear(clearMask);
             this._renderPass(passIndices[i]);
 
-            if (i == 0) {
+            if (i == 0)
                 clearMask = HX.GL.COLOR_BUFFER_BIT;
-                // important to use the same clip space calculations for all!
-                HX.GL.depthFunc(HX.GL.EQUAL);
-            }
+
             HX.popRenderTarget();
         }
     },
 
     _linearizeDepth: function ()
     {
-        HX.GL.disable(HX.GL.DEPTH_TEST);
-
         HX.pushRenderTarget(this._linearDepthFBO);
         this._linearizeDepthShader.execute(HX.RectMesh.DEFAULT, HX.EXT_DEPTH_TEXTURE ? this._depthBuffer : this._gbuffer[1], this._camera);
         HX.popRenderTarget(this._linearDepthFBO);
@@ -382,7 +373,6 @@ HX.Renderer.prototype =
 
     _renderLightAccumulation: function ()
     {
-        HX.GL.disable(HX.GL.DEPTH_TEST);
         HX.GL.depthMask(false);
 
         HX.clear(HX.GL.COLOR_BUFFER_BIT);
@@ -433,7 +423,6 @@ HX.Renderer.prototype =
     {
         HX.pushRenderTarget(this._hdrBack.fbo);
         HX.setBlendState(null);
-        HX.GL.disable(HX.GL.DEPTH_TEST);
         this._copyTexture.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
         HX.popRenderTarget();
     },
@@ -451,9 +440,6 @@ HX.Renderer.prototype =
         if (copySource)
             this._copySource();
 
-        HX.GL.enable(HX.GL.DEPTH_TEST);
-        HX.GL.depthFunc(HX.GL.LEQUAL);
-
         this._renderPass(passType, this._renderCollector.getOpaqueRenderList(passType));
         this._renderPass(passType, this._renderCollector.getTransparentRenderList(passType));
     },
@@ -462,8 +448,6 @@ HX.Renderer.prototype =
     {
         if (!effects || effects.length == 0)
             return;
-
-        HX.GL.disable(HX.GL.DEPTH_TEST);
 
         var len = effects.length;
 

@@ -112,8 +112,7 @@ void main()
     float roughness;
     float metallicness;
     hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);
-    vec4 normalSample = texture2D(hx_gbufferNormals, uv);
-    vec3 normal = hx_decodeNormal(normalSample);
+    vec3 normal = hx_decodeNormal(texture2D(hx_gbufferNormals, uv));
     vec3 reflDir = reflect(normalize(viewDir), normal);
 
     vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);
@@ -134,8 +133,8 @@ void main()
     fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);
 
     float diff = viewSpacePos.z - hitZ;
-    fadeFactor *= smoothstep(-1.0, 0.0, diff);
-    fadeFactor *= smoothstep(maxRoughness, 0.0, roughness);
+    fadeFactor *= hx_linearStep(-1.0, 0.0, diff);
+    fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);
 
     vec4 reflColor = texture2D(source, hitUV);
 

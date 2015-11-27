@@ -24,6 +24,12 @@ uniform float hx_cameraFrustumRange;
 
 uniform float refractiveRatio;   // the ratio of refractive indices
 
+vec2 getPreciseRefractedUVOffset(vec3 viewSpacePosition, vec3 normal, float refractiveRatio, float distance)
+{
+    vec3 refractionVector = refract(normalize(viewSpacePosition), normal, refractiveRatio);
+    return -refractionVector.xy / (viewSpacePosition.z + refractionVector.z * distance) * distance;
+}
+
 void main()
 {
     vec4 outputColor;

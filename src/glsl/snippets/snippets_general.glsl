@@ -158,8 +158,8 @@ float hx_luminance(vec3 color)
     return dot(color, vec3(.30, 0.59, .11));
 }
 
-vec2 getPreciseRefractedUVOffset(vec3 viewSpacePosition, vec3 normal, float refractiveRatio, float distance)
+// linear variant of smoothstep
+float hx_linearStep(float lower, float upper, float x)
 {
-    vec3 refractionVector = refract(normalize(viewSpacePosition), normal, refractiveRatio);
-    return -refractionVector.xy / (viewSpacePosition.z + refractionVector.z * distance) * distance;
+    return clamp((x - lower) / (upper - lower), 0.0, 1.0);
 }

@@ -22,7 +22,7 @@ HX.ScreenSpaceReflections = function(numSamples)
     this._scale = .5;
     this.stepSize = Math.max(500.0 / numSamples, 1.0);
     this.maxDistance = 500.0;
-    this.maxRoughness = .3;
+    this.maxRoughness = .4;
 
     this._ssrTexture = new HX.Texture2D();
     this._ssrTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;

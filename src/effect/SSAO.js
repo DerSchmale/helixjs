@@ -33,11 +33,11 @@ HX.SSAO = function(numSamples)
     this._sourceTextureSlot = this._blurPass.getTextureSlot("source");
 
     this._ssaoTexture = new HX.Texture2D();
-    this._ssaoTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
-    this._ssaoTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
+    this._ssaoTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
+    this._ssaoTexture.wrapMode = HX.TextureWrapMode.CLAMP;
     this._backTexture = new HX.Texture2D();
-    this._backTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
-    this._backTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
+    this._backTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
+    this._backTexture.wrapMode = HX.TextureWrapMode.CLAMP;
     this._fbo1 = new HX.FrameBuffer(this._ssaoTexture);
     this._fbo2 = new HX.FrameBuffer(this._backTexture);
 };
@@ -98,16 +98,15 @@ HX.SSAO.prototype._initSamples = function()
 {
     var samples = [];
     var j = 0;
-    var poisson = HX.DEFAULT_POISSON_SPHERE;
+    var poissonPoints = HX.PoissonSphere.DEFAULT.getPoints();
 
     for (var i = 0; i < this._numSamples; ++i) {
-        var x = poisson[i * 3];
-        var y = poisson[i * 3 + 1];
-        var z = poisson[i * 3 + 2];
+        var point = poissonPoints[i];
 
-        samples[j++] = Math.pow(x, 6);
-        samples[j++] = Math.pow(y, 6);
-        samples[j++] = Math.pow(z, 6);
+        // power of two, to create a bit more for closer occlusion
+        samples[j++] = Math.pow(point.x, 2);
+        samples[j++] = Math.pow(point.y, 2);
+        samples[j++] = Math.pow(point.z, 2);
     }
 
     this._ssaoPass.setUniformArray("samples", new Float32Array(samples));
@@ -140,7 +139,6 @@ HX.SSAO.prototype.draw = function(dt)
 
 HX.SSAO.prototype._initDitherTexture = function()
 {
-    this._ditherTexture = new HX.Texture2D();
     var data = [ 126, 255, 126, 255, 135, 253, 105, 255, 116, 51, 26, 255, 137, 57, 233, 255, 139, 254, 121, 255, 56, 61, 210, 255, 227, 185, 73, 255, 191, 179, 30, 255, 107, 245, 173, 255, 205, 89, 34, 255, 191, 238, 138, 255, 56, 233, 125, 255, 198, 228, 161, 255, 85, 13, 164, 255, 140, 248, 168, 255, 147, 237, 65, 255 ];
 
     // in case you're wondering, this is how the list above is generated, until approved
@@ -155,7 +153,9 @@ HX.SSAO.prototype._initDitherTexture = function()
         data[i * 4 + 3] = 0xff;
     }
     console.log(data.join(", "));*/
+
+    this._ditherTexture = new HX.Texture2D();
     this._ditherTexture.uploadData(new Uint8Array(data), 4, 4, false);
-    this._ditherTexture.setFilter(HX.TextureFilter.NEAREST_NOMIP);
-    this._ditherTexture.setWrapMode(HX.TextureWrapMode.REPEAT);
+    this._ditherTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
+    this._ditherTexture.wrapMode = HX.TextureWrapMode.REPEAT;
 };

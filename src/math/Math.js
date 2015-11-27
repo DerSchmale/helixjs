@@ -22,6 +22,13 @@ HX.dot4 = function(a, b)
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 };
 
+HX.RCP_LOG_OF_2 = 1.0 / Math.log(2);
+
+HX.log2 = function(value)
+{
+    return Math.log(value) * HX.RCP_LOG_OF_2;
+};
+
 HX.clamp = function(value, min, max)
 {
     return  value < min?    min :

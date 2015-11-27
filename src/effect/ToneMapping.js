@@ -24,7 +24,7 @@ HX.ToneMapEffect = function(adaptive)
         this._adaptationRate = 2000.0;
 
         this._toneMapPass.setTexture("hx_luminanceMap", this._luminanceMap);
-        this._toneMapPass.setUniform("hx_luminanceMipLevel", Math.log(this._luminanceMap._width) / Math.log(2));
+        this._toneMapPass.setUniform("hx_luminanceMipLevel", HX.log2(this._luminanceMap._width));
     }
 
     this.exposure = 0.0;

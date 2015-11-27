@@ -10,7 +10,7 @@ HX.EffectPass = function(vertexShader, fragmentShader)
     this._gbuffer = null;
     this._vertexLayout = null;
     this._cullMode = HX.CullMode.NONE;
-    this.setMesh(HX.DEFAULT_RECT_MESH);
+    this.setMesh(HX.RectMesh.DEFAULT);
 
     this.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
 };

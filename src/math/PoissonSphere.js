@@ -20,6 +20,22 @@ HX.PoissonSphere = function(mode, initialDistance, decayFactor, maxTests)
 HX.PoissonSphere.BOX = 0;
 HX.PoissonSphere.CIRCULAR = 1;
 
+HX.PoissonSphere._initDefault = function()
+{
+    HX.PoissonSphere.DEFAULT = new HX.PoissonSphere();
+    HX.PoissonSphere.DEFAULT.generatePoints(64);
+    HX.PoissonSphere.DEFAULT_FLOAT32 = new Float32Array(64 * 3);
+
+    var spherePoints = HX.PoissonSphere.DEFAULT.getPoints();
+
+    for (var i = 0; i < 64; ++i) {
+        var p = spherePoints[i];
+        HX.PoissonSphere.DEFAULT_FLOAT32[i * 3] = p.x;
+        HX.PoissonSphere.DEFAULT_FLOAT32[i * 3 + 1] = p.y;
+        HX.PoissonSphere.DEFAULT_FLOAT32[i * 3 + 2] = p.z;
+    }
+};
+
 HX.PoissonSphere.prototype =
 {
     getPoints: function()

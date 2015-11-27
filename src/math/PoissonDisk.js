@@ -20,6 +20,21 @@ HX.PoissonDisk = function(mode, initialDistance, decayFactor, maxTests)
 HX.PoissonDisk.SQUARE = 0;
 HX.PoissonDisk.CIRCULAR = 1;
 
+HX.PoissonDisk._initDefault = function()
+{
+    HX.PoissonDisk.DEFAULT = new HX.PoissonDisk();
+    HX.PoissonDisk.DEFAULT.generatePoints(64);
+    HX.PoissonDisk.DEFAULT_FLOAT32 = new Float32Array(64 * 2);
+
+    var diskPoints = HX.PoissonDisk.DEFAULT.getPoints();
+
+    for (var i = 0; i < 64; ++i) {
+        var p = diskPoints[i];
+        HX.PoissonDisk.DEFAULT_FLOAT32[i * 2] = p.x;
+        HX.PoissonDisk.DEFAULT_FLOAT32[i * 2 + 1] = p.y;
+    }
+};
+
 HX.PoissonDisk.prototype =
 {
     getPoints: function()

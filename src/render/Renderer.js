@@ -64,8 +64,8 @@ HX.Renderer = function ()
 HX.Renderer.HDRBuffers = function(depthBuffer)
 {
     this.texture = new HX.Texture2D();
-    this.texture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
-    this.texture.setWrapMode(HX.TextureWrapMode.CLAMP);
+    this.texture.filter = HX.TextureFilter.BILINEAR_NOMIP;
+    this.texture.wrapMode = HX.TextureWrapMode.CLAMP;
     this.fbo = new HX.FrameBuffer(this.texture);
     this.fboDepth = new HX.FrameBuffer(this.texture, depthBuffer);
 };
@@ -266,11 +266,11 @@ HX.Renderer.prototype =
             switch (transparencyMode) {
                 case HX.TransparencyMode.ADDITIVE:
                     HX.setBlendState(HX.BlendState.ADD);
-                    this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._hdrBack.texture);
+                    this._copyTexture.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture);
                     break;
                 case HX.TransparencyMode.ALPHA:
                     HX.setBlendState(HX.BlendState.ALPHA);
-                    this._applyAlphaTransparency.execute(HX.DEFAULT_RECT_MESH, this._hdrBack.texture, this._gbuffer[0]);
+                    this._applyAlphaTransparency.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture, this._gbuffer[0]);
                     break;
             }
         }
@@ -318,7 +318,7 @@ HX.Renderer.prototype =
         HX.GL.disable(HX.GL.DEPTH_TEST);
 
         HX.pushRenderTarget(this._linearDepthFBO);
-        this._linearizeDepthShader.execute(HX.DEFAULT_RECT_MESH, HX.EXT_DEPTH_TEXTURE ? this._depthBuffer : this._gbuffer[1], this._camera);
+        this._linearizeDepthShader.execute(HX.RectMesh.DEFAULT, HX.EXT_DEPTH_TEXTURE ? this._depthBuffer : this._gbuffer[1], this._camera);
         HX.popRenderTarget(this._linearDepthFBO);
     },
 
@@ -333,33 +333,33 @@ HX.Renderer.prototype =
         HX.setBlendState(null);
         switch (this._debugMode) {
             case HX.DebugRenderMode.DEBUG_COLOR:
-                this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[0]);
+                this._copyTexture.execute(HX.RectMesh.DEFAULT, this._gbuffer[0]);
                 break;
             case HX.DebugRenderMode.DEBUG_NORMALS:
-                this._debugNormals.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[1]);
+                this._debugNormals.execute(HX.RectMesh.DEFAULT, this._gbuffer[1]);
                 break;
             case HX.DebugRenderMode.DEBUG_METALLICNESS:
-                this._copyXChannel.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[2]);
+                this._copyXChannel.execute(HX.RectMesh.DEFAULT, this._gbuffer[2]);
                 break;
             case HX.DebugRenderMode.DEBUG_SPECULAR_NORMAL_REFLECTION:
-                this._copyYChannel.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[2]);
+                this._copyYChannel.execute(HX.RectMesh.DEFAULT, this._gbuffer[2]);
                 break;
             case HX.DebugRenderMode.DEBUG_ROUGHNESS:
-                this._copyZChannel.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[2]);
+                this._copyZChannel.execute(HX.RectMesh.DEFAULT, this._gbuffer[2]);
                 break;
             case HX.DebugRenderMode.DEBUG_DEPTH:
-                this._debugDepth.execute(HX.DEFAULT_RECT_MESH, this._gbuffer[3]);
+                this._debugDepth.execute(HX.RectMesh.DEFAULT, this._gbuffer[3]);
                 break;
             case HX.DebugRenderMode.DEBUG_LIGHT_ACCUM:
-                this._applyGamma.execute(HX.DEFAULT_RECT_MESH, this._hdrFront.texture);
+                this._applyGamma.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
                 break;
             case HX.DebugRenderMode.DEBUG_AO:
                 if (this._aoEffect)
-                    this._copyWChannel.execute(HX.DEFAULT_RECT_MESH, this._aoTexture);
+                    this._copyWChannel.execute(HX.RectMesh.DEFAULT, this._aoTexture);
                 break;
             case HX.DebugRenderMode.DEBUG_SSR:
                 if (this._ssrEffect)
-                    this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._ssrTexture);
+                    this._copyTexture.execute(HX.RectMesh.DEFAULT, this._ssrTexture);
                 break;
             default:
                 this._composite(dt);
@@ -375,9 +375,9 @@ HX.Renderer.prototype =
         // TODO: render directly to screen if last post process effect?
         // OR, provide toneMap property on camera, which gets special treatment
         if (this._gammaApplied)
-            this._copyTextureToScreen.execute(HX.DEFAULT_RECT_MESH, this._hdrFront.texture);
+            this._copyTextureToScreen.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
         else
-            this._applyGamma.execute(HX.DEFAULT_RECT_MESH, this._hdrFront.texture);
+            this._applyGamma.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
     },
 
     _renderLightAccumulation: function ()
@@ -418,7 +418,7 @@ HX.Renderer.prototype =
         }
         else if (this._ssrEffect) {
             HX.setBlendState(HX.BlendState.ADD_WITH_ALPHA);
-            this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._ssrTexture);
+            this._copyTexture.execute(HX.RectMesh.DEFAULT, this._ssrTexture);
         }
     },
 
@@ -434,7 +434,7 @@ HX.Renderer.prototype =
         HX.pushRenderTarget(this._hdrBack.fbo);
         HX.setBlendState(null);
         HX.GL.disable(HX.GL.DEPTH_TEST);
-        this._copyTexture.execute(HX.DEFAULT_RECT_MESH, this._hdrFront.texture);
+        this._copyTexture.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
         HX.popRenderTarget();
     },
 
@@ -479,8 +479,8 @@ HX.Renderer.prototype =
     {
         if (HX.EXT_DEPTH_TEXTURE) {
             this._depthBuffer = new HX.Texture2D();
-            this._depthBuffer.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
-            this._depthBuffer.setWrapMode(HX.TextureWrapMode.CLAMP);
+            this._depthBuffer.filter = HX.TextureFilter.BILINEAR_NOMIP;
+            this._depthBuffer.wrapMode = HX.TextureWrapMode.CLAMP;
         }
         else {
             this._depthBuffer = new HX.ReadOnlyDepthBuffer();
@@ -490,8 +490,8 @@ HX.Renderer.prototype =
 
         for (var i = 0; i < 4; ++i) {
             this._gbuffer[i] = new HX.Texture2D();
-            this._gbuffer[i].setFilter(HX.TextureFilter.BILINEAR_NOMIP);
-            this._gbuffer[i].setWrapMode(HX.TextureWrapMode.CLAMP);
+            this._gbuffer[i].filter = HX.TextureFilter.BILINEAR_NOMIP;
+            this._gbuffer[i].wrapMode = HX.TextureWrapMode.CLAMP;
         }
 
         this._gbufferSingleFBOs = [];

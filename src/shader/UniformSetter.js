@@ -260,5 +260,5 @@ HX.PoissonDiskSetter = function()
 
 HX.PoissonDiskSetter.prototype.execute = function (worldMatrix, camera)
 {
-    HX.GL.uniform2fv(this.location, HX.DEFAULT_POISSON_DISK);
+    HX.GL.uniform2fv(this.location, HX.PoissonDisk.DEFAULT_FLOAT32);
 };

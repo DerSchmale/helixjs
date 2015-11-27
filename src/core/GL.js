@@ -4,7 +4,6 @@
 
 // properties to keep track of render state
 HX._numActiveAttributes = 0;
-HX._numActiveTextures = 0;
 
 HX._renderTargetStack = [ null ];
 HX._renderTargetInvalid = true;

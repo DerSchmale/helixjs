@@ -12,3 +12,8 @@ HX.RectMesh.create = function()
     data.setIndexData([0, 1, 2, 0, 2, 3]);
     return new HX.Mesh(data);
 };
+
+HX.RectMesh._initDefault = function()
+{
+    HX.RectMesh.DEFAULT = HX.RectMesh.create();
+};

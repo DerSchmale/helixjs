@@ -41,11 +41,11 @@ HX.HBAO = function(numRays, numSamplesPerRay)
     this._sourceTextureSlot = this._blurPass.getTextureSlot("source");
 
     this._aoTexture = new HX.Texture2D();
-    this._aoTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
-    this._aoTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
+    this._aoTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
+    this._aoTexture.wrapMode = HX.TextureWrapMode.CLAMP;
     this._backTexture = new HX.Texture2D();
-    this._backTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
-    this._backTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
+    this._backTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
+    this._backTexture.wrapMode = HX.TextureWrapMode.CLAMP;
     this._fbo1 = new HX.FrameBuffer(this._aoTexture);
     this._fbo2 = new HX.FrameBuffer(this._backTexture);
 };
@@ -159,8 +159,8 @@ HX.HBAO.prototype._initSampleDirTexture = function()
     }
 
     this._sampleDirTexture.uploadData(new Uint8Array(data), 256, 1, false);
-    this._sampleDirTexture.setFilter(HX.TextureFilter.NEAREST_NOMIP);
-    this._sampleDirTexture.setWrapMode(HX.TextureWrapMode.REPEAT);
+    this._sampleDirTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
+    this._sampleDirTexture.wrapMode = HX.TextureWrapMode.REPEAT;
 };
 
 HX.HBAO.prototype._initDitherTexture = function()
@@ -200,6 +200,6 @@ HX.HBAO.prototype._initDitherTexture = function()
     }
 
     this._ditherTexture.uploadData(new Uint8Array(data), 4, 4, false);
-    this._ditherTexture.setFilter(HX.TextureFilter.NEAREST_NOMIP);
-    this._ditherTexture.setWrapMode(HX.TextureWrapMode.REPEAT);
+    this._ditherTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
+    this._ditherTexture.wrapMode = HX.TextureWrapMode.REPEAT;
 };

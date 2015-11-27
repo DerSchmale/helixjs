@@ -108,8 +108,8 @@ HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
     this._fbo = null;
     this._depthBuffer = null;   // only used if depth textures aren't supported
     this._shadowMap = new HX.Texture2D();
-    this._shadowMap.setFilter(HX.TextureFilter.NEAREST_NOMIP);
-    this._shadowMap.setWrapMode(HX.TextureWrapMode.CLAMP);
+    this._shadowMap.filter = HX.TextureFilter.NEAREST_NOMIP;
+    this._shadowMap.wrapMode = HX.TextureWrapMode.CLAMP;
     this._shadowMatrices = [ new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4() ];
     this._transformToUV = [ new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4() ];
     this._inverseLightMatrix = new HX.Matrix4x4();

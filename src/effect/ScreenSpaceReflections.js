@@ -25,8 +25,8 @@ HX.ScreenSpaceReflections = function(numSamples)
     this.maxRoughness = .3;
 
     this._ssrTexture = new HX.Texture2D();
-    this._ssrTexture.setFilter(HX.TextureFilter.BILINEAR_NOMIP);
-    this._ssrTexture.setWrapMode(HX.TextureWrapMode.CLAMP);
+    this._ssrTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
+    this._ssrTexture.wrapMode = HX.TextureWrapMode.CLAMP;
     this._fbo = new HX.FrameBuffer(this._ssrTexture);
 };
 

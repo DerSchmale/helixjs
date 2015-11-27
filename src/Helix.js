@@ -154,44 +154,14 @@ HX.init = function(canvas, options)
     // shortcuts
     HX._initGLProperties();
 
-    var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
-
-    HX.DEFAULT_TEXTURE_2D = new HX.Texture2D();
-    HX.DEFAULT_TEXTURE_2D.uploadData(data, 1, 1, true);
-    HX.DEFAULT_TEXTURE_2D.setFilter(HX.TextureFilter.NEAREST_NOMIP);
-
-    HX.DEFAULT_TEXTURE_CUBE = new HX.TextureCube();
-    HX.DEFAULT_TEXTURE_CUBE.uploadData([data, data, data, data, data, data], 1, true);
-    HX.DEFAULT_TEXTURE_CUBE.setFilter(HX.TextureFilter.NEAREST_NOMIP);
-
+    HX.Texture2D._initDefault();
+    HX.TextureCube._initDefault();
     HX.BlendState._initDefaults();
-
-    // TODO: Pregenerate
-    var poissonDisk = new HX.PoissonDisk();
-    var poissonSphere = new HX.PoissonSphere();
-    poissonDisk.generatePoints(64);
-    poissonSphere.generatePoints(64);
-
-    HX.DEFAULT_POISSON_DISK = new Float32Array(64 * 2);
-    HX.DEFAULT_POISSON_SPHERE = new Float32Array(64 * 3);
-
-    var diskPoints = poissonDisk.getPoints();
-    var spherePoints = poissonSphere.getPoints();
-
-    for (var i = 0; i < 64; ++i) {
-        var p = diskPoints[i];
-        HX.DEFAULT_POISSON_DISK[i * 2] = p.x;
-        HX.DEFAULT_POISSON_DISK[i * 2 + 1] = p.y;
-
-        p = spherePoints[i];
-        HX.DEFAULT_POISSON_SPHERE[i * 3] = p.x;
-        HX.DEFAULT_POISSON_SPHERE[i * 3 + 1] = p.y;
-        HX.DEFAULT_POISSON_SPHERE[i * 3 + 2] = p.z;
-    }
+    HX.RectMesh._initDefault();
+    HX.PoissonDisk._initDefault();
+    HX.PoissonSphere._initDefault();
 
     HX._init2DDitherTexture(32, 32);
-
-    HX.DEFAULT_RECT_MESH = HX.RectMesh.create();
 
     HX.setClearColor(HX.Color.BLACK);
 };
@@ -240,8 +210,8 @@ HX._init2DDitherTexture = function(width, height)
     }
 
     HX.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, HX.GL.RGBA, HX.GL.FLOAT);
-    HX.DEFAULT_2D_DITHER_TEXTURE.setFilter(HX.TextureFilter.NEAREST_NOMIP);
-    HX.DEFAULT_2D_DITHER_TEXTURE.setWrapMode(HX.TextureWrapMode.REPEAT);
+    HX.DEFAULT_2D_DITHER_TEXTURE.filter = HX.TextureFilter.NEAREST_NOMIP;
+    HX.DEFAULT_2D_DITHER_TEXTURE.wrapMode = HX.TextureWrapMode.REPEAT;
 };
 
 

@@ -49,7 +49,6 @@ Object.defineProperties(HX.SceneNode.prototype, {
 
             if (value) {
                 this._debugBounds = new HX.ModelNode(this._worldBounds.getDebugModelInstance());
-                this._debugBounds.setTransform(null);
                 this._updateDebugBounds();
             }
             else

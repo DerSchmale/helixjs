@@ -120,9 +120,14 @@ HX.BoundingVolume.prototype =
     getDebugMaterial: function()
     {
         if (HX.BoundingVolume._debugMaterial === undefined) {
-            var parser = new DOMParser();
-            var xml = parser.parseFromString(HX.BoundingVolume._debugMaterialXML, "text/xml");
-            HX.BoundingVolume._debugMaterial = HX.MaterialUtils.parseFromXML(xml);
+            var material = new HX.Material();
+            var shader = new HX.Shader(HX.ShaderLibrary.get("debug_bounds_vertex.glsl"), HX.ShaderLibrary.get("debug_bounds_fragment.glsl"));
+            var materialPass = new HX.MaterialPass(shader);
+            materialPass.elementType = HX.ElementType.LINES;
+            materialPass.cullMode = HX.CullMode.NONE;
+            material.setPass(HX.MaterialPass.POST_LIGHT_PASS, materialPass);
+            material.setUniform("color", new HX.Color(1.0, 0.0, 1.0));
+            HX.BoundingVolume._debugMaterial = material;
         }
 
         return HX.BoundingVolume._debugMaterial;
@@ -391,7 +396,7 @@ HX.BoundingAABB.prototype.getRadius = function()
 
 HX.BoundingAABB.prototype.createDebugModelInstance = function()
 {
-    return new HX.ModelInstance(HX.BoxPrimitive.create({doubleSided:true}), [this.getDebugMaterial()]);
+    return new HX.ModelInstance(HX.BoxPrimitive.create(), [this.getDebugMaterial()]);
 };
 
 /**
@@ -664,35 +669,3 @@ HX.FixedAABB = function()
 };
 
 HX.FixedAABB.prototype = Object.create(HX.BoundingAABB.prototype);
-
-// TODO: put in separate material & glsl files
-HX.BoundingVolume._debugMaterialXML = '\
-<?xml version="1.0" encoding="UTF-8"?>\n\
-<material>\n\
-    <shaders>\n\
-        <shader id="vertexShader">\n\
-            void main()\n\
-            {\n\
-                gl_Position = hx_wvpMatrix * hx_position;\n\
-            }\n\
-        </shader>\n\
-        <shader id="fragmentShader">\n\
-            uniform vec4 color;\n\
-            \n\
-            void main()\n\
-            {\n\
-                gl_FragColor = color;\n\
-            }\n\
-        </shader>\n\
-    </shaders>\n\
-    <passes>\n\
-        <preEffect>\n\
-            <element>lines</element>\n\
-            <vertex>vertexShader</vertex>\n\
-            <fragment>fragmentShader</fragment>\n\
-        </preEffect>\n\
-    </passes>\n\
-    <uniforms>\n\
-        <color value="1.0, 0.0, 1.0, 1.0"/>\n\
-    </uniforms>\n\
-</material>';

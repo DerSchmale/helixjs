@@ -1,11 +1,21 @@
-float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
+// Smith:
+/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
 {
-// Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs, Heitz
 	float nDotV = max(-dot(normal, viewDir), 0.0);
 	float roughSqr = roughness*roughness;
-	float g1 = (nDotV*(1.0 - roughSqr) + roughSqr);
-	float g2 = (nDotL*(1.0 - roughSqr) + roughSqr);
-	return .5/(g1 + g2);
+	float g1 = nDotV + sqrt( (nDotV - nDotV * roughSqr) * nDotV + roughSqr );
+    float g2 = nDotL + sqrt( (nDotL - nDotL * roughSqr) * nDotL + roughSqr );
+    return 1.0 / (g1 * g2);
+}*/
+
+// schlick-beckman
+float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
+{
+	float nDotV = max(-dot(normal, viewDir), 0.0);
+	float r = roughness * roughness * 0.797896;
+	float g1 = nDotV * (1.0 - r) + r;
+	float g2 = nDotL * (1.0 - r) + r;
+    return .25 / (g1 * g2);
 }
 
 float hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)
@@ -36,7 +46,7 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 	//approximated fresnel-based energy conservation
 	diffuseColor = irradiance;
 
-	specularColor = .25 * irradiance * fresnel * distribution;
+	specularColor = irradiance * fresnel * distribution;
 
 #ifdef VISIBILITY
     specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);

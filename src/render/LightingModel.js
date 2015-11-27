@@ -11,7 +11,7 @@ HX.BlinnPhongSimpleLightingModel =
 /**
  * Normalized blinn-phong with visibility and foreshortening terms.
  */
-HX.BlinnPhongFullLightingModel =
+/*HX.BlinnPhongFullLightingModel =
 {
     getGLSL: function() {
         return HX.ShaderLibrary.get("lighting_blinn_phong.glsl",
@@ -19,12 +19,12 @@ HX.BlinnPhongFullLightingModel =
                     VISIBILITY: 1
                 }) + "\n\n";
     }
-};
+};*/
 
 /**
  * Full GGX model with geometric and foreshortening terms.
  */
-HX.GGXFullLightingModel =
+/*HX.GGXFullLightingModel =
 {
     getGLSL: function() {
         return HX.ShaderLibrary.get("lighting_ggx.glsl",
@@ -32,7 +32,7 @@ HX.GGXFullLightingModel =
                     VISIBILITY: 1
                 }) + "\n\n";
     }
-};
+};*/
 
 /**
  * GGX distribution model without visibility term.

@@ -24,10 +24,12 @@ uniform sampler2D hx_localReflections;
 
 uniform mat4 hx_cameraWorldMatrix;
 
-// cheap geometric shadowing function, not at all physically correct
-float hx_reflectionVisibility(vec3 normal, vec3 reflection, float roughness)
+// this is Schlick-Beckmann attenuation for only the view vector
+float hx_geometricShadowing(vec3 normal, vec3 reflection, float roughness)
 {
-	return 1.0 - roughness*roughness;
+    float nDotV = max(dot(normal, reflection), 0.0);
+    float att = nDotV / (nDotV * (1.0 - roughness) + roughness);
+    return att;
 }
 
 void main()
@@ -54,9 +56,9 @@ void main()
 	#endif
 	specProbeSample = hx_gammaToLinear(specProbeSample);
 	vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflectedViewDir, normal);
-	float attenuation = mix(hx_reflectionVisibility(normal, reflectedViewDir, roughness), 1.0, metallicness);
+	float attenuation = mix(hx_geometricShadowing(normal, reflectedViewDir, roughness), 1.0, metallicness);
 
-	totalLight += fresnel * specProbeSample.xyz * attenuation;
+	totalLight += fresnel * attenuation * specProbeSample.xyz;
 
     #ifdef USE_SSR
         vec4 reflectionSample = texture2D(hx_localReflections, uv);

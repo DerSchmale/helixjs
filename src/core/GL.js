@@ -132,13 +132,7 @@ HX.setBlendState = function(value)
     HX._blendStateInvalid = true;
 };
 
-HX.pushStencilState = function(frameBuffer)
-{
-    HX._stencilStateStack.push(frameBuffer);
-    HX._stencilStateInvalid = true;
-};
-
-HX.updateStencilReference = function(value)
+HX.updateStencilReferenceValue = function(value)
 {
     var currentState = HX._stencilStateStack[HX._stencilStateStack.length - 1];
 
@@ -148,7 +142,13 @@ HX.updateStencilReference = function(value)
 
     if (!HX._stencilStateInvalid && currentState.enabled)
         HX.GL.stencilFunc(currentState.comparison, value, currentState.readMask);
-} ;
+};
+
+HX.pushStencilState = function(frameBuffer)
+{
+    HX._stencilStateStack.push(frameBuffer);
+    HX._stencilStateInvalid = true;
+};
 
 HX.popStencilState = function()
 {
@@ -213,8 +213,11 @@ HX._updateRenderState = function()
 
     if (HX._stencilStateInvalid) {
         var state = HX._stencilStateStack[HX._stencilStateStack.length - 1];
-        if (state == null || state.enabled === false)
+        if (state == null || state.enabled === false) {
             HX.GL.disable(HX.GL.STENCIL_TEST);
+            HX.GL.stencilFunc(HX.Comparison.ALWAYS, 0, 0xff);
+            HX.GL.stencilOp(HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
+        }
         else {
             HX.GL.enable(HX.GL.STENCIL_TEST);
             HX.GL.stencilFunc(state.comparison, state.reference, state.readMask);

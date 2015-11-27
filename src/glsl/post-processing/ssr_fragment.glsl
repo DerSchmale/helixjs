@@ -7,7 +7,7 @@ uniform sampler2D hx_gbufferDepth;
 uniform sampler2D hx_dither2D;
 uniform vec2 hx_renderTargetResolution;
 
-uniform sampler2D source;
+uniform sampler2D hx_frontbuffer;
 
 varying vec2 uv;
 varying vec3 viewDir;
@@ -136,7 +136,7 @@ void main()
     fadeFactor *= hx_linearStep(-1.0, 0.0, diff);
     fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);
 
-    vec4 reflColor = texture2D(source, hitUV);
+    vec4 reflColor = texture2D(hx_frontbuffer, hitUV);
 
     float amountUsed = amount * fadeFactor;
     gl_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);

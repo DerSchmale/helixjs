@@ -3,6 +3,7 @@ varying vec2 uv;
 uniform sampler2D sampler;
 uniform mat4 hx_projectionMatrix;
 uniform float hx_rcpCameraFrustumRange;
+uniform float hx_cameraNearPlaneDistance;
 
 float readDepth(sampler2D sampler, vec2 uv)
 {
@@ -17,6 +18,6 @@ float readDepth(sampler2D sampler, vec2 uv)
 void main()
 {
 	float depth = readDepth(sampler, uv);
-	float linear = hx_depthToViewZ(depth, hx_projectionMatrix) * hx_rcpCameraFrustumRange;
+	float linear = (hx_depthToViewZ(depth, hx_projectionMatrix) - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;
 	gl_FragColor = hx_floatToRGBA8(linear);
 }

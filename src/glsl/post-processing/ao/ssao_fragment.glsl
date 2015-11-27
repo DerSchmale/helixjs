@@ -1,6 +1,7 @@
 uniform mat4 hx_projectionMatrix;
 uniform mat4 hx_cameraWorldMatrix;
 uniform float hx_cameraFrustumRange;
+uniform float hx_cameraNearPlaneDistance;
 
 uniform vec2 ditherScale;
 uniform float strengthPerSample;
@@ -22,7 +23,7 @@ void main()
     float totalOcclusion = 0.0;
     vec3 dither = texture2D(ditherTexture, uv * ditherScale).xyz;
     vec3 randomPlaneNormal = normalize(dither - .5);
-    float w = -centerDepth * hx_cameraFrustumRange * hx_projectionMatrix[2][3] + hx_projectionMatrix[3][3];
+    float w = centerDepth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;
     vec3 sampleRadii;
     sampleRadii.x = sampleRadius * .5 * hx_projectionMatrix[0][0] / w;
     sampleRadii.y = sampleRadius * .5 * hx_projectionMatrix[1][1] / w;

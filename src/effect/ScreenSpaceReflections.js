@@ -18,7 +18,6 @@ HX.ScreenSpaceReflections = function(numSamples)
     this._stencilReadState = new HX.StencilState(1, HX.Comparison.EQUAL, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
     this._stencilPass = new HX.EffectPass(null, HX.ShaderLibrary.get("ssr_stencil_fragment.glsl"));
     this._pass = new HX.EffectPass(HX.ShaderLibrary.get("ssr_vertex.glsl", defines), HX.ShaderLibrary.get("ssr_fragment.glsl", defines));
-    this._sourceTextureSlot = this._pass.getTextureSlot("source");
     this._scale = .5;
     this.stepSize = Math.max(500.0 / numSamples, 1.0);
     this.maxDistance = 500.0;
@@ -90,18 +89,6 @@ Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
         {
             this._scale = value;
             if (this._scale > 1.0) this._scale = 1.0;
-        }
-    },
-
-    sourceTexture: {
-        get: function()
-        {
-            return this._sourceTextureSlot.texture;
-        },
-
-        set: function(value)
-        {
-            this._sourceTextureSlot.texture = value;
         }
     }
 });

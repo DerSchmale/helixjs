@@ -60,17 +60,15 @@ HX.Renderer = function ()
     this._debugMode = HX.DebugRenderMode.DEBUG_NONE;
     this._camera = null;
 
-    this._stencilWriteState = new HX.StencilState();
-    this._stencilWriteState.comparison = HX.Comparison.ALWAYS;
-    this._stencilWriteState.onStencilFail = HX.StencilOp.REPLACE;
-    this._stencilWriteState.onDepthFail = HX.StencilOp.KEEP;
-    this._stencilWriteState.onPass = HX.StencilOp.REPLACE;
+    this._stencilWriteState = new HX.StencilState(0, HX.Comparison.ALWAYS, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.REPLACE);
+    this._stencilReadState = new HX.StencilState(0, HX.Comparison.EQUAL, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
 
-    this._stencilReadState = new HX.StencilState();
-    this._stencilReadState.comparison = HX.Comparison.EQUAL;
-    this._stencilReadState.onStencilFail = HX.StencilOp.KEEP;
-    this._stencilReadState.onDepthFail = HX.StencilOp.KEEP;
-    this._stencilReadState.onPass = HX.StencilOp.KEEP;
+    // just a fake AO texture for when transparency is used
+    var data = new Uint8Array([0xff, 0xff, 0xff, 0xff]);
+    this._blankAOTexture = new HX.Texture2D();
+    this._blankAOTexture = new HX.Texture2D();
+    this._blankAOTexture.uploadData(data, 1, 1, true);
+    this._blankAOTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
 };
 
 HX.Renderer.HDRBuffers = function(depthBuffer)
@@ -119,7 +117,6 @@ HX.Renderer.prototype =
     set ambientOcclusion(value)
     {
         this._aoEffect = value;
-        this._aoTexture = this._aoEffect ? this._aoEffect.getAOTexture() : null;
     },
 
     get localReflections()
@@ -135,10 +132,13 @@ HX.Renderer.prototype =
 
     render: function (camera, scene, dt)
     {
-        var stackSize = HX._renderTargetStack.length;
+        var renderTargetStackSize = HX._renderTargetStack.length;
+        var stencilStackSize = HX._stencilStateStack.length;
         this._gammaApplied = false;
         this._camera = camera;
         this._scene = scene;
+
+        this._aoTexture = this._aoEffect ? this._aoEffect.getAOTexture() : null;
 
         this._updateSize();
 
@@ -154,14 +154,18 @@ HX.Renderer.prototype =
             this._renderPostPass(HX.MaterialPass.POST_LIGHT_PASS);
             this._renderPostPass(HX.MaterialPass.POST_PASS, true);
 
+            if (this._aoTexture) this._aoTexture = this._blankAOTexture;
+
             this._renderTransparents();
         }
         HX.popRenderTarget();
 
         this._renderToScreen(dt);
 
-        if (HX._renderTargetStack.length > stackSize) throw "Unpopped render targets!";
-        if (HX._renderTargetStack.length < stackSize) throw "Overpopped render targets!";
+        if (HX._renderTargetStack.length > renderTargetStackSize) throw "Unpopped render targets!";
+        if (HX._renderTargetStack.length < renderTargetStackSize) throw "Overpopped render targets!";
+        if (HX._stencilStateStack.length > stencilStackSize) throw "Unpopped stencil states!";
+        if (HX._stencilStateStack.length < stencilStackSize) throw "Overpopped stencil states!";
     },
 
     _renderShadowCasters: function ()
@@ -198,7 +202,7 @@ HX.Renderer.prototype =
 
         // no other lighting models are currently supported, but can't shade lightingModel 0, which is unlit:
         var lightingModelID = 1;
-        this._stencilReadState.reference = lightingModelID << 1;
+        this._stencilReadState.reference = lightingModelID << 4;
 
         HX.pushStencilState(this._stencilReadState);
 
@@ -225,10 +229,12 @@ HX.Renderer.prototype =
 
         // TODO: Should we render all transparent objects with the same transparency mode?
         for (var i = 0; i < len; ++i) {
+            this._swapHDRFrontAndBack(true);
             var material = baseList[i].material;
             var transparencyMode = material._transparencyMode;
-            var stencilValue = (material._lightingModelID << 1) | transparencyMode;
+            var stencilValue = (material._lightingModelID << 4) | transparencyMode;
             this._stencilWriteState.reference = stencilValue;
+
             HX.pushStencilState(this._stencilWriteState);
 
             if (HX.EXT_DRAW_BUFFERS)
@@ -265,20 +271,19 @@ HX.Renderer.prototype =
 
             this._linearizeDepth();
 
-            HX.pushRenderTarget(this._hdrBack.fboDepth);
             this._renderLightAccumulation();
-            HX.popRenderTarget();
+            this._swapHDRFrontAndBack(true);
 
             switch (transparencyMode) {
                 case HX.TransparencyMode.ADDITIVE:
-                    HX.setBlendState(HX.BlendState.ADD);
-                    this._copyTexture.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture);
+                    HX.setBlendState(HX.BlendState.ADD_WITH_ALPHA);
                     break;
                 case HX.TransparencyMode.ALPHA:
                     HX.setBlendState(HX.BlendState.ALPHA);
-                    this._applyAlphaTransparency.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture, this._gbuffer[0]);
                     break;
             }
+
+            this._applyAlphaTransparency.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture, this._gbuffer[0]);
 
             HX.popStencilState(this._stencilReadState);
         }
@@ -357,7 +362,7 @@ HX.Renderer.prototype =
                 break;
             case HX.DebugRenderMode.DEBUG_AO:
                 if (this._aoEffect)
-                    this._copyWChannel.execute(HX.RectMesh.DEFAULT, this._aoTexture);
+                    this._copyWChannel.execute(HX.RectMesh.DEFAULT, this._aoEffect.getAOTexture());
                 break;
             case HX.DebugRenderMode.DEBUG_SSR:
                 if (this._ssrEffect)
@@ -410,7 +415,6 @@ HX.Renderer.prototype =
             this._renderCollector._globalIrradianceProbe.render(this);
 
         if (this._ssrEffect != null) {
-            this._ssrEffect.sourceTexture = HX.getCurrentRenderTarget()._colorTextures[0];
             this._ssrEffect.render(this, 0);
         }
 
@@ -536,6 +540,7 @@ HX.Renderer.prototype =
         this._copyYChannel.dispose();
         this._copyZChannel.dispose();
         this._copyWChannel.dispose();
+        this._blankAOTexture.dispose();
 
         this._hdrBack.dispose();
         this._hdrFront.dispose();
@@ -551,13 +556,16 @@ HX.Renderer.prototype =
     },
 
     // allows effects to ping pong on the renderer's own buffers
-    _swapHDRFrontAndBack: function()
+    _swapHDRFrontAndBack: function(depthStencil)
     {
         var tmp = this._hdrBack;
         this._hdrBack = this._hdrFront;
         this._hdrFront = tmp;
         HX.popRenderTarget();
-        HX.pushRenderTarget(this._hdrFront.fbo);
+        if (depthStencil)
+            HX.pushRenderTarget(this._hdrFront.fboDepth);
+        else
+            HX.pushRenderTarget(this._hdrFront.fbo);
     },
 
     _updateSize: function ()

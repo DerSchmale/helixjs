@@ -122,7 +122,7 @@ HX.BoundingVolume.prototype =
         if (HX.BoundingVolume._debugMaterial === undefined) {
             var parser = new DOMParser();
             var xml = parser.parseFromString(HX.BoundingVolume._debugMaterialXML, "text/xml");
-            HX.BoundingVolume._debugMaterial = HX.Material.parseFromXML(xml);
+            HX.BoundingVolume._debugMaterial = HX.MaterialUtils.parseFromXML(xml);
         }
 
         return HX.BoundingVolume._debugMaterial;

@@ -296,8 +296,6 @@ HX.TextureCube.prototype =
 
     uploadImages: function(images, generateMips, format, dataType)
     {
-        console.log("uploadImages", format);
-
         generateMips = generateMips === undefined? true: generateMips;
 
         this.uploadImagesToMipLevel(images, 0, format, dataType);

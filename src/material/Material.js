@@ -263,10 +263,10 @@ HX.MaterialPass.prototype = {
                 HX.GL.uniform2f(uniform.location, value.x, value.y);
                 break;
             case HX.GL.FLOAT_VEC3:
-                HX.GL.uniform3f(uniform.location, value.x || value.r, value.y || value.g, value.z || value.b );
+                HX.GL.uniform3f(uniform.location, value.x || value.r || 0, value.y || value.g || 0, value.z || value.b || 0 );
                 break;
             case HX.GL.FLOAT_VEC4:
-                HX.GL.uniform4f(uniform.location, value.x || value.r, value.y || value.g, value.z || value.b, value.w || value.a);
+                HX.GL.uniform4f(uniform.location, value.x || value.r || 0, value.y || value.g || 0, value.z || value.b || 0, value.w || value.a || 0);
                 break;
             case HX.GL.INT:
                 HX.GL.uniform1i(uniform.location, value);

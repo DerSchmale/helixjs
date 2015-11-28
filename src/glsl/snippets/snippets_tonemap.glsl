@@ -1,7 +1,3 @@
-#ifdef ADAPTIVE
-#extension GL_EXT_shader_texture_lod : require
-#endif
-
 varying vec2 uv;
 
 #ifdef ADAPTIVE

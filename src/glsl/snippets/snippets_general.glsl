@@ -29,18 +29,6 @@ float hx_RG8ToFloat(vec2 rg)
     return dot(rg, vec2(1.0, 1.0/255.0)) / .99;
 }
 
-vec4 hx_encodeNormalDepth(vec3 normal, float depth)
-{
-	#ifdef HX_NO_DEPTH_TEXTURES
-    	vec4 data;
-    	data.xy = normal.xy * .5 + .5;
-		data.zw = hx_floatToRG8(depth);
-		return data;
-	#else
-		return vec4(normal * .5 + .5, 1.0);
-    #endif
-}
-
 vec3 hx_decodeNormal(vec4 data)
 {
     #ifdef HX_NO_DEPTH_TEXTURES
@@ -52,11 +40,6 @@ vec3 hx_decodeNormal(vec4 data)
     #else
     	return normalize(data.xyz - .5);
     #endif
-}
-
-vec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness)
-{
-	return vec4(roughness, specularNormalReflection * 5.0, metallicness, 1.0);
 }
 
 vec4 hx_gammaToLinear(vec4 color)

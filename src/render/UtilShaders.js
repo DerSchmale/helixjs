@@ -147,17 +147,20 @@ HX.LinearizeDepthShader = function()
     HX.GL.useProgram(this._program);
 
     this._textureLocation = HX.GL.getUniformLocation(this._program, "sampler");
+    this._textureLocation2 = HX.GL.getUniformLocation(this._program, "sampler2");
     this._rcpFrustumRangeLocation = HX.GL.getUniformLocation(this._program, "hx_rcpCameraFrustumRange");
     this._projectionLocation = HX.GL.getUniformLocation(this._program, "hx_projectionMatrix");
     this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
     this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
 
     HX.GL.uniform1i(this._textureLocation, 0);
+    if (this._textureLocation2)
+        HX.GL.uniform1i(this._textureLocation2, 1);
 };
 
 HX.LinearizeDepthShader.prototype = Object.create(HX.Shader.prototype);
 
-HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera)
+HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera, texture2)
 {
     HX.setDepthTest(HX.Comparison.DISABLED);
     HX.setCullMode(HX.CullMode.NONE);
@@ -169,6 +172,8 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera)
     this.updateRenderState(null, camera);
 
     texture.bind(0);
+    if (texture2)
+        texture2.bind(1);
 
     HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
     HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);

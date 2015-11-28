@@ -21,7 +21,7 @@ HX.DebugRenderMode = {
  * GBUFFER LAYOUT:
  * 0: COLOR: (color.XYZ, transparency (only when using transparencyMode))
  * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw if depth texture not supported)
- * 2: REFLECTION: (roughness, normalSpecularReflection, metallicness, unused)
+ * 2: REFLECTION: (roughness, normalSpecularReflection, metallicness, extra depth precision if depth texture not supported and max precision is requested)
  * 3: LINEAR DEPTH: (not explicitly written to by user), 0 - 1 linear depth encoded as RGBA
  *
  * @constructor
@@ -325,7 +325,16 @@ HX.Renderer.prototype =
     _linearizeDepth: function ()
     {
         HX.pushRenderTarget(this._linearDepthFBO);
-        this._linearizeDepthShader.execute(HX.RectMesh.DEFAULT, HX.EXT_DEPTH_TEXTURE ? this._depthBuffer : this._gbuffer[1], this._camera);
+        var depthTexture, depthTexture2;
+        if (HX.EXT_DEPTH_TEXTURE) {
+            depthTexture = this._depthBuffer;
+        }
+        else {
+            depthTexture = this._gbuffer[1];
+            // we keep the smallest precision in specular buffer
+            depthTexture2 = this._gbuffer[2];
+        }
+        this._linearizeDepthShader.execute(HX.RectMesh.DEFAULT, depthTexture, this._camera, depthTexture2);
         HX.popRenderTarget(this._linearDepthFBO);
     },
 

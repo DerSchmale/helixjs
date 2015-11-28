@@ -12,6 +12,7 @@ HX.InitOptions = function()
     // rendering pipeline options
     this.useHDR = false;   // only if available
     this.useLinearSpace = true;
+    this.maxDepthPrecision = false;  // Use 24 bit depth encoding. Only relevant if depth textures are unavailable. Only use for large view distances.
 
     // provide an array of light types if you wish to extend the direct lights with your own types
     this.customLights = [];
@@ -39,9 +40,15 @@ HX.ShaderLibrary = {
      * @param extensions (Optional) An array of extensions to be required
      * @returns A string containing the shader code from the files with defines prepended
      */
-    get: function(filename, defines)
+    get: function(filename, defines, extensions)
     {
         var defineString = "";
+
+        if (extensions) {
+            for (var i = 0; i < extensions.length; ++i) {
+                defineString += "#extension " + extensions[i] + " : require\n";
+            }
+        }
 
         for (var key in defines) {
             if (defines.hasOwnProperty(key)) {
@@ -124,6 +131,8 @@ HX.init = function(canvas, options)
     if (!HX.EXT_DEPTH_TEXTURE) {
         console.warn('WEBGL_depth_texture extension not supported!');
         defines += "#define HX_NO_DEPTH_TEXTURES\n";
+        if (HX.OPTIONS.maxDepthPrecision)
+            defines += "#define HX_MAX_DEPTH_PRECISION\n";
         HX.MaterialPass.SHADOW_MAP_PASS = HX.MaterialPass.NUM_PASS_TYPES++;
     }
 

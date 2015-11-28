@@ -14,6 +14,7 @@ HX.ScreenSpaceReflections = function(numSamples)
         NUM_SAMPLES: numSamples
     };
 
+    this._isSupported = !!HX.EXT_STANDARD_DERIVATIVES;
     this._stencilWriteState = new HX.StencilState(1, HX.Comparison.ALWAYS, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE);
     this._stencilReadState = new HX.StencilState(1, HX.Comparison.EQUAL, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
     this._stencilPass = new HX.EffectPass(null, HX.ShaderLibrary.get("ssr_stencil_fragment.glsl"));

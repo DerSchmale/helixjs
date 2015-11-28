@@ -26,8 +26,8 @@ uniform float refractiveRatio;   // the ratio of refractive indices
 
 vec2 getPreciseRefractedUVOffset(vec3 normal, float distance)
 {
-    vec3 refractionVector = refract(normalize(viewVector), normal, refractiveRatio);   // close enough
-    return (refractionVector.xy - viewVector.xy) / max(-viewVector.z - refractionVector.z * distance, 1.0);
+    vec3 refractionVector = refract(vec3(0.0, 0.0, -1.0), normal, refractiveRatio);   // close enough
+    return (refractionVector.xy) / max(-viewVector.z - refractionVector.z * distance, 1.0);
 }
 
 void main()

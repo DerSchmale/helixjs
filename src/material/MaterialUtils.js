@@ -124,19 +124,19 @@ HX.MaterialUtils =
         var pass = new HX.MaterialPass(shader);
 
         if (elements)
-            pass.elementType = HX.MaterialUtils._translateProperty(elements.innerHTML);
+            pass.elementType = HX.MaterialUtils._translateProperty(elements.childNodes[0].nodeValue);
 
         if (cullmode)
-            pass.cullMode = HX.MaterialUtils._translateProperty(cullmode.innerHTML);
+            pass.cullMode = HX.MaterialUtils._translateProperty(cullmode.childNodes[0].nodeValue);
 
         if (blend) {
             var blendState = new HX.BlendState();
             var source = blend.getElementsByTagName("source")[0];
             var dest = blend.getElementsByTagName("destination")[0];
             var op = blend.getElementsByTagName("operator")[0];
-            blendState.srcFactor = source ? HX.MaterialUtils._translateProperty(source.innerHTML) : HX.BlendFactor.ONE;
-            blendState.dstFactor = dest ? HX.MaterialUtils._translateProperty(dest.innerHTML) : HX.BlendFactor.ZERO;
-            blendState.operator = source ? HX.MaterialUtils._translateProperty(op.innerHTML) : HX.BlendOperation.ADD;
+            blendState.srcFactor = source ? HX.MaterialUtils._translateProperty(source.childNodes[0].nodeValue) : HX.BlendFactor.ONE;
+            blendState.dstFactor = dest ? HX.MaterialUtils._translateProperty(dest.childNodes[0].nodeValue) : HX.BlendFactor.ZERO;
+            blendState.operator = op ? HX.MaterialUtils._translateProperty(op.childNodes[0].nodeValue) : HX.BlendOperation.ADD;
             pass.blendState = blendState;
         }
 
@@ -146,19 +146,19 @@ HX.MaterialUtils =
     _parsePassFromXML: function(xml, passType, tagName, targetMaterial)
     {
         var common = xml.getElementsByTagName("common")[0];
-        common = common ? common.innerHTML : "";
+        common = common ? common.childNodes[0].nodeValue : "";
         var tags = xml.getElementsByTagName(tagName);
         if (tags === undefined || tags.length === 0) return;
         var passDef = tags[0];
 
-        var vertexShaderID = passDef.getElementsByTagName("vertex")[0].innerHTML;
-        var fragmentShaderID = passDef.getElementsByTagName("fragment")[0].innerHTML;
+        var vertexShaderID = passDef.getElementsByTagName("vertex")[0].childNodes[0].nodeValue;
+        var fragmentShaderID = passDef.getElementsByTagName("fragment")[0].childNodes[0].nodeValue;
         var elements = passDef.getElementsByTagName("element")[0];
         var cullmode = passDef.getElementsByTagName("cullmode")[0];
         var blend = passDef.getElementsByTagName("blend")[0];
 
-        var vertexShader = common + xml.querySelector("[id=" + vertexShaderID + "]").innerHTML;
-        var fragmentShader = common + xml.querySelector("[id=" + fragmentShaderID + "]").innerHTML;
+        var vertexShader = common + xml.querySelector("[id=" + vertexShaderID + "]").childNodes[0].nodeValue;
+        var fragmentShader = common + xml.querySelector("[id=" + fragmentShaderID + "]").childNodes[0].nodeValue;
         vertexShader = HX.MaterialUtils._decodeHTML(vertexShader);
         fragmentShader = HX.MaterialUtils._decodeHTML(fragmentShader);
 

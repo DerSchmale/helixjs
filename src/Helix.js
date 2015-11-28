@@ -19,6 +19,7 @@ HX.InitOptions = function()
 
     // debug-related
     this.debug = false;   // requires webgl-debug.js:
+    this.ignoreAllExtensions = false;           // ignores all non-default extensions
     this.ignoreDrawBuffersExtension = false;     // forces multiple passes for the GBuffer
     this.ignoreDepthTexturesExtension = false;     // forces storing depth info explicitly
     this.ignoreTextureLODExtension = false;     // forces storing depth info explicitly
@@ -96,6 +97,11 @@ HX.init = function(canvas, options)
     var defines = "";
     if (HX.OPTIONS.useLinearSpace !== false)
         defines += "#define HX_LINEAR_SPACE\n";
+
+    HX.OPTIONS.ignoreDrawBuffersExtension = HX.OPTIONS.ignoreDrawBuffersExtension || HX.OPTIONS.ignoreAllExtensions;
+    HX.OPTIONS.ignoreDepthTexturesExtension = HX.OPTIONS.ignoreDepthTexturesExtension || HX.OPTIONS.ignoreAllExtensions;
+    HX.OPTIONS.ignoreTextureLODExtension = HX.OPTIONS.ignoreTextureLODExtension || HX.OPTIONS.ignoreAllExtensions;
+    HX.OPTIONS.ignoreHalfFloatTextureExtension = HX.OPTIONS.ignoreHalfFloatTextureExtension || HX.OPTIONS.ignoreAllExtensions;
 
     if (!HX.OPTIONS.ignoreDrawBuffersExtension)
         HX.EXT_DRAW_BUFFERS = _getExtension('WEBGL_draw_buffers');

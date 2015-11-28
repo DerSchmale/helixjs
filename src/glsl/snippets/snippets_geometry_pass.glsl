@@ -2,7 +2,8 @@ vec4 hx_encodeNormalDepth(vec3 normal, float depth)
 {
 	#ifdef HX_NO_DEPTH_TEXTURES
     	vec4 data;
-    	data.xy = normal.xy * .5 + .5;
+    	float p = sqrt(normal.z*8.0 + 8.0);
+        data.xy = normal.xy / p + .5;
     	#ifdef HX_MAX_DEPTH_PRECISION
 		data.zw = hx_floatToRGBA8(depth).xy;
 		#else

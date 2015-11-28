@@ -29,14 +29,18 @@ float hx_RG8ToFloat(vec2 rg)
     return dot(rg, vec2(1.0, 1.0/255.0)) / .99;
 }
 
+
+
 vec3 hx_decodeNormal(vec4 data)
 {
     #ifdef HX_NO_DEPTH_TEXTURES
-    	vec3 normal;
-    	normal.xy = data.xy * 2.0 - 1.0;
-		normal.z = 1.0 - dot(normal.xy, normal.xy);
-		normal.z = sqrt(normal.z);
-		return normal;
+        data.xy = data.xy*4.0 - 2.0;
+        float f = dot(data.xy, data.xy);
+        float g = sqrt(1.0 - f * .25);
+        vec3 normal;
+        normal.xy = data.xy * g;
+        normal.z = 1.0 - f * .5;
+        return normal;
     #else
     	return normalize(data.xyz - .5);
     #endif

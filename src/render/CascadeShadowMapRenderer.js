@@ -150,6 +150,8 @@ HX.CascadeShadowMapRenderer.prototype =
 
     render: function(viewCamera, scene)
     {
+        if (!this.TEST) this.TEST = 1;
+
         if (this._shadowMapInvalid)
             this._initShadowMap();
 

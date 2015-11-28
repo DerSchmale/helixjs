@@ -9,6 +9,7 @@ HX.CascadeShadowCasterCollector = function(numCascades)
     this._bounds = new HX.BoundingAABB();
     this._numCascades = numCascades;
     this._cullPlanes = null;
+    this._splitPlanes = null;
     this._numCullPlanes = 0;
     this._renderLists = [];
     this._passType = null;
@@ -47,6 +48,11 @@ HX.CascadeShadowCasterCollector.prototype.setCullPlanes = function(cullPlanes, n
     this._numCullPlanes = numPlanes;
 };
 
+HX.CascadeShadowCasterCollector.prototype.setSplitPlanes = function(splitPlanes)
+{
+    this._splitPlanes = splitPlanes;
+};
+
 HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
 {
     if (modelInstance._castShadows == false) return;
@@ -58,14 +64,23 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
     var numCascades = this._numCascades;
     var numMeshes = modelInstance.numMeshInstances();
 
+    //if (!worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes)) return;
+
     var lastCascade = numCascades - 1;
-    for (var cascade = lastCascade; cascade >= 0; --cascade) {
-        // no need to test the last split plane, always assume in if it's not entirely inside the previous (since it passed the frustum test)
+    for (var cascade = 0; cascade <= lastCascade; ++cascade) {
+
         var renderList = this._renderLists[cascade];
         var renderCamera = this._renderCameras[cascade];
 
-        if (cascade == lastCascade || worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes)) {
+        var planeSide;
 
+        // always contained in lastCascade if we made it this far
+        if (cascade === lastCascade)
+            planeSide = HX.PlaneSide.BACK;
+        else
+            planeSide = worldBounds.classifyAgainstPlane(this._splitPlanes[cascade]);
+
+        if (planeSide != HX.PlaneSide.FRONT) {
             for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
                 var meshInstance = modelInstance.getMeshInstance(meshIndex);
                 var material = meshInstance.material;
@@ -83,10 +98,14 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
                 }
             }
 
+            // completely contained in the cascade, so it won't be in more distant slices
+            if (planeSide === HX.PlaneSide.BACK)
+                return;
         }
-        else
-            cascade = 0;
     }
+
+    // no need to test the last split plane, if we got this far, it's bound to be in it
+
 };
 
 HX.CascadeShadowCasterCollector.prototype.qualifies = function(object)
@@ -123,7 +142,7 @@ HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
     this._localBounds = new HX.BoundingAABB();
     this._casterCollector = new HX.CascadeShadowCasterCollector(this._numCascades);
 
-    this._initSplitRatios();
+    this._initSplitProperties();
     this._initCameras();
 
     this._viewports = [];
@@ -136,7 +155,7 @@ HX.CascadeShadowMapRenderer.prototype =
         if (this._numCascades == value) return;
         this._numCascades = value;
         this._invalidateShadowMap();
-        this._initSplitRatios();
+        this._initSplitProperties();
         this._initCameras();
         this._casterCollector = new HX.CascadeShadowCasterCollector(value);
     },
@@ -157,7 +176,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
         this._inverseLightMatrix.inverseAffineOf(this._light.getWorldMatrix());
         this._updateCollectorCamera(viewCamera);
-        this._updateSplitDistances(viewCamera);
+        this._updateSplits(viewCamera);
         this._updateCullPlanes(viewCamera);
         this._collectShadowCasters(scene);
         this._updateCascadeCameras(viewCamera, this._casterCollector.getBounds());
@@ -209,18 +228,23 @@ HX.CascadeShadowMapRenderer.prototype =
         this._collectorCamera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
     },
 
-    _updateSplitDistances: function(viewCamera)
+    _updateSplits: function(viewCamera)
     {
         var nearDist = viewCamera.nearDistance;
         var frustumRange = viewCamera.farDistance - nearDist;
+        var plane = new HX.Float4(0.0, 0.0, -1.0, 0.0);
+        var matrix = viewCamera.getWorldMatrix();
 
-        for (var i = 0; i < this._numCascades; ++i)
-            this._splitDistances[i] = -(nearDist + this._splitRatios[i]*frustumRange);
+        for (var i = 0; i < this._numCascades; ++i) {
+            this._splitDistances[i] = plane.w = -(nearDist + this._splitRatios[i] * frustumRange);
+            matrix.transform(plane, this._splitPlanes[i]);
+        }
     },
 
     _updateCascadeCameras: function(viewCamera, bounds)
     {
         this._localBounds.transformFrom(bounds, this._inverseLightMatrix);
+
         var minBound = this._localBounds.getMinimum();
         var maxBound = this._localBounds.getMaximum();
 
@@ -233,14 +257,16 @@ HX.CascadeShadowMapRenderer.prototype =
 
         var corners = viewCamera.getFrustum().getCorners();
 
+        // camera distances are suboptimal? need to constrain to local near too?
+
+        var nearRatio = 0;
         for (var cascade = 0; cascade < this._numCascades; ++cascade) {
             var farRatio = this._splitRatios[cascade];
             var camera = this._shadowMapCameras[cascade];
 
             camera.nearDistance = -maxBound.z;
 
-            camera.getTransformationMatrix().copyFrom(this._light.getWorldMatrix());
-            camera._invalidateWorldTransformationMatrix();
+            camera.setTransformationMatrix(this._light.getWorldMatrix());
 
             // figure out frustum bound
             for (var i = 0; i < 4; ++i) {
@@ -265,6 +291,8 @@ HX.CascadeShadowMapRenderer.prototype =
 
                 min.minimize(localFar);
                 max.maximize(localFar);
+
+                nearRatio = farRatio;
             }
 
             // do not render beyond range of view camera or scene depth
@@ -296,6 +324,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
             camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 
+            //camera.nearDistance = -max.z;
             camera.farDistance = -min.z;
 
             camera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
@@ -330,6 +359,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
     _collectShadowCasters: function(scene)
     {
+        this._casterCollector.setSplitPlanes(this._splitPlanes);
         this._casterCollector.setCullPlanes(this._cullPlanes, this._numCullPlanes);
         this._casterCollector.setRenderCameras(this._shadowMapCameras);
         this._casterCollector.collect(this._collectorCamera, scene);
@@ -392,14 +422,16 @@ HX.CascadeShadowMapRenderer.prototype =
         this._initViewportMatrices(1.0 / numMapsW, 1.0 / numMapsH);
     },
 
-    _initSplitRatios: function()
+    _initSplitProperties: function()
     {
         var ratio = 1.0;
         this._splitRatios = [];
         this._splitDistances = [0, 0, 0, 0];
+        this._splitPlanes = [];
         for (var i = this._numCascades - 1; i >= 0; --i)
         {
             this._splitRatios[i] = ratio;
+            this._splitPlanes[i] = new HX.Float4();
             this._splitDistances[i] = 0;
             ratio *= .4;
         }

@@ -76,7 +76,7 @@ HX.Frustum.prototype =
  */
 HX.Camera = function()
 {
-    HX.BoundingHierarchyNode.call(this);
+    HX.Entity.call(this);
 
     // visitor should not collect effects, they will be added separately!
     this._renderTargetWidth = 0;
@@ -95,7 +95,7 @@ HX.Camera = function()
     this.position.set(0.0, 0.0, 1.0);
 };
 
-HX.Camera.prototype = Object.create(HX.BoundingHierarchyNode.prototype);
+HX.Camera.prototype = Object.create(HX.Entity.prototype);
 
 HX.Camera.prototype.getViewProjectionMatrix = function ()
 {
@@ -184,13 +184,13 @@ HX.Camera.prototype._invalidateViewProjectionMatrix = function()
 
 HX.Camera.prototype._invalidateWorldTransformationMatrix = function()
 {
-    HX.BoundingHierarchyNode.prototype._invalidateWorldTransformationMatrix.call(this);
+    HX.Entity.prototype._invalidateWorldTransformationMatrix.call(this);
     this._invalidateViewProjectionMatrix();
 };
 
 HX.Camera.prototype._updateViewProjectionMatrix = function()
 {
-    this._viewMatrix.inverseAffineOf(this.getWorldMatrix());
+    this._viewMatrix.inverseAffineOf(this.worldMatrix);
     this._viewProjectionMatrix.product(this.getProjectionMatrix(), this._viewMatrix);
     this._inverseProjectionMatrix.inverseOf(this._projectionMatrix);
     this._inverseViewProjectionMatrix.inverseOf(this._viewProjectionMatrix);

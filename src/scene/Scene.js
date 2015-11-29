@@ -26,6 +26,28 @@ HX.SceneNode = function()
 HX.SceneNode.prototype = Object.create(HX.Transform.prototype);
 
 Object.defineProperties(HX.SceneNode.prototype, {
+    worldBounds: {
+        get: function()
+        {
+            if (this._worldBoundsInvalid) {
+                this._updateWorldBounds();
+                this._worldBoundsInvalid = false;
+            }
+
+            return this._worldBounds;
+        }
+    },
+
+    worldMatrix: {
+        get: function()
+        {
+            if (this._worldMatrixInvalid)
+                this._updateWorldTransformationMatrix();
+
+            return this._worldTransformMatrix;
+        }
+    },
+
     effects: {
         get: function ()
         {
@@ -65,25 +87,6 @@ HX.SceneNode.prototype.setTransformationMatrix = function(matrix)
     this._invalidateWorldTransformationMatrix();
 };
 
-HX.SceneNode.prototype.getWorldMatrix = function()
-{
-    if (this._worldMatrixInvalid)
-        this._updateWorldTransformationMatrix();
-
-    return this._worldTransformMatrix;
-};
-
-// always go through here to get to world bounds!
-HX.SceneNode.prototype.getWorldBounds = function()
-{
-    if (this._worldBoundsInvalid) {
-        this._updateWorldBounds();
-        this._worldBoundsInvalid = false;
-    }
-
-    return this._worldBounds;
-};
-
 HX.SceneNode.prototype.acceptVisitor = function(visitor)
 {
     if (this._effects)
@@ -105,13 +108,13 @@ HX.SceneNode.prototype._invalidateWorldTransformationMatrix = function ()
     this._invalidateWorldBounds();
 };
 
-HX.SceneNode.prototype._invalidateWorldBounds = function (tellParent)
+HX.SceneNode.prototype._invalidateWorldBounds = function ()
 {
     if (this._worldBoundsInvalid) return;
 
     this._worldBoundsInvalid = true;
 
-    if (tellParent !== false && this._parent)
+    if (this._parent)
         this._parent._invalidateWorldBounds();
 };
 
@@ -140,7 +143,7 @@ HX.SceneNode.prototype._updateTransformationMatrix = function()
 HX.SceneNode.prototype._updateWorldTransformationMatrix = function()
 {
     if (this._parent)
-        this._worldTransformMatrix.product(this._parent.getWorldMatrix(), this.getTransformationMatrix());
+        this._worldTransformMatrix.product(this._parent.worldMatrix, this.getTransformationMatrix());
     else
         this._worldTransformMatrix.copyFrom(this.getTransformationMatrix());
 
@@ -154,90 +157,6 @@ HX.SceneNode.prototype._createBoundingVolume = function()
 };
 
 /**
- *
- * @constructor
- */
-HX.BoundingHierarchyNode = function()
-{
-    HX.SceneNode.call(this);
-    this._children = [];
-};
-
-HX.BoundingHierarchyNode.prototype = Object.create(HX.SceneNode.prototype);
-
-HX.BoundingHierarchyNode.prototype.attach = function(child)
-{
-    if (child._parent)
-        throw "Child is already parented!";
-
-    child._parent = this;
-
-    this._children.push(child);
-    this._invalidateWorldBounds();
-};
-
-HX.BoundingHierarchyNode.prototype.detach = function(child)
-{
-    var index = this._children.indexOf(child);
-
-    if (index < 0)
-        throw "Trying to remove a scene object that is not a child";
-
-    child._parent = null;
-
-    this._children.splice(index, 1);
-    this._invalidateWorldBounds();
-};
-
-HX.BoundingHierarchyNode.prototype.numChildren = function() { return this._children.length; };
-
-HX.BoundingHierarchyNode.prototype.getChild = function(index) { return this._children[index]; };
-
-
-HX.BoundingHierarchyNode.prototype.acceptVisitor = function(visitor)
-{
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
-
-    var len = this._children.length;
-
-    for (var i = 0; i < len; ++i) {
-        var child = this._children[i];
-        if (visitor.qualifies(child))
-            child.acceptVisitor(visitor);
-    }
-};
-
-
-/*HX.BoundingHierarchyNode.prototype._invalidateWorldBounds = function(tellParent)
-{
-    HX.SceneNode.prototype._invalidateWorldBounds.call(this, tellParent);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldBounds(false); // false = parent (ie: this) does not need to know, it already knows
-};*/
-
-HX.BoundingHierarchyNode.prototype._invalidateWorldTransformationMatrix = function()
-{
-    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldTransformationMatrix();
-};
-
-HX.BoundingHierarchyNode.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.clear();
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._worldBounds.growToIncludeBound(this._children[i].getWorldBounds());
-
-    HX.SceneNode.prototype._updateWorldBounds.call(this);
-};
-
-/**
  * Creates a new Scene object
  * @param rootNode (optional) A rootnode to be used, allowing different partition types to be used as the root.
  * @constructor
@@ -246,7 +165,7 @@ HX.Scene = function(rootNode)
 {
     // the default partition is a BVH node
     //  -> or this may need to become an infinite bound node?
-    this._rootNode = rootNode || new HX.BoundingHierarchyNode();
+    this._rootNode = rootNode || new HX.Entity();
     this._skybox = null;
 };
 
@@ -297,48 +216,4 @@ HX.Scene.prototype = {
         // assume root node will always qualify
         this._rootNode.acceptVisitor(visitor);
     }
-};
-
-/**
- *
- * @param modelInstance
- * @constructor
- */
-HX.ModelNode = function(modelInstance)
-{
-    HX.SceneNode.call(this);
-    this.setModelInstance(modelInstance);
-};
-
-HX.ModelNode.prototype = Object.create(HX.SceneNode.prototype);
-
-HX.ModelNode.prototype.acceptVisitor = function(visitor)
-{
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
-    visitor.visitModelInstance(this._modelInstance, this.getWorldMatrix(), this.getWorldBounds());
-};
-
-HX.ModelNode.prototype.getModelInstance = function()
-{
-    return this._modelInstance;
-};
-
-HX.ModelNode.prototype.setModelInstance = function(value)
-{
-    if (this._modelInstance)
-        this._modelInstance.onChange.unbind(this, HX.ModelNode.prototype._invalidateWorldBounds);
-
-    this._modelInstance = value;
-
-    this._modelInstance.onChange.bind(this, HX.ModelNode.prototype._invalidateWorldBounds);
-    this._invalidateWorldBounds();
-};
-
-// override for better matches
-HX.ModelNode.prototype._updateWorldBounds = function()
-{
-    if (this._modelInstance)
-        this._worldBounds.transformFrom(this._modelInstance.getLocalBounds(), this.getWorldMatrix());
-
-    HX.SceneNode.prototype._updateWorldBounds.call(this);
 };

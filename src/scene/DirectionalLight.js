@@ -105,7 +105,7 @@ Object.defineProperty(HX.DirectionalLight.prototype, "numShadowSamples", {
 Object.defineProperty(HX.DirectionalLight.prototype, "direction", {
     get: function()
     {
-        var dir = this.getWorldMatrix().getColumn(2);
+        var dir = this.worldMatrix.getColumn(2);
         dir.x = -dir.x;
         dir.y = -dir.y;
         dir.z = -dir.z;
@@ -115,7 +115,7 @@ Object.defineProperty(HX.DirectionalLight.prototype, "direction", {
     set: function(value)
     {
         var matrix = new HX.Matrix4x4();
-        var position = this.getWorldMatrix().getColumn(3);
+        var position = this.worldMatrix.getColumn(3);
         var target = HX.Float4.sum(value, position);
         matrix.lookAt(target, position, HX.Float4.Y_AXIS);
         this.setTransformationMatrix(matrix);
@@ -149,7 +149,7 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
         var len = this._numCascades;
         for (var i = 0; i < len; ++i) {
             var matrix = new HX.Matrix4x4();
-            matrix.product(this._shadowMapRenderer.getShadowMatrix(i), camera.getWorldMatrix());
+            matrix.product(this._shadowMapRenderer.getShadowMatrix(i), camera.worldMatrix);
             var m = matrix._m;
             for (var j = 0; j < 16; ++j) {
                 this._matrixData[k++] = m[j];

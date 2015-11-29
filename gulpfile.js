@@ -23,6 +23,7 @@ var sourceFiles = [
 
     "src/shader/*.js",
     "src/material/*.js",
+    "src/entity/*.js",
     "src/scene/*.js",
     "src/mesh/*.js",
     "src/mesh/primitives/*.js",

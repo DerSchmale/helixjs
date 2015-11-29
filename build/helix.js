@@ -2948,6 +2948,17 @@ HX.BoundingVolume.prototype =
         }
 
         return HX.BoundingVolume._debugMaterial;
+    },
+
+    toString: function()
+    {
+        return "BoundingVolume: [ " +
+            this._minimumX + ", " +
+            this._minimumY + ", " +
+            this._minimumZ + " ] - [ " +
+            this._maximumX + ", " +
+            this._maximumY + ", " +
+            this._maximumZ + " ]";
     }
 };
 
@@ -4679,6 +4690,28 @@ HX.SceneNode = function()
 HX.SceneNode.prototype = Object.create(HX.Transform.prototype);
 
 Object.defineProperties(HX.SceneNode.prototype, {
+    worldBounds: {
+        get: function()
+        {
+            if (this._worldBoundsInvalid) {
+                this._updateWorldBounds();
+                this._worldBoundsInvalid = false;
+            }
+
+            return this._worldBounds;
+        }
+    },
+
+    worldMatrix: {
+        get: function()
+        {
+            if (this._worldMatrixInvalid)
+                this._updateWorldTransformationMatrix();
+
+            return this._worldTransformMatrix;
+        }
+    },
+
     effects: {
         get: function ()
         {
@@ -4718,25 +4751,6 @@ HX.SceneNode.prototype.setTransformationMatrix = function(matrix)
     this._invalidateWorldTransformationMatrix();
 };
 
-HX.SceneNode.prototype.getWorldMatrix = function()
-{
-    if (this._worldMatrixInvalid)
-        this._updateWorldTransformationMatrix();
-
-    return this._worldTransformMatrix;
-};
-
-// always go through here to get to world bounds!
-HX.SceneNode.prototype.getWorldBounds = function()
-{
-    if (this._worldBoundsInvalid) {
-        this._updateWorldBounds();
-        this._worldBoundsInvalid = false;
-    }
-
-    return this._worldBounds;
-};
-
 HX.SceneNode.prototype.acceptVisitor = function(visitor)
 {
     if (this._effects)
@@ -4758,13 +4772,13 @@ HX.SceneNode.prototype._invalidateWorldTransformationMatrix = function ()
     this._invalidateWorldBounds();
 };
 
-HX.SceneNode.prototype._invalidateWorldBounds = function (tellParent)
+HX.SceneNode.prototype._invalidateWorldBounds = function ()
 {
     if (this._worldBoundsInvalid) return;
 
     this._worldBoundsInvalid = true;
 
-    if (tellParent !== false && this._parent)
+    if (this._parent)
         this._parent._invalidateWorldBounds();
 };
 
@@ -4793,7 +4807,7 @@ HX.SceneNode.prototype._updateTransformationMatrix = function()
 HX.SceneNode.prototype._updateWorldTransformationMatrix = function()
 {
     if (this._parent)
-        this._worldTransformMatrix.product(this._parent.getWorldMatrix(), this.getTransformationMatrix());
+        this._worldTransformMatrix.product(this._parent.worldMatrix, this.getTransformationMatrix());
     else
         this._worldTransformMatrix.copyFrom(this.getTransformationMatrix());
 
@@ -4807,90 +4821,6 @@ HX.SceneNode.prototype._createBoundingVolume = function()
 };
 
 /**
- *
- * @constructor
- */
-HX.BoundingHierarchyNode = function()
-{
-    HX.SceneNode.call(this);
-    this._children = [];
-};
-
-HX.BoundingHierarchyNode.prototype = Object.create(HX.SceneNode.prototype);
-
-HX.BoundingHierarchyNode.prototype.attach = function(child)
-{
-    if (child._parent)
-        throw "Child is already parented!";
-
-    child._parent = this;
-
-    this._children.push(child);
-    this._invalidateWorldBounds();
-};
-
-HX.BoundingHierarchyNode.prototype.detach = function(child)
-{
-    var index = this._children.indexOf(child);
-
-    if (index < 0)
-        throw "Trying to remove a scene object that is not a child";
-
-    child._parent = null;
-
-    this._children.splice(index, 1);
-    this._invalidateWorldBounds();
-};
-
-HX.BoundingHierarchyNode.prototype.numChildren = function() { return this._children.length; };
-
-HX.BoundingHierarchyNode.prototype.getChild = function(index) { return this._children[index]; };
-
-
-HX.BoundingHierarchyNode.prototype.acceptVisitor = function(visitor)
-{
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
-
-    var len = this._children.length;
-
-    for (var i = 0; i < len; ++i) {
-        var child = this._children[i];
-        if (visitor.qualifies(child))
-            child.acceptVisitor(visitor);
-    }
-};
-
-
-/*HX.BoundingHierarchyNode.prototype._invalidateWorldBounds = function(tellParent)
-{
-    HX.SceneNode.prototype._invalidateWorldBounds.call(this, tellParent);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldBounds(false); // false = parent (ie: this) does not need to know, it already knows
-};*/
-
-HX.BoundingHierarchyNode.prototype._invalidateWorldTransformationMatrix = function()
-{
-    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldTransformationMatrix();
-};
-
-HX.BoundingHierarchyNode.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.clear();
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._worldBounds.growToIncludeBound(this._children[i].getWorldBounds());
-
-    HX.SceneNode.prototype._updateWorldBounds.call(this);
-};
-
-/**
  * Creates a new Scene object
  * @param rootNode (optional) A rootnode to be used, allowing different partition types to be used as the root.
  * @constructor
@@ -4899,7 +4829,7 @@ HX.Scene = function(rootNode)
 {
     // the default partition is a BVH node
     //  -> or this may need to become an infinite bound node?
-    this._rootNode = rootNode || new HX.BoundingHierarchyNode();
+    this._rootNode = rootNode || new HX.Entity();
     this._skybox = null;
 };
 
@@ -4952,49 +4882,6 @@ HX.Scene.prototype = {
     }
 };
 
-/**
- *
- * @param modelInstance
- * @constructor
- */
-HX.ModelNode = function(modelInstance)
-{
-    HX.SceneNode.call(this);
-    this.setModelInstance(modelInstance);
-};
-
-HX.ModelNode.prototype = Object.create(HX.SceneNode.prototype);
-
-HX.ModelNode.prototype.acceptVisitor = function(visitor)
-{
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
-    visitor.visitModelInstance(this._modelInstance, this.getWorldMatrix(), this.getWorldBounds());
-};
-
-HX.ModelNode.prototype.getModelInstance = function()
-{
-    return this._modelInstance;
-};
-
-HX.ModelNode.prototype.setModelInstance = function(value)
-{
-    if (this._modelInstance)
-        this._modelInstance.onChange.unbind(this, HX.ModelNode.prototype._invalidateWorldBounds);
-
-    this._modelInstance = value;
-
-    this._modelInstance.onChange.bind(this, HX.ModelNode.prototype._invalidateWorldBounds);
-    this._invalidateWorldBounds();
-};
-
-// override for better matches
-HX.ModelNode.prototype._updateWorldBounds = function()
-{
-    if (this._modelInstance)
-        this._worldBounds.transformFrom(this._modelInstance.getLocalBounds(), this.getWorldMatrix());
-
-    HX.SceneNode.prototype._updateWorldBounds.call(this);
-};
 /**
  * Subclasses must implement:
  * prototype.activate
@@ -5522,7 +5409,7 @@ HX.CameraWorldPosSetter = function()
 
 HX.CameraWorldPosSetter.prototype.execute = function (worldMatrix, camera)
 {
-    var arr = camera.getWorldMatrix()._m;
+    var arr = camera.worldMatrix._m;
     HX.GL.uniform3f(this.location, arr[12], arr[13], arr[14]);
 };
 
@@ -5532,7 +5419,7 @@ HX.CameraWorldMatrixSetter = function()
 
 HX.CameraWorldMatrixSetter.prototype.execute = function (worldMatrix, camera)
 {
-    var matrix = camera.getWorldMatrix();
+    var matrix = camera.worldMatrix;
     HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
 };
 
@@ -6098,6 +5985,178 @@ HX.SkyboxMaterial = function(texture)
 };
 
 HX.SkyboxMaterial.prototype = Object.create(HX.Material.prototype);
+HX.Component = function()
+{
+    // this allows notifying entities about bound changes (useful for sized components)
+    this._entity = null;
+    this._worldBounds = this._createBoundingVolume();
+    this._worldBoundsInvalid = true;
+};
+
+HX.Component.prototype =
+{
+    // to be overridden:
+    onAdded: function() {},
+    onRemoved: function() {},
+
+    // TODO: should this be called by RenderCollector?
+    // it could trigger multiple calls for multiple viewports
+    // perhaps Helix should provide a general update mechanic, based on a hidden FrameTicker?
+    // components should indicate whether they SHOULD be updated, otherwise we're calling way too many
+    onUpdate: function(dt) {},
+
+    // components should indicate whether they SHOULD be visited, otherwise we're calling way too many of them
+    acceptVisitor: function(visitor) {},
+
+    // this is to create an entity containing this component. Useful to do "new SomeComponent().createEntity()"
+    createEntity: function()
+    {
+        var entity = new HX.Entity();
+        entity.addComponent(this);
+        return entity;
+    },
+
+    get entity()
+    {
+        return this._entity;
+    },
+
+    get worldBounds()
+    {
+        if (this._worldBounds && this._worldBoundsInvalid)
+            this._updateWorldBounds();
+
+        return this._worldBounds;
+    },
+
+    _invalidateWorldBounds: function()
+    {
+        if (!this._worldBounds) return;
+        this._worldBoundsInvalid = true;
+        if (this._entity)
+            this._entity._invalidateWorldBounds();
+    },
+
+    // by default, components are not bounded, so these do nothing
+    _updateWorldBounds: function()
+    {
+    },
+
+    _createBoundingVolume: function()
+    {
+        return null;
+    }
+};
+HX.Entity = function()
+{
+    HX.SceneNode.call(this);
+
+    // child entities (scene nodes)
+    this._children = [];
+
+    // components
+    this._components = [];
+};
+
+HX.Entity.prototype = Object.create(HX.SceneNode.prototype);
+
+HX.Entity.prototype.addComponent = function(component)
+{
+    if (component._entity)
+        throw "Component already added to an entity!";
+
+    this._components.push(component);
+
+    component._entity = this;
+    component._invalidateWorldBounds();
+    this._invalidateWorldBounds();
+    component.onAdded();
+};
+
+HX.Entity.prototype.removeComponent = function(component)
+{
+    component.onRemoved();
+    var index = this._components.indexOf(component);
+    if (index >= 0)
+        this._components.splice(index, 1);
+    component._entity = null;
+    if (component.worldBounds) this._invalidateWorldBounds();
+};
+
+HX.Entity.prototype.attach = function(child)
+{
+    if (child._parent)
+        throw "Child is already parented!";
+
+    child._parent = this;
+
+    this._children.push(child);
+    this._invalidateWorldBounds();
+};
+
+HX.Entity.prototype.detach = function(child)
+{
+    var index = this._children.indexOf(child);
+
+    if (index < 0)
+        throw "Trying to remove a scene object that is not a child";
+
+    child._parent = null;
+
+    this._children.splice(index, 1);
+    this._invalidateWorldBounds();
+};
+
+HX.Entity.prototype.numChildren = function() { return this._children.length; };
+
+HX.Entity.prototype.getChild = function(index) { return this._children[index]; };
+
+
+HX.Entity.prototype.acceptVisitor = function(visitor)
+{
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+
+    var len = this._components.length;
+    for (var i = 0; i < len; ++i) {
+        var component = this._components[i];
+        component.acceptVisitor(visitor);
+    }
+
+    len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        var child = this._children[i];
+
+        if (visitor.qualifies(child))
+            child.acceptVisitor(visitor);
+    }
+};
+
+HX.Entity.prototype._invalidateWorldTransformationMatrix = function()
+{
+    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i]._invalidateWorldTransformationMatrix();
+};
+
+HX.Entity.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.clear();
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
+
+    len = this._components.length;
+    for (var i = 0; i < len; ++i) {
+        var worldBounds = this._components[i].worldBounds;
+        if (worldBounds)
+            this._worldBounds.growToIncludeBound(worldBounds);
+    }
+
+    HX.SceneNode.prototype._updateWorldBounds.call(this);
+};
 /**
  *
  * @constructor
@@ -6252,7 +6311,7 @@ HX.Frustum.prototype =
  */
 HX.Camera = function()
 {
-    HX.BoundingHierarchyNode.call(this);
+    HX.Entity.call(this);
 
     // visitor should not collect effects, they will be added separately!
     this._renderTargetWidth = 0;
@@ -6271,7 +6330,7 @@ HX.Camera = function()
     this.position.set(0.0, 0.0, 1.0);
 };
 
-HX.Camera.prototype = Object.create(HX.BoundingHierarchyNode.prototype);
+HX.Camera.prototype = Object.create(HX.Entity.prototype);
 
 HX.Camera.prototype.getViewProjectionMatrix = function ()
 {
@@ -6360,13 +6419,13 @@ HX.Camera.prototype._invalidateViewProjectionMatrix = function()
 
 HX.Camera.prototype._invalidateWorldTransformationMatrix = function()
 {
-    HX.BoundingHierarchyNode.prototype._invalidateWorldTransformationMatrix.call(this);
+    HX.Entity.prototype._invalidateWorldTransformationMatrix.call(this);
     this._invalidateViewProjectionMatrix();
 };
 
 HX.Camera.prototype._updateViewProjectionMatrix = function()
 {
-    this._viewMatrix.inverseAffineOf(this.getWorldMatrix());
+    this._viewMatrix.inverseAffineOf(this.worldMatrix);
     this._viewProjectionMatrix.product(this.getProjectionMatrix(), this._viewMatrix);
     this._inverseProjectionMatrix.inverseOf(this._projectionMatrix);
     this._inverseViewProjectionMatrix.inverseOf(this._viewProjectionMatrix);
@@ -6573,7 +6632,7 @@ Object.defineProperty(HX.DirectionalLight.prototype, "numShadowSamples", {
 Object.defineProperty(HX.DirectionalLight.prototype, "direction", {
     get: function()
     {
-        var dir = this.getWorldMatrix().getColumn(2);
+        var dir = this.worldMatrix.getColumn(2);
         dir.x = -dir.x;
         dir.y = -dir.y;
         dir.z = -dir.z;
@@ -6583,7 +6642,7 @@ Object.defineProperty(HX.DirectionalLight.prototype, "direction", {
     set: function(value)
     {
         var matrix = new HX.Matrix4x4();
-        var position = this.getWorldMatrix().getColumn(3);
+        var position = this.worldMatrix.getColumn(3);
         var target = HX.Float4.sum(value, position);
         matrix.lookAt(target, position, HX.Float4.Y_AXIS);
         this.setTransformationMatrix(matrix);
@@ -6617,7 +6676,7 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
         var len = this._numCascades;
         for (var i = 0; i < len; ++i) {
             var matrix = new HX.Matrix4x4();
-            matrix.product(this._shadowMapRenderer.getShadowMatrix(i), camera.getWorldMatrix());
+            matrix.product(this._shadowMapRenderer.getShadowMatrix(i), camera.worldMatrix);
             var m = matrix._m;
             for (var j = 0; j < 16; ++j) {
                 this._matrixData[k++] = m[j];
@@ -6904,7 +6963,7 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
             end = i;
             continue;
         }
-        light.getWorldMatrix().getColumn(3, pos);
+        light.worldMatrix.getColumn(3, pos);
         viewMatrix.transformPoint(pos, pos);
         var color = light._scaledIrradiance;
 
@@ -6969,7 +7028,7 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
             continue;
         }
 
-        light.getWorldMatrix().getColumn(3, pos);
+        light.worldMatrix.getColumn(3, pos);
         viewMatrix.transformPoint(pos, pos);
 
         var color = light._scaledIrradiance;
@@ -7018,7 +7077,7 @@ HX.PointLight.prototype._createBoundingVolume = function()
 
 HX.PointLight.prototype._updateWorldBounds = function()
 {
-    this._worldBounds.setExplicit(this.getWorldMatrix().getColumn(3), this._radius);
+    this._worldBounds.setExplicit(this.worldMatrix.getColumn(3), this._radius);
     HX.Light.prototype._updateWorldBounds.call(this);
 };
 
@@ -7065,7 +7124,9 @@ HX.Skybox = function(materialOrTexture)
     if (!(materialOrTexture instanceof HX.Material))
         materialOrTexture = new HX.SkyboxMaterial(materialOrTexture);
 
-    this._modelInstance = new HX.ModelInstance(HX.PlanePrimitive.create({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2}), materialOrTexture);
+    var model = HX.PlanePrimitive.create({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2});
+    model.localBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+    this._modelInstance = new HX.ModelInstance(model, materialOrTexture);
     this._globalSpecularProbe = null;
     this._globalIrradianceProbe = null;
 };
@@ -7284,7 +7345,7 @@ HX.ModelData = function ()
 HX.ModelData.prototype = {
     constructor: HX.ModelData,
 
-    numMeshes: function ()
+    get numMeshes()
     {
         return this._meshDataList.length;
     },
@@ -7319,7 +7380,7 @@ HX.Model = function (modelData)
 HX.Model.prototype = {
     constructor: HX.Model,
 
-    numMeshes: function ()
+    get numMeshes()
     {
         return this._meshes.length;
     },
@@ -7336,7 +7397,7 @@ HX.Model.prototype = {
                 this._meshes[i].dispose();
     },
 
-    getLocalBounds: function()
+    get localBounds()
     {
         return this._localBounds;
     },
@@ -7348,7 +7409,7 @@ HX.Model.prototype = {
         this._localBounds.clear();
         this._meshes = [];
 
-        for (var i = 0; i < modelData.numMeshes(); ++i) {
+        for (var i = 0; i < modelData.numMeshes; ++i) {
             var meshData = modelData.getMeshData(i);
             this._localBounds.growToIncludeMesh(meshData);
             this._meshes.push(new HX.Mesh(meshData));
@@ -7503,6 +7564,7 @@ HX.MeshInstance.prototype = {
  */
 HX.ModelInstance = function(model, materials)
 {
+    HX.Component.call(this);
     this._model = model;
     this._meshInstances = [];
     this._castShadows = true;
@@ -7514,33 +7576,69 @@ HX.ModelInstance = function(model, materials)
     this._onModelChange();
 };
 
-HX.ModelInstance.prototype = {
-    constructor: HX.ModelInstance,
+HX.ModelInstance.prototype = Object.create(HX.Component.prototype);
 
-    getModel: function() { return this._model; },
-
-    get castShadows() { return this._castShadows; },
-    set castShadows(value) { this._castShadows = value; },
-
-    numMeshInstances: function() { return this._meshInstances.length; },
-    getMeshInstance: function(index) { return this._meshInstances[index]; },
-
-    getLocalBounds: function() { return this._model.getLocalBounds(); },
-
-    _addMeshInstance: function(mesh, material)
+Object.defineProperties(HX.ModelInstance.prototype, {
+    model:
     {
-        this._meshInstances.push(new HX.MeshInstance(mesh, material));
+        get: function() { return this._model; }
     },
 
-    _onModelChange: function()
-    {
-        var maxIndex = this._materials.length - 1;
-        for (var i = 0; i < this._model.numMeshes(); ++i) {
-            this._addMeshInstance(this._model.getMesh(i), this._materials[Math.min(i, maxIndex)]);
-        }
+    castShadows: {
+        get castShadows()
+        {
+            return this._castShadows;
+        },
 
-        this.onChange.dispatch();
+        set castShadows(value)
+        {
+            this._castShadows = value;
+        }
+    },
+
+    numMeshInstances: {
+        get: function ()
+        {
+            return this._meshInstances.length;
+        }
     }
+});
+
+HX.ModelInstance.prototype.getMeshInstance = function(index)
+{
+    return this._meshInstances[index];
+};
+
+
+HX.ModelInstance.prototype._addMeshInstance = function(mesh, material)
+{
+    this._meshInstances.push(new HX.MeshInstance(mesh, material));
+};
+
+HX.ModelInstance.prototype._onModelChange = function()
+{
+    var maxIndex = this._materials.length - 1;
+    for (var i = 0; i < this._model.numMeshes; ++i) {
+        this._addMeshInstance(this._model.getMesh(i), this._materials[Math.min(i, maxIndex)]);
+    }
+
+    this._invalidateWorldBounds();
+};
+
+// override for better matches
+HX.ModelInstance.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.transformFrom(this._model.localBounds, this._entity.worldMatrix);
+};
+
+HX.ModelInstance.prototype.acceptVisitor = function(visitor)
+{
+    visitor.visitModelInstance(this, this._entity.worldMatrix, this._entity.worldBounds);
+};
+
+HX.ModelInstance.prototype._createBoundingVolume = function()
+{
+    return new HX.BoundingAABB();
 };
 /**
  * @constructor
@@ -8737,7 +8835,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
     var passIndex = this._passType;
 
     var numCascades = this._numCascades;
-    var numMeshes = modelInstance.numMeshInstances();
+    var numMeshes = modelInstance.numMeshInstances;
 
     //if (!worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes)) return;
 
@@ -8785,7 +8883,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
 
 HX.CascadeShadowCasterCollector.prototype.qualifies = function(object)
 {
-    return object.getWorldBounds().intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
+    return object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
 };
 
 /**
@@ -8849,7 +8947,7 @@ HX.CascadeShadowMapRenderer.prototype =
         if (this._shadowMapInvalid)
             this._initShadowMap();
 
-        this._inverseLightMatrix.inverseAffineOf(this._light.getWorldMatrix());
+        this._inverseLightMatrix.inverseAffineOf(this._light.worldMatrix);
         this._updateCollectorCamera(viewCamera);
         this._updateSplits(viewCamera);
         this._updateCullPlanes(viewCamera);
@@ -8897,7 +8995,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
         this._minZ = min.z;
 
-        this._collectorCamera.getTransformationMatrix().copyFrom(this._light.getWorldMatrix());
+        this._collectorCamera.getTransformationMatrix().copyFrom(this._light.worldMatrix);
         this._collectorCamera._invalidateWorldTransformationMatrix();
         this._collectorCamera.setBounds(min.x, max.x + 1, max.y + 1, min.y);
         this._collectorCamera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
@@ -8908,7 +9006,7 @@ HX.CascadeShadowMapRenderer.prototype =
         var nearDist = viewCamera.nearDistance;
         var frustumRange = viewCamera.farDistance - nearDist;
         var plane = new HX.Float4(0.0, 0.0, -1.0, 0.0);
-        var matrix = viewCamera.getWorldMatrix();
+        var matrix = viewCamera.worldMatrix;
 
         for (var i = 0; i < this._numCascades; ++i) {
             this._splitDistances[i] = plane.w = -(nearDist + this._splitRatios[i] * frustumRange);
@@ -8941,7 +9039,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
             camera.nearDistance = -maxBound.z;
 
-            camera.setTransformationMatrix(this._light.getWorldMatrix());
+            camera.setTransformationMatrix(this._light.worldMatrix);
 
             // figure out frustum bound
             for (var i = 0; i < 4; ++i) {
@@ -9217,7 +9315,7 @@ HX.RenderCollector.prototype.getGlobalIrradianceProbe = function() { return this
 HX.RenderCollector.prototype.collect = function(camera, scene)
 {
     this._camera = camera;
-    camera.getWorldMatrix().getColumn(2, this._cameraZAxis);
+    camera.worldMatrix.getColumn(2, this._cameraZAxis);
     this._frustum = camera.getFrustum();
     this._nearPlane = this._frustum._planes[HX.Frustum.PLANE_NEAR];
     this._reset();
@@ -9250,14 +9348,14 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
 
 HX.RenderCollector.prototype.qualifies = function(object)
 {
-    return object.getWorldBounds().intersectsConvexSolid(this._frustum._planes, 6);
+    return object.worldBounds.intersectsConvexSolid(this._frustum._planes, 6);
 };
 
 HX.RenderCollector.prototype.visitScene = function (scene)
 {
     var skybox = scene._skybox;
     if (skybox) {
-        this.visitModelInstance(skybox._modelInstance, scene._rootNode.getWorldMatrix(), scene._rootNode.getWorldBounds());
+        this.visitModelInstance(skybox._modelInstance, scene._rootNode.worldMatrix, scene._rootNode.worldBounds);
         this._globalSpecularProbe = skybox.getGlobalSpecularProbe();
         this._globalIrradianceProbe = skybox.getGlobalIrradianceProbe();
     }
@@ -9275,7 +9373,7 @@ HX.RenderCollector.prototype.visitEffects = function(effects, ownerNode)
 
 HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
 {
-    var numMeshes = modelInstance.numMeshInstances();
+    var numMeshes = modelInstance.numMeshInstances;
 
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
@@ -9295,7 +9393,6 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
                 renderItem.renderOrderHint = worldBounds._centerX * this._cameraZAxis.x + worldBounds._centerY * this._cameraZAxis.y + worldBounds._centerZ * this._cameraZAxis.z;
                 renderItem.worldMatrix = worldMatrix;
                 renderItem.camera = this._camera;
-
                 list[passIndex].push(renderItem);
             }
         }
@@ -9307,7 +9404,7 @@ HX.RenderCollector.prototype.visitLight = function(light)
     this._lights.push(light);
     if (light._castShadows) this._shadowCasters.push(light._shadowMapRenderer);
 
-    var bounds = light.getWorldBounds();
+    var bounds = light.worldBounds;
     var near = this._nearPlane;
 
     light._renderOrderHint = bounds._centerX * near.x + bounds._centerY * near.y + bounds._centerZ * near.z + near.w - bounds.getRadius();
@@ -9418,7 +9515,7 @@ HX.DebugRenderMode = {
  * Renderer is the main renderer for drawing a Scene to the screen.
  *
  * GBUFFER LAYOUT:
- * 0: COLOR: (color.XYZ, transparency (only when using transparencyMode))
+ * 0: COLOR: (color.XYZ, transparency when using transparencyMode, otherwise reserved)
  * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw if depth texture not supported)
  * 2: REFLECTION: (roughness, normalSpecularReflection, metallicness, extra depth precision if depth texture not supported and max precision is requested)
  * 3: LINEAR DEPTH: (not explicitly written to by user), 0 - 1 linear depth encoded as RGBA

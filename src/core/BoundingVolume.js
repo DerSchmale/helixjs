@@ -131,6 +131,17 @@ HX.BoundingVolume.prototype =
         }
 
         return HX.BoundingVolume._debugMaterial;
+    },
+
+    toString: function()
+    {
+        return "BoundingVolume: [ " +
+            this._minimumX + ", " +
+            this._minimumY + ", " +
+            this._minimumZ + " ] - [ " +
+            this._maximumX + ", " +
+            this._maximumY + ", " +
+            this._maximumZ + " ]";
     }
 };
 

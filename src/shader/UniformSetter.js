@@ -167,7 +167,7 @@ HX.CameraWorldPosSetter = function()
 
 HX.CameraWorldPosSetter.prototype.execute = function (worldMatrix, camera)
 {
-    var arr = camera.getWorldMatrix()._m;
+    var arr = camera.worldMatrix._m;
     HX.GL.uniform3f(this.location, arr[12], arr[13], arr[14]);
 };
 
@@ -177,7 +177,7 @@ HX.CameraWorldMatrixSetter = function()
 
 HX.CameraWorldMatrixSetter.prototype.execute = function (worldMatrix, camera)
 {
-    var matrix = camera.getWorldMatrix();
+    var matrix = camera.worldMatrix;
     HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
 };
 

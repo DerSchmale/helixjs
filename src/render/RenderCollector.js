@@ -33,7 +33,7 @@ HX.RenderCollector.prototype.getGlobalIrradianceProbe = function() { return this
 HX.RenderCollector.prototype.collect = function(camera, scene)
 {
     this._camera = camera;
-    camera.getWorldMatrix().getColumn(2, this._cameraZAxis);
+    camera.worldMatrix.getColumn(2, this._cameraZAxis);
     this._frustum = camera.getFrustum();
     this._nearPlane = this._frustum._planes[HX.Frustum.PLANE_NEAR];
     this._reset();
@@ -66,14 +66,14 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
 
 HX.RenderCollector.prototype.qualifies = function(object)
 {
-    return object.getWorldBounds().intersectsConvexSolid(this._frustum._planes, 6);
+    return object.worldBounds.intersectsConvexSolid(this._frustum._planes, 6);
 };
 
 HX.RenderCollector.prototype.visitScene = function (scene)
 {
     var skybox = scene._skybox;
     if (skybox) {
-        this.visitModelInstance(skybox._modelInstance, scene._rootNode.getWorldMatrix(), scene._rootNode.getWorldBounds());
+        this.visitModelInstance(skybox._modelInstance, scene._rootNode.worldMatrix, scene._rootNode.worldBounds);
         this._globalSpecularProbe = skybox.getGlobalSpecularProbe();
         this._globalIrradianceProbe = skybox.getGlobalIrradianceProbe();
     }
@@ -91,7 +91,7 @@ HX.RenderCollector.prototype.visitEffects = function(effects, ownerNode)
 
 HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
 {
-    var numMeshes = modelInstance.numMeshInstances();
+    var numMeshes = modelInstance.numMeshInstances;
 
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
@@ -111,7 +111,6 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
                 renderItem.renderOrderHint = worldBounds._centerX * this._cameraZAxis.x + worldBounds._centerY * this._cameraZAxis.y + worldBounds._centerZ * this._cameraZAxis.z;
                 renderItem.worldMatrix = worldMatrix;
                 renderItem.camera = this._camera;
-
                 list[passIndex].push(renderItem);
             }
         }
@@ -123,7 +122,7 @@ HX.RenderCollector.prototype.visitLight = function(light)
     this._lights.push(light);
     if (light._castShadows) this._shadowCasters.push(light._shadowMapRenderer);
 
-    var bounds = light.getWorldBounds();
+    var bounds = light.worldBounds;
     var near = this._nearPlane;
 
     light._renderOrderHint = bounds._centerX * near.x + bounds._centerY * near.y + bounds._centerZ * near.z + near.w - bounds.getRadius();

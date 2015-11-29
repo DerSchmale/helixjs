@@ -152,7 +152,7 @@ HX.ModelData = function ()
 HX.ModelData.prototype = {
     constructor: HX.ModelData,
 
-    numMeshes: function ()
+    get numMeshes()
     {
         return this._meshDataList.length;
     },
@@ -187,7 +187,7 @@ HX.Model = function (modelData)
 HX.Model.prototype = {
     constructor: HX.Model,
 
-    numMeshes: function ()
+    get numMeshes()
     {
         return this._meshes.length;
     },
@@ -204,7 +204,7 @@ HX.Model.prototype = {
                 this._meshes[i].dispose();
     },
 
-    getLocalBounds: function()
+    get localBounds()
     {
         return this._localBounds;
     },
@@ -216,7 +216,7 @@ HX.Model.prototype = {
         this._localBounds.clear();
         this._meshes = [];
 
-        for (var i = 0; i < modelData.numMeshes(); ++i) {
+        for (var i = 0; i < modelData.numMeshes; ++i) {
             var meshData = modelData.getMeshData(i);
             this._localBounds.growToIncludeMesh(meshData);
             this._meshes.push(new HX.Mesh(meshData));

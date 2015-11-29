@@ -62,7 +62,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
     var passIndex = this._passType;
 
     var numCascades = this._numCascades;
-    var numMeshes = modelInstance.numMeshInstances();
+    var numMeshes = modelInstance.numMeshInstances;
 
     //if (!worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes)) return;
 
@@ -110,7 +110,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
 
 HX.CascadeShadowCasterCollector.prototype.qualifies = function(object)
 {
-    return object.getWorldBounds().intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
+    return object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
 };
 
 /**
@@ -174,7 +174,7 @@ HX.CascadeShadowMapRenderer.prototype =
         if (this._shadowMapInvalid)
             this._initShadowMap();
 
-        this._inverseLightMatrix.inverseAffineOf(this._light.getWorldMatrix());
+        this._inverseLightMatrix.inverseAffineOf(this._light.worldMatrix);
         this._updateCollectorCamera(viewCamera);
         this._updateSplits(viewCamera);
         this._updateCullPlanes(viewCamera);
@@ -222,7 +222,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
         this._minZ = min.z;
 
-        this._collectorCamera.getTransformationMatrix().copyFrom(this._light.getWorldMatrix());
+        this._collectorCamera.getTransformationMatrix().copyFrom(this._light.worldMatrix);
         this._collectorCamera._invalidateWorldTransformationMatrix();
         this._collectorCamera.setBounds(min.x, max.x + 1, max.y + 1, min.y);
         this._collectorCamera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
@@ -233,7 +233,7 @@ HX.CascadeShadowMapRenderer.prototype =
         var nearDist = viewCamera.nearDistance;
         var frustumRange = viewCamera.farDistance - nearDist;
         var plane = new HX.Float4(0.0, 0.0, -1.0, 0.0);
-        var matrix = viewCamera.getWorldMatrix();
+        var matrix = viewCamera.worldMatrix;
 
         for (var i = 0; i < this._numCascades; ++i) {
             this._splitDistances[i] = plane.w = -(nearDist + this._splitRatios[i] * frustumRange);
@@ -266,7 +266,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
             camera.nearDistance = -maxBound.z;
 
-            camera.setTransformationMatrix(this._light.getWorldMatrix());
+            camera.setTransformationMatrix(this._light.worldMatrix);
 
             // figure out frustum bound
             for (var i = 0; i < 4; ++i) {

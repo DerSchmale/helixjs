@@ -69,7 +69,7 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
             end = i;
             continue;
         }
-        light.getWorldMatrix().getColumn(3, pos);
+        light.worldMatrix.getColumn(3, pos);
         viewMatrix.transformPoint(pos, pos);
         var color = light._scaledIrradiance;
 
@@ -134,7 +134,7 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
             continue;
         }
 
-        light.getWorldMatrix().getColumn(3, pos);
+        light.worldMatrix.getColumn(3, pos);
         viewMatrix.transformPoint(pos, pos);
 
         var color = light._scaledIrradiance;
@@ -183,7 +183,7 @@ HX.PointLight.prototype._createBoundingVolume = function()
 
 HX.PointLight.prototype._updateWorldBounds = function()
 {
-    this._worldBounds.setExplicit(this.getWorldMatrix().getColumn(3), this._radius);
+    this._worldBounds.setExplicit(this.worldMatrix.getColumn(3), this._radius);
     HX.Light.prototype._updateWorldBounds.call(this);
 };
 

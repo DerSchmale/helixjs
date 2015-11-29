@@ -123,6 +123,7 @@ HX.MeshInstance.prototype = {
  */
 HX.ModelInstance = function(model, materials)
 {
+    HX.Component.call(this);
     this._model = model;
     this._meshInstances = [];
     this._castShadows = true;
@@ -134,31 +135,67 @@ HX.ModelInstance = function(model, materials)
     this._onModelChange();
 };
 
-HX.ModelInstance.prototype = {
-    constructor: HX.ModelInstance,
+HX.ModelInstance.prototype = Object.create(HX.Component.prototype);
 
-    getModel: function() { return this._model; },
-
-    get castShadows() { return this._castShadows; },
-    set castShadows(value) { this._castShadows = value; },
-
-    numMeshInstances: function() { return this._meshInstances.length; },
-    getMeshInstance: function(index) { return this._meshInstances[index]; },
-
-    getLocalBounds: function() { return this._model.getLocalBounds(); },
-
-    _addMeshInstance: function(mesh, material)
+Object.defineProperties(HX.ModelInstance.prototype, {
+    model:
     {
-        this._meshInstances.push(new HX.MeshInstance(mesh, material));
+        get: function() { return this._model; }
     },
 
-    _onModelChange: function()
-    {
-        var maxIndex = this._materials.length - 1;
-        for (var i = 0; i < this._model.numMeshes(); ++i) {
-            this._addMeshInstance(this._model.getMesh(i), this._materials[Math.min(i, maxIndex)]);
-        }
+    castShadows: {
+        get castShadows()
+        {
+            return this._castShadows;
+        },
 
-        this.onChange.dispatch();
+        set castShadows(value)
+        {
+            this._castShadows = value;
+        }
+    },
+
+    numMeshInstances: {
+        get: function ()
+        {
+            return this._meshInstances.length;
+        }
     }
+});
+
+HX.ModelInstance.prototype.getMeshInstance = function(index)
+{
+    return this._meshInstances[index];
+};
+
+
+HX.ModelInstance.prototype._addMeshInstance = function(mesh, material)
+{
+    this._meshInstances.push(new HX.MeshInstance(mesh, material));
+};
+
+HX.ModelInstance.prototype._onModelChange = function()
+{
+    var maxIndex = this._materials.length - 1;
+    for (var i = 0; i < this._model.numMeshes; ++i) {
+        this._addMeshInstance(this._model.getMesh(i), this._materials[Math.min(i, maxIndex)]);
+    }
+
+    this._invalidateWorldBounds();
+};
+
+// override for better matches
+HX.ModelInstance.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.transformFrom(this._model.localBounds, this._entity.worldMatrix);
+};
+
+HX.ModelInstance.prototype.acceptVisitor = function(visitor)
+{
+    visitor.visitModelInstance(this, this._entity.worldMatrix, this._entity.worldBounds);
+};
+
+HX.ModelInstance.prototype._createBoundingVolume = function()
+{
+    return new HX.BoundingAABB();
 };

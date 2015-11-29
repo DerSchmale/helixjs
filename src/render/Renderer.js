@@ -19,7 +19,7 @@ HX.DebugRenderMode = {
  * Renderer is the main renderer for drawing a Scene to the screen.
  *
  * GBUFFER LAYOUT:
- * 0: COLOR: (color.XYZ, transparency (only when using transparencyMode))
+ * 0: COLOR: (color.XYZ, transparency when using transparencyMode, otherwise reserved)
  * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw if depth texture not supported)
  * 2: REFLECTION: (roughness, normalSpecularReflection, metallicness, extra depth precision if depth texture not supported and max precision is requested)
  * 3: LINEAR DEPTH: (not explicitly written to by user), 0 - 1 linear depth encoded as RGBA

@@ -121,13 +121,13 @@ HX.MeshInstance.prototype = {
  * @param materials Either a single material or an array of materials for each mesh in model.
  * @constructor
  */
-HX.ModelComponent = function(model, materials)
+HX.ModelInstance = function(model, materials)
 {
-    HX.Component.call(this);
+    HX.Entity.call(this);
     this._model = model;
+    this._meshBounds = new HX.BoundingAABB();
     this._meshInstances = [];
     this._castShadows = true;
-    this.onChange = new HX.Signal();
     this._model.onChange.bind(this, this._onModelChange);
 
     this._materials = materials instanceof Array? materials : [ materials ];
@@ -135,14 +135,9 @@ HX.ModelComponent = function(model, materials)
     this._onModelChange();
 };
 
-HX.ModelComponent.entity = function(model, materials)
-{
-    return HX.Entity.create([new HX.ModelComponent(model, materials)]);
-};
+HX.ModelInstance.prototype = Object.create(HX.Entity.prototype);
 
-HX.ModelComponent.prototype = Object.create(HX.Component.prototype);
-
-Object.defineProperties(HX.ModelComponent.prototype, {
+Object.defineProperties(HX.Entity.prototype, {
     model:
     {
         get: function() { return this._model; }
@@ -168,18 +163,18 @@ Object.defineProperties(HX.ModelComponent.prototype, {
     }
 });
 
-HX.ModelComponent.prototype.getMeshInstance = function(index)
+HX.ModelInstance.prototype.getMeshInstance = function(index)
 {
     return this._meshInstances[index];
 };
 
 
-HX.ModelComponent.prototype._addMeshInstance = function(mesh, material)
+HX.ModelInstance.prototype._addMeshInstance = function(mesh, material)
 {
     this._meshInstances.push(new HX.MeshInstance(mesh, material));
 };
 
-HX.ModelComponent.prototype._onModelChange = function()
+HX.ModelInstance.prototype._onModelChange = function()
 {
     var maxIndex = this._materials.length - 1;
     for (var i = 0; i < this._model.numMeshes; ++i) {
@@ -190,20 +185,15 @@ HX.ModelComponent.prototype._onModelChange = function()
 };
 
 // override for better matches
-HX.ModelComponent.prototype._updateWorldBounds = function()
+HX.ModelInstance.prototype._updateWorldBounds = function()
 {
-    if (this._entity)
-        this._worldBounds.transformFrom(this._model.localBounds, this._entity.worldMatrix);
-    else
-        this._worldBounds.copyFrom(this._model.localBounds);
+    HX.Entity.prototype._updateWorldBounds.call(this);
+    this._meshBounds.transformFrom(this._model.localBounds, this.worldMatrix);
+    this._worldBounds.growToIncludeBound(this._meshBounds);
 };
 
-HX.ModelComponent.prototype.acceptVisitor = function(visitor)
+HX.ModelInstance.prototype.acceptVisitor = function(visitor)
 {
-    visitor.visitModelInstance(this, this._entity.worldMatrix, this._entity.worldBounds);
-};
-
-HX.ModelComponent.prototype._createBoundingVolume = function()
-{
-    return new HX.BoundingAABB();
+    visitor.visitModelInstance(this, this.worldMatrix, this.worldBounds);
+    HX.Entity.prototype.acceptVisitor.call(this, visitor);
 };

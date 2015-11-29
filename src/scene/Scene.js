@@ -165,7 +165,7 @@ HX.Scene = function(rootNode)
 {
     // the default partition is a BVH node
     //  -> or this may need to become an infinite bound node?
-    this._rootNode = rootNode || new HX.Entity();
+    this._rootNode = rootNode || new HX.GroupNode();
     this._skybox = null;
 };
 
@@ -216,4 +216,78 @@ HX.Scene.prototype = {
         // assume root node will always qualify
         this._rootNode.acceptVisitor(visitor);
     }
+};
+
+
+HX.GroupNode = function()
+{
+    HX.SceneNode.call(this);
+
+    // child entities (scene nodes)
+    this._children = [];
+};
+
+HX.GroupNode.prototype = Object.create(HX.SceneNode.prototype);
+
+HX.GroupNode.prototype.attach = function(child)
+{
+    if (child._parent)
+        throw "Child is already parented!";
+
+    child._parent = this;
+
+    this._children.push(child);
+    this._invalidateWorldBounds();
+};
+
+HX.GroupNode.prototype.detach = function(child)
+{
+    var index = this._children.indexOf(child);
+
+    if (index < 0)
+        throw "Trying to remove a scene object that is not a child";
+
+    child._parent = null;
+
+    this._children.splice(index, 1);
+    this._invalidateWorldBounds();
+};
+
+HX.GroupNode.prototype.numChildren = function() { return this._children.length; };
+
+HX.GroupNode.prototype.getChild = function(index) { return this._children[index]; };
+
+
+HX.GroupNode.prototype.acceptVisitor = function(visitor)
+{
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        var child = this._children[i];
+
+        if (visitor.qualifies(child))
+            child.acceptVisitor(visitor);
+    }
+};
+
+HX.GroupNode.prototype._invalidateWorldTransformationMatrix = function()
+{
+    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i]._invalidateWorldTransformationMatrix();
+};
+
+HX.GroupNode.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.clear();
+
+    var len = this._children.length;
+
+    for (var i = 0; i < len; ++i)
+        this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
+
+    HX.SceneNode.prototype._updateWorldBounds.call(this);
 };

@@ -322,6 +322,18 @@ HX.ShaderLibrary['lighting_blinn_phong.glsl'] = '/*float hx_lightVisibility(vec3
 
 HX.ShaderLibrary['lighting_ggx.glsl'] = '// Smith:\n/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float roughSqr = roughness*roughness;\n	float g1 = nDotV + sqrt( (nDotV - nDotV * roughSqr) * nDotV + roughSqr );\n    float g2 = nDotL + sqrt( (nDotL - nDotL * roughSqr) * nDotL + roughSqr );\n    return 1.0 / (g1 * g2);\n}*/\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = .25 * irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
 
+HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = '#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#else\nuniform vec3 color;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\nvoid main()\n{\n    vec4 outputColor;\n    #ifdef COLOR_MAP\n        outputColor = texture2D(colorMap, texCoords);\n    #else\n        outputColor = vec4(color, 1.0);\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = 1.0 - (1.0 - roughnessOut) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = 1.0 - (1.0 - roughnessOut) * specularMap.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specularMap.y;\n              metallicnessOut *= specularMap.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
+
+HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
+
+HX.ShaderLibrary['default_refract_fragment.glsl'] = 'varying vec2 texCoords;\nvarying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#else\nuniform vec3 color;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform sampler2D hx_backbuffer;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float refractiveRatio;   // the ratio of refractive indices\n\nvec2 getPreciseRefractedUVOffset(vec3 normal, float distance)\n{\n    vec3 refractionVector = refract(vec3(0.0, 0.0, -1.0), normal, refractiveRatio);   // close enough\n    return (refractionVector.xy) / max(-viewVector.z - refractionVector.z * distance, 1.0);\n}\n\nvoid main()\n{\n    vec4 outputColor;\n    #ifdef COLOR_MAP\n        outputColor = texture2D(colorMap, texCoords);\n    #else\n        outputColor = vec4(color, 1.0);\n    #endif\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n    #endif\n\n    // use the immediate background depth value for a distance estimate\n    // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering\n\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, texCoords);\n    float distance = depth * hx_cameraFrustumRange - viewVector.z - hx_cameraNearPlaneDistance;\n\n    vec2 samplePos = screenUV + getPreciseRefractedUVOffset(fragNormal, distance);\n\n    vec4 background = texture2D(hx_backbuffer, samplePos);\n    gl_FragColor = outputColor * background;\n}';
+
+HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\nattribute vec2 hx_texCoord;\n\nvarying vec3 normal;\nvarying vec2 texCoords;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\n\nvoid main()\n{\n    vec4 viewSpace = hx_worldViewMatrix * hx_position;\n    vec4 proj = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n    viewVector = viewSpace.xyz;\n    texCoords = hx_texCoord;\n    screenUV = proj.xy / proj.w * .5 + .5;\n    gl_Position = proj;\n}';
+
+HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nvoid main()\n{\n    vec4 color = textureCube(hx_skybox, viewWorldDir);\n    gl_FragColor = hx_gammaToLinear(color);\n}';
+
+HX.ShaderLibrary['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_inverseViewProjectionMatrix;\nuniform vec3 hx_cameraWorldPosition;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube\nvoid main()\n{\n    vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n    viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n    gl_Position = vec4(hx_position.xy, 1.0, 1.0);  // make sure it\'s drawn behind everything else\n}';
+
 HX.ShaderLibrary['ambient_light_fragment.glsl'] = 'uniform vec3 lightColor;\n\nuniform sampler2D hx_gbufferColor;\n\n#ifdef USE_AO\nuniform sampler2D hx_ambientOcclusion;\n#endif\n\nvarying vec2 uv;\n\nvoid main()\n{\n	vec3 colorSample = texture2D(hx_gbufferColor, uv).xyz;\n#ifdef USE_AO\n	float occlusionSample = texture2D(hx_ambientOcclusion, uv).w;\n	colorSample *= occlusionSample;\n#endif\n\n	gl_FragColor = vec4(lightColor * colorSample, 0.0);\n}';
 
 HX.ShaderLibrary['ambient_light_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
@@ -345,18 +357,6 @@ HX.ShaderLibrary['point_light_fullscreen_vertex.glsl'] = 'attribute vec4 hx_posi
 HX.ShaderLibrary['point_light_spherical_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\n\nvoid main()\n{\n	vec4 colorSample = texture2D(hx_gbufferColor, uv);\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n\n	float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewPosition = viewZ * viewDir;\n\n	vec3 normal = hx_decodeNormal(normalSample);\n	vec3 viewDirNorm = normalize(viewDir);\n\n	vec3 normalSpecularReflectance;\n	float roughness;\n	float metallicness;\n	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n	vec3 diffuseReflection;\n	vec3 specularReflection;\n\n	vec3 lightViewDirection = viewPosition - lightPositionVar;\n	float attenuation = 1.0/dot(lightViewDirection, lightViewDirection);\n	// normalize:\n	lightViewDirection *= sqrt(attenuation);\n\n	// rescale attenuation so that irradiance at bounding edge really is 0\n	attenuation = max(0.0, (attenuation - attenuationFixVar.x) * attenuationFixVar.y);\n	hx_lighting(normal, lightViewDirection, viewDirNorm, lightColorVar * attenuation, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);\n\n	diffuseReflection *= colorSample.xyz * (1.0 - metallicness);\n	gl_FragColor = vec4(diffuseReflection + specularReflection, 0.0);\n}';
 
 HX.ShaderLibrary['point_light_spherical_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute float hx_instanceID;\n\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform mat4 hx_projectionMatrix;\n\nuniform float lightRadius[LIGHTS_PER_BATCH];\nuniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\nuniform vec3 lightColor[LIGHTS_PER_BATCH];\nuniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nvoid main()\n{\n	int instance = int(hx_instanceID);\n	vec4 worldPos = hx_position;\n	lightPositionVar = lightWorldPosition[instance];\n	lightColorVar = lightColor[instance];\n	attenuationFixVar = attenuationFixFactors[instance];\n	worldPos.xyz *= lightRadius[instance];\n	worldPos.xyz += lightPositionVar;\n\n	vec4 viewPos = hx_viewMatrix * worldPos;\n	vec4 proj = hx_projectionMatrix * viewPos;\n\n	lightPositionVar = (hx_viewMatrix * vec4(lightPositionVar, 1.0)).xyz;\n\n	viewDir = viewPos.xyz / viewPos.z;\n\n	/* render as flat disk, prevent clipping */\n	proj /= proj.w;\n	proj.z = 0.0;\n	uv = proj.xy/proj.w * .5 + .5;\n	gl_Position = proj;\n}';
-
-HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = '#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#else\nuniform vec3 color;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\nvoid main()\n{\n    vec4 outputColor;\n    #ifdef COLOR_MAP\n        outputColor = texture2D(colorMap, texCoords);\n    #else\n        outputColor = vec4(color, 1.0);\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = 1.0 - (1.0 - roughnessOut) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = 1.0 - (1.0 - roughnessOut) * specularMap.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specularMap.y;\n              metallicnessOut *= specularMap.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
-
-HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
-
-HX.ShaderLibrary['default_refract_fragment.glsl'] = 'varying vec2 texCoords;\nvarying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#else\nuniform vec3 color;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform sampler2D hx_backbuffer;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float refractiveRatio;   // the ratio of refractive indices\n\nvec2 getPreciseRefractedUVOffset(vec3 normal, float distance)\n{\n    vec3 refractionVector = refract(vec3(0.0, 0.0, -1.0), normal, refractiveRatio);   // close enough\n    return (refractionVector.xy) / max(-viewVector.z - refractionVector.z * distance, 1.0);\n}\n\nvoid main()\n{\n    vec4 outputColor;\n    #ifdef COLOR_MAP\n        outputColor = texture2D(colorMap, texCoords);\n    #else\n        outputColor = vec4(color, 1.0);\n    #endif\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n    #endif\n\n    // use the immediate background depth value for a distance estimate\n    // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering\n\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, texCoords);\n    float distance = depth * hx_cameraFrustumRange - viewVector.z - hx_cameraNearPlaneDistance;\n\n    vec2 samplePos = screenUV + getPreciseRefractedUVOffset(fragNormal, distance);\n\n    vec4 background = texture2D(hx_backbuffer, samplePos);\n    gl_FragColor = outputColor * background;\n}';
-
-HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\nattribute vec2 hx_texCoord;\n\nvarying vec3 normal;\nvarying vec2 texCoords;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\n\nvoid main()\n{\n    vec4 viewSpace = hx_worldViewMatrix * hx_position;\n    vec4 proj = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n    viewVector = viewSpace.xyz;\n    texCoords = hx_texCoord;\n    screenUV = proj.xy / proj.w * .5 + .5;\n    gl_Position = proj;\n}';
-
-HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nvoid main()\n{\n    vec4 color = textureCube(hx_skybox, viewWorldDir);\n    gl_FragColor = hx_gammaToLinear(color);\n}';
-
-HX.ShaderLibrary['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_inverseViewProjectionMatrix;\nuniform vec3 hx_cameraWorldPosition;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube\nvoid main()\n{\n    vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n    viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n    gl_Position = vec4(hx_position.xy, 1.0, 1.0);  // make sure it\'s drawn behind everything else\n}';
 
 HX.ShaderLibrary['bloom_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform float gaussianWeights[NUM_SAMPLES];\n\nvoid main()\n{\n	vec4 total = vec4(0.0);\n	vec2 sampleUV = uv;\n	vec2 stepSize = DIRECTION / SOURCE_RES;\n	float totalWeight = 0.0;\n	for (int i = 0; i < NUM_SAMPLES; ++i) {\n		total += texture2D(sourceTexture, sampleUV) * gaussianWeights[i];\n		sampleUV += stepSize;\n	}\n	gl_FragColor = total;\n}';
 
@@ -3224,7 +3224,7 @@ HX.BoundingAABB.prototype.getRadius = function()
 
 HX.BoundingAABB.prototype.createDebugModelInstance = function()
 {
-    return new HX.ModelComponent(HX.BoxPrimitive.create(), [this.getDebugMaterial()]);
+    return new HX.ModelInstance(HX.BoxPrimitive.create(), [this.getDebugMaterial()]);
 };
 
 /**
@@ -3488,7 +3488,7 @@ HX.BoundingSphere.prototype._updateMinAndMax = function()
 
 HX.BoundingSphere.prototype.createDebugModelInstance = function()
 {
-    return new HX.ModelComponent(HX.SpherePrimitive.create({doubleSided:true}), [this.getDebugMaterial()]);
+    return new HX.ModelInstance(HX.SpherePrimitive.create({doubleSided:true}), [this.getDebugMaterial()]);
 };
 
 HX.FixedAABB = function()
@@ -4829,7 +4829,7 @@ HX.Scene = function(rootNode)
 {
     // the default partition is a BVH node
     //  -> or this may need to become an infinite bound node?
-    this._rootNode = rootNode || new HX.Entity();
+    this._rootNode = rootNode || new HX.GroupNode();
     this._skybox = null;
 };
 
@@ -4882,6 +4882,144 @@ HX.Scene.prototype = {
     }
 };
 
+
+HX.GroupNode = function()
+{
+    HX.SceneNode.call(this);
+
+    // child entities (scene nodes)
+    this._children = [];
+};
+
+HX.GroupNode.prototype = Object.create(HX.SceneNode.prototype);
+
+HX.GroupNode.prototype.attach = function(child)
+{
+    if (child._parent)
+        throw "Child is already parented!";
+
+    child._parent = this;
+
+    this._children.push(child);
+    this._invalidateWorldBounds();
+};
+
+HX.GroupNode.prototype.detach = function(child)
+{
+    var index = this._children.indexOf(child);
+
+    if (index < 0)
+        throw "Trying to remove a scene object that is not a child";
+
+    child._parent = null;
+
+    this._children.splice(index, 1);
+    this._invalidateWorldBounds();
+};
+
+HX.GroupNode.prototype.numChildren = function() { return this._children.length; };
+
+HX.GroupNode.prototype.getChild = function(index) { return this._children[index]; };
+
+
+HX.GroupNode.prototype.acceptVisitor = function(visitor)
+{
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        var child = this._children[i];
+
+        if (visitor.qualifies(child))
+            child.acceptVisitor(visitor);
+    }
+};
+
+HX.GroupNode.prototype._invalidateWorldTransformationMatrix = function()
+{
+    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i]._invalidateWorldTransformationMatrix();
+};
+
+HX.GroupNode.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.clear();
+
+    var len = this._children.length;
+
+    for (var i = 0; i < len; ++i)
+        this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
+
+    HX.SceneNode.prototype._updateWorldBounds.call(this);
+};
+HX.Component = function()
+{
+    // this allows notifying entities about bound changes (useful for sized components)
+    this._entity = null;
+    this._worldBounds = this._createBoundingVolume();
+    this._worldBoundsInvalid = true;
+};
+
+HX.Component.prototype =
+{
+    // to be overridden:
+    onAdded: function() {},
+    onRemoved: function() {},
+    onUpdate: function(dt) {},
+
+    get entity()
+    {
+        return this._entity;
+    }
+};
+HX.Entity = function()
+{
+    HX.SceneNode.call(this);
+
+    // components
+    this._components = [];
+};
+
+HX.Entity.create = function(components)
+{
+    var entity = new HX.Entity();
+
+    if (components) {
+        var len = components.length;
+        for (var i = 0; i < len; ++i)
+            entity.addComponent(components[i]);
+    }
+
+    return entity;
+};
+
+HX.Entity.prototype = Object.create(HX.SceneNode.prototype);
+
+HX.Entity.prototype.addComponent = function(component)
+{
+    if (component._entity)
+        throw "Component already added to an entity!";
+
+    this._components.push(component);
+
+    component._entity = this;
+    component._invalidateWorldBounds();
+    this._invalidateWorldBounds();
+    component.onAdded();
+};
+
+HX.Entity.prototype.removeComponent = function(component)
+{
+    component.onRemoved();
+    var index = this._components.indexOf(component);
+    if (index >= 0)
+        this._components.splice(index, 1);
+    component._entity = null;
+    if (component.worldBounds) this._invalidateWorldBounds();
+};
 /**
  * Subclasses must implement:
  * prototype.activate
@@ -4890,7 +5028,7 @@ HX.Scene.prototype = {
  */
 HX.Light = function ()
 {
-    HX.SceneNode.call(this);
+    HX.Entity.call(this);
     this._type = this.getTypeID();
     this._intensity = 3.1415;
     this._luminanceBound = 1 / 255;
@@ -4900,7 +5038,7 @@ HX.Light = function ()
     this._updateScaledIrradiance();
 };
 
-HX.Light.prototype = Object.create(HX.SceneNode.prototype);
+HX.Light.prototype = Object.create(HX.Entity.prototype);
 
 HX.Light.prototype.getTypeID = function()
 {
@@ -4909,7 +5047,7 @@ HX.Light.prototype.getTypeID = function()
 
 HX.Light.prototype.acceptVisitor = function (visitor)
 {
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+    HX.Entity.prototype.acceptVisitor.call(this, visitor);
     visitor.visitLight(this);
 };
 
@@ -5985,259 +6123,6 @@ HX.SkyboxMaterial = function(texture)
 };
 
 HX.SkyboxMaterial.prototype = Object.create(HX.Material.prototype);
-HX.Component = function()
-{
-    // this allows notifying entities about bound changes (useful for sized components)
-    this._entity = null;
-    this._worldBounds = this._createBoundingVolume();
-    this._worldBoundsInvalid = true;
-};
-
-HX.Component.prototype =
-{
-    // to be overridden:
-    onAdded: function() {},
-    onRemoved: function() {},
-
-    // TODO: should this be called by RenderCollector?
-    // it could trigger multiple calls for multiple viewports
-    // perhaps Helix should provide a general update mechanic, based on a hidden FrameTicker?
-    // components should indicate whether they SHOULD be updated, otherwise we're calling way too many
-    onUpdate: function(dt) {},
-
-    // components should indicate whether they SHOULD be visited, otherwise we're calling way too many of them
-    acceptVisitor: function(visitor) {},
-
-    get entity()
-    {
-        return this._entity;
-    },
-
-    get worldBounds()
-    {
-        if (this._worldBounds && this._worldBoundsInvalid)
-            this._updateWorldBounds();
-
-        return this._worldBounds;
-    },
-
-    _invalidateWorldBounds: function()
-    {
-        if (!this._worldBounds) return;
-        this._worldBoundsInvalid = true;
-        if (this._entity)
-            this._entity._invalidateWorldBounds();
-    },
-
-    // by default, components are not bounded, so these do nothing
-    _updateWorldBounds: function()
-    {
-    },
-
-    _createBoundingVolume: function()
-    {
-        return null;
-    }
-};
-HX.Entity = function()
-{
-    HX.SceneNode.call(this);
-
-    // child entities (scene nodes)
-    this._children = [];
-
-    // components
-    this._components = [];
-};
-
-HX.Entity.create = function(components)
-{
-    var entity = new HX.Entity();
-
-    if (components) {
-        var len = components.length;
-        for (var i = 0; i < len; ++i)
-            entity.addComponent(components[i]);
-    }
-
-    return entity;
-};
-
-HX.Entity.prototype = Object.create(HX.SceneNode.prototype);
-
-HX.Entity.prototype.addComponent = function(component)
-{
-    if (component._entity)
-        throw "Component already added to an entity!";
-
-    this._components.push(component);
-
-    component._entity = this;
-    component._invalidateWorldBounds();
-    this._invalidateWorldBounds();
-    component.onAdded();
-};
-
-HX.Entity.prototype.removeComponent = function(component)
-{
-    component.onRemoved();
-    var index = this._components.indexOf(component);
-    if (index >= 0)
-        this._components.splice(index, 1);
-    component._entity = null;
-    if (component.worldBounds) this._invalidateWorldBounds();
-};
-
-HX.Entity.prototype.attach = function(child)
-{
-    if (child._parent)
-        throw "Child is already parented!";
-
-    child._parent = this;
-
-    this._children.push(child);
-    this._invalidateWorldBounds();
-};
-
-HX.Entity.prototype.detach = function(child)
-{
-    var index = this._children.indexOf(child);
-
-    if (index < 0)
-        throw "Trying to remove a scene object that is not a child";
-
-    child._parent = null;
-
-    this._children.splice(index, 1);
-    this._invalidateWorldBounds();
-};
-
-HX.Entity.prototype.numChildren = function() { return this._children.length; };
-
-HX.Entity.prototype.getChild = function(index) { return this._children[index]; };
-
-
-HX.Entity.prototype.acceptVisitor = function(visitor)
-{
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
-
-    var len = this._components.length;
-    for (var i = 0; i < len; ++i) {
-        var component = this._components[i];
-        component.acceptVisitor(visitor);
-    }
-
-    len = this._children.length;
-    for (var i = 0; i < len; ++i) {
-        var child = this._children[i];
-
-        if (visitor.qualifies(child))
-            child.acceptVisitor(visitor);
-    }
-};
-
-HX.Entity.prototype._invalidateWorldTransformationMatrix = function()
-{
-    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldTransformationMatrix();
-};
-
-HX.Entity.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.clear();
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
-
-    len = this._components.length;
-    for (var i = 0; i < len; ++i) {
-        var worldBounds = this._components[i].worldBounds;
-        if (worldBounds)
-            this._worldBounds.growToIncludeBound(worldBounds);
-    }
-
-    HX.SceneNode.prototype._updateWorldBounds.call(this);
-};
-/**
- *
- * @constructor
- */
-HX.AmbientLight = function()
-{
-    HX.Light.call(this);
-
-    // asume only one ambient light
-    this._colorLocation = null;
-    this._lightPass = null;
-    this._useAO = false;
-
-    this.color = new HX.Color(.1,.1,.1);
-};
-
-HX.AmbientLight.prototype = Object.create(HX.Light.prototype);
-
-// returns the index of the FIRST UNRENDERED light
-HX.AmbientLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
-{
-    var useAO = renderer._aoEffect != null;
-
-    if (!this._lightPass || this._useAO != useAO) {
-        this._useAO = useAO;
-        this._initLightPass();
-    }
-
-    this._lightPass.updateRenderState(renderer);
-
-    var colorR = 0, colorG = 0, colorB = 0;
-    var end = lightCollection.length;
-
-    for (var i = startIndex; i < end; ++i) {
-        var light = lightCollection[i];
-        var color = light._scaledIrradiance;
-
-        if (light._type != this._type)
-            break;
-
-        colorR += color.r;
-        colorG += color.g;
-        colorB += color.b;
-    }
-
-    HX.GL.uniform3f(this._colorLocation, colorR, colorG, colorB);
-
-    // render rect mesh
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
-
-    return i;
-};
-
-HX.AmbientLight.prototype._updateWorldBounds = function()
-{
-    //console.log(new Error().stack);
-    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-    HX.Light.prototype._updateWorldBounds.call(this);
-};
-
-HX.AmbientLight.prototype._initLightPass =  function()
-{
-    var defines = {};
-    if (this._useAO) defines.USE_AO = 1;
-
-    var pass = new HX.EffectPass(
-        HX.ShaderLibrary.get("ambient_light_vertex.glsl"),
-        HX.ShaderLibrary.get("ambient_light_fragment.glsl", defines)
-    );
-
-    pass.blendState = HX.BlendState.ADD;
-
-    this._colorLocation = pass.getUniformLocation("lightColor");
-
-    this._lightPass = pass;
-};
 /**
  *
  * @constructor
@@ -6531,594 +6416,6 @@ HX.OrthographicOffCenterCamera.prototype._updateProjectionMatrix = function()
     this._projectionMatrixDirty = false;
 };
 /**
- *
- * @constructor
- */
-HX.DirectionalLight = function()
-{
-    HX.Light.call(this);
-
-    this._numCascades = 1;
-    this._shadowMapSize = 1024;
-    // hard shadows by default
-    this._numShadowSamples = 1;
-
-    // these two don't need getters/setters (saves on filesize)
-    this.shadowSoftness = .02;
-    this.depthBias = .02;
-
-    this.direction = new HX.Float4(-1.0, -1.0, -1.0, 0.0);
-    this._matrixData = null;
-    this._shadowSoftnessData = null;
-
-    this._dirLocation = null;
-    this._colorLocation = null;
-    this._splitDistancesLocation = null;
-    this._shadowMatrixLocation = null;
-    this._depthBiasLocation = null;
-    this._shadowSoftnessLocation = null;
-};
-
-HX.DirectionalLight.prototype = Object.create(HX.Light.prototype);
-
-Object.defineProperty(HX.DirectionalLight.prototype, "castShadows", {
-    get: function()
-    {
-        return this._castShadows;
-    },
-
-    set: function(value)
-    {
-        if (this._castShadows == value) return;
-
-        this._castShadows = value;
-
-        if (value) {
-            this._shadowMapRenderer = new HX.CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
-        }
-        else {
-            this._shadowMapRenderer.dispose();
-            this._shadowMapRenderer = null;
-        }
-
-        this._invalidateLightPass();
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "numCascades", {
-    get: function()
-    {
-        return this._numCascades;
-    },
-
-    set: function(value)
-    {
-        if (value > 4) {
-            console.warn("set numCascades called with value greater than 4. Real value will be set to 4.");
-            value = 4;
-        }
-
-        this._numCascades = value;
-        if (this._castShadows) this._invalidateLightPass();
-        if (this._shadowMapRenderer) this._shadowMapRenderer.setNumCascades(value);
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "shadowMapSize", {
-    get: function()
-    {
-        return this._shadowMapSize;
-    },
-
-    set: function(value)
-    {
-        this._shadowMapSize = value;
-        if (this._shadowMapRenderer) this._shadowMapRenderer.setShadowMapSize(value);
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "numShadowSamples", {
-    get: function()
-    {
-        return this._numShadowSamples;
-    },
-
-    set: function(value)
-    {
-        if (value < 1) {
-            value = 1;
-            console.warn("setNumShadowSamples called with value smaller than 1. Real value will be set to 1.");
-        }
-        this._numShadowSamples = value;
-        if (this._castShadows) this._invalidateLightPass();
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "direction", {
-    get: function()
-    {
-        var dir = this.worldMatrix.getColumn(2);
-        dir.x = -dir.x;
-        dir.y = -dir.y;
-        dir.z = -dir.z;
-        return dir;
-    },
-
-    set: function(value)
-    {
-        var matrix = new HX.Matrix4x4();
-        var position = this.worldMatrix.getColumn(3);
-        var target = HX.Float4.sum(value, position);
-        matrix.lookAt(target, position, HX.Float4.Y_AXIS);
-        this.setTransformationMatrix(matrix);
-    }
-});
-
-// returns the index of the FIRST UNRENDERED light
-HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
-{
-    if (!this._lightPass)
-        this._initLightPass();
-
-    var camera = renderer._camera;
-
-    this._lightPass.updateRenderState(renderer);
-
-    var light = lightCollection[startIndex];
-    var dir = camera.getViewMatrix().transform(light.direction);
-    var color = light._scaledIrradiance;
-
-    HX.GL.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
-    HX.GL.uniform3f(this._colorLocation, color.r ,color.g, color.b);
-
-    if (this._castShadows) {
-        var splitDistances = this._shadowMapRenderer.getSplitDistances();
-        HX.GL.uniform1fv(this._splitDistancesLocation, new Float32Array(splitDistances));
-        HX.GL.uniform1f(this._depthBiasLocation, light.depthBias);
-
-        var k = 0;
-        var l = 0;
-        var len = this._numCascades;
-        for (var i = 0; i < len; ++i) {
-            var matrix = new HX.Matrix4x4();
-            matrix.product(this._shadowMapRenderer.getShadowMatrix(i), camera.worldMatrix);
-            var m = matrix._m;
-            for (var j = 0; j < 16; ++j) {
-                this._matrixData[k++] = m[j];
-            }
-
-            if (this._numShadowSamples > 1) {
-                this._shadowSoftnessData[l++] = m[0] * this.shadowSoftness * .5;
-                this._shadowSoftnessData[l++] = m[5] * this.shadowSoftness * .5;
-            }
-        }
-
-        HX.GL.uniformMatrix4fv(this._shadowMatrixLocation, false, this._matrixData);
-
-        if (this._numShadowSamples > 1)
-            HX.GL.uniform2fv(this._shadowSoftnessLocation, this._shadowSoftnessData);
-    }
-
-    // render rect mesh
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
-
-    return startIndex + 1;
-};
-
-HX.DirectionalLight.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-    HX.Light.prototype._updateWorldBounds.call(this);
-};
-
-HX.DirectionalLight.prototype._initLightPass =  function()
-{
-    var defines = {};
-
-    if (this._castShadows) {
-        defines.CAST_SHADOWS = 1;
-        defines.NUM_CASCADES = this._numCascades;
-        defines.NUM_SHADOW_SAMPLES = this._numShadowSamples;
-    }
-
-    var vertexShader = HX.ShaderLibrary.get("directional_light_vertex.glsl", defines);
-    var fragmentShader = HX.LIGHTING_MODEL.getGLSL() + "\n" +
-        HX.ShaderLibrary.get("directional_light_fragment.glsl", defines);
-
-    var pass = new HX.EffectPass(vertexShader, fragmentShader);
-    pass.blendState = HX.BlendState.ADD;
-
-    this._dirLocation = pass.getUniformLocation("lightViewDirection");
-    this._colorLocation = pass.getUniformLocation("lightColor");
-
-    this._lightPass = pass;
-
-    if (this._castShadows) {
-        this._matrixData = new Float32Array(16 * this._numCascades);
-        this._lightPass.setTexture("shadowMap", this._shadowMapRenderer._shadowMap);
-        this._splitDistancesLocation = this._lightPass.getUniformLocation("splitDistances[0]");
-        this._shadowMatrixLocation = this._lightPass.getUniformLocation("shadowMapMatrices[0]");
-        this._depthBiasLocation = this._lightPass.getUniformLocation("depthBias");
-
-        if (this._numShadowSamples > 1) {
-            this._shadowSoftnessLocation = this._lightPass.getUniformLocation("shadowMapSoftnesses[0]");
-            this._shadowSoftnessData = new Float32Array(2 * this._numCascades);
-        }
-    }
-};
-
-HX.DirectionalLight.prototype._invalidateLightPass = function()
-{
-    if (this._lightPass) {
-        this._lightPass._shader.dispose();
-        this._lightPass = null;
-        this._dirLocation = null;
-        this._colorLocation = null;
-        this._splitDistancesLocation = null;
-        this._shadowMatrixLocation = null;
-        this._depthBiasLocation = null;
-        this._shadowSoftnessLocation = null;
-        this._matrixData = null;
-    }
-};
-/**
- * Can be used directly, or have SkyBox manage this for you (generally the best approach). Acts as an infinite environment map.
- * @constructor
- */
-HX.GlobalSpecularProbe = function(texture)
-{
-    this._texture = texture;
-
-    this._pass = null;  // created deferredly
-    this._usingAO = false;
-    this._usingSSR = false;
-};
-
-// conversion range for spec power to mip
-HX.GlobalSpecularProbe.powerRange0 = .00098;
-HX.GlobalSpecularProbe.powerRange1 = .9921;
-
-HX.GlobalSpecularProbe.prototype = Object.create(HX.Light.prototype);
-
-HX.GlobalSpecularProbe.prototype.render = function(renderer)
-{
-    var usingAO = renderer._aoEffect != null;
-    var usingSSR = renderer._ssrEffect != null;
-    if (this._usingAO != usingAO || this._usingSSR != usingSSR || !this._pass) {
-        this._usingAO = usingAO;
-        this._usingSSR = usingSSR;
-        this._pass = this._initPass();
-    }
-
-    this._pass.updateRenderState(renderer);
-
-    if (this._texture) {
-        var maxMip = Math.floor(HX.log2(this._texture.size));
-        var mipOffset = 0;
-        HX.GL.uniform1f(this._numMipsLocation, maxMip - mipOffset);
-    }
-
-    // render rect mesh
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
-};
-
-HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-    HX.Light.prototype._updateWorldBounds.call(this);
-};
-
-HX.GlobalSpecularProbe.prototype._initPass = function()
-{
-    var defines = {};
-    var extensions = [];
-
-    if (HX.EXT_SHADER_TEXTURE_LOD) {
-        defines.USE_TEX_LOD = 1;
-        extensions.push("GL_EXT_shader_texture_lod");
-    }
-
-    if (this._usingAO)
-        defines.USE_AO = 1;
-
-    if (this._usingSSR)
-        defines.USE_SSR = 1;
-
-    defines.K0 = HX.GlobalSpecularProbe.powerRange0;
-    defines.K1 = HX.GlobalSpecularProbe.powerRange1;
-
-    var pass = new HX.EffectPass(
-        HX.ShaderLibrary.get("global_specular_probe_vertex.glsl"),
-        HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines, extensions)
-    );
-
-    pass.blendState = HX.BlendState.ADD;
-
-    this._numMipsLocation = pass.getUniformLocation("numMips");
-
-    pass.setTexture("specularProbeSampler", this._texture);
-
-    var minRoughness = 0.0014;
-    var maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;
-    var maxMipFactor = (Math.pow(2.0, -10.0/Math.sqrt(maxPower)) - HX.GlobalSpecularProbe.powerRange0)/HX.GlobalSpecularProbe.powerRange1;
-    pass.setUniform("maxMipFactor", maxMipFactor);
-
-    return pass;
-};
-
-
-/**
- * Can be used directly, or have SkyBox manage this for you (generally the best approach). Acts as an infinite environment map.
- * @constructor
- */
-HX.GlobalIrradianceProbe = function(texture)
-{
-    this._texture = texture;
-    this._usingAO = false;
-};
-
-HX.GlobalIrradianceProbe.prototype = Object.create(HX.Light.prototype);
-
-HX.GlobalIrradianceProbe.prototype.render = function(renderer)
-{
-    var usingAO = renderer._aoEffect != null;
-    if (this._usingAO != usingAO || !this._pass) {
-        this._usingAO = usingAO;
-        this._pass = this._initPass();
-    }
-
-    this._pass.updateRenderState(renderer);
-
-    // render rect mesh
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
-};
-
-HX.GlobalIrradianceProbe.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-    HX.Light.prototype._updateWorldBounds.call(this);
-};
-
-HX.GlobalIrradianceProbe.prototype._initPass = function()
-{
-    var defines = {};
-
-    if (this._usingAO)
-        defines.USE_AO = 1;
-
-    var pass = new HX.EffectPass(
-        HX.ShaderLibrary.get("global_irradiance_probe_vertex.glsl"),
-        HX.ShaderLibrary.get("global_irradiance_probe_fragment.glsl", defines)
-    );
-
-    pass.blendState = HX.BlendState.ADD;
-
-    pass.setTexture("irradianceProbeSampler", this._texture);
-
-    return pass;
-};
-/**
- *
- * @constructor
- */
-HX.PointLight = function()
-{
-    HX.Light.call(this);
-
-    HX.PointLight._sphereMesh = HX.PointLight._sphereMesh || new HX.Mesh(HX.MeshBatch.create(new HX.SpherePrimitive.createMeshData(
-        {
-            invert:true,
-            numSegmentsW: HX.PointLight.SPHERE_SEGMENTS_W,
-            numSegmentsH: HX.PointLight.SPHERE_SEGMENTS_H
-        }), HX.PointLight.LIGHTS_PER_BATCH));
-
-    if (HX.PointLight._fullScreenLightPasses === undefined)
-        this._initLightPasses();
-
-    HX.PointLight._positionData = new Float32Array(HX.PointLight.LIGHTS_PER_BATCH * 3);
-    HX.PointLight._colorData = new Float32Array(HX.PointLight.LIGHTS_PER_BATCH * 3);
-    HX.PointLight._attenuationData = new Float32Array(HX.PointLight.LIGHTS_PER_BATCH * 2);
-    HX.PointLight._radiusData = new Float32Array(HX.PointLight.LIGHTS_PER_BATCH);
-
-    this._luminanceBound = 1.0/255.0;
-    this._attenuationFix = 1.0;
-    this._radius = 1.0;
-};
-
-HX.PointLight.LIGHTS_PER_BATCH = 20;
-HX.PointLight.SPHERE_SEGMENTS_W = 16;
-HX.PointLight.SPHERE_SEGMENTS_H = 10;
-HX.PointLight.NUM_SPHERE_INDICES = HX.PointLight.SPHERE_SEGMENTS_W * HX.PointLight.SPHERE_SEGMENTS_H * 6;
-
-HX.PointLight.prototype = Object.create(HX.Light.prototype);
-
-// returns the index of the FIRST UNRENDERED light
-HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
-{
-    var intersectsNearPlane = lightCollection[startIndex]._renderOrderHint < 0;
-
-    if (intersectsNearPlane) {
-        return this._renderFullscreenBatch(lightCollection, startIndex, renderer);
-    }
-    else {
-        return this._renderSphereBatch(lightCollection, startIndex, renderer);
-    }
-};
-
-HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startIndex, renderer)
-{
-    HX.PointLight._sphericalLightPass.updateRenderState(renderer);
-
-    var end = startIndex + HX.PointLight.LIGHTS_PER_BATCH;
-    if (end > lightCollection.length) end = lightCollection.length;
-
-    var camera = renderer._camera;
-    var posData = HX.PointLight._positionData;
-    var colorData = HX.PointLight._colorData;
-    var attData = HX.PointLight._attenuationData;
-    var radiusData = HX.PointLight._radiusData;
-    var pos = new HX.Float4();
-    var viewMatrix = camera.getViewMatrix();
-
-    var v1i = 0, v2i = 0, v3i = 0;
-
-    for (var i = startIndex; i < end; ++i) {
-        var light = lightCollection[i];
-        if (light._type != this._type || light._renderOrderHint < 0) {
-            end = i;
-            continue;
-        }
-        light.worldMatrix.getColumn(3, pos);
-        viewMatrix.transformPoint(pos, pos);
-        var color = light._scaledIrradiance;
-
-        posData[v3i] = pos.x;
-        colorData[v3i++] = color.r;
-        posData[v3i] = pos.y;
-        colorData[v3i++] = color.g;
-        posData[v3i] = pos.z;
-        colorData[v3i++] = color.b;
-        attData[v2i++] = light._attenuationFix;
-        attData[v2i++] = 1.0 / (1.0 - light._attenuationFix);
-        radiusData[v1i++] = light._radius * 2 * 1.0001;
-    }
-
-    HX.GL.uniform3fv(HX.PointLight._sphericalPositionLocation, posData);
-    HX.GL.uniform3fv(HX.PointLight._sphericalColorLocation, colorData);
-    HX.GL.uniform2fv(HX.PointLight._sphericalAttenuationFixFactorsLocation, attData);
-    HX.GL.uniform1fv(HX.PointLight._sphericalLightRadiusLocation, radiusData);
-
-    HX.drawElements(HX.GL.TRIANGLES, HX.PointLight.NUM_SPHERE_INDICES * (end - startIndex), 0);
-
-    return end;
-};
-
-HX.PointLight.prototype.initFullScreenPass = function (passIndex)
-{
-    var defines = {
-        LIGHTS_PER_BATCH: passIndex + 1
-    };
-    var pass = new HX.EffectPass(
-        HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl", defines),
-        HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl", defines)
-    );
-    pass.blendState = HX.BlendState.ADD;
-
-    HX.PointLight._fullScreenPositionLocations[passIndex] = pass.getUniformLocation("lightViewPosition[0]");
-    HX.PointLight._fullScreenColorLocations[passIndex] = pass.getUniformLocation("lightColor[0]");
-    HX.PointLight._fullScreenAttenuationFixFactorsLocations[passIndex] = pass.getUniformLocation("attenuationFixFactors[0]");
-    HX.PointLight._fullScreenLightPasses[passIndex] = pass;
-};
-
-HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, startIndex, renderer)
-{
-    // TODO: provide a shader for each light count?
-    var end = startIndex + HX.PointLight.LIGHTS_PER_BATCH;
-    if (end > lightCollection.length) end = lightCollection.length;
-
-    var posData = HX.PointLight._positionData;
-    var colorData = HX.PointLight._colorData;
-    var attData = HX.PointLight._attenuationData;
-    var pos = new HX.Float4();
-    var viewMatrix = renderer._camera.getViewMatrix();
-
-    var v3i = 0, v2i = 0;
-
-    for (var i = startIndex; i < end; ++i) {
-        var light = lightCollection[i];
-
-        // either type switch or light._renderOrderHint change
-        if (light._type != this._type /*|| light._renderOrderHint > 0*/) {
-            end = i;
-            continue;
-        }
-
-        light.worldMatrix.getColumn(3, pos);
-        viewMatrix.transformPoint(pos, pos);
-
-        var color = light._scaledIrradiance;
-
-        posData[v3i] = pos.x;
-        colorData[v3i++] = color.r;
-        posData[v3i] = pos.y;
-        colorData[v3i++] = color.g;
-        posData[v3i] = pos.z;
-        colorData[v3i++] = color.b;
-        attData[v2i++] = light._attenuationFix;
-        attData[v2i++] = 1.0 / (1.0 - light._attenuationFix);
-    }
-
-    var passIndex = i - startIndex - 1;
-
-    if (!HX.PointLight._fullScreenLightPasses[passIndex]) {
-        this.initFullScreenPass(passIndex);
-    }
-
-    HX.PointLight._fullScreenLightPasses[passIndex].updateRenderState(renderer);
-
-    HX.GL.uniform3fv(HX.PointLight._fullScreenPositionLocations[passIndex], posData);
-    HX.GL.uniform3fv(HX.PointLight._fullScreenColorLocations[passIndex], colorData);
-    HX.GL.uniform2fv(HX.PointLight._fullScreenAttenuationFixFactorsLocations[passIndex], attData);
-
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
-
-    return end;
-};
-
-HX.PointLight.prototype._updateScaledIrradiance  = function ()
-{
-    HX.Light.prototype._updateScaledIrradiance.call(this);
-
-    this._attenuationFix = this._luminanceBound / this._intensity;
-    this._radius = Math.sqrt(1.0 / this._attenuationFix);
-
-    this._invalidateWorldBounds();
-};
-
-HX.PointLight.prototype._createBoundingVolume = function()
-{
-    return new HX.BoundingSphere();
-};
-
-HX.PointLight.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.setExplicit(this.worldMatrix.getColumn(3), this._radius);
-    HX.Light.prototype._updateWorldBounds.call(this);
-};
-
-HX.PointLight.prototype.getRadius = function()
-{
-    return this._worldBounds.getRadius();
-};
-
-HX.PointLight.prototype._initLightPasses =  function()
-{
-    // the full screen passes will be generated on demand
-    HX.PointLight._fullScreenLightPasses = [];
-    HX.PointLight._fullScreenPositionLocations = [];
-    HX.PointLight._fullScreenColorLocations = [];
-    HX.PointLight._fullScreenAttenuationFixFactorsLocations = [];
-
-    var defines = {
-        LIGHTS_PER_BATCH: HX.PointLight.LIGHTS_PER_BATCH
-    };
-    var pass = new HX.EffectPass(
-        HX.ShaderLibrary.get("point_light_spherical_vertex.glsl", defines),
-        HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_spherical_fragment.glsl", defines)
-    );
-
-    pass.blendState = HX.BlendState.ADD;
-
-    // do not use rect
-    pass.setMesh(HX.PointLight._sphereMesh);
-
-    HX.PointLight._sphericalLightPass = pass;
-    HX.PointLight._sphericalPositionLocation = pass.getUniformLocation("lightViewPosition[0]");
-    HX.PointLight._sphericalColorLocation = pass.getUniformLocation("lightColor[0]");
-    HX.PointLight._sphericalAttenuationFixFactorsLocation = pass.getUniformLocation("attenuationFixFactors[0]");
-    HX.PointLight._sphericalLightRadiusLocation = pass.getUniformLocation("lightRadius[0]");
-};
-/**
  * Skybox provides a backdrop "at infinity" for the scene.
  * @param materialOrTexture Either a texture or a material used to render the skybox. If a texture is passed,
  * HX.SkyboxMaterial is used as material.
@@ -7131,7 +6428,7 @@ HX.Skybox = function(materialOrTexture)
 
     var model = HX.PlanePrimitive.create({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2});
     model.localBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-    this._modelInstance = new HX.ModelComponent(model, materialOrTexture);
+    this._modelInstance = new HX.ModelInstance(model, materialOrTexture);
     this._globalSpecularProbe = null;
     this._globalIrradianceProbe = null;
 };
@@ -7567,13 +6864,13 @@ HX.MeshInstance.prototype = {
  * @param materials Either a single material or an array of materials for each mesh in model.
  * @constructor
  */
-HX.ModelComponent = function(model, materials)
+HX.ModelInstance = function(model, materials)
 {
-    HX.Component.call(this);
+    HX.Entity.call(this);
     this._model = model;
+    this._meshBounds = new HX.BoundingAABB();
     this._meshInstances = [];
     this._castShadows = true;
-    this.onChange = new HX.Signal();
     this._model.onChange.bind(this, this._onModelChange);
 
     this._materials = materials instanceof Array? materials : [ materials ];
@@ -7581,14 +6878,9 @@ HX.ModelComponent = function(model, materials)
     this._onModelChange();
 };
 
-HX.ModelComponent.entity = function(model, materials)
-{
-    return HX.Entity.create([new HX.ModelComponent(model, materials)]);
-};
+HX.ModelInstance.prototype = Object.create(HX.Entity.prototype);
 
-HX.ModelComponent.prototype = Object.create(HX.Component.prototype);
-
-Object.defineProperties(HX.ModelComponent.prototype, {
+Object.defineProperties(HX.Entity.prototype, {
     model:
     {
         get: function() { return this._model; }
@@ -7614,18 +6906,18 @@ Object.defineProperties(HX.ModelComponent.prototype, {
     }
 });
 
-HX.ModelComponent.prototype.getMeshInstance = function(index)
+HX.ModelInstance.prototype.getMeshInstance = function(index)
 {
     return this._meshInstances[index];
 };
 
 
-HX.ModelComponent.prototype._addMeshInstance = function(mesh, material)
+HX.ModelInstance.prototype._addMeshInstance = function(mesh, material)
 {
     this._meshInstances.push(new HX.MeshInstance(mesh, material));
 };
 
-HX.ModelComponent.prototype._onModelChange = function()
+HX.ModelInstance.prototype._onModelChange = function()
 {
     var maxIndex = this._materials.length - 1;
     for (var i = 0; i < this._model.numMeshes; ++i) {
@@ -7636,22 +6928,680 @@ HX.ModelComponent.prototype._onModelChange = function()
 };
 
 // override for better matches
-HX.ModelComponent.prototype._updateWorldBounds = function()
+HX.ModelInstance.prototype._updateWorldBounds = function()
 {
-    if (this._entity)
-        this._worldBounds.transformFrom(this._model.localBounds, this._entity.worldMatrix);
-    else
-        this._worldBounds.copyFrom(this._model.localBounds);
+    HX.Entity.prototype._updateWorldBounds.call(this);
+    this._meshBounds.transformFrom(this._model.localBounds, this.worldMatrix);
+    this._worldBounds.growToIncludeBound(this._meshBounds);
 };
 
-HX.ModelComponent.prototype.acceptVisitor = function(visitor)
+HX.ModelInstance.prototype.acceptVisitor = function(visitor)
 {
-    visitor.visitModelInstance(this, this._entity.worldMatrix, this._entity.worldBounds);
+    visitor.visitModelInstance(this, this.worldMatrix, this.worldBounds);
+    HX.Entity.prototype.acceptVisitor.call(this, visitor);
+};
+/**
+ *
+ * @constructor
+ */
+HX.AmbientLight = function()
+{
+    HX.Light.call(this);
+
+    // asume only one ambient light
+    this._colorLocation = null;
+    this._lightPass = null;
+    this._useAO = false;
+
+    this.color = new HX.Color(.1,.1,.1);
 };
 
-HX.ModelComponent.prototype._createBoundingVolume = function()
+HX.AmbientLight.prototype = Object.create(HX.Light.prototype);
+
+// returns the index of the FIRST UNRENDERED light
+HX.AmbientLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
-    return new HX.BoundingAABB();
+    var useAO = renderer._aoEffect != null;
+
+    if (!this._lightPass || this._useAO != useAO) {
+        this._useAO = useAO;
+        this._initLightPass();
+    }
+
+    this._lightPass.updateRenderState(renderer);
+
+    var colorR = 0, colorG = 0, colorB = 0;
+    var end = lightCollection.length;
+
+    for (var i = startIndex; i < end; ++i) {
+        var light = lightCollection[i];
+        var color = light._scaledIrradiance;
+
+        if (light._type != this._type)
+            break;
+
+        colorR += color.r;
+        colorG += color.g;
+        colorB += color.b;
+    }
+
+    HX.GL.uniform3f(this._colorLocation, colorR, colorG, colorB);
+
+    // render rect mesh
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+
+    return i;
+};
+
+HX.AmbientLight.prototype._updateWorldBounds = function()
+{
+    //console.log(new Error().stack);
+    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+    HX.Light.prototype._updateWorldBounds.call(this);
+};
+
+HX.AmbientLight.prototype._initLightPass =  function()
+{
+    var defines = {};
+    if (this._useAO) defines.USE_AO = 1;
+
+    var pass = new HX.EffectPass(
+        HX.ShaderLibrary.get("ambient_light_vertex.glsl"),
+        HX.ShaderLibrary.get("ambient_light_fragment.glsl", defines)
+    );
+
+    pass.blendState = HX.BlendState.ADD;
+
+    this._colorLocation = pass.getUniformLocation("lightColor");
+
+    this._lightPass = pass;
+};
+/**
+ *
+ * @constructor
+ */
+HX.DirectionalLight = function()
+{
+    HX.Light.call(this);
+
+    this._numCascades = 1;
+    this._shadowMapSize = 1024;
+    // hard shadows by default
+    this._numShadowSamples = 1;
+
+    // these two don't need getters/setters (saves on filesize)
+    this.shadowSoftness = .02;
+    this.depthBias = .02;
+
+    this.direction = new HX.Float4(-1.0, -1.0, -1.0, 0.0);
+    this._matrixData = null;
+    this._shadowSoftnessData = null;
+
+    this._dirLocation = null;
+    this._colorLocation = null;
+    this._splitDistancesLocation = null;
+    this._shadowMatrixLocation = null;
+    this._depthBiasLocation = null;
+    this._shadowSoftnessLocation = null;
+};
+
+HX.DirectionalLight.prototype = Object.create(HX.Light.prototype);
+
+Object.defineProperty(HX.DirectionalLight.prototype, "castShadows", {
+    get: function()
+    {
+        return this._castShadows;
+    },
+
+    set: function(value)
+    {
+        if (this._castShadows == value) return;
+
+        this._castShadows = value;
+
+        if (value) {
+            this._shadowMapRenderer = new HX.CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
+        }
+        else {
+            this._shadowMapRenderer.dispose();
+            this._shadowMapRenderer = null;
+        }
+
+        this._invalidateLightPass();
+    }
+});
+
+Object.defineProperty(HX.DirectionalLight.prototype, "numCascades", {
+    get: function()
+    {
+        return this._numCascades;
+    },
+
+    set: function(value)
+    {
+        if (value > 4) {
+            console.warn("set numCascades called with value greater than 4. Real value will be set to 4.");
+            value = 4;
+        }
+
+        this._numCascades = value;
+        if (this._castShadows) this._invalidateLightPass();
+        if (this._shadowMapRenderer) this._shadowMapRenderer.setNumCascades(value);
+    }
+});
+
+Object.defineProperty(HX.DirectionalLight.prototype, "shadowMapSize", {
+    get: function()
+    {
+        return this._shadowMapSize;
+    },
+
+    set: function(value)
+    {
+        this._shadowMapSize = value;
+        if (this._shadowMapRenderer) this._shadowMapRenderer.setShadowMapSize(value);
+    }
+});
+
+Object.defineProperty(HX.DirectionalLight.prototype, "numShadowSamples", {
+    get: function()
+    {
+        return this._numShadowSamples;
+    },
+
+    set: function(value)
+    {
+        if (value < 1) {
+            value = 1;
+            console.warn("setNumShadowSamples called with value smaller than 1. Real value will be set to 1.");
+        }
+        this._numShadowSamples = value;
+        if (this._castShadows) this._invalidateLightPass();
+    }
+});
+
+Object.defineProperty(HX.DirectionalLight.prototype, "direction", {
+    get: function()
+    {
+        var dir = this.worldMatrix.getColumn(2);
+        dir.x = -dir.x;
+        dir.y = -dir.y;
+        dir.z = -dir.z;
+        return dir;
+    },
+
+    set: function(value)
+    {
+        var matrix = new HX.Matrix4x4();
+        var position = this.worldMatrix.getColumn(3);
+        var target = HX.Float4.sum(value, position);
+        matrix.lookAt(target, position, HX.Float4.Y_AXIS);
+        this.setTransformationMatrix(matrix);
+    }
+});
+
+// returns the index of the FIRST UNRENDERED light
+HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
+{
+    if (!this._lightPass)
+        this._initLightPass();
+
+    var camera = renderer._camera;
+
+    this._lightPass.updateRenderState(renderer);
+
+    var light = lightCollection[startIndex];
+    var dir = camera.getViewMatrix().transform(light.direction);
+    var color = light._scaledIrradiance;
+
+    HX.GL.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
+    HX.GL.uniform3f(this._colorLocation, color.r ,color.g, color.b);
+
+    if (this._castShadows) {
+        var splitDistances = this._shadowMapRenderer.getSplitDistances();
+        HX.GL.uniform1fv(this._splitDistancesLocation, new Float32Array(splitDistances));
+        HX.GL.uniform1f(this._depthBiasLocation, light.depthBias);
+
+        var k = 0;
+        var l = 0;
+        var len = this._numCascades;
+        for (var i = 0; i < len; ++i) {
+            var matrix = new HX.Matrix4x4();
+            matrix.product(this._shadowMapRenderer.getShadowMatrix(i), camera.worldMatrix);
+            var m = matrix._m;
+            for (var j = 0; j < 16; ++j) {
+                this._matrixData[k++] = m[j];
+            }
+
+            if (this._numShadowSamples > 1) {
+                this._shadowSoftnessData[l++] = m[0] * this.shadowSoftness * .5;
+                this._shadowSoftnessData[l++] = m[5] * this.shadowSoftness * .5;
+            }
+        }
+
+        HX.GL.uniformMatrix4fv(this._shadowMatrixLocation, false, this._matrixData);
+
+        if (this._numShadowSamples > 1)
+            HX.GL.uniform2fv(this._shadowSoftnessLocation, this._shadowSoftnessData);
+    }
+
+    // render rect mesh
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+
+    return startIndex + 1;
+};
+
+HX.DirectionalLight.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+};
+
+HX.DirectionalLight.prototype._initLightPass =  function()
+{
+    var defines = {};
+
+    if (this._castShadows) {
+        defines.CAST_SHADOWS = 1;
+        defines.NUM_CASCADES = this._numCascades;
+        defines.NUM_SHADOW_SAMPLES = this._numShadowSamples;
+    }
+
+    var vertexShader = HX.ShaderLibrary.get("directional_light_vertex.glsl", defines);
+    var fragmentShader = HX.LIGHTING_MODEL.getGLSL() + "\n" +
+        HX.ShaderLibrary.get("directional_light_fragment.glsl", defines);
+
+    var pass = new HX.EffectPass(vertexShader, fragmentShader);
+    pass.blendState = HX.BlendState.ADD;
+
+    this._dirLocation = pass.getUniformLocation("lightViewDirection");
+    this._colorLocation = pass.getUniformLocation("lightColor");
+
+    this._lightPass = pass;
+
+    if (this._castShadows) {
+        this._matrixData = new Float32Array(16 * this._numCascades);
+        this._lightPass.setTexture("shadowMap", this._shadowMapRenderer._shadowMap);
+        this._splitDistancesLocation = this._lightPass.getUniformLocation("splitDistances[0]");
+        this._shadowMatrixLocation = this._lightPass.getUniformLocation("shadowMapMatrices[0]");
+        this._depthBiasLocation = this._lightPass.getUniformLocation("depthBias");
+
+        if (this._numShadowSamples > 1) {
+            this._shadowSoftnessLocation = this._lightPass.getUniformLocation("shadowMapSoftnesses[0]");
+            this._shadowSoftnessData = new Float32Array(2 * this._numCascades);
+        }
+    }
+};
+
+HX.DirectionalLight.prototype._invalidateLightPass = function()
+{
+    if (this._lightPass) {
+        this._lightPass._shader.dispose();
+        this._lightPass = null;
+        this._dirLocation = null;
+        this._colorLocation = null;
+        this._splitDistancesLocation = null;
+        this._shadowMatrixLocation = null;
+        this._depthBiasLocation = null;
+        this._shadowSoftnessLocation = null;
+        this._matrixData = null;
+    }
+};
+/**
+ * Can be used directly, or have SkyBox manage this for you (generally the best approach). Acts as an infinite environment map.
+ * @constructor
+ */
+HX.GlobalSpecularProbe = function(texture)
+{
+    this._texture = texture;
+
+    this._pass = null;  // created deferredly
+    this._usingAO = false;
+    this._usingSSR = false;
+};
+
+// conversion range for spec power to mip
+HX.GlobalSpecularProbe.powerRange0 = .00098;
+HX.GlobalSpecularProbe.powerRange1 = .9921;
+
+HX.GlobalSpecularProbe.prototype = Object.create(HX.Light.prototype);
+
+HX.GlobalSpecularProbe.prototype.render = function(renderer)
+{
+    var usingAO = renderer._aoEffect != null;
+    var usingSSR = renderer._ssrEffect != null;
+    if (this._usingAO != usingAO || this._usingSSR != usingSSR || !this._pass) {
+        this._usingAO = usingAO;
+        this._usingSSR = usingSSR;
+        this._pass = this._initPass();
+    }
+
+    this._pass.updateRenderState(renderer);
+
+    if (this._texture) {
+        var maxMip = Math.floor(HX.log2(this._texture.size));
+        var mipOffset = 0;
+        HX.GL.uniform1f(this._numMipsLocation, maxMip - mipOffset);
+    }
+
+    // render rect mesh
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+};
+
+HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+    HX.Light.prototype._updateWorldBounds.call(this);
+};
+
+HX.GlobalSpecularProbe.prototype._initPass = function()
+{
+    var defines = {};
+    var extensions = [];
+
+    if (HX.EXT_SHADER_TEXTURE_LOD) {
+        defines.USE_TEX_LOD = 1;
+        extensions.push("GL_EXT_shader_texture_lod");
+    }
+
+    if (this._usingAO)
+        defines.USE_AO = 1;
+
+    if (this._usingSSR)
+        defines.USE_SSR = 1;
+
+    defines.K0 = HX.GlobalSpecularProbe.powerRange0;
+    defines.K1 = HX.GlobalSpecularProbe.powerRange1;
+
+    var pass = new HX.EffectPass(
+        HX.ShaderLibrary.get("global_specular_probe_vertex.glsl"),
+        HX.ShaderLibrary.get("global_specular_probe_fragment.glsl", defines, extensions)
+    );
+
+    pass.blendState = HX.BlendState.ADD;
+
+    this._numMipsLocation = pass.getUniformLocation("numMips");
+
+    pass.setTexture("specularProbeSampler", this._texture);
+
+    var minRoughness = 0.0014;
+    var maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;
+    var maxMipFactor = (Math.pow(2.0, -10.0/Math.sqrt(maxPower)) - HX.GlobalSpecularProbe.powerRange0)/HX.GlobalSpecularProbe.powerRange1;
+    pass.setUniform("maxMipFactor", maxMipFactor);
+
+    return pass;
+};
+
+
+/**
+ * Can be used directly, or have SkyBox manage this for you (generally the best approach). Acts as an infinite environment map.
+ * @constructor
+ */
+HX.GlobalIrradianceProbe = function(texture)
+{
+    this._texture = texture;
+    this._usingAO = false;
+};
+
+HX.GlobalIrradianceProbe.prototype = Object.create(HX.Light.prototype);
+
+HX.GlobalIrradianceProbe.prototype.render = function(renderer)
+{
+    var usingAO = renderer._aoEffect != null;
+    if (this._usingAO != usingAO || !this._pass) {
+        this._usingAO = usingAO;
+        this._pass = this._initPass();
+    }
+
+    this._pass.updateRenderState(renderer);
+
+    // render rect mesh
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+};
+
+HX.GlobalIrradianceProbe.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+    HX.Light.prototype._updateWorldBounds.call(this);
+};
+
+HX.GlobalIrradianceProbe.prototype._initPass = function()
+{
+    var defines = {};
+
+    if (this._usingAO)
+        defines.USE_AO = 1;
+
+    var pass = new HX.EffectPass(
+        HX.ShaderLibrary.get("global_irradiance_probe_vertex.glsl"),
+        HX.ShaderLibrary.get("global_irradiance_probe_fragment.glsl", defines)
+    );
+
+    pass.blendState = HX.BlendState.ADD;
+
+    pass.setTexture("irradianceProbeSampler", this._texture);
+
+    return pass;
+};
+/**
+ *
+ * @constructor
+ */
+HX.PointLight = function()
+{
+    HX.Light.call(this);
+
+    HX.PointLight._sphereMesh = HX.PointLight._sphereMesh || new HX.Mesh(HX.MeshBatch.create(new HX.SpherePrimitive.createMeshData(
+        {
+            invert:true,
+            numSegmentsW: HX.PointLight.SPHERE_SEGMENTS_W,
+            numSegmentsH: HX.PointLight.SPHERE_SEGMENTS_H
+        }), HX.PointLight.LIGHTS_PER_BATCH));
+
+    if (HX.PointLight._fullScreenLightPasses === undefined)
+        this._initLightPasses();
+
+    HX.PointLight._positionData = new Float32Array(HX.PointLight.LIGHTS_PER_BATCH * 3);
+    HX.PointLight._colorData = new Float32Array(HX.PointLight.LIGHTS_PER_BATCH * 3);
+    HX.PointLight._attenuationData = new Float32Array(HX.PointLight.LIGHTS_PER_BATCH * 2);
+    HX.PointLight._radiusData = new Float32Array(HX.PointLight.LIGHTS_PER_BATCH);
+
+    this._luminanceBound = 1.0/255.0;
+    this._attenuationFix = 1.0;
+    this._radius = 1.0;
+};
+
+HX.PointLight.LIGHTS_PER_BATCH = 20;
+HX.PointLight.SPHERE_SEGMENTS_W = 16;
+HX.PointLight.SPHERE_SEGMENTS_H = 10;
+HX.PointLight.NUM_SPHERE_INDICES = HX.PointLight.SPHERE_SEGMENTS_W * HX.PointLight.SPHERE_SEGMENTS_H * 6;
+
+HX.PointLight.prototype = Object.create(HX.Light.prototype);
+
+// returns the index of the FIRST UNRENDERED light
+HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
+{
+    var intersectsNearPlane = lightCollection[startIndex]._renderOrderHint < 0;
+
+    if (intersectsNearPlane) {
+        return this._renderFullscreenBatch(lightCollection, startIndex, renderer);
+    }
+    else {
+        return this._renderSphereBatch(lightCollection, startIndex, renderer);
+    }
+};
+
+HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startIndex, renderer)
+{
+    HX.PointLight._sphericalLightPass.updateRenderState(renderer);
+
+    var end = startIndex + HX.PointLight.LIGHTS_PER_BATCH;
+    if (end > lightCollection.length) end = lightCollection.length;
+
+    var camera = renderer._camera;
+    var posData = HX.PointLight._positionData;
+    var colorData = HX.PointLight._colorData;
+    var attData = HX.PointLight._attenuationData;
+    var radiusData = HX.PointLight._radiusData;
+    var pos = new HX.Float4();
+    var viewMatrix = camera.getViewMatrix();
+
+    var v1i = 0, v2i = 0, v3i = 0;
+
+    for (var i = startIndex; i < end; ++i) {
+        var light = lightCollection[i];
+        if (light._type != this._type || light._renderOrderHint < 0) {
+            end = i;
+            continue;
+        }
+        light.worldMatrix.getColumn(3, pos);
+        viewMatrix.transformPoint(pos, pos);
+        var color = light._scaledIrradiance;
+
+        posData[v3i] = pos.x;
+        colorData[v3i++] = color.r;
+        posData[v3i] = pos.y;
+        colorData[v3i++] = color.g;
+        posData[v3i] = pos.z;
+        colorData[v3i++] = color.b;
+        attData[v2i++] = light._attenuationFix;
+        attData[v2i++] = 1.0 / (1.0 - light._attenuationFix);
+        radiusData[v1i++] = light._radius * 2 * 1.0001;
+    }
+
+    HX.GL.uniform3fv(HX.PointLight._sphericalPositionLocation, posData);
+    HX.GL.uniform3fv(HX.PointLight._sphericalColorLocation, colorData);
+    HX.GL.uniform2fv(HX.PointLight._sphericalAttenuationFixFactorsLocation, attData);
+    HX.GL.uniform1fv(HX.PointLight._sphericalLightRadiusLocation, radiusData);
+
+    HX.drawElements(HX.GL.TRIANGLES, HX.PointLight.NUM_SPHERE_INDICES * (end - startIndex), 0);
+
+    return end;
+};
+
+HX.PointLight.prototype.initFullScreenPass = function (passIndex)
+{
+    var defines = {
+        LIGHTS_PER_BATCH: passIndex + 1
+    };
+    var pass = new HX.EffectPass(
+        HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl", defines),
+        HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl", defines)
+    );
+    pass.blendState = HX.BlendState.ADD;
+
+    HX.PointLight._fullScreenPositionLocations[passIndex] = pass.getUniformLocation("lightViewPosition[0]");
+    HX.PointLight._fullScreenColorLocations[passIndex] = pass.getUniformLocation("lightColor[0]");
+    HX.PointLight._fullScreenAttenuationFixFactorsLocations[passIndex] = pass.getUniformLocation("attenuationFixFactors[0]");
+    HX.PointLight._fullScreenLightPasses[passIndex] = pass;
+};
+
+HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, startIndex, renderer)
+{
+    // TODO: provide a shader for each light count?
+    var end = startIndex + HX.PointLight.LIGHTS_PER_BATCH;
+    if (end > lightCollection.length) end = lightCollection.length;
+
+    var posData = HX.PointLight._positionData;
+    var colorData = HX.PointLight._colorData;
+    var attData = HX.PointLight._attenuationData;
+    var pos = new HX.Float4();
+    var viewMatrix = renderer._camera.getViewMatrix();
+
+    var v3i = 0, v2i = 0;
+
+    for (var i = startIndex; i < end; ++i) {
+        var light = lightCollection[i];
+
+        // either type switch or light._renderOrderHint change
+        if (light._type != this._type /*|| light._renderOrderHint > 0*/) {
+            end = i;
+            continue;
+        }
+
+        light.worldMatrix.getColumn(3, pos);
+        viewMatrix.transformPoint(pos, pos);
+
+        var color = light._scaledIrradiance;
+
+        posData[v3i] = pos.x;
+        colorData[v3i++] = color.r;
+        posData[v3i] = pos.y;
+        colorData[v3i++] = color.g;
+        posData[v3i] = pos.z;
+        colorData[v3i++] = color.b;
+        attData[v2i++] = light._attenuationFix;
+        attData[v2i++] = 1.0 / (1.0 - light._attenuationFix);
+    }
+
+    var passIndex = i - startIndex - 1;
+
+    if (!HX.PointLight._fullScreenLightPasses[passIndex]) {
+        this.initFullScreenPass(passIndex);
+    }
+
+    HX.PointLight._fullScreenLightPasses[passIndex].updateRenderState(renderer);
+
+    HX.GL.uniform3fv(HX.PointLight._fullScreenPositionLocations[passIndex], posData);
+    HX.GL.uniform3fv(HX.PointLight._fullScreenColorLocations[passIndex], colorData);
+    HX.GL.uniform2fv(HX.PointLight._fullScreenAttenuationFixFactorsLocations[passIndex], attData);
+
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+
+    return end;
+};
+
+HX.PointLight.prototype._updateScaledIrradiance  = function ()
+{
+    HX.Light.prototype._updateScaledIrradiance.call(this);
+
+    this._attenuationFix = this._luminanceBound / this._intensity;
+    this._radius = Math.sqrt(1.0 / this._attenuationFix);
+
+    this._invalidateWorldBounds();
+};
+
+HX.PointLight.prototype._createBoundingVolume = function()
+{
+    return new HX.BoundingSphere();
+};
+
+HX.PointLight.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.setExplicit(this.worldMatrix.getColumn(3), this._radius);
+    HX.Light.prototype._updateWorldBounds.call(this);
+};
+
+HX.PointLight.prototype.getRadius = function()
+{
+    return this._worldBounds.getRadius();
+};
+
+HX.PointLight.prototype._initLightPasses =  function()
+{
+    // the full screen passes will be generated on demand
+    HX.PointLight._fullScreenLightPasses = [];
+    HX.PointLight._fullScreenPositionLocations = [];
+    HX.PointLight._fullScreenColorLocations = [];
+    HX.PointLight._fullScreenAttenuationFixFactorsLocations = [];
+
+    var defines = {
+        LIGHTS_PER_BATCH: HX.PointLight.LIGHTS_PER_BATCH
+    };
+    var pass = new HX.EffectPass(
+        HX.ShaderLibrary.get("point_light_spherical_vertex.glsl", defines),
+        HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_spherical_fragment.glsl", defines)
+    );
+
+    pass.blendState = HX.BlendState.ADD;
+
+    // do not use rect
+    pass.setMesh(HX.PointLight._sphereMesh);
+
+    HX.PointLight._sphericalLightPass = pass;
+    HX.PointLight._sphericalPositionLocation = pass.getUniformLocation("lightViewPosition[0]");
+    HX.PointLight._sphericalColorLocation = pass.getUniformLocation("lightColor[0]");
+    HX.PointLight._sphericalAttenuationFixFactorsLocation = pass.getUniformLocation("attenuationFixFactors[0]");
+    HX.PointLight._sphericalLightRadiusLocation = pass.getUniformLocation("lightRadius[0]");
 };
 /**
  * @constructor

@@ -6,7 +6,7 @@
  */
 HX.Light = function ()
 {
-    HX.SceneNode.call(this);
+    HX.Entity.call(this);
     this._type = this.getTypeID();
     this._intensity = 3.1415;
     this._luminanceBound = 1 / 255;
@@ -16,7 +16,7 @@ HX.Light = function ()
     this._updateScaledIrradiance();
 };
 
-HX.Light.prototype = Object.create(HX.SceneNode.prototype);
+HX.Light.prototype = Object.create(HX.Entity.prototype);
 
 HX.Light.prototype.getTypeID = function()
 {
@@ -25,7 +25,7 @@ HX.Light.prototype.getTypeID = function()
 
 HX.Light.prototype.acceptVisitor = function (visitor)
 {
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+    HX.Entity.prototype.acceptVisitor.call(this, visitor);
     visitor.visitLight(this);
 };
 

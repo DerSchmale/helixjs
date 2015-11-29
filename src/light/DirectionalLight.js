@@ -176,7 +176,6 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
 HX.DirectionalLight.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-    HX.Light.prototype._updateWorldBounds.call(this);
 };
 
 HX.DirectionalLight.prototype._initLightPass =  function()

@@ -21,14 +21,6 @@ HX.Component.prototype =
     // components should indicate whether they SHOULD be visited, otherwise we're calling way too many of them
     acceptVisitor: function(visitor) {},
 
-    // this is to create an entity containing this component. Useful to do "new SomeComponent().createEntity()"
-    createEntity: function()
-    {
-        var entity = new HX.Entity();
-        entity.addComponent(this);
-        return entity;
-    },
-
     get entity()
     {
         return this._entity;

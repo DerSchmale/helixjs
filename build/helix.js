@@ -3224,7 +3224,7 @@ HX.BoundingAABB.prototype.getRadius = function()
 
 HX.BoundingAABB.prototype.createDebugModelInstance = function()
 {
-    return new HX.ModelInstance(HX.BoxPrimitive.create(), [this.getDebugMaterial()]);
+    return new HX.ModelComponent(HX.BoxPrimitive.create(), [this.getDebugMaterial()]);
 };
 
 /**
@@ -3488,7 +3488,7 @@ HX.BoundingSphere.prototype._updateMinAndMax = function()
 
 HX.BoundingSphere.prototype.createDebugModelInstance = function()
 {
-    return new HX.ModelInstance(HX.SpherePrimitive.create({doubleSided:true}), [this.getDebugMaterial()]);
+    return new HX.ModelComponent(HX.SpherePrimitive.create({doubleSided:true}), [this.getDebugMaterial()]);
 };
 
 HX.FixedAABB = function()
@@ -6008,14 +6008,6 @@ HX.Component.prototype =
     // components should indicate whether they SHOULD be visited, otherwise we're calling way too many of them
     acceptVisitor: function(visitor) {},
 
-    // this is to create an entity containing this component. Useful to do "new SomeComponent().createEntity()"
-    createEntity: function()
-    {
-        var entity = new HX.Entity();
-        entity.addComponent(this);
-        return entity;
-    },
-
     get entity()
     {
         return this._entity;
@@ -6056,6 +6048,19 @@ HX.Entity = function()
 
     // components
     this._components = [];
+};
+
+HX.Entity.create = function(components)
+{
+    var entity = new HX.Entity();
+
+    if (components) {
+        var len = components.length;
+        for (var i = 0; i < len; ++i)
+            entity.addComponent(components[i]);
+    }
+
+    return entity;
 };
 
 HX.Entity.prototype = Object.create(HX.SceneNode.prototype);
@@ -7126,7 +7131,7 @@ HX.Skybox = function(materialOrTexture)
 
     var model = HX.PlanePrimitive.create({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2});
     model.localBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-    this._modelInstance = new HX.ModelInstance(model, materialOrTexture);
+    this._modelInstance = new HX.ModelComponent(model, materialOrTexture);
     this._globalSpecularProbe = null;
     this._globalIrradianceProbe = null;
 };
@@ -7556,13 +7561,13 @@ HX.MeshInstance.prototype = {
 };
 
 /**
- * Creates a new ModelInstance object. ModelInstances are a given combination of a Model and a set of Materials
+ * Creates a new ModelComponent object. ModelInstances are a given combination of a Model and a set of Materials
  * (up to 1 per Mesh). They can be reused and attached to several SceneNode objects.
  * @param model
- * @param materials
+ * @param materials Either a single material or an array of materials for each mesh in model.
  * @constructor
  */
-HX.ModelInstance = function(model, materials)
+HX.ModelComponent = function(model, materials)
 {
     HX.Component.call(this);
     this._model = model;
@@ -7576,21 +7581,26 @@ HX.ModelInstance = function(model, materials)
     this._onModelChange();
 };
 
-HX.ModelInstance.prototype = Object.create(HX.Component.prototype);
+HX.ModelComponent.entity = function(model, materials)
+{
+    return HX.Entity.create([new HX.ModelComponent(model, materials)]);
+};
 
-Object.defineProperties(HX.ModelInstance.prototype, {
+HX.ModelComponent.prototype = Object.create(HX.Component.prototype);
+
+Object.defineProperties(HX.ModelComponent.prototype, {
     model:
     {
         get: function() { return this._model; }
     },
 
     castShadows: {
-        get castShadows()
+        get: function()
         {
             return this._castShadows;
         },
 
-        set castShadows(value)
+        set: function(value)
         {
             this._castShadows = value;
         }
@@ -7604,18 +7614,18 @@ Object.defineProperties(HX.ModelInstance.prototype, {
     }
 });
 
-HX.ModelInstance.prototype.getMeshInstance = function(index)
+HX.ModelComponent.prototype.getMeshInstance = function(index)
 {
     return this._meshInstances[index];
 };
 
 
-HX.ModelInstance.prototype._addMeshInstance = function(mesh, material)
+HX.ModelComponent.prototype._addMeshInstance = function(mesh, material)
 {
     this._meshInstances.push(new HX.MeshInstance(mesh, material));
 };
 
-HX.ModelInstance.prototype._onModelChange = function()
+HX.ModelComponent.prototype._onModelChange = function()
 {
     var maxIndex = this._materials.length - 1;
     for (var i = 0; i < this._model.numMeshes; ++i) {
@@ -7626,17 +7636,20 @@ HX.ModelInstance.prototype._onModelChange = function()
 };
 
 // override for better matches
-HX.ModelInstance.prototype._updateWorldBounds = function()
+HX.ModelComponent.prototype._updateWorldBounds = function()
 {
-    this._worldBounds.transformFrom(this._model.localBounds, this._entity.worldMatrix);
+    if (this._entity)
+        this._worldBounds.transformFrom(this._model.localBounds, this._entity.worldMatrix);
+    else
+        this._worldBounds.copyFrom(this._model.localBounds);
 };
 
-HX.ModelInstance.prototype.acceptVisitor = function(visitor)
+HX.ModelComponent.prototype.acceptVisitor = function(visitor)
 {
     visitor.visitModelInstance(this, this._entity.worldMatrix, this._entity.worldBounds);
 };
 
-HX.ModelInstance.prototype._createBoundingVolume = function()
+HX.ModelComponent.prototype._createBoundingVolume = function()
 {
     return new HX.BoundingAABB();
 };

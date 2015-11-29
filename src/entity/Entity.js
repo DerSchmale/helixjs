@@ -9,6 +9,19 @@ HX.Entity = function()
     this._components = [];
 };
 
+HX.Entity.create = function(components)
+{
+    var entity = new HX.Entity();
+
+    if (components) {
+        var len = components.length;
+        for (var i = 0; i < len; ++i)
+            entity.addComponent(components[i]);
+    }
+
+    return entity;
+};
+
 HX.Entity.prototype = Object.create(HX.SceneNode.prototype);
 
 HX.Entity.prototype.addComponent = function(component)

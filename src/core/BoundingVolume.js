@@ -407,7 +407,7 @@ HX.BoundingAABB.prototype.getRadius = function()
 
 HX.BoundingAABB.prototype.createDebugModelInstance = function()
 {
-    return new HX.ModelInstance(HX.BoxPrimitive.create(), [this.getDebugMaterial()]);
+    return new HX.ModelComponent(HX.BoxPrimitive.create(), [this.getDebugMaterial()]);
 };
 
 /**
@@ -671,7 +671,7 @@ HX.BoundingSphere.prototype._updateMinAndMax = function()
 
 HX.BoundingSphere.prototype.createDebugModelInstance = function()
 {
-    return new HX.ModelInstance(HX.SpherePrimitive.create({doubleSided:true}), [this.getDebugMaterial()]);
+    return new HX.ModelComponent(HX.SpherePrimitive.create({doubleSided:true}), [this.getDebugMaterial()]);
 };
 
 HX.FixedAABB = function()

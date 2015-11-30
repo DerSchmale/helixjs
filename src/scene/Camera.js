@@ -78,7 +78,6 @@ HX.Camera = function()
 {
     HX.Entity.call(this);
 
-    // visitor should not collect effects, they will be added separately!
     this._renderTargetWidth = 0;
     this._renderTargetHeight = 0;
     this._viewProjectionMatrixInvalid = true;
@@ -96,57 +95,6 @@ HX.Camera = function()
 };
 
 HX.Camera.prototype = Object.create(HX.Entity.prototype);
-
-HX.Camera.prototype.getViewProjectionMatrix = function ()
-{
-    if (this._viewProjectionMatrixInvalid)
-        this._updateViewProjectionMatrix();
-
-    return this._viewProjectionMatrix;
-};
-
-/**
- * Frustum is in world space
- */
-HX.Camera.prototype.getFrustum = function ()
-{
-    if (this._viewProjectionMatrixInvalid)
-        this._updateViewProjectionMatrix();
-
-    return this._frustum;
-};
-
-HX.Camera.prototype.getInverseViewProjectionMatrix = function ()
-{
-    if (this._viewProjectionMatrixInvalid)
-        this._updateViewProjectionMatrix();
-
-    return this._inverseViewProjectionMatrix;
-};
-
-HX.Camera.prototype.getInverseProjectionMatrix = function()
-{
-    if (this._projectionMatrixDirty)
-        this._updateProjectionMatrix();
-
-    return this._inverseProjectionMatrix;
-};
-
-HX.Camera.prototype.getProjectionMatrix = function()
-{
-    if (this._projectionMatrixDirty)
-        this._updateProjectionMatrix();
-
-    return this._projectionMatrix;
-};
-
-HX.Camera.prototype.getViewMatrix = function()
-{
-    if (this._viewProjectionMatrixInvalid)
-        this._updateViewProjectionMatrix();
-
-    return this._viewMatrix;
-};
 
 Object.defineProperties(HX.Camera.prototype, {
     nearDistance: {
@@ -167,6 +115,65 @@ Object.defineProperties(HX.Camera.prototype, {
         set: function(value) {
             this._farDistance = value;
             this._invalidateProjectionMatrix();
+        }
+    },
+
+    viewProjectionMatrix: {
+        get: function() {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._viewProjectionMatrix;
+        }
+    },
+
+    viewMatrix: {
+        get: function()
+        {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._viewMatrix;
+        }
+    },
+
+    projectionMatrix: {
+        get: function()
+        {
+            if (this._projectionMatrixDirty)
+                this._updateProjectionMatrix();
+
+            return this._projectionMatrix;
+        }
+    },
+
+    inverseViewProjectionMatrix: {
+        get: function()
+        {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._inverseViewProjectionMatrix;
+        }
+    },
+
+    inverseProjectionMatrix: {
+        get: function()
+        {
+            if (this._projectionMatrixDirty)
+                this._updateProjectionMatrix();
+
+            return this._inverseProjectionMatrix;
+        }
+    },
+
+    frustum: {
+        get: function()
+        {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._frustum;
         }
     }
 });
@@ -191,7 +198,7 @@ HX.Camera.prototype._invalidateWorldTransformationMatrix = function()
 HX.Camera.prototype._updateViewProjectionMatrix = function()
 {
     this._viewMatrix.inverseAffineOf(this.worldMatrix);
-    this._viewProjectionMatrix.product(this.getProjectionMatrix(), this._viewMatrix);
+    this._viewProjectionMatrix.product(this.projectionMatrix, this._viewMatrix);
     this._inverseProjectionMatrix.inverseOf(this._projectionMatrix);
     this._inverseViewProjectionMatrix.inverseOf(this._viewProjectionMatrix);
     this._frustum.update(this._viewProjectionMatrix, this._inverseViewProjectionMatrix);

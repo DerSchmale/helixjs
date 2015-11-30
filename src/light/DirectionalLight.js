@@ -118,7 +118,7 @@ Object.defineProperty(HX.DirectionalLight.prototype, "direction", {
         var position = this.worldMatrix.getColumn(3);
         var target = HX.Float4.sum(value, position);
         matrix.lookAt(target, position, HX.Float4.Y_AXIS);
-        this.setTransformationMatrix(matrix);
+        this.transformationMatrix = matrix;
     }
 });
 
@@ -133,7 +133,7 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
     this._lightPass.updateRenderState(renderer);
 
     var light = lightCollection[startIndex];
-    var dir = camera.getViewMatrix().transform(light.direction);
+    var dir = camera.viewMatrix.transform(light.direction);
     var color = light._scaledIrradiance;
 
     HX.GL.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);

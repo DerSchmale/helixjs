@@ -69,7 +69,7 @@ HX.ViewProjectionSetter = function()
 
 HX.ViewProjectionSetter.prototype.execute = function(worldMatrix, camera)
 {
-    var matrix = camera.getViewProjectionMatrix();
+    var matrix = camera.viewProjectionMatrix;
     HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
 };
 
@@ -79,7 +79,7 @@ HX.InverseViewProjectionSetter = function()
 
 HX.InverseViewProjectionSetter.prototype.execute = function(worldMatrix, camera)
 {
-    var matrix = camera.getInverseViewProjectionMatrix();
+    var matrix = camera.inverseViewProjectionMatrix;
     HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
 };
 
@@ -89,7 +89,7 @@ HX.InverseWVPSetter = function()
 
 HX.InverseWVPSetter.prototype.execute = function(worldMatrix, camera)
 {
-    var matrix = camera.getInverseViewProjectionMatrix();
+    var matrix = camera.inverseViewProjectionMatrix;
     HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
 };
 
@@ -99,7 +99,7 @@ HX.ProjectionSetter = function()
 
 HX.ProjectionSetter.prototype.execute = function(worldMatrix, camera)
 {
-    var matrix = camera.getProjectionMatrix();
+    var matrix = camera.projectionMatrix;
     HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
 };
 
@@ -109,7 +109,7 @@ HX.InverseProjectionSetter = function()
 
 HX.InverseProjectionSetter.prototype.execute = function(worldMatrix, camera)
 {
-    var matrix = camera.getInverseProjectionMatrix();
+    var matrix = camera.inverseProjectionMatrix;
     HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
 };
 
@@ -120,7 +120,7 @@ HX.WorldViewProjectionSetter = function()
 
 HX.WorldViewProjectionSetter.prototype.execute = function(worldMatrix, camera)
 {
-    this._matrix.product(camera.getViewProjectionMatrix(), worldMatrix);
+    this._matrix.product(camera.viewProjectionMatrix, worldMatrix);
     HX.GL.uniformMatrix4fv(this.location, false, this._matrix._m);
 };
 
@@ -131,7 +131,7 @@ HX.WorldViewMatrixSetter = function()
 
 HX.WorldViewMatrixSetter.prototype.execute = function (worldMatrix, camera)
 {
-    this._matrix.product(camera.getViewMatrix(), worldMatrix);
+    this._matrix.product(camera.viewMatrix, worldMatrix);
     HX.GL.uniformMatrix4fv(this.location, false, this._matrix._m);
 };
 
@@ -156,7 +156,7 @@ HX.NormalWorldViewMatrixSetter = function()
 
 HX.NormalWorldViewMatrixSetter.prototype.execute = function (worldMatrix, camera)
 {
-    this._matrix.product(camera.getViewMatrix(), worldMatrix);
+    this._matrix.product(camera.viewMatrix, worldMatrix);
     this._matrix.writeNormalMatrix(this._data);
     HX.GL.uniformMatrix3fv(this.location, false, this._data);    // transpose of inverse
 };
@@ -223,7 +223,7 @@ HX.ViewMatrixSetter = function()
 
 HX.ViewMatrixSetter.prototype.execute = function (worldMatrix, camera)
 {
-    var matrix = camera.getViewMatrix();
+    var matrix = camera.viewMatrix;
     HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
 };
 

@@ -31,6 +31,8 @@ HX.Renderer = function ()
     this._width = 0;
     this._height = 0;
 
+    this._copyAmbient = new HX.MultiplyColorCopyShader();
+    this._reproject = new HX.ReprojectShader();
     this._copyTexture = new HX.CopyChannelsShader();
     this._copyTextureToScreen = new HX.CopyChannelsShader("xyzw", true);
     this._copyXChannel = new HX.CopyChannelsShader("x");
@@ -63,12 +65,7 @@ HX.Renderer = function ()
     this._stencilWriteState = new HX.StencilState(0, HX.Comparison.ALWAYS, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.REPLACE);
     this._stencilReadState = new HX.StencilState(0, HX.Comparison.EQUAL, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
 
-    // just a fake AO texture for when transparency is used
-    var data = new Uint8Array([0xff, 0xff, 0xff, 0xff]);
-    this._blankAOTexture = new HX.Texture2D();
-    this._blankAOTexture = new HX.Texture2D();
-    this._blankAOTexture.uploadData(data, 1, 1, true);
-    this._blankAOTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
+    this._previousViewProjection = new HX.Matrix4x4();
 };
 
 HX.Renderer.HDRBuffers = function(depthBuffer)
@@ -99,6 +96,11 @@ HX.Renderer.HDRBuffers.prototype =
 
 HX.Renderer.prototype =
 {
+    get camera()
+    {
+        return this._camera;
+    },
+
     get debugMode()
     {
         return this._debugMode;
@@ -154,13 +156,19 @@ HX.Renderer.prototype =
             this._renderPostPass(HX.MaterialPass.POST_LIGHT_PASS);
             this._renderPostPass(HX.MaterialPass.POST_PASS, true);
 
-            if (this._aoTexture) this._aoTexture = this._blankAOTexture;
+            // don't use AO for transparents
+            if (this._aoTexture) this._aoTexture = null;
 
             this._renderTransparents();
         }
         HX.popRenderTarget();
 
+        if (this._ssrEffect != null)
+            this._ssrEffect.render(this, dt);
+
         this._renderToScreen(dt);
+
+        this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
 
         if (HX._renderTargetStack.length > renderTargetStackSize) throw "Unpopped render targets!";
         if (HX._renderTargetStack.length < renderTargetStackSize) throw "Overpopped render targets!";
@@ -371,11 +379,11 @@ HX.Renderer.prototype =
                 break;
             case HX.DebugRenderMode.DEBUG_AO:
                 if (this._aoEffect)
-                    this._copyWChannel.execute(HX.RectMesh.DEFAULT, this._aoEffect.getAOTexture());
+                    this._copyTexture.execute(HX.RectMesh.DEFAULT, this._aoEffect.getAOTexture());
                 break;
             case HX.DebugRenderMode.DEBUG_SSR:
                 if (this._ssrEffect)
-                    this._copyTexture.execute(HX.RectMesh.DEFAULT, this._ssrTexture);
+                    this._applyGamma.execute(HX.RectMesh.DEFAULT, this._ssrTexture);
                 break;
             default:
                 this._composite(dt);
@@ -401,8 +409,9 @@ HX.Renderer.prototype =
         HX.GL.depthMask(false);
 
         HX.clear(HX.GL.COLOR_BUFFER_BIT);
-        this._renderDirectLights();
+
         this._renderGlobalIllumination();
+        this._renderDirectLights();
 
         HX.GL.depthMask(true);
     },
@@ -420,19 +429,24 @@ HX.Renderer.prototype =
 
     _renderGlobalIllumination: function ()
     {
+        if (this._renderCollector._globalSpecularProbe)
+            this._renderCollector._globalSpecularProbe.render(this);
+
+        if (this._ssrTexture) {
+            HX.setBlendState(HX.BlendState.ALPHA);
+            this._reproject.execute(HX.RectMesh.DEFAULT, this._ssrTexture, this._gbuffer[3], this._camera, this._previousViewProjection);
+        }
+
+        HX.setBlendState(HX.BlendState.ADD);
+        this._copyAmbient.execute(HX.RectMesh.DEFAULT, this._gbuffer[0], this._renderCollector.ambientColor);
+
         if (this._renderCollector._globalIrradianceProbe)
             this._renderCollector._globalIrradianceProbe.render(this);
 
-        if (this._ssrEffect != null) {
-            this._ssrEffect.render(this, 0);
-        }
-
-        if (this._renderCollector._globalSpecularProbe) {
-            this._renderCollector._globalSpecularProbe.render(this);
-        }
-        else if (this._ssrEffect) {
-            HX.setBlendState(HX.BlendState.ADD_WITH_ALPHA);
-            this._copyTexture.execute(HX.RectMesh.DEFAULT, this._ssrTexture);
+        if (this._aoTexture) {
+            HX.setBlendState(HX.BlendState.MULTIPLY);
+            this._copyTexture.execute(HX.RectMesh.DEFAULT, this._aoTexture);
+            HX.setBlendState(HX.BlendState.ADD);
         }
     },
 
@@ -549,7 +563,6 @@ HX.Renderer.prototype =
         this._copyYChannel.dispose();
         this._copyZChannel.dispose();
         this._copyWChannel.dispose();
-        this._blankAOTexture.dispose();
 
         this._hdrBack.dispose();
         this._hdrFront.dispose();

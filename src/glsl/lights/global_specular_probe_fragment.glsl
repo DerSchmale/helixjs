@@ -10,14 +10,6 @@ uniform sampler2D hx_gbufferColor;
 uniform sampler2D hx_gbufferNormals;
 uniform sampler2D hx_gbufferSpecular;
 
-#ifdef USE_AO
-uniform sampler2D hx_ambientOcclusion;
-#endif
-
-#ifdef USE_SSR
-uniform sampler2D hx_localReflections;
-#endif
-
 uniform mat4 hx_cameraWorldMatrix;
 
 // this is Schlick-Beckmann attenuation for only the view vector
@@ -55,16 +47,6 @@ void main()
 	float attenuation = mix(hx_geometricShadowing(normal, reflectedViewDir, roughness), 1.0, metallicness);
 
 	totalLight += fresnel * attenuation * specProbeSample.xyz;
-
-    #ifdef USE_SSR
-        vec4 reflectionSample = texture2D(hx_localReflections, uv);
-        totalLight = mix(totalLight, reflectionSample.xyz, reflectionSample.w);
-    #endif
-
-	#ifdef USE_AO
-		vec4 occlusionSample = texture2D(hx_ambientOcclusion, uv);
-		totalLight *= occlusionSample.w;
-	#endif
 
 	gl_FragColor = vec4(totalLight, 1.0);
 }

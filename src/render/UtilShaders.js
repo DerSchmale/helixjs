@@ -58,6 +58,42 @@ HX.CopyChannelsShader = function(channel, copyAlpha)
 
 HX.CopyChannelsShader.prototype = Object.create(HX.CustomCopyShader.prototype);
 
+/**
+ * Copies one texture's channels (in configurable ways) to another's.
+ * @param channel Can be either x, y, z, w or any 4-component swizzle. default is xyzw, meaning a simple copy
+ * @constructor
+ */
+HX.MultiplyColorCopyShader = function()
+{
+    HX.CustomCopyShader.call(this, HX.ShaderLibrary.get("multiply_color_fragment.glsl"));
+
+    HX.GL.useProgram(this._program);
+    this._colorLocation = HX.GL.getUniformLocation(this._program, "color");
+};
+
+HX.MultiplyColorCopyShader.prototype = Object.create(HX.CustomCopyShader.prototype);
+
+HX.MultiplyColorCopyShader.prototype.execute = function(rect, texture, color)
+{
+    HX.setDepthTest(HX.Comparison.DISABLED);
+    HX.setCullMode(HX.CullMode.NONE);
+
+    rect._vertexBuffer.bind();
+    rect._indexBuffer.bind();
+
+    this.updateRenderState();
+
+    texture.bind(0);
+
+    HX.GL.uniform4f(this._colorLocation, color.r, color.g, color.b, color.a);
+    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
+    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+
+    HX.enableAttributes(2);
+
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+};
+
 
 /**
  * Copies data in one texture, using a second texture's alpha information
@@ -178,7 +214,56 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera, text
     HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
     HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
     HX.GL.uniform1f(this._rcpFrustumRangeLocation, 1.0/(camera.nearDistance - camera.farDistance));
-    HX.GL.uniformMatrix4fv(this._projectionLocation, false, camera.getProjectionMatrix()._m);
+    HX.GL.uniformMatrix4fv(this._projectionLocation, false, camera.projectionMatrix._m);
+
+    HX.enableAttributes(2);
+
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+};
+
+
+/**
+ * Copies the contents from one frame projection to another projection
+ * @constructor
+ */
+HX.ReprojectShader = function()
+{
+    HX.Shader.call(this);
+    this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), HX.ShaderLibrary.get("reproject_fragment.glsl"));
+
+    this._reprojectionMatrix = new HX.Matrix4x4();
+    this._sourceLocation = HX.GL.getUniformLocation(this._program, "source");
+    this._depthLocation = HX.GL.getUniformLocation(this._program, "depth");
+    this._reprojectionMatrixLocation = HX.GL.getUniformLocation(this._program, "reprojectionMatrix");
+    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+
+    HX.GL.useProgram(this._program);
+    HX.GL.uniform1i(this._sourceLocation , 0);
+    HX.GL.uniform1i(this._depthLocation, 1);
+};
+
+HX.ReprojectShader.prototype = Object.create(HX.Shader.prototype);
+
+HX.ReprojectShader.prototype.execute = function(rect, sourceTexture, depthTexture, camera, oldViewProjection)
+{
+    HX.setDepthTest(HX.Comparison.DISABLED);
+    HX.setCullMode(HX.CullMode.NONE);
+
+    rect._vertexBuffer.bind();
+    rect._indexBuffer.bind();
+
+    this.updateRenderState(null, camera);
+
+    sourceTexture.bind(0);
+    depthTexture.bind(1);
+
+    this._reprojectionMatrix.product(oldViewProjection, camera.inverseViewProjectionMatrix);
+
+    HX.GL.uniformMatrix4fv(this._reprojectionMatrixLocation, false, this._reprojectionMatrix._m);
+
+    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
+    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 

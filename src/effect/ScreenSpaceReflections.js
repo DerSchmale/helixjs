@@ -104,7 +104,7 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
 {
     var w = this._renderer._width * this._scale;
     var h = this._renderer._height * this._scale;
-    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture)) {
+    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, null, HX.GL.RGBA, HX.HDR_FORMAT)) {
         this._depthBuffer.init(w, h);
         this._fbo.init();
         this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});

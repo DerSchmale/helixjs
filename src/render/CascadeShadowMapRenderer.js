@@ -206,7 +206,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
     _updateCollectorCamera: function(viewCamera)
     {
-        var corners = viewCamera.getFrustum()._corners;
+        var corners = viewCamera.frustum._corners;
         var min = new HX.Float4();
         var max = new HX.Float4();
         var tmp = new HX.Float4();
@@ -222,7 +222,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
         this._minZ = min.z;
 
-        this._collectorCamera.getTransformationMatrix().copyFrom(this._light.worldMatrix);
+        this._collectorCamera.transformationMatrix.copyFrom(this._light.worldMatrix);
         this._collectorCamera._invalidateWorldTransformationMatrix();
         this._collectorCamera.setBounds(min.x, max.x + 1, max.y + 1, min.y);
         this._collectorCamera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
@@ -255,7 +255,7 @@ HX.CascadeShadowMapRenderer.prototype =
         var min = new HX.Float4();
         var max = new HX.Float4();
 
-        var corners = viewCamera.getFrustum().getCorners();
+        var corners = viewCamera.frustum.getCorners();
 
         // camera distances are suboptimal? need to constrain to local near too?
 
@@ -266,7 +266,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
             camera.nearDistance = -maxBound.z;
 
-            camera.setTransformationMatrix(this._light.worldMatrix);
+            camera.transformationMatrix = this._light.worldMatrix;
 
             // figure out frustum bound
             for (var i = 0; i < 4; ++i) {
@@ -329,13 +329,13 @@ HX.CascadeShadowMapRenderer.prototype =
 
             camera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
 
-            this._shadowMatrices[cascade].product(this._transformToUV[cascade], camera.getViewProjectionMatrix());
+            this._shadowMatrices[cascade].product(this._transformToUV[cascade], camera.viewProjectionMatrix);
         }
     },
 
     _updateCullPlanes: function(viewCamera)
     {
-        var frustum = this._collectorCamera.getFrustum();
+        var frustum = this._collectorCamera.frustum;
         var planes = frustum._planes;
 
         for (var i = 0; i < 4; ++i)
@@ -343,7 +343,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
         this._numCullPlanes = 4;
 
-        frustum = viewCamera.getFrustum();
+        frustum = viewCamera.frustum;
         planes = frustum._planes;
 
         var dir = this._light.direction;

@@ -13,6 +13,7 @@ HX.RenderCollector = function()
     this._cameraZAxis = new HX.Float4();
     this._frustum = null;
     this._lights = null;
+    this._ambientColor = new HX.Color();
     this._shadowCasters = null;
     this._effects = null;
     this._globalSpecularProbe = null;
@@ -30,11 +31,17 @@ HX.RenderCollector.prototype.getEffects = function() { return this._effects; };
 HX.RenderCollector.prototype.getGlobalSpecularProbe = function() { return this._globalSpecularProbe; };
 HX.RenderCollector.prototype.getGlobalIrradianceProbe = function() { return this._globalIrradianceProbe; };
 
+Object.defineProperties(HX.RenderCollector.prototype, {
+    ambientColor: {
+        get: function() { return this._ambientColor; }
+    }
+});
+
 HX.RenderCollector.prototype.collect = function(camera, scene)
 {
     this._camera = camera;
     camera.worldMatrix.getColumn(2, this._cameraZAxis);
-    this._frustum = camera.getFrustum();
+    this._frustum = camera.frustum;
     this._nearPlane = this._frustum._planes[HX.Frustum.PLANE_NEAR];
     this._reset();
 
@@ -117,6 +124,14 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
     }
 };
 
+HX.RenderCollector.prototype.visitAmbientLight = function(light)
+{
+    var color = light.linearColor;
+    this._ambientColor.r += color.r;
+    this._ambientColor.g += color.g;
+    this._ambientColor.b += color.b;
+};
+
 HX.RenderCollector.prototype.visitLight = function(light)
 {
     this._lights.push(light);
@@ -141,6 +156,7 @@ HX.RenderCollector.prototype._reset = function()
     this._effects = [];
     this._globalIrradianceProbe = null;
     this._globalSpecularProbe = null;
+    this._ambientColor.set(0, 0, 0, 1);
 };
 
 HX.RenderCollector.prototype._sortTransparents = function(a, b)

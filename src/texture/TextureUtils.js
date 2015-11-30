@@ -8,12 +8,12 @@ HX.TextureUtils =
      * @param fbo (optional) Any fbos to be reinitialized if necessary
      * @returns {boolean} Returns true if the texture has been resized, false otherwise.
      */
-    assureSize: function(width, height, texture, fbo)
+    assureSize: function(width, height, texture, fbo, format, dataType)
     {
         if (width === texture.width && height === texture.height)
             return false;
 
-        texture.initEmpty(width, height);
+        texture.initEmpty(width, height, format, dataType);
         if (fbo) fbo.init();
         return true;
     },

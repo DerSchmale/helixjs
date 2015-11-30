@@ -76,16 +76,18 @@ Object.defineProperties(HX.SceneNode.prototype, {
             else
                 this._debugBounds = null;
         }
+    },
+
+    transformationMatrix: {
+        get: function() {
+            return Object.getOwnPropertyDescriptor(HX.Transform.prototype, "transformationMatrix").get.call(this);
+        },
+        set: function(value) {
+            Object.getOwnPropertyDescriptor(HX.Transform.prototype, "transformationMatrix").set.call(this, value);
+            this._invalidateWorldTransformationMatrix();
+        }
     }
 });
-
-
-HX.SceneNode.prototype.setTransformationMatrix = function(matrix)
-{
-    HX.Transform.prototype.setTransformationMatrix.call(this, matrix);
-
-    this._invalidateWorldTransformationMatrix();
-};
 
 HX.SceneNode.prototype.acceptVisitor = function(visitor)
 {
@@ -126,12 +128,12 @@ HX.SceneNode.prototype._updateWorldBounds = function ()
 
 HX.SceneNode.prototype._updateDebugBounds = function()
 {
-    var matrix = this._debugBounds.getTransformationMatrix();
+    var matrix = this._debugBounds.transformationMatrix;
     var bounds = this._worldBounds;
 
     matrix.scaleMatrix(bounds._halfExtentX * 2.0, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
     matrix.appendTranslation(bounds._centerX, bounds._centerY, bounds._centerZ);
-    this._debugBounds.setTransformationMatrix(matrix);
+    this._debugBounds.transformationMatrix = matrix;
 };
 
 HX.SceneNode.prototype._updateTransformationMatrix = function()
@@ -143,9 +145,9 @@ HX.SceneNode.prototype._updateTransformationMatrix = function()
 HX.SceneNode.prototype._updateWorldTransformationMatrix = function()
 {
     if (this._parent)
-        this._worldTransformMatrix.product(this._parent.worldMatrix, this.getTransformationMatrix());
+        this._worldTransformMatrix.product(this._parent.worldMatrix, this.transformationMatrix);
     else
-        this._worldTransformMatrix.copyFrom(this.getTransformationMatrix());
+        this._worldTransformMatrix.copyFrom(this.transformationMatrix);
 
     this._worldMatrixInvalid = false;
 };

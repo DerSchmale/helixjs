@@ -114,5 +114,5 @@ void main()
     }
 
     totalOcclusion = 1.0 - clamp(strengthPerRay * totalOcclusion, 0.0, 1.0);
-    gl_FragColor = vec4(totalOcclusion);
+    gl_FragColor = vec4(vec3(totalOcclusion), 1.0);
 }

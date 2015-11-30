@@ -68,7 +68,7 @@ HX.Transform.prototype =
         this._changeListener.enabled = true;
     },
 
-    getTransformationMatrix: function()
+    get transformationMatrix()
     {
         if (this._matrixInvalid)
             this._updateTransformationMatrix();
@@ -76,7 +76,7 @@ HX.Transform.prototype =
         return this._matrix;
     },
 
-    setTransformationMatrix: function(matrix)
+    set transformationMatrix(matrix)
     {
         this._matrix.copyFrom(matrix);
         this._applyMatrix();

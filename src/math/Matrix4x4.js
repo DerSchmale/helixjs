@@ -1307,6 +1307,24 @@ HX.Matrix4x4.prototype = {
         target.position.copyFrom(this.getColumn(3));
 
         return target;
+    },
+
+    toString: function()
+    {
+        var str = "";
+        for (var i = 0; i < 16; ++i) {
+            var mod = i & 0x3;
+            if (mod === 0)
+                str += "[";
+
+            str += this._m[i];
+
+            if (mod === 3)
+                str += "]\n";
+            else
+                str += "\t , \t";
+        }
+        return str;
     }
 };
 

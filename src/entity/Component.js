@@ -13,6 +13,9 @@ HX.Component.prototype =
     onRemoved: function() {},
     onUpdate: function(dt) {},
 
+    // TODO: Is this required?
+    acceptVisitor: function(visitor) {},
+
     get entity()
     {
         return this._entity;

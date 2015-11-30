@@ -136,7 +136,6 @@ HX.HBAO.prototype.draw = function(dt)
     this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
     this._sourceTextureSlot.texture = this._backTexture;
     this._drawPass(this._blurPass);
-
     HX.popRenderTarget();
 };
 

@@ -71,7 +71,6 @@ float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
     float rcpW = rcpW0;
     float dRcpW = (rcpW1 - rcpW0) * stepRatio;
     float sceneDepth = rayDepth;
-    float prevRayDepth, prevSceneDepth;
 
     float amount = 0.0;
 
@@ -126,7 +125,7 @@ void main()
     float hitZ = 0.0;
     vec2 hitUV;
     float amount = raytrace(viewSpacePos, reflDir, hitZ, hitUV);
-    float fadeFactor = 1.0; //clamp(-reflDir.z * 100.0, 0.0, 1.0);
+    float fadeFactor = 1.0 - clamp(reflDir.z * 2.0, 0.0, 1.0);
 
     vec2 borderFactors = abs(hitUV * 2.0 - 1.0);
     borderFactors = (1.0 - borderFactors) * 10.0;

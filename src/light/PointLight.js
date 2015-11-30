@@ -59,7 +59,7 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
     var attData = HX.PointLight._attenuationData;
     var radiusData = HX.PointLight._radiusData;
     var pos = new HX.Float4();
-    var viewMatrix = camera.getViewMatrix();
+    var viewMatrix = camera.viewMatrix;
 
     var v1i = 0, v2i = 0, v3i = 0;
 
@@ -121,7 +121,7 @@ HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, start
     var colorData = HX.PointLight._colorData;
     var attData = HX.PointLight._attenuationData;
     var pos = new HX.Float4();
-    var viewMatrix = renderer._camera.getViewMatrix();
+    var viewMatrix = renderer._camera.viewMatrix;
 
     var v3i = 0, v2i = 0;
 

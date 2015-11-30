@@ -43,3 +43,8 @@ HX.Entity.prototype.removeComponent = function(component)
     component._entity = null;
     if (component.worldBounds) this._invalidateWorldBounds();
 };
+
+HX.Entity.prototype.acceptVisitor = function(visitor)
+{
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+};

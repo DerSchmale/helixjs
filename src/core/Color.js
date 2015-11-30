@@ -71,6 +71,14 @@ HX.Color.prototype =
         target.a = this.a;
 
         return target;
+    },
+
+    copyFrom: function(color)
+    {
+        this.r = color.r;
+        this.g = color.g;
+        this.b = color.b;
+        this.a = color.a;
     }
 };
 

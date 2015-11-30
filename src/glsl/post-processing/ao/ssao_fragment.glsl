@@ -50,7 +50,6 @@ void main()
         // sampleOcclusion: 1 if occluding, 0 otherwise
         float sampleOcclusion = float(diffZ > scaledOffset.z);
         totalOcclusion += sampleOcclusion * distanceFactor * cosFactor;
-
     }
-    gl_FragColor = vec4(1.0 - totalOcclusion * strengthPerSample);
+    gl_FragColor = vec4(vec3(1.0 - totalOcclusion * strengthPerSample), 1.0);
 }

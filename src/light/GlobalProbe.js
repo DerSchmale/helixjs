@@ -6,9 +6,7 @@ HX.GlobalSpecularProbe = function(texture)
 {
     this._texture = texture;
 
-    this._pass = null;  // created deferredly
-    this._usingAO = false;
-    this._usingSSR = false;
+    this._pass = this._initPass();
 };
 
 // conversion range for spec power to mip
@@ -19,14 +17,6 @@ HX.GlobalSpecularProbe.prototype = Object.create(HX.Light.prototype);
 
 HX.GlobalSpecularProbe.prototype.render = function(renderer)
 {
-    var usingAO = renderer._aoEffect != null;
-    var usingSSR = renderer._ssrEffect != null;
-    if (this._usingAO != usingAO || this._usingSSR != usingSSR || !this._pass) {
-        this._usingAO = usingAO;
-        this._usingSSR = usingSSR;
-        this._pass = this._initPass();
-    }
-
     this._pass.updateRenderState(renderer);
 
     if (this._texture) {
@@ -54,12 +44,6 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
         defines.USE_TEX_LOD = 1;
         extensions.push("GL_EXT_shader_texture_lod");
     }
-
-    if (this._usingAO)
-        defines.USE_AO = 1;
-
-    if (this._usingSSR)
-        defines.USE_SSR = 1;
 
     defines.K0 = HX.GlobalSpecularProbe.powerRange0;
     defines.K1 = HX.GlobalSpecularProbe.powerRange1;
@@ -91,19 +75,13 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
 HX.GlobalIrradianceProbe = function(texture)
 {
     this._texture = texture;
-    this._usingAO = false;
+    this._pass = this._initPass();
 };
 
 HX.GlobalIrradianceProbe.prototype = Object.create(HX.Light.prototype);
 
 HX.GlobalIrradianceProbe.prototype.render = function(renderer)
 {
-    var usingAO = renderer._aoEffect != null;
-    if (this._usingAO != usingAO || !this._pass) {
-        this._usingAO = usingAO;
-        this._pass = this._initPass();
-    }
-
     this._pass.updateRenderState(renderer);
 
     // render rect mesh
@@ -119,9 +97,6 @@ HX.GlobalIrradianceProbe.prototype._updateWorldBounds = function()
 HX.GlobalIrradianceProbe.prototype._initPass = function()
 {
     var defines = {};
-
-    if (this._usingAO)
-        defines.USE_AO = 1;
 
     var pass = new HX.EffectPass(
         HX.ShaderLibrary.get("global_irradiance_probe_vertex.glsl"),

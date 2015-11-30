@@ -111,6 +111,7 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
     }
 
     HX.pushRenderTarget(this._fbo);
+        HX.setClearColor(HX.Color.ZERO);
         HX.clear();
         HX.GL.colorMask(false, false, false, false);
         HX.pushStencilState(this._stencilWriteState);

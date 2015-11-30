@@ -32,6 +32,7 @@ HX.SSAO = function(numSamples)
     this._ssaoPass.setTexture("ditherTexture", this._ditherTexture);
     this._sourceTextureSlot = this._blurPass.getTextureSlot("source");
 
+    // TODO: We could reproject
     this._ssaoTexture = new HX.Texture2D();
     this._ssaoTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
     this._ssaoTexture.wrapMode = HX.TextureWrapMode.CLAMP;

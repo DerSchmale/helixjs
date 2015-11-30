@@ -55,11 +55,11 @@ void main()
 
     #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
           vec4 specSample = texture2D(specularMap, texCoords);
-          roughnessOut = 1.0 - (1.0 - roughnessOut) * specularMap.x;
+          roughnessOut = 1.0 - (1.0 - roughnessOut) * specSample.x;
 
           #ifdef SPECULAR_MAP
-              specNormalReflOut *= specularMap.y;
-              metallicnessOut *= specularMap.z;
+              specNormalReflOut *= specSample.y;
+              metallicnessOut *= specSample.z;
           #endif
     #endif
 

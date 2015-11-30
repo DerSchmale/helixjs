@@ -19,9 +19,10 @@ float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL
 
 float hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)
 {
-	roughness = clamp(roughness, 0.1, .99);
+	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);
+//	roughnessSqr *= roughnessSqr;
 	float halfDotNormal = max(-dot(halfVector, normal), 0.0);
-	return pow(halfDotNormal, 2.0/roughness - 2.0)/roughness;
+	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;
 }
 
 void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)

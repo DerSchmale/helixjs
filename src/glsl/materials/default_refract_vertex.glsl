@@ -1,9 +1,12 @@
 attribute vec4 hx_position;
 attribute vec3 hx_normal;
+
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)
 attribute vec2 hx_texCoord;
+varying vec2 texCoords;
+#endif
 
 varying vec3 normal;
-varying vec2 texCoords;
 varying vec3 viewVector;
 varying vec2 screenUV;
 
@@ -31,7 +34,10 @@ void main()
 #endif
 
     viewVector = viewSpace.xyz;
+
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)
     texCoords = hx_texCoord;
+#endif
     screenUV = proj.xy / proj.w * .5 + .5;
     gl_Position = proj;
 }

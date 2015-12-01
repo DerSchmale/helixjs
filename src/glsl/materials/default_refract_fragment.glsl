@@ -1,7 +1,11 @@
-varying vec2 texCoords;
 varying vec3 normal;
 varying vec3 viewVector;
 varying vec2 screenUV;
+
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)
+varying vec2 texCoords;
+#endif
+
 
 #ifdef COLOR_MAP
 uniform sampler2D colorMap;
@@ -24,10 +28,11 @@ uniform float hx_cameraFrustumRange;
 
 uniform float refractiveRatio;   // the ratio of refractive indices
 
-vec2 getPreciseRefractedUVOffset(vec3 normal, float distance)
+// TODO: could raytrace as an alternative
+vec2 getRefractedUVOffset(vec3 normal, float farZ)
 {
-    vec3 refractionVector = refract(vec3(0.0, 0.0, -1.0), normal, refractiveRatio);   // close enough
-    return (refractionVector.xy) / max(-viewVector.z - refractionVector.z * distance, 1.0);
+    vec3 refractionVector = refract(normalize(viewVector), normal, refractiveRatio) * .1;
+    return -refractionVector.xy / viewVector.z;
 }
 
 void main()
@@ -53,10 +58,10 @@ void main()
     // use the immediate background depth value for a distance estimate
     // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering
 
-    float depth = hx_sampleLinearDepth(hx_gbufferDepth, texCoords);
-    float distance = depth * hx_cameraFrustumRange - viewVector.z - hx_cameraNearPlaneDistance;
+    float depth = hx_sampleLinearDepth(hx_gbufferDepth, screenUV);
+    float farZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;
 
-    vec2 samplePos = screenUV + getPreciseRefractedUVOffset(fragNormal, distance);
+    vec2 samplePos = screenUV + getRefractedUVOffset(fragNormal, farZ);
 
     vec4 background = texture2D(hx_backbuffer, samplePos);
     gl_FragColor = outputColor * background;

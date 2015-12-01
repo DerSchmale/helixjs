@@ -22,10 +22,10 @@ HX.Signal.prototype =
         delete this._lookUp[listener];
     },
 
-    dispatch: function()
+    dispatch: function(payload)
     {
         var len = this._listeners.length;
         for (var i = 0; i < len; ++i)
-            this._listeners[i]();
+            this._listeners[i](payload);
     }
 };

@@ -9,7 +9,10 @@ HX.Component.prototype =
     // to be overridden:
     onAdded: function() {},
     onRemoved: function() {},
-    onUpdate: function(dt) {},
+
+    // by default, onUpdate is not implemented at all
+    //onUpdate: function(dt) {},
+    onUpdate: null,
 
     get entity()
     {

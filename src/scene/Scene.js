@@ -11,6 +11,7 @@ HX.SceneNode = function()
     this._matrixInvalid = true;
     this._worldMatrixInvalid = true;
     this._parent = null;
+    this._scene = null;
     this._worldBounds = this._createBoundingVolume();
     this._debugBounds = null;
 
@@ -19,8 +20,6 @@ HX.SceneNode = function()
     // intersection with near plane, etc
     this._renderOrderHint = 0.0;
 };
-
-
 
 HX.SceneNode.prototype = Object.create(HX.Transform.prototype);
 
@@ -75,6 +74,11 @@ Object.defineProperties(HX.SceneNode.prototype, {
         }
     }
 });
+
+HX.SceneNode.prototype._setScene = function(scene)
+{
+    this._scene = scene;
+};
 
 HX.SceneNode.prototype.acceptVisitor = function(visitor)
 {
@@ -152,7 +156,9 @@ HX.Scene = function(rootNode)
     // the default partition is a BVH node
     //  -> or this may need to become an infinite bound node?
     this._rootNode = rootNode || new HX.GroupNode();
+    this._rootNode._setScene(this);
     this._skybox = null;
+    this._entityEngine = new HX.EntityEngine();
 };
 
 HX.Scene.prototype = {
@@ -191,6 +197,11 @@ HX.Scene.prototype = {
         visitor.visitScene(this);
         // assume root node will always qualify
         this._rootNode.acceptVisitor(visitor);
+    },
+
+    get entityEngine()
+    {
+        return this._entityEngine;
     }
 };
 
@@ -198,6 +209,9 @@ HX.Scene.prototype = {
 HX.GroupNode = function()
 {
     HX.SceneNode.call(this);
+
+    // dispatched when an entity is added
+    this.entityAdded = new HX.Signal();
 
     // child entities (scene nodes)
     this._children = [];
@@ -211,6 +225,7 @@ HX.GroupNode.prototype.attach = function(child)
         throw "Child is already parented!";
 
     child._parent = this;
+    child._setScene(this._scene);
 
     this._children.push(child);
     this._invalidateWorldBounds();
@@ -266,4 +281,14 @@ HX.GroupNode.prototype._updateWorldBounds = function()
         this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
 
     HX.SceneNode.prototype._updateWorldBounds.call(this);
+};
+
+HX.GroupNode.prototype._setScene = function(scene)
+{
+    HX.SceneNode.prototype._setScene.call(this, scene);
+
+    var len = this._children.length;
+
+    for (var i = 0; i < len; ++i)
+        this._children[i]._setScene(scene);
 };

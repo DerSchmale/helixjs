@@ -65,6 +65,7 @@ HX.Project.prototype =
 
     _onTick: function()
     {
+        this._activeScene.entityEngine.updateEntities(this._ticker.dt);
         this.onUpdate(this._ticker.dt);
         HX.clear();
         this._renderer.render(this._activeCamera, this._activeScene, this._ticker.dt);

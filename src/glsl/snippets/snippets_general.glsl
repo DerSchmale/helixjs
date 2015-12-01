@@ -48,40 +48,48 @@ vec3 hx_decodeNormal(vec4 data)
 
 vec4 hx_gammaToLinear(vec4 color)
 {
-    #ifdef HX_LINEAR_SPACE
+    #if defined(HX_GAMMA_CORRECTION_PRECISE)
         color.x = pow(color.x, 2.2);
         color.y = pow(color.y, 2.2);
         color.z = pow(color.z, 2.2);
+    #elif defined(HX_GAMMA_CORRECTION_FAST)
+        color.xyz *= color.xyz;
     #endif
     return color;
 }
 
 vec3 hx_gammaToLinear(vec3 color)
 {
-    #ifdef HX_LINEAR_SPACE
+    #if defined(HX_GAMMA_CORRECTION_PRECISE)
         color.x = pow(color.x, 2.2);
         color.y = pow(color.y, 2.2);
         color.z = pow(color.z, 2.2);
+    #elif defined(HX_GAMMA_CORRECTION_FAST)
+        color.xyz *= color.xyz;
     #endif
     return color;
 }
 
 vec4 hx_linearToGamma(vec4 linear)
 {
-    #ifdef HX_LINEAR_SPACE
-        linear.x = pow(linear.x, 0.45);
-        linear.y = pow(linear.y, 0.45);
-        linear.z = pow(linear.z, 0.45);
+    #if defined(HX_GAMMA_CORRECTION_PRECISE)
+        linear.x = pow(linear.x, 0.454545);
+        linear.y = pow(linear.y, 0.454545);
+        linear.z = pow(linear.z, 0.454545);
+    #elif defined(HX_GAMMA_CORRECTION_FAST)
+        linear.xyz = sqrt(linear.xyz);
     #endif
     return linear;
 }
 
 vec3 hx_linearToGamma(vec3 linear)
 {
-    #ifdef HX_LINEAR_SPACE
-        linear.x = pow(linear.x, 0.45);
-        linear.y = pow(linear.y, 0.45);
-        linear.z = pow(linear.z, 0.45);
+    #if defined(HX_GAMMA_CORRECTION_PRECISE)
+        linear.x = pow(linear.x, 0.454545);
+        linear.y = pow(linear.y, 0.454545);
+        linear.z = pow(linear.z, 0.454545);
+    #elif defined(HX_GAMMA_CORRECTION_FAST)
+        linear.xyz = sqrt(linear.xyz);
     #endif
     return linear;
 }

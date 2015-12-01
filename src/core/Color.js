@@ -53,9 +53,16 @@ HX.Color.prototype =
     {
         target = target || new HX.Color();
 
-        target.r = Math.pow(this.r, 2.2);
-        target.g = Math.pow(this.g, 2.2);
-        target.b = Math.pow(this.b, 2.2);
+        if (HX.OPTIONS.usePreciseGammaCorrection) {
+            target.r = Math.pow(this.r, 2.2);
+            target.g = Math.pow(this.g, 2.2);
+            target.b = Math.pow(this.b, 2.2);
+        }
+        else {
+            target.r *= this.r;
+            target.g *= this.g;
+            target.b *= this.b;
+        }
         target.a = this.a;
 
         return target;
@@ -65,9 +72,16 @@ HX.Color.prototype =
     {
         target = target || new HX.Color();
 
-        target.r = Math.pow(this.r,.454545);
-        target.g = Math.pow(this.g,.454545);
-        target.b = Math.pow(this.b,.454545);
+        if (HX.OPTIONS.usePreciseGammaCorrection) {
+            target.r = Math.pow(this.r, .454545);
+            target.g = Math.pow(this.g, .454545);
+            target.b = Math.pow(this.b, .454545);
+        }
+        else {
+            target.r = Math.sqrt(this.r);
+            target.g = Math.sqrt(this.g);
+            target.b = Math.sqrt(this.b);
+        }
         target.a = this.a;
 
         return target;

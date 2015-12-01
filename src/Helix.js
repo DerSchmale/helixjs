@@ -11,8 +11,9 @@ HX.InitOptions = function()
 {
     // rendering pipeline options
     this.useHDR = false;   // only if available
-    this.useLinearSpace = true;
+    this.useGammaCorrection = true;
     this.maxDepthPrecision = false;  // Use 24 bit depth encoding. Only relevant if depth textures are unavailable. Only use for large view distances.
+    this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
 
     // provide an array of light types if you wish to extend the direct lights with your own types
     this.customLights = [];
@@ -95,8 +96,8 @@ HX.init = function(canvas, options)
     HX.LIGHTING_MODEL = HX.OPTIONS.lightingModel;
 
     var defines = "";
-    if (HX.OPTIONS.useLinearSpace !== false)
-        defines += "#define HX_LINEAR_SPACE\n";
+    if (HX.OPTIONS.useGammaCorrection !== false)
+        defines += HX.OPTIONS.usePreciseGammaCorrection? "#define HX_GAMMA_CORRECTION_PRECISE\n" : "#define HX_GAMMA_CORRECTION_FAST\n";
 
     HX.OPTIONS.ignoreDrawBuffersExtension = HX.OPTIONS.ignoreDrawBuffersExtension || HX.OPTIONS.ignoreAllExtensions;
     HX.OPTIONS.ignoreDepthTexturesExtension = HX.OPTIONS.ignoreDepthTexturesExtension || HX.OPTIONS.ignoreAllExtensions;

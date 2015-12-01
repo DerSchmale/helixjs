@@ -91,14 +91,10 @@ HX.Light.prototype._updateScaledIrradiance = function ()
     // this includes 1/PI radiance->irradiance factor
     var scale = this._intensity / Math.PI;
 
-    if (HX.OPTIONS.useLinearSpace) {
+    if (HX.OPTIONS.useGammaCorrection)
         this._color.gammaToLinear(this._scaledIrradiance);
-    }
-    else {
-        this._scaledIrradiance.r = this._color.r;
-        this._scaledIrradiance.g = this._color.g;
-        this._scaledIrradiance.b = this._color.b;
-    }
+    else
+        this._scaledIrradiance.copyFrom(this._color);
 
     this._scaledIrradiance.r *= scale;
     this._scaledIrradiance.g *= scale;

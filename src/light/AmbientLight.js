@@ -18,7 +18,7 @@ Object.defineProperties(HX.AmbientLight.prototype, {
         set: function(value)
         {
             this._color = value;
-            if (HX.OPTIONS.useLinearSpace)
+            if (HX.OPTIONS.useGammaCorrection)
                 this._color.gammaToLinear(this._linearColor);
             else
                 this._linearColor.copyFrom(this._color);

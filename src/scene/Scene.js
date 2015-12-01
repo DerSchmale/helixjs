@@ -6,7 +6,6 @@
 HX.SceneNode = function()
 {
     HX.Transform.call(this);
-    this._effects = null;
     this._worldTransformMatrix = new HX.Matrix4x4();
     this._worldBoundsInvalid = true;
     this._matrixInvalid = true;
@@ -48,18 +47,6 @@ Object.defineProperties(HX.SceneNode.prototype, {
         }
     },
 
-    effects: {
-        get: function ()
-        {
-            return this._effects;
-        },
-
-        set: function (value)
-        {
-            this._effects = value;
-        }
-    },
-
     showDebugBounds: {
         get: function ()
         {
@@ -91,9 +78,6 @@ Object.defineProperties(HX.SceneNode.prototype, {
 
 HX.SceneNode.prototype.acceptVisitor = function(visitor)
 {
-    if (this._effects)
-        visitor.visitEffects(this._effects, this);
-
     if (this._debugBounds)
         this._debugBounds.acceptVisitor(visitor);
 };
@@ -176,16 +160,6 @@ HX.Scene.prototype = {
 
     get skybox() { return this._skybox; },
     set skybox(value) { this._skybox = value; },
-
-    get effects()
-    {
-        return this._rootNode._effects;
-    },
-
-    set effects(value)
-    {
-        this._rootNode._effects = value;
-    },
 
     attach: function(child)
     {

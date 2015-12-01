@@ -53,40 +53,50 @@ HX.EffectPass.prototype.updateRenderState = function(renderer)
  */
 HX.Effect = function()
 {
+    HX.Component.call(this);
     this._isSupported = true;
     this._mesh = null;
     this._outputsGamma = false;
 };
 
-HX.Effect.prototype =
+HX.Effect.prototype = Object.create(HX.Component.prototype);
+
+HX.Effect.prototype.isSupported = function()
 {
-    isSupported: function()
-    {
-        return this._isSupported;
-    },
+    return this._isSupported;
+};
 
-    render: function(renderer, dt)
-    {
-        this._renderer = renderer;
-        this.draw(dt);
-    },
+HX.Effect.prototype.render = function(renderer, dt)
+{
+    this._renderer = renderer;
+    this.draw(dt);
+};
 
-    draw: function(dt)
-    {
-        throw "Abstract method error!";
-    },
+HX.Effect.prototype.draw = function(dt)
+{
+    throw "Abstract method error!";
+};
 
-    _drawPass: function(pass)
-    {
-        pass.updateRenderState(this._renderer);
-        HX.drawElements(HX.GL.TRIANGLES, 6, 0);
-    },
+HX.Effect.prototype._drawPass = function(pass)
+{
+    pass.updateRenderState(this._renderer);
+    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+};
 
-    /**
-     * Used when we need to current render target as a source.
-     */
-    _swapHDRBuffers: function()
-    {
-        this._renderer._swapHDRFrontAndBack();
-    }
+HX.Effect.prototype.onAdded = function()
+{
+    this._entity._registerEffect(this);
+};
+
+HX.Effect.prototype.onRemoved = function()
+{
+    this._entity._unregisterEffect(this);
+};
+
+/**
+ * Used when we need to current render target as a source.
+ */
+HX.Effect.prototype._swapHDRBuffers = function()
+{
+    this._renderer._swapHDRFrontAndBack();
 };

@@ -59,9 +59,9 @@ HX.Color.prototype =
             target.b = Math.pow(this.b, 2.2);
         }
         else {
-            target.r *= this.r;
-            target.g *= this.g;
-            target.b *= this.b;
+            target.r = this.r * this.r;
+            target.g = this.g * this.g;
+            target.b = this.b * this.b;
         }
         target.a = this.a;
 

@@ -1,5 +1,6 @@
 HX = {
     VERSION: '0.1',
+    INITIALIZED: false,
     TypedArray: (typeof Float32Array !== 'undefined') ? Float32Array : Array,
 };
 
@@ -68,6 +69,10 @@ HX.ShaderLibrary = {
  */
 HX.init = function(canvas, options)
 {
+    if (HX.INITIALIZED) throw "Can only initialize Helix once!";
+
+    HX.INITIALIZED = true;
+
     HX.TARGET_CANVAS = canvas;
 
     var webglFlags = {

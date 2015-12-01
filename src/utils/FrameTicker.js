@@ -38,6 +38,7 @@ HX.FrameTicker = function()
     this._callback = undefined;
     this._dt = 0;
     this._currentTime = 0;
+    this.onTick = new HX.Signal();
 };
 
 HX.FrameTicker.prototype = {
@@ -82,7 +83,10 @@ HX.FrameTicker.prototype = {
         if (this._dt !== this._dt) this._dt = 0;
         this._currentTime = currentTime;
 
-        this._callback();
+        if(this._callback)
+            this._callback();
+
+        this.onTick.dispatch();
     },
 
     /**

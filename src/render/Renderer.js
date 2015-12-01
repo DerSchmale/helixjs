@@ -424,7 +424,7 @@ HX.Renderer.prototype =
         var i = 0;
 
         while (i < len)
-            i = lights[i].renderBatch(lights, i, renderer);
+            i = lights[i].renderBatch(lights, i, this);
     },
 
     _renderGlobalIllumination: function ()

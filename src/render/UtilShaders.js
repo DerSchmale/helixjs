@@ -26,7 +26,7 @@ HX.CustomCopyShader.prototype.execute = function(rect, texture)
     rect._vertexBuffer.bind();
     rect._indexBuffer.bind();
 
-    this.updateRenderState(null, camera);
+    this.updateRenderState(null, null);
 
     texture.bind(0);
 

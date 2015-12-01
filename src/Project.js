@@ -7,6 +7,7 @@ HX.Project = function(canvas, initOptions)
     this._activeScene = new HX.Scene();
     this._ticker = new HX.FrameTicker();
     this._ticker.onTick.bind(this, this._onTick);
+    this._activeScene.attach(this._activeCamera);
 
     window.addEventListener('resize', function() {
         canvas.width = canvas.clientWidth;

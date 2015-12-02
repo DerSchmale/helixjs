@@ -185,8 +185,25 @@ HX.init = function(canvas, options)
     HX._init2DDitherTexture(32, 32);
 
     HX.setClearColor(HX.Color.BLACK);
+
+    HX.onPreFrame = new HX.Signal();  // for engine-specific stuff (entity updates etc), stats updates, etc
+    HX.onFrame = new HX.Signal();   // for user-implemented behaviour and rendering
+
+    HX.FRAME_TICKER = new HX.FrameTicker();
 };
 
+HX.start = function()
+{
+    HX.FRAME_TICKER.start(function(dt) {
+        HX.onPreFrame.dispatch(dt);
+        HX.onFrame.dispatch(dt);
+    });
+};
+
+HX.stop = function()
+{
+    HX.FRAME_TICKER.stop();
+};
 
 HX._initLights = function()
 {

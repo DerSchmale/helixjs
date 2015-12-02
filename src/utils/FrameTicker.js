@@ -49,6 +49,7 @@ HX.FrameTicker.prototype = {
      * @param callback Function to call when a frame needs to be processed.
      */
     start: function(callback) {
+        if (this._isRunning) return;
         this._callback = callback;
         this._currentTime = this._getTime();
         this._isRunning = true;
@@ -84,9 +85,9 @@ HX.FrameTicker.prototype = {
         this._currentTime = currentTime;
 
         if(this._callback)
-            this._callback();
+            this._callback(this._dt);
 
-        this.onTick.dispatch();
+        this.onTick.dispatch(this._dt);
     },
 
     /**

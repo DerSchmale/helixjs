@@ -9,10 +9,11 @@ HX.Signal = function()
  */
 HX.Signal.prototype =
 {
-    bind: function(thisRef, listener)
+    bind: function(listener, thisRef)
     {
         this._lookUp[listener] = this._listeners.length;
-        this._listeners.push(listener.bind(thisRef));
+        var callback = thisRef? listener.bind(thisRef) : listener;
+        this._listeners.push(callback);
     },
 
     unbind: function(listener)

@@ -210,9 +210,6 @@ HX.GroupNode = function()
 {
     HX.SceneNode.call(this);
 
-    // dispatched when an entity is added
-    this.entityAdded = new HX.Signal();
-
     // child entities (scene nodes)
     this._children = [];
 };
@@ -273,8 +270,6 @@ HX.GroupNode.prototype._invalidateWorldTransformationMatrix = function()
 
 HX.GroupNode.prototype._updateWorldBounds = function()
 {
-    this._worldBounds.clear();
-
     var len = this._children.length;
 
     for (var i = 0; i < len; ++i)

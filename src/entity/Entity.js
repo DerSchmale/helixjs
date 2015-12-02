@@ -1,6 +1,6 @@
 HX.Entity = function()
 {
-    HX.GroupNode.call(this);
+    HX.SceneNode.call(this);
 
     // components
     this._components = null;
@@ -24,7 +24,7 @@ HX.Entity.create = function(components)
     return entity;
 };
 
-HX.Entity.prototype = Object.create(HX.GroupNode.prototype);
+HX.Entity.prototype = Object.create(HX.SceneNode.prototype);
 
 HX.Entity.prototype.addComponents = function(components)
 {
@@ -87,7 +87,7 @@ HX.Entity.prototype.removeComponent = function(component)
 
 HX.Entity.prototype.acceptVisitor = function(visitor)
 {
-    HX.GroupNode.prototype.acceptVisitor.call(this, visitor);
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
 
     if (this._effects)
         visitor.visitEffects(this._effects, this);
@@ -126,5 +126,5 @@ HX.Entity.prototype._setScene = function(scene)
     if (scene)
         scene.entityEngine.registerEntity(this);
 
-    HX.GroupNode.prototype._setScene.call(this, scene);
+    HX.SceneNode.prototype._setScene.call(this, scene);
 };

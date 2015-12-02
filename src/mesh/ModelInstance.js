@@ -62,7 +62,7 @@ HX.MeshInstance.prototype = {
 
         // TODO: May want to set a default "purple" material when nothing is provided?
         if (this._material)
-            this._material.onChange.bind(this, this._onMaterialChange);
+            this._material.onChange.bind(this._onMaterialChange, this);
 
         this._linkMeshWithMaterial();
     },
@@ -128,7 +128,7 @@ HX.ModelInstance = function(model, materials)
     this._meshBounds = new HX.BoundingAABB();
     this._meshInstances = [];
     this._castShadows = true;
-    this._model.onChange.bind(this, this._onModelChange);
+    this._model.onChange.bind(this._onModelChange, this);
 
     this._materials = materials instanceof Array? materials : [ materials ];
 

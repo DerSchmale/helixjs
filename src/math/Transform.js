@@ -21,7 +21,7 @@ HX.Transform = function()
     this._changeListener.add(this._scale, "x");
     this._changeListener.add(this._scale, "y");
     this._changeListener.add(this._scale, "z");
-    this._changeListener.onChange.bind(this, this._invalidateTransformationMatrix);
+    this._changeListener.onChange.bind(this._invalidateTransformationMatrix, this);
 };
 
 HX.Transform.prototype =

@@ -184,7 +184,6 @@ HX.PointLight.prototype._createBoundingVolume = function()
 HX.PointLight.prototype._updateWorldBounds = function()
 {
     this._worldBounds.setExplicit(this.worldMatrix.getColumn(3), this._radius);
-    HX.Light.prototype._updateWorldBounds.call(this);
 };
 
 HX.PointLight.prototype.getRadius = function()

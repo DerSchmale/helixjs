@@ -42,10 +42,11 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 	power *= cosAngle;
 	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;
 
+// / PI factor is encoded in light colour
 	//approximated fresnel-based energy conservation
 	diffuseColor = irradiance;
 
-	specularColor = .25 * irradiance * fresnel * distribution;
+	specularColor = irradiance * fresnel * distribution;
 
 #ifdef VISIBILITY
     specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);

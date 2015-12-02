@@ -5,13 +5,14 @@
 HX.EntityEngine = function()
 {
     this._updateableEntities = [];
+    HX.onPreFrame.bind(this._update, this);
 };
 
 HX.EntityEngine.prototype =
 {
     registerEntity: function(entity)
     {
-        entity._onRequireUpdatesChange.bind(this, this._onEntityUpdateChange);
+        entity._onRequireUpdatesChange.bind(this._onEntityUpdateChange, this);
         if (entity._requiresUpdates)
             this._addUpdatableEntity(entity);
     },
@@ -21,14 +22,6 @@ HX.EntityEngine.prototype =
         entity._onRequireUpdatesChange.unbind(this);
         if (entity._requiresUpdates)
             this._removeUpdatableEntity(entity);
-    },
-
-    updateEntities: function(dt)
-    {
-        var entities = this._updateableEntities;
-        var len = entities.length;
-        for (var i = 0; i < len; ++i)
-            entities[i].update(dt);
     },
 
     _onEntityUpdateChange: function(entity)
@@ -48,5 +41,13 @@ HX.EntityEngine.prototype =
     {
         var index = this._updateableEntities.indexOf(entity);
         this._updateableEntities.splice(index, 1);
+    },
+
+    _update: function(dt)
+    {
+        var entities = this._updateableEntities;
+        var len = entities.length;
+        for (var i = 0; i < len; ++i)
+            entities[i].update(dt);
     }
 };

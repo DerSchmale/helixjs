@@ -38,7 +38,160 @@ HX.PBRMaterial.SPECULAR_MAP_ALL = 2;
 HX.PBRMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 
-HX.PBRMaterial.prototype = Object.create(HX.Material.prototype);
+HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
+    {
+        color: {
+            get: function ()
+            {
+                return this._color;
+            },
+            set: function (value)
+            {
+                this._color = isNaN(value) ? value : new HX.Color(value);
+                this.setUniform("color", this._color);
+            }
+        },
+
+        colorMap: {
+            get: function ()
+            {
+                return this._colorMap;
+            },
+            set: function (value)
+            {
+                if (!!this._colorMap !== !!value)
+                    this._passesInvalid = true;
+
+                if (!this._passesInvalid && value)
+                    this.setTexture("colorMap", value);
+
+                this._colorMap = value;
+            }
+        },
+
+        normalMap: {
+            get: function ()
+            {
+                return this._normalMap;
+            },
+            set: function (value)
+            {
+                if (!!this._normalMap !== !!value)
+                    this._passesInvalid = true;
+
+                if (!this._passesInvalid && value)
+                    this.setTexture("normalMap", value);
+
+                this._normalMap = value;
+            }
+        },
+
+        specularMap: {
+            get: function ()
+            {
+                return this._specularMap;
+            },
+            set: function (value)
+            {
+                if (!!this._normalMap !== !!value)
+                    this._passesInvalid = true;
+
+                if (!this._passesInvalid && value)
+                    this.setTexture("specularMap", value);
+
+                this._specularMap = value;
+            }
+        },
+
+        specularMapMode: {
+            get: function ()
+            {
+                return this._specularMapMode;
+            },
+            set: function (value)
+            {
+                if (this._specularMapMode != value)
+                    this._passesInvalid = true;
+
+                this._specularMapMode = value;
+            }
+        },
+
+        metallicness: {
+            get: function ()
+            {
+                return this._metallicness;
+            },
+            set: function (value)
+            {
+                this._metallicness = HX.saturate(value);
+                this.setUniform("metallicness", this._metallicness);
+            }
+        },
+
+        specularNormalReflection: {
+            get: function ()
+            {
+                return this._specularNormalReflection;
+            },
+            set: function (value)
+            {
+                this._specularNormalReflection = HX.saturate(value);
+                this.setUniform("specularNormalReflection", this._specularNormalReflection);
+            }
+        },
+
+        roughness: {
+            get: function ()
+            {
+                return this._roughness;
+            },
+            set: function (value)
+            {
+                this._roughness = HX.saturate(value);
+                this.setUniform("roughness", this._roughness);
+            }
+        },
+
+        // TODO: Provide transparency modes:
+        //  - alpha
+        //  - absorbant
+        //  - absorbant no specular (for performance, removes gbuffer passes)
+        transparent:
+        {
+            get: function() { return this._transparent; },
+            set: function(value) {
+                // only specular will be output to hdr buffer, so additive
+                if (this._transparent !== value)
+                    this._passesInvalid = true;
+
+                this._transparent = value;
+                this._transparencyMode = value? HX.TransparencyMode.ADDITIVE : HX.TransparencyMode.OPAQUE;
+            }
+        },
+
+        refract:
+        {
+            get: function() { return this._refract; },
+            set: function(value) {
+                if (!!this._refract !== !!value)
+                    this._passesInvalid = true;
+
+                this._refract = HX.saturate(value);
+            }
+        },
+
+        refractiveRatio:
+        {
+            get: function() { return this._refractiveRatio; },
+            set: function(value) {
+                this._refractiveRatio = value;
+                this.setUniform("refractiveRatio", value);
+            }
+        }
+    }
+);
+
 
 HX.PBRMaterial.prototype.getPass = function(type)
 {
@@ -141,140 +294,3 @@ HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fra
     this.setPass(type, pass);
     return pass;
 };
-
-Object.defineProperty(HX.PBRMaterial.prototype, "color",
-    {
-        get: function() { return this._color; },
-        set: function(value) {
-            this._color = isNaN(value) ? value : new HX.Color(value);
-            this.setUniform("color", this._color);
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "colorMap",
-    {
-        get: function() { return this._colorMap; },
-        set: function(value) {
-            if (!!this._colorMap !== !!value)
-                this._passesInvalid = true;
-
-            if (!this._passesInvalid && value)
-                this.setTexture("colorMap", value);
-
-            this._colorMap = value;
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "normalMap",
-    {
-        get: function() { return this._normalMap; },
-        set: function(value) {
-            if (!!this._normalMap !== !!value)
-                this._passesInvalid = true;
-
-            if (!this._passesInvalid && value)
-                this.setTexture("normalMap", value);
-
-            this._normalMap = value;
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "specularMap",
-    {
-        get: function() { return this._specularMap; },
-        set: function(value) {
-            if (!!this._normalMap !== !!value)
-                this._passesInvalid = true;
-
-            if (!this._passesInvalid && value)
-                this.setTexture("specularMap", value);
-
-            this._specularMap = value;
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "specularMapMode",
-    {
-        get: function() { return this._specularMapMode; },
-        set: function(value) {
-            if (this._specularMapMode != value)
-                this._passesInvalid = true;
-
-            this._specularMapMode = value;
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "metallicness",
-    {
-        get: function() { return this._metallicness; },
-        set: function(value) {
-            this._metallicness = HX.saturate(value);
-            this.setUniform("metallicness", this._metallicness);
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "specularNormalReflection",
-    {
-        get: function() { return this._specularNormalReflection; },
-        set: function(value) {
-            this._specularNormalReflection = HX.saturate(value);
-            this.setUniform("specularNormalReflection", this._specularNormalReflection);
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "roughness",
-    {
-        get: function() { return this._roughness; },
-        set: function(value) {
-            this._roughness = HX.saturate(value);
-            this.setUniform("roughness", this._roughness);
-        }
-    }
-);
-
-// TODO: Provide transparency modes:
-//  - alpha
-//  - absorbant
-//  - absorbant no specular (for performance, removes gbuffer passes)
-Object.defineProperty(HX.PBRMaterial.prototype, "transparent",
-    {
-        get: function() { return this._transparent; },
-        set: function(value) {
-            // only specular will be output to hdr buffer, so additive
-            if (this._transparent !== value)
-                this._passesInvalid = true;
-
-            this._transparent = value;
-            this._transparencyMode = value? HX.TransparencyMode.ADDITIVE : HX.TransparencyMode.OPAQUE;
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "refract",
-    {
-        get: function() { return this._refract; },
-        set: function(value) {
-            if (!!this._refract !== !!value)
-                this._passesInvalid = true;
-
-            this._refract = HX.saturate(value);
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "refractiveRatio",
-    {
-        get: function() { return this._refractiveRatio; },
-        set: function(value) {
-            this._refractiveRatio = value;
-            this.setUniform("refractiveRatio", value);
-        }
-    }
-);

@@ -32,8 +32,7 @@ var sourceFiles = [
     "src/render/*.js",
     "src/effect/*.js",
     "src/io/*.js",
-    "src/utils/*.js",
-    "src/Project.js"
+    "src/utils/*.js"
 ];
 
 gulp.task('package', ['glsl', 'main', 'clean']);

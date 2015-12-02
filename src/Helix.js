@@ -82,7 +82,8 @@ HX.init = function(canvas, options)
 
     var glContext = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
     if (options && options.debug) {
-        eval("context = WebGLDebugUtils.makeDebugContext(context);");
+        // ugly hack
+        eval("glContext = WebGLDebugUtils.makeDebugContext(glContext)");
     }
 
     HX.OPTIONS = options || new HX.InitOptions();
@@ -190,6 +191,7 @@ HX.init = function(canvas, options)
     HX.onFrame = new HX.Signal();   // for user-implemented behaviour and rendering
 
     HX.FRAME_TICKER = new HX.FrameTicker();
+    HX.start();
 };
 
 HX.start = function()

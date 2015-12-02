@@ -48,7 +48,7 @@ HX.Entity.prototype.addComponent = function(component)
 
     this._components.push(component);
 
-    this._updateRequiresUpdates(this._requiresUpdates || !!component.onUpdate);
+    this._updateRequiresUpdates(this._requiresUpdates || (!!component.onUpdate));
 
     component._entity = this;
     component.onAdded();
@@ -76,7 +76,7 @@ HX.Entity.prototype.removeComponent = function(component)
         var c = this._components[i];
         if (c !== component) {
             newComps[j++] = c;
-            var requiresUpdates = requiresUpdates || !!components.onUpdate;
+            requiresUpdates = requiresUpdates || !!components.onUpdate;
         }
     }
 
@@ -98,9 +98,12 @@ HX.Entity.prototype.update = function(dt)
     var components = this._components;
     if (components) {
         var len = components.length;
-        for (var i = 0; i < len; ++i)
+        for (var i = 0; i < len; ++i) {
             var component = components[i];
-            if (component.onUpdate) component.onUpdate(dt);
+            if (component.onUpdate) {
+                component.onUpdate(dt);
+            }
+        }
     }
 };
 

@@ -17,7 +17,7 @@ Object.defineProperties(HX.AmbientLight.prototype, {
         get: function() { return this._color; },
         set: function(value)
         {
-            this._color = value;
+            this._color = isNaN(value) ? value : new HX.Color(value);
             if (HX.OPTIONS.useGammaCorrection)
                 this._color.gammaToLinear(this._linearColor);
             else

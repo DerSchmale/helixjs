@@ -52,11 +52,11 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSizes, weights)
  *
  * @constructor
  */
-HX.BloomEffect = function(blurSizes, weights)
+HX.BloomEffect = function(blurSizes, weights, downScale)
 {
     HX.Effect.call(this);
 
-    this._downScale = 4;
+    this._downScale = downScale || 4;
 
     this._targetWidth = -1;
     this._targetHeight = -1;

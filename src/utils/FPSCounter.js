@@ -45,22 +45,22 @@ HX.FPSCounter.prototype =
 
     },
 
-    getLastFrameFPS: function()
+    get lastFrameFPS()
     {
         return Math.round(this._currentFPS);
     },
 
-    getAverageFPS: function()
+    get averageFPS()
     {
         return Math.round(this._averageFPS);
     },
 
-    getMaxFPS: function()
+    get maxFPS()
     {
         return Math.round(this._maxFPS);
     },
 
-    getMinFPS: function()
+    get minFPS()
     {
         return Math.round(this._minFPS);
     },
@@ -70,5 +70,4 @@ HX.FPSCounter.prototype =
         this._maxFPS = undefined;
         this._minFPS = undefined;
     }
-
 };

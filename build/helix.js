@@ -82,7 +82,8 @@ HX.init = function(canvas, options)
 
     var glContext = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
     if (options && options.debug) {
-        eval("context = WebGLDebugUtils.makeDebugContext(context);");
+        // ugly hack
+        eval("glContext = WebGLDebugUtils.makeDebugContext(glContext)");
     }
 
     HX.OPTIONS = options || new HX.InitOptions();
@@ -190,13 +191,21 @@ HX.init = function(canvas, options)
     HX.onFrame = new HX.Signal();   // for user-implemented behaviour and rendering
 
     HX.FRAME_TICKER = new HX.FrameTicker();
+    HX.start();
+};
+
+HX.start = function()
+{
     HX.FRAME_TICKER.start(function(dt) {
         HX.onPreFrame.dispatch(dt);
         HX.onFrame.dispatch(dt);
     });
 };
 
-HX.onFrame = function() {};
+HX.stop = function()
+{
+    HX.FRAME_TICKER.stop();
+};
 
 HX._initLights = function()
 {
@@ -334,10 +343,6 @@ HX.ShaderLibrary['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid ma
 
 HX.ShaderLibrary['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
-HX.ShaderLibrary['lighting_blinn_phong.glsl'] = '/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n    float roughSqr = roughness*roughness;\n    float g1 = nDotV + sqrt( roughSqr + (1.0 - roughSqr) * nDotV * nDotV );\n    float g2 = nDotL + sqrt( roughSqr + (1.0 - roughSqr) * nDotL * nDotL );\n    return 1.0 / (g1 * g2);\n}*/\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n// / PI factor is encoded in light colour\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
-
-HX.ShaderLibrary['lighting_ggx.glsl'] = '// Smith:\n/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float roughSqr = roughness*roughness;\n	float g1 = nDotV + sqrt( (nDotV - nDotV * roughSqr) * nDotV + roughSqr );\n    float g2 = nDotL + sqrt( (nDotL - nDotL * roughSqr) * nDotL + roughSqr );\n    return 1.0 / (g1 * g2);\n}*/\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
-
 HX.ShaderLibrary['directional_light_fragment.glsl'] = 'uniform vec3 lightColor;\nuniform vec3 lightViewDirection;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef CAST_SHADOWS\n	uniform sampler2D hx_gbufferDepth;\n	uniform sampler2D shadowMap;\n\n	uniform float hx_cameraFrustumRange;\n	uniform float hx_cameraNearPlaneDistance;\n\n	uniform mat4 shadowMapMatrices[NUM_CASCADES];\n	uniform float splitDistances[NUM_CASCADES];\n	uniform float depthBias;\n\n	#if NUM_SHADOW_SAMPLES > 1\n		uniform sampler2D hx_dither2D;\n		uniform vec2 hx_dither2DTextureScale;\n\n		uniform vec2 shadowMapSoftnesses[NUM_CASCADES];\n		uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];\n	#endif\n\n	float readDepth(vec2 uv)\n	{\n	#ifdef HX_NO_DEPTH_TEXTURES\n		return hx_RGBA8ToFloat(texture2D(shadowMap, uv));\n	#else\n		return texture2D(shadowMap, uv).x;\n	#endif\n	}\n\n	// view-space position\n	#if NUM_SHADOW_SAMPLES > 1\n	void getShadowMapCoord(in vec3 viewPos, out vec4 coord, out vec2 softness)\n	#else\n	void getShadowMapCoord(in vec3 viewPos, out vec4 coord)\n	#endif\n	{\n		mat4 shadowMapMatrix = shadowMapMatrices[NUM_CASCADES - 1];\n		#if NUM_SHADOW_SAMPLES > 1\n		softness = shadowMapSoftnesses[NUM_CASCADES - 1];\n		#endif\n\n		#if NUM_CASCADES > 1\n		// not very efficient :(\n		for (int i = 0; i < NUM_CASCADES - 1; ++i) {\n		    // remember, negative Z!\n			if (viewPos.z > splitDistances[i]) {\n				shadowMapMatrix = shadowMapMatrices[i];\n				#if NUM_SHADOW_SAMPLES > 1\n					softness = shadowMapSoftnesses[i];\n				#endif\n				break;\n			}\n		}\n		#else\n			shadowMapMatrix = shadowMapMatrices[0];\n			#if NUM_SHADOW_SAMPLES > 1\n				softness = shadowMapSoftnesses[0];\n			#endif\n		#endif\n		coord = shadowMapMatrix * vec4(viewPos, 1.0);\n	}\n#endif\n\n\nvec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 viewVector, vec3 normalSpecularReflectance, float roughness, float metallicness)\n{\n// start extractable code (for fwd)\n	vec3 diffuseReflection;\n	vec3 specularReflection;\n\n	hx_lighting(normal, lightDir, normalize(viewVector), lightColor, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);\n\n	diffuseReflection *= diffuseAlbedo * (1.0 - metallicness);\n	vec3 totalReflection = diffuseReflection + specularReflection;\n\n	#ifdef CAST_SHADOWS\n		float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n		float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n		vec3 viewPos = viewZ * viewVector;\n\n		vec4 shadowMapCoord;\n		#if NUM_SHADOW_SAMPLES > 1\n			vec2 radii;\n			getShadowMapCoord(viewPos, shadowMapCoord, radii);\n			float shadowTest = 0.0;\n			vec4 dither = texture2D(hx_dither2D, uv * hx_dither2DTextureScale);\n			dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale\n			for (int i = 0; i < NUM_SHADOW_SAMPLES; ++i) {\n				vec2 offset;\n				offset.x = dot(dither.xy, hx_poissonDisk[i]);\n				offset.y = dot(dither.zw, hx_poissonDisk[i]);\n				float shadowSample = readDepth(shadowMapCoord.xy + offset);\n				float diff = shadowMapCoord.z - shadowSample - depthBias;\n				shadowTest += float(diff < 0.0);\n			}\n			shadowTest /= float(NUM_SHADOW_SAMPLES);\n		#else\n			getShadowMapCoord(viewPos, shadowMapCoord);\n			float shadowSample = readDepth(shadowMapCoord.xy);\n			float diff = shadowMapCoord.z - shadowSample - depthBias;\n			float shadowTest = float(diff < 0.0);\n		#endif\n\n		totalReflection *= shadowTest;\n	#endif\n\n    return totalReflection;\n}\n\nvoid main()\n{\n	vec4 colorSample = texture2D(hx_gbufferColor, uv);\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	vec3 normal = hx_decodeNormal(normalSample);\n	vec3 normalSpecularReflectance;\n	float roughness;\n	float metallicness;\n\n	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n\n	vec3 totalReflection = hx_calculateLight(colorSample.xyz, normal, lightViewDirection, viewDir, normalSpecularReflectance, roughness, metallicness);\n\n	gl_FragColor = vec4(totalReflection, 0.0);\n\n}';
 
 HX.ShaderLibrary['directional_light_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n	gl_Position = hx_position;\n}';
@@ -358,11 +363,15 @@ HX.ShaderLibrary['point_light_spherical_fragment.glsl'] = 'varying vec2 uv;\nvar
 
 HX.ShaderLibrary['point_light_spherical_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute float hx_instanceID;\n\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform mat4 hx_projectionMatrix;\n\nuniform float lightRadius[LIGHTS_PER_BATCH];\nuniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\nuniform vec3 lightColor[LIGHTS_PER_BATCH];\nuniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nvoid main()\n{\n	int instance = int(hx_instanceID);\n	vec4 worldPos = hx_position;\n	lightPositionVar = lightWorldPosition[instance];\n	lightColorVar = lightColor[instance];\n	attenuationFixVar = attenuationFixFactors[instance];\n	worldPos.xyz *= lightRadius[instance];\n	worldPos.xyz += lightPositionVar;\n\n	vec4 viewPos = hx_viewMatrix * worldPos;\n	vec4 proj = hx_projectionMatrix * viewPos;\n\n	lightPositionVar = (hx_viewMatrix * vec4(lightPositionVar, 1.0)).xyz;\n\n	viewDir = viewPos.xyz / viewPos.z;\n\n	/* render as flat disk, prevent clipping */\n	proj /= proj.w;\n	proj.z = 0.0;\n	uv = proj.xy/proj.w * .5 + .5;\n	gl_Position = proj;\n}';
 
+HX.ShaderLibrary['lighting_blinn_phong.glsl'] = '/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n    float roughSqr = roughness*roughness;\n    float g1 = nDotV + sqrt( roughSqr + (1.0 - roughSqr) * nDotV * nDotV );\n    float g2 = nDotL + sqrt( roughSqr + (1.0 - roughSqr) * nDotL * nDotL );\n    return 1.0 / (g1 * g2);\n}*/\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n// / PI factor is encoded in light colour\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
+
+HX.ShaderLibrary['lighting_ggx.glsl'] = '// Smith:\n/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float roughSqr = roughness*roughness;\n	float g1 = nDotV + sqrt( (nDotV - nDotV * roughSqr) * nDotV + roughSqr );\n    float g2 = nDotL + sqrt( (nDotL - nDotL * roughSqr) * nDotL + roughSqr );\n    return 1.0 / (g1 * g2);\n}*/\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
+
 HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = '#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#else\nuniform vec3 color;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\nvoid main()\n{\n    vec4 outputColor;\n    #ifdef COLOR_MAP\n        outputColor = texture2D(colorMap, texCoords);\n    #else\n        outputColor = vec4(color, 1.0);\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = 1.0 - (1.0 - roughnessOut) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = 1.0 - (1.0 - roughnessOut) * specSample.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
 
 HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
 
-HX.ShaderLibrary['default_refract_fragment.glsl'] = 'varying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)\nvarying vec2 texCoords;\n#endif\n\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#else\nuniform vec3 color;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform sampler2D hx_backbuffer;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float refractiveRatio;   // the ratio of refractive indices\n\n// TODO: could raytrace as an alternative\nvec2 getRefractedUVOffset(vec3 normal, float farZ)\n{\n    vec3 refractionVector = refract(normalize(viewVector), normal, refractiveRatio) * .1;\n    return -refractionVector.xy / viewVector.z;\n}\n\nvoid main()\n{\n    vec4 outputColor;\n    #ifdef COLOR_MAP\n        outputColor = texture2D(colorMap, texCoords);\n    #else\n        outputColor = vec4(color, 1.0);\n    #endif\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n    #endif\n\n    // use the immediate background depth value for a distance estimate\n    // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering\n\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, screenUV);\n    float farZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n\n    vec2 samplePos = screenUV + getRefractedUVOffset(fragNormal, farZ);\n\n    vec4 background = texture2D(hx_backbuffer, samplePos);\n    gl_FragColor = outputColor * background;\n}';
+HX.ShaderLibrary['default_refract_fragment.glsl'] = 'varying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)\nvarying vec2 texCoords;\n#endif\n\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#else\nuniform vec3 color;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform sampler2D hx_backbuffer;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float refractiveRatio;   // the ratio of refractive indices\n\n// TODO: could raytrace as an alternative\nvec2 getRefractedUVOffset(vec3 normal, float farZ)\n{\n    vec3 refractionVector = refract(normalize(vec3(0.0, 0.0, -1.0)), normal, refractiveRatio);\n    return -refractionVector.xy / viewVector.z;\n}\n\nvoid main()\n{\n    vec4 outputColor;\n    #ifdef COLOR_MAP\n        outputColor = texture2D(colorMap, texCoords);\n    #else\n        outputColor = vec4(color, 1.0);\n    #endif\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n    #endif\n\n    // use the immediate background depth value for a distance estimate\n    // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering\n\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, screenUV);\n    float farZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n\n    vec2 samplePos = screenUV + getRefractedUVOffset(fragNormal, farZ);\n\n    vec4 background = texture2D(hx_backbuffer, samplePos);\n    gl_FragColor = outputColor * background;\n}';
 
 HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\n\nvoid main()\n{\n    vec4 viewSpace = hx_worldViewMatrix * hx_position;\n    vec4 proj = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n    viewVector = viewSpace.xyz;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)\n    texCoords = hx_texCoord;\n#endif\n    screenUV = proj.xy / proj.w * .5 + .5;\n    gl_Position = proj;\n}';
 
@@ -5081,7 +5090,7 @@ HX.Entity.prototype.addComponent = function(component)
 
     this._components.push(component);
 
-    this._updateRequiresUpdates(this._requiresUpdates || !!component.onUpdate);
+    this._updateRequiresUpdates(this._requiresUpdates || (!!component.onUpdate));
 
     component._entity = this;
     component.onAdded();
@@ -5109,7 +5118,7 @@ HX.Entity.prototype.removeComponent = function(component)
         var c = this._components[i];
         if (c !== component) {
             newComps[j++] = c;
-            var requiresUpdates = requiresUpdates || !!components.onUpdate;
+            requiresUpdates = requiresUpdates || !!components.onUpdate;
         }
     }
 
@@ -5131,9 +5140,12 @@ HX.Entity.prototype.update = function(dt)
     var components = this._components;
     if (components) {
         var len = components.length;
-        for (var i = 0; i < len; ++i)
+        for (var i = 0; i < len; ++i) {
             var component = components[i];
-            if (component.onUpdate) component.onUpdate(dt);
+            if (component.onUpdate) {
+                component.onUpdate(dt);
+            }
+        }
     }
 };
 
@@ -5198,7 +5210,6 @@ HX.EntityEngine.prototype =
 
     _addUpdatableEntity: function(entity)
     {
-        console.log("yeah " + entity);
         this._updateableEntities.push(entity);
     },
 
@@ -6067,7 +6078,160 @@ HX.PBRMaterial.SPECULAR_MAP_ALL = 2;
 HX.PBRMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 
-HX.PBRMaterial.prototype = Object.create(HX.Material.prototype);
+HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
+    {
+        color: {
+            get: function ()
+            {
+                return this._color;
+            },
+            set: function (value)
+            {
+                this._color = isNaN(value) ? value : new HX.Color(value);
+                this.setUniform("color", this._color);
+            }
+        },
+
+        colorMap: {
+            get: function ()
+            {
+                return this._colorMap;
+            },
+            set: function (value)
+            {
+                if (!!this._colorMap !== !!value)
+                    this._passesInvalid = true;
+
+                if (!this._passesInvalid && value)
+                    this.setTexture("colorMap", value);
+
+                this._colorMap = value;
+            }
+        },
+
+        normalMap: {
+            get: function ()
+            {
+                return this._normalMap;
+            },
+            set: function (value)
+            {
+                if (!!this._normalMap !== !!value)
+                    this._passesInvalid = true;
+
+                if (!this._passesInvalid && value)
+                    this.setTexture("normalMap", value);
+
+                this._normalMap = value;
+            }
+        },
+
+        specularMap: {
+            get: function ()
+            {
+                return this._specularMap;
+            },
+            set: function (value)
+            {
+                if (!!this._normalMap !== !!value)
+                    this._passesInvalid = true;
+
+                if (!this._passesInvalid && value)
+                    this.setTexture("specularMap", value);
+
+                this._specularMap = value;
+            }
+        },
+
+        specularMapMode: {
+            get: function ()
+            {
+                return this._specularMapMode;
+            },
+            set: function (value)
+            {
+                if (this._specularMapMode != value)
+                    this._passesInvalid = true;
+
+                this._specularMapMode = value;
+            }
+        },
+
+        metallicness: {
+            get: function ()
+            {
+                return this._metallicness;
+            },
+            set: function (value)
+            {
+                this._metallicness = HX.saturate(value);
+                this.setUniform("metallicness", this._metallicness);
+            }
+        },
+
+        specularNormalReflection: {
+            get: function ()
+            {
+                return this._specularNormalReflection;
+            },
+            set: function (value)
+            {
+                this._specularNormalReflection = HX.saturate(value);
+                this.setUniform("specularNormalReflection", this._specularNormalReflection);
+            }
+        },
+
+        roughness: {
+            get: function ()
+            {
+                return this._roughness;
+            },
+            set: function (value)
+            {
+                this._roughness = HX.saturate(value);
+                this.setUniform("roughness", this._roughness);
+            }
+        },
+
+        // TODO: Provide transparency modes:
+        //  - alpha
+        //  - absorbant
+        //  - absorbant no specular (for performance, removes gbuffer passes)
+        transparent:
+        {
+            get: function() { return this._transparent; },
+            set: function(value) {
+                // only specular will be output to hdr buffer, so additive
+                if (this._transparent !== value)
+                    this._passesInvalid = true;
+
+                this._transparent = value;
+                this._transparencyMode = value? HX.TransparencyMode.ADDITIVE : HX.TransparencyMode.OPAQUE;
+            }
+        },
+
+        refract:
+        {
+            get: function() { return this._refract; },
+            set: function(value) {
+                if (!!this._refract !== !!value)
+                    this._passesInvalid = true;
+
+                this._refract = HX.saturate(value);
+            }
+        },
+
+        refractiveRatio:
+        {
+            get: function() { return this._refractiveRatio; },
+            set: function(value) {
+                this._refractiveRatio = value;
+                this.setUniform("refractiveRatio", value);
+            }
+        }
+    }
+);
+
 
 HX.PBRMaterial.prototype.getPass = function(type)
 {
@@ -6170,143 +6334,6 @@ HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fra
     this.setPass(type, pass);
     return pass;
 };
-
-Object.defineProperty(HX.PBRMaterial.prototype, "color",
-    {
-        get: function() { return this._color; },
-        set: function(value) {
-            this._color = isNaN(value) ? value : new HX.Color(value);
-            this.setUniform("color", this._color);
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "colorMap",
-    {
-        get: function() { return this._colorMap; },
-        set: function(value) {
-            if (!!this._colorMap !== !!value)
-                this._passesInvalid = true;
-
-            if (!this._passesInvalid && value)
-                this.setTexture("colorMap", value);
-
-            this._colorMap = value;
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "normalMap",
-    {
-        get: function() { return this._normalMap; },
-        set: function(value) {
-            if (!!this._normalMap !== !!value)
-                this._passesInvalid = true;
-
-            if (!this._passesInvalid && value)
-                this.setTexture("normalMap", value);
-
-            this._normalMap = value;
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "specularMap",
-    {
-        get: function() { return this._specularMap; },
-        set: function(value) {
-            if (!!this._normalMap !== !!value)
-                this._passesInvalid = true;
-
-            if (!this._passesInvalid && value)
-                this.setTexture("specularMap", value);
-
-            this._specularMap = value;
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "specularMapMode",
-    {
-        get: function() { return this._specularMapMode; },
-        set: function(value) {
-            if (this._specularMapMode != value)
-                this._passesInvalid = true;
-
-            this._specularMapMode = value;
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "metallicness",
-    {
-        get: function() { return this._metallicness; },
-        set: function(value) {
-            this._metallicness = HX.saturate(value);
-            this.setUniform("metallicness", this._metallicness);
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "specularNormalReflection",
-    {
-        get: function() { return this._specularNormalReflection; },
-        set: function(value) {
-            this._specularNormalReflection = HX.saturate(value);
-            this.setUniform("specularNormalReflection", this._specularNormalReflection);
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "roughness",
-    {
-        get: function() { return this._roughness; },
-        set: function(value) {
-            this._roughness = HX.saturate(value);
-            this.setUniform("roughness", this._roughness);
-        }
-    }
-);
-
-// TODO: Provide transparency modes:
-//  - alpha
-//  - absorbant
-//  - absorbant no specular (for performance, removes gbuffer passes)
-Object.defineProperty(HX.PBRMaterial.prototype, "transparent",
-    {
-        get: function() { return this._transparent; },
-        set: function(value) {
-            // only specular will be output to hdr buffer, so additive
-            if (this._transparent !== value)
-                this._passesInvalid = true;
-
-            this._transparent = value;
-            this._transparencyMode = value? HX.TransparencyMode.ADDITIVE : HX.TransparencyMode.OPAQUE;
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "refract",
-    {
-        get: function() { return this._refract; },
-        set: function(value) {
-            if (!!this._refract !== !!value)
-                this._passesInvalid = true;
-
-            this._refract = HX.saturate(value);
-        }
-    }
-);
-
-Object.defineProperty(HX.PBRMaterial.prototype, "refractiveRatio",
-    {
-        get: function() { return this._refractiveRatio; },
-        set: function(value) {
-            this._refractiveRatio = value;
-            this.setUniform("refractiveRatio", value);
-        }
-    }
-);
 /**
  * Creates a default skybox rendering material.
  */
@@ -7169,7 +7196,7 @@ Object.defineProperties(HX.AmbientLight.prototype, {
         get: function() { return this._color; },
         set: function(value)
         {
-            this._color = value;
+            this._color = isNaN(value) ? value : new HX.Color(value);
             if (HX.OPTIONS.useGammaCorrection)
                 this._color.gammaToLinear(this._linearColor);
             else
@@ -10616,11 +10643,11 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSizes, weights)
  *
  * @constructor
  */
-HX.BloomEffect = function(blurSizes, weights)
+HX.BloomEffect = function(blurSizes, weights, downScale)
 {
     HX.Effect.call(this);
 
-    this._downScale = 4;
+    this._downScale = downScale || 4;
 
     this._targetWidth = -1;
     this._targetHeight = -1;
@@ -11792,22 +11819,22 @@ HX.FPSCounter.prototype =
 
     },
 
-    getLastFrameFPS: function()
+    get lastFrameFPS()
     {
         return Math.round(this._currentFPS);
     },
 
-    getAverageFPS: function()
+    get averageFPS()
     {
         return Math.round(this._averageFPS);
     },
 
-    getMaxFPS: function()
+    get maxFPS()
     {
         return Math.round(this._maxFPS);
     },
 
-    getMinFPS: function()
+    get minFPS()
     {
         return Math.round(this._minFPS);
     },
@@ -11817,7 +11844,6 @@ HX.FPSCounter.prototype =
         this._maxFPS = undefined;
         this._minFPS = undefined;
     }
-
 };
 // http://paulirish.com/2011/requestanimationframe-for-smart-animating/
 // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
@@ -11870,6 +11896,7 @@ HX.FrameTicker.prototype = {
      * @param callback Function to call when a frame needs to be processed.
      */
     start: function(callback) {
+        if (this._isRunning) return;
         this._callback = callback;
         this._currentTime = this._getTime();
         this._isRunning = true;
@@ -12142,5 +12169,139 @@ HX.NormalTangentGenerator.prototype =
         var posIndex = offset + indices[i] * this._vertexStride;
         target.x = this._meshData._vertexData[posIndex];
         target.y = this._meshData._vertexData[posIndex + 1];
+    }
+};
+/**
+ * SimpleProject is a project template for the most common 1-scene, 1-camera projects
+ * @constructor
+ */
+HX.SimpleProject = function()
+{
+    this._initialized = false;
+};
+
+HX.SimpleProject.prototype =
+{
+    //override or assign these
+    onInit: function() {},
+    onUpdate: function(dt) {},
+
+    // automatically starts as well
+    init: function(canvas, initOptions)
+    {
+        if (this._initialized) throw "Already initialized project!";
+
+        HX.init(canvas, initOptions);
+        this._resizeCanvas();
+
+        this._scene = new HX.Scene();
+        this._camera = new HX.PerspectiveCamera();
+        this._scene.attach(this._camera);
+        this._renderer = new HX.Renderer();
+
+        var self = this;
+
+        window.addEventListener('resize', function()
+        {
+            self._resizeCanvas.call(self);
+        });
+
+        this.onInit();
+        this._initialized = true;
+        this.start();
+    },
+
+    start: function()
+    {
+        HX.onFrame.bind(this._update, this);
+    },
+
+    stop: function()
+    {
+        HX.onFrame.unbind(this._update);
+    },
+
+    get renderer()
+    {
+        return this._renderer;
+    },
+
+    get scene()
+    {
+        return this._scene;
+    },
+
+    set scene(value)
+    {
+        this._scene.detach(this._camera);
+        this._scene = value;
+        this._scene.attach(this._camera);
+    },
+
+    get camera()
+    {
+        return this._camera;
+    },
+
+    set camera(value)
+    {
+        this._scene.detach(this._camera);
+        this._camera = value;
+        this._scene.attach(this._camera);
+    },
+
+    _update: function(dt)
+    {
+        this.onUpdate(dt);
+
+        HX.clear();
+        this._renderer.render(this._camera, this._scene, dt)
+    },
+
+    _resizeCanvas: function()
+    {
+        this._canvas = document.getElementById('webglContainer');
+        this._canvas.width = this._canvas.clientWidth;
+        this._canvas.height = this._canvas.clientHeight;
+    }
+};
+/**
+ * @constructor
+ */
+HX.StatsDisplay = function(container)
+{
+    this._fpsCounter = new HX.FPSCounter(10);
+
+    this._div = document.createElement("div");
+    this._div.style.position = "absolute";
+    this._div.style.left = "5px";
+    this._div.style.top = "5px";
+    this._div.style.width = "100px";
+    //this._div.style.height = "100px";
+    this._div.style.background = "rgba(0, 0, 0, .5)";
+    this._div.style.padding = "0px 15px 5px 15px";
+    this._div.style.color = "#ffffff";
+    this._div.style.fontFamily = '"Lucida Console", Monaco, monospace';
+    this._div.style.fontSize = "small";
+
+    container = container || document.getElementsByTagName("body")[0];
+    container.appendChild(this._div);
+
+    HX.onPreFrame.bind(this._update, this);
+};
+
+HX.StatsDisplay.prototype =
+{
+    remove: function()
+    {
+        this._div.parentNode.removeChild(this._div);
+    },
+
+    _update: function(dt)
+    {
+        this._fpsCounter.update(dt);
+        this._div.innerHTML =
+            "<p>FPS: " + this._fpsCounter.averageFPS + "</p>" +
+            "<p style='font-size:x-small; width:100%; text-align:right;'>Helix " + HX.VERSION + "<br/></p>";
     }
 };

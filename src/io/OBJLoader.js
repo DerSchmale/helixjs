@@ -2,22 +2,42 @@
  *
  * @constructor
  */
-HX.OBJParser = function()
+HX.OBJLoader = function()
 {
     this._groupData = [];
     this._vertices = [];
     this._normals = [];
     this._uvs = [];
-    this._modelData = null;
     this._hasNormals = false;
 };
 
-HX.OBJParser.prototype =
+HX.OBJLoader.load = function(filename, onComplete, onFail)
 {
-    // must yield ModelData after load
-    dataType: function() { return HX.URLLoader.DATA_TEXT; },
+    var parser = new HX.OBJLoader();
+    var model = new HX.Model();
+    var urlLoader = new HX.URLLoader();
+    urlLoader.setType(HX.DATA_TEXT);
 
-    parse: function(data, onComplete)
+    urlLoader.onComplete = function(data)
+    {
+        var modelData = parser.parse(data, model);
+        model._setModelData(modelData);
+    };
+
+    urlLoader.onError = function(code)
+    {
+        console.warn("Failed loading " + filename + ". Error code: " + code);
+        if (onFail) onFail(code);
+    };
+
+    urlLoader.load(filename);
+
+    return model;
+};
+
+HX.OBJLoader.prototype =
+{
+    parse: function(data)
     {
         var lines = data.split("\n");
         var numLines = lines.length;
@@ -28,8 +48,7 @@ HX.OBJParser.prototype =
             this._parseLine(lines[line]);
         }
 
-        this._translateModelData();
-        onComplete(this._modelData);
+        return this._translateModelData();
     },
 
     _parseLine: function(line)
@@ -71,7 +90,7 @@ HX.OBJParser.prototype =
 
     _pushNewGroup: function(name)
     {
-        this._activeGroup = new HX.OBJParser.GroupData();
+        this._activeGroup = new HX.OBJLoader.GroupData();
         this._activeGroup.name = name || "Group"+this._groupData.length;
         this._groupData.push(this._activeGroup);
     },
@@ -79,11 +98,11 @@ HX.OBJParser.prototype =
     _parseFaceData: function(tokens)
     {
         // TODO: if numVertices > limit, start new group with same name
-        var face = new HX.OBJParser.FaceData();
+        var face = new HX.OBJLoader.FaceData();
         var numTokens = tokens.length;
 
         for (var i = 1; i < numTokens; ++i) {
-            var faceVertexData = new HX.OBJParser.FaceVertexData();
+            var faceVertexData = new HX.OBJLoader.FaceVertexData();
             face.vertices.push(faceVertexData);
 
             var indices = tokens[i].split("/");
@@ -115,15 +134,17 @@ HX.OBJParser.prototype =
 
     _translateModelData: function()
     {
-        this._modelData = new HX.ModelData();
+        var modelData = new HX.ModelData();
         var numGroups = this._groupData.length;
 
         for (var i = 0; i < numGroups; ++i) {
             var group = this._groupData[i];
             if (group.numIndices == 0) continue;
 
-            this._modelData.addMeshData(this._translateMeshData(group));
+            modelData.addMeshData(this._translateMeshData(group));
         }
+
+        return modelData;
     },
 
     _translateMeshData: function(group)
@@ -197,9 +218,7 @@ HX.OBJParser.prototype =
     }
 };
 
-HX.ModelLoader.registerParser("obj", HX.OBJParser);
-
-HX.OBJParser.FaceVertexData = function()
+HX.OBJLoader.FaceVertexData = function()
 {
     this.posX = 0;
     this.posY = 0;
@@ -212,7 +231,7 @@ HX.OBJParser.FaceVertexData = function()
     this._hash = "";
 };
 
-HX.OBJParser.FaceVertexData.prototype =
+HX.OBJLoader.FaceVertexData.prototype =
 {
     // instead of actually using the values, we should use the indices as keys
     getHash: function()
@@ -224,12 +243,12 @@ HX.OBJParser.FaceVertexData.prototype =
     }
 };
 
-HX.OBJParser.FaceData = function()
+HX.OBJLoader.FaceData = function()
 {
     this.vertices = []; // <FaceVertexData>
 };
 
-HX.OBJParser.GroupData = function()
+HX.OBJLoader.GroupData = function()
 {
     this.numIndices = 0;
     this.faces = [];    // <FaceData>

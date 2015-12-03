@@ -16,44 +16,49 @@ HX.URLLoader.DATA_BINARY = 1;
 
 HX.URLLoader.prototype =
 {
-    getType: function()
+    get type()
     {
         return this._type;
     },
 
-    setType: function(type)
+    set type(value)
     {
-        this._type = type;
+        this._type = value;
     },
 
-    getData: function ()
-    {
-        return this._data;
-    },
-
-    getMethod: function ()
+    get method()
     {
         return this._method;
     },
 
-    setMethod: function (value)
+    set method(value)
     {
         this._method = value;
     },
 
-    getTimeoutDuration: function ()
+    get timeoutDuration()
     {
         return this._timeout;
     },
 
-    setTimeoutDuration: function (milliseconds)
+    set timeoutDuration(milliseconds)
     {
         this._timeout = milliseconds;
     },
 
-    setParameters: function (params)
+    get parameters()
+    {
+        return this._params;
+    },
+
+    set parameters(params)
     {
         this._params = params;
+    },
+
+    get data()
+    {
+        return this._data;
     },
 
     load: function (url)
@@ -61,23 +66,23 @@ HX.URLLoader.prototype =
         var request = new XMLHttpRequest();
         request.open(this._method, url, true);
         request.timeout = this._timeout;
-        var _this = this;
+        var self = this;
 
         request.ontimeout = function ()
         {
-            _this.onError(HX.URLLoader.ERROR_TIME_OUT);
+            self.onError(HX.URLLoader.ERROR_TIME_OUT);
         };
 
         request.onreadystatechange = function ()
         {
             var DONE = this.DONE || 4;
             if (this.readyState === DONE) {
-                if (this.status == 200) {
+                if (this.status === 200) {
                     this._data = this._type == HX.URLLoader.DATA_TEXT? request.responseText : request.response;
-                    if (_this.onComplete) _this.onComplete(this._data);
+                    if (self.onComplete) self.onComplete(this._data);
                 }
-                else if (_this.onError)
-                    _this.onError(this.status);
+                else if (self.onError)
+                    self.onError(this.status);
             }
         };
 
@@ -85,7 +90,7 @@ HX.URLLoader.prototype =
     },
 
     // made to assign
-    onComplete: function (onComplete)
+    onComplete: function (data)
     {
     },
 

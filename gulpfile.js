@@ -12,6 +12,9 @@ var sourceFiles = [
 
     "src/math/*.js",
     "src/core/*.js",
+    "src/io/FileUtils.js",
+    "src/io/URLLoader.js",
+    "src/io/BulkURLLoader.js",
 
     // TODO: find better way for dependency management, but don't want something like exports
     // base classes first

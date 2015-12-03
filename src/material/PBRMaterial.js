@@ -16,8 +16,10 @@ HX.PBRMaterial = function()
     this._refractiveRatio = 1.0 / 1.33;
     this._transparent = false;
     this._refract = false;
+    this.alpha = 1.0;
 
     // trigger assignments
+    this.color = this._color;
     this.metallicness = this._metallicness;
     this.roughness = this._roughness;
     this.specularNormalReflection = this._specularNormalReflection;
@@ -40,6 +42,21 @@ HX.PBRMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
     {
+        // only used with TransparencyMode.ALPHA
+        alpha: {
+            get: function ()
+            {
+                return this._alpha;
+            },
+            set: function (value)
+            {
+                this._alpha = value;
+                this.setUniform("alpha", this._alpha);
+
+                this.transparencyMode = value === 1.0? HX.TransparencyMode.OPAQUE : HX.TransparencyMode.ALPHA;
+            }
+        },
+
         color: {
             get: function ()
             {

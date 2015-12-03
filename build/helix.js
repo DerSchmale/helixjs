@@ -367,7 +367,7 @@ HX.ShaderLibrary['point_light_spherical_fragment.glsl'] = 'varying vec2 uv;\nvar
 
 HX.ShaderLibrary['point_light_spherical_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute float hx_instanceID;\n\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform mat4 hx_projectionMatrix;\n\nuniform float lightRadius[LIGHTS_PER_BATCH];\nuniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\nuniform vec3 lightColor[LIGHTS_PER_BATCH];\nuniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nvoid main()\n{\n	int instance = int(hx_instanceID);\n	vec4 worldPos = hx_position;\n	lightPositionVar = lightWorldPosition[instance];\n	lightColorVar = lightColor[instance];\n	attenuationFixVar = attenuationFixFactors[instance];\n	worldPos.xyz *= lightRadius[instance];\n	worldPos.xyz += lightPositionVar;\n\n	vec4 viewPos = hx_viewMatrix * worldPos;\n	vec4 proj = hx_projectionMatrix * viewPos;\n\n	lightPositionVar = (hx_viewMatrix * vec4(lightPositionVar, 1.0)).xyz;\n\n	viewDir = viewPos.xyz / viewPos.z;\n\n	/* render as flat disk, prevent clipping */\n	proj /= proj.w;\n	proj.z = 0.0;\n	uv = proj.xy/proj.w * .5 + .5;\n	gl_Position = proj;\n}';
 
-HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = '#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#else\nuniform vec3 color;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\nvoid main()\n{\n    vec4 outputColor;\n    #ifdef COLOR_MAP\n        outputColor = texture2D(colorMap, texCoords);\n    #else\n        outputColor = vec4(color, 1.0);\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = 1.0 - (1.0 - roughnessOut) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = 1.0 - (1.0 - roughnessOut) * specSample.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
+HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = '#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\nuniform vec3 color;\nuniform float alpha;\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = 1.0 - (1.0 - roughnessOut) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = 1.0 - (1.0 - roughnessOut) * specSample.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
 
 HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
 
@@ -378,26 +378,6 @@ HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\n
 HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nvoid main()\n{\n    vec4 color = textureCube(hx_skybox, viewWorldDir);\n    gl_FragColor = hx_gammaToLinear(color);\n}';
 
 HX.ShaderLibrary['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_inverseViewProjectionMatrix;\nuniform vec3 hx_cameraWorldPosition;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube\nvoid main()\n{\n    vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n    viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n    gl_Position = vec4(hx_position.xy, 1.0, 1.0);  // make sure it\'s drawn behind everything else\n}';
-
-HX.ShaderLibrary['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
-
-HX.ShaderLibrary['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
-
-HX.ShaderLibrary['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['copy_with_separate_alpha_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform sampler2D alphaSource;\n\nvoid main()\n{\n   gl_FragColor = texture2D(sampler, uv);\n   gl_FragColor.a = texture2D(alphaSource, uv).a;\n}\n';
-
-HX.ShaderLibrary['debug_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(1.0 - hx_sampleLinearDepth(sampler, uv));\n}';
-
-HX.ShaderLibrary['debug_normals_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   vec4 data = texture2D(sampler, uv);\n   vec3 normal = hx_decodeNormal(data);\n   gl_FragColor = vec4(normal * .5 + .5, 1.0);\n}';
-
-HX.ShaderLibrary['linearize_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n#if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)\nuniform sampler2D sampler2; // contains the final precision in the w channel\n#endif\nuniform mat4 hx_projectionMatrix;\nuniform float hx_rcpCameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nfloat readDepth()\n{\n#ifdef HX_NO_DEPTH_TEXTURES\n    vec4 data;\n    data.xy = texture2D(sampler, uv).zw;\n    #ifdef HX_MAX_DEPTH_PRECISION\n        data.z = texture2D(sampler2, uv).w;\n        data.w = 0.0;\n        return hx_RGBA8ToFloat(data);\n    #else\n        return hx_RG8ToFloat(data.xy);\n    #endif\n#else\n    return texture2D(sampler, uv).x;\n#endif\n}\n\nvoid main()\n{\n	float depth = readDepth();\n	float linear = (hx_depthToViewZ(depth, hx_projectionMatrix) - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n	gl_FragColor = hx_floatToRGBA8(linear);\n}';
-
-HX.ShaderLibrary['linearize_depth_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['multiply_color_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform vec4 color;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * color;\n}\n';
-
-HX.ShaderLibrary['reproject_fragment.glsl'] = 'uniform sampler2D depth;\nuniform sampler2D source;\n\nvarying vec2 uv;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform mat4 reprojectionMatrix;\n\nvec2 reproject(vec2 uv, float z)\n{\n    // need z in NDC homogeneous coords to be able to unproject\n    vec4 ndc;\n    ndc.xy = uv.xy * 2.0 - 1.0;\n    // Unprojected Z will just end up being Z again, so could put this in the unprojection matrix itself?\n    ndc.z = (hx_projectionMatrix[2][2] * z + hx_projectionMatrix[3][2]) / -z;   // ndc = hom.z / hom.w\n    ndc.w = 1.0;\n    vec4 hom = reprojectionMatrix * ndc;\n    return hom.xy / hom.w * .5 + .5;\n}\n\nvoid main()\n{\n    float depth = hx_sampleLinearDepth(depth, uv);\n    float z = -hx_cameraNearPlaneDistance - depth * hx_cameraFrustumRange;\n    vec2 reprojectedUV = reproject(uv, z);\n    gl_FragColor = texture2D(source, reprojectedUV);\n}\n\n';
 
 HX.ShaderLibrary['bloom_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform float gaussianWeights[NUM_SAMPLES];\n\nvoid main()\n{\n	vec4 total = vec4(0.0);\n	vec2 sampleUV = uv;\n	vec2 stepSize = DIRECTION / SOURCE_RES;\n	float totalWeight = 0.0;\n	for (int i = 0; i < NUM_SAMPLES; ++i) {\n		total += texture2D(sourceTexture, sampleUV) * gaussianWeights[i];\n		sampleUV += stepSize;\n	}\n	gl_FragColor = total;\n}';
 
@@ -426,6 +406,26 @@ HX.ShaderLibrary['tonemap_filmic_fragment.glsl'] = '// This approach is by Jim H
 HX.ShaderLibrary['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_frontbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_frontbuffer, uv);\n	float l = log(.001 + hx_luminance(color));\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
 
 HX.ShaderLibrary['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	gl_FragColor = color / (1.0 + color);\n}';
+
+HX.ShaderLibrary['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
+
+HX.ShaderLibrary['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
+
+HX.ShaderLibrary['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['copy_with_separate_alpha_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform sampler2D alphaSource;\n\nvoid main()\n{\n   gl_FragColor = texture2D(sampler, uv);\n   gl_FragColor.a = texture2D(alphaSource, uv).a;\n}\n';
+
+HX.ShaderLibrary['debug_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(1.0 - hx_sampleLinearDepth(sampler, uv));\n}';
+
+HX.ShaderLibrary['debug_normals_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   vec4 data = texture2D(sampler, uv);\n   vec3 normal = hx_decodeNormal(data);\n   gl_FragColor = vec4(normal * .5 + .5, 1.0);\n}';
+
+HX.ShaderLibrary['linearize_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n#if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)\nuniform sampler2D sampler2; // contains the final precision in the w channel\n#endif\nuniform mat4 hx_projectionMatrix;\nuniform float hx_rcpCameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nfloat readDepth()\n{\n#ifdef HX_NO_DEPTH_TEXTURES\n    vec4 data;\n    data.xy = texture2D(sampler, uv).zw;\n    #ifdef HX_MAX_DEPTH_PRECISION\n        data.z = texture2D(sampler2, uv).w;\n        data.w = 0.0;\n        return hx_RGBA8ToFloat(data);\n    #else\n        return hx_RG8ToFloat(data.xy);\n    #endif\n#else\n    return texture2D(sampler, uv).x;\n#endif\n}\n\nvoid main()\n{\n	float depth = readDepth();\n	float linear = (hx_depthToViewZ(depth, hx_projectionMatrix) - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n	gl_FragColor = hx_floatToRGBA8(linear);\n}';
+
+HX.ShaderLibrary['linearize_depth_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['multiply_color_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform vec4 color;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * color;\n}\n';
+
+HX.ShaderLibrary['reproject_fragment.glsl'] = 'uniform sampler2D depth;\nuniform sampler2D source;\n\nvarying vec2 uv;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform mat4 reprojectionMatrix;\n\nvec2 reproject(vec2 uv, float z)\n{\n    // need z in NDC homogeneous coords to be able to unproject\n    vec4 ndc;\n    ndc.xy = uv.xy * 2.0 - 1.0;\n    // Unprojected Z will just end up being Z again, so could put this in the unprojection matrix itself?\n    ndc.z = (hx_projectionMatrix[2][2] * z + hx_projectionMatrix[3][2]) / -z;   // ndc = hom.z / hom.w\n    ndc.w = 1.0;\n    vec4 hom = reprojectionMatrix * ndc;\n    return hom.xy / hom.w * .5 + .5;\n}\n\nvoid main()\n{\n    float depth = hx_sampleLinearDepth(depth, uv);\n    float z = -hx_cameraNearPlaneDistance - depth * hx_cameraFrustumRange;\n    vec2 reprojectedUV = reproject(uv, z);\n    gl_FragColor = texture2D(source, reprojectedUV);\n}\n\n';
 
 HX.ShaderLibrary['snippets_general.glsl'] = '// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    value *= 255.0/256.0;\n    vec4 enc = fract(value * vec4(1.0, 255.0, 65025.0, 16581375.0));\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0)) * 256.0 / 255.0;\n}\n\nvec2 hx_floatToRG8(float value)\n{\n// scale to encodable range [0, 1)\n    value *= .99;\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc = fract(enc);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0)) / .99;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    #ifdef HX_NO_DEPTH_TEXTURES\n        data.xy = data.xy*4.0 - 2.0;\n        float f = dot(data.xy, data.xy);\n        float g = sqrt(1.0 - f * .25);\n        vec3 normal;\n        normal.xy = data.xy * g;\n        normal.z = 1.0 - f * .5;\n        return normal;\n    #else\n    	return normalize(data.xyz - .5);\n    #endif\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nfloat hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\n// for use when sampling gbuffer data for lighting\nvoid hx_decodeReflectionData(in vec4 colorSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)\n{\n    //prevent from being 0\n    roughness = clamp(specularSample.x, .01, 1.0);\n	metallicness = specularSample.z;\n    normalSpecularReflectance = mix(vec3(specularSample.y * .2), colorSample.xyz, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}';
 
@@ -4046,101 +4046,6 @@ HX.Signal.prototype =
             this._listeners[i](payload);
     }
 };
-HX.URLLoader = function ()
-{
-    this._params = undefined;
-    this._data = null;
-    this._timeout = 5000;
-    this._method = 'GET';
-    this._type = HX.URLLoader.DATA_TEXT;
-};
-
-HX.URLLoader.ERROR_TIME_OUT = 408;
-HX.URLLoader.METHOD_GET = 'get';
-HX.URLLoader.METHOD_POST = 'post';
-
-HX.URLLoader.DATA_TEXT = 0;
-HX.URLLoader.DATA_BINARY = 1;
-
-HX.URLLoader.prototype =
-{
-    getType: function()
-    {
-        return this._type;
-    },
-
-    setType: function(type)
-    {
-        this._type = type;
-    },
-
-    getData: function ()
-    {
-        return this._data;
-    },
-
-    getMethod: function ()
-    {
-        return this._method;
-    },
-
-    setMethod: function (value)
-    {
-        this._method = value;
-    },
-
-    getTimeoutDuration: function ()
-    {
-        return this._timeout;
-    },
-
-    setTimeoutDuration: function (milliseconds)
-    {
-        this._timeout = milliseconds;
-    },
-
-    setParameters: function (params)
-    {
-        this._params = params;
-    },
-
-    load: function (url)
-    {
-        var request = new XMLHttpRequest();
-        request.open(this._method, url, true);
-        request.timeout = this._timeout;
-        var _this = this;
-
-        request.ontimeout = function ()
-        {
-            _this.onError(HX.URLLoader.ERROR_TIME_OUT);
-        };
-
-        request.onreadystatechange = function ()
-        {
-            var DONE = this.DONE || 4;
-            if (this.readyState === DONE) {
-                if (this.status == 200) {
-                    this._data = this._type == HX.URLLoader.DATA_TEXT? request.responseText : request.response;
-                    if (_this.onComplete) _this.onComplete(this._data);
-                }
-                else if (_this.onError)
-                    _this.onError(this.status);
-            }
-        };
-
-        request.send(this._params);
-    },
-
-    // made to assign
-    onComplete: function (onComplete)
-    {
-    },
-
-    onError: function (errorStatus)
-    {
-    }
-};
 /**
  *
  * @constructor
@@ -4181,6 +4086,236 @@ HX.VertexBuffer.prototype = {
     bind: function()
     {
         HX.GL.bindBuffer(HX.GL.ARRAY_BUFFER, this._buffer);
+    }
+};
+HX.FileUtils =
+{
+    extractPath: function(filename)
+    {
+        var index = filename.lastIndexOf("/");
+        return index >= 0? filename.substr(0, index + 1) : "";
+    }
+};
+HX.URLLoader = function ()
+{
+    this._params = undefined;
+    this._data = null;
+    this._timeout = 5000;
+    this._method = 'GET';
+    this._type = HX.URLLoader.DATA_TEXT;
+};
+
+HX.URLLoader.ERROR_TIME_OUT = 408;
+HX.URLLoader.METHOD_GET = 'get';
+HX.URLLoader.METHOD_POST = 'post';
+
+HX.URLLoader.DATA_TEXT = 0;
+HX.URLLoader.DATA_BINARY = 1;
+
+HX.URLLoader.prototype =
+{
+    get type()
+    {
+        return this._type;
+    },
+
+    set type(value)
+    {
+        this._type = value;
+    },
+
+    get method()
+    {
+        return this._method;
+    },
+
+    set method(value)
+    {
+        this._method = value;
+    },
+
+    get timeoutDuration()
+    {
+        return this._timeout;
+    },
+
+    set timeoutDuration(milliseconds)
+    {
+        this._timeout = milliseconds;
+    },
+
+    get parameters()
+    {
+        return this._params;
+    },
+
+    set parameters(params)
+    {
+        this._params = params;
+    },
+
+    get data()
+    {
+        return this._data;
+    },
+
+    load: function (url)
+    {
+        var request = new XMLHttpRequest();
+        request.open(this._method, url, true);
+        request.timeout = this._timeout;
+        var self = this;
+
+        request.ontimeout = function ()
+        {
+            self.onError(HX.URLLoader.ERROR_TIME_OUT);
+        };
+
+        request.onreadystatechange = function ()
+        {
+            var DONE = this.DONE || 4;
+            if (this.readyState === DONE) {
+                if (this.status === 200) {
+                    this._data = this._type == HX.URLLoader.DATA_TEXT? request.responseText : request.response;
+                    if (self.onComplete) self.onComplete(this._data);
+                }
+                else if (self.onError)
+                    self.onError(this.status);
+            }
+        };
+
+        request.send(this._params);
+    },
+
+    // made to assign
+    onComplete: function (data)
+    {
+    },
+
+    onError: function (errorStatus)
+    {
+    }
+};
+HX.BulkURLLoader = function ()
+{
+    this._params = undefined;
+    this._data = null;
+    this._timeout = 5000;
+    this._method = 'GET';
+    this._type = HX.URLLoader.DATA_TEXT;
+    this._abortOnFail = false;
+
+    this._files = null;
+    this._index = 0;
+    this._data = null;
+};
+
+HX.BulkURLLoader.prototype =
+{
+    getData: function(filename)
+    {
+        return this._data[filename];
+    },
+
+    get type()
+    {
+        return this._type;
+    },
+
+    set type(value)
+    {
+        this._type = value;
+    },
+
+    get abortOnFail()
+    {
+        return this._abortOnFail;
+    },
+
+    set abortOnFail(value)
+    {
+        this._abortOnFail = value;
+    },
+
+    get method()
+    {
+        return this._method;
+    },
+
+    set method(value)
+    {
+        this._method = value;
+    },
+
+    get timeoutDuration()
+    {
+        return this._timeout;
+    },
+
+    set timeoutDuration(milliseconds)
+    {
+        this._timeout = milliseconds;
+    },
+
+    get parameters()
+    {
+        return this._params;
+    },
+
+    set parameters(params)
+    {
+        this._params = params;
+    },
+
+    load: function(files)
+    {
+        this._files = files;
+        this._data = [];
+        this._index = 0;
+
+        this._loadQueued();
+    },
+
+    _loadQueued: function()
+    {
+        if (this._index === this._files.length) {
+            this.onComplete();
+            return;
+        }
+
+        var urlLoader = new HX.URLLoader();
+        urlLoader.parameters = this._params;
+        urlLoader.timeoutDuration = this._timeout;
+        urlLoader.method = this._method;
+        urlLoader.type = this._type;
+
+        var self = this;
+        urlLoader.onComplete = function(data)
+        {
+            var filename = self._files[self._index];
+            self._data[filename] = data;
+            ++self._index;
+            self._loadQueued();
+        };
+
+        urlLoader.onFail = function() {
+            self.onFail();
+            if (self._abortOnFail)
+                return;
+            else
+                urlLoader.onComplete(null);
+        };
+
+        urlLoader.load(this._files[this._index]);
+    },
+
+    // made to assign
+    onComplete: function ()
+    {
+    },
+
+    onError: function (errorStatus)
+    {
     }
 };
 /**
@@ -4950,6 +5085,10 @@ HX.Scene.prototype = {
 };
 
 
+/**
+ *
+ * @constructor
+ */
 HX.GroupNode = function()
 {
     HX.SceneNode.call(this);
@@ -5887,8 +6026,10 @@ HX.PBRMaterial = function()
     this._refractiveRatio = 1.0 / 1.33;
     this._transparent = false;
     this._refract = false;
+    this.alpha = 1.0;
 
     // trigger assignments
+    this.color = this._color;
     this.metallicness = this._metallicness;
     this.roughness = this._roughness;
     this.specularNormalReflection = this._specularNormalReflection;
@@ -5911,6 +6052,21 @@ HX.PBRMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
     {
+        // only used with TransparencyMode.ALPHA
+        alpha: {
+            get: function ()
+            {
+                return this._alpha;
+            },
+            set: function (value)
+            {
+                this._alpha = value;
+                this.setUniform("alpha", this._alpha);
+
+                this.transparencyMode = value === 1.0? HX.TransparencyMode.OPAQUE : HX.TransparencyMode.ALPHA;
+            }
+        },
+
         color: {
             get: function ()
             {
@@ -11330,69 +11486,114 @@ HX.FilmicToneMapEffect.prototype._createToneMapPass = function()
         HX.ShaderLibrary.get("snippets_tonemap.glsl", defines, extensions) + "\n" + HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl")
     );
 };
+HX.OBJLoader = {
+    load: function (filename, onComplete, onFail)
+    {
+        var objParser = new HX.OBJParser();
+        var groupNode = new HX.GroupNode();
+
+        var path = HX.FileUtils.extractPath(filename);
+
+        var urlLoader = new HX.URLLoader();
+
+        urlLoader.onComplete = function (data)
+        {
+            objParser.parse(data, groupNode, path, onComplete, onFail);
+        };
+
+        urlLoader.onError = function (code)
+        {
+            console.warn("Failed loading " + filename + ". Error code: " + code);
+            if (onFail) onFail(code);
+        };
+
+        urlLoader.load(filename);
+
+        return groupNode;
+    }
+};
+
 /**
  *
  * @constructor
  */
-HX.OBJLoader = function()
+HX.OBJParser = function()
 {
     this._groupData = [];
     this._vertices = [];
     this._normals = [];
     this._uvs = [];
     this._hasNormals = false;
+    this._materialLib = null;
+    this._defaultMaterial = new HX.PBRMaterial();
+    this._onComplete = null;
+    this._target = null;
+    this._mtlLibFile = null;
 };
 
-HX.OBJLoader.load = function(filename, onComplete, onFail)
+HX.OBJParser.prototype =
 {
-    var parser = new HX.OBJLoader();
-    var model = new HX.Model();
-    var urlLoader = new HX.URLLoader();
-    urlLoader.setType(HX.DATA_TEXT);
-
-    urlLoader.onComplete = function(data)
-    {
-        var modelData = parser.parse(data, model);
-        model._setModelData(modelData);
-    };
-
-    urlLoader.onError = function(code)
-    {
-        console.warn("Failed loading " + filename + ". Error code: " + code);
-        if (onFail) onFail(code);
-    };
-
-    urlLoader.load(filename);
-
-    return model;
-};
-
-HX.OBJLoader.prototype =
-{
-    parse: function(data)
+    parse: function(data, target, path, onComplete, onFail)
     {
         var lines = data.split("\n");
         var numLines = lines.length;
 
-        this._pushNewGroup("default");
+        this._onComplete = onComplete;
+        this._target = target;
 
-        for (var line = 0; line < numLines; ++line) {
-            this._parseLine(lines[line]);
+        this._pushNewGroup("hx_default");
+
+        for (var i = 0; i < numLines; ++i) {
+            var line = lines[i].replace(/^\s+|\s+$/g, "");
+            this._parseLine(line, path);
         }
 
-        return this._translateModelData();
+        if (this._mtlLibFile)
+            this._loadMTLLib(path + this._mtlLibFile, onFail);
+        else
+            this._finish();
+    },
+
+    _finish: function()
+    {
+        this._translateModelData();
+
+        if (this._onComplete) this._onComplete();
+    },
+
+    _loadMTLLib: function(filename, onFail)
+    {
+        var urlLoader = new HX.URLLoader();
+        var mtlParser = new HX.MTLParser();
+        var self = this;
+
+        urlLoader.onComplete = function (data)
+        {
+            self._materialLib = mtlParser.parse(data, HX.FileUtils.extractPath(filename));
+            self._finish();
+        };
+
+        urlLoader.onError = function (code)
+        {
+            console.warn("Failed loading " + filename + ". Error code: " + code);
+            if (onFail) onFail(code);
+        };
+
+        urlLoader.load(filename);
     },
 
     _parseLine: function(line)
     {
         // skip line
-        if (line.length == 0 || line.charAt(0) == "#") return;
-        var tokens = line.split(" ");
+        if (line.length === 0 || line.charAt(0) === "#") return;
+        var tokens = line.split(/\s+/);
 
-        switch (tokens[0]) {
-            // ignore mtllib for now
+        switch (tokens[0].toLowerCase()) {
+            case "mtllib":
+                this._mtlLibFile = tokens[1];
+                break;
             case "usemtl":
-                this._pushNewGroup();
+                this._setActiveSubGroup(tokens[1]);
                 break;
             case "v":
                 this._vertices.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
@@ -11404,6 +11605,7 @@ HX.OBJLoader.prototype =
                 this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
                 break;
             case "o":
+                // TODO: push new object
                 this._pushNewGroup(tokens[1]);
                 break;
             case "g":
@@ -11414,32 +11616,38 @@ HX.OBJLoader.prototype =
                 break;
             default:
                 // ignore following tags:
-                // mtllib, g, s
+                // s
                 console.log("OBJ tag ignored or unsupported: " + tokens[0]);
-                break;
         }
     },
 
     _pushNewGroup: function(name)
     {
-        this._activeGroup = new HX.OBJLoader.GroupData();
+        this._activeGroup = new HX.OBJParser.GroupData();
         this._activeGroup.name = name || "Group"+this._groupData.length;
+
         this._groupData.push(this._activeGroup);
+        this._setActiveSubGroup("hx_default");
+    },
+
+    _setActiveSubGroup: function(name)
+    {
+        this._activeGroup.subgroups[name] = this._activeGroup.subgroups[name] || new HX.OBJParser.SubGroupData();
+        this._activeSubGroup = this._activeGroup.subgroups[name];
     },
 
     _parseFaceData: function(tokens)
     {
-        // TODO: if numVertices > limit, start new group with same name
-        var face = new HX.OBJLoader.FaceData();
+        var face = new HX.OBJParser.FaceData();
         var numTokens = tokens.length;
 
         for (var i = 1; i < numTokens; ++i) {
-            var faceVertexData = new HX.OBJLoader.FaceVertexData();
+            var faceVertexData = new HX.OBJParser.FaceVertexData();
             face.vertices.push(faceVertexData);
 
             var indices = tokens[i].split("/");
             var index = (indices[0] - 1) * 3;
-
+            
             faceVertexData.posX = this._vertices[index];
             faceVertexData.posY = this._vertices[index + 1];
             faceVertexData.posZ = this._vertices[index + 2];
@@ -11460,23 +11668,38 @@ HX.OBJLoader.prototype =
             }
         }
 
-        this._activeGroup.faces.push(face);
-        this._activeGroup.numIndices += tokens.length == 4 ? 3 : 6;
+        this._activeSubGroup.faces.push(face);
+        this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
     },
 
     _translateModelData: function()
     {
         var modelData = new HX.ModelData();
         var numGroups = this._groupData.length;
+        var materials = [];
+        var model = new HX.Model();
 
         for (var i = 0; i < numGroups; ++i) {
             var group = this._groupData[i];
-            if (group.numIndices == 0) continue;
 
-            modelData.addMeshData(this._translateMeshData(group));
+            for (var key in group.subgroups)
+            {
+                if (group.subgroups.hasOwnProperty(key)) {
+                    var subgroup = group.subgroups[key];
+                    if (subgroup.numIndices === 0) continue;
+                    modelData.addMeshData(this._translateMeshData(subgroup));
+
+                    var material = this._materialLib? this._materialLib[key] : null;
+                    material = material || this._defaultMaterial;
+                    materials.push(material);
+                }
+            }
         }
 
-        return modelData;
+        model._setModelData(modelData);
+
+        var modelInstance = new HX.ModelInstance(model, materials);
+        this._target.attach(modelInstance);
     },
 
     _translateMeshData: function(group)
@@ -11509,7 +11732,7 @@ HX.OBJLoader.prototype =
             indices[currentIndex+2] = realIndices[faceVerts[2].getHash()].index;
             currentIndex += 3;
 
-            if (numVerts == 4) {
+            if (numVerts === 4) {
                 indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
                 indices[currentIndex+1] = realIndices[faceVerts[2].getHash()].index;
                 indices[currentIndex+2] = realIndices[faceVerts[3].getHash()].index;
@@ -11550,7 +11773,7 @@ HX.OBJLoader.prototype =
     }
 };
 
-HX.OBJLoader.FaceVertexData = function()
+HX.OBJParser.FaceVertexData = function()
 {
     this.posX = 0;
     this.posY = 0;
@@ -11563,7 +11786,7 @@ HX.OBJLoader.FaceVertexData = function()
     this._hash = "";
 };
 
-HX.OBJLoader.FaceVertexData.prototype =
+HX.OBJParser.FaceVertexData.prototype =
 {
     // instead of actually using the values, we should use the indices as keys
     getHash: function()
@@ -11575,16 +11798,80 @@ HX.OBJLoader.FaceVertexData.prototype =
     }
 };
 
-HX.OBJLoader.FaceData = function()
+HX.OBJParser.FaceData = function()
 {
     this.vertices = []; // <FaceVertexData>
 };
 
-HX.OBJLoader.GroupData = function()
+HX.OBJParser.SubGroupData = function()
 {
     this.numIndices = 0;
     this.faces = [];    // <FaceData>
+};
+
+HX.OBJParser.GroupData = function()
+{
+    this.subgroups = [];
     this.name = "";    // <FaceData>
+    this._activeMaterial = null;
+};
+
+HX.MTLParser = function()
+{
+    this._materials = [];
+    this._textures = [];
+};
+
+HX.MTLParser.prototype =
+{
+    parse: function(data, path)
+    {
+        var lines = data.split("\n");
+        var numLines = lines.length;
+
+        for (var i = 0; i < numLines; ++i) {
+            var line = lines[i].replace(/^\s+|\s+$/g, "");
+            this._parseLine(line, path);
+        }
+
+        return this._materials;
+    },
+
+    _parseLine: function(line, path)
+    {
+        // skip line
+        if (line.length === 0 || line.charAt(0) === "#") return;
+        var tokens = line.split(/\s+/);
+
+        switch (tokens[0].toLowerCase()) {
+            case "newmtl":
+                this._activeMaterial = new HX.PBRMaterial();
+                this._materials[tokens[1]] = this._activeMaterial;
+                break;
+            case "ns":
+                var specularPower = parseFloat(tokens[1]);
+                this._activeMaterial.roughness = Math.sqrt(2.0/(specularPower + 2.0));
+                break;
+            case "kd":
+                this._activeMaterial.color = new HX.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+                break;
+            case "map_kd":
+                this._activeMaterial.colorMap = this._getTexture(path + tokens[1]);
+                break;
+            case "map_bump":
+            case "bump":
+                this._activeMaterial.normalMap = this._getTexture(path + tokens[1]);
+                break;
+            default:
+                console.log("MTL tag ignored or unsupported: " + tokens[0]);
+        }
+    },
+
+    _getTexture: function(url)
+    {
+        this._textures[url] = this._textures[url] || HX.Texture2DLoader.load(url);
+        return this._textures[url];
+    }
 };
 /**
  * Our own material format, containing code for several passes

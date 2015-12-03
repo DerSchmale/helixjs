@@ -6,9 +6,10 @@ varying vec3 normal;
 
 #ifdef COLOR_MAP
 uniform sampler2D colorMap;
-#else
-uniform vec3 color;
 #endif
+
+uniform vec3 color;
+uniform float alpha;
 
 #ifdef NORMAL_MAP
 varying vec3 tangent;
@@ -27,11 +28,10 @@ uniform sampler2D specularMap;
 
 void main()
 {
-    vec4 outputColor;
+    vec4 outputColor = vec4(color, alpha);
+
     #ifdef COLOR_MAP
-        outputColor = texture2D(colorMap, texCoords);
-    #else
-        outputColor = vec4(color, 1.0);
+        outputColor *= texture2D(colorMap, texCoords);
     #endif
 
     float metallicnessOut = metallicness;

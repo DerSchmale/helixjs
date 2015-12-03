@@ -206,6 +206,10 @@ HX.Scene.prototype = {
 };
 
 
+/**
+ *
+ * @constructor
+ */
 HX.GroupNode = function()
 {
     HX.SceneNode.call(this);

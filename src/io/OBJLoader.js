@@ -1,66 +1,111 @@
+HX.OBJLoader = {
+    load: function (filename, onComplete, onFail)
+    {
+        var objParser = new HX.OBJParser();
+        var groupNode = new HX.GroupNode();
+
+        var path = HX.FileUtils.extractPath(filename);
+
+        var urlLoader = new HX.URLLoader();
+
+        urlLoader.onComplete = function (data)
+        {
+            objParser.parse(data, groupNode, path, onComplete, onFail);
+        };
+
+        urlLoader.onError = function (code)
+        {
+            console.warn("Failed loading " + filename + ". Error code: " + code);
+            if (onFail) onFail(code);
+        };
+
+        urlLoader.load(filename);
+
+        return groupNode;
+    }
+};
+
 /**
  *
  * @constructor
  */
-HX.OBJLoader = function()
+HX.OBJParser = function()
 {
     this._groupData = [];
     this._vertices = [];
     this._normals = [];
     this._uvs = [];
     this._hasNormals = false;
+    this._materialLib = null;
+    this._defaultMaterial = new HX.PBRMaterial();
+    this._onComplete = null;
+    this._target = null;
+    this._mtlLibFile = null;
 };
 
-HX.OBJLoader.load = function(filename, onComplete, onFail)
+HX.OBJParser.prototype =
 {
-    var parser = new HX.OBJLoader();
-    var model = new HX.Model();
-    var urlLoader = new HX.URLLoader();
-    urlLoader.setType(HX.DATA_TEXT);
-
-    urlLoader.onComplete = function(data)
-    {
-        var modelData = parser.parse(data, model);
-        model._setModelData(modelData);
-    };
-
-    urlLoader.onError = function(code)
-    {
-        console.warn("Failed loading " + filename + ". Error code: " + code);
-        if (onFail) onFail(code);
-    };
-
-    urlLoader.load(filename);
-
-    return model;
-};
-
-HX.OBJLoader.prototype =
-{
-    parse: function(data)
+    parse: function(data, target, path, onComplete, onFail)
     {
         var lines = data.split("\n");
         var numLines = lines.length;
 
-        this._pushNewGroup("default");
+        this._onComplete = onComplete;
+        this._target = target;
 
-        for (var line = 0; line < numLines; ++line) {
-            this._parseLine(lines[line]);
+        this._pushNewGroup("hx_default");
+
+        for (var i = 0; i < numLines; ++i) {
+            var line = lines[i].replace(/^\s+|\s+$/g, "");
+            this._parseLine(line, path);
         }
 
-        return this._translateModelData();
+        if (this._mtlLibFile)
+            this._loadMTLLib(path + this._mtlLibFile, onFail);
+        else
+            this._finish();
+    },
+
+    _finish: function()
+    {
+        this._translateModelData();
+
+        if (this._onComplete) this._onComplete();
+    },
+
+    _loadMTLLib: function(filename, onFail)
+    {
+        var urlLoader = new HX.URLLoader();
+        var mtlParser = new HX.MTLParser();
+        var self = this;
+
+        urlLoader.onComplete = function (data)
+        {
+            self._materialLib = mtlParser.parse(data, HX.FileUtils.extractPath(filename));
+            self._finish();
+        };
+
+        urlLoader.onError = function (code)
+        {
+            console.warn("Failed loading " + filename + ". Error code: " + code);
+            if (onFail) onFail(code);
+        };
+
+        urlLoader.load(filename);
     },
 
     _parseLine: function(line)
     {
         // skip line
-        if (line.length == 0 || line.charAt(0) == "#") return;
-        var tokens = line.split(" ");
+        if (line.length === 0 || line.charAt(0) === "#") return;
+        var tokens = line.split(/\s+/);
 
-        switch (tokens[0]) {
-            // ignore mtllib for now
+        switch (tokens[0].toLowerCase()) {
+            case "mtllib":
+                this._mtlLibFile = tokens[1];
+                break;
             case "usemtl":
-                this._pushNewGroup();
+                this._setActiveSubGroup(tokens[1]);
                 break;
             case "v":
                 this._vertices.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
@@ -72,6 +117,7 @@ HX.OBJLoader.prototype =
                 this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
                 break;
             case "o":
+                // TODO: push new object
                 this._pushNewGroup(tokens[1]);
                 break;
             case "g":
@@ -82,32 +128,38 @@ HX.OBJLoader.prototype =
                 break;
             default:
                 // ignore following tags:
-                // mtllib, g, s
+                // s
                 console.log("OBJ tag ignored or unsupported: " + tokens[0]);
-                break;
         }
     },
 
     _pushNewGroup: function(name)
     {
-        this._activeGroup = new HX.OBJLoader.GroupData();
+        this._activeGroup = new HX.OBJParser.GroupData();
         this._activeGroup.name = name || "Group"+this._groupData.length;
+
         this._groupData.push(this._activeGroup);
+        this._setActiveSubGroup("hx_default");
+    },
+
+    _setActiveSubGroup: function(name)
+    {
+        this._activeGroup.subgroups[name] = this._activeGroup.subgroups[name] || new HX.OBJParser.SubGroupData();
+        this._activeSubGroup = this._activeGroup.subgroups[name];
     },
 
     _parseFaceData: function(tokens)
     {
-        // TODO: if numVertices > limit, start new group with same name
-        var face = new HX.OBJLoader.FaceData();
+        var face = new HX.OBJParser.FaceData();
         var numTokens = tokens.length;
 
         for (var i = 1; i < numTokens; ++i) {
-            var faceVertexData = new HX.OBJLoader.FaceVertexData();
+            var faceVertexData = new HX.OBJParser.FaceVertexData();
             face.vertices.push(faceVertexData);
 
             var indices = tokens[i].split("/");
             var index = (indices[0] - 1) * 3;
-
+            
             faceVertexData.posX = this._vertices[index];
             faceVertexData.posY = this._vertices[index + 1];
             faceVertexData.posZ = this._vertices[index + 2];
@@ -128,23 +180,38 @@ HX.OBJLoader.prototype =
             }
         }
 
-        this._activeGroup.faces.push(face);
-        this._activeGroup.numIndices += tokens.length == 4 ? 3 : 6;
+        this._activeSubGroup.faces.push(face);
+        this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
     },
 
     _translateModelData: function()
     {
         var modelData = new HX.ModelData();
         var numGroups = this._groupData.length;
+        var materials = [];
+        var model = new HX.Model();
 
         for (var i = 0; i < numGroups; ++i) {
             var group = this._groupData[i];
-            if (group.numIndices == 0) continue;
 
-            modelData.addMeshData(this._translateMeshData(group));
+            for (var key in group.subgroups)
+            {
+                if (group.subgroups.hasOwnProperty(key)) {
+                    var subgroup = group.subgroups[key];
+                    if (subgroup.numIndices === 0) continue;
+                    modelData.addMeshData(this._translateMeshData(subgroup));
+
+                    var material = this._materialLib? this._materialLib[key] : null;
+                    material = material || this._defaultMaterial;
+                    materials.push(material);
+                }
+            }
         }
 
-        return modelData;
+        model._setModelData(modelData);
+
+        var modelInstance = new HX.ModelInstance(model, materials);
+        this._target.attach(modelInstance);
     },
 
     _translateMeshData: function(group)
@@ -177,7 +244,7 @@ HX.OBJLoader.prototype =
             indices[currentIndex+2] = realIndices[faceVerts[2].getHash()].index;
             currentIndex += 3;
 
-            if (numVerts == 4) {
+            if (numVerts === 4) {
                 indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
                 indices[currentIndex+1] = realIndices[faceVerts[2].getHash()].index;
                 indices[currentIndex+2] = realIndices[faceVerts[3].getHash()].index;
@@ -218,7 +285,7 @@ HX.OBJLoader.prototype =
     }
 };
 
-HX.OBJLoader.FaceVertexData = function()
+HX.OBJParser.FaceVertexData = function()
 {
     this.posX = 0;
     this.posY = 0;
@@ -231,7 +298,7 @@ HX.OBJLoader.FaceVertexData = function()
     this._hash = "";
 };
 
-HX.OBJLoader.FaceVertexData.prototype =
+HX.OBJParser.FaceVertexData.prototype =
 {
     // instead of actually using the values, we should use the indices as keys
     getHash: function()
@@ -243,14 +310,78 @@ HX.OBJLoader.FaceVertexData.prototype =
     }
 };
 
-HX.OBJLoader.FaceData = function()
+HX.OBJParser.FaceData = function()
 {
     this.vertices = []; // <FaceVertexData>
 };
 
-HX.OBJLoader.GroupData = function()
+HX.OBJParser.SubGroupData = function()
 {
     this.numIndices = 0;
     this.faces = [];    // <FaceData>
+};
+
+HX.OBJParser.GroupData = function()
+{
+    this.subgroups = [];
     this.name = "";    // <FaceData>
+    this._activeMaterial = null;
+};
+
+HX.MTLParser = function()
+{
+    this._materials = [];
+    this._textures = [];
+};
+
+HX.MTLParser.prototype =
+{
+    parse: function(data, path)
+    {
+        var lines = data.split("\n");
+        var numLines = lines.length;
+
+        for (var i = 0; i < numLines; ++i) {
+            var line = lines[i].replace(/^\s+|\s+$/g, "");
+            this._parseLine(line, path);
+        }
+
+        return this._materials;
+    },
+
+    _parseLine: function(line, path)
+    {
+        // skip line
+        if (line.length === 0 || line.charAt(0) === "#") return;
+        var tokens = line.split(/\s+/);
+
+        switch (tokens[0].toLowerCase()) {
+            case "newmtl":
+                this._activeMaterial = new HX.PBRMaterial();
+                this._materials[tokens[1]] = this._activeMaterial;
+                break;
+            case "ns":
+                var specularPower = parseFloat(tokens[1]);
+                this._activeMaterial.roughness = Math.sqrt(2.0/(specularPower + 2.0));
+                break;
+            case "kd":
+                this._activeMaterial.color = new HX.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+                break;
+            case "map_kd":
+                this._activeMaterial.colorMap = this._getTexture(path + tokens[1]);
+                break;
+            case "map_bump":
+            case "bump":
+                this._activeMaterial.normalMap = this._getTexture(path + tokens[1]);
+                break;
+            default:
+                console.log("MTL tag ignored or unsupported: " + tokens[0]);
+        }
+    },
+
+    _getTexture: function(url)
+    {
+        this._textures[url] = this._textures[url] || HX.Texture2DLoader.load(url);
+        return this._textures[url];
+    }
 };

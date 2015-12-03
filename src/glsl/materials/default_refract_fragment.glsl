@@ -31,7 +31,7 @@ uniform float refractiveRatio;   // the ratio of refractive indices
 // TODO: could raytrace as an alternative
 vec2 getRefractedUVOffset(vec3 normal, float farZ)
 {
-    vec3 refractionVector = refract(normalize(vec3(0.0, 0.0, -1.0)), normal, refractiveRatio);
+    vec3 refractionVector = refract(normalize(vec3(0.0, 0.0, -1.0)), normal, refractiveRatio) * .5;
     return -refractionVector.xy / viewVector.z;
 }
 

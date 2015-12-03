@@ -1,6 +1,9 @@
-HX.MaterialUtils =
+/**
+ * Our own material format, containing code for several passes
+ */
+HX.XMLMaterialLoader =
 {
-    loadXML: function(url, onComplete, onError)
+    load: function(url, onComplete, onError)
     {
         var material = new HX.Material();
         var urlLoader = new HX.URLLoader();
@@ -9,7 +12,7 @@ HX.MaterialUtils =
             var parser = new DOMParser();
             var xml = parser.parseFromString(data, "text/xml");
 
-            HX.MaterialUtils._parseXMLTo(xml, material);
+            HX.XMLMaterialLoader._parseXMLTo(xml, material);
 
             if (onComplete) onComplete();
         };
@@ -24,20 +27,20 @@ HX.MaterialUtils =
         return material;
     },
 
-    parseFromXML: function(xml)
+    parse: function(xml)
     {
         var material = new HX.Material();
-        HX.MaterialUtils._parseXMLTo(xml, material);
+        HX.XMLMaterialLoader._parseXMLTo(xml, material);
         return material;
     },
 
     _parseXMLTo: function(xml, material)
     {
-        HX.MaterialUtils._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_PASS, "geometry", material);
-        HX.MaterialUtils._parsePassFromXML(xml, HX.MaterialPass.POST_LIGHT_PASS, "preEffect", material);
-        HX.MaterialUtils._parsePassFromXML(xml, HX.MaterialPass.POST_PASS, "post", material);
+        HX.XMLMaterialLoader._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_PASS, "geometry", material);
+        HX.XMLMaterialLoader._parsePassFromXML(xml, HX.MaterialPass.POST_LIGHT_PASS, "preEffect", material);
+        HX.XMLMaterialLoader._parsePassFromXML(xml, HX.MaterialPass.POST_PASS, "post", material);
 
-        material.transparencyMode = HX.MaterialUtils._translateTransparencyMode(xml.documentElement.getAttribute("transparencyMode"));
+        material.transparencyMode = HX.XMLMaterialLoader._translateTransparencyMode(xml.documentElement.getAttribute("transparencyMode"));
 
         var uniforms = xml.getElementsByTagName("uniforms")[0];
 
@@ -75,8 +78,8 @@ HX.MaterialUtils =
 
     _translateProperty: function(value)
     {
-        if (!HX.MaterialUtils._properties) {
-            HX.MaterialUtils._properties = {
+        if (!HX.XMLMaterialLoader._properties) {
+            HX.XMLMaterialLoader._properties = {
                 back: HX.GL.BACK,
                 front: HX.CullMode.FRONT,
                 both: HX.CullMode.ALL,
@@ -100,7 +103,7 @@ HX.MaterialUtils =
             }
         }
 
-        return HX.MaterialUtils._properties[value];
+        return HX.XMLMaterialLoader._properties[value];
     },
 
     _decodeHTML: function(value)
@@ -124,19 +127,19 @@ HX.MaterialUtils =
         var pass = new HX.MaterialPass(shader);
 
         if (elements)
-            pass.elementType = HX.MaterialUtils._translateProperty(elements.childNodes[0].nodeValue);
+            pass.elementType = HX.XMLMaterialLoader._translateProperty(elements.childNodes[0].nodeValue);
 
         if (cullmode)
-            pass.cullMode = HX.MaterialUtils._translateProperty(cullmode.childNodes[0].nodeValue);
+            pass.cullMode = HX.XMLMaterialLoader._translateProperty(cullmode.childNodes[0].nodeValue);
 
         if (blend) {
             var blendState = new HX.BlendState();
             var source = blend.getElementsByTagName("source")[0];
             var dest = blend.getElementsByTagName("destination")[0];
             var op = blend.getElementsByTagName("operator")[0];
-            blendState.srcFactor = source ? HX.MaterialUtils._translateProperty(source.childNodes[0].nodeValue) : HX.BlendFactor.ONE;
-            blendState.dstFactor = dest ? HX.MaterialUtils._translateProperty(dest.childNodes[0].nodeValue) : HX.BlendFactor.ZERO;
-            blendState.operator = op ? HX.MaterialUtils._translateProperty(op.childNodes[0].nodeValue) : HX.BlendOperation.ADD;
+            blendState.srcFactor = source ? HX.XMLMaterialLoader._translateProperty(source.childNodes[0].nodeValue) : HX.BlendFactor.ONE;
+            blendState.dstFactor = dest ? HX.XMLMaterialLoader._translateProperty(dest.childNodes[0].nodeValue) : HX.BlendFactor.ZERO;
+            blendState.operator = op ? HX.XMLMaterialLoader._translateProperty(op.childNodes[0].nodeValue) : HX.BlendOperation.ADD;
             pass.blendState = blendState;
         }
 
@@ -159,8 +162,8 @@ HX.MaterialUtils =
 
         var vertexShader = common + xml.querySelector("[id=" + vertexShaderID + "]").childNodes[0].nodeValue;
         var fragmentShader = common + xml.querySelector("[id=" + fragmentShaderID + "]").childNodes[0].nodeValue;
-        vertexShader = HX.MaterialUtils._decodeHTML(vertexShader);
-        fragmentShader = HX.MaterialUtils._decodeHTML(fragmentShader);
+        vertexShader = HX.XMLMaterialLoader._decodeHTML(vertexShader);
+        fragmentShader = HX.XMLMaterialLoader._decodeHTML(fragmentShader);
 
         if (passType === HX.MaterialPass.GEOMETRY_PASS) {
             if (HX.EXT_DRAW_BUFFERS)

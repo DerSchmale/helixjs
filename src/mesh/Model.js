@@ -225,24 +225,3 @@ HX.Model.prototype = {
         this.onChange.dispatch();
     }
 };
-
-/**
- *
- * @param filename
- * @constructor
- */
-HX.FileModel = function(filename)
-{
-    HX.Model.call(this);
-
-    var self = this;
-
-    var onComplete = function(modelData)
-    {
-        self._setModelData(modelData);
-    };
-
-    HX.ModelParser.parse(filename, onComplete);
-};
-
-HX.FileModel.prototype = Object.create(HX.Model.prototype);

@@ -197,7 +197,7 @@ HX.OBJParser.prototype =
     }
 };
 
-HX.ModelParser.registerParser("obj", HX.OBJParser);
+HX.ModelLoader.registerParser("obj", HX.OBJParser);
 
 HX.OBJParser.FaceVertexData = function()
 {

@@ -1,17 +1,14 @@
-// see Aras' blog post: http://aras-p.info/blog/2009/07/30/encoding-floats-to-rgba-the-final/
 // Only for 0 - 1
 vec4 hx_floatToRGBA8(float value)
 {
-// scale to encodable range [0, 1)
-    value *= .99;
-    vec4 enc = vec4(1.0, 255.0, 65025.0, 16581375.0) * value;
-    enc = fract(enc);
-    return enc - enc.yzww * vec4(1.0/255.0,1.0/255.0,1.0/255.0,0.0);
+    value *= 255.0/256.0;
+    vec4 enc = fract(value * vec4(1.0, 255.0, 65025.0, 16581375.0));
+    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);
 }
 
 float hx_RGBA8ToFloat(vec4 rgba)
 {
-    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0)) / .99;
+    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0)) * 256.0 / 255.0;
 }
 
 vec2 hx_floatToRG8(float value)
@@ -28,8 +25,6 @@ float hx_RG8ToFloat(vec2 rg)
 {
     return dot(rg, vec2(1.0, 1.0/255.0)) / .99;
 }
-
-
 
 vec3 hx_decodeNormal(vec4 data)
 {

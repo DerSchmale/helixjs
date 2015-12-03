@@ -79,10 +79,12 @@ HX.SimpleProject.prototype =
 
     _update: function(dt)
     {
+        HX._clearGLStats();
+
         this.onUpdate(dt);
 
         HX.clear();
-        this._renderer.render(this._camera, this._scene, dt)
+        this._renderer.render(this._camera, this._scene, dt);
     },
 
     _resizeCanvas: function()

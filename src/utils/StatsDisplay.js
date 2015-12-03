@@ -34,7 +34,10 @@ HX.StatsDisplay.prototype =
     {
         this._fpsCounter.update(dt);
         this._div.innerHTML =
-            "<p>FPS: " + this._fpsCounter.averageFPS + "</p>" +
+            "<p>FPS: " + this._fpsCounter.averageFPS + "<br/>" +
+            "Draws: " + HX._glStats.numDrawCalls + "<br/>" +
+            "Tris: " + HX._glStats.numTriangles + "</p>" +
+
             "<p style='font-size:x-small; width:100%; text-align:right;'>Helix " + HX.VERSION + "<br/></p>";
     }
 };

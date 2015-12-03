@@ -25,6 +25,17 @@ HX._blendStateInvalid = false;
 HX._stencilStateStack = [ null ];
 HX._stencilStateInvalid = false;
 
+HX._glStats =
+{
+    numDrawCalls: 0,
+    numTriangles: 0
+};
+
+HX._clearGLStats = function()
+{
+    HX._glStats.numDrawCalls = 0;
+    HX._glStats.numTriangles = 0;
+};
 
 /**
  * Default clearing function. Can be called if no special clearing functionality is needed (or in case another api is used that clears)
@@ -41,6 +52,8 @@ HX.clear = function(clearMask)
 
 HX.drawElements = function(elementType, numIndices, offset)
 {
+    ++HX._glStats.numDrawCalls;
+    HX._glStats.numTriangles += numIndices / 3;
     HX._updateRenderState();
     HX.GL.drawElements(elementType, numIndices, HX.GL.UNSIGNED_SHORT, offset);
 };

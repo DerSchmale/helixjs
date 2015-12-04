@@ -370,6 +370,12 @@ HX.MTLParser.prototype =
             case "map_kd":
                 this._activeMaterial.colorMap = this._getTexture(path + tokens[1]);
                 break;
+            case "map_d":
+                this._activeMaterial.maskMap = this._getTexture(path + tokens[1]);
+                break;
+            case "map_ns":
+                this._activeMaterial.specularMap = this._getTexture(path + tokens[1]);
+                break;
             case "map_bump":
             case "bump":
                 this._activeMaterial.normalMap = this._getTexture(path + tokens[1]);

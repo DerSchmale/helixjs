@@ -9,7 +9,8 @@ HX.PBRMaterial = function()
     this._colorMap = null;
     this._normalMap = null;
     this._specularMap = null;
-    this._specularMapMode = HX.SPECULAR_MAP_ROUGHNESS_ONLY;
+    this._maskMap = null;
+    this._specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
     this._metallicness = 0.0;
     this._roughness = 0.3;
     this._specularNormalReflection = 0.027;
@@ -110,13 +111,30 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             },
             set: function (value)
             {
-                if (!!this._normalMap !== !!value)
+                if (!!this._specularMap !== !!value)
                     this._passesInvalid = true;
 
                 if (!this._passesInvalid && value)
                     this.setTexture("specularMap", value);
 
                 this._specularMap = value;
+            }
+        },
+
+        maskMap: {
+            get: function ()
+            {
+                return this._maskMap;
+            },
+            set: function (value)
+            {
+                if (!!this._maskMap !== !!value)
+                    this._passesInvalid = true;
+
+                if (!this._passesInvalid && value)
+                    this.setTexture("maskMap", value);
+
+                this._maskMap = value;
             }
         },
 
@@ -231,16 +249,17 @@ HX.PBRMaterial.prototype._updatePasses = function()
     var colorDefines = this._generateColorDefines();
     var normalDefines = this._generateNormalDefines();
     var specularDefines = this._generateSpecularDefines();
+    var generalDefines = this._generateGeneralDefines();
 
     // TODO: this is something every material should have to do, so perhaps it should work differently?
     if (this._transparent) {
         // this is actually the same code as simple albedo output, but multiplicative blending
         if (this._refract) {
-            var defines = normalDefines + colorDefines;
+            var defines = normalDefines + colorDefines + generalDefines;
             this._initPass(HX.MaterialPass.POST_PASS, defines, "default_refract_vertex.glsl", "default_refract_fragment.glsl");
         }
         else {
-            var defines = "#define HX_NO_MRT_GBUFFER_COLOR\n" + normalDefines + colorDefines;
+            var defines = "#define HX_NO_MRT_GBUFFER_COLOR\n" + normalDefines + colorDefines + generalDefines;
             var pass = this._initPass(HX.MaterialPass.POST_LIGHT_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
             pass.blendState = HX.BlendState.MULTIPLY;
         }
@@ -248,13 +267,13 @@ HX.PBRMaterial.prototype._updatePasses = function()
 
     var colorPass;
     if (HX.EXT_DRAW_BUFFERS) {
-        var defines = colorDefines + normalDefines + specularDefines;
+        var defines = colorDefines + normalDefines + specularDefines + generalDefines;
         colorPass = this._initPass(HX.MaterialPass.GEOMETRY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
     else {
-        colorDefines = "#define HX_NO_MRT_GBUFFER_COLOR\n" + colorDefines;
-        normalDefines = "#define HX_NO_MRT_GBUFFER_NORMALS\n" + normalDefines;
-        specularDefines = "#define HX_NO_MRT_GBUFFER_SPECULAR\n" + specularDefines;
+        colorDefines = "#define HX_NO_MRT_GBUFFER_COLOR\n" + colorDefines + generalDefines;
+        normalDefines = "#define HX_NO_MRT_GBUFFER_NORMALS\n" + normalDefines + generalDefines;
+        specularDefines = "#define HX_NO_MRT_GBUFFER_SPECULAR\n" + specularDefines + generalDefines;
         colorPass = this._initPass(HX.MaterialPass.GEOMETRY_COLOR_PASS, colorDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
         this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
         this._initPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS, specularDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
@@ -262,7 +281,7 @@ HX.PBRMaterial.prototype._updatePasses = function()
 
     // need to initialize shadow map pass if its index is not -1
     if (HX.MaterialPass.SHADOW_MAP_PASS !== -1) {
-        var defines = "#define HX_SHADOW_MAP_PASS\n";
+        var defines = "#define HX_SHADOW_MAP_PASS\n" + generalDefines;
         this._initPass(HX.MaterialPass.SHADOW_MAP_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
 
@@ -288,6 +307,11 @@ HX.PBRMaterial.prototype._generateColorDefines = function()
 HX.PBRMaterial.prototype._generateNormalDefines = function()
 {
     return !!this._normalMap? "#define NORMAL_MAP\n" : "";
+};
+
+HX.PBRMaterial.prototype._generateGeneralDefines = function()
+{
+    return !!this._maskMap? "#define MASK_MAP\n" : "";
 };
 
 HX.PBRMaterial.prototype._generateSpecularDefines = function()

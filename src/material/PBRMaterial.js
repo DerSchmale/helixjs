@@ -8,6 +8,7 @@ HX.PBRMaterial = function()
     this._passesInvalid = true;
     this._color = new HX.Color(1, 1, 1, 1);
     this._colorMap = null;
+    this._doubleSided = false;
     this._normalMap = null;
     this._specularMap = null;
     this._maskMap = null;
@@ -45,6 +46,21 @@ HX.PBRMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
     {
+        doubleSided: {
+            get: function()
+            {
+                return this._doubleSided;
+            },
+
+            set: function(value)
+            {
+                this._doubleSided = value;
+
+                for (var i = 0; i < this._passes.length; ++i)
+                    this._passes[i].cullMode = value ? HX.CullMode.NONE : HX.CullMode.BACK;
+            }
+        },
+
         // only used with TransparencyMode.ALPHA
         alpha: {
             get: function ()
@@ -352,6 +368,7 @@ HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fra
     var fragmentShader = defines + HX.GLSLIncludeGeometryPass + HX.ShaderLibrary.get(fragmentShaderID);
     var shader = new HX.Shader(vertexShader, fragmentShader);
     var pass = new HX.MaterialPass(shader);
+    pass.cullMode = this._doubleSided? HX.CullMode.NONE : HX.CullMode.BACK;
     this.setPass(type, pass);
     return pass;
 };

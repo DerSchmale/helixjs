@@ -23,7 +23,7 @@ var sourceFiles = [
     "src/scene/Scene.js",
     "src/entity/*.js",
     "src/light/Light.js",
-    "src/render/SceneVisitor.js",
+    "src/scene/SceneVisitor.js",
 
     "src/shader/*.js",
     "src/material/*.js",

@@ -86,6 +86,18 @@ Object.defineProperties(HX.SceneNode.prototype, {
     }
 });
 
+HX.SceneNode.prototype.findMaterialByName = function(name)
+{
+    var visitor = new HX.MaterialQueryVisitor(name);
+    this.acceptVisitor(visitor);
+    return visitor.foundMaterial;
+};
+
+HX.SceneNode.prototype.findNodeByName = function(name)
+{
+    return this._name === name? this : null;
+};
+
 HX.SceneNode.prototype._setScene = function(scene)
 {
     this._scene = scene;
@@ -178,6 +190,18 @@ HX.Scene.prototype = {
     get skybox() { return this._skybox; },
     set skybox(value) { this._skybox = value; },
 
+    // TODO: support regex for partial matches
+    findNodeByName: function(name)
+    {
+        return this._rootNode.findNodeByName(name);
+    },
+
+    // TODO: support regex for partial matches
+    findMaterialByName: function(name)
+    {
+        return this._rootNode.findMaterialByName(name);
+    },
+
     attach: function(child)
     {
         this._rootNode.attach(child);
@@ -230,6 +254,17 @@ HX.GroupNode = function()
 };
 
 HX.GroupNode.prototype = Object.create(HX.SceneNode.prototype);
+
+HX.GroupNode.prototype.findNodeByName = function(name)
+{
+    var node = HX.SceneNode.prototype.findNodeByName.call(this, name);
+    if (node) return node;
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        node = this._children[i].findNodeByName(name);
+        if (node) return node;
+    }
+};
 
 HX.GroupNode.prototype.attach = function(child)
 {

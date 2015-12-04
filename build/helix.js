@@ -4765,12 +4765,23 @@ HX.Material = function ()
 
     // practically unused atm, except for unlit (0)
     this._lightingModelID = 1;
+    this._name = null;
 };
 
 HX.Material.ID_COUNTER = 0;
 
 HX.Material.prototype = {
     constructor: HX.Material,
+
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
 
     get transparencyMode()
     {
@@ -4965,6 +4976,18 @@ Object.defineProperties(HX.SceneNode.prototype, {
     }
 });
 
+HX.SceneNode.prototype.findMaterialByName = function(name)
+{
+    var visitor = new HX.MaterialQueryVisitor(name);
+    this.acceptVisitor(visitor);
+    return visitor.foundMaterial;
+};
+
+HX.SceneNode.prototype.findNodeByName = function(name)
+{
+    return this._name === name? this : null;
+};
+
 HX.SceneNode.prototype._setScene = function(scene)
 {
     this._scene = scene;
@@ -5057,6 +5080,18 @@ HX.Scene.prototype = {
     get skybox() { return this._skybox; },
     set skybox(value) { this._skybox = value; },
 
+    // TODO: support regex for partial matches
+    findNodeByName: function(name)
+    {
+        return this._rootNode.findNodeByName(name);
+    },
+
+    // TODO: support regex for partial matches
+    findMaterialByName: function(name)
+    {
+        return this._rootNode.findMaterialByName(name);
+    },
+
     attach: function(child)
     {
         this._rootNode.attach(child);
@@ -5109,6 +5144,17 @@ HX.GroupNode = function()
 };
 
 HX.GroupNode.prototype = Object.create(HX.SceneNode.prototype);
+
+HX.GroupNode.prototype.findNodeByName = function(name)
+{
+    var node = HX.SceneNode.prototype.findNodeByName.call(this, name);
+    if (node) return node;
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        node = this._children[i].findNodeByName(name);
+        if (node) return node;
+    }
+};
 
 HX.GroupNode.prototype.attach = function(child)
 {
@@ -6029,6 +6075,7 @@ HX.PBRMaterial = function()
     this._passesInvalid = true;
     this._color = new HX.Color(1, 1, 1, 1);
     this._colorMap = null;
+    this._doubleSided = false;
     this._normalMap = null;
     this._specularMap = null;
     this._maskMap = null;
@@ -6066,6 +6113,23 @@ HX.PBRMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
     {
+        doubleSided: {
+            get: function()
+            {
+                return this._doubleSided;
+            },
+
+            set: function(value)
+            {
+                this._doubleSided = value;
+
+                for (var i = 0; i < this._passes.length; ++i) {
+                    this._passes[i].cullMode = value ? HX.CullMode.NONE : HX.CullMode.BACK;
+                    console.log("post: " + this.name, this._passes[i].cullMode);
+                }
+            }
+        },
+
         // only used with TransparencyMode.ALPHA
         alpha: {
             get: function ()
@@ -6373,6 +6437,8 @@ HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fra
     var fragmentShader = defines + HX.GLSLIncludeGeometryPass + HX.ShaderLibrary.get(fragmentShaderID);
     var shader = new HX.Shader(vertexShader, fragmentShader);
     var pass = new HX.MaterialPass(shader);
+    pass.cullMode = this._doubleSided? HX.CullMode.NONE : HX.CullMode.BACK;
+    console.log(this.name, pass.cullMode);
     this.setPass(type, pass);
     return pass;
 };
@@ -6875,6 +6941,38 @@ HX.OrthographicOffCenterCamera.prototype._updateProjectionMatrix = function()
 {
     this._projectionMatrix.orthographicOffCenterProjection(this._left, this._right, this._top, this._bottom, this._nearDistance, this._farDistance);
     this._projectionMatrixDirty = false;
+};
+HX.MaterialQueryVisitor = function(materialName)
+{
+    HX.SceneVisitor.call(this);
+    this._materialName = materialName;
+};
+
+HX.MaterialQueryVisitor.prototype = Object.create(HX.SceneVisitor.prototype,
+    {
+        foundMaterial: {
+            get: function()
+            {
+                return this._foundMaterial;
+            }
+        }
+    });
+
+HX.MaterialQueryVisitor.prototype.qualifies = function(object)
+{
+    // if a material was found, ignore
+    return !this._foundMaterial;
+};
+
+HX.MaterialQueryVisitor.prototype.visitModelInstance = function (modelInstance, worldMatrix)
+{
+    var materials = modelInstance._materials;
+    var len = materials.length;
+    for (var i = 0; i < len; ++i) {
+        var material = materials[i];
+        if (material.name === this._materialName)
+            this._foundMaterial = material;
+    }
 };
 /**
  * Skybox provides a backdrop "at infinity" for the scene.
@@ -11543,7 +11641,7 @@ HX.FilmicToneMapEffect.prototype._createToneMapPass = function()
 };
 HX.OBJLoader =
 {
-    load: function (filename, groupsAsObjects, onComplete, onFail)
+    load: function (filename, onComplete, onFail, groupsAsObjects)
     {
         var objParser = new HX.OBJParser();
         var groupNode = new HX.GroupNode();
@@ -11554,7 +11652,7 @@ HX.OBJLoader =
 
         urlLoader.onComplete = function (data)
         {
-            objParser.parse(data, groupsAsObjects, groupNode, path, onComplete, onFail);
+            objParser.parse(data, groupNode, path, onComplete, onFail, groupsAsObjects);
         };
 
         urlLoader.onError = function (code)
@@ -11589,9 +11687,9 @@ HX.OBJParser = function()
 
 HX.OBJParser.prototype =
 {
-    parse: function(data, groupsAsObjects, target, path, onComplete, onFail)
+    parse: function(data, target, path, onComplete, onFail, groupsAsObjects)
     {
-        this._groupsAsObjects = groupsAsObjects || false;
+        this._groupsAsObjects = groupsAsObjects === undefined? true : this._groupsAsObjects;
         this._onComplete = onComplete;
         this._target = target;
 
@@ -11615,7 +11713,7 @@ HX.OBJParser.prototype =
     {
         this._translate();
 
-        if (this._onComplete) this._onComplete();
+        if (this._onComplete) this._onComplete(this._target);
     },
 
     _loadMTLLib: function(filename, onFail)
@@ -11666,9 +11764,10 @@ HX.OBJParser.prototype =
                 break;
             case "g":
                 if (this._groupsAsObjects)
-                    this._pushNewGroup(tokens[1]);
-                else
                     this._pushNewObject(tokens[1]);
+                else
+                    this._pushNewGroup(tokens[1]);
+
                 break;
             case "f":
                 this._parseFaceData(tokens);
@@ -11676,7 +11775,7 @@ HX.OBJParser.prototype =
             default:
                 // ignore following tags:
                 // s
-                console.log("OBJ tag ignored or unsupported: " + tokens[0]);
+                //console.log("OBJ tag ignored or unsupported: " + tokens[0]);
         }
     },
 
@@ -11933,6 +12032,7 @@ HX.MTLParser.prototype =
         switch (tokens[0].toLowerCase()) {
             case "newmtl":
                 this._activeMaterial = new HX.PBRMaterial();
+                this._activeMaterial.name = tokens[1];
                 this._materials[tokens[1]] = this._activeMaterial;
                 break;
             case "ns":
@@ -11957,7 +12057,7 @@ HX.MTLParser.prototype =
                 this._activeMaterial.normalMap = this._getTexture(path + tokens[1]);
                 break;
             default:
-                console.log("MTL tag ignored or unsupported: " + tokens[0]);
+                //console.log("MTL tag ignored or unsupported: " + tokens[0]);
         }
     },
 

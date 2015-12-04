@@ -72,7 +72,7 @@ HX.OBJParser.prototype =
     {
         this._translate();
 
-        if (this._onComplete) this._onComplete();
+        if (this._onComplete) this._onComplete(this._target);
     },
 
     _loadMTLLib: function(filename, onFail)
@@ -134,7 +134,7 @@ HX.OBJParser.prototype =
             default:
                 // ignore following tags:
                 // s
-                console.log("OBJ tag ignored or unsupported: " + tokens[0]);
+                //console.log("OBJ tag ignored or unsupported: " + tokens[0]);
         }
     },
 
@@ -391,6 +391,7 @@ HX.MTLParser.prototype =
         switch (tokens[0].toLowerCase()) {
             case "newmtl":
                 this._activeMaterial = new HX.PBRMaterial();
+                this._activeMaterial.name = tokens[1];
                 this._materials[tokens[1]] = this._activeMaterial;
                 break;
             case "ns":
@@ -415,7 +416,7 @@ HX.MTLParser.prototype =
                 this._activeMaterial.normalMap = this._getTexture(path + tokens[1]);
                 break;
             default:
-                console.log("MTL tag ignored or unsupported: " + tokens[0]);
+                //console.log("MTL tag ignored or unsupported: " + tokens[0]);
         }
     },
 

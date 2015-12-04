@@ -319,12 +319,23 @@ HX.Material = function ()
 
     // practically unused atm, except for unlit (0)
     this._lightingModelID = 1;
+    this._name = null;
 };
 
 HX.Material.ID_COUNTER = 0;
 
 HX.Material.prototype = {
     constructor: HX.Material,
+
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
 
     get transparencyMode()
     {

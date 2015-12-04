@@ -6123,9 +6123,9 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             {
                 this._doubleSided = value;
 
-                for (var i = 0; i < this._passes.length; ++i) {
-                    this._passes[i].cullMode = value ? HX.CullMode.NONE : HX.CullMode.BACK;
-                    console.log("post: " + this.name, this._passes[i].cullMode);
+                for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+                    if (this._passes[i])
+                        this._passes[i].cullMode = value ? HX.CullMode.NONE : HX.CullMode.BACK;
                 }
             }
         },
@@ -6438,7 +6438,6 @@ HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fra
     var shader = new HX.Shader(vertexShader, fragmentShader);
     var pass = new HX.MaterialPass(shader);
     pass.cullMode = this._doubleSided? HX.CullMode.NONE : HX.CullMode.BACK;
-    console.log(this.name, pass.cullMode);
     this.setPass(type, pass);
     return pass;
 };

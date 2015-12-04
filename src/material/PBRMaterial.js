@@ -56,8 +56,10 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             {
                 this._doubleSided = value;
 
-                for (var i = 0; i < this._passes.length; ++i)
-                    this._passes[i].cullMode = value ? HX.CullMode.NONE : HX.CullMode.BACK;
+                for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+                    if (this._passes[i])
+                        this._passes[i].cullMode = value ? HX.CullMode.NONE : HX.CullMode.BACK;
+                }
             }
         },
 

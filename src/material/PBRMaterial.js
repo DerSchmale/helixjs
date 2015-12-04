@@ -1,5 +1,6 @@
 /**
- * Creates a default physically-based rendering material.
+ * PBRMaterial is a default physically plausible rendering material.
+ * @constructor
  */
 HX.PBRMaterial = function()
 {
@@ -17,10 +18,11 @@ HX.PBRMaterial = function()
     this._refractiveRatio = 1.0 / 1.33;
     this._transparent = false;
     this._refract = false;
-    this.alpha = 1.0;
+    this._alphaThreshold = 1.0;
 
     // trigger assignments
     this.color = this._color;
+    this.alpha = 1.0;
     this.metallicness = this._metallicness;
     this.roughness = this._roughness;
     this.specularNormalReflection = this._specularNormalReflection;
@@ -51,7 +53,7 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             },
             set: function (value)
             {
-                this._alpha = value;
+                this._alpha = HX.saturate(value);
                 this.setUniform("alpha", this._alpha);
 
                 this.transparencyMode = value === 1.0? HX.TransparencyMode.OPAQUE : HX.TransparencyMode.ALPHA;
@@ -209,7 +211,7 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
         {
             get: function() { return this._refract; },
             set: function(value) {
-                if (!!this._refract !== !!value)
+                if (this._refract !== value)
                     this._passesInvalid = true;
 
                 this._refract = HX.saturate(value);
@@ -222,6 +224,18 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             set: function(value) {
                 this._refractiveRatio = value;
                 this.setUniform("refractiveRatio", value);
+            }
+        },
+
+        alphaThreshold:
+        {
+            get: function() { return this._alphaThreshold; },
+            set: function(value) {
+                value = HX.saturate(value);
+                if ((this._alphaThreshold === 1.0) != (value === 1.0))
+                    this._passesInvalid = true;
+                this._alphaThreshold = value;
+                this.setUniform("alphaThreshold", value);
             }
         }
     }
@@ -286,6 +300,9 @@ HX.PBRMaterial.prototype._updatePasses = function()
     }
 
     this.setUniform("color", this._color);
+    this.setUniform("alpha", this._alpha);
+    this.setUniform("alphaThreshold", this._alphaThreshold);
+
     if (this._colorMap) this.setTexture("colorMap", this._colorMap);
     if (this._normalMap) this.setTexture("normalMap", this._normalMap);
     if (this._specularMap) this.setTexture("specularMap", this._specularMap);
@@ -311,7 +328,10 @@ HX.PBRMaterial.prototype._generateNormalDefines = function()
 
 HX.PBRMaterial.prototype._generateGeneralDefines = function()
 {
-    return !!this._maskMap? "#define MASK_MAP\n" : "";
+    var defines = "";
+    if (this._maskMap) defines += "#define MASK_MAP\n";
+    if (this._alphaThreshold < 1.0) defines += "#define ALPHA_THRESHOLD\n";
+    return defines;
 };
 
 HX.PBRMaterial.prototype._generateSpecularDefines = function()

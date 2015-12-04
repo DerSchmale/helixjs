@@ -6,6 +6,7 @@
 HX.SceneNode = function()
 {
     HX.Transform.call(this);
+    this._name = null;
     this._worldTransformMatrix = new HX.Matrix4x4();
     this._worldBoundsInvalid = true;
     this._matrixInvalid = true;
@@ -24,6 +25,16 @@ HX.SceneNode = function()
 HX.SceneNode.prototype = Object.create(HX.Transform.prototype);
 
 Object.defineProperties(HX.SceneNode.prototype, {
+    name: {
+        get: function()
+        {
+            return this._name;
+        },
+        set: function(value)
+        {
+            this._name = name;
+        }
+    },
     worldBounds: {
         get: function()
         {

@@ -2,15 +2,23 @@ varying vec3 normal;
 varying vec3 viewVector;
 varying vec2 screenUV;
 
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)
+uniform vec3 color;
+uniform float alpha;
+
+#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)
 varying vec2 texCoords;
 #endif
 
-
 #ifdef COLOR_MAP
 uniform sampler2D colorMap;
-#else
-uniform vec3 color;
+#endif
+
+#ifdef MASK_MAP
+uniform sampler2D maskMap;
+#endif
+
+#ifdef ALPHA_THRESHOLD
+uniform float alphaThreshold;
 #endif
 
 #ifdef NORMAL_MAP
@@ -37,11 +45,18 @@ vec2 getRefractedUVOffset(vec3 normal, float farZ)
 
 void main()
 {
-    vec4 outputColor;
+    vec4 outputColor = vec4(color, alpha);
+
     #ifdef COLOR_MAP
-        outputColor = texture2D(colorMap, texCoords);
-    #else
-        outputColor = vec4(color, 1.0);
+        outputColor *= texture2D(colorMap, texCoords);
+    #endif
+
+    #ifdef MASK_MAP
+        outputColor.w *= texture2D(maskMap, texCoords).x;
+    #endif
+
+    #ifdef ALPHA_THRESHOLD
+        if (outputColor.w < alphaThreshold) discard;
     #endif
 
     vec3 fragNormal = normal;

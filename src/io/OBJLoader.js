@@ -1,5 +1,6 @@
-HX.OBJLoader = {
-    load: function (filename, onComplete, onFail)
+HX.OBJLoader =
+{
+    load: function (filename, onComplete, onFail, groupsAsObjects)
     {
         var objParser = new HX.OBJParser();
         var groupNode = new HX.GroupNode();
@@ -10,7 +11,7 @@ HX.OBJLoader = {
 
         urlLoader.onComplete = function (data)
         {
-            objParser.parse(data, groupNode, path, onComplete, onFail);
+            objParser.parse(data, groupNode, path, onComplete, onFail, groupsAsObjects);
         };
 
         urlLoader.onError = function (code)
@@ -31,7 +32,7 @@ HX.OBJLoader = {
  */
 HX.OBJParser = function()
 {
-    this._groupData = [];
+    this._objects = [];
     this._vertices = [];
     this._normals = [];
     this._uvs = [];
@@ -45,15 +46,16 @@ HX.OBJParser = function()
 
 HX.OBJParser.prototype =
 {
-    parse: function(data, target, path, onComplete, onFail)
+    parse: function(data, target, path, onComplete, onFail, groupsAsObjects)
     {
-        var lines = data.split("\n");
-        var numLines = lines.length;
-
+        this._groupsAsObjects = groupsAsObjects === undefined? true : this._groupsAsObjects;
         this._onComplete = onComplete;
         this._target = target;
 
-        this._pushNewGroup("hx_default");
+        var lines = data.split("\n");
+        var numLines = lines.length;
+
+        this._pushNewObject("hx_default");
 
         for (var i = 0; i < numLines; ++i) {
             var line = lines[i].replace(/^\s+|\s+$/g, "");
@@ -68,7 +70,7 @@ HX.OBJParser.prototype =
 
     _finish: function()
     {
-        this._translateModelData();
+        this._translate();
 
         if (this._onComplete) this._onComplete();
     },
@@ -117,11 +119,14 @@ HX.OBJParser.prototype =
                 this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
                 break;
             case "o":
-                // TODO: push new object
-                this._pushNewGroup(tokens[1]);
+                this._pushNewObject(tokens[1]);
                 break;
             case "g":
-                this._pushNewGroup(tokens[1]);
+                if (this._groupsAsObjects)
+                    this._pushNewObject(tokens[1]);
+                else
+                    this._pushNewGroup(tokens[1]);
+
                 break;
             case "f":
                 this._parseFaceData(tokens);
@@ -133,12 +138,19 @@ HX.OBJParser.prototype =
         }
     },
 
+    _pushNewObject: function(name)
+    {
+        this._activeObject = new HX.OBJParser.ObjectData();
+        this._objects.push(this._activeObject);
+        this._pushNewGroup("hx_default");
+    },
+
     _pushNewGroup: function(name)
     {
         this._activeGroup = new HX.OBJParser.GroupData();
-        this._activeGroup.name = name || "Group"+this._groupData.length;
+        this._activeGroup.name = name || "Group" + this._activeGroup.length;
 
-        this._groupData.push(this._activeGroup);
+        this._activeObject.groups.push(this._activeGroup);
         this._setActiveSubGroup("hx_default");
     },
 
@@ -184,15 +196,24 @@ HX.OBJParser.prototype =
         this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
     },
 
-    _translateModelData: function()
+    _translate: function()
     {
+        var numObjects = this._objects.length;
+        for (var i = 0; i < numObjects; ++i) {
+            this._translateObject(this._objects[i]);
+        }
+    },
+
+    _translateObject: function(object)
+    {
+        var numGroups = object.groups.length;
+        if (numGroups === 0) return;
         var modelData = new HX.ModelData();
-        var numGroups = this._groupData.length;
         var materials = [];
         var model = new HX.Model();
 
         for (var i = 0; i < numGroups; ++i) {
-            var group = this._groupData[i];
+            var group = object.groups[i];
 
             for (var key in group.subgroups)
             {
@@ -211,6 +232,7 @@ HX.OBJParser.prototype =
         model._setModelData(modelData);
 
         var modelInstance = new HX.ModelInstance(model, materials);
+        modelInstance.name = object.name;
         this._target.attach(modelInstance);
     },
 
@@ -328,6 +350,17 @@ HX.OBJParser.GroupData = function()
     this._activeMaterial = null;
 };
 
+HX.OBJParser.ObjectData = function()
+{
+    this.name = "";
+    this.groups = [];
+    this._activeGroup = null;
+}
+
+/**
+ *
+ * @constructor
+ */
 HX.MTLParser = function()
 {
     this._materials = [];
@@ -372,6 +405,7 @@ HX.MTLParser.prototype =
                 break;
             case "map_d":
                 this._activeMaterial.maskMap = this._getTexture(path + tokens[1]);
+                this._activeMaterial.alphaThreshold = .5;
                 break;
             case "map_ns":
                 this._activeMaterial.specularMap = this._getTexture(path + tokens[1]);

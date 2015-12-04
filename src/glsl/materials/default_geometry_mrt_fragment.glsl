@@ -1,15 +1,19 @@
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP)
+varying vec3 normal;
+
+uniform vec3 color;
+uniform float alpha;
+
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)
 varying vec2 texCoords;
 #endif
-
-varying vec3 normal;
 
 #ifdef COLOR_MAP
 uniform sampler2D colorMap;
 #endif
 
-uniform vec3 color;
-uniform float alpha;
+#ifdef MASK_MAP
+uniform sampler2D maskMap;
+#endif
 
 #ifdef NORMAL_MAP
 varying vec3 tangent;
@@ -22,6 +26,10 @@ uniform float roughness;
 uniform float specularNormalReflection;
 uniform float metallicness;
 
+#if defined(ALPHA_THRESHOLD)
+uniform float alphaThreshold;
+#endif
+
 #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
 uniform sampler2D specularMap;
 #endif
@@ -32,6 +40,14 @@ void main()
 
     #ifdef COLOR_MAP
         outputColor *= texture2D(colorMap, texCoords);
+    #endif
+
+    #ifdef MASK_MAP
+        outputColor.w *= texture2D(maskMap, texCoords).x;
+    #endif
+
+    #ifdef ALPHA_THRESHOLD
+        if (outputColor.w < alphaThreshold) discard;
     #endif
 
     float metallicnessOut = metallicness;

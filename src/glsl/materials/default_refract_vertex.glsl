@@ -1,7 +1,7 @@
 attribute vec4 hx_position;
 attribute vec3 hx_normal;
 
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)
 attribute vec2 hx_texCoord;
 varying vec2 texCoords;
 #endif
@@ -35,7 +35,7 @@ void main()
 
     viewVector = viewSpace.xyz;
 
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)
     texCoords = hx_texCoord;
 #endif
     screenUV = proj.xy / proj.w * .5 + .5;

@@ -6,7 +6,7 @@ var concatCallback = require('gulp-concat-callback');
 var del = require('del');
 
 var libs = [
-    "libs/js-deflate/rawinflate.js"
+    "libs/pako/pako_inflate.js"
 ];
 
 var sourceFiles = [
@@ -46,27 +46,31 @@ gulp.task('package', ['glsl', 'main', 'clean']);
 
 gulp.task('default', ['glsl', 'minimize', 'clean']);
 
-gulp.task('main', [ 'glsl' ], function() {
+gulp.task('main', ['glsl'], function ()
+{
     var sources = libs.concat(sourceFiles);
     return gulp.src(sources, {base: './'})
         .pipe(concat('helix.js'))
         .pipe(gulp.dest('./build/'));
 });
 
-gulp.task('minimize', [ 'main' ], function() {
+gulp.task('minimize', ['main'], function ()
+{
     gulp.src(['./build/helix.js'], {base: './build/'})
         .pipe(uglify())
         .pipe(rename({suffix: '.min'}))
         .pipe(gulp.dest('./build/'));
 });
 
-gulp.task('glsl', function() {
+gulp.task('glsl', function ()
+{
     return gulp.src('./src/glsl/**/*.glsl')
         .pipe(concatCallback('shaderlib.js', appendGLSL))
         .pipe(gulp.dest('./build/tmp/'));
 });
 
-gulp.task('clean', ['main', 'glsl'], function() {
+gulp.task('clean', ['main', 'glsl'], function ()
+{
     del('./build/tmp');
 });
 
@@ -83,5 +87,5 @@ function getFileName(file)
 {
     var index = file.path.lastIndexOf("\\");
     index = Math.max(file.path.lastIndexOf("/"), index);
-    return index < 0? file.path : file.path.substring(index + 1);
+    return index < 0 ? file.path : file.path.substring(index + 1);
 }

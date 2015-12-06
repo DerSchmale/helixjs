@@ -142,6 +142,7 @@ HX.FBXParser.prototype =
             default:
                 prop.data = this._parseArray(prop.typeCode);
         }
+
         return prop;
     },
 
@@ -173,23 +174,20 @@ HX.FBXParser.prototype =
         }
         else {
             var data = this._data.getUint8Array(compressedLength);
-            data = new ArrayBuffer(RawDeflate.inflate(data));
+            data = pako.inflate(data).buffer;
 
             switch (type) {
                 case HX.FBXParser.Property.BOOLEAN_ARRAY:
-                    return new Uint8Array(data);
+                    return new Uint8Array(data.buffer);
                 case HX.FBXParser.Property.INT32_ARRAY:
                     return new Int32Array(data);
                 case HX.FBXParser.Property.INT64_ARRAY:
                     // INCORRECT
                     return new Int32Array(data);
-                    break;
                 case HX.FBXParser.Property.FLOAT_ARRAY:
                     return new Float32Array(data);
-                    break;
                 case HX.FBXParser.Property.DOUBLE_ARRAY:
-                    return new Float64Array(len);
-                    break;
+                    return new Float64Array(data);
                 default:
                     throw "Unknown data type code " + type;
             }

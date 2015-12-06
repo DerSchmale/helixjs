@@ -1,4 +1,6 @@
-HX = {
+"use strict";
+
+var HX = {
     VERSION: '0.1',
     INITIALIZED: false,
     TypedArray: (typeof Float32Array !== 'undefined') ? Float32Array : Array,

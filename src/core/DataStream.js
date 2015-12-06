@@ -16,7 +16,7 @@ HX.DataStream.prototype =
     get endian() { return this._endian; },
     set endian(value) { this._endian = value; },
 
-    get byteLength () { return this._dataView.byteLength ; },
+    get byteLength () { return this._dataView.byteLength; },
 
     getChar: function()
     {
@@ -75,6 +75,11 @@ HX.DataStream.prototype =
         return data;
     },
 
+    getArray: function(len)
+    {
+        return this._readArray(len, Array, this.getUint8);
+    },
+
     getUint8Array: function(len)
     {
         return this._readArray(len, Uint8Array, this.getUint8);
@@ -127,7 +132,7 @@ HX.DataStream.prototype =
 
     _readArray: function(len, arrayType, func)
     {
-        var arr = new arrayType();
+        var arr = new arrayType(len);
 
         for (var i = 0; i < len; ++i)
             arr[i] = func.call(this);

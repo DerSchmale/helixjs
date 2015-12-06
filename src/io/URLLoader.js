@@ -66,6 +66,9 @@ HX.URLLoader.prototype =
         var request = new XMLHttpRequest();
         request.open(this._method, url, true);
         request.timeout = this._timeout;
+        if (this._type === HX.URLLoader.DATA_BINARY)
+            request.responseType = "arraybuffer";
+
         var self = this;
 
         request.ontimeout = function ()
@@ -78,7 +81,7 @@ HX.URLLoader.prototype =
             var DONE = this.DONE || 4;
             if (this.readyState === DONE) {
                 if (this.status === 200) {
-                    this._data = this._type == HX.URLLoader.DATA_TEXT? request.responseText : request.response;
+                    this._data = this._type == HX.URLLoader.DATA_TEXT? request.responseText : new DataView(request.response);
                     if (self.onComplete) self.onComplete(this._data);
                 }
                 else if (self.onError)

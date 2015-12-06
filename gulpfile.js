@@ -5,6 +5,10 @@ var uglify = require('gulp-uglify');
 var concatCallback = require('gulp-concat-callback');
 var del = require('del');
 
+var libs = [
+    "deflate-js/bin/deflate.js"
+];
+
 var sourceFiles = [
     "src/Helix.js",
     "./build/tmp/*.js",
@@ -43,7 +47,8 @@ gulp.task('package', ['glsl', 'main', 'clean']);
 gulp.task('default', ['glsl', 'minimize', 'clean']);
 
 gulp.task('main', [ 'glsl' ], function() {
-    return gulp.src(sourceFiles, {base: './src/'})
+    var sources = libs.concat(sourceFiles);
+    return gulp.src(sources, {base: './src/'})
         .pipe(concat('helix.js'))
         .pipe(gulp.dest('./build/'));
 });

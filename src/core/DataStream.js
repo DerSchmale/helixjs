@@ -2,12 +2,21 @@ HX.DataStream = function(dataView)
 {
     this._dataView = dataView;
     this._offset = 0;
+    this._endian = HX.DataStream.LITTLE_ENDIAN;
 };
+
+HX.DataStream.LITTLE_ENDIAN = true;
+HX.DataStream.BIG_ENDIAN = false;
 
 HX.DataStream.prototype =
 {
     get offset() { return this._offset; },
     set offset(value) { this._offset = value; },
+
+    get endian() { return this._endian; },
+    set endian(value) { this._endian = value; },
+
+    get byteLength () { return this._dataView.byteLength ; },
 
     getChar: function()
     {
@@ -16,48 +25,54 @@ HX.DataStream.prototype =
 
     getUint8: function()
     {
-        this._dataView.getUint8(this._offset++);
+        return this._dataView.getUint8(this._offset++);
     },
 
     getUint16: function()
     {
-        this._dataView.getUint16(this._offset);
+        var data = this._dataView.getUint16(this._offset, this._endian);
         this._offset += 2;
+        return data;
     },
 
     getUint32: function()
     {
-        this._dataView.getUint32(this._offset);
+        var data = this._dataView.getUint32(this._offset, this._endian);
         this._offset += 4;
+        return data;
     },
 
     getInt8: function()
     {
-        this._dataView.getInt8(this._offset++);
+        return this._dataView.getInt8(this._offset++);
     },
 
     getInt16: function()
     {
-        this._dataView.getInt16(this._offset);
+        var data = this._dataView.getInt16(this._offset, this._endian);
         this._offset += 2;
+        return data;
     },
 
     getInt32: function()
     {
-        this._dataView.getInt32(this._offset);
+        var data = this._dataView.getInt32(this._offset, this._endian);
         this._offset += 4;
+        return data;
     },
 
     getFloat32: function()
     {
-        this._dataView.getFloat32(this._offset);
+        var data = this._dataView.getFloat32(this._offset, this._endian);
         this._offset += 4;
+        return data;
     },
 
     getFloat64: function()
     {
-        this._dataView.getFloat64(this._offset);
+        var data = this._dataView.getFloat64(this._offset, this._endian);
         this._offset += 8;
+        return data;
     },
 
     getUint8Array: function(len)
@@ -105,7 +120,7 @@ HX.DataStream.prototype =
         var str = "";
 
         for (var i = 0; i < len; ++i)
-            str = str + this.getChar(this._offset);
+            str = str + this.getChar();
 
         return str;
     },
@@ -115,7 +130,7 @@ HX.DataStream.prototype =
         var arr = new arrayType();
 
         for (var i = 0; i < len; ++i)
-            arr[i] = func(this._offset);
+            arr[i] = func.call(this);
 
         return arr;
     }

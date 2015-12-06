@@ -8,8 +8,5 @@
     "gulp-uglify": "^1.1.0",
     "gulp-concat-callback": "^2.4.1",
     "del": "^1.2.0"
-  },
-  "dependencies": {
-    "deflate-js": "0.2.3"
   }
 }

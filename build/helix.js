@@ -1,3 +1,759 @@
+/*
+ * $Id: rawinflate.js,v 0.4 2014/03/01 21:59:08 dankogai Exp dankogai $
+ *
+ * GNU General Public License, version 2 (GPL-2.0)
+ *   http://opensource.org/licenses/GPL-2.0
+ * original:
+ *   http://www.onicos.com/staff/iz/amuse/javascript/expert/inflate.txt
+ */
+
+(function(ctx){
+
+/* Copyright (C) 1999 Masanao Izumo <iz@onicos.co.jp>
+ * Version: 1.0.0.1
+ * LastModified: Dec 25 1999
+ */
+
+/* Interface:
+ * data = zip_inflate(src);
+ */
+
+/* constant parameters */
+var zip_WSIZE = 32768;		// Sliding Window size
+var zip_STORED_BLOCK = 0;
+var zip_STATIC_TREES = 1;
+var zip_DYN_TREES    = 2;
+
+/* for inflate */
+var zip_lbits = 9; 		// bits in base literal/length lookup table
+var zip_dbits = 6; 		// bits in base distance lookup table
+var zip_INBUFSIZ = 32768;	// Input buffer size
+var zip_INBUF_EXTRA = 64;	// Extra buffer
+
+/* variables (inflate) */
+var zip_slide;
+var zip_wp;			// current position in slide
+var zip_fixed_tl = null;	// inflate static
+var zip_fixed_td;		// inflate static
+var zip_fixed_bl, zip_fixed_bd;	// inflate static
+var zip_bit_buf;		// bit buffer
+var zip_bit_len;		// bits in bit buffer
+var zip_method;
+var zip_eof;
+var zip_copy_leng;
+var zip_copy_dist;
+var zip_tl, zip_td;	// literal/length and distance decoder tables
+var zip_bl, zip_bd;	// number of bits decoded by tl and td
+
+var zip_inflate_data;
+var zip_inflate_pos;
+
+
+/* constant tables (inflate) */
+var zip_MASK_BITS = new Array(
+    0x0000,
+    0x0001, 0x0003, 0x0007, 0x000f, 0x001f, 0x003f, 0x007f, 0x00ff,
+    0x01ff, 0x03ff, 0x07ff, 0x0fff, 0x1fff, 0x3fff, 0x7fff, 0xffff);
+// Tables for deflate from PKZIP's appnote.txt.
+var zip_cplens = new Array( // Copy lengths for literal codes 257..285
+    3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
+    35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0);
+/* note: see note #13 above about the 258 in this list. */
+var zip_cplext = new Array( // Extra bits for literal codes 257..285
+    0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
+    3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 99, 99); // 99==invalid
+var zip_cpdist = new Array( // Copy offsets for distance codes 0..29
+    1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193,
+    257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145,
+    8193, 12289, 16385, 24577);
+var zip_cpdext = new Array( // Extra bits for distance codes
+    0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6,
+    7, 7, 8, 8, 9, 9, 10, 10, 11, 11,
+    12, 12, 13, 13);
+var zip_border = new Array(  // Order of the bit length code lengths
+    16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15);
+/* objects (inflate) */
+
+var zip_HuftList = function() {
+    this.next = null;
+    this.list = null;
+}
+
+var zip_HuftNode = function() {
+    this.e = 0; // number of extra bits or operation
+    this.b = 0; // number of bits in this code or subcode
+
+    // union
+    this.n = 0; // literal, length base, or distance base
+    this.t = null; // (zip_HuftNode) pointer to next level of table
+}
+
+var zip_HuftBuild = function(b,	// code lengths in bits (all assumed <= BMAX)
+		       n,	// number of codes (assumed <= N_MAX)
+		       s,	// number of simple-valued codes (0..s-1)
+		       d,	// list of base values for non-simple codes
+		       e,	// list of extra bits for non-simple codes
+		       mm	// maximum lookup bits
+		   ) {
+    this.BMAX = 16;   // maximum bit length of any code
+    this.N_MAX = 288; // maximum number of codes in any set
+    this.status = 0;	// 0: success, 1: incomplete table, 2: bad input
+    this.root = null;	// (zip_HuftList) starting table
+    this.m = 0;		// maximum lookup bits, returns actual
+
+/* Given a list of code lengths and a maximum table size, make a set of
+   tables to decode that set of codes.	Return zero on success, one if
+   the given code set is incomplete (the tables are still built in this
+   case), two if the input is invalid (all zero length codes or an
+   oversubscribed set of lengths), and three if not enough memory.
+   The code with value 256 is special, and the tables are constructed
+   so that no bits beyond that code are fetched when that code is
+   decoded. */
+    {
+	var a;			// counter for codes of length k
+	var c = new Array(this.BMAX+1);	// bit length count table
+	var el;			// length of EOB code (value 256)
+	var f;			// i repeats in table every f entries
+	var g;			// maximum code length
+	var h;			// table level
+	var i;			// counter, current code
+	var j;			// counter
+	var k;			// number of bits in current code
+	var lx = new Array(this.BMAX+1);	// stack of bits per table
+	var p;			// pointer into c[], b[], or v[]
+	var pidx;		// index of p
+	var q;			// (zip_HuftNode) points to current table
+	var r = new zip_HuftNode(); // table entry for structure assignment
+	var u = new Array(this.BMAX); // zip_HuftNode[BMAX][]  table stack
+	var v = new Array(this.N_MAX); // values in order of bit length
+	var w;
+	var x = new Array(this.BMAX+1);// bit offsets, then code stack
+	var xp;			// pointer into x or c
+	var y;			// number of dummy codes added
+	var z;			// number of entries in current table
+	var o;
+	var tail;		// (zip_HuftList)
+
+	tail = this.root = null;
+	for(i = 0; i < c.length; i++)
+	    c[i] = 0;
+	for(i = 0; i < lx.length; i++)
+	    lx[i] = 0;
+	for(i = 0; i < u.length; i++)
+	    u[i] = null;
+	for(i = 0; i < v.length; i++)
+	    v[i] = 0;
+	for(i = 0; i < x.length; i++)
+	    x[i] = 0;
+
+	// Generate counts for each bit length
+	el = n > 256 ? b[256] : this.BMAX; // set length of EOB code, if any
+	p = b; pidx = 0;
+	i = n;
+	do {
+	    c[p[pidx]]++;	// assume all entries <= BMAX
+	    pidx++;
+	} while(--i > 0);
+	if(c[0] == n) {	// null input--all zero length codes
+	    this.root = null;
+	    this.m = 0;
+	    this.status = 0;
+	    return;
+	}
+
+	// Find minimum and maximum length, bound *m by those
+	for(j = 1; j <= this.BMAX; j++)
+	    if(c[j] != 0)
+		break;
+	k = j;			// minimum code length
+	if(mm < j)
+	    mm = j;
+	for(i = this.BMAX; i != 0; i--)
+	    if(c[i] != 0)
+		break;
+	g = i;			// maximum code length
+	if(mm > i)
+	    mm = i;
+
+	// Adjust last length count to fill out codes, if needed
+	for(y = 1 << j; j < i; j++, y <<= 1)
+	    if((y -= c[j]) < 0) {
+		this.status = 2;	// bad input: more codes than bits
+		this.m = mm;
+		return;
+	    }
+	if((y -= c[i]) < 0) {
+	    this.status = 2;
+	    this.m = mm;
+	    return;
+	}
+	c[i] += y;
+
+	// Generate starting offsets into the value table for each length
+	x[1] = j = 0;
+	p = c;
+	pidx = 1;
+	xp = 2;
+	while(--i > 0)		// note that i == g from above
+	    x[xp++] = (j += p[pidx++]);
+
+	// Make a table of values in order of bit lengths
+	p = b; pidx = 0;
+	i = 0;
+	do {
+	    if((j = p[pidx++]) != 0)
+		v[x[j]++] = i;
+	} while(++i < n);
+	n = x[g];			// set n to length of v
+
+	// Generate the Huffman codes and for each, make the table entries
+	x[0] = i = 0;		// first Huffman code is zero
+	p = v; pidx = 0;		// grab values in bit order
+	h = -1;			// no tables yet--level -1
+	w = lx[0] = 0;		// no bits decoded yet
+	q = null;			// ditto
+	z = 0;			// ditto
+
+	// go through the bit lengths (k already is bits in shortest code)
+	for(; k <= g; k++) {
+	    a = c[k];
+	    while(a-- > 0) {
+		// here i is the Huffman code of length k bits for value p[pidx]
+		// make tables up to required level
+		while(k > w + lx[1 + h]) {
+		    w += lx[1 + h]; // add bits already decoded
+		    h++;
+
+		    // compute minimum size table less than or equal to *m bits
+		    z = (z = g - w) > mm ? mm : z; // upper limit
+		    if((f = 1 << (j = k - w)) > a + 1) { // try a k-w bit table
+			// too few codes for k-w bit table
+			f -= a + 1;	// deduct codes from patterns left
+			xp = k;
+			while(++j < z) { // try smaller tables up to z bits
+			    if((f <<= 1) <= c[++xp])
+				break;	// enough codes to use up j bits
+			    f -= c[xp];	// else deduct codes from patterns
+			}
+		    }
+		    if(w + j > el && w < el)
+			j = el - w;	// make EOB code end at table
+		    z = 1 << j;	// table entries for j-bit table
+		    lx[1 + h] = j; // set table size in stack
+
+		    // allocate and link in new table
+		    q = new Array(z);
+		    for(o = 0; o < z; o++) {
+			q[o] = new zip_HuftNode();
+		    }
+
+		    if(tail == null)
+			tail = this.root = new zip_HuftList();
+		    else
+			tail = tail.next = new zip_HuftList();
+		    tail.next = null;
+		    tail.list = q;
+		    u[h] = q;	// table starts after link
+
+		    /* connect to last table, if there is one */
+		    if(h > 0) {
+			x[h] = i;		// save pattern for backing up
+			r.b = lx[h];	// bits to dump before this table
+			r.e = 16 + j;	// bits in this table
+			r.t = q;		// pointer to this table
+			j = (i & ((1 << w) - 1)) >> (w - lx[h]);
+			u[h-1][j].e = r.e;
+			u[h-1][j].b = r.b;
+			u[h-1][j].n = r.n;
+			u[h-1][j].t = r.t;
+		    }
+		}
+
+		// set up table entry in r
+		r.b = k - w;
+		if(pidx >= n)
+		    r.e = 99;		// out of values--invalid code
+		else if(p[pidx] < s) {
+		    r.e = (p[pidx] < 256 ? 16 : 15); // 256 is end-of-block code
+		    r.n = p[pidx++];	// simple code is just the value
+		} else {
+		    r.e = e[p[pidx] - s];	// non-simple--look up in lists
+		    r.n = d[p[pidx++] - s];
+		}
+
+		// fill code-like entries with r //
+		f = 1 << (k - w);
+		for(j = i >> w; j < z; j += f) {
+		    q[j].e = r.e;
+		    q[j].b = r.b;
+		    q[j].n = r.n;
+		    q[j].t = r.t;
+		}
+
+		// backwards increment the k-bit code i
+		for(j = 1 << (k - 1); (i & j) != 0; j >>= 1)
+		    i ^= j;
+		i ^= j;
+
+		// backup over finished tables
+		while((i & ((1 << w) - 1)) != x[h]) {
+		    w -= lx[h];		// don't need to update q
+		    h--;
+		}
+	    }
+	}
+
+	/* return actual size of base table */
+	this.m = lx[1];
+
+	/* Return true (1) if we were given an incomplete table */
+	this.status = ((y != 0 && g != 1) ? 1 : 0);
+    } /* end of constructor */
+}
+
+
+/* routines (inflate) */
+
+var zip_GET_BYTE = function() {
+    if(zip_inflate_data.length == zip_inflate_pos)
+	return -1;
+    return zip_inflate_data.charCodeAt(zip_inflate_pos++) & 0xff;
+}
+
+var zip_NEEDBITS = function(n) {
+    while(zip_bit_len < n) {
+	zip_bit_buf |= zip_GET_BYTE() << zip_bit_len;
+	zip_bit_len += 8;
+    }
+}
+
+var zip_GETBITS = function(n) {
+    return zip_bit_buf & zip_MASK_BITS[n];
+}
+
+var zip_DUMPBITS = function(n) {
+    zip_bit_buf >>= n;
+    zip_bit_len -= n;
+}
+
+var zip_inflate_codes = function(buff, off, size) {
+    /* inflate (decompress) the codes in a deflated (compressed) block.
+       Return an error code or zero if it all goes ok. */
+    var e;		// table entry flag/number of extra bits
+    var t;		// (zip_HuftNode) pointer to table entry
+    var n;
+
+    if(size == 0)
+      return 0;
+
+    // inflate the coded data
+    n = 0;
+    for(;;) {			// do until end of block
+	zip_NEEDBITS(zip_bl);
+	t = zip_tl.list[zip_GETBITS(zip_bl)];
+	e = t.e;
+	while(e > 16) {
+	    if(e == 99)
+		return -1;
+	    zip_DUMPBITS(t.b);
+	    e -= 16;
+	    zip_NEEDBITS(e);
+	    t = t.t[zip_GETBITS(e)];
+	    e = t.e;
+	}
+	zip_DUMPBITS(t.b);
+
+	if(e == 16) {		// then it's a literal
+	    zip_wp &= zip_WSIZE - 1;
+	    buff[off + n++] = zip_slide[zip_wp++] = t.n;
+	    if(n == size)
+		return size;
+	    continue;
+	}
+
+	// exit if end of block
+	if(e == 15)
+	    break;
+
+	// it's an EOB or a length
+
+	// get length of block to copy
+	zip_NEEDBITS(e);
+	zip_copy_leng = t.n + zip_GETBITS(e);
+	zip_DUMPBITS(e);
+
+	// decode distance of block to copy
+	zip_NEEDBITS(zip_bd);
+	t = zip_td.list[zip_GETBITS(zip_bd)];
+	e = t.e;
+
+	while(e > 16) {
+	    if(e == 99)
+		return -1;
+	    zip_DUMPBITS(t.b);
+	    e -= 16;
+	    zip_NEEDBITS(e);
+	    t = t.t[zip_GETBITS(e)];
+	    e = t.e;
+	}
+	zip_DUMPBITS(t.b);
+	zip_NEEDBITS(e);
+	zip_copy_dist = zip_wp - t.n - zip_GETBITS(e);
+	zip_DUMPBITS(e);
+
+	// do the copy
+	while(zip_copy_leng > 0 && n < size) {
+	    zip_copy_leng--;
+	    zip_copy_dist &= zip_WSIZE - 1;
+	    zip_wp &= zip_WSIZE - 1;
+	    buff[off + n++] = zip_slide[zip_wp++]
+		= zip_slide[zip_copy_dist++];
+	}
+
+	if(n == size)
+	    return size;
+    }
+
+    zip_method = -1; // done
+    return n;
+}
+
+var zip_inflate_stored = function(buff, off, size) {
+    /* "decompress" an inflated type 0 (stored) block. */
+    var n;
+
+    // go to byte boundary
+    n = zip_bit_len & 7;
+    zip_DUMPBITS(n);
+
+    // get the length and its complement
+    zip_NEEDBITS(16);
+    n = zip_GETBITS(16);
+    zip_DUMPBITS(16);
+    zip_NEEDBITS(16);
+    if(n != ((~zip_bit_buf) & 0xffff))
+	return -1;			// error in compressed data
+    zip_DUMPBITS(16);
+
+    // read and output the compressed data
+    zip_copy_leng = n;
+
+    n = 0;
+    while(zip_copy_leng > 0 && n < size) {
+	zip_copy_leng--;
+	zip_wp &= zip_WSIZE - 1;
+	zip_NEEDBITS(8);
+	buff[off + n++] = zip_slide[zip_wp++] =
+	    zip_GETBITS(8);
+	zip_DUMPBITS(8);
+    }
+
+    if(zip_copy_leng == 0)
+      zip_method = -1; // done
+    return n;
+}
+
+var zip_inflate_fixed = function(buff, off, size) {
+    /* decompress an inflated type 1 (fixed Huffman codes) block.  We should
+       either replace this with a custom decoder, or at least precompute the
+       Huffman tables. */
+
+    // if first time, set up tables for fixed blocks
+    if(zip_fixed_tl == null) {
+	var i;			// temporary variable
+	var l = new Array(288);	// length list for huft_build
+	var h;	// zip_HuftBuild
+
+	// literal table
+	for(i = 0; i < 144; i++)
+	    l[i] = 8;
+	for(; i < 256; i++)
+	    l[i] = 9;
+	for(; i < 280; i++)
+	    l[i] = 7;
+	for(; i < 288; i++)	// make a complete, but wrong code set
+	    l[i] = 8;
+	zip_fixed_bl = 7;
+
+	h = new zip_HuftBuild(l, 288, 257, zip_cplens, zip_cplext,
+			      zip_fixed_bl);
+	if(h.status != 0) {
+	    alert("HufBuild error: "+h.status);
+	    return -1;
+	}
+	zip_fixed_tl = h.root;
+	zip_fixed_bl = h.m;
+
+	// distance table
+	for(i = 0; i < 30; i++)	// make an incomplete code set
+	    l[i] = 5;
+	zip_fixed_bd = 5;
+
+	h = new zip_HuftBuild(l, 30, 0, zip_cpdist, zip_cpdext, zip_fixed_bd);
+	if(h.status > 1) {
+	    zip_fixed_tl = null;
+	    alert("HufBuild error: "+h.status);
+	    return -1;
+	}
+	zip_fixed_td = h.root;
+	zip_fixed_bd = h.m;
+    }
+
+    zip_tl = zip_fixed_tl;
+    zip_td = zip_fixed_td;
+    zip_bl = zip_fixed_bl;
+    zip_bd = zip_fixed_bd;
+    return zip_inflate_codes(buff, off, size);
+}
+
+var zip_inflate_dynamic = function(buff, off, size) {
+    // decompress an inflated type 2 (dynamic Huffman codes) block.
+    var i;		// temporary variables
+    var j;
+    var l;		// last length
+    var n;		// number of lengths to get
+    var t;		// (zip_HuftNode) literal/length code table
+    var nb;		// number of bit length codes
+    var nl;		// number of literal/length codes
+    var nd;		// number of distance codes
+    var ll = new Array(286+30); // literal/length and distance code lengths
+    var h;		// (zip_HuftBuild)
+
+    for(i = 0; i < ll.length; i++)
+	ll[i] = 0;
+
+    // read in table lengths
+    zip_NEEDBITS(5);
+    nl = 257 + zip_GETBITS(5);	// number of literal/length codes
+    zip_DUMPBITS(5);
+    zip_NEEDBITS(5);
+    nd = 1 + zip_GETBITS(5);	// number of distance codes
+    zip_DUMPBITS(5);
+    zip_NEEDBITS(4);
+    nb = 4 + zip_GETBITS(4);	// number of bit length codes
+    zip_DUMPBITS(4);
+    if(nl > 286 || nd > 30)
+      return -1;		// bad lengths
+
+    // read in bit-length-code lengths
+    for(j = 0; j < nb; j++)
+    {
+	zip_NEEDBITS(3);
+	ll[zip_border[j]] = zip_GETBITS(3);
+	zip_DUMPBITS(3);
+    }
+    for(; j < 19; j++)
+	ll[zip_border[j]] = 0;
+
+    // build decoding table for trees--single level, 7 bit lookup
+    zip_bl = 7;
+    h = new zip_HuftBuild(ll, 19, 19, null, null, zip_bl);
+    if(h.status != 0)
+	return -1;	// incomplete code set
+
+    zip_tl = h.root;
+    zip_bl = h.m;
+
+    // read in literal and distance code lengths
+    n = nl + nd;
+    i = l = 0;
+    while(i < n) {
+	zip_NEEDBITS(zip_bl);
+	t = zip_tl.list[zip_GETBITS(zip_bl)];
+	j = t.b;
+	zip_DUMPBITS(j);
+	j = t.n;
+	if(j < 16)		// length of code in bits (0..15)
+	    ll[i++] = l = j;	// save last length in l
+	else if(j == 16) {	// repeat last length 3 to 6 times
+	    zip_NEEDBITS(2);
+	    j = 3 + zip_GETBITS(2);
+	    zip_DUMPBITS(2);
+	    if(i + j > n)
+		return -1;
+	    while(j-- > 0)
+		ll[i++] = l;
+	} else if(j == 17) {	// 3 to 10 zero length codes
+	    zip_NEEDBITS(3);
+	    j = 3 + zip_GETBITS(3);
+	    zip_DUMPBITS(3);
+	    if(i + j > n)
+		return -1;
+	    while(j-- > 0)
+		ll[i++] = 0;
+	    l = 0;
+	} else {		// j == 18: 11 to 138 zero length codes
+	    zip_NEEDBITS(7);
+	    j = 11 + zip_GETBITS(7);
+	    zip_DUMPBITS(7);
+	    if(i + j > n)
+		return -1;
+	    while(j-- > 0)
+		ll[i++] = 0;
+	    l = 0;
+	}
+    }
+
+    // build the decoding tables for literal/length and distance codes
+    zip_bl = zip_lbits;
+    h = new zip_HuftBuild(ll, nl, 257, zip_cplens, zip_cplext, zip_bl);
+    if(zip_bl == 0)	// no literals or lengths
+	h.status = 1;
+    if(h.status != 0) {
+	if(h.status == 1)
+	    ;// **incomplete literal tree**
+	return -1;		// incomplete code set
+    }
+    zip_tl = h.root;
+    zip_bl = h.m;
+
+    for(i = 0; i < nd; i++)
+	ll[i] = ll[i + nl];
+    zip_bd = zip_dbits;
+    h = new zip_HuftBuild(ll, nd, 0, zip_cpdist, zip_cpdext, zip_bd);
+    zip_td = h.root;
+    zip_bd = h.m;
+
+    if(zip_bd == 0 && nl > 257) {   // lengths but no distances
+	// **incomplete distance tree**
+	return -1;
+    }
+
+    if(h.status == 1) {
+	;// **incomplete distance tree**
+    }
+    if(h.status != 0)
+	return -1;
+
+    // decompress until an end-of-block code
+    return zip_inflate_codes(buff, off, size);
+}
+
+var zip_inflate_start = function() {
+    var i;
+
+    if(zip_slide == null)
+	zip_slide = new Array(2 * zip_WSIZE);
+    zip_wp = 0;
+    zip_bit_buf = 0;
+    zip_bit_len = 0;
+    zip_method = -1;
+    zip_eof = false;
+    zip_copy_leng = zip_copy_dist = 0;
+    zip_tl = null;
+}
+
+var zip_inflate_internal = function(buff, off, size) {
+    // decompress an inflated entry
+    var n, i;
+
+    n = 0;
+    while(n < size) {
+	if(zip_eof && zip_method == -1)
+	    return n;
+
+	if(zip_copy_leng > 0) {
+	    if(zip_method != zip_STORED_BLOCK) {
+		// STATIC_TREES or DYN_TREES
+		while(zip_copy_leng > 0 && n < size) {
+		    zip_copy_leng--;
+		    zip_copy_dist &= zip_WSIZE - 1;
+		    zip_wp &= zip_WSIZE - 1;
+		    buff[off + n++] = zip_slide[zip_wp++] =
+			zip_slide[zip_copy_dist++];
+		}
+	    } else {
+		while(zip_copy_leng > 0 && n < size) {
+		    zip_copy_leng--;
+		    zip_wp &= zip_WSIZE - 1;
+		    zip_NEEDBITS(8);
+		    buff[off + n++] = zip_slide[zip_wp++] = zip_GETBITS(8);
+		    zip_DUMPBITS(8);
+		}
+		if(zip_copy_leng == 0)
+		    zip_method = -1; // done
+	    }
+	    if(n == size)
+		return n;
+	}
+
+	if(zip_method == -1) {
+	    if(zip_eof)
+		break;
+
+	    // read in last block bit
+	    zip_NEEDBITS(1);
+	    if(zip_GETBITS(1) != 0)
+		zip_eof = true;
+	    zip_DUMPBITS(1);
+
+	    // read in block type
+	    zip_NEEDBITS(2);
+	    zip_method = zip_GETBITS(2);
+	    zip_DUMPBITS(2);
+	    zip_tl = null;
+	    zip_copy_leng = 0;
+	}
+
+	switch(zip_method) {
+	  case 0: // zip_STORED_BLOCK
+	    i = zip_inflate_stored(buff, off + n, size - n);
+	    break;
+
+	  case 1: // zip_STATIC_TREES
+	    if(zip_tl != null)
+		i = zip_inflate_codes(buff, off + n, size - n);
+	    else
+		i = zip_inflate_fixed(buff, off + n, size - n);
+	    break;
+
+	  case 2: // zip_DYN_TREES
+	    if(zip_tl != null)
+		i = zip_inflate_codes(buff, off + n, size - n);
+	    else
+		i = zip_inflate_dynamic(buff, off + n, size - n);
+	    break;
+
+	  default: // error
+	    i = -1;
+	    break;
+	}
+
+	if(i == -1) {
+	    if(zip_eof)
+		return 0;
+	    return -1;
+	}
+	n += i;
+    }
+    return n;
+}
+
+var zip_inflate = function(str) {
+    var i, j;
+
+    zip_inflate_start();
+    zip_inflate_data = str;
+    zip_inflate_pos = 0;
+
+    var buff = new Array(1024);
+    var aout = [];
+    while((i = zip_inflate_internal(buff, 0, buff.length)) > 0) {
+	var cbuf = new Array(i);
+	for(j = 0; j < i; j++){
+	    cbuf[j] = String.fromCharCode(buff[j]);
+	}
+	aout[aout.length] = cbuf.join("");
+    }
+    zip_inflate_data = null; // G.C.
+    return aout.join("");
+}
+
+if (! ctx.RawDeflate) ctx.RawDeflate = {};
+ctx.RawDeflate.inflate = zip_inflate;
+
+})(this);
+
 HX = {
     VERSION: '0.1',
     INITIALIZED: false,
@@ -367,6 +1123,18 @@ HX.ShaderLibrary['point_light_spherical_fragment.glsl'] = 'varying vec2 uv;\nvar
 
 HX.ShaderLibrary['point_light_spherical_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute float hx_instanceID;\n\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform mat4 hx_projectionMatrix;\n\nuniform float lightRadius[LIGHTS_PER_BATCH];\nuniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\nuniform vec3 lightColor[LIGHTS_PER_BATCH];\nuniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nvoid main()\n{\n	int instance = int(hx_instanceID);\n	vec4 worldPos = hx_position;\n	lightPositionVar = lightWorldPosition[instance];\n	lightColorVar = lightColor[instance];\n	attenuationFixVar = attenuationFixFactors[instance];\n	worldPos.xyz *= lightRadius[instance];\n	worldPos.xyz += lightPositionVar;\n\n	vec4 viewPos = hx_viewMatrix * worldPos;\n	vec4 proj = hx_projectionMatrix * viewPos;\n\n	lightPositionVar = (hx_viewMatrix * vec4(lightPositionVar, 1.0)).xyz;\n\n	viewDir = viewPos.xyz / viewPos.z;\n\n	/* render as flat disk, prevent clipping */\n	proj /= proj.w;\n	proj.z = 0.0;\n	uv = proj.xy/proj.w * .5 + .5;\n	gl_Position = proj;\n}';
 
+HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = 1.0 - (1.0 - roughnessOut) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = 1.0 - (1.0 - roughnessOut) * specSample.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
+
+HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
+
+HX.ShaderLibrary['default_refract_fragment.glsl'] = 'varying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef ALPHA_THRESHOLD\nuniform float alphaThreshold;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform sampler2D hx_backbuffer;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float refractiveRatio;   // the ratio of refractive indices\n\n// TODO: could raytrace as an alternative\nvec2 getRefractedUVOffset(vec3 normal, float farZ)\n{\n    vec3 refractionVector = refract(normalize(vec3(0.0, 0.0, -1.0)), normal, refractiveRatio) * .5;\n    return -refractionVector.xy / viewVector.z;\n}\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n    #endif\n\n    // use the immediate background depth value for a distance estimate\n    // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering\n\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, screenUV);\n    float farZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n\n    vec2 samplePos = screenUV + getRefractedUVOffset(fragNormal, farZ);\n\n    vec4 background = texture2D(hx_backbuffer, samplePos);\n    gl_FragColor = outputColor * background;\n}';
+
+HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\n\nvoid main()\n{\n    vec4 viewSpace = hx_worldViewMatrix * hx_position;\n    vec4 proj = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n    viewVector = viewSpace.xyz;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n    screenUV = proj.xy / proj.w * .5 + .5;\n    gl_Position = proj;\n}';
+
+HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nvoid main()\n{\n    vec4 color = textureCube(hx_skybox, viewWorldDir);\n    gl_FragColor = hx_gammaToLinear(color);\n}';
+
+HX.ShaderLibrary['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_inverseViewProjectionMatrix;\nuniform vec3 hx_cameraWorldPosition;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube\nvoid main()\n{\n    vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n    viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n    gl_Position = vec4(hx_position.xy, 1.0, 1.0);  // make sure it\'s drawn behind everything else\n}';
+
 HX.ShaderLibrary['bloom_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform float gaussianWeights[NUM_SAMPLES];\n\nvoid main()\n{\n	vec4 total = vec4(0.0);\n	vec2 sampleUV = uv;\n	vec2 stepSize = DIRECTION / SOURCE_RES;\n	float totalWeight = 0.0;\n	for (int i = 0; i < NUM_SAMPLES; ++i) {\n		total += texture2D(sourceTexture, sampleUV) * gaussianWeights[i];\n		sampleUV += stepSize;\n	}\n	gl_FragColor = total;\n}';
 
 HX.ShaderLibrary['bloom_blur_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord - RADIUS * DIRECTION / SOURCE_RES;\n	gl_Position = hx_position;\n}';
@@ -414,18 +1182,6 @@ HX.ShaderLibrary['linearize_depth_vertex.glsl'] = 'attribute vec4 hx_position;\n
 HX.ShaderLibrary['multiply_color_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform vec4 color;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * color;\n}\n';
 
 HX.ShaderLibrary['reproject_fragment.glsl'] = 'uniform sampler2D depth;\nuniform sampler2D source;\n\nvarying vec2 uv;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform mat4 reprojectionMatrix;\n\nvec2 reproject(vec2 uv, float z)\n{\n    // need z in NDC homogeneous coords to be able to unproject\n    vec4 ndc;\n    ndc.xy = uv.xy * 2.0 - 1.0;\n    // Unprojected Z will just end up being Z again, so could put this in the unprojection matrix itself?\n    ndc.z = (hx_projectionMatrix[2][2] * z + hx_projectionMatrix[3][2]) / -z;   // ndc = hom.z / hom.w\n    ndc.w = 1.0;\n    vec4 hom = reprojectionMatrix * ndc;\n    return hom.xy / hom.w * .5 + .5;\n}\n\nvoid main()\n{\n    float depth = hx_sampleLinearDepth(depth, uv);\n    float z = -hx_cameraNearPlaneDistance - depth * hx_cameraFrustumRange;\n    vec2 reprojectedUV = reproject(uv, z);\n    gl_FragColor = texture2D(source, reprojectedUV);\n}\n\n';
-
-HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = 1.0 - (1.0 - roughnessOut) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = 1.0 - (1.0 - roughnessOut) * specSample.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
-
-HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
-
-HX.ShaderLibrary['default_refract_fragment.glsl'] = 'varying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef ALPHA_THRESHOLD\nuniform float alphaThreshold;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform sampler2D hx_backbuffer;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float refractiveRatio;   // the ratio of refractive indices\n\n// TODO: could raytrace as an alternative\nvec2 getRefractedUVOffset(vec3 normal, float farZ)\n{\n    vec3 refractionVector = refract(normalize(vec3(0.0, 0.0, -1.0)), normal, refractiveRatio) * .5;\n    return -refractionVector.xy / viewVector.z;\n}\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n    #endif\n\n    // use the immediate background depth value for a distance estimate\n    // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering\n\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, screenUV);\n    float farZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n\n    vec2 samplePos = screenUV + getRefractedUVOffset(fragNormal, farZ);\n\n    vec4 background = texture2D(hx_backbuffer, samplePos);\n    gl_FragColor = outputColor * background;\n}';
-
-HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\n\nvoid main()\n{\n    vec4 viewSpace = hx_worldViewMatrix * hx_position;\n    vec4 proj = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n    viewVector = viewSpace.xyz;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n    screenUV = proj.xy / proj.w * .5 + .5;\n    gl_Position = proj;\n}';
-
-HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nvoid main()\n{\n    vec4 color = textureCube(hx_skybox, viewWorldDir);\n    gl_FragColor = hx_gammaToLinear(color);\n}';
-
-HX.ShaderLibrary['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_inverseViewProjectionMatrix;\nuniform vec3 hx_cameraWorldPosition;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube\nvoid main()\n{\n    vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n    viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n    gl_Position = vec4(hx_position.xy, 1.0, 1.0);  // make sure it\'s drawn behind everything else\n}';
 
 HX.ShaderLibrary['snippets_general.glsl'] = '// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    value *= 255.0/256.0;\n    vec4 enc = fract(value * vec4(1.0, 255.0, 65025.0, 16581375.0));\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0)) * 256.0 / 255.0;\n}\n\nvec2 hx_floatToRG8(float value)\n{\n// scale to encodable range [0, 1)\n    value *= .99;\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc = fract(enc);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0)) / .99;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    #ifdef HX_NO_DEPTH_TEXTURES\n        data.xy = data.xy*4.0 - 2.0;\n        float f = dot(data.xy, data.xy);\n        float g = sqrt(1.0 - f * .25);\n        vec3 normal;\n        normal.xy = data.xy * g;\n        normal.z = 1.0 - f * .5;\n        return normal;\n    #else\n    	return normalize(data.xyz - .5);\n    #endif\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nfloat hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\n// for use when sampling gbuffer data for lighting\nvoid hx_decodeReflectionData(in vec4 colorSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)\n{\n    //prevent from being 0\n    roughness = clamp(specularSample.x, .01, 1.0);\n	metallicness = specularSample.z;\n    normalSpecularReflectance = mix(vec3(specularSample.y * .2), colorSample.xyz, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}';
 
@@ -3651,12 +4407,21 @@ HX.DataStream = function(dataView)
 {
     this._dataView = dataView;
     this._offset = 0;
+    this._endian = HX.DataStream.LITTLE_ENDIAN;
 };
+
+HX.DataStream.LITTLE_ENDIAN = true;
+HX.DataStream.BIG_ENDIAN = false;
 
 HX.DataStream.prototype =
 {
     get offset() { return this._offset; },
     set offset(value) { this._offset = value; },
+
+    get endian() { return this._endian; },
+    set endian(value) { this._endian = value; },
+
+    get byteLength () { return this._dataView.byteLength ; },
 
     getChar: function()
     {
@@ -3665,48 +4430,54 @@ HX.DataStream.prototype =
 
     getUint8: function()
     {
-        this._dataView.getUint8(this._offset++);
+        return this._dataView.getUint8(this._offset++);
     },
 
     getUint16: function()
     {
-        this._dataView.getUint16(this._offset);
+        var data = this._dataView.getUint16(this._offset, this._endian);
         this._offset += 2;
+        return data;
     },
 
     getUint32: function()
     {
-        this._dataView.getUint32(this._offset);
+        var data = this._dataView.getUint32(this._offset, this._endian);
         this._offset += 4;
+        return data;
     },
 
     getInt8: function()
     {
-        this._dataView.getInt8(this._offset++);
+        return this._dataView.getInt8(this._offset++);
     },
 
     getInt16: function()
     {
-        this._dataView.getInt16(this._offset);
+        var data = this._dataView.getInt16(this._offset, this._endian);
         this._offset += 2;
+        return data;
     },
 
     getInt32: function()
     {
-        this._dataView.getInt32(this._offset);
+        var data = this._dataView.getInt32(this._offset, this._endian);
         this._offset += 4;
+        return data;
     },
 
     getFloat32: function()
     {
-        this._dataView.getFloat32(this._offset);
+        var data = this._dataView.getFloat32(this._offset, this._endian);
         this._offset += 4;
+        return data;
     },
 
     getFloat64: function()
     {
-        this._dataView.getFloat64(this._offset);
+        var data = this._dataView.getFloat64(this._offset, this._endian);
         this._offset += 8;
+        return data;
     },
 
     getUint8Array: function(len)
@@ -3754,7 +4525,7 @@ HX.DataStream.prototype =
         var str = "";
 
         for (var i = 0; i < len; ++i)
-            str = str + this.getChar(this._offset);
+            str = str + this.getChar();
 
         return str;
     },
@@ -3764,7 +4535,7 @@ HX.DataStream.prototype =
         var arr = new arrayType();
 
         for (var i = 0; i < len; ++i)
-            arr[i] = func(this._offset);
+            arr[i] = func.call(this);
 
         return arr;
     }
@@ -4301,7 +5072,7 @@ HX.URLLoader.prototype =
             var DONE = this.DONE || 4;
             if (this.readyState === DONE) {
                 if (this.status === 200) {
-                    this._data = this._type == HX.URLLoader.DATA_TEXT? request.responseText : new DataView(request.response);
+                    this._data = self._type === HX.URLLoader.DATA_TEXT? request.responseText : new DataView(request.response);
                     if (self.onComplete) self.onComplete(this._data);
                 }
                 else if (self.onError)
@@ -9915,60 +10686,6 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
     }
 
 };
-HX.RenderUtils =
-{
-    /**
-     * @param renderer The actual renderer doing the rendering.
-     * @param passType
-     * @param renderItems
-     * @param transparencyMode (optional) If provided, it will only render passes with the given transparency mode
-     * @param offsetIndex The index to start rendering.
-     * @returns The index for the first unrendered renderItem in the list (depending on transparencyMode)
-     * @private
-     */
-    renderPass: function (renderer, passType, renderItems, transparencyMode, offsetIndex)
-    {
-        var len = renderItems.length;
-        var activePass = null;
-        var lastMesh = null;
-        var offsetIndex = offsetIndex || 0;
-
-        for(var i = offsetIndex; i < len; ++i) {
-            var renderItem = renderItems[i];
-            var material = renderItem.material;
-
-            if (transparencyMode !== undefined && material._transparencyMode !== transparencyMode)
-                return i;
-
-            // lighting model 0 means unlit
-            var stencilValue = (material._lightingModelID << 4) | material._transparencyMode;
-            HX.updateStencilReferenceValue(stencilValue);
-
-            var meshInstance = renderItem.meshInstance;
-            var pass = renderItem.pass;
-            var shader = pass._shader;
-            // make sure renderstate is propagated
-            shader.updateRenderState(renderItem.worldMatrix, renderItem.camera);
-
-            if (pass !== activePass) {
-                pass.updateRenderState(renderer);
-                activePass = pass;
-
-                lastMesh = null;    // need to reset mesh data too
-            }
-
-            if (lastMesh != meshInstance._mesh) {
-                meshInstance.updateRenderState(passType);
-                lastMesh = meshInstance._mesh;
-            }
-
-            HX.drawElements(pass._elementType, meshInstance._mesh.numIndices(), 0);
-        }
-
-        HX.setBlendState(null);
-        return len;
-    }
-};
 /**
  * The debug render mode to inspect properties in the GBuffer, the lighting accumulation buffer, AO, etc.
  */
@@ -10572,6 +11289,60 @@ HX.Renderer.prototype =
         }
     }
 };
+HX.RenderUtils =
+{
+    /**
+     * @param renderer The actual renderer doing the rendering.
+     * @param passType
+     * @param renderItems
+     * @param transparencyMode (optional) If provided, it will only render passes with the given transparency mode
+     * @param offsetIndex The index to start rendering.
+     * @returns The index for the first unrendered renderItem in the list (depending on transparencyMode)
+     * @private
+     */
+    renderPass: function (renderer, passType, renderItems, transparencyMode, offsetIndex)
+    {
+        var len = renderItems.length;
+        var activePass = null;
+        var lastMesh = null;
+        var offsetIndex = offsetIndex || 0;
+
+        for(var i = offsetIndex; i < len; ++i) {
+            var renderItem = renderItems[i];
+            var material = renderItem.material;
+
+            if (transparencyMode !== undefined && material._transparencyMode !== transparencyMode)
+                return i;
+
+            // lighting model 0 means unlit
+            var stencilValue = (material._lightingModelID << 4) | material._transparencyMode;
+            HX.updateStencilReferenceValue(stencilValue);
+
+            var meshInstance = renderItem.meshInstance;
+            var pass = renderItem.pass;
+            var shader = pass._shader;
+            // make sure renderstate is propagated
+            shader.updateRenderState(renderItem.worldMatrix, renderItem.camera);
+
+            if (pass !== activePass) {
+                pass.updateRenderState(renderer);
+                activePass = pass;
+
+                lastMesh = null;    // need to reset mesh data too
+            }
+
+            if (lastMesh != meshInstance._mesh) {
+                meshInstance.updateRenderState(passType);
+                lastMesh = meshInstance._mesh;
+            }
+
+            HX.drawElements(pass._elementType, meshInstance._mesh.numIndices(), 0);
+        }
+
+        HX.setBlendState(null);
+        return len;
+    }
+};
 HX.StencilState = function(reference, comparison, onStencilFail, onDepthFail, onPass, readMask, writeMask)
 {
     this.enabled = true;
@@ -11037,23 +11808,6 @@ HX.CopyTexturePass.prototype.setSourceTexture = function(value)
 {
     this.setTexture("sampler", value);
 };
-HX.FXAA = function()
-{
-    HX.Effect.call(this);
-
-    this._pass = new HX.EffectPass(null, HX.ShaderLibrary.get("fxaa_fragment.glsl"));
-    this._pass.setUniform("edgeThreshold", 1/8);
-    this._pass.setUniform("edgeThresholdMin", 1/16);
-    this._pass.setUniform("edgeSharpness", 4.0);
-};
-
-HX.FXAA.prototype = Object.create(HX.Effect.prototype);
-
-HX.FXAA.prototype.draw = function(dt)
-{
-    this._swapHDRBuffers();
-    this._drawPass(this._pass);
-};
 /**
  *
  * @param density
@@ -11115,6 +11869,23 @@ Object.defineProperty(HX.FogEffect.prototype, "startDistance", {
 HX.FogEffect.prototype.draw = function(dt)
 {
     this._drawPass(this._fogPass);
+};
+HX.FXAA = function()
+{
+    HX.Effect.call(this);
+
+    this._pass = new HX.EffectPass(null, HX.ShaderLibrary.get("fxaa_fragment.glsl"));
+    this._pass.setUniform("edgeThreshold", 1/8);
+    this._pass.setUniform("edgeThresholdMin", 1/16);
+    this._pass.setUniform("edgeSharpness", 4.0);
+};
+
+HX.FXAA.prototype = Object.create(HX.Effect.prototype);
+
+HX.FXAA.prototype.draw = function(dt)
+{
+    this._swapHDRBuffers();
+    this._drawPass(this._pass);
 };
 /**
  * TODO: allow scaling down of textures
@@ -11323,6 +12094,133 @@ HX.HBAO.prototype._initDitherTexture = function()
 /**
  *
  * @param numSamples
+ * @param range
+ * @constructor
+ */
+HX.ScreenSpaceReflections = function(numSamples)
+{
+    HX.Effect.call(this);
+    numSamples = numSamples || 5;
+    this._numSamples = numSamples;
+
+    var defines = {
+        NUM_SAMPLES: numSamples
+    };
+
+    this._isSupported = !!HX.EXT_STANDARD_DERIVATIVES;
+    this._stencilWriteState = new HX.StencilState(1, HX.Comparison.ALWAYS, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE);
+    this._stencilReadState = new HX.StencilState(1, HX.Comparison.EQUAL, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
+    this._stencilPass = new HX.EffectPass(null, HX.ShaderLibrary.get("ssr_stencil_fragment.glsl"));
+    this._pass = new HX.EffectPass(HX.ShaderLibrary.get("ssr_vertex.glsl", defines), HX.ShaderLibrary.get("ssr_fragment.glsl", defines));
+    this._scale = .5;
+    this.stepSize = Math.max(500.0 / numSamples, 1.0);
+    this.maxDistance = 500.0;
+    this.maxRoughness = .4;
+
+    this._depthBuffer = new HX.ReadOnlyDepthBuffer();
+
+    this._ssrTexture = new HX.Texture2D();
+    this._ssrTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
+    this._ssrTexture.wrapMode = HX.TextureWrapMode.CLAMP;
+    this._fbo = new HX.FrameBuffer(this._ssrTexture, this._depthBuffer);
+};
+
+HX.ScreenSpaceReflections.prototype = Object.create(HX.Effect.prototype);
+
+
+/**
+ * Amount of pixels to skip per sample
+ */
+Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
+    stepSize: {
+        get: function () {
+            return this._stepSize;
+        },
+
+        set: function (value) {
+            this._stepSize = value;
+            this._pass.setUniform("stepSize", value);
+        }
+    },
+
+    maxDistance: {
+        get: function()
+        {
+            return this._stepSize;
+        },
+
+        set: function(value)
+        {
+            this._stepSize = value;
+            this._pass.setUniform("maxDistance", value);
+        }
+    },
+
+    /**
+     * The maximum amount of roughness that will show any screen-space reflections
+     */
+    maxRoughness: {
+        get: function()
+        {
+            return this._stepSize;
+        },
+
+        set: function(value)
+        {
+            this._stepSize = value;
+            this._pass.setUniform("maxRoughness", value);
+            this._stencilPass.setUniform("maxRoughness", value);
+        }
+    },
+
+    scale: {
+        get: function()
+        {
+            return this._scale;
+        },
+
+        set: function(value)
+        {
+            this._scale = value;
+            if (this._scale > 1.0) this._scale = 1.0;
+        }
+    }
+});
+
+// every SSAO type should implement this
+HX.ScreenSpaceReflections.prototype.getSSRTexture = function()
+{
+    return this._ssrTexture;
+};
+
+HX.ScreenSpaceReflections.prototype.draw = function(dt)
+{
+    var w = this._renderer._width * this._scale;
+    var h = this._renderer._height * this._scale;
+    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, null, HX.GL.RGBA, HX.HDR_FORMAT)) {
+        this._depthBuffer.init(w, h);
+        this._fbo.init();
+        this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
+    }
+
+    HX.pushRenderTarget(this._fbo);
+        HX.setClearColor(HX.Color.ZERO);
+        HX.clear();
+        HX.GL.colorMask(false, false, false, false);
+        HX.pushStencilState(this._stencilWriteState);
+        this._drawPass(this._stencilPass);
+        HX.popStencilState();
+        HX.GL.colorMask(true, true, true, true);
+
+        HX.pushStencilState(this._stencilReadState);
+
+        this._drawPass(this._pass);
+        HX.popStencilState();
+    HX.popRenderTarget();
+};
+/**
+ *
+ * @param numSamples
  */
 HX.SSAO = function(numSamples)
 {
@@ -11481,133 +12379,6 @@ HX.SSAO.prototype._initDitherTexture = function()
     this._ditherTexture.uploadData(new Uint8Array(data), 4, 4, false);
     this._ditherTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
     this._ditherTexture.wrapMode = HX.TextureWrapMode.REPEAT;
-};
-/**
- *
- * @param numSamples
- * @param range
- * @constructor
- */
-HX.ScreenSpaceReflections = function(numSamples)
-{
-    HX.Effect.call(this);
-    numSamples = numSamples || 5;
-    this._numSamples = numSamples;
-
-    var defines = {
-        NUM_SAMPLES: numSamples
-    };
-
-    this._isSupported = !!HX.EXT_STANDARD_DERIVATIVES;
-    this._stencilWriteState = new HX.StencilState(1, HX.Comparison.ALWAYS, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE);
-    this._stencilReadState = new HX.StencilState(1, HX.Comparison.EQUAL, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
-    this._stencilPass = new HX.EffectPass(null, HX.ShaderLibrary.get("ssr_stencil_fragment.glsl"));
-    this._pass = new HX.EffectPass(HX.ShaderLibrary.get("ssr_vertex.glsl", defines), HX.ShaderLibrary.get("ssr_fragment.glsl", defines));
-    this._scale = .5;
-    this.stepSize = Math.max(500.0 / numSamples, 1.0);
-    this.maxDistance = 500.0;
-    this.maxRoughness = .4;
-
-    this._depthBuffer = new HX.ReadOnlyDepthBuffer();
-
-    this._ssrTexture = new HX.Texture2D();
-    this._ssrTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
-    this._ssrTexture.wrapMode = HX.TextureWrapMode.CLAMP;
-    this._fbo = new HX.FrameBuffer(this._ssrTexture, this._depthBuffer);
-};
-
-HX.ScreenSpaceReflections.prototype = Object.create(HX.Effect.prototype);
-
-
-/**
- * Amount of pixels to skip per sample
- */
-Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
-    stepSize: {
-        get: function () {
-            return this._stepSize;
-        },
-
-        set: function (value) {
-            this._stepSize = value;
-            this._pass.setUniform("stepSize", value);
-        }
-    },
-
-    maxDistance: {
-        get: function()
-        {
-            return this._stepSize;
-        },
-
-        set: function(value)
-        {
-            this._stepSize = value;
-            this._pass.setUniform("maxDistance", value);
-        }
-    },
-
-    /**
-     * The maximum amount of roughness that will show any screen-space reflections
-     */
-    maxRoughness: {
-        get: function()
-        {
-            return this._stepSize;
-        },
-
-        set: function(value)
-        {
-            this._stepSize = value;
-            this._pass.setUniform("maxRoughness", value);
-            this._stencilPass.setUniform("maxRoughness", value);
-        }
-    },
-
-    scale: {
-        get: function()
-        {
-            return this._scale;
-        },
-
-        set: function(value)
-        {
-            this._scale = value;
-            if (this._scale > 1.0) this._scale = 1.0;
-        }
-    }
-});
-
-// every SSAO type should implement this
-HX.ScreenSpaceReflections.prototype.getSSRTexture = function()
-{
-    return this._ssrTexture;
-};
-
-HX.ScreenSpaceReflections.prototype.draw = function(dt)
-{
-    var w = this._renderer._width * this._scale;
-    var h = this._renderer._height * this._scale;
-    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, null, HX.GL.RGBA, HX.HDR_FORMAT)) {
-        this._depthBuffer.init(w, h);
-        this._fbo.init();
-        this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
-    }
-
-    HX.pushRenderTarget(this._fbo);
-        HX.setClearColor(HX.Color.ZERO);
-        HX.clear();
-        HX.GL.colorMask(false, false, false, false);
-        HX.pushStencilState(this._stencilWriteState);
-        this._drawPass(this._stencilPass);
-        HX.popStencilState();
-        HX.GL.colorMask(true, true, true, true);
-
-        HX.pushStencilState(this._stencilReadState);
-
-        this._drawPass(this._pass);
-        HX.popStencilState();
-    HX.popRenderTarget();
 };
 HX.ToneMapEffect = function(adaptive)
 {
@@ -11796,59 +12567,73 @@ HX.FBXLoader =
  */
 HX.FBXParser = function()
 {
-    this._i = 0;
     this._version = null;
-    this._rootNode = null;
+    this._nodes = [];
 };
 
 HX.FBXParser.prototype =
 {
     parse: function(data, target, onComplete, onFail)
     {
+        var time = Date.now();
         this._data = new HX.DataStream(data);
 
         if (!this._verifyHeader()) {
-            if (this.onFail) onFail();
+            console.log("Incorrect FBX header");
+            if (onFail) onFail();
             return;
         }
 
-        this._data.offset = 32;
-        this._version = this._data.getUint32();
-        this._i = 23;
+        if (this._data.getUint16() !== 0x001a)
+            console.log("Suspected oddity with FBX file");
 
-        // TODO: recursively parse nodes
-        this._rootNode = this._parseNode();
+        this._version = this._data.getUint32();
+        console.log("FBX version " + this._version);
+
+        var node;
+        do {
+            node = this._parseNode();
+            this._nodes.push(node);
+        } while (node);
+
+        console.log("Parsing complete in " + (Date.now() - time) + "ms");
     },
 
     _verifyHeader: function()
     {
-        var data = this._data;
-        var str = "";
-
-        data.getString(21);
-
-        if (str !== "Kaydara FBX Binary  ") return false;
-
-        return true;
+        return this._data.getString(21) === "Kaydara FBX Binary  \0";
     },
 
     _parseNode: function()
     {
         var data = this._data;
-        var endOffset = data.getUint32(this._i += 4);
-        var numProperties = data.getUint32(this._i += 4);
-        var propertyListLen = data.getUint32(this._i += 4);
-        var nameLen = data.getUint8(this._i++);
-        var record = new HX.FBXParser.NodeRecord();
+        var endOffset = data.getUint32();
+        var numProperties = data.getUint32();
+        var propertyListLen = data.getUint32();
+        var nameLen = data.getUint8();
 
-        for (var i = 0; i < nameLen; ++i) {
-            record.name = record.name + + String.fromCharCode(data.getUint8(this._i++));
+        if (endOffset === 0) {
+            if (numProperties !== 0 || propertyListLen !== 0 || nameLen !== 0) throw "Invalid null node!";
+            return null;
         }
 
-        console.log(record.name);
+        var record = new HX.FBXParser.NodeRecord();
+        record.name = data.getString(nameLen);
 
-        for (var i = 0; i < numProperties; ++i)
-            record.properties.push(this._parseProperty());
+        for (var i = 0; i < numProperties; ++i) {
+            var prop = this._parseProperty();
+            record.properties.push(prop);
+        }
+
+        // there's more data, must contain child nodes (terminated by null node)
+        if (data.offset != endOffset) {
+            var node;
+            do {
+                node = this._parseNode();
+                if (node) record.children.push(node);
+            }
+            while (node);
+        }
 
         return record;
     },
@@ -11856,11 +12641,11 @@ HX.FBXParser.prototype =
     _parseProperty: function()
     {
         var prop = new HX.FBXParser.Property();
-        prop.typeCode = this._data.getUint8(this._i += 2);
+        prop.typeCode = this._data.getChar();
 
         switch (prop.typeCode) {
             case HX.FBXParser.Property.BOOLEAN:
-                prop.data = (this._data.getInt8() & 1) === 1;
+                prop.data = this._data.getUint8();
                 break;
             case HX.FBXParser.Property.INT16:
                 prop.data = this._data.getInt16();
@@ -11870,13 +12655,25 @@ HX.FBXParser.prototype =
                 break;
             case HX.FBXParser.Property.INT64:
                 // not sure what to do with this eventually
-                throw "Unsupported INT64 datatype encountered";
+                //throw "Unsupported INT64 datatype encountered";
+                prop.data = {
+                    L: this._data.getInt32(),
+                    U: this._data.getInt32()
+                };
                 break;
             case HX.FBXParser.Property.FLOAT:
                 prop.data = this._data.getFloat32();
                 break;
             case HX.FBXParser.Property.DOUBLE:
                 prop.data = this._data.getFloat64();
+                break;
+            case HX.FBXParser.Property.STRING:
+                var len = this._data.getUint32();
+                prop.data = this._data.getString(len);
+                break;
+            case HX.FBXParser.Property.RAW:
+                var len = this._data.getUint32();
+                prop.data = this._data.getUint8Array(len);
                 break;
             default:
                 prop.data = this._parseArray(prop.typeCode);
@@ -11886,17 +12683,61 @@ HX.FBXParser.prototype =
 
     _parseArray: function(type)
     {
+        var len = this._data.getUint32();
+        var encoding = this._data.getUint32();
+        var compressedLength = this._data.getUint32();
 
+        if (encoding === 0) {
+            switch (type) {
+                case HX.FBXParser.Property.BOOLEAN_ARRAY:
+                    return this._data.getUint8Array(len);
+                case HX.FBXParser.Property.INT32_ARRAY:
+                    return this._data.getInt32Array(len);
+                case HX.FBXParser.Property.INT64_ARRAY:
+                    // not sure what to do with this eventually
+                    return this._data.getInt32Array(len * 2);
+                    break;
+                case HX.FBXParser.Property.FLOAT_ARRAY:
+                    return this._data.getFloat32Array(len);
+                    break;
+                case HX.FBXParser.Property.DOUBLE_ARRAY:
+                    return this._data.getFloat64Array(len);
+                    break;
+                default:
+                    throw "Unknown data type code " + type;
+            }
+        }
+        else {
+            var data = this._data.getUint8Array(compressedLength);
+            data = new ArrayBuffer(RawDeflate.inflate(data));
+
+            switch (type) {
+                case HX.FBXParser.Property.BOOLEAN_ARRAY:
+                    return new Uint8Array(data);
+                case HX.FBXParser.Property.INT32_ARRAY:
+                    return new Int32Array(data);
+                case HX.FBXParser.Property.INT64_ARRAY:
+                    // INCORRECT
+                    return new Int32Array(data);
+                    break;
+                case HX.FBXParser.Property.FLOAT_ARRAY:
+                    return new Float32Array(data);
+                    break;
+                case HX.FBXParser.Property.DOUBLE_ARRAY:
+                    return new Float64Array(len);
+                    break;
+                default:
+                    throw "Unknown data type code " + type;
+            }
+        }
     }
 };
 
 HX.FBXParser.NodeRecord = function()
 {
-    this.endOffset = 0;
-    this.numProperties = 0;
-    this.propertyListLen = 0;
     this.name = "";
     this.properties = [];
+    this.children = [];
 };
 
 HX.FBXParser.Property = function()
@@ -11918,6 +12759,9 @@ HX.FBXParser.Property.INT32_ARRAY = "i";
 HX.FBXParser.Property.FLOAT_ARRAY = "f";
 HX.FBXParser.Property.DOUBLE_ARRAY = "d";
 HX.FBXParser.Property.INT64_ARRAY = "l";
+
+HX.FBXParser.Property.STRING = "S";
+HX.FBXParser.Property.RAW = "R";
 HX.OBJLoader =
 {
     load: function (filename, onComplete, onFail, groupsAsObjects)

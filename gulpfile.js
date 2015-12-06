@@ -6,7 +6,7 @@ var concatCallback = require('gulp-concat-callback');
 var del = require('del');
 
 var libs = [
-    "deflate-js/bin/deflate.js"
+    "libs/js-deflate/rawinflate.js"
 ];
 
 var sourceFiles = [
@@ -48,7 +48,7 @@ gulp.task('default', ['glsl', 'minimize', 'clean']);
 
 gulp.task('main', [ 'glsl' ], function() {
     var sources = libs.concat(sourceFiles);
-    return gulp.src(sources, {base: './src/'})
+    return gulp.src(sources, {base: './'})
         .pipe(concat('helix.js'))
         .pipe(gulp.dest('./build/'));
 });

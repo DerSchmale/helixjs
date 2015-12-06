@@ -31,50 +31,73 @@ HX.FBXLoader =
  */
 HX.FBXParser = function()
 {
-    this._i = 0;
     this._version = null;
-    this._rootNode = null;
+    this._nodes = [];
 };
 
 HX.FBXParser.prototype =
 {
     parse: function(data, target, onComplete, onFail)
     {
+        var time = Date.now();
         this._data = new HX.DataStream(data);
 
         if (!this._verifyHeader()) {
-            if (this.onFail) onFail();
+            console.log("Incorrect FBX header");
+            if (onFail) onFail();
             return;
         }
 
-        this._data.offset = 32;
-        this._version = this._data.getUint32();
-        this._i = 23;
+        if (this._data.getUint16() !== 0x001a)
+            console.log("Suspected oddity with FBX file");
 
-        // TODO: recursively parse nodes
-        this._rootNode = this._parseNode();
+        this._version = this._data.getUint32();
+        console.log("FBX version " + this._version);
+
+        var node;
+        do {
+            node = this._parseNode();
+            this._nodes.push(node);
+        } while (node);
+
+        console.log("Parsing complete in " + (Date.now() - time) + "ms");
     },
 
     _verifyHeader: function()
     {
-        return this._data.getString(21) === "Kaydara FBX Binary  ";
+        return this._data.getString(21) === "Kaydara FBX Binary  \0";
     },
 
     _parseNode: function()
     {
         var data = this._data;
-        var endOffset = data.getUint32(this._i += 4);
-        var numProperties = data.getUint32(this._i += 4);
-        var propertyListLen = data.getUint32(this._i += 4);
-        var nameLen = data.getUint8(this._i++);
-        var record = new HX.FBXParser.NodeRecord();
+        var endOffset = data.getUint32();
+        var numProperties = data.getUint32();
+        var propertyListLen = data.getUint32();
+        var nameLen = data.getUint8();
 
+        if (endOffset === 0) {
+            if (numProperties !== 0 || propertyListLen !== 0 || nameLen !== 0) throw "Invalid null node!";
+            return null;
+        }
+
+        var record = new HX.FBXParser.NodeRecord();
         record.name = data.getString(nameLen);
 
-        console.log("Record: " + record.name);
+        for (var i = 0; i < numProperties; ++i) {
+            var prop = this._parseProperty();
+            record.properties.push(prop);
+        }
 
-        for (var i = 0; i < numProperties; ++i)
-            record.properties.push(this._parseProperty());
+        // there's more data, must contain child nodes (terminated by null node)
+        if (data.offset != endOffset) {
+            var node;
+            do {
+                node = this._parseNode();
+                if (node) record.children.push(node);
+            }
+            while (node);
+        }
 
         return record;
     },
@@ -82,7 +105,7 @@ HX.FBXParser.prototype =
     _parseProperty: function()
     {
         var prop = new HX.FBXParser.Property();
-        prop.typeCode = this._data.getUint8(this._i += 2);
+        prop.typeCode = this._data.getChar();
 
         switch (prop.typeCode) {
             case HX.FBXParser.Property.BOOLEAN:
@@ -96,13 +119,25 @@ HX.FBXParser.prototype =
                 break;
             case HX.FBXParser.Property.INT64:
                 // not sure what to do with this eventually
-                throw "Unsupported INT64 datatype encountered";
+                //throw "Unsupported INT64 datatype encountered";
+                prop.data = {
+                    L: this._data.getInt32(),
+                    U: this._data.getInt32()
+                };
                 break;
             case HX.FBXParser.Property.FLOAT:
                 prop.data = this._data.getFloat32();
                 break;
             case HX.FBXParser.Property.DOUBLE:
                 prop.data = this._data.getFloat64();
+                break;
+            case HX.FBXParser.Property.STRING:
+                var len = this._data.getUint32();
+                prop.data = this._data.getString(len);
+                break;
+            case HX.FBXParser.Property.RAW:
+                var len = this._data.getUint32();
+                prop.data = this._data.getUint8Array(len);
                 break;
             default:
                 prop.data = this._parseArray(prop.typeCode);
@@ -124,7 +159,7 @@ HX.FBXParser.prototype =
                     return this._data.getInt32Array(len);
                 case HX.FBXParser.Property.INT64_ARRAY:
                     // not sure what to do with this eventually
-                    throw "Unsupported INT64 datatype encountered";
+                    return this._data.getInt32Array(len * 2);
                     break;
                 case HX.FBXParser.Property.FLOAT_ARRAY:
                     return this._data.getFloat32Array(len);
@@ -132,21 +167,41 @@ HX.FBXParser.prototype =
                 case HX.FBXParser.Property.DOUBLE_ARRAY:
                     return this._data.getFloat64Array(len);
                     break;
+                default:
+                    throw "Unknown data type code " + type;
             }
         }
         else {
+            var data = this._data.getUint8Array(compressedLength);
+            data = new ArrayBuffer(RawDeflate.inflate(data));
 
+            switch (type) {
+                case HX.FBXParser.Property.BOOLEAN_ARRAY:
+                    return new Uint8Array(data);
+                case HX.FBXParser.Property.INT32_ARRAY:
+                    return new Int32Array(data);
+                case HX.FBXParser.Property.INT64_ARRAY:
+                    // INCORRECT
+                    return new Int32Array(data);
+                    break;
+                case HX.FBXParser.Property.FLOAT_ARRAY:
+                    return new Float32Array(data);
+                    break;
+                case HX.FBXParser.Property.DOUBLE_ARRAY:
+                    return new Float64Array(len);
+                    break;
+                default:
+                    throw "Unknown data type code " + type;
+            }
         }
     }
 };
 
 HX.FBXParser.NodeRecord = function()
 {
-    this.endOffset = 0;
-    this.numProperties = 0;
-    this.propertyListLen = 0;
     this.name = "";
     this.properties = [];
+    this.children = [];
 };
 
 HX.FBXParser.Property = function()
@@ -168,3 +223,6 @@ HX.FBXParser.Property.INT32_ARRAY = "i";
 HX.FBXParser.Property.FLOAT_ARRAY = "f";
 HX.FBXParser.Property.DOUBLE_ARRAY = "d";
 HX.FBXParser.Property.INT64_ARRAY = "l";
+
+HX.FBXParser.Property.STRING = "S";
+HX.FBXParser.Property.RAW = "R";

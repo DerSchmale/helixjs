@@ -81,7 +81,7 @@ HX.URLLoader.prototype =
             var DONE = this.DONE || 4;
             if (this.readyState === DONE) {
                 if (this.status === 200) {
-                    this._data = this._type == HX.URLLoader.DATA_TEXT? request.responseText : new DataView(request.response);
+                    this._data = self._type === HX.URLLoader.DATA_TEXT? request.responseText : new DataView(request.response);
                     if (self.onComplete) self.onComplete(this._data);
                 }
                 else if (self.onError)

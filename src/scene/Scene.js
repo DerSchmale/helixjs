@@ -169,6 +169,11 @@ HX.SceneNode.prototype._createBoundingVolume = function()
     return new HX.BoundingAABB();
 };
 
+HX.SceneNode.prototype.toString = function()
+{
+    return "[SceneNode(name=" + this._name + ")]";
+};
+
 /**
  * Creates a new Scene object
  * @param rootNode (optional) A rootnode to be used, allowing different partition types to be used as the root.
@@ -212,9 +217,9 @@ HX.Scene.prototype = {
         this._rootNode.detach(child);
     },
 
-    numChildren: function()
+    get numChildren()
     {
-        return this._rootNode.numChildren();
+        return this._rootNode.numChildren;
     },
 
     getChild: function(index)
@@ -253,7 +258,13 @@ HX.GroupNode = function()
     this._children = [];
 };
 
-HX.GroupNode.prototype = Object.create(HX.SceneNode.prototype);
+HX.GroupNode.prototype = Object.create(HX.SceneNode.prototype,
+    {
+        numChildren: {
+            get: function() { return this._children.length; }
+        }
+    });
+
 
 HX.GroupNode.prototype.findNodeByName = function(name)
 {
@@ -291,10 +302,7 @@ HX.GroupNode.prototype.detach = function(child)
     this._invalidateWorldBounds();
 };
 
-HX.GroupNode.prototype.numChildren = function() { return this._children.length; };
-
 HX.GroupNode.prototype.getChild = function(index) { return this._children[index]; };
-
 
 HX.GroupNode.prototype.acceptVisitor = function(visitor)
 {

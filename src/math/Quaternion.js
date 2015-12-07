@@ -35,7 +35,15 @@ HX.Quaternion.prototype = {
     {
         var mtx = new HX.Matrix4x4();
         // wasteful. improve.
-        mtx.fromPitchYawRoll(pitch, yaw, roll);
+        mtx.rotationPitchYawRoll(pitch, yaw, roll);
+        this.fromMatrix(mtx);
+    },
+
+    fromXYZ: function(x, y, z)
+    {
+        var mtx = new HX.Matrix4x4();
+        // wasteful. improve.
+        mtx.rotationXYZ(x, y, z);
         this.fromMatrix(mtx);
     },
 
@@ -246,6 +254,11 @@ HX.Quaternion.prototype = {
     prepend: function(q)
     {
         this.product(this, q);
+    },
+
+    toString: function()
+    {
+        return "Quaternion(" + this.x + ", " + this.y + ", " + this.z + ", " + this.w + ")";
     }
 
 };

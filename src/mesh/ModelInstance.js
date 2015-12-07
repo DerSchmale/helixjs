@@ -124,20 +124,15 @@ HX.MeshInstance.prototype = {
 HX.ModelInstance = function(model, materials)
 {
     HX.Entity.call(this);
-    this._model = model;
     this._meshBounds = new HX.BoundingAABB();
+    this._model = null;
     this._meshInstances = [];
     this._castShadows = true;
-    this._model.onChange.bind(this._onModelChange, this);
 
-    this._materials = materials instanceof Array? materials : [ materials ];
-
-    this._onModelChange();
+    this.init(model, materials);
 };
 
-HX.ModelInstance.prototype = Object.create(HX.Entity.prototype);
-
-Object.defineProperties(HX.Entity.prototype, {
+HX.ModelInstance.prototype = Object.create(HX.Entity.prototype, {
     model:
     {
         get: function() { return this._model; }
@@ -162,6 +157,29 @@ Object.defineProperties(HX.Entity.prototype, {
         }
     }
 });
+
+/**
+ * Used if we choose to deferedly initialize the model
+ * @param model
+ * @param materials
+ */
+HX.ModelInstance.prototype.init = function(model, materials)
+{
+    if (this._model || this._materials)
+        throw "ModelInstance already initialized";
+
+    this._model = model;
+
+    if (materials)
+        this._materials = materials instanceof Array? materials : [ materials ];
+
+    if (model) {
+        this._model.onChange.bind(this._onModelChange, this);
+        this._onModelChange();
+    }
+
+    this._invalidateWorldBounds();
+};
 
 HX.ModelInstance.prototype.getMeshInstance = function(index)
 {
@@ -196,4 +214,9 @@ HX.ModelInstance.prototype.acceptVisitor = function(visitor)
 {
     visitor.visitModelInstance(this, this.worldMatrix, this.worldBounds);
     HX.Entity.prototype.acceptVisitor.call(this, visitor);
+};
+
+HX.ModelInstance.prototype.toString = function()
+{
+    return "[ModelInstance(name=" + this._name + ")]";
 };

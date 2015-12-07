@@ -173,6 +173,7 @@ HX.ModelData.prototype = {
  */
 HX.Model = function (modelData)
 {
+    this._name = null;
     this._localBounds = new HX.BoundingAABB();
     this.onChange = new HX.Signal();
 
@@ -186,6 +187,16 @@ HX.Model = function (modelData)
 
 HX.Model.prototype = {
     constructor: HX.Model,
+
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
 
     get numMeshes()
     {
@@ -223,5 +234,10 @@ HX.Model.prototype = {
         }
 
         this.onChange.dispatch();
+    },
+
+    toString: function()
+    {
+        return "[Model(name=" + this._name + ")]";
     }
 };

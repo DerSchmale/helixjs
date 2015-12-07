@@ -439,6 +439,11 @@ HX.Material.prototype = {
             if (this._passes[i])
                 this._passes[i].setUniformArray(name, value);
         }
+    },
+
+    toString: function()
+    {
+        return "[Material(name=" + this._name + ")]";
     }
 
 };

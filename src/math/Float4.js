@@ -258,6 +258,11 @@ HX.Float4.prototype = {
         if (b.x < this.x) this.x = b.x;
         if (b.y < this.y) this.y = b.y;
         if (b.z < this.z) this.z = b.z;
+    },
+
+    toString: function()
+    {
+        return "Float4(" + this.x + ", " + this.y + ", " + this.z + ", " + this.w + ")";
     }
 };
 

@@ -24,7 +24,7 @@ HX.Quaternion.fromPitchYawRoll = function (pitch, yaw, roll)
 HX.Quaternion.prototype = {
     fromAxisAngle: function (axis, radians)
     {
-        var factor = Math.sin(radians * .5) / axis.length();
+        var factor = Math.sin(radians * .5) / axis.length;
         this.x = axis.x * factor;
         this.y = axis.y * factor;
         this.z = axis.z * factor;
@@ -188,12 +188,12 @@ HX.Quaternion.prototype = {
         this.w = w;
     },
 
-    normSquared : function()
+    get normSquared()
     {
         return this.x*this.x + this.y*this.y + this.z*this.z + this.w*this.w;
     },
 
-    norm : function()
+    get norm()
     {
         return Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z + this.w*this.w);
     },

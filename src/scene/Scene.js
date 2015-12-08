@@ -32,7 +32,7 @@ Object.defineProperties(HX.SceneNode.prototype, {
         },
         set: function(value)
         {
-            this._name = name;
+            this._name = value;
         }
     },
     worldBounds: {
@@ -73,18 +73,14 @@ Object.defineProperties(HX.SceneNode.prototype, {
             else
                 this._debugBounds = null;
         }
-    },
-
-    transformationMatrix: {
-        get: function() {
-            return Object.getOwnPropertyDescriptor(HX.Transform.prototype, "transformationMatrix").get.call(this);
-        },
-        set: function(value) {
-            Object.getOwnPropertyDescriptor(HX.Transform.prototype, "transformationMatrix").set.call(this, value);
-            this._invalidateWorldTransformationMatrix();
-        }
     }
 });
+
+HX.SceneNode.prototype._applyMatrix = function()
+{
+    HX.Transform.prototype._applyMatrix.call(this);
+    this._invalidateWorldTransformationMatrix();
+};
 
 HX.SceneNode.prototype.findMaterialByName = function(name)
 {

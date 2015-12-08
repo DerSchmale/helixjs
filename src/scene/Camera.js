@@ -221,6 +221,11 @@ HX.Camera.prototype._updateWorldBounds = function()
     this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
 };
 
+HX.Camera.prototype.toString = function()
+{
+    return "[Camera(name=" + this._name + ")]";
+};
+
 /**
  * @constructor
  */

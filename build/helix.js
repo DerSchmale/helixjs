@@ -3442,11 +3442,11 @@ HX.ShaderLibrary['point_light_spherical_vertex.glsl'] = 'attribute vec4 hx_posit
 
 HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = 1.0 - (1.0 - roughnessOut) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = 1.0 - (1.0 - roughnessOut) * specSample.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
 
-HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
+HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = normalize(hx_normalWorldViewMatrix * hx_normal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n}';
 
 HX.ShaderLibrary['default_refract_fragment.glsl'] = 'varying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef ALPHA_THRESHOLD\nuniform float alphaThreshold;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform sampler2D hx_backbuffer;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float refractiveRatio;   // the ratio of refractive indices\n\n// TODO: could raytrace as an alternative\nvec2 getRefractedUVOffset(vec3 normal, float farZ)\n{\n    vec3 refractionVector = refract(normalize(vec3(0.0, 0.0, -1.0)), normal, refractiveRatio) * .5;\n    return -refractionVector.xy / viewVector.z;\n}\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n    #endif\n\n    // use the immediate background depth value for a distance estimate\n    // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering\n\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, screenUV);\n    float farZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n\n    vec2 samplePos = screenUV + getRefractedUVOffset(fragNormal, farZ);\n\n    vec4 background = texture2D(hx_backbuffer, samplePos);\n    gl_FragColor = outputColor * background;\n}';
 
-HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\n\nvoid main()\n{\n    vec4 viewSpace = hx_worldViewMatrix * hx_position;\n    vec4 proj = hx_wvpMatrix * hx_position;\n    normal = hx_normalWorldViewMatrix * hx_normal;\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n    viewVector = viewSpace.xyz;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n    screenUV = proj.xy / proj.w * .5 + .5;\n    gl_Position = proj;\n}';
+HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\n\nvoid main()\n{\n    vec4 viewSpace = hx_worldViewMatrix * hx_position;\n    vec4 proj = hx_wvpMatrix * hx_position;\n    normal = normalize(hx_normalWorldViewMatrix * hx_normal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n    viewVector = viewSpace.xyz;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n    screenUV = proj.xy / proj.w * .5 + .5;\n    gl_Position = proj;\n}';
 
 HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nvoid main()\n{\n    vec4 color = textureCube(hx_skybox, viewWorldDir);\n    gl_FragColor = hx_gammaToLinear(color);\n}';
 
@@ -3532,7 +3532,7 @@ HX.Float2 = function(x, y)
  */
 HX.Float2.angle = function(a, b)
 {
-    return Math.acos(HX.dot2(a, b) / (a.length() * b.length()));
+    return Math.acos(HX.dot2(a, b) / (a.length * b.length));
 };
 
 HX.Float2.distance = function(a, b)
@@ -3575,19 +3575,19 @@ HX.Float2.prototype = {
         this.y = y;
     },
 
-    lengthSqr: function()
+    get lengthSqr()
     {
         return this.x * this.x + this.y * this.y;
     },
 
-    length: function()
+    get length()
     {
         return Math.sqrt(this.x * this.x + this.y * this.y);
     },
 
     normalize: function()
     {
-        var rcpLength = 1.0/this.length();
+        var rcpLength = 1.0/this.length;
         this.x *= rcpLength;
         this.y *= rcpLength;
     },
@@ -3716,7 +3716,7 @@ HX.Float4 = function(x, y, z, w)
  */
 HX.Float4.angle = function(a, b)
 {
-    return Math.acos(HX.dot3(a, b) / (a.length() * b.length()));
+    return Math.acos(HX.dot3(a, b) / (a.length * b.length));
 };
 
 HX.Float4.distance = function(a, b)
@@ -3763,22 +3763,22 @@ HX.Float4.prototype = {
         this.x = x;
         this.y = y;
         this.z = z;
-        this.w = w;
+        this.w = w === undefined? this.w : w;
     },
 
-    lengthSqr: function()
+    get lengthSqr()
     {
         return this.x * this.x + this.y * this.y + this.z * this.z;
     },
 
-    length: function()
+    get length()
     {
         return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
     },
 
     normalize: function()
     {
-        var rcpLength = 1.0/this.length();
+        var rcpLength = 1.0/this.length;
         this.x *= rcpLength;
         this.y *= rcpLength;
         this.z *= rcpLength;
@@ -3786,7 +3786,7 @@ HX.Float4.prototype = {
 
     normalizeAsPlane: function()
     {
-        var rcpLength = 1.0/this.length();
+        var rcpLength = 1.0/this.length;
         this.x *= rcpLength;
         this.y *= rcpLength;
         this.z *= rcpLength;
@@ -4447,7 +4447,7 @@ HX.Matrix4x4.prototype = {
     {
         var cos = Math.cos(radians);
         var sin = Math.sin(radians);
-        var rcpLen = 1 / axis.length();
+        var rcpLen = 1 / axis.length;
 
 
         var x = axis.x * rcpLen, y = axis.y * rcpLen, z = axis.z * rcpLen;
@@ -4876,7 +4876,7 @@ HX.Matrix4x4.prototype = {
         var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
         var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
 
-        var determinant = m0 * (m5 * m10 - m9 * m6) - this._m[4] * (m1 * m10 - m9 * m2) + this._m[8] * (m1 * m6 - m5 * m2);
+        var determinant = m0 * (m5 * m10 - m9 * m6) - m4 * (m1 * m10 - m9 * m2) + m8 * (m1 * m6 - m5 * m2);
         var rcpDet = 1.0 / determinant;
 
         array[0] = (m5 * m10 - m9 * m6) * rcpDet;
@@ -5155,7 +5155,7 @@ HX.Matrix4x4.prototype = {
     {
         var cos = Math.cos(radians);
         var sin = Math.sin(radians);
-        var rcpLen = 1 / axis.length();
+        var rcpLen = 1 / axis.length;
 
         var x = axis.x * rcpLen, y = axis.y * rcpLen, z = axis.z * rcpLen;
         var oneMinCos = 1 - cos;
@@ -5190,7 +5190,7 @@ HX.Matrix4x4.prototype = {
     {
         var cos = Math.cos(radians);
         var sin = Math.sin(radians);
-        var rcpLen = 1 / axis.length();
+        var rcpLen = 1 / axis.length;
 
         var x = axis.x * rcpLen, y = axis.y * rcpLen, z = axis.z * rcpLen;
         var oneMinCos = 1 - cos;
@@ -5278,13 +5278,13 @@ HX.Matrix4x4.prototype = {
         var xAxis = new HX.Float4();
         xAxis.cross(up, zAxis);
 
-        if (Math.abs(xAxis.lengthSqr()) > .0001) {
+        if (Math.abs(xAxis.lengthSqr) > .0001) {
             xAxis.normalize();
         }
         else {
             var altUp = new HX.Float4(up.x, up.z, up.y, 0.0);
             xAxis.cross(altUp, zAxis);
-            if (Math.abs(xAxis.lengthSqr()) <= .0001) {
+            if (Math.abs(xAxis.lengthSqr) <= .0001) {
                 altUp.set(up.z, up.y, up.z, 0.0);
                 xAxis.cross(altUp, zAxis);
             }
@@ -5320,7 +5320,7 @@ HX.Matrix4x4.prototype = {
         this.fromQuaternion(transform.rotation);
         var scale = transform.scale;
         var position = transform.position;
-        this.appendScale(scale.x, scale.y, scale.z);
+        this.prependScale(scale.x, scale.y, scale.z);
         this.appendTranslation(position.x, position.y, position.z);
     },
 
@@ -5330,7 +5330,7 @@ HX.Matrix4x4.prototype = {
      */
     decompose: function (target)
     {
-        target = target || new Transform();
+        target = target || new HX.Transform();
         var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2];
         var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
         var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
@@ -5590,7 +5590,7 @@ HX.Quaternion.fromPitchYawRoll = function (pitch, yaw, roll)
 HX.Quaternion.prototype = {
     fromAxisAngle: function (axis, radians)
     {
-        var factor = Math.sin(radians * .5) / axis.length();
+        var factor = Math.sin(radians * .5) / axis.length;
         this.x = axis.x * factor;
         this.y = axis.y * factor;
         this.z = axis.z * factor;
@@ -5754,12 +5754,12 @@ HX.Quaternion.prototype = {
         this.w = w;
     },
 
-    normSquared : function()
+    get normSquared()
     {
         return this.x*this.x + this.y*this.y + this.z*this.z + this.w*this.w;
     },
 
-    norm : function()
+    get norm()
     {
         return Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z + this.w*this.w);
     },
@@ -6392,7 +6392,7 @@ HX.BoundingSphere.prototype.growToIncludeMesh = function(meshData)
     var index = attribute.offset;
     var stride = meshData.getVertexStride();
     var vertices = attribute._vertexData;
-    var len = vertices.length();
+    var len = vertices.length;
     var minX, minY, minZ;
     var maxX, maxY, maxZ;
 
@@ -8165,7 +8165,7 @@ Object.defineProperties(HX.SceneNode.prototype, {
         },
         set: function(value)
         {
-            this._name = name;
+            this._name = value;
         }
     },
     worldBounds: {
@@ -8206,18 +8206,14 @@ Object.defineProperties(HX.SceneNode.prototype, {
             else
                 this._debugBounds = null;
         }
-    },
-
-    transformationMatrix: {
-        get: function() {
-            return Object.getOwnPropertyDescriptor(HX.Transform.prototype, "transformationMatrix").get.call(this);
-        },
-        set: function(value) {
-            Object.getOwnPropertyDescriptor(HX.Transform.prototype, "transformationMatrix").set.call(this, value);
-            this._invalidateWorldTransformationMatrix();
-        }
     }
 });
+
+HX.SceneNode.prototype._applyMatrix = function()
+{
+    HX.Transform.prototype._applyMatrix.call(this);
+    this._invalidateWorldTransformationMatrix();
+};
 
 HX.SceneNode.prototype.findMaterialByName = function(name)
 {
@@ -10114,6 +10110,11 @@ HX.Camera.prototype._updateProjectionMatrix = function()
 HX.Camera.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+};
+
+HX.Camera.prototype.toString = function()
+{
+    return "[Camera(name=" + this._name + ")]";
 };
 
 /**
@@ -14999,14 +15000,14 @@ HX.FBXParser.prototype =
             this._processConnections();
         }
         catch(err) {
-            console.log("Error parsing FBX " + err);
+            console.log("Error parsing FBX " + err.stack);
             if (onFail) onFail(err);
             return;
         }
 
         console.log("Parsing complete in " + (Date.now() - time) + "ms");
 
-        onComplete(target);
+        if (onComplete) onComplete(target);
     },
 
     _parseChildren: function(parent, lvl)
@@ -15048,21 +15049,21 @@ HX.FBXParser.prototype =
             return record;
         }
 
-        var str = "";
+        /*var str = "";
         for (var i = 0; i < lvl; ++i)
             str += "\t";
 
-        console.log(str + record.name);
+        console.log(str + record.name);*/
 
         for (var i = 0; i < numProperties; ++i) {
             var dataElm = this._parseDataElement();
             record.data.push(dataElm);
-            if (dataElm.typeCode === "L")
+            /*if (dataElm.typeCode === "L")
                 console.log(str + "[data] " + dataElm.typeCode + " : 0x" + dataElm.value.U.toString(16) + " 0x" + dataElm.value.L.toString(16));
             else if (dataElm.typeCode === dataElm.typeCode.toUpperCase() && dataElm.typeCode !== HX.FBXParser.DataElement.RAW)
                 console.log(str + "[data] " + dataElm.typeCode + " : " + dataElm.value);
             else
-                console.log(str + "[data] " + dataElm.typeCode + " : [array object]");
+                console.log(str + "[data] " + dataElm.typeCode + " : [array object]");*/
         }
 
         // there's more data, must contain child nodes (terminated by null node)
@@ -15232,7 +15233,6 @@ HX.FBXParser.prototype =
 
             if (obj) {
                 obj.name = name;
-                //console.log(UID.toString(16), obj);
                 this._objects[UID] = obj;
             }
         }
@@ -15245,7 +15245,6 @@ HX.FBXParser.prototype =
 
     _processNodeAttribute: function(objDef)
     {
-        // these should eventually apply stuff to Model objects
         var subclass = objDef.data[2].value;
         var obj;
 
@@ -15254,11 +15253,16 @@ HX.FBXParser.prototype =
                 // lights not supported at this point
                 break;
             case "Camera":
-                // camera not supported at this point
+                obj = this._processCamera(objDef);
                 break;
         }
 
-        return obj;
+        if (obj) {
+            if (this._templates["NodeAttribute"]) this._applyModelProps(obj, this._templates["NodeAttribute"]);
+            return obj;
+        }
+
+        return null;
     },
 
     _processModel: function(objDef)
@@ -15267,14 +15271,15 @@ HX.FBXParser.prototype =
         var obj;
 
         switch(subclass) {
+            case "Camera":
+                return new HX.FBXParser.DummyNode();
             case "Light":
                 // lights not supported at this point
                 break;
-            case "Camera":
-                // camera not supported at this point
-                break;
             case "Mesh":
                 obj = this._processMeshModel(objDef);
+                if (this._templates["NodeAttribute"]) this._applyModelProps(obj, this._templates["NodeAttribute"]);
+                break;
         }
 
         if (obj) {
@@ -15297,20 +15302,73 @@ HX.FBXParser.prototype =
                     target.rotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD);
                     break;
                 case "Lcl Scaling":
-                    target.scale.x = prop.data[4].value * .01;
-                    target.scale.y = prop.data[5].value * .01;
-                    target.scale.z = prop.data[6].value * .01;
+                    target.scale.set(prop.data[4].value, prop.data[5].value, prop.data[6].value);
                     break;
                 case "Lcl Translation":
-                    target.position.x = prop.data[4].value;
-                    target.position.y = prop.data[5].value;
-                    target.position.z = prop.data[6].value;
+                    target.position.set(prop.data[4].value, prop.data[5].value, prop.data[6].value);
                     break;
                 case "InheritType":
                     if (prop.data[4].value != 1)
                         throw "Unsupported InheritType (must be 1)";
             }
         }
+    },
+
+    _processCamera: function(objDef)
+    {
+        var camera = new HX.PerspectiveCamera();
+
+        function handleProps(props) {
+            var len = props.length;
+            var interestPosition;
+
+            for (var i = 0; i < len; ++i) {
+                var prop = props[i];
+                var name = prop.data[0].value;
+                switch(name) {
+                    case "NearPlane":
+                        camera.nearDistance = prop.data[4].value;
+                        break;
+                    case "FarPlane":
+                        camera.farDistance = prop.data[4].value;
+                        break;
+                    case "FieldOfViewY":
+                        camera.verticalFOV = prop.data[4].value * HX.DEG_TO_RAD;
+                        break;
+                    case "Position":
+                        camera.position.x = prop.data[4].value;
+                        camera.position.y = prop.data[5].value;
+                        camera.position.z = prop.data[6].value;
+                        break;
+                    case "InterestPosition":
+                        interestPosition = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value);
+                        camera.lookAt(interestPosition);
+                        break;
+                }
+            }
+        }
+
+        if (this._templates["NodeAttribute"]) {
+            handleProps(this._templates["NodeAttribute"]);
+            this._applyModelProps(camera, this._templates["NodeAttribute"]);
+        }
+        var props = objDef.getChildNode("Properties70");
+        if (props) handleProps(props.children);
+
+        camera.scale.set(1, 1, 1);
+
+        var prop = objDef.getChildNode("Position");
+        if (prop) {
+            camera.position.x = prop.data[0].value;
+            camera.position.y = prop.data[1].value;
+            camera.position.z = prop.data[2].value;
+        }
+        prop = objDef.getChildNode("LookAt");
+        if (prop) {
+            camera.lookAt(new HX.Float4(prop.data[0].value, prop.data[1].value, prop.data[2].value));
+        }
+
+        return camera;
     },
 
     _processMeshModel: function(objDef)
@@ -15418,33 +15476,55 @@ HX.FBXParser.prototype =
         for (var i = 0; i < len; ++i) {
             var c = connections[i];
             var linkType = c.data[0].value;
+            var childUID = c.data[1].value.L;
             var parentUID = c.data[2].value.L;
-            var child = this._objects[c.data[1].value.L];
+            var child = this._objects[childUID];
             var parent = this._objects[parentUID];
 
             if (child) {
                 switch (linkType) {
                     // others not currently supported
                     case "OO":
-                        if (child instanceof HX.ModelInstance) {
-                            parent.attach(child);
-                        }
-                        else if (child instanceof HX.Model) {
-                            if (modelInstanceMaterials[parentUID])
-                                parent.init(child, modelInstanceMaterials[parentUID]);
-                            else
-                                modelInstanceModels[parentUID] = child;
-                        }
-                        else if (child instanceof HX.Material) {
-                            if (modelInstanceModels[parentUID])
-                                parent.init(modelInstanceModels[parentUID], child);
-                            else
-                                modelInstanceMaterials[parentUID] = child;
-                        }
+                        this._connectOO(child, parent, parentUID, modelInstanceMaterials, modelInstanceModels);
                         break;
                 }
 
             }
+        }
+    },
+
+    _connectOO: function(child, parent, parentUID, modelInstanceMaterials, modelInstanceModels)
+    {
+        if (child instanceof HX.FBXParser.DummyNode) {
+            if (child.child) {
+                this._connectOO(child.child, parent, parentUID, modelInstanceMaterials, modelInstanceModels);
+            }
+            else {
+                child.parent = parent;
+                child.parentUID = parentUID;
+            }
+        }
+        else if (parent instanceof HX.FBXParser.DummyNode) {
+            if (parent.parent) {
+                this._connectOO(child, parent.parent, parent.parentUID, modelInstanceMaterials, modelInstanceModels);
+            }
+            else
+                parent.child = child;
+        }
+        else if (child instanceof HX.SceneNode) {
+            parent.attach(child);
+        }
+        else if (child instanceof HX.Model) {
+            if (modelInstanceMaterials[parentUID])
+                parent.init(child, modelInstanceMaterials[parentUID]);
+            else
+                modelInstanceModels[parentUID] = child;
+        }
+        else if (child instanceof HX.Material) {
+            if (modelInstanceModels[parentUID])
+                parent.init(modelInstanceModels[parentUID], child);
+            else
+                modelInstanceMaterials[parentUID] = child;
         }
     }
 };
@@ -15465,6 +15545,19 @@ HX.FBXParser.NodeRecord.prototype =
         for (var i = 0; i < len; ++i) {
             if (children[i].name === name) return children[i];
         }
+    }
+};
+
+HX.FBXParser.DummyNode = function()
+{
+    this.name = null;
+    this.child = null;
+    this.parent = null;
+    this.parentUID = null;
+
+    this.toString = function()
+    {
+        return "[DummyNode(name=" + this.name + ")";
     }
 };
 
@@ -16580,7 +16673,11 @@ HX.SimpleProject.prototype =
     {
         this._scene.detach(this._camera);
         this._camera = value;
-        this._scene.attach(this._camera);
+
+        if (!this._camera._parent)
+            this._scene.attach(this._camera);
+        else if (this._camera._scene !== this._scene)
+            throw "Camera attached to a different scene!"
     },
 
     _update: function(dt)

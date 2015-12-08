@@ -439,7 +439,7 @@ HX.BoundingSphere.prototype.growToIncludeMesh = function(meshData)
     var index = attribute.offset;
     var stride = meshData.getVertexStride();
     var vertices = attribute._vertexData;
-    var len = vertices.length();
+    var len = vertices.length;
     var minX, minY, minZ;
     var maxX, maxY, maxZ;
 

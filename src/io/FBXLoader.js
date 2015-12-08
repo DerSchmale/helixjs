@@ -69,14 +69,14 @@ HX.FBXParser.prototype =
             this._processConnections();
         }
         catch(err) {
-            console.log("Error parsing FBX " + err);
+            console.log("Error parsing FBX " + err.stack);
             if (onFail) onFail(err);
             return;
         }
 
         console.log("Parsing complete in " + (Date.now() - time) + "ms");
 
-        onComplete(target);
+        if (onComplete) onComplete(target);
     },
 
     _parseChildren: function(parent, lvl)
@@ -118,21 +118,21 @@ HX.FBXParser.prototype =
             return record;
         }
 
-        var str = "";
+        /*var str = "";
         for (var i = 0; i < lvl; ++i)
             str += "\t";
 
-        console.log(str + record.name);
+        console.log(str + record.name);*/
 
         for (var i = 0; i < numProperties; ++i) {
             var dataElm = this._parseDataElement();
             record.data.push(dataElm);
-            if (dataElm.typeCode === "L")
+            /*if (dataElm.typeCode === "L")
                 console.log(str + "[data] " + dataElm.typeCode + " : 0x" + dataElm.value.U.toString(16) + " 0x" + dataElm.value.L.toString(16));
             else if (dataElm.typeCode === dataElm.typeCode.toUpperCase() && dataElm.typeCode !== HX.FBXParser.DataElement.RAW)
                 console.log(str + "[data] " + dataElm.typeCode + " : " + dataElm.value);
             else
-                console.log(str + "[data] " + dataElm.typeCode + " : [array object]");
+                console.log(str + "[data] " + dataElm.typeCode + " : [array object]");*/
         }
 
         // there's more data, must contain child nodes (terminated by null node)
@@ -302,7 +302,6 @@ HX.FBXParser.prototype =
 
             if (obj) {
                 obj.name = name;
-                //console.log(UID.toString(16), obj);
                 this._objects[UID] = obj;
             }
         }
@@ -315,7 +314,6 @@ HX.FBXParser.prototype =
 
     _processNodeAttribute: function(objDef)
     {
-        // these should eventually apply stuff to Model objects
         var subclass = objDef.data[2].value;
         var obj;
 
@@ -324,11 +322,16 @@ HX.FBXParser.prototype =
                 // lights not supported at this point
                 break;
             case "Camera":
-                // camera not supported at this point
+                obj = this._processCamera(objDef);
                 break;
         }
 
-        return obj;
+        if (obj) {
+            if (this._templates["NodeAttribute"]) this._applyModelProps(obj, this._templates["NodeAttribute"]);
+            return obj;
+        }
+
+        return null;
     },
 
     _processModel: function(objDef)
@@ -337,14 +340,15 @@ HX.FBXParser.prototype =
         var obj;
 
         switch(subclass) {
+            case "Camera":
+                return new HX.FBXParser.DummyNode();
             case "Light":
                 // lights not supported at this point
                 break;
-            case "Camera":
-                // camera not supported at this point
-                break;
             case "Mesh":
                 obj = this._processMeshModel(objDef);
+                if (this._templates["NodeAttribute"]) this._applyModelProps(obj, this._templates["NodeAttribute"]);
+                break;
         }
 
         if (obj) {
@@ -367,20 +371,73 @@ HX.FBXParser.prototype =
                     target.rotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD);
                     break;
                 case "Lcl Scaling":
-                    target.scale.x = prop.data[4].value * .01;
-                    target.scale.y = prop.data[5].value * .01;
-                    target.scale.z = prop.data[6].value * .01;
+                    target.scale.set(prop.data[4].value, prop.data[5].value, prop.data[6].value);
                     break;
                 case "Lcl Translation":
-                    target.position.x = prop.data[4].value;
-                    target.position.y = prop.data[5].value;
-                    target.position.z = prop.data[6].value;
+                    target.position.set(prop.data[4].value, prop.data[5].value, prop.data[6].value);
                     break;
                 case "InheritType":
                     if (prop.data[4].value != 1)
                         throw "Unsupported InheritType (must be 1)";
             }
         }
+    },
+
+    _processCamera: function(objDef)
+    {
+        var camera = new HX.PerspectiveCamera();
+
+        function handleProps(props) {
+            var len = props.length;
+            var interestPosition;
+
+            for (var i = 0; i < len; ++i) {
+                var prop = props[i];
+                var name = prop.data[0].value;
+                switch(name) {
+                    case "NearPlane":
+                        camera.nearDistance = prop.data[4].value;
+                        break;
+                    case "FarPlane":
+                        camera.farDistance = prop.data[4].value;
+                        break;
+                    case "FieldOfViewY":
+                        camera.verticalFOV = prop.data[4].value * HX.DEG_TO_RAD;
+                        break;
+                    case "Position":
+                        camera.position.x = prop.data[4].value;
+                        camera.position.y = prop.data[5].value;
+                        camera.position.z = prop.data[6].value;
+                        break;
+                    case "InterestPosition":
+                        interestPosition = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value);
+                        camera.lookAt(interestPosition);
+                        break;
+                }
+            }
+        }
+
+        if (this._templates["NodeAttribute"]) {
+            handleProps(this._templates["NodeAttribute"]);
+            this._applyModelProps(camera, this._templates["NodeAttribute"]);
+        }
+        var props = objDef.getChildNode("Properties70");
+        if (props) handleProps(props.children);
+
+        camera.scale.set(1, 1, 1);
+
+        var prop = objDef.getChildNode("Position");
+        if (prop) {
+            camera.position.x = prop.data[0].value;
+            camera.position.y = prop.data[1].value;
+            camera.position.z = prop.data[2].value;
+        }
+        prop = objDef.getChildNode("LookAt");
+        if (prop) {
+            camera.lookAt(new HX.Float4(prop.data[0].value, prop.data[1].value, prop.data[2].value));
+        }
+
+        return camera;
     },
 
     _processMeshModel: function(objDef)
@@ -488,33 +545,55 @@ HX.FBXParser.prototype =
         for (var i = 0; i < len; ++i) {
             var c = connections[i];
             var linkType = c.data[0].value;
+            var childUID = c.data[1].value.L;
             var parentUID = c.data[2].value.L;
-            var child = this._objects[c.data[1].value.L];
+            var child = this._objects[childUID];
             var parent = this._objects[parentUID];
 
             if (child) {
                 switch (linkType) {
                     // others not currently supported
                     case "OO":
-                        if (child instanceof HX.ModelInstance) {
-                            parent.attach(child);
-                        }
-                        else if (child instanceof HX.Model) {
-                            if (modelInstanceMaterials[parentUID])
-                                parent.init(child, modelInstanceMaterials[parentUID]);
-                            else
-                                modelInstanceModels[parentUID] = child;
-                        }
-                        else if (child instanceof HX.Material) {
-                            if (modelInstanceModels[parentUID])
-                                parent.init(modelInstanceModels[parentUID], child);
-                            else
-                                modelInstanceMaterials[parentUID] = child;
-                        }
+                        this._connectOO(child, parent, parentUID, modelInstanceMaterials, modelInstanceModels);
                         break;
                 }
 
             }
+        }
+    },
+
+    _connectOO: function(child, parent, parentUID, modelInstanceMaterials, modelInstanceModels)
+    {
+        if (child instanceof HX.FBXParser.DummyNode) {
+            if (child.child) {
+                this._connectOO(child.child, parent, parentUID, modelInstanceMaterials, modelInstanceModels);
+            }
+            else {
+                child.parent = parent;
+                child.parentUID = parentUID;
+            }
+        }
+        else if (parent instanceof HX.FBXParser.DummyNode) {
+            if (parent.parent) {
+                this._connectOO(child, parent.parent, parent.parentUID, modelInstanceMaterials, modelInstanceModels);
+            }
+            else
+                parent.child = child;
+        }
+        else if (child instanceof HX.SceneNode) {
+            parent.attach(child);
+        }
+        else if (child instanceof HX.Model) {
+            if (modelInstanceMaterials[parentUID])
+                parent.init(child, modelInstanceMaterials[parentUID]);
+            else
+                modelInstanceModels[parentUID] = child;
+        }
+        else if (child instanceof HX.Material) {
+            if (modelInstanceModels[parentUID])
+                parent.init(modelInstanceModels[parentUID], child);
+            else
+                modelInstanceMaterials[parentUID] = child;
         }
     }
 };
@@ -535,6 +614,19 @@ HX.FBXParser.NodeRecord.prototype =
         for (var i = 0; i < len; ++i) {
             if (children[i].name === name) return children[i];
         }
+    }
+};
+
+HX.FBXParser.DummyNode = function()
+{
+    this.name = null;
+    this.child = null;
+    this.parent = null;
+    this.parentUID = null;
+
+    this.toString = function()
+    {
+        return "[DummyNode(name=" + this.name + ")";
     }
 };
 

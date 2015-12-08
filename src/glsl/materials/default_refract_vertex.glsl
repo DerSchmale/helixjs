@@ -26,7 +26,7 @@ void main()
 {
     vec4 viewSpace = hx_worldViewMatrix * hx_position;
     vec4 proj = hx_wvpMatrix * hx_position;
-    normal = hx_normalWorldViewMatrix * hx_normal;
+    normal = normalize(hx_normalWorldViewMatrix * hx_normal);
 
 #ifdef NORMAL_MAP
     tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;

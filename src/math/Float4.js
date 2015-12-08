@@ -24,7 +24,7 @@ HX.Float4 = function(x, y, z, w)
  */
 HX.Float4.angle = function(a, b)
 {
-    return Math.acos(HX.dot3(a, b) / (a.length() * b.length()));
+    return Math.acos(HX.dot3(a, b) / (a.length * b.length));
 };
 
 HX.Float4.distance = function(a, b)
@@ -71,22 +71,22 @@ HX.Float4.prototype = {
         this.x = x;
         this.y = y;
         this.z = z;
-        this.w = w;
+        this.w = w === undefined? this.w : w;
     },
 
-    lengthSqr: function()
+    get lengthSqr()
     {
         return this.x * this.x + this.y * this.y + this.z * this.z;
     },
 
-    length: function()
+    get length()
     {
         return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
     },
 
     normalize: function()
     {
-        var rcpLength = 1.0/this.length();
+        var rcpLength = 1.0/this.length;
         this.x *= rcpLength;
         this.y *= rcpLength;
         this.z *= rcpLength;
@@ -94,7 +94,7 @@ HX.Float4.prototype = {
 
     normalizeAsPlane: function()
     {
-        var rcpLength = 1.0/this.length();
+        var rcpLength = 1.0/this.length;
         this.x *= rcpLength;
         this.y *= rcpLength;
         this.z *= rcpLength;

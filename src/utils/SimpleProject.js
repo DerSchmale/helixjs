@@ -74,7 +74,11 @@ HX.SimpleProject.prototype =
     {
         this._scene.detach(this._camera);
         this._camera = value;
-        this._scene.attach(this._camera);
+
+        if (!this._camera._parent)
+            this._scene.attach(this._camera);
+        else if (this._camera._scene !== this._scene)
+            throw "Camera attached to a different scene!"
     },
 
     _update: function(dt)

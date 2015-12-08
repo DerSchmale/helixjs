@@ -410,7 +410,7 @@ HX.Matrix4x4.prototype = {
     {
         var cos = Math.cos(radians);
         var sin = Math.sin(radians);
-        var rcpLen = 1 / axis.length();
+        var rcpLen = 1 / axis.length;
 
 
         var x = axis.x * rcpLen, y = axis.y * rcpLen, z = axis.z * rcpLen;
@@ -839,7 +839,7 @@ HX.Matrix4x4.prototype = {
         var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
         var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
 
-        var determinant = m0 * (m5 * m10 - m9 * m6) - this._m[4] * (m1 * m10 - m9 * m2) + this._m[8] * (m1 * m6 - m5 * m2);
+        var determinant = m0 * (m5 * m10 - m9 * m6) - m4 * (m1 * m10 - m9 * m2) + m8 * (m1 * m6 - m5 * m2);
         var rcpDet = 1.0 / determinant;
 
         array[0] = (m5 * m10 - m9 * m6) * rcpDet;
@@ -1118,7 +1118,7 @@ HX.Matrix4x4.prototype = {
     {
         var cos = Math.cos(radians);
         var sin = Math.sin(radians);
-        var rcpLen = 1 / axis.length();
+        var rcpLen = 1 / axis.length;
 
         var x = axis.x * rcpLen, y = axis.y * rcpLen, z = axis.z * rcpLen;
         var oneMinCos = 1 - cos;
@@ -1153,7 +1153,7 @@ HX.Matrix4x4.prototype = {
     {
         var cos = Math.cos(radians);
         var sin = Math.sin(radians);
-        var rcpLen = 1 / axis.length();
+        var rcpLen = 1 / axis.length;
 
         var x = axis.x * rcpLen, y = axis.y * rcpLen, z = axis.z * rcpLen;
         var oneMinCos = 1 - cos;
@@ -1241,13 +1241,13 @@ HX.Matrix4x4.prototype = {
         var xAxis = new HX.Float4();
         xAxis.cross(up, zAxis);
 
-        if (Math.abs(xAxis.lengthSqr()) > .0001) {
+        if (Math.abs(xAxis.lengthSqr) > .0001) {
             xAxis.normalize();
         }
         else {
             var altUp = new HX.Float4(up.x, up.z, up.y, 0.0);
             xAxis.cross(altUp, zAxis);
-            if (Math.abs(xAxis.lengthSqr()) <= .0001) {
+            if (Math.abs(xAxis.lengthSqr) <= .0001) {
                 altUp.set(up.z, up.y, up.z, 0.0);
                 xAxis.cross(altUp, zAxis);
             }
@@ -1283,7 +1283,7 @@ HX.Matrix4x4.prototype = {
         this.fromQuaternion(transform.rotation);
         var scale = transform.scale;
         var position = transform.position;
-        this.appendScale(scale.x, scale.y, scale.z);
+        this.prependScale(scale.x, scale.y, scale.z);
         this.appendTranslation(position.x, position.y, position.z);
     },
 
@@ -1293,7 +1293,7 @@ HX.Matrix4x4.prototype = {
      */
     decompose: function (target)
     {
-        target = target || new Transform();
+        target = target || new HX.Transform();
         var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2];
         var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
         var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];

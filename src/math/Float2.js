@@ -16,7 +16,7 @@ HX.Float2 = function(x, y)
  */
 HX.Float2.angle = function(a, b)
 {
-    return Math.acos(HX.dot2(a, b) / (a.length() * b.length()));
+    return Math.acos(HX.dot2(a, b) / (a.length * b.length));
 };
 
 HX.Float2.distance = function(a, b)
@@ -59,19 +59,19 @@ HX.Float2.prototype = {
         this.y = y;
     },
 
-    lengthSqr: function()
+    get lengthSqr()
     {
         return this.x * this.x + this.y * this.y;
     },
 
-    length: function()
+    get length()
     {
         return Math.sqrt(this.x * this.x + this.y * this.y);
     },
 
     normalize: function()
     {
-        var rcpLength = 1.0/this.length();
+        var rcpLength = 1.0/this.length;
         this.x *= rcpLength;
         this.y *= rcpLength;
     },

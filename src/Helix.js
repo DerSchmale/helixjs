@@ -71,7 +71,7 @@ HX.ShaderLibrary = {
  */
 HX.init = function(canvas, options)
 {
-    if (HX.INITIALIZED) throw "Can only initialize Helix once!";
+    if (HX.INITIALIZED) throw new Error("Can only initialize Helix once!");
 
     HX.INITIALIZED = true;
 
@@ -91,7 +91,7 @@ HX.init = function(canvas, options)
     HX.OPTIONS = options || new HX.InitOptions();
     HX.GL = glContext;
 
-    if (!HX.GL) throw "WebGL not supported";
+    if (!HX.GL) throw new Error("WebGL not supported");
 
     var extensions  = HX.GL.getSupportedExtensions();
 

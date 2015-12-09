@@ -213,7 +213,7 @@ HX.Camera.prototype._invalidateProjectionMatrix = function()
 
 HX.Camera.prototype._updateProjectionMatrix = function()
 {
-    throw "Abstract method!";
+    throw new Error("Abstract method!");
 };
 
 HX.Camera.prototype._updateWorldBounds = function()

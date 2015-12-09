@@ -67,7 +67,7 @@ Object.defineProperties(HX.SceneNode.prototype, {
             if (this.showDebugBounds === value) return;
 
             if (value) {
-                this._debugBounds = new HX.ModelNode(this._worldBounds.getDebugModelInstance());
+                this._debugBounds = this._worldBounds.getDebugModelInstance();
                 this._updateDebugBounds();
             }
             else
@@ -276,7 +276,7 @@ HX.GroupNode.prototype.findNodeByName = function(name)
 HX.GroupNode.prototype.attach = function(child)
 {
     if (child._parent)
-        throw "Child is already parented!";
+        throw new Error("Child is already parented!");
 
     child._parent = this;
     child._setScene(this._scene);
@@ -290,7 +290,7 @@ HX.GroupNode.prototype.detach = function(child)
     var index = this._children.indexOf(child);
 
     if (index < 0)
-        throw "Trying to remove a scene object that is not a child";
+        throw new Error("Trying to remove a scene object that is not a child");
 
     child._parent = null;
 

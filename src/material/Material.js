@@ -241,7 +241,7 @@ HX.MaterialPass.prototype = {
                 HX.GL.uniform4bv(uniform.location, value);
                 break;
             default:
-                throw "Unsupported uniform format for setting. May be a todo.";
+                throw new Error("Unsupported uniform format for setting. May be a todo.");
 
         }
     },
@@ -293,7 +293,7 @@ HX.MaterialPass.prototype = {
                 HX.GL.uniform4i(uniform.location, value.x, value.y, value.z, value.w);
                 break;
             default:
-                throw "Unsupported uniform format for setting. May be a todo.";
+                throw new Error("Unsupported uniform format for setting. May be a todo.");
 
         }
     },

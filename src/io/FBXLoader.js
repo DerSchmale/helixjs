@@ -69,7 +69,7 @@ HX.FBXParser.prototype =
             this._processConnections();
         }
         catch(err) {
-            console.log("Error parsing FBX " + err.stack);
+            console.log("Error parsing FBX " + err, err.stack);
             if (onFail) onFail(err);
             return;
         }
@@ -105,7 +105,7 @@ HX.FBXParser.prototype =
         var nameLen = data.getUint8();
 
         if (endOffset === 0) {
-            if (numProperties !== 0 || propertyListLen !== 0 || nameLen !== 0) throw "Invalid null node!";
+            if (numProperties !== 0 || propertyListLen !== 0 || nameLen !== 0) throw new Error("Invalid null node!");
             return null;
         }
 
@@ -207,7 +207,7 @@ HX.FBXParser.prototype =
                     return this._data.getFloat64Array(len);
                     break;
                 default:
-                    throw "Unknown data type code " + type;
+                    throw new Error("Unknown data type code " + type);
             }
         }
         else {
@@ -227,7 +227,7 @@ HX.FBXParser.prototype =
                 case HX.FBXParser.DataElement.DOUBLE_ARRAY:
                     return new Float64Array(data);
                 default:
-                    throw "Unknown data type code " + type;
+                    throw new Error("Unknown data type code " + type);
             }
         }
     },
@@ -319,7 +319,7 @@ HX.FBXParser.prototype =
 
         switch(subclass) {
             case "Light":
-                // lights not supported at this point
+                obj = this._processLight(objDef);
                 break;
             case "Camera":
                 obj = this._processCamera(objDef);
@@ -338,12 +338,15 @@ HX.FBXParser.prototype =
     {
         var subclass = objDef.data[2].value;
         var obj;
+        var undoScale;
 
         switch(subclass) {
             case "Camera":
                 return new HX.FBXParser.DummyNode();
             case "Light":
-                // lights not supported at this point
+                obj = new HX.FBXParser.DummyNode();
+                obj.useTransform = true;
+                undoScale = true;
                 break;
             case "Mesh":
                 obj = this._processMeshModel(objDef);
@@ -355,6 +358,9 @@ HX.FBXParser.prototype =
             var props = objDef.getChildNode("Properties70");
             if (this._templates["Model"]) this._applyModelProps(obj, this._templates["Model"]);
             if (props) this._applyModelProps(obj, props.children);
+            if (undoScale) {
+                obj.scale.set(1, 1, 1);
+            }
         }
 
         return obj;
@@ -378,9 +384,53 @@ HX.FBXParser.prototype =
                     break;
                 case "InheritType":
                     if (prop.data[4].value != 1)
-                        throw "Unsupported InheritType (must be 1)";
+                        throw new Error("Unsupported InheritType (must be 1)");
             }
         }
+    },
+
+    _processLight: function(objDef)
+    {
+        var light;
+        var props = objDef.getChildNode("Properties70").children;
+        var type;
+
+        var len = props.length;
+        for (var i = 0; i < len; ++i) {
+            var prop = props[i];
+            if (prop.data[0].value === "LightType") {
+                type = prop.data[4].value;
+                if (type === 0) light = new HX.PointLight();
+                else if (type === 1) light = new HX.DirectionalLight();
+                else throw new Error("Unsupported light type");
+                break;
+            }
+        }
+
+        if (!light) throw new Error("Missing light type property");
+
+        var len = props.length;
+
+        for (var i = 0; i < len; ++i) {
+            var prop = props[i];
+            var name = prop.data[0].value;
+            switch(name) {
+                case "Color":
+                    light.color = new HX.Color(prop.data[4].value, prop.data[5].value, prop.data[6].value);
+                    break;
+                case "Intensity":
+                    light.intensity = prop.data[4].value;
+                    if (light.type)
+                    break;
+                case "CastShadows":
+                    if (light.type === 1) {
+                        light.castShadows = true;
+                    }
+                    break;
+            }
+        }
+
+        return light;
     },
 
     _processCamera: function(objDef)
@@ -447,58 +497,142 @@ HX.FBXParser.prototype =
         return node;
     },
 
+    _generateExpandedMeshData: function(objDef)
+    {
+        var meshData = new HX.FBXParser.MeshData();
+        var indexData = objDef.getChildNode("PolygonVertexIndex").data[0].value;
+        var vertexData = objDef.getChildNode("Vertices").data[0].value;
+        var normalData = objDef.getChildNode("LayerElementNormal");
+        var normalRefMode = 0; // 0 = no normals, 1 = direct, 2 = index to direct
+        var normalMapMode = 0; // 0 = no normals, 1 = polygon, 2 = control point
+        var vertices = [];
+        var len = indexData.length;
+
+        if (normalData) {
+            normalRefMode = normalData.getChildNode("ReferenceInformationType").data[0].value === "Direct"? 1 : 2;
+            normalMapMode = normalData.getChildNode("MappingInformationType").data[0].value === "ByPolygonVertex"? 1 : 2;
+            normalData = normalData.getChildNode("Normals").data[0].value;
+            meshData.hasNormals = true;
+        }
+
+        // todo: if index mode is direct, just query data there
+
+        for (var i = 0; i < len; ++i) {
+            var index = indexData[i];
+            var v = new HX.FBXParser.Vertex();
+
+            if (index < 0) {
+                index = -index - 1;
+                v.lastVertex = true;
+            }
+
+            index *= 3;
+
+            v.x = vertexData[index];
+            v.y = vertexData[index + 1];
+            v.z = vertexData[index + 2];
+
+            if (normalRefMode === 1) {
+                var normIndex = normalMapMode === 2? index: i * 3;
+                v.normalX = normalData[normIndex];
+                v.normalY = normalData[normIndex + 1];
+                v.normalZ = normalData[normIndex + 2];
+            }
+
+            vertices[i] = v;
+        }
+
+        meshData.vertices = vertices;
+
+        return meshData;
+    },
+
     _processMeshGeometry: function(objDef)
     {
-        var modelData = new HX.ModelData();
-        var vertexData = objDef.getChildNode("Vertices").data[0].value;
-        var indexData = objDef.getChildNode("PolygonVertexIndex").data[0].value;
-        var meshData = HX.MeshData.createDefaultEmpty();
-        var vertices = [];
-        var i, j = 0;
-        var stride = HX.MeshData.DEFAULT_VERTEX_SIZE;
-
-        for (i = 0; i < vertexData.length; i += 3) {
-            vertices[j] = vertexData[i];
-            vertices[j + 1] = vertexData[i + 1];
-            vertices[j + 2] = vertexData[i + 2];
-
-            for (var k = 3; k < stride; ++k)
-                vertices[j + k] = 0.0;
-
-            j += stride;
-        }
-
-        i = 0;
-        j = 0;
-        var len = indexData.length;
+        var expandedMesh = this._generateExpandedMeshData(objDef);
+        var indexLookUp = [];
         var indices = [];
+        var vertices = [];
 
-        while (i < len) {
-            var baseIndex = indexData[i];
-            var index1 = indexData[i + 1];
-            i += 2;
-            var newPoly = false;
+        var indexCounter = 0;
+        var stride = HX.MeshData.DEFAULT_VERTEX_SIZE;
+        var hasNormals = expandedMesh.hasNormals;
 
-            while (!newPoly) {
-                var index2 = indexData[i++];
-                indices[j] = baseIndex;
-                indices[j + 1] = index1;
-                if (index2 < 0) {
-                    index2 = -index2 - 1;
-                    newPoly = true;
-                }
-                indices[j + 2] = index2;
-                j += 3;
-                index1 = index2;
-            }
+        function getOrAddIndex(v)
+        {
+            var hash = v.getHash();
+
+            if (indexLookUp.hasOwnProperty(hash))
+                return indexLookUp[hash];
+
+            // new unique vertex!
+            var k = indexCounter * stride;
+            var realIndex = indexCounter++;
+            indexLookUp[hash] = realIndex;
+
+            // position
+            vertices[k] = v.x;
+            vertices[k + 1] = v.y;
+            vertices[k + 2] = v.z;
+
+            // normal
+            vertices[k + 3] = hasNormals? v.normalX : 0;
+            vertices[k + 4] = hasNormals? v.normalY : 0;
+            vertices[k + 5] = hasNormals? v.normalZ : 0;
+
+            // tangent
+            vertices[k + 6] = 0;
+            vertices[k + 7] = 0;
+            vertices[k + 8] = 0;
+
+            // bitangent flipsign
+            vertices[k + 9] = 0;
+
+            // UV
+            vertices[k + 10] = 0;
+            vertices[k + 11] = 0;
+
+            return realIndex;
         }
 
+        // todo: change this expansion
+        var i = 0, j = 0;
+        var vertexData = expandedMesh.vertices;
+        var len = vertexData.length;
+        var realIndex0, realIndex1, realIndex2;
+
+        // triangulate
+        while (i < len) {
+            realIndex0 = getOrAddIndex(vertexData[i]);
+            realIndex1 = getOrAddIndex(vertexData[i+1]);
+
+            i += 2;
+
+            var v2;
+
+            do {
+                v2 = vertexData[i++];
+                realIndex2 = getOrAddIndex(v2);
+
+                indices[j] = realIndex0;
+                indices[j + 1] = realIndex1;
+                indices[j + 2] = realIndex2;
+
+                j += 3;
+                realIndex1 = realIndex2;
+            } while (!v2.lastVertex);
+        }
+
+        var meshData = HX.MeshData.createDefaultEmpty();
         meshData.setVertexData(vertices);
         meshData.setIndexData(indices);
 
+        var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
+        if (!expandedMesh.hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
         var generator = new HX.NormalTangentGenerator();
-        generator.generate(meshData);
+        generator.generate(meshData, mode);
 
+        var modelData = new HX.ModelData();
         modelData.addMeshData(meshData);
 
         return new HX.Model(modelData);
@@ -550,6 +684,9 @@ HX.FBXParser.prototype =
             var child = this._objects[childUID];
             var parent = this._objects[parentUID];
 
+            console.log(childUID + " -> " + parentUID);
+            console.log(child.toString() + " -> " + parent.toString());
+
             if (child) {
                 switch (linkType) {
                     // others not currently supported
@@ -574,9 +711,11 @@ HX.FBXParser.prototype =
             }
         }
         else if (parent instanceof HX.FBXParser.DummyNode) {
-            if (parent.parent) {
+            if (parent.useTransform)
+                child.transformationMatrix = parent.transformationMatrix;
+
+            if (parent.parent)
                 this._connectOO(child, parent.parent, parent.parentUID, modelInstanceMaterials, modelInstanceModels);
-            }
             else
                 parent.child = child;
         }
@@ -619,16 +758,20 @@ HX.FBXParser.NodeRecord.prototype =
 
 HX.FBXParser.DummyNode = function()
 {
+    HX.Transform.call(this);
     this.name = null;
     this.child = null;
     this.parent = null;
     this.parentUID = null;
+    this.useTransform = false;
 
     this.toString = function()
     {
         return "[DummyNode(name=" + this.name + ")";
     }
 };
+
+HX.FBXParser.DummyNode.prototype = Object.create(HX.Transform.prototype);
 
 HX.FBXParser.DataElement = function()
 {
@@ -654,3 +797,37 @@ HX.FBXParser.DataElement.STRING = "S";
 HX.FBXParser.DataElement.RAW = "R";
 
 HX.FBXParser.STRING_DEMARCATION = String.fromCharCode(0, 1);
+
+HX.FBXParser.MeshData = function()
+{
+    this.vertices = null;
+    this.hasColor = false;
+    this.hasNormals = false;
+};
+
+HX.FBXParser.Vertex = function()
+{
+    this.x = 0;
+    this.y = 0;
+    this.z = 0;
+    this.u = 0;
+    this.v = 0;
+    this.normalX = 0;
+    this.normalY = 0;
+    this.normalZ = 0;
+    this._hash = "";
+
+    this.lastVertex = false;
+};
+
+HX.FBXParser.Vertex.prototype =
+{
+    // instead of actually using the values, we should use the indices as keys
+    getHash: function()
+    {
+        if (!this._hash)
+            this._hash = this.x + "/" + this.y + "/" + this.z + "/" + this.u + "/" + this.v + "/" + this.normalX + "/" + this.normalY + "/" + this.normalZ + "/";
+
+        return this._hash;
+    }
+};

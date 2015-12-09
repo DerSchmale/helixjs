@@ -42,7 +42,7 @@ HX.Entity.prototype.removeComponents = function(components)
 HX.Entity.prototype.addComponent = function(component)
 {
     if (component._entity)
-        throw "Component already added to an entity!";
+        throw new Error("Component already added to an entity!");
 
     this._components = this._components || [];
 

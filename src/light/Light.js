@@ -20,7 +20,7 @@ HX.Light.prototype = Object.create(HX.Entity.prototype);
 
 HX.Light.prototype.getTypeID = function()
 {
-    throw "Light is not registered! Be sure to pass the light type into the customLights array upon Helix initialization.";
+    throw new Error("Light is not registered! Be sure to pass the light type into the customLights array upon Helix initialization.");
 };
 
 HX.Light.prototype.acceptVisitor = function (visitor)
@@ -64,7 +64,7 @@ Object.defineProperties(HX.Light.prototype, {
 // returns the index of the FIRST UNRENDERED light
 HX.Light.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
-    throw "Abstract method!";
+    throw new Error("Abstract method!");
 };
 
 /**

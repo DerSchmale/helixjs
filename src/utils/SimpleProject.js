@@ -16,7 +16,7 @@ HX.SimpleProject.prototype =
     // automatically starts as well
     init: function(canvas, initOptions)
     {
-        if (this._initialized) throw "Already initialized project!";
+        if (this._initialized) throw new Error("Already initialized project!");
 
         HX.init(canvas, initOptions);
         this._resizeCanvas();
@@ -78,7 +78,7 @@ HX.SimpleProject.prototype =
         if (!this._camera._parent)
             this._scene.attach(this._camera);
         else if (this._camera._scene !== this._scene)
-            throw "Camera attached to a different scene!"
+            throw new Error("Camera attached to a different scene!");
     },
 
     _update: function(dt)

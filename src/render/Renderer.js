@@ -170,10 +170,10 @@ HX.Renderer.prototype =
 
         this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
 
-        if (HX._renderTargetStack.length > renderTargetStackSize) throw "Unpopped render targets!";
-        if (HX._renderTargetStack.length < renderTargetStackSize) throw "Overpopped render targets!";
-        if (HX._stencilStateStack.length > stencilStackSize) throw "Unpopped stencil states!";
-        if (HX._stencilStateStack.length < stencilStackSize) throw "Overpopped stencil states!";
+        if (HX._renderTargetStack.length > renderTargetStackSize) throw new Error("Unpopped render targets!");
+        if (HX._renderTargetStack.length < renderTargetStackSize) throw new Error("Overpopped render targets!");
+        if (HX._stencilStateStack.length > stencilStackSize) throw new Error("Unpopped stencil states!");
+        if (HX._stencilStateStack.length < stencilStackSize) throw new Error("Overpopped stencil states!");
     },
 
     _renderShadowCasters: function ()

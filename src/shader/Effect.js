@@ -74,7 +74,7 @@ HX.Effect.prototype.render = function(renderer, dt)
 
 HX.Effect.prototype.draw = function(dt)
 {
-    throw "Abstract method error!";
+    throw new Error("Abstract method error!");
 };
 
 HX.Effect.prototype._drawPass = function(pass)

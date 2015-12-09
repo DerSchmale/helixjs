@@ -166,7 +166,7 @@ HX.ModelInstance.prototype = Object.create(HX.Entity.prototype, {
 HX.ModelInstance.prototype.init = function(model, materials)
 {
     if (this._model || this._materials)
-        throw "ModelInstance already initialized";
+        throw new Error("ModelInstance already initialized");
 
     this._model = model;
 

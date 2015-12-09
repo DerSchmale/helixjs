@@ -76,9 +76,9 @@ HX.BoundingVolume.prototype =
     getExpanse: function() { return this._expanse; },
     type: function() { return this._type; },
 
-    growToIncludeMesh: function(meshData) { throw "Abstract method!"; },
-    growToIncludeBound: function(bounds) { throw "Abstract method!"; },
-    growToIncludeMinMax: function(min, max) { throw "Abstract method!"; },
+    growToIncludeMesh: function(meshData) { throw new Error("Abstract method!"); },
+    growToIncludeBound: function(bounds) { throw new Error("Abstract method!"); },
+    growToIncludeMinMax: function(min, max) { throw new Error("Abstract method!"); },
 
     clear: function(expanseState)
     {
@@ -97,17 +97,17 @@ HX.BoundingVolume.prototype =
     // the half-extents of the box encompassing the bounds.
     getHalfExtent: function() { return new HX.Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0); },
     // the radius of the sphere encompassing the bounds. This is implementation-dependent, because the radius is less precise for a box than for a sphere
-    getRadius: function() { throw "Abstract method!"; },
+    getRadius: function() { throw new Error("Abstract method!"); },
 
-    transformFrom: function(sourceBound, matrix) { throw "Abstract method!"; },
+    transformFrom: function(sourceBound, matrix) { throw new Error("Abstract method!"); },
 
     // numPlanes is provided so we can provide a full frustum but skip near/far tests (useful in some cases)
     // convex solid may be infinite
-    intersectsConvexSolid: function(cullPlanes, numPlanes) { throw "Abstract method!"; },
-    intersectsBound: function(bound) { throw "Abstract method!"; },
-    classifyAgainstPlane: function(plane) { throw "Abstract method!"; },
+    intersectsConvexSolid: function(cullPlanes, numPlanes) { throw new Error("Abstract method!"); },
+    intersectsBound: function(bound) { throw new Error("Abstract method!"); },
+    classifyAgainstPlane: function(plane) { throw new Error("Abstract method!"); },
 
-    createDebugModelInstance: function() { throw "Abstract method!"; },
+    createDebugModelInstance: function() { throw new Error("Abstract method!"); },
 
     getDebugModelInstance: function()
     {

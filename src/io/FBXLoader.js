@@ -35,6 +35,7 @@ HX.FBXParser = function()
     this._rootNode = null;
     this._templates = null;
     this._objects = null;
+    this._modelInstanceSetups = null;
 };
 
 HX.FBXParser.prototype =
@@ -45,8 +46,10 @@ HX.FBXParser.prototype =
         this._data = new HX.DataStream(data);
 
         this._objects = [];
+        this._modelMaterialIDs = [];
+        this._modelInstanceSetups = [];
         // the rootNode
-        this._objects[0] = target;
+        this._objects["00"] = target;
 
         if (!this._verifyHeader()) {
             console.log("Incorrect FBX header");
@@ -158,10 +161,8 @@ HX.FBXParser.prototype =
                 prop.value = this._data.getInt32();
                 break;
             case HX.FBXParser.DataElement.INT64:
-                prop.value = {
-                    L: this._data.getInt32(),
-                    U: this._data.getInt32()
-                };
+                // just concatting strings, since they're only used for ids
+                prop.value = this._data.getInt32() + "" + this._data.getInt32();
                 break;
             case HX.FBXParser.DataElement.FLOAT:
                 prop.value = this._data.getFloat32();
@@ -280,21 +281,21 @@ HX.FBXParser.prototype =
         for (var i = 0; i < len; ++i) {
             var objDef = children[i];
             var name = this._getObjectDefName(objDef);
-            var UID = objDef.data[0].value.L; // haven't seen 32MSBs being used
-            var obj;
+            var UID = objDef.data[0].value; // haven't seen 32MSBs being used
+            var obj = null;
 
             switch (objDef.name) {
                 case "NodeAttribute":
-                    obj = this._processNodeAttribute(objDef);
+                    obj = this._processNodeAttribute(objDef, UID);
                     break;
                 case "Geometry":
-                    obj = this._processMeshGeometry(objDef);
+                    obj = this._processMeshGeometry(objDef, UID);
                     break;
                 case "Model":
-                    obj = this._processModel(objDef);
+                    obj = this._processModel(objDef, UID);
                     break;
                 case "Material":
-                    obj = this._processMaterial(objDef);
+                    obj = this._processMaterial(objDef, UID);
                     break;
                 default:
                     console.log("Unsupported object type " + objDef.name);
@@ -312,7 +313,7 @@ HX.FBXParser.prototype =
         return objDef.data[1].value.split(HX.FBXParser.STRING_DEMARCATION)[0];
     },
 
-    _processNodeAttribute: function(objDef)
+    _processNodeAttribute: function(objDef, UID)
     {
         var subclass = objDef.data[2].value;
         var obj;
@@ -334,7 +335,7 @@ HX.FBXParser.prototype =
         return null;
     },
 
-    _processModel: function(objDef)
+    _processModel: function(objDef, UID)
     {
         var subclass = objDef.data[2].value;
         var obj;
@@ -349,7 +350,7 @@ HX.FBXParser.prototype =
                 undoScale = true;
                 break;
             case "Mesh":
-                obj = this._processMeshModel(objDef);
+                obj = this._processMeshModel(objDef, UID);
                 if (this._templates["NodeAttribute"]) this._applyModelProps(obj, this._templates["NodeAttribute"]);
                 break;
         }
@@ -490,11 +491,64 @@ HX.FBXParser.prototype =
         return camera;
     },
 
-    _processMeshModel: function(objDef)
+    _processMeshModel: function(objDef, UID)
     {
         // model and materials will be assigned later
         var node = new HX.ModelInstance();
+
+        // will be filled in on connect
+        this._modelInstanceSetups[UID] = {
+            model: null,
+            materials: [],
+            materialsIDs: null,
+            modelInstance: node,
+            parent: null
+        };
         return node;
+    },
+
+    _extractMeshLayerData: function(objDef, nodeName, directDataName, indexDataName)
+    {
+        var node = objDef.getChildNode(nodeName);
+        if (!node)
+            return null;
+        else {
+            var mapMode = node.getChildNode("MappingInformationType").data[0].value;
+            var refMode = node.getChildNode("ReferenceInformationType").data[0].value === "Direct"? 1 : 2;
+
+            return {
+                refMode: refMode,
+                mapMode: mapMode === "ByPolygonVertex"? HX.FBXParser.BY_POLYGON_VERTEX :
+                         mapMode === "ByPolygon"?       HX.FBXParser.BY_POLYGON :
+                         mapMode === "AllSame"?         HX.FBXParser.ALL_SAME :
+                                                        HX.FBXParser.BY_CONTROL_POINT,
+
+                directData: directDataName? node.getChildNode(directDataName).data[0].value: null,
+                indexData: refMode === 2? node.getChildNode(indexDataName).data[0].value : null
+            }
+        }
+    },
+
+    _applyVertexData: function (data, index, i, numComponents)
+    {
+        var target = numComponents > 2? new HX.Float4() : new HX.Float2();
+        // direct
+        if (data.refMode === 1) {
+            var directIndex = data.mapMode === 2? index : i;
+            target.x = data.directData[directIndex * numComponents];
+            target.y = data.directData[directIndex * numComponents + 1];
+            if (numComponents > 2)
+                target.z = data.directData[directIndex * numComponents + 2];
+        }
+        // index to direct
+        else {
+            var directIndex = data.mapMode === 2? data.indexData[index] : data.indexData[i];
+            target.x = data.directData[directIndex * numComponents];
+            target.y = data.directData[directIndex * numComponents + 1];
+            if (numComponents > 2)
+                target.z = data.directData[directIndex * numComponents + 2];
+        }
+        return target;
     },
 
     _generateExpandedMeshData: function(objDef)
@@ -502,20 +556,19 @@ HX.FBXParser.prototype =
         var meshData = new HX.FBXParser.MeshData();
         var indexData = objDef.getChildNode("PolygonVertexIndex").data[0].value;
         var vertexData = objDef.getChildNode("Vertices").data[0].value;
-        var normalData = objDef.getChildNode("LayerElementNormal");
-        var normalRefMode = 0; // 0 = no normals, 1 = direct, 2 = index to direct
-        var normalMapMode = 0; // 0 = no normals, 1 = polygon, 2 = control point
+        var normalData = this._extractMeshLayerData(objDef, "LayerElementNormal", "Normals", "NormalsIndex");
+        var colorData = this._extractMeshLayerData(objDef, "LayerElementColor", "Colors", "ColorIndex");
+        var uvData = this._extractMeshLayerData(objDef, "LayerElementUV", "UV", "UVIndex");
+        var materialData = this._extractMeshLayerData(objDef, "LayerElementMaterial", null, "Materials");
+
         var vertices = [];
         var len = indexData.length;
+        var polyIndex = 0;
+        var maxMaterialIndex = 0;
 
-        if (normalData) {
-            normalRefMode = normalData.getChildNode("ReferenceInformationType").data[0].value === "Direct"? 1 : 2;
-            normalMapMode = normalData.getChildNode("MappingInformationType").data[0].value === "ByPolygonVertex"? 1 : 2;
-            normalData = normalData.getChildNode("Normals").data[0].value;
-            meshData.hasNormals = true;
-        }
-
-        // todo: if index mode is direct, just query data there
+        if (normalData) meshData.hasNormals = true;
+        //if (colorData) meshData.hasColor = true;
+        //if (uvData) meshData.hasUVs = true;
 
         for (var i = 0; i < len; ++i) {
             var index = indexData[i];
@@ -526,71 +579,109 @@ HX.FBXParser.prototype =
                 v.lastVertex = true;
             }
 
-            index *= 3;
+            v.pos.x = vertexData[index * 3];
+            v.pos.y = vertexData[index * 3 + 1];
+            v.pos.z = vertexData[index * 3 + 2];
 
-            v.x = vertexData[index];
-            v.y = vertexData[index + 1];
-            v.z = vertexData[index + 2];
+            if (normalData)
+                v.normal = this._applyVertexData(normalData, index, i, 3);
 
-            if (normalRefMode === 1) {
-                var normIndex = normalMapMode === 2? index: i * 3;
-                v.normalX = normalData[normIndex];
-                v.normalY = normalData[normIndex + 1];
-                v.normalZ = normalData[normIndex + 2];
+            //if (colorData) v.color = this._applyVertexData(colorData, index, i, 3);
+            //if (uvData) v.uv = this._applyVertexData(uvData, index, i, 2);
+
+            if (materialData && materialData.mapMode !== HX.FBXParser.ALL_SAME) {
+                var index = materialData.indexData[polyIndex];
+                //v.materialIndex = index;
+                if (index > maxMaterialIndex)
+                    maxMaterialIndex = index;
             }
+
+            if (v.lastVertex)
+                ++polyIndex;
 
             vertices[i] = v;
         }
 
         meshData.vertices = vertices;
+        meshData.numMaterials = maxMaterialIndex + 1;
 
         return meshData;
     },
 
-    _processMeshGeometry: function(objDef)
+    _processMeshGeometry: function(objDef, UID)
     {
         var expandedMesh = this._generateExpandedMeshData(objDef);
-        var indexLookUp = [];
-        var indices = [];
-        var vertices = [];
+        var perMaterial = [];
 
-        var indexCounter = 0;
+        for (var i = 0; i < expandedMesh.numMaterials; ++i) {
+            perMaterial[i] = {
+                indexCounter: 0,
+                vertexStack: [],
+                indexStack: [],
+                vertices: null,
+                indices: null,
+                indexLookUp: {}
+            }
+        }
+
         var stride = HX.MeshData.DEFAULT_VERTEX_SIZE;
         var hasNormals = expandedMesh.hasNormals;
+        var hasUVs = expandedMesh.hasUVs;
+        var hasColor = expandedMesh.hasColor;
 
+        if (hasColor) stride += 3;
+
+        // returns negative if overflow is detected
         function getOrAddIndex(v)
         {
             var hash = v.getHash();
+            var data = perMaterial[v.materialIndex];
+            var indexLookUp = data.indexLookUp;
 
             if (indexLookUp.hasOwnProperty(hash))
                 return indexLookUp[hash];
 
+            if (data.indexCounter > 65535) return -1;
+
+            var vertices = data.vertices;
+
             // new unique vertex!
-            var k = indexCounter * stride;
-            var realIndex = indexCounter++;
+            var k = data.indexCounter * stride;
+            var realIndex = data.indexCounter++;
+
             indexLookUp[hash] = realIndex;
 
             // position
-            vertices[k] = v.x;
-            vertices[k + 1] = v.y;
-            vertices[k + 2] = v.z;
+            vertices[k] = v.pos.x;
+            vertices[k + 1] = v.pos.y;
+            vertices[k + 2] = v.pos.z;
 
             // normal
-            vertices[k + 3] = hasNormals? v.normalX : 0;
-            vertices[k + 4] = hasNormals? v.normalY : 0;
-            vertices[k + 5] = hasNormals? v.normalZ : 0;
+            if (hasNormals) {
+                vertices[k + 3] = v.normal.x;
+                vertices[k + 4] = v.normal.y;
+                vertices[k + 5] = v.normal.z;
+            }
+            else
+                vertices[k + 3] = vertices[k + 4] = vertices[k + 5] = 0;
 
-            // tangent
-            vertices[k + 6] = 0;
-            vertices[k + 7] = 0;
-            vertices[k + 8] = 0;
+            // tangent & flipsign
+            vertices[k + 6] = vertices[k + 7] = vertices[k + 8] = vertices[k + 9] = 0;
 
-            // bitangent flipsign
-            vertices[k + 9] = 0;
+            if (hasUVs) {
+                vertices[k + 10] = v.uv.x;
+                vertices[k + 11] = v.uv.y;
+            }
+            else
+                vertices[k + 10] = vertices[k + 11] = 0;
 
-            // UV
-            vertices[k + 10] = 0;
-            vertices[k + 11] = 0;
+            if (hasColor) {
+                vertices[k + 12] = v.color.x;
+                vertices[k + 13] = v.color.y;
+                vertices[k + 14] = v.color.z;
+            }
+            else
+                vertices[k + 12] = vertices[k + 13] = vertices[k + 14] = 0;
 
             return realIndex;
         }
@@ -600,52 +691,90 @@ HX.FBXParser.prototype =
         var vertexData = expandedMesh.vertices;
         var len = vertexData.length;
         var realIndex0, realIndex1, realIndex2;
+        var overflown = true;
 
         // triangulate
         while (i < len) {
+            // start as overflown, so we push the current list on the stack
+            if (overflown) {
+                overflown = false;
+                var data = perMaterial[vertexData[i].materialIndex];
+                data.indexCounter = 0;
+                data.indices = [];
+                data.vertices = [];
+                data.indexLookUp = {};
+                data.indexStack.push(data.indices);
+                data.vertexStack.push(data.vertices);
+            }
+
             realIndex0 = getOrAddIndex(vertexData[i]);
-            realIndex1 = getOrAddIndex(vertexData[i+1]);
+            if (realIndex0 < 0) {
+                overflown = true;
+                continue;
+            }
+            realIndex1 = getOrAddIndex(vertexData[i + 1]);
+            if (realIndex1 < 0) {
+                overflown = true;
+                continue;
+            }
 
             i += 2;
 
             var v2;
 
             do {
-                v2 = vertexData[i++];
+                v2 = vertexData[i];
                 realIndex2 = getOrAddIndex(v2);
 
-                indices[j] = realIndex0;
-                indices[j + 1] = realIndex1;
-                indices[j + 2] = realIndex2;
+                if (realIndex2 < 0) {
+                    overflown = true;
+                }
+                else {
+                    ++i;
 
-                j += 3;
-                realIndex1 = realIndex2;
-            } while (!v2.lastVertex);
+                    var indices = perMaterial[v2.materialIndex].indices;
+                    indices[j] = realIndex0;
+                    indices[j + 1] = realIndex1;
+                    indices[j + 2] = realIndex2;
+
+                    j += 3;
+                    realIndex1 = realIndex2;
+                }
+            } while (!v2.lastVertex && !overflown);
         }
 
-        var meshData = HX.MeshData.createDefaultEmpty();
-        meshData.setVertexData(vertices);
-        meshData.setIndexData(indices);
-
-        var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
-        if (!expandedMesh.hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
-        var generator = new HX.NormalTangentGenerator();
-        generator.generate(meshData, mode);
-
         var modelData = new HX.ModelData();
-        modelData.addMeshData(meshData);
+
+        this._modelMaterialIDs[UID] = [];
+
+        for (var i = 0; i < expandedMesh.numMaterials; ++i) {
+            var data = perMaterial[i];
+
+            for (var j = 0; j < data.indexStack.length; ++j) {
+                var meshData = HX.MeshData.createDefaultEmpty();
+                if (hasColor) meshData.addVertexAttribute("hx_vertexColor", 3);
+                meshData.setVertexData(data.vertexStack[j]);
+                meshData.setIndexData(data.indexStack[j]);
+
+                this._modelMaterialIDs[UID].push(i);
+
+                var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
+                if (!hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
+                var generator = new HX.NormalTangentGenerator();
+                generator.generate(meshData, mode);
+                modelData.addMeshData(meshData);
+            }
+        }
 
         return new HX.Model(modelData);
     },
 
-    _processMaterial: function(objDef)
+    _processMaterial: function(objDef, UID)
     {
         var material = new HX.PBRMaterial();
-
         var props = objDef.getChildNode("Properties70");
         if (this._templates["Material"]) this._applyMaterialProps(material, this._templates["Material"]);
         if (props) this._applyMaterialProps(material, props.children);
-
         return material;
     },
 
@@ -673,37 +802,51 @@ HX.FBXParser.prototype =
         if (!connections) return;
         connections = connections.children;
         var len = connections.length;
-        var modelInstanceMaterials = [];
-        var modelInstanceModels = [];
 
         for (var i = 0; i < len; ++i) {
             var c = connections[i];
             var linkType = c.data[0].value;
-            var childUID = c.data[1].value.L;
-            var parentUID = c.data[2].value.L;
+            var childUID = c.data[1].value;
+            var parentUID = c.data[2].value;
             var child = this._objects[childUID];
             var parent = this._objects[parentUID];
 
-            console.log(childUID + " -> " + parentUID);
-            console.log(child.toString() + " -> " + parent.toString());
+            // why would parent be null?
+            if (child && parent) {
+                //console.log(childUID + " -> " + parentUID);
+                //console.log(child.toString() + " -> " + parent.toString());
 
-            if (child) {
                 switch (linkType) {
                     // others not currently supported
                     case "OO":
-                        this._connectOO(child, parent, parentUID, modelInstanceMaterials, modelInstanceModels);
+                        this._connectOO(child, parent, childUID, parentUID);
                         break;
                 }
 
             }
         }
+
+        for (var key in this._modelInstanceSetups) {
+            if (this._modelInstanceSetups.hasOwnProperty(key)) {
+                var setup = this._modelInstanceSetups[key];
+                var materials = [];
+
+                for (var i = 0; i < setup.materialsIDs.length; ++i) {
+                    var id = setup.materialsIDs[i];
+                    materials.push(setup.materials[id]);
+                }
+
+                setup.modelInstance.init(setup.model, materials);
+                setup.parent.attach(setup.modelInstance);
+            }
+        }
     },
 
-    _connectOO: function(child, parent, parentUID, modelInstanceMaterials, modelInstanceModels)
+    _connectOO: function(child, parent, childUID, parentUID)
     {
         if (child instanceof HX.FBXParser.DummyNode) {
             if (child.child) {
-                this._connectOO(child.child, parent, parentUID, modelInstanceMaterials, modelInstanceModels);
+                this._connectOO(child.child, parent, parentUID);
             }
             else {
                 child.parent = parent;
@@ -715,24 +858,23 @@ HX.FBXParser.prototype =
                 child.transformationMatrix = parent.transformationMatrix;
 
             if (parent.parent)
-                this._connectOO(child, parent.parent, parent.parentUID, modelInstanceMaterials, modelInstanceModels);
+                this._connectOO(child, parent.parent, parent.parentUID);
             else
                 parent.child = child;
+        }
+        else if (child instanceof HX.ModelInstance) {
+            // why is parent undefined all of a sudden?
+            this._modelInstanceSetups[childUID].parent = parent;
         }
         else if (child instanceof HX.SceneNode) {
             parent.attach(child);
         }
         else if (child instanceof HX.Model) {
-            if (modelInstanceMaterials[parentUID])
-                parent.init(child, modelInstanceMaterials[parentUID]);
-            else
-                modelInstanceModels[parentUID] = child;
+            this._modelInstanceSetups[parentUID].materialsIDs = this._modelMaterialIDs[childUID];
+            this._modelInstanceSetups[parentUID].model = child;
         }
         else if (child instanceof HX.Material) {
-            if (modelInstanceModels[parentUID])
-                parent.init(modelInstanceModels[parentUID], child);
-            else
-                modelInstanceMaterials[parentUID] = child;
+            this._modelInstanceSetups[parentUID].materials.push(child);
         }
     }
 };
@@ -779,7 +921,6 @@ HX.FBXParser.DataElement = function()
     this.value = null;
 };
 
-
 HX.FBXParser.DataElement.INT16 = "Y";
 HX.FBXParser.DataElement.BOOLEAN = "C";
 HX.FBXParser.DataElement.INT32 = "I";
@@ -798,24 +939,32 @@ HX.FBXParser.DataElement.RAW = "R";
 
 HX.FBXParser.STRING_DEMARCATION = String.fromCharCode(0, 1);
 
+HX.FBXParser.Mapping =
+{
+    NONE: 0,
+    BY_POLYGON_VERTEX: 1,
+    BY_CONTROL_POINT: 2,
+    BY_POLYGON: 3,
+    ALL_SAME: 4
+};
+
 HX.FBXParser.MeshData = function()
 {
     this.vertices = null;
     this.hasColor = false;
+    this.hasUVs = false;
     this.hasNormals = false;
+    this.numMaterials = 0;
 };
 
 HX.FBXParser.Vertex = function()
 {
-    this.x = 0;
-    this.y = 0;
-    this.z = 0;
-    this.u = 0;
-    this.v = 0;
-    this.normalX = 0;
-    this.normalY = 0;
-    this.normalZ = 0;
-    this._hash = "";
+    this.pos = new HX.Float4();
+    this.uv = null;
+    this.normal = null;
+    this.color = null;
+    this.materialIndex = 0;
+    this._hash = null;
 
     this.lastVertex = false;
 };
@@ -825,8 +974,20 @@ HX.FBXParser.Vertex.prototype =
     // instead of actually using the values, we should use the indices as keys
     getHash: function()
     {
-        if (!this._hash)
-            this._hash = this.x + "/" + this.y + "/" + this.z + "/" + this.u + "/" + this.v + "/" + this.normalX + "/" + this.normalY + "/" + this.normalZ + "/";
+        if (!this._hash) {
+            var str = this.materialIndex + "/" + this.pos.x + "/" + this.pos.y + "/" + this.pos.z;
+
+            if (this.normal)
+                str = str + "/" + this.normal.x + "/" + this.normal.y + "/" + this.normal.z;
+
+            if (this.uv)
+                str = str + "/" + this.uv.x + "/" + this.uv.y;
+
+            if (this.color)
+                str = str + "/" + this.color.x + "/" + this.color.y + "/" + this.color.z;
+
+            this._hash = str;
+        }
 
         return this._hash;
     }

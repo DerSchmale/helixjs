@@ -20,6 +20,7 @@ HX.PBRMaterial = function()
     this._transparent = false;
     this._refract = false;
     this._alphaThreshold = 1.0;
+    this._useVertexColors = false;
 
     // trigger assignments
     this.color = this._color;
@@ -75,6 +76,21 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
                 this.setUniform("alpha", this._alpha);
 
                 this.transparencyMode = value === 1.0? HX.TransparencyMode.OPAQUE : HX.TransparencyMode.ALPHA;
+            }
+        },
+
+        // this can ONLY be used if the MeshData was created with a hx_vertexColor attribute!
+        useVertexColors: {
+            get: function ()
+            {
+                return this._useVertexColors;
+            },
+            set: function (value)
+            {
+                if (this._useVertexColors !== value)
+                    this._passesInvalid = true;
+
+                this._useVertexColors = value;
             }
         },
 
@@ -336,7 +352,10 @@ HX.PBRMaterial.prototype._updatePasses = function()
 
 HX.PBRMaterial.prototype._generateColorDefines = function()
 {
-    return !!this._colorMap? "#define COLOR_MAP\n" : "";
+    var str = "";
+    if (this._colorMap) str += "#define COLOR_MAP\n";
+    if (this._useVertexColors) str += "#define VERTEX_COLORS\n";
+    return str;
 };
 
 HX.PBRMaterial.prototype._generateNormalDefines = function()

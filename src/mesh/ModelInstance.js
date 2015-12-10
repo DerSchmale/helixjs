@@ -11,8 +11,8 @@ HX.VertexLayout = function(mesh, pass)
 
     this._numAttributes = -1;
 
-    var stride = mesh.getVertexStride();
-    for (var i = 0; i < mesh.numVertexAttributes(); ++i) {
+    var stride = mesh.vertexStride;
+    for (var i = 0; i < mesh.numVertexAttributes; ++i) {
         var attribute = mesh.getVertexAttribute(i);
         var index = shader.getVertexAttributeIndex(attribute.name);
 

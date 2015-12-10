@@ -26,7 +26,7 @@ HX.NormalTangentGenerator.prototype =
         this._normalOffset = meshData.getVertexAttribute("hx_normal").offset;
         this._tangentOffset = meshData.getVertexAttribute("hx_tangent").offset;
         this._uvOffset = meshData.getVertexAttribute("hx_texCoord").offset;
-        this._vertexStride = meshData.getVertexStride();
+        this._vertexStride = meshData.vertexStride;
 
         this._calculateFaceVectors(useFaceWeights);
         this._calculateVertexVectors();

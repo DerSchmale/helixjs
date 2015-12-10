@@ -11,6 +11,11 @@ attribute vec2 hx_texCoord;
 varying vec2 texCoords;
 #endif
 
+#ifdef VERTEX_COLORS
+attribute vec3 hx_vertexColor;
+varying vec3 vertexColor;
+#endif
+
 #ifdef NORMAL_MAP
 attribute vec4 hx_tangent;
 
@@ -33,5 +38,9 @@ void main()
 
 #if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)
     texCoords = hx_texCoord;
+#endif
+
+#ifdef VERTEX_COLORS
+    vertexColor = hx_vertexColor;
 #endif
 }

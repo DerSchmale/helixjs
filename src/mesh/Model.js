@@ -80,7 +80,7 @@ HX.MeshData.prototype = {
     /**
      * Returns the stride of each vertex. This matches the total amount of elements used by all vertex attributes combined.
      */
-    getVertexStride: function()
+    get vertexStride()
     {
         return this._vertexStride;
     }
@@ -101,7 +101,7 @@ HX.Mesh = function (meshData)
 
     this._numIndices = meshData._indexData.length;
 
-    this._vertexStride = meshData.getVertexStride();
+    this._vertexStride = meshData.vertexStride;
 
     this._vertexAttributes = meshData._vertexAttributes;
     this._renderOrderHint = ++HX.Mesh.ID_COUNTER;
@@ -119,17 +119,17 @@ HX.Mesh.prototype = {
         this._indexBuffer.dispose();
     },
 
-    numIndices: function ()
+    get numIndices()
     {
         return this._numIndices;
     },
 
-    numVertexAttributes: function ()
+    get numVertexAttributes()
     {
         return this._vertexAttributes.length;
     },
 
-    getVertexStride: function ()
+    get vertexStride()
     {
         return this._vertexStride;
     },

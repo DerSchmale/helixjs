@@ -263,7 +263,7 @@ HX.Renderer.prototype =
                 pass.updateRenderState(this);
                 meshInstance.updateRenderState(passType);
 
-                HX.drawElements(pass._elementType, meshInstance._mesh.numIndices(), 0);
+                HX.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
 
                 if (!HX.EXT_DRAW_BUFFERS)
                     HX.popRenderTarget();

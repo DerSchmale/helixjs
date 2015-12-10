@@ -34,9 +34,17 @@ uniform float alphaThreshold;
 uniform sampler2D specularMap;
 #endif
 
+#ifdef VERTEX_COLORS
+varying vec3 vertexColor;
+#endif
+
 void main()
 {
     vec4 outputColor = vec4(color, alpha);
+
+    #ifdef VERTEX_COLORS
+        outputColor.xyz *= vertexColor;
+    #endif
 
     #ifdef COLOR_MAP
         outputColor *= texture2D(colorMap, texCoords);

@@ -45,7 +45,7 @@ HX.RenderUtils =
                 lastMesh = meshInstance._mesh;
             }
 
-            HX.drawElements(pass._elementType, meshInstance._mesh.numIndices(), 0);
+            HX.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
         }
 
         HX.setBlendState(null);

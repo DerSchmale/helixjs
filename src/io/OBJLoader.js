@@ -255,10 +255,8 @@ HX.OBJParser.prototype =
             for (var j = 0; j < numVerts; ++j) {
                 var vert = faceVerts[j];
                 var hash = vert.getHash();
-                if (!realIndices.hasOwnProperty(hash)) {
+                if (!realIndices.hasOwnProperty(hash))
                     realIndices[hash] = {index: numVertices++, vertex: vert};
-                }
-
             }
 
             indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;

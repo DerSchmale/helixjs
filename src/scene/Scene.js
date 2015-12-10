@@ -15,6 +15,7 @@ HX.SceneNode = function()
     this._scene = null;
     this._worldBounds = this._createBoundingVolume();
     this._debugBounds = null;
+    this._visible = true;
 
     // used to determine sorting index for the render loop
     // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
@@ -35,6 +36,18 @@ Object.defineProperties(HX.SceneNode.prototype, {
             this._name = value;
         }
     },
+
+    visible: {
+        get: function()
+        {
+            return this._visible;
+        },
+        set: function(value)
+        {
+            this._visible = value;
+        }
+    },
+
     worldBounds: {
         get: function()
         {

@@ -8148,6 +8148,7 @@ HX.SceneNode = function()
     this._scene = null;
     this._worldBounds = this._createBoundingVolume();
     this._debugBounds = null;
+    this._visible = true;
 
     // used to determine sorting index for the render loop
     // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
@@ -8168,6 +8169,18 @@ Object.defineProperties(HX.SceneNode.prototype, {
             this._name = value;
         }
     },
+
+    visible: {
+        get: function()
+        {
+            return this._visible;
+        },
+        set: function(value)
+        {
+            this._visible = value;
+        }
+    },
+
     worldBounds: {
         get: function()
         {
@@ -12473,7 +12486,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
 
 HX.CascadeShadowCasterCollector.prototype.qualifies = function(object)
 {
-    return object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
+    return object.visible && object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
 };
 
 /**
@@ -12945,7 +12958,7 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
 
 HX.RenderCollector.prototype.qualifies = function(object)
 {
-    return object.worldBounds.intersectsConvexSolid(this._frustum._planes, 6);
+    return object.visible && object.worldBounds.intersectsConvexSolid(this._frustum._planes, 6);
 };
 
 HX.RenderCollector.prototype.visitScene = function (scene)
@@ -15578,8 +15591,8 @@ HX.FBXParser.prototype =
         var maxMaterialIndex = 0;
 
         if (normalData) meshData.hasNormals = true;
-        //if (colorData) meshData.hasColor = true;
-        //if (uvData) meshData.hasUVs = true;
+        if (colorData) meshData.hasColor = true;
+        if (uvData) meshData.hasUVs = true;
 
         for (var i = 0; i < len; ++i) {
             var index = indexData[i];
@@ -15594,15 +15607,13 @@ HX.FBXParser.prototype =
             v.pos.y = vertexData[index * 3 + 1];
             v.pos.z = vertexData[index * 3 + 2];
 
-            if (normalData)
-                v.normal = this._applyVertexData(normalData, index, i, 3);
-
-            //if (colorData) v.color = this._applyVertexData(colorData, index, i, 3);
-            //if (uvData) v.uv = this._applyVertexData(uvData, index, i, 2);
+            if (normalData) v.normal = this._applyVertexData(normalData, index, i, 3);
+            if (colorData) v.color = this._applyVertexData(colorData, index, i, 3);
+            if (uvData) v.uv = this._applyVertexData(uvData, index, i, 2);
 
             if (materialData && materialData.mapMode !== HX.FBXParser.ALL_SAME) {
                 var index = materialData.indexData[polyIndex];
-                //v.materialIndex = index;
+                v.materialIndex = index;
                 if (index > maxMaterialIndex)
                     maxMaterialIndex = index;
             }

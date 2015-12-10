@@ -73,7 +73,7 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
 
 HX.RenderCollector.prototype.qualifies = function(object)
 {
-    return object.worldBounds.intersectsConvexSolid(this._frustum._planes, 6);
+    return object.visible && object.worldBounds.intersectsConvexSolid(this._frustum._planes, 6);
 };
 
 HX.RenderCollector.prototype.visitScene = function (scene)

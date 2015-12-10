@@ -628,8 +628,8 @@ HX.FBXParser.prototype =
         var maxMaterialIndex = 0;
 
         if (normalData) meshData.hasNormals = true;
-        //if (colorData) meshData.hasColor = true;
-        //if (uvData) meshData.hasUVs = true;
+        if (colorData) meshData.hasColor = true;
+        if (uvData) meshData.hasUVs = true;
 
         for (var i = 0; i < len; ++i) {
             var index = indexData[i];
@@ -644,15 +644,13 @@ HX.FBXParser.prototype =
             v.pos.y = vertexData[index * 3 + 1];
             v.pos.z = vertexData[index * 3 + 2];
 
-            if (normalData)
-                v.normal = this._applyVertexData(normalData, index, i, 3);
-
-            //if (colorData) v.color = this._applyVertexData(colorData, index, i, 3);
-            //if (uvData) v.uv = this._applyVertexData(uvData, index, i, 2);
+            if (normalData) v.normal = this._applyVertexData(normalData, index, i, 3);
+            if (colorData) v.color = this._applyVertexData(colorData, index, i, 3);
+            if (uvData) v.uv = this._applyVertexData(uvData, index, i, 2);
 
             if (materialData && materialData.mapMode !== HX.FBXParser.ALL_SAME) {
                 var index = materialData.indexData[polyIndex];
-                //v.materialIndex = index;
+                v.materialIndex = index;
                 if (index > maxMaterialIndex)
                     maxMaterialIndex = index;
             }

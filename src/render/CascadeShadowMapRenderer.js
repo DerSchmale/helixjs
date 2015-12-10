@@ -110,7 +110,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
 
 HX.CascadeShadowCasterCollector.prototype.qualifies = function(object)
 {
-    return object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
+    return object.visible && object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
 };
 
 /**

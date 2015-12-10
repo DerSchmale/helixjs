@@ -4481,15 +4481,15 @@ HX.Matrix4x4.prototype = {
         var sinZ = Math.sin(z);
 
         this._m[0] = cosY * cosZ;
-        this._m[1] = sinX * sinY * cosZ - cosX * sinZ;
-        this._m[2] = cosX * sinY * cosZ + sinX * sinZ;
+        this._m[1] = cosX * sinZ + sinX * sinY * cosZ;
+        this._m[2] = sinX * sinZ - cosX * sinY * cosZ;
         this._m[3] = 0;
-        this._m[4] = cosY * sinZ;
-        this._m[5] = sinX * sinY * sinZ + cosX * cosZ;
-        this._m[6] = cosX * sinY * sinZ - sinX * cosZ;
+        this._m[4] = -cosY * sinZ;
+        this._m[5] = cosX * cosZ - sinX * sinY * sinZ;
+        this._m[6] = sinX * cosZ + cosX * sinY * sinZ;
         this._m[7] = 0;
-        this._m[8] = -sinY;
-        this._m[9] = sinX * cosY;
+        this._m[8] = sinY;
+        this._m[9] = -sinX * cosY;
         this._m[10] = cosX * cosY;
         this._m[11] = 0;
         this._m[12] = 0;
@@ -15320,24 +15320,85 @@ HX.FBXParser.prototype =
     _applyModelProps: function(target, props)
     {
         var len = props.length;
+        var lclRotation;
+        var preRotation;
+        var postRotation;
+        var lclTranslation;
+        var rotationPivot;
+        var scalingPivot;
+        var lclScaling;
+        var scalingOffset;
+        var rotationOffset;
+
+        // geometric translation should be handled differently, in that it should not be allowed to affect children (should be baked in geometry, hence the name)
+        var geometricTranslation;
+
         for (var i = 0; i < len; ++i) {
             var prop = props[i];
             var name = prop.data[0].value;
             switch(name) {
-                case "Lcl Rotation":
-                    target.rotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD);
+                case "GeometricTranslation":
+                    geometricTranslation = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
                     break;
+
                 case "Lcl Scaling":
-                    target.scale.set(prop.data[4].value, prop.data[5].value, prop.data[6].value);
+                    lclScaling = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 1.0);
                     break;
+                case "ScalingPivot":
+                    scalingPivot = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
+                    break;
+                case "ScalingOffset":
+                    scalingOffset = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
+                    break;
+
+                case "RotationPivot":
+                    rotationPivot = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
+                    break;
+                case "PreRotation":
+                    preRotation = new HX.Quaternion();
+                    preRotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD, 0.0);
+                    break;
+                case "PostRotation":
+                    postRotation = new HX.Quaternion();
+                    postRotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD, 0.0);
+                    break;
+                case "Lcl Rotation":
+                    lclRotation = new HX.Quaternion();
+                    lclRotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD);
+                    break;
+                case "RotationOffset":
+                    rotationOffset = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
+                    break;
+
                 case "Lcl Translation":
-                    target.position.set(prop.data[4].value, prop.data[5].value, prop.data[6].value);
+                    lclTranslation = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
                     break;
                 case "InheritType":
                     if (prop.data[4].value != 1)
                         throw new Error("Unsupported InheritType (must be 1)");
             }
         }
+
+        // http://download.autodesk.com/us/fbx/20112/FBX_SDK_HELP/index.html?url=WS1a9193826455f5ff1f92379812724681e696651.htm,topicNumber=d0e7429
+
+        var matrix = new HX.Matrix4x4();
+
+        if (scalingPivot) matrix.appendTranslation(-scalingPivot.x, -scalingPivot.y, -scalingPivot.z);
+        if (lclScaling) matrix.appendScale(lclScaling.x, lclScaling.y, lclScaling.z);
+        if (scalingPivot) matrix.appendTranslation(scalingPivot.x, scalingPivot.y, scalingPivot.z);
+        if (scalingOffset) matrix.appendTranslation(scalingOffset.x, scalingOffset.y, scalingOffset.z);
+
+        if (rotationPivot) matrix.appendTranslation(-rotationPivot.x, -rotationPivot.y, -rotationPivot.z);
+        if (preRotation) matrix.appendRotationQuaternion(preRotation);
+        if (lclRotation) matrix.appendRotationQuaternion(lclRotation);
+        if (postRotation) matrix.appendRotationQuaternion(postRotation);
+        if (rotationPivot) matrix.appendTranslation(rotationPivot.x, rotationPivot.y, rotationPivot.z);
+        if (rotationOffset) matrix.appendTranslation(rotationOffset.x, rotationOffset.y, rotationOffset.z);
+
+        if (lclTranslation) matrix.appendTranslation(lclTranslation.x, lclTranslation.y, lclTranslation.z);
+        if (geometricTranslation) matrix.prependTranslation(geometricTranslation.x, geometricTranslation.y, geometricTranslation.z);
+
+        target.transformationMatrix = matrix;
     },
 
     _processLight: function(objDef)

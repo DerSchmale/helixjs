@@ -579,10 +579,10 @@ HX.FBXParser.prototype =
 
             return {
                 refMode: refMode,
-                mapMode: mapMode === "ByPolygonVertex"? HX.FBXParser.BY_POLYGON_VERTEX :
-                         mapMode === "ByPolygon"?       HX.FBXParser.BY_POLYGON :
-                         mapMode === "AllSame"?         HX.FBXParser.ALL_SAME :
-                                                        HX.FBXParser.BY_CONTROL_POINT,
+                mapMode: mapMode === "ByPolygonVertex"? HX.FBXParser.Mapping.BY_POLYGON_VERTEX :
+                         mapMode === "ByPolygon"?       HX.FBXParser.Mapping.BY_POLYGON :
+                         mapMode === "AllSame"?         HX.FBXParser.Mapping.ALL_SAME :
+                                                        HX.FBXParser.Mapping.BY_CONTROL_POINT,
 
                 directData: directDataName? node.getChildNode(directDataName).data[0].value: null,
                 indexData: refMode === 2? node.getChildNode(indexDataName).data[0].value : null
@@ -648,11 +648,11 @@ HX.FBXParser.prototype =
             if (colorData) v.color = this._applyVertexData(colorData, index, i, 3);
             if (uvData) v.uv = this._applyVertexData(uvData, index, i, 2);
 
-            if (materialData && materialData.mapMode !== HX.FBXParser.ALL_SAME) {
-                var index = materialData.indexData[polyIndex];
-                v.materialIndex = index;
-                if (index > maxMaterialIndex)
-                    maxMaterialIndex = index;
+            if (materialData && materialData.mapMode !== HX.FBXParser.Mapping.ALL_SAME) {
+                var matIndex = materialData.indexData[polyIndex];
+                v.materialIndex = matIndex;
+                if (matIndex > maxMaterialIndex)
+                    maxMaterialIndex = matIndex;
             }
 
             if (v.lastVertex)
@@ -750,14 +750,15 @@ HX.FBXParser.prototype =
         var vertexData = expandedMesh.vertices;
         var len = vertexData.length;
         var realIndex0, realIndex1, realIndex2;
-        var overflown = true;
+        var startNewBatch = true;
 
         // triangulate
         while (i < len) {
-            // start as overflown, so we push the current list on the stack
-            if (overflown) {
-                overflown = false;
-                var data = perMaterial[vertexData[i].materialIndex];
+            var data = perMaterial[vertexData[i].materialIndex];
+            if (!data.vertices) startNewBatch = true;
+            // start as startNewBatch, so we push the current list on the stack
+            if (startNewBatch) {
+                startNewBatch = false;
                 data.indexCounter = 0;
                 data.indices = [];
                 data.vertices = [];
@@ -768,12 +769,12 @@ HX.FBXParser.prototype =
 
             realIndex0 = getOrAddIndex(vertexData[i]);
             if (realIndex0 < 0) {
-                overflown = true;
+                startNewBatch = true;
                 continue;
             }
             realIndex1 = getOrAddIndex(vertexData[i + 1]);
             if (realIndex1 < 0) {
-                overflown = true;
+                startNewBatch = true;
                 continue;
             }
 
@@ -786,7 +787,7 @@ HX.FBXParser.prototype =
                 realIndex2 = getOrAddIndex(v2);
 
                 if (realIndex2 < 0) {
-                    overflown = true;
+                    startNewBatch = true;
                 }
                 else {
                     ++i;
@@ -799,7 +800,7 @@ HX.FBXParser.prototype =
                     j += 3;
                     realIndex1 = realIndex2;
                 }
-            } while (!v2.lastVertex && !overflown);
+            } while (!v2.lastVertex && !startNewBatch);
         }
 
         var modelData = new HX.ModelData();

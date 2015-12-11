@@ -35,6 +35,7 @@ HX.FBXParser = function()
     this._rootNode = null;
     this._templates = null;
     this._objects = null;
+    this._target = null;
     this._modelInstanceSetups = null;
 };
 
@@ -49,7 +50,7 @@ HX.FBXParser.prototype =
         this._modelMaterialIDs = [];
         this._modelInstanceSetups = [];
         // the rootNode
-        this._objects["00"] = target;
+        this._objects["00"] = this._target = target;
 
         if (!this._verifyHeader()) {
             console.log("Incorrect FBX header");
@@ -121,18 +122,16 @@ HX.FBXParser.prototype =
             return record;
         }
 
-        /*var str = "";
+        var str = "";
         for (var i = 0; i < lvl; ++i)
             str += "\t";
 
-        console.log(str + record.name);*/
+        //console.log(str + record.name);
 
         for (var i = 0; i < numProperties; ++i) {
             var dataElm = this._parseDataElement();
             record.data.push(dataElm);
-            /*if (dataElm.typeCode === "L")
-                console.log(str + "[data] " + dataElm.typeCode + " : 0x" + dataElm.value.U.toString(16) + " 0x" + dataElm.value.L.toString(16));
-            else if (dataElm.typeCode === dataElm.typeCode.toUpperCase() && dataElm.typeCode !== HX.FBXParser.DataElement.RAW)
+            /*if (dataElm.typeCode === dataElm.typeCode.toUpperCase() && dataElm.typeCode !== HX.FBXParser.DataElement.RAW)
                 console.log(str + "[data] " + dataElm.typeCode + " : " + dataElm.value);
             else
                 console.log(str + "[data] " + dataElm.typeCode + " : [array object]");*/
@@ -896,8 +895,12 @@ HX.FBXParser.prototype =
                     materials.push(setup.materials[id]);
                 }
 
+                //console.log(setup.model.toString());
                 setup.modelInstance.init(setup.model, materials);
-                setup.parent.attach(setup.modelInstance);
+                if (setup.parent)
+                    setup.parent.attach(setup.modelInstance);
+                else
+                    this._target.attach(setup.modelInstance);
             }
         }
     },
@@ -923,7 +926,6 @@ HX.FBXParser.prototype =
                 parent.child = child;
         }
         else if (child instanceof HX.ModelInstance) {
-            // why is parent undefined all of a sudden?
             this._modelInstanceSetups[childUID].parent = parent;
         }
         else if (child instanceof HX.SceneNode) {

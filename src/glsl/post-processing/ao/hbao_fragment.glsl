@@ -94,7 +94,7 @@ void main()
     vec4 normalSample = texture2D(hx_gbufferNormals, uv);
     vec3 centerNormal = hx_decodeNormal(normalSample);
     float centerDepth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
-    float viewZ = centerDepth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;
+    float viewZ = hx_cameraNearPlaneDistance + centerDepth * hx_cameraFrustumRange;
     vec3 centerViewPos = viewZ * viewDir;
 
     // clamp z to a minimum, so the radius does not get excessively large in screen-space

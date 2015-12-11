@@ -245,8 +245,8 @@ HX.CascadeShadowMapRenderer.prototype =
     {
         this._localBounds.transformFrom(bounds, this._inverseLightMatrix);
 
-        var minBound = this._localBounds.getMinimum();
-        var maxBound = this._localBounds.getMaximum();
+        var minBound = this._localBounds.minimum;
+        var maxBound = this._localBounds.maximum;
 
         var scaleSnap = 1.0;	// always scale snap to a meter
 
@@ -264,8 +264,6 @@ HX.CascadeShadowMapRenderer.prototype =
             var farRatio = this._splitRatios[cascade];
             var camera = this._shadowMapCameras[cascade];
 
-            camera.nearDistance = -maxBound.z;
-
             camera.transformationMatrix = this._light.worldMatrix;
 
             // figure out frustum bound
@@ -273,11 +271,20 @@ HX.CascadeShadowMapRenderer.prototype =
                 var nearCorner = corners[i];
                 var farCorner = corners[i + 4];
 
-                localFar.x = nearCorner.x + (farCorner.x - nearCorner.x)*farRatio;
-                localFar.y = nearCorner.y + (farCorner.y - nearCorner.y)*farRatio;
-                localFar.z = nearCorner.z + (farCorner.z - nearCorner.z)*farRatio;
+                var nx = nearCorner.x;
+                var ny = nearCorner.y;
+                var nz = nearCorner.z;
+                var dx = farCorner.x - nx;
+                var dy = farCorner.y - ny;
+                var dz = farCorner.z - nz;
+                localNear.x = nx + dx*nearRatio;
+                localNear.y = ny + dy*nearRatio;
+                localNear.z = nz + dz*nearRatio;
+                localFar.x = nx + dx*farRatio;
+                localFar.y = ny + dy*farRatio;
+                localFar.z = nz + dz*farRatio;
 
-                this._inverseLightMatrix.transformPointTo(nearCorner, localNear);
+                this._inverseLightMatrix.transformPointTo(localNear, localNear);
                 this._inverseLightMatrix.transformPointTo(localFar, localFar);
 
                 if (i == 0) {
@@ -291,9 +298,9 @@ HX.CascadeShadowMapRenderer.prototype =
 
                 min.minimize(localFar);
                 max.maximize(localFar);
-
-                nearRatio = farRatio;
             }
+
+            nearRatio = farRatio;
 
             // do not render beyond range of view camera or scene depth
             min.z = Math.max(this._minZ, min.z);
@@ -320,11 +327,12 @@ HX.CascadeShadowMapRenderer.prototype =
             right = left + width;
             top = bottom + height;
 
-            var softness = this._light.shadowSoftness;
+            var softness = this._light.numShadowSamples === 0? 0 : this._light.shadowSoftness;
 
             camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 
-            //camera.nearDistance = -max.z;
+            // cannot clip nearDistance to frustum, b
+            camera.nearDistance = -maxBound.z;
             camera.farDistance = -min.z;
 
             camera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
@@ -433,7 +441,7 @@ HX.CascadeShadowMapRenderer.prototype =
             this._splitRatios[i] = ratio;
             this._splitPlanes[i] = new HX.Float4();
             this._splitDistances[i] = 0;
-            ratio *= .4;
+            ratio *= .5;
         }
     },
 

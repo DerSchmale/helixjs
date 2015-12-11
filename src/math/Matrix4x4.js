@@ -577,14 +577,17 @@ HX.Matrix4x4.prototype = {
         this._m[1] = 0;
         this._m[2] = 0;
         this._m[3] = 0;
+
         this._m[4] = 0;
         this._m[5] = 2.0 * rcpHeight;
         this._m[6] = 0;
         this._m[7] = 0;
+
         this._m[8] = 0;
         this._m[9] = 0;
         this._m[10] = 2.0 * rcpDepth;
         this._m[11] = 0;
+
         this._m[12] = -(left + right) * rcpWidth;
         this._m[13] = -(top + bottom) * rcpHeight;
         this._m[14] = (farDistance + nearDistance) * rcpDepth;

@@ -5,8 +5,8 @@ uniform sampler2D sampler;
 uniform sampler2D sampler2; // contains the final precision in the w channel
 #endif
 uniform mat4 hx_projectionMatrix;
-uniform float hx_rcpCameraFrustumRange;
 uniform float hx_cameraNearPlaneDistance;
+uniform float hx_cameraFrustumRange;
 
 float readDepth()
 {
@@ -28,6 +28,6 @@ float readDepth()
 void main()
 {
 	float depth = readDepth();
-	float linear = (hx_depthToViewZ(depth, hx_projectionMatrix) - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;
+	float linear = (-hx_depthToViewZ(depth, hx_projectionMatrix) - hx_cameraNearPlaneDistance) / hx_cameraFrustumRange;
 	gl_FragColor = hx_floatToRGBA8(linear);
 }

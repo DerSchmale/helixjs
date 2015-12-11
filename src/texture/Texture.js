@@ -4,6 +4,7 @@
  */
 HX.Texture2D = function()
 {
+    this._name = null;
     this._default = HX.Texture2D.DEFAULT;
     this._texture = HX.GL.createTexture();
     this._width = 0;
@@ -31,7 +32,15 @@ HX.Texture2D._initDefault = function()
 
 HX.Texture2D.prototype =
 {
-    constructor: HX.Texture2D,
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
 
     dispose: function()
     {
@@ -165,6 +174,11 @@ HX.Texture2D.prototype =
             HX.GL.activeTexture(HX.GL.TEXTURE0 + unitIndex);
 
         HX.GL.bindTexture(HX.GL.TEXTURE_2D, this._texture);
+    },
+
+    toString: function()
+    {
+        return "[Texture2D(name=" + this._name + ")]";
     }
 };
 
@@ -175,6 +189,7 @@ HX.Texture2D.prototype =
  */
 HX.TextureCube = function()
 {
+    this._name = null;
     this._default = HX.TextureCube.DEFAULT;
     this._texture = HX.GL.createTexture();
     this._size = 0;
@@ -198,6 +213,16 @@ HX.TextureCube._initDefault = function()
 HX.TextureCube.prototype =
 {
     constructor: HX.TextureCube,
+
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
 
     dispose: function()
     {
@@ -341,5 +366,10 @@ HX.TextureCube.prototype =
             HX.GL.activeTexture(HX.GL.TEXTURE0 + unitIndex);
 
         HX.GL.bindTexture(HX.GL.TEXTURE_CUBE_MAP, this._texture);
+    },
+
+    toString: function()
+    {
+        return "[TextureCube(name=" + this._name + ")]";
     }
 };

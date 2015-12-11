@@ -13,7 +13,7 @@ HX.DirectionalLight = function()
 
     // these two don't need getters/setters (saves on filesize)
     this.shadowSoftness = .02;
-    this.depthBias = .02;
+    this.depthBias = .01;
 
     this.direction = new HX.Float4(-1.0, -1.0, -1.0, 0.0);
     this._matrixData = null;
@@ -147,8 +147,8 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
         var k = 0;
         var l = 0;
         var len = this._numCascades;
+        var matrix = new HX.Matrix4x4();
         for (var i = 0; i < len; ++i) {
-            var matrix = new HX.Matrix4x4();
             matrix.product(this._shadowMapRenderer.getShadowMatrix(i), camera.worldMatrix);
             var m = matrix._m;
             for (var j = 0; j < 16; ++j) {

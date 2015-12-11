@@ -1,16 +1,20 @@
 HX.FBXLoader =
 {
-    load: function (filename, onComplete, onFail)
+    // if we need to remap filenames, filemapping might be useful
+    // just contains an object table:
+    // { "filename.tga": "filename.jpg", ... }
+    load: function (filename, filemapping, onComplete, onFail)
     {
         var fbxParser = new HX.FBXParser();
         var groupNode = new HX.GroupNode();
 
         var urlLoader = new HX.URLLoader();
+        var path = HX.FileUtils.extractPath(filename);
         urlLoader.type = HX.URLLoader.DATA_BINARY;
 
         urlLoader.onComplete = function (data)
         {
-            fbxParser.parse(data, groupNode, onComplete, onFail);
+            fbxParser.parse(data, groupNode, path, filemapping, onComplete, onFail);
         };
 
         urlLoader.onError = function (code)
@@ -41,10 +45,12 @@ HX.FBXParser = function()
 
 HX.FBXParser.prototype =
 {
-    parse: function(data, target, onComplete, onFail)
+    parse: function(data, target, path, filemapping, onComplete, onFail)
     {
         var time = Date.now();
         this._data = new HX.DataStream(data);
+        this._path = path;
+        this._filemapping = filemapping;
 
         this._objects = [];
         this._modelMaterialIDs = [];
@@ -131,10 +137,10 @@ HX.FBXParser.prototype =
         for (var i = 0; i < numProperties; ++i) {
             var dataElm = this._parseDataElement();
             record.data.push(dataElm);
-            /*if (dataElm.typeCode === dataElm.typeCode.toUpperCase() && dataElm.typeCode !== HX.FBXParser.DataElement.RAW)
-                console.log(str + "[data] " + dataElm.typeCode + " : " + dataElm.value);
-            else
-                console.log(str + "[data] " + dataElm.typeCode + " : [array object]");*/
+            //if (dataElm.typeCode === dataElm.typeCode.toUpperCase() && dataElm.typeCode !== HX.FBXParser.DataElement.RAW)
+            //    console.log(str + "[data] " + dataElm.typeCode + " : " + dataElm.value);
+            //else
+            //    console.log(str + "[data] " + dataElm.typeCode + " : [array object]");
         }
 
         // there's more data, must contain child nodes (terminated by null node)
@@ -295,6 +301,12 @@ HX.FBXParser.prototype =
                     break;
                 case "Material":
                     obj = this._processMaterial(objDef, UID);
+                    break;
+                case "Video":
+                    obj = this._processVideo(objDef, UID);
+                    break;
+                case "Texture":
+                    obj = this._processTexture(objDef, UID);
                     break;
                 default:
                     console.log("Unsupported object type " + objDef.name);
@@ -855,6 +867,27 @@ HX.FBXParser.prototype =
         }
     },
 
+    _processVideo: function(objDef, UID)
+    {
+        var relFileName = objDef.getChildNode("RelativeFilename");
+        var obj;
+        if (relFileName) {
+            var filename = relFileName.data[0].value;
+
+            if (this._filemapping && this._filemapping.hasOwnProperty(filename))
+                filename = this._filemapping[filename];
+
+            obj = HX.Texture2DLoader.load(this._path + filename);
+        }
+
+        return obj;
+    },
+
+    _processTexture: function(objDef, UID)
+    {
+        return new HX.FBXParser.DummyTexture();
+    },
+
     _processConnections: function()
     {
         var connections = this._rootNode.getChildNode("Connections");
@@ -867,18 +900,20 @@ HX.FBXParser.prototype =
             var linkType = c.data[0].value;
             var childUID = c.data[1].value;
             var parentUID = c.data[2].value;
+            var extra = c.data[3]? c.data[3].value : null;
             var child = this._objects[childUID];
             var parent = this._objects[parentUID];
 
+            //console.log(childUID + " -> " + parentUID);
             // why would parent be null?
             if (child && parent) {
-                //console.log(childUID + " -> " + parentUID);
                 //console.log(child.toString() + " -> " + parent.toString());
 
                 switch (linkType) {
                     // others not currently supported
                     case "OO":
-                        this._connectOO(child, parent, childUID, parentUID);
+                    case "OP":
+                        this._connect(child, parent, childUID, parentUID, extra);
                         break;
                 }
 
@@ -904,24 +939,27 @@ HX.FBXParser.prototype =
             }
         }
     },
-
-    _connectOO: function(child, parent, childUID, parentUID)
+    _connect: function(child, parent, childUID, parentUID, extra)
     {
-        if (child instanceof HX.FBXParser.DummyNode) {
+        if ((child instanceof HX.FBXParser.DummyNode) || (child instanceof HX.FBXParser.DummyTexture)) {
             if (child.child) {
-                this._connectOO(child.child, parent, parentUID);
+                this._connect(child.child, parent, childUID, parentUID, extra);
             }
             else {
                 child.parent = parent;
                 child.parentUID = parentUID;
+
+                if (extra)
+                    child.textureType = extra;
             }
         }
-        else if (parent instanceof HX.FBXParser.DummyNode) {
+        else if ((parent instanceof HX.FBXParser.DummyNode) || (parent instanceof HX.FBXParser.DummyTexture)) {
             if (parent.useTransform)
                 child.transformationMatrix = parent.transformationMatrix;
 
-            if (parent.parent)
-                this._connectOO(child, parent.parent, parent.parentUID);
+            if (parent.parent) {
+                this._connect(child, parent.parent, childUID, parent.parentUID, parent.textureType);
+            }
             else
                 parent.child = child;
         }
@@ -937,6 +975,20 @@ HX.FBXParser.prototype =
         }
         else if (child instanceof HX.Material) {
             this._modelInstanceSetups[parentUID].materials.push(child);
+        }
+        else if (child instanceof HX.Texture2D) {
+            switch(extra) {
+                case "DiffuseColor":
+                    parent.colorMap = child;
+                    break;
+                // WARNING: specular color is not used as such, map needs to be changed to a roughness map!
+                case "SpecularColor":
+                    parent.specularMap = child;
+                    break;
+                case "NormalMap":
+                    parent.normalMap = child;
+                    break;
+            }
         }
     }
 };
@@ -957,6 +1009,20 @@ HX.FBXParser.NodeRecord.prototype =
         for (var i = 0; i < len; ++i) {
             if (children[i].name === name) return children[i];
         }
+    }
+};
+
+HX.FBXParser.DummyTexture = function()
+{
+    this.name = null;
+    this.child = null;
+    this.parent = null;
+    this.parentUID = null;
+    this.textureType = null;
+
+    this.toString = function()
+    {
+        return "[DummyTexture(name=" + this.name + ")";
     }
 };
 

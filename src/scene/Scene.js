@@ -251,6 +251,11 @@ HX.Scene.prototype = {
     get entityEngine()
     {
         return this._entityEngine;
+    },
+
+    get worldBounds()
+    {
+        return this._rootNode.worldBounds;
     }
 };
 
@@ -339,8 +344,9 @@ HX.GroupNode.prototype._updateWorldBounds = function()
 {
     var len = this._children.length;
 
-    for (var i = 0; i < len; ++i)
+    for (var i = 0; i < len; ++i) {
         this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
+    }
 
     HX.SceneNode.prototype._updateWorldBounds.call(this);
 };

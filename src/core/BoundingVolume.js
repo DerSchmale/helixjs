@@ -73,8 +73,8 @@ HX.BoundingVolume._testAABBToSphere = function(aabb, sphere)
 
 HX.BoundingVolume.prototype =
 {
-    getExpanse: function() { return this._expanse; },
-    type: function() { return this._type; },
+    get expanse() { return this._expanse; },
+    get type() { return this._type; },
 
     growToIncludeMesh: function(meshData) { throw new Error("Abstract method!"); },
     growToIncludeBound: function(bounds) { throw new Error("Abstract method!"); },
@@ -90,12 +90,12 @@ HX.BoundingVolume.prototype =
     },
 
     // both center/radius and min/max approaches are used, depending on the type, but both are required
-    getMinimum: function() { return new HX.Float4(this._minimumX, this._minimumY, this._minimumZ, 1.0); },
-    getMaximum: function() { return new HX.Float4(this._maximumX, this._maximumY, this._maximumZ, 1.0); },
+    get minimum() { return new HX.Float4(this._minimumX, this._minimumY, this._minimumZ, 1.0); },
+    get maximum() { return new HX.Float4(this._maximumX, this._maximumY, this._maximumZ, 1.0); },
 
-    getCenter: function() { return new HX.Float4(this._centerX, this._centerY, this._centerZ, 1.0); },
+    get center() { return new HX.Float4(this._centerX, this._centerY, this._centerZ, 1.0); },
     // the half-extents of the box encompassing the bounds.
-    getHalfExtent: function() { return new HX.Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0); },
+    get halfExtent() { return new HX.Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0); },
     // the radius of the sphere encompassing the bounds. This is implementation-dependent, because the radius is less precise for a box than for a sphere
     getRadius: function() { throw new Error("Abstract method!"); },
 
@@ -141,7 +141,8 @@ HX.BoundingVolume.prototype =
             this._minimumZ + " ] - [ " +
             this._maximumX + ", " +
             this._maximumY + ", " +
-            this._maximumZ + " ]";
+            this._maximumZ + " ], expanse: " +
+            this._expanse;
     }
 };
 
@@ -206,7 +207,7 @@ HX.BoundingAABB.prototype.growToIncludeBound = function(bounds)
     if (bounds._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
         this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
 
-    else if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY) {
+    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
         this._minimumX = bounds._minimumX;
         this._minimumY = bounds._minimumY;
         this._minimumZ = bounds._minimumZ;
@@ -266,7 +267,7 @@ HX.BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
 
 HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
 {
-    if (sourceBound._expanse == HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+    if (sourceBound._expanse === HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
         this.clear(sourceBound._expanse);
     else {
         var arr = matrix._m;
@@ -308,9 +309,9 @@ HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
 // volumes
 HX.BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
-    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
         return true;
-    else if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
         return false;
 
     var minX = this._minimumX, minY = this._minimumY, minZ = this._minimumZ;
@@ -335,10 +336,10 @@ HX.BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes
 
 HX.BoundingAABB.prototype.intersectsBound = function(bound)
 {
-    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
         return false;
 
-    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
         return true;
 
     // both AABB
@@ -501,7 +502,7 @@ HX.BoundingSphere.prototype.growToIncludeBound = function(bounds)
     if (bounds._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
         this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
 
-    else if (expanse == HX.BoundingVolume.EXPANSE_EMPTY) {
+    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
         this._centerX = bounds._centerX;
         this._centerY = bounds._centerY;
         this._centerZ = bounds._centerZ;

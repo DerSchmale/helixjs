@@ -117,7 +117,7 @@ HX.DataStream.prototype =
 
     getFloat64Array: function(len)
     {
-        return this._readArray(len, Int64Array, this.getFloat64);
+        return this._readArray(len, Int32Array, this.getFloat64);
     },
 
     getString: function(len)

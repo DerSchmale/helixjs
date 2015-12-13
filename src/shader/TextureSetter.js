@@ -36,8 +36,6 @@ HX.TextureSetter._init = function()
     HX.TextureSetter._table.hx_gbufferDepth = HX.GBufferDepthSetter;
     HX.TextureSetter._table.hx_backbuffer = HX.BackbufferSetter;
     HX.TextureSetter._table.hx_frontbuffer = HX.FrontbufferSetter;
-    HX.TextureSetter._table.hx_ambientOcclusion = HX.AmbientOcclusionSetter;
-    HX.TextureSetter._table.hx_localReflections = HX.LocalReflectionsSetter;
 };
 
 
@@ -47,7 +45,8 @@ HX.GBufferColorSetter = function()
 
 HX.GBufferColorSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._gbuffer[0];
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer[0];
 };
 
 
@@ -57,7 +56,8 @@ HX.GBufferNormalsSetter = function()
 
 HX.GBufferNormalsSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._gbuffer[1];
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer[1];
 };
 
 
@@ -67,7 +67,8 @@ HX.GBufferSpecularSetter = function()
 
 HX.GBufferSpecularSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._gbuffer[2];
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer[2];
 };
 
 
@@ -77,7 +78,8 @@ HX.GBufferDepthSetter = function()
 
 HX.GBufferDepthSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._gbuffer[3];
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer[3];
 };
 
 
@@ -87,7 +89,8 @@ HX.FrontbufferSetter = function()
 
 HX.FrontbufferSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._hdrFront.texture;
+    if (renderer._hdrFront)
+        this.slot.texture = renderer._hdrFront.texture;
 };
 
 
@@ -97,26 +100,6 @@ HX.BackbufferSetter = function()
 
 HX.BackbufferSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._hdrBack.texture;
-};
-
-
-
-HX.AmbientOcclusionSetter = function()
-{
-};
-
-HX.AmbientOcclusionSetter.prototype.execute = function (renderer)
-{
-    this.slot.texture = renderer._aoTexture;
-};
-
-
-HX.LocalReflectionsSetter = function()
-{
-};
-
-HX.LocalReflectionsSetter.prototype.execute = function (renderer)
-{
-    this.slot.texture = renderer._ssrTexture;
+    if (renderer._hdrBack)
+        this.slot.texture = renderer._hdrBack.texture;
 };

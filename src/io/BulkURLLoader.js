@@ -72,7 +72,7 @@ HX.BulkURLLoader.prototype =
     load: function(files)
     {
         this._files = files;
-        this._data = [];
+        this._data = {};
         this._index = 0;
 
         this._loadQueued();
@@ -112,7 +112,7 @@ HX.BulkURLLoader.prototype =
     },
 
     // made to assign
-    onComplete: function ()
+    onComplete: function (data)
     {
     },
 

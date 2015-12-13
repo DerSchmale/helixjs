@@ -3420,6 +3420,18 @@ HX.ShaderLibrary['lighting_blinn_phong.glsl'] = '/*float hx_lightVisibility(vec3
 
 HX.ShaderLibrary['lighting_ggx.glsl'] = '// Smith:\n/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float roughSqr = roughness*roughness;\n	float g1 = nDotV + sqrt( (nDotV - nDotV * roughSqr) * nDotV + roughSqr );\n    float g2 = nDotL + sqrt( (nDotL - nDotL * roughSqr) * nDotL + roughSqr );\n    return 1.0 / (g1 * g2);\n}*/\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
 
+HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = 1.0 - (1.0 - roughnessOut) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = 1.0 - (1.0 - roughnessOut) * specSample.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
+
+HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nattribute vec3 hx_vertexColor;\nvarying vec3 vertexColor;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = normalize(hx_normalWorldViewMatrix * hx_normal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
+
+HX.ShaderLibrary['default_refract_fragment.glsl'] = 'varying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef ALPHA_THRESHOLD\nuniform float alphaThreshold;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform sampler2D hx_backbuffer;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float refractiveRatio;   // the ratio of refractive indices\n\n// TODO: could raytrace as an alternative\nvec2 getRefractedUVOffset(vec3 normal, float farZ)\n{\n    vec3 refractionVector = refract(normalize(vec3(0.0, 0.0, -1.0)), normal, refractiveRatio) * .5;\n    return -refractionVector.xy / viewVector.z;\n}\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n    #endif\n\n    // use the immediate background depth value for a distance estimate\n    // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering\n\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, screenUV);\n    float farZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n\n    vec2 samplePos = screenUV + getRefractedUVOffset(fragNormal, farZ);\n\n    vec4 background = texture2D(hx_backbuffer, samplePos);\n    gl_FragColor = outputColor * background;\n}';
+
+HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\n\nvoid main()\n{\n    vec4 viewSpace = hx_worldViewMatrix * hx_position;\n    vec4 proj = hx_wvpMatrix * hx_position;\n    normal = normalize(hx_normalWorldViewMatrix * hx_normal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n    viewVector = viewSpace.xyz;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n    screenUV = proj.xy / proj.w * .5 + .5;\n    gl_Position = proj;\n}';
+
+HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nvoid main()\n{\n    vec4 color = textureCube(hx_skybox, viewWorldDir);\n    gl_FragColor = hx_gammaToLinear(color);\n}';
+
+HX.ShaderLibrary['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_inverseViewProjectionMatrix;\nuniform vec3 hx_cameraWorldPosition;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube\nvoid main()\n{\n    vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n    viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n    gl_Position = vec4(hx_position.xy, 1.0, 1.0);  // make sure it\'s drawn behind everything else\n}';
+
 HX.ShaderLibrary['directional_light_fragment.glsl'] = 'uniform vec3 lightColor;\nuniform vec3 lightViewDirection;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef CAST_SHADOWS\n	uniform sampler2D hx_gbufferDepth;\n	uniform sampler2D shadowMap;\n\n	uniform float hx_cameraFrustumRange;\n	uniform float hx_cameraNearPlaneDistance;\n\n	uniform mat4 shadowMapMatrices[NUM_CASCADES];\n	uniform float splitDistances[NUM_CASCADES];\n	uniform float depthBias;\n\n	#if NUM_SHADOW_SAMPLES > 1\n		uniform sampler2D hx_dither2D;\n		uniform vec2 hx_dither2DTextureScale;\n\n		uniform vec2 shadowMapSoftnesses[NUM_CASCADES];\n		uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];\n	#endif\n\n	float readDepth(vec2 uv)\n	{\n	#ifdef HX_NO_DEPTH_TEXTURES\n		return hx_RGBA8ToFloat(texture2D(shadowMap, uv));\n	#else\n		return texture2D(shadowMap, uv).x;\n	#endif\n	}\n\n	// view-space position\n	#if NUM_SHADOW_SAMPLES > 1\n	void getShadowMapCoord(in vec3 viewPos, out vec4 coord, out vec2 softness)\n	#else\n	void getShadowMapCoord(in vec3 viewPos, out vec4 coord)\n	#endif\n	{\n		mat4 shadowMapMatrix = shadowMapMatrices[NUM_CASCADES - 1];\n		#if NUM_SHADOW_SAMPLES > 1\n		softness = shadowMapSoftnesses[NUM_CASCADES - 1];\n		#endif\n\n		#if NUM_CASCADES > 1\n		// not very efficient :(\n		for (int i = 0; i < NUM_CASCADES - 1; ++i) {\n		    // remember, negative Z!\n			if (viewPos.z > splitDistances[i]) {\n				shadowMapMatrix = shadowMapMatrices[i];\n				#if NUM_SHADOW_SAMPLES > 1\n					softness = shadowMapSoftnesses[i];\n				#endif\n				break;\n			}\n		}\n		#else\n			shadowMapMatrix = shadowMapMatrices[0];\n			#if NUM_SHADOW_SAMPLES > 1\n				softness = shadowMapSoftnesses[0];\n			#endif\n		#endif\n		coord = shadowMapMatrix * vec4(viewPos, 1.0);\n	}\n#endif\n\n\nvec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 viewVector, vec3 normalSpecularReflectance, float roughness, float metallicness)\n{\n// start extractable code (for fwd)\n	vec3 diffuseReflection;\n	vec3 specularReflection;\n\n	hx_lighting(normal, lightDir, normalize(viewVector), lightColor, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);\n\n	diffuseReflection *= diffuseAlbedo * (1.0 - metallicness);\n	vec3 totalReflection = diffuseReflection + specularReflection;\n\n	#ifdef CAST_SHADOWS\n		float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n		float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n		vec3 viewPos = viewZ * viewVector;\n\n		vec4 shadowMapCoord;\n		#if NUM_SHADOW_SAMPLES > 1\n			vec2 radii;\n			getShadowMapCoord(viewPos, shadowMapCoord, radii);\n			float shadowTest = 0.0;\n			vec4 dither = texture2D(hx_dither2D, uv * hx_dither2DTextureScale);\n			dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale\n			for (int i = 0; i < NUM_SHADOW_SAMPLES; ++i) {\n				vec2 offset;\n				offset.x = dot(dither.xy, hx_poissonDisk[i]);\n				offset.y = dot(dither.zw, hx_poissonDisk[i]);\n				float shadowSample = readDepth(shadowMapCoord.xy + offset);\n				float diff = shadowMapCoord.z - shadowSample - depthBias;\n				shadowTest += float(diff < 0.0);\n			}\n			shadowTest /= float(NUM_SHADOW_SAMPLES);\n		#else\n			getShadowMapCoord(viewPos, shadowMapCoord);\n			float shadowSample = readDepth(shadowMapCoord.xy);\n			float diff = shadowMapCoord.z - shadowSample - depthBias;\n			float shadowTest = float(diff < 0.0);\n		#endif\n\n		totalReflection *= shadowTest;\n	#endif\n\n    return totalReflection;\n}\n\nvoid main()\n{\n	vec4 colorSample = texture2D(hx_gbufferColor, uv);\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	vec3 normal = hx_decodeNormal(normalSample);\n	vec3 normalSpecularReflectance;\n	float roughness;\n	float metallicness;\n\n	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n\n	vec3 totalReflection = hx_calculateLight(colorSample.xyz, normal, lightViewDirection, viewDir, normalSpecularReflectance, roughness, metallicness);\n\n	gl_FragColor = vec4(totalReflection, 0.0);\n\n}';
 
 HX.ShaderLibrary['directional_light_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n	gl_Position = hx_position;\n}';
@@ -3439,38 +3451,6 @@ HX.ShaderLibrary['point_light_fullscreen_vertex.glsl'] = 'attribute vec4 hx_posi
 HX.ShaderLibrary['point_light_spherical_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\n\nvoid main()\n{\n	vec4 colorSample = texture2D(hx_gbufferColor, uv);\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n\n	float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewPosition = viewZ * viewDir;\n\n	vec3 normal = hx_decodeNormal(normalSample);\n	vec3 viewDirNorm = normalize(viewDir);\n\n	vec3 normalSpecularReflectance;\n	float roughness;\n	float metallicness;\n	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n	vec3 diffuseReflection;\n	vec3 specularReflection;\n\n	vec3 lightViewDirection = viewPosition - lightPositionVar;\n	float attenuation = 1.0/dot(lightViewDirection, lightViewDirection);\n	// normalize:\n	lightViewDirection *= sqrt(attenuation);\n\n	// rescale attenuation so that irradiance at bounding edge really is 0\n	attenuation = max(0.0, (attenuation - attenuationFixVar.x) * attenuationFixVar.y);\n	hx_lighting(normal, lightViewDirection, viewDirNorm, lightColorVar * attenuation, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);\n\n	diffuseReflection *= colorSample.xyz * (1.0 - metallicness);\n	gl_FragColor = vec4(diffuseReflection + specularReflection, 0.0);\n}';
 
 HX.ShaderLibrary['point_light_spherical_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute float hx_instanceID;\n\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform mat4 hx_projectionMatrix;\n\nuniform float lightRadius[LIGHTS_PER_BATCH];\nuniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\nuniform vec3 lightColor[LIGHTS_PER_BATCH];\nuniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nvoid main()\n{\n	int instance = int(hx_instanceID);\n	vec4 worldPos = hx_position;\n	lightPositionVar = lightWorldPosition[instance];\n	lightColorVar = lightColor[instance];\n	attenuationFixVar = attenuationFixFactors[instance];\n	worldPos.xyz *= lightRadius[instance];\n	worldPos.xyz += lightPositionVar;\n\n	vec4 viewPos = hx_viewMatrix * worldPos;\n	vec4 proj = hx_projectionMatrix * viewPos;\n\n	lightPositionVar = (hx_viewMatrix * vec4(lightPositionVar, 1.0)).xyz;\n\n	viewDir = viewPos.xyz / viewPos.z;\n\n	/* render as flat disk, prevent clipping */\n	proj /= proj.w;\n	proj.z = 0.0;\n	uv = proj.xy/proj.w * .5 + .5;\n	gl_Position = proj;\n}';
-
-HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = 1.0 - (1.0 - roughnessOut) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = 1.0 - (1.0 - roughnessOut) * specSample.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
-
-HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nattribute vec3 hx_vertexColor;\nvarying vec3 vertexColor;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n    normal = normalize(hx_normalWorldViewMatrix * hx_normal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
-
-HX.ShaderLibrary['default_refract_fragment.glsl'] = 'varying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef ALPHA_THRESHOLD\nuniform float alphaThreshold;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform sampler2D hx_backbuffer;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float refractiveRatio;   // the ratio of refractive indices\n\n// TODO: could raytrace as an alternative\nvec2 getRefractedUVOffset(vec3 normal, float farZ)\n{\n    vec3 refractionVector = refract(normalize(vec3(0.0, 0.0, -1.0)), normal, refractiveRatio) * .5;\n    return -refractionVector.xy / viewVector.z;\n}\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n    #endif\n\n    // use the immediate background depth value for a distance estimate\n    // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering\n\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, screenUV);\n    float farZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n\n    vec2 samplePos = screenUV + getRefractedUVOffset(fragNormal, farZ);\n\n    vec4 background = texture2D(hx_backbuffer, samplePos);\n    gl_FragColor = outputColor * background;\n}';
-
-HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\n\nvoid main()\n{\n    vec4 viewSpace = hx_worldViewMatrix * hx_position;\n    vec4 proj = hx_wvpMatrix * hx_position;\n    normal = normalize(hx_normalWorldViewMatrix * hx_normal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n    viewVector = viewSpace.xyz;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n    screenUV = proj.xy / proj.w * .5 + .5;\n    gl_Position = proj;\n}';
-
-HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nvoid main()\n{\n    vec4 color = textureCube(hx_skybox, viewWorldDir);\n    gl_FragColor = hx_gammaToLinear(color);\n}';
-
-HX.ShaderLibrary['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_inverseViewProjectionMatrix;\nuniform vec3 hx_cameraWorldPosition;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube\nvoid main()\n{\n    vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n    viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n    gl_Position = vec4(hx_position.xy, 1.0, 1.0);  // make sure it\'s drawn behind everything else\n}';
-
-HX.ShaderLibrary['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
-
-HX.ShaderLibrary['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
-
-HX.ShaderLibrary['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['copy_with_separate_alpha_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform sampler2D alphaSource;\n\nvoid main()\n{\n   gl_FragColor = texture2D(sampler, uv);\n   gl_FragColor.a = texture2D(alphaSource, uv).a;\n}\n';
-
-HX.ShaderLibrary['debug_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(1.0 - hx_sampleLinearDepth(sampler, uv));\n}';
-
-HX.ShaderLibrary['debug_normals_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   vec4 data = texture2D(sampler, uv);\n   vec3 normal = hx_decodeNormal(data);\n   gl_FragColor = vec4(normal * .5 + .5, 1.0);\n}';
-
-HX.ShaderLibrary['linearize_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n#if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)\nuniform sampler2D sampler2; // contains the final precision in the w channel\n#endif\nuniform mat4 hx_projectionMatrix;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nfloat readDepth()\n{\n#ifdef HX_NO_DEPTH_TEXTURES\n    vec4 data;\n    data.xy = texture2D(sampler, uv).zw;\n    #ifdef HX_MAX_DEPTH_PRECISION\n        data.z = texture2D(sampler2, uv).w;\n        data.w = 0.0;\n        return hx_RGBA8ToFloat(data);\n    #else\n        return hx_RG8ToFloat(data.xy);\n    #endif\n#else\n    return texture2D(sampler, uv).x;\n#endif\n}\n\nvoid main()\n{\n	float depth = readDepth();\n	float linear = (-hx_depthToViewZ(depth, hx_projectionMatrix) - hx_cameraNearPlaneDistance) / hx_cameraFrustumRange;\n	gl_FragColor = hx_floatToRGBA8(linear);\n}';
-
-HX.ShaderLibrary['linearize_depth_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['multiply_color_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform vec4 color;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * color;\n}\n';
-
-HX.ShaderLibrary['reproject_fragment.glsl'] = 'uniform sampler2D depth;\nuniform sampler2D source;\n\nvarying vec2 uv;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform mat4 reprojectionMatrix;\n\nvec2 reproject(vec2 uv, float z)\n{\n    // need z in NDC homogeneous coords to be able to unproject\n    vec4 ndc;\n    ndc.xy = uv.xy * 2.0 - 1.0;\n    // Unprojected Z will just end up being Z again, so could put this in the unprojection matrix itself?\n    ndc.z = (hx_projectionMatrix[2][2] * z + hx_projectionMatrix[3][2]) / -z;   // ndc = hom.z / hom.w\n    ndc.w = 1.0;\n    vec4 hom = reprojectionMatrix * ndc;\n    return hom.xy / hom.w * .5 + .5;\n}\n\nvoid main()\n{\n    float depth = hx_sampleLinearDepth(depth, uv);\n    float z = -hx_cameraNearPlaneDistance - depth * hx_cameraFrustumRange;\n    vec2 reprojectedUV = reproject(uv, z);\n    gl_FragColor = texture2D(source, reprojectedUV);\n}\n\n';
 
 HX.ShaderLibrary['bloom_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform float gaussianWeights[NUM_SAMPLES];\n\nvoid main()\n{\n	vec4 total = vec4(0.0);\n	vec2 sampleUV = uv;\n	vec2 stepSize = DIRECTION / SOURCE_RES;\n	float totalWeight = 0.0;\n	for (int i = 0; i < NUM_SAMPLES; ++i) {\n		total += texture2D(sourceTexture, sampleUV) * gaussianWeights[i];\n		sampleUV += stepSize;\n	}\n	gl_FragColor = total;\n}';
 
@@ -3499,6 +3479,26 @@ HX.ShaderLibrary['tonemap_filmic_fragment.glsl'] = '// This approach is by Jim H
 HX.ShaderLibrary['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_frontbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_frontbuffer, uv);\n	float l = log(.001 + hx_luminance(color));\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
 
 HX.ShaderLibrary['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	gl_FragColor = color / (1.0 + color);\n}';
+
+HX.ShaderLibrary['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
+
+HX.ShaderLibrary['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
+
+HX.ShaderLibrary['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['copy_with_separate_alpha_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform sampler2D alphaSource;\n\nvoid main()\n{\n   gl_FragColor = texture2D(sampler, uv);\n   gl_FragColor.a = texture2D(alphaSource, uv).a;\n}\n';
+
+HX.ShaderLibrary['debug_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(1.0 - hx_sampleLinearDepth(sampler, uv));\n}';
+
+HX.ShaderLibrary['debug_normals_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   vec4 data = texture2D(sampler, uv);\n   vec3 normal = hx_decodeNormal(data);\n   gl_FragColor = vec4(normal * .5 + .5, 1.0);\n}';
+
+HX.ShaderLibrary['linearize_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n#if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)\nuniform sampler2D sampler2; // contains the final precision in the w channel\n#endif\nuniform mat4 hx_projectionMatrix;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nfloat readDepth()\n{\n#ifdef HX_NO_DEPTH_TEXTURES\n    vec4 data;\n    data.xy = texture2D(sampler, uv).zw;\n    #ifdef HX_MAX_DEPTH_PRECISION\n        data.z = texture2D(sampler2, uv).w;\n        data.w = 0.0;\n        return hx_RGBA8ToFloat(data);\n    #else\n        return hx_RG8ToFloat(data.xy);\n    #endif\n#else\n    return texture2D(sampler, uv).x;\n#endif\n}\n\nvoid main()\n{\n	float depth = readDepth();\n	float linear = (-hx_depthToViewZ(depth, hx_projectionMatrix) - hx_cameraNearPlaneDistance) / hx_cameraFrustumRange;\n	gl_FragColor = hx_floatToRGBA8(linear);\n}';
+
+HX.ShaderLibrary['linearize_depth_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['multiply_color_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform vec4 color;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * color;\n}\n';
+
+HX.ShaderLibrary['reproject_fragment.glsl'] = 'uniform sampler2D depth;\nuniform sampler2D source;\n\nvarying vec2 uv;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform mat4 reprojectionMatrix;\n\nvec2 reproject(vec2 uv, float z)\n{\n    // need z in NDC homogeneous coords to be able to unproject\n    vec4 ndc;\n    ndc.xy = uv.xy * 2.0 - 1.0;\n    // Unprojected Z will just end up being Z again, so could put this in the unprojection matrix itself?\n    ndc.z = (hx_projectionMatrix[2][2] * z + hx_projectionMatrix[3][2]) / -z;   // ndc = hom.z / hom.w\n    ndc.w = 1.0;\n    vec4 hom = reprojectionMatrix * ndc;\n    return hom.xy / hom.w * .5 + .5;\n}\n\nvoid main()\n{\n    float depth = hx_sampleLinearDepth(depth, uv);\n    float z = -hx_cameraNearPlaneDistance - depth * hx_cameraFrustumRange;\n    vec2 reprojectedUV = reproject(uv, z);\n    gl_FragColor = texture2D(source, reprojectedUV);\n}\n\n';
 
 HX.ShaderLibrary['snippets_general.glsl'] = '// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    value *= 255.0/256.0;\n    vec4 enc = fract(value * vec4(1.0, 255.0, 65025.0, 16581375.0));\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0)) * 256.0 / 255.0;\n}\n\nvec2 hx_floatToRG8(float value)\n{\n// scale to encodable range [0, 1]\n    value *= 255.0/256.0;\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc = fract(enc);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0)) * 256.0 / 255.0;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    #ifdef HX_NO_DEPTH_TEXTURES\n        data.xy = data.xy*4.0 - 2.0;\n        float f = dot(data.xy, data.xy);\n        float g = sqrt(1.0 - f * .25);\n        vec3 normal;\n        normal.xy = data.xy * g;\n        normal.z = 1.0 - f * .5;\n        return normal;\n    #else\n    	return normalize(data.xyz - .5);\n    #endif\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nfloat hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\n// for use when sampling gbuffer data for lighting\nvoid hx_decodeReflectionData(in vec4 colorSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)\n{\n    //prevent from being 0\n    roughness = clamp(specularSample.x, .01, 1.0);\n	metallicness = specularSample.z;\n    normalSpecularReflectance = mix(vec3(specularSample.y * .2), colorSample.xyz, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}';
 
@@ -6863,7 +6863,7 @@ HX.DataStream.prototype =
 
     getFloat64Array: function(len)
     {
-        return this._readArray(len, Int64Array, this.getFloat64);
+        return this._readArray(len, Int32Array, this.getFloat64);
     },
 
     getString: function(len)
@@ -7512,7 +7512,7 @@ HX.BulkURLLoader.prototype =
     load: function(files)
     {
         this._files = files;
-        this._data = [];
+        this._data = {};
         this._index = 0;
 
         this._loadQueued();
@@ -7552,7 +7552,7 @@ HX.BulkURLLoader.prototype =
     },
 
     // made to assign
-    onComplete: function ()
+    onComplete: function (data)
     {
     },
 
@@ -7731,10 +7731,10 @@ HX.MaterialPass = function (shader)
 
 HX.MaterialPass.GEOMETRY_PASS = 0;
 
-// used for post-lighting
+// used for post-lighting, useful for some post-effects that don't need access to the backbuffer
 HX.MaterialPass.POST_LIGHT_PASS = 1;
 
-// used for post-effects with composite available
+// used for post-effects with lighting accumulation available
 HX.MaterialPass.POST_PASS = 2;
 
 // the individual pass type are not taken into account, they will be dealt with specially
@@ -7809,6 +7809,11 @@ HX.MaterialPass.prototype = {
         for (var i = 0; i < len; ++i) {
             var slot = this._textureSlots[i];
             var texture = slot.texture;
+
+            if (!texture) {
+                HX.Texture2D.DEFAULT.bind(i);
+                continue;
+            }
 
             if (texture.isReady())
                 texture.bind(i);
@@ -8134,6 +8139,97 @@ HX.Material.prototype = {
         return "[Material(name=" + this._name + ")]";
     }
 
+};
+HX.AssetLoader = function(ParserType)
+{
+    // this can either be listened to, or overwritten by a function
+    this.onComplete = new HX.Signal();
+    this.onFail = new HX.Signal();
+    this.fileMap = {};
+    this.options = {};
+    this._parserType = ParserType;
+};
+
+
+HX.AssetLoader.prototype =
+{
+    // if we need to remap filenames, filemapping might be useful
+    // just contains an object table:
+    // { "filename.tga": "filename.jpg", ... }
+    load: function (filename)
+    {
+        var urlLoader = new HX.URLLoader();
+        var parser = new this._parserType();
+        var target = parser.createContainer();
+        parser.onComplete = this.onComplete;
+        parser.onFail = this.onFail;
+        parser.fileMap = this.fileMap;
+        parser.options = this.options;
+        parser.path = HX.FileUtils.extractPath(filename);
+
+        urlLoader.type = parser.dataType;
+
+        urlLoader.onComplete = function (data)
+        {
+            parser.parse(data, target);
+        };
+
+        urlLoader.onError = function (code)
+        {
+            console.warn("Failed loading " + filename + ". Error code: " + code);
+            if (onFail) {
+                if (onFail instanceof HX.Signal)
+                    onFail.dispatch(code);
+                else
+                    onFail(code);
+            }
+        };
+
+        urlLoader.load(filename);
+
+        return target;
+    }
+};
+
+HX.AssetParser = function(containerType, dataType)
+{
+    this._dataType = dataType === undefined? HX.URLLoader.DATA_TEXT : dataType;
+    this._containerType = containerType;
+    this.onComplete = null;
+    this.onFail = null;
+    this.fileMap = null;
+    // be able to pass parser specific objects
+    this.options = {};
+    this.path = "";
+};
+
+HX.AssetParser.prototype =
+{
+    get dataType() { return this._dataType; },
+    createContainer: function() { return new this._containerType(); },
+
+    _notifyComplete: function()
+    {
+        if (!this.onComplete) return;
+
+        if (this.onComplete instanceof HX.Signal)
+            this.onComplete.dispatch();
+        else
+            this.onComplete();
+    },
+
+    _notifyFailure: function(message)
+    {
+        if (!this.onFail) {
+            console.warn("Parser error: " + message);
+            return;
+        }
+
+        if (this.onFail instanceof HX.Signal)
+            this.onFail.dispatch(message);
+        else
+            this.onFail(message);
+    }
 };
 // basic version is non-hierarchical, for use with lights etc
 /**
@@ -8987,8 +9083,6 @@ HX.TextureSetter._init = function()
     HX.TextureSetter._table.hx_gbufferDepth = HX.GBufferDepthSetter;
     HX.TextureSetter._table.hx_backbuffer = HX.BackbufferSetter;
     HX.TextureSetter._table.hx_frontbuffer = HX.FrontbufferSetter;
-    HX.TextureSetter._table.hx_ambientOcclusion = HX.AmbientOcclusionSetter;
-    HX.TextureSetter._table.hx_localReflections = HX.LocalReflectionsSetter;
 };
 
 
@@ -8998,7 +9092,8 @@ HX.GBufferColorSetter = function()
 
 HX.GBufferColorSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._gbuffer[0];
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer[0];
 };
 
 
@@ -9008,7 +9103,8 @@ HX.GBufferNormalsSetter = function()
 
 HX.GBufferNormalsSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._gbuffer[1];
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer[1];
 };
 
 
@@ -9018,7 +9114,8 @@ HX.GBufferSpecularSetter = function()
 
 HX.GBufferSpecularSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._gbuffer[2];
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer[2];
 };
 
 
@@ -9028,7 +9125,8 @@ HX.GBufferDepthSetter = function()
 
 HX.GBufferDepthSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._gbuffer[3];
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer[3];
 };
 
 
@@ -9038,7 +9136,8 @@ HX.FrontbufferSetter = function()
 
 HX.FrontbufferSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._hdrFront.texture;
+    if (renderer._hdrFront)
+        this.slot.texture = renderer._hdrFront.texture;
 };
 
 
@@ -9048,28 +9147,8 @@ HX.BackbufferSetter = function()
 
 HX.BackbufferSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._hdrBack.texture;
-};
-
-
-
-HX.AmbientOcclusionSetter = function()
-{
-};
-
-HX.AmbientOcclusionSetter.prototype.execute = function (renderer)
-{
-    this.slot.texture = renderer._aoTexture;
-};
-
-
-HX.LocalReflectionsSetter = function()
-{
-};
-
-HX.LocalReflectionsSetter.prototype.execute = function (renderer)
-{
-    this.slot.texture = renderer._ssrTexture;
+    if (renderer._hdrBack)
+        this.slot.texture = renderer._hdrBack.texture;
 };
 /**
  *
@@ -10494,6 +10573,7 @@ HX.Mesh.prototype = {
 HX.ModelData = function ()
 {
     this._meshDataList = [];
+    this._joints = [];
 };
 
 HX.ModelData.prototype = {
@@ -10503,13 +10583,25 @@ HX.ModelData.prototype = {
     {
         return this._meshDataList.length;
     },
+
     getMeshData: function (index)
     {
         return this._meshDataList[index];
     },
+
     addMeshData: function (meshData)
     {
         this._meshDataList.push(meshData);
+    },
+
+    addJoint: function(joint)
+    {
+        this._joints.push(joint);
+    },
+
+    get hasSkeleton()
+    {
+        return this._joints.length > 0;
     }
 };
 
@@ -10522,6 +10614,7 @@ HX.Model = function (modelData)
 {
     this._name = null;
     this._localBounds = new HX.BoundingAABB();
+    this._skeleton = null;
     this.onChange = new HX.Signal();
 
     if (modelData) {
@@ -10565,6 +10658,17 @@ HX.Model.prototype = {
     get localBounds()
     {
         return this._localBounds;
+    },
+
+
+    get skeleton()
+    {
+        return this._skeleton;
+    },
+
+    set skeleton(value)
+    {
+        this._skeleton = value;
     },
 
     _setModelData: function (modelData)
@@ -15009,44 +15113,43 @@ HX.FilmicToneMapEffect.prototype._createToneMapPass = function()
         HX.ShaderLibrary.get("snippets_tonemap.glsl", defines, extensions) + "\n" + HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl")
     );
 };
-HX.FBXLoader =
+HX.SkeletonJoint = function()
 {
-    // if we need to remap filenames, filemapping might be useful
-    // just contains an object table:
-    // { "filename.tga": "filename.jpg", ... }
-    load: function (filename, filemapping, onComplete, onFail)
-    {
-        var fbxParser = new HX.FBXParser();
-        var groupNode = new HX.GroupNode();
-
-        var urlLoader = new HX.URLLoader();
-        var path = HX.FileUtils.extractPath(filename);
-        urlLoader.type = HX.URLLoader.DATA_BINARY;
-
-        urlLoader.onComplete = function (data)
-        {
-            fbxParser.parse(data, groupNode, path, filemapping, onComplete, onFail);
-        };
-
-        urlLoader.onError = function (code)
-        {
-            console.warn("Failed loading " + filename + ". Error code: " + code);
-            if (onFail) onFail(code);
-        };
-
-        urlLoader.load(filename);
-
-        return groupNode;
-    }
+    this.parentIndex = 0;
+    this.inverseBindPose = new HX.Matrix4x4();
 };
 
+HX.SkeletonJointPose = function()
+{
+    this.orientation = new HX.Quaternion();
+    this.translation = new HX.Float4();
+    // scale not supported at this point
+};
+
+HX.Skeleton = function()
+{
+    this._joints = null;
+};
+
+HX.Skeleton.prototype =
+{
+    get numJoints()
+    {
+        return this._joints.length;
+    },
+
+    getJoint: function(index)
+    {
+        return this._joints[index];
+    }
+};
 /**
  *
  * @constructor
  */
-HX.FBXParser = function()
+HX.FBX = function()
 {
-    this._version = null;
+    HX.AssetParser.call(this, HX.GroupNode, HX.URLLoader.DATA_BINARY);
     this._rootNode = null;
     this._templates = null;
     this._objects = null;
@@ -15054,543 +15157,537 @@ HX.FBXParser = function()
     this._modelInstanceSetups = null;
 };
 
-HX.FBXParser.prototype =
+HX.FBX.prototype = Object.create(HX.AssetParser.prototype);
+
+HX.FBX.prototype.parse = function(data, target)
 {
-    parse: function(data, target, path, filemapping, onComplete, onFail)
-    {
-        var time = Date.now();
-        this._data = new HX.DataStream(data);
-        this._path = path;
-        this._filemapping = filemapping;
+    this._data = new HX.DataStream(data);
 
-        this._objects = [];
-        this._modelMaterialIDs = [];
-        this._modelInstanceSetups = [];
-        // the rootNode
-        this._objects["00"] = this._target = target;
 
-        if (!this._verifyHeader()) {
-            console.log("Incorrect FBX header");
-            if (onFail) onFail();
-            return;
-        }
+    this._objects = [];
+    this._modelMaterialIDs = [];
+    this._modelInstanceSetups = [];
+    // the rootNode
+    this._objects["00"] = this._target = target;
 
-        if (this._data.getUint16() !== 0x001a)
-            console.log("Suspected oddity with FBX file");
+    if (!this._verifyHeader()) {
+        this._notifyFailure("Incorrect FBX header");
+        return;
+    }
 
-        this._version = this._data.getUint32();
-        console.log("FBX version " + this._version);
+    if (this._data.getUint16() !== 0x001a)
+        console.log("Suspected oddity with FBX file");
 
-        try {
-            this._rootNode = new HX.FBXParser.NodeRecord();
-            this._parseChildren(this._rootNode, 0);
+    var version = this._data.getUint32();
 
-            this._processTemplates();
-            this._processObjects();
-            this._processConnections();
-        }
-        catch(err) {
-            console.log("Error parsing FBX " + err, err.stack);
-            if (onFail) onFail(err);
-            return;
-        }
+    try {
+        this._rootNode = new HX.FBX._NodeRecord();
+        this._parseChildren(this._rootNode, 0);
 
-        console.log("Parsing complete in " + (Date.now() - time) + "ms");
+        this._processTemplates();
+        this._processObjects();
+        this._processConnections();
+    }
+    catch(err) {
+        this._notifyFailure(err.message);
+        return;
+    }
 
-        if (onComplete) onComplete(target);
-    },
+    // TODO: only notify complete when textures have loaded
+    this._notifyComplete();
+};
 
-    _parseChildren: function(parent, lvl)
-    {
-        var node;
-        do {
-            node = this._parseNode(lvl);
-            if (node) parent.children.push(node);
-        } while (node);
-    },
+HX.FBX.prototype._parseChildren = function(parent, lvl)
+{
+    var node;
+    do {
+        node = this._parseNode(lvl);
+        if (node) parent.children.push(node);
+    } while (node);
+};
 
-    _verifyHeader: function()
-    {
-        return this._data.getString(21) === "Kaydara FBX Binary  \0";
-    },
+HX.FBX.prototype._verifyHeader = function()
+{
+    return this._data.getString(21) === "Kaydara FBX Binary  \0";
+};
 
-    // TODO: Remove lvl stuff once it's working
-    _parseNode: function(lvl)
-    {
-        if (lvl === undefined)
-            lvl = 0;
-        var data = this._data;
-        var endOffset = data.getUint32();
-        var numProperties = data.getUint32();
-        var propertyListLen = data.getUint32();
-        var nameLen = data.getUint8();
+// TODO: Remove lvl stuff once it's working
+HX.FBX.prototype._parseNode = function(lvl)
+{
+    if (lvl === undefined)
+        lvl = 0;
+    var data = this._data;
+    var endOffset = data.getUint32();
+    var numProperties = data.getUint32();
+    var propertyListLen = data.getUint32();
+    var nameLen = data.getUint8();
 
-        if (endOffset === 0) {
-            if (numProperties !== 0 || propertyListLen !== 0 || nameLen !== 0) throw new Error("Invalid null node!");
-            return null;
-        }
+    if (endOffset === 0) {
+        if (numProperties !== 0 || propertyListLen !== 0 || nameLen !== 0) throw new Error("Invalid null node!");
+        return null;
+    }
 
-        var record = new HX.FBXParser.NodeRecord();
-        record.name = data.getString(nameLen);
+    var record = new HX.FBX._NodeRecord();
+    record.name = data.getString(nameLen);
 
-        // forget children and properties
-        if (this._isIrrelevantNode(record.name)) {
-            data.offset = endOffset;
-            return record;
-        }
-
-        var str = "";
-        for (var i = 0; i < lvl; ++i)
-            str += "\t";
-
-        //console.log(str + record.name);
-
-        for (var i = 0; i < numProperties; ++i) {
-            var dataElm = this._parseDataElement();
-            record.data.push(dataElm);
-            //if (dataElm.typeCode === dataElm.typeCode.toUpperCase() && dataElm.typeCode !== HX.FBXParser.DataElement.RAW)
-            //    console.log(str + "[data] " + dataElm.typeCode + " : " + dataElm.value);
-            //else
-            //    console.log(str + "[data] " + dataElm.typeCode + " : [array object]");
-        }
-
-        // there's more data, must contain child nodes (terminated by null node)
-        if (data.offset !== endOffset)
-            this._parseChildren(record, lvl + 1);
-
+    // forget children and properties
+    if (this._isIrrelevantNode(record.name)) {
+        data.offset = endOffset;
         return record;
-    },
+    }
 
-    _parseDataElement: function()
-    {
-        var prop = new HX.FBXParser.DataElement();
-        prop.typeCode = this._data.getChar();
+    var str = "";
+    for (var i = 0; i < lvl; ++i)
+        str += "\t";
 
-        switch (prop.typeCode) {
-            case HX.FBXParser.DataElement.BOOLEAN:
-                prop.value = this._data.getUint8();
+    //console.log(str + record.name);
+
+    for (var i = 0; i < numProperties; ++i) {
+        var dataElm = this._parseDataElement();
+        record.data.push(dataElm);
+        //if (dataElm.typeCode === dataElm.typeCode.toUpperCase() && dataElm.typeCode !== HX.FBX._DataElement.RAW)
+        //    console.log(str + "[data] " + dataElm.typeCode + " : " + dataElm.value);
+        //else
+        //    console.log(str + "[data] " + dataElm.typeCode + " : [array object]");
+    }
+
+    // there's more data, must contain child nodes (terminated by null node)
+    if (data.offset !== endOffset)
+        this._parseChildren(record, lvl + 1);
+
+    return record;
+};
+
+HX.FBX.prototype._parseDataElement = function()
+{
+    var prop = new HX.FBX._DataElement();
+    prop.typeCode = this._data.getChar();
+
+    switch (prop.typeCode) {
+        case HX.FBX._DataElement.BOOLEAN:
+            prop.value = this._data.getUint8();
+            break;
+        case HX.FBX._DataElement.INT16:
+            prop.value = this._data.getInt16();
+            break;
+        case HX.FBX._DataElement.INT32:
+            prop.value = this._data.getInt32();
+            break;
+        case HX.FBX._DataElement.INT64:
+            // just concatting strings, since they're only used for ids
+            prop.value = this._data.getInt32() + "" + this._data.getInt32();
+            break;
+        case HX.FBX._DataElement.FLOAT:
+            prop.value = this._data.getFloat32();
+            break;
+        case HX.FBX._DataElement.DOUBLE:
+            prop.value = this._data.getFloat64();
+            break;
+        case HX.FBX._DataElement.STRING:
+            var len = this._data.getUint32();
+            prop.value = this._data.getString(len);
+            break;
+        case HX.FBX._DataElement.RAW:
+            var len = this._data.getUint32();
+            prop.value = this._data.getUint8Array(len);
+            break;
+        default:
+            prop.value = this._parseArray(prop.typeCode);
+    }
+
+    return prop;
+};
+
+HX.FBX.prototype._parseArray = function(type)
+{
+    var len = this._data.getUint32();
+    var encoding = this._data.getUint32();
+    var compressedLength = this._data.getUint32();
+
+    if (encoding === 0) {
+        switch (type) {
+            case HX.FBX._DataElement.BOOLEAN_ARRAY:
+                return this._data.getUint8Array(len);
+            case HX.FBX._DataElement.INT32_ARRAY:
+                return this._data.getInt32Array(len);
+            case HX.FBX._DataElement.INT64_ARRAY:
+                // not sure what to do with this eventually
+                return this._data.getInt32Array(len * 2);
                 break;
-            case HX.FBXParser.DataElement.INT16:
-                prop.value = this._data.getInt16();
+            case HX.FBX._DataElement.FLOAT_ARRAY:
+                return this._data.getFloat32Array(len);
                 break;
-            case HX.FBXParser.DataElement.INT32:
-                prop.value = this._data.getInt32();
-                break;
-            case HX.FBXParser.DataElement.INT64:
-                // just concatting strings, since they're only used for ids
-                prop.value = this._data.getInt32() + "" + this._data.getInt32();
-                break;
-            case HX.FBXParser.DataElement.FLOAT:
-                prop.value = this._data.getFloat32();
-                break;
-            case HX.FBXParser.DataElement.DOUBLE:
-                prop.value = this._data.getFloat64();
-                break;
-            case HX.FBXParser.DataElement.STRING:
-                var len = this._data.getUint32();
-                prop.value = this._data.getString(len);
-                break;
-            case HX.FBXParser.DataElement.RAW:
-                var len = this._data.getUint32();
-                prop.value = this._data.getUint8Array(len);
+            case HX.FBX._DataElement.DOUBLE_ARRAY:
+                return this._data.getFloat64Array(len);
                 break;
             default:
-                prop.value = this._parseArray(prop.typeCode);
+                throw new Error("Unknown data type code " + type);
         }
+    }
+    else {
+        var data = this._data.getUint8Array(compressedLength);
+        data = pako.inflate(data).buffer;
 
-        return prop;
-    },
-
-    _parseArray: function(type)
-    {
-        var len = this._data.getUint32();
-        var encoding = this._data.getUint32();
-        var compressedLength = this._data.getUint32();
-
-        if (encoding === 0) {
-            switch (type) {
-                case HX.FBXParser.DataElement.BOOLEAN_ARRAY:
-                    return this._data.getUint8Array(len);
-                case HX.FBXParser.DataElement.INT32_ARRAY:
-                    return this._data.getInt32Array(len);
-                case HX.FBXParser.DataElement.INT64_ARRAY:
-                    // not sure what to do with this eventually
-                    return this._data.getInt32Array(len * 2);
-                    break;
-                case HX.FBXParser.DataElement.FLOAT_ARRAY:
-                    return this._data.getFloat32Array(len);
-                    break;
-                case HX.FBXParser.DataElement.DOUBLE_ARRAY:
-                    return this._data.getFloat64Array(len);
-                    break;
-                default:
-                    throw new Error("Unknown data type code " + type);
-            }
+        switch (type) {
+            case HX.FBX._DataElement.BOOLEAN_ARRAY:
+                return new Uint8Array(data.buffer);
+            case HX.FBX._DataElement.INT32_ARRAY:
+                return new Int32Array(data);
+            case HX.FBX._DataElement.INT64_ARRAY:
+                // INCORRECT
+                return new Int32Array(data);
+            case HX.FBX._DataElement.FLOAT_ARRAY:
+                return new Float32Array(data);
+            case HX.FBX._DataElement.DOUBLE_ARRAY:
+                return new Float64Array(data);
+            default:
+                throw new Error("Unknown data type code " + type);
         }
-        else {
-            var data = this._data.getUint8Array(compressedLength);
-            data = pako.inflate(data).buffer;
+    }
+};
 
-            switch (type) {
-                case HX.FBXParser.DataElement.BOOLEAN_ARRAY:
-                    return new Uint8Array(data.buffer);
-                case HX.FBXParser.DataElement.INT32_ARRAY:
-                    return new Int32Array(data);
-                case HX.FBXParser.DataElement.INT64_ARRAY:
-                    // INCORRECT
-                    return new Int32Array(data);
-                case HX.FBXParser.DataElement.FLOAT_ARRAY:
-                    return new Float32Array(data);
-                case HX.FBXParser.DataElement.DOUBLE_ARRAY:
-                    return new Float64Array(data);
-                default:
-                    throw new Error("Unknown data type code " + type);
-            }
-        }
-    },
+HX.FBX.prototype._isIrrelevantNode = function(name)
+{
+    return  name === "FBXHeaderExtension" ||
+            name === "CreationTime" ||
+            name === "Creator" ||
+            name === "Documents" ||
+            name === "FileId" ||
+            name === "References" ||
+            name === "GlobalSettings";
+};
 
-    _isIrrelevantNode: function(name)
-    {
-        return  name === "FBXHeaderExtension" ||
-                name === "CreationTime" ||
-                name === "Creator" ||
-                name === "Documents" ||
-                name === "FileId" ||
-                name === "References" ||
-                name === "GlobalSettings";
-    },
+HX.FBX.prototype._processTemplates = function()
+{
+    var templateDefs = this._rootNode.getChildNode("Definitions").children;
+    var len = templateDefs.length;
+    this._templates = [];
+    for (var i = 0; i < len; ++i) {
+        var template = templateDefs[i];
 
-    _processTemplates: function()
-    {
-        var templateDefs = this._rootNode.getChildNode("Definitions").children;
-        var len = templateDefs.length;
-        this._templates = [];
-        for (var i = 0; i < len; ++i) {
-            var template = templateDefs[i];
+        if (template.name === "ObjectType") {
+            var type = template.data[0].value;
+            var props = template.getChildNode("PropertyTemplate");
+            if (props) {
+                props = props.getChildNode("Properties70").children;
 
-            if (template.name === "ObjectType") {
-                var type = template.data[0].value;
-                var props = template.getChildNode("PropertyTemplate");
-                if (props) {
-                    props = props.getChildNode("Properties70").children;
-
-                    var list = [];
-                    var numProps = props.length;
-                    for (var j = 0; j < numProps; ++j) {
-                        var prop = props[j];
-                        list[prop.data[0].value] = prop;
-                    }
-
-                    this._templates[type] = list;
+                var list = [];
+                var numProps = props.length;
+                for (var j = 0; j < numProps; ++j) {
+                    var prop = props[j];
+                    list[prop.data[0].value] = prop;
                 }
+
+                this._templates[type] = list;
             }
         }
-    },
+    }
+};
 
-    _processObjects: function()
-    {
-        var objectDefs = this._rootNode.getChildNode("Objects");
+HX.FBX.prototype._processObjects = function()
+{
+    var objectDefs = this._rootNode.getChildNode("Objects");
 
-        var children = objectDefs.children;
-        var len = children.length;
+    var children = objectDefs.children;
+    var len = children.length;
 
-        for (var i = 0; i < len; ++i) {
-            var objDef = children[i];
-            var name = this._getObjectDefName(objDef);
-            var UID = objDef.data[0].value; // haven't seen 32MSBs being used
-            var obj = null;
+    for (var i = 0; i < len; ++i) {
+        var objDef = children[i];
+        var name = this._getObjectDefName(objDef);
+        var UID = objDef.data[0].value; // haven't seen 32MSBs being used
+        var obj = null;
 
-            switch (objDef.name) {
-                case "NodeAttribute":
-                    obj = this._processNodeAttribute(objDef, UID);
-                    break;
-                case "Geometry":
-                    obj = this._processMeshGeometry(objDef, UID);
-                    break;
-                case "Model":
-                    obj = this._processModel(objDef, UID);
-                    break;
-                case "Material":
-                    obj = this._processMaterial(objDef, UID);
-                    break;
-                case "Video":
-                    obj = this._processVideo(objDef, UID);
-                    break;
-                case "Texture":
-                    obj = this._processTexture(objDef, UID);
-                    break;
-                default:
-                    console.log("Unsupported object type " + objDef.name);
-            }
-
-            if (obj) {
-                obj.name = name;
-                this._objects[UID] = obj;
-            }
-        }
-    },
-
-    _getObjectDefName: function(objDef)
-    {
-        return objDef.data[1].value.split(HX.FBXParser.STRING_DEMARCATION)[0];
-    },
-
-    _processNodeAttribute: function(objDef, UID)
-    {
-        var subclass = objDef.data[2].value;
-        var obj;
-
-        switch(subclass) {
-            case "Light":
-                obj = this._processLight(objDef);
+        switch (objDef.name) {
+            case "NodeAttribute":
+                obj = this._processNodeAttribute(objDef, UID);
                 break;
-            case "Camera":
-                obj = this._processCamera(objDef);
+            case "Geometry":
+                obj = this._processMeshGeometry(objDef, UID);
                 break;
+            case "Model":
+                obj = this._processModel(objDef, UID);
+                break;
+            case "Material":
+                obj = this._processMaterial(objDef, UID);
+                break;
+            case "Video":
+                obj = this._processVideo(objDef, UID);
+                break;
+            case "Texture":
+                obj = this._processTexture(objDef, UID);
+                break;
+            default:
+                console.log("Unsupported object type " + objDef.name);
         }
 
         if (obj) {
-            if (this._templates["NodeAttribute"]) this._applyModelProps(obj, this._templates["NodeAttribute"]);
-            return obj;
+            obj.name = name;
+            this._objects[UID] = obj;
         }
+    }
+};
 
-        return null;
-    },
+HX.FBX.prototype._getObjectDefName = function(objDef)
+{
+    return objDef.data[1].value.split(HX.FBX._STRING_DEMARCATION)[0];
+};
 
-    _processModel: function(objDef, UID)
-    {
-        var subclass = objDef.data[2].value;
-        var obj;
-        var undoScale;
+HX.FBX.prototype._processNodeAttribute = function(objDef, UID)
+{
+    var subclass = objDef.data[2].value;
+    var obj;
 
-        switch(subclass) {
-            case "Camera":
-                return new HX.FBXParser.DummyNode();
-            case "Light":
-                obj = new HX.FBXParser.DummyNode();
-                obj.useTransform = true;
-                undoScale = true;
-                break;
-            case "Mesh":
-                obj = this._processMeshModel(objDef, UID);
-                if (this._templates["NodeAttribute"]) this._applyModelProps(obj, this._templates["NodeAttribute"]);
-                break;
-        }
+    switch(subclass) {
+        case "Light":
+            obj = this._processLight(objDef);
+            break;
+        case "Camera":
+            obj = this._processCamera(objDef);
+            break;
+    }
 
-        if (obj) {
-            var props = objDef.getChildNode("Properties70");
-            if (this._templates["Model"]) this._applyModelProps(obj, this._templates["Model"]);
-            if (props) this._applyModelProps(obj, props.children);
-            if (undoScale) {
-                obj.scale.set(1, 1, 1);
-            }
-        }
-
+    if (obj) {
+        if (this._templates["NodeAttribute"]) this._applyModelProps(obj, this._templates["NodeAttribute"]);
         return obj;
-    },
+    }
 
-    _applyModelProps: function(target, props)
-    {
-        var len = props.length;
-        var lclRotation;
-        var preRotation;
-        var postRotation;
-        var lclTranslation;
-        var rotationPivot;
-        var scalingPivot;
-        var lclScaling;
-        var scalingOffset;
-        var rotationOffset;
+    return null;
+};
 
-        // geometric translation should be handled differently, in that it should not be allowed to affect children (should be baked in geometry, hence the name)
-        var geometricTranslation;
+HX.FBX.prototype._processModel = function(objDef, UID)
+{
+    var subclass = objDef.data[2].value;
+    var obj;
+    var undoScale;
 
-        for (var i = 0; i < len; ++i) {
-            var prop = props[i];
-            var name = prop.data[0].value;
-            switch(name) {
-                case "GeometricTranslation":
-                    geometricTranslation = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
-                    break;
+    switch(subclass) {
+        case "Camera":
+            return new HX.FBX._DummyNode();
+        case "Light":
+            obj = new HX.FBX._DummyNode();
+            obj.useTransform = true;
+            undoScale = true;
+            break;
+        case "Mesh":
+            obj = this._processMeshModel(objDef, UID);
+            if (this._templates["NodeAttribute"]) this._applyModelProps(obj, this._templates["NodeAttribute"]);
+            break;
+    }
 
-                case "Lcl Scaling":
-                    lclScaling = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 1.0);
-                    break;
-                case "ScalingPivot":
-                    scalingPivot = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
-                    break;
-                case "ScalingOffset":
-                    scalingOffset = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
-                    break;
-
-                case "RotationPivot":
-                    rotationPivot = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
-                    break;
-                case "PreRotation":
-                    preRotation = new HX.Quaternion();
-                    preRotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD, 0.0);
-                    break;
-                case "PostRotation":
-                    postRotation = new HX.Quaternion();
-                    postRotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD, 0.0);
-                    break;
-                case "Lcl Rotation":
-                    lclRotation = new HX.Quaternion();
-                    lclRotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD);
-                    break;
-                case "RotationOffset":
-                    rotationOffset = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
-                    break;
-
-                case "Lcl Translation":
-                    lclTranslation = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
-                    break;
-                case "InheritType":
-                    if (prop.data[4].value != 1)
-                        throw new Error("Unsupported InheritType (must be 1)");
-            }
-        }
-
-        // http://download.autodesk.com/us/fbx/20112/FBX_SDK_HELP/index.html?url=WS1a9193826455f5ff1f92379812724681e696651.htm,topicNumber=d0e7429
-
-        var matrix = new HX.Matrix4x4();
-
-        if (scalingPivot) matrix.appendTranslation(-scalingPivot.x, -scalingPivot.y, -scalingPivot.z);
-        if (lclScaling) matrix.appendScale(lclScaling.x, lclScaling.y, lclScaling.z);
-        if (scalingPivot) matrix.appendTranslation(scalingPivot.x, scalingPivot.y, scalingPivot.z);
-        if (scalingOffset) matrix.appendTranslation(scalingOffset.x, scalingOffset.y, scalingOffset.z);
-
-        if (rotationPivot) matrix.appendTranslation(-rotationPivot.x, -rotationPivot.y, -rotationPivot.z);
-        if (preRotation) matrix.appendRotationQuaternion(preRotation);
-        if (lclRotation) matrix.appendRotationQuaternion(lclRotation);
-        if (postRotation) matrix.appendRotationQuaternion(postRotation);
-        if (rotationPivot) matrix.appendTranslation(rotationPivot.x, rotationPivot.y, rotationPivot.z);
-        if (rotationOffset) matrix.appendTranslation(rotationOffset.x, rotationOffset.y, rotationOffset.z);
-
-        if (lclTranslation) matrix.appendTranslation(lclTranslation.x, lclTranslation.y, lclTranslation.z);
-        if (geometricTranslation) matrix.prependTranslation(geometricTranslation.x, geometricTranslation.y, geometricTranslation.z);
-
-        target.transformationMatrix = matrix;
-    },
-
-    _processLight: function(objDef)
-    {
-        var light;
-        var props = objDef.getChildNode("Properties70").children;
-        var type;
-
-        var len = props.length;
-        for (var i = 0; i < len; ++i) {
-            var prop = props[i];
-            if (prop.data[0].value === "LightType") {
-                type = prop.data[4].value;
-                if (type === 0) light = new HX.PointLight();
-                else if (type === 1) light = new HX.DirectionalLight();
-                else throw new Error("Unsupported light type");
-                break;
-            }
-        }
-
-        if (!light) throw new Error("Missing light type property");
-
-        var len = props.length;
-
-        for (var i = 0; i < len; ++i) {
-            var prop = props[i];
-            var name = prop.data[0].value;
-            switch(name) {
-                case "Color":
-                    light.color = new HX.Color(prop.data[4].value, prop.data[5].value, prop.data[6].value);
-                    break;
-                case "Intensity":
-                    light.intensity = prop.data[4].value;
-                    if (light.type)
-                    break;
-                case "CastShadows":
-                    if (light.type === 1) {
-                        light.castShadows = true;
-                    }
-                    break;
-            }
-        }
-
-        return light;
-    },
-
-    _processCamera: function(objDef)
-    {
-        var camera = new HX.PerspectiveCamera();
-
-        function handleProps(props) {
-            var len = props.length;
-            var interestPosition;
-
-            for (var i = 0; i < len; ++i) {
-                var prop = props[i];
-                var name = prop.data[0].value;
-                switch(name) {
-                    case "NearPlane":
-                        camera.nearDistance = prop.data[4].value;
-                        break;
-                    case "FarPlane":
-                        camera.farDistance = prop.data[4].value;
-                        break;
-                    case "FieldOfViewY":
-                        camera.verticalFOV = prop.data[4].value * HX.DEG_TO_RAD;
-                        break;
-                    case "Position":
-                        camera.position.x = prop.data[4].value;
-                        camera.position.y = prop.data[5].value;
-                        camera.position.z = prop.data[6].value;
-                        break;
-                    case "InterestPosition":
-                        interestPosition = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value);
-                        camera.lookAt(interestPosition);
-                        break;
-                }
-            }
-        }
-
-        if (this._templates["NodeAttribute"]) {
-            handleProps(this._templates["NodeAttribute"]);
-            this._applyModelProps(camera, this._templates["NodeAttribute"]);
-        }
+    if (obj) {
         var props = objDef.getChildNode("Properties70");
-        if (props) handleProps(props.children);
-
-        camera.scale.set(1, 1, 1);
-
-        var prop = objDef.getChildNode("Position");
-        if (prop) {
-            camera.position.x = prop.data[0].value;
-            camera.position.y = prop.data[1].value;
-            camera.position.z = prop.data[2].value;
+        if (this._templates["Model"]) this._applyModelProps(obj, this._templates["Model"]);
+        if (props) this._applyModelProps(obj, props.children);
+        if (undoScale) {
+            obj.scale.set(1, 1, 1);
         }
-        prop = objDef.getChildNode("LookAt");
-        if (prop) {
-            camera.lookAt(new HX.Float4(prop.data[0].value, prop.data[1].value, prop.data[2].value));
+    }
+
+    return obj;
+};
+
+HX.FBX.prototype._applyModelProps = function(target, props)
+{
+    var len = props.length;
+    var lclRotation;
+    var preRotation;
+    var postRotation;
+    var lclTranslation;
+    var rotationPivot;
+    var scalingPivot;
+    var lclScaling;
+    var scalingOffset;
+    var rotationOffset;
+
+    // geometric translation should be handled differently, in that it should not be allowed to affect children (should be baked in geometry, hence the name)
+    var geometricTranslation;
+
+    for (var i = 0; i < len; ++i) {
+        var prop = props[i];
+        var name = prop.data[0].value;
+        switch(name) {
+            case "GeometricTranslation":
+                geometricTranslation = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
+                break;
+
+            case "Lcl Scaling":
+                lclScaling = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 1.0);
+                break;
+            case "ScalingPivot":
+                scalingPivot = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
+                break;
+            case "ScalingOffset":
+                scalingOffset = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
+                break;
+
+            case "RotationPivot":
+                rotationPivot = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
+                break;
+            case "PreRotation":
+                preRotation = new HX.Quaternion();
+                preRotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD, 0.0);
+                break;
+            case "PostRotation":
+                postRotation = new HX.Quaternion();
+                postRotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD, 0.0);
+                break;
+            case "Lcl Rotation":
+                lclRotation = new HX.Quaternion();
+                lclRotation.fromXYZ(prop.data[4].value * HX.DEG_TO_RAD, prop.data[5].value * HX.DEG_TO_RAD, prop.data[6].value * HX.DEG_TO_RAD);
+                break;
+            case "RotationOffset":
+                rotationOffset = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
+                break;
+
+            case "Lcl Translation":
+                lclTranslation = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value, 0.0);
+                break;
+            case "InheritType":
+                if (prop.data[4].value != 1)
+                    throw new Error("Unsupported InheritType (must be 1)");
         }
+    }
 
-        return camera;
-    },
+    // http://download.autodesk.com/us/fbx/20112/FBX_SDK_HELP/index.html?url=WS1a9193826455f5ff1f92379812724681e696651.htm,topicNumber=d0e7429
 
-    _processMeshModel: function(objDef, UID)
-    {
-        // model and materials will be assigned later
-        var node = new HX.ModelInstance();
+    var matrix = new HX.Matrix4x4();
 
-        // will be filled in on connect
-        this._modelInstanceSetups[UID] = {
-            model: null,
-            materials: [],
-            materialsIDs: null,
-            modelInstance: node,
-            parent: null
-        };
-        return node;
-    },
+    if (scalingPivot) matrix.appendTranslation(-scalingPivot.x, -scalingPivot.y, -scalingPivot.z);
+    if (lclScaling) matrix.appendScale(lclScaling.x, lclScaling.y, lclScaling.z);
+    if (scalingPivot) matrix.appendTranslation(scalingPivot.x, scalingPivot.y, scalingPivot.z);
+    if (scalingOffset) matrix.appendTranslation(scalingOffset.x, scalingOffset.y, scalingOffset.z);
 
-    _extractMeshLayerData: function(objDef, nodeName, directDataName, indexDataName)
+    if (rotationPivot) matrix.appendTranslation(-rotationPivot.x, -rotationPivot.y, -rotationPivot.z);
+    if (preRotation) matrix.appendRotationQuaternion(preRotation);
+    if (lclRotation) matrix.appendRotationQuaternion(lclRotation);
+    if (postRotation) matrix.appendRotationQuaternion(postRotation);
+    if (rotationPivot) matrix.appendTranslation(rotationPivot.x, rotationPivot.y, rotationPivot.z);
+    if (rotationOffset) matrix.appendTranslation(rotationOffset.x, rotationOffset.y, rotationOffset.z);
+
+    if (lclTranslation) matrix.appendTranslation(lclTranslation.x, lclTranslation.y, lclTranslation.z);
+    if (geometricTranslation) matrix.prependTranslation(geometricTranslation.x, geometricTranslation.y, geometricTranslation.z);
+
+    target.transformationMatrix = matrix;
+};
+
+HX.FBX.prototype._processLight = function(objDef)
+{
+    var light;
+    var props = objDef.getChildNode("Properties70").children;
+    var type;
+
+    var len = props.length;
+    for (var i = 0; i < len; ++i) {
+        var prop = props[i];
+        if (prop.data[0].value === "LightType") {
+            type = prop.data[4].value;
+            if (type === 0) light = new HX.PointLight();
+            else if (type === 1) light = new HX.DirectionalLight();
+            else throw new Error("Unsupported light type");
+            break;
+        }
+    }
+
+    if (!light) throw new Error("Missing light type property");
+
+    var len = props.length;
+
+    for (var i = 0; i < len; ++i) {
+        var prop = props[i];
+        var name = prop.data[0].value;
+        switch(name) {
+            case "Color":
+                light.color = new HX.Color(prop.data[4].value, prop.data[5].value, prop.data[6].value);
+                break;
+            case "Intensity":
+                light.intensity = prop.data[4].value;
+                if (light.type)
+                break;
+            case "CastShadows":
+                if (light.type === 1) {
+                    light.castShadows = true;
+                }
+                break;
+        }
+    }
+
+    return light;
+};
+
+HX.FBX.prototype._processCamera = function(objDef)
+{
+    var camera = new HX.PerspectiveCamera();
+
+    function handleProps(props) {
+        var len = props.length;
+        var interestPosition;
+
+        for (var i = 0; i < len; ++i) {
+            var prop = props[i];
+            var name = prop.data[0].value;
+            switch(name) {
+                case "NearPlane":
+                    camera.nearDistance = prop.data[4].value;
+                    break;
+                case "FarPlane":
+                    camera.farDistance = prop.data[4].value;
+                    break;
+                case "FieldOfViewY":
+                    camera.verticalFOV = prop.data[4].value * HX.DEG_TO_RAD;
+                    break;
+                case "Position":
+                    camera.position.x = prop.data[4].value;
+                    camera.position.y = prop.data[5].value;
+                    camera.position.z = prop.data[6].value;
+                    break;
+                case "InterestPosition":
+                    interestPosition = new HX.Float4(prop.data[4].value, prop.data[5].value, prop.data[6].value);
+                    camera.lookAt(interestPosition);
+                    break;
+            }
+        }
+    }
+
+    if (this._templates["NodeAttribute"]) {
+        handleProps(this._templates["NodeAttribute"]);
+        this._applyModelProps(camera, this._templates["NodeAttribute"]);
+    }
+    var props = objDef.getChildNode("Properties70");
+    if (props) handleProps(props.children);
+
+    camera.scale.set(1, 1, 1);
+
+    var prop = objDef.getChildNode("Position");
+    if (prop) {
+        camera.position.x = prop.data[0].value;
+        camera.position.y = prop.data[1].value;
+        camera.position.z = prop.data[2].value;
+    }
+    prop = objDef.getChildNode("LookAt");
+    if (prop) {
+        camera.lookAt(new HX.Float4(prop.data[0].value, prop.data[1].value, prop.data[2].value));
+    }
+
+    return camera;
+};
+
+HX.FBX.prototype._processMeshModel = function(objDef, UID)
+{
+    // model and materials will be assigned later
+    var node = new HX.ModelInstance();
+
+    // will be filled in on connect
+    this._modelInstanceSetups[UID] = {
+        model: null,
+        materials: [],
+        materialsIDs: null,
+        modelInstance: node,
+        parent: null
+    };
+    return node;
+};
+
+HX.FBX.prototype._extractMeshLayerData = function(objDef, nodeName, directDataName, indexDataName)
     {
         var node = objDef.getChildNode(nodeName);
         if (!node)
@@ -15601,417 +15698,417 @@ HX.FBXParser.prototype =
 
             return {
                 refMode: refMode,
-                mapMode: mapMode === "ByPolygonVertex"? HX.FBXParser.Mapping.BY_POLYGON_VERTEX :
-                         mapMode === "ByPolygon"?       HX.FBXParser.Mapping.BY_POLYGON :
-                         mapMode === "AllSame"?         HX.FBXParser.Mapping.ALL_SAME :
-                                                        HX.FBXParser.Mapping.BY_CONTROL_POINT,
+                mapMode: mapMode === "ByPolygonVertex"? HX.FBX._Mapping.BY_POLYGON_VERTEX :
+                         mapMode === "ByPolygon"?       HX.FBX._Mapping.BY_POLYGON :
+                         mapMode === "AllSame"?         HX.FBX._Mapping.ALL_SAME :
+                                                        HX.FBX._Mapping.BY_CONTROL_POINT,
 
                 directData: directDataName? node.getChildNode(directDataName).data[0].value: null,
                 indexData: refMode === 2? node.getChildNode(indexDataName).data[0].value : null
             }
         }
-    },
+    };
 
-    _applyVertexData: function (data, index, i, numComponents)
+HX.FBX.prototype._applyVertexData = function (data, index, i, numComponents)
+{
+    var target = numComponents > 2? new HX.Float4() : new HX.Float2();
+    // direct
+    if (data.refMode === 1) {
+        var directIndex = data.mapMode === 2? index : i;
+        target.x = data.directData[directIndex * numComponents];
+        target.y = data.directData[directIndex * numComponents + 1];
+        if (numComponents > 2)
+            target.z = data.directData[directIndex * numComponents + 2];
+    }
+    // index to direct
+    else {
+        var directIndex = data.mapMode === 2? data.indexData[index] : data.indexData[i];
+        target.x = data.directData[directIndex * numComponents];
+        target.y = data.directData[directIndex * numComponents + 1];
+        if (numComponents > 2)
+            target.z = data.directData[directIndex * numComponents + 2];
+    }
+    return target;
+};
+
+HX.FBX.prototype._generateExpandedMeshData = function(objDef)
+{
+    var meshData = new HX.FBX._MeshData();
+    var indexData = objDef.getChildNode("PolygonVertexIndex").data[0].value;
+    var vertexData = objDef.getChildNode("Vertices").data[0].value;
+    var normalData = this._extractMeshLayerData(objDef, "LayerElementNormal", "Normals", "NormalsIndex");
+    var colorData = this._extractMeshLayerData(objDef, "LayerElementColor", "Colors", "ColorIndex");
+    var uvData = this._extractMeshLayerData(objDef, "LayerElementUV", "UV", "UVIndex");
+    var materialData = this._extractMeshLayerData(objDef, "LayerElementMaterial", null, "Materials");
+
+    var vertices = [];
+    var len = indexData.length;
+    var polyIndex = 0;
+    var maxMaterialIndex = 0;
+
+    if (normalData) meshData.hasNormals = true;
+    if (colorData) meshData.hasColor = true;
+    if (uvData) meshData.hasUVs = true;
+
+    for (var i = 0; i < len; ++i) {
+        var index = indexData[i];
+        var v = new HX.FBX._Vertex();
+
+        if (index < 0) {
+            index = -index - 1;
+            v.lastVertex = true;
+        }
+
+        v.pos.x = vertexData[index * 3];
+        v.pos.y = vertexData[index * 3 + 1];
+        v.pos.z = vertexData[index * 3 + 2];
+
+        if (normalData) v.normal = this._applyVertexData(normalData, index, i, 3);
+        if (colorData) v.color = this._applyVertexData(colorData, index, i, 3);
+        if (uvData) v.uv = this._applyVertexData(uvData, index, i, 2);
+
+        if (materialData && materialData.mapMode !== HX.FBX._Mapping.ALL_SAME) {
+            var matIndex = materialData.indexData[polyIndex];
+            v.materialIndex = matIndex;
+            if (matIndex > maxMaterialIndex)
+                maxMaterialIndex = matIndex;
+        }
+
+        if (v.lastVertex)
+            ++polyIndex;
+
+        vertices[i] = v;
+    }
+
+    meshData.vertices = vertices;
+    meshData.numMaterials = maxMaterialIndex + 1;
+
+    return meshData;
+};
+
+HX.FBX.prototype._processMeshGeometry = function(objDef, UID)
+{
+    var expandedMesh = this._generateExpandedMeshData(objDef);
+    var perMaterial = [];
+
+    for (var i = 0; i < expandedMesh.numMaterials; ++i) {
+        perMaterial[i] = {
+            indexCounter: 0,
+            vertexStack: [],
+            indexStack: [],
+            vertices: null,
+            indices: null,
+            indexLookUp: {}
+        }
+    }
+
+    var stride = HX.MeshData.DEFAULT_VERTEX_SIZE;
+    var hasNormals = expandedMesh.hasNormals;
+    var hasUVs = expandedMesh.hasUVs;
+    var hasColor = expandedMesh.hasColor;
+
+    if (hasColor) stride += 3;
+
+    // returns negative if overflow is detected
+    function getOrAddIndex(v)
     {
-        var target = numComponents > 2? new HX.Float4() : new HX.Float2();
-        // direct
-        if (data.refMode === 1) {
-            var directIndex = data.mapMode === 2? index : i;
-            target.x = data.directData[directIndex * numComponents];
-            target.y = data.directData[directIndex * numComponents + 1];
-            if (numComponents > 2)
-                target.z = data.directData[directIndex * numComponents + 2];
+        var hash = v.getHash();
+        var data = perMaterial[v.materialIndex];
+        var indexLookUp = data.indexLookUp;
+
+        if (indexLookUp.hasOwnProperty(hash))
+            return indexLookUp[hash];
+
+        if (data.indexCounter > 65535) return -1;
+
+        var vertices = data.vertices;
+
+        // new unique vertex!
+        var k = data.indexCounter * stride;
+        var realIndex = data.indexCounter++;
+
+        indexLookUp[hash] = realIndex;
+
+        // position
+        vertices[k] = v.pos.x;
+        vertices[k + 1] = v.pos.y;
+        vertices[k + 2] = v.pos.z;
+
+        // normal
+        if (hasNormals) {
+            vertices[k + 3] = v.normal.x;
+            vertices[k + 4] = v.normal.y;
+            vertices[k + 5] = v.normal.z;
         }
-        // index to direct
-        else {
-            var directIndex = data.mapMode === 2? data.indexData[index] : data.indexData[i];
-            target.x = data.directData[directIndex * numComponents];
-            target.y = data.directData[directIndex * numComponents + 1];
-            if (numComponents > 2)
-                target.z = data.directData[directIndex * numComponents + 2];
+        else
+            vertices[k + 3] = vertices[k + 4] = vertices[k + 5] = 0;
+
+        // tangent & flipsign
+        vertices[k + 6] = vertices[k + 7] = vertices[k + 8] = vertices[k + 9] = 0;
+
+        if (hasUVs) {
+            vertices[k + 10] = v.uv.x;
+            vertices[k + 11] = v.uv.y;
         }
-        return target;
-    },
+        else
+            vertices[k + 10] = vertices[k + 11] = 0;
 
-    _generateExpandedMeshData: function(objDef)
-    {
-        var meshData = new HX.FBXParser.MeshData();
-        var indexData = objDef.getChildNode("PolygonVertexIndex").data[0].value;
-        var vertexData = objDef.getChildNode("Vertices").data[0].value;
-        var normalData = this._extractMeshLayerData(objDef, "LayerElementNormal", "Normals", "NormalsIndex");
-        var colorData = this._extractMeshLayerData(objDef, "LayerElementColor", "Colors", "ColorIndex");
-        var uvData = this._extractMeshLayerData(objDef, "LayerElementUV", "UV", "UVIndex");
-        var materialData = this._extractMeshLayerData(objDef, "LayerElementMaterial", null, "Materials");
-
-        var vertices = [];
-        var len = indexData.length;
-        var polyIndex = 0;
-        var maxMaterialIndex = 0;
-
-        if (normalData) meshData.hasNormals = true;
-        if (colorData) meshData.hasColor = true;
-        if (uvData) meshData.hasUVs = true;
-
-        for (var i = 0; i < len; ++i) {
-            var index = indexData[i];
-            var v = new HX.FBXParser.Vertex();
-
-            if (index < 0) {
-                index = -index - 1;
-                v.lastVertex = true;
-            }
-
-            v.pos.x = vertexData[index * 3];
-            v.pos.y = vertexData[index * 3 + 1];
-            v.pos.z = vertexData[index * 3 + 2];
-
-            if (normalData) v.normal = this._applyVertexData(normalData, index, i, 3);
-            if (colorData) v.color = this._applyVertexData(colorData, index, i, 3);
-            if (uvData) v.uv = this._applyVertexData(uvData, index, i, 2);
-
-            if (materialData && materialData.mapMode !== HX.FBXParser.Mapping.ALL_SAME) {
-                var matIndex = materialData.indexData[polyIndex];
-                v.materialIndex = matIndex;
-                if (matIndex > maxMaterialIndex)
-                    maxMaterialIndex = matIndex;
-            }
-
-            if (v.lastVertex)
-                ++polyIndex;
-
-            vertices[i] = v;
+        if (hasColor) {
+            vertices[k + 12] = v.color.x;
+            vertices[k + 13] = v.color.y;
+            vertices[k + 14] = v.color.z;
         }
+        else
+            vertices[k + 12] = vertices[k + 13] = vertices[k + 14] = 0;
 
-        meshData.vertices = vertices;
-        meshData.numMaterials = maxMaterialIndex + 1;
+        return realIndex;
+    }
 
-        return meshData;
-    },
+    // todo: change this expansion
+    var i = 0, j = 0;
+    var vertexData = expandedMesh.vertices;
+    var len = vertexData.length;
+    var realIndex0, realIndex1, realIndex2;
+    var startNewBatch = true;
 
-    _processMeshGeometry: function(objDef, UID)
-    {
-        var expandedMesh = this._generateExpandedMeshData(objDef);
-        var perMaterial = [];
-
-        for (var i = 0; i < expandedMesh.numMaterials; ++i) {
-            perMaterial[i] = {
-                indexCounter: 0,
-                vertexStack: [],
-                indexStack: [],
-                vertices: null,
-                indices: null,
-                indexLookUp: {}
-            }
+    // triangulate
+    while (i < len) {
+        var data = perMaterial[vertexData[i].materialIndex];
+        if (!data.vertices) startNewBatch = true;
+        // start as startNewBatch, so we push the current list on the stack
+        if (startNewBatch) {
+            startNewBatch = false;
+            data.indexCounter = 0;
+            data.indices = [];
+            data.vertices = [];
+            data.indexLookUp = {};
+            data.indexStack.push(data.indices);
+            data.vertexStack.push(data.vertices);
         }
 
-        var stride = HX.MeshData.DEFAULT_VERTEX_SIZE;
-        var hasNormals = expandedMesh.hasNormals;
-        var hasUVs = expandedMesh.hasUVs;
-        var hasColor = expandedMesh.hasColor;
-
-        if (hasColor) stride += 3;
-
-        // returns negative if overflow is detected
-        function getOrAddIndex(v)
-        {
-            var hash = v.getHash();
-            var data = perMaterial[v.materialIndex];
-            var indexLookUp = data.indexLookUp;
-
-            if (indexLookUp.hasOwnProperty(hash))
-                return indexLookUp[hash];
-
-            if (data.indexCounter > 65535) return -1;
-
-            var vertices = data.vertices;
-
-            // new unique vertex!
-            var k = data.indexCounter * stride;
-            var realIndex = data.indexCounter++;
-
-            indexLookUp[hash] = realIndex;
-
-            // position
-            vertices[k] = v.pos.x;
-            vertices[k + 1] = v.pos.y;
-            vertices[k + 2] = v.pos.z;
-
-            // normal
-            if (hasNormals) {
-                vertices[k + 3] = v.normal.x;
-                vertices[k + 4] = v.normal.y;
-                vertices[k + 5] = v.normal.z;
-            }
-            else
-                vertices[k + 3] = vertices[k + 4] = vertices[k + 5] = 0;
-
-            // tangent & flipsign
-            vertices[k + 6] = vertices[k + 7] = vertices[k + 8] = vertices[k + 9] = 0;
-
-            if (hasUVs) {
-                vertices[k + 10] = v.uv.x;
-                vertices[k + 11] = v.uv.y;
-            }
-            else
-                vertices[k + 10] = vertices[k + 11] = 0;
-
-            if (hasColor) {
-                vertices[k + 12] = v.color.x;
-                vertices[k + 13] = v.color.y;
-                vertices[k + 14] = v.color.z;
-            }
-            else
-                vertices[k + 12] = vertices[k + 13] = vertices[k + 14] = 0;
-
-            return realIndex;
+        realIndex0 = getOrAddIndex(vertexData[i]);
+        if (realIndex0 < 0) {
+            startNewBatch = true;
+            continue;
+        }
+        realIndex1 = getOrAddIndex(vertexData[i + 1]);
+        if (realIndex1 < 0) {
+            startNewBatch = true;
+            continue;
         }
 
-        // todo: change this expansion
-        var i = 0, j = 0;
-        var vertexData = expandedMesh.vertices;
-        var len = vertexData.length;
-        var realIndex0, realIndex1, realIndex2;
-        var startNewBatch = true;
+        i += 2;
 
-        // triangulate
-        while (i < len) {
-            var data = perMaterial[vertexData[i].materialIndex];
-            if (!data.vertices) startNewBatch = true;
-            // start as startNewBatch, so we push the current list on the stack
-            if (startNewBatch) {
-                startNewBatch = false;
-                data.indexCounter = 0;
-                data.indices = [];
-                data.vertices = [];
-                data.indexLookUp = {};
-                data.indexStack.push(data.indices);
-                data.vertexStack.push(data.vertices);
-            }
+        var v2;
 
-            realIndex0 = getOrAddIndex(vertexData[i]);
-            if (realIndex0 < 0) {
+        do {
+            v2 = vertexData[i];
+            realIndex2 = getOrAddIndex(v2);
+
+            if (realIndex2 < 0) {
                 startNewBatch = true;
-                continue;
-            }
-            realIndex1 = getOrAddIndex(vertexData[i + 1]);
-            if (realIndex1 < 0) {
-                startNewBatch = true;
-                continue;
-            }
-
-            i += 2;
-
-            var v2;
-
-            do {
-                v2 = vertexData[i];
-                realIndex2 = getOrAddIndex(v2);
-
-                if (realIndex2 < 0) {
-                    startNewBatch = true;
-                }
-                else {
-                    ++i;
-
-                    var indices = perMaterial[v2.materialIndex].indices;
-                    indices[j] = realIndex0;
-                    indices[j + 1] = realIndex1;
-                    indices[j + 2] = realIndex2;
-
-                    j += 3;
-                    realIndex1 = realIndex2;
-                }
-            } while (!v2.lastVertex && !startNewBatch);
-        }
-
-        var modelData = new HX.ModelData();
-
-        this._modelMaterialIDs[UID] = [];
-
-        for (var i = 0; i < expandedMesh.numMaterials; ++i) {
-            var data = perMaterial[i];
-
-            for (var j = 0; j < data.indexStack.length; ++j) {
-                var meshData = HX.MeshData.createDefaultEmpty();
-                if (hasColor) meshData.addVertexAttribute("hx_vertexColor", 3);
-                meshData.setVertexData(data.vertexStack[j]);
-                meshData.setIndexData(data.indexStack[j]);
-
-                this._modelMaterialIDs[UID].push(i);
-
-                var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
-                if (!hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
-                var generator = new HX.NormalTangentGenerator();
-                generator.generate(meshData, mode);
-                modelData.addMeshData(meshData);
-            }
-        }
-
-        return new HX.Model(modelData);
-    },
-
-    _processMaterial: function(objDef, UID)
-    {
-        var material = new HX.PBRMaterial();
-        var props = objDef.getChildNode("Properties70");
-        if (this._templates["Material"]) this._applyMaterialProps(material, this._templates["Material"]);
-        if (props) this._applyMaterialProps(material, props.children);
-        return material;
-    },
-
-    _applyMaterialProps: function(target, props)
-    {
-        var len = props.length;
-        for (var i = 0; i < len; ++i) {
-            var prop = props[i];
-            var name = prop.data[0].value;
-            switch(name) {
-                case "DiffuseColor":
-                    target.color = new HX.Color(prop.data[4].value, prop.data[5].value, prop.data[6].value);
-                    break;
-                case "Shininess":
-                case "ShininessExponent":
-                    target.roughness = Math.sqrt(2.0/(prop.data[4].value + 2.0));
-                    break;
-            }
-        }
-    },
-
-    _processVideo: function(objDef, UID)
-    {
-        var relFileName = objDef.getChildNode("RelativeFilename");
-        var obj;
-        if (relFileName) {
-            var filename = relFileName.data[0].value;
-
-            if (this._filemapping && this._filemapping.hasOwnProperty(filename))
-                filename = this._filemapping[filename];
-
-            obj = HX.Texture2DLoader.load(this._path + filename);
-        }
-
-        return obj;
-    },
-
-    _processTexture: function(objDef, UID)
-    {
-        return new HX.FBXParser.DummyTexture();
-    },
-
-    _processConnections: function()
-    {
-        var connections = this._rootNode.getChildNode("Connections");
-        if (!connections) return;
-        connections = connections.children;
-        var len = connections.length;
-
-        for (var i = 0; i < len; ++i) {
-            var c = connections[i];
-            var linkType = c.data[0].value;
-            var childUID = c.data[1].value;
-            var parentUID = c.data[2].value;
-            var extra = c.data[3]? c.data[3].value : null;
-            var child = this._objects[childUID];
-            var parent = this._objects[parentUID];
-
-            //console.log(childUID + " -> " + parentUID);
-            // why would parent be null?
-            if (child && parent) {
-                //console.log(child.toString() + " -> " + parent.toString());
-
-                switch (linkType) {
-                    // others not currently supported
-                    case "OO":
-                    case "OP":
-                        this._connect(child, parent, childUID, parentUID, extra);
-                        break;
-                }
-
-            }
-        }
-
-        for (var key in this._modelInstanceSetups) {
-            if (this._modelInstanceSetups.hasOwnProperty(key)) {
-                var setup = this._modelInstanceSetups[key];
-                var materials = [];
-
-                for (var i = 0; i < setup.materialsIDs.length; ++i) {
-                    var id = setup.materialsIDs[i];
-                    materials.push(setup.materials[id]);
-                }
-
-                //console.log(setup.model.toString());
-                setup.modelInstance.init(setup.model, materials);
-                if (setup.parent)
-                    setup.parent.attach(setup.modelInstance);
-                else
-                    this._target.attach(setup.modelInstance);
-            }
-        }
-    },
-    _connect: function(child, parent, childUID, parentUID, extra)
-    {
-        if ((child instanceof HX.FBXParser.DummyNode) || (child instanceof HX.FBXParser.DummyTexture)) {
-            if (child.child) {
-                this._connect(child.child, parent, childUID, parentUID, extra);
             }
             else {
-                child.parent = parent;
-                child.parentUID = parentUID;
+                ++i;
 
-                if (extra)
-                    child.textureType = extra;
-            }
-        }
-        else if ((parent instanceof HX.FBXParser.DummyNode) || (parent instanceof HX.FBXParser.DummyTexture)) {
-            if (parent.useTransform)
-                child.transformationMatrix = parent.transformationMatrix;
+                var indices = perMaterial[v2.materialIndex].indices;
+                indices[j] = realIndex0;
+                indices[j + 1] = realIndex1;
+                indices[j + 2] = realIndex2;
 
-            if (parent.parent) {
-                this._connect(child, parent.parent, childUID, parent.parentUID, parent.textureType);
+                j += 3;
+                realIndex1 = realIndex2;
             }
-            else
-                parent.child = child;
+        } while (!v2.lastVertex && !startNewBatch);
+    }
+
+    var modelData = new HX.ModelData();
+
+    this._modelMaterialIDs[UID] = [];
+
+    for (var i = 0; i < expandedMesh.numMaterials; ++i) {
+        var data = perMaterial[i];
+
+        for (var j = 0; j < data.indexStack.length; ++j) {
+            var meshData = HX.MeshData.createDefaultEmpty();
+            if (hasColor) meshData.addVertexAttribute("hx_vertexColor", 3);
+            meshData.setVertexData(data.vertexStack[j]);
+            meshData.setIndexData(data.indexStack[j]);
+
+            this._modelMaterialIDs[UID].push(i);
+
+            var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
+            if (!hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
+            var generator = new HX.NormalTangentGenerator();
+            generator.generate(meshData, mode);
+            modelData.addMeshData(meshData);
         }
-        else if (child instanceof HX.ModelInstance) {
-            this._modelInstanceSetups[childUID].parent = parent;
-        }
-        else if (child instanceof HX.SceneNode) {
-            parent.attach(child);
-        }
-        else if (child instanceof HX.Model) {
-            this._modelInstanceSetups[parentUID].materialsIDs = this._modelMaterialIDs[childUID];
-            this._modelInstanceSetups[parentUID].model = child;
-        }
-        else if (child instanceof HX.Material) {
-            this._modelInstanceSetups[parentUID].materials.push(child);
-        }
-        else if (child instanceof HX.Texture2D) {
-            switch(extra) {
-                case "DiffuseColor":
-                    parent.colorMap = child;
-                    break;
-                // WARNING: specular color is not used as such, map needs to be changed to a roughness map!
-                case "SpecularColor":
-                    parent.specularMap = child;
-                    break;
-                case "NormalMap":
-                    parent.normalMap = child;
-                    break;
-            }
+    }
+
+    return new HX.Model(modelData);
+};
+
+HX.FBX.prototype._processMaterial = function(objDef, UID)
+{
+    var material = new HX.PBRMaterial();
+    var props = objDef.getChildNode("Properties70");
+    if (this._templates["Material"]) this._applyMaterialProps(material, this._templates["Material"]);
+    if (props) this._applyMaterialProps(material, props.children);
+    return material;
+};
+
+HX.FBX.prototype._applyMaterialProps = function(target, props)
+{
+    var len = props.length;
+    for (var i = 0; i < len; ++i) {
+        var prop = props[i];
+        var name = prop.data[0].value;
+        switch(name) {
+            case "DiffuseColor":
+                target.color = new HX.Color(prop.data[4].value, prop.data[5].value, prop.data[6].value);
+                break;
+            case "Shininess":
+            case "ShininessExponent":
+                target.roughness = Math.sqrt(2.0/(prop.data[4].value + 2.0));
+                break;
         }
     }
 };
 
-HX.FBXParser.NodeRecord = function()
+HX.FBX.prototype._processVideo = function(objDef, UID)
+{
+    var relFileName = objDef.getChildNode("RelativeFilename");
+    var obj;
+    if (relFileName) {
+        var filename = relFileName.data[0].value;
+
+        if (this.fileMap && this.fileMap.hasOwnProperty(filename))
+            filename = this.fileMap[filename];
+
+        obj = HX.Texture2DLoader.load(this.path + filename);
+    }
+
+    return obj;
+};
+
+HX.FBX.prototype._processTexture = function(objDef, UID)
+{
+    return new HX.FBX._DummyTexture();
+};
+
+HX.FBX.prototype._processConnections = function()
+{
+    var connections = this._rootNode.getChildNode("Connections");
+    if (!connections) return;
+    connections = connections.children;
+    var len = connections.length;
+
+    for (var i = 0; i < len; ++i) {
+        var c = connections[i];
+        var linkType = c.data[0].value;
+        var childUID = c.data[1].value;
+        var parentUID = c.data[2].value;
+        var extra = c.data[3]? c.data[3].value : null;
+        var child = this._objects[childUID];
+        var parent = this._objects[parentUID];
+
+        //console.log(childUID + " -> " + parentUID);
+        // why would parent be null?
+        if (child && parent) {
+            //console.log(child.toString() + " -> " + parent.toString());
+
+            switch (linkType) {
+                // others not currently supported
+                case "OO":
+                case "OP":
+                    this._connect(child, parent, childUID, parentUID, extra);
+                    break;
+            }
+
+        }
+    }
+
+    for (var key in this._modelInstanceSetups) {
+        if (this._modelInstanceSetups.hasOwnProperty(key)) {
+            var setup = this._modelInstanceSetups[key];
+            var materials = [];
+
+            for (var i = 0; i < setup.materialsIDs.length; ++i) {
+                var id = setup.materialsIDs[i];
+                materials.push(setup.materials[id]);
+            }
+
+            //console.log(setup.model.toString());
+            setup.modelInstance.init(setup.model, materials);
+            if (setup.parent)
+                setup.parent.attach(setup.modelInstance);
+            else
+                this._target.attach(setup.modelInstance);
+        }
+    }
+};
+
+HX.FBX.prototype._connect = function(child, parent, childUID, parentUID, extra)
+{
+    if ((child instanceof HX.FBX._DummyNode) || (child instanceof HX.FBX._DummyTexture)) {
+        if (child.child) {
+            this._connect(child.child, parent, childUID, parentUID, extra);
+        }
+        else {
+            child.parent = parent;
+            child.parentUID = parentUID;
+
+            if (extra)
+                child.textureType = extra;
+        }
+    }
+    else if ((parent instanceof HX.FBX._DummyNode) || (parent instanceof HX.FBX._DummyTexture)) {
+        if (parent.useTransform)
+            child.transformationMatrix = parent.transformationMatrix;
+
+        if (parent.parent) {
+            this._connect(child, parent.parent, childUID, parent.parentUID, parent.textureType);
+        }
+        else
+            parent.child = child;
+    }
+    else if (child instanceof HX.ModelInstance) {
+        this._modelInstanceSetups[childUID].parent = parent;
+    }
+    else if (child instanceof HX.SceneNode) {
+        parent.attach(child);
+    }
+    else if (child instanceof HX.Model) {
+        this._modelInstanceSetups[parentUID].materialsIDs = this._modelMaterialIDs[childUID];
+        this._modelInstanceSetups[parentUID].model = child;
+    }
+    else if (child instanceof HX.Material) {
+        this._modelInstanceSetups[parentUID].materials.push(child);
+    }
+    else if (child instanceof HX.Texture2D) {
+        switch(extra) {
+            case "DiffuseColor":
+                parent.colorMap = child;
+                break;
+            // WARNING: specular color is not used as such, map needs to be changed to a roughness map!
+            case "SpecularColor":
+                parent.specularMap = child;
+                break;
+            case "NormalMap":
+                parent.normalMap = child;
+                break;
+        }
+    }
+};
+
+HX.FBX._NodeRecord = function()
 {
     this.name = "";
     this.data = [];
     this.children = [];
 };
 
-HX.FBXParser.NodeRecord.prototype =
+HX.FBX._NodeRecord.prototype =
 {
     getChildNode: function(name)
     {
@@ -16023,7 +16120,7 @@ HX.FBXParser.NodeRecord.prototype =
     }
 };
 
-HX.FBXParser.DummyTexture = function()
+HX.FBX._DummyTexture = function()
 {
     this.name = null;
     this.child = null;
@@ -16037,7 +16134,7 @@ HX.FBXParser.DummyTexture = function()
     }
 };
 
-HX.FBXParser.DummyNode = function()
+HX.FBX._DummyNode = function()
 {
     HX.Transform.call(this);
     this.name = null;
@@ -16052,33 +16149,33 @@ HX.FBXParser.DummyNode = function()
     }
 };
 
-HX.FBXParser.DummyNode.prototype = Object.create(HX.Transform.prototype);
+HX.FBX._DummyNode.prototype = Object.create(HX.Transform.prototype);
 
-HX.FBXParser.DataElement = function()
+HX.FBX._DataElement = function()
 {
     this.typeCode = null;
     this.value = null;
 };
 
-HX.FBXParser.DataElement.INT16 = "Y";
-HX.FBXParser.DataElement.BOOLEAN = "C";
-HX.FBXParser.DataElement.INT32 = "I";
-HX.FBXParser.DataElement.FLOAT = "F";
-HX.FBXParser.DataElement.DOUBLE = "D";
-HX.FBXParser.DataElement.INT64 = "L";
+HX.FBX._DataElement.INT16 = "Y";
+HX.FBX._DataElement.BOOLEAN = "C";
+HX.FBX._DataElement.INT32 = "I";
+HX.FBX._DataElement.FLOAT = "F";
+HX.FBX._DataElement.DOUBLE = "D";
+HX.FBX._DataElement.INT64 = "L";
 
-HX.FBXParser.DataElement.BOOLEAN_ARRAY = "b";
-HX.FBXParser.DataElement.INT32_ARRAY = "i";
-HX.FBXParser.DataElement.FLOAT_ARRAY = "f";
-HX.FBXParser.DataElement.DOUBLE_ARRAY = "d";
-HX.FBXParser.DataElement.INT64_ARRAY = "l";
+HX.FBX._DataElement.BOOLEAN_ARRAY = "b";
+HX.FBX._DataElement.INT32_ARRAY = "i";
+HX.FBX._DataElement.FLOAT_ARRAY = "f";
+HX.FBX._DataElement.DOUBLE_ARRAY = "d";
+HX.FBX._DataElement.INT64_ARRAY = "l";
 
-HX.FBXParser.DataElement.STRING = "S";
-HX.FBXParser.DataElement.RAW = "R";
+HX.FBX._DataElement.STRING = "S";
+HX.FBX._DataElement.RAW = "R";
 
-HX.FBXParser.STRING_DEMARCATION = String.fromCharCode(0, 1);
+HX.FBX._STRING_DEMARCATION = String.fromCharCode(0, 1);
 
-HX.FBXParser.Mapping =
+HX.FBX._Mapping =
 {
     NONE: 0,
     BY_POLYGON_VERTEX: 1,
@@ -16087,7 +16184,7 @@ HX.FBXParser.Mapping =
     ALL_SAME: 4
 };
 
-HX.FBXParser.MeshData = function()
+HX.FBX._MeshData = function()
 {
     this.vertices = null;
     this.hasColor = false;
@@ -16096,7 +16193,7 @@ HX.FBXParser.MeshData = function()
     this.numMaterials = 0;
 };
 
-HX.FBXParser.Vertex = function()
+HX.FBX._Vertex = function()
 {
     this.pos = new HX.Float4();
     this.uv = null;
@@ -16108,7 +16205,7 @@ HX.FBXParser.Vertex = function()
     this.lastVertex = false;
 };
 
-HX.FBXParser.Vertex.prototype =
+HX.FBX._Vertex.prototype =
 {
     // instead of actually using the values, we should use the indices as keys
     getHash: function()
@@ -16131,40 +16228,198 @@ HX.FBXParser.Vertex.prototype =
         return this._hash;
     }
 };
-HX.OBJLoader =
+/**
+ * The HMT file format is for file-based materials (JSON)
+ * @constructor
+ */
+HX.HMT = function()
 {
-    load: function (filename, onComplete, onFail, groupsAsObjects)
+    HX.AssetParser.call(this, HX.Material);
+    HX.HMT._initPropertyMap();
+};
+
+HX.HMT.prototype = Object.create(HX.AssetParser.prototype);
+
+HX.HMT.prototype.parse = function(data, target)
+{
+    data = JSON.parse(data);
+    this._loadShaders(data, target);
+};
+
+HX.HMT.prototype._gatherShaderFiles = function(data)
+{
+    var passes = data.passes;
+    var files = [];
+    for (var key in passes) {
+        if (passes.hasOwnProperty(key)) {
+            var vertex = passes[key].vertexShader;
+            var fragment = passes[key].fragmentShader;
+            if (files.indexOf(vertex) < 0) files.push(this.path + vertex);
+            if (files.indexOf(fragment) < 0) files.push(this.path + fragment);
+        }
+    }
+
+    return files;
+};
+
+HX.HMT.prototype._loadShaders = function(data, material)
+{
+    var shaders = {};
+    var shaderFiles = this._gatherShaderFiles(data);
+    var bulkLoader = new HX.BulkURLLoader();
+    var self = this;
+
+    bulkLoader.onComplete = function() {
+        for (var i = 0; i < shaderFiles.length; ++i) {
+            shaders[shaderFiles[i]] = bulkLoader.getData(shaderFiles[i]);
+        }
+
+        self._processMaterial(data, shaders, material);
+    };
+    bulkLoader.onFail = function(code)
     {
-        var objParser = new HX.OBJParser();
-        var groupNode = new HX.GroupNode();
+        self._notifyFailure("Error loading shaders: " + code);
+    };
+    bulkLoader.load(shaderFiles);
+};
 
-        var path = HX.FileUtils.extractPath(filename);
 
-        var urlLoader = new HX.URLLoader();
+HX.HMT.prototype._processMaterial = function(data, shaders, material)
+{
+    var passes = data.passes;
 
-        urlLoader.onComplete = function (data)
-        {
-            objParser.parse(data, groupNode, path, onComplete, onFail, groupsAsObjects);
-        };
+    if (passes.geometry !== undefined) this._processPass(material, passes.geometry, HX.MaterialPass.GEOMETRY_PASS, shaders);
+    if (passes.postlight !== undefined) this._processPass(material, passes.postlight, HX.MaterialPass.POST_LIGHT_PASS, shaders);
+    if (passes.post !== undefined) this._processPass(material, passes.post, HX.MaterialPass.POST_PASS, shaders);
 
-        urlLoader.onError = function (code)
-        {
-            console.warn("Failed loading " + filename + ". Error code: " + code);
-            if (onFail) onFail(code);
-        };
+    if (data.transparencyMode !== undefined) material.transparencyMode = HX.HMT._PROPERTY_MAP[data.transparencyMode];
 
-        urlLoader.load(filename);
+    this._applyUniforms(data, material);
 
-        return groupNode;
+    // default pre-defined texture
+    material.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
+};
+
+HX.HMT.prototype._processPass = function(material, passData, passType, shaders)
+{
+    var vertexShader = shaders[this.path + passData.vertexShader];
+    var fragmentShader = shaders[this.path + passData.fragmentShader];
+
+    if (passType === HX.MaterialPass.GEOMETRY_PASS) {
+        if (HX.EXT_DRAW_BUFFERS)
+            this._addPass(vertexShader, fragmentShader, passData, material, passType);
+        else {
+            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_COLOR_PASS, "HX_NO_MRT_GBUFFER_COLOR");
+            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_NORMAL_PASS, "HX_NO_MRT_GBUFFER_NORMALS");
+            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "HX_NO_MRT_GBUFFER_SPECULAR");
+        }
+
+        if (HX.MaterialPass.SHADOW_MAP_PASS !== -1)
+            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.SHADOW_MAP_PASS, "HX_SHADOW_MAP_PASS");
+    }
+    else {
+        this._addPass(vertexShader, fragmentShader, passData, material, passType);
     }
 };
 
+HX.HMT.prototype._addPass = function(vertexShader, fragmentShader, passData, material, passType, geometryPassTypeDef)
+{
+    fragmentShader = HX.GLSLIncludeGeometryPass + fragmentShader;
+
+    if (geometryPassTypeDef) {
+        var defines = "#define " + geometryPassTypeDef + "\n";
+        vertexShader = defines + vertexShader;
+        fragmentShader = defines + fragmentShader;
+    }
+
+    var shader = new HX.Shader(vertexShader, fragmentShader);
+    var pass = new HX.MaterialPass(shader);
+
+    if (passData.elementType)
+        pass.elementType = HX.HMT._PROPERTY_MAP[passData.elementType];
+
+    if (passData.cullMode)
+        pass.cullMode = HX.HMT._PROPERTY_MAP[passData.cullMode];
+
+    if (passData.blend) {
+        var blendState = new HX.BlendState();
+
+        if (blend.hasOwnProperty("source"))
+            blendState.srcFactor = HX.HMT._PROPERTY_MAP[blend.source];
+
+        if (blend.hasOwnProperty("destination"))
+            blendState.srcFactor = HX.HMT._PROPERTY_MAP[blend.destination];
+
+        if (blend.hasOwnProperty("operator"))
+            blendState.operator = HX.HMT._PROPERTY_MAP[blend.operator];
+
+        pass.blendState = blendState;
+    }
+
+    material.setPass(passType, pass);
+};
+
+HX.HMT.prototype._applyUniforms = function(data, material)
+{
+    if (!data.uniforms) return;
+
+    for (var key in data.uniforms) {
+        if (!data.uniforms.hasOwnProperty(key)) continue;
+
+        var value = data.uniforms[key];
+        if (isNaN(value))
+            material.setUniform(key, {
+                x: value[0],
+                y: value[1],
+                z: value[2],
+                w: value[3]
+            }, false);
+        else
+            material.setUniform(key, value, false);
+    }
+};
+
+
+
+HX.HMT._PROPERTY_MAP = null;
+
+HX.HMT._initPropertyMap = function() {
+    HX.HMT._PROPERTY_MAP = HX.HMT._PROPERTY_MAP || {
+        back: HX.GL.BACK,
+        front: HX.CullMode.FRONT,
+        both: HX.CullMode.ALL,
+        none: null,
+        lines: HX.ElementType.LINES,
+        points: HX.ElementType.POINTS,
+        triangles: HX.ElementType.TRIANGLES,
+        one: HX.BlendFactor.ONE,
+        zero: HX.BlendFactor.ZERO,
+        sourceColor: HX.BlendFactor.SOURCE_COLOR,
+        oneMinusSourceColor: HX.BlendFactor.ONE_MINUS_SOURCE_COLOR,
+        sourceAlpha: HX.BlendFactor.SOURCE_ALPHA,
+        oneMinusSourceAlpha: HX.BlendFactor.ONE_MINUS_SOURCE_ALPHA,
+        destinationAlpha: HX.BlendFactor.DST_ALPHA,
+        oneMinusDestinationAlpha: HX.BlendFactor.ONE_MINUS_DESTINATION_ALPHA,
+        destinationColor: HX.BlendFactor.DESTINATION_COLOR,
+        sourceAlphaSaturate: HX.BlendFactor.SOURCE_ALPHA_SATURATE,
+        add: HX.BlendOperation.ADD,
+        subtract: HX.BlendOperation.SUBTRACT,
+        reverseSubtract: HX.BlendOperation.REVERSE_SUBTRACT,
+
+        // transparency modes
+        additive: HX.TransparencyMode.ADDITIVE,
+        alpha: HX.TransparencyMode.ALPHA,
+        opaque: HX.TransparencyMode.OPAQUE
+    };
+};
 /**
- *
+ * The options property supports the following settings:
+ * - groupsAsObjects
  * @constructor
  */
-HX.OBJParser = function()
+HX.OBJ = function()
 {
+    HX.AssetParser.call(this, HX.GroupNode);
     this._objects = [];
     this._vertices = [];
     this._normals = [];
@@ -16172,273 +16427,268 @@ HX.OBJParser = function()
     this._hasNormals = false;
     this._materialLib = null;
     this._defaultMaterial = new HX.PBRMaterial();
-    this._onComplete = null;
     this._target = null;
     this._mtlLibFile = null;
 };
 
-HX.OBJParser.prototype =
+HX.OBJ.prototype = Object.create(HX.AssetParser.prototype);
+
+HX.OBJ.prototype.parse = function(data, target)
 {
-    parse: function(data, target, path, onComplete, onFail, groupsAsObjects)
+    this._groupsAsObjects = this.options.groupsAsObjects === undefined? true : this._groupsAsObjects;
+    this._target = target;
+
+    var lines = data.split("\n");
+    var numLines = lines.length;
+
+    this._pushNewObject("hx_default");
+
+    for (var i = 0; i < numLines; ++i) {
+        var line = lines[i].replace(/^\s+|\s+$/g, "");
+        this._parseLine(line);
+    }
+
+    if (this._mtlLibFile)
+        this._loadMTLLib(this.path + this._mtlLibFile);
+    else
+        this._finish();
+};
+
+HX.OBJ.prototype._finish = function()
+{
+    this._translate();
+    this._notifyComplete();
+};
+
+HX.OBJ.prototype._loadMTLLib = function(filename)
+{
+    var urlLoader = new HX.URLLoader();
+    var mtlParser = new HX.OBJ._MTLParser();
+    var self = this;
+
+    urlLoader.onComplete = function (data)
     {
-        this._groupsAsObjects = groupsAsObjects === undefined? true : this._groupsAsObjects;
-        this._onComplete = onComplete;
-        this._target = target;
+        self._materialLib = mtlParser.parse(data, HX.FileUtils.extractPath(filename));
+        self._finish();
+    };
 
-        var lines = data.split("\n");
-        var numLines = lines.length;
-
-        this._pushNewObject("hx_default");
-
-        for (var i = 0; i < numLines; ++i) {
-            var line = lines[i].replace(/^\s+|\s+$/g, "");
-            this._parseLine(line, path);
-        }
-
-        if (this._mtlLibFile)
-            this._loadMTLLib(path + this._mtlLibFile, onFail);
-        else
-            this._finish();
-    },
-
-    _finish: function()
+    urlLoader.onError = function (code)
     {
-        this._translate();
+        self._notifyFailure("Error loading material file, code = " + code);
+    };
 
-        if (this._onComplete) this._onComplete(this._target);
-    },
+    urlLoader.load(filename);
+};
 
-    _loadMTLLib: function(filename, onFail)
-    {
-        var urlLoader = new HX.URLLoader();
-        var mtlParser = new HX.MTLParser();
-        var self = this;
+HX.OBJ.prototype._parseLine = function(line)
+{
+    // skip line
+    if (line.length === 0 || line.charAt(0) === "#") return;
+    var tokens = line.split(/\s+/);
 
-        urlLoader.onComplete = function (data)
-        {
-            self._materialLib = mtlParser.parse(data, HX.FileUtils.extractPath(filename));
-            self._finish();
-        };
-
-        urlLoader.onError = function (code)
-        {
-            console.warn("Failed loading " + filename + ". Error code: " + code);
-            if (onFail) onFail(code);
-        };
-
-        urlLoader.load(filename);
-    },
-
-    _parseLine: function(line)
-    {
-        // skip line
-        if (line.length === 0 || line.charAt(0) === "#") return;
-        var tokens = line.split(/\s+/);
-
-        switch (tokens[0].toLowerCase()) {
-            case "mtllib":
-                this._mtlLibFile = tokens[1];
-                break;
-            case "usemtl":
-                this._setActiveSubGroup(tokens[1]);
-                break;
-            case "v":
-                this._vertices.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
-                break;
-            case "vt":
-                this._uvs.push(parseFloat(tokens[1]), parseFloat(tokens[2]));
-                break;
-            case "vn":
-                this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
-                break;
-            case "o":
+    switch (tokens[0].toLowerCase()) {
+        case "mtllib":
+            this._mtlLibFile = tokens[1];
+            break;
+        case "usemtl":
+            this._setActiveSubGroup(tokens[1]);
+            break;
+        case "v":
+            this._vertices.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+            break;
+        case "vt":
+            this._uvs.push(parseFloat(tokens[1]), parseFloat(tokens[2]));
+            break;
+        case "vn":
+            this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+            break;
+        case "o":
+            this._pushNewObject(tokens[1]);
+            break;
+        case "g":
+            if (this._groupsAsObjects)
                 this._pushNewObject(tokens[1]);
-                break;
-            case "g":
-                if (this._groupsAsObjects)
-                    this._pushNewObject(tokens[1]);
-                else
-                    this._pushNewGroup(tokens[1]);
+            else
+                this._pushNewGroup(tokens[1]);
 
-                break;
-            case "f":
-                this._parseFaceData(tokens);
-                break;
-            default:
-                // ignore following tags:
-                // s
-                //console.log("OBJ tag ignored or unsupported: " + tokens[0]);
-        }
-    },
-
-    _pushNewObject: function(name)
-    {
-        this._activeObject = new HX.OBJParser.ObjectData();
-        this._objects.push(this._activeObject);
-        this._pushNewGroup("hx_default");
-    },
-
-    _pushNewGroup: function(name)
-    {
-        this._activeGroup = new HX.OBJParser.GroupData();
-        this._activeGroup.name = name || "Group" + this._activeGroup.length;
-
-        this._activeObject.groups.push(this._activeGroup);
-        this._setActiveSubGroup("hx_default");
-    },
-
-    _setActiveSubGroup: function(name)
-    {
-        this._activeGroup.subgroups[name] = this._activeGroup.subgroups[name] || new HX.OBJParser.SubGroupData();
-        this._activeSubGroup = this._activeGroup.subgroups[name];
-    },
-
-    _parseFaceData: function(tokens)
-    {
-        var face = new HX.OBJParser.FaceData();
-        var numTokens = tokens.length;
-
-        for (var i = 1; i < numTokens; ++i) {
-            var faceVertexData = new HX.OBJParser.FaceVertexData();
-            face.vertices.push(faceVertexData);
-
-            var indices = tokens[i].split("/");
-            var index = (indices[0] - 1) * 3;
-            
-            faceVertexData.posX = this._vertices[index];
-            faceVertexData.posY = this._vertices[index + 1];
-            faceVertexData.posZ = this._vertices[index + 2];
-
-            if(indices.length > 1) {
-                index = (indices[1] - 1) * 2;
-
-                faceVertexData.uvU = this._uvs[index];
-                faceVertexData.uvV = this._uvs[index + 1];
-
-                if (indices.length > 2) {
-                    index = (indices[2] - 1) * 3;
-                    this._hasNormals = true;
-                    faceVertexData.normalX = this._normals[index];
-                    faceVertexData.normalY = this._normals[index + 1];
-                    faceVertexData.normalZ = this._normals[index + 2];
-                }
-            }
-        }
-
-        this._activeSubGroup.faces.push(face);
-        this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
-    },
-
-    _translate: function()
-    {
-        var numObjects = this._objects.length;
-        for (var i = 0; i < numObjects; ++i) {
-            this._translateObject(this._objects[i]);
-        }
-    },
-
-    _translateObject: function(object)
-    {
-        var numGroups = object.groups.length;
-        if (numGroups === 0) return;
-        var modelData = new HX.ModelData();
-        var materials = [];
-        var model = new HX.Model();
-
-        for (var i = 0; i < numGroups; ++i) {
-            var group = object.groups[i];
-
-            for (var key in group.subgroups)
-            {
-                if (group.subgroups.hasOwnProperty(key)) {
-                    var subgroup = group.subgroups[key];
-                    if (subgroup.numIndices === 0) continue;
-                    modelData.addMeshData(this._translateMeshData(subgroup));
-
-                    var material = this._materialLib? this._materialLib[key] : null;
-                    material = material || this._defaultMaterial;
-                    materials.push(material);
-                }
-            }
-        }
-
-        model._setModelData(modelData);
-
-        var modelInstance = new HX.ModelInstance(model, materials);
-        modelInstance.name = object.name;
-        this._target.attach(modelInstance);
-    },
-
-    _translateMeshData: function(group)
-    {
-        var meshData = HX.MeshData.createDefaultEmpty();
-        var realIndices = [];
-        var indices = new Array(group.numIndices);
-        var numVertices = 0;
-        var currentIndex = 0;
-
-        var faces = group.faces;
-        var numFaces = faces.length;
-        for (var i = 0; i < numFaces; ++i) {
-            var face = faces[i];
-
-            var faceVerts = face.vertices;
-            var numVerts = faceVerts.length;
-
-            for (var j = 0; j < numVerts; ++j) {
-                var vert = faceVerts[j];
-                var hash = vert.getHash();
-                if (!realIndices.hasOwnProperty(hash))
-                    realIndices[hash] = {index: numVertices++, vertex: vert};
-            }
-
-            indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
-            indices[currentIndex+1] = realIndices[faceVerts[1].getHash()].index;
-            indices[currentIndex+2] = realIndices[faceVerts[2].getHash()].index;
-            currentIndex += 3;
-
-            if (numVerts === 4) {
-                indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
-                indices[currentIndex+1] = realIndices[faceVerts[2].getHash()].index;
-                indices[currentIndex+2] = realIndices[faceVerts[3].getHash()].index;
-                currentIndex += 3;
-            }
-        }
-
-        var vertices = new Array(numVertices * HX.MeshData.DEFAULT_VERTEX_SIZE);
-
-        for (var hash in realIndices) {
-            if (!realIndices.hasOwnProperty(hash)) continue;
-            var data = realIndices[hash];
-            var vertex = data.vertex;
-            var index = data.index * HX.MeshData.DEFAULT_VERTEX_SIZE;
-
-            vertices[index] = vertex.posX;
-            vertices[index+1] = vertex.posY;
-            vertices[index+2] = vertex.posZ;
-            vertices[index+3] = vertex.normalX;
-            vertices[index+4] = vertex.normalY;
-            vertices[index+5] = vertex.normalZ;
-            vertices[index+6] = 0;
-            vertices[index+7] = 0;
-            vertices[index+8] = 0;
-            vertices[index+9] = 1;
-            vertices[index+10] = vertex.uvU;
-            vertices[index+11] = vertex.uvV;
-        }
-
-        meshData.setVertexData(vertices);
-        meshData.setIndexData(indices);
-
-        var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
-        if (!this._hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
-        var generator = new HX.NormalTangentGenerator();
-        generator.generate(meshData, mode, true);
-        return meshData;
+            break;
+        case "f":
+            this._parseFaceData(tokens);
+            break;
+        default:
+            // ignore following tags:
+            // s
+            //console.log("OBJ tag ignored or unsupported: " + tokens[0]);
     }
 };
 
-HX.OBJParser.FaceVertexData = function()
+HX.OBJ.prototype._pushNewObject = function(name)
+{
+    this._activeObject = new HX.OBJ._ObjectData();
+    this._objects.push(this._activeObject);
+    this._pushNewGroup("hx_default");
+};
+
+HX.OBJ.prototype._pushNewGroup = function(name)
+{
+    this._activeGroup = new HX.OBJ._GroupData();
+    this._activeGroup.name = name || "Group" + this._activeGroup.length;
+
+    this._activeObject.groups.push(this._activeGroup);
+    this._setActiveSubGroup("hx_default");
+};
+
+HX.OBJ.prototype._setActiveSubGroup = function(name)
+{
+    this._activeGroup.subgroups[name] = this._activeGroup.subgroups[name] || new HX.OBJ._SubGroupData();
+    this._activeSubGroup = this._activeGroup.subgroups[name];
+};
+
+HX.OBJ.prototype._parseFaceData = function(tokens)
+{
+    var face = new HX.OBJ._FaceData();
+    var numTokens = tokens.length;
+
+    for (var i = 1; i < numTokens; ++i) {
+        var faceVertexData = new HX.OBJ._FaceVertexData();
+        face.vertices.push(faceVertexData);
+
+        var indices = tokens[i].split("/");
+        var index = (indices[0] - 1) * 3;
+
+        faceVertexData.posX = this._vertices[index];
+        faceVertexData.posY = this._vertices[index + 1];
+        faceVertexData.posZ = this._vertices[index + 2];
+
+        if(indices.length > 1) {
+            index = (indices[1] - 1) * 2;
+
+            faceVertexData.uvU = this._uvs[index];
+            faceVertexData.uvV = this._uvs[index + 1];
+
+            if (indices.length > 2) {
+                index = (indices[2] - 1) * 3;
+                this._hasNormals = true;
+                faceVertexData.normalX = this._normals[index];
+                faceVertexData.normalY = this._normals[index + 1];
+                faceVertexData.normalZ = this._normals[index + 2];
+            }
+        }
+    }
+
+    this._activeSubGroup.faces.push(face);
+    this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
+};
+
+HX.OBJ.prototype._translate = function()
+{
+    var numObjects = this._objects.length;
+    for (var i = 0; i < numObjects; ++i) {
+        this._translateObject(this._objects[i]);
+    }
+};
+
+HX.OBJ.prototype._translateObject = function(object)
+{
+    var numGroups = object.groups.length;
+    if (numGroups === 0) return;
+    var modelData = new HX.ModelData();
+    var materials = [];
+    var model = new HX.Model();
+
+    for (var i = 0; i < numGroups; ++i) {
+        var group = object.groups[i];
+
+        for (var key in group.subgroups)
+        {
+            if (group.subgroups.hasOwnProperty(key)) {
+                var subgroup = group.subgroups[key];
+                if (subgroup.numIndices === 0) continue;
+                modelData.addMeshData(this._translateMeshData(subgroup));
+
+                var material = this._materialLib? this._materialLib[key] : null;
+                material = material || this._defaultMaterial;
+                materials.push(material);
+            }
+        }
+    }
+
+    model._setModelData(modelData);
+
+    var modelInstance = new HX.ModelInstance(model, materials);
+    modelInstance.name = object.name;
+    this._target.attach(modelInstance);
+};
+
+HX.OBJ.prototype._translateMeshData = function(group)
+{
+    var meshData = HX.MeshData.createDefaultEmpty();
+    var realIndices = [];
+    var indices = new Array(group.numIndices);
+    var numVertices = 0;
+    var currentIndex = 0;
+
+    var faces = group.faces;
+    var numFaces = faces.length;
+    for (var i = 0; i < numFaces; ++i) {
+        var face = faces[i];
+
+        var faceVerts = face.vertices;
+        var numVerts = faceVerts.length;
+
+        for (var j = 0; j < numVerts; ++j) {
+            var vert = faceVerts[j];
+            var hash = vert.getHash();
+            if (!realIndices.hasOwnProperty(hash))
+                realIndices[hash] = {index: numVertices++, vertex: vert};
+        }
+
+        indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
+        indices[currentIndex+1] = realIndices[faceVerts[1].getHash()].index;
+        indices[currentIndex+2] = realIndices[faceVerts[2].getHash()].index;
+        currentIndex += 3;
+
+        if (numVerts === 4) {
+            indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
+            indices[currentIndex+1] = realIndices[faceVerts[2].getHash()].index;
+            indices[currentIndex+2] = realIndices[faceVerts[3].getHash()].index;
+            currentIndex += 3;
+        }
+    }
+
+    var vertices = new Array(numVertices * HX.MeshData.DEFAULT_VERTEX_SIZE);
+
+    for (var hash in realIndices) {
+        if (!realIndices.hasOwnProperty(hash)) continue;
+        var data = realIndices[hash];
+        var vertex = data.vertex;
+        var index = data.index * HX.MeshData.DEFAULT_VERTEX_SIZE;
+
+        vertices[index] = vertex.posX;
+        vertices[index+1] = vertex.posY;
+        vertices[index+2] = vertex.posZ;
+        vertices[index+3] = vertex.normalX;
+        vertices[index+4] = vertex.normalY;
+        vertices[index+5] = vertex.normalZ;
+        vertices[index+6] = 0;
+        vertices[index+7] = 0;
+        vertices[index+8] = 0;
+        vertices[index+9] = 1;
+        vertices[index+10] = vertex.uvU;
+        vertices[index+11] = vertex.uvV;
+    }
+
+    meshData.setVertexData(vertices);
+    meshData.setIndexData(indices);
+
+    var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
+    if (!this._hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
+    var generator = new HX.NormalTangentGenerator();
+    generator.generate(meshData, mode, true);
+    return meshData;
+};
+
+HX.OBJ._FaceVertexData = function()
 {
     this.posX = 0;
     this.posY = 0;
@@ -16451,7 +16701,7 @@ HX.OBJParser.FaceVertexData = function()
     this._hash = "";
 };
 
-HX.OBJParser.FaceVertexData.prototype =
+HX.OBJ._FaceVertexData.prototype =
 {
     // instead of actually using the values, we should use the indices as keys
     getHash: function()
@@ -16463,25 +16713,25 @@ HX.OBJParser.FaceVertexData.prototype =
     }
 };
 
-HX.OBJParser.FaceData = function()
+HX.OBJ._FaceData = function()
 {
     this.vertices = []; // <FaceVertexData>
 };
 
-HX.OBJParser.SubGroupData = function()
+HX.OBJ._SubGroupData = function()
 {
     this.numIndices = 0;
     this.faces = [];    // <FaceData>
 };
 
-HX.OBJParser.GroupData = function()
+HX.OBJ._GroupData = function()
 {
     this.subgroups = [];
     this.name = "";    // <FaceData>
     this._activeMaterial = null;
 };
 
-HX.OBJParser.ObjectData = function()
+HX.OBJ._ObjectData = function()
 {
     this.name = "";
     this.groups = [];
@@ -16492,13 +16742,13 @@ HX.OBJParser.ObjectData = function()
  *
  * @constructor
  */
-HX.MTLParser = function()
+HX.OBJ._MTLParser = function()
 {
     this._materials = [];
     this._textures = [];
 };
 
-HX.MTLParser.prototype =
+HX.OBJ._MTLParser.prototype =
 {
     parse: function(data, path)
     {
@@ -16596,7 +16846,7 @@ HX.XMLMaterialLoader =
     _parseXMLTo: function(xml, material)
     {
         HX.XMLMaterialLoader._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_PASS, "geometry", material);
-        HX.XMLMaterialLoader._parsePassFromXML(xml, HX.MaterialPass.POST_LIGHT_PASS, "preEffect", material);
+        HX.XMLMaterialLoader._parsePassFromXML(xml, HX.MaterialPass.POST_LIGHT_PASS, "postlight", material);
         HX.XMLMaterialLoader._parsePassFromXML(xml, HX.MaterialPass.POST_PASS, "post", material);
 
         material.transparencyMode = HX.XMLMaterialLoader._translateTransparencyMode(xml.documentElement.getAttribute("transparencyMode"));
@@ -16672,7 +16922,7 @@ HX.XMLMaterialLoader =
         return e.childNodes.length === 0 ? "" : e.childNodes[0].nodeValue;
     },
 
-    _addParsedPass: function (vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType, geometryPassTypeDef)
+    _addPass: function (vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType, geometryPassTypeDef)
     {
         fragmentShader = HX.GLSLIncludeGeometryPass + fragmentShader;
 
@@ -16726,22 +16976,21 @@ HX.XMLMaterialLoader =
 
         if (passType === HX.MaterialPass.GEOMETRY_PASS) {
             if (HX.EXT_DRAW_BUFFERS)
-                this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
+                this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
             else {
-                this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_COLOR_PASS, "HX_NO_MRT_GBUFFER_COLOR");
-                this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_NORMAL_PASS, "HX_NO_MRT_GBUFFER_NORMALS");
-                this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "HX_NO_MRT_GBUFFER_SPECULAR");
+                this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_COLOR_PASS, "HX_NO_MRT_GBUFFER_COLOR");
+                this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_NORMAL_PASS, "HX_NO_MRT_GBUFFER_NORMALS");
+                this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "HX_NO_MRT_GBUFFER_SPECULAR");
             }
 
             if (HX.MaterialPass.SHADOW_MAP_PASS !== -1)
-                this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.SHADOW_MAP_PASS, "HX_SHADOW_MAP_PASS");
+                this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.SHADOW_MAP_PASS, "HX_SHADOW_MAP_PASS");
         }
         else {
-            this._addParsedPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
+            this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
         }
     }
 };
-
 /**
  *
  * @param numFrames The amount of frames to average

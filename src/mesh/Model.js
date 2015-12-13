@@ -147,6 +147,7 @@ HX.Mesh.prototype = {
 HX.ModelData = function ()
 {
     this._meshDataList = [];
+    this._joints = [];
 };
 
 HX.ModelData.prototype = {
@@ -156,13 +157,25 @@ HX.ModelData.prototype = {
     {
         return this._meshDataList.length;
     },
+
     getMeshData: function (index)
     {
         return this._meshDataList[index];
     },
+
     addMeshData: function (meshData)
     {
         this._meshDataList.push(meshData);
+    },
+
+    addJoint: function(joint)
+    {
+        this._joints.push(joint);
+    },
+
+    get hasSkeleton()
+    {
+        return this._joints.length > 0;
     }
 };
 
@@ -175,6 +188,7 @@ HX.Model = function (modelData)
 {
     this._name = null;
     this._localBounds = new HX.BoundingAABB();
+    this._skeleton = null;
     this.onChange = new HX.Signal();
 
     if (modelData) {
@@ -218,6 +232,17 @@ HX.Model.prototype = {
     get localBounds()
     {
         return this._localBounds;
+    },
+
+
+    get skeleton()
+    {
+        return this._skeleton;
+    },
+
+    set skeleton(value)
+    {
+        this._skeleton = value;
     },
 
     _setModelData: function (modelData)

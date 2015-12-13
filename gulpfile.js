@@ -20,10 +20,11 @@ var sourceFiles = [
     "src/io/URLLoader.js",
     "src/io/BulkURLLoader.js",
 
-    // TODO: find better way for dependency management, but don't want something like exports
+    // TODO: find better way for dependency management, but don't want horrible module management
     // base classes first
     "src/shader/Shader.js",
     "src/material/Material.js",
+    "src/io/AssetLoader.js",
     "src/scene/Scene.js",
     "src/entity/*.js",
     "src/light/Light.js",
@@ -38,6 +39,7 @@ var sourceFiles = [
     "src/texture/*.js",
     "src/render/*.js",
     "src/effect/*.js",
+    "src/animation/*.js",
     "src/io/*.js",
     "src/utils/*.js"
 ];

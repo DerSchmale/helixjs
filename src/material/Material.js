@@ -43,10 +43,10 @@ HX.MaterialPass = function (shader)
 
 HX.MaterialPass.GEOMETRY_PASS = 0;
 
-// used for post-lighting
+// used for post-lighting, useful for some post-effects that don't need access to the backbuffer
 HX.MaterialPass.POST_LIGHT_PASS = 1;
 
-// used for post-effects with composite available
+// used for post-effects with lighting accumulation available
 HX.MaterialPass.POST_PASS = 2;
 
 // the individual pass type are not taken into account, they will be dealt with specially
@@ -121,6 +121,11 @@ HX.MaterialPass.prototype = {
         for (var i = 0; i < len; ++i) {
             var slot = this._textureSlots[i];
             var texture = slot.texture;
+
+            if (!texture) {
+                HX.Texture2D.DEFAULT.bind(i);
+                continue;
+            }
 
             if (texture.isReady())
                 texture.bind(i);

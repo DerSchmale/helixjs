@@ -17,11 +17,11 @@ HX.AssetLoader.prototype =
     {
         function fail(code) {
             console.warn("Failed loading " + filename + ". Error code: " + code);
-            if (onFail) {
-                if (onFail instanceof HX.Signal)
-                    onFail.dispatch(code);
+            if (this.onFail) {
+                if (this.onFail instanceof HX.Signal)
+                    this.onFail.dispatch(code);
                 else
-                    onFail(code);
+                    this.onFail(code);
             }
         }
 

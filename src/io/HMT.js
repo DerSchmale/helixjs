@@ -165,7 +165,7 @@ HX.HMT.prototype._loadTextures = function(data, material)
     {
         for (var key in data.textures) {
             if (data.textures.hasOwnProperty(key)) {
-                material.setTexture(key, bulkLoader.getAsset(this._correctURL(data.textures[key])));
+                material.setTexture(key, bulkLoader.getAsset(self._correctURL(data.textures[key])));
             }
         }
         self._notifyComplete(material);

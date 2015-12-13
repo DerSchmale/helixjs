@@ -24,8 +24,8 @@ HX.HMT.prototype._gatherShaderFiles = function(data)
         if (passes.hasOwnProperty(key)) {
             var vertex = passes[key].vertexShader;
             var fragment = passes[key].fragmentShader;
-            if (files.indexOf(vertex) < 0) files.push(this.path + vertex);
-            if (files.indexOf(fragment) < 0) files.push(this.path + fragment);
+            if (files.indexOf(vertex) < 0) files.push(this._correctURL(vertex));
+            if (files.indexOf(fragment) < 0) files.push(this._correctURL(fragment));
         }
     }
 
@@ -73,8 +73,8 @@ HX.HMT.prototype._processMaterial = function(data, shaders, material)
 
 HX.HMT.prototype._processPass = function(material, passData, passType, shaders)
 {
-    var vertexShader = shaders[this.path + passData.vertexShader];
-    var fragmentShader = shaders[this.path + passData.fragmentShader];
+    var vertexShader = shaders[this._correctURL(passData.vertexShader)];
+    var fragmentShader = shaders[this._correctURL(passData.fragmentShader)];
 
     if (passType === HX.MaterialPass.GEOMETRY_PASS) {
         if (HX.EXT_DRAW_BUFFERS)
@@ -156,7 +156,7 @@ HX.HMT.prototype._loadTextures = function(data, material)
 
     for (var key in data.textures) {
         if (data.textures.hasOwnProperty(key))
-            files.push(this.path + data.textures[key]);
+            files.push(this._correctURL(data.textures[key]));
     }
 
     var bulkLoader = new HX.BulkAssetLoader();
@@ -165,7 +165,7 @@ HX.HMT.prototype._loadTextures = function(data, material)
     {
         for (var key in data.textures) {
             if (data.textures.hasOwnProperty(key)) {
-                material.setTexture(key, bulkLoader.getAsset(self.path + data.textures[key]));
+                material.setTexture(key, bulkLoader.getAsset(this._correctURL(data.textures[key])));
             }
         }
         self._notifyComplete(material);

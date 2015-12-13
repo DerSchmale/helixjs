@@ -356,8 +356,6 @@ HX.MTL.prototype._parseLine = function(line, target)
     if (line.length === 0 || line.charAt(0) === "#") return;
     var tokens = line.split(/\s+/);
 
-    console.log(line);
-
     switch (tokens[0].toLowerCase()) {
         case "newmtl":
             this._activeMaterial = new HX.PBRMaterial();

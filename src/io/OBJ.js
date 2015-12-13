@@ -43,7 +43,7 @@ HX.OBJ.prototype.parse = function(data, target)
 HX.OBJ.prototype._finish = function()
 {
     this._translate();
-    this._notifyComplete();
+    this._notifyComplete(this._target);
 };
 
 HX.OBJ.prototype._loadMTLLib = function(filename)
@@ -389,7 +389,7 @@ HX.OBJ._MTLParser.prototype =
 
     _getTexture: function(url)
     {
-        this._textures[url] = this._textures[url] || HX.Texture2DLoader.load(url);
+        this._textures[url] = this._textures[url] || new HX.AssetLoader(HX.JPG).load(url);
         return this._textures[url];
     }
 };

@@ -1,7 +1,6 @@
 HX.BulkURLLoader = function ()
 {
     this._params = undefined;
-    this._data = null;
     this._timeout = 5000;
     this._method = 'GET';
     this._type = HX.URLLoader.DATA_TEXT;

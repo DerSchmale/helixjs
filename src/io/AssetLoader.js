@@ -8,7 +8,6 @@ HX.AssetLoader = function(ParserType)
     this._parserType = ParserType;
 };
 
-
 HX.AssetLoader.prototype =
 {
     // if we need to remap filenames, filemapping might be useful
@@ -16,7 +15,16 @@ HX.AssetLoader.prototype =
     // { "filename.tga": "filename.jpg", ... }
     load: function (filename)
     {
-        var urlLoader = new HX.URLLoader();
+        function fail(code) {
+            console.warn("Failed loading " + filename + ". Error code: " + code);
+            if (onFail) {
+                if (onFail instanceof HX.Signal)
+                    onFail.dispatch(code);
+                else
+                    onFail(code);
+            }
+        }
+
         var parser = new this._parserType();
         var target = parser.createContainer();
         parser.onComplete = this.onComplete;
@@ -25,25 +33,34 @@ HX.AssetLoader.prototype =
         parser.options = this.options;
         parser.path = HX.FileUtils.extractPath(filename);
 
-        urlLoader.type = parser.dataType;
+        if (parser.dataType === HX.AssetParser.IMAGE) {
+            var image = new Image();
+            image.onload = function() {
+                parser.parse(image, target);
+            };
 
-        urlLoader.onComplete = function (data)
-        {
-            parser.parse(data, target);
-        };
+            image.onError = function() {
+                console.warn("Failed loading texture '" + url + "'");
+                if (onError) onError();
+            };
+            image.src = filename;
+        }
+        else {
+            var urlLoader = new HX.URLLoader();
+            urlLoader.type = parser.dataType;
 
-        urlLoader.onError = function (code)
-        {
-            console.warn("Failed loading " + filename + ". Error code: " + code);
-            if (onFail) {
-                if (onFail instanceof HX.Signal)
-                    onFail.dispatch(code);
-                else
-                    onFail(code);
-            }
-        };
+            urlLoader.onComplete = function (data)
+            {
+                parser.parse(data, target);
+            };
 
-        urlLoader.load(filename);
+            urlLoader.onError = function (code)
+            {
+                fail(code);
+            };
+
+            urlLoader.load(filename);
+        }
 
         return target;
     }
@@ -66,14 +83,14 @@ HX.AssetParser.prototype =
     get dataType() { return this._dataType; },
     createContainer: function() { return new this._containerType(); },
 
-    _notifyComplete: function()
+    _notifyComplete: function(asset)
     {
         if (!this.onComplete) return;
 
         if (this.onComplete instanceof HX.Signal)
-            this.onComplete.dispatch();
+            this.onComplete.dispatch(asset);
         else
-            this.onComplete();
+            this.onComplete(asset);
     },
 
     _notifyFailure: function(message)
@@ -89,3 +106,7 @@ HX.AssetParser.prototype =
             this.onFail(message);
     }
 };
+
+HX.AssetParser.DATA_TEXT = HX.URLLoader.DATA_TEXT;
+HX.AssetParser.DATA_BINARY = HX.URLLoader.DATA_BINARY;
+HX.AssetParser.IMAGE = 2;

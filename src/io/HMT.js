@@ -45,6 +45,7 @@ HX.HMT.prototype._loadShaders = function(data, material)
         }
 
         self._processMaterial(data, shaders, material);
+        self._loadTextures(data, material);
     };
     bulkLoader.onFail = function(code)
     {
@@ -149,6 +150,33 @@ HX.HMT.prototype._applyUniforms = function(data, material)
     }
 };
 
+HX.HMT.prototype._loadTextures = function(data, material)
+{
+    var files = [];
+
+    for (var key in data.textures) {
+        if (data.textures.hasOwnProperty(key))
+            files.push(this.path + data.textures[key]);
+    }
+
+    var bulkLoader = new HX.BulkAssetLoader();
+    var self = this;
+    bulkLoader.onComplete = function()
+    {
+        for (var key in data.textures) {
+            if (data.textures.hasOwnProperty(key)) {
+                material.setTexture(key, bulkLoader.getAsset(self.path + data.textures[key]));
+            }
+        }
+        self._notifyComplete(material);
+    };
+    bulkLoader.onFail = function(message)
+    {
+        self._notifyFailure(message);
+    };
+
+    bulkLoader.load(files, HX.JPG);
+};
 
 
 HX.HMT._PROPERTY_MAP = null;

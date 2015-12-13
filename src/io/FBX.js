@@ -49,7 +49,7 @@ HX.FBX.prototype.parse = function(data, target)
     }
 
     // TODO: only notify complete when textures have loaded
-    this._notifyComplete();
+    this._notifyComplete(this._target);
 };
 
 HX.FBX.prototype._parseChildren = function(parent, lvl)
@@ -840,7 +840,8 @@ HX.FBX.prototype._processVideo = function(objDef, UID)
         if (this.fileMap && this.fileMap.hasOwnProperty(filename))
             filename = this.fileMap[filename];
 
-        obj = HX.Texture2DLoader.load(this.path + filename);
+        var textureLoader = new HX.AssetLoader(HX.JPG);
+        obj = textureLoader.load(this.path + filename);
     }
 
     return obj;

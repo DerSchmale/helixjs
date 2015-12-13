@@ -7441,7 +7441,6 @@ HX.URLLoader.prototype =
 HX.BulkURLLoader = function ()
 {
     this._params = undefined;
-    this._data = null;
     this._timeout = 5000;
     this._method = 'GET';
     this._type = HX.URLLoader.DATA_TEXT;
@@ -8150,7 +8149,6 @@ HX.AssetLoader = function(ParserType)
     this._parserType = ParserType;
 };
 
-
 HX.AssetLoader.prototype =
 {
     // if we need to remap filenames, filemapping might be useful
@@ -8158,7 +8156,16 @@ HX.AssetLoader.prototype =
     // { "filename.tga": "filename.jpg", ... }
     load: function (filename)
     {
-        var urlLoader = new HX.URLLoader();
+        function fail(code) {
+            console.warn("Failed loading " + filename + ". Error code: " + code);
+            if (onFail) {
+                if (onFail instanceof HX.Signal)
+                    onFail.dispatch(code);
+                else
+                    onFail(code);
+            }
+        }
+
         var parser = new this._parserType();
         var target = parser.createContainer();
         parser.onComplete = this.onComplete;
@@ -8167,25 +8174,34 @@ HX.AssetLoader.prototype =
         parser.options = this.options;
         parser.path = HX.FileUtils.extractPath(filename);
 
-        urlLoader.type = parser.dataType;
+        if (parser.dataType === HX.AssetParser.IMAGE) {
+            var image = new Image();
+            image.onload = function() {
+                parser.parse(image, target);
+            };
 
-        urlLoader.onComplete = function (data)
-        {
-            parser.parse(data, target);
-        };
+            image.onError = function() {
+                console.warn("Failed loading texture '" + url + "'");
+                if (onError) onError();
+            };
+            image.src = filename;
+        }
+        else {
+            var urlLoader = new HX.URLLoader();
+            urlLoader.type = parser.dataType;
 
-        urlLoader.onError = function (code)
-        {
-            console.warn("Failed loading " + filename + ". Error code: " + code);
-            if (onFail) {
-                if (onFail instanceof HX.Signal)
-                    onFail.dispatch(code);
-                else
-                    onFail(code);
-            }
-        };
+            urlLoader.onComplete = function (data)
+            {
+                parser.parse(data, target);
+            };
 
-        urlLoader.load(filename);
+            urlLoader.onError = function (code)
+            {
+                fail(code);
+            };
+
+            urlLoader.load(filename);
+        }
 
         return target;
     }
@@ -8208,14 +8224,14 @@ HX.AssetParser.prototype =
     get dataType() { return this._dataType; },
     createContainer: function() { return new this._containerType(); },
 
-    _notifyComplete: function()
+    _notifyComplete: function(asset)
     {
         if (!this.onComplete) return;
 
         if (this.onComplete instanceof HX.Signal)
-            this.onComplete.dispatch();
+            this.onComplete.dispatch(asset);
         else
-            this.onComplete();
+            this.onComplete(asset);
     },
 
     _notifyFailure: function(message)
@@ -8231,6 +8247,10 @@ HX.AssetParser.prototype =
             this.onFail(message);
     }
 };
+
+HX.AssetParser.DATA_TEXT = HX.URLLoader.DATA_TEXT;
+HX.AssetParser.DATA_BINARY = HX.URLLoader.DATA_BINARY;
+HX.AssetParser.IMAGE = 2;
 // basic version is non-hierarchical, for use with lights etc
 /**
  *
@@ -9828,188 +9848,6 @@ HX.SkyboxMaterial = function(texture)
 };
 
 HX.SkyboxMaterial.prototype = Object.create(HX.Material.prototype);
-HX.Texture2DLoader =
-{
-    /**
-     * Loads default JPG or PNG images to a texture
-     * @param url The url of the texture to load
-     * @param generateMipmaps [optional] Whether or not to generate mipmaps. Defaults to true.
-     * @param onComplete [optional] A callback called when the texture is loaded.
-     * @param onError [optional] A callback when the texture loading failed.
-     * @returns {HX.Texture2D} The texture, while it's still loading.
-     */
-    load: function(url, generateMipmaps, onComplete, onError)
-    {
-        var texture = new HX.Texture2D();
-
-        generateMipmaps = generateMipmaps === undefined? true : generateMipmaps;
-        var image = new Image();
-
-        image.onload = function() {
-            texture.uploadImage(image, image.naturalWidth, image.naturalHeight, generateMipmaps);
-            if (onComplete) onComplete();
-        };
-
-        image.onError = function() {
-            console.warn("Failed loading texture '" + url + "'");
-            if (onError) onError();
-        };
-
-        image.src = url;
-
-        return texture;
-    }
-};
-
-HX.TextureCubeLoader =
-{
-    /**
-     * Loads a cubemap from JPG or PNG images
-     * @param urls The 6 urls for each cubemap face. [ +x, -x, +y, -y, +z, -z ]
-     * @param generateMipmaps [optional] Whether or not to generate mipmaps. Defaults to true.
-     * @param onComplete [optional] A callback called when the texture is loaded.
-     * @param onError [optional] A callback when the texture loading failed.
-     * @returns {HX.TextureCube} The texture, while it's still loading.
-     */
-    load: function(urls, generateMipmaps, onComplete, onError)
-    {
-        var texture = new HX.TextureCube();
-
-        generateMipmaps = generateMipmaps === undefined? true : generateMipmaps;
-        var images = [];
-
-        for (var i = 0; i < 6; ++i) {
-            var image = new Image();
-            image.nextID = i + 1;
-            if (i < 5) {
-                image.onload = function()
-                {
-                    images[this.nextID].src = urls[this.nextID];
-                }
-            }
-            // last image to load
-            else {
-                image.onload = function() {
-                    texture.uploadImages(images, generateMipmaps);
-                    if (onComplete) onComplete();
-                };
-            }
-
-            image.onError = function() {
-                console.warn("Failed loading texture '" + url + "'");
-                if (onError) onError();
-            };
-
-            images[i] = image;
-        }
-
-        images[0].src = urls[0];
-
-        return texture;
-    },
-
-    /**
-     * Loads an entire mip-chain from files rather than generating it using generateMipmap. This is
-     * useful for precomputed specular mip levels. The files are expected to be in a folder structure and with filenames as
-     * such:
-     * <path>/<mip-level>/posX.<extension>
-     * <path>/<mip-level>/negX.<extension>
-     * <path>/<mip-level>/posY.<extension>
-     * <path>/<mip-level>/negY.<extension>
-     * <path>/<mip-level>/posZ.<extension>
-     * <path>/<mip-level>/negZ.<extension>
-     * @param path The path to the mip-level subdirectories
-     * @param extension The extension of the filenames
-     * @param numMips The number of mips to be loaded
-     * @param onComplete
-     * @param onError
-     * @constructor
-     */
-    loadMipChain: function(path, extension, onComplete, onError)
-    {
-        var texture = new HX.TextureCube();
-
-        var images = [];
-
-        var numMips;
-        var urls = [];
-        var dirToken = path.charAt(-1) === "/"? "" : "/";
-        path = path + dirToken;
-
-        var firstImage = new Image();
-        var firstURL = path + "0/posX." + extension;
-
-        firstImage.onload = function()
-        {
-            if (firstImage.naturalWidth != firstImage.naturalHeight || !HX.TextureUtils.isPowerOfTwo(firstImage.naturalWidth)) {
-                console.warn("Failed loading mipchain at '" + path + "': incorrect dimensions");
-                onError();
-            }
-            else {
-                numMips = HX.log2(firstImage.naturalWidth) + 1;
-                loadTheRest();
-                images[0] = firstImage;
-            }
-        };
-
-        firstImage.onerror = function()
-        {
-            console.warn("Failed loading texture '" + firstURL + "'");
-            if (onError) onError();
-        };
-
-        firstImage.src = firstURL;
-
-        function loadTheRest()
-        {
-            var len = numMips * 6;
-            for (var i = 0; i < numMips; ++i) {
-                var dir = path + i + "/";
-                urls.push(dir + "posX." + extension);
-                urls.push(dir + "negX." + extension);
-                urls.push(dir + "posY." + extension);
-                urls.push(dir + "negY." + extension);
-                urls.push(dir + "posZ." + extension);
-                urls.push(dir + "negZ." + extension);
-            }
-
-            for (var i = 1; i < len; ++i) {
-                var image = new Image();
-                image.nextID = i + 1;
-                if (i < len - 1) {
-                    image.onload = function ()
-                    {
-                        images[this.nextID].src = urls[this.nextID];
-                    }
-                }
-                // last image to load
-                else {
-                    image.onload = function ()
-                    {
-                        for (var m = 0; m < numMips; ++m)
-                            texture.uploadImagesToMipLevel(images.slice(m * 6, m * 6 + 6), m);
-
-                        texture._isReady = true;
-                        if (onComplete) onComplete();
-                    };
-                }
-
-                image.onError = function ()
-                {
-                    console.warn("Failed loading texture '" + url + "'");
-                    if (onError) onError();
-                };
-
-                images[i] = image;
-            }
-
-            images[1].src = urls[1];
-        }
-
-        return texture;
-    }
-};
-
 /**
  *
  * @constructor
@@ -15143,6 +14981,110 @@ HX.Skeleton.prototype =
         return this._joints[index];
     }
 };
+HX.BulkAssetLoader = function ()
+{
+    this._assets = null;
+    this._files = null;
+    this._abortOnFail = false;
+    this.onComplete = new HX.Signal();
+    this.onFail = new HX.Signal();
+};
+
+HX.BulkAssetLoader.prototype =
+{
+    get abortOnFail()
+    {
+        return this._abortOnFail;
+    },
+
+    set abortOnFail(value)
+    {
+        this._abortOnFail = value;
+    },
+
+    getAsset: function(filename)
+    {
+        return this._assets[filename];
+    },
+
+    /**
+     *
+     * @param files An array of files or { file: "", parser: ParserType } objects
+     * @param parser If files is an array of filenames, the parser to use for all
+     */
+    load: function(files, parser)
+    {
+        this._files = files;
+        this._assets = {};
+        this._index = 0;
+
+        if (parser) {
+            for (var i = 0; i < this._files.length; ++i) {
+                this._files[i] = {
+                    file: this._files[i],
+                    parser: parser
+                };
+            }
+        }
+
+        this._loadQueued();
+    },
+
+    _loadQueued: function()
+    {
+        if (this._index === this._files.length) {
+            this._notifyComplete();
+            return;
+        }
+
+        var file = this._files[this._index];
+        var loader = new HX.AssetLoader(file.parser);
+
+        var self = this;
+        loader.onComplete = function(asset)
+        {
+            var filename = file.file;
+            self._assets[filename] = asset;
+            ++self._index;
+            self._loadQueued();
+        };
+
+        loader.onFail = function(error) {
+            self._notifyFailure(error);
+
+            if (self._abortOnFail)
+                return;
+            else
+                // continue loading
+                loader.onComplete();
+        };
+
+        loader.load(file.file);
+    },
+
+    _notifyComplete: function()
+    {
+        if (!this.onComplete) return;
+
+        if (this.onComplete instanceof HX.Signal)
+            this.onComplete.dispatch();
+        else
+            this.onComplete();
+    },
+
+    _notifyFailure: function(message)
+    {
+        if (!this.onFail) {
+            console.warn("Parser error: " + message);
+            return;
+        }
+
+        if (this.onFail instanceof HX.Signal)
+            this.onFail.dispatch(message);
+        else
+            this.onFail(message);
+    }
+};
 /**
  *
  * @constructor
@@ -15194,7 +15136,7 @@ HX.FBX.prototype.parse = function(data, target)
     }
 
     // TODO: only notify complete when textures have loaded
-    this._notifyComplete();
+    this._notifyComplete(this._target);
 };
 
 HX.FBX.prototype._parseChildren = function(parent, lvl)
@@ -15985,7 +15927,8 @@ HX.FBX.prototype._processVideo = function(objDef, UID)
         if (this.fileMap && this.fileMap.hasOwnProperty(filename))
             filename = this.fileMap[filename];
 
-        obj = HX.Texture2DLoader.load(this.path + filename);
+        var textureLoader = new HX.AssetLoader(HX.JPG);
+        obj = textureLoader.load(this.path + filename);
     }
 
     return obj;
@@ -16275,6 +16218,7 @@ HX.HMT.prototype._loadShaders = function(data, material)
         }
 
         self._processMaterial(data, shaders, material);
+        self._loadTextures(data, material);
     };
     bulkLoader.onFail = function(code)
     {
@@ -16379,6 +16323,33 @@ HX.HMT.prototype._applyUniforms = function(data, material)
     }
 };
 
+HX.HMT.prototype._loadTextures = function(data, material)
+{
+    var files = [];
+
+    for (var key in data.textures) {
+        if (data.textures.hasOwnProperty(key))
+            files.push(this.path + data.textures[key]);
+    }
+
+    var bulkLoader = new HX.BulkAssetLoader();
+    var self = this;
+    bulkLoader.onComplete = function()
+    {
+        for (var key in data.textures) {
+            if (data.textures.hasOwnProperty(key)) {
+                material.setTexture(key, bulkLoader.getAsset(self.path + data.textures[key]));
+            }
+        }
+        self._notifyComplete(material);
+    };
+    bulkLoader.onFail = function(message)
+    {
+        self._notifyFailure(message);
+    };
+
+    bulkLoader.load(files, HX.JPG);
+};
 
 
 HX.HMT._PROPERTY_MAP = null;
@@ -16412,6 +16383,21 @@ HX.HMT._initPropertyMap = function() {
         opaque: HX.TransparencyMode.OPAQUE
     };
 };
+HX.JPG = function()
+{
+    HX.AssetParser.call(this, HX.Texture2D, HX.AssetParser.IMAGE);
+};
+
+HX.JPG.prototype = Object.create(HX.AssetParser.prototype);
+
+HX.JPG.prototype.parse = function(data, target)
+{
+    var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
+    target.uploadImage(data, data.naturalWidth, data.naturalHeight, generateMipmaps);
+    this._notifyComplete(target);
+};
+
+HX.PNG = HX.JPG;
 /**
  * The options property supports the following settings:
  * - groupsAsObjects
@@ -16457,7 +16443,7 @@ HX.OBJ.prototype.parse = function(data, target)
 HX.OBJ.prototype._finish = function()
 {
     this._translate();
-    this._notifyComplete();
+    this._notifyComplete(this._target);
 };
 
 HX.OBJ.prototype._loadMTLLib = function(filename)
@@ -16803,194 +16789,159 @@ HX.OBJ._MTLParser.prototype =
 
     _getTexture: function(url)
     {
-        this._textures[url] = this._textures[url] || HX.Texture2DLoader.load(url);
+        this._textures[url] = this._textures[url] || new HX.AssetLoader(HX.JPG).load(url);
         return this._textures[url];
     }
 };
-/**
- * Our own material format, containing code for several passes
- */
-HX.XMLMaterialLoader =
+HX.TextureCubeLoader =
 {
-    load: function(url, onComplete, onError)
+    /**
+     * Loads a cubemap from JPG or PNG images
+     * @param urls The 6 urls for each cubemap face. [ +x, -x, +y, -y, +z, -z ]
+     * @param generateMipmaps [optional] Whether or not to generate mipmaps. Defaults to true.
+     * @param onComplete [optional] A callback called when the texture is loaded.
+     * @param onError [optional] A callback when the texture loading failed.
+     * @returns {HX.TextureCube} The texture, while it's still loading.
+     */
+    load: function(urls, generateMipmaps, onComplete, onError)
     {
-        var material = new HX.Material();
-        var urlLoader = new HX.URLLoader();
+        var texture = new HX.TextureCube();
 
-        urlLoader.onComplete = function(data) {
-            var parser = new DOMParser();
-            var xml = parser.parseFromString(data, "text/xml");
+        generateMipmaps = generateMipmaps === undefined? true : generateMipmaps;
+        var images = [];
 
-            HX.XMLMaterialLoader._parseXMLTo(xml, material);
+        for (var i = 0; i < 6; ++i) {
+            var image = new Image();
+            image.nextID = i + 1;
+            if (i < 5) {
+                image.onload = function()
+                {
+                    images[this.nextID].src = urls[this.nextID];
+                }
+            }
+            // last image to load
+            else {
+                image.onload = function() {
+                    texture.uploadImages(images, generateMipmaps);
+                    if (onComplete) onComplete();
+                };
+            }
 
-            if (onComplete) onComplete();
-        };
+            image.onError = function() {
+                console.warn("Failed loading texture '" + url + "'");
+                if (onError) onError();
+            };
 
-        urlLoader.onError = function(code) {
-            console.warn("Failed loading " + url + ". Error code: " + code);
-            if (onError) onError(code);
-        };
+            images[i] = image;
+        }
 
-        urlLoader.load(url);
+        images[0].src = urls[0];
 
-        return material;
+        return texture;
     },
 
-    parse: function(xml)
+    /**
+     * Loads an entire mip-chain from files rather than generating it using generateMipmap. This is
+     * useful for precomputed specular mip levels. The files are expected to be in a folder structure and with filenames as
+     * such:
+     * <path>/<mip-level>/posX.<extension>
+     * <path>/<mip-level>/negX.<extension>
+     * <path>/<mip-level>/posY.<extension>
+     * <path>/<mip-level>/negY.<extension>
+     * <path>/<mip-level>/posZ.<extension>
+     * <path>/<mip-level>/negZ.<extension>
+     * @param path The path to the mip-level subdirectories
+     * @param extension The extension of the filenames
+     * @param numMips The number of mips to be loaded
+     * @param onComplete
+     * @param onError
+     * @constructor
+     */
+    loadMipChain: function(path, extension, onComplete, onError)
     {
-        var material = new HX.Material();
-        HX.XMLMaterialLoader._parseXMLTo(xml, material);
-        return material;
-    },
+        var texture = new HX.TextureCube();
 
-    _parseXMLTo: function(xml, material)
-    {
-        HX.XMLMaterialLoader._parsePassFromXML(xml, HX.MaterialPass.GEOMETRY_PASS, "geometry", material);
-        HX.XMLMaterialLoader._parsePassFromXML(xml, HX.MaterialPass.POST_LIGHT_PASS, "postlight", material);
-        HX.XMLMaterialLoader._parsePassFromXML(xml, HX.MaterialPass.POST_PASS, "post", material);
+        var images = [];
 
-        material.transparencyMode = HX.XMLMaterialLoader._translateTransparencyMode(xml.documentElement.getAttribute("transparencyMode"));
+        var numMips;
+        var urls = [];
+        var dirToken = path.charAt(-1) === "/"? "" : "/";
+        path = path + dirToken;
 
-        var uniforms = xml.getElementsByTagName("uniforms")[0];
+        var firstImage = new Image();
+        var firstURL = path + "0/posX." + extension;
 
-        if (uniforms) {
-            var node = uniforms.firstChild;
+        firstImage.onload = function()
+        {
+            if (firstImage.naturalWidth != firstImage.naturalHeight || !HX.TextureUtils.isPowerOfTwo(firstImage.naturalWidth)) {
+                console.warn("Failed loading mipchain at '" + path + "': incorrect dimensions");
+                onError();
+            }
+            else {
+                numMips = HX.log2(firstImage.naturalWidth) + 1;
+                loadTheRest();
+                images[0] = firstImage;
+            }
+        };
 
-            while (node) {
-                if (node.nodeName != "#text") {
-                    var value = node.getAttribute("value").split(",");
-                    if (value.length == 1)
-                        material.setUniform(node.nodeName, Number(value[0]), false);
-                    else
-                        material.setUniform(node.nodeName, {x: Number(value[0]), y: Number(value[1]), z: Number(value[2]), w: Number(value[3])}, false);
+        firstImage.onerror = function()
+        {
+            console.warn("Failed loading texture '" + firstURL + "'");
+            if (onError) onError();
+        };
+
+        firstImage.src = firstURL;
+
+        function loadTheRest()
+        {
+            var len = numMips * 6;
+            for (var i = 0; i < numMips; ++i) {
+                var dir = path + i + "/";
+                urls.push(dir + "posX." + extension);
+                urls.push(dir + "negX." + extension);
+                urls.push(dir + "posY." + extension);
+                urls.push(dir + "negY." + extension);
+                urls.push(dir + "posZ." + extension);
+                urls.push(dir + "negZ." + extension);
+            }
+
+            for (var i = 1; i < len; ++i) {
+                var image = new Image();
+                image.nextID = i + 1;
+                if (i < len - 1) {
+                    image.onload = function ()
+                    {
+                        images[this.nextID].src = urls[this.nextID];
+                    }
+                }
+                // last image to load
+                else {
+                    image.onload = function ()
+                    {
+                        for (var m = 0; m < numMips; ++m)
+                            texture.uploadImagesToMipLevel(images.slice(m * 6, m * 6 + 6), m);
+
+                        texture._isReady = true;
+                        if (onComplete) onComplete();
+                    };
                 }
 
-                node = node.nextSibling;
-            }
-        }
+                image.onError = function ()
+                {
+                    console.warn("Failed loading texture '" + url + "'");
+                    if (onError) onError();
+                };
 
-        // assign default textures
-        material.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
-    },
-
-    _translateTransparencyMode: function(value)
-    {
-        switch(value) {
-            case "additive":
-                return HX.TransparencyMode.ADDITIVE;
-            case "alpha":
-                return HX.TransparencyMode.ALPHA;
-            default:
-                return HX.TransparencyMode.OPAQUE;
-        }
-    },
-
-    _translateProperty: function(value)
-    {
-        if (!HX.XMLMaterialLoader._properties) {
-            HX.XMLMaterialLoader._properties = {
-                back: HX.GL.BACK,
-                front: HX.CullMode.FRONT,
-                both: HX.CullMode.ALL,
-                none: null,
-                lines: HX.ElementType.LINES,
-                points: HX.ElementType.POINTS,
-                triangles: HX.ElementType.TRIANGLES,
-                one: HX.BlendFactor.ONE,
-                zero: HX.BlendFactor.ZERO,
-                sourceColor: HX.BlendFactor.SOURCE_COLOR,
-                oneMinusSourceColor: HX.BlendFactor.ONE_MINUS_SOURCE_COLOR,
-                sourceAlpha: HX.BlendFactor.SOURCE_ALPHA,
-                oneMinusSourceAlpha: HX.BlendFactor.ONE_MINUS_SOURCE_ALPHA,
-                destinationAlpha: HX.BlendFactor.DST_ALPHA,
-                oneMinusDestinationAlpha: HX.BlendFactor.ONE_MINUS_DESTINATION_ALPHA,
-                destinationColor: HX.BlendFactor.DESTINATION_COLOR,
-                sourceAlphaSaturate: HX.BlendFactor.SOURCE_ALPHA_SATURATE,
-                add: HX.BlendOperation.ADD,
-                subtract: HX.BlendOperation.SUBTRACT,
-                reverseSubtract: HX.BlendOperation.REVERSE_SUBTRACT
-            }
-        }
-
-        return HX.XMLMaterialLoader._properties[value];
-    },
-
-    _decodeHTML: function(value)
-    {
-        var e = document.createElement('div');
-        e.innerHTML = value;
-        return e.childNodes.length === 0 ? "" : e.childNodes[0].nodeValue;
-    },
-
-    _addPass: function (vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType, geometryPassTypeDef)
-    {
-        fragmentShader = HX.GLSLIncludeGeometryPass + fragmentShader;
-
-        if (geometryPassTypeDef) {
-            var defines = "#define " + geometryPassTypeDef + "\n";
-            vertexShader = defines + vertexShader;
-            fragmentShader = defines + fragmentShader;
-        }
-
-        var shader = new HX.Shader(vertexShader, fragmentShader);
-        var pass = new HX.MaterialPass(shader);
-
-        if (elements)
-            pass.elementType = HX.XMLMaterialLoader._translateProperty(elements.childNodes[0].nodeValue);
-
-        if (cullmode)
-            pass.cullMode = HX.XMLMaterialLoader._translateProperty(cullmode.childNodes[0].nodeValue);
-
-        if (blend) {
-            var blendState = new HX.BlendState();
-            var source = blend.getElementsByTagName("source")[0];
-            var dest = blend.getElementsByTagName("destination")[0];
-            var op = blend.getElementsByTagName("operator")[0];
-            blendState.srcFactor = source ? HX.XMLMaterialLoader._translateProperty(source.childNodes[0].nodeValue) : HX.BlendFactor.ONE;
-            blendState.dstFactor = dest ? HX.XMLMaterialLoader._translateProperty(dest.childNodes[0].nodeValue) : HX.BlendFactor.ZERO;
-            blendState.operator = op ? HX.XMLMaterialLoader._translateProperty(op.childNodes[0].nodeValue) : HX.BlendOperation.ADD;
-            pass.blendState = blendState;
-        }
-
-        targetMaterial.setPass(passType, pass);
-    },
-
-    _parsePassFromXML: function(xml, passType, tagName, targetMaterial)
-    {
-        var common = xml.getElementsByTagName("common")[0];
-        common = common ? common.childNodes[0].nodeValue : "";
-        var tags = xml.getElementsByTagName(tagName);
-        if (tags === undefined || tags.length === 0) return;
-        var passDef = tags[0];
-
-        var vertexShaderID = passDef.getElementsByTagName("vertex")[0].childNodes[0].nodeValue;
-        var fragmentShaderID = passDef.getElementsByTagName("fragment")[0].childNodes[0].nodeValue;
-        var elements = passDef.getElementsByTagName("element")[0];
-        var cullmode = passDef.getElementsByTagName("cullmode")[0];
-        var blend = passDef.getElementsByTagName("blend")[0];
-
-        var vertexShader = common + xml.querySelector("[id=" + vertexShaderID + "]").childNodes[0].nodeValue;
-        var fragmentShader = common + xml.querySelector("[id=" + fragmentShaderID + "]").childNodes[0].nodeValue;
-        vertexShader = HX.XMLMaterialLoader._decodeHTML(vertexShader);
-        fragmentShader = HX.XMLMaterialLoader._decodeHTML(fragmentShader);
-
-        if (passType === HX.MaterialPass.GEOMETRY_PASS) {
-            if (HX.EXT_DRAW_BUFFERS)
-                this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
-            else {
-                this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_COLOR_PASS, "HX_NO_MRT_GBUFFER_COLOR");
-                this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_NORMAL_PASS, "HX_NO_MRT_GBUFFER_NORMALS");
-                this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "HX_NO_MRT_GBUFFER_SPECULAR");
+                images[i] = image;
             }
 
-            if (HX.MaterialPass.SHADOW_MAP_PASS !== -1)
-                this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, HX.MaterialPass.SHADOW_MAP_PASS, "HX_SHADOW_MAP_PASS");
+            images[1].src = urls[1];
         }
-        else {
-            this._addPass(vertexShader, fragmentShader, elements, cullmode, blend, targetMaterial, passType);
-        }
+
+        return texture;
     }
 };
+
 /**
  *
  * @param numFrames The amount of frames to average

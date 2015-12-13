@@ -39,7 +39,8 @@ HX.BulkAssetLoader.prototype =
             for (var i = 0; i < this._files.length; ++i) {
                 this._files[i] = {
                     file: this._files[i],
-                    parser: parser
+                    parser: parser,
+                    target: null
                 };
             }
         }
@@ -76,7 +77,7 @@ HX.BulkAssetLoader.prototype =
                 loader.onComplete();
         };
 
-        loader.load(file.file);
+        loader.load(file.file, file.target);
     },
 
     _notifyComplete: function()

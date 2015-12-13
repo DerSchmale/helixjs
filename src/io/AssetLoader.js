@@ -13,7 +13,8 @@ HX.AssetLoader.prototype =
     // if we need to remap filenames, filemapping might be useful
     // just contains an object table:
     // { "filename.tga": "filename.jpg", ... }
-    load: function (filename)
+    // target: optional, (and usually only used by parsers)
+    load: function (filename, target)
     {
         function fail(code) {
             console.warn("Failed loading " + filename + ". Error code: " + code);
@@ -26,7 +27,7 @@ HX.AssetLoader.prototype =
         }
 
         var parser = new this._parserType();
-        var target = parser.createContainer();
+        target = target || parser.createContainer();
         parser.onComplete = this.onComplete;
         parser.onFail = this.onFail;
         parser.fileMap = this.fileMap;

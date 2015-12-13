@@ -34,8 +34,10 @@ HX.OBJ.prototype.parse = function(data, target)
         this._parseLine(line);
     }
 
-    if (this._mtlLibFile)
-        this._loadMTLLib(this.path + this._mtlLibFile);
+    if (this._mtlLibFile) {
+        var filename = this.fileMap.hasOwnProperty(this._mtlLibFile)? this.fileMap[this._mtlLibFile] : this._mtlLibFile;
+        this._loadMTLLib(this.path + filename);
+    }
     else
         this._finish();
 };
@@ -43,7 +45,31 @@ HX.OBJ.prototype.parse = function(data, target)
 HX.OBJ.prototype._finish = function()
 {
     this._translate();
-    this._notifyComplete(this._target);
+
+    var files = this._texturesToLoad;
+    var len = files.length;
+    if (len === 0) {
+        this._notifyComplete(this._target);
+        return;
+    }
+
+    for (var i = 0; i < len; ++i) {
+        if (this.fileMap.hasOwnProperty(files[i]))
+            files[i] = this.fileMap(files[i]);
+    }
+
+    var self = this;
+    var bulkLoader = new HX.BulkAssetLoader();
+
+    bulkLoader.onComplete = function() {
+        self._notifyComplete(self._target);
+    };
+
+    bulkLoader.onFail = function(message) {
+        self._notifyFailure(message);
+    };
+
+    bulkLoader.load(files);
 };
 
 HX.OBJ.prototype._loadMTLLib = function(filename)
@@ -55,6 +81,7 @@ HX.OBJ.prototype._loadMTLLib = function(filename)
     urlLoader.onComplete = function (data)
     {
         self._materialLib = mtlParser.parse(data, HX.FileUtils.extractPath(filename));
+        self._texturesToLoad = mtlParser._texturesToLoad;
         self._finish();
     };
 
@@ -332,6 +359,7 @@ HX.OBJ._MTLParser = function()
 {
     this._materials = [];
     this._textures = [];
+    this._texturesToLoad = [];
 };
 
 HX.OBJ._MTLParser.prototype =
@@ -389,7 +417,15 @@ HX.OBJ._MTLParser.prototype =
 
     _getTexture: function(url)
     {
-        this._textures[url] = this._textures[url] || new HX.AssetLoader(HX.JPG).load(url);
+        if (!this._textures[url]) {
+            this._textures[url] = new HX.Texture2D();
+
+            this._texturesToLoad.push({
+                file: url,
+                parser: HX.JPG,
+                target: this._textures[url]
+            });
+        }
         return this._textures[url];
     }
 };

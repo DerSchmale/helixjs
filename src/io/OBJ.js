@@ -11,7 +11,6 @@ HX.OBJ = function()
     this._normals = [];
     this._uvs = [];
     this._hasNormals = false;
-    this._materialLib = null;
     this._defaultMaterial = new HX.PBRMaterial();
     this._target = null;
     this._mtlLibFile = null;
@@ -34,63 +33,34 @@ HX.OBJ.prototype.parse = function(data, target)
         this._parseLine(line);
     }
 
-    if (this._mtlLibFile) {
-        var filename = this.fileMap.hasOwnProperty(this._mtlLibFile)? this.fileMap[this._mtlLibFile] : this._mtlLibFile;
-        this._loadMTLLib(this.path + filename);
-    }
+    if (this._mtlLibFile)
+        this._loadMTLLib(this._mtlLibFile);
     else
-        this._finish();
+        this._finish(null);
 };
 
-HX.OBJ.prototype._finish = function()
+HX.OBJ.prototype._finish = function(mtlLib)
 {
-    this._translate();
-
-    var files = this._texturesToLoad;
-    var len = files.length;
-    if (len === 0) {
-        this._notifyComplete(this._target);
-        return;
-    }
-
-    for (var i = 0; i < len; ++i) {
-        if (this.fileMap.hasOwnProperty(files[i]))
-            files[i] = this.fileMap(files[i]);
-    }
-
-    var self = this;
-    var bulkLoader = new HX.BulkAssetLoader();
-
-    bulkLoader.onComplete = function() {
-        self._notifyComplete(self._target);
-    };
-
-    bulkLoader.onFail = function(message) {
-        self._notifyFailure(message);
-    };
-
-    bulkLoader.load(files);
+    this._translate(mtlLib);
+    this._notifyComplete(this._target);
 };
 
 HX.OBJ.prototype._loadMTLLib = function(filename)
 {
-    var urlLoader = new HX.URLLoader();
-    var mtlParser = new HX.OBJ._MTLParser();
+    var loader = new HX.AssetLoader(HX.MTL);
     var self = this;
 
-    urlLoader.onComplete = function (data)
+    loader.onComplete = function (asset)
     {
-        self._materialLib = mtlParser.parse(data, HX.FileUtils.extractPath(filename));
-        self._texturesToLoad = mtlParser._texturesToLoad;
-        self._finish();
+        self._finish(asset);
     };
 
-    urlLoader.onError = function (code)
+    loader.onFail = function (message)
     {
-        self._notifyFailure("Error loading material file, code = " + code);
+        self._notifyFailure(message);
     };
 
-    urlLoader.load(filename);
+    loader.load(filename);
 };
 
 HX.OBJ.prototype._parseLine = function(line)
@@ -101,7 +71,7 @@ HX.OBJ.prototype._parseLine = function(line)
 
     switch (tokens[0].toLowerCase()) {
         case "mtllib":
-            this._mtlLibFile = tokens[1];
+            this._mtlLibFile = this._correctURL(tokens[1]);
             break;
         case "usemtl":
             this._setActiveSubGroup(tokens[1]);
@@ -193,15 +163,15 @@ HX.OBJ.prototype._parseFaceData = function(tokens)
     this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
 };
 
-HX.OBJ.prototype._translate = function()
+HX.OBJ.prototype._translate = function(mtlLib)
 {
     var numObjects = this._objects.length;
     for (var i = 0; i < numObjects; ++i) {
-        this._translateObject(this._objects[i]);
+        this._translateObject(this._objects[i], mtlLib);
     }
 };
 
-HX.OBJ.prototype._translateObject = function(object)
+HX.OBJ.prototype._translateObject = function(object, mtlLib)
 {
     var numGroups = object.groups.length;
     if (numGroups === 0) return;
@@ -219,7 +189,7 @@ HX.OBJ.prototype._translateObject = function(object)
                 if (subgroup.numIndices === 0) continue;
                 modelData.addMeshData(this._translateMeshData(subgroup));
 
-                var material = this._materialLib? this._materialLib[key] : null;
+                var material = mtlLib? mtlLib[key] : null;
                 material = material || this._defaultMaterial;
                 materials.push(material);
             }
@@ -355,77 +325,104 @@ HX.OBJ._ObjectData = function()
  *
  * @constructor
  */
-HX.OBJ._MTLParser = function()
+HX.MTL = function()
 {
-    this._materials = [];
+    HX.AssetParser.call(this, Object, HX.URLLoader.DATA_TEXT);
     this._textures = [];
     this._texturesToLoad = [];
+    this._activeMaterial = null;
 };
 
-HX.OBJ._MTLParser.prototype =
+HX.MTL.prototype = Object.create(HX.AssetParser.prototype);
+
+HX.MTL.prototype.parse = function(data, target)
 {
-    parse: function(data, path)
-    {
-        var lines = data.split("\n");
-        var numLines = lines.length;
+    var lines = data.split("\n");
+    var numLines = lines.length;
 
-        for (var i = 0; i < numLines; ++i) {
-            var line = lines[i].replace(/^\s+|\s+$/g, "");
-            this._parseLine(line, path);
-        }
-
-        return this._materials;
-    },
-
-    _parseLine: function(line, path)
-    {
-        // skip line
-        if (line.length === 0 || line.charAt(0) === "#") return;
-        var tokens = line.split(/\s+/);
-
-        switch (tokens[0].toLowerCase()) {
-            case "newmtl":
-                this._activeMaterial = new HX.PBRMaterial();
-                this._activeMaterial.name = tokens[1];
-                this._materials[tokens[1]] = this._activeMaterial;
-                break;
-            case "ns":
-                var specularPower = parseFloat(tokens[1]);
-                this._activeMaterial.roughness = Math.sqrt(2.0/(specularPower + 2.0));
-                break;
-            case "kd":
-                this._activeMaterial.color = new HX.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
-                break;
-            case "map_kd":
-                this._activeMaterial.colorMap = this._getTexture(path + tokens[1]);
-                break;
-            case "map_d":
-                this._activeMaterial.maskMap = this._getTexture(path + tokens[1]);
-                this._activeMaterial.alphaThreshold = .5;
-                break;
-            case "map_ns":
-                this._activeMaterial.specularMap = this._getTexture(path + tokens[1]);
-                break;
-            case "map_bump":
-            case "bump":
-                this._activeMaterial.normalMap = this._getTexture(path + tokens[1]);
-                break;
-            default:
-                //console.log("MTL tag ignored or unsupported: " + tokens[0]);
-        }
-    },
-
-    _getTexture: function(url)
-    {
-        if (!this._textures[url]) {
-            this._textures[url] = new HX.Texture2D();
-
-            this._texturesToLoad.push({
-                file: url,
-                parser: HX.JPG,
-                target: this._textures[url]
-            });
-        }
-        return this._textures[url];
+    for (var i = 0; i < numLines; ++i) {
+        var line = lines[i].replace(/^\s+|\s+$/g, "");
+        this._parseLine(line, target);
     }
+
+    this._loadTextures(target);
+
+    return target;
+};
+
+HX.MTL.prototype._parseLine = function(line, target)
+{
+    // skip line
+    if (line.length === 0 || line.charAt(0) === "#") return;
+    var tokens = line.split(/\s+/);
+
+    console.log(line);
+
+    switch (tokens[0].toLowerCase()) {
+        case "newmtl":
+            this._activeMaterial = new HX.PBRMaterial();
+            this._activeMaterial.name = tokens[1];
+            target[tokens[1]] = this._activeMaterial;
+            break;
+        case "ns":
+            var specularPower = parseFloat(tokens[1]);
+            this._activeMaterial.roughness = Math.sqrt(2.0/(specularPower + 2.0));
+            break;
+        case "kd":
+            this._activeMaterial.color = new HX.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+            break;
+        case "map_kd":
+            this._activeMaterial.colorMap = this._getTexture(tokens[1]);
+            break;
+        case "map_d":
+            this._activeMaterial.maskMap = this._getTexture(tokens[1]);
+            this._activeMaterial.alphaThreshold = .5;
+            break;
+        case "map_ns":
+            this._activeMaterial.specularMap = this._getTexture(tokens[1]);
+            break;
+        case "map_bump":
+        case "bump":
+            this._activeMaterial.normalMap = this._getTexture(tokens[1]);
+            break;
+        default:
+            //console.log("MTL tag ignored or unsupported: " + tokens[0]);
+    }
+};
+
+HX.MTL.prototype._getTexture = function(url)
+{
+    if (!this._textures[url]) {
+        this._textures[url] = new HX.Texture2D();
+
+        this._texturesToLoad.push({
+            file: this._correctURL(url),
+            parser: HX.JPG,
+            target: this._textures[url]
+        });
+    }
+    return this._textures[url];
+};
+
+HX.MTL.prototype._loadTextures = function(lib)
+{
+    var files = this._texturesToLoad;
+    var len = files.length;
+    if (len === 0) {
+        this._notifyComplete(lib);
+        return;
+    }
+
+    var self = this;
+    var bulkLoader = new HX.BulkAssetLoader();
+
+    bulkLoader.onComplete = function() {
+        self._notifyComplete(lib);
+    };
+
+    bulkLoader.onFail = function(message) {
+        self._notifyFailure(message);
+    };
+
+    bulkLoader.load(files);
 };

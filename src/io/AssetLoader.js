@@ -84,6 +84,8 @@ HX.AssetParser.prototype =
     get dataType() { return this._dataType; },
     createContainer: function() { return new this._containerType(); },
 
+    parse: function(data, target) {},
+
     _notifyComplete: function(asset)
     {
         if (!this.onComplete) return;
@@ -105,6 +107,11 @@ HX.AssetParser.prototype =
             this.onFail.dispatch(message);
         else
             this.onFail(message);
+    },
+
+    _correctURL: function(url)
+    {
+        return this.path + (this.fileMap.hasOwnProperty(url)? this.fileMap[url] : url);
     }
 };
 

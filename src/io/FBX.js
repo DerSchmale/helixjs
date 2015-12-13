@@ -835,13 +835,9 @@ HX.FBX.prototype._processVideo = function(objDef, UID)
     var relFileName = objDef.getChildNode("RelativeFilename");
     var obj;
     if (relFileName) {
-        var filename = relFileName.data[0].value;
-
-        if (this.fileMap && this.fileMap.hasOwnProperty(filename))
-            filename = this.fileMap[filename];
-
+        var filename = this._correctURL(relFileName.data[0].value);
         var textureLoader = new HX.AssetLoader(HX.JPG);
-        obj = textureLoader.load(this.path + filename);
+        obj = textureLoader.load(filename);
     }
 
     return obj;

@@ -49,7 +49,7 @@ HX.FBX.prototype.parse = function(data, target)
     }
 
     // TODO: only notify complete when textures have loaded
-    this._notifyComplete(this._target);
+    this._notifyComplete(target);
 };
 
 HX.FBX.prototype._parseChildren = function(parent, lvl)
@@ -272,7 +272,7 @@ HX.FBX.prototype._processObjects = function()
                 obj = this._processTexture(objDef, UID);
                 break;
             default:
-                console.log("Unsupported object type " + objDef.name);
+                //console.log("Unsupported object type " + objDef.name);
         }
 
         if (obj) {
@@ -838,6 +838,7 @@ HX.FBX.prototype._processVideo = function(objDef, UID)
         var filename = this._correctURL(relFileName.data[0].value);
         var textureLoader = new HX.AssetLoader(HX.JPG);
         obj = textureLoader.load(filename);
+        console.log(filename, relFileName.data[0].value);
     }
 
     return obj;

@@ -4,17 +4,20 @@
  */
 HX.MeshData = function ()
 {
-    this._vertexStride = 0;
-    this._vertexData = undefined;
+    this._vertexStrides = [];
+    this._vertexData = [];
     this._indexData = undefined;
     this.vertexUsage = HX.GL.STATIC_DRAW;
     this.indexUsage = HX.GL.STATIC_DRAW;
     this._vertexAttributes = [];
+    this._numStreams = 0;
 };
 
 HX.MeshData.DEFAULT_VERTEX_SIZE = 12;
 HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE = 13;
 
+// other possible indices:
+// hx_instanceID (used by MeshBatch)
 HX.MeshData.createDefaultEmpty = function()
 {
     var data = new HX.MeshData();
@@ -25,27 +28,20 @@ HX.MeshData.createDefaultEmpty = function()
     return data;
 };
 
-HX.MeshData.createDefaultBatchEmpty = function()
-{
-    var data = new HX.MeshData();
-    data.addVertexAttribute('hx_position', 3);
-    data.addVertexAttribute('hx_normal', 3);
-    data.addVertexAttribute('hx_tangent', 4);
-    data.addVertexAttribute('hx_texCoord', 2);
-    data.addVertexAttribute('hx_instanceID', 1);
-    return data;
-};
-
-
 HX.MeshData.prototype = {
     constructor: HX.MeshData,
+
+    getVertexData: function(streamIndex)
+    {
+        return this._vertexData[streamIndex];
+    },
 
     /**
      * Sets data from Array
      */
-    setVertexData: function (data)
+    setVertexData: function (data, streamIndex)
     {
-        this._vertexData = new Float32Array(data);
+        this._vertexData[streamIndex] = new Float32Array(data);
     },
 
     /**
@@ -60,12 +56,15 @@ HX.MeshData.prototype = {
      * Adds a named vertex attribute. All properties are given manually to make it easier to support multiple streams in the future.
      * @param name The name of the attribute, matching the attribute name used in the vertex shaders.
      * @param numComponents The amount of components used by the attribute value.
+     * @param streamIndex [Optional] The stream index indicating which vertex buffer is used, defaults to 0
      */
-    addVertexAttribute: function (name, numComponents)
+    addVertexAttribute: function (name, numComponents, streamIndex)
     {
-        var offset = this._vertexStride;
-        this._vertexStride += numComponents;
-        this._vertexAttributes.push({name: name, offset: offset, numComponents: numComponents});
+        streamIndex = streamIndex || 0;
+        this._numStreams = Math.max(this._numStreams, streamIndex);
+        this._vertexStrides[streamIndex] = this._vertexStrides[streamIndex] || 0;
+        this._vertexAttributes.push({name: name, offset: this._vertexStrides[streamIndex], numComponents: numComponents, streamIndex: streamIndex});
+        this._vertexStrides[streamIndex] += numComponents;
     },
 
     getVertexAttribute: function(name)
@@ -78,11 +77,16 @@ HX.MeshData.prototype = {
     },
 
     /**
-     * Returns the stride of each vertex. This matches the total amount of elements used by all vertex attributes combined.
+     * Returns the stride of each vertex for the given stream index. This matches the total amount of elements used by all vertex attributes combined.
      */
-    get vertexStride()
+    getVertexStride: function(streamIndex)
     {
-        return this._vertexStride;
+        return this._vertexStrides[streamIndex];
+    },
+
+    get numStreams()
+    {
+        return this._numStreams;
     }
 };
 
@@ -93,15 +97,19 @@ HX.MeshData.prototype = {
  */
 HX.Mesh = function (meshData)
 {
-    this._vertexBuffer = new HX.VertexBuffer();
+    this._vertexBuffers = [];
+    this._vertexStrides = [];
     this._indexBuffer = new HX.IndexBuffer();
 
-    this._vertexBuffer.uploadData(meshData._vertexData, meshData.vertexUsage);
+    for (var i = 0; i < meshData._vertexData.length; ++i) {
+        var buffer = new HX.VertexBuffer();
+        buffer.uploadData(meshData._vertexData[i], meshData.vertexUsage);
+        this._vertexBuffers[i] = buffer;
+        this._vertexStrides[i] = meshData.getVertexStride(i);
+    }
     this._indexBuffer.uploadData(meshData._indexData, meshData.indexUsage);
 
     this._numIndices = meshData._indexData.length;
-
-    this._vertexStride = meshData.vertexStride;
 
     this._vertexAttributes = meshData._vertexAttributes;
     this._renderOrderHint = ++HX.Mesh.ID_COUNTER;
@@ -115,7 +123,8 @@ HX.Mesh.prototype = {
 
     dispose: function ()
     {
-        this._vertexBuffer.dispose();
+        for (var i = 0; i < this._vertexBuffers.length; ++i)
+            this._vertexBuffers[i].dispose();
         this._indexBuffer.dispose();
     },
 
@@ -129,9 +138,9 @@ HX.Mesh.prototype = {
         return this._vertexAttributes.length;
     },
 
-    get vertexStride()
+    getVertexStride: function(streamIndex)
     {
-        return this._vertexStride;
+        return this._vertexStrides[streamIndex];
     },
 
     getVertexAttribute: function (index)

@@ -1,10 +1,11 @@
+/**
+ *
+ * @constructor
+ */
 HX.NormalTangentGenerator = function()
 {
     this._meshData = null;
     this._mode = 0;
-    this._positionOffset = 0;
-    this._normalOffset = 0;
-    this._tangentOffset = 0;
     this._faceNormals = null;
     this._faceTangents = null;
     this._faceBitangents = null;
@@ -22,11 +23,14 @@ HX.NormalTangentGenerator.prototype =
 
         this._meshData = meshData;
 
-        this._positionOffset = meshData.getVertexAttribute("hx_position").offset;
-        this._normalOffset = meshData.getVertexAttribute("hx_normal").offset;
-        this._tangentOffset = meshData.getVertexAttribute("hx_tangent").offset;
-        this._uvOffset = meshData.getVertexAttribute("hx_texCoord").offset;
-        this._vertexStride = meshData.vertexStride;
+        this._positionAttrib = meshData.getVertexAttribute("hx_position");
+        this._normalAttrib = meshData.getVertexAttribute("hx_normal");
+        this._tangentAttrib = meshData.getVertexAttribute("hx_tangent");
+        this._uvAttrib = meshData.getVertexAttribute("hx_texCoord");
+        this._positionStride = meshData.getVertexStride(this._positionAttrib.streamIndex);
+        this._normalStride = meshData.getVertexStride(this._normalAttrib.streamIndex);
+        this._tangentStride = meshData.getVertexStride(this._tangentAttrib.streamIndex);
+        this._uvStride = meshData.getVertexStride(this._uvAttrib.streamIndex);
 
         this._calculateFaceVectors(useFaceWeights);
         this._calculateVertexVectors();
@@ -54,13 +58,17 @@ HX.NormalTangentGenerator.prototype =
         var st1 = new HX.Float2();
         var st2 = new HX.Float2();
 
+        var posOffset = this._positionAttrib.offset;
+        var uvOffset = this._uvAttrib.offset;
+        var posData = this._meshData.getVertexData(this._positionAttrib.streamIndex);
+        var uvData = this._meshData.getVertexData(this._uvAttrib.streamIndex);
         for (var i = 0; i < numIndices; i += 3) {
-            this._getFloat3At(i, this._positionOffset, v0);
-            this._getFloat3At(i + 1, this._positionOffset, v1);
-            this._getFloat3At(i + 2, this._positionOffset, v2);
-            this._getFloat2At(i, this._uvOffset, uv0);
-            this._getFloat2At(i + 1, this._uvOffset, uv1);
-            this._getFloat2At(i + 2, this._uvOffset, uv2);
+            this._getFloat3At(i, posOffset, this._positionStride, v0, posData);
+            this._getFloat3At(i + 1, posOffset, this._positionStride, v1, posData);
+            this._getFloat3At(i + 2, posOffset, this._positionStride, v2, posData);
+            this._getFloat2At(i, uvOffset, this._uvStride, uv0, uvData);
+            this._getFloat2At(i + 1, uvOffset, this._uvStride, uv1, uvData);
+            this._getFloat2At(i + 2, uvOffset, this._uvStride, uv2, uvData);
 
             if (this._faceNormals) {
                 v1.subtract(v0);
@@ -106,32 +114,34 @@ HX.NormalTangentGenerator.prototype =
 
         var bitangents = this._faceTangents ? [] : 0.0;
         var indexData = this._meshData._indexData;
-        var vertexData = this._meshData._vertexData;
+        var normalOffset = this._normalAttrib.offset;
+        var tangentOffset = this._tangentAttrib.offset;
+        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
         var numIndices = indexData.length;
 
         for (var i = 0; i < numIndices; ++i) {
             var index = indexData[i];
-            var normalIndex = this._normalOffset + index * this._vertexStride;
-            var tangentIndex = this._tangentOffset + index * this._vertexStride;
+            var normalIndex = normalOffset + index * this._normalStride;
+            var tangentIndex = tangentOffset + index * this._tangentStride;
             var bitangentIndex = index * 3;
             var faceIndex = Math.floor(i / 3) * 3;
 
             if (this._faceNormals) {
-                vertexData[normalIndex] += this._faceNormals[faceIndex];
-                vertexData[normalIndex + 1] += this._faceNormals[faceIndex + 1];
-                vertexData[normalIndex + 2] += this._faceNormals[faceIndex + 2];
+                normalData[normalIndex] += this._faceNormals[faceIndex];
+                normalData[normalIndex + 1] += this._faceNormals[faceIndex + 1];
+                normalData[normalIndex + 2] += this._faceNormals[faceIndex + 2];
             }
 
             if (this._faceTangents) {
-                vertexData[tangentIndex] += this._faceTangents[faceIndex];
-                vertexData[tangentIndex + 1] += this._faceTangents[faceIndex + 1];
-                vertexData[tangentIndex + 2] += this._faceTangents[faceIndex + 2];
+                tangentData[tangentIndex] += this._faceTangents[faceIndex];
+                tangentData[tangentIndex + 1] += this._faceTangents[faceIndex + 1];
+                tangentData[tangentIndex + 2] += this._faceTangents[faceIndex + 2];
 
                 bitangents[bitangentIndex] += this._faceBitangents[faceIndex];
                 bitangents[bitangentIndex + 1] += this._faceBitangents[faceIndex + 1];
                 bitangents[bitangentIndex + 2] += this._faceBitangents[faceIndex + 2];
             }
-            tangentIndex += this._vertexStride;
         }
 
         this._normalize(bitangents);
@@ -139,33 +149,38 @@ HX.NormalTangentGenerator.prototype =
 
     _zeroVectors: function()
     {
-        var vertexData = this._meshData._vertexData;
-        var numVertices = vertexData.length / this._vertexStride;
-        var normalIndex = this._normalOffset;
-        var tangentIndex = this._tangentOffset;
+        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
+        var normalStride = this._meshData.getVertexStride(this._normalAttrib.streamIndex);
+        var tangentStride = this._meshData.getVertexStride(this._tangentAttrib.streamIndex);
+        var numVertices = normalData.length / normalStride;
+        var normalIndex = this._normalAttrib.offset;
+        var tangentIndex = this._tangentAttrib.offset;
+
 
         for (var i = 0; i < numVertices; ++i) {
             if (this._mode & HX.NormalTangentGenerator.MODE_NORMALS) {
-                vertexData[normalIndex] = 0.0;
-                vertexData[normalIndex + 1] = 0.0;
-                vertexData[normalIndex + 2] = 0.0;
+                normalData[normalIndex] = 0.0;
+                normalData[normalIndex + 1] = 0.0;
+                normalData[normalIndex + 2] = 0.0;
             }
             if (this._mode & HX.NormalTangentGenerator.MODE_TANGENTS) {
-                vertexData[tangentIndex] = 0.0;
-                vertexData[tangentIndex + 1] = 0.0;
-                vertexData[tangentIndex + 2] = 0.0;
+                tangentData[tangentIndex] = 0.0;
+                tangentData[tangentIndex + 1] = 0.0;
+                tangentData[tangentIndex + 2] = 0.0;
             }
-            normalIndex += this._vertexStride;
-            tangentIndex += this._vertexStride;
+            normalIndex += normalStride;
+            tangentIndex += tangentStride;
         }
     },
 
     _normalize: function(bitangents)
     {
-        var vertexData = this._meshData._vertexData;
-        var numVertices = vertexData.length / this._vertexStride;
-        var normalIndex = this._normalOffset;
-        var tangentIndex = this._tangentOffset;
+        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
+        var numVertices = normalData.length / this._normalStride;
+        var normalIndex = this._normalAttrib.offset;
+        var tangentIndex = this._tangentAttrib.offset;
         var bitangentIndex = 0;
         var normal = new HX.Float4();
         var tangent = new HX.Float4();
@@ -173,20 +188,20 @@ HX.NormalTangentGenerator.prototype =
         var cross = new HX.Float4();
 
         for (var i = 0; i < numVertices; ++i) {
-            normal.x = vertexData[normalIndex];
-            normal.y = vertexData[normalIndex + 1];
-            normal.z = vertexData[normalIndex + 2];
+            normal.x = normalData[normalIndex];
+            normal.y = normalData[normalIndex + 1];
+            normal.z = normalData[normalIndex + 2];
 
             if (this._mode & HX.NormalTangentGenerator.MODE_NORMALS) {
                 normal.normalize();
-                vertexData[normalIndex] = normal.x;
-                vertexData[normalIndex + 1] = normal.y;
-                vertexData[normalIndex + 2] = normal.z;
+                normalData[normalIndex] = normal.x;
+                normalData[normalIndex + 1] = normal.y;
+                normalData[normalIndex + 2] = normal.z;
             }
             if (this._mode & HX.NormalTangentGenerator.MODE_TANGENTS) {
-                tangent.x = vertexData[tangentIndex];
-                tangent.y = vertexData[tangentIndex + 1];
-                tangent.z = vertexData[tangentIndex + 2];
+                tangent.x = tangentData[tangentIndex];
+                tangent.y = tangentData[tangentIndex + 1];
+                tangent.z = tangentData[tangentIndex + 2];
                 tangent.normalize();
 
                 bitangent.x = bitangents[bitangentIndex];
@@ -194,31 +209,31 @@ HX.NormalTangentGenerator.prototype =
                 bitangent.z = bitangents[bitangentIndex + 2];
                 cross.cross(tangent, normal);
 
-                vertexData[tangentIndex] = tangent.x;
-                vertexData[tangentIndex + 1] = tangent.y;
-                vertexData[tangentIndex + 2] = tangent.z;
-                vertexData[tangentIndex + 3] = HX.dot3(bitangent, cross) > 0.0? 1.0 : -1.0;
+                tangentData[tangentIndex] = tangent.x;
+                tangentData[tangentIndex + 1] = tangent.y;
+                tangentData[tangentIndex + 2] = tangent.z;
+                tangentData[tangentIndex + 3] = HX.dot3(bitangent, cross) > 0.0? 1.0 : -1.0;
             }
 
-            normalIndex += this._vertexStride;
-            tangentIndex += this._vertexStride;
+            normalIndex += this._normalStride;
+            tangentIndex += this._tangentStride;
         }
     },
 
-    _getFloat3At: function(i, offset, target)
+    _getFloat3At: function(i, offset, stride, target, data)
     {
         var indices = this._meshData._indexData;
-        var posIndex = offset + indices[i] * this._vertexStride;
-        target.x = this._meshData._vertexData[posIndex];
-        target.y = this._meshData._vertexData[posIndex + 1];
-        target.z = this._meshData._vertexData[posIndex + 2];
+        var posIndex = offset + indices[i] * stride;
+        target.x = data[posIndex];
+        target.y = data[posIndex + 1];
+        target.z = data[posIndex + 2];
     },
 
-    _getFloat2At: function(i, offset, target)
+    _getFloat2At: function(i, offset, stride, target, data)
     {
         var indices = this._meshData._indexData;
-        var posIndex = offset + indices[i] * this._vertexStride;
-        target.x = this._meshData._vertexData[posIndex];
-        target.y = this._meshData._vertexData[posIndex + 1];
+        var posIndex = offset + indices[i] * stride;
+        target.x = data[posIndex];
+        target.y = data[posIndex + 1];
     }
 };

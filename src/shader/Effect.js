@@ -31,7 +31,7 @@ HX.EffectPass.prototype.updateRenderState = function(renderer)
 
     HX.MaterialPass.prototype.updateRenderState.call(this, renderer);
 
-    this._mesh._vertexBuffer.bind();
+    this._mesh._vertexBuffers[0].bind();
     this._mesh._indexBuffer.bind();
 
     var layout = this._vertexLayout;

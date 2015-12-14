@@ -83,7 +83,7 @@ HX.SpherePrimitive.createMeshData = function(definition)
         }
     }
 
-    data.setVertexData(vertices);
+    data.setVertexData(vertices, 0);
     data.setIndexData(indices);
     return data;
 };

@@ -8,7 +8,7 @@ HX.RectMesh.create = function()
     data.setVertexData([-1, 1, 0, 1,
                         1, 1, 1, 1,
                         1, -1, 1, 0,
-                        -1, -1, 0, 0]);
+                        -1, -1, 0, 0], 0);
     data.setIndexData([0, 1, 2, 0, 2, 3]);
     return new HX.Mesh(data);
 };

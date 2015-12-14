@@ -134,7 +134,7 @@ HX.PlanePrimitive.create = function(definition)
         }
     }
 
-    data.setVertexData(vertices);
+    data.setVertexData(vertices, 0);
     data.setIndexData(indices);
 
     var modelData = new HX.ModelData();

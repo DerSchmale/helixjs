@@ -261,7 +261,7 @@ HX.OBJ.prototype._translateMeshData = function(group)
         vertices[index+11] = vertex.uvV;
     }
 
-    meshData.setVertexData(vertices);
+    meshData.setVertexData(vertices, 0);
     meshData.setIndexData(indices);
 
     var mode = HX.NormalTangentGenerator.MODE_TANGENTS;

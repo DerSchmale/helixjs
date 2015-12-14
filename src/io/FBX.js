@@ -10,6 +10,7 @@ HX.FBX = function()
     this._objects = null;
     this._target = null;
     this._modelInstanceSetups = null;
+    this._animationStacks = null;
 };
 
 HX.FBX.prototype = Object.create(HX.AssetParser.prototype);
@@ -22,6 +23,8 @@ HX.FBX.prototype.parse = function(data, target)
     this._objects = [];
     this._modelMaterialIDs = [];
     this._modelInstanceSetups = [];
+    this._animationStacks = [];
+
     // the rootNode
     this._objects["00"] = this._target = target;
 
@@ -44,6 +47,7 @@ HX.FBX.prototype.parse = function(data, target)
         this._processConnections();
     }
     catch(err) {
+        console.error(err.stack);
         this._notifyFailure(err.message);
         return;
     }
@@ -271,8 +275,29 @@ HX.FBX.prototype._processObjects = function()
             case "Texture":
                 obj = this._processTexture(objDef, UID);
                 break;
-            default:
-                //console.log("Unsupported object type " + objDef.name);
+            case "AnimationStack":
+                //console.log(JSON.stringify(objDef));
+                //console.log("");
+                //console.log("");
+                //console.log("");
+                //console.log("");
+                 //SHOULD be only one, but you never know
+                 //keep them in a separate list, because they won't be connected at the end
+                obj = {};
+                this._animationStacks.push(obj);
+                break;
+            //case "Pose":
+            //    obj = this._processPose(objDef, UID);
+            //    break;
+            case "Deformer":
+                obj = this._processDeformer(objDef, UID);
+                break;
+            case "AnimationLayer":
+                break;
+            case "AnimationCurveNode":
+            case "AnimationCurve":
+                break;
+
         }
 
         if (obj) {
@@ -326,6 +351,9 @@ HX.FBX.prototype._processModel = function(objDef, UID)
         case "Mesh":
             obj = this._processMeshModel(objDef, UID);
             if (this._templates["NodeAttribute"]) this._applyModelProps(obj, this._templates["NodeAttribute"]);
+            break;
+        case "LimbNode":
+            obj = new HX.FBX._LimbNode();
             break;
     }
 
@@ -787,7 +815,7 @@ HX.FBX.prototype._processMeshGeometry = function(objDef, UID)
         for (var j = 0; j < data.indexStack.length; ++j) {
             var meshData = HX.MeshData.createDefaultEmpty();
             if (hasColor) meshData.addVertexAttribute("hx_vertexColor", 3);
-            meshData.setVertexData(data.vertexStack[j]);
+            meshData.setVertexData(data.vertexStack[j], 0);
             meshData.setIndexData(data.indexStack[j]);
 
             this._modelMaterialIDs[UID].push(i);
@@ -838,10 +866,54 @@ HX.FBX.prototype._processVideo = function(objDef, UID)
         var filename = this._correctURL(relFileName.data[0].value);
         var textureLoader = new HX.AssetLoader(HX.JPG);
         obj = textureLoader.load(filename);
-        console.log(filename, relFileName.data[0].value);
     }
 
     return obj;
+};
+
+HX.FBX.prototype._processPose = function(objDef, UID)
+{
+    var subclass = objDef.data[2].value;
+
+    switch(subclass) {
+        case "BindPose":
+            return this._processBindPose(objDef, UID);
+    }
+};
+
+HX.FBX.prototype._processBindPose = function(objDef, UID)
+{
+    var children = objDef.children;
+    var len = children.length;
+    var obj = [];
+    for (var i = 0; i < len; ++i) {
+        var node = objDef.children[i];
+        if (node.children[0].value === "PoseNode") {
+            var elm = new HX.FBX._BindPoseElement;
+            var data = node.getChildNode("Matrix").data;
+            elm.id = node.getChildNode("Node").data[0].value;
+            elm.matrix.set(
+                data["0"], data["1"], data["2"], data["3"],
+                data["4"], data["5"], data["6"], data["7"],
+                data["8"], data["9"], data["10"], data["11"],
+                data["12"], data["13"], data["14"], data["15"]
+            );
+            obj.push(elm);
+        }
+    }
+    return obj;
+};
+
+HX.FBX.prototype._processDeformer = function(objDef, UID)
+{
+    var subclass = objDef.data[2].value;
+
+    switch(subclass) {
+        case "Skin":
+            return new HX.FBX._SkinDeformer();
+        case "Cluster":
+            return new HX.FBX._Cluster();
+    }
 };
 
 HX.FBX.prototype._processTexture = function(objDef, UID)
@@ -865,16 +937,16 @@ HX.FBX.prototype._processConnections = function()
         var child = this._objects[childUID];
         var parent = this._objects[parentUID];
 
-        //console.log(childUID + " -> " + parentUID);
-        // why would parent be null?
+        console.log(childUID + " -> " + parentUID);
+
         if (child && parent) {
-            //console.log(child.toString() + " -> " + parent.toString());
+            console.log(child.toString() + " -> " + parent.toString());
 
             switch (linkType) {
                 // others not currently supported
                 case "OO":
                 case "OP":
-                    this._connect(child, parent, childUID, parentUID, extra);
+                    this._connectObject(child, parent, childUID, parentUID, extra);
                     break;
             }
 
@@ -901,11 +973,11 @@ HX.FBX.prototype._processConnections = function()
     }
 };
 
-HX.FBX.prototype._connect = function(child, parent, childUID, parentUID, extra)
+HX.FBX.prototype._connectObject = function(child, parent, childUID, parentUID, extra)
 {
     if ((child instanceof HX.FBX._DummyNode) || (child instanceof HX.FBX._DummyTexture)) {
         if (child.child) {
-            this._connect(child.child, parent, childUID, parentUID, extra);
+            this._connectObject(child.child, parent, childUID, parentUID, extra);
         }
         else {
             child.parent = parent;
@@ -920,7 +992,7 @@ HX.FBX.prototype._connect = function(child, parent, childUID, parentUID, extra)
             child.transformationMatrix = parent.transformationMatrix;
 
         if (parent.parent) {
-            this._connect(child, parent.parent, childUID, parent.parentUID, parent.textureType);
+            this._connectObject(child, parent.parent, childUID, parent.parentUID, parent.textureType);
         }
         else
             parent.child = child;
@@ -1079,5 +1151,56 @@ HX.FBX._Vertex.prototype =
         }
 
         return this._hash;
+    }
+};
+
+// this will be translated to a joint later on
+HX.FBX._LimbNode = function()
+{
+    HX.Transform.call(this);
+    this.name = null;
+
+    this.toString = function()
+    {
+        return "[LimbNode(name=" + this.name + ")";
+    }
+};
+
+HX.FBX._LimbNode.prototype = Object.create(HX.Transform.prototype);
+
+HX.FBX._BindPose = function()
+{
+    this.bindPoseElements = [];
+    this.name = null;
+
+    this.toString = function()
+    {
+        return "[BindPose(name=" + this.name + ")";
+    }
+};
+
+HX.FBX._BindPoseElement = function()
+{
+    this.matrix = new HX.Matrix4x4();
+    this.id = null;
+};
+
+HX.FBX._SkinDeformer = function()
+{
+    this.name = null;
+
+    this.toString = function()
+    {
+        return "[SkinDeformer(name=" + this.name + ")";
+    }
+};
+
+HX.FBX._Cluster = function()
+{
+    this.name = null;
+
+    this.toString = function()
+    {
+        return "[Cluster(name=" + this.name + ")";
     }
 };

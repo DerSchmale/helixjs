@@ -11,7 +11,6 @@ HX.VertexLayout = function(mesh, pass)
 
     this._numAttributes = -1;
 
-    var stride = mesh.vertexStride;
     for (var i = 0; i < mesh.numVertexAttributes; ++i) {
         var attribute = mesh.getVertexAttribute(i);
         var index = shader.getVertexAttributeIndex(attribute.name);
@@ -19,8 +18,16 @@ HX.VertexLayout = function(mesh, pass)
         this._numAttributes = Math.max(this._numAttributes, index);
 
         // convert offset and stride to bytes
-        if (index >= 0)
-            this.attributes.push({index: index, offset: attribute.offset * 4, numComponents: attribute.numComponents, stride: stride * 4});
+        if (index >= 0) {
+            var stride = mesh.getVertexStride(attribute.streamIndex);
+            this.attributes.push({
+                index: index,
+                offset: attribute.offset * 4,
+                numComponents: attribute.numComponents,
+                stride: stride * 4,
+                streamIndex: attribute.streamIndex
+            });
+        }
 
     }
 
@@ -76,7 +83,8 @@ HX.MeshInstance.prototype = {
         if (this._meshMaterialLinkInvalid)
             this._linkMeshWithMaterial();
 
-        this._mesh._vertexBuffer.bind();
+
+        var vertexBuffers = this._mesh._vertexBuffers;
         this._mesh._indexBuffer.bind();
 
         var layout = this._vertexLayouts[passType];
@@ -85,6 +93,7 @@ HX.MeshInstance.prototype = {
 
         for (var i = 0; i < len; ++i) {
             var attribute = attributes[i];
+            vertexBuffers[attribute.streamIndex].bind();
             HX.GL.vertexAttribPointer(attribute.index, attribute.numComponents, HX.GL.FLOAT, false, attribute.stride, attribute.offset);
         }
 

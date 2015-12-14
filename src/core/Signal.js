@@ -28,5 +28,10 @@ HX.Signal.prototype =
         var len = this._listeners.length;
         for (var i = 0; i < len; ++i)
             this._listeners[i](payload);
+    },
+
+    get hasListeners()
+    {
+        return this._listeners.length > 0;
     }
 };

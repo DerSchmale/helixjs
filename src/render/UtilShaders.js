@@ -23,7 +23,7 @@ HX.CustomCopyShader.prototype.execute = function(rect, texture)
     HX.setDepthTest(HX.Comparison.DISABLED);
     HX.setCullMode(HX.CullMode.NONE);
 
-    rect._vertexBuffer.bind();
+    rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
     this.updateRenderState(null, null);
@@ -78,7 +78,7 @@ HX.MultiplyColorCopyShader.prototype.execute = function(rect, texture, color)
     HX.setDepthTest(HX.Comparison.DISABLED);
     HX.setCullMode(HX.CullMode.NONE);
 
-    rect._vertexBuffer.bind();
+    rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
     this.updateRenderState();
@@ -121,7 +121,7 @@ HX.CopyWithSeparateAlpha.prototype.execute = function(rect, texture, alphaTextur
     HX.setDepthTest(HX.Comparison.DISABLED);
     HX.setCullMode(HX.CullMode.NONE);
 
-    rect._vertexBuffer.bind();
+    rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
     this.updateRenderState();
@@ -202,7 +202,7 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera, text
     HX.setCullMode(HX.CullMode.NONE);
     HX.setBlendState(null);
 
-    rect._vertexBuffer.bind();
+    rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
     this.updateRenderState(null, camera);
@@ -250,7 +250,7 @@ HX.ReprojectShader.prototype.execute = function(rect, sourceTexture, depthTextur
     HX.setDepthTest(HX.Comparison.DISABLED);
     HX.setCullMode(HX.CullMode.NONE);
 
-    rect._vertexBuffer.bind();
+    rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
     this.updateRenderState(null, camera);

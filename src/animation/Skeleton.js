@@ -1,3 +1,7 @@
+/**
+ *
+ * @constructor
+ */
 HX.SkeletonJoint = function()
 {
     this.parentIndex = 0;
@@ -11,6 +15,10 @@ HX.SkeletonJointPose = function()
     // scale not supported at this point
 };
 
+/**
+ *
+ * @constructor
+ */
 HX.Skeleton = function()
 {
     this._joints = null;

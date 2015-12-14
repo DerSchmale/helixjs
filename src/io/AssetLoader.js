@@ -98,13 +98,12 @@ HX.AssetParser.prototype =
 
     _notifyFailure: function(message)
     {
-        if (!this.onFail) {
-            console.warn("Parser error: " + message);
-            return;
-        }
-
-        if (this.onFail instanceof HX.Signal)
+        if (this.onFail instanceof HX.Signal) {
+            if (!this.onFail.hasListeners) {
+                console.error(message);
+            }
             this.onFail.dispatch(message);
+        }
         else
             this.onFail(message);
     },

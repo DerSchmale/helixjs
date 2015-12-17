@@ -68,8 +68,11 @@ HX.MeshInstance.prototype = {
         this._material = value;
 
         // TODO: May want to set a default "purple" material when nothing is provided?
-        if (this._material)
+        if (this._material) {
             this._material.onChange.bind(this._onMaterialChange, this);
+
+            this.material._setUseSkinning(this._material._useSkinning || !!this._mesh._model.skeleton);
+        }
 
         this._linkMeshWithMaterial();
     },
@@ -137,6 +140,7 @@ HX.ModelInstance = function(model, materials)
     this._model = null;
     this._meshInstances = [];
     this._castShadows = true;
+    this._skeletonPose = null;
 
     this.init(model, materials);
 };
@@ -164,6 +168,21 @@ HX.ModelInstance.prototype = Object.create(HX.Entity.prototype, {
         {
             return this._meshInstances.length;
         }
+    },
+
+    skeleton: {
+        get: function() {
+            return this._model.skeleton;
+        }
+    },
+
+    skeletonMatrices: {
+        get: function() {
+            return this._skeletonPose;
+        },
+        set: function(value) {
+            this._skeletonPose = value;
+        }
     }
 });
 
@@ -183,7 +202,13 @@ HX.ModelInstance.prototype.init = function(model, materials)
         this._materials = materials instanceof Array? materials : [ materials ];
 
     if (model) {
-        this._model.onChange.bind(this._onModelChange, this);
+        if (model.skeleton) {
+            this._skeletonPose = [];
+            for (var i = 0; i < model.skeleton.numJoints; ++i) {
+                this._skeletonPose[i] = new HX.Matrix4x4();
+            }
+        }
+        model.onChange.bind(this._onModelChange, this);
         this._onModelChange();
     }
 

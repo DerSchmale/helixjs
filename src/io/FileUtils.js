@@ -1,8 +1,19 @@
 HX.FileUtils =
 {
-    extractPath: function(filename)
+    extractPathAndFilename: function(filename)
     {
         var index = filename.lastIndexOf("/");
-        return index >= 0? filename.substr(0, index + 1) : "";
+        var obj = {};
+
+        if (index >= 0) {
+            obj.path = filename.substr(0, index + 1);
+            obj.filename = filename.substr(index + 1);
+        }
+        else {
+            obj.path = "./";
+            obj.filename = filename;
+        }
+
+        return obj;
     }
 };

@@ -27,7 +27,7 @@ HX.EffectPass.prototype.setMesh = function(mesh)
 
 HX.EffectPass.prototype.updateRenderState = function(renderer)
 {
-    this._shader.updateRenderState(null, renderer._camera);
+    this._shader.updateRenderState(renderer._camera);
 
     HX.MaterialPass.prototype.updateRenderState.call(this, renderer);
 

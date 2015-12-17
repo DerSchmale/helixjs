@@ -368,6 +368,7 @@ HX.PBRMaterial.prototype._generateGeneralDefines = function()
     var defines = "";
     if (this._maskMap) defines += "#define MASK_MAP\n";
     if (this._alphaThreshold < 1.0) defines += "#define ALPHA_THRESHOLD\n";
+    if (this._useSkinning) defines += "#define USE_SKINNING\n";
     return defines;
 };
 
@@ -392,4 +393,12 @@ HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fra
     pass.cullMode = this._doubleSided? HX.CullMode.NONE : HX.CullMode.BACK;
     this.setPass(type, pass);
     return pass;
+};
+
+HX.PBRMaterial.prototype._setUseSkinning = function(value)
+{
+    if (this._useSkinning !== value)
+        this._passesInvalid = true;
+
+    this._useSkinning = value;
 };

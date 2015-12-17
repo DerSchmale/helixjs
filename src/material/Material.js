@@ -39,6 +39,9 @@ HX.MaterialPass = function (shader)
     this._enabled = true;
     this._storeUniforms();
     this._textureSetters = HX.TextureSetter.getSetters(this);
+
+    // if material supports animations, this would need to be handled properly
+    this._useSkinning = false;
 };
 
 HX.MaterialPass.GEOMETRY_PASS = 0;
@@ -444,6 +447,11 @@ HX.Material.prototype = {
             if (this._passes[i])
                 this._passes[i].setUniformArray(name, value);
         }
+    },
+
+    _setUseSkinning: function(value)
+    {
+        this._useSkinning = value;
     },
 
     toString: function()

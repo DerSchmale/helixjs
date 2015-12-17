@@ -32,7 +32,9 @@ HX.AssetLoader.prototype =
         parser.onFail = this.onFail;
         parser.fileMap = this.fileMap;
         parser.options = this.options;
-        parser.path = HX.FileUtils.extractPath(filename);
+        var file = HX.FileUtils.extractPathAndFilename(filename);
+        parser.path = file.path;
+        parser.filename = file.filename;
 
         if (parser.dataType === HX.AssetParser.IMAGE) {
             var image = new Image();
@@ -77,6 +79,7 @@ HX.AssetParser = function(containerType, dataType)
     // be able to pass parser specific objects
     this.options = {};
     this.path = "";
+    this.filename = "";
 };
 
 HX.AssetParser.prototype =

@@ -91,20 +91,23 @@ HX.Quaternion.prototype = {
         }
     },
 
-    rotate: function(v)
+    rotate: function(v, target)
     {
+        target = target || new HX.Float4();
         var vx = v.x, vy = v.y, vz = v.z;
+        var x = this.x, y = this.y, z = this.z, w = this.w;
 
         // p*q'
-        var w1 = - this.x * vx - this.y * vy - this.z * vz;
-        var x1 = w * vx + this.y * vz - this.z * vy;
-        var y1 = w * vy - this.x * vz + this.z * vx;
-        var z1 = w * vz + this.x * vy - this.y * vx;
+        var w1 = - x * vx - y * vy - z * vz;
+        var x1 = w * vx + y * vz - z * vy;
+        var y1 = w * vy - x * vz + z * vx;
+        var z1 = w * vz + x * vy - y * vx;
 
-        return new HX.Float4(-w1 * this.x + x1 * this.w - y1 * this.z + z1 * this.y,
-                                -w1 * this.y + x1 * this.z + y1 * this.w - z1 * this.x,
-                                -w1 * this.z - x1 * this.y + y1 * this.x + z1 * this.w,
-                                v.w);
+        target.x = -w1 * x + x1 * w - y1 * z + z1 * y;
+        target.y = -w1 * y + x1 * z + y1 * w - z1 * x;
+        target.z = -w1 * z - x1 * y + y1 * x + z1 * w;
+        target.w = v.w;
+        return target;
     },
 
     lerp: function(a, b, factor)
@@ -186,6 +189,14 @@ HX.Quaternion.prototype = {
         this.y = y;
         this.z = z;
         this.w = w;
+    },
+
+    copyFrom: function(b)
+    {
+        this.x = b.x;
+        this.y = b.y;
+        this.z = b.z;
+        this.w = b.w;
     },
 
     get normSquared()

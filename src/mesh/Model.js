@@ -14,10 +14,11 @@ HX.MeshData = function ()
 };
 
 HX.MeshData.DEFAULT_VERTEX_SIZE = 12;
-HX.MeshData.DEFAULT_BATCHED_VERTEX_SIZE = 13;
 
 // other possible indices:
 // hx_instanceID (used by MeshBatch)
+// hx_boneIndices (4)
+// hx_boneWeights (4)
 HX.MeshData.createDefaultEmpty = function()
 {
     var data = new HX.MeshData();
@@ -34,6 +35,11 @@ HX.MeshData.prototype = {
     getVertexData: function(streamIndex)
     {
         return this._vertexData[streamIndex];
+    },
+
+    numVertices: function()
+    {
+        return this._vertexData[0].length / this._vertexStrides[0];
     },
 
     /**
@@ -95,8 +101,9 @@ HX.MeshData.prototype = {
  * @param meshData
  * @constructor
  */
-HX.Mesh = function (meshData)
+HX.Mesh = function (meshData, model)
 {
+    this._model = model;
     this._vertexBuffers = [];
     this._vertexStrides = [];
     this._indexBuffer = new HX.IndexBuffer();
@@ -157,6 +164,7 @@ HX.ModelData = function ()
 {
     this._meshDataList = [];
     this._joints = [];
+    this.skeleton = null;
 };
 
 HX.ModelData.prototype = {
@@ -264,8 +272,10 @@ HX.Model.prototype = {
         for (var i = 0; i < modelData.numMeshes; ++i) {
             var meshData = modelData.getMeshData(i);
             this._localBounds.growToIncludeMesh(meshData);
-            this._meshes.push(new HX.Mesh(meshData));
+            this._meshes.push(new HX.Mesh(meshData, this));
         }
+
+        this.skeleton = modelData.skeleton;
 
         this.onChange.dispatch();
     },

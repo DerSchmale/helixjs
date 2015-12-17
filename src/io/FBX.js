@@ -10,7 +10,9 @@ HX.FBX = function()
     this._objects = null;
     this._target = null;
     this._modelInstanceSetups = null;
+    this._skeletonSetups = null;
     this._animationStacks = null;
+    this._ctrlPointLookUp = null;
 };
 
 HX.FBX.prototype = Object.create(HX.AssetParser.prototype);
@@ -22,8 +24,10 @@ HX.FBX.prototype.parse = function(data, target)
 
     this._objects = [];
     this._modelMaterialIDs = [];
-    this._modelInstanceSetups = [];
+    this._modelInstanceSetups = {};
+    this._skeletonSetups = {};
     this._animationStacks = [];
+    this._ctrlPointLookUp = {};
 
     // the rootNode
     this._objects["00"] = this._target = target;
@@ -353,6 +357,7 @@ HX.FBX.prototype._processModel = function(objDef, UID)
             if (this._templates["NodeAttribute"]) this._applyModelProps(obj, this._templates["NodeAttribute"]);
             break;
         case "LimbNode":
+            console.log(JSON.stringify(objDef));
             obj = new HX.FBX._LimbNode();
             break;
     }
@@ -561,7 +566,7 @@ HX.FBX.prototype._processMeshModel = function(objDef, UID)
 
     // will be filled in on connect
     this._modelInstanceSetups[UID] = {
-        model: null,
+        modelData: null,
         materials: [],
         materialsIDs: null,
         modelInstance: node,
@@ -642,9 +647,11 @@ HX.FBX.prototype._generateExpandedMeshData = function(objDef)
             v.lastVertex = true;
         }
 
+        // is index the control point, referred to by animations?
         v.pos.x = vertexData[index * 3];
         v.pos.y = vertexData[index * 3 + 1];
         v.pos.z = vertexData[index * 3 + 2];
+        v.ctrlPointIndex = index;   // if these indices are different, they are probably triggered differerently in animations
 
         if (normalData) v.normal = this._applyVertexData(normalData, index, i, 3);
         if (colorData) v.color = this._applyVertexData(colorData, index, i, 3);
@@ -679,8 +686,10 @@ HX.FBX.prototype._processMeshGeometry = function(objDef, UID)
             indexCounter: 0,
             vertexStack: [],
             indexStack: [],
+            ctrlPointStack: [],
             vertices: null,
             indices: null,
+            ctrlPointIndices: null,
             indexLookUp: {}
         }
     }
@@ -705,10 +714,11 @@ HX.FBX.prototype._processMeshGeometry = function(objDef, UID)
         if (data.indexCounter > 65535) return -1;
 
         var vertices = data.vertices;
-
         // new unique vertex!
         var k = data.indexCounter * stride;
         var realIndex = data.indexCounter++;
+
+        data.ctrlPointIndices[realIndex] = v.ctrlPointIndex;
 
         indexLookUp[hash] = realIndex;
 
@@ -764,10 +774,14 @@ HX.FBX.prototype._processMeshGeometry = function(objDef, UID)
             data.indexCounter = 0;
             data.indices = [];
             data.vertices = [];
+            data.ctrlPointIndices = [];
             data.indexLookUp = {};
             data.indexStack.push(data.indices);
             data.vertexStack.push(data.vertices);
+            data.ctrlPointStack.push(data.ctrlPointIndices);
         }
+
+        // for everything: i = control point index
 
         realIndex0 = getOrAddIndex(vertexData[i]);
         if (realIndex0 < 0) {
@@ -806,6 +820,7 @@ HX.FBX.prototype._processMeshGeometry = function(objDef, UID)
     }
 
     var modelData = new HX.ModelData();
+    var meshIndex = 0;
 
     this._modelMaterialIDs[UID] = [];
 
@@ -818,6 +833,15 @@ HX.FBX.prototype._processMeshGeometry = function(objDef, UID)
             meshData.setVertexData(data.vertexStack[j], 0);
             meshData.setIndexData(data.indexStack[j]);
 
+            var ctrlPoints = data.ctrlPointStack[j];
+            var numCtrlPoints = ctrlPoints.length;
+            this._ctrlPointLookUp[UID] = [];
+
+            for (var k = 0; k < numCtrlPoints; ++k) {
+                this._ctrlPointLookUp[UID][ctrlPoints[k]] = {index: k, meshIndex: meshIndex};
+            }
+            ++meshIndex;
+
             this._modelMaterialIDs[UID].push(i);
 
             var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
@@ -828,7 +852,7 @@ HX.FBX.prototype._processMeshGeometry = function(objDef, UID)
         }
     }
 
-    return new HX.Model(modelData);
+    return modelData;
 };
 
 HX.FBX.prototype._processMaterial = function(objDef, UID)
@@ -910,10 +934,30 @@ HX.FBX.prototype._processDeformer = function(objDef, UID)
 
     switch(subclass) {
         case "Skin":
-            return new HX.FBX._SkinDeformer();
+            var obj = new HX.Skeleton();
+            this._skeletonSetups[UID] = {
+                skeleton: obj,
+                modelData: null,
+                modelUID: null,
+                clusters: []
+            };
+            return obj;
+            return
         case "Cluster":
-            return new HX.FBX._Cluster();
+            return this._processCluster(objDef, UID);
     }
+};
+
+HX.FBX.prototype._processCluster = function(objDef, UID)
+{
+    var indices = objDef.getChildNode("Indexes");  // Learn your plurals, Autodesk
+    var weights = objDef.getChildNode("Weights");
+    if (!indices || !weights) return null;
+
+    var obj = new HX.FBX._Cluster();
+    obj.indices = indices.data[0].value;
+    obj.weights = weights.data[0].value;
+    return obj;
 };
 
 HX.FBX.prototype._processTexture = function(objDef, UID)
@@ -953,24 +997,8 @@ HX.FBX.prototype._processConnections = function()
         }
     }
 
-    for (var key in this._modelInstanceSetups) {
-        if (this._modelInstanceSetups.hasOwnProperty(key)) {
-            var setup = this._modelInstanceSetups[key];
-            var materials = [];
-
-            for (var i = 0; i < setup.materialsIDs.length; ++i) {
-                var id = setup.materialsIDs[i];
-                materials.push(setup.materials[id]);
-            }
-
-            //console.log(setup.model.toString());
-            setup.modelInstance.init(setup.model, materials);
-            if (setup.parent)
-                setup.parent.attach(setup.modelInstance);
-            else
-                this._target.attach(setup.modelInstance);
-        }
-    }
+    this._finalizeSkinning();
+    this._finalizeModelInstances();
 };
 
 HX.FBX.prototype._connectObject = function(child, parent, childUID, parentUID, extra)
@@ -1003,9 +1031,16 @@ HX.FBX.prototype._connectObject = function(child, parent, childUID, parentUID, e
     else if (child instanceof HX.SceneNode) {
         parent.attach(child);
     }
-    else if (child instanceof HX.Model) {
+    else if (child instanceof HX.ModelData) {
         this._modelInstanceSetups[parentUID].materialsIDs = this._modelMaterialIDs[childUID];
-        this._modelInstanceSetups[parentUID].model = child;
+        this._modelInstanceSetups[parentUID].modelData = child;
+    }
+    else if (child instanceof HX.FBX._Cluster) {
+        this._skeletonSetups[parentUID].clusters.push(child);
+    }
+    else if (child instanceof HX.Skeleton) {
+        this._skeletonSetups[childUID].modelData = parent;
+        this._skeletonSetups[childUID].modelUID = parentUID;
     }
     else if (child instanceof HX.Material) {
         this._modelInstanceSetups[parentUID].materials.push(child);
@@ -1022,6 +1057,90 @@ HX.FBX.prototype._connectObject = function(child, parent, childUID, parentUID, e
             case "NormalMap":
                 parent.normalMap = child;
                 break;
+        }
+    }
+};
+
+HX.FBX.prototype._finalizeModelInstances = function()
+{
+    for (var key in this._modelInstanceSetups) {
+        if (this._modelInstanceSetups.hasOwnProperty(key)) {
+            var setup = this._modelInstanceSetups[key];
+            var materials = [];
+
+            for (var i = 0; i < setup.materialsIDs.length; ++i) {
+                var id = setup.materialsIDs[i];
+                materials.push(setup.materials[id]);
+            }
+
+            var model = new HX.Model(setup.modelData);
+            model.name = setup.modelData.name;
+            setup.modelInstance.init(model, materials);
+
+            if (setup.parent)
+                setup.parent.attach(setup.modelInstance);
+            else
+                this._target.attach(setup.modelInstance);
+        }
+    }
+};
+
+HX.FBX.prototype._finalizeSkinning = function()
+{
+    for (var key in this._skeletonSetups) {
+        if (this._skeletonSetups.hasOwnProperty(key)) {
+            var setup = this._skeletonSetups[key];
+
+            var ctrlPoints = this._ctrlPointLookUp[setup.modelUID];
+
+            var data = [];
+            var len = setup.modelData.numMeshes;
+            for (var i = 0; i < len; ++i) {
+                data[i] = [];
+                var numVerts = setup.modelData.getMeshData(i).numVertices;
+                for (var j = 0; j < numVerts * 8; ++j)
+                    data[i][j] = -1;
+
+            }
+
+            // boneIndex depends on Joint's index
+            len = setup.clusters.length;
+            for (var i = 0; i < len; ++i) {
+                this._assignClusters(ctrlPoints, setup.clusters[i], data);
+            }
+
+            len = setup.modelData.numMeshes;
+            for (var i = 0; i < len; ++i) {
+                var meshData = setup.modelData.getMeshData(i);
+                var numVerts = data[i].length;
+                for (var j = 0; j < numVerts; ++j)
+                    if (data[i][j] === -1) data[i][j] = 0;
+
+                meshData.addVertexAttribute("hx_boneIndices", 4, 1);
+                meshData.addVertexAttribute("hx_boneWeights", 4, 1);
+                meshData.setVertexData(data[i], 1);
+            }
+
+            setup.modelData.skeleton = setup.skeleton;
+        }
+    }
+};
+
+HX.FBX.prototype._assignClusters = function(ctrlPoints, cluster, targets)
+{
+    var len = cluster.indices.length;
+    var boneIndex = cluster.jointIndex;
+    for (var i = 0; i < len; ++i) {
+        var index = cluster.indices[i];
+        var weight = cluster.weights[i];
+        var mapping = ctrlPoints[index];
+        var v = mapping.index * 8;
+        for (var i = v; i < v + 4; ++i) {
+            if (targets[mapping.meshIndex][i] === -1) {
+                targets[mapping.meshIndex][i] = boneIndex;  // this index is incorrect!
+                targets[mapping.meshIndex][i + 4] = weight;
+            }
+            if (i === v + 4) this._notifyFailure("Too many bones per matrix! (max 4)");
         }
     }
 };
@@ -1125,6 +1244,7 @@ HX.FBX._Vertex = function()
     this.normal = null;
     this.color = null;
     this.materialIndex = 0;
+    this.ctrlPointIndex = -1;
     this._hash = null;
 
     this.lastVertex = false;
@@ -1136,7 +1256,7 @@ HX.FBX._Vertex.prototype =
     getHash: function()
     {
         if (!this._hash) {
-            var str = this.materialIndex + "/" + this.pos.x + "/" + this.pos.y + "/" + this.pos.z;
+            var str = this.ctrlPointIndex + "/" + this.materialIndex + "/" + this.pos.x + "/" + this.pos.y + "/" + this.pos.z;
 
             if (this.normal)
                 str = str + "/" + this.normal.x + "/" + this.normal.y + "/" + this.normal.z;
@@ -1155,9 +1275,10 @@ HX.FBX._Vertex.prototype =
 };
 
 // this will be translated to a joint later on
+// Using GroupNode so we can use parenting
 HX.FBX._LimbNode = function()
 {
-    HX.Transform.call(this);
+    HX.GroupNode.call(this);
     this.name = null;
 
     this.toString = function()
@@ -1166,7 +1287,7 @@ HX.FBX._LimbNode = function()
     }
 };
 
-HX.FBX._LimbNode.prototype = Object.create(HX.Transform.prototype);
+HX.FBX._LimbNode.prototype = Object.create(HX.GroupNode.prototype);
 
 HX.FBX._BindPose = function()
 {
@@ -1182,22 +1303,16 @@ HX.FBX._BindPose = function()
 HX.FBX._BindPoseElement = function()
 {
     this.matrix = new HX.Matrix4x4();
-    this.id = null;
-};
-
-HX.FBX._SkinDeformer = function()
-{
-    this.name = null;
-
-    this.toString = function()
-    {
-        return "[SkinDeformer(name=" + this.name + ")";
-    }
 };
 
 HX.FBX._Cluster = function()
 {
     this.name = null;
+    this.limbNode = null;
+    this.weights = null;
+
+    this.jointIndex = 0;
+    this.joint = null;
 
     this.toString = function()
     {

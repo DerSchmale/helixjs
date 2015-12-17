@@ -6,6 +6,8 @@ HX.RenderItem = function()
 {
     this.worldMatrix = null;
     this.meshInstance = null;
+    this.skeleton = null;
+    this.skeletonMatrices = null;
     this.material = null;
     this.pass = null;
     this.camera = null;

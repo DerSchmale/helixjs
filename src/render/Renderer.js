@@ -259,7 +259,7 @@ HX.Renderer.prototype =
                 var meshInstance = renderItem.meshInstance;
                 var pass = renderItem.pass;
 
-                pass._shader.updateRenderState(renderItem.worldMatrix, renderItem.camera);
+                pass._shader.updateRenderState(renderItem.camera, renderItem);
                 pass.updateRenderState(this);
                 meshInstance.updateRenderState(passType);
 

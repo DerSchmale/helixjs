@@ -12,6 +12,8 @@ var HX = {
  */
 HX.InitOptions = function()
 {
+    this.maxBones = 64;
+
     // rendering pipeline options
     this.useHDR = false;   // only if available
     this.useGammaCorrection = true;
@@ -106,6 +108,8 @@ HX.init = function(canvas, options)
     var defines = "";
     if (HX.OPTIONS.useGammaCorrection !== false)
         defines += HX.OPTIONS.usePreciseGammaCorrection? "#define HX_GAMMA_CORRECTION_PRECISE\n" : "#define HX_GAMMA_CORRECTION_FAST\n";
+
+    defines += "#define HX_MAX_BONES " + HX.OPTIONS.maxBones + "\n";
 
     HX.OPTIONS.ignoreDrawBuffersExtension = HX.OPTIONS.ignoreDrawBuffersExtension || HX.OPTIONS.ignoreAllExtensions;
     HX.OPTIONS.ignoreDepthTexturesExtension = HX.OPTIONS.ignoreDepthTexturesExtension || HX.OPTIONS.ignoreAllExtensions;

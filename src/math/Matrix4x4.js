@@ -836,8 +836,9 @@ HX.Matrix4x4.prototype = {
     /**
      * Writes the inverse transpose into an array for upload (must support 9 elements)
      */
-    writeNormalMatrix: function (array)
+    writeNormalMatrix: function (array, index)
     {
+        index = index || 0;
         var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2];
         var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
         var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
@@ -845,15 +846,23 @@ HX.Matrix4x4.prototype = {
         var determinant = m0 * (m5 * m10 - m9 * m6) - m4 * (m1 * m10 - m9 * m2) + m8 * (m1 * m6 - m5 * m2);
         var rcpDet = 1.0 / determinant;
 
-        array[0] = (m5 * m10 - m9 * m6) * rcpDet;
-        array[1] = (m8 * m6 - m4 * m10) * rcpDet;
-        array[2] = (m4 * m9 - m8 * m5) * rcpDet;
-        array[3] = (m9 * m2 - m1 * m10) * rcpDet;
-        array[4] = (m0 * m10 - m8 * m2) * rcpDet;
-        array[5] = (m8 * m1 - m0 * m9) * rcpDet;
-        array[6] = (m1 * m6 - m5 * m2) * rcpDet;
-        array[7] = (m4 * m2 - m0 * m6) * rcpDet;
-        array[8] = (m0 * m5 - m4 * m1) * rcpDet;
+        array[index] = (m5 * m10 - m9 * m6) * rcpDet;
+        array[index + 1] = (m8 * m6 - m4 * m10) * rcpDet;
+        array[index + 2] = (m4 * m9 - m8 * m5) * rcpDet;
+        array[index + 3] = (m9 * m2 - m1 * m10) * rcpDet;
+        array[index + 4] = (m0 * m10 - m8 * m2) * rcpDet;
+        array[index + 5] = (m8 * m1 - m0 * m9) * rcpDet;
+        array[index + 6] = (m1 * m6 - m5 * m2) * rcpDet;
+        array[index + 7] = (m4 * m2 - m0 * m6) * rcpDet;
+        array[index + 8] = (m0 * m5 - m4 * m1) * rcpDet;
+    },
+
+    writeData: function(array, index)
+    {
+        index = index || 0;
+        var m = this._m;
+        for (var i = 0; i < 16; ++i)
+            array[index + i] = m[i];
     },
 
     invert: function ()

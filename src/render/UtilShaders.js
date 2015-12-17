@@ -26,7 +26,7 @@ HX.CustomCopyShader.prototype.execute = function(rect, texture)
     rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
-    this.updateRenderState(null, null);
+    this.updateRenderState();
 
     texture.bind(0);
 
@@ -205,7 +205,7 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera, text
     rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
-    this.updateRenderState(null, camera);
+    this.updateRenderState(camera);
 
     texture.bind(0);
     if (texture2)
@@ -253,7 +253,7 @@ HX.ReprojectShader.prototype.execute = function(rect, sourceTexture, depthTextur
     rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
-    this.updateRenderState(null, camera);
+    this.updateRenderState(camera);
 
     sourceTexture.bind(0);
     depthTexture.bind(1);

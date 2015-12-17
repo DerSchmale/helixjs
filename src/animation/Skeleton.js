@@ -4,15 +4,83 @@
  */
 HX.SkeletonJoint = function()
 {
-    this.parentIndex = 0;
+    this.name = null;
+    this.parentIndex = -1;
     this.inverseBindPose = new HX.Matrix4x4();
 };
 
+HX.SkeletonJoint.prototype =
+{
+    toString: function()
+    {
+        return "[SkeletonJoint]";
+    }
+};
+
+/**
+ *
+ * @constructor
+ */
 HX.SkeletonJointPose = function()
 {
     this.orientation = new HX.Quaternion();
     this.translation = new HX.Float4();
     // scale not supported at this point
+};
+
+HX.SkeletonJointPose.prototype =
+{
+    copyFrom: function(a)
+    {
+        this.orientation.copyFrom(a.orientation);
+        this.translation.copyFrom(a.translation);
+    },
+
+    toString: function()
+    {
+        return "[SkeletonJointPose]";
+    }
+};
+
+/**
+ *
+ * @constructor
+ */
+HX.SkeletonPose = function()
+{
+    this.jointPoses = [];
+};
+
+HX.SkeletonPose.prototype =
+{
+    interpolate: function(a, b, factor)
+    {
+        a = a.jointPoses;
+        b = b.jointPoses;
+        var len = a.length;
+
+        if (this.jointPoses.length !== len) {
+            this._numJoints = len;
+            this.jointPoses = [];
+            for (var i = 0; i < len; ++i) {
+                this.jointPoses[i] = new HX.SkeletonJointPose();
+            }
+        }
+
+        var target = this.jointPoses;
+        for (var i = 0; i < len; ++i) {
+            target[i].orientation.slerp(a[i].orientation, b[i].orientation, factor);
+            target[i].translation.lerp(a[i].translation, b[i].translation, factor);
+        }
+    },
+
+    copyFrom: function(a)
+    {
+        a = a.jointPoses;
+        var target = this.jointPoses;
+        for (var i = 0; i < len; ++i)
+            target[i].copyFrom(a[i]);
+    }
 };
 
 /**
@@ -21,7 +89,8 @@ HX.SkeletonJointPose = function()
  */
 HX.Skeleton = function()
 {
-    this._joints = null;
+    this._joints = [];
+    this._name = "";
 };
 
 HX.Skeleton.prototype =
@@ -31,8 +100,68 @@ HX.Skeleton.prototype =
         return this._joints.length;
     },
 
+    addJoint: function(joint)
+    {
+        this._joints.push(joint);
+    },
+
     getJoint: function(index)
     {
         return this._joints[index];
+    },
+
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
+
+    toString: function()
+    {
+        return "[Skeleton(name=" + this.name + ")";
     }
+};
+
+
+/**
+ *
+ * @constructor
+ */
+HX.SkeletonAnimation = function(rootNode)
+{
+    HX.Component.call(this);
+    if (rootNode instanceof HX.SkeletonClip)
+        rootNode = new HX.SkeletonClipNode(rootNode);
+    this._blendTree = new HX.SkeletonBlendTree(rootNode);
+};
+
+HX.SkeletonAnimation.prototype = Object.create(HX.Component.prototype,
+    {
+        animationNode: {
+            get: function ()
+            {
+                return this._blendTree.rootNode;
+            },
+            set function(value)
+            {
+                return this._blendTree.rootNode = value;
+                if (this._entity) this._blendTree.skeleton = this._entity.skeleton;
+            }
+        }
+    }
+);
+
+HX.SkeletonAnimation.prototype.onAdded = function()
+{
+    this._blendTree.skeleton = this._entity.skeleton;
+};
+
+HX.SkeletonAnimation.prototype.onUpdate = function(dt)
+{
+    this._blendTree.update(dt);
+    this._entity.skeletonMatrices = this._blendTree.matrices;
 };

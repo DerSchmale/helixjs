@@ -31,7 +31,7 @@ HX.RenderUtils =
             var pass = renderItem.pass;
             var shader = pass._shader;
             // make sure renderstate is propagated
-            shader.updateRenderState(renderItem.worldMatrix, renderItem.camera);
+            shader.updateRenderState(renderItem.camera, renderItem);
 
             if (pass !== activePass) {
                 pass.updateRenderState(renderer);

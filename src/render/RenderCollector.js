@@ -114,6 +114,8 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
                 renderItem.material = material;
                 renderItem.pass = pass;
                 renderItem.meshInstance = meshInstance;
+                renderItem.skeleton = modelInstance.skeleton;
+                renderItem.skeletonMatrices = modelInstance.skeletonMatrices;
                 // distance along Z axis:
                 renderItem.renderOrderHint = worldBounds._centerX * this._cameraZAxis.x + worldBounds._centerY * this._cameraZAxis.y + worldBounds._centerZ * this._cameraZAxis.z;
                 renderItem.worldMatrix = worldMatrix;

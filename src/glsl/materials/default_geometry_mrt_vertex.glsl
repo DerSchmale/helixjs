@@ -36,14 +36,16 @@ uniform mat4 hx_worldViewMatrix;
 void main()
 {
 #ifdef USE_SKINNING
-    vec4 animPosition = hx_skinningMatrices[int(hx_boneIndices.x)] * hx_position * hx_boneWeights.x;
-    animPosition += hx_skinningMatrices[int(hx_boneIndices.y)] * hx_position * hx_boneWeights.y;
-    animPosition += hx_skinningMatrices[int(hx_boneIndices.z)] * hx_position * hx_boneWeights.z;
-    animPosition += hx_skinningMatrices[int(hx_boneIndices.w)] * hx_position * hx_boneWeights.w;
-    vec3 animNormal = hx_normal;
+    mat4 skinningMatrix = hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)];
+    skinningMatrix += hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)];
+    skinningMatrix += hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)];
+    skinningMatrix += hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)];
+
+    vec4 animPosition = skinningMatrix * hx_position;
+    vec3 animNormal = mat3(skinningMatrix) * hx_normal;
 
     #ifdef NORMAL_MAP
-    vec3 animTangent = hx_tangent.xyz;
+    vec3 animTangent = mat3(skinningMatrix) * hx_tangent.xyz;
     #endif
 #else
     vec4 animPosition = hx_position;

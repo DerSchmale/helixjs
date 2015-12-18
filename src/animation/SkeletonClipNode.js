@@ -10,15 +10,12 @@ HX.SkeletonClipNode = function(clip)
     this._clip = clip;
     this._interpolate = true;
     this._timeScale = 1.0;
-    this._playing = true;
+    this._isPlaying = true;
     this._time = 0;
 };
 
 HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
     {
-        duration: {
-            get: function() { return this._clip.duration; }
-        },
         numJoints: {
             get: function() { return this._clip.numJoints; }
         },
@@ -35,22 +32,32 @@ HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
             set: function(value)
             {
                 this._time = value;
-                this._invalidatePose();
+                this._timeChanged = true;
             }
         }
     });
 
-// the value of this node is a ratio in the time
-HX.SkeletonClipNode.prototype.update = function(dt)
+HX.SkeletonClipNode.prototype.play = function()
 {
-    if (this._playing && dt > 0) this._invalidatePose();
-    HX.SkeletonBlendNode.prototype.update.call(this, dt);
+    this._isPlaying = true;
 };
 
-HX.SkeletonClipNode.prototype._updatePose = function(dt)
+HX.SkeletonClipNode.prototype.stop = function()
 {
-    dt *= this._timeScale;
-    this._time += dt/1000.0;
+    this._isPlaying = false;
+};
+
+HX.SkeletonClipNode.prototype.update = function(dt)
+{
+    if ((!this._isPlaying || dt === 0.0) && !this._timeChanged)
+        return false;
+
+    this._timeChanged = false;
+
+    if (this._isPlaying) {
+        dt *= this._timeScale;
+        this._time += dt/1000.0;
+    }
 
     var clip = this._clip;
     var numBaseFrames = clip._transferRootJoint? clip.numFrames - 1 : clip.numFrames;
@@ -81,6 +88,8 @@ HX.SkeletonClipNode.prototype._updatePose = function(dt)
 
     if (clip._transferRootJoint)
         this._transferRootJointTransform(wraps);
+
+    return true;
 };
 
 HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps)
@@ -113,8 +122,7 @@ HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps)
     currentPos.set(0.0, 0.0, 0.0);
 };
 
-HX.SkeletonClipNode.prototype.setValue = function(id, value)
+HX.SkeletonClipNode.prototype._applyValue = function(value)
 {
-    if (this._valueID == id)
-        this.time = value * this._clip.duration;
+    this.time = value * this._clip.duration;
 };

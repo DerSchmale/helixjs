@@ -25,6 +25,8 @@ HX.SkeletonBlendTree.prototype =
 
     },
 
+    get rootJointDeltaPosition() { return this._rootNode.rootJointDeltaPosition; },
+
     get rootNode() { return this._rootNode; },
     set rootNode(value) { this._rootNode = value; },
 
@@ -32,11 +34,12 @@ HX.SkeletonBlendTree.prototype =
 
     update: function(dt)
     {
-        this._rootNode.update(dt);
-
-        // TODO: only update these if anything in rootNode was updated
-        this._updateGlobalPose();
-        this._updateMatrices();
+        if (this._rootNode.update(dt)) {
+            this._updateGlobalPose();
+            this._updateMatrices();
+            return true;
+        }
+        return false;
     },
 
     _updateGlobalPose: function()

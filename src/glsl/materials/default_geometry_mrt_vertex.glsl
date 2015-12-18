@@ -5,6 +5,7 @@ attribute vec3 hx_normal;
 attribute vec4 hx_boneIndices;
 attribute vec4 hx_boneWeights;
 
+// WebGL doesn't support mat4x3 and I don't want to split the uniform either
 uniform mat4 hx_skinningMatrices[HX_MAX_BONES];
 #endif
 

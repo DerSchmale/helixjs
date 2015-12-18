@@ -25,10 +25,11 @@ var sourceFiles = [
     "src/shader/Shader.js",
     "src/material/Material.js",
     "src/io/AssetLoader.js",
-    "src/scene/Scene.js",
+    "src/scene/SceneNode.js",
     "src/entity/*.js",
     "src/light/Light.js",
     "src/scene/SceneVisitor.js",
+    "src/animation/SkeletonBlendNode.js",
 
     "src/shader/*.js",
     "src/material/*.js",

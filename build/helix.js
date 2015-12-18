@@ -3420,6 +3420,10 @@ HX.ShaderLibrary['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid ma
 
 HX.ShaderLibrary['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
+HX.ShaderLibrary['lighting_blinn_phong.glsl'] = '/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n    float roughSqr = roughness*roughness;\n    float g1 = nDotV + sqrt( roughSqr + (1.0 - roughSqr) * nDotV * nDotV );\n    float g2 = nDotL + sqrt( roughSqr + (1.0 - roughSqr) * nDotL * nDotL );\n    return 1.0 / (g1 * g2);\n}*/\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n// / PI factor is encoded in light colour\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
+
+HX.ShaderLibrary['lighting_ggx.glsl'] = '// Smith:\n/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float roughSqr = roughness*roughness;\n	float g1 = nDotV + sqrt( (nDotV - nDotV * roughSqr) * nDotV + roughSqr );\n    float g2 = nDotL + sqrt( (nDotL - nDotL * roughSqr) * nDotL + roughSqr );\n    return 1.0 / (g1 * g2);\n}*/\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
+
 HX.ShaderLibrary['directional_light_fragment.glsl'] = 'uniform vec3 lightColor;\nuniform vec3 lightViewDirection;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef CAST_SHADOWS\n	uniform sampler2D hx_gbufferDepth;\n	uniform sampler2D shadowMap;\n\n	uniform float hx_cameraFrustumRange;\n	uniform float hx_cameraNearPlaneDistance;\n\n	uniform mat4 shadowMapMatrices[NUM_CASCADES];\n	uniform float splitDistances[NUM_CASCADES];\n	uniform float depthBias;\n\n	#if NUM_SHADOW_SAMPLES > 1\n		uniform sampler2D hx_dither2D;\n		uniform vec2 hx_dither2DTextureScale;\n\n		uniform vec2 shadowMapSoftnesses[NUM_CASCADES];\n		uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];\n	#endif\n\n	float readDepth(vec2 uv)\n	{\n	#ifdef HX_NO_DEPTH_TEXTURES\n		return hx_RGBA8ToFloat(texture2D(shadowMap, uv));\n	#else\n		return texture2D(shadowMap, uv).x;\n	#endif\n	}\n\n	// view-space position\n	#if NUM_SHADOW_SAMPLES > 1\n	void getShadowMapCoord(in vec3 viewPos, out vec4 coord, out vec2 softness)\n	#else\n	void getShadowMapCoord(in vec3 viewPos, out vec4 coord)\n	#endif\n	{\n		mat4 shadowMapMatrix = shadowMapMatrices[NUM_CASCADES - 1];\n		#if NUM_SHADOW_SAMPLES > 1\n		softness = shadowMapSoftnesses[NUM_CASCADES - 1];\n		#endif\n\n		#if NUM_CASCADES > 1\n		// not very efficient :(\n		for (int i = 0; i < NUM_CASCADES - 1; ++i) {\n		    // remember, negative Z!\n			if (viewPos.z > splitDistances[i]) {\n				shadowMapMatrix = shadowMapMatrices[i];\n				#if NUM_SHADOW_SAMPLES > 1\n					softness = shadowMapSoftnesses[i];\n				#endif\n				break;\n			}\n		}\n		#else\n			shadowMapMatrix = shadowMapMatrices[0];\n			#if NUM_SHADOW_SAMPLES > 1\n				softness = shadowMapSoftnesses[0];\n			#endif\n		#endif\n		coord = shadowMapMatrix * vec4(viewPos, 1.0);\n	}\n#endif\n\n\nvec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 viewVector, vec3 normalSpecularReflectance, float roughness, float metallicness)\n{\n// start extractable code (for fwd)\n	vec3 diffuseReflection;\n	vec3 specularReflection;\n\n	hx_lighting(normal, lightDir, normalize(viewVector), lightColor, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);\n\n	diffuseReflection *= diffuseAlbedo * (1.0 - metallicness);\n	vec3 totalReflection = diffuseReflection + specularReflection;\n\n	#ifdef CAST_SHADOWS\n		float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n		float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n		vec3 viewPos = viewZ * viewVector;\n\n		vec4 shadowMapCoord;\n		#if NUM_SHADOW_SAMPLES > 1\n			vec2 radii;\n			getShadowMapCoord(viewPos, shadowMapCoord, radii);\n			float shadowTest = 0.0;\n			vec4 dither = texture2D(hx_dither2D, uv * hx_dither2DTextureScale);\n			dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale\n			for (int i = 0; i < NUM_SHADOW_SAMPLES; ++i) {\n				vec2 offset;\n				offset.x = dot(dither.xy, hx_poissonDisk[i]);\n				offset.y = dot(dither.zw, hx_poissonDisk[i]);\n				float shadowSample = readDepth(shadowMapCoord.xy + offset);\n				float diff = shadowMapCoord.z - shadowSample - depthBias;\n				shadowTest += float(diff < 0.0);\n			}\n			shadowTest /= float(NUM_SHADOW_SAMPLES);\n		#else\n			getShadowMapCoord(viewPos, shadowMapCoord);\n			float shadowSample = readDepth(shadowMapCoord.xy);\n			float diff = shadowMapCoord.z - shadowSample - depthBias;\n			float shadowTest = float(diff < 0.0);\n		#endif\n\n		totalReflection *= shadowTest;\n	#endif\n\n    return totalReflection;\n}\n\nvoid main()\n{\n	vec4 colorSample = texture2D(hx_gbufferColor, uv);\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	vec3 normal = hx_decodeNormal(normalSample);\n	vec3 normalSpecularReflectance;\n	float roughness;\n	float metallicness;\n\n	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n\n	vec3 totalReflection = hx_calculateLight(colorSample.xyz, normal, lightViewDirection, viewDir, normalSpecularReflectance, roughness, metallicness);\n\n	gl_FragColor = vec4(totalReflection, 0.0);\n\n}';
 
 HX.ShaderLibrary['directional_light_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n	gl_Position = hx_position;\n}';
@@ -3440,17 +3444,13 @@ HX.ShaderLibrary['point_light_spherical_fragment.glsl'] = 'varying vec2 uv;\nvar
 
 HX.ShaderLibrary['point_light_spherical_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute float hx_instanceID;\n\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform mat4 hx_projectionMatrix;\n\nuniform float lightRadius[LIGHTS_PER_BATCH];\nuniform vec3 lightWorldPosition[LIGHTS_PER_BATCH];\nuniform vec3 lightColor[LIGHTS_PER_BATCH];\nuniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying vec2 attenuationFixVar;\n\nvoid main()\n{\n	int instance = int(hx_instanceID);\n	vec4 worldPos = hx_position;\n	lightPositionVar = lightWorldPosition[instance];\n	lightColorVar = lightColor[instance];\n	attenuationFixVar = attenuationFixFactors[instance];\n	worldPos.xyz *= lightRadius[instance];\n	worldPos.xyz += lightPositionVar;\n\n	vec4 viewPos = hx_viewMatrix * worldPos;\n	vec4 proj = hx_projectionMatrix * viewPos;\n\n	lightPositionVar = (hx_viewMatrix * vec4(lightPositionVar, 1.0)).xyz;\n\n	viewDir = viewPos.xyz / viewPos.z;\n\n	/* render as flat disk, prevent clipping */\n	proj /= proj.w;\n	proj.z = 0.0;\n	uv = proj.xy/proj.w * .5 + .5;\n	gl_Position = proj;\n}';
 
-HX.ShaderLibrary['lighting_blinn_phong.glsl'] = '/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n    float roughSqr = roughness*roughness;\n    float g1 = nDotV + sqrt( roughSqr + (1.0 - roughSqr) * nDotV * nDotV );\n    float g2 = nDotL + sqrt( roughSqr + (1.0 - roughSqr) * nDotL * nDotL );\n    return 1.0 / (g1 * g2);\n}*/\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n// / PI factor is encoded in light colour\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
-
-HX.ShaderLibrary['lighting_ggx.glsl'] = '// Smith:\n/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float roughSqr = roughness*roughness;\n	float g1 = nDotV + sqrt( (nDotV - nDotV * roughSqr) * nDotV + roughSqr );\n    float g2 = nDotL + sqrt( (nDotL - nDotL * roughSqr) * nDotL + roughSqr );\n    return 1.0 / (g1 * g2);\n}*/\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
-
 HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = 1.0 - (1.0 - roughnessOut) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = 1.0 - (1.0 - roughnessOut) * specSample.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
 
-HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#ifdef USE_SKINNING\nattribute vec4 hx_boneIndices;\nattribute vec4 hx_boneWeights;\n\nuniform mat4 hx_skinningMatrices[HX_MAX_BONES];\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nattribute vec3 hx_vertexColor;\nvarying vec3 vertexColor;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n#ifdef USE_SKINNING\n    mat4 skinningMatrix = hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)];\n    skinningMatrix += hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)];\n    skinningMatrix += hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)];\n    skinningMatrix += hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)];\n\n    vec4 animPosition = skinningMatrix * hx_position;\n    vec3 animNormal = mat3(skinningMatrix) * hx_normal;\n    /*vec4 animPosition = hx_skinningMatrices[int(hx_boneIndices.x)] * hx_position * hx_boneWeights.x;\n    animPosition += hx_skinningMatrices[int(hx_boneIndices.y)] * hx_position * hx_boneWeights.y;\n    animPosition += hx_skinningMatrices[int(hx_boneIndices.z)] * hx_position * hx_boneWeights.z;\n    animPosition += hx_skinningMatrices[int(hx_boneIndices.w)] * hx_position * hx_boneWeights.w;\n\n    vec3 animNormal = mat3(hx_skinningMatrices[int(hx_boneIndices.x)]) * hx_normal * hx_boneWeights.x;\n    animNormal += mat3(hx_skinningMatrices[int(hx_boneIndices.y)]) * hx_normal * hx_boneWeights.y;\n    animNormal += mat3(hx_skinningMatrices[int(hx_boneIndices.z)]) * hx_normal * hx_boneWeights.z;\n    animNormal += mat3(hx_skinningMatrices[int(hx_boneIndices.w)]) * hx_normal * hx_boneWeights.w;*/\n\n    #ifdef NORMAL_MAP\n    /*vec3 animTangent = mat3(hx_skinningMatrices[int(hx_boneIndices.x)]) * hx_tangent.xyz * hx_boneWeights.x;\n    animTangent += mat3(hx_skinningMatrices[int(hx_boneIndices.y)]) * hx_tangent.xyz * hx_boneWeights.y;\n    animTangent += mat3(hx_skinningMatrices[int(hx_boneIndices.z)]) * hx_tangent.xyz * hx_boneWeights.z;\n    animTangent += mat3(hx_skinningMatrices[int(hx_boneIndices.w)]) * hx_tangent.xyz * hx_boneWeights.w;*/\n    vec3 animTangent = mat3(skinningMatrix) * hx_tangent.xyz;\n    #endif\n#else\n    vec4 animPosition = hx_position;\n    vec3 animNormal = hx_normal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz;\n    #endif\n#endif\n\n    gl_Position = hx_wvpMatrix * animPosition;\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * animTangent;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
+HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#ifdef USE_SKINNING\nattribute vec4 hx_boneIndices;\nattribute vec4 hx_boneWeights;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\nuniform mat4 hx_skinningMatrices[HX_MAX_BONES];\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nattribute vec3 hx_vertexColor;\nvarying vec3 vertexColor;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n#ifdef USE_SKINNING\n    mat4 skinningMatrix = hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)];\n    skinningMatrix += hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)];\n    skinningMatrix += hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)];\n    skinningMatrix += hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)];\n\n    vec4 animPosition = skinningMatrix * hx_position;\n    vec3 animNormal = mat3(skinningMatrix) * hx_normal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = mat3(skinningMatrix) * hx_tangent.xyz;\n    #endif\n#else\n    vec4 animPosition = hx_position;\n    vec3 animNormal = hx_normal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz;\n    #endif\n#endif\n\n    gl_Position = hx_wvpMatrix * animPosition;\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * animTangent;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
 
 HX.ShaderLibrary['default_refract_fragment.glsl'] = 'varying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef ALPHA_THRESHOLD\nuniform float alphaThreshold;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform sampler2D hx_backbuffer;\nuniform sampler2D hx_gbufferDepth;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float refractiveRatio;   // the ratio of refractive indices\n\n// TODO: could raytrace as an alternative\nvec2 getRefractedUVOffset(vec3 normal, float farZ)\n{\n    vec3 refractionVector = refract(normalize(vec3(0.0, 0.0, -1.0)), normal, refractiveRatio) * .5;\n    return -refractionVector.xy / viewVector.z;\n}\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n    #endif\n\n    // use the immediate background depth value for a distance estimate\n    // it would actually be possible to have the back faces rendered with their depth values only, to get a more local scattering\n\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, screenUV);\n    float farZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n\n    vec2 samplePos = screenUV + getRefractedUVOffset(fragNormal, farZ);\n\n    vec4 background = texture2D(hx_backbuffer, samplePos);\n    gl_FragColor = outputColor * background;\n}';
 
-HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\n\nvoid main()\n{\n    vec4 viewSpace = hx_worldViewMatrix * hx_position;\n    vec4 proj = hx_wvpMatrix * hx_position;\n    normal = normalize(hx_normalWorldViewMatrix * hx_normal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n    viewVector = viewSpace.xyz;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n    screenUV = proj.xy / proj.w * .5 + .5;\n    gl_Position = proj;\n}';
+HX.ShaderLibrary['default_refract_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\nvarying vec3 normal;\nvarying vec3 viewVector;\nvarying vec2 screenUV;\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\n\nvoid main()\n{\n#ifdef USE_SKINNING\n    mat4 skinningMatrix = hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)];\n    skinningMatrix += hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)];\n    skinningMatrix += hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)];\n    skinningMatrix += hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)];\n\n    vec4 animPosition = skinningMatrix * hx_position;\n    vec3 animNormal = mat3(skinningMatrix) * hx_normal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = mat3(skinningMatrix) * hx_tangent.xyz;\n    #endif\n#else\n    vec4 animPosition = hx_position;\n    vec3 animNormal = hx_normal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz;\n    #endif\n#endif\n\n    vec4 viewSpace = hx_worldViewMatrix * animPosition;\n    vec4 proj = hx_wvpMatrix * hx_position;\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * animTangent.xyz;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n    viewVector = viewSpace.xyz;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n    screenUV = proj.xy / proj.w * .5 + .5;\n    gl_Position = proj;\n}';
 
 HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nvoid main()\n{\n    vec4 color = textureCube(hx_skybox, viewWorldDir);\n    gl_FragColor = hx_gammaToLinear(color);\n}';
 
@@ -8493,185 +8493,6 @@ HX.SceneNode.prototype.toString = function()
 {
     return "[SceneNode(name=" + this._name + ")]";
 };
-
-/**
- * Creates a new Scene object
- * @param rootNode (optional) A rootnode to be used, allowing different partition types to be used as the root.
- * @constructor
- */
-HX.Scene = function(rootNode)
-{
-    // the default partition is a BVH node
-    //  -> or this may need to become an infinite bound node?
-    this._rootNode = rootNode || new HX.GroupNode();
-    this._rootNode._setScene(this);
-    this._skybox = null;
-    this._entityEngine = new HX.EntityEngine();
-};
-
-HX.Scene.prototype = {
-    constructor: HX.Scene,
-
-    get skybox() { return this._skybox; },
-    set skybox(value) { this._skybox = value; },
-
-    // TODO: support regex for partial matches
-    findNodeByName: function(name)
-    {
-        return this._rootNode.findNodeByName(name);
-    },
-
-    // TODO: support regex for partial matches
-    findMaterialByName: function(name)
-    {
-        return this._rootNode.findMaterialByName(name);
-    },
-
-    attach: function(child)
-    {
-        this._rootNode.attach(child);
-    },
-
-    detach: function(child)
-    {
-        this._rootNode.detach(child);
-    },
-
-    get numChildren()
-    {
-        return this._rootNode.numChildren;
-    },
-
-    getChild: function(index)
-    {
-        return this._rootNode.getChild(index);
-    },
-
-    contains: function(child)
-    {
-        this._rootNode.contains(child);
-    },
-
-    acceptVisitor: function(visitor)
-    {
-        visitor.visitScene(this);
-        // assume root node will always qualify
-        this._rootNode.acceptVisitor(visitor);
-    },
-
-    get entityEngine()
-    {
-        return this._entityEngine;
-    },
-
-    get worldBounds()
-    {
-        return this._rootNode.worldBounds;
-    }
-};
-
-
-/**
- *
- * @constructor
- */
-HX.GroupNode = function()
-{
-    HX.SceneNode.call(this);
-
-    // child entities (scene nodes)
-    this._children = [];
-};
-
-HX.GroupNode.prototype = Object.create(HX.SceneNode.prototype,
-    {
-        numChildren: {
-            get: function() { return this._children.length; }
-        }
-    });
-
-
-HX.GroupNode.prototype.findNodeByName = function(name)
-{
-    var node = HX.SceneNode.prototype.findNodeByName.call(this, name);
-    if (node) return node;
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i) {
-        node = this._children[i].findNodeByName(name);
-        if (node) return node;
-    }
-};
-
-HX.GroupNode.prototype.attach = function(child)
-{
-    if (child._parent)
-        throw new Error("Child is already parented!");
-
-    child._parent = this;
-    child._setScene(this._scene);
-
-    this._children.push(child);
-    this._invalidateWorldBounds();
-};
-
-HX.GroupNode.prototype.detach = function(child)
-{
-    var index = this._children.indexOf(child);
-
-    if (index < 0)
-        throw new Error("Trying to remove a scene object that is not a child");
-
-    child._parent = null;
-
-    this._children.splice(index, 1);
-    this._invalidateWorldBounds();
-};
-
-HX.GroupNode.prototype.getChild = function(index) { return this._children[index]; };
-
-HX.GroupNode.prototype.acceptVisitor = function(visitor)
-{
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i) {
-        var child = this._children[i];
-
-        if (visitor.qualifies(child))
-            child.acceptVisitor(visitor);
-    }
-};
-
-HX.GroupNode.prototype._invalidateWorldTransformationMatrix = function()
-{
-    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldTransformationMatrix();
-};
-
-HX.GroupNode.prototype._updateWorldBounds = function()
-{
-    var len = this._children.length;
-
-    for (var i = 0; i < len; ++i) {
-        this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
-    }
-
-    HX.SceneNode.prototype._updateWorldBounds.call(this);
-};
-
-HX.GroupNode.prototype._setScene = function(scene)
-{
-    HX.SceneNode.prototype._setScene.call(this, scene);
-
-    var len = this._children.length;
-
-    for (var i = 0; i < len; ++i)
-        this._children[i]._setScene(scene);
-};
-
 HX.Component = function()
 {
     // this allows notifying entities about bound changes (useful for sized components)
@@ -9017,6 +8838,49 @@ HX.SceneVisitor.prototype =
     visitModelInstance: function (modelInstance, worldMatrix) {},
     visitScene: function (scene) {},
     visitEffects: function(effects, ownerNode) {}
+};
+/**
+ *
+ * @constructor
+ */
+HX.SkeletonBlendNode = function()
+{
+    this._rootJointDeltaPosition = new HX.Float4();
+    this._valueID = null;
+    this._poseInvalid = true;
+    this._parentNode = null;
+    this._pose = new HX.SkeletonPose();
+    this._rootPosition = new HX.Float4();
+};
+
+HX.SkeletonBlendNode.prototype =
+{
+    // child nodes should ALWAYS be requested to update first
+    update: function(dt)
+    {
+        if (this._poseInvalid) {
+            this._updatePose(dt);
+            this._poseInvalid = false;
+        }
+    },
+
+    setValue: function(id, value) {},   // a node can have a value associated with it, either time, interpolation value, directional value, ...
+
+    get rootJointDeltaPosition() { return this._rootJointDeltaPosition; },
+    get duration() { return -1; },
+    get numJoints() { return -1; },
+
+    // the id used to set values
+    get valueID() { return this._valueID; },
+    set valueID(value) { this._valueID = value; },
+
+    _invalidatePose: function()
+    {
+        this._poseInvalid = true;
+        if (this._parentNode) this._parentNode._invalidatePose();
+    },
+
+    _updatePose: function(dt) {}
 };
 /**
  * @constructor
@@ -10246,6 +10110,106 @@ HX.OrthographicOffCenterCamera.prototype._updateProjectionMatrix = function()
     this._projectionMatrix.orthographicOffCenterProjection(this._left, this._right, this._top, this._bottom, this._nearDistance, this._farDistance);
     this._projectionMatrixDirty = false;
 };
+/**
+ *
+ * @constructor
+ */
+HX.GroupNode = function()
+{
+    HX.SceneNode.call(this);
+
+    // child entities (scene nodes)
+    this._children = [];
+};
+
+HX.GroupNode.prototype = Object.create(HX.SceneNode.prototype,
+    {
+        numChildren: {
+            get: function() { return this._children.length; }
+        }
+    });
+
+
+HX.GroupNode.prototype.findNodeByName = function(name)
+{
+    var node = HX.SceneNode.prototype.findNodeByName.call(this, name);
+    if (node) return node;
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        node = this._children[i].findNodeByName(name);
+        if (node) return node;
+    }
+};
+
+HX.GroupNode.prototype.attach = function(child)
+{
+    if (child._parent)
+        throw new Error("Child is already parented!");
+
+    child._parent = this;
+    child._setScene(this._scene);
+
+    this._children.push(child);
+    this._invalidateWorldBounds();
+};
+
+HX.GroupNode.prototype.detach = function(child)
+{
+    var index = this._children.indexOf(child);
+
+    if (index < 0)
+        throw new Error("Trying to remove a scene object that is not a child");
+
+    child._parent = null;
+
+    this._children.splice(index, 1);
+    this._invalidateWorldBounds();
+};
+
+HX.GroupNode.prototype.getChild = function(index) { return this._children[index]; };
+
+HX.GroupNode.prototype.acceptVisitor = function(visitor)
+{
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        var child = this._children[i];
+
+        if (visitor.qualifies(child))
+            child.acceptVisitor(visitor);
+    }
+};
+
+HX.GroupNode.prototype._invalidateWorldTransformationMatrix = function()
+{
+    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i]._invalidateWorldTransformationMatrix();
+};
+
+HX.GroupNode.prototype._updateWorldBounds = function()
+{
+    var len = this._children.length;
+
+    for (var i = 0; i < len; ++i) {
+        this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
+    }
+
+    HX.SceneNode.prototype._updateWorldBounds.call(this);
+};
+
+HX.GroupNode.prototype._setScene = function(scene)
+{
+    HX.SceneNode.prototype._setScene.call(this, scene);
+
+    var len = this._children.length;
+
+    for (var i = 0; i < len; ++i)
+        this._children[i]._setScene(scene);
+};
 HX.MaterialQueryVisitor = function(materialName)
 {
     HX.SceneVisitor.call(this);
@@ -10276,6 +10240,81 @@ HX.MaterialQueryVisitor.prototype.visitModelInstance = function (modelInstance, 
         var material = materials[i];
         if (material.name === this._materialName)
             this._foundMaterial = material;
+    }
+};
+/**
+ * Creates a new Scene object
+ * @param rootNode (optional) A rootnode to be used, allowing different partition types to be used as the root.
+ * @constructor
+ */
+HX.Scene = function(rootNode)
+{
+    // the default partition is a BVH node
+    //  -> or this may need to become an infinite bound node?
+    this._rootNode = rootNode || new HX.GroupNode();
+    this._rootNode._setScene(this);
+    this._skybox = null;
+    this._entityEngine = new HX.EntityEngine();
+};
+
+HX.Scene.prototype = {
+    constructor: HX.Scene,
+
+    get skybox() { return this._skybox; },
+    set skybox(value) { this._skybox = value; },
+
+    // TODO: support regex for partial matches
+    findNodeByName: function(name)
+    {
+        return this._rootNode.findNodeByName(name);
+    },
+
+    // TODO: support regex for partial matches
+    findMaterialByName: function(name)
+    {
+        return this._rootNode.findMaterialByName(name);
+    },
+
+    attach: function(child)
+    {
+        this._rootNode.attach(child);
+    },
+
+    detach: function(child)
+    {
+        this._rootNode.detach(child);
+    },
+
+    get numChildren()
+    {
+        return this._rootNode.numChildren;
+    },
+
+    getChild: function(index)
+    {
+        return this._rootNode.getChild(index);
+    },
+
+    contains: function(child)
+    {
+        this._rootNode.contains(child);
+    },
+
+    acceptVisitor: function(visitor)
+    {
+        visitor.visitScene(this);
+        // assume root node will always qualify
+        this._rootNode.acceptVisitor(visitor);
+    },
+
+    get entityEngine()
+    {
+        return this._entityEngine;
+    },
+
+    get worldBounds()
+    {
+        return this._rootNode.worldBounds;
     }
 };
 /**
@@ -15291,170 +15330,6 @@ HX.SkeletonAnimation.prototype.onUpdate = function(dt)
  *
  * @constructor
  */
-HX.SkeletonBlendNode = function()
-{
-    this._rootJointDeltaPosition = new HX.Float4();
-    this._valueID = null;
-    this._poseInvalid = true;
-    this._parentNode = null;
-    this._pose = new HX.SkeletonPose();
-    this._rootPosition = new HX.Float4();
-};
-
-HX.SkeletonBlendNode.prototype =
-{
-    // child nodes should ALWAYS be requested to update first
-    update: function(dt)
-    {
-        if (this._poseInvalid) {
-            this._updatePose(dt);
-            this._poseInvalid = false;
-        }
-    },
-
-    setValue: function(id, value) {},   // a node can have a value associated with it, either time, interpolation value, directional value, ...
-
-    get rootJointDeltaPosition() { return this._rootJointDeltaPosition; },
-    get duration() { return -1; },
-    get numJoints() { return -1; },
-
-    // the id used to set values
-    get valueID() { return this._valueID; },
-    set valueID(value) { this._valueID = value; },
-
-    _invalidatePose: function()
-    {
-        this._poseInvalid = true;
-        if (this._parentNode) this._parentNode._invalidatePose();
-    },
-
-    _updatePose: function(dt) {}
-};
-
-/**
- *
- * @param clip
- * @constructor
- */
-HX.SkeletonClipNode = function(clip)
-{
-    HX.SkeletonBlendNode.call(this);
-    this._clip = clip;
-    this._interpolate = true;
-    this._timeScale = 1.0;
-    this._playing = true;
-    this._time = 0;
-};
-
-HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
-    {
-        duration: {
-            get: function() { return this._clip.duration; }
-        },
-        numJoints: {
-            get: function() { return this._clip.numJoints; }
-        },
-        interpolate: {
-            get: function() { return this._interpolate; },
-            set: function(value) { this._interpolate = value; }
-        },
-        timeScale: {
-            get: function() { return this._timeScale; },
-            set: function(value) { this._timeScale = value; }
-        },
-        time: {
-            get: function() { return this._time; },
-            set: function(value)
-            {
-                this._time = value;
-                this._invalidatePose();
-            }
-        }
-    });
-
-// the value of this node is a ratio in the time
-HX.SkeletonClipNode.prototype.update = function(dt)
-{
-    if (this._playing && dt > 0) this._invalidatePose();
-    HX.SkeletonBlendNode.prototype.update.call(this, dt);
-};
-
-HX.SkeletonClipNode.prototype._updatePose = function(dt)
-{
-    dt *= this._timeScale;
-    this._time += dt/1000.0;
-
-    var clip = this._clip;
-    var numBaseFrames = clip._transferRootJoint? clip.numFrames - 1 : clip.numFrames;
-    var duration = numBaseFrames / clip.frameRate;
-    var wraps = 0;
-
-    while (this._time >= duration) {
-        this._time -= duration;
-        ++wraps;
-    }
-    while (this._time < 0) {
-        this._time += duration;
-        ++wraps;
-    }
-
-    var frameFactor = this._time * clip.frameRate;
-    var firstIndex = Math.floor(frameFactor);
-    var poseA = clip.getFrame(firstIndex);
-
-    if (this._interpolate) {
-        var secondIndex = firstIndex == clip.numFrames - 1? 0 : firstIndex + 1;
-        var poseB = clip.getFrame(secondIndex);
-        this._pose.interpolate(poseA, poseB, frameFactor - firstIndex);
-    }
-    else {
-        this._pose.copyFrom(poseA);
-    }
-
-    if (clip._transferRootJoint)
-        this._transferRootJointTransform(wraps);
-};
-
-HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps)
-{
-    var clip = this._clip;
-    var lastFramePos = clip.getFrame(clip.numFrames - 1).jointPoses[0].translation;
-    var firstFramePos = clip.getFrame(0).jointPoses[0].translation;
-
-    var currentPos = this._pose.jointPoses[0].translation;
-    var rootPos = this._rootPosition;
-    var rootDelta = this._rootJointDeltaPosition;
-
-    if (this._timeScale > 0 && numWraps > 0) {
-        rootDelta.x = lastFramePos.x - rootPos.x + currentPos.x - firstFramePos.x + (lastFramePos.x - firstFramePos.x) * (numWraps - 1);
-        rootDelta.y = lastFramePos.y - rootPos.y + currentPos.y - firstFramePos.y + (lastFramePos.y - firstFramePos.y) * (numWraps - 1);
-        rootDelta.z = lastFramePos.z - rootPos.z + currentPos.z - firstFramePos.z + (lastFramePos.z - firstFramePos.z) * (numWraps - 1);
-    }
-    else if (numWraps > 0) {
-        rootDelta.x = firstFramePos.x - rootPos.x + currentPos.x - lastFramePos.x + (firstFramePos.x - lastFramePos.x) * (numWraps - 1);
-        rootDelta.y = firstFramePos.y - rootPos.y + currentPos.y - lastFramePos.y + (firstFramePos.y - lastFramePos.y) * (numWraps - 1);
-        rootDelta.z = firstFramePos.z - rootPos.z + currentPos.z - lastFramePos.z + (firstFramePos.z - lastFramePos.z) * (numWraps - 1);
-    }
-    else { // no wraps
-        rootDelta.x = currentPos.x - rootPos.x;
-        rootDelta.y = currentPos.y - rootPos.y;
-        rootDelta.z = currentPos.z - rootPos.z;
-    }
-
-    this._rootPosition.copyFrom(currentPos);
-    currentPos.set(0.0, 0.0, 0.0);
-};
-
-HX.SkeletonClipNode.prototype.setValue = function(id, value)
-{
-    if (this._valueID == id)
-        this.time = value * this._clip.duration;
-};
-
-/**
- *
- * @constructor
- */
 HX.SkeletonBlendTree = function(rootNode, skeleton)
 {
     this._skeleton = skeleton;
@@ -15612,6 +15487,126 @@ HX.SkeletonClip.prototype =
     {
         return "[SkeletonClip(name=" + this.name + ")";
     }
+};
+
+/**
+ *
+ * @param clip
+ * @constructor
+ */
+HX.SkeletonClipNode = function(clip)
+{
+    HX.SkeletonBlendNode.call(this);
+    this._clip = clip;
+    this._interpolate = true;
+    this._timeScale = 1.0;
+    this._playing = true;
+    this._time = 0;
+};
+
+HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
+    {
+        duration: {
+            get: function() { return this._clip.duration; }
+        },
+        numJoints: {
+            get: function() { return this._clip.numJoints; }
+        },
+        interpolate: {
+            get: function() { return this._interpolate; },
+            set: function(value) { this._interpolate = value; }
+        },
+        timeScale: {
+            get: function() { return this._timeScale; },
+            set: function(value) { this._timeScale = value; }
+        },
+        time: {
+            get: function() { return this._time; },
+            set: function(value)
+            {
+                this._time = value;
+                this._invalidatePose();
+            }
+        }
+    });
+
+// the value of this node is a ratio in the time
+HX.SkeletonClipNode.prototype.update = function(dt)
+{
+    if (this._playing && dt > 0) this._invalidatePose();
+    HX.SkeletonBlendNode.prototype.update.call(this, dt);
+};
+
+HX.SkeletonClipNode.prototype._updatePose = function(dt)
+{
+    dt *= this._timeScale;
+    this._time += dt/1000.0;
+
+    var clip = this._clip;
+    var numBaseFrames = clip._transferRootJoint? clip.numFrames - 1 : clip.numFrames;
+    var duration = numBaseFrames / clip.frameRate;
+    var wraps = 0;
+
+    while (this._time >= duration) {
+        this._time -= duration;
+        ++wraps;
+    }
+    while (this._time < 0) {
+        this._time += duration;
+        ++wraps;
+    }
+
+    var frameFactor = this._time * clip.frameRate;
+    var firstIndex = Math.floor(frameFactor);
+    var poseA = clip.getFrame(firstIndex);
+
+    if (this._interpolate) {
+        var secondIndex = firstIndex == clip.numFrames - 1? 0 : firstIndex + 1;
+        var poseB = clip.getFrame(secondIndex);
+        this._pose.interpolate(poseA, poseB, frameFactor - firstIndex);
+    }
+    else {
+        this._pose.copyFrom(poseA);
+    }
+
+    if (clip._transferRootJoint)
+        this._transferRootJointTransform(wraps);
+};
+
+HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps)
+{
+    var clip = this._clip;
+    var lastFramePos = clip.getFrame(clip.numFrames - 1).jointPoses[0].translation;
+    var firstFramePos = clip.getFrame(0).jointPoses[0].translation;
+
+    var currentPos = this._pose.jointPoses[0].translation;
+    var rootPos = this._rootPosition;
+    var rootDelta = this._rootJointDeltaPosition;
+
+    if (this._timeScale > 0 && numWraps > 0) {
+        rootDelta.x = lastFramePos.x - rootPos.x + currentPos.x - firstFramePos.x + (lastFramePos.x - firstFramePos.x) * (numWraps - 1);
+        rootDelta.y = lastFramePos.y - rootPos.y + currentPos.y - firstFramePos.y + (lastFramePos.y - firstFramePos.y) * (numWraps - 1);
+        rootDelta.z = lastFramePos.z - rootPos.z + currentPos.z - firstFramePos.z + (lastFramePos.z - firstFramePos.z) * (numWraps - 1);
+    }
+    else if (numWraps > 0) {
+        rootDelta.x = firstFramePos.x - rootPos.x + currentPos.x - lastFramePos.x + (firstFramePos.x - lastFramePos.x) * (numWraps - 1);
+        rootDelta.y = firstFramePos.y - rootPos.y + currentPos.y - lastFramePos.y + (firstFramePos.y - lastFramePos.y) * (numWraps - 1);
+        rootDelta.z = firstFramePos.z - rootPos.z + currentPos.z - lastFramePos.z + (firstFramePos.z - lastFramePos.z) * (numWraps - 1);
+    }
+    else { // no wraps
+        rootDelta.x = currentPos.x - rootPos.x;
+        rootDelta.y = currentPos.y - rootPos.y;
+        rootDelta.z = currentPos.z - rootPos.z;
+    }
+
+    this._rootPosition.copyFrom(currentPos);
+    currentPos.set(0.0, 0.0, 0.0);
+};
+
+HX.SkeletonClipNode.prototype.setValue = function(id, value)
+{
+    if (this._valueID == id)
+        this.time = value * this._clip.duration;
 };
 HX.BulkAssetLoader = function ()
 {

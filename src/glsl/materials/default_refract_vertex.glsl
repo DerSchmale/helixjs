@@ -24,12 +24,33 @@ varying vec3 bitangent;
 
 void main()
 {
-    vec4 viewSpace = hx_worldViewMatrix * hx_position;
+#ifdef USE_SKINNING
+    mat4 skinningMatrix = hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)];
+    skinningMatrix += hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)];
+    skinningMatrix += hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)];
+    skinningMatrix += hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)];
+
+    vec4 animPosition = skinningMatrix * hx_position;
+    vec3 animNormal = mat3(skinningMatrix) * hx_normal;
+
+    #ifdef NORMAL_MAP
+    vec3 animTangent = mat3(skinningMatrix) * hx_tangent.xyz;
+    #endif
+#else
+    vec4 animPosition = hx_position;
+    vec3 animNormal = hx_normal;
+
+    #ifdef NORMAL_MAP
+    vec3 animTangent = hx_tangent.xyz;
+    #endif
+#endif
+
+    vec4 viewSpace = hx_worldViewMatrix * animPosition;
     vec4 proj = hx_wvpMatrix * hx_position;
-    normal = normalize(hx_normalWorldViewMatrix * hx_normal);
+    normal = normalize(hx_normalWorldViewMatrix * animNormal);
 
 #ifdef NORMAL_MAP
-    tangent = mat3(hx_worldViewMatrix) * hx_tangent.xyz;
+    tangent = mat3(hx_worldViewMatrix) * animTangent.xyz;
     bitangent = cross(tangent, normal) * hx_tangent.w;
 #endif
 

@@ -942,7 +942,6 @@ HX.FBX.prototype._processDeformer = function(objDef, UID)
                 clusters: []
             };
             return obj;
-            return
         case "Cluster":
             return this._processCluster(objDef, UID);
     }
@@ -950,7 +949,7 @@ HX.FBX.prototype._processDeformer = function(objDef, UID)
 
 HX.FBX.prototype._processCluster = function(objDef, UID)
 {
-    var indices = objDef.getChildNode("Indexes");  // Learn your plurals, Autodesk
+    var indices = objDef.getChildNode("Indexes");  // Get your plurals straight, Autodesk
     var weights = objDef.getChildNode("Weights");
     if (!indices || !weights) return null;
 

@@ -258,7 +258,7 @@ HX.ReprojectShader.prototype.execute = function(rect, sourceTexture, depthTextur
     sourceTexture.bind(0);
     depthTexture.bind(1);
 
-    this._reprojectionMatrix.product(oldViewProjection, camera.inverseViewProjectionMatrix);
+    this._reprojectionMatrix.multiply(oldViewProjection, camera.inverseViewProjectionMatrix);
 
     HX.GL.uniformMatrix4fv(this._reprojectionMatrixLocation, false, this._reprojectionMatrix._m);
 

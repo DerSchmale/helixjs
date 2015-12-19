@@ -26,7 +26,8 @@ HX.Matrix4x4 = function (m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, 
     this._m[15] = m33 === undefined ? 1 : 0;
 };
 
-HX.Matrix4x4.prototype = {
+HX.Matrix4x4.prototype =
+{
     constructor: HX.Matrix4x4,
 
     /**
@@ -34,7 +35,7 @@ HX.Matrix4x4.prototype = {
      */
     transform: function (v, target)
     {
-        var target = target || new HX.Float4();
+        target = target || new HX.Float4();
         var x = v.x, y = v.y, z = v.z, w = v.w;
         var m = this._m;
 
@@ -51,7 +52,7 @@ HX.Matrix4x4.prototype = {
      */
     transformPoint: function (v, target)
     {
-        var target = target || new HX.Float4();
+        target = target || new HX.Float4();
         var x = v.x, y = v.y, z = v.z;
         var m = this._m;
 
@@ -59,102 +60,32 @@ HX.Matrix4x4.prototype = {
         target.y = m[1] * x + m[5] * y + m[9] * z + m[13];
         target.z = m[2] * x + m[6] * y + m[10] * z + m[14];
         target.w = 1.0;
+
         return target;
     },
 
     /**
      * Transforms a Float4 object, treating it as a vector (ie: disregarding translation). Slightly faster than transform for vectors.
      */
-    transformVector: function (v)
+    transformVector: function (v, target)
     {
+        target = target || new HX.Float4();
         var x = v.x, y = v.y, z = v.z;
 
-        return new HX.Float4(
-                this._m[0] * x + this._m[4] * y + this._m[8] * z,
-                this._m[1] * x + this._m[5] * y + this._m[9] * z,
-                this._m[2] * x + this._m[6] * y + this._m[10] * z,
-                0.0
-        );
+        target.x = this._m[0] * x + this._m[4] * y + this._m[8] * z;
+        target.y = this._m[1] * x + this._m[5] * y + this._m[9] * z;
+        target.z = this._m[2] * x + this._m[6] * y + this._m[10] * z;
+        target.w = 0.0;
+
+        return target;
     },
 
     /**
      * Transforms a Float4 object, treating it as a vector (ie: disregarding translation) containing a size (so always abs)! Slightly faster than transform for vectors.
      */
-    transformExtent: function (v)
+    transformExtent: function (v, target)
     {
-        var x = v.x, y = v.y, z = v.z;
-
-        var m00 = this._m[0], m10 = this._m[1], m20 = this._m[2];
-        var m01 = this._m[4], m11 = this._m[5], m21 = this._m[6];
-        var m02 = this._m[8], m12 = this._m[9], m22 = this._m[10];
-
-        if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
-        if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
-        if (m02 < 0) m02 = -m02; if (m12 < 0) m12 = -m12; if (m22 < 0) m22 = -m22;
-
-        return new HX.Float4(
-            m00 * x + m01 * y + m02 * z,
-            m10 * x + m11 * y + m12 * z,
-            m20 * x + m21 * y + m22 * z,
-            0.0
-        );
-    },
-
-    /**
-     * Transforms a Float4 object (use for homogeneous general case of Float4)
-     */
-    transformTo: function (v, target)
-    {
-        var x = v.x, y = v.y, z = v.z, w = v.w;
-
-        var tx = this._m[0] * x + this._m[4] * y + this._m[8] * z + this._m[12] * w;
-        var ty = this._m[1] * x + this._m[5] * y + this._m[9] * z + this._m[13] * w;
-        var tz = this._m[2] * x + this._m[6] * y + this._m[10] * z + this._m[14] * w;
-        var tw = this._m[3] * x + this._m[7] * y + this._m[11] * z + this._m[15] * w;
-        target.x = tx;
-        target.y = ty;
-        target.z = tz;
-        target.w = tw;
-    },
-
-    /**
-     * Transforms a Float4 object, treating it as a point. Slightly faster than transform for points.
-     */
-    transformPointTo: function (v, target)
-    {
-        var x = v.x, y = v.y, z = v.z, w = v.w;
-
-        var tx = this._m[0] * x + this._m[4] * y + this._m[8] * z + this._m[12];
-        var ty = this._m[1] * x + this._m[5] * y + this._m[9] * z + this._m[13];
-        var tz = this._m[2] * x + this._m[6] * y + this._m[10] * z + this._m[14];
-        target.x = tx;
-        target.y = ty;
-        target.z = tz;
-        target.w = 1.0;
-    },
-
-    /**
-     * Transforms a Float4 object, treating it as a vector (ie: disregarding translation). Slightly faster than transform for vectors.
-     */
-    transformVectorTo: function (v, target)
-    {
-        var x = v.x, y = v.y, z = v.z;
-
-        var tx = m00 * x + m01 * y + m02 * z;
-        var ty = m10 * x + m11 * y + m12 * z;
-        var tz = m20 * x + m21 * y + m22 * z;
-
-        target.x = tx;
-        target.y = ty;
-        target.z = tz;
-        target.w = 0.0;
-    },
-
-    /**
-     * Transforms a Float4 object, treating it as a vector (ie: disregarding translation) containing a size! Slightly faster than transform for vectors.
-     */
-    transformExtentTo: function (v, target)
-    {
+        target = target || new HX.Float4();
         var x = v.x, y = v.y, z = v.z;
 
         var m00 = this._m[0], m10 = this._m[1], m20 = this._m[2];
@@ -169,6 +100,8 @@ HX.Matrix4x4.prototype = {
         target.y = m10 * x + m11 * y + m12 * z;
         target.z = m20 * x + m21 * y + m22 * z;
         target.w = 0.0;
+
+        return target;
     },
 
     copyFrom: function(m)
@@ -213,7 +146,7 @@ HX.Matrix4x4.prototype = {
         this._m[15] = 1;
     },
 
-    product: function (a, b)
+    multiply: function (a, b)
     {
         var a_m00 = a._m[0], a_m10 = a._m[1], a_m20 = a._m[2], a_m30 = a._m[3];
         var a_m01 = a._m[4], a_m11 = a._m[5], a_m21 = a._m[6], a_m31 = a._m[7];
@@ -242,7 +175,7 @@ HX.Matrix4x4.prototype = {
         this._m[15] = a_m30 * b_m03 + a_m31 * b_m13 + a_m32 * b_m23 + a_m33 * b_m33;
     },
 
-    productAffine: function (a, b)
+    multiplyAffine: function (a, b)
     {
         var a_m00 = a._m[0], a_m10 = a._m[1], a_m20 = a._m[2];
         var a_m01 = a._m[4], a_m11 = a._m[5], a_m21 = a._m[6];
@@ -271,142 +204,7 @@ HX.Matrix4x4.prototype = {
 
     },
 
-    sum: function (a, b)
-    {
-        this._m[0] = a._m[0] + b._m[0];
-        this._m[1] = a._m[1] + b._m[1];
-        this._m[2] = a._m[2] + b._m[3];
-        this._m[3] = a._m[3] + b._m[3];
-        this._m[4] = a._m[4] + b._m[4];
-        this._m[5] = a._m[5] + b._m[5];
-        this._m[6] = a._m[6] + b._m[6];
-        this._m[7] = a._m[7] + b._m[7];
-        this._m[8] = a._m[8] + b._m[8];
-        this._m[9] = a._m[9] + b._m[9];
-        this._m[10] = a._m[10] + b._m[10];
-        this._m[11] = a._m[11] + b._m[11];
-        this._m[12] = a._m[12] + b._m[12];
-        this._m[13] = a._m[13] + b._m[13];
-        this._m[14] = a._m[14] + b._m[14];
-        this._m[15] = a._m[15] + b._m[15];
-    },
-
-    sumAffine: function (a, b)
-    {
-        this._m[0] = a._m[0] + b._m[0];
-        this._m[1] = a._m[1] + b._m[1];
-        this._m[2] = a._m[2] + b._m[3];
-        this._m[4] = a._m[4] + b._m[4];
-        this._m[5] = a._m[5] + b._m[5];
-        this._m[6] = a._m[6] + b._m[6];
-        this._m[8] = a._m[8] + b._m[8];
-        this._m[9] = a._m[9] + b._m[9];
-        this._m[10] = a._m[10] + b._m[10];
-    },
-
-    difference: function (a, b)
-    {
-        this._m[0] = a._m[0] - b._m[0];
-        this._m[1] = a._m[1] - b._m[1];
-        this._m[2] = a._m[2] - b._m[3];
-        this._m[3] = a._m[3] - b._m[3];
-        this._m[4] = a._m[4] - b._m[4];
-        this._m[5] = a._m[5] - b._m[5];
-        this._m[6] = a._m[6] - b._m[6];
-        this._m[7] = a._m[7] - b._m[7];
-        this._m[8] = a._m[8] - b._m[8];
-        this._m[9] = a._m[9] - b._m[9];
-        this._m[10] = a._m[10] - b._m[10];
-        this._m[11] = a._m[11] - b._m[11];
-        this._m[12] = a._m[12] - b._m[12];
-        this._m[13] = a._m[13] - b._m[13];
-        this._m[14] = a._m[14] - b._m[14];
-        this._m[15] = a._m[15] - b._m[15];
-    },
-
-    differenceAffine: function (a, b)
-    {
-        this._m[0] = a._m[0] - b._m[0];
-        this._m[1] = a._m[1] - b._m[1];
-        this._m[2] = a._m[2] - b._m[3];
-        this._m[4] = a._m[4] - b._m[4];
-        this._m[5] = a._m[5] - b._m[5];
-        this._m[6] = a._m[6] - b._m[6];
-        this._m[8] = a._m[8] - b._m[8];
-        this._m[9] = a._m[9] - b._m[9];
-        this._m[10] = a._m[10] - b._m[10];
-    },
-
-    rotationX: function (radians)
-    {
-        var cos = Math.cos(radians);
-        var sin = Math.sin(radians);
-
-        this._m[0] = 1;
-        this._m[1] = 0;
-        this._m[2] = 0;
-        this._m[3] = 0;
-        this._m[4] = 0;
-        this._m[5] = cos;
-        this._m[6] = sin;
-        this._m[7] = 0;
-        this._m[8] = 0;
-        this._m[9] = -sin;
-        this._m[10] = cos;
-        this._m[11] = 0;
-        this._m[12] = 0;
-        this._m[13] = 0;
-        this._m[14] = 0;
-        this._m[15] = 1;
-    },
-
-    rotationY: function (radians)
-    {
-        var cos = Math.cos(radians);
-        var sin = Math.sin(radians);
-
-        this._m[0] = cos;
-        this._m[1] = 0;
-        this._m[2] = -sin;
-        this._m[3] = 0;
-        this._m[4] = 0;
-        this._m[5] = 1;
-        this._m[6] = 0;
-        this._m[7] = 0;
-        this._m[8] = sin;
-        this._m[9] = 0;
-        this._m[10] = cos;
-        this._m[11] = 0;
-        this._m[12] = 0;
-        this._m[13] = 0;
-        this._m[14] = 0;
-        this._m[15] = 1;
-    },
-
-    rotationZ: function (radians)
-    {
-        var cos = Math.cos(radians);
-        var sin = Math.sin(radians);
-
-        this._m[0] = cos;
-        this._m[1] = sin;
-        this._m[2] = 0;
-        this._m[3] = 0;
-        this._m[4] = -sin;
-        this._m[5] = cos;
-        this._m[6] = 0;
-        this._m[7] = 0;
-        this._m[8] = 0;
-        this._m[9] = 0;
-        this._m[10] = 1;
-        this._m[11] = 0;
-        this._m[12] = 0;
-        this._m[13] = 0;
-        this._m[14] = 0;
-        this._m[15] = 1;
-    },
-
-    rotationAxisAngle: function (axis, radians)
+    fromRotationAxisAngle: function (axis, radians)
     {
         var cos = Math.cos(radians);
         var sin = Math.sin(radians);
@@ -434,7 +232,8 @@ HX.Matrix4x4.prototype = {
         this._m[15] = 1;
     },
 
-    rotationXYZ: function (x, y, z)
+    // this actually doesn't use a vector, because they're three unrelated quantities. A vector just doesn't make sense here, mathematically.
+    fromRotationXYZ: function (x, y, z)
     {
         var cosX = Math.cos(x);
         var sinX = Math.sin(x);
@@ -461,7 +260,7 @@ HX.Matrix4x4.prototype = {
         this._m[15] = 1;
     },
 
-    rotationPitchYawRoll: function (pitch, yaw, roll)
+    fromRotationPitchYawRoll: function (pitch, yaw, roll)
     {
         var cosP = Math.cos(-pitch);
         var cosY = Math.cos(-yaw);
@@ -500,7 +299,7 @@ HX.Matrix4x4.prototype = {
         this._m[15] = 1;
     },
 
-    translation: function (x, y, z)
+    fromTranslation: function (v)
     {
         this._m[0] = 1;
         this._m[1] = 0;
@@ -514,14 +313,17 @@ HX.Matrix4x4.prototype = {
         this._m[9] = 0;
         this._m[10] = 1;
         this._m[11] = 0;
-        this._m[12] = x;
-        this._m[13] = y;
-        this._m[14] = z;
+        this._m[12] = v.x;
+        this._m[13] = v.y;
+        this._m[14] = v.z;
         this._m[15] = 1;
     },
 
-    scaleMatrix: function (x, y, z)
+    fromScale: function (x, y, z)
     {
+        if (y === undefined)
+            y = z = x;
+
         this._m[0] = x;
         this._m[1] = 0;
         this._m[2] = 0;
@@ -540,7 +342,7 @@ HX.Matrix4x4.prototype = {
         this._m[15] = 1;
     },
 
-    perspectiveProjection: function (vFOV, aspectRatio, nearDistance, farDistance)
+    fromPerspectiveProjection: function (vFOV, aspectRatio, nearDistance, farDistance)
     {
         var yMax = 1.0 / Math.tan(vFOV * .5);
         var xMax = yMax / aspectRatio;
@@ -567,7 +369,7 @@ HX.Matrix4x4.prototype = {
         this._m[15] = 0;
     },
 
-    orthographicOffCenterProjection: function (left, right, top, bottom, nearDistance, farDistance)
+    fromOrthographicOffCenterProjection: function (left, right, top, bottom, nearDistance, farDistance)
     {
         var rcpWidth = 1.0 / (right - left);
         var rcpHeight = 1.0 / (top - bottom);
@@ -594,7 +396,7 @@ HX.Matrix4x4.prototype = {
         this._m[15] = 1;
     },
 
-    orthographicProjection: function (width, height, nearDistance, farDistance)
+    fromOrthographicProjection: function (width, height, nearDistance, farDistance)
     {
         var yMax = Math.tan(vFOV * .5);
         var xMax = yMax * aspectRatio;
@@ -616,66 +418,6 @@ HX.Matrix4x4.prototype = {
         this._m[13] = 0;
         this._m[14] = (farDistance + nearDistance) * rcpFrustumDepth;
         this._m[15] = 1;
-    },
-
-    scaled: function (s, m)
-    {
-        this._m[0] = m._m[0] * s;
-        this._m[1] = m._m[1] * s;
-        this._m[2] = m._m[2] * s;
-        this._m[3] = m._m[3] * s;
-        this._m[4] = m._m[4] * s;
-        this._m[5] = m._m[5] * s;
-        this._m[6] = m._m[6] * s;
-        this._m[7] = m._m[7] * s;
-        this._m[8] = m._m[8] * s;
-        this._m[9] = m._m[9] * s;
-        this._m[10] = m._m[10] * s;
-        this._m[11] = m._m[11] * s;
-        this._m[12] = m._m[12] * s;
-        this._m[13] = m._m[13] * s;
-        this._m[14] = m._m[14] * s;
-        this._m[15] = m._m[15] * s;
-    },
-
-    add: function (m)
-    {
-        this._m[0] += m._m[0];
-        this._m[1] += m._m[1];
-        this._m[2] += m._m[2];
-        this._m[3] += m._m[3];
-        this._m[4] += m._m[4];
-        this._m[5] += m._m[5];
-        this._m[6] += m._m[6];
-        this._m[7] += m._m[7];
-        this._m[8] += m._m[8];
-        this._m[9] += m._m[9];
-        this._m[10] += m._m[10];
-        this._m[11] += m._m[11];
-        this._m[12] += m._m[12];
-        this._m[13] += m._m[13];
-        this._m[14] += m._m[14];
-        this._m[15] += m._m[15];
-    },
-
-    subtract: function (m)
-    {
-        this._m[0] -= m._m[0];
-        this._m[1] -= m._m[1];
-        this._m[2] -= m._m[2];
-        this._m[3] -= m._m[3];
-        this._m[4] -= m._m[4];
-        this._m[5] -= m._m[5];
-        this._m[6] -= m._m[6];
-        this._m[7] -= m._m[7];
-        this._m[8] -= m._m[8];
-        this._m[9] -= m._m[9];
-        this._m[10] -= m._m[10];
-        this._m[11] -= m._m[11];
-        this._m[12] -= m._m[12];
-        this._m[13] -= m._m[13];
-        this._m[14] -= m._m[14];
-        this._m[15] -= m._m[15];
     },
 
     clone: function ()
@@ -744,9 +486,9 @@ HX.Matrix4x4.prototype = {
         return sign * this.determinant3x3(row, col);
     },
 
-    getCofactorMatrix: function (row, col)
+    getCofactorMatrix: function (row, col, target)
     {
-        var target = new HX.Matrix4x4();
+        target = target || new HX.Matrix4x4();
 
         for (var i = 0; i < 16; ++i)
             target._m[i] = this.cofactor(i & 3, i >> 2);
@@ -754,9 +496,9 @@ HX.Matrix4x4.prototype = {
         return target;
     },
 
-    getAdjugate: function (row, col)
+    getAdjugate: function (row, col, target)
     {
-        var target = new HX.Matrix4x4();
+        target = target || new HX.Matrix4x4();
 
         for (var i = 0; i < 16; ++i)
             target._m[i] = this.cofactor(i >> 2, i & 3);    // transposed!
@@ -774,22 +516,40 @@ HX.Matrix4x4.prototype = {
         // this can be much more efficient, but I'd like to keep it readable for now. The full inverse is not required often anyway.
         var rcpDet = 1.0 / m.determinant();
 
-        this._m[0] = rcpDet * m.cofactor(0, 0);
-        this._m[1] = rcpDet * m.cofactor(0, 1);
-        this._m[2] = rcpDet * m.cofactor(0, 2);
-        this._m[3] = rcpDet * m.cofactor(0, 3);
-        this._m[4] = rcpDet * m.cofactor(1, 0);
-        this._m[5] = rcpDet * m.cofactor(1, 1);
-        this._m[6] = rcpDet * m.cofactor(1, 2);
-        this._m[7] = rcpDet * m.cofactor(1, 3);
-        this._m[8] = rcpDet * m.cofactor(2, 0);
-        this._m[9] = rcpDet * m.cofactor(2, 1);
-        this._m[10] = rcpDet * m.cofactor(2, 2);
-        this._m[11] = rcpDet * m.cofactor(2, 3);
-        this._m[12] = rcpDet * m.cofactor(3, 0);
-        this._m[13] = rcpDet * m.cofactor(3, 1);
-        this._m[14] = rcpDet * m.cofactor(3, 2);
-        this._m[15] = rcpDet * m.cofactor(3, 3);
+        // needs to be self-assignment-proof
+        var m0 = rcpDet * m.cofactor(0, 0);
+        var m1 = rcpDet * m.cofactor(0, 1);
+        var m2 = rcpDet * m.cofactor(0, 2);
+        var m3 = rcpDet * m.cofactor(0, 3);
+        var m4 = rcpDet * m.cofactor(1, 0);
+        var m5 = rcpDet * m.cofactor(1, 1);
+        var m6 = rcpDet * m.cofactor(1, 2);
+        var m7 = rcpDet * m.cofactor(1, 3);
+        var m8 = rcpDet * m.cofactor(2, 0);
+        var m9 = rcpDet * m.cofactor(2, 1);
+        var m10 = rcpDet * m.cofactor(2, 2);
+        var m11 = rcpDet * m.cofactor(2, 3);
+        var m12 = rcpDet * m.cofactor(3, 0);
+        var m13 = rcpDet * m.cofactor(3, 1);
+        var m14 = rcpDet * m.cofactor(3, 2);
+        var m15 = rcpDet * m.cofactor(3, 3);
+
+        this._m[0] = m0;
+        this._m[1] = m1;
+        this._m[2] = m2;
+        this._m[3] = m3;
+        this._m[4] = m4;
+        this._m[5] = m5;
+        this._m[6] = m6;
+        this._m[7] = m7;
+        this._m[8] = m8;
+        this._m[9] = m9;
+        this._m[10] = m10;
+        this._m[11] = m11;
+        this._m[12] = m12;
+        this._m[13] = m13;
+        this._m[14] = m14;
+        this._m[15] = m15;
     },
 
     /**
@@ -867,97 +627,32 @@ HX.Matrix4x4.prototype = {
 
     invert: function ()
     {
-        // this can be much more efficient, but I'd like to keep it readable for now. The full inverse is not required often anyway.
-        var rcpDet = 1.0 / this.determinant();
-
-        var m0 = rcpDet * this.cofactor(0, 0);
-        var m1 = rcpDet * this.cofactor(0, 1);
-        var m2 = rcpDet * this.cofactor(0, 2);
-        var m3 = rcpDet * this.cofactor(0, 3);
-        var m4 = rcpDet * this.cofactor(1, 0);
-        var m5 = rcpDet * this.cofactor(1, 1);
-        var m6 = rcpDet * this.cofactor(1, 2);
-        var m7 = rcpDet * this.cofactor(1, 3);
-        var m8 = rcpDet * this.cofactor(2, 0);
-        var m9 = rcpDet * this.cofactor(2, 1);
-        var m10 = rcpDet * this.cofactor(2, 2);
-        var m11 = rcpDet * this.cofactor(2, 3);
-        var m12 = rcpDet * this.cofactor(3, 0);
-        var m13 = rcpDet * this.cofactor(3, 1);
-        var m14 = rcpDet * this.cofactor(3, 2);
-        var m15 = rcpDet * this.cofactor(3, 3);
-
-        this._m[0] = m0;
-        this._m[1] = m1;
-        this._m[2] = m2;
-        this._m[3] = m3;
-        this._m[4] = m4;
-        this._m[5] = m5;
-        this._m[6] = m6;
-        this._m[7] = m7;
-        this._m[8] = m8;
-        this._m[9] = m9;
-        this._m[10] = m10;
-        this._m[11] = m11;
-        this._m[12] = m12;
-        this._m[13] = m13;
-        this._m[14] = m14;
-        this._m[15] = m15;
+        this.inverseOf(this);
     },
 
     invertAffine: function ()
     {
-        var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2];
-        var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
-        var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
-        var m12 = this._m[12], m13 = this._m[13], m14 = this._m[14];
-
-        var determinant = m0 * (m5 * m10 - m9 * m6) - m4 * (m1 * m10 - m9 * m2) + m8 * (m1 * m6 - m5 * m2);
-        var rcpDet = 1.0 / determinant;
-
-        var n0 = (m5 * m10 - m9 * m6) * rcpDet;
-        var n1 = (m9 * m2 - m1 * m10) * rcpDet;
-        var n2 = (m1 * m6 - m5 * m2) * rcpDet;
-        var n4 = (m8 * m6 - m4 * m10) * rcpDet;
-        var n5 = (m0 * m10 - m8 * m2) * rcpDet;
-        var n6 = (m4 * m2 - m0 * m6) * rcpDet;
-        var n8 = (m4 * m9 - m8 * m5) * rcpDet;
-        var n9 = (m8 * m1 - m0 * m9) * rcpDet;
-        var n10 = (m0 * m5 - m4 * m1) * rcpDet;
-
-        this._m[0] = n0;
-        this._m[1] = n1;
-        this._m[2] = n2;
-        this._m[4] = n4;
-        this._m[5] = n5;
-        this._m[6] = n6;
-        this._m[8] = n8;
-        this._m[9] = n9;
-        this._m[10] = n10;
-        this._m[12] = -n0 * m12 - n4 * m13 - n8 * m14;
-        this._m[13] = -n1 * m12 - n5 * m13 - n9 * m14;
-        this._m[14] = -n2 * m12 - n6 * m13 - n10 * m14;
+        this.inverseAffineOf(this);
     },
-
 
     append: function (m)
     {
-        this.product(this, m);
+        this.multiply(this, m);
     },
 
     prepend: function (m)
     {
-        this.product(m, this);
+        this.multiply(m, this);
     },
 
     appendAffine: function (m)
     {
-        this.productAffine(m, this);
+        this.multiplyAffine(m, this);
     },
 
     prependAffine: function (m)
     {
-        this.productAffine(this, m);
+        this.multiplyAffine(this, m);
     },
 
     add: function (m)
@@ -1028,6 +723,9 @@ HX.Matrix4x4.prototype = {
 
     appendScale: function (x, y, z)
     {
+        if (y === undefined)
+            y = z = x;
+
         this._m[0] *= x;
         this._m[1] *= y;
         this._m[2] *= z;
@@ -1044,6 +742,9 @@ HX.Matrix4x4.prototype = {
 
     prependScale: function (x, y, z)
     {
+        if (y === undefined)
+            y = z = x;
+
         this._m[0] *= x;
         this._m[1] *= x;
         this._m[2] *= x;
@@ -1058,15 +759,16 @@ HX.Matrix4x4.prototype = {
         this._m[11] *= z;
     },
 
-    appendTranslation: function (x, y, z)
+    appendTranslation: function (v)
     {
-        this._m[12] += x;
-        this._m[13] += y;
-        this._m[14] += z;
+        this._m[12] += v.x;
+        this._m[13] += v.y;
+        this._m[14] += v.z;
     },
 
-    prependTranslation: function (x, y, z)
+    prependTranslation: function (v)
     {
+        var x = v.x, y = v.y, z = v.z;
         this._m[12] += this._m[0] * x + this._m[4] * y + this._m[8] * z;
         this._m[13] += this._m[1] * x + this._m[5] * y + this._m[9] * z;
         this._m[14] += this._m[2] * x + this._m[6] * y + this._m[10] * z;
@@ -1193,7 +895,7 @@ HX.Matrix4x4.prototype = {
 
     getRow: function (index, target)
     {
-        if (!target) target = new HX.Float4();
+        target = target || new HX.Float4();
         target.x = this._m[index];
         target.y = this._m[index | 4];
         target.z = this._m[index | 8];
@@ -1221,7 +923,7 @@ HX.Matrix4x4.prototype = {
 
     getColumn: function (index, target)
     {
-        if (!target) target = new HX.Float4();
+        target = target || new HX.Float4();
         index <<= 2;
         target.x = this._m[index];
         target.y = this._m[index | 1];
@@ -1246,8 +948,7 @@ HX.Matrix4x4.prototype = {
      */
     lookAt: function (target, eye, up)
     {
-        var zAxis = new HX.Float4();
-        zAxis.difference(eye, target);
+        var zAxis = HX.Float4.subtract(eye, target);
         zAxis.normalize();
 
         var xAxis = new HX.Float4();
@@ -1296,7 +997,7 @@ HX.Matrix4x4.prototype = {
         var scale = transform.scale;
         var position = transform.position;
         this.prependScale(scale.x, scale.y, scale.z);
-        this.appendTranslation(position.x, position.y, position.z);
+        this.appendTranslation(position);
     },
 
     /**

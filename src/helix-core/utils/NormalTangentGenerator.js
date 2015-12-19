@@ -84,12 +84,12 @@ HX.NormalTangentGenerator.prototype =
 
             if (this._faceTangents) {
                 //var div = ((uv1.x - uv0.x)*(uv2.y - uv0.y) - (uv1.y - uv0.y)*(uv2.x - uv0.x));
-                st1.difference(uv1, uv0);
-                st2.difference(uv2, uv0);
+                HX.Float2(uv1, uv0, st1);
+                HX.Float2(uv2, uv0, st2);
 
                 temp1.scaled(st2.y, v1);
                 temp2.scaled(st1.y, v2);
-                temp.difference(temp1, temp2);
+                HX.Float4.subtract(temp1, temp2, temp);
                 temp.normalize();
 
                 this._faceTangents[i] = temp.x;
@@ -98,7 +98,7 @@ HX.NormalTangentGenerator.prototype =
 
                 temp1.scaled(st2.x, v1);
                 temp2.scaled(st1.x, v2);
-                temp.difference(temp2, temp1);
+                HX.Float4.subtract(temp2, temp1, temp);
                 // no need to normalize bitangent, just need it for orientation
 
                 this._faceBitangents[i] = temp.x;

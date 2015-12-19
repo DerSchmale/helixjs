@@ -35,6 +35,16 @@ HX.Float4.distance = function(a, b)
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
 };
 
+HX.Float4.negate = function(a, b, target)
+{
+    target = target || new HX.Float4();
+    target.x = -target.x;
+    target.y = -target.y;
+    target.z = -target.z;
+    target.w = -target.w;
+    return target;
+};
+
 /**
  * Returns the angle between two vectors, assuming they are normalized
  */
@@ -43,24 +53,34 @@ HX.Float4.angleNormalized = function(a, b)
     return Math.acos(HX.dot3(a, b));
 };
 
-HX.Float4.sum = function(a, b)
+HX.Float4.add = function(a, b, target)
 {
-    return new HX.Float4(
-            a.x + b.x,
-            a.y + b.y,
-            a.z + b.z,
-            a.w + b.w
-    );
+    target = target || new HX.Float4();
+    target.x = a.x + b.x;
+    target.y = a.y + b.y;
+    target.z = a.z + b.z;
+    target.w = a.w + b.w;
+    return target;
 };
 
-HX.Float4.scale = function(a, s)
+HX.Float4.subtract = function(a, b, target)
 {
-    return new HX.Float4(
-        a.x * s,
-        a.y * s,
-        a.z * s,
-        a.w * s
-    );
+    target = target || new HX.Float4();
+    target.x = a.x - b.x;
+    target.y = a.y - b.y;
+    target.z = a.z - b.z;
+    target.w = a.w - b.w;
+    return target;
+};
+
+HX.Float4.scale = function(a, s, target)
+{
+    target = target || new HX.Float4();
+    target.x = a.x * s;
+    target.y = a.y * s;
+    target.z = a.z * s;
+    target.w = a.w * s;
+    return target;
 };
 
 HX.Float4.prototype = {
@@ -130,47 +150,12 @@ HX.Float4.prototype = {
         this.w *= s;
     },
 
-    sum: function(a, b)
-    {
-        this.x = a.x + b.x;
-        this.y = a.y + b.y;
-        this.z = a.z + b.z;
-        this.w = a.w + b.w;
-    },
-
-    difference: function(a, b)
-    {
-        this.x = a.x - b.x;
-        this.y = a.y - b.y;
-        this.z = a.z - b.z;
-        this.w = a.w - b.w;
-    },
-
-    scaled: function(s, a)
-    {
-        this.x = s*a.x;
-        this.y = s*a.y;
-        this.z = s*a.z;
-        this.w = s*a.w;
-    },
-
     negate: function()
     {
         this.x = -this.x;
         this.y = -this.y;
         this.z = -this.z;
         this.w = -this.w;
-    },
-
-    /**
-     * Component-wise multiplication
-     */
-    multiply: function(v)
-    {
-        this.x *= v.x;
-        this.y *= v.y;
-        this.z *= v.z;
-        this.w *= v.w;
     },
 
     /**

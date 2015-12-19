@@ -117,7 +117,8 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
                 renderItem.skeleton = modelInstance.skeleton;
                 renderItem.skeletonMatrices = modelInstance.skeletonMatrices;
                 // distance along Z axis:
-                renderItem.renderOrderHint = worldBounds._centerX * this._cameraZAxis.x + worldBounds._centerY * this._cameraZAxis.y + worldBounds._centerZ * this._cameraZAxis.z;
+                var center = worldBounds._center;
+                renderItem.renderOrderHint = center.x * this._cameraZAxis.x + center.y * this._cameraZAxis.y + center.z * this._cameraZAxis.z;
                 renderItem.worldMatrix = worldMatrix;
                 renderItem.camera = this._camera;
                 list[passIndex].push(renderItem);
@@ -142,7 +143,8 @@ HX.RenderCollector.prototype.visitLight = function(light)
     var bounds = light.worldBounds;
     var near = this._nearPlane;
 
-    light._renderOrderHint = bounds._centerX * near.x + bounds._centerY * near.y + bounds._centerZ * near.z + near.w - bounds.getRadius();
+    var center = bounds._center;
+    light._renderOrderHint = center.x * near.x + center.y * near.y + center.z * near.z + near.w - bounds.getRadius();
 };
 
 HX.RenderCollector.prototype._reset = function()

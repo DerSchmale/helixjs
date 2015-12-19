@@ -211,11 +211,11 @@ HX.CascadeShadowMapRenderer.prototype =
         var max = new HX.Float4();
         var tmp = new HX.Float4();
 
-        this._inverseLightMatrix.transformPointTo(corners[0], min);
+        this._inverseLightMatrix.transformPoint(corners[0], min);
         max.copyFrom(min);
 
         for (var i = 1; i < 8; ++i) {
-            this._inverseLightMatrix.transformPointTo(corners[i], tmp);
+            this._inverseLightMatrix.transformPoint(corners[i], tmp);
             min.minimize(tmp);
             max.maximize(tmp);
         }
@@ -284,8 +284,8 @@ HX.CascadeShadowMapRenderer.prototype =
                 localFar.y = ny + dy*farRatio;
                 localFar.z = nz + dz*farRatio;
 
-                this._inverseLightMatrix.transformPointTo(localNear, localNear);
-                this._inverseLightMatrix.transformPointTo(localFar, localFar);
+                this._inverseLightMatrix.transformPoint(localNear, localNear);
+                this._inverseLightMatrix.transformPoint(localFar, localFar);
 
                 if (i == 0) {
                     min.copyFrom(localNear);
@@ -337,7 +337,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
             camera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
 
-            this._shadowMatrices[cascade].product(this._transformToUV[cascade], camera.viewProjectionMatrix);
+            this._shadowMatrices[cascade].multiply(this._transformToUV[cascade], camera.viewProjectionMatrix);
         }
     },
 
@@ -456,17 +456,18 @@ HX.CascadeShadowMapRenderer.prototype =
 
     _initViewportMatrices: function(scaleW, scaleH)
     {
+        var halfVec = new HX.Float4(.5,.5,.5);
         for (var i = 0; i < 4; ++i) {
             // transform [-1, 1] to [0 - 1] (also for Z)
-            this._transformToUV[i].scaleMatrix(.5, .5, .5);
-            this._transformToUV[i].appendTranslation(.5, .5, .5);
+            this._transformToUV[i].fromScale(.5);
+            this._transformToUV[i].appendTranslation(halfVec);
 
             // transform to tiled size
             this._transformToUV[i].appendScale(scaleW, scaleH, 1.0);
         }
 
-        this._transformToUV[1].appendTranslation(0.5, 0.0, 0.0);
-        this._transformToUV[2].appendTranslation(0.0, 0.5, 0.0);
-        this._transformToUV[3].appendTranslation(0.5, 0.5, 0.0);
+        this._transformToUV[1].appendTranslation(new HX.Float4(0.5, 0.0, 0.0));
+        this._transformToUV[2].appendTranslation(new HX.Float4(0.0, 0.5, 0.0));
+        this._transformToUV[3].appendTranslation(new HX.Float4(0.5, 0.5, 0.0));
     }
 };

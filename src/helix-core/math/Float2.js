@@ -34,23 +34,40 @@ HX.Float2.angleNormalized = function(a, b)
     return Math.acos(HX.dot2(a, b));
 };
 
-HX.Float2.sum = function(a, b)
+HX.Float2.add = function(a, b, target)
 {
-    return new HX.Float2(
-        a.x + b.x,
-        a.y + b.y
-    );
+    target = target || new HX.Float2();
+    target.x = a.x + b.x;
+    target.y = a.y + b.y;
+    return target;
 };
 
-HX.Float2.scale = function(a, s)
+HX.Float2.subtract = function(a, b, target)
 {
-    return new HX.Float2(
-        a.x * s,
-        a.y * s
-    );
+    target = target || new HX.Float2();
+    target.x = a.x - b.x;
+    target.y = a.y - b.y;
+    return target;
 };
 
-HX.Float2.prototype = {
+HX.Float2.scale = function(a, s, target)
+{
+    target = target || new HX.Float2();
+    target.x = a.x * s;
+    target.y = a.y * s;
+    return target;
+};
+
+HX.Float2.negate = function(a, b, target)
+{
+    target = target || new HX.Float2();
+    target.x = -target.x;
+    target.y = -target.y;
+    return target;
+};
+
+HX.Float2.prototype =
+{
     constructor: HX.Float2,
 
     set: function(x, y)
@@ -99,37 +116,10 @@ HX.Float2.prototype = {
         this.y *= s;
     },
 
-    sum: function(a, b)
-    {
-        this.x = a.x + b.x;
-        this.y = a.y + b.y;
-    },
-
-    difference: function(a, b)
-    {
-        this.x = a.x - b.x;
-        this.y = a.y - b.y;
-    },
-
-    scaled: function(s, a)
-    {
-        this.x = s*a.x;
-        this.y = s*a.y;
-    },
-
     negate: function()
     {
         this.x = -this.x;
         this.y = -this.y;
-    },
-
-    /**
-     * Component-wise multiplication
-     */
-    multiply: function(v)
-    {
-        this.x *= v.x;
-        this.y *= v.y;
     },
 
     abs: function()
@@ -138,7 +128,7 @@ HX.Float2.prototype = {
         this.y = Math.abs(this.y);
     },
 
-    lerp: function(a, b, t)
+    lerp: function(a, b, factor)
     {
         var ax = a.x, ay = a.y;
 

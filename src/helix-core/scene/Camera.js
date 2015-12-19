@@ -12,6 +12,11 @@ HX.Frustum = function()
 
     for (var i = 0; i < 8; ++i)
         this._corners[i] = new HX.Float4();
+
+    this._r1 = new HX.Float4();
+    this._r2 = new HX.Float4();
+    this._r3 = new HX.Float4();
+    this._r4 = new HX.Float4();
 };
 
 HX.Frustum.PLANE_LEFT = 0;
@@ -44,17 +49,17 @@ HX.Frustum.prototype =
 
     _updatePlanes: function(projection)
     {
-        var r1 = projection.getRow(0);
-        var r2 = projection.getRow(1);
-        var r3 = projection.getRow(2);
-        var r4 = projection.getRow(3);
+        var r1 = projection.getRow(0, this._r1);
+        var r2 = projection.getRow(1, this._r2);
+        var r3 = projection.getRow(2, this._r3);
+        var r4 = projection.getRow(3, this._r4);
 
-        this._planes[HX.Frustum.PLANE_LEFT].sum(r4, r1);
-        this._planes[HX.Frustum.PLANE_RIGHT].difference(r4, r1);
-        this._planes[HX.Frustum.PLANE_BOTTOM].sum(r4, r2);
-        this._planes[HX.Frustum.PLANE_TOP].difference(r4, r2);
-        this._planes[HX.Frustum.PLANE_NEAR].sum(r4, r3);
-        this._planes[HX.Frustum.PLANE_FAR].difference(r4, r3);
+        HX.Float4.add(r4, r1, this._planes[HX.Frustum.PLANE_LEFT]);
+        HX.Float4.subtract(r4, r1, this._planes[HX.Frustum.PLANE_RIGHT]);
+        HX.Float4.add(r4, r2, this._planes[HX.Frustum.PLANE_BOTTOM]);
+        HX.Float4.subtract(r4, r2, this._planes[HX.Frustum.PLANE_TOP]);
+        HX.Float4.add(r4, r3, this._planes[HX.Frustum.PLANE_NEAR]);
+        HX.Float4.subtract(r4, r3, this._planes[HX.Frustum.PLANE_FAR]);
 
         for (var i = 0; i < 6; ++i)
             this._planes[i].normalizeAsPlane();
@@ -64,7 +69,7 @@ HX.Frustum.prototype =
     {
         for (var i = 0; i < 8; ++i) {
             var corner = this._corners[i];
-            inverseProjection.transformTo(HX.Frustum.CLIP_SPACE_CORNERS[i], corner);
+            inverseProjection.transform(HX.Frustum.CLIP_SPACE_CORNERS[i], corner);
             corner.scale(1.0 / corner.w);
         }
     }
@@ -198,7 +203,7 @@ HX.Camera.prototype._invalidateWorldTransformationMatrix = function()
 HX.Camera.prototype._updateViewProjectionMatrix = function()
 {
     this._viewMatrix.inverseAffineOf(this.worldMatrix);
-    this._viewProjectionMatrix.product(this.projectionMatrix, this._viewMatrix);
+    this._viewProjectionMatrix.multiply(this.projectionMatrix, this._viewMatrix);
     this._inverseProjectionMatrix.inverseOf(this._projectionMatrix);
     this._inverseViewProjectionMatrix.inverseOf(this._viewProjectionMatrix);
     this._frustum.update(this._viewProjectionMatrix, this._inverseViewProjectionMatrix);
@@ -270,7 +275,7 @@ HX.PerspectiveCamera.prototype._setRenderTargetResolution = function(width, heig
 
 HX.PerspectiveCamera.prototype._updateProjectionMatrix = function()
 {
-    this._projectionMatrix.perspectiveProjection(this._vFOV, this._aspectRatio, this._nearDistance, this._farDistance);
+    this._projectionMatrix.fromPerspectiveProjection(this._vFOV, this._aspectRatio, this._nearDistance, this._farDistance);
     this._projectionMatrixDirty = false;
 };
 
@@ -299,6 +304,6 @@ HX.OrthographicOffCenterCamera.prototype.setBounds = function(left, right, top, 
 
 HX.OrthographicOffCenterCamera.prototype._updateProjectionMatrix = function()
 {
-    this._projectionMatrix.orthographicOffCenterProjection(this._left, this._right, this._top, this._bottom, this._nearDistance, this._farDistance);
+    this._projectionMatrix.fromOrthographicOffCenterProjection(this._left, this._right, this._top, this._bottom, this._nearDistance, this._farDistance);
     this._projectionMatrixDirty = false;
 };

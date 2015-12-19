@@ -7,21 +7,8 @@ HX.Quaternion = function ()
     this.w = 1;
 };
 
-HX.Quaternion.fromAxisAngle = function (axis, radians)
+HX.Quaternion.prototype =
 {
-    var q = new HX.Quaternion();
-    q.fromAxisAngle(axis, radians);
-    return q;
-};
-
-HX.Quaternion.fromPitchYawRoll = function (pitch, yaw, roll)
-{
-    var q = new HX.Quaternion();
-    q.fromPitchYawRoll(pitch, yaw, roll);
-    return q;
-};
-
-HX.Quaternion.prototype = {
     fromAxisAngle: function (axis, radians)
     {
         var factor = Math.sin(radians * .5) / axis.length;
@@ -35,7 +22,7 @@ HX.Quaternion.prototype = {
     {
         var mtx = new HX.Matrix4x4();
         // wasteful. improve.
-        mtx.rotationPitchYawRoll(pitch, yaw, roll);
+        mtx.fromRotationPitchYawRoll(pitch, yaw, roll);
         this.fromMatrix(mtx);
     },
 
@@ -43,7 +30,7 @@ HX.Quaternion.prototype = {
     {
         var mtx = new HX.Matrix4x4();
         // wasteful. improve.
-        mtx.rotationXYZ(x, y, z);
+        mtx.fromRotationXYZ(x, y, z);
         this.fromMatrix(mtx);
     },
 
@@ -246,7 +233,7 @@ HX.Quaternion.prototype = {
         this.w = w*rcpSqrNorm;
     },
 
-    product: function(a, b)
+    multiply: function(a, b)
     {
         var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
         var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
@@ -259,12 +246,12 @@ HX.Quaternion.prototype = {
 
     append: function(q)
     {
-        this.product(q, this);
+        this.multiply(q, this);
     },
 
     prepend: function(q)
     {
-        this.product(this, q);
+        this.multiply(this, q);
     },
 
     toString: function()

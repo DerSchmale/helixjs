@@ -65,7 +65,7 @@ HX.SkeletonBlendTree.prototype =
                 tr.x += ptr.x;
                 tr.y += ptr.y;
                 tr.z += ptr.z;
-                globalJointPose.orientation.product(pQuad, localJointPose.orientation);
+                globalJointPose.orientation.multiply(pQuad, localJointPose.orientation);
             }
         }
     },
@@ -81,7 +81,7 @@ HX.SkeletonBlendTree.prototype =
             var mtx = matrices[i];
             mtx.copyFrom(skeleton.getJoint(i).inverseBindPose);
             mtx.appendRotationQuaternion(pose[i].orientation);
-            mtx.appendTranslation(tr.x, tr.y, tr.z);
+            mtx.appendTranslation(tr);
         }
     }
 };

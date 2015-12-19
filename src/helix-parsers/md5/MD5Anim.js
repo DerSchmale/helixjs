@@ -141,7 +141,7 @@ HX.MD5Anim.prototype._translateFrame = function()
 
         // transform root joints only
         if (hierarchy.parent < 0) {
-            pose.orientation.product(this._correctionQuad, quat);
+            pose.orientation.multiply(this._correctionQuad, quat);
             pose.translation = this._correctionQuad.rotate(pos);
         }
         else {

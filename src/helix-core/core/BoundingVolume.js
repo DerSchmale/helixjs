@@ -17,9 +17,7 @@ HX.BoundingVolume = function(type)
     this._halfExtentX = 0.0;
     this._halfExtentY = 0.0;
     this._halfExtentZ = 0.0;
-    this._centerX = 0.0;
-    this._centerY = 0.0;
-    this._centerZ = 0.0;
+    this._center = new HX.Float4();
 };
 
 HX.BoundingVolume.EXPANSE_EMPTY = 0;
@@ -36,9 +34,9 @@ HX.BoundingVolume._testAABBToSphere = function(aabb, sphere)
     var minY = aabb._minimumY;
     var minZ = aabb._minimumZ;
     var radius = sphere._halfExtentX;
-    var centerX = this._centerX;
-    var centerY = this._centerY;
-    var centerZ = this._centerZ;
+    var centerX = this._center.x;
+    var centerY = this._center.y;
+    var centerZ = this._center.z;
     var dot = 0;
 
     if (minX > centerX) {
@@ -84,7 +82,7 @@ HX.BoundingVolume.prototype =
     {
         this._minimumX = this._minimumY = this._minimumZ = 0;
         this._maximumX = this._maximumY = this._maximumZ = 0;
-        this._centerX = this._centerY = this._centerZ = 0;
+        this._center.set(0, 0, 0);
         this._halfExtentX = this._halfExtentY = this._halfExtentZ = 0;
         this._expanse = expanseState === undefined? HX.BoundingVolume.EXPANSE_EMPTY : expanseState;
     },
@@ -93,7 +91,7 @@ HX.BoundingVolume.prototype =
     get minimum() { return new HX.Float4(this._minimumX, this._minimumY, this._minimumZ, 1.0); },
     get maximum() { return new HX.Float4(this._maximumX, this._maximumY, this._maximumZ, 1.0); },
 
-    get center() { return new HX.Float4(this._centerX, this._centerY, this._centerZ, 1.0); },
+    get center() { return this._center; },
     // the half-extents of the box encompassing the bounds.
     get halfExtent() { return new HX.Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0); },
     // the radius of the sphere encompassing the bounds. This is implementation-dependent, because the radius is less precise for a box than for a sphere
@@ -275,13 +273,13 @@ HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
         var m01 = arr[4], m11 = arr[5], m21 = arr[6];
         var m02 = arr[8], m12 = arr[9], m22 = arr[10];
 
-        var x = sourceBound._centerX;
-        var y = sourceBound._centerY;
-        var z = sourceBound._centerZ;
+        var x = sourceBound._center.x;
+        var y = sourceBound._center.y;
+        var z = sourceBound._center.z;
 
-        this._centerX = m00 * x + m01 * y + m02 * z + arr[12];
-        this._centerY = m10 * x + m11 * y + m12 * z + arr[13];
-        this._centerZ = m20 * x + m21 * y + m22 * z + arr[14];
+        this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
+        this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
+        this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
 
         if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
         if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
@@ -295,12 +293,12 @@ HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
         this._halfExtentZ = m20 * x + m21 * y + m22 * z;
 
 
-        this._minimumX = this._centerX - this._halfExtentX;
-        this._minimumY = this._centerY - this._halfExtentY;
-        this._minimumZ = this._centerZ - this._halfExtentZ;
-        this._maximumX = this._centerX + this._halfExtentX;
-        this._maximumY = this._centerY + this._halfExtentY;
-        this._maximumZ = this._centerZ + this._halfExtentZ;
+        this._minimumX = this._center.x - this._halfExtentX;
+        this._minimumY = this._center.y - this._halfExtentY;
+        this._minimumZ = this._center.z - this._halfExtentZ;
+        this._maximumX = this._center.x + this._halfExtentX;
+        this._maximumY = this._center.y + this._halfExtentY;
+        this._maximumZ = this._center.z + this._halfExtentZ;
         this._expanse = sourceBound._expanse;
     }
 };
@@ -360,7 +358,7 @@ HX.BoundingAABB.prototype.classifyAgainstPlane = function(plane)
 {
     var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = planeW;
 
-    var centerDist = planeX * this._centerX + planeY * this._centerY + planeZ * this._centerZ + planeW;
+    var centerDist = planeX * this._center.x + planeY * this._center.y + planeZ * this._center.z + planeW;
 
     if (planeX < 0) planeX = -planeX;
     if (planeY < 0) planeY = -planeY;
@@ -392,9 +390,9 @@ HX.BoundingAABB.prototype._updateCenterAndExtent = function()
 {
     var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
     var maxX = this._maximumX; var maxY = this._maximumY; var maxZ = this._maximumZ;
-    this._centerX = (minX + maxX) * .5;
-    this._centerY = (minY + maxY) * .5;
-    this._centerZ = (minZ + maxZ) * .5;
+    this._center.x = (minX + maxX) * .5;
+    this._center.y = (minY + maxY) * .5;
+    this._center.z = (minZ + maxZ) * .5;
     this._halfExtentX = (maxX - minX) * .5;
     this._halfExtentY = (maxY - minY) * .5;
     this._halfExtentZ = (maxZ - minZ) * .5;
@@ -424,9 +422,7 @@ HX.BoundingSphere.prototype = Object.create(HX.BoundingVolume.prototype);
 
 HX.BoundingSphere.prototype.setExplicit = function(center, radius)
 {
-    this._centerX = center.x;
-    this._centerY = center.y;
-    this._centerZ = center.z;
+    this._center.copyFrom(center);
     this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
     this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
     this._updateMinAndMax();
@@ -481,9 +477,9 @@ HX.BoundingSphere.prototype.growToIncludeMesh = function(meshData)
         if (sqrRadius > maxSqrRadius) maxSqrRadius = sqrRadius;
     }
 
-    this._centerX = centerX;
-    this._centerY = centerY;
-    this._centerZ = centerZ;
+    this._center.x = centerX;
+    this._center.y = centerY;
+    this._center.z = centerZ;
 
     var radius = Math.sqrt(maxSqrRadius);
     this._halfExtentX = radius;
@@ -503,9 +499,9 @@ HX.BoundingSphere.prototype.growToIncludeBound = function(bounds)
         this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
 
     else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
-        this._centerX = bounds._centerX;
-        this._centerY = bounds._centerY;
-        this._centerZ = bounds._centerZ;
+        this._center.x = bounds._center.x;
+        this._center.y = bounds._center.y;
+        this._center.z = bounds._center.z;
         if (bounds._type == this._type) {
             this._halfExtentX = bounds._halfExtentX;
             this._halfExtentY = bounds._halfExtentY;
@@ -534,13 +530,13 @@ HX.BoundingSphere.prototype.growToIncludeBound = function(bounds)
         if (bounds._minimumZ < minZ)
             minZ = bounds._minimumZ;
 
-        this._centerX = (minX + maxX) * .5;
-        this._centerY = (minY + maxY) * .5;
-        this._centerZ = (minZ + maxZ) * .5;
+        this._center.x = (minX + maxX) * .5;
+        this._center.y = (minY + maxY) * .5;
+        this._center.z = (minZ + maxZ) * .5;
 
-        var dx = maxX - this._centerX;
-        var dy = maxY - this._centerY;
-        var dz = maxZ - this._centerZ;
+        var dx = maxX - this._center.x;
+        var dy = maxY - this._center.y;
+        var dz = maxZ - this._center.z;
         var radius = Math.sqrt(dx*dx + dy*dy + dz*dz);
         this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
     }
@@ -571,13 +567,13 @@ HX.BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
         var m01 = arr[4], m11 = arr[5], m21 = arr[6];
         var m02 = arr[8], m12 = arr[9], m22 = arr[10];
 
-        var x = sourceBound._centerX;
-        var y = sourceBound._centerY;
-        var z = sourceBound._centerZ;
+        var x = sourceBound._center.x;
+        var y = sourceBound._center.y;
+        var z = sourceBound._center.z;
 
-        this._centerX = m00 * x + m01 * y + m02 * z + arr[12];
-        this._centerY = m10 * x + m11 * y + m12 * z + arr[13];
-        this._centerZ = m20 * x + m21 * y + m22 * z + arr[14];
+        this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
+        this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
+        this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
 
 
         if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
@@ -594,12 +590,12 @@ HX.BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
         var radius = Math.sqrt(hx * hx + hy * hy + hz * hz);
         this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
 
-        this._minimumX = this._centerX - this._halfExtentX;
-        this._minimumY = this._centerY - this._halfExtentY;
-        this._minimumZ = this._centerZ - this._halfExtentZ;
-        this._maximumX = this._centerX + this._halfExtentX;
-        this._maximumY = this._centerX + this._halfExtentY;
-        this._maximumZ = this._centerX + this._halfExtentZ;
+        this._minimumX = this._center.x - this._halfExtentX;
+        this._minimumY = this._center.y - this._halfExtentY;
+        this._minimumZ = this._center.z - this._halfExtentZ;
+        this._maximumX = this._center.x + this._halfExtentX;
+        this._maximumY = this._center.y + this._halfExtentY;
+        this._maximumZ = this._center.z + this._halfExtentZ;
 
         this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
     }
@@ -614,7 +610,7 @@ HX.BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlan
     else if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
         return false;
 
-    var centerX = this._centerX, centerY = this._centerY, centerZ = this._centerZ;
+    var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
     var negRadius = -this._halfExtentX;
 
     for (var i = 0; i < numPlanes; ++i) {
@@ -639,9 +635,9 @@ HX.BoundingSphere.prototype.intersectsBound = function(bound)
 
     // both Spheres
     if (bound._type === this._type) {
-        var dx = this._centerX - bound._centerX;
-        var dy = this._centerY - bound._centerY;
-        var dz = this._centerZ - bound._centerZ;
+        var dx = this._center.x - bound._center.x;
+        var dy = this._center.y - bound._center.y;
+        var dz = this._center.z - bound._center.z;
         var touchDistance = this._halfExtentX + bound._halfExtentX;
         return dx*dx + dy*dy + dz*dz < touchDistance*touchDistance;
     }
@@ -651,7 +647,7 @@ HX.BoundingSphere.prototype.intersectsBound = function(bound)
 
 HX.BoundingSphere.prototype.classifyAgainstPlane = function(plane)
 {
-    var dist = plane.x * this._centerX + plane.y * this._centerY + plane.z * this._centerZ + plane.w;
+    var dist = plane.x * this._center.x + plane.y * this._center.y + plane.z * this._center.z + plane.w;
     var radius = this._halfExtentX;
     if (dist > radius) return HX.PlaneSide.FRONT;
     else if (dist < -radius) return HX.PlaneSide.BACK;
@@ -660,7 +656,7 @@ HX.BoundingSphere.prototype.classifyAgainstPlane = function(plane)
 
 HX.BoundingSphere.prototype._updateMinAndMax = function()
 {
-    var centerX = this._centerX, centerY = this._centerY, centerZ = this._centerZ;
+    var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
     var radius = this._halfExtentX;
     this._minimumX = centerX - radius;
     this._minimumY = centerY - radius;

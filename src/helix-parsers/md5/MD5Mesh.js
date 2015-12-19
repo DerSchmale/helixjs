@@ -82,14 +82,14 @@ HX.MD5Mesh.prototype._parseJoint = function(tokens)
     if (quat.w < 0.0) quat.w = 0.0;
     else quat.w = -Math.sqrt(quat.w);
 
-    quat.product(this._correctionQuad, quat);
+    quat.multiply(this._correctionQuad, quat);
     this._jointData.push(jointData);
 
     var joint = new HX.SkeletonJoint();
     joint.inverseBindPose.fromQuaternion(quat);
     var pos = jointData.pos;
-    joint.inverseBindPose.appendTranslation(pos.x, pos.y, pos.z);
-    joint.inverseBindPose.invert();
+    joint.inverseBindPose.appendTranslation(pos);
+    joint.inverseBindPose.invertAffine();
     joint.parentIndex = jointData.parentIndex;
     this._skeleton.addJoint(joint);
 };

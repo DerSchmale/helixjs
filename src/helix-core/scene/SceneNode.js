@@ -151,8 +151,8 @@ HX.SceneNode.prototype._updateDebugBounds = function()
     var matrix = this._debugBounds.transformationMatrix;
     var bounds = this._worldBounds;
 
-    matrix.scaleMatrix(bounds._halfExtentX * 2.0, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
-    matrix.appendTranslation(bounds._centerX, bounds._centerY, bounds._centerZ);
+    matrix.fromScale(bounds._halfExtentX * 2.0, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
+    matrix.appendTranslation(bounds._center);
     this._debugBounds.transformationMatrix = matrix;
 };
 
@@ -165,7 +165,7 @@ HX.SceneNode.prototype._updateTransformationMatrix = function()
 HX.SceneNode.prototype._updateWorldTransformationMatrix = function()
 {
     if (this._parent)
-        this._worldTransformMatrix.product(this._parent.worldMatrix, this.transformationMatrix);
+        this._worldTransformMatrix.multiply(this._parent.worldMatrix, this.transformationMatrix);
     else
         this._worldTransformMatrix.copyFrom(this.transformationMatrix);
 

@@ -50,6 +50,8 @@ var coreFiles = [
 ];
 
 var parserFiles = [
+    "src/helix-parsers/fbx/objects/FbxObject.js",
+    "src/helix-parsers/fbx/objects/FbxNode.js",
     "src/helix-parsers/**/*.js"
 ];
 

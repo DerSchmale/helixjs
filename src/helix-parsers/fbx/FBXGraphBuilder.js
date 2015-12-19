@@ -231,9 +231,6 @@ HX.FBXGraphBuilder.prototype =
         var layerElement = new HX.FbxLayerElement();
         var len = objDef.children.length;
 
-        // property TypedIndex unsupported
-        objDef.printDebug();
-
         for (var i = 0; i < len; ++i) {
             var node = objDef.children[i];
             switch(node.name) {

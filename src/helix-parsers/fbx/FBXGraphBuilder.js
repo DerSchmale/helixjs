@@ -90,8 +90,10 @@ HX.FBXGraphBuilder.prototype =
                     obj = new HX.FbxDeformer();
                     break;
                 case "AnimationCurve":
+                    obj = new HX.FbxAnimationCurve();
+                    break;
                 case "AnimationCurveNode":
-                    obj = {};
+                    obj = new HX.FbxAnimationCurveNode();
                     break;
                 default:
                     node.printDebug(false);
@@ -197,29 +199,31 @@ HX.FBXGraphBuilder.prototype =
                     geometry.indices = child.data[0];
                     break;
                 case "Layer":
-                    geometry.layerElements = this._processLayers(child, layerMap);
+                    geometry.layerElements = geometry.layerElements || {};
+                    this._processLayer(child, layerMap, geometry.layerElements);
                     break;
                 default:
-                    layerMap[child.name] = child;
+                    if (!layerMap[child.name])
+                        layerMap[child.name] = child;
                     break;
             }
         }
-        // ignoring edges
         return geometry;
     },
 
-    _processLayers: function(objDef, layerMap)
+    _processLayer: function(objDef, layerMap, elements)
     {
-        var layerElements = {};
         var len = objDef.children.length;
         for (var i = 0; i < len; ++i) {
             var layerElement = objDef.children[i];
             if (layerElement.name !== "LayerElement") continue;
             var name = layerElement.getChildByName("Type").data[0];
-            var layerElement = this._processLayerElement(layerMap[name]);
-            layerElements[layerElement.type] = layerElement;
+            // do not allow multiple sets
+            if (!elements[layerElement.type]) {
+                var layerElement = this._processLayerElement(layerMap[name]);
+                elements[layerElement.type] = layerElement;
+            }
         }
-        return layerElements;
     },
 
     _processLayerElement: function(objDef)
@@ -228,6 +232,7 @@ HX.FBXGraphBuilder.prototype =
         var len = objDef.children.length;
 
         // property TypedIndex unsupported
+        objDef.printDebug();
 
         for (var i = 0; i < len; ++i) {
             var node = objDef.children[i];
@@ -252,7 +257,7 @@ HX.FBXGraphBuilder.prototype =
                 case "NormalsIndex":
                 case "ColorIndex":
                 case "UVIndex":
-                case "Smoothing":
+                case "SmoothingIndex":
                     layerElement.indexData = node.data[0];
                     break;
                 case "Materials":

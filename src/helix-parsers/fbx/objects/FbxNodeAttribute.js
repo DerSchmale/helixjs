@@ -7,3 +7,5 @@ HX.FbxNodeAttribute = function()
 };
 
 HX.FbxNodeAttribute.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxNodeAttribute.prototype.toString = function() { return "[FbxNodeAttribute(name="+this.name+")]"; };

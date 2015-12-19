@@ -19,6 +19,7 @@ HX.FbxNode = function()
 
     this.type = null;
     this.children = null;
+    this.limbNodes = null;
     this.defaultAttribute = null;
     this.attributes = null;
     this.mesh = null;
@@ -31,8 +32,16 @@ HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype);
 HX.FbxNode.prototype.connectObject = function(obj)
 {
     if (obj instanceof HX.FbxNode) {
-        this.children = this.children || [];
-        this.children.push(obj);
+        if (obj.type === "Null") return;
+
+        if (obj.type === "LimbNode") {
+            this.limbNodes = this.limbNodes || [];
+            this.limbNodes.push(obj);
+        }
+        else {
+            this.children = this.children || [];
+            this.children.push(obj);
+        }
     }
     else if (obj instanceof HX.FbxNodeAttribute) {
         this.defaultAttribute = this.defaultAttribute || obj;
@@ -49,3 +58,5 @@ HX.FbxNode.prototype.connectObject = function(obj)
     else
         throw new Error("Incompatible child object!");
 };
+
+HX.FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+")]"; };

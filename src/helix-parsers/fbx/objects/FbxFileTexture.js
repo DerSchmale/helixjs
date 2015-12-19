@@ -18,3 +18,5 @@ HX.FbxFileTexture.prototype.connectObject = function(obj)
     else
         throw new Error("Incompatible child object!");
 };
+
+HX.FbxFileTexture.prototype.toString = function() { return "[FbxFileTexture(name="+this.name+")]"; };

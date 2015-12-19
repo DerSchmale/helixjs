@@ -113,7 +113,7 @@ HX.AssetParser.prototype =
 
     _correctURL: function(url)
     {
-        return this.path + (this.fileMap.hasOwnProperty(url)? this.fileMap[url] : url);
+        return this.path + (this.fileMap.hasOwnProperty(url)? this.fileMap[url] : url).replace("\\", "/");
     }
 };
 

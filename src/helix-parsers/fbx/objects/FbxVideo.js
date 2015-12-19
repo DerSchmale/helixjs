@@ -6,3 +6,4 @@ HX.FbxVideo = function()
 };
 
 HX.FbxVideo.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxVideo.prototype.toString = function() { return "[FbxVideo(name="+this.name+")]"; };

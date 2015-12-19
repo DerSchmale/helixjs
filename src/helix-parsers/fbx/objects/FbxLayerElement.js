@@ -22,3 +22,5 @@ HX.FbxLayerElement.REFERENCE_TYPE = {
     DIRECT: 1,
     INDEX_TO_DIRECT: 2
 };
+
+HX.FbxLayerElement.prototype.toString = function() { return "[FbxLayerElement(name="+this.name+")]"; };

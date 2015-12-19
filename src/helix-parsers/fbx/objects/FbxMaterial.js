@@ -24,3 +24,5 @@ HX.FbxMaterial.prototype.connectProperty = function(obj, propertyName)
     else
         throw new Error("Unknown object property!");
 };
+
+HX.FbxMaterial.prototype.toString = function() { return "[FbxMaterial(name="+this.name+")]"; };

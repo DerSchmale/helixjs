@@ -11,3 +11,15 @@ HX.FbxMesh = function()
 };
 
 HX.FbxMesh.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxMesh.prototype.toString = function() { return "[FbxMesh(name="+this.name+")]"; };
+
+HX.FbxMesh.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxDeformer) {
+
+    }
+    else {
+        throw new Error("Unhandled object connection " + obj.toString());
+    }
+};

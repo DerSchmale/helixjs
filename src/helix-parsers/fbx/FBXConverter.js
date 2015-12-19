@@ -24,14 +24,17 @@ HX.FBXConverter.prototype =
     {
         var hxNode;
 
-        if (fbxNode.mesh) {
+        if (fbxNode.mesh)
             hxNode = this._convertModelMesh(fbxNode);
-        }
-
-        if (fbxNode.children && fbxNode.children.length > 0) {
+        else if (fbxNode.children && fbxNode.children.length > 0) {
             hxNode = new HX.GroupNode();
             this._convertGroupNode(fbxNode, hxNode);
         }
+        else if (fbxNode.type === "LimbNode") {
+            hxNode = new HX.SceneNode();
+        }
+
+        hxNode.name = fbxNode.name;
 
         this._convertSceneGraphObject(fbxNode, hxNode);
 
@@ -46,6 +49,8 @@ HX.FBXConverter.prototype =
             var childNode = this._convertNode(fbxNode.children[i]);
             hxNode.attach(childNode);
         }
+
+        // TODO: handle limb nodes
     },
 
     _convertModelMesh: function(fbxNode)
@@ -116,6 +121,7 @@ HX.FBXConverter.prototype =
         if (this._objects[fbxMaterial.UID]) return this._objects[fbxMaterial.UID];
 
         var hxMaterial = new HX.PBRMaterial();
+        hxMaterial.name = fbxMaterial.name;
         if (fbxMaterial.DiffuseColor) hxMaterial.color = fbxMaterial.DiffuseColor;
         if (fbxMaterial.Shininess) fbxMaterial.ShininessExponent = fbxMaterial.Shininess;
         if (fbxMaterial.ShininessExponent) hxMaterial.roughness = Math.sqrt(2.0/(fbxMaterial.Shininess + 2.0));
@@ -144,6 +150,7 @@ HX.FBXConverter.prototype =
         }
         else {
             token = new HX.FBXConverter._TextureToken();
+            token.name = fbxTexture.name;
             token.mapType = mapType;
             token.filename = fbxTexture.relativeFilename ? fbxTexture.relativeFilename : fbxTexture.video.relativeFilename;
             this._textureTokens.push(token);
@@ -165,6 +172,7 @@ HX.FBXConverter._TextureMaterialMapping = function(material, token, mapType)
 HX.FBXConverter._TextureToken = function()
 {
     this.filename = null;
+    this.name = null;
     this.UID = null;
 };
 

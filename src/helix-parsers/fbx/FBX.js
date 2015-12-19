@@ -73,6 +73,8 @@ HX.FBX.prototype._loadTextures = function(tokens, map, target)
             var mapping = map[i];
             var token = mapping.token;
             var texture = bulkLoader.getAsset(token.filename);
+            texture.name = token.name;
+
             switch (mapping.mapType) {
                 case HX.FBXConverter._TextureToken.NORMAL_MAP:
                     mapping.material.normalMap = texture;

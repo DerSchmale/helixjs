@@ -95,8 +95,6 @@ HX.FBXGraphBuilder.prototype =
                 case "AnimationCurveNode":
                     obj = new HX.FbxAnimationCurveNode();
                     break;
-                default:
-                    node.printDebug(false);
             }
 
             if (obj) {

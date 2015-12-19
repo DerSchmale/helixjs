@@ -22,6 +22,7 @@ HX.FbxNode = function()
     this.defaultAttribute = null;
     this.attributes = null;
     this.mesh = null;
+    this.materials = null;
 
 };
 

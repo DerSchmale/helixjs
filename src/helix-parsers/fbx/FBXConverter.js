@@ -1,13 +1,21 @@
 // Could also create an ASCII deserializer
 HX.FBXConverter = function()
 {
-
+    this._objects = null;
+    this._textureTokens = null;
+    this._textureMaterialMap = null;
 };
 
 HX.FBXConverter.prototype =
 {
+    get textureTokens() { return this._textureTokens; },
+    get textureMaterialMap() { return this._textureMaterialMap; },
+
     convert: function(rootNode, target)
     {
+        this._objects = [];
+        this._textureTokens = [];
+        this._textureMaterialMap = [];
         this._convertGroupNode(rootNode, target);
     },
 
@@ -17,8 +25,7 @@ HX.FBXConverter.prototype =
         var hxNode;
 
         if (fbxNode.mesh) {
-            hxNode = new HX.ModelInstance();
-            this._convertModelMesh(fbxNode, hxNode);
+            hxNode = this._convertModelMesh(fbxNode);
         }
 
         if (fbxNode.children && fbxNode.children.length > 0) {
@@ -41,32 +48,126 @@ HX.FBXConverter.prototype =
         }
     },
 
-    _convertModelMesh: function(fbxNode, hxNode)
+    _convertModelMesh: function(fbxNode)
     {
+        var matrix;
+        if (fbxNode.GeometricRotation || fbxNode.GeometricScaling || fbxNode.GeometricTranslation) {
+            var transform = new HX.Transform();
+            // for now there will be problems with this if several geometric transformations are used on the same geometry
+            if (transform.GeometricRotation) transform.rotation = this._convertRotation(fbxNode.GeometricRotation);
+            if (transform.GeometricScaling) transform.scale = fbxNode.GeometricScaling;
+            if (transform.GeometricTranslation) transform.position = fbxNode.GeometricTranslation;
+            matrix = transform.transformationMatrix;
+        }
 
+        var modelConverter = this._convertGeometry(fbxNode.mesh, matrix);
+
+        var materials = [];
+
+        var numMaterials = fbxNode.materials.length;
+        for (var i = 0; i < numMaterials; ++i) {
+            materials[i] = this._convertMaterial(fbxNode.materials[i]);
+        }
+        return modelConverter.createModelInstance(materials);
     },
 
     _convertSceneGraphObject: function(fbxNode, hxNode)
     {
         var matrix = new HX.Matrix4x4();
 
-        if (hxNode.ScalingPivot) matrix.appendTranslation(HX.Float4.negate(hxNode.ScalingPivot));
-        if (hxNode["Lcl Scaling"]) matrix.appendScale(hxNode["Lcl Scaling"].x, hxNode["Lcl Scaling"].y, hxNode["Lcl Scaling"].z);
-        if (hxNode.ScalingPivot) matrix.appendTranslation(hxNode.ScalingPivot);
-        if (scalingOffset) matrix.appendTranslation(scalingOffset.x, scalingOffset.y, scalingOffset.z);
+        if (fbxNode.ScalingPivot) matrix.appendTranslation(HX.Float4.negate(fbxNode.ScalingPivot));
+        var scale = fbxNode["Lcl Scaling"];
+        if (scale) matrix.appendScale(scale.x, scale.y, scale.z);
+        if (fbxNode.ScalingPivot) matrix.appendTranslation(fbxNode.ScalingPivot);
+        if (fbxNode.ScalingOffset) matrix.appendTranslation(fbxNode.ScalingOffset);
 
-        if (rotationPivot) matrix.appendTranslation(-rotationPivot);
-        if (preRotation) matrix.appendRotationQuaternion(preRotation);
-        if (lclRotation) matrix.appendRotationQuaternion(lclRotation);
-        if (postRotation) matrix.appendRotationQuaternion(postRotation);
-        if (rotationPivot) matrix.appendTranslation(rotationPivot);
-        if (rotationOffset) matrix.appendTranslation(rotationOffset);
+        if (fbxNode.RotationPivot) matrix.appendTranslation(HX.Float4.negate(fbxNode.RotationPivot));
+        if (fbxNode.PreRotation) matrix.appendRotationQuaternion(this._convertRotation(fbxNode.PreRotation));
+        if (fbxNode["Lcl Rotation"]) matrix.appendRotationQuaternion(this._convertRotation(fbxNode["Lcl Rotation"]));
+        if (fbxNode.PostRotation) matrix.appendRotationQuaternion(this._convertRotation(fbxNode.PostRotation));
+        if (fbxNode.RotationPivot) matrix.appendTranslation(fbxNode.RotationPivot);
+        if (fbxNode.RotationOffset) matrix.appendTranslation(fbxNode.RotationOffset);
 
-        if (lclTranslation) matrix.appendTranslation(lclTranslation);
+        if (fbxNode["Lcl Translation"]) matrix.appendTranslation(fbxNode["Lcl Translation"]);
 
-        // todo: geometric transform should be on Mesh geometry!
-        if (geometricTranslation) matrix.prependTranslation(geometricTranslation);
+        hxNode.transformationMatrix = matrix;
+    },
 
-        target.transformationMatrix = matrix;
+    _convertRotation: function(v)
+    {
+        var quat = new HX.Quaternion();
+        quat.fromXYZ(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
+        return quat;
+    },
+
+    _convertGeometry: function(node, matrix)
+    {
+        if (this._objects[node.UID]) return this._objects[node.UID];
+
+        var converter = new HX.FBXGeometryConverter();
+        converter.convertToModel(node, matrix);
+
+        this._objects[node.UID] = converter;
+        return converter;
+    },
+
+    _convertMaterial: function(fbxMaterial)
+    {
+        if (this._objects[fbxMaterial.UID]) return this._objects[fbxMaterial.UID];
+
+        var hxMaterial = new HX.PBRMaterial();
+        if (fbxMaterial.DiffuseColor) hxMaterial.color = fbxMaterial.DiffuseColor;
+        if (fbxMaterial.Shininess) fbxMaterial.ShininessExponent = fbxMaterial.Shininess;
+        if (fbxMaterial.ShininessExponent) hxMaterial.roughness = Math.sqrt(2.0/(fbxMaterial.Shininess + 2.0));
+
+        if (fbxMaterial.textures) {
+            if (fbxMaterial.textures["NormalMap"])
+                this._convertTexture(fbxMaterial.textures["NormalMap"], hxMaterial, HX.FBXConverter._TextureToken.NORMAL_MAP);
+
+            // We don't support specular color, instead hijack as roughness
+            if (fbxMaterial.textures["SpecularColor"])
+                this._convertTexture(fbxMaterial.textures["SpecularColor"], hxMaterial, HX.FBXConverter._TextureToken.SPECULAR_MAP);
+
+            if (fbxMaterial.textures["DiffuseColor"])
+                this._convertTexture(fbxMaterial.textures["DiffuseColor"], hxMaterial, HX.FBXConverter._TextureToken.DIFFUSE_MAP);
+        }
+
+        this._objects[fbxMaterial.UID] = hxMaterial;
+        return hxMaterial;
+    },
+
+    _convertTexture: function(fbxTexture, hxMaterial, mapType)
+    {
+        var token;
+        if (this._objects[fbxTexture.UID]) {
+            token = this._objects[fbxTexture.UID];
+        }
+        else {
+            token = new HX.FBXConverter._TextureToken();
+            token.mapType = mapType;
+            token.filename = fbxTexture.relativeFilename ? fbxTexture.relativeFilename : fbxTexture.video.relativeFilename;
+            this._textureTokens.push(token);
+            this._objects[fbxTexture.UID] = token;
+        }
+
+        var mapping = new HX.FBXConverter._TextureMaterialMapping(hxMaterial, token, mapType);
+        this._textureMaterialMap.push(mapping);
     }
 };
+
+HX.FBXConverter._TextureMaterialMapping = function(material, token, mapType)
+{
+    this.material = material;
+    this.token = token;
+    this.mapType = mapType;
+};
+
+HX.FBXConverter._TextureToken = function()
+{
+    this.filename = null;
+    this.UID = null;
+};
+
+HX.FBXConverter._TextureToken.NORMAL_MAP = 0;
+HX.FBXConverter._TextureToken.SPECULAR_MAP = 1;
+HX.FBXConverter._TextureToken.DIFFUSE_MAP = 2;

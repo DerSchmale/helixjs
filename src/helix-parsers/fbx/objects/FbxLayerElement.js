@@ -1,7 +1,8 @@
 HX.FbxLayerElement = function()
 {
     HX.FbxObject.call(this);
-    this.data = null;
+    this.directData = null;
+    this.indexData = null;
     this.type = null;   // can be normal, uv, etc ...
     this.mappingInformationType = 0;
     this.referenceInformationType = 0;

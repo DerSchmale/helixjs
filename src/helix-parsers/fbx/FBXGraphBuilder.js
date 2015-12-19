@@ -98,14 +98,16 @@ HX.FBXGraphBuilder.prototype =
             }
 
             if (obj) {
+                var uid = node.data[0];
                 obj.name = this._getObjectDefName(node);
+                obj.UID = uid;
 
                 if (this._templates[node.name])
                     obj.copyProperties(this._templates[node.name]);
 
                 this._assignProperties(obj, node.getChildByName("Properties70"));
 
-                var uid = node.data[0];
+
                 this._objects[uid] = obj;
             }
         }
@@ -125,8 +127,8 @@ HX.FBXGraphBuilder.prototype =
                 parent.connectObject(child);
             }
             else if (mode === "OP") {
-                //console.log(child, child.name, " -> ", parent, parent.name, " Mode ", node.data[3]);
                 parent.connectProperty(child, node.data[3]);
+                //console.log(child, child.name, " -> ", parent, parent.name, " Mode ", node.data[3]);
             }
         }
     },
@@ -143,9 +145,9 @@ HX.FBXGraphBuilder.prototype =
     {
         if (!properties) return;
 
-        var len = properties.numChildren;
+        var len = properties.children.length;
         for (var i = 0; i < len; ++i) {
-            var prop = properties.getChild(i);
+            var prop = properties.children[i];
             if (target.hasOwnProperty(prop.data[0])) {
                 target[prop.data[0]] = this._getPropertyValue(prop);
             }
@@ -182,11 +184,11 @@ HX.FBXGraphBuilder.prototype =
     _processGeometry: function(objDef)
     {
         var geometry = new HX.FbxMesh();
-        var len = objDef.numChildren;
+        var len = objDef.children.length;
         var layerMap = {};
 
         for (var i = 0; i < len; ++i) {
-            var child = objDef.getChild(i);
+            var child = objDef.children[i];
             switch (child.name) {
                 case "Vertices":
                     geometry.vertices = child.data[0];
@@ -208,13 +210,14 @@ HX.FBXGraphBuilder.prototype =
 
     _processLayers: function(objDef, layerMap)
     {
-        var layerElements = [];
-        var len = objDef.numChildren;
+        var layerElements = {};
+        var len = objDef.children.length;
         for (var i = 0; i < len; ++i) {
-            var layerElement = objDef.getChild(i);
+            var layerElement = objDef.children[i];
+            if (layerElement.name !== "LayerElement") continue;
             var name = layerElement.getChildByName("Type").data[0];
-            var layer = this._processLayerElement(layerMap[name]);
-            layerElements.push(layer);
+            var layerElement = this._processLayerElement(layerMap[name]);
+            layerElements[layerElement.type] = layerElement;
         }
         return layerElements;
     },
@@ -222,29 +225,39 @@ HX.FBXGraphBuilder.prototype =
     _processLayerElement: function(objDef)
     {
         var layerElement = new HX.FbxLayerElement();
-        var len = objDef.length;
+        var len = objDef.children.length;
 
         // property TypedIndex unsupported
 
         for (var i = 0; i < len; ++i) {
-            var node = objDef.getChild(i);
+            var node = objDef.children[i];
             switch(node.name) {
                 case "MappingInformationType":
                     var mapMode = node.data[0];
                     layerElement.mappingInformationType =   mapMode === "ByPolygonVertex"?  HX.FbxLayerElement.MAPPING_TYPE.BY_POLYGON_VERTEX :
-                                                            mapMode === "ByPolygon"?        HX.FbxLayerElement.MAPPING_TYPE._Mapping.BY_POLYGON :
-                                                            mapMode === "AllSame"?          HX.FbxLayerElement.MAPPING_TYPE._Mapping.ALL_SAME :
-                                                                                            HX.FbxLayerElement.MAPPING_TYPE._Mapping.BY_CONTROL_POINT;
+                                                            mapMode === "ByPolygon"?        HX.FbxLayerElement.MAPPING_TYPE.BY_POLYGON :
+                                                            mapMode === "AllSame"?          HX.FbxLayerElement.MAPPING_TYPE.ALL_SAME :
+                                                                                            HX.FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT;
                     break;
                 case "ReferenceInformationType":
                     layerElement.referenceInformationType = node.data[0] === "Direct"? HX.FbxLayerElement.REFERENCE_TYPE.DIRECT : HX.FbxLayerElement.REFERENCE_TYPE.INDEX_TO_DIRECT;
                     break;
                 case "Normals":
+                case "Colors":
                 case "UV":
-                case "Materials":
                 case "Smoothing":
                     layerElement.type = node.name;
-                    layerElement.data = node.data[0];
+                    layerElement.directData = node.data[0];
+                    break;
+                case "NormalsIndex":
+                case "ColorIndex":
+                case "UVIndex":
+                case "Smoothing":
+                    layerElement.indexData = node.data[0];
+                    break;
+                case "Materials":
+                    layerElement.type = node.name;
+                    layerElement.indexData = node.data[0];
                     break;
             }
         }

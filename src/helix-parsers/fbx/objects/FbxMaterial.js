@@ -7,18 +7,20 @@ HX.FbxMaterial = function()
     this.DiffuseColor = null;
     this.DiffuseFactor = 1;
     //this.NormalMap = null;
-    this.ShininessExponent = 0;
-    this.Shininess = 0;
+    this.ShininessExponent = undefined;
+    this.Shininess = undefined;
 
-    this.textures = {};
+    this.textures = null;
 };
 
 HX.FbxMaterial.prototype = Object.create(HX.FbxObject.prototype);
 
 HX.FbxMaterial.prototype.connectProperty = function(obj, propertyName)
 {
-    if (obj instanceof HX.FbxFileTexture)
+    if (obj instanceof HX.FbxFileTexture) {
+        this.textures = this.textures || {};
         this.textures[propertyName] = obj;
+    }
     else
         throw new Error("Unknown object property!");
 };

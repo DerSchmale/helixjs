@@ -14,11 +14,11 @@ HX.FBX.prototype.parse = function(data, target)
 {
     var stream = new HX.DataStream(data);
 
-    try {
-        var deserializer = new HX.FBXBinaryDeserializer();
-        var fbxGraphBuilder = new HX.FBXGraphBuilder();
-        var fbxConverter = new HX.FBXConverter();
+    var deserializer = new HX.FBXBinaryDeserializer();
+    var fbxGraphBuilder = new HX.FBXGraphBuilder();
+    var fbxConverter = new HX.FBXConverter();
 
+    try {
         var newTime, time = Date.now();
 
         var record = deserializer.deserialize(stream);
@@ -30,6 +30,7 @@ HX.FBX.prototype.parse = function(data, target)
         var fbxRoot = fbxGraphBuilder.build(record);
         newTime = Date.now();
         console.log("Graph building: " + (newTime - time));
+        time = newTime;
 
         fbxConverter.convert(fbxRoot, target);
         newTime = Date.now();
@@ -41,16 +42,51 @@ HX.FBX.prototype.parse = function(data, target)
         return;
     }
 
-    //this._notifyComplete(target);
+    if (fbxConverter.textureTokens.length > 0) {
+        this._loadTextures(fbxConverter.textureTokens, fbxConverter.textureMaterialMap, target);
+    }
+    else
+        this._notifyComplete(target);
 };
 
-HX.FBX._STRING_DEMARCATION = String.fromCharCode(0, 1);
-
-HX.FBX.LayerMapping =
+HX.FBX.prototype._loadTextures = function(tokens, map, target)
 {
-    NONE: 0,
-    BY_POLYGON_VERTEX: 1,
-    BY_CONTROL_POINT: 2,
-    BY_POLYGON: 3,
-    ALL_SAME: 4
+    var files = [];
+    var numTextures = tokens.length;
+
+    for (var i = 0; i < numTextures; ++i) {
+        var token = tokens[i];
+        token.filename = files[i] = this._correctURL(token.filename);
+    }
+
+    var self = this;
+    var bulkLoader = new HX.BulkAssetLoader();
+    bulkLoader.onFail = function(message)
+    {
+        self._notifyFailure(message);
+    };
+
+    bulkLoader.onComplete = function()
+    {
+        var numMappings = map.length;
+        for (var i = 0; i < numMappings; ++i) {
+            var mapping = map[i];
+            var token = mapping.token;
+            var texture = bulkLoader.getAsset(token.filename);
+            switch (mapping.mapType) {
+                case HX.FBXConverter._TextureToken.NORMAL_MAP:
+                    mapping.material.normalMap = texture;
+                    break;
+                case HX.FBXConverter._TextureToken.SPECULAR_MAP:
+                    mapping.material.specularMap = texture;
+                    break;
+                case HX.FBXConverter._TextureToken.DIFFUSE_MAP:
+                    mapping.material.colorMap = texture;
+                    break;
+            }
+        }
+        self._notifyComplete(target);
+    };
+
+    bulkLoader.load(files, HX.JPG);
 };

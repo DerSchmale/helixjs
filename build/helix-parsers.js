@@ -3072,6 +3072,7 @@
 HX.FbxObject = function()
 {
     this.name = null;
+    this.UID = null;
 };
 
 HX.FbxObject.prototype =
@@ -3130,6 +3131,7 @@ HX.FbxNode = function()
     this.defaultAttribute = null;
     this.attributes = null;
     this.mesh = null;
+    this.materials = null;
 
 };
 
@@ -3156,840 +3158,6 @@ HX.FbxNode.prototype.connectObject = function(obj)
     else
         throw new Error("Incompatible child object!");
 };
-
-/**
- *
- * @constructor
- */
-HX.MTL = function()
-{
-    HX.AssetParser.call(this, Object, HX.URLLoader.DATA_TEXT);
-    this._textures = [];
-    this._texturesToLoad = [];
-    this._activeMaterial = null;
-};
-
-HX.MTL.prototype = Object.create(HX.AssetParser.prototype);
-
-HX.MTL.prototype.parse = function(data, target)
-{
-    var lines = data.split("\n");
-    var numLines = lines.length;
-
-    for (var i = 0; i < numLines; ++i) {
-        var line = lines[i].replace(/^\s+|\s+$/g, "");
-        this._parseLine(line, target);
-    }
-
-    this._loadTextures(target);
-
-    return target;
-};
-
-HX.MTL.prototype._parseLine = function(line, target)
-{
-    // skip line
-    if (line.length === 0 || line.charAt(0) === "#") return;
-    var tokens = line.split(/\s+/);
-
-    switch (tokens[0].toLowerCase()) {
-        case "newmtl":
-            this._activeMaterial = new HX.PBRMaterial();
-            this._activeMaterial.name = tokens[1];
-            target[tokens[1]] = this._activeMaterial;
-            break;
-        case "ns":
-            var specularPower = parseFloat(tokens[1]);
-            this._activeMaterial.roughness = Math.sqrt(2.0/(specularPower + 2.0));
-            break;
-        case "kd":
-            this._activeMaterial.color = new HX.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
-            break;
-        case "map_kd":
-            this._activeMaterial.colorMap = this._getTexture(tokens[1]);
-            break;
-        case "map_d":
-            this._activeMaterial.maskMap = this._getTexture(tokens[1]);
-            this._activeMaterial.alphaThreshold = .5;
-            break;
-        case "map_ns":
-            this._activeMaterial.specularMap = this._getTexture(tokens[1]);
-            break;
-        case "map_bump":
-        case "bump":
-            this._activeMaterial.normalMap = this._getTexture(tokens[1]);
-            break;
-        default:
-        //console.log("MTL tag ignored or unsupported: " + tokens[0]);
-    }
-};
-
-HX.MTL.prototype._getTexture = function(url)
-{
-    if (!this._textures[url]) {
-        this._textures[url] = new HX.Texture2D();
-
-        this._texturesToLoad.push({
-            file: this._correctURL(url),
-            parser: HX.JPG,
-            target: this._textures[url]
-        });
-    }
-    return this._textures[url];
-};
-
-HX.MTL.prototype._loadTextures = function(lib)
-{
-    var files = this._texturesToLoad;
-    var len = files.length;
-    if (len === 0) {
-        this._notifyComplete(lib);
-        return;
-    }
-
-    var self = this;
-    var bulkLoader = new HX.BulkAssetLoader();
-
-    bulkLoader.onComplete = function() {
-        self._notifyComplete(lib);
-    };
-
-    bulkLoader.onFail = function(message) {
-        self._notifyFailure(message);
-    };
-
-    bulkLoader.load(files);
-};
-
-/**
- * The options property supports the following settings:
- * - groupsAsObjects
- * @constructor
- */
-HX.OBJ = function()
-{
-    HX.AssetParser.call(this, HX.GroupNode);
-    this._objects = [];
-    this._vertices = [];
-    this._normals = [];
-    this._uvs = [];
-    this._hasNormals = false;
-    this._defaultMaterial = new HX.PBRMaterial();
-    this._target = null;
-    this._mtlLibFile = null;
-};
-
-HX.OBJ.prototype = Object.create(HX.AssetParser.prototype);
-
-HX.OBJ.prototype.parse = function(data, target)
-{
-    this._groupsAsObjects = this.options.groupsAsObjects === undefined? true : this._groupsAsObjects;
-    this._target = target;
-
-    var lines = data.split("\n");
-    var numLines = lines.length;
-
-    this._pushNewObject("hx_default");
-
-    for (var i = 0; i < numLines; ++i) {
-        var line = lines[i].replace(/^\s+|\s+$/g, "");
-        this._parseLine(line);
-    }
-
-    if (this._mtlLibFile)
-        this._loadMTLLib(this._mtlLibFile);
-    else
-        this._finish(null);
-};
-
-HX.OBJ.prototype._finish = function(mtlLib)
-{
-    this._translate(mtlLib);
-    this._notifyComplete(this._target);
-};
-
-HX.OBJ.prototype._loadMTLLib = function(filename)
-{
-    var loader = new HX.AssetLoader(HX.MTL);
-    var self = this;
-
-    loader.onComplete = function (asset)
-    {
-        self._finish(asset);
-    };
-
-    loader.onFail = function (message)
-    {
-        self._notifyFailure(message);
-    };
-
-    loader.load(filename);
-};
-
-HX.OBJ.prototype._parseLine = function(line)
-{
-    // skip line
-    if (line.length === 0 || line.charAt(0) === "#") return;
-    var tokens = line.split(/\s+/);
-
-    switch (tokens[0].toLowerCase()) {
-        case "mtllib":
-            this._mtlLibFile = this._correctURL(tokens[1]);
-            break;
-        case "usemtl":
-            this._setActiveSubGroup(tokens[1]);
-            break;
-        case "v":
-            this._vertices.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
-            break;
-        case "vt":
-            this._uvs.push(parseFloat(tokens[1]), parseFloat(tokens[2]));
-            break;
-        case "vn":
-            this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
-            break;
-        case "o":
-            this._pushNewObject(tokens[1]);
-            break;
-        case "g":
-            if (this._groupsAsObjects)
-                this._pushNewObject(tokens[1]);
-            else
-                this._pushNewGroup(tokens[1]);
-
-            break;
-        case "f":
-            this._parseFaceData(tokens);
-            break;
-        default:
-            // ignore following tags:
-            // s
-            //console.log("OBJ tag ignored or unsupported: " + tokens[0]);
-    }
-};
-
-HX.OBJ.prototype._pushNewObject = function(name)
-{
-    this._activeObject = new HX.OBJ._ObjectData();
-    this._objects.push(this._activeObject);
-    this._pushNewGroup("hx_default");
-};
-
-HX.OBJ.prototype._pushNewGroup = function(name)
-{
-    this._activeGroup = new HX.OBJ._GroupData();
-    this._activeGroup.name = name || "Group" + this._activeGroup.length;
-
-    this._activeObject.groups.push(this._activeGroup);
-    this._setActiveSubGroup("hx_default");
-};
-
-HX.OBJ.prototype._setActiveSubGroup = function(name)
-{
-    this._activeGroup.subgroups[name] = this._activeGroup.subgroups[name] || new HX.OBJ._SubGroupData();
-    this._activeSubGroup = this._activeGroup.subgroups[name];
-};
-
-HX.OBJ.prototype._parseFaceData = function(tokens)
-{
-    var face = new HX.OBJ._FaceData();
-    var numTokens = tokens.length;
-
-    for (var i = 1; i < numTokens; ++i) {
-        var faceVertexData = new HX.OBJ._FaceVertexData();
-        face.vertices.push(faceVertexData);
-
-        var indices = tokens[i].split("/");
-        var index = (indices[0] - 1) * 3;
-
-        faceVertexData.posX = this._vertices[index];
-        faceVertexData.posY = this._vertices[index + 1];
-        faceVertexData.posZ = this._vertices[index + 2];
-
-        if(indices.length > 1) {
-            index = (indices[1] - 1) * 2;
-
-            faceVertexData.uvU = this._uvs[index];
-            faceVertexData.uvV = this._uvs[index + 1];
-
-            if (indices.length > 2) {
-                index = (indices[2] - 1) * 3;
-                this._hasNormals = true;
-                faceVertexData.normalX = this._normals[index];
-                faceVertexData.normalY = this._normals[index + 1];
-                faceVertexData.normalZ = this._normals[index + 2];
-            }
-        }
-    }
-
-    this._activeSubGroup.faces.push(face);
-    this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
-};
-
-HX.OBJ.prototype._translate = function(mtlLib)
-{
-    var numObjects = this._objects.length;
-    for (var i = 0; i < numObjects; ++i) {
-        this._translateObject(this._objects[i], mtlLib);
-    }
-};
-
-HX.OBJ.prototype._translateObject = function(object, mtlLib)
-{
-    var numGroups = object.groups.length;
-    if (numGroups === 0) return;
-    var modelData = new HX.ModelData();
-    var materials = [];
-    var model = new HX.Model();
-
-    for (var i = 0; i < numGroups; ++i) {
-        var group = object.groups[i];
-
-        for (var key in group.subgroups)
-        {
-            if (group.subgroups.hasOwnProperty(key)) {
-                var subgroup = group.subgroups[key];
-                if (subgroup.numIndices === 0) continue;
-                modelData.addMeshData(this._translateMeshData(subgroup));
-
-                var material = mtlLib? mtlLib[key] : null;
-                material = material || this._defaultMaterial;
-                materials.push(material);
-            }
-        }
-    }
-
-    model._setModelData(modelData);
-
-    var modelInstance = new HX.ModelInstance(model, materials);
-    modelInstance.name = object.name;
-    this._target.attach(modelInstance);
-};
-
-HX.OBJ.prototype._translateMeshData = function(group)
-{
-    var meshData = HX.MeshData.createDefaultEmpty();
-    var realIndices = [];
-    var indices = new Array(group.numIndices);
-    var numVertices = 0;
-    var currentIndex = 0;
-
-    var faces = group.faces;
-    var numFaces = faces.length;
-    for (var i = 0; i < numFaces; ++i) {
-        var face = faces[i];
-
-        var faceVerts = face.vertices;
-        var numVerts = faceVerts.length;
-
-        for (var j = 0; j < numVerts; ++j) {
-            var vert = faceVerts[j];
-            var hash = vert.getHash();
-            if (!realIndices.hasOwnProperty(hash))
-                realIndices[hash] = {index: numVertices++, vertex: vert};
-        }
-
-        indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
-        indices[currentIndex+1] = realIndices[faceVerts[1].getHash()].index;
-        indices[currentIndex+2] = realIndices[faceVerts[2].getHash()].index;
-        currentIndex += 3;
-
-        if (numVerts === 4) {
-            indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
-            indices[currentIndex+1] = realIndices[faceVerts[2].getHash()].index;
-            indices[currentIndex+2] = realIndices[faceVerts[3].getHash()].index;
-            currentIndex += 3;
-        }
-    }
-
-    var vertices = new Array(numVertices * HX.MeshData.DEFAULT_VERTEX_SIZE);
-
-    for (var hash in realIndices) {
-        if (!realIndices.hasOwnProperty(hash)) continue;
-        var data = realIndices[hash];
-        var vertex = data.vertex;
-        var index = data.index * HX.MeshData.DEFAULT_VERTEX_SIZE;
-
-        vertices[index] = vertex.posX;
-        vertices[index+1] = vertex.posY;
-        vertices[index+2] = vertex.posZ;
-        vertices[index+3] = vertex.normalX;
-        vertices[index+4] = vertex.normalY;
-        vertices[index+5] = vertex.normalZ;
-        vertices[index+6] = 0;
-        vertices[index+7] = 0;
-        vertices[index+8] = 0;
-        vertices[index+9] = 1;
-        vertices[index+10] = vertex.uvU;
-        vertices[index+11] = vertex.uvV;
-    }
-
-    meshData.setVertexData(vertices, 0);
-    meshData.setIndexData(indices);
-
-    var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
-    if (!this._hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
-    var generator = new HX.NormalTangentGenerator();
-    generator.generate(meshData, mode, true);
-    return meshData;
-};
-
-HX.OBJ._FaceVertexData = function()
-{
-    this.posX = 0;
-    this.posY = 0;
-    this.posZ = 0;
-    this.uvU = 0;
-    this.uvV = 0;
-    this.normalX = 0;
-    this.normalY = 0;
-    this.normalZ = 0;
-    this._hash = "";
-};
-
-HX.OBJ._FaceVertexData.prototype =
-{
-    // instead of actually using the values, we should use the indices as keys
-    getHash: function()
-    {
-        if (!this._hash)
-            this._hash = this.posX + "/" + this.posY + "/" + this.posZ + "/" + this.uvU + "/" + this.uvV + "/" + this.normalX + "/" + this.normalY + "/" + this.normalZ + "/";
-
-        return this._hash;
-    }
-};
-
-HX.OBJ._FaceData = function()
-{
-    this.vertices = []; // <FaceVertexData>
-};
-
-HX.OBJ._SubGroupData = function()
-{
-    this.numIndices = 0;
-    this.faces = [];    // <FaceData>
-};
-
-HX.OBJ._GroupData = function()
-{
-    this.subgroups = [];
-    this.name = "";    // <FaceData>
-    this._activeMaterial = null;
-};
-
-HX.OBJ._ObjectData = function()
-{
-    this.name = "";
-    this.groups = [];
-    this._activeGroup = null;
-};
-HX.MD5Anim = function()
-{
-    HX.AssetParser.call(this, HX.SkeletonClip);
-    this._hierarchy = null;
-    this._baseFrame = null;
-    this._activeFrame = null;
-    this._numJoints = 0;
-
-    this._correctionQuad = new HX.Quaternion();
-    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
-};
-
-HX.MD5Anim.prototype = Object.create(HX.AssetParser.prototype);
-
-HX.MD5Anim.prototype.parse = function(data, target)
-{
-    this._hierarchy = [];
-    this._baseFrame = [];
-    this._target = target;
-
-    // assuming a valid file, validation isn't our job
-    var lines = data.split("\n");
-    var len = lines.length;
-    var lineFunction = null;
-
-    for (var i = 0; i < len; ++i) {
-        // remove leading & trailing whitespace
-        var line = lines[i].replace(/^\s+|\s+$/g, "");
-        var tokens = line.split(/\s+/);
-
-        if (tokens[0] === "//" || tokens[0] === "")
-            continue;
-
-        if (lineFunction) {
-            lineFunction.call(this, tokens);
-            if (tokens[0] === "}") lineFunction = null;
-        }
-        else switch (tokens[0]) {
-            case "commandline":
-            case "numFrames":
-            case "MD5Version":
-            case "numAnimatedComponents":
-                break;
-            case "numJoints":
-                this._numJoints = parseInt(tokens[1]);
-                break;
-            case "frameRate":
-                target.frameRate = parseInt(tokens[1]);
-                break;
-            case "hierarchy":
-                lineFunction = this._parseHierarchy;
-                break;
-            case "bounds":
-                lineFunction = this._parseBounds;
-                break;
-            case "baseframe":
-                lineFunction = this._parseBaseFrame;
-                break;
-            case "frame":
-                this._activeFrame = new HX.MD5Anim._FrameData();
-                lineFunction = this._parseFrame;
-                break;
-
-        }
-    }
-
-    this._notifyComplete(target);
-};
-
-HX.MD5Anim.prototype._parseHierarchy = function(tokens)
-{
-    if (tokens[0] === "}") return;
-    var data = new HX.MD5Anim._HierachyData();
-    data.name = tokens[0].substring(1, tokens[0].length - 1);
-    data.parent = parseInt(tokens[1]);
-    data.flags = parseInt(tokens[2]);
-    data.startIndex = parseInt(tokens[3]);
-    this._hierarchy.push(data);
-};
-
-HX.MD5Anim.prototype._parseBounds = function(tokens)
-{
-    // don't do anything with bounds for now
-};
-
-HX.MD5Anim.prototype._parseBaseFrame = function(tokens)
-{
-    if (tokens[0] === "}") return;
-    var baseFrame = new HX.MD5Anim._BaseFrameData();
-    var pos = baseFrame.pos;
-    pos.x = parseFloat(tokens[1]);
-    pos.y = parseFloat(tokens[2]);
-    pos.z = parseFloat(tokens[3]);
-    var quat = baseFrame.quat;
-    quat.x = parseFloat(tokens[6]);
-    quat.y = parseFloat(tokens[7]);
-    quat.z = parseFloat(tokens[8]);
-    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
-    if (quat.w < 0.0) quat.w = 0.0;
-    else quat.w = -Math.sqrt(quat.w);
-    this._baseFrame.push(baseFrame);
-};
-
-HX.MD5Anim.prototype._parseFrame = function(tokens)
-{
-    if (tokens[0] === "}") {
-        this._translateFrame();
-        return;
-    }
-
-    var len = tokens.length;
-    for (var i = 0; i < len; ++i) {
-        this._activeFrame.components.push(parseFloat(tokens[i]));
-    }
-};
-
-HX.MD5Anim.prototype._translateFrame = function()
-{
-    var skeletonPose = new HX.SkeletonPose();
-
-    for (var i = 0; i < this._numJoints; ++i) {
-        var pose = new HX.SkeletonJointPose();
-        var hierarchy = this._hierarchy[i];
-        var base = this._baseFrame[i];
-        var flags = hierarchy.flags;
-        var pos = base.pos;
-        var quat = base.quat;
-        var comps = this._activeFrame.components;
-
-        var j = hierarchy.startIndex;
-
-        if (flags & 1) pos.x = comps[j];
-        if (flags & 2) pos.y = comps[j+1];
-        if (flags & 4) pos.z = comps[j+2];
-        if (flags & 8) quat.x = comps[j+3];
-        if (flags & 16) quat.y = comps[j+4];
-        if (flags & 32) quat.z = comps[j+5];
-
-        var w = 1.0 - quat.x * quat.x - quat.y * quat.y - quat.z * quat.z;
-        quat.w = w < 0.0 ? 0.0 : -Math.sqrt(w);
-
-        // transform root joints only
-        if (hierarchy.parent < 0) {
-            pose.orientation.multiply(this._correctionQuad, quat);
-            pose.translation = this._correctionQuad.rotate(pos);
-        }
-        else {
-            pose.orientation.copyFrom(quat);
-            pose.translation.copyFrom(pos);
-        }
-
-        //pose.orientation.y = -pose.orientation.y;
-        //pose.orientation.z = -pose.orientation.z;
-        //pose.translation.x = -pose.translation.x;
-
-        skeletonPose.jointPoses.push(pose);
-    }
-
-    this._target.addFrame(skeletonPose);
-};
-
-HX.MD5Anim._HierachyData = function()
-{
-    this.name = null;
-    this.parent = -1;
-    this.flags = 0;
-    this.startIndex = 0;
-};
-
-HX.MD5Anim._BaseFrameData = function()
-{
-    this.pos = new HX.Float4();
-    this.quat = new HX.Quaternion();
-};
-
-HX.MD5Anim._FrameData = function()
-{
-    this.components = [];
-}
-/**
- * Warning, MD5 as supported by Helix does not contain any materials nor scene graph information, so it only loads Models, not instances!
- * @constructor
- */
-HX.MD5Mesh = function()
-{
-    HX.AssetParser.call(this, HX.Model);
-    this._target = null;
-    this._meshData = null;
-    this._jointData = null;
-    this._skeleton = null;
-
-    this._correctionQuad = new HX.Quaternion();
-    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
-};
-
-HX.MD5Mesh.prototype = Object.create(HX.AssetParser.prototype);
-
-HX.MD5Mesh.prototype.parse = function(data, target)
-{
-    this._modelData = new HX.ModelData();
-    this._skeleton = new HX.Skeleton();
-    this._jointData = [];
-
-    // assuming a valid file, validation isn't our job
-    var lines = data.split("\n");
-    var len = lines.length;
-    var lineFunction = null;
-
-    for (var i = 0; i < len; ++i) {
-        // remove leading & trailing whitespace
-        var line = lines[i].replace(/^\s+|\s+$/g, "");
-        var tokens = line.split(/\s+/);
-
-        if (tokens[0] === "//" || tokens[0] === "")
-            continue;
-
-        if (lineFunction) {
-            lineFunction.call(this, tokens);
-            if (tokens[0] === "}") lineFunction = null;
-        }
-        else switch (tokens[0]) {
-            case "commandline":
-            case "numMeshes":
-            case "numJoints":
-            case "MD5Version":
-                break;
-            case "joints":
-                lineFunction = this._parseJoint;
-                break;
-            case "mesh":
-                this._meshData = new HX.MD5Mesh._MeshData();
-                lineFunction = this._parseMesh;
-                break;
-        }
-    }
-
-    target._setModelData(this._modelData);
-    target.skeleton = this._skeleton;
-    this._notifyComplete(target);
-};
-
-HX.MD5Mesh.prototype._parseJoint = function(tokens)
-{
-    if (tokens[0] === "}") return;
-
-    var jointData = new HX.MD5Mesh._Joint();
-    var pos = jointData.pos;
-    var quat = jointData.quat;
-    jointData.name = tokens[0].substring(1, tokens[0].length - 1);
-
-    jointData.parentIndex = parseInt(tokens[1]);
-
-    pos.x = parseFloat(tokens[3]);
-    pos.y = parseFloat(tokens[4]);
-    pos.z = parseFloat(tokens[5]);
-    this._correctionQuad.rotate(jointData.pos, jointData.pos);
-    quat.x = parseFloat(tokens[8]);
-    quat.y = parseFloat(tokens[9]);
-    quat.z = parseFloat(tokens[10]);
-    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
-    if (quat.w < 0.0) quat.w = 0.0;
-    else quat.w = -Math.sqrt(quat.w);
-
-    quat.multiply(this._correctionQuad, quat);
-    this._jointData.push(jointData);
-
-    var joint = new HX.SkeletonJoint();
-    joint.inverseBindPose.fromQuaternion(quat);
-    var pos = jointData.pos;
-    joint.inverseBindPose.appendTranslation(pos);
-    joint.inverseBindPose.invertAffine();
-    joint.parentIndex = jointData.parentIndex;
-    this._skeleton.addJoint(joint);
-};
-
-HX.MD5Mesh.prototype._parseMesh = function(tokens)
-{
-    switch (tokens[0]) {
-        case "shader":
-        case "numVerts":
-        case "numWeights":
-            break;
-        case "tri":
-            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[4]), parseInt(tokens[3]));
-            break;
-        case "vert":
-            this._parseVert(tokens);
-            break;
-        case "weight":
-            this._parseWeight(tokens);
-            break;
-        case "}":
-            this._translateMesh();
-            break;
-    }
-};
-
-HX.MD5Mesh.prototype._parseVert = function(tokens)
-{
-    var vert = new HX.MD5Mesh._VertexData();
-    vert.u = parseFloat(tokens[3]);
-    vert.v = parseFloat(tokens[4]);
-    vert.startWeight = parseInt(tokens[6]);
-    vert.countWeight = parseInt(tokens[7]);
-    this._meshData.vertexData.push(vert);
-};
-
-HX.MD5Mesh.prototype._parseWeight = function(tokens)
-{
-    var weight = new HX.MD5Mesh._WeightData();
-    weight.joint = parseInt(tokens[2]);
-    weight.bias = parseFloat(tokens[3]);
-    weight.pos.x = parseFloat(tokens[5]);
-    weight.pos.y = parseFloat(tokens[6]);
-    weight.pos.z = parseFloat(tokens[7]);
-    this._meshData.weightData.push(weight);
-};
-
-HX.MD5Mesh.prototype._translateMesh = function()
-{
-    var meshData = new HX.MeshData.createDefaultEmpty();
-    meshData.addVertexAttribute("hx_boneIndices", 4, 1);
-    meshData.addVertexAttribute("hx_boneWeights", 4, 1);
-    var vertices = [];
-    var anims = [];
-
-    var vertexData = this._meshData.vertexData;
-    var len = vertexData.length;
-    var v = 0, a = 0;
-    var x, y, z;
-
-    for (var i = 0; i < len; ++i) {
-        var vertData = vertexData[i];
-        x = y = z = 0;
-
-        if (vertData.countWeight > 4)
-            console.warn("Warning: more than 4 weights assigned. Mesh will not animate correctly");
-
-        for (var w = 0; w < vertData.countWeight; ++w) {
-            var weightData = this._meshData.weightData[vertData.startWeight + w];
-            var joint = this._jointData[weightData.joint];
-            var vec = joint.quat.rotate(weightData.pos);
-            var pos = joint.pos;
-            var bias = weightData.bias;
-            x += (vec.x + pos.x) * bias;
-            y += (vec.y + pos.y) * bias;
-            z += (vec.z + pos.z) * bias;
-            // cap at 4 and hope nothing blows up
-            if (w < 4) {
-                anims[a + w] = weightData.joint;
-                anims[a + 4 + w] = weightData.bias;
-            }
-        }
-
-        vertices[v] = x;
-        vertices[v + 1] = y;
-        vertices[v + 2] = z;
-        vertices[v + 10] = vertData.u;
-        vertices[v + 11] = 1.0 - vertData.v;
-
-        for (var w = vertData.countWeight; w < 4; ++w) {
-            anims[a + w] = 0;
-            anims[a + 4 + w] = 0;
-        }
-
-        a += 8;
-        v += 12;
-    }
-
-    meshData.setVertexData(vertices, 0);
-    meshData.setVertexData(anims, 1);
-    meshData.setIndexData(this._meshData.indices);
-
-    var generator = new HX.NormalTangentGenerator();
-    generator.generate(meshData);
-    this._modelData.addMeshData(meshData);
-};
-
-HX.MD5Mesh._Joint = function()
-{
-    this.name = null;
-    this.parentIndex = -1;
-    this.quat = new HX.Quaternion();
-    this.pos = new HX.Float4();
-};
-
-HX.MD5Mesh._MeshData = function()
-{
-    this.vertexData = [];
-    this.weightData = [];
-    this.indices = [];
-};
-
-HX.MD5Mesh._VertexData = function()
-{
-    this.u = 0;
-    this.v = 0;
-    this.startWeight = 0;
-    this.countWeight = 0;
-};
-
-HX.MD5Mesh._WeightData = function()
-{
-    this.joint = 0;
-    this.bias = 0;
-    this.pos = new HX.Float4();
-};
 /**
  *
  * @constructor
@@ -4006,11 +3174,11 @@ HX.FBX.prototype.parse = function(data, target)
 {
     var stream = new HX.DataStream(data);
 
-    try {
-        var deserializer = new HX.FBXBinaryDeserializer();
-        var fbxGraphBuilder = new HX.FBXGraphBuilder();
-        var fbxConverter = new HX.FBXConverter();
+    var deserializer = new HX.FBXBinaryDeserializer();
+    var fbxGraphBuilder = new HX.FBXGraphBuilder();
+    var fbxConverter = new HX.FBXConverter();
 
+    try {
         var newTime, time = Date.now();
 
         var record = deserializer.deserialize(stream);
@@ -4022,6 +3190,7 @@ HX.FBX.prototype.parse = function(data, target)
         var fbxRoot = fbxGraphBuilder.build(record);
         newTime = Date.now();
         console.log("Graph building: " + (newTime - time));
+        time = newTime;
 
         fbxConverter.convert(fbxRoot, target);
         newTime = Date.now();
@@ -4033,18 +3202,53 @@ HX.FBX.prototype.parse = function(data, target)
         return;
     }
 
-    //this._notifyComplete(target);
+    if (fbxConverter.textureTokens.length > 0) {
+        this._loadTextures(fbxConverter.textureTokens, fbxConverter.textureMaterialMap, target);
+    }
+    else
+        this._notifyComplete(target);
 };
 
-HX.FBX._STRING_DEMARCATION = String.fromCharCode(0, 1);
-
-HX.FBX.LayerMapping =
+HX.FBX.prototype._loadTextures = function(tokens, map, target)
 {
-    NONE: 0,
-    BY_POLYGON_VERTEX: 1,
-    BY_CONTROL_POINT: 2,
-    BY_POLYGON: 3,
-    ALL_SAME: 4
+    var files = [];
+    var numTextures = tokens.length;
+
+    for (var i = 0; i < numTextures; ++i) {
+        var token = tokens[i];
+        token.filename = files[i] = this._correctURL(token.filename);
+    }
+
+    var self = this;
+    var bulkLoader = new HX.BulkAssetLoader();
+    bulkLoader.onFail = function(message)
+    {
+        self._notifyFailure(message);
+    };
+
+    bulkLoader.onComplete = function()
+    {
+        var numMappings = map.length;
+        for (var i = 0; i < numMappings; ++i) {
+            var mapping = map[i];
+            var token = mapping.token;
+            var texture = bulkLoader.getAsset(token.filename);
+            switch (mapping.mapType) {
+                case HX.FBXConverter._TextureToken.NORMAL_MAP:
+                    mapping.material.normalMap = texture;
+                    break;
+                case HX.FBXConverter._TextureToken.SPECULAR_MAP:
+                    mapping.material.specularMap = texture;
+                    break;
+                case HX.FBXConverter._TextureToken.DIFFUSE_MAP:
+                    mapping.material.colorMap = texture;
+                    break;
+            }
+        }
+        self._notifyComplete(target);
+    };
+
+    bulkLoader.load(files, HX.JPG);
 };
 // Could also create an ASCII deserializer
 HX.FBXBinaryDeserializer = function()
@@ -4219,13 +3423,21 @@ HX.FBXBinaryDeserializer.RAW = "R";
 // Could also create an ASCII deserializer
 HX.FBXConverter = function()
 {
-
+    this._objects = null;
+    this._textureTokens = null;
+    this._textureMaterialMap = null;
 };
 
 HX.FBXConverter.prototype =
 {
+    get textureTokens() { return this._textureTokens; },
+    get textureMaterialMap() { return this._textureMaterialMap; },
+
     convert: function(rootNode, target)
     {
+        this._objects = [];
+        this._textureTokens = [];
+        this._textureMaterialMap = [];
         this._convertGroupNode(rootNode, target);
     },
 
@@ -4235,8 +3447,7 @@ HX.FBXConverter.prototype =
         var hxNode;
 
         if (fbxNode.mesh) {
-            hxNode = new HX.ModelInstance();
-            this._convertModelMesh(fbxNode, hxNode);
+            hxNode = this._convertModelMesh(fbxNode);
         }
 
         if (fbxNode.children && fbxNode.children.length > 0) {
@@ -4259,34 +3470,476 @@ HX.FBXConverter.prototype =
         }
     },
 
-    _convertModelMesh: function(fbxNode, hxNode)
+    _convertModelMesh: function(fbxNode)
     {
+        var matrix;
+        if (fbxNode.GeometricRotation || fbxNode.GeometricScaling || fbxNode.GeometricTranslation) {
+            var transform = new HX.Transform();
+            // for now there will be problems with this if several geometric transformations are used on the same geometry
+            if (transform.GeometricRotation) transform.rotation = this._convertRotation(fbxNode.GeometricRotation);
+            if (transform.GeometricScaling) transform.scale = fbxNode.GeometricScaling;
+            if (transform.GeometricTranslation) transform.position = fbxNode.GeometricTranslation;
+            matrix = transform.transformationMatrix;
+        }
 
+        var modelConverter = this._convertGeometry(fbxNode.mesh, matrix);
+
+        var materials = [];
+
+        var numMaterials = fbxNode.materials.length;
+        for (var i = 0; i < numMaterials; ++i) {
+            materials[i] = this._convertMaterial(fbxNode.materials[i]);
+        }
+        return modelConverter.createModelInstance(materials);
     },
 
     _convertSceneGraphObject: function(fbxNode, hxNode)
     {
         var matrix = new HX.Matrix4x4();
 
-        if (hxNode.ScalingPivot) matrix.appendTranslation(HX.Float4.negate(hxNode.ScalingPivot));
-        if (hxNode["Lcl Scaling"]) matrix.appendScale(hxNode["Lcl Scaling"].x, hxNode["Lcl Scaling"].y, hxNode["Lcl Scaling"].z);
-        if (hxNode.ScalingPivot) matrix.appendTranslation(hxNode.ScalingPivot);
-        if (scalingOffset) matrix.appendTranslation(scalingOffset.x, scalingOffset.y, scalingOffset.z);
+        if (fbxNode.ScalingPivot) matrix.appendTranslation(HX.Float4.negate(fbxNode.ScalingPivot));
+        var scale = fbxNode["Lcl Scaling"];
+        if (scale) matrix.appendScale(scale.x, scale.y, scale.z);
+        if (fbxNode.ScalingPivot) matrix.appendTranslation(fbxNode.ScalingPivot);
+        if (fbxNode.ScalingOffset) matrix.appendTranslation(fbxNode.ScalingOffset);
 
-        if (rotationPivot) matrix.appendTranslation(-rotationPivot);
-        if (preRotation) matrix.appendRotationQuaternion(preRotation);
-        if (lclRotation) matrix.appendRotationQuaternion(lclRotation);
-        if (postRotation) matrix.appendRotationQuaternion(postRotation);
-        if (rotationPivot) matrix.appendTranslation(rotationPivot);
-        if (rotationOffset) matrix.appendTranslation(rotationOffset);
+        if (fbxNode.RotationPivot) matrix.appendTranslation(HX.Float4.negate(fbxNode.RotationPivot));
+        if (fbxNode.PreRotation) matrix.appendRotationQuaternion(this._convertRotation(fbxNode.PreRotation));
+        if (fbxNode["Lcl Rotation"]) matrix.appendRotationQuaternion(this._convertRotation(fbxNode["Lcl Rotation"]));
+        if (fbxNode.PostRotation) matrix.appendRotationQuaternion(this._convertRotation(fbxNode.PostRotation));
+        if (fbxNode.RotationPivot) matrix.appendTranslation(fbxNode.RotationPivot);
+        if (fbxNode.RotationOffset) matrix.appendTranslation(fbxNode.RotationOffset);
 
-        if (lclTranslation) matrix.appendTranslation(lclTranslation);
+        if (fbxNode["Lcl Translation"]) matrix.appendTranslation(fbxNode["Lcl Translation"]);
 
-        // todo: geometric transform should be on Mesh geometry!
-        if (geometricTranslation) matrix.prependTranslation(geometricTranslation);
+        hxNode.transformationMatrix = matrix;
+    },
 
-        target.transformationMatrix = matrix;
+    _convertRotation: function(v)
+    {
+        var quat = new HX.Quaternion();
+        quat.fromXYZ(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
+        return quat;
+    },
+
+    _convertGeometry: function(node, matrix)
+    {
+        if (this._objects[node.UID]) return this._objects[node.UID];
+
+        var converter = new HX.FBXGeometryConverter();
+        converter.convertToModel(node, matrix);
+
+        this._objects[node.UID] = converter;
+        return converter;
+    },
+
+    _convertMaterial: function(fbxMaterial)
+    {
+        if (this._objects[fbxMaterial.UID]) return this._objects[fbxMaterial.UID];
+
+        var hxMaterial = new HX.PBRMaterial();
+        if (fbxMaterial.DiffuseColor) hxMaterial.color = fbxMaterial.DiffuseColor;
+        if (fbxMaterial.Shininess) fbxMaterial.ShininessExponent = fbxMaterial.Shininess;
+        if (fbxMaterial.ShininessExponent) hxMaterial.roughness = Math.sqrt(2.0/(fbxMaterial.Shininess + 2.0));
+
+        if (fbxMaterial.textures) {
+            if (fbxMaterial.textures["NormalMap"])
+                this._convertTexture(fbxMaterial.textures["NormalMap"], hxMaterial, HX.FBXConverter._TextureToken.NORMAL_MAP);
+
+            // We don't support specular color, instead hijack as roughness
+            if (fbxMaterial.textures["SpecularColor"])
+                this._convertTexture(fbxMaterial.textures["SpecularColor"], hxMaterial, HX.FBXConverter._TextureToken.SPECULAR_MAP);
+
+            if (fbxMaterial.textures["DiffuseColor"])
+                this._convertTexture(fbxMaterial.textures["DiffuseColor"], hxMaterial, HX.FBXConverter._TextureToken.DIFFUSE_MAP);
+        }
+
+        this._objects[fbxMaterial.UID] = hxMaterial;
+        return hxMaterial;
+    },
+
+    _convertTexture: function(fbxTexture, hxMaterial, mapType)
+    {
+        var token;
+        if (this._objects[fbxTexture.UID]) {
+            token = this._objects[fbxTexture.UID];
+        }
+        else {
+            token = new HX.FBXConverter._TextureToken();
+            token.mapType = mapType;
+            token.filename = fbxTexture.relativeFilename ? fbxTexture.relativeFilename : fbxTexture.video.relativeFilename;
+            this._textureTokens.push(token);
+            this._objects[fbxTexture.UID] = token;
+        }
+
+        var mapping = new HX.FBXConverter._TextureMaterialMapping(hxMaterial, token, mapType);
+        this._textureMaterialMap.push(mapping);
     }
+};
+
+HX.FBXConverter._TextureMaterialMapping = function(material, token, mapType)
+{
+    this.material = material;
+    this.token = token;
+    this.mapType = mapType;
+};
+
+HX.FBXConverter._TextureToken = function()
+{
+    this.filename = null;
+    this.UID = null;
+};
+
+HX.FBXConverter._TextureToken.NORMAL_MAP = 0;
+HX.FBXConverter._TextureToken.SPECULAR_MAP = 1;
+HX.FBXConverter._TextureToken.DIFFUSE_MAP = 2;
+// Could also create an ASCII deserializer
+HX.FBXGeometryConverter = function()
+{
+    this._perMaterialData = null;
+    this._matrix = null;
+    this._expandedMesh = null;
+    this._vertexStride = 0;
+    this._ctrlPointLookUp = null;
+    this._model = null;
+};
+
+HX.FBXGeometryConverter.prototype =
+{
+    // to be called after convertToModel
+    createModelInstance: function(materials)
+    {
+        var expandedMaterials = [];
+
+        var len = this._modelMaterialIDs.length;
+        for (var i = 0; i < len; ++i) {
+            expandedMaterials[i] = materials[this._modelMaterialIDs[i]];
+        }
+
+        return new HX.ModelInstance(this._model, expandedMaterials);
+    },
+
+    convertToModel: function(fbxMesh, matrix)
+    {
+        this._matrix = matrix;
+
+        this._generateExpandedMeshData(fbxMesh);
+
+        this._vertexStride = 12;
+        if (this._expandedMesh.hasColor)
+            this._vertexStride += 3;
+
+        this._perMaterialData = [];
+
+        this._splitPerMaterial();
+
+        // TODO: handle skinning
+        this._ctrlPointLookUp = [];
+        this._modelMaterialIDs = [];
+        return this._generateModel();
+    },
+
+    _generateExpandedMeshData: function(fbxMesh)
+    {
+        this._expandedMesh = new HX.FBXGeometryConverter._ExpandedMesh();
+        var indexData = fbxMesh.indices;
+        var vertexData = fbxMesh.vertices;
+        var normalData, colorData, uvData, materialData;
+        var layerElements = fbxMesh.layerElements;
+        if (layerElements) {
+            normalData = layerElements["Normals"];
+            colorData = layerElements["Colors"];
+            uvData = layerElements["UV"];
+            materialData = layerElements["Materials"];
+        }
+
+        var vertices = [];
+        var polyIndex = 0;
+        var maxMaterialIndex = 0;
+
+        if (normalData) this._expandedMesh.hasNormals = true;
+        if (colorData) this._expandedMesh.hasColor = true;
+        if (uvData) this._expandedMesh.hasUVs = true;
+
+        var len = indexData.length;
+
+        for (var i = 0; i < len; ++i) {
+            var index = indexData[i];
+            var v = new HX.FBXGeometryConverter._Vertex();
+
+            if (index < 0) {
+                index = -index - 1;
+                v.lastVertex = true;
+            }
+
+            // is index the control point, referred to by animations?
+            v.pos.x = vertexData[index * 3];
+            v.pos.y = vertexData[index * 3 + 1];
+            v.pos.z = vertexData[index * 3 + 2];
+            v.ctrlPointIndex = index;   // if these indices are different, they are probably triggered differerently in animations
+
+            if (normalData) v.normal = this._extractLayerData(normalData, index, i, 3);
+            if (colorData) v.color = this._extractLayerData(colorData, index, i, 3);
+            if (uvData) v.uv = this._extractLayerData(uvData, index, i, 2);
+
+            if (materialData && materialData.mappingInformationType !== HX.FbxLayerElement.MAPPING_TYPE.ALL_SAME) {
+                var matIndex = materialData.indexData[polyIndex];
+                v.materialIndex = matIndex;
+                if (matIndex > maxMaterialIndex)
+                    maxMaterialIndex = matIndex;
+            }
+
+            if (v.lastVertex)
+                ++polyIndex;
+
+            vertices[i] = v;
+        }
+
+        this._expandedMesh.vertices = vertices;
+        this._expandedMesh.numMaterials = maxMaterialIndex + 1;
+    },
+
+    _extractLayerData: function (layer, index, i, numComponents)
+    {
+        var target = numComponents > 2? new HX.Float4() : new HX.Float2();
+        // direct
+        if (layer.referenceInformationType === HX.FbxLayerElement.REFERENCE_TYPE.DIRECT) {
+            var directIndex = layer.mappingInformationType === HX.FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT? index : i;
+            target.x = layer.directData[directIndex * numComponents];
+            target.y = layer.directData[directIndex * numComponents + 1];
+            if (numComponents > 2)
+                target.z = layer.directData[directIndex * numComponents + 2];
+        }
+        // index to direct
+        else {
+            var directIndex = layer.mappingInformationType === HX.FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT? layer.indexData[index] : layer.indexData[i];
+            target.x = layer.directData[directIndex * numComponents];
+            target.y = layer.directData[directIndex * numComponents + 1];
+            if (numComponents > 2)
+                target.z = layer.directData[directIndex * numComponents + 2];
+        }
+        return target;
+    },
+
+    _splitPerMaterial: function()
+    {
+        for (var i = 0; i < this._expandedMesh.numMaterials; ++i)
+            this._perMaterialData[i] = new HX.FBXGeometryConverter._PerMaterialData();
+
+        // todo: change this expansion
+        var i = 0, j = 0;
+        var vertexData = this._expandedMesh.vertices;
+        var len = vertexData.length;
+        var realIndex0, realIndex1, realIndex2;
+        var startNewBatch = true;
+
+        // triangulate
+        while (i < len) {
+            var data = this._perMaterialData[vertexData[i].materialIndex];
+            if (!data.vertices) startNewBatch = true;
+            // start as startNewBatch, so we push the current list on the stack
+            if (startNewBatch) {
+                startNewBatch = false;
+                data.indexCounter = 0;
+                data.indices = [];
+                data.vertices = [];
+                data.ctrlPointIndices = [];
+                data.indexLookUp = {};
+                data.indexStack.push(data.indices);
+                data.vertexStack.push(data.vertices);
+                data.ctrlPointStack.push(data.ctrlPointIndices);
+            }
+
+            // for everything: i = control point index
+
+            realIndex0 = this._getOrAddIndex(vertexData[i]);
+            if (realIndex0 < 0) {
+                startNewBatch = true;
+                continue;
+            }
+            realIndex1 = this._getOrAddIndex(vertexData[i + 1]);
+            if (realIndex1 < 0) {
+                startNewBatch = true;
+                continue;
+            }
+
+            i += 2;
+
+            var v2;
+
+            do {
+                v2 = vertexData[i];
+                realIndex2 = this._getOrAddIndex(v2);
+
+                if (realIndex2 < 0) {
+                    startNewBatch = true;
+                }
+                else {
+                    ++i;
+
+                    var indices = this._perMaterialData[v2.materialIndex].indices;
+                    indices[j] = realIndex0;
+                    indices[j + 1] = realIndex1;
+                    indices[j + 2] = realIndex2;
+
+                    j += 3;
+                    realIndex1 = realIndex2;
+                }
+            } while (!v2.lastVertex && !startNewBatch);
+        }
+    },
+
+    // returns negative if overflow is detected
+    _getOrAddIndex: function(v)
+    {
+        var hash = v.getHash();
+        var data = this._perMaterialData[v.materialIndex];
+        var indexLookUp = data.indexLookUp;
+
+        if (indexLookUp.hasOwnProperty(hash))
+            return indexLookUp[hash];
+
+        if (data.indexCounter > 65535) return -1;
+
+        var vertices = data.vertices;
+        // new unique vertex!
+        var k = data.indexCounter * this._vertexStride;
+        var realIndex = data.indexCounter++;
+
+        data.ctrlPointIndices[realIndex] = v.ctrlPointIndex;
+
+        indexLookUp[hash] = realIndex;
+
+        // position
+        vertices[k] = v.pos.x;
+        vertices[k + 1] = v.pos.y;
+        vertices[k + 2] = v.pos.z;
+
+        // normal
+        if (this._expandedMesh.hasNormals) {
+            vertices[k + 3] = v.normal.x;
+            vertices[k + 4] = v.normal.y;
+            vertices[k + 5] = v.normal.z;
+        }
+        else
+            vertices[k + 3] = vertices[k + 4] = vertices[k + 5] = 0;
+
+        // tangent & flipsign
+        vertices[k + 6] = vertices[k + 7] = vertices[k + 8] = vertices[k + 9] = 0;
+
+        if (this._expandedMesh.hasUVs) {
+            vertices[k + 10] = v.uv.x;
+            vertices[k + 11] = v.uv.y;
+        }
+        else
+            vertices[k + 10] = vertices[k + 11] = 0;
+
+        if (this._expandedMesh.hasColor) {
+            vertices[k + 12] = v.color.x;
+            vertices[k + 13] = v.color.y;
+            vertices[k + 14] = v.color.z;
+        }
+        else
+            vertices[k + 12] = vertices[k + 13] = vertices[k + 14] = 0;
+
+        return realIndex;
+    },
+
+    _generateModel: function()
+    {
+        var modelData = new HX.ModelData();
+        var meshIndex = 0;
+
+        var numMaterials = this._expandedMesh.numMaterials;
+
+        for (var i = 0; i < numMaterials; ++i) {
+            var data = this._perMaterialData[i];
+
+            var stackSize = data.indexStack.length;
+            for (var j = 0; j < stackSize; ++j) {
+                var meshData = HX.MeshData.createDefaultEmpty();
+                if (this._expandedMesh.hasColor) meshData.addVertexAttribute("hx_vertexColor", 3);
+                meshData.setVertexData(data.vertexStack[j], 0);
+                meshData.setIndexData(data.indexStack[j]);
+
+                var ctrlPoints = data.ctrlPointStack[j];
+                var numCtrlPoints = ctrlPoints.length;
+
+                for (var k = 0; k < numCtrlPoints; ++k)
+                    this._ctrlPointLookUp[ctrlPoints[k]] = {index: k, meshIndex: meshIndex};
+
+                ++meshIndex;
+
+                this._modelMaterialIDs.push(i);
+
+                var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
+                if (!this._expandedMesh.hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
+                var generator = new HX.NormalTangentGenerator();
+                generator.generate(meshData, mode);
+                modelData.addMeshData(meshData);
+            }
+        }
+
+        this._model = new HX.Model(modelData);
+    }
+};
+
+HX.FBXGeometryConverter._ExpandedMesh = function()
+{
+    this.vertices = null;
+    this.hasColor = false;
+    this.hasUVs = false;
+    this.hasNormals = false;
+    this.numMaterials = 0;
+};
+
+HX.FBXGeometryConverter._Vertex = function()
+{
+    this.pos = new HX.Float4();
+    this.uv = null;
+    this.normal = null;
+    this.color = null;
+    this.materialIndex = 0;
+    this.ctrlPointIndex = -1;
+    this._hash = null;
+
+    this.lastVertex = false;
+};
+
+HX.FBXGeometryConverter._Vertex.prototype =
+{
+    // instead of actually using the values, we should use the indices as keys
+    getHash: function()
+    {
+        if (!this._hash) {
+            var str = this.ctrlPointIndex + "/" + this.materialIndex + "/" + this.pos.x + "/" + this.pos.y + "/" + this.pos.z;
+
+            if (this.normal)
+                str = str + "/" + this.normal.x + "/" + this.normal.y + "/" + this.normal.z;
+
+            if (this.uv)
+                str = str + "/" + this.uv.x + "/" + this.uv.y;
+
+            if (this.color)
+                str = str + "/" + this.color.x + "/" + this.color.y + "/" + this.color.z;
+
+            this._hash = str;
+        }
+
+        return this._hash;
+    }
+};
+
+HX.FBXGeometryConverter._PerMaterialData = function()
+{
+    this.indexCounter = 0;
+    this.vertexStack = [];
+    this.indexStack = [];
+    this.ctrlPointStack = [];
+    this.vertices = null;
+    this.indices = null;
+    this.ctrlPointIndices = null;
+    this.indexLookUp = {};
 };
 // Could also create an ASCII deserializer
 HX.FBXGraphBuilder = function()
@@ -4388,14 +4041,16 @@ HX.FBXGraphBuilder.prototype =
             }
 
             if (obj) {
+                var uid = node.data[0];
                 obj.name = this._getObjectDefName(node);
+                obj.UID = uid;
 
                 if (this._templates[node.name])
                     obj.copyProperties(this._templates[node.name]);
 
                 this._assignProperties(obj, node.getChildByName("Properties70"));
 
-                var uid = node.data[0];
+
                 this._objects[uid] = obj;
             }
         }
@@ -4415,8 +4070,8 @@ HX.FBXGraphBuilder.prototype =
                 parent.connectObject(child);
             }
             else if (mode === "OP") {
-                //console.log(child, child.name, " -> ", parent, parent.name, " Mode ", node.data[3]);
                 parent.connectProperty(child, node.data[3]);
+                //console.log(child, child.name, " -> ", parent, parent.name, " Mode ", node.data[3]);
             }
         }
     },
@@ -4433,9 +4088,9 @@ HX.FBXGraphBuilder.prototype =
     {
         if (!properties) return;
 
-        var len = properties.numChildren;
+        var len = properties.children.length;
         for (var i = 0; i < len; ++i) {
-            var prop = properties.getChild(i);
+            var prop = properties.children[i];
             if (target.hasOwnProperty(prop.data[0])) {
                 target[prop.data[0]] = this._getPropertyValue(prop);
             }
@@ -4472,11 +4127,11 @@ HX.FBXGraphBuilder.prototype =
     _processGeometry: function(objDef)
     {
         var geometry = new HX.FbxMesh();
-        var len = objDef.numChildren;
+        var len = objDef.children.length;
         var layerMap = {};
 
         for (var i = 0; i < len; ++i) {
-            var child = objDef.getChild(i);
+            var child = objDef.children[i];
             switch (child.name) {
                 case "Vertices":
                     geometry.vertices = child.data[0];
@@ -4498,13 +4153,14 @@ HX.FBXGraphBuilder.prototype =
 
     _processLayers: function(objDef, layerMap)
     {
-        var layerElements = [];
-        var len = objDef.numChildren;
+        var layerElements = {};
+        var len = objDef.children.length;
         for (var i = 0; i < len; ++i) {
-            var layerElement = objDef.getChild(i);
+            var layerElement = objDef.children[i];
+            if (layerElement.name !== "LayerElement") continue;
             var name = layerElement.getChildByName("Type").data[0];
-            var layer = this._processLayerElement(layerMap[name]);
-            layerElements.push(layer);
+            var layerElement = this._processLayerElement(layerMap[name]);
+            layerElements[layerElement.type] = layerElement;
         }
         return layerElements;
     },
@@ -4512,29 +4168,39 @@ HX.FBXGraphBuilder.prototype =
     _processLayerElement: function(objDef)
     {
         var layerElement = new HX.FbxLayerElement();
-        var len = objDef.length;
+        var len = objDef.children.length;
 
         // property TypedIndex unsupported
 
         for (var i = 0; i < len; ++i) {
-            var node = objDef.getChild(i);
+            var node = objDef.children[i];
             switch(node.name) {
                 case "MappingInformationType":
                     var mapMode = node.data[0];
                     layerElement.mappingInformationType =   mapMode === "ByPolygonVertex"?  HX.FbxLayerElement.MAPPING_TYPE.BY_POLYGON_VERTEX :
-                                                            mapMode === "ByPolygon"?        HX.FbxLayerElement.MAPPING_TYPE._Mapping.BY_POLYGON :
-                                                            mapMode === "AllSame"?          HX.FbxLayerElement.MAPPING_TYPE._Mapping.ALL_SAME :
-                                                                                            HX.FbxLayerElement.MAPPING_TYPE._Mapping.BY_CONTROL_POINT;
+                                                            mapMode === "ByPolygon"?        HX.FbxLayerElement.MAPPING_TYPE.BY_POLYGON :
+                                                            mapMode === "AllSame"?          HX.FbxLayerElement.MAPPING_TYPE.ALL_SAME :
+                                                                                            HX.FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT;
                     break;
                 case "ReferenceInformationType":
                     layerElement.referenceInformationType = node.data[0] === "Direct"? HX.FbxLayerElement.REFERENCE_TYPE.DIRECT : HX.FbxLayerElement.REFERENCE_TYPE.INDEX_TO_DIRECT;
                     break;
                 case "Normals":
+                case "Colors":
                 case "UV":
-                case "Materials":
                 case "Smoothing":
                     layerElement.type = node.name;
-                    layerElement.data = node.data[0];
+                    layerElement.directData = node.data[0];
+                    break;
+                case "NormalsIndex":
+                case "ColorIndex":
+                case "UVIndex":
+                case "Smoothing":
+                    layerElement.indexData = node.data[0];
+                    break;
+                case "Materials":
+                    layerElement.type = node.name;
+                    layerElement.indexData = node.data[0];
                     break;
             }
         }
@@ -5911,6 +5577,840 @@ HX._FBX._Cluster = function()
         return "[Cluster(name=" + this.name + ")";
     }
 };
+HX.MD5Anim = function()
+{
+    HX.AssetParser.call(this, HX.SkeletonClip);
+    this._hierarchy = null;
+    this._baseFrame = null;
+    this._activeFrame = null;
+    this._numJoints = 0;
+
+    this._correctionQuad = new HX.Quaternion();
+    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
+};
+
+HX.MD5Anim.prototype = Object.create(HX.AssetParser.prototype);
+
+HX.MD5Anim.prototype.parse = function(data, target)
+{
+    this._hierarchy = [];
+    this._baseFrame = [];
+    this._target = target;
+
+    // assuming a valid file, validation isn't our job
+    var lines = data.split("\n");
+    var len = lines.length;
+    var lineFunction = null;
+
+    for (var i = 0; i < len; ++i) {
+        // remove leading & trailing whitespace
+        var line = lines[i].replace(/^\s+|\s+$/g, "");
+        var tokens = line.split(/\s+/);
+
+        if (tokens[0] === "//" || tokens[0] === "")
+            continue;
+
+        if (lineFunction) {
+            lineFunction.call(this, tokens);
+            if (tokens[0] === "}") lineFunction = null;
+        }
+        else switch (tokens[0]) {
+            case "commandline":
+            case "numFrames":
+            case "MD5Version":
+            case "numAnimatedComponents":
+                break;
+            case "numJoints":
+                this._numJoints = parseInt(tokens[1]);
+                break;
+            case "frameRate":
+                target.frameRate = parseInt(tokens[1]);
+                break;
+            case "hierarchy":
+                lineFunction = this._parseHierarchy;
+                break;
+            case "bounds":
+                lineFunction = this._parseBounds;
+                break;
+            case "baseframe":
+                lineFunction = this._parseBaseFrame;
+                break;
+            case "frame":
+                this._activeFrame = new HX.MD5Anim._FrameData();
+                lineFunction = this._parseFrame;
+                break;
+
+        }
+    }
+
+    this._notifyComplete(target);
+};
+
+HX.MD5Anim.prototype._parseHierarchy = function(tokens)
+{
+    if (tokens[0] === "}") return;
+    var data = new HX.MD5Anim._HierachyData();
+    data.name = tokens[0].substring(1, tokens[0].length - 1);
+    data.parent = parseInt(tokens[1]);
+    data.flags = parseInt(tokens[2]);
+    data.startIndex = parseInt(tokens[3]);
+    this._hierarchy.push(data);
+};
+
+HX.MD5Anim.prototype._parseBounds = function(tokens)
+{
+    // don't do anything with bounds for now
+};
+
+HX.MD5Anim.prototype._parseBaseFrame = function(tokens)
+{
+    if (tokens[0] === "}") return;
+    var baseFrame = new HX.MD5Anim._BaseFrameData();
+    var pos = baseFrame.pos;
+    pos.x = parseFloat(tokens[1]);
+    pos.y = parseFloat(tokens[2]);
+    pos.z = parseFloat(tokens[3]);
+    var quat = baseFrame.quat;
+    quat.x = parseFloat(tokens[6]);
+    quat.y = parseFloat(tokens[7]);
+    quat.z = parseFloat(tokens[8]);
+    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
+    if (quat.w < 0.0) quat.w = 0.0;
+    else quat.w = -Math.sqrt(quat.w);
+    this._baseFrame.push(baseFrame);
+};
+
+HX.MD5Anim.prototype._parseFrame = function(tokens)
+{
+    if (tokens[0] === "}") {
+        this._translateFrame();
+        return;
+    }
+
+    var len = tokens.length;
+    for (var i = 0; i < len; ++i) {
+        this._activeFrame.components.push(parseFloat(tokens[i]));
+    }
+};
+
+HX.MD5Anim.prototype._translateFrame = function()
+{
+    var skeletonPose = new HX.SkeletonPose();
+
+    for (var i = 0; i < this._numJoints; ++i) {
+        var pose = new HX.SkeletonJointPose();
+        var hierarchy = this._hierarchy[i];
+        var base = this._baseFrame[i];
+        var flags = hierarchy.flags;
+        var pos = base.pos;
+        var quat = base.quat;
+        var comps = this._activeFrame.components;
+
+        var j = hierarchy.startIndex;
+
+        if (flags & 1) pos.x = comps[j];
+        if (flags & 2) pos.y = comps[j+1];
+        if (flags & 4) pos.z = comps[j+2];
+        if (flags & 8) quat.x = comps[j+3];
+        if (flags & 16) quat.y = comps[j+4];
+        if (flags & 32) quat.z = comps[j+5];
+
+        var w = 1.0 - quat.x * quat.x - quat.y * quat.y - quat.z * quat.z;
+        quat.w = w < 0.0 ? 0.0 : -Math.sqrt(w);
+
+        // transform root joints only
+        if (hierarchy.parent < 0) {
+            pose.orientation.multiply(this._correctionQuad, quat);
+            pose.translation = this._correctionQuad.rotate(pos);
+        }
+        else {
+            pose.orientation.copyFrom(quat);
+            pose.translation.copyFrom(pos);
+        }
+
+        //pose.orientation.y = -pose.orientation.y;
+        //pose.orientation.z = -pose.orientation.z;
+        //pose.translation.x = -pose.translation.x;
+
+        skeletonPose.jointPoses.push(pose);
+    }
+
+    this._target.addFrame(skeletonPose);
+};
+
+HX.MD5Anim._HierachyData = function()
+{
+    this.name = null;
+    this.parent = -1;
+    this.flags = 0;
+    this.startIndex = 0;
+};
+
+HX.MD5Anim._BaseFrameData = function()
+{
+    this.pos = new HX.Float4();
+    this.quat = new HX.Quaternion();
+};
+
+HX.MD5Anim._FrameData = function()
+{
+    this.components = [];
+}
+/**
+ * Warning, MD5 as supported by Helix does not contain any materials nor scene graph information, so it only loads Models, not instances!
+ * @constructor
+ */
+HX.MD5Mesh = function()
+{
+    HX.AssetParser.call(this, HX.Model);
+    this._target = null;
+    this._meshData = null;
+    this._jointData = null;
+    this._skeleton = null;
+
+    this._correctionQuad = new HX.Quaternion();
+    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
+};
+
+HX.MD5Mesh.prototype = Object.create(HX.AssetParser.prototype);
+
+HX.MD5Mesh.prototype.parse = function(data, target)
+{
+    this._modelData = new HX.ModelData();
+    this._skeleton = new HX.Skeleton();
+    this._jointData = [];
+
+    // assuming a valid file, validation isn't our job
+    var lines = data.split("\n");
+    var len = lines.length;
+    var lineFunction = null;
+
+    for (var i = 0; i < len; ++i) {
+        // remove leading & trailing whitespace
+        var line = lines[i].replace(/^\s+|\s+$/g, "");
+        var tokens = line.split(/\s+/);
+
+        if (tokens[0] === "//" || tokens[0] === "")
+            continue;
+
+        if (lineFunction) {
+            lineFunction.call(this, tokens);
+            if (tokens[0] === "}") lineFunction = null;
+        }
+        else switch (tokens[0]) {
+            case "commandline":
+            case "numMeshes":
+            case "numJoints":
+            case "MD5Version":
+                break;
+            case "joints":
+                lineFunction = this._parseJoint;
+                break;
+            case "mesh":
+                this._meshData = new HX.MD5Mesh._MeshData();
+                lineFunction = this._parseMesh;
+                break;
+        }
+    }
+
+    target._setModelData(this._modelData);
+    target.skeleton = this._skeleton;
+    this._notifyComplete(target);
+};
+
+HX.MD5Mesh.prototype._parseJoint = function(tokens)
+{
+    if (tokens[0] === "}") return;
+
+    var jointData = new HX.MD5Mesh._Joint();
+    var pos = jointData.pos;
+    var quat = jointData.quat;
+    jointData.name = tokens[0].substring(1, tokens[0].length - 1);
+
+    jointData.parentIndex = parseInt(tokens[1]);
+
+    pos.x = parseFloat(tokens[3]);
+    pos.y = parseFloat(tokens[4]);
+    pos.z = parseFloat(tokens[5]);
+    this._correctionQuad.rotate(jointData.pos, jointData.pos);
+    quat.x = parseFloat(tokens[8]);
+    quat.y = parseFloat(tokens[9]);
+    quat.z = parseFloat(tokens[10]);
+    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
+    if (quat.w < 0.0) quat.w = 0.0;
+    else quat.w = -Math.sqrt(quat.w);
+
+    quat.multiply(this._correctionQuad, quat);
+    this._jointData.push(jointData);
+
+    var joint = new HX.SkeletonJoint();
+    joint.inverseBindPose.fromQuaternion(quat);
+    var pos = jointData.pos;
+    joint.inverseBindPose.appendTranslation(pos);
+    joint.inverseBindPose.invertAffine();
+    joint.parentIndex = jointData.parentIndex;
+    this._skeleton.addJoint(joint);
+};
+
+HX.MD5Mesh.prototype._parseMesh = function(tokens)
+{
+    switch (tokens[0]) {
+        case "shader":
+        case "numVerts":
+        case "numWeights":
+            break;
+        case "tri":
+            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[4]), parseInt(tokens[3]));
+            break;
+        case "vert":
+            this._parseVert(tokens);
+            break;
+        case "weight":
+            this._parseWeight(tokens);
+            break;
+        case "}":
+            this._translateMesh();
+            break;
+    }
+};
+
+HX.MD5Mesh.prototype._parseVert = function(tokens)
+{
+    var vert = new HX.MD5Mesh._VertexData();
+    vert.u = parseFloat(tokens[3]);
+    vert.v = parseFloat(tokens[4]);
+    vert.startWeight = parseInt(tokens[6]);
+    vert.countWeight = parseInt(tokens[7]);
+    this._meshData.vertexData.push(vert);
+};
+
+HX.MD5Mesh.prototype._parseWeight = function(tokens)
+{
+    var weight = new HX.MD5Mesh._WeightData();
+    weight.joint = parseInt(tokens[2]);
+    weight.bias = parseFloat(tokens[3]);
+    weight.pos.x = parseFloat(tokens[5]);
+    weight.pos.y = parseFloat(tokens[6]);
+    weight.pos.z = parseFloat(tokens[7]);
+    this._meshData.weightData.push(weight);
+};
+
+HX.MD5Mesh.prototype._translateMesh = function()
+{
+    var meshData = new HX.MeshData.createDefaultEmpty();
+    meshData.addVertexAttribute("hx_boneIndices", 4, 1);
+    meshData.addVertexAttribute("hx_boneWeights", 4, 1);
+    var vertices = [];
+    var anims = [];
+
+    var vertexData = this._meshData.vertexData;
+    var len = vertexData.length;
+    var v = 0, a = 0;
+    var x, y, z;
+
+    for (var i = 0; i < len; ++i) {
+        var vertData = vertexData[i];
+        x = y = z = 0;
+
+        if (vertData.countWeight > 4)
+            console.warn("Warning: more than 4 weights assigned. Mesh will not animate correctly");
+
+        for (var w = 0; w < vertData.countWeight; ++w) {
+            var weightData = this._meshData.weightData[vertData.startWeight + w];
+            var joint = this._jointData[weightData.joint];
+            var vec = joint.quat.rotate(weightData.pos);
+            var pos = joint.pos;
+            var bias = weightData.bias;
+            x += (vec.x + pos.x) * bias;
+            y += (vec.y + pos.y) * bias;
+            z += (vec.z + pos.z) * bias;
+            // cap at 4 and hope nothing blows up
+            if (w < 4) {
+                anims[a + w] = weightData.joint;
+                anims[a + 4 + w] = weightData.bias;
+            }
+        }
+
+        vertices[v] = x;
+        vertices[v + 1] = y;
+        vertices[v + 2] = z;
+        vertices[v + 10] = vertData.u;
+        vertices[v + 11] = 1.0 - vertData.v;
+
+        for (var w = vertData.countWeight; w < 4; ++w) {
+            anims[a + w] = 0;
+            anims[a + 4 + w] = 0;
+        }
+
+        a += 8;
+        v += 12;
+    }
+
+    meshData.setVertexData(vertices, 0);
+    meshData.setVertexData(anims, 1);
+    meshData.setIndexData(this._meshData.indices);
+
+    var generator = new HX.NormalTangentGenerator();
+    generator.generate(meshData);
+    this._modelData.addMeshData(meshData);
+};
+
+HX.MD5Mesh._Joint = function()
+{
+    this.name = null;
+    this.parentIndex = -1;
+    this.quat = new HX.Quaternion();
+    this.pos = new HX.Float4();
+};
+
+HX.MD5Mesh._MeshData = function()
+{
+    this.vertexData = [];
+    this.weightData = [];
+    this.indices = [];
+};
+
+HX.MD5Mesh._VertexData = function()
+{
+    this.u = 0;
+    this.v = 0;
+    this.startWeight = 0;
+    this.countWeight = 0;
+};
+
+HX.MD5Mesh._WeightData = function()
+{
+    this.joint = 0;
+    this.bias = 0;
+    this.pos = new HX.Float4();
+};
+
+/**
+ *
+ * @constructor
+ */
+HX.MTL = function()
+{
+    HX.AssetParser.call(this, Object, HX.URLLoader.DATA_TEXT);
+    this._textures = [];
+    this._texturesToLoad = [];
+    this._activeMaterial = null;
+};
+
+HX.MTL.prototype = Object.create(HX.AssetParser.prototype);
+
+HX.MTL.prototype.parse = function(data, target)
+{
+    var lines = data.split("\n");
+    var numLines = lines.length;
+
+    for (var i = 0; i < numLines; ++i) {
+        var line = lines[i].replace(/^\s+|\s+$/g, "");
+        this._parseLine(line, target);
+    }
+
+    this._loadTextures(target);
+
+    return target;
+};
+
+HX.MTL.prototype._parseLine = function(line, target)
+{
+    // skip line
+    if (line.length === 0 || line.charAt(0) === "#") return;
+    var tokens = line.split(/\s+/);
+
+    switch (tokens[0].toLowerCase()) {
+        case "newmtl":
+            this._activeMaterial = new HX.PBRMaterial();
+            this._activeMaterial.name = tokens[1];
+            target[tokens[1]] = this._activeMaterial;
+            break;
+        case "ns":
+            var specularPower = parseFloat(tokens[1]);
+            this._activeMaterial.roughness = Math.sqrt(2.0/(specularPower + 2.0));
+            break;
+        case "kd":
+            this._activeMaterial.color = new HX.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+            break;
+        case "map_kd":
+            this._activeMaterial.colorMap = this._getTexture(tokens[1]);
+            break;
+        case "map_d":
+            this._activeMaterial.maskMap = this._getTexture(tokens[1]);
+            this._activeMaterial.alphaThreshold = .5;
+            break;
+        case "map_ns":
+            this._activeMaterial.specularMap = this._getTexture(tokens[1]);
+            break;
+        case "map_bump":
+        case "bump":
+            this._activeMaterial.normalMap = this._getTexture(tokens[1]);
+            break;
+        default:
+        //console.log("MTL tag ignored or unsupported: " + tokens[0]);
+    }
+};
+
+HX.MTL.prototype._getTexture = function(url)
+{
+    if (!this._textures[url]) {
+        this._textures[url] = new HX.Texture2D();
+
+        this._texturesToLoad.push({
+            file: this._correctURL(url),
+            parser: HX.JPG,
+            target: this._textures[url]
+        });
+    }
+    return this._textures[url];
+};
+
+HX.MTL.prototype._loadTextures = function(lib)
+{
+    var files = this._texturesToLoad;
+    var len = files.length;
+    if (len === 0) {
+        this._notifyComplete(lib);
+        return;
+    }
+
+    var self = this;
+    var bulkLoader = new HX.BulkAssetLoader();
+
+    bulkLoader.onComplete = function() {
+        self._notifyComplete(lib);
+    };
+
+    bulkLoader.onFail = function(message) {
+        self._notifyFailure(message);
+    };
+
+    bulkLoader.load(files);
+};
+
+/**
+ * The options property supports the following settings:
+ * - groupsAsObjects
+ * @constructor
+ */
+HX.OBJ = function()
+{
+    HX.AssetParser.call(this, HX.GroupNode);
+    this._objects = [];
+    this._vertices = [];
+    this._normals = [];
+    this._uvs = [];
+    this._hasNormals = false;
+    this._defaultMaterial = new HX.PBRMaterial();
+    this._target = null;
+    this._mtlLibFile = null;
+};
+
+HX.OBJ.prototype = Object.create(HX.AssetParser.prototype);
+
+HX.OBJ.prototype.parse = function(data, target)
+{
+    this._groupsAsObjects = this.options.groupsAsObjects === undefined? true : this._groupsAsObjects;
+    this._target = target;
+
+    var lines = data.split("\n");
+    var numLines = lines.length;
+
+    this._pushNewObject("hx_default");
+
+    for (var i = 0; i < numLines; ++i) {
+        var line = lines[i].replace(/^\s+|\s+$/g, "");
+        this._parseLine(line);
+    }
+
+    if (this._mtlLibFile)
+        this._loadMTLLib(this._mtlLibFile);
+    else
+        this._finish(null);
+};
+
+HX.OBJ.prototype._finish = function(mtlLib)
+{
+    this._translate(mtlLib);
+    this._notifyComplete(this._target);
+};
+
+HX.OBJ.prototype._loadMTLLib = function(filename)
+{
+    var loader = new HX.AssetLoader(HX.MTL);
+    var self = this;
+
+    loader.onComplete = function (asset)
+    {
+        self._finish(asset);
+    };
+
+    loader.onFail = function (message)
+    {
+        self._notifyFailure(message);
+    };
+
+    loader.load(filename);
+};
+
+HX.OBJ.prototype._parseLine = function(line)
+{
+    // skip line
+    if (line.length === 0 || line.charAt(0) === "#") return;
+    var tokens = line.split(/\s+/);
+
+    switch (tokens[0].toLowerCase()) {
+        case "mtllib":
+            this._mtlLibFile = this._correctURL(tokens[1]);
+            break;
+        case "usemtl":
+            this._setActiveSubGroup(tokens[1]);
+            break;
+        case "v":
+            this._vertices.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+            break;
+        case "vt":
+            this._uvs.push(parseFloat(tokens[1]), parseFloat(tokens[2]));
+            break;
+        case "vn":
+            this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+            break;
+        case "o":
+            this._pushNewObject(tokens[1]);
+            break;
+        case "g":
+            if (this._groupsAsObjects)
+                this._pushNewObject(tokens[1]);
+            else
+                this._pushNewGroup(tokens[1]);
+
+            break;
+        case "f":
+            this._parseFaceData(tokens);
+            break;
+        default:
+            // ignore following tags:
+            // s
+            //console.log("OBJ tag ignored or unsupported: " + tokens[0]);
+    }
+};
+
+HX.OBJ.prototype._pushNewObject = function(name)
+{
+    this._activeObject = new HX.OBJ._ObjectData();
+    this._objects.push(this._activeObject);
+    this._pushNewGroup("hx_default");
+};
+
+HX.OBJ.prototype._pushNewGroup = function(name)
+{
+    this._activeGroup = new HX.OBJ._GroupData();
+    this._activeGroup.name = name || "Group" + this._activeGroup.length;
+
+    this._activeObject.groups.push(this._activeGroup);
+    this._setActiveSubGroup("hx_default");
+};
+
+HX.OBJ.prototype._setActiveSubGroup = function(name)
+{
+    this._activeGroup.subgroups[name] = this._activeGroup.subgroups[name] || new HX.OBJ._SubGroupData();
+    this._activeSubGroup = this._activeGroup.subgroups[name];
+};
+
+HX.OBJ.prototype._parseFaceData = function(tokens)
+{
+    var face = new HX.OBJ._FaceData();
+    var numTokens = tokens.length;
+
+    for (var i = 1; i < numTokens; ++i) {
+        var faceVertexData = new HX.OBJ._FaceVertexData();
+        face.vertices.push(faceVertexData);
+
+        var indices = tokens[i].split("/");
+        var index = (indices[0] - 1) * 3;
+
+        faceVertexData.posX = this._vertices[index];
+        faceVertexData.posY = this._vertices[index + 1];
+        faceVertexData.posZ = this._vertices[index + 2];
+
+        if(indices.length > 1) {
+            index = (indices[1] - 1) * 2;
+
+            faceVertexData.uvU = this._uvs[index];
+            faceVertexData.uvV = this._uvs[index + 1];
+
+            if (indices.length > 2) {
+                index = (indices[2] - 1) * 3;
+                this._hasNormals = true;
+                faceVertexData.normalX = this._normals[index];
+                faceVertexData.normalY = this._normals[index + 1];
+                faceVertexData.normalZ = this._normals[index + 2];
+            }
+        }
+    }
+
+    this._activeSubGroup.faces.push(face);
+    this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
+};
+
+HX.OBJ.prototype._translate = function(mtlLib)
+{
+    var numObjects = this._objects.length;
+    for (var i = 0; i < numObjects; ++i) {
+        this._translateObject(this._objects[i], mtlLib);
+    }
+};
+
+HX.OBJ.prototype._translateObject = function(object, mtlLib)
+{
+    var numGroups = object.groups.length;
+    if (numGroups === 0) return;
+    var modelData = new HX.ModelData();
+    var materials = [];
+    var model = new HX.Model();
+
+    for (var i = 0; i < numGroups; ++i) {
+        var group = object.groups[i];
+
+        for (var key in group.subgroups)
+        {
+            if (group.subgroups.hasOwnProperty(key)) {
+                var subgroup = group.subgroups[key];
+                if (subgroup.numIndices === 0) continue;
+                modelData.addMeshData(this._translateMeshData(subgroup));
+
+                var material = mtlLib? mtlLib[key] : null;
+                material = material || this._defaultMaterial;
+                materials.push(material);
+            }
+        }
+    }
+
+    model._setModelData(modelData);
+
+    var modelInstance = new HX.ModelInstance(model, materials);
+    modelInstance.name = object.name;
+    this._target.attach(modelInstance);
+};
+
+HX.OBJ.prototype._translateMeshData = function(group)
+{
+    var meshData = HX.MeshData.createDefaultEmpty();
+    var realIndices = [];
+    var indices = new Array(group.numIndices);
+    var numVertices = 0;
+    var currentIndex = 0;
+
+    var faces = group.faces;
+    var numFaces = faces.length;
+    for (var i = 0; i < numFaces; ++i) {
+        var face = faces[i];
+
+        var faceVerts = face.vertices;
+        var numVerts = faceVerts.length;
+
+        for (var j = 0; j < numVerts; ++j) {
+            var vert = faceVerts[j];
+            var hash = vert.getHash();
+            if (!realIndices.hasOwnProperty(hash))
+                realIndices[hash] = {index: numVertices++, vertex: vert};
+        }
+
+        indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
+        indices[currentIndex+1] = realIndices[faceVerts[1].getHash()].index;
+        indices[currentIndex+2] = realIndices[faceVerts[2].getHash()].index;
+        currentIndex += 3;
+
+        if (numVerts === 4) {
+            indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
+            indices[currentIndex+1] = realIndices[faceVerts[2].getHash()].index;
+            indices[currentIndex+2] = realIndices[faceVerts[3].getHash()].index;
+            currentIndex += 3;
+        }
+    }
+
+    var vertices = new Array(numVertices * HX.MeshData.DEFAULT_VERTEX_SIZE);
+
+    for (var hash in realIndices) {
+        if (!realIndices.hasOwnProperty(hash)) continue;
+        var data = realIndices[hash];
+        var vertex = data.vertex;
+        var index = data.index * HX.MeshData.DEFAULT_VERTEX_SIZE;
+
+        vertices[index] = vertex.posX;
+        vertices[index+1] = vertex.posY;
+        vertices[index+2] = vertex.posZ;
+        vertices[index+3] = vertex.normalX;
+        vertices[index+4] = vertex.normalY;
+        vertices[index+5] = vertex.normalZ;
+        vertices[index+6] = 0;
+        vertices[index+7] = 0;
+        vertices[index+8] = 0;
+        vertices[index+9] = 1;
+        vertices[index+10] = vertex.uvU;
+        vertices[index+11] = vertex.uvV;
+    }
+
+    meshData.setVertexData(vertices, 0);
+    meshData.setIndexData(indices);
+
+    var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
+    if (!this._hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
+    var generator = new HX.NormalTangentGenerator();
+    generator.generate(meshData, mode, true);
+    return meshData;
+};
+
+HX.OBJ._FaceVertexData = function()
+{
+    this.posX = 0;
+    this.posY = 0;
+    this.posZ = 0;
+    this.uvU = 0;
+    this.uvV = 0;
+    this.normalX = 0;
+    this.normalY = 0;
+    this.normalZ = 0;
+    this._hash = "";
+};
+
+HX.OBJ._FaceVertexData.prototype =
+{
+    // instead of actually using the values, we should use the indices as keys
+    getHash: function()
+    {
+        if (!this._hash)
+            this._hash = this.posX + "/" + this.posY + "/" + this.posZ + "/" + this.uvU + "/" + this.uvV + "/" + this.normalX + "/" + this.normalY + "/" + this.normalZ + "/";
+
+        return this._hash;
+    }
+};
+
+HX.OBJ._FaceData = function()
+{
+    this.vertices = []; // <FaceVertexData>
+};
+
+HX.OBJ._SubGroupData = function()
+{
+    this.numIndices = 0;
+    this.faces = [];    // <FaceData>
+};
+
+HX.OBJ._GroupData = function()
+{
+    this.subgroups = [];
+    this.name = "";    // <FaceData>
+    this._activeMaterial = null;
+};
+
+HX.OBJ._ObjectData = function()
+{
+    this.name = "";
+    this.groups = [];
+    this._activeGroup = null;
+};
 HX.FbxAnimLayer = function()
 {
     HX.FbxObject.call(this);
@@ -5962,7 +6462,8 @@ HX.FbxFileTexture.prototype.connectObject = function(obj)
 HX.FbxLayerElement = function()
 {
     HX.FbxObject.call(this);
-    this.data = null;
+    this.directData = null;
+    this.indexData = null;
     this.type = null;   // can be normal, uv, etc ...
     this.mappingInformationType = 0;
     this.referenceInformationType = 0;
@@ -5991,18 +6492,20 @@ HX.FbxMaterial = function()
     this.DiffuseColor = null;
     this.DiffuseFactor = 1;
     //this.NormalMap = null;
-    this.ShininessExponent = 0;
-    this.Shininess = 0;
+    this.ShininessExponent = undefined;
+    this.Shininess = undefined;
 
-    this.textures = {};
+    this.textures = null;
 };
 
 HX.FbxMaterial.prototype = Object.create(HX.FbxObject.prototype);
 
 HX.FbxMaterial.prototype.connectProperty = function(obj, propertyName)
 {
-    if (obj instanceof HX.FbxFileTexture)
+    if (obj instanceof HX.FbxFileTexture) {
+        this.textures = this.textures || {};
         this.textures[propertyName] = obj;
+    }
     else
         throw new Error("Unknown object property!");
 };

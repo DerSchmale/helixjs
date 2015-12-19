@@ -36,7 +36,7 @@ HX.SkeletonAnimation.prototype.onUpdate = function(dt)
     if (this._blendTree.update(dt)) {
         var matrix = this._entity.transformationMatrix;
         var d = this._blendTree.rootJointDeltaPosition;
-        matrix.prependTranslation(d.x, d.y, d.z);
+        matrix.prependTranslation(d);
         this._entity.transformationMatrix = matrix;
     }
     this._entity.skeletonMatrices = this._blendTree.matrices;

@@ -1,6 +1,7 @@
 HX.FbxObject = function()
 {
     this.name = null;
+    this.UID = null;
 };
 
 HX.FbxObject.prototype =

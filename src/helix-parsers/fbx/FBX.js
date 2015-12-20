@@ -17,6 +17,7 @@ HX.FBX.prototype.parse = function(data, target)
     var deserializer = new HX.FBXBinaryDeserializer();
     var fbxGraphBuilder = new HX.FBXGraphBuilder();
     var fbxConverter = new HX.FBXConverter();
+    var settings = new HX.FBXSettings();
 
     try {
         var newTime, time = Date.now();
@@ -27,12 +28,17 @@ HX.FBX.prototype.parse = function(data, target)
         console.log("Serialization: " + (newTime - time));
         time = newTime;
 
-        var fbxRoot = fbxGraphBuilder.build(record);
+        settings.init(record);
+
+        if (deserializer.version < 7000) throw new Error("Unsupported FBX version!");
+
+        var fbxRoot = fbxGraphBuilder.build(record, settings);
+
         newTime = Date.now();
         console.log("Graph building: " + (newTime - time));
         time = newTime;
 
-        fbxConverter.convert(fbxRoot, target);
+        fbxConverter.convert(fbxRoot, target, settings);
         newTime = Date.now();
         console.log("Conversion: " + (newTime - time));
     }

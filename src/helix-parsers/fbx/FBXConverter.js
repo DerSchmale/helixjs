@@ -11,8 +11,9 @@ HX.FBXConverter.prototype =
     get textureTokens() { return this._textureTokens; },
     get textureMaterialMap() { return this._textureMaterialMap; },
 
-    convert: function(rootNode, target)
+    convert: function(rootNode, target, settings)
     {
+        this._settings = settings;
         this._objects = [];
         this._textureTokens = [];
         this._textureMaterialMap = [];
@@ -30,9 +31,7 @@ HX.FBXConverter.prototype =
             hxNode = new HX.GroupNode();
             this._convertGroupNode(fbxNode, hxNode);
         }
-        else if (fbxNode.type === "LimbNode") {
-            hxNode = new HX.SceneNode();
-        }
+        else return null;
 
         hxNode.name = fbxNode.name;
 
@@ -47,7 +46,8 @@ HX.FBXConverter.prototype =
         var len = fbxNode.children.length;
         for (var i = 0; i < len; ++i) {
             var childNode = this._convertNode(fbxNode.children[i]);
-            hxNode.attach(childNode);
+            if (childNode)
+                hxNode.attach(childNode);
         }
 
         // TODO: handle limb nodes
@@ -63,9 +63,14 @@ HX.FBXConverter.prototype =
             if (transform.GeometricScaling) transform.scale = fbxNode.GeometricScaling;
             if (transform.GeometricTranslation) transform.position = fbxNode.GeometricTranslation;
             matrix = transform.transformationMatrix;
+            matrix.append(this._settings.orientationMatrix);
+        }
+        else {
+            matrix = this._settings.transformationMatrix;
         }
 
-        var modelConverter = this._convertGeometry(fbxNode.mesh, matrix);
+
+        var modelConverter = this._convertGeometry(fbxNode.mesh, matrix, this._settings.flipFaces);
 
         var materials = [];
 
@@ -105,12 +110,12 @@ HX.FBXConverter.prototype =
         return quat;
     },
 
-    _convertGeometry: function(node, matrix)
+    _convertGeometry: function(node, matrix, flipFaces)
     {
         if (this._objects[node.UID]) return this._objects[node.UID];
 
         var converter = new HX.FBXGeometryConverter();
-        converter.convertToModel(node, matrix);
+        converter.convertToModel(node, matrix, flipFaces);
 
         this._objects[node.UID] = converter;
         return converter;

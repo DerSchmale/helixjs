@@ -1,11 +1,13 @@
 // Could also create an ASCII deserializer
 HX.FBXBinaryDeserializer = function()
 {
-
+    this._version = 0;
 };
 
 HX.FBXBinaryDeserializer.prototype =
 {
+    get version() { return this._version },
+
     deserialize: function(dataStream)
     {
         this._data = dataStream;
@@ -15,7 +17,7 @@ HX.FBXBinaryDeserializer.prototype =
         if (this._data.getUint16() !== 0x001a)
             console.log("Suspected oddity with FBX file");
 
-        var version = this._data.getUint32();
+        this._version = this._data.getUint32();
 
         var root = new HX.FBXRecord();
         root.name = "[root]";

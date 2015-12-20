@@ -16,8 +16,9 @@ HX.FbxMesh.prototype.toString = function() { return "[FbxMesh(name="+this.name+"
 
 HX.FbxMesh.prototype.connectObject = function(obj)
 {
-    if (obj instanceof HX.FbxDeformer) {
-
+    if (obj instanceof HX.FbxSkin) {
+        if (this.skin) throw "Skin already set!";
+        this.skin = obj;
     }
     else {
         throw new Error("Unhandled object connection " + obj.toString());

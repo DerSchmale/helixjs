@@ -1022,6 +1022,25 @@ HX.Matrix4x4.prototype =
         return target;
     },
 
+    swapColums: function(i, j)
+    {
+        if (i === j) return;
+        i <<= 2;
+        j <<= 2;
+        var x = this._m[i];
+        var y = this._m[i | 1];
+        var z = this._m[i | 2];
+        var w = this._m[i | 3];
+        this._m[i] = this._m[j];
+        this._m[i | 1] = this._m[j | 1];
+        this._m[i | 2] = this._m[j | 2];
+        this._m[i | 3] = this._m[j | 3];
+        this._m[j] = x;
+        this._m[j | 1] = y;
+        this._m[j | 2] = z;
+        this._m[j | 3] = w;
+    },
+
     toString: function()
     {
         var str = "";

@@ -55,8 +55,12 @@ HX.FbxNode.prototype.connectObject = function(obj)
         this.materials = this.materials || [];
         this.materials.push(obj);
     }
-    else
-        throw new Error("Incompatible child object!");
+    else if (obj instanceof HX.FbxTrashNode) {
+        // silently ignore it
+    }
+    else {
+        throw new Error("Incompatible child object " + obj.toString() + " for " + this.type);
+    }
 };
 
 HX.FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+")]"; };

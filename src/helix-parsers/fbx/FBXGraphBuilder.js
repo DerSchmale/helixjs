@@ -6,20 +6,21 @@ HX.FBXGraphBuilder = function()
 
 HX.FBXGraphBuilder.prototype =
 {
-    build: function(rootRecord)
+    build: function(rootRecord, settings)
     {
+        this._settings = settings;
         this._templates = {};
         this._objects = {};
 
         // fbx scene node
-        var rootNode = new HX.FbxNode();
-        this._objects["00"] = rootNode;
+        this._rootNode = new HX.FbxNode();
+        this._rootNode.name = "hx_rootNode";
 
         // handle templates
         this._processTemplates(rootRecord.getChildByName("Definitions"));
         this._processObjects(rootRecord.getChildByName("Objects"));
         this._processConnections(rootRecord.getChildByName("Connections"));
-        return rootNode;
+        return this._rootNode;
     },
 
     _processTemplates: function(definitions)
@@ -87,7 +88,7 @@ HX.FBXGraphBuilder.prototype =
                     obj = new HX.FbxPose();
                     break;
                 case "Deformer":
-                    obj = new HX.FbxDeformer();
+                    obj = node.data[2] === "Skin"? new HX.FbxSkin() : new HX.FbxCluster();
                     break;
                 case "AnimationCurve":
                     obj = new HX.FbxAnimationCurve();
@@ -95,6 +96,9 @@ HX.FBXGraphBuilder.prototype =
                 case "AnimationCurveNode":
                     obj = new HX.FbxAnimationCurveNode();
                     break;
+                default:
+                    // deal with some irrelevant nodes
+                    obj = new HX.FbxTrashNode();
             }
 
             if (obj) {
@@ -110,6 +114,9 @@ HX.FBXGraphBuilder.prototype =
 
                 this._objects[uid] = obj;
             }
+            else {
+                //node.printDebug();
+            }
         }
     },
 
@@ -120,15 +127,14 @@ HX.FBXGraphBuilder.prototype =
             var node = definitions.children[i];
             var mode = node.data[0];
             var child = this._objects[node.data[1]];
-            var parent = this._objects[node.data[2]];
+            var parent = this._objects[node.data[2]] || this._rootNode;
 
             if (mode === "OO") {
-                //console.log(child, child.name, " -> ", parent, parent.name);
+                //console.log(child.toString(), node.data[1], " -> ", parent.toString(), node.data[2]);
                 parent.connectObject(child);
             }
             else if (mode === "OP") {
                 parent.connectProperty(child, node.data[3]);
-                //console.log(child, child.name, " -> ", parent, parent.name, " Mode ", node.data[3]);
             }
         }
     },

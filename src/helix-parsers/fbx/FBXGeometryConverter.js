@@ -2,7 +2,6 @@
 HX.FBXGeometryConverter = function()
 {
     this._perMaterialData = null;
-    this._matrix = null;
     this._expandedMesh = null;
     this._vertexStride = 0;
     this._ctrlPointLookUp = null;
@@ -26,33 +25,31 @@ HX.FBXGeometryConverter.prototype =
 
     convertToModel: function(fbxMesh, matrix)
     {
-        this._matrix = matrix;
-
         this._perMaterialData = [];
         this._ctrlPointLookUp = [];
         this._modelMaterialIDs = [];
 
-        this._generateExpandedMeshData(fbxMesh);
+        this._generateExpandedMeshData(fbxMesh, matrix);
 
         this._vertexStride = HX.MeshData.DEFAULT_VERTEX_SIZE;
-        //if (this._expandedMesh.hasColor)
-        //    this._vertexStride += 3;
+        if (this._expandedMesh.hasColor)
+            this._vertexStride += 3;
 
         this._splitPerMaterial();
         this._generateModel();
         this._model.name = fbxMesh.name;
     },
 
-    _generateExpandedMeshData: function(fbxMesh)
+    _generateExpandedMeshData: function(fbxMesh, matrix)
     {
         this._expandedMesh = new HX.FBXGeometryConverter._ExpandedMesh();
         var indexData = fbxMesh.indices;
         var vertexData = fbxMesh.vertices;
-        var normalData, uvData, materialData;
+        var normalData, colorData, uvData, materialData;
         var layerElements = fbxMesh.layerElements;
         if (layerElements) {
             normalData = layerElements["Normals"];
-            //colorData = layerElements["Colors"];
+            colorData = layerElements["Colors"];
             uvData = layerElements["UV"];
             materialData = layerElements["Materials"];
         }
@@ -62,7 +59,7 @@ HX.FBXGeometryConverter.prototype =
         var maxMaterialIndex = 0;
 
         if (normalData) this._expandedMesh.hasNormals = true;
-        //if (colorData) this._expandedMesh.hasColor = true;
+        if (colorData) this._expandedMesh.hasColor = true;
         if (uvData) this._expandedMesh.hasUVs = true;
 
         var len = indexData.length;
@@ -80,10 +77,17 @@ HX.FBXGeometryConverter.prototype =
             v.pos.x = vertexData[index * 3];
             v.pos.y = vertexData[index * 3 + 1];
             v.pos.z = vertexData[index * 3 + 2];
+            if (matrix)
+                matrix.transformPoint(v.pos, v.pos);
+
             v.ctrlPointIndex = index;   // if these indices are different, they are probably triggered differerently in animations
 
-            if (normalData) v.normal = this._extractLayerData(normalData, index, i, 3);
-            //if (colorData) v.color = this._extractLayerData(colorData, index, i, 3);
+            if (normalData) {
+                v.normal = this._extractLayerData(normalData, index, i, 3);
+                if (matrix)
+                    matrix.transformVector(v.normal, v.normal);
+            }
+            if (colorData) v.color = this._extractLayerData(colorData, index, i, 3);
             if (uvData) v.uv = this._extractLayerData(uvData, index, i, 2);
 
             if (materialData && materialData.mappingInformationType !== HX.FbxLayerElement.MAPPING_TYPE.ALL_SAME) {
@@ -238,11 +242,11 @@ HX.FBXGeometryConverter.prototype =
         else
             vertices[k + 10] = vertices[k + 11] = 0;
 
-        /*if (this._expandedMesh.hasColor) {
+        if (this._expandedMesh.hasColor) {
             vertices[k + 12] = v.color.x;
             vertices[k + 13] = v.color.y;
             vertices[k + 14] = v.color.z;
-        }*/
+        }
 
         return realIndex;
     },
@@ -260,7 +264,7 @@ HX.FBXGeometryConverter.prototype =
             var stackSize = data.indexStack.length;
             for (var j = 0; j < stackSize; ++j) {
                 var meshData = HX.MeshData.createDefaultEmpty();
-                //if (this._expandedMesh.hasColor) meshData.addVertexAttribute("hx_vertexColor", 3);
+                if (this._expandedMesh.hasColor) meshData.addVertexAttribute("hx_vertexColor", 3);
                 meshData.setVertexData(data.vertexStack[j], 0);
                 meshData.setIndexData(data.indexStack[j]);
 
@@ -289,7 +293,7 @@ HX.FBXGeometryConverter.prototype =
 HX.FBXGeometryConverter._ExpandedMesh = function()
 {
     this.vertices = null;
-    //this.hasColor = false;
+    this.hasColor = false;
     this.hasUVs = false;
     this.hasNormals = false;
     this.numMaterials = 0;

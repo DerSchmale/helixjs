@@ -32,7 +32,7 @@ HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype);
 HX.FbxNode.prototype.connectObject = function(obj)
 {
     if (obj instanceof HX.FbxNode) {
-        if (obj.type === "Null") return;
+        //if (obj.type === "Null") return;
 
         if (obj.type === "LimbNode") {
             this.limbNodes = this.limbNodes || [];
@@ -63,4 +63,4 @@ HX.FbxNode.prototype.connectObject = function(obj)
     }
 };
 
-HX.FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+")]"; };
+HX.FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+", type="+this.type+")]"; };

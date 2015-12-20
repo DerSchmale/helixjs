@@ -130,7 +130,6 @@ HX.FBXGraphBuilder.prototype =
             var parent = this._objects[node.data[2]] || this._rootNode;
 
             if (mode === "OO") {
-                //console.log(child.toString(), node.data[1], " -> ", parent.toString(), node.data[2]);
                 parent.connectObject(child);
             }
             else if (mode === "OP") {

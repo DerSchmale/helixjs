@@ -3147,7 +3147,7 @@ HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype);
 HX.FbxNode.prototype.connectObject = function(obj)
 {
     if (obj instanceof HX.FbxNode) {
-        if (obj.type === "Null") return;
+        //if (obj.type === "Null") return;
 
         if (obj.type === "LimbNode") {
             this.limbNodes = this.limbNodes || [];
@@ -3178,7 +3178,7 @@ HX.FbxNode.prototype.connectObject = function(obj)
     }
 };
 
-HX.FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+")]"; };
+HX.FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+", type="+this.type+")]"; };
 /**
  *
  * @constructor
@@ -4118,7 +4118,6 @@ HX.FBXGraphBuilder.prototype =
             var parent = this._objects[node.data[2]] || this._rootNode;
 
             if (mode === "OO") {
-                //console.log(child.toString(), node.data[1], " -> ", parent.toString(), node.data[2]);
                 parent.connectObject(child);
             }
             else if (mode === "OP") {

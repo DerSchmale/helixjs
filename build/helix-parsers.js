@@ -3903,6 +3903,7 @@ HX.FBXGeometryConverter.prototype =
                 w += weight;
             }
 
+            // need to fill up with ever-static joint
             w = w >= 1.0? 0.0 : 1.0 - w;
 
             for (var i = numJoints; i < 4; ++i) {

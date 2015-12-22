@@ -2,20 +2,14 @@ HX.FbxObject = function()
 {
     this.name = null;
     this.UID = null;
+    this.parent = null; // only used if parent is FbxNode
+
+    // can be use for marking during parsing
+    this.data = null;
 };
 
 HX.FbxObject.prototype =
 {
-    get numChildren()
-    {
-        return this._children.length;
-    },
-
-    getChild: function(i)
-    {
-        return this._children[i];
-    },
-
     connectObject: function(obj)
     {
         throw new Error("Unhandled object connection " + obj.toString() + " -> " + this.toString());

@@ -6,6 +6,10 @@ HX.FBXGeometryConverter = function()
     this._vertexStride = 0;
     this._ctrlPointLookUp = null;
     this._model = null;
+    this._skeleton = null;
+    this._jointUIDLookUp = null;
+    this._skinningData = null;
+    this._fakeJointIndex = -1;
 };
 
 HX.FBXGeometryConverter.prototype =
@@ -28,7 +32,11 @@ HX.FBXGeometryConverter.prototype =
         this._perMaterialData = [];
         this._ctrlPointLookUp = [];
         this._modelMaterialIDs = [];
+        this._jointUIDLookUp = {};
 
+        this._modelData = new HX.ModelData();
+
+        this._generateSkinningData(fbxMesh);
         this._generateExpandedMeshData(fbxMesh, matrix);
 
         this._vertexStride = HX.MeshData.DEFAULT_VERTEX_SIZE;
@@ -65,30 +73,33 @@ HX.FBXGeometryConverter.prototype =
         var len = indexData.length;
 
         for (var i = 0; i < len; ++i) {
-            var index = indexData[i];
+            var ctrlPointIndex = indexData[i];
             var v = new HX.FBXGeometryConverter._Vertex();
 
-            if (index < 0) {
-                index = -index - 1;
+            if (ctrlPointIndex < 0) {
+                ctrlPointIndex = -ctrlPointIndex - 1;
                 v.lastVertex = true;
             }
 
-            // is index the control point, referred to by animations?
-            v.pos.x = vertexData[index * 3];
-            v.pos.y = vertexData[index * 3 + 1];
-            v.pos.z = vertexData[index * 3 + 2];
+            v.pos.x = vertexData[ctrlPointIndex * 3];
+            v.pos.y = vertexData[ctrlPointIndex * 3 + 1];
+            v.pos.z = vertexData[ctrlPointIndex * 3 + 2];
+
             if (matrix)
                 matrix.transformPoint(v.pos, v.pos);
 
-            v.ctrlPointIndex = index;   // if these indices are different, they are probably triggered differerently in animations
+            if (this._skinningData)
+                v.jointBindings = this._skinningData[ctrlPointIndex];
+
+            v.ctrlPointIndex = ctrlPointIndex;   // if these indices are different, they are probably triggered differerently in animations
 
             if (normalData) {
-                v.normal = this._extractLayerData(normalData, index, i, 3);
+                v.normal = this._extractLayerData(normalData, ctrlPointIndex, i, 3);
                 if (matrix)
                     matrix.transformVector(v.normal, v.normal);
             }
-            if (colorData) v.color = this._extractLayerData(colorData, index, i, 3);
-            if (uvData) v.uv = this._extractLayerData(uvData, index, i, 2);
+            if (colorData) v.color = this._extractLayerData(colorData, ctrlPointIndex, i, 3);
+            if (uvData) v.uv = this._extractLayerData(uvData, ctrlPointIndex, i, 2);
 
             if (materialData && materialData.mappingInformationType !== HX.FbxLayerElement.MAPPING_TYPE.ALL_SAME) {
                 var matIndex = materialData.indexData[polyIndex];
@@ -156,6 +167,11 @@ HX.FBXGeometryConverter.prototype =
                 data.indexStack.push(data.indices);
                 data.vertexStack.push(data.vertices);
                 data.ctrlPointStack.push(data.ctrlPointIndices);
+
+                if (this._skinningData) {
+                    data.skinning = [];
+                    data.skinningStack.push(data.skinning);
+                }
             }
 
             // for everything: i = control point index
@@ -209,12 +225,14 @@ HX.FBXGeometryConverter.prototype =
 
         if (data.indexCounter > 65535) return -1;
 
+        var skinning = data.skinning;
         var vertices = data.vertices;
         // new unique vertex!
         var k = data.indexCounter * this._vertexStride;
+        var s = data.indexCounter * 8;
         var realIndex = data.indexCounter++;
 
-        data.ctrlPointIndices[realIndex] = v.ctrlPointIndex;
+        data.ctrlPointIndices[v.ctrlPointIndex] = realIndex;
 
         indexLookUp[hash] = realIndex;
 
@@ -222,6 +240,31 @@ HX.FBXGeometryConverter.prototype =
         vertices[k] = v.pos.x;
         vertices[k + 1] = v.pos.y;
         vertices[k + 2] = v.pos.z;
+
+        if (skinning) {
+            var binding = v.jointBindings;
+            var numJoints = binding? binding.length : 0;
+            if (numJoints > 4) {
+                numJoints = 4;
+                console.warn("Warning: more than 4 joints not supported. Model will not animate correctly");
+            }
+
+            var w = 0.0;
+            for (var i = 0; i < numJoints; ++i) {
+                var weight = binding[i].jointWeight;
+                skinning[s + i] = binding[i].jointIndex;
+                skinning[s + i + 4] = weight;
+                w += weight;
+            }
+
+            // need to fill up with ever-static joint
+            w = w >= 1.0? 0.0 : 1.0 - w;
+
+            for (var i = numJoints; i < 4; ++i) {
+                skinning[s + i] = this._fakeJointIndex;
+                skinning[s + i + 4] = i === numJoints? w : 0.0;
+            }
+        }
 
         // normal
         if (this._expandedMesh.hasNormals) {
@@ -253,7 +296,6 @@ HX.FBXGeometryConverter.prototype =
 
     _generateModel: function()
     {
-        var modelData = new HX.ModelData();
         var meshIndex = 0;
 
         var numMaterials = this._expandedMesh.numMaterials;
@@ -265,8 +307,15 @@ HX.FBXGeometryConverter.prototype =
             for (var j = 0; j < stackSize; ++j) {
                 var meshData = HX.MeshData.createDefaultEmpty();
                 if (this._expandedMesh.hasColor) meshData.addVertexAttribute("hx_vertexColor", 3);
+
                 meshData.setVertexData(data.vertexStack[j], 0);
                 meshData.setIndexData(data.indexStack[j]);
+
+                if (this._skinningData) {
+                    meshData.addVertexAttribute("hx_boneIndices", 4, 1);
+                    meshData.addVertexAttribute("hx_boneWeights", 4, 1);
+                    meshData.setVertexData(data.skinningStack[j], 1);
+                }
 
                 var ctrlPoints = data.ctrlPointStack[j];
                 var numCtrlPoints = ctrlPoints.length;
@@ -282,11 +331,107 @@ HX.FBXGeometryConverter.prototype =
                 if (!this._expandedMesh.hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
                 var generator = new HX.NormalTangentGenerator();
                 generator.generate(meshData, mode);
-                modelData.addMeshData(meshData);
+                this._modelData.addMeshData(meshData);
             }
         }
 
-        this._model = new HX.Model(modelData);
+        this._model = new HX.Model(this._modelData);
+    },
+
+    _generateSkinningData: function(fbxMesh)
+    {
+        var len = fbxMesh.deformers.length;
+        if (len === 0) return;
+
+        this._modelData.skeleton = new HX.Skeleton();
+
+        for (var i = 0; i < len; ++i) {
+            this._convertSkin(fbxMesh.deformers[i], fbxMesh.UID);
+        }
+
+        var fakeJoint = new HX.SkeletonJoint();
+        this._fakeJointIndex = this._modelData.skeleton.numJoints;
+        this._modelData.skeleton.addJoint(fakeJoint);
+    },
+
+    _addJointsToSkeleton: function(rootNode, UID)
+    {
+        // already added to the skeleton
+        if (rootNode.data === UID) return;
+        rootNode.data = UID;
+        this._convertSkeletonNode(rootNode, -1);
+    },
+
+    _convertSkeletonNode: function(fbxNode, parentIndex)
+    {
+        var joint = new HX.SkeletonJoint();
+        joint.parentIndex = parentIndex;
+
+        var index = this._modelData.skeleton.numJoints;
+        this._modelData.skeleton.addJoint(joint);
+
+        this._jointUIDLookUp[fbxNode.UID] = { joint: joint, index: index };
+
+        for (var i = 0; i < fbxNode.numChildren; ++i) {
+            this._convertSkeletonNode(fbxNode.getChild(i), index);
+        }
+    },
+
+    _convertSkin: function(fbxSkin, meshUID)
+    {
+        // skinning data contains a list of bindings per control point
+        this._skinningData = [];
+
+        var len = fbxSkin.clusters.length;
+
+        this._controlPoints = [];
+
+        for (var i = 0; i < len; ++i) {
+            var cluster = fbxSkin.clusters[i];
+            // a bit annoying, but this way, if there's multiple roots (by whatever chance), we cover them all
+            this._addJointsToSkeleton(this._getRootNodeForCluster(cluster), meshUID);
+            var jointData = this._jointUIDLookUp[cluster.limbNode.UID];
+            this._assignInverseBindPose(jointData.joint, cluster);
+            this._assignJointBinding(cluster, jointData.index);
+        }
+    },
+
+    _assignJointBinding: function(cluster, jointIndex)
+    {
+        if (!cluster.indices) return;
+        var len = cluster.indices.length;
+
+        for (var i = 0; i < len; ++i) {
+            if (cluster.weights[i] > 0) {
+                var ctrlPointIndex = cluster.indices[i];
+                this._controlPoints[ctrlPointIndex] = true;
+                var skinningData = this._skinningData[ctrlPointIndex] = this._skinningData[ctrlPointIndex] || [];
+                var binding = new HX.FBXGeometryConverter._JointBinding();
+                binding.jointIndex = jointIndex;
+                binding.jointWeight = cluster.weights[i];
+                skinningData.push(binding);
+            }
+        }
+    },
+
+    _assignInverseBindPose: function (joint, cluster)
+    {
+        joint.inverseBindPose.copyFrom(cluster.transformLink);
+        joint.inverseBindPose.invert();
+        joint.inverseBindPose.prepend(cluster.transform);
+    },
+
+    // this uses the logic that one of the clusters is bound to have the root node assigned to them
+    // not sure if this is always the case, however
+    _getRootNodeForCluster: function(cluster)
+    {
+        var limbNode = cluster.limbNode;
+        while (limbNode) {
+            if (limbNode.type === "Root")
+                return limbNode;
+            limbNode = limbNode.parent;
+        }
+        throw new Error("No Root node found!");
     }
 };
 
@@ -299,6 +444,12 @@ HX.FBXGeometryConverter._ExpandedMesh = function()
     this.numMaterials = 0;
 };
 
+HX.FBXGeometryConverter._JointBinding = function()
+{
+    this.jointIndex = 0;
+    this.jointWeight = 0;
+};
+
 HX.FBXGeometryConverter._Vertex = function()
 {
     this.pos = new HX.Float4();
@@ -307,8 +458,8 @@ HX.FBXGeometryConverter._Vertex = function()
     this.color = null;
     this.materialIndex = 0;
     this.ctrlPointIndex = -1;
+    this.jointBindings = null;   // array of JointBindings
     this._hash = null;
-
     this.lastVertex = false;
 };
 
@@ -340,10 +491,12 @@ HX.FBXGeometryConverter._PerMaterialData = function()
 {
     this.indexCounter = 0;
     this.vertexStack = [];
+    this.skinningStack = [];
     this.indexStack = [];
     this.ctrlPointStack = [];
     this.vertices = null;
     this.indices = null;
+    this.skinning = null;
     this.ctrlPointIndices = null;
     this.indexLookUp = {};
 };

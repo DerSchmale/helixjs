@@ -74,30 +74,30 @@ HX.FBXBinaryDeserializer.prototype =
         var typeCode = this._data.getChar();
 
         switch (typeCode) {
-            case HX._FBX._DataElement.BOOLEAN:
+            case HX.FBXBinaryDeserializer.BOOLEAN:
                 return this._data.getUint8();
                 break;
-            case HX._FBX._DataElement.INT16:
+            case HX.FBXBinaryDeserializer.INT16:
                 return this._data.getInt16();
                 break;
-            case HX._FBX._DataElement.INT32:
+            case HX.FBXBinaryDeserializer.INT32:
                 return this._data.getInt32();
                 break;
-            case HX._FBX._DataElement.INT64:
+            case HX.FBXBinaryDeserializer.INT64:
                 // just concatenating strings, since they're only used for ids
                 return this._data.getInt32() + "" + this._data.getInt32();
                 break;
-            case HX._FBX._DataElement.FLOAT:
+            case HX.FBXBinaryDeserializer.FLOAT:
                 return this._data.getFloat32();
                 break;
-            case HX._FBX._DataElement.DOUBLE:
+            case HX.FBXBinaryDeserializer.DOUBLE:
                 return this._data.getFloat64();
                 break;
-            case HX._FBX._DataElement.STRING:
+            case HX.FBXBinaryDeserializer.STRING:
                 var len = this._data.getUint32();
                 return this._data.getString(len);
                 break;
-            case HX._FBX._DataElement.RAW:
+            case HX.FBXBinaryDeserializer.RAW:
                 var len = this._data.getUint32();
                 return this._data.getUint8Array(len);
                 break;
@@ -114,18 +114,18 @@ HX.FBXBinaryDeserializer.prototype =
 
         if (encoding === 0) {
             switch (type) {
-                case HX._FBX._DataElement.BOOLEAN_ARRAY:
+                case HX.FBXBinaryDeserializer.BOOLEAN_ARRAY:
                     return this._data.getUint8Array(len);
-                case HX._FBX._DataElement.INT32_ARRAY:
+                case HX.FBXBinaryDeserializer.INT32_ARRAY:
                     return this._data.getInt32Array(len);
-                case HX._FBX._DataElement.INT64_ARRAY:
+                case HX.FBXBinaryDeserializer.INT64_ARRAY:
                     // not sure what to do with this eventually
                     return this._data.getInt32Array(len * 2);
                     break;
-                case HX._FBX._DataElement.FLOAT_ARRAY:
+                case HX.FBXBinaryDeserializer.FLOAT_ARRAY:
                     return this._data.getFloat32Array(len);
                     break;
-                case HX._FBX._DataElement.DOUBLE_ARRAY:
+                case HX.FBXBinaryDeserializer.DOUBLE_ARRAY:
                     return this._data.getFloat64Array(len);
                     break;
                 default:
@@ -137,16 +137,16 @@ HX.FBXBinaryDeserializer.prototype =
             data = pako.inflate(data).buffer;
 
             switch (type) {
-                case HX._FBX._DataElement.BOOLEAN_ARRAY:
+                case HX.FBXBinaryDeserializer.BOOLEAN_ARRAY:
                     return new Uint8Array(data.buffer);
-                case HX._FBX._DataElement.INT32_ARRAY:
+                case HX.FBXBinaryDeserializer.INT32_ARRAY:
                     return new Int32Array(data);
-                case HX._FBX._DataElement.INT64_ARRAY:
+                case HX.FBXBinaryDeserializer.INT64_ARRAY:
                     // INCORRECT
                     return new Int32Array(data);
-                case HX._FBX._DataElement.FLOAT_ARRAY:
+                case HX.FBXBinaryDeserializer.FLOAT_ARRAY:
                     return new Float32Array(data);
-                case HX._FBX._DataElement.DOUBLE_ARRAY:
+                case HX.FBXBinaryDeserializer.DOUBLE_ARRAY:
                     return new Float64Array(data);
                 default:
                     throw new Error("Unknown data type code " + type);

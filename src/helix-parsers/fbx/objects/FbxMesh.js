@@ -8,6 +8,7 @@ HX.FbxMesh = function()
 
     this.vertices = null;
     this.layerElements = null;
+    this.deformers = null;
 };
 
 HX.FbxMesh.prototype = Object.create(HX.FbxObject.prototype);
@@ -17,8 +18,8 @@ HX.FbxMesh.prototype.toString = function() { return "[FbxMesh(name="+this.name+"
 HX.FbxMesh.prototype.connectObject = function(obj)
 {
     if (obj instanceof HX.FbxSkin) {
-        if (this.skin) throw "Skin already set!";
-        this.skin = obj;
+        this.deformers = this.deformers || [];
+        this.deformers.push(obj);
     }
     else {
         throw new Error("Unhandled object connection " + obj.toString());

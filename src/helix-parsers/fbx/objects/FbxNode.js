@@ -19,28 +19,41 @@ HX.FbxNode = function()
 
     this.type = null;
     this.children = null;
-    this.limbNodes = null;
+    this.skeleton = null;
     this.defaultAttribute = null;
     this.attributes = null;
     this.mesh = null;
     this.materials = null;
-
 };
 
-HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
+    {
+        numChildren: {
+            get: function ()
+            {
+                return this.children? this.children.length : 0;
+            }
+        }
+    }
+);
+
+HX.FbxNode.prototype.getChild = function(i)
+{
+    return this.children[i];
+};
 
 HX.FbxNode.prototype.connectObject = function(obj)
 {
     if (obj instanceof HX.FbxNode) {
         //if (obj.type === "Null") return;
 
-        if (obj.type === "LimbNode") {
-            this.limbNodes = this.limbNodes || [];
-            this.limbNodes.push(obj);
+        if (obj.type === "Root") {
+            this.skeleton = obj;
         }
         else {
             this.children = this.children || [];
             this.children.push(obj);
+            obj.parent = this;
         }
     }
     else if (obj instanceof HX.FbxNodeAttribute) {

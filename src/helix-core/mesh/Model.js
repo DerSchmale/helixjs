@@ -93,6 +93,11 @@ HX.MeshData.prototype = {
     get numStreams()
     {
         return this._numStreams;
+    },
+
+    get numVertices()
+    {
+        return this._vertexData[0].length / this._vertexStrides[0];
     }
 };
 

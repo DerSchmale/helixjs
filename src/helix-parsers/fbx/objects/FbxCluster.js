@@ -2,6 +2,10 @@ HX.FbxCluster = function()
 {
     HX.FbxObject.call(this);
     this.limbNode = null;
+    this.transform = null;
+    this.transformLink = null;
+    this.indices = null;
+    this.weights = null;
 };
 
 HX.FbxCluster.prototype = Object.create(HX.FbxObject.prototype);

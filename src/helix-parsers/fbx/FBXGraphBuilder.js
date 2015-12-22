@@ -88,7 +88,10 @@ HX.FBXGraphBuilder.prototype =
                     obj = new HX.FbxPose();
                     break;
                 case "Deformer":
-                    obj = node.data[2] === "Skin"? new HX.FbxSkin() : new HX.FbxCluster();
+                    if (node.data[2] === "Skin")
+                        obj = new HX.FbxSkin();
+                    else
+                        obj = this._processCluster(node);
                     break;
                 case "AnimationCurve":
                     obj = new HX.FbxAnimationCurve();
@@ -130,6 +133,7 @@ HX.FBXGraphBuilder.prototype =
             var parent = this._objects[node.data[2]] || this._rootNode;
 
             if (mode === "OO") {
+                //console.log(child.toString(), node.data[1], " -> ", parent.toString(), node.data[2]);
                 parent.connectObject(child);
             }
             else if (mode === "OP") {
@@ -273,6 +277,32 @@ HX.FBXGraphBuilder.prototype =
     _getObjectDefName: function(objDef)
     {
         return objDef.data[1].split(HX.FBXGraphBuilder._STRING_DEMARCATION)[0];
+    },
+
+    _processCluster: function(objDef)
+    {
+        var cluster = new HX.FbxCluster();
+        var len = objDef.children.length;
+
+        for (var i = 0; i < len; ++i) {
+            var node = objDef.children[i];
+            switch(node.name) {
+                case "Transform":
+                    cluster.transform = new HX.Matrix4x4(node.data[0]);
+                    break;
+                case "TransformLink":
+                    cluster.transformLink = new HX.Matrix4x4(node.data[0]);
+                    break;
+                case "Indexes":
+                    cluster.indices = node.data[0];
+                    break;
+                case "Weights":
+                    cluster.weights = node.data[0];
+                    break;
+            }
+        }
+
+        return cluster;
     }
 };
 

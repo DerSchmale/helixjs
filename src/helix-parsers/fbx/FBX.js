@@ -16,7 +16,7 @@ HX.FBX.prototype.parse = function(data, target)
 
     var deserializer = new HX.FBXBinaryDeserializer();
     var fbxGraphBuilder = new HX.FBXGraphBuilder();
-    var fbxConverter = new HX.FBXConverter();
+    var fbxSceneConverter = new HX.FBXConverter();
     var settings = new HX.FBXSettings();
 
     try {
@@ -31,14 +31,15 @@ HX.FBX.prototype.parse = function(data, target)
         settings.init(record);
 
         if (deserializer.version < 7000) throw new Error("Unsupported FBX version!");
-
-        var fbxRoot = fbxGraphBuilder.build(record, settings);
+        fbxGraphBuilder.build(record, settings);
+        var fbxRoot = fbxGraphBuilder.sceneRoot;
 
         newTime = Date.now();
         console.log("Graph building: " + (newTime - time));
         time = newTime;
 
-        fbxConverter.convert(fbxRoot, target, settings);
+        fbxSceneConverter.convert(fbxRoot, fbxGraphBuilder.animationStack, target, settings);
+
         newTime = Date.now();
         console.log("Conversion: " + (newTime - time));
     }
@@ -48,8 +49,8 @@ HX.FBX.prototype.parse = function(data, target)
         return;
     }
 
-    if (fbxConverter.textureTokens.length > 0) {
-        this._loadTextures(fbxConverter.textureTokens, fbxConverter.textureMaterialMap, target);
+    if (fbxSceneConverter.textureTokens.length > 0) {
+        this._loadTextures(fbxSceneConverter.textureTokens, fbxSceneConverter.textureMaterialMap, target);
     }
     else
         this._notifyComplete(target);

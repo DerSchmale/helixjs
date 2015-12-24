@@ -1,5 +1,5 @@
 // Could also create an ASCII deserializer
-HX.FBXGeometryConverter = function()
+HX.FBXModelInstanceConverter = function()
 {
     this._perMaterialData = null;
     this._expandedMesh = null;
@@ -7,12 +7,11 @@ HX.FBXGeometryConverter = function()
     this._ctrlPointLookUp = null;
     this._model = null;
     this._skeleton = null;
-    this._jointUIDLookUp = null;
-    this._skinningData = null;
+    this._animationConverter = null;
     this._fakeJointIndex = -1;
 };
 
-HX.FBXGeometryConverter.prototype =
+HX.FBXModelInstanceConverter.prototype =
 {
     // to be called after convertToModel
     createModelInstance: function(materials)
@@ -24,17 +23,30 @@ HX.FBXGeometryConverter.prototype =
             expandedMaterials[i] = materials[this._modelMaterialIDs[i]];
         }
 
-        return new HX.ModelInstance(this._model, expandedMaterials);
+        var modelInstance = new HX.ModelInstance(this._model, expandedMaterials);
+        var clips = this._animationConverter.animationClips;
+        if (clips) {
+            if (clips.length === 1) {
+                modelInstance.addComponent(new HX.SkeletonAnimation(clips[0]));
+            }
+            else {
+                throw new Error("TODO! Implement blend node");
+            }
+        }
+
+        // todo: add animation component
+
+        return modelInstance;
     },
 
-    convertToModel: function(fbxMesh, matrix)
+    convertToModel: function(fbxMesh, fbxAnimationStack, matrix, settings)
     {
         this._perMaterialData = [];
         this._ctrlPointLookUp = [];
         this._modelMaterialIDs = [];
-        this._jointUIDLookUp = {};
 
         this._modelData = new HX.ModelData();
+        this._animationConverter = new HX.FBXAnimationConverter();
 
         this._generateSkinningData(fbxMesh);
         this._generateExpandedMeshData(fbxMesh, matrix);
@@ -45,12 +57,13 @@ HX.FBXGeometryConverter.prototype =
 
         this._splitPerMaterial();
         this._generateModel();
+        this._animationConverter.convertClips(fbxAnimationStack, settings);
         this._model.name = fbxMesh.name;
     },
 
     _generateExpandedMeshData: function(fbxMesh, matrix)
     {
-        this._expandedMesh = new HX.FBXGeometryConverter._ExpandedMesh();
+        this._expandedMesh = new HX.FBXModelInstanceConverter._ExpandedMesh();
         var indexData = fbxMesh.indices;
         var vertexData = fbxMesh.vertices;
         var normalData, colorData, uvData, materialData;
@@ -74,7 +87,7 @@ HX.FBXGeometryConverter.prototype =
 
         for (var i = 0; i < len; ++i) {
             var ctrlPointIndex = indexData[i];
-            var v = new HX.FBXGeometryConverter._Vertex();
+            var v = new HX.FBXModelInstanceConverter._Vertex();
 
             if (ctrlPointIndex < 0) {
                 ctrlPointIndex = -ctrlPointIndex - 1;
@@ -88,8 +101,8 @@ HX.FBXGeometryConverter.prototype =
             if (matrix)
                 matrix.transformPoint(v.pos, v.pos);
 
-            if (this._skinningData)
-                v.jointBindings = this._skinningData[ctrlPointIndex];
+            if (this._modelData.skeleton)
+                v.jointBindings = this._animationConverter.getJointBinding(ctrlPointIndex);
 
             v.ctrlPointIndex = ctrlPointIndex;   // if these indices are different, they are probably triggered differerently in animations
 
@@ -143,7 +156,7 @@ HX.FBXGeometryConverter.prototype =
     _splitPerMaterial: function()
     {
         for (var i = 0; i < this._expandedMesh.numMaterials; ++i)
-            this._perMaterialData[i] = new HX.FBXGeometryConverter._PerMaterialData();
+            this._perMaterialData[i] = new HX.FBXModelInstanceConverter._PerMaterialData();
 
         // todo: change this expansion
         var i = 0, j = 0;
@@ -342,100 +355,14 @@ HX.FBXGeometryConverter.prototype =
     {
         var len = fbxMesh.deformers.length;
         if (len === 0) return;
+        if (len > 1) throw new Error("Multiple skins not supported");
 
-        this._modelData.skeleton = new HX.Skeleton();
-
-        for (var i = 0; i < len; ++i) {
-            this._convertSkin(fbxMesh.deformers[i], fbxMesh.UID);
-        }
-
-        var fakeJoint = new HX.SkeletonJoint();
-        this._fakeJointIndex = this._modelData.skeleton.numJoints;
-        this._modelData.skeleton.addJoint(fakeJoint);
-    },
-
-    _addJointsToSkeleton: function(rootNode, UID)
-    {
-        // already added to the skeleton
-        if (rootNode.data === UID) return;
-        rootNode.data = UID;
-        this._convertSkeletonNode(rootNode, -1);
-    },
-
-    _convertSkeletonNode: function(fbxNode, parentIndex)
-    {
-        var joint = new HX.SkeletonJoint();
-        joint.parentIndex = parentIndex;
-
-        var index = this._modelData.skeleton.numJoints;
-        this._modelData.skeleton.addJoint(joint);
-
-        this._jointUIDLookUp[fbxNode.UID] = { joint: joint, index: index };
-
-        for (var i = 0; i < fbxNode.numChildren; ++i) {
-            this._convertSkeletonNode(fbxNode.getChild(i), index);
-        }
-    },
-
-    _convertSkin: function(fbxSkin, meshUID)
-    {
-        // skinning data contains a list of bindings per control point
-        this._skinningData = [];
-
-        var len = fbxSkin.clusters.length;
-
-        this._controlPoints = [];
-
-        for (var i = 0; i < len; ++i) {
-            var cluster = fbxSkin.clusters[i];
-            // a bit annoying, but this way, if there's multiple roots (by whatever chance), we cover them all
-            this._addJointsToSkeleton(this._getRootNodeForCluster(cluster), meshUID);
-            var jointData = this._jointUIDLookUp[cluster.limbNode.UID];
-            this._assignInverseBindPose(jointData.joint, cluster);
-            this._assignJointBinding(cluster, jointData.index);
-        }
-    },
-
-    _assignJointBinding: function(cluster, jointIndex)
-    {
-        if (!cluster.indices) return;
-        var len = cluster.indices.length;
-
-        for (var i = 0; i < len; ++i) {
-            if (cluster.weights[i] > 0) {
-                var ctrlPointIndex = cluster.indices[i];
-                this._controlPoints[ctrlPointIndex] = true;
-                var skinningData = this._skinningData[ctrlPointIndex] = this._skinningData[ctrlPointIndex] || [];
-                var binding = new HX.FBXGeometryConverter._JointBinding();
-                binding.jointIndex = jointIndex;
-                binding.jointWeight = cluster.weights[i];
-                skinningData.push(binding);
-            }
-        }
-    },
-
-    _assignInverseBindPose: function (joint, cluster)
-    {
-        joint.inverseBindPose.copyFrom(cluster.transformLink);
-        joint.inverseBindPose.invert();
-        joint.inverseBindPose.prepend(cluster.transform);
-    },
-
-    // this uses the logic that one of the clusters is bound to have the root node assigned to them
-    // not sure if this is always the case, however
-    _getRootNodeForCluster: function(cluster)
-    {
-        var limbNode = cluster.limbNode;
-        while (limbNode) {
-            if (limbNode.type === "Root")
-                return limbNode;
-            limbNode = limbNode.parent;
-        }
-        throw new Error("No Root node found!");
+        this._animationConverter.convertSkin(fbxMesh.deformers[0]);
+        this._modelData.skeleton = this._animationConverter.skeleton;
     }
 };
 
-HX.FBXGeometryConverter._ExpandedMesh = function()
+HX.FBXModelInstanceConverter._ExpandedMesh = function()
 {
     this.vertices = null;
     this.hasColor = false;
@@ -444,13 +371,13 @@ HX.FBXGeometryConverter._ExpandedMesh = function()
     this.numMaterials = 0;
 };
 
-HX.FBXGeometryConverter._JointBinding = function()
+HX.FBXModelInstanceConverter._JointBinding = function()
 {
     this.jointIndex = 0;
     this.jointWeight = 0;
 };
 
-HX.FBXGeometryConverter._Vertex = function()
+HX.FBXModelInstanceConverter._Vertex = function()
 {
     this.pos = new HX.Float4();
     this.uv = null;
@@ -463,7 +390,7 @@ HX.FBXGeometryConverter._Vertex = function()
     this.lastVertex = false;
 };
 
-HX.FBXGeometryConverter._Vertex.prototype =
+HX.FBXModelInstanceConverter._Vertex.prototype =
 {
     // instead of actually using the values, we should use the indices as keys
     getHash: function()
@@ -487,7 +414,7 @@ HX.FBXGeometryConverter._Vertex.prototype =
     }
 };
 
-HX.FBXGeometryConverter._PerMaterialData = function()
+HX.FBXModelInstanceConverter._PerMaterialData = function()
 {
     this.indexCounter = 0;
     this.vertexStack = [];

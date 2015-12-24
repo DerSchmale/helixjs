@@ -3133,6 +3133,7 @@ HX.FbxNode = function()
     this.attributes = null;
     this.mesh = null;
     this.materials = null;
+    this.animationCurveNodes = null;
 };
 
 HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
@@ -3185,6 +3186,15 @@ HX.FbxNode.prototype.connectObject = function(obj)
     }
 };
 
+HX.FbxNode.prototype.connectProperty = function(obj, propertyName)
+{
+    if (obj instanceof HX.FbxAnimationCurveNode) {
+        this.animationCurveNodes = this.animationCurveNodes || {};
+        this.animationCurveNodes[propertyName] = obj;
+        obj.propertyName = propertyName;
+    }
+};
+
 HX.FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+", type="+this.type+")]"; };
 /**
  *
@@ -3204,7 +3214,7 @@ HX.FBX.prototype.parse = function(data, target)
 
     var deserializer = new HX.FBXBinaryDeserializer();
     var fbxGraphBuilder = new HX.FBXGraphBuilder();
-    var fbxConverter = new HX.FBXConverter();
+    var fbxSceneConverter = new HX.FBXConverter();
     var settings = new HX.FBXSettings();
 
     try {
@@ -3219,14 +3229,15 @@ HX.FBX.prototype.parse = function(data, target)
         settings.init(record);
 
         if (deserializer.version < 7000) throw new Error("Unsupported FBX version!");
-
-        var fbxRoot = fbxGraphBuilder.build(record, settings);
+        fbxGraphBuilder.build(record, settings);
+        var fbxRoot = fbxGraphBuilder.sceneRoot;
 
         newTime = Date.now();
         console.log("Graph building: " + (newTime - time));
         time = newTime;
 
-        fbxConverter.convert(fbxRoot, target, settings);
+        fbxSceneConverter.convert(fbxRoot, fbxGraphBuilder.animationStack, target, settings);
+
         newTime = Date.now();
         console.log("Conversion: " + (newTime - time));
     }
@@ -3236,8 +3247,8 @@ HX.FBX.prototype.parse = function(data, target)
         return;
     }
 
-    if (fbxConverter.textureTokens.length > 0) {
-        this._loadTextures(fbxConverter.textureTokens, fbxConverter.textureMaterialMap, target);
+    if (fbxSceneConverter.textureTokens.length > 0) {
+        this._loadTextures(fbxSceneConverter.textureTokens, fbxSceneConverter.textureMaterialMap, target);
     }
     else
         this._notifyComplete(target);
@@ -3285,6 +3296,257 @@ HX.FBX.prototype._loadTextures = function(tokens, map, target)
     };
 
     bulkLoader.load(files, HX.JPG);
+};
+// Could also create an ASCII deserializer
+HX.FBXAnimationConverter = function()
+{
+    this._skinningData = null;
+    this._jointUIDLookUp = null;
+    this._skeleton = null;
+    this._fakeJointIndex = -1;
+    this._animationClips = null;
+};
+
+HX.FBXAnimationConverter.prototype =
+{
+    get skeleton()
+    {
+        return this._skeleton;
+    },
+
+    get animationClips()
+    {
+        return this._animationClips;
+    },
+
+    get fakeJointIndex()
+    {
+        return this._fakeJointIndex;
+    },
+
+    getJointBinding: function(ctrlPointIndex)
+    {
+        return this._skinningData[ctrlPointIndex];
+    },
+
+    convertSkin: function (fbxSkin)
+    {
+        this._skeleton = new HX.Skeleton();
+        // skinning data contains a list of bindings per control point
+        this._skinningData = [];
+        this._jointUIDLookUp = {};
+
+        var len = fbxSkin.clusters.length;
+
+        this._controlPoints = [];
+
+        for (var i = 0; i < len; ++i) {
+            var cluster = fbxSkin.clusters[i];
+            // a bit annoying, but this way, if there's multiple roots (by whatever chance), we cover them all
+            this._addJointsToSkeleton(this._getRootNodeForCluster(cluster));
+            var jointData = this._jointUIDLookUp[cluster.limbNode.UID];
+            this._assignInverseBindPose(jointData.joint, cluster);
+            this._assignJointBinding(cluster, jointData.index);
+        }
+
+        var fakeJoint = new HX.SkeletonJoint();
+        this._fakeJointIndex = this._skeleton.numJoints;
+        this._skeleton.addJoint(fakeJoint);
+    },
+
+    convertClips: function(fbxAnimationStack, settings)
+    {
+        this._frameRate = settings.frameRate;
+
+        this._animationClips = [];
+
+        // TODO: If multiple takes are supported, these would need to be separate clips as well
+        for (var i = 0; i < fbxAnimationStack.layers.length; ++i) {
+            var numFrames = fbxAnimationStack.LocalStop.getFrameCount(this._frameRate) - fbxAnimationStack.LocalStart.getFrameCount(this._frameRate) + 1;
+            var layers = fbxAnimationStack.layers;
+            for (var j = 0; j < layers.length; ++j) {
+                var clip = this._convertLayer(layers[j], numFrames);
+                this._animationClips.push(clip);
+            }
+        }
+    },
+
+    _addJointsToSkeleton: function(rootNode)
+    {
+        // already added to the skeleton
+        if (rootNode.data === true) return;
+        rootNode.data = true;
+        this._convertSkeletonNode(rootNode, -1);
+    },
+
+    _convertSkeletonNode: function(fbxNode, parentIndex)
+    {
+        var joint = new HX.SkeletonJoint();
+        joint.parentIndex = parentIndex;
+
+        var index = this._skeleton.numJoints;
+        this._skeleton.addJoint(joint);
+
+        this._jointUIDLookUp[fbxNode.UID] = { joint: joint, index: index };
+
+        if (fbxNode.animationCurveNodes) {
+            var numNodes = fbxNode.animationCurveNodes.length;
+            for (var i = 0; i < numNodes; ++i) {
+                var node = fbxNode.animationCurveNodes[i];
+                // store the joint index as curve node data
+                node.data = index;
+            }
+        }
+
+        for (var i = 0; i < fbxNode.numChildren; ++i) {
+            this._convertSkeletonNode(fbxNode.getChild(i), index);
+        }
+    },
+
+    _assignJointBinding: function(cluster, jointIndex)
+    {
+        if (!cluster.indices) return;
+        var len = cluster.indices.length;
+
+        for (var i = 0; i < len; ++i) {
+            if (cluster.weights[i] > 0) {
+                var ctrlPointIndex = cluster.indices[i];
+                this._controlPoints[ctrlPointIndex] = true;
+                var skinningData = this._skinningData[ctrlPointIndex] = this._skinningData[ctrlPointIndex] || [];
+                var binding = new HX.FBXModelInstanceConverter._JointBinding();
+                binding.jointIndex = jointIndex;
+                binding.jointWeight = cluster.weights[i];
+                skinningData.push(binding);
+            }
+        }
+    },
+
+    _assignInverseBindPose: function (joint, cluster)
+    {
+        joint.inverseBindPose.copyFrom(cluster.transformLink);
+        joint.inverseBindPose.invert();
+        joint.inverseBindPose.prepend(cluster.transform);
+    },
+
+    // this uses the logic that one of the clusters is bound to have the root node assigned to them
+    // not sure if this is always the case, however
+    _getRootNodeForCluster: function(cluster)
+    {
+        var limbNode = cluster.limbNode;
+        while (limbNode) {
+            if (limbNode.type === "Root")
+                return limbNode;
+            limbNode = limbNode.parent;
+        }
+        throw new Error("No Root node found!");
+    },
+
+    _convertLayer: function (layer, numFrames)
+    {
+        // TODO: make framerate an overridable option
+
+        var clip = new HX.SkeletonClip();
+        clip.frameRate = this._frameRate;
+
+        // convert key frames to sized frames
+        this._convertToFrames(layer, numFrames);
+
+        for (var i = 0; i < numFrames; ++i)
+            clip.addFrame(this._convertFrame(layer, i));
+
+        return clip;
+    },
+
+    _convertToFrames: function(layer, numFrames)
+    {
+        var numCurveNodes = layer.curveNodes.length;
+        for (var i = 0; i < numCurveNodes; ++i) {
+            var node = layer.curveNodes[i];
+            // the order of parsing is inefficient
+            // need to break up curves first into keyframes, then assign them
+            for (var key in node.curves) {
+                if (!node.curves.hasOwnProperty(key)) continue;
+                var curve = node.curves[key];
+                this._convertCurveToFrames(curve, numFrames);
+            }
+        }
+    },
+
+    _convertCurveToFrames: function(curve, numFrames)
+    {
+        var time = 0.0;
+        var j = 0;
+        // ms per frame
+        var frameDuration = 1000.0 / this._frameRate;
+        var numKeyFrames = curve.KeyTime.length;
+        var frameData = [];
+
+        for (var i = 0; i < numFrames; ++i) {
+            time += frameDuration;
+            while (j < numKeyFrames && curve.KeyTime[j].milliseconds < time) {
+                ++j;
+            }
+
+            // clamp to extremes (shouldn't happen, I think?)
+            if (j === 0)
+                frameData.push(curve.KeyValueFloat[j]);
+            else if (j === numKeyFrames)
+                frameData.push(curve.KeyValueFloat[j - 1]);
+            else {
+                var keyTime = curve.KeyTime[j].milliseconds;
+                var prevTime = curve.KeyTime[j - 1].milliseconds;
+                var t = (time - prevTime) / (keyTime - prevTime);
+                var next = curve.KeyValueFloat[j];
+                var prev = curve.KeyValueFloat[j - 1];
+                frameData.push(prev + (next - prev) * t);
+            }
+        }
+
+        curve.data = frameData;
+    },
+
+    _convertFrame: function(layer, frame)
+    {
+        var skeletonPose = new HX.SkeletonPose();
+
+        var numCurveNodes = layer.curveNodes.length;
+        for (var i = 0; i < numCurveNodes; ++i) {
+            var node = layer.curveNodes[i];
+            var tempJointPose = new HX.FBXAnimationConverter._JointPose();
+            var target = tempJointPose[node.propertyName];
+            // the order of parsing is inefficient
+            // need to break up curves first into keyframes, then assign them
+            for (var key in node.curves) {
+                if (!node.curves.hasOwnProperty(key)) continue;
+                var value = node.curves[key].data[frame];
+                switch (key) {
+                    case "d|X":
+                        target.x = value;
+                        break;
+                    case "d|Y":
+                        target.y = value;
+                        break;
+                    case "d|Z":
+                        target.z = value;
+                        break;
+                }
+
+            }
+
+            var jointPose = new HX.SkeletonJointPose();
+            jointPose.translation.copyFrom(tempJointPose["Lcl Translation"]);
+            var rot = tempJointPose["Lcl Rotation"];
+            jointPose.orientation.fromXYZ(rot.x, rot.y, rot.z);
+            skeletonPose.jointPoses[node.data] = jointPose;
+        }
+    }
+};
+
+HX.FBXAnimationConverter._JointPose = function()
+{
+    this["Lcl Translation"] = new HX.Float4(0.0, 0.0, 0.0);
+    this["Lcl Rotation"] = new HX.Float4(0.0, 0.0, 0.0);
+    this["Lcl Scaling"] = new HX.Float4(1.0, 1.0, 1.0);
 };
 // Could also create an ASCII deserializer
 HX.FBXBinaryDeserializer = function()
@@ -3373,7 +3635,7 @@ HX.FBXBinaryDeserializer.prototype =
                 break;
             case HX.FBXBinaryDeserializer.INT64:
                 // just concatenating strings, since they're only used for ids
-                return this._data.getInt32() + "" + this._data.getInt32();
+                return this._data.getInt64AsFloat64();
                 break;
             case HX.FBXBinaryDeserializer.FLOAT:
                 return this._data.getFloat32();
@@ -3407,8 +3669,7 @@ HX.FBXBinaryDeserializer.prototype =
                 case HX.FBXBinaryDeserializer.INT32_ARRAY:
                     return this._data.getInt32Array(len);
                 case HX.FBXBinaryDeserializer.INT64_ARRAY:
-                    // not sure what to do with this eventually
-                    return this._data.getInt32Array(len * 2);
+                    return this._data.getInt64AsFloat64Array(len);
                     break;
                 case HX.FBXBinaryDeserializer.FLOAT_ARRAY:
                     return this._data.getFloat32Array(len);
@@ -3430,8 +3691,8 @@ HX.FBXBinaryDeserializer.prototype =
                 case HX.FBXBinaryDeserializer.INT32_ARRAY:
                     return new Int32Array(data);
                 case HX.FBXBinaryDeserializer.INT64_ARRAY:
-                    // INCORRECT
-                    return new Int32Array(data);
+                    var data = new HX.DataStream(new DataView(data));
+                    return data.getInt64AsFloat64Array(data.byteLength / 8);
                 case HX.FBXBinaryDeserializer.FLOAT_ARRAY:
                     return new Float32Array(data);
                 case HX.FBXBinaryDeserializer.DOUBLE_ARRAY:
@@ -3461,9 +3722,11 @@ HX.FBXBinaryDeserializer.RAW = "R";
 // Could also create an ASCII deserializer
 HX.FBXConverter = function()
 {
+    this._settings = null;
     this._objects = null;
     this._textureTokens = null;
     this._textureMaterialMap = null;
+    this._rootNode = null;
 };
 
 HX.FBXConverter.prototype =
@@ -3471,12 +3734,14 @@ HX.FBXConverter.prototype =
     get textureTokens() { return this._textureTokens; },
     get textureMaterialMap() { return this._textureMaterialMap; },
 
-    convert: function(rootNode, target, settings)
+    convert: function(rootNode, animationStack, target, settings)
     {
         this._settings = settings;
         this._objects = [];
         this._textureTokens = [];
         this._textureMaterialMap = [];
+        this._rootNode = rootNode;
+        this._animationStack = animationStack;
         this._convertGroupNode(rootNode, target);
     },
 
@@ -3487,7 +3752,7 @@ HX.FBXConverter.prototype =
 
         if (fbxNode.mesh)
             hxNode = this._convertModelMesh(fbxNode);
-        else if (fbxNode.children && fbxNode.children.length > 0) {
+        else if (fbxNode.children && fbxNode.children.length > 1) {
             hxNode = new HX.GroupNode();
             this._convertGroupNode(fbxNode, hxNode);
         }
@@ -3509,8 +3774,6 @@ HX.FBXConverter.prototype =
             if (childNode)
                 hxNode.attach(childNode);
         }
-
-        // TODO: handle limb nodes
     },
 
     _convertModelMesh: function(fbxNode)
@@ -3530,7 +3793,7 @@ HX.FBXConverter.prototype =
         }
 
 
-        var modelConverter = this._convertGeometry(fbxNode.mesh, matrix, this._settings.flipFaces);
+        var modelConverter = this._convertGeometry(fbxNode.mesh, matrix);
 
         var materials = [];
 
@@ -3538,6 +3801,7 @@ HX.FBXConverter.prototype =
         for (var i = 0; i < numMaterials; ++i) {
             materials[i] = this._convertMaterial(fbxNode.materials[i]);
         }
+
         return modelConverter.createModelInstance(materials);
     },
 
@@ -3570,12 +3834,12 @@ HX.FBXConverter.prototype =
         return quat;
     },
 
-    _convertGeometry: function(node, matrix, flipFaces)
+    _convertGeometry: function(node, matrix)
     {
         if (this._objects[node.UID]) return this._objects[node.UID];
 
-        var converter = new HX.FBXGeometryConverter();
-        converter.convertToModel(node, matrix, flipFaces);
+        var converter = new HX.FBXModelInstanceConverter();
+        converter.convertToModel(node, this._animationStack, matrix, this._settings);
 
         this._objects[node.UID] = converter;
         return converter;
@@ -3645,7 +3909,338 @@ HX.FBXConverter._TextureToken.NORMAL_MAP = 0;
 HX.FBXConverter._TextureToken.SPECULAR_MAP = 1;
 HX.FBXConverter._TextureToken.DIFFUSE_MAP = 2;
 // Could also create an ASCII deserializer
-HX.FBXGeometryConverter = function()
+HX.FBXGraphBuilder = function()
+{
+    this._settings = null;
+    this._templates = null;
+    this._objects = null;
+    this._rootNode = null;
+    this._animationStack = null;
+};
+
+HX.FBXGraphBuilder.prototype =
+{
+    get sceneRoot() { return this._rootNode; },
+    get animationStack() { return this._animationStack; },
+
+    build: function(rootRecord, settings)
+    {
+        this._settings = settings;
+        this._templates = {};
+        this._objects = {};
+
+        // fbx scene node
+        this._rootNode = new HX.FbxNode();
+        this._rootNode.name = "hx_rootNode";
+
+        // animations, we'll turn them into a SkeletonBlendTree eventually
+        this._animationStack = null;
+
+        // handle templates
+        this._processTemplates(rootRecord.getChildByName("Definitions"));
+        this._processObjects(rootRecord.getChildByName("Objects"));
+        this._processConnections(rootRecord.getChildByName("Connections"));
+    },
+
+    _processTemplates: function(definitions)
+    {
+        var len = definitions.children.length;
+        for (var i = 0; i < len; ++i) {
+            var child = definitions.children[i];
+            if (child.name === "ObjectType") {
+                var template = child.getChildByName("PropertyTemplate");
+                if (!template) continue;
+                var subclass = template.data[0];
+                var type = child.data[0];
+                var node = this._createNode(type, subclass, template);
+
+                if (node)
+                    this._assignProperties(node, template.getChildByName("Properties70"));
+
+                this._templates[type] = node;
+            }
+        }
+    },
+
+    _processObjects: function(definitions)
+    {
+        var len = definitions.children.length;
+        for (var i = 0; i < len; ++i) {
+            var obj = null;
+            var node = definitions.children[i];
+            switch (node.name) {
+                case "Geometry":
+                    obj = this._processGeometry(node);
+                    break;
+                case "NodeAttribute":
+                    // at this point, we're only supporting meshes
+                    // TODO: FbxNodeAttribute will be cast to FbxCamera etc
+                    obj = new HX.FbxNodeAttribute();
+                    obj.type = node.data[2];
+                    break;
+                case "Model":
+                    obj = new HX.FbxNode();
+                    obj.type = node.data[2];
+                    // not sure if this is correct
+                    break;
+                case "Material":
+                    obj = new HX.FbxMaterial();
+                    break;
+                case "Video":
+                    obj = new HX.FbxVideo();
+                    var rel = node.getChildByName("RelativeFilename");
+                    obj.relativeFilename = rel? rel.data[0] : null;
+                    break;
+                case "Texture":
+                    obj = new HX.FbxFileTexture();
+                    var rel = node.getChildByName("RelativeFilename");
+                    obj.relativeFilename = rel? rel.data[0] : null;
+                    break;
+                case "Pose":
+                    // outdated?
+                    obj = new HX.FbxPose();
+                    break;
+                case "Deformer":
+                    if (node.data[2] === "Skin")
+                        obj = new HX.FbxSkin();
+                    else
+                        obj = this._processCluster(node);
+                    break;
+                case "AnimationStack":
+                    obj = new HX.FbxAnimStack();
+                    this._animationStack = obj;
+                    break;
+                case "AnimationLayer":
+                    obj = new HX.FbxAnimLayer();
+                    break;
+                case "AnimationCurve":
+                    obj = new HX.FbxAnimationCurve();
+                    this._assignFlatData(obj, node);
+                    for (var j = 0; j < obj.KeyTime.length; ++j)
+                        obj.KeyTime[j] = new HX.FbxTime(obj.KeyTime[j]);
+
+                    break;
+                case "AnimationCurveNode":
+                    obj = new HX.FbxAnimationCurveNode();
+                    break;
+                default:
+                    // deal with some irrelevant nodes
+                    obj = new HX.FbxTrashNode();
+            }
+
+            if (obj) {
+                var uid = node.data[0];
+                obj.name = this._getObjectDefName(node);
+                obj.UID = uid;
+
+                if (this._templates[node.name])
+                    obj.copyProperties(this._templates[node.name]);
+
+                this._assignProperties(obj, node.getChildByName("Properties70"));
+
+                this._objects[uid] = obj;
+            }
+        }
+    },
+
+    _processConnections: function(definitions)
+    {
+        var len = definitions.children.length;
+        for (var i = 0; i < len; ++i) {
+            var node = definitions.children[i];
+            var mode = node.data[0];
+            var child = this._objects[node.data[1]];
+            var parent = this._objects[node.data[2]] || this._rootNode;
+
+            //console.log(child.toString(), node.data[1], " -> ", parent.toString(), node.data[2], node.data[3]);
+
+            if (mode === "OO")
+                parent.connectObject(child);
+            else if (mode === "OP")
+                parent.connectProperty(child, node.data[3]);
+        }
+    },
+
+    _createNode: function(name, subclass)
+    {
+        if (name === "Material")
+            return new HX.FbxMaterial();
+
+        if (HX[subclass]) return new HX[subclass];
+    },
+
+    _assignFlatData: function(target, node)
+    {
+        var len = node.children.length;
+        for (var i = 0; i < len; ++i) {
+            var prop = node.children[i];
+            if (target.hasOwnProperty(prop.name)) {
+                target[prop.name] = prop.data[0];
+            }
+        }
+    },
+
+    _assignProperties: function(target, properties)
+    {
+        if (!properties) return;
+
+        var len = properties.children.length;
+        for (var i = 0; i < len; ++i) {
+            var prop = properties.children[i];
+            if (target.hasOwnProperty(prop.data[0])) {
+                target[prop.data[0]] = this._getPropertyValue(prop);
+            }
+        }
+    },
+
+    _getPropertyValue: function(prop)
+    {
+        var data = prop.data;
+        switch (data[1]) {
+            case "Vector3D":
+            case "Lcl Translation":
+            case "Lcl Scaling":
+            case "Lcl Rotation":
+                return new HX.Float4(data[4], data[5], data[6]);
+            case "bool":
+            case "Visibility":
+            case "Visibility Inheritance":
+                return data[4] !== 0;
+            case "ColorRGB":
+            case "Color":
+                return new HX.Color(data[4], data[5], data[6]);
+            case "enum":
+            case "double":
+            case "float":
+            case "int":
+            case "KString":
+                return data[4];
+            case "KTime":
+                return new HX.FbxTime(data[4]);
+            case "object":
+                return null;    // TODO: this will be connected using OP?
+        }
+    },
+
+    _processGeometry: function(objDef)
+    {
+        var geometry = new HX.FbxMesh();
+        var len = objDef.children.length;
+        var layerMap = {};
+
+        for (var i = 0; i < len; ++i) {
+            var child = objDef.children[i];
+            switch (child.name) {
+                case "Vertices":
+                    geometry.vertices = child.data[0];
+                    break;
+                case "PolygonVertexIndex":
+                    geometry.indices = child.data[0];
+                    break;
+                case "Layer":
+                    geometry.layerElements = geometry.layerElements || {};
+                    this._processLayer(child, layerMap, geometry.layerElements);
+                    break;
+                default:
+                    if (!layerMap[child.name])
+                        layerMap[child.name] = child;
+                    break;
+            }
+        }
+        return geometry;
+    },
+
+    _processLayer: function(objDef, layerMap, elements)
+    {
+        var len = objDef.children.length;
+        for (var i = 0; i < len; ++i) {
+            var layerElement = objDef.children[i];
+            if (layerElement.name !== "LayerElement") continue;
+            var name = layerElement.getChildByName("Type").data[0];
+            // do not allow multiple sets
+            if (!elements[layerElement.type]) {
+                var layerElement = this._processLayerElement(layerMap[name]);
+                elements[layerElement.type] = layerElement;
+            }
+        }
+    },
+
+    _processLayerElement: function(objDef)
+    {
+        var layerElement = new HX.FbxLayerElement();
+        var len = objDef.children.length;
+
+        for (var i = 0; i < len; ++i) {
+            var node = objDef.children[i];
+            switch(node.name) {
+                case "MappingInformationType":
+                    var mapMode = node.data[0];
+                    layerElement.mappingInformationType =   mapMode === "ByPolygonVertex"?  HX.FbxLayerElement.MAPPING_TYPE.BY_POLYGON_VERTEX :
+                                                            mapMode === "ByPolygon"?        HX.FbxLayerElement.MAPPING_TYPE.BY_POLYGON :
+                                                            mapMode === "AllSame"?          HX.FbxLayerElement.MAPPING_TYPE.ALL_SAME :
+                                                                                            HX.FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT;
+                    break;
+                case "ReferenceInformationType":
+                    layerElement.referenceInformationType = node.data[0] === "Direct"? HX.FbxLayerElement.REFERENCE_TYPE.DIRECT : HX.FbxLayerElement.REFERENCE_TYPE.INDEX_TO_DIRECT;
+                    break;
+                case "Normals":
+                case "Colors":
+                case "UV":
+                case "Smoothing":
+                    layerElement.type = node.name;
+                    layerElement.directData = node.data[0];
+                    break;
+                case "NormalsIndex":
+                case "ColorIndex":
+                case "UVIndex":
+                case "SmoothingIndex":
+                    layerElement.indexData = node.data[0];
+                    break;
+                case "Materials":
+                    layerElement.type = node.name;
+                    layerElement.indexData = node.data[0];
+                    break;
+            }
+        }
+
+        return layerElement;
+    },
+
+    _getObjectDefName: function(objDef)
+    {
+        return objDef.data[1].split(HX.FBXGraphBuilder._STRING_DEMARCATION)[0];
+    },
+
+    _processCluster: function(objDef)
+    {
+        var cluster = new HX.FbxCluster();
+        var len = objDef.children.length;
+
+        for (var i = 0; i < len; ++i) {
+            var node = objDef.children[i];
+            switch(node.name) {
+                case "Transform":
+                    cluster.transform = new HX.Matrix4x4(node.data[0]);
+                    break;
+                case "TransformLink":
+                    cluster.transformLink = new HX.Matrix4x4(node.data[0]);
+                    break;
+                case "Indexes":
+                    cluster.indices = node.data[0];
+                    break;
+                case "Weights":
+                    cluster.weights = node.data[0];
+                    break;
+            }
+        }
+
+        return cluster;
+    }
+};
+
+HX.FBXGraphBuilder._STRING_DEMARCATION = String.fromCharCode(0, 1);
+// Could also create an ASCII deserializer
+HX.FBXModelInstanceConverter = function()
 {
     this._perMaterialData = null;
     this._expandedMesh = null;
@@ -3653,12 +4248,11 @@ HX.FBXGeometryConverter = function()
     this._ctrlPointLookUp = null;
     this._model = null;
     this._skeleton = null;
-    this._jointUIDLookUp = null;
-    this._skinningData = null;
+    this._animationConverter = null;
     this._fakeJointIndex = -1;
 };
 
-HX.FBXGeometryConverter.prototype =
+HX.FBXModelInstanceConverter.prototype =
 {
     // to be called after convertToModel
     createModelInstance: function(materials)
@@ -3670,17 +4264,30 @@ HX.FBXGeometryConverter.prototype =
             expandedMaterials[i] = materials[this._modelMaterialIDs[i]];
         }
 
-        return new HX.ModelInstance(this._model, expandedMaterials);
+        var modelInstance = new HX.ModelInstance(this._model, expandedMaterials);
+        var clips = this._animationConverter.animationClips;
+        if (clips) {
+            if (clips.length === 1) {
+                modelInstance.addComponent(new HX.SkeletonAnimation(clips[0]));
+            }
+            else {
+                throw new Error("TODO! Implement blend node");
+            }
+        }
+
+        // todo: add animation component
+
+        return modelInstance;
     },
 
-    convertToModel: function(fbxMesh, matrix)
+    convertToModel: function(fbxMesh, fbxAnimationStack, matrix, settings)
     {
         this._perMaterialData = [];
         this._ctrlPointLookUp = [];
         this._modelMaterialIDs = [];
-        this._jointUIDLookUp = {};
 
         this._modelData = new HX.ModelData();
+        this._animationConverter = new HX.FBXAnimationConverter();
 
         this._generateSkinningData(fbxMesh);
         this._generateExpandedMeshData(fbxMesh, matrix);
@@ -3691,12 +4298,13 @@ HX.FBXGeometryConverter.prototype =
 
         this._splitPerMaterial();
         this._generateModel();
+        this._animationConverter.convertClips(fbxAnimationStack, settings);
         this._model.name = fbxMesh.name;
     },
 
     _generateExpandedMeshData: function(fbxMesh, matrix)
     {
-        this._expandedMesh = new HX.FBXGeometryConverter._ExpandedMesh();
+        this._expandedMesh = new HX.FBXModelInstanceConverter._ExpandedMesh();
         var indexData = fbxMesh.indices;
         var vertexData = fbxMesh.vertices;
         var normalData, colorData, uvData, materialData;
@@ -3720,7 +4328,7 @@ HX.FBXGeometryConverter.prototype =
 
         for (var i = 0; i < len; ++i) {
             var ctrlPointIndex = indexData[i];
-            var v = new HX.FBXGeometryConverter._Vertex();
+            var v = new HX.FBXModelInstanceConverter._Vertex();
 
             if (ctrlPointIndex < 0) {
                 ctrlPointIndex = -ctrlPointIndex - 1;
@@ -3734,8 +4342,8 @@ HX.FBXGeometryConverter.prototype =
             if (matrix)
                 matrix.transformPoint(v.pos, v.pos);
 
-            if (this._skinningData)
-                v.jointBindings = this._skinningData[ctrlPointIndex];
+            if (this._modelData.skeleton)
+                v.jointBindings = this._animationConverter.getJointBinding(ctrlPointIndex);
 
             v.ctrlPointIndex = ctrlPointIndex;   // if these indices are different, they are probably triggered differerently in animations
 
@@ -3789,7 +4397,7 @@ HX.FBXGeometryConverter.prototype =
     _splitPerMaterial: function()
     {
         for (var i = 0; i < this._expandedMesh.numMaterials; ++i)
-            this._perMaterialData[i] = new HX.FBXGeometryConverter._PerMaterialData();
+            this._perMaterialData[i] = new HX.FBXModelInstanceConverter._PerMaterialData();
 
         // todo: change this expansion
         var i = 0, j = 0;
@@ -3988,100 +4596,14 @@ HX.FBXGeometryConverter.prototype =
     {
         var len = fbxMesh.deformers.length;
         if (len === 0) return;
+        if (len > 1) throw new Error("Multiple skins not supported");
 
-        this._modelData.skeleton = new HX.Skeleton();
-
-        for (var i = 0; i < len; ++i) {
-            this._convertSkin(fbxMesh.deformers[i], fbxMesh.UID);
-        }
-
-        var fakeJoint = new HX.SkeletonJoint();
-        this._fakeJointIndex = this._modelData.skeleton.numJoints;
-        this._modelData.skeleton.addJoint(fakeJoint);
-    },
-
-    _addJointsToSkeleton: function(rootNode, UID)
-    {
-        // already added to the skeleton
-        if (rootNode.data === UID) return;
-        rootNode.data = UID;
-        this._convertSkeletonNode(rootNode, -1);
-    },
-
-    _convertSkeletonNode: function(fbxNode, parentIndex)
-    {
-        var joint = new HX.SkeletonJoint();
-        joint.parentIndex = parentIndex;
-
-        var index = this._modelData.skeleton.numJoints;
-        this._modelData.skeleton.addJoint(joint);
-
-        this._jointUIDLookUp[fbxNode.UID] = { joint: joint, index: index };
-
-        for (var i = 0; i < fbxNode.numChildren; ++i) {
-            this._convertSkeletonNode(fbxNode.getChild(i), index);
-        }
-    },
-
-    _convertSkin: function(fbxSkin, meshUID)
-    {
-        // skinning data contains a list of bindings per control point
-        this._skinningData = [];
-
-        var len = fbxSkin.clusters.length;
-
-        this._controlPoints = [];
-
-        for (var i = 0; i < len; ++i) {
-            var cluster = fbxSkin.clusters[i];
-            // a bit annoying, but this way, if there's multiple roots (by whatever chance), we cover them all
-            this._addJointsToSkeleton(this._getRootNodeForCluster(cluster), meshUID);
-            var jointData = this._jointUIDLookUp[cluster.limbNode.UID];
-            this._assignInverseBindPose(jointData.joint, cluster);
-            this._assignJointBinding(cluster, jointData.index);
-        }
-    },
-
-    _assignJointBinding: function(cluster, jointIndex)
-    {
-        if (!cluster.indices) return;
-        var len = cluster.indices.length;
-
-        for (var i = 0; i < len; ++i) {
-            if (cluster.weights[i] > 0) {
-                var ctrlPointIndex = cluster.indices[i];
-                this._controlPoints[ctrlPointIndex] = true;
-                var skinningData = this._skinningData[ctrlPointIndex] = this._skinningData[ctrlPointIndex] || [];
-                var binding = new HX.FBXGeometryConverter._JointBinding();
-                binding.jointIndex = jointIndex;
-                binding.jointWeight = cluster.weights[i];
-                skinningData.push(binding);
-            }
-        }
-    },
-
-    _assignInverseBindPose: function (joint, cluster)
-    {
-        joint.inverseBindPose.copyFrom(cluster.transformLink);
-        joint.inverseBindPose.invert();
-        joint.inverseBindPose.prepend(cluster.transform);
-    },
-
-    // this uses the logic that one of the clusters is bound to have the root node assigned to them
-    // not sure if this is always the case, however
-    _getRootNodeForCluster: function(cluster)
-    {
-        var limbNode = cluster.limbNode;
-        while (limbNode) {
-            if (limbNode.type === "Root")
-                return limbNode;
-            limbNode = limbNode.parent;
-        }
-        throw new Error("No Root node found!");
+        this._animationConverter.convertSkin(fbxMesh.deformers[0]);
+        this._modelData.skeleton = this._animationConverter.skeleton;
     }
 };
 
-HX.FBXGeometryConverter._ExpandedMesh = function()
+HX.FBXModelInstanceConverter._ExpandedMesh = function()
 {
     this.vertices = null;
     this.hasColor = false;
@@ -4090,13 +4612,13 @@ HX.FBXGeometryConverter._ExpandedMesh = function()
     this.numMaterials = 0;
 };
 
-HX.FBXGeometryConverter._JointBinding = function()
+HX.FBXModelInstanceConverter._JointBinding = function()
 {
     this.jointIndex = 0;
     this.jointWeight = 0;
 };
 
-HX.FBXGeometryConverter._Vertex = function()
+HX.FBXModelInstanceConverter._Vertex = function()
 {
     this.pos = new HX.Float4();
     this.uv = null;
@@ -4109,7 +4631,7 @@ HX.FBXGeometryConverter._Vertex = function()
     this.lastVertex = false;
 };
 
-HX.FBXGeometryConverter._Vertex.prototype =
+HX.FBXModelInstanceConverter._Vertex.prototype =
 {
     // instead of actually using the values, we should use the indices as keys
     getHash: function()
@@ -4133,7 +4655,7 @@ HX.FBXGeometryConverter._Vertex.prototype =
     }
 };
 
-HX.FBXGeometryConverter._PerMaterialData = function()
+HX.FBXModelInstanceConverter._PerMaterialData = function()
 {
     this.indexCounter = 0;
     this.vertexStack = [];
@@ -4146,315 +4668,6 @@ HX.FBXGeometryConverter._PerMaterialData = function()
     this.ctrlPointIndices = null;
     this.indexLookUp = {};
 };
-// Could also create an ASCII deserializer
-HX.FBXGraphBuilder = function()
-{
-
-};
-
-HX.FBXGraphBuilder.prototype =
-{
-    build: function(rootRecord, settings)
-    {
-        this._settings = settings;
-        this._templates = {};
-        this._objects = {};
-
-        // fbx scene node
-        this._rootNode = new HX.FbxNode();
-        this._rootNode.name = "hx_rootNode";
-
-        // handle templates
-        this._processTemplates(rootRecord.getChildByName("Definitions"));
-        this._processObjects(rootRecord.getChildByName("Objects"));
-        this._processConnections(rootRecord.getChildByName("Connections"));
-        return this._rootNode;
-    },
-
-    _processTemplates: function(definitions)
-    {
-        var len = definitions.children.length;
-        for (var i = 0; i < len; ++i) {
-            var child = definitions.children[i];
-            if (child.name === "ObjectType") {
-                var template = child.getChildByName("PropertyTemplate");
-                if (!template) continue;
-                var subclass = template.data[0];
-                var type = child.data[0];
-                var node = this._createNode(type, subclass, template);
-
-                if (node)
-                    this._assignProperties(node, template.getChildByName("Properties70"));
-
-                this._templates[type] = node;
-            }
-        }
-    },
-
-    _processObjects: function(definitions)
-    {
-        var len = definitions.children.length;
-        for (var i = 0; i < len; ++i) {
-            var obj = null;
-            var node = definitions.children[i];
-            switch (node.name) {
-                case "Geometry":
-                    obj = this._processGeometry(node);
-                    break;
-                case "NodeAttribute":
-                    // at this point, we're only supporting meshes
-                    // TODO: FbxNodeAttribute will be cast to FbxCamera etc
-                    obj = new HX.FbxNodeAttribute();
-                    obj.type = node.data[2];
-                    break;
-                case "Model":
-                    obj = new HX.FbxNode();
-                    obj.type = node.data[2];
-                    break;
-                case "Material":
-                    obj = new HX.FbxMaterial();
-                    break;
-                case "Video":
-                    obj = new HX.FbxVideo();
-                    var rel = node.getChildByName("RelativeFilename");
-                    obj.relativeFilename = rel? rel.data[0] : null;
-                    break;
-                case "Texture":
-                    obj = new HX.FbxFileTexture();
-                    var rel = node.getChildByName("RelativeFilename");
-                    obj.relativeFilename = rel? rel.data[0] : null;
-                    break;
-                case "AnimationStack":
-                    // unused so far
-                    obj = new HX.FbxAnimStack();
-                    break;
-                case "AnimationLayer":
-                    // unused so far
-                    obj = new HX.FbxAnimLayer();
-                    break;
-                case "Pose":
-                    obj = new HX.FbxPose();
-                    break;
-                case "Deformer":
-                    if (node.data[2] === "Skin")
-                        obj = new HX.FbxSkin();
-                    else
-                        obj = this._processCluster(node);
-                    break;
-                case "AnimationCurve":
-                    obj = new HX.FbxAnimationCurve();
-                    break;
-                case "AnimationCurveNode":
-                    obj = new HX.FbxAnimationCurveNode();
-                    break;
-                default:
-                    // deal with some irrelevant nodes
-                    obj = new HX.FbxTrashNode();
-            }
-
-            if (obj) {
-                var uid = node.data[0];
-                obj.name = this._getObjectDefName(node);
-                obj.UID = uid;
-
-                if (this._templates[node.name])
-                    obj.copyProperties(this._templates[node.name]);
-
-                this._assignProperties(obj, node.getChildByName("Properties70"));
-
-
-                this._objects[uid] = obj;
-            }
-            else {
-                //node.printDebug();
-            }
-        }
-    },
-
-    _processConnections: function(definitions)
-    {
-        var len = definitions.children.length;
-        for (var i = 0; i < len; ++i) {
-            var node = definitions.children[i];
-            var mode = node.data[0];
-            var child = this._objects[node.data[1]];
-            var parent = this._objects[node.data[2]] || this._rootNode;
-
-            if (mode === "OO") {
-                //console.log(child.toString(), node.data[1], " -> ", parent.toString(), node.data[2]);
-                parent.connectObject(child);
-            }
-            else if (mode === "OP") {
-                parent.connectProperty(child, node.data[3]);
-            }
-        }
-    },
-
-    _createNode: function(name, subclass)
-    {
-        if (name === "Material")
-            return new HX.FbxMaterial();
-
-        if (HX[subclass]) return new HX[subclass];
-    },
-
-    _assignProperties: function(target, properties)
-    {
-        if (!properties) return;
-
-        var len = properties.children.length;
-        for (var i = 0; i < len; ++i) {
-            var prop = properties.children[i];
-            if (target.hasOwnProperty(prop.data[0])) {
-                target[prop.data[0]] = this._getPropertyValue(prop);
-            }
-        }
-    },
-
-    _getPropertyValue: function(prop)
-    {
-        var data = prop.data;
-        switch (data[1]) {
-            case "Vector3D":
-            case "Lcl Translation":
-            case "Lcl Scaling":
-            case "Lcl Rotation":
-                return new HX.Float4(data[4], data[5], data[6]);
-            case "bool":
-            case "Visibility":
-            case "Visibility Inheritance":
-                return data[4] !== 0;
-            case "ColorRGB":
-            case "Color":
-                return new HX.Color(data[4], data[5], data[6]);
-            case "enum":
-            case "double":
-            case "float":
-            case "int":
-            case "KString":
-                return data[4];
-            case "object":
-                return null;    // TODO: this will be connected using OP?
-        }
-    },
-
-    _processGeometry: function(objDef)
-    {
-        var geometry = new HX.FbxMesh();
-        var len = objDef.children.length;
-        var layerMap = {};
-
-        for (var i = 0; i < len; ++i) {
-            var child = objDef.children[i];
-            switch (child.name) {
-                case "Vertices":
-                    geometry.vertices = child.data[0];
-                    break;
-                case "PolygonVertexIndex":
-                    geometry.indices = child.data[0];
-                    break;
-                case "Layer":
-                    geometry.layerElements = geometry.layerElements || {};
-                    this._processLayer(child, layerMap, geometry.layerElements);
-                    break;
-                default:
-                    if (!layerMap[child.name])
-                        layerMap[child.name] = child;
-                    break;
-            }
-        }
-        return geometry;
-    },
-
-    _processLayer: function(objDef, layerMap, elements)
-    {
-        var len = objDef.children.length;
-        for (var i = 0; i < len; ++i) {
-            var layerElement = objDef.children[i];
-            if (layerElement.name !== "LayerElement") continue;
-            var name = layerElement.getChildByName("Type").data[0];
-            // do not allow multiple sets
-            if (!elements[layerElement.type]) {
-                var layerElement = this._processLayerElement(layerMap[name]);
-                elements[layerElement.type] = layerElement;
-            }
-        }
-    },
-
-    _processLayerElement: function(objDef)
-    {
-        var layerElement = new HX.FbxLayerElement();
-        var len = objDef.children.length;
-
-        for (var i = 0; i < len; ++i) {
-            var node = objDef.children[i];
-            switch(node.name) {
-                case "MappingInformationType":
-                    var mapMode = node.data[0];
-                    layerElement.mappingInformationType =   mapMode === "ByPolygonVertex"?  HX.FbxLayerElement.MAPPING_TYPE.BY_POLYGON_VERTEX :
-                                                            mapMode === "ByPolygon"?        HX.FbxLayerElement.MAPPING_TYPE.BY_POLYGON :
-                                                            mapMode === "AllSame"?          HX.FbxLayerElement.MAPPING_TYPE.ALL_SAME :
-                                                                                            HX.FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT;
-                    break;
-                case "ReferenceInformationType":
-                    layerElement.referenceInformationType = node.data[0] === "Direct"? HX.FbxLayerElement.REFERENCE_TYPE.DIRECT : HX.FbxLayerElement.REFERENCE_TYPE.INDEX_TO_DIRECT;
-                    break;
-                case "Normals":
-                case "Colors":
-                case "UV":
-                case "Smoothing":
-                    layerElement.type = node.name;
-                    layerElement.directData = node.data[0];
-                    break;
-                case "NormalsIndex":
-                case "ColorIndex":
-                case "UVIndex":
-                case "SmoothingIndex":
-                    layerElement.indexData = node.data[0];
-                    break;
-                case "Materials":
-                    layerElement.type = node.name;
-                    layerElement.indexData = node.data[0];
-                    break;
-            }
-        }
-
-        return layerElement;
-    },
-
-    _getObjectDefName: function(objDef)
-    {
-        return objDef.data[1].split(HX.FBXGraphBuilder._STRING_DEMARCATION)[0];
-    },
-
-    _processCluster: function(objDef)
-    {
-        var cluster = new HX.FbxCluster();
-        var len = objDef.children.length;
-
-        for (var i = 0; i < len; ++i) {
-            var node = objDef.children[i];
-            switch(node.name) {
-                case "Transform":
-                    cluster.transform = new HX.Matrix4x4(node.data[0]);
-                    break;
-                case "TransformLink":
-                    cluster.transformLink = new HX.Matrix4x4(node.data[0]);
-                    break;
-                case "Indexes":
-                    cluster.indices = node.data[0];
-                    break;
-                case "Weights":
-                    cluster.weights = node.data[0];
-                    break;
-            }
-        }
-
-        return cluster;
-    }
-};
-
-HX.FBXGraphBuilder._STRING_DEMARCATION = String.fromCharCode(0, 1);
 // this is used to represent the file contents itself, not translated to connected nodes yet
 HX.FBXRecord = function()
 {
@@ -4501,6 +4714,7 @@ HX.FBXRecord.prototype =
 HX.FBXSettings = function()
 {
     this._matrix = new HX.Matrix4x4();
+    this._frameRate = 24;
     // start with indentity matrix
     // SWAP column[up axis index] with column[1]
     // SWAP column[front axis index] with column[2
@@ -4510,6 +4724,7 @@ HX.FBXSettings = function()
 HX.FBXSettings.prototype =
 {
     get orientationMatrix() { return this._matrix; },
+    get frameRate() { return this._frameRate; },
 
     init: function(rootRecord)
     {
@@ -4520,6 +4735,7 @@ HX.FBXSettings.prototype =
         var global = rootRecord.getChildByName("GlobalSettings");
         var props = global.getChildByName("Properties70");
         var len = props.children.length;
+        var keyFrames = [ 0, 120, 100, 60, 50, 48, 30 ];
 
         for (var i = 0; i < len; ++i) {
             var p = props.children[i];
@@ -4535,6 +4751,9 @@ HX.FBXSettings.prototype =
                     break;
                 case "FrontAxisSign":
                     frontAxisSign = p.data[4];
+                    break;
+                case "TimeMode":
+                    this._frameRate = keyFrames[p.data[4]];
                     break;
             }
         }
@@ -5385,6 +5604,13 @@ HX.OBJ._ObjectData = function()
 HX.FbxAnimationCurve = function()
 {
     HX.FbxObject.call(this);
+    this.Default = 0.0;
+    this.KeyVer = 0.0;
+    this.KeyTime = 0.0;
+    this.KeyValueFloat = null;
+    this.KeyAttrFlags = 0.0;
+    this.KeyAttrDataFloat = null;
+    this.KeyAttrRefCount = 0.0;
 };
 
 HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
@@ -5392,10 +5618,24 @@ HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurv
 HX.FbxAnimationCurveNode = function()
 {
     HX.FbxObject.call(this);
+    this.curves = null;
+    // are these weights?
+    this["d|X"] = 0.0;
+    this["d|Y"] = 0.0;
+    this["d|Z"] = 0.0;
+    this.propertyName = null;
 };
 
 HX.FbxAnimationCurveNode.prototype = Object.create(HX.FbxObject.prototype);
 HX.FbxAnimationCurveNode.prototype.toString = function() { return "[FbxAnimationCurveNode(name="+this.name+")]"; };
+
+HX.FbxAnimationCurveNode.prototype.connectProperty = function(obj, propertyName)
+{
+    if (obj instanceof HX.FbxAnimationCurve) {
+        this.curves = this.curves || {};
+        this.curves[propertyName] = obj;
+    }
+};
 HX.FbxAnimLayer = function()
 {
     HX.FbxObject.call(this);
@@ -5404,7 +5644,6 @@ HX.FbxAnimLayer = function()
 
 HX.FbxAnimLayer.prototype = Object.create(HX.FbxObject.prototype);
 HX.FbxAnimLayer.prototype.toString = function() { return "[FbxAnimLayer(name="+this.name+")]"; };
-
 
 HX.FbxAnimLayer.prototype.connectObject = function(obj)
 {
@@ -5419,6 +5658,11 @@ HX.FbxAnimLayer.prototype.connectObject = function(obj)
 HX.FbxAnimStack = function()
 {
     HX.FbxObject.call(this);
+
+    this.LocalStart = 0;
+    this.LocalStop = 0;
+    this.ReferenceStart = 0;
+    this.ReferenceStop = 0;
 
     this.layers = null;
 };
@@ -5584,6 +5828,8 @@ HX.FbxSkin = function()
 {
     HX.FbxObject.call(this);
     this.clusters = null;
+
+    // data will contain the converter
 };
 
 HX.FbxSkin.prototype = Object.create(HX.FbxObject.prototype);
@@ -5598,6 +5844,40 @@ HX.FbxSkin.prototype.connectObject = function(obj)
     }
     else
         throw new Error("Unhandled object connection " + obj.toString());
+};
+HX.FbxTime = function(value)
+{
+    this._value = value;
+};
+
+HX.FbxTime.getSpan = function(start, stop)
+{
+    return new HX.FbxTime(stop._value - start._value);
+};
+
+HX.FbxTime.TC_MILLISECOND = 46186158;
+
+HX.FbxTime.prototype =
+{
+    get milliseconds()
+    {
+        return this._value / HX.FbxTime.TC_MILLISECOND;
+    },
+
+    set milliseconds(value)
+    {
+        this._value = value * HX.FbxTime.TC_MILLISECOND;
+    },
+
+    getFrameCount: function(frameRate)
+    {
+        return Math.floor(this.milliseconds / 1000.0 * frameRate);
+    },
+
+    toString: function()
+    {
+        return "[FbxTime(name="+this._value+")]";
+    }
 };
 HX.FbxTrashNode = function()
 {

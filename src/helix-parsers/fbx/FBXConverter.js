@@ -1,9 +1,11 @@
 // Could also create an ASCII deserializer
 HX.FBXConverter = function()
 {
+    this._settings = null;
     this._objects = null;
     this._textureTokens = null;
     this._textureMaterialMap = null;
+    this._rootNode = null;
 };
 
 HX.FBXConverter.prototype =
@@ -11,12 +13,14 @@ HX.FBXConverter.prototype =
     get textureTokens() { return this._textureTokens; },
     get textureMaterialMap() { return this._textureMaterialMap; },
 
-    convert: function(rootNode, target, settings)
+    convert: function(rootNode, animationStack, target, settings)
     {
         this._settings = settings;
         this._objects = [];
         this._textureTokens = [];
         this._textureMaterialMap = [];
+        this._rootNode = rootNode;
+        this._animationStack = animationStack;
         this._convertGroupNode(rootNode, target);
     },
 
@@ -27,7 +31,7 @@ HX.FBXConverter.prototype =
 
         if (fbxNode.mesh)
             hxNode = this._convertModelMesh(fbxNode);
-        else if (fbxNode.children && fbxNode.children.length > 0) {
+        else if (fbxNode.children && fbxNode.children.length > 1) {
             hxNode = new HX.GroupNode();
             this._convertGroupNode(fbxNode, hxNode);
         }
@@ -49,8 +53,6 @@ HX.FBXConverter.prototype =
             if (childNode)
                 hxNode.attach(childNode);
         }
-
-        // TODO: handle limb nodes
     },
 
     _convertModelMesh: function(fbxNode)
@@ -70,7 +72,7 @@ HX.FBXConverter.prototype =
         }
 
 
-        var modelConverter = this._convertGeometry(fbxNode.mesh, matrix, this._settings.flipFaces);
+        var modelConverter = this._convertGeometry(fbxNode.mesh, matrix);
 
         var materials = [];
 
@@ -78,6 +80,7 @@ HX.FBXConverter.prototype =
         for (var i = 0; i < numMaterials; ++i) {
             materials[i] = this._convertMaterial(fbxNode.materials[i]);
         }
+
         return modelConverter.createModelInstance(materials);
     },
 
@@ -110,12 +113,12 @@ HX.FBXConverter.prototype =
         return quat;
     },
 
-    _convertGeometry: function(node, matrix, flipFaces)
+    _convertGeometry: function(node, matrix)
     {
         if (this._objects[node.UID]) return this._objects[node.UID];
 
-        var converter = new HX.FBXGeometryConverter();
-        converter.convertToModel(node, matrix, flipFaces);
+        var converter = new HX.FBXModelInstanceConverter();
+        converter.convertToModel(node, this._animationStack, matrix, this._settings);
 
         this._objects[node.UID] = converter;
         return converter;

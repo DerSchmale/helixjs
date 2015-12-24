@@ -1,11 +1,18 @@
 // Could also create an ASCII deserializer
 HX.FBXGraphBuilder = function()
 {
-
+    this._settings = null;
+    this._templates = null;
+    this._objects = null;
+    this._rootNode = null;
+    this._animationStack = null;
 };
 
 HX.FBXGraphBuilder.prototype =
 {
+    get sceneRoot() { return this._rootNode; },
+    get animationStack() { return this._animationStack; },
+
     build: function(rootRecord, settings)
     {
         this._settings = settings;
@@ -16,11 +23,13 @@ HX.FBXGraphBuilder.prototype =
         this._rootNode = new HX.FbxNode();
         this._rootNode.name = "hx_rootNode";
 
+        // animations, we'll turn them into a SkeletonBlendTree eventually
+        this._animationStack = null;
+
         // handle templates
         this._processTemplates(rootRecord.getChildByName("Definitions"));
         this._processObjects(rootRecord.getChildByName("Objects"));
         this._processConnections(rootRecord.getChildByName("Connections"));
-        return this._rootNode;
     },
 
     _processTemplates: function(definitions)
@@ -62,6 +71,7 @@ HX.FBXGraphBuilder.prototype =
                 case "Model":
                     obj = new HX.FbxNode();
                     obj.type = node.data[2];
+                    // not sure if this is correct
                     break;
                 case "Material":
                     obj = new HX.FbxMaterial();
@@ -76,15 +86,8 @@ HX.FBXGraphBuilder.prototype =
                     var rel = node.getChildByName("RelativeFilename");
                     obj.relativeFilename = rel? rel.data[0] : null;
                     break;
-                case "AnimationStack":
-                    // unused so far
-                    obj = new HX.FbxAnimStack();
-                    break;
-                case "AnimationLayer":
-                    // unused so far
-                    obj = new HX.FbxAnimLayer();
-                    break;
                 case "Pose":
+                    // outdated?
                     obj = new HX.FbxPose();
                     break;
                 case "Deformer":
@@ -93,8 +96,19 @@ HX.FBXGraphBuilder.prototype =
                     else
                         obj = this._processCluster(node);
                     break;
+                case "AnimationStack":
+                    obj = new HX.FbxAnimStack();
+                    this._animationStack = obj;
+                    break;
+                case "AnimationLayer":
+                    obj = new HX.FbxAnimLayer();
+                    break;
                 case "AnimationCurve":
                     obj = new HX.FbxAnimationCurve();
+                    this._assignFlatData(obj, node);
+                    for (var j = 0; j < obj.KeyTime.length; ++j)
+                        obj.KeyTime[j] = new HX.FbxTime(obj.KeyTime[j]);
+
                     break;
                 case "AnimationCurveNode":
                     obj = new HX.FbxAnimationCurveNode();
@@ -114,11 +128,7 @@ HX.FBXGraphBuilder.prototype =
 
                 this._assignProperties(obj, node.getChildByName("Properties70"));
 
-
                 this._objects[uid] = obj;
-            }
-            else {
-                //node.printDebug();
             }
         }
     },
@@ -132,13 +142,12 @@ HX.FBXGraphBuilder.prototype =
             var child = this._objects[node.data[1]];
             var parent = this._objects[node.data[2]] || this._rootNode;
 
-            if (mode === "OO") {
-                //console.log(child.toString(), node.data[1], " -> ", parent.toString(), node.data[2]);
+            //console.log(child.toString(), node.data[1], " -> ", parent.toString(), node.data[2], node.data[3]);
+
+            if (mode === "OO")
                 parent.connectObject(child);
-            }
-            else if (mode === "OP") {
+            else if (mode === "OP")
                 parent.connectProperty(child, node.data[3]);
-            }
         }
     },
 
@@ -148,6 +157,17 @@ HX.FBXGraphBuilder.prototype =
             return new HX.FbxMaterial();
 
         if (HX[subclass]) return new HX[subclass];
+    },
+
+    _assignFlatData: function(target, node)
+    {
+        var len = node.children.length;
+        for (var i = 0; i < len; ++i) {
+            var prop = node.children[i];
+            if (target.hasOwnProperty(prop.name)) {
+                target[prop.name] = prop.data[0];
+            }
+        }
     },
 
     _assignProperties: function(target, properties)
@@ -185,6 +205,8 @@ HX.FBXGraphBuilder.prototype =
             case "int":
             case "KString":
                 return data[4];
+            case "KTime":
+                return new HX.FbxTime(data[4]);
             case "object":
                 return null;    // TODO: this will be connected using OP?
         }

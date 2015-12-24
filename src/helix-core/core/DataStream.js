@@ -61,6 +61,22 @@ HX.DataStream.prototype =
         return data;
     },
 
+    // dangerous, but might be an okay approximation
+    getInt64AsFloat64: function()
+    {
+        var L, B;
+        if (this._endian === HX.DataStream.LITTLE_ENDIAN) {
+            L = this._dataView.getUint32(this._offset, this._endian);
+            B = this._dataView.getInt32(this._offset + 4, this._endian);
+        }
+        else {
+            B = this._dataView.getInt32(this._offset, this._endian);
+            L = this._dataView.getUint32(this._offset + 4, this._endian);
+        }
+        this._offset += 8;
+        return L + B * 4294967296.0;
+    },
+
     getFloat32: function()
     {
         var data = this._dataView.getFloat32(this._offset, this._endian);
@@ -108,6 +124,11 @@ HX.DataStream.prototype =
     getInt32Array: function(len)
     {
         return this._readArray(len, Int32Array, this.getInt32);
+    },
+
+    getInt64AsFloat64Array: function(len)
+    {
+        return this._readArray(len, Float64Array, this.getInt64AsFloat64);
     },
 
     getFloat32Array: function(len)

@@ -2,6 +2,7 @@
 HX.FBXSettings = function()
 {
     this._matrix = new HX.Matrix4x4();
+    this._frameRate = 24;
     // start with indentity matrix
     // SWAP column[up axis index] with column[1]
     // SWAP column[front axis index] with column[2
@@ -11,6 +12,7 @@ HX.FBXSettings = function()
 HX.FBXSettings.prototype =
 {
     get orientationMatrix() { return this._matrix; },
+    get frameRate() { return this._frameRate; },
 
     init: function(rootRecord)
     {
@@ -21,6 +23,7 @@ HX.FBXSettings.prototype =
         var global = rootRecord.getChildByName("GlobalSettings");
         var props = global.getChildByName("Properties70");
         var len = props.children.length;
+        var keyFrames = [ 0, 120, 100, 60, 50, 48, 30 ];
 
         for (var i = 0; i < len; ++i) {
             var p = props.children[i];
@@ -36,6 +39,9 @@ HX.FBXSettings.prototype =
                     break;
                 case "FrontAxisSign":
                     frontAxisSign = p.data[4];
+                    break;
+                case "TimeMode":
+                    this._frameRate = keyFrames[p.data[4]];
                     break;
             }
         }

@@ -24,6 +24,7 @@ HX.FbxNode = function()
     this.attributes = null;
     this.mesh = null;
     this.materials = null;
+    this.animationCurveNodes = null;
 };
 
 HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
@@ -73,6 +74,15 @@ HX.FbxNode.prototype.connectObject = function(obj)
     }
     else {
         throw new Error("Incompatible child object " + obj.toString() + " for " + this.type);
+    }
+};
+
+HX.FbxNode.prototype.connectProperty = function(obj, propertyName)
+{
+    if (obj instanceof HX.FbxAnimationCurveNode) {
+        this.animationCurveNodes = this.animationCurveNodes || {};
+        this.animationCurveNodes[propertyName] = obj;
+        obj.propertyName = propertyName;
     }
 };
 

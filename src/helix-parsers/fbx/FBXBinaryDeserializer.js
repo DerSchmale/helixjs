@@ -85,7 +85,7 @@ HX.FBXBinaryDeserializer.prototype =
                 break;
             case HX.FBXBinaryDeserializer.INT64:
                 // just concatenating strings, since they're only used for ids
-                return this._data.getInt32() + "" + this._data.getInt32();
+                return this._data.getInt64AsFloat64();
                 break;
             case HX.FBXBinaryDeserializer.FLOAT:
                 return this._data.getFloat32();
@@ -119,8 +119,7 @@ HX.FBXBinaryDeserializer.prototype =
                 case HX.FBXBinaryDeserializer.INT32_ARRAY:
                     return this._data.getInt32Array(len);
                 case HX.FBXBinaryDeserializer.INT64_ARRAY:
-                    // not sure what to do with this eventually
-                    return this._data.getInt32Array(len * 2);
+                    return this._data.getInt64AsFloat64Array(len);
                     break;
                 case HX.FBXBinaryDeserializer.FLOAT_ARRAY:
                     return this._data.getFloat32Array(len);
@@ -142,8 +141,8 @@ HX.FBXBinaryDeserializer.prototype =
                 case HX.FBXBinaryDeserializer.INT32_ARRAY:
                     return new Int32Array(data);
                 case HX.FBXBinaryDeserializer.INT64_ARRAY:
-                    // INCORRECT
-                    return new Int32Array(data);
+                    var data = new HX.DataStream(new DataView(data));
+                    return data.getInt64AsFloat64Array(data.byteLength / 8);
                 case HX.FBXBinaryDeserializer.FLOAT_ARRAY:
                     return new Float32Array(data);
                 case HX.FBXBinaryDeserializer.DOUBLE_ARRAY:

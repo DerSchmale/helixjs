@@ -2,6 +2,11 @@ HX.FbxAnimStack = function()
 {
     HX.FbxObject.call(this);
 
+    this.LocalStart = 0;
+    this.LocalStop = 0;
+    this.ReferenceStart = 0;
+    this.ReferenceStop = 0;
+
     this.layers = null;
 };
 

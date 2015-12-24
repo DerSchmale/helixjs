@@ -32,6 +32,10 @@ HX.SkeletonClip.prototype =
         this._frameRate = value;
     },
 
+    /**
+     *
+     * @param frame A SkeletonPose
+     */
     addFrame: function(frame)
     {
         this._frames.push(frame);

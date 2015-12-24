@@ -2,6 +2,8 @@ HX.FbxSkin = function()
 {
     HX.FbxObject.call(this);
     this.clusters = null;
+
+    // data will contain the converter
 };
 
 HX.FbxSkin.prototype = Object.create(HX.FbxObject.prototype);

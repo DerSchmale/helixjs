@@ -3390,11 +3390,12 @@ HX.FBXAnimationConverter.prototype =
         this._jointUIDLookUp[fbxNode.UID] = { joint: joint, index: index };
 
         if (fbxNode.animationCurveNodes) {
-            var numNodes = fbxNode.animationCurveNodes.length;
-            for (var i = 0; i < numNodes; ++i) {
-                var node = fbxNode.animationCurveNodes[i];
-                // store the joint index as curve node data
-                node.data = index;
+            for (var key in fbxNode.animationCurveNodes) {
+                if (fbxNode.animationCurveNodes.hasOwnProperty(key)) {
+                    var node = fbxNode.animationCurveNodes[key];
+                    // store the joint index as curve node data
+                    node.data = index;
+                }
             }
         }
 
@@ -3539,6 +3540,13 @@ HX.FBXAnimationConverter.prototype =
             jointPose.orientation.fromXYZ(rot.x, rot.y, rot.z);
             skeletonPose.jointPoses[node.data] = jointPose;
         }
+
+        for (var i = 0; i < skeletonPose.jointPoses.length; ++i) {
+            if (!skeletonPose.jointPoses[i]) {
+                throw "Empty pose!";
+            }
+        }
+        return skeletonPose;
     }
 };
 

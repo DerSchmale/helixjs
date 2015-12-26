@@ -23,8 +23,8 @@ HX.SkeletonJoint.prototype =
  */
 HX.SkeletonJointPose = function()
 {
-    this.orientation = new HX.Quaternion();
-    this.translation = new HX.Float4();
+    this.rotation = new HX.Quaternion();
+    this.position = new HX.Float4();
     this.scale = 1.0;
 };
 
@@ -32,8 +32,8 @@ HX.SkeletonJointPose.prototype =
 {
     copyFrom: function(a)
     {
-        this.orientation.copyFrom(a.orientation);
-        this.translation.copyFrom(a.translation);
+        this.rotation.copyFrom(a.rotation);
+        this.position.copyFrom(a.position);
         this.scale = a.scale;
     },
 
@@ -70,8 +70,8 @@ HX.SkeletonPose.prototype =
 
         var target = this.jointPoses;
         for (var i = 0; i < len; ++i) {
-            target[i].orientation.slerp(a[i].orientation, b[i].orientation, factor);
-            target[i].translation.lerp(a[i].translation, b[i].translation, factor);
+            target[i].rotation.slerp(a[i].rotation, b[i].rotation, factor);
+            target[i].position.lerp(a[i].position, b[i].position, factor);
             target[i].scale = HX.lerp(a[i].scale, b[i].scale, factor);
         }
     },

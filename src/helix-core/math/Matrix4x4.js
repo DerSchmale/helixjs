@@ -238,7 +238,7 @@ HX.Matrix4x4.prototype =
     },
 
     // this actually doesn't use a vector, because they're three unrelated quantities. A vector just doesn't make sense here, mathematically.
-    fromRotationXYZ: function (x, y, z)
+    fromEuler: function (x, y, z)
     {
         var cosX = Math.cos(x);
         var sinX = Math.sin(x);
@@ -265,6 +265,7 @@ HX.Matrix4x4.prototype =
         this._m[15] = 1;
     },
 
+    // Tait-Bryan angles, not classic Euler
     fromRotationPitchYawRoll: function (pitch, yaw, roll)
     {
         var cosP = Math.cos(-pitch);
@@ -1009,22 +1010,31 @@ HX.Matrix4x4.prototype =
      * Decomposes an affine transformation matrix into a Transform object.
      * @param target An optional target object to decompose into. If omitted, a new object will be created and returned.
      */
-    decompose: function (target)
+    decompose: function (targetOrPos, quat, scale)
     {
-        target = target || new HX.Transform();
+        targetOrPos = targetOrPos || new HX.Transform();
+
+        var pos;
+        if (quat === undefined) {
+            quat = targetOrPos.rotation;
+            scale = targetOrPos.scale;
+            pos = targetOrPos.position;
+        }
+        else pos = targetOrPos;
+
         var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2];
         var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
         var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
 
-        target.scale.x = Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
-        target.scale.y = Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
-        target.scale.z = Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
+        scale.x = Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
+        scale.y = Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
+        scale.z = Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
 
-        target.rotation.fromMatrix(this);
+        quat.fromMatrix(this);
 
-        target.position.copyFrom(this.getColumn(3));
+        pos.copyFrom(this.getColumn(3));
 
-        return target;
+        return targetOrPos;
     },
 
     swapColums: function(i, j)

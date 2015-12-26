@@ -1,4 +1,8 @@
 // Could also create an ASCII deserializer
+/**
+ *
+ * @constructor
+ */
 HX.FBXGraphBuilder = function()
 {
     this._settings = null;

@@ -18,6 +18,7 @@ HX.Quaternion.prototype =
         this.w = Math.cos(radians * .5);
     },
 
+    // Tait-Bryan angles, not classic Euler, radians
     fromPitchYawRoll: function(pitch, yaw, roll)
     {
         var mtx = new HX.Matrix4x4();
@@ -26,12 +27,30 @@ HX.Quaternion.prototype =
         this.fromMatrix(mtx);
     },
 
-    fromXYZ: function(x, y, z)
+    // X*Y*Z order (meaning z first), radians
+    fromEuler: function(x, y, z)
     {
-        var mtx = new HX.Matrix4x4();
-        // wasteful. improve.
-        mtx.fromRotationXYZ(x, y, z);
-        this.fromMatrix(mtx);
+        var cx = Math.cos(x * 0.5), cy = Math.cos(y * 0.5), cz = Math.cos(z * 0.5);
+        var sx = Math.sin(x * 0.5), sy = Math.sin(y * 0.5), sz = Math.sin(z * 0.5);
+
+        this.x = sx*cy*cz + cx*sy*sz;
+        this.y = cx*sy*cz - sx*cy*sz;
+        this.z = cx*cy*sz + sx*sy*cz;
+        this.w = cx*cy*cz - sx*sy*sz;
+    },
+
+    toEuler: function(target)
+    {
+        target = target || new HX.Float4();
+
+        var x = this.x, y = this.y, z = this.z, w = this.w;
+        var xx = x * x, yy = y * y, zz = z * z, ww = w * w;
+
+        target.x = Math.atan2( -2*(y*z - w*x), ww - xx - yy + zz );
+        target.y = Math.asin ( 2*(x*z + w*y) );
+        target.z = Math.atan2( -2*(x*y - w*z), ww + xx - yy - zz );
+
+        return target;
     },
 
     fromMatrix: function(m)

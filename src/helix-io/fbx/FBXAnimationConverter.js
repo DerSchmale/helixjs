@@ -7,6 +7,7 @@ HX.FBXAnimationConverter = function()
     this._fakeJointIndex = -1;
     this._animationClips = null;
     this._bindPoses = null;
+    this._bindPosesByIndex = null;
 };
 
 HX.FBXAnimationConverter.prototype =
@@ -43,18 +44,46 @@ HX.FBXAnimationConverter.prototype =
 
         var len = fbxSkin.clusters.length;
 
+        this._bindPosesByIndex = [];
+
         for (var i = 0; i < len; ++i) {
             var cluster = fbxSkin.clusters[i];
             // a bit annoying, but this way, if there's multiple roots (by whatever chance), we cover them all
             this._addJointsToSkeleton(this._getRootNodeForCluster(cluster));
             var jointData = this._jointUIDLookUp[cluster.limbNode.UID];
             this._assignInverseBindPose(this._bindPoses[cluster.limbNode.UID], jointData.joint, cluster);
+            this._bindPosesByIndex[jointData.index] = this._bindPoses[cluster.limbNode.UID];
             this._assignJointBinding(cluster, jointData.index);
         }
+
+        this._localizeBindPoses();
 
         var fakeJoint = new HX.SkeletonJoint();
         this._fakeJointIndex = this._skeleton.numJoints;
         this._skeleton.addJoint(fakeJoint);
+        this._bindPosesByIndex[this._fakeJointIndex] = new HX.Matrix4x4();
+    },
+
+    _localizeBindPoses: function()
+    {
+        var local = [];
+        for (var i = 0; i < this._skeleton.numJoints; ++i)
+        {
+            var globalBind = this._bindPosesByIndex[i];
+            if (!globalBind) continue;
+
+            var joint = this._skeleton.getJoint(i);
+            if (joint.parentIndex === -1)
+                local[i] = globalBind;
+            else {
+                var mtx = new HX.Matrix4x4();
+                // to parent space
+                mtx.inverseOf(this._bindPosesByIndex[joint.parentIndex]);
+                mtx.prepend(globalBind);
+                local[i] = mtx;
+            }
+        }
+        this._bindPosesByIndex = local;
     },
 
     convertClips: function(fbxAnimationStack, settings)
@@ -233,17 +262,21 @@ HX.FBXAnimationConverter.prototype =
 
         var numCurveNodes = layer.curveNodes.length;
         var tempJointPoses = [];
+        var hasData = [];
 
-        for (var i = 0; i < numJoints; ++i)
+        for (var i = 0; i < numJoints; ++i) {
             tempJointPoses[i] = new HX.FBXAnimationConverter._JointPose();
+            hasData[i] = false;
+        }
 
         for (var i = 0; i < numCurveNodes; ++i) {
             var node = layer.curveNodes[i];
-
+            var jointIndex = node.data;
             // why would data be null?! so it's not hooked to skeleton w/ property
-            if (node.data === null) continue;
+            if (jointIndex === null) continue;
 
-            var target = tempJointPoses[node.data][node.propertyName];
+            var target = tempJointPoses[jointIndex][node.propertyName];
+            hasData[jointIndex] = true;
 
             for (var key in node.curves) {
                 if (!node.curves.hasOwnProperty(key)) continue;
@@ -263,14 +296,20 @@ HX.FBXAnimationConverter.prototype =
         }
 
         for (var i = 0; i < numJoints; ++i) {
-            var tempJointPose = tempJointPoses[i];
             var jointPose = new HX.SkeletonJointPose();
-            jointPose.translation.copyFrom(tempJointPose["Lcl Translation"]);
-            // not supporting non-uniform scaling at this point
-            jointPose.scale = tempJointPose["Lcl Scaling"].x;
-            var rot = tempJointPose["Lcl Rotation"];
-            jointPose.orientation.fromXYZ(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
-            skeletonPose.jointPoses[i] = jointPose;
+
+            if (!hasData[i] && this._bindPosesByIndex[i]) {
+                this._bindPosesByIndex[i].decompose(jointPose);
+            }
+            else {
+                var tempJointPose = tempJointPoses[i];
+                jointPose.position.copyFrom(tempJointPose["Lcl Translation"]);
+                // not supporting non-uniform scaling at this point
+                jointPose.scale = tempJointPose["Lcl Scaling"].x;
+                var rot = tempJointPose["Lcl Rotation"];
+                jointPose.rotation.fromEuler(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
+                skeletonPose.jointPoses[i] = jointPose;
+            }
         }
 
         skeletonPose.jointPoses[this._fakeJointIndex] = new HX.SkeletonJointPose();

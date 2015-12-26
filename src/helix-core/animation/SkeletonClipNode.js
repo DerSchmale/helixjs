@@ -95,10 +95,10 @@ HX.SkeletonClipNode.prototype.update = function(dt)
 HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps)
 {
     var clip = this._clip;
-    var lastFramePos = clip.getFrame(clip.numFrames - 1).jointPoses[0].translation;
-    var firstFramePos = clip.getFrame(0).jointPoses[0].translation;
+    var lastFramePos = clip.getFrame(clip.numFrames - 1).jointPoses[0].position;
+    var firstFramePos = clip.getFrame(0).jointPoses[0].position;
 
-    var currentPos = this._pose.jointPoses[0].translation;
+    var currentPos = this._pose.jointPoses[0].position;
     var rootPos = this._rootPosition;
     var rootDelta = this._rootJointDeltaPosition;
 

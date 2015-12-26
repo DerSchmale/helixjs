@@ -110,7 +110,7 @@ HX.FBXConverter.prototype =
     _convertRotation: function(v)
     {
         var quat = new HX.Quaternion();
-        quat.fromXYZ(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
+        quat.fromEuler(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
         return quat;
     },
 

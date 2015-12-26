@@ -20,8 +20,10 @@ uniform sampler2D hx_gbufferSpecular;
 	uniform float depthBias;
 
 	#if NUM_SHADOW_SAMPLES > 1
-		uniform sampler2D hx_dither2D;
-		uniform vec2 hx_dither2DTextureScale;
+	    #ifdef DITHER_SHADOWS
+            uniform sampler2D hx_dither2D;
+            uniform vec2 hx_dither2DTextureScale;
+		#endif
 
 		uniform vec2 shadowMapSoftnesses[NUM_CASCADES];
 		uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];
@@ -92,8 +94,12 @@ vec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 view
 			vec2 radii;
 			getShadowMapCoord(viewPos, shadowMapCoord, radii);
 			float shadowTest = 0.0;
+			#ifdef DITHER_SHADOWS
 			vec4 dither = texture2D(hx_dither2D, uv * hx_dither2DTextureScale);
 			dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale
+			#else
+			vec4 dither = radii.xxyy;
+			#endif
 			for (int i = 0; i < NUM_SHADOW_SAMPLES; ++i) {
 				vec2 offset;
 				offset.x = dot(dither.xy, hx_poissonDisk[i]);

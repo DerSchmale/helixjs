@@ -3423,7 +3423,7 @@ HX.ShaderLibrary['lighting_blinn_phong.glsl'] = '/*float hx_lightVisibility(vec3
 
 HX.ShaderLibrary['lighting_ggx.glsl'] = '// Smith:\n/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float roughSqr = roughness*roughness;\n	float g1 = nDotV + sqrt( (nDotV - nDotV * roughSqr) * nDotV + roughSqr );\n    float g2 = nDotL + sqrt( (nDotL - nDotL * roughSqr) * nDotL + roughSqr );\n    return 1.0 / (g1 * g2);\n}*/\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\nvoid hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = dot(halfVector, lightDir);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;\n\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
 
-HX.ShaderLibrary['directional_light_fragment.glsl'] = 'uniform vec3 lightColor;\nuniform vec3 lightViewDirection;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef CAST_SHADOWS\n	uniform sampler2D hx_gbufferDepth;\n	uniform sampler2D shadowMap;\n\n	uniform float hx_cameraFrustumRange;\n	uniform float hx_cameraNearPlaneDistance;\n\n	uniform mat4 shadowMapMatrices[NUM_CASCADES];\n	uniform float splitDistances[NUM_CASCADES];\n	uniform float depthBias;\n\n	#if NUM_SHADOW_SAMPLES > 1\n		uniform sampler2D hx_dither2D;\n		uniform vec2 hx_dither2DTextureScale;\n\n		uniform vec2 shadowMapSoftnesses[NUM_CASCADES];\n		uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];\n	#endif\n\n	float readDepth(vec2 uv)\n	{\n	#ifdef HX_NO_DEPTH_TEXTURES\n		return hx_RGBA8ToFloat(texture2D(shadowMap, uv));\n	#else\n		return texture2D(shadowMap, uv).x;\n	#endif\n	}\n\n	// view-space position\n	#if NUM_SHADOW_SAMPLES > 1\n	void getShadowMapCoord(in vec3 viewPos, out vec4 coord, out vec2 softness)\n	#else\n	void getShadowMapCoord(in vec3 viewPos, out vec4 coord)\n	#endif\n	{\n		mat4 shadowMapMatrix = shadowMapMatrices[NUM_CASCADES - 1];\n		#if NUM_SHADOW_SAMPLES > 1\n		softness = shadowMapSoftnesses[NUM_CASCADES - 1];\n		#endif\n\n		#if NUM_CASCADES > 1\n		// not very efficient :(\n		for (int i = 0; i < NUM_CASCADES - 1; ++i) {\n		    // remember, negative Z!\n			if (viewPos.z > splitDistances[i]) {\n				shadowMapMatrix = shadowMapMatrices[i];\n				#if NUM_SHADOW_SAMPLES > 1\n					softness = shadowMapSoftnesses[i];\n				#endif\n				break;\n			}\n		}\n		#else\n			shadowMapMatrix = shadowMapMatrices[0];\n			#if NUM_SHADOW_SAMPLES > 1\n				softness = shadowMapSoftnesses[0];\n			#endif\n		#endif\n		coord = shadowMapMatrix * vec4(viewPos, 1.0);\n	}\n#endif\n\n\nvec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 viewVector, vec3 normalSpecularReflectance, float roughness, float metallicness)\n{\n// start extractable code (for fwd)\n	vec3 diffuseReflection;\n	vec3 specularReflection;\n\n	hx_lighting(normal, lightDir, normalize(viewVector), lightColor, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);\n\n	diffuseReflection *= diffuseAlbedo * (1.0 - metallicness);\n	vec3 totalReflection = diffuseReflection + specularReflection;\n\n	#ifdef CAST_SHADOWS\n		float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n		float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n		vec3 viewPos = viewZ * viewVector;\n\n		vec4 shadowMapCoord;\n		#if NUM_SHADOW_SAMPLES > 1\n			vec2 radii;\n			getShadowMapCoord(viewPos, shadowMapCoord, radii);\n			float shadowTest = 0.0;\n			vec4 dither = texture2D(hx_dither2D, uv * hx_dither2DTextureScale);\n			dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale\n			for (int i = 0; i < NUM_SHADOW_SAMPLES; ++i) {\n				vec2 offset;\n				offset.x = dot(dither.xy, hx_poissonDisk[i]);\n				offset.y = dot(dither.zw, hx_poissonDisk[i]);\n				float shadowSample = readDepth(shadowMapCoord.xy + offset);\n				float diff = shadowMapCoord.z - shadowSample - depthBias;\n				shadowTest += float(diff < 0.0);\n			}\n			shadowTest /= float(NUM_SHADOW_SAMPLES);\n		#else\n			getShadowMapCoord(viewPos, shadowMapCoord);\n			float shadowSample = readDepth(shadowMapCoord.xy);\n			float diff = shadowMapCoord.z - shadowSample - depthBias;\n			float shadowTest = float(diff < 0.0);\n		#endif\n\n		totalReflection *= shadowTest;\n	#endif\n\n    return totalReflection;\n}\n\nvoid main()\n{\n	vec4 colorSample = texture2D(hx_gbufferColor, uv);\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	vec3 normal = hx_decodeNormal(normalSample);\n	vec3 normalSpecularReflectance;\n	float roughness;\n	float metallicness;\n\n	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n\n	vec3 totalReflection = hx_calculateLight(colorSample.xyz, normal, lightViewDirection, viewDir, normalSpecularReflectance, roughness, metallicness);\n\n	gl_FragColor = vec4(totalReflection, 0.0);\n\n}';
+HX.ShaderLibrary['directional_light_fragment.glsl'] = 'uniform vec3 lightColor;\nuniform vec3 lightViewDirection;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef CAST_SHADOWS\n	uniform sampler2D hx_gbufferDepth;\n	uniform sampler2D shadowMap;\n\n	uniform float hx_cameraFrustumRange;\n	uniform float hx_cameraNearPlaneDistance;\n\n	uniform mat4 shadowMapMatrices[NUM_CASCADES];\n	uniform float splitDistances[NUM_CASCADES];\n	uniform float depthBias;\n\n	#if NUM_SHADOW_SAMPLES > 1\n	    #ifdef DITHER_SHADOWS\n            uniform sampler2D hx_dither2D;\n            uniform vec2 hx_dither2DTextureScale;\n		#endif\n\n		uniform vec2 shadowMapSoftnesses[NUM_CASCADES];\n		uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];\n	#endif\n\n	float readDepth(vec2 uv)\n	{\n	#ifdef HX_NO_DEPTH_TEXTURES\n		return hx_RGBA8ToFloat(texture2D(shadowMap, uv));\n	#else\n		return texture2D(shadowMap, uv).x;\n	#endif\n	}\n\n	// view-space position\n	#if NUM_SHADOW_SAMPLES > 1\n	void getShadowMapCoord(in vec3 viewPos, out vec4 coord, out vec2 softness)\n	#else\n	void getShadowMapCoord(in vec3 viewPos, out vec4 coord)\n	#endif\n	{\n		mat4 shadowMapMatrix = shadowMapMatrices[NUM_CASCADES - 1];\n		#if NUM_SHADOW_SAMPLES > 1\n		softness = shadowMapSoftnesses[NUM_CASCADES - 1];\n		#endif\n\n		#if NUM_CASCADES > 1\n		// not very efficient :(\n		for (int i = 0; i < NUM_CASCADES - 1; ++i) {\n		    // remember, negative Z!\n			if (viewPos.z > splitDistances[i]) {\n				shadowMapMatrix = shadowMapMatrices[i];\n				#if NUM_SHADOW_SAMPLES > 1\n					softness = shadowMapSoftnesses[i];\n				#endif\n				break;\n			}\n		}\n		#else\n			shadowMapMatrix = shadowMapMatrices[0];\n			#if NUM_SHADOW_SAMPLES > 1\n				softness = shadowMapSoftnesses[0];\n			#endif\n		#endif\n		coord = shadowMapMatrix * vec4(viewPos, 1.0);\n	}\n#endif\n\n\nvec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 viewVector, vec3 normalSpecularReflectance, float roughness, float metallicness)\n{\n// start extractable code (for fwd)\n	vec3 diffuseReflection;\n	vec3 specularReflection;\n\n	hx_lighting(normal, lightDir, normalize(viewVector), lightColor, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);\n\n	diffuseReflection *= diffuseAlbedo * (1.0 - metallicness);\n	vec3 totalReflection = diffuseReflection + specularReflection;\n\n	#ifdef CAST_SHADOWS\n		float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n		float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n		vec3 viewPos = viewZ * viewVector;\n\n		vec4 shadowMapCoord;\n		#if NUM_SHADOW_SAMPLES > 1\n			vec2 radii;\n			getShadowMapCoord(viewPos, shadowMapCoord, radii);\n			float shadowTest = 0.0;\n			#ifdef DITHER_SHADOWS\n			vec4 dither = texture2D(hx_dither2D, uv * hx_dither2DTextureScale);\n			dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale\n			#else\n			vec4 dither = radii.xxyy;\n			#endif\n			for (int i = 0; i < NUM_SHADOW_SAMPLES; ++i) {\n				vec2 offset;\n				offset.x = dot(dither.xy, hx_poissonDisk[i]);\n				offset.y = dot(dither.zw, hx_poissonDisk[i]);\n				float shadowSample = readDepth(shadowMapCoord.xy + offset);\n				float diff = shadowMapCoord.z - shadowSample - depthBias;\n				shadowTest += float(diff < 0.0);\n			}\n			shadowTest /= float(NUM_SHADOW_SAMPLES);\n		#else\n			getShadowMapCoord(viewPos, shadowMapCoord);\n			float shadowSample = readDepth(shadowMapCoord.xy);\n			float diff = shadowMapCoord.z - shadowSample - depthBias;\n			float shadowTest = float(diff < 0.0);\n		#endif\n\n		totalReflection *= shadowTest;\n	#endif\n\n    return totalReflection;\n}\n\nvoid main()\n{\n	vec4 colorSample = texture2D(hx_gbufferColor, uv);\n	vec4 normalSample = texture2D(hx_gbufferNormals, uv);\n	vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n	vec3 normal = hx_decodeNormal(normalSample);\n	vec3 normalSpecularReflectance;\n	float roughness;\n	float metallicness;\n\n	hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n\n	vec3 totalReflection = hx_calculateLight(colorSample.xyz, normal, lightViewDirection, viewDir, normalSpecularReflectance, roughness, metallicness);\n\n	gl_FragColor = vec4(totalReflection, 0.0);\n\n}';
 
 HX.ShaderLibrary['directional_light_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n	gl_Position = hx_position;\n}';
 
@@ -4258,7 +4258,7 @@ HX.Matrix4x4.prototype =
     },
 
     // this actually doesn't use a vector, because they're three unrelated quantities. A vector just doesn't make sense here, mathematically.
-    fromRotationXYZ: function (x, y, z)
+    fromEuler: function (x, y, z)
     {
         var cosX = Math.cos(x);
         var sinX = Math.sin(x);
@@ -4285,6 +4285,7 @@ HX.Matrix4x4.prototype =
         this._m[15] = 1;
     },
 
+    // Tait-Bryan angles, not classic Euler
     fromRotationPitchYawRoll: function (pitch, yaw, roll)
     {
         var cosP = Math.cos(-pitch);
@@ -5029,22 +5030,31 @@ HX.Matrix4x4.prototype =
      * Decomposes an affine transformation matrix into a Transform object.
      * @param target An optional target object to decompose into. If omitted, a new object will be created and returned.
      */
-    decompose: function (target)
+    decompose: function (targetOrPos, quat, scale)
     {
-        target = target || new HX.Transform();
+        targetOrPos = targetOrPos || new HX.Transform();
+
+        var pos;
+        if (quat === undefined) {
+            quat = targetOrPos.rotation;
+            scale = targetOrPos.scale;
+            pos = targetOrPos.position;
+        }
+        else pos = targetOrPos;
+
         var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2];
         var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
         var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
 
-        target.scale.x = Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
-        target.scale.y = Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
-        target.scale.z = Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
+        scale.x = Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
+        scale.y = Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
+        scale.z = Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
 
-        target.rotation.fromMatrix(this);
+        quat.fromMatrix(this);
 
-        target.position.copyFrom(this.getColumn(3));
+        pos.copyFrom(this.getColumn(3));
 
-        return target;
+        return targetOrPos;
     },
 
     swapColums: function(i, j)
@@ -5304,6 +5314,7 @@ HX.Quaternion.prototype =
         this.w = Math.cos(radians * .5);
     },
 
+    // Tait-Bryan angles, not classic Euler, radians
     fromPitchYawRoll: function(pitch, yaw, roll)
     {
         var mtx = new HX.Matrix4x4();
@@ -5312,12 +5323,30 @@ HX.Quaternion.prototype =
         this.fromMatrix(mtx);
     },
 
-    fromXYZ: function(x, y, z)
+    // X*Y*Z order (meaning z first), radians
+    fromEuler: function(x, y, z)
     {
-        var mtx = new HX.Matrix4x4();
-        // wasteful. improve.
-        mtx.fromRotationXYZ(x, y, z);
-        this.fromMatrix(mtx);
+        var cx = Math.cos(x * 0.5), cy = Math.cos(y * 0.5), cz = Math.cos(z * 0.5);
+        var sx = Math.sin(x * 0.5), sy = Math.sin(y * 0.5), sz = Math.sin(z * 0.5);
+
+        this.x = sx*cy*cz + cx*sy*sz;
+        this.y = cx*sy*cz - sx*cy*sz;
+        this.z = cx*cy*sz + sx*sy*cz;
+        this.w = cx*cy*cz - sx*sy*sz;
+    },
+
+    toEuler: function(target)
+    {
+        target = target || new HX.Float4();
+
+        var x = this.x, y = this.y, z = this.z, w = this.w;
+        var xx = x * x, yy = y * y, zz = z * z, ww = w * w;
+
+        target.x = Math.atan2( -2*(y*z - w*x), ww - xx - yy + zz );
+        target.y = Math.asin ( 2*(x*z + w*y) );
+        target.z = Math.atan2( -2*(x*y - w*z), ww + xx - yy - zz );
+
+        return target;
     },
 
     fromMatrix: function(m)
@@ -10720,6 +10749,7 @@ HX.DirectionalLight = function()
 
     this._numCascades = 1;
     this._shadowMapSize = 1024;
+    this._ditherShadows = false;
     // hard shadows by default
     this._numShadowSamples = 1;
 
@@ -10739,100 +10769,115 @@ HX.DirectionalLight = function()
     this._shadowSoftnessLocation = null;
 };
 
-HX.DirectionalLight.prototype = Object.create(HX.Light.prototype);
-
-Object.defineProperty(HX.DirectionalLight.prototype, "castShadows", {
-    get: function()
+HX.DirectionalLight.prototype = Object.create(HX.Light.prototype,
     {
-        return this._castShadows;
-    },
+        castShadows: {
+            get: function()
+            {
+                return this._castShadows;
+            },
 
-    set: function(value)
-    {
-        if (this._castShadows == value) return;
+            set: function(value)
+            {
+                if (this._castShadows == value) return;
 
-        this._castShadows = value;
+                this._castShadows = value;
 
-        if (value) {
-            this._shadowMapRenderer = new HX.CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
+                if (value) {
+                    this._shadowMapRenderer = new HX.CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
+                }
+                else {
+                    this._shadowMapRenderer.dispose();
+                    this._shadowMapRenderer = null;
+                }
+
+                this._invalidateLightPass();
+            }
+        },
+
+        numCascades: {
+            get: function()
+            {
+                return this._numCascades;
+            },
+
+            set: function(value)
+            {
+                if (value > 4) {
+                    console.warn("set numCascades called with value greater than 4. Real value will be set to 4.");
+                    value = 4;
+                }
+
+                this._numCascades = value;
+                if (this._castShadows) this._invalidateLightPass();
+                if (this._shadowMapRenderer) this._shadowMapRenderer.setNumCascades(value);
+            }
+        },
+
+        shadowMapSize: {
+            get: function()
+            {
+                return this._shadowMapSize;
+            },
+
+            set: function(value)
+            {
+                this._shadowMapSize = value;
+                if (this._shadowMapRenderer) this._shadowMapRenderer.setShadowMapSize(value);
+            }
+        },
+
+        numShadowSamples: {
+            get: function()
+            {
+                return this._numShadowSamples;
+            },
+
+            set: function(value)
+            {
+                if (value < 1) {
+                    value = 1;
+                    console.warn("setNumShadowSamples called with value smaller than 1. Real value will be set to 1.");
+                }
+                this._numShadowSamples = value;
+                if (this._castShadows) this._invalidateLightPass();
+            }
+        },
+
+        ditherShadows:
+        {
+            get: function()
+            {
+                return this._ditherShadows;
+            },
+
+            set: function(value)
+            {
+                this._ditherShadows = value;
+                if (this._castShadows) this._invalidateLightPass();
+            }
+        },
+
+        direction: {
+            get: function()
+            {
+                var dir = this.worldMatrix.getColumn(2);
+                dir.x = -dir.x;
+                dir.y = -dir.y;
+                dir.z = -dir.z;
+                return dir;
+            },
+
+            set: function(value)
+            {
+                var matrix = new HX.Matrix4x4();
+                var position = this.worldMatrix.getColumn(3);
+                var target = HX.Float4.add(value, position);
+                matrix.lookAt(target, position, HX.Float4.Y_AXIS);
+                this.transformationMatrix = matrix;
+            }
         }
-        else {
-            this._shadowMapRenderer.dispose();
-            this._shadowMapRenderer = null;
-        }
-
-        this._invalidateLightPass();
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "numCascades", {
-    get: function()
-    {
-        return this._numCascades;
-    },
-
-    set: function(value)
-    {
-        if (value > 4) {
-            console.warn("set numCascades called with value greater than 4. Real value will be set to 4.");
-            value = 4;
-        }
-
-        this._numCascades = value;
-        if (this._castShadows) this._invalidateLightPass();
-        if (this._shadowMapRenderer) this._shadowMapRenderer.setNumCascades(value);
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "shadowMapSize", {
-    get: function()
-    {
-        return this._shadowMapSize;
-    },
-
-    set: function(value)
-    {
-        this._shadowMapSize = value;
-        if (this._shadowMapRenderer) this._shadowMapRenderer.setShadowMapSize(value);
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "numShadowSamples", {
-    get: function()
-    {
-        return this._numShadowSamples;
-    },
-
-    set: function(value)
-    {
-        if (value < 1) {
-            value = 1;
-            console.warn("setNumShadowSamples called with value smaller than 1. Real value will be set to 1.");
-        }
-        this._numShadowSamples = value;
-        if (this._castShadows) this._invalidateLightPass();
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "direction", {
-    get: function()
-    {
-        var dir = this.worldMatrix.getColumn(2);
-        dir.x = -dir.x;
-        dir.y = -dir.y;
-        dir.z = -dir.z;
-        return dir;
-    },
-
-    set: function(value)
-    {
-        var matrix = new HX.Matrix4x4();
-        var position = this.worldMatrix.getColumn(3);
-        var target = HX.Float4.add(value, position);
-        matrix.lookAt(target, position, HX.Float4.Y_AXIS);
-        this.transformationMatrix = matrix;
-    }
-});
+    });
 
 // returns the index of the FIRST UNRENDERED light
 HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
@@ -10902,6 +10947,9 @@ HX.DirectionalLight.prototype._initLightPass =  function()
         defines.NUM_CASCADES = this._numCascades;
         defines.NUM_SHADOW_SAMPLES = this._numShadowSamples;
     }
+
+    if (this._ditherShadows)
+        defines.DITHER_SHADOWS = 1;
 
     var vertexShader = HX.ShaderLibrary.get("directional_light_vertex.glsl", defines);
     var fragmentShader = HX.LIGHTING_MODEL.getGLSL() + "\n" +
@@ -13034,60 +13082,6 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
     }
 
 };
-HX.RenderUtils =
-{
-    /**
-     * @param renderer The actual renderer doing the rendering.
-     * @param passType
-     * @param renderItems
-     * @param transparencyMode (optional) If provided, it will only render passes with the given transparency mode
-     * @param offsetIndex The index to start rendering.
-     * @returns The index for the first unrendered renderItem in the list (depending on transparencyMode)
-     * @private
-     */
-    renderPass: function (renderer, passType, renderItems, transparencyMode, offsetIndex)
-    {
-        var len = renderItems.length;
-        var activePass = null;
-        var lastMesh = null;
-        var offsetIndex = offsetIndex || 0;
-
-        for(var i = offsetIndex; i < len; ++i) {
-            var renderItem = renderItems[i];
-            var material = renderItem.material;
-
-            if (transparencyMode !== undefined && material._transparencyMode !== transparencyMode)
-                return i;
-
-            // lighting model 0 means unlit
-            var stencilValue = (material._lightingModelID << 4) | material._transparencyMode;
-            HX.updateStencilReferenceValue(stencilValue);
-
-            var meshInstance = renderItem.meshInstance;
-            var pass = renderItem.pass;
-            var shader = pass._shader;
-            // make sure renderstate is propagated
-            shader.updateRenderState(renderItem.camera, renderItem);
-
-            if (pass !== activePass) {
-                pass.updateRenderState(renderer);
-                activePass = pass;
-
-                lastMesh = null;    // need to reset mesh data too
-            }
-
-            if (lastMesh != meshInstance._mesh) {
-                meshInstance.updateRenderState(passType);
-                lastMesh = meshInstance._mesh;
-            }
-
-            HX.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
-        }
-
-        HX.setBlendState(null);
-        return len;
-    }
-};
 /**
  * The debug render mode to inspect properties in the GBuffer, the lighting accumulation buffer, AO, etc.
  */
@@ -13691,6 +13685,60 @@ HX.Renderer.prototype =
         }
     }
 };
+HX.RenderUtils =
+{
+    /**
+     * @param renderer The actual renderer doing the rendering.
+     * @param passType
+     * @param renderItems
+     * @param transparencyMode (optional) If provided, it will only render passes with the given transparency mode
+     * @param offsetIndex The index to start rendering.
+     * @returns The index for the first unrendered renderItem in the list (depending on transparencyMode)
+     * @private
+     */
+    renderPass: function (renderer, passType, renderItems, transparencyMode, offsetIndex)
+    {
+        var len = renderItems.length;
+        var activePass = null;
+        var lastMesh = null;
+        var offsetIndex = offsetIndex || 0;
+
+        for(var i = offsetIndex; i < len; ++i) {
+            var renderItem = renderItems[i];
+            var material = renderItem.material;
+
+            if (transparencyMode !== undefined && material._transparencyMode !== transparencyMode)
+                return i;
+
+            // lighting model 0 means unlit
+            var stencilValue = (material._lightingModelID << 4) | material._transparencyMode;
+            HX.updateStencilReferenceValue(stencilValue);
+
+            var meshInstance = renderItem.meshInstance;
+            var pass = renderItem.pass;
+            var shader = pass._shader;
+            // make sure renderstate is propagated
+            shader.updateRenderState(renderItem.camera, renderItem);
+
+            if (pass !== activePass) {
+                pass.updateRenderState(renderer);
+                activePass = pass;
+
+                lastMesh = null;    // need to reset mesh data too
+            }
+
+            if (lastMesh != meshInstance._mesh) {
+                meshInstance.updateRenderState(passType);
+                lastMesh = meshInstance._mesh;
+            }
+
+            HX.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
+        }
+
+        HX.setBlendState(null);
+        return len;
+    }
+};
 HX.StencilState = function(reference, comparison, onStencilFail, onDepthFail, onPass, readMask, writeMask)
 {
     this.enabled = true;
@@ -14156,23 +14204,6 @@ HX.CopyTexturePass.prototype.setSourceTexture = function(value)
 {
     this.setTexture("sampler", value);
 };
-HX.FXAA = function()
-{
-    HX.Effect.call(this);
-
-    this._pass = new HX.EffectPass(null, HX.ShaderLibrary.get("fxaa_fragment.glsl"));
-    this._pass.setUniform("edgeThreshold", 1/8);
-    this._pass.setUniform("edgeThresholdMin", 1/16);
-    this._pass.setUniform("edgeSharpness", 4.0);
-};
-
-HX.FXAA.prototype = Object.create(HX.Effect.prototype);
-
-HX.FXAA.prototype.draw = function(dt)
-{
-    this._swapHDRBuffers();
-    this._drawPass(this._pass);
-};
 /**
  *
  * @param density
@@ -14234,6 +14265,23 @@ Object.defineProperty(HX.FogEffect.prototype, "startDistance", {
 HX.FogEffect.prototype.draw = function(dt)
 {
     this._drawPass(this._fogPass);
+};
+HX.FXAA = function()
+{
+    HX.Effect.call(this);
+
+    this._pass = new HX.EffectPass(null, HX.ShaderLibrary.get("fxaa_fragment.glsl"));
+    this._pass.setUniform("edgeThreshold", 1/8);
+    this._pass.setUniform("edgeThresholdMin", 1/16);
+    this._pass.setUniform("edgeSharpness", 4.0);
+};
+
+HX.FXAA.prototype = Object.create(HX.Effect.prototype);
+
+HX.FXAA.prototype.draw = function(dt)
+{
+    this._swapHDRBuffers();
+    this._drawPass(this._pass);
 };
 /**
  * TODO: allow scaling down of textures
@@ -14442,6 +14490,133 @@ HX.HBAO.prototype._initDitherTexture = function()
 /**
  *
  * @param numSamples
+ * @param range
+ * @constructor
+ */
+HX.ScreenSpaceReflections = function(numSamples)
+{
+    HX.Effect.call(this);
+    numSamples = numSamples || 5;
+    this._numSamples = numSamples;
+
+    var defines = {
+        NUM_SAMPLES: numSamples
+    };
+
+    this._isSupported = !!HX.EXT_STANDARD_DERIVATIVES;
+    this._stencilWriteState = new HX.StencilState(1, HX.Comparison.ALWAYS, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE);
+    this._stencilReadState = new HX.StencilState(1, HX.Comparison.EQUAL, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
+    this._stencilPass = new HX.EffectPass(null, HX.ShaderLibrary.get("ssr_stencil_fragment.glsl"));
+    this._pass = new HX.EffectPass(HX.ShaderLibrary.get("ssr_vertex.glsl", defines), HX.ShaderLibrary.get("ssr_fragment.glsl", defines));
+    this._scale = .5;
+    this.stepSize = Math.max(500.0 / numSamples, 1.0);
+    this.maxDistance = 500.0;
+    this.maxRoughness = .4;
+
+    this._depthBuffer = new HX.ReadOnlyDepthBuffer();
+
+    this._ssrTexture = new HX.Texture2D();
+    this._ssrTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
+    this._ssrTexture.wrapMode = HX.TextureWrapMode.CLAMP;
+    this._fbo = new HX.FrameBuffer(this._ssrTexture, this._depthBuffer);
+};
+
+HX.ScreenSpaceReflections.prototype = Object.create(HX.Effect.prototype);
+
+
+/**
+ * Amount of pixels to skip per sample
+ */
+Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
+    stepSize: {
+        get: function () {
+            return this._stepSize;
+        },
+
+        set: function (value) {
+            this._stepSize = value;
+            this._pass.setUniform("stepSize", value);
+        }
+    },
+
+    maxDistance: {
+        get: function()
+        {
+            return this._stepSize;
+        },
+
+        set: function(value)
+        {
+            this._stepSize = value;
+            this._pass.setUniform("maxDistance", value);
+        }
+    },
+
+    /**
+     * The maximum amount of roughness that will show any screen-space reflections
+     */
+    maxRoughness: {
+        get: function()
+        {
+            return this._stepSize;
+        },
+
+        set: function(value)
+        {
+            this._stepSize = value;
+            this._pass.setUniform("maxRoughness", value);
+            this._stencilPass.setUniform("maxRoughness", value);
+        }
+    },
+
+    scale: {
+        get: function()
+        {
+            return this._scale;
+        },
+
+        set: function(value)
+        {
+            this._scale = value;
+            if (this._scale > 1.0) this._scale = 1.0;
+        }
+    }
+});
+
+// every SSAO type should implement this
+HX.ScreenSpaceReflections.prototype.getSSRTexture = function()
+{
+    return this._ssrTexture;
+};
+
+HX.ScreenSpaceReflections.prototype.draw = function(dt)
+{
+    var w = this._renderer._width * this._scale;
+    var h = this._renderer._height * this._scale;
+    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, null, HX.GL.RGBA, HX.HDR_FORMAT)) {
+        this._depthBuffer.init(w, h);
+        this._fbo.init();
+        this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
+    }
+
+    HX.pushRenderTarget(this._fbo);
+        HX.setClearColor(HX.Color.ZERO);
+        HX.clear();
+        HX.GL.colorMask(false, false, false, false);
+        HX.pushStencilState(this._stencilWriteState);
+        this._drawPass(this._stencilPass);
+        HX.popStencilState();
+        HX.GL.colorMask(true, true, true, true);
+
+        HX.pushStencilState(this._stencilReadState);
+
+        this._drawPass(this._pass);
+        HX.popStencilState();
+    HX.popRenderTarget();
+};
+/**
+ *
+ * @param numSamples
  */
 HX.SSAO = function(numSamples)
 {
@@ -14600,133 +14775,6 @@ HX.SSAO.prototype._initDitherTexture = function()
     this._ditherTexture.uploadData(new Uint8Array(data), 4, 4, false);
     this._ditherTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
     this._ditherTexture.wrapMode = HX.TextureWrapMode.REPEAT;
-};
-/**
- *
- * @param numSamples
- * @param range
- * @constructor
- */
-HX.ScreenSpaceReflections = function(numSamples)
-{
-    HX.Effect.call(this);
-    numSamples = numSamples || 5;
-    this._numSamples = numSamples;
-
-    var defines = {
-        NUM_SAMPLES: numSamples
-    };
-
-    this._isSupported = !!HX.EXT_STANDARD_DERIVATIVES;
-    this._stencilWriteState = new HX.StencilState(1, HX.Comparison.ALWAYS, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE);
-    this._stencilReadState = new HX.StencilState(1, HX.Comparison.EQUAL, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
-    this._stencilPass = new HX.EffectPass(null, HX.ShaderLibrary.get("ssr_stencil_fragment.glsl"));
-    this._pass = new HX.EffectPass(HX.ShaderLibrary.get("ssr_vertex.glsl", defines), HX.ShaderLibrary.get("ssr_fragment.glsl", defines));
-    this._scale = .5;
-    this.stepSize = Math.max(500.0 / numSamples, 1.0);
-    this.maxDistance = 500.0;
-    this.maxRoughness = .4;
-
-    this._depthBuffer = new HX.ReadOnlyDepthBuffer();
-
-    this._ssrTexture = new HX.Texture2D();
-    this._ssrTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
-    this._ssrTexture.wrapMode = HX.TextureWrapMode.CLAMP;
-    this._fbo = new HX.FrameBuffer(this._ssrTexture, this._depthBuffer);
-};
-
-HX.ScreenSpaceReflections.prototype = Object.create(HX.Effect.prototype);
-
-
-/**
- * Amount of pixels to skip per sample
- */
-Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
-    stepSize: {
-        get: function () {
-            return this._stepSize;
-        },
-
-        set: function (value) {
-            this._stepSize = value;
-            this._pass.setUniform("stepSize", value);
-        }
-    },
-
-    maxDistance: {
-        get: function()
-        {
-            return this._stepSize;
-        },
-
-        set: function(value)
-        {
-            this._stepSize = value;
-            this._pass.setUniform("maxDistance", value);
-        }
-    },
-
-    /**
-     * The maximum amount of roughness that will show any screen-space reflections
-     */
-    maxRoughness: {
-        get: function()
-        {
-            return this._stepSize;
-        },
-
-        set: function(value)
-        {
-            this._stepSize = value;
-            this._pass.setUniform("maxRoughness", value);
-            this._stencilPass.setUniform("maxRoughness", value);
-        }
-    },
-
-    scale: {
-        get: function()
-        {
-            return this._scale;
-        },
-
-        set: function(value)
-        {
-            this._scale = value;
-            if (this._scale > 1.0) this._scale = 1.0;
-        }
-    }
-});
-
-// every SSAO type should implement this
-HX.ScreenSpaceReflections.prototype.getSSRTexture = function()
-{
-    return this._ssrTexture;
-};
-
-HX.ScreenSpaceReflections.prototype.draw = function(dt)
-{
-    var w = this._renderer._width * this._scale;
-    var h = this._renderer._height * this._scale;
-    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, null, HX.GL.RGBA, HX.HDR_FORMAT)) {
-        this._depthBuffer.init(w, h);
-        this._fbo.init();
-        this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
-    }
-
-    HX.pushRenderTarget(this._fbo);
-        HX.setClearColor(HX.Color.ZERO);
-        HX.clear();
-        HX.GL.colorMask(false, false, false, false);
-        HX.pushStencilState(this._stencilWriteState);
-        this._drawPass(this._stencilPass);
-        HX.popStencilState();
-        HX.GL.colorMask(true, true, true, true);
-
-        HX.pushStencilState(this._stencilReadState);
-
-        this._drawPass(this._pass);
-        HX.popStencilState();
-    HX.popRenderTarget();
 };
 HX.ToneMapEffect = function(adaptive)
 {
@@ -14907,8 +14955,8 @@ HX.SkeletonJoint.prototype =
  */
 HX.SkeletonJointPose = function()
 {
-    this.orientation = new HX.Quaternion();
-    this.translation = new HX.Float4();
+    this.rotation = new HX.Quaternion();
+    this.position = new HX.Float4();
     this.scale = 1.0;
 };
 
@@ -14916,8 +14964,8 @@ HX.SkeletonJointPose.prototype =
 {
     copyFrom: function(a)
     {
-        this.orientation.copyFrom(a.orientation);
-        this.translation.copyFrom(a.translation);
+        this.rotation.copyFrom(a.rotation);
+        this.position.copyFrom(a.position);
         this.scale = a.scale;
     },
 
@@ -14954,8 +15002,8 @@ HX.SkeletonPose.prototype =
 
         var target = this.jointPoses;
         for (var i = 0; i < len; ++i) {
-            target[i].orientation.slerp(a[i].orientation, b[i].orientation, factor);
-            target[i].translation.lerp(a[i].translation, b[i].translation, factor);
+            target[i].rotation.slerp(a[i].rotation, b[i].rotation, factor);
+            target[i].position.lerp(a[i].position, b[i].position, factor);
             target[i].scale = HX.lerp(a[i].scale, b[i].scale, factor);
         }
     },
@@ -15223,14 +15271,14 @@ HX.SkeletonBlendTree.prototype =
                 globalJointPose.copyFrom(localJointPose);
             else {
                 var parentPose = globalPose[joint.parentIndex];
-                var gTr = globalJointPose.translation;
-                var ptr = parentPose.translation;
-                var pQuad = parentPose.orientation;
-                pQuad.rotate(localJointPose.translation, gTr);
+                var gTr = globalJointPose.position;
+                var ptr = parentPose.position;
+                var pQuad = parentPose.rotation;
+                pQuad.rotate(localJointPose.position, gTr);
                 gTr.x += ptr.x;
                 gTr.y += ptr.y;
                 gTr.z += ptr.z;
-                globalJointPose.orientation.multiply(pQuad, localJointPose.orientation);
+                globalJointPose.rotation.multiply(pQuad, localJointPose.rotation);
                 globalJointPose.scale = localJointPose.scale;
             }
         }
@@ -15248,8 +15296,8 @@ HX.SkeletonBlendTree.prototype =
             mtx.copyFrom(skeleton.getJoint(i).inverseBindPose);
             var sc = pose.scale;
             mtx.appendScale(sc, sc, sc);
-            mtx.appendQuaternion(pose.orientation);
-            mtx.appendTranslation(pose.translation);
+            mtx.appendQuaternion(pose.rotation);
+            mtx.appendTranslation(pose.position);
         }
     }
 };
@@ -15432,10 +15480,10 @@ HX.SkeletonClipNode.prototype.update = function(dt)
 HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps)
 {
     var clip = this._clip;
-    var lastFramePos = clip.getFrame(clip.numFrames - 1).jointPoses[0].translation;
-    var firstFramePos = clip.getFrame(0).jointPoses[0].translation;
+    var lastFramePos = clip.getFrame(clip.numFrames - 1).jointPoses[0].position;
+    var firstFramePos = clip.getFrame(0).jointPoses[0].position;
 
-    var currentPos = this._pose.jointPoses[0].translation;
+    var currentPos = this._pose.jointPoses[0].position;
     var rootPos = this._rootPosition;
     var rootDelta = this._rootJointDeltaPosition;
 

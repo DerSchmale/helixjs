@@ -8,6 +8,7 @@ HX.DirectionalLight = function()
 
     this._numCascades = 1;
     this._shadowMapSize = 1024;
+    this._ditherShadows = false;
     // hard shadows by default
     this._numShadowSamples = 1;
 
@@ -27,100 +28,115 @@ HX.DirectionalLight = function()
     this._shadowSoftnessLocation = null;
 };
 
-HX.DirectionalLight.prototype = Object.create(HX.Light.prototype);
-
-Object.defineProperty(HX.DirectionalLight.prototype, "castShadows", {
-    get: function()
+HX.DirectionalLight.prototype = Object.create(HX.Light.prototype,
     {
-        return this._castShadows;
-    },
+        castShadows: {
+            get: function()
+            {
+                return this._castShadows;
+            },
 
-    set: function(value)
-    {
-        if (this._castShadows == value) return;
+            set: function(value)
+            {
+                if (this._castShadows == value) return;
 
-        this._castShadows = value;
+                this._castShadows = value;
 
-        if (value) {
-            this._shadowMapRenderer = new HX.CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
+                if (value) {
+                    this._shadowMapRenderer = new HX.CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
+                }
+                else {
+                    this._shadowMapRenderer.dispose();
+                    this._shadowMapRenderer = null;
+                }
+
+                this._invalidateLightPass();
+            }
+        },
+
+        numCascades: {
+            get: function()
+            {
+                return this._numCascades;
+            },
+
+            set: function(value)
+            {
+                if (value > 4) {
+                    console.warn("set numCascades called with value greater than 4. Real value will be set to 4.");
+                    value = 4;
+                }
+
+                this._numCascades = value;
+                if (this._castShadows) this._invalidateLightPass();
+                if (this._shadowMapRenderer) this._shadowMapRenderer.setNumCascades(value);
+            }
+        },
+
+        shadowMapSize: {
+            get: function()
+            {
+                return this._shadowMapSize;
+            },
+
+            set: function(value)
+            {
+                this._shadowMapSize = value;
+                if (this._shadowMapRenderer) this._shadowMapRenderer.setShadowMapSize(value);
+            }
+        },
+
+        numShadowSamples: {
+            get: function()
+            {
+                return this._numShadowSamples;
+            },
+
+            set: function(value)
+            {
+                if (value < 1) {
+                    value = 1;
+                    console.warn("setNumShadowSamples called with value smaller than 1. Real value will be set to 1.");
+                }
+                this._numShadowSamples = value;
+                if (this._castShadows) this._invalidateLightPass();
+            }
+        },
+
+        ditherShadows:
+        {
+            get: function()
+            {
+                return this._ditherShadows;
+            },
+
+            set: function(value)
+            {
+                this._ditherShadows = value;
+                if (this._castShadows) this._invalidateLightPass();
+            }
+        },
+
+        direction: {
+            get: function()
+            {
+                var dir = this.worldMatrix.getColumn(2);
+                dir.x = -dir.x;
+                dir.y = -dir.y;
+                dir.z = -dir.z;
+                return dir;
+            },
+
+            set: function(value)
+            {
+                var matrix = new HX.Matrix4x4();
+                var position = this.worldMatrix.getColumn(3);
+                var target = HX.Float4.add(value, position);
+                matrix.lookAt(target, position, HX.Float4.Y_AXIS);
+                this.transformationMatrix = matrix;
+            }
         }
-        else {
-            this._shadowMapRenderer.dispose();
-            this._shadowMapRenderer = null;
-        }
-
-        this._invalidateLightPass();
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "numCascades", {
-    get: function()
-    {
-        return this._numCascades;
-    },
-
-    set: function(value)
-    {
-        if (value > 4) {
-            console.warn("set numCascades called with value greater than 4. Real value will be set to 4.");
-            value = 4;
-        }
-
-        this._numCascades = value;
-        if (this._castShadows) this._invalidateLightPass();
-        if (this._shadowMapRenderer) this._shadowMapRenderer.setNumCascades(value);
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "shadowMapSize", {
-    get: function()
-    {
-        return this._shadowMapSize;
-    },
-
-    set: function(value)
-    {
-        this._shadowMapSize = value;
-        if (this._shadowMapRenderer) this._shadowMapRenderer.setShadowMapSize(value);
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "numShadowSamples", {
-    get: function()
-    {
-        return this._numShadowSamples;
-    },
-
-    set: function(value)
-    {
-        if (value < 1) {
-            value = 1;
-            console.warn("setNumShadowSamples called with value smaller than 1. Real value will be set to 1.");
-        }
-        this._numShadowSamples = value;
-        if (this._castShadows) this._invalidateLightPass();
-    }
-});
-
-Object.defineProperty(HX.DirectionalLight.prototype, "direction", {
-    get: function()
-    {
-        var dir = this.worldMatrix.getColumn(2);
-        dir.x = -dir.x;
-        dir.y = -dir.y;
-        dir.z = -dir.z;
-        return dir;
-    },
-
-    set: function(value)
-    {
-        var matrix = new HX.Matrix4x4();
-        var position = this.worldMatrix.getColumn(3);
-        var target = HX.Float4.add(value, position);
-        matrix.lookAt(target, position, HX.Float4.Y_AXIS);
-        this.transformationMatrix = matrix;
-    }
-});
+    });
 
 // returns the index of the FIRST UNRENDERED light
 HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
@@ -190,6 +206,9 @@ HX.DirectionalLight.prototype._initLightPass =  function()
         defines.NUM_CASCADES = this._numCascades;
         defines.NUM_SHADOW_SAMPLES = this._numShadowSamples;
     }
+
+    if (this._ditherShadows)
+        defines.DITHER_SHADOWS = 1;
 
     var vertexShader = HX.ShaderLibrary.get("directional_light_vertex.glsl", defines);
     var fragmentShader = HX.LIGHTING_MODEL.getGLSL() + "\n" +

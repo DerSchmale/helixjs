@@ -3305,6 +3305,7 @@ HX.FBXAnimationConverter = function()
     this._fakeJointIndex = -1;
     this._animationClips = null;
     this._bindPoses = null;
+    this._bindPosesByIndex = null;
 };
 
 HX.FBXAnimationConverter.prototype =
@@ -3341,18 +3342,46 @@ HX.FBXAnimationConverter.prototype =
 
         var len = fbxSkin.clusters.length;
 
+        this._bindPosesByIndex = [];
+
         for (var i = 0; i < len; ++i) {
             var cluster = fbxSkin.clusters[i];
             // a bit annoying, but this way, if there's multiple roots (by whatever chance), we cover them all
             this._addJointsToSkeleton(this._getRootNodeForCluster(cluster));
             var jointData = this._jointUIDLookUp[cluster.limbNode.UID];
             this._assignInverseBindPose(this._bindPoses[cluster.limbNode.UID], jointData.joint, cluster);
+            this._bindPosesByIndex[jointData.index] = this._bindPoses[cluster.limbNode.UID];
             this._assignJointBinding(cluster, jointData.index);
         }
+
+        this._localizeBindPoses();
 
         var fakeJoint = new HX.SkeletonJoint();
         this._fakeJointIndex = this._skeleton.numJoints;
         this._skeleton.addJoint(fakeJoint);
+        this._bindPosesByIndex[this._fakeJointIndex] = new HX.Matrix4x4();
+    },
+
+    _localizeBindPoses: function()
+    {
+        var local = [];
+        for (var i = 0; i < this._skeleton.numJoints; ++i)
+        {
+            var globalBind = this._bindPosesByIndex[i];
+            if (!globalBind) continue;
+
+            var joint = this._skeleton.getJoint(i);
+            if (joint.parentIndex === -1)
+                local[i] = globalBind;
+            else {
+                var mtx = new HX.Matrix4x4();
+                // to parent space
+                mtx.inverseOf(this._bindPosesByIndex[joint.parentIndex]);
+                mtx.prepend(globalBind);
+                local[i] = mtx;
+            }
+        }
+        this._bindPosesByIndex = local;
     },
 
     convertClips: function(fbxAnimationStack, settings)
@@ -3531,17 +3560,21 @@ HX.FBXAnimationConverter.prototype =
 
         var numCurveNodes = layer.curveNodes.length;
         var tempJointPoses = [];
+        var hasData = [];
 
-        for (var i = 0; i < numJoints; ++i)
+        for (var i = 0; i < numJoints; ++i) {
             tempJointPoses[i] = new HX.FBXAnimationConverter._JointPose();
+            hasData[i] = false;
+        }
 
         for (var i = 0; i < numCurveNodes; ++i) {
             var node = layer.curveNodes[i];
-
+            var jointIndex = node.data;
             // why would data be null?! so it's not hooked to skeleton w/ property
-            if (node.data === null) continue;
+            if (jointIndex === null) continue;
 
-            var target = tempJointPoses[node.data][node.propertyName];
+            var target = tempJointPoses[jointIndex][node.propertyName];
+            hasData[jointIndex] = true;
 
             for (var key in node.curves) {
                 if (!node.curves.hasOwnProperty(key)) continue;
@@ -3561,14 +3594,20 @@ HX.FBXAnimationConverter.prototype =
         }
 
         for (var i = 0; i < numJoints; ++i) {
-            var tempJointPose = tempJointPoses[i];
             var jointPose = new HX.SkeletonJointPose();
-            jointPose.translation.copyFrom(tempJointPose["Lcl Translation"]);
-            // not supporting non-uniform scaling at this point
-            jointPose.scale = tempJointPose["Lcl Scaling"].x;
-            var rot = tempJointPose["Lcl Rotation"];
-            jointPose.orientation.fromXYZ(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
-            skeletonPose.jointPoses[i] = jointPose;
+
+            if (!hasData[i] && this._bindPosesByIndex[i]) {
+                this._bindPosesByIndex[i].decompose(jointPose);
+            }
+            else {
+                var tempJointPose = tempJointPoses[i];
+                jointPose.position.copyFrom(tempJointPose["Lcl Translation"]);
+                // not supporting non-uniform scaling at this point
+                jointPose.scale = tempJointPose["Lcl Scaling"].x;
+                var rot = tempJointPose["Lcl Rotation"];
+                jointPose.rotation.fromEuler(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
+                skeletonPose.jointPoses[i] = jointPose;
+            }
         }
 
         skeletonPose.jointPoses[this._fakeJointIndex] = new HX.SkeletonJointPose();
@@ -3866,7 +3905,7 @@ HX.FBXConverter.prototype =
     _convertRotation: function(v)
     {
         var quat = new HX.Quaternion();
-        quat.fromXYZ(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
+        quat.fromEuler(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
         return quat;
     },
 
@@ -3945,6 +3984,10 @@ HX.FBXConverter._TextureToken.NORMAL_MAP = 0;
 HX.FBXConverter._TextureToken.SPECULAR_MAP = 1;
 HX.FBXConverter._TextureToken.DIFFUSE_MAP = 2;
 // Could also create an ASCII deserializer
+/**
+ *
+ * @constructor
+ */
 HX.FBXGraphBuilder = function()
 {
     this._settings = null;
@@ -4973,17 +5016,13 @@ HX.MD5Anim.prototype._translateFrame = function()
 
         // transform root joints only
         if (hierarchy.parent < 0) {
-            pose.orientation.multiply(this._correctionQuad, quat);
-            pose.translation = this._correctionQuad.rotate(pos);
+            pose.rotation.multiply(this._correctionQuad, quat);
+            pose.position = this._correctionQuad.rotate(pos);
         }
         else {
-            pose.orientation.copyFrom(quat);
-            pose.translation.copyFrom(pos);
+            pose.rotation.copyFrom(quat);
+            pose.position.copyFrom(pos);
         }
-
-        //pose.orientation.y = -pose.orientation.y;
-        //pose.orientation.z = -pose.orientation.z;
-        //pose.translation.x = -pose.translation.x;
 
         skeletonPose.jointPoses.push(pose);
     }
@@ -5664,6 +5703,41 @@ HX.OBJ._ObjectData = function()
     this.groups = [];
     this._activeGroup = null;
 };
+HX.FbxAnimationCurve = function()
+{
+    HX.FbxObject.call(this);
+    this.Default = 0.0;
+    this.KeyVer = 0.0;
+    this.KeyTime = 0.0;
+    this.KeyValueFloat = null;
+    this.KeyAttrFlags = 0.0;
+    this.KeyAttrDataFloat = null;
+    this.KeyAttrRefCount = 0.0;
+};
+
+HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
+HX.FbxAnimationCurveNode = function()
+{
+    HX.FbxObject.call(this);
+    this.curves = null;
+    // are these weights?
+    this["d|X"] = 0.0;
+    this["d|Y"] = 0.0;
+    this["d|Z"] = 0.0;
+    this.propertyName = null;
+};
+
+HX.FbxAnimationCurveNode.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimationCurveNode.prototype.toString = function() { return "[FbxAnimationCurveNode(name="+this.name+")]"; };
+
+HX.FbxAnimationCurveNode.prototype.connectProperty = function(obj, propertyName)
+{
+    if (obj instanceof HX.FbxAnimationCurve) {
+        this.curves = this.curves || {};
+        this.curves[propertyName] = obj;
+    }
+};
 HX.FbxAnimLayer = function()
 {
     HX.FbxObject.call(this);
@@ -5708,41 +5782,6 @@ HX.FbxAnimStack.prototype.connectObject = function(obj)
 };
 
 HX.FbxAnimStack.prototype.toString = function() { return "[FbxAnimStack(name="+this.name+")]"; };
-HX.FbxAnimationCurve = function()
-{
-    HX.FbxObject.call(this);
-    this.Default = 0.0;
-    this.KeyVer = 0.0;
-    this.KeyTime = 0.0;
-    this.KeyValueFloat = null;
-    this.KeyAttrFlags = 0.0;
-    this.KeyAttrDataFloat = null;
-    this.KeyAttrRefCount = 0.0;
-};
-
-HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
-HX.FbxAnimationCurveNode = function()
-{
-    HX.FbxObject.call(this);
-    this.curves = null;
-    // are these weights?
-    this["d|X"] = 0.0;
-    this["d|Y"] = 0.0;
-    this["d|Z"] = 0.0;
-    this.propertyName = null;
-};
-
-HX.FbxAnimationCurveNode.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimationCurveNode.prototype.toString = function() { return "[FbxAnimationCurveNode(name="+this.name+")]"; };
-
-HX.FbxAnimationCurveNode.prototype.connectProperty = function(obj, propertyName)
-{
-    if (obj instanceof HX.FbxAnimationCurve) {
-        this.curves = this.curves || {};
-        this.curves[propertyName] = obj;
-    }
-};
 HX.FbxCluster = function()
 {
     HX.FbxObject.call(this);

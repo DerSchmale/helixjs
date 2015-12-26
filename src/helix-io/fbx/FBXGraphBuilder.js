@@ -6,10 +6,12 @@ HX.FBXGraphBuilder = function()
     this._objects = null;
     this._rootNode = null;
     this._animationStack = null;
+    this._bindPoses = null;
 };
 
 HX.FBXGraphBuilder.prototype =
 {
+    get bindPoses() { return this._bindPoses; },
     get sceneRoot() { return this._rootNode; },
     get animationStack() { return this._animationStack; },
 
@@ -18,6 +20,7 @@ HX.FBXGraphBuilder.prototype =
         this._settings = settings;
         this._templates = {};
         this._objects = {};
+        this._bindPoses = null;
 
         // fbx scene node
         this._rootNode = new HX.FbxNode();
@@ -87,8 +90,9 @@ HX.FBXGraphBuilder.prototype =
                     obj.relativeFilename = rel? rel.data[0] : null;
                     break;
                 case "Pose":
-                    // outdated?
-                    obj = new HX.FbxPose();
+                    obj = this._processPose(node);
+                    this._bindPoses = this._bindPoses || [];
+                    this._bindPoses.push(obj);
                     break;
                 case "Deformer":
                     if (node.data[2] === "Skin")
@@ -106,9 +110,10 @@ HX.FBXGraphBuilder.prototype =
                 case "AnimationCurve":
                     obj = new HX.FbxAnimationCurve();
                     this._assignFlatData(obj, node);
+                    var arr = [];
                     for (var j = 0; j < obj.KeyTime.length; ++j)
-                        obj.KeyTime[j] = new HX.FbxTime(obj.KeyTime[j]);
-
+                        arr[j] = new HX.FbxTime(obj.KeyTime[j]);
+                    obj.KeyTime = arr;
                     break;
                 case "AnimationCurveNode":
                     obj = new HX.FbxAnimationCurveNode();
@@ -131,6 +136,22 @@ HX.FBXGraphBuilder.prototype =
                 this._objects[uid] = obj;
             }
         }
+    },
+
+    _processPose: function(objDef)
+    {
+        var pose = new HX.FbxPose();
+        pose.type = objDef.data[2];
+        for (var i = 0; i < objDef.children.length; ++i) {
+            var node = objDef.children[i];
+            if (node.name === "PoseNode") {
+                var poseNode = new HX.FbxPoseNode();
+                poseNode.targetUID = node.getChildByName("Node").data[0];
+                poseNode.matrix = new HX.Matrix4x4(node.getChildByName("Matrix").data[0]);
+                pose.poseNodes.push(poseNode);
+            }
+        }
+        return pose;
     },
 
     _processConnections: function(definitions)
@@ -190,7 +211,7 @@ HX.FBXGraphBuilder.prototype =
             case "Vector3D":
             case "Lcl Translation":
             case "Lcl Scaling":
-            case "Lcl Rotation":
+            case "Lcl Rotatfion":
                 return new HX.Float4(data[4], data[5], data[6]);
             case "bool":
             case "Visibility":

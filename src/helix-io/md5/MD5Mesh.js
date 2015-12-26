@@ -4,7 +4,7 @@
  */
 HX.MD5Mesh = function()
 {
-    HX.AssetParser.call(this, HX.Model);
+    HX.Importer.call(this, HX.Model);
     this._target = null;
     this._meshData = null;
     this._jointData = null;
@@ -14,7 +14,7 @@ HX.MD5Mesh = function()
     this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
 };
 
-HX.MD5Mesh.prototype = Object.create(HX.AssetParser.prototype);
+HX.MD5Mesh.prototype = Object.create(HX.Importer.prototype);
 
 HX.MD5Mesh.prototype.parse = function(data, target)
 {

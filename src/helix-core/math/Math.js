@@ -42,3 +42,8 @@ HX.saturate = function(value)
 {
     return HX.clamp(value, 0.0, 1.0);
 };
+
+HX.lerp = function(a, b, factor)
+{
+    return a + (b - a) * factor;
+};

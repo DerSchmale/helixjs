@@ -25,7 +25,7 @@ HX.SkeletonJointPose = function()
 {
     this.orientation = new HX.Quaternion();
     this.translation = new HX.Float4();
-    // scale not supported at this point
+    this.scale = 1.0;
 };
 
 HX.SkeletonJointPose.prototype =
@@ -34,6 +34,7 @@ HX.SkeletonJointPose.prototype =
     {
         this.orientation.copyFrom(a.orientation);
         this.translation.copyFrom(a.translation);
+        this.scale = a.scale;
     },
 
     toString: function()
@@ -71,6 +72,7 @@ HX.SkeletonPose.prototype =
         for (var i = 0; i < len; ++i) {
             target[i].orientation.slerp(a[i].orientation, b[i].orientation, factor);
             target[i].translation.lerp(a[i].translation, b[i].translation, factor);
+            target[i].scale = HX.lerp(a[i].scale, b[i].scale, factor);
         }
     },
 
@@ -78,8 +80,11 @@ HX.SkeletonPose.prototype =
     {
         a = a.jointPoses;
         var target = this.jointPoses;
-        for (var i = 0; i < len; ++i)
+        var len = target.length;
+        for (var i = 0; i < len; ++i) {
             target[i].copyFrom(a[i]);
+        }
+
     }
 };
 

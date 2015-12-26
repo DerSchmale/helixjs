@@ -26,20 +26,20 @@ HX.BulkAssetLoader.prototype =
 
     /**
      *
-     * @param files An array of files or { file: "", parser: ParserType } objects
-     * @param parser If files is an array of filenames, the parser to use for all
+     * @param files An array of files or { file: "", importer: Importer } objects
+     * @param importer If files is an array of filenames, the importer to use for all
      */
-    load: function(files, parser)
+    load: function(files, importer)
     {
         this._files = files;
         this._assets = {};
         this._index = 0;
 
-        if (parser) {
+        if (importer) {
             for (var i = 0; i < this._files.length; ++i) {
                 this._files[i] = {
                     file: this._files[i],
-                    parser: parser,
+                    importer: importer,
                     target: null
                 };
             }
@@ -56,7 +56,7 @@ HX.BulkAssetLoader.prototype =
         }
 
         var file = this._files[this._index];
-        var loader = new HX.AssetLoader(file.parser);
+        var loader = new HX.AssetLoader(file.importer);
 
         var self = this;
         loader.onComplete = function(asset)
@@ -93,7 +93,7 @@ HX.BulkAssetLoader.prototype =
     _notifyFailure: function(message)
     {
         if (!this.onFail) {
-            console.warn("Parser error: " + message);
+            console.warn("Importer error: " + message);
             return;
         }
 

@@ -1,4 +1,7 @@
-// Could also create an ASCII deserializer
+/**
+ *
+ * @constructor
+ */
 HX.FBXModelInstanceConverter = function()
 {
     this._perMaterialData = null;
@@ -6,9 +9,9 @@ HX.FBXModelInstanceConverter = function()
     this._vertexStride = 0;
     this._ctrlPointLookUp = null;
     this._model = null;
-    this._skeleton = null;
     this._animationConverter = null;
     this._fakeJointIndex = -1;
+    this._useSkinning = false;
 };
 
 HX.FBXModelInstanceConverter.prototype =
@@ -26,12 +29,10 @@ HX.FBXModelInstanceConverter.prototype =
         var modelInstance = new HX.ModelInstance(this._model, expandedMaterials);
         var clips = this._animationConverter.animationClips;
         if (clips) {
-            if (clips.length === 1) {
+            if (clips.length === 1)
                 modelInstance.addComponent(new HX.SkeletonAnimation(clips[0]));
-            }
-            else {
+            else
                 throw new Error("TODO! Implement blend node");
-            }
         }
 
         // todo: add animation component
@@ -39,16 +40,17 @@ HX.FBXModelInstanceConverter.prototype =
         return modelInstance;
     },
 
-    convertToModel: function(fbxMesh, fbxAnimationStack, matrix, settings)
+    convertToModel: function(fbxMesh, fbxAnimationStack, bindPoses, matrix, settings)
     {
         this._perMaterialData = [];
         this._ctrlPointLookUp = [];
         this._modelMaterialIDs = [];
+        this._useSkinning = false;
 
         this._modelData = new HX.ModelData();
         this._animationConverter = new HX.FBXAnimationConverter();
 
-        this._generateSkinningData(fbxMesh);
+        this._generateSkinningData(fbxMesh, bindPoses);
         this._generateExpandedMeshData(fbxMesh, matrix);
 
         this._vertexStride = HX.MeshData.DEFAULT_VERTEX_SIZE;
@@ -181,7 +183,7 @@ HX.FBXModelInstanceConverter.prototype =
                 data.vertexStack.push(data.vertices);
                 data.ctrlPointStack.push(data.ctrlPointIndices);
 
-                if (this._skinningData) {
+                if (this._useSkinning) {
                     data.skinning = [];
                     data.skinningStack.push(data.skinning);
                 }
@@ -240,10 +242,10 @@ HX.FBXModelInstanceConverter.prototype =
 
         var skinning = data.skinning;
         var vertices = data.vertices;
-        // new unique vertex!
-        var k = data.indexCounter * this._vertexStride;
-        var s = data.indexCounter * 8;
         var realIndex = data.indexCounter++;
+        // new unique vertex!
+        var k = realIndex * this._vertexStride;
+        var s = realIndex * 8;
 
         data.ctrlPointIndices[v.ctrlPointIndex] = realIndex;
 
@@ -260,6 +262,9 @@ HX.FBXModelInstanceConverter.prototype =
             if (numJoints > 4) {
                 numJoints = 4;
                 console.warn("Warning: more than 4 joints not supported. Model will not animate correctly");
+
+                // make sure we discard the least important ones
+                binding.sort(function(a, b) { return b.jointWeight - a.jointWeight; });
             }
 
             var w = 0.0;
@@ -324,7 +329,7 @@ HX.FBXModelInstanceConverter.prototype =
                 meshData.setVertexData(data.vertexStack[j], 0);
                 meshData.setIndexData(data.indexStack[j]);
 
-                if (this._skinningData) {
+                if (this._useSkinning) {
                     meshData.addVertexAttribute("hx_boneIndices", 4, 1);
                     meshData.addVertexAttribute("hx_boneWeights", 4, 1);
                     meshData.setVertexData(data.skinningStack[j], 1);
@@ -351,14 +356,15 @@ HX.FBXModelInstanceConverter.prototype =
         this._model = new HX.Model(this._modelData);
     },
 
-    _generateSkinningData: function(fbxMesh)
+    _generateSkinningData: function(fbxMesh, bindPoses)
     {
         var len = fbxMesh.deformers.length;
         if (len === 0) return;
         if (len > 1) throw new Error("Multiple skins not supported");
 
-        this._animationConverter.convertSkin(fbxMesh.deformers[0]);
+        this._animationConverter.convertSkin(fbxMesh.deformers[0], bindPoses);
         this._modelData.skeleton = this._animationConverter.skeleton;
+        this._useSkinning = true;
     }
 };
 

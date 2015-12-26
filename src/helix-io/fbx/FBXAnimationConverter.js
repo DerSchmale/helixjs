@@ -6,6 +6,7 @@ HX.FBXAnimationConverter = function()
     this._skeleton = null;
     this._fakeJointIndex = -1;
     this._animationClips = null;
+    this._bindPoses = null;
 };
 
 HX.FBXAnimationConverter.prototype =
@@ -30,23 +31,24 @@ HX.FBXAnimationConverter.prototype =
         return this._skinningData[ctrlPointIndex];
     },
 
-    convertSkin: function (fbxSkin)
+    convertSkin: function (fbxSkin, bindPoses)
     {
         this._skeleton = new HX.Skeleton();
         // skinning data contains a list of bindings per control point
         this._skinningData = [];
         this._jointUIDLookUp = {};
+        this._bindPoses = {};
+        if (bindPoses)
+            this._convertBindPoses(bindPoses);
 
         var len = fbxSkin.clusters.length;
-
-        this._controlPoints = [];
 
         for (var i = 0; i < len; ++i) {
             var cluster = fbxSkin.clusters[i];
             // a bit annoying, but this way, if there's multiple roots (by whatever chance), we cover them all
             this._addJointsToSkeleton(this._getRootNodeForCluster(cluster));
             var jointData = this._jointUIDLookUp[cluster.limbNode.UID];
-            this._assignInverseBindPose(jointData.joint, cluster);
+            this._assignInverseBindPose(this._bindPoses[cluster.limbNode.UID], jointData.joint, cluster);
             this._assignJointBinding(cluster, jointData.index);
         }
 
@@ -68,6 +70,17 @@ HX.FBXAnimationConverter.prototype =
             for (var j = 0; j < layers.length; ++j) {
                 var clip = this._convertLayer(layers[j], numFrames);
                 this._animationClips.push(clip);
+            }
+        }
+    },
+
+    _convertBindPoses: function(bindPoses)
+    {
+        for (var i = 0; i < bindPoses.length; ++i) {
+            var bindPose = bindPoses[i];
+            for (var j = 0; j < bindPose.poseNodes.length; ++j) {
+                var node = bindPose.poseNodes[j];
+                this._bindPoses[node.targetUID] = node.matrix;
             }
         }
     },
@@ -113,7 +126,6 @@ HX.FBXAnimationConverter.prototype =
         for (var i = 0; i < len; ++i) {
             if (cluster.weights[i] > 0) {
                 var ctrlPointIndex = cluster.indices[i];
-                this._controlPoints[ctrlPointIndex] = true;
                 var skinningData = this._skinningData[ctrlPointIndex] = this._skinningData[ctrlPointIndex] || [];
                 var binding = new HX.FBXModelInstanceConverter._JointBinding();
                 binding.jointIndex = jointIndex;
@@ -123,11 +135,18 @@ HX.FBXAnimationConverter.prototype =
         }
     },
 
-    _assignInverseBindPose: function (joint, cluster)
+    _assignInverseBindPose: function (bindPose, joint, cluster)
     {
-        joint.inverseBindPose.copyFrom(cluster.transformLink);
-        joint.inverseBindPose.invert();
-        joint.inverseBindPose.prepend(cluster.transform);
+        if (bindPose) {
+            joint.inverseBindPose.copyFrom(bindPose);
+            joint.inverseBindPose.invert();
+        }
+        else {
+            // is this approach something ancient?
+            joint.inverseBindPose.copyFrom(cluster.transformLink);
+            joint.inverseBindPose.invert();
+            joint.inverseBindPose.prepend(cluster.transform);
+        }
     },
 
     // this uses the logic that one of the clusters is bound to have the root node assigned to them
@@ -195,6 +214,7 @@ HX.FBXAnimationConverter.prototype =
             else if (j === numKeyFrames)
                 frameData.push(curve.KeyValueFloat[j - 1]);
             else {
+                // this should take into account tangents, if present
                 var keyTime = curve.KeyTime[j].milliseconds;
                 var prevTime = curve.KeyTime[j - 1].milliseconds;
                 var t = (time - prevTime) / (keyTime - prevTime);
@@ -203,21 +223,28 @@ HX.FBXAnimationConverter.prototype =
                 frameData.push(prev + (next - prev) * t);
             }
         }
-
         curve.data = frameData;
     },
 
     _convertFrame: function(layer, frame)
     {
         var skeletonPose = new HX.SkeletonPose();
+        var numJoints = this._skeleton.numJoints;
 
         var numCurveNodes = layer.curveNodes.length;
+        var tempJointPoses = [];
+
+        for (var i = 0; i < numJoints; ++i)
+            tempJointPoses[i] = new HX.FBXAnimationConverter._JointPose();
+
         for (var i = 0; i < numCurveNodes; ++i) {
             var node = layer.curveNodes[i];
-            var tempJointPose = new HX.FBXAnimationConverter._JointPose();
-            var target = tempJointPose[node.propertyName];
-            // the order of parsing is inefficient
-            // need to break up curves first into keyframes, then assign them
+
+            // why would data be null?! so it's not hooked to skeleton w/ property
+            if (node.data === null) continue;
+
+            var target = tempJointPoses[node.data][node.propertyName];
+
             for (var key in node.curves) {
                 if (!node.curves.hasOwnProperty(key)) continue;
                 var value = node.curves[key].data[frame];
@@ -232,15 +259,21 @@ HX.FBXAnimationConverter.prototype =
                         target.z = value;
                         break;
                 }
-
             }
+        }
 
+        for (var i = 0; i < numJoints; ++i) {
+            var tempJointPose = tempJointPoses[i];
             var jointPose = new HX.SkeletonJointPose();
             jointPose.translation.copyFrom(tempJointPose["Lcl Translation"]);
+            // not supporting non-uniform scaling at this point
+            jointPose.scale = tempJointPose["Lcl Scaling"].x;
             var rot = tempJointPose["Lcl Rotation"];
-            jointPose.orientation.fromXYZ(rot.x, rot.y, rot.z);
-            skeletonPose.jointPoses[node.data] = jointPose;
+            jointPose.orientation.fromXYZ(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
+            skeletonPose.jointPoses[i] = jointPose;
         }
+
+        skeletonPose.jointPoses[this._fakeJointIndex] = new HX.SkeletonJointPose();
 
         return skeletonPose;
     }

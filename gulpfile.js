@@ -49,10 +49,10 @@ var coreFiles = [
     "src/helix-core/utils/*.js"
 ];
 
-var parserFiles = [
-    "src/helix-parsers/fbx/objects/FbxObject.js",
-    "src/helix-parsers/fbx/objects/FbxNode.js",
-    "src/helix-parsers/**/*.js"
+var ioFiles = [
+    "src/helix-io/fbx/objects/FbxObject.js",
+    "src/helix-io/fbx/objects/FbxNode.js",
+    "src/helix-io/**/*.js"
 ];
 
 gulp.task('package', ['glsl', 'main', 'clean']);
@@ -68,20 +68,20 @@ gulp.task('core', ['glsl'], function ()
         .pipe(gulp.dest('./build/'));
 });
 
-gulp.task('parsers', [], function ()
+gulp.task('io', [], function ()
 {
-    var sources = libs.concat(parserFiles);
+    var sources = libs.concat(ioFiles);
     return gulp.src(sources, {base: './'})
-        .pipe(concat('helix-parsers.js'))
+        .pipe(concat('helix-io.js'))
         .pipe(gulp.dest('./build/'));
 });
 
 // main compiles everything, including optionals
-gulp.task('main', ['core', 'parsers']);
+gulp.task('main', ['core', 'io']);
 
 gulp.task('minimize', ['main'], function ()
 {
-    gulp.src(['./build/helix.js', './build/helix-parsers.js'], {base: './build/'})
+    gulp.src(['./build/helix.js', './build/helix-io.js'], {base: './build/'})
         .pipe(uglify())
         .pipe(rename({suffix: '.min'}))
         .pipe(gulp.dest('./build/'));

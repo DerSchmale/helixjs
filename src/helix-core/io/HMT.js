@@ -4,11 +4,11 @@
  */
 HX.HMT = function()
 {
-    HX.AssetParser.call(this, HX.Material);
+    HX.Importer.call(this, HX.Material);
     HX.HMT._initPropertyMap();
 };
 
-HX.HMT.prototype = Object.create(HX.AssetParser.prototype);
+HX.HMT.prototype = Object.create(HX.Importer.prototype);
 
 HX.HMT.prototype.parse = function(data, target)
 {

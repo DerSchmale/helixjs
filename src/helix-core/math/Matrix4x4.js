@@ -6,24 +6,29 @@
 // row-major order of passing
 HX.Matrix4x4 = function (m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 {
-    this._m = new HX.TypedArray(16);
+    if (m00 !== undefined && isNaN(m00)) {
+        this._m = new Float32Array(m00);
+    }
+    else {
+        this._m = new Float32Array(16);
 
-    this._m[0] = m00 === undefined ? 1 : 0;
-    this._m[1] = m10 || 0;
-    this._m[2] = m20 || 0;
-    this._m[3] = m30 || 0;
-    this._m[4] = m01 || 0;
-    this._m[5] = m11 === undefined ? 1 : 0;
-    this._m[6] = m21 || 0;
-    this._m[7] = m31 || 0;
-    this._m[8] = m02 || 0;
-    this._m[9] = m12 || 0;
-    this._m[10] = m22 === undefined ? 1 : 0;
-    this._m[11] = m32 || 0;
-    this._m[12] = m03 || 0;
-    this._m[13] = m13 || 0;
-    this._m[14] = m23 || 0;
-    this._m[15] = m33 === undefined ? 1 : 0;
+        this._m[0] = m00 === undefined ? 1 : 0;
+        this._m[1] = m10 || 0;
+        this._m[2] = m20 || 0;
+        this._m[3] = m30 || 0;
+        this._m[4] = m01 || 0;
+        this._m[5] = m11 === undefined ? 1 : 0;
+        this._m[6] = m21 || 0;
+        this._m[7] = m31 || 0;
+        this._m[8] = m02 || 0;
+        this._m[9] = m12 || 0;
+        this._m[10] = m22 === undefined ? 1 : 0;
+        this._m[11] = m32 || 0;
+        this._m[12] = m03 || 0;
+        this._m[13] = m13 || 0;
+        this._m[14] = m23 || 0;
+        this._m[15] = m33 === undefined ? 1 : 0;
+    }
 };
 
 HX.Matrix4x4.prototype =
@@ -775,7 +780,7 @@ HX.Matrix4x4.prototype =
         this._m[15] += this._m[3] * x + this._m[7] * y + this._m[11] * z;
     },
 
-    appendRotationQuaternion: function (q)
+    appendQuaternion: function (q)
     {
         var x = q.x, y = q.y, z = q.z, w = q.w;
         var a_m00 = 1 - 2 * (y * y + z * z), a_m10 = 2 * (x * y + w * z), a_m20 = 2 * (x * z - w * y);

@@ -1,6 +1,6 @@
 HX.MD5Anim = function()
 {
-    HX.AssetParser.call(this, HX.SkeletonClip);
+    HX.Importer.call(this, HX.SkeletonClip);
     this._hierarchy = null;
     this._baseFrame = null;
     this._activeFrame = null;
@@ -10,7 +10,7 @@ HX.MD5Anim = function()
     this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
 };
 
-HX.MD5Anim.prototype = Object.create(HX.AssetParser.prototype);
+HX.MD5Anim.prototype = Object.create(HX.Importer.prototype);
 
 HX.MD5Anim.prototype.parse = function(data, target)
 {

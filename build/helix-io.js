@@ -3202,11 +3202,11 @@ HX.FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+"
  */
 HX.FBX = function()
 {
-    HX.AssetParser.call(this, HX.GroupNode, HX.URLLoader.DATA_BINARY);
+    HX.Importer.call(this, HX.GroupNode, HX.Importer.TYPE_BINARY);
     this._rootNode = null;
 };
 
-HX.FBX.prototype = Object.create(HX.AssetParser.prototype);
+HX.FBX.prototype = Object.create(HX.Importer.prototype);
 
 HX.FBX.prototype.parse = function(data, target)
 {
@@ -3230,13 +3230,12 @@ HX.FBX.prototype.parse = function(data, target)
 
         if (deserializer.version < 7000) throw new Error("Unsupported FBX version!");
         fbxGraphBuilder.build(record, settings);
-        var fbxRoot = fbxGraphBuilder.sceneRoot;
 
         newTime = Date.now();
         console.log("Graph building: " + (newTime - time));
         time = newTime;
 
-        fbxSceneConverter.convert(fbxRoot, fbxGraphBuilder.animationStack, target, settings);
+        fbxSceneConverter.convert(fbxGraphBuilder.sceneRoot, fbxGraphBuilder.animationStack, fbxGraphBuilder.bindPoses, target, settings);
 
         newTime = Date.now();
         console.log("Conversion: " + (newTime - time));
@@ -3305,6 +3304,7 @@ HX.FBXAnimationConverter = function()
     this._skeleton = null;
     this._fakeJointIndex = -1;
     this._animationClips = null;
+    this._bindPoses = null;
 };
 
 HX.FBXAnimationConverter.prototype =
@@ -3329,23 +3329,24 @@ HX.FBXAnimationConverter.prototype =
         return this._skinningData[ctrlPointIndex];
     },
 
-    convertSkin: function (fbxSkin)
+    convertSkin: function (fbxSkin, bindPoses)
     {
         this._skeleton = new HX.Skeleton();
         // skinning data contains a list of bindings per control point
         this._skinningData = [];
         this._jointUIDLookUp = {};
+        this._bindPoses = {};
+        if (bindPoses)
+            this._convertBindPoses(bindPoses);
 
         var len = fbxSkin.clusters.length;
-
-        this._controlPoints = [];
 
         for (var i = 0; i < len; ++i) {
             var cluster = fbxSkin.clusters[i];
             // a bit annoying, but this way, if there's multiple roots (by whatever chance), we cover them all
             this._addJointsToSkeleton(this._getRootNodeForCluster(cluster));
             var jointData = this._jointUIDLookUp[cluster.limbNode.UID];
-            this._assignInverseBindPose(jointData.joint, cluster);
+            this._assignInverseBindPose(this._bindPoses[cluster.limbNode.UID], jointData.joint, cluster);
             this._assignJointBinding(cluster, jointData.index);
         }
 
@@ -3367,6 +3368,17 @@ HX.FBXAnimationConverter.prototype =
             for (var j = 0; j < layers.length; ++j) {
                 var clip = this._convertLayer(layers[j], numFrames);
                 this._animationClips.push(clip);
+            }
+        }
+    },
+
+    _convertBindPoses: function(bindPoses)
+    {
+        for (var i = 0; i < bindPoses.length; ++i) {
+            var bindPose = bindPoses[i];
+            for (var j = 0; j < bindPose.poseNodes.length; ++j) {
+                var node = bindPose.poseNodes[j];
+                this._bindPoses[node.targetUID] = node.matrix;
             }
         }
     },
@@ -3412,7 +3424,6 @@ HX.FBXAnimationConverter.prototype =
         for (var i = 0; i < len; ++i) {
             if (cluster.weights[i] > 0) {
                 var ctrlPointIndex = cluster.indices[i];
-                this._controlPoints[ctrlPointIndex] = true;
                 var skinningData = this._skinningData[ctrlPointIndex] = this._skinningData[ctrlPointIndex] || [];
                 var binding = new HX.FBXModelInstanceConverter._JointBinding();
                 binding.jointIndex = jointIndex;
@@ -3422,11 +3433,18 @@ HX.FBXAnimationConverter.prototype =
         }
     },
 
-    _assignInverseBindPose: function (joint, cluster)
+    _assignInverseBindPose: function (bindPose, joint, cluster)
     {
-        joint.inverseBindPose.copyFrom(cluster.transformLink);
-        joint.inverseBindPose.invert();
-        joint.inverseBindPose.prepend(cluster.transform);
+        if (bindPose) {
+            joint.inverseBindPose.copyFrom(bindPose);
+            joint.inverseBindPose.invert();
+        }
+        else {
+            // is this approach something ancient?
+            joint.inverseBindPose.copyFrom(cluster.transformLink);
+            joint.inverseBindPose.invert();
+            joint.inverseBindPose.prepend(cluster.transform);
+        }
     },
 
     // this uses the logic that one of the clusters is bound to have the root node assigned to them
@@ -3494,6 +3512,7 @@ HX.FBXAnimationConverter.prototype =
             else if (j === numKeyFrames)
                 frameData.push(curve.KeyValueFloat[j - 1]);
             else {
+                // this should take into account tangents, if present
                 var keyTime = curve.KeyTime[j].milliseconds;
                 var prevTime = curve.KeyTime[j - 1].milliseconds;
                 var t = (time - prevTime) / (keyTime - prevTime);
@@ -3502,21 +3521,28 @@ HX.FBXAnimationConverter.prototype =
                 frameData.push(prev + (next - prev) * t);
             }
         }
-
         curve.data = frameData;
     },
 
     _convertFrame: function(layer, frame)
     {
         var skeletonPose = new HX.SkeletonPose();
+        var numJoints = this._skeleton.numJoints;
 
         var numCurveNodes = layer.curveNodes.length;
+        var tempJointPoses = [];
+
+        for (var i = 0; i < numJoints; ++i)
+            tempJointPoses[i] = new HX.FBXAnimationConverter._JointPose();
+
         for (var i = 0; i < numCurveNodes; ++i) {
             var node = layer.curveNodes[i];
-            var tempJointPose = new HX.FBXAnimationConverter._JointPose();
-            var target = tempJointPose[node.propertyName];
-            // the order of parsing is inefficient
-            // need to break up curves first into keyframes, then assign them
+
+            // why would data be null?! so it's not hooked to skeleton w/ property
+            if (node.data === null) continue;
+
+            var target = tempJointPoses[node.data][node.propertyName];
+
             for (var key in node.curves) {
                 if (!node.curves.hasOwnProperty(key)) continue;
                 var value = node.curves[key].data[frame];
@@ -3531,21 +3557,22 @@ HX.FBXAnimationConverter.prototype =
                         target.z = value;
                         break;
                 }
-
             }
+        }
 
+        for (var i = 0; i < numJoints; ++i) {
+            var tempJointPose = tempJointPoses[i];
             var jointPose = new HX.SkeletonJointPose();
             jointPose.translation.copyFrom(tempJointPose["Lcl Translation"]);
+            // not supporting non-uniform scaling at this point
+            jointPose.scale = tempJointPose["Lcl Scaling"].x;
             var rot = tempJointPose["Lcl Rotation"];
-            jointPose.orientation.fromXYZ(rot.x, rot.y, rot.z);
-            skeletonPose.jointPoses[node.data] = jointPose;
+            jointPose.orientation.fromXYZ(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
+            skeletonPose.jointPoses[i] = jointPose;
         }
 
-        for (var i = 0; i < skeletonPose.jointPoses.length; ++i) {
-            if (!skeletonPose.jointPoses[i]) {
-                throw "Empty pose!";
-            }
-        }
+        skeletonPose.jointPoses[this._fakeJointIndex] = new HX.SkeletonJointPose();
+
         return skeletonPose;
     }
 };
@@ -3742,7 +3769,7 @@ HX.FBXConverter.prototype =
     get textureTokens() { return this._textureTokens; },
     get textureMaterialMap() { return this._textureMaterialMap; },
 
-    convert: function(rootNode, animationStack, target, settings)
+    convert: function(rootNode, animationStack, bindPoses, target, settings)
     {
         this._settings = settings;
         this._objects = [];
@@ -3750,6 +3777,7 @@ HX.FBXConverter.prototype =
         this._textureMaterialMap = [];
         this._rootNode = rootNode;
         this._animationStack = animationStack;
+        this._bindPoses = bindPoses;
         this._convertGroupNode(rootNode, target);
     },
 
@@ -3794,7 +3822,7 @@ HX.FBXConverter.prototype =
             if (transform.GeometricScaling) transform.scale = fbxNode.GeometricScaling;
             if (transform.GeometricTranslation) transform.position = fbxNode.GeometricTranslation;
             matrix = transform.transformationMatrix;
-            matrix.append(this._settings.orientationMatrix);
+            //matrix.append(this._settings.orientationMatrix);
         }
         else {
             matrix = this._settings.transformationMatrix;
@@ -3824,9 +3852,9 @@ HX.FBXConverter.prototype =
         if (fbxNode.ScalingOffset) matrix.appendTranslation(fbxNode.ScalingOffset);
 
         if (fbxNode.RotationPivot) matrix.appendTranslation(HX.Float4.negate(fbxNode.RotationPivot));
-        if (fbxNode.PreRotation) matrix.appendRotationQuaternion(this._convertRotation(fbxNode.PreRotation));
-        if (fbxNode["Lcl Rotation"]) matrix.appendRotationQuaternion(this._convertRotation(fbxNode["Lcl Rotation"]));
-        if (fbxNode.PostRotation) matrix.appendRotationQuaternion(this._convertRotation(fbxNode.PostRotation));
+        if (fbxNode.PreRotation) matrix.appendQuaternion(this._convertRotation(fbxNode.PreRotation));
+        if (fbxNode["Lcl Rotation"]) matrix.appendQuaternion(this._convertRotation(fbxNode["Lcl Rotation"]));
+        if (fbxNode.PostRotation) matrix.appendQuaternion(this._convertRotation(fbxNode.PostRotation));
         if (fbxNode.RotationPivot) matrix.appendTranslation(fbxNode.RotationPivot);
         if (fbxNode.RotationOffset) matrix.appendTranslation(fbxNode.RotationOffset);
 
@@ -3847,7 +3875,7 @@ HX.FBXConverter.prototype =
         if (this._objects[node.UID]) return this._objects[node.UID];
 
         var converter = new HX.FBXModelInstanceConverter();
-        converter.convertToModel(node, this._animationStack, matrix, this._settings);
+        converter.convertToModel(node, this._animationStack, this._bindPoses, matrix, this._settings);
 
         this._objects[node.UID] = converter;
         return converter;
@@ -3924,10 +3952,12 @@ HX.FBXGraphBuilder = function()
     this._objects = null;
     this._rootNode = null;
     this._animationStack = null;
+    this._bindPoses = null;
 };
 
 HX.FBXGraphBuilder.prototype =
 {
+    get bindPoses() { return this._bindPoses; },
     get sceneRoot() { return this._rootNode; },
     get animationStack() { return this._animationStack; },
 
@@ -3936,6 +3966,7 @@ HX.FBXGraphBuilder.prototype =
         this._settings = settings;
         this._templates = {};
         this._objects = {};
+        this._bindPoses = null;
 
         // fbx scene node
         this._rootNode = new HX.FbxNode();
@@ -4005,8 +4036,9 @@ HX.FBXGraphBuilder.prototype =
                     obj.relativeFilename = rel? rel.data[0] : null;
                     break;
                 case "Pose":
-                    // outdated?
-                    obj = new HX.FbxPose();
+                    obj = this._processPose(node);
+                    this._bindPoses = this._bindPoses || [];
+                    this._bindPoses.push(obj);
                     break;
                 case "Deformer":
                     if (node.data[2] === "Skin")
@@ -4024,9 +4056,10 @@ HX.FBXGraphBuilder.prototype =
                 case "AnimationCurve":
                     obj = new HX.FbxAnimationCurve();
                     this._assignFlatData(obj, node);
+                    var arr = [];
                     for (var j = 0; j < obj.KeyTime.length; ++j)
-                        obj.KeyTime[j] = new HX.FbxTime(obj.KeyTime[j]);
-
+                        arr[j] = new HX.FbxTime(obj.KeyTime[j]);
+                    obj.KeyTime = arr;
                     break;
                 case "AnimationCurveNode":
                     obj = new HX.FbxAnimationCurveNode();
@@ -4049,6 +4082,22 @@ HX.FBXGraphBuilder.prototype =
                 this._objects[uid] = obj;
             }
         }
+    },
+
+    _processPose: function(objDef)
+    {
+        var pose = new HX.FbxPose();
+        pose.type = objDef.data[2];
+        for (var i = 0; i < objDef.children.length; ++i) {
+            var node = objDef.children[i];
+            if (node.name === "PoseNode") {
+                var poseNode = new HX.FbxPoseNode();
+                poseNode.targetUID = node.getChildByName("Node").data[0];
+                poseNode.matrix = new HX.Matrix4x4(node.getChildByName("Matrix").data[0]);
+                pose.poseNodes.push(poseNode);
+            }
+        }
+        return pose;
     },
 
     _processConnections: function(definitions)
@@ -4108,7 +4157,7 @@ HX.FBXGraphBuilder.prototype =
             case "Vector3D":
             case "Lcl Translation":
             case "Lcl Scaling":
-            case "Lcl Rotation":
+            case "Lcl Rotatfion":
                 return new HX.Float4(data[4], data[5], data[6]);
             case "bool":
             case "Visibility":
@@ -4247,7 +4296,10 @@ HX.FBXGraphBuilder.prototype =
 };
 
 HX.FBXGraphBuilder._STRING_DEMARCATION = String.fromCharCode(0, 1);
-// Could also create an ASCII deserializer
+/**
+ *
+ * @constructor
+ */
 HX.FBXModelInstanceConverter = function()
 {
     this._perMaterialData = null;
@@ -4255,9 +4307,9 @@ HX.FBXModelInstanceConverter = function()
     this._vertexStride = 0;
     this._ctrlPointLookUp = null;
     this._model = null;
-    this._skeleton = null;
     this._animationConverter = null;
     this._fakeJointIndex = -1;
+    this._useSkinning = false;
 };
 
 HX.FBXModelInstanceConverter.prototype =
@@ -4275,12 +4327,10 @@ HX.FBXModelInstanceConverter.prototype =
         var modelInstance = new HX.ModelInstance(this._model, expandedMaterials);
         var clips = this._animationConverter.animationClips;
         if (clips) {
-            if (clips.length === 1) {
+            if (clips.length === 1)
                 modelInstance.addComponent(new HX.SkeletonAnimation(clips[0]));
-            }
-            else {
+            else
                 throw new Error("TODO! Implement blend node");
-            }
         }
 
         // todo: add animation component
@@ -4288,16 +4338,17 @@ HX.FBXModelInstanceConverter.prototype =
         return modelInstance;
     },
 
-    convertToModel: function(fbxMesh, fbxAnimationStack, matrix, settings)
+    convertToModel: function(fbxMesh, fbxAnimationStack, bindPoses, matrix, settings)
     {
         this._perMaterialData = [];
         this._ctrlPointLookUp = [];
         this._modelMaterialIDs = [];
+        this._useSkinning = false;
 
         this._modelData = new HX.ModelData();
         this._animationConverter = new HX.FBXAnimationConverter();
 
-        this._generateSkinningData(fbxMesh);
+        this._generateSkinningData(fbxMesh, bindPoses);
         this._generateExpandedMeshData(fbxMesh, matrix);
 
         this._vertexStride = HX.MeshData.DEFAULT_VERTEX_SIZE;
@@ -4430,7 +4481,7 @@ HX.FBXModelInstanceConverter.prototype =
                 data.vertexStack.push(data.vertices);
                 data.ctrlPointStack.push(data.ctrlPointIndices);
 
-                if (this._skinningData) {
+                if (this._useSkinning) {
                     data.skinning = [];
                     data.skinningStack.push(data.skinning);
                 }
@@ -4489,10 +4540,10 @@ HX.FBXModelInstanceConverter.prototype =
 
         var skinning = data.skinning;
         var vertices = data.vertices;
-        // new unique vertex!
-        var k = data.indexCounter * this._vertexStride;
-        var s = data.indexCounter * 8;
         var realIndex = data.indexCounter++;
+        // new unique vertex!
+        var k = realIndex * this._vertexStride;
+        var s = realIndex * 8;
 
         data.ctrlPointIndices[v.ctrlPointIndex] = realIndex;
 
@@ -4509,6 +4560,9 @@ HX.FBXModelInstanceConverter.prototype =
             if (numJoints > 4) {
                 numJoints = 4;
                 console.warn("Warning: more than 4 joints not supported. Model will not animate correctly");
+
+                // make sure we discard the least important ones
+                binding.sort(function(a, b) { return b.jointWeight - a.jointWeight; });
             }
 
             var w = 0.0;
@@ -4573,7 +4627,7 @@ HX.FBXModelInstanceConverter.prototype =
                 meshData.setVertexData(data.vertexStack[j], 0);
                 meshData.setIndexData(data.indexStack[j]);
 
-                if (this._skinningData) {
+                if (this._useSkinning) {
                     meshData.addVertexAttribute("hx_boneIndices", 4, 1);
                     meshData.addVertexAttribute("hx_boneWeights", 4, 1);
                     meshData.setVertexData(data.skinningStack[j], 1);
@@ -4600,14 +4654,15 @@ HX.FBXModelInstanceConverter.prototype =
         this._model = new HX.Model(this._modelData);
     },
 
-    _generateSkinningData: function(fbxMesh)
+    _generateSkinningData: function(fbxMesh, bindPoses)
     {
         var len = fbxMesh.deformers.length;
         if (len === 0) return;
         if (len > 1) throw new Error("Multiple skins not supported");
 
-        this._animationConverter.convertSkin(fbxMesh.deformers[0]);
+        this._animationConverter.convertSkin(fbxMesh.deformers[0], bindPoses);
         this._modelData.skeleton = this._animationConverter.skeleton;
+        this._useSkinning = true;
     }
 };
 
@@ -4777,7 +4832,7 @@ HX.FBXSettings.prototype =
 };
 HX.MD5Anim = function()
 {
-    HX.AssetParser.call(this, HX.SkeletonClip);
+    HX.Importer.call(this, HX.SkeletonClip);
     this._hierarchy = null;
     this._baseFrame = null;
     this._activeFrame = null;
@@ -4787,7 +4842,7 @@ HX.MD5Anim = function()
     this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
 };
 
-HX.MD5Anim.prototype = Object.create(HX.AssetParser.prototype);
+HX.MD5Anim.prototype = Object.create(HX.Importer.prototype);
 
 HX.MD5Anim.prototype.parse = function(data, target)
 {
@@ -4960,7 +5015,7 @@ HX.MD5Anim._FrameData = function()
  */
 HX.MD5Mesh = function()
 {
-    HX.AssetParser.call(this, HX.Model);
+    HX.Importer.call(this, HX.Model);
     this._target = null;
     this._meshData = null;
     this._jointData = null;
@@ -4970,7 +5025,7 @@ HX.MD5Mesh = function()
     this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
 };
 
-HX.MD5Mesh.prototype = Object.create(HX.AssetParser.prototype);
+HX.MD5Mesh.prototype = Object.create(HX.Importer.prototype);
 
 HX.MD5Mesh.prototype.parse = function(data, target)
 {
@@ -5189,13 +5244,13 @@ HX.MD5Mesh._WeightData = function()
  */
 HX.MTL = function()
 {
-    HX.AssetParser.call(this, Object, HX.URLLoader.DATA_TEXT);
+    HX.Importer.call(this, Object, HX.URLLoader.DATA_TEXT);
     this._textures = [];
     this._texturesToLoad = [];
     this._activeMaterial = null;
 };
 
-HX.MTL.prototype = Object.create(HX.AssetParser.prototype);
+HX.MTL.prototype = Object.create(HX.Importer.prototype);
 
 HX.MTL.prototype.parse = function(data, target)
 {
@@ -5257,7 +5312,7 @@ HX.MTL.prototype._getTexture = function(url)
 
         this._texturesToLoad.push({
             file: this._correctURL(url),
-            parser: HX.JPG,
+            importer: HX.JPG,
             target: this._textures[url]
         });
     }
@@ -5294,7 +5349,7 @@ HX.MTL.prototype._loadTextures = function(lib)
  */
 HX.OBJ = function()
 {
-    HX.AssetParser.call(this, HX.GroupNode);
+    HX.Importer.call(this, HX.GroupNode);
     this._objects = [];
     this._vertices = [];
     this._normals = [];
@@ -5305,7 +5360,7 @@ HX.OBJ = function()
     this._mtlLibFile = null;
 };
 
-HX.OBJ.prototype = Object.create(HX.AssetParser.prototype);
+HX.OBJ.prototype = Object.create(HX.Importer.prototype);
 
 HX.OBJ.prototype.parse = function(data, target)
 {
@@ -5609,41 +5664,6 @@ HX.OBJ._ObjectData = function()
     this.groups = [];
     this._activeGroup = null;
 };
-HX.FbxAnimationCurve = function()
-{
-    HX.FbxObject.call(this);
-    this.Default = 0.0;
-    this.KeyVer = 0.0;
-    this.KeyTime = 0.0;
-    this.KeyValueFloat = null;
-    this.KeyAttrFlags = 0.0;
-    this.KeyAttrDataFloat = null;
-    this.KeyAttrRefCount = 0.0;
-};
-
-HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
-HX.FbxAnimationCurveNode = function()
-{
-    HX.FbxObject.call(this);
-    this.curves = null;
-    // are these weights?
-    this["d|X"] = 0.0;
-    this["d|Y"] = 0.0;
-    this["d|Z"] = 0.0;
-    this.propertyName = null;
-};
-
-HX.FbxAnimationCurveNode.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimationCurveNode.prototype.toString = function() { return "[FbxAnimationCurveNode(name="+this.name+")]"; };
-
-HX.FbxAnimationCurveNode.prototype.connectProperty = function(obj, propertyName)
-{
-    if (obj instanceof HX.FbxAnimationCurve) {
-        this.curves = this.curves || {};
-        this.curves[propertyName] = obj;
-    }
-};
 HX.FbxAnimLayer = function()
 {
     HX.FbxObject.call(this);
@@ -5688,6 +5708,41 @@ HX.FbxAnimStack.prototype.connectObject = function(obj)
 };
 
 HX.FbxAnimStack.prototype.toString = function() { return "[FbxAnimStack(name="+this.name+")]"; };
+HX.FbxAnimationCurve = function()
+{
+    HX.FbxObject.call(this);
+    this.Default = 0.0;
+    this.KeyVer = 0.0;
+    this.KeyTime = 0.0;
+    this.KeyValueFloat = null;
+    this.KeyAttrFlags = 0.0;
+    this.KeyAttrDataFloat = null;
+    this.KeyAttrRefCount = 0.0;
+};
+
+HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
+HX.FbxAnimationCurveNode = function()
+{
+    HX.FbxObject.call(this);
+    this.curves = null;
+    // are these weights?
+    this["d|X"] = 0.0;
+    this["d|Y"] = 0.0;
+    this["d|Z"] = 0.0;
+    this.propertyName = null;
+};
+
+HX.FbxAnimationCurveNode.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimationCurveNode.prototype.toString = function() { return "[FbxAnimationCurveNode(name="+this.name+")]"; };
+
+HX.FbxAnimationCurveNode.prototype.connectProperty = function(obj, propertyName)
+{
+    if (obj instanceof HX.FbxAnimationCurve) {
+        this.curves = this.curves || {};
+        this.curves[propertyName] = obj;
+    }
+};
 HX.FbxCluster = function()
 {
     HX.FbxObject.call(this);
@@ -5827,11 +5882,19 @@ HX.FbxNodeAttribute.prototype.toString = function() { return "[FbxNodeAttribute(
 HX.FbxPose = function()
 {
     HX.FbxObject.call(this);
+    this.type = null;
+    this.poseNodes = [];
 };
 
 HX.FbxPose.prototype = Object.create(HX.FbxObject.prototype);
 
 HX.FbxPose.prototype.toString = function() { return "[FbxPose(name="+this.name+")]"; };
+
+HX.FbxPoseNode = function()
+{
+    this.targetUID = null;
+    this.matrix = null;
+}
 HX.FbxSkin = function()
 {
     HX.FbxObject.call(this);

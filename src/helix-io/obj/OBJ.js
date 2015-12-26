@@ -5,7 +5,7 @@
  */
 HX.OBJ = function()
 {
-    HX.AssetParser.call(this, HX.GroupNode);
+    HX.Importer.call(this, HX.GroupNode);
     this._objects = [];
     this._vertices = [];
     this._normals = [];
@@ -16,7 +16,7 @@ HX.OBJ = function()
     this._mtlLibFile = null;
 };
 
-HX.OBJ.prototype = Object.create(HX.AssetParser.prototype);
+HX.OBJ.prototype = Object.create(HX.Importer.prototype);
 
 HX.OBJ.prototype.parse = function(data, target)
 {

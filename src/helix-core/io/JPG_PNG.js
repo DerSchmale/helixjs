@@ -1,9 +1,9 @@
 HX.JPG = function()
 {
-    HX.AssetParser.call(this, HX.Texture2D, HX.AssetParser.IMAGE);
+    HX.Importer.call(this, HX.Texture2D, HX.Importer.TYPE_IMAGE);
 };
 
-HX.JPG.prototype = Object.create(HX.AssetParser.prototype);
+HX.JPG.prototype = Object.create(HX.Importer.prototype);
 
 HX.JPG.prototype.parse = function(data, target)
 {

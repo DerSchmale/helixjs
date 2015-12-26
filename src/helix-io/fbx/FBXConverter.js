@@ -13,7 +13,7 @@ HX.FBXConverter.prototype =
     get textureTokens() { return this._textureTokens; },
     get textureMaterialMap() { return this._textureMaterialMap; },
 
-    convert: function(rootNode, animationStack, target, settings)
+    convert: function(rootNode, animationStack, bindPoses, target, settings)
     {
         this._settings = settings;
         this._objects = [];
@@ -21,6 +21,7 @@ HX.FBXConverter.prototype =
         this._textureMaterialMap = [];
         this._rootNode = rootNode;
         this._animationStack = animationStack;
+        this._bindPoses = bindPoses;
         this._convertGroupNode(rootNode, target);
     },
 
@@ -65,7 +66,7 @@ HX.FBXConverter.prototype =
             if (transform.GeometricScaling) transform.scale = fbxNode.GeometricScaling;
             if (transform.GeometricTranslation) transform.position = fbxNode.GeometricTranslation;
             matrix = transform.transformationMatrix;
-            matrix.append(this._settings.orientationMatrix);
+            //matrix.append(this._settings.orientationMatrix);
         }
         else {
             matrix = this._settings.transformationMatrix;
@@ -95,9 +96,9 @@ HX.FBXConverter.prototype =
         if (fbxNode.ScalingOffset) matrix.appendTranslation(fbxNode.ScalingOffset);
 
         if (fbxNode.RotationPivot) matrix.appendTranslation(HX.Float4.negate(fbxNode.RotationPivot));
-        if (fbxNode.PreRotation) matrix.appendRotationQuaternion(this._convertRotation(fbxNode.PreRotation));
-        if (fbxNode["Lcl Rotation"]) matrix.appendRotationQuaternion(this._convertRotation(fbxNode["Lcl Rotation"]));
-        if (fbxNode.PostRotation) matrix.appendRotationQuaternion(this._convertRotation(fbxNode.PostRotation));
+        if (fbxNode.PreRotation) matrix.appendQuaternion(this._convertRotation(fbxNode.PreRotation));
+        if (fbxNode["Lcl Rotation"]) matrix.appendQuaternion(this._convertRotation(fbxNode["Lcl Rotation"]));
+        if (fbxNode.PostRotation) matrix.appendQuaternion(this._convertRotation(fbxNode.PostRotation));
         if (fbxNode.RotationPivot) matrix.appendTranslation(fbxNode.RotationPivot);
         if (fbxNode.RotationOffset) matrix.appendTranslation(fbxNode.RotationOffset);
 
@@ -118,7 +119,7 @@ HX.FBXConverter.prototype =
         if (this._objects[node.UID]) return this._objects[node.UID];
 
         var converter = new HX.FBXModelInstanceConverter();
-        converter.convertToModel(node, this._animationStack, matrix, this._settings);
+        converter.convertToModel(node, this._animationStack, this._bindPoses, matrix, this._settings);
 
         this._objects[node.UID] = converter;
         return converter;

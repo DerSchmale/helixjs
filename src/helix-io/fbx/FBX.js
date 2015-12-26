@@ -4,11 +4,11 @@
  */
 HX.FBX = function()
 {
-    HX.AssetParser.call(this, HX.GroupNode, HX.URLLoader.DATA_BINARY);
+    HX.Importer.call(this, HX.GroupNode, HX.Importer.TYPE_BINARY);
     this._rootNode = null;
 };
 
-HX.FBX.prototype = Object.create(HX.AssetParser.prototype);
+HX.FBX.prototype = Object.create(HX.Importer.prototype);
 
 HX.FBX.prototype.parse = function(data, target)
 {
@@ -32,13 +32,12 @@ HX.FBX.prototype.parse = function(data, target)
 
         if (deserializer.version < 7000) throw new Error("Unsupported FBX version!");
         fbxGraphBuilder.build(record, settings);
-        var fbxRoot = fbxGraphBuilder.sceneRoot;
 
         newTime = Date.now();
         console.log("Graph building: " + (newTime - time));
         time = newTime;
 
-        fbxSceneConverter.convert(fbxRoot, fbxGraphBuilder.animationStack, target, settings);
+        fbxSceneConverter.convert(fbxGraphBuilder.sceneRoot, fbxGraphBuilder.animationStack, fbxGraphBuilder.bindPoses, target, settings);
 
         newTime = Date.now();
         console.log("Conversion: " + (newTime - time));

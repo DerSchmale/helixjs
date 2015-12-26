@@ -1,9 +1,9 @@
 HX.HCM = function()
 {
-    HX.AssetParser.call(this, HX.TextureCube);
+    HX.Importer.call(this, HX.TextureCube);
 };
 
-HX.HCM.prototype = Object.create(HX.AssetParser.prototype);
+HX.HCM.prototype = Object.create(HX.Importer.prototype);
 
 HX.HCM.prototype.parse = function(data, target)
 {

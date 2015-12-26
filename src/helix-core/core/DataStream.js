@@ -133,12 +133,12 @@ HX.DataStream.prototype =
 
     getFloat32Array: function(len)
     {
-        return this._readArray(len, Int32Array, this.getFloat32);
+        return this._readArray(len, Float32Array, this.getFloat32);
     },
 
     getFloat64Array: function(len)
     {
-        return this._readArray(len, Int32Array, this.getFloat64);
+        return this._readArray(len, Float64Array, this.getFloat64);
     },
 
     getString: function(len)

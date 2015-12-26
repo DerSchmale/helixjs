@@ -1,11 +1,11 @@
-HX.AssetLoader = function(ParserType)
+HX.AssetLoader = function(ImporterType)
 {
     // this can either be listened to, or overwritten by a function
     this.onComplete = new HX.Signal();
     this.onFail = new HX.Signal();
     this.fileMap = {};
     this.options = {};
-    this._parserType = ParserType;
+    this._importerType = ImporterType;
 };
 
 HX.AssetLoader.prototype =
@@ -13,7 +13,7 @@ HX.AssetLoader.prototype =
     // if we need to remap filenames, filemapping might be useful
     // just contains an object table:
     // { "filename.tga": "filename.jpg", ... }
-    // target: optional, (and usually only used by parsers)
+    // target: optional, (and usually only used by importers)
     load: function (filename, target)
     {
         function fail(code) {
@@ -26,20 +26,20 @@ HX.AssetLoader.prototype =
             }
         }
 
-        var parser = new this._parserType();
-        target = target || parser.createContainer();
-        parser.onComplete = this.onComplete;
-        parser.onFail = this.onFail;
-        parser.fileMap = this.fileMap;
-        parser.options = this.options;
+        var importer = new this._importerType();
+        target = target || importer.createContainer();
+        importer.onComplete = this.onComplete;
+        importer.onFail = this.onFail;
+        importer.fileMap = this.fileMap;
+        importer.options = this.options;
         var file = HX.FileUtils.extractPathAndFilename(filename);
-        parser.path = file.path;
-        parser.filename = file.filename;
+        importer.path = file.path;
+        importer.filename = file.filename;
 
-        if (parser.dataType === HX.AssetParser.IMAGE) {
+        if (importer.dataType === HX.Importer.TYPE_IMAGE) {
             var image = new Image();
             image.onload = function() {
-                parser.parse(image, target);
+                importer.parse(image, target);
             };
 
             image.onError = function() {
@@ -50,11 +50,11 @@ HX.AssetLoader.prototype =
         }
         else {
             var urlLoader = new HX.URLLoader();
-            urlLoader.type = parser.dataType;
+            urlLoader.type = importer.dataType;
 
             urlLoader.onComplete = function (data)
             {
-                parser.parse(data, target);
+                importer.parse(data, target);
             };
 
             urlLoader.onError = function (code)
@@ -69,20 +69,20 @@ HX.AssetLoader.prototype =
     }
 };
 
-HX.AssetParser = function(containerType, dataType)
+HX.Importer = function(containerType, dataType)
 {
     this._dataType = dataType === undefined? HX.URLLoader.DATA_TEXT : dataType;
     this._containerType = containerType;
     this.onComplete = null;
     this.onFail = null;
     this.fileMap = null;
-    // be able to pass parser specific objects
+    // be able to pass importer specific settings
     this.options = {};
     this.path = "";
     this.filename = "";
 };
 
-HX.AssetParser.prototype =
+HX.Importer.prototype =
 {
     get dataType() { return this._dataType; },
     createContainer: function() { return new this._containerType(); },
@@ -117,6 +117,6 @@ HX.AssetParser.prototype =
     }
 };
 
-HX.AssetParser.DATA_TEXT = HX.URLLoader.DATA_TEXT;
-HX.AssetParser.DATA_BINARY = HX.URLLoader.DATA_BINARY;
-HX.AssetParser.IMAGE = 2;
+HX.Importer.TYPE_TEXT = HX.URLLoader.DATA_TEXT;
+HX.Importer.TYPE_BINARY = HX.URLLoader.DATA_BINARY;
+HX.Importer.TYPE_IMAGE = 2;

@@ -3134,14 +3134,41 @@ HX.FbxNode = function()
     this.mesh = null;
     this.materials = null;
     this.animationCurveNodes = null;
+
+    this._geometricMatrix = null;
 };
 
 HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
     {
-        numChildren: {
+        numChildren:
+        {
             get: function ()
             {
                 return this.children? this.children.length : 0;
+            }
+        },
+
+        geometryTransform:
+        {
+            get: function()
+            {
+                if (!this._geometricMatrix) {
+                    this._geometricMatrix = new HX.Matrix4x4();
+                    if (this.GeometricRotation || this.GeometricScaling || this.GeometricTranslation) {
+                        var transform = new HX.Transform();
+                        // for now there will be problems with this if several geometric transformations are used on the same geometry
+                        if (this.GeometricRotation) {
+                            var quat = new HX.Quaternion();
+                            quat.fromEuler(this.GeometricRotation.x * HX.DEG_TO_RAD, this.GeometricRotation.y * HX.DEG_TO_RAD, this.GeometricRotation.z * HX.DEG_TO_RAD);
+                            transform.rotation = quat;
+                        }
+                        if (this.GeometricScaling) transform.scale = this.GeometricScaling;
+                        if (this.GeometricTranslation) transform.position = this.GeometricTranslation;
+                        this._geometricMatrix.copyFrom(transform.transformationMatrix);
+                    }
+                }
+
+                return this._geometricMatrix;
             }
         }
     }
@@ -3235,7 +3262,7 @@ HX.FBX.prototype.parse = function(data, target)
         console.log("Graph building: " + (newTime - time));
         time = newTime;
 
-        fbxSceneConverter.convert(fbxGraphBuilder.sceneRoot, fbxGraphBuilder.animationStack, fbxGraphBuilder.bindPoses, target, settings);
+        fbxSceneConverter.convert(fbxGraphBuilder.sceneRoot, fbxGraphBuilder.animationStack, target, settings);
 
         newTime = Date.now();
         console.log("Conversion: " + (newTime - time));
@@ -3304,8 +3331,7 @@ HX.FBXAnimationConverter = function()
     this._skeleton = null;
     this._fakeJointIndex = -1;
     this._animationClips = null;
-    this._bindPoses = null;
-    this._bindPosesByIndex = null;
+    this._frameRate = 24;
 };
 
 HX.FBXAnimationConverter.prototype =
@@ -3330,61 +3356,34 @@ HX.FBXAnimationConverter.prototype =
         return this._skinningData[ctrlPointIndex];
     },
 
-    convertSkin: function (fbxSkin, bindPoses)
+    convertSkin: function (fbxSkin, geometryMatrix)
     {
         this._skeleton = new HX.Skeleton();
         // skinning data contains a list of bindings per control point
         this._skinningData = [];
         this._jointUIDLookUp = {};
-        this._bindPoses = {};
-        if (bindPoses)
-            this._convertBindPoses(bindPoses);
 
         var len = fbxSkin.clusters.length;
-
-        this._bindPosesByIndex = [];
 
         for (var i = 0; i < len; ++i) {
             var cluster = fbxSkin.clusters[i];
             // a bit annoying, but this way, if there's multiple roots (by whatever chance), we cover them all
             this._addJointsToSkeleton(this._getRootNodeForCluster(cluster));
             var jointData = this._jointUIDLookUp[cluster.limbNode.UID];
-            this._assignInverseBindPose(this._bindPoses[cluster.limbNode.UID], jointData.joint, cluster);
-            this._bindPosesByIndex[jointData.index] = this._bindPoses[cluster.limbNode.UID];
+            this._assignInverseBindPose(cluster, geometryMatrix, jointData.joint);
             this._assignJointBinding(cluster, jointData.index);
         }
-
-        this._localizeBindPoses();
 
         var fakeJoint = new HX.SkeletonJoint();
         this._fakeJointIndex = this._skeleton.numJoints;
         this._skeleton.addJoint(fakeJoint);
-        this._bindPosesByIndex[this._fakeJointIndex] = new HX.Matrix4x4();
-    },
 
-    _localizeBindPoses: function()
-    {
-        var local = [];
-        for (var i = 0; i < this._skeleton.numJoints; ++i)
-        {
-            var globalBind = this._bindPosesByIndex[i];
-            if (!globalBind) continue;
-
-            var joint = this._skeleton.getJoint(i);
-            if (joint.parentIndex === -1)
-                local[i] = globalBind;
-            else {
-                var mtx = new HX.Matrix4x4();
-                // to parent space
-                mtx.inverseOf(this._bindPosesByIndex[joint.parentIndex]);
-                mtx.prepend(globalBind);
-                local[i] = mtx;
-            }
+        for (var key in this._jointUIDLookUp) {
+            this._jointUIDLookUp[key].fbxNode.data = null;
         }
-        this._bindPosesByIndex = local;
     },
 
-    convertClips: function(fbxAnimationStack, settings)
+    convertClips: function(fbxAnimationStack, geometryMatrix, settings)
     {
         this._frameRate = settings.frameRate;
 
@@ -3397,17 +3396,6 @@ HX.FBXAnimationConverter.prototype =
             for (var j = 0; j < layers.length; ++j) {
                 var clip = this._convertLayer(layers[j], numFrames);
                 this._animationClips.push(clip);
-            }
-        }
-    },
-
-    _convertBindPoses: function(bindPoses)
-    {
-        for (var i = 0; i < bindPoses.length; ++i) {
-            var bindPose = bindPoses[i];
-            for (var j = 0; j < bindPose.poseNodes.length; ++j) {
-                var node = bindPose.poseNodes[j];
-                this._bindPoses[node.targetUID] = node.matrix;
             }
         }
     },
@@ -3428,7 +3416,7 @@ HX.FBXAnimationConverter.prototype =
         var index = this._skeleton.numJoints;
         this._skeleton.addJoint(joint);
 
-        this._jointUIDLookUp[fbxNode.UID] = { joint: joint, index: index };
+        this._jointUIDLookUp[fbxNode.UID] = { joint: joint, index: index, fbxNode: fbxNode };
 
         if (fbxNode.animationCurveNodes) {
             for (var key in fbxNode.animationCurveNodes) {
@@ -3462,18 +3450,13 @@ HX.FBXAnimationConverter.prototype =
         }
     },
 
-    _assignInverseBindPose: function (bindPose, joint, cluster)
+    _assignInverseBindPose: function (cluster, geometryMatrix, joint)
     {
-        if (bindPose) {
-            joint.inverseBindPose.copyFrom(bindPose);
-            joint.inverseBindPose.invert();
-        }
-        else {
-            // is this approach something ancient?
-            joint.inverseBindPose.copyFrom(cluster.transformLink);
-            joint.inverseBindPose.invert();
-            joint.inverseBindPose.prepend(cluster.transform);
-        }
+        joint.inverseBindPose.copyFrom(cluster.transformLink);
+        joint.inverseBindPose.invertAffine();
+        joint.inverseBindPose.prependAffine(cluster.transform);
+        joint.inverseBindPose.prependAffine(geometryMatrix);
+        //matrix.append(this._settings.orientationMatrix);
     },
 
     // this uses the logic that one of the clusters is bound to have the root node assigned to them
@@ -3482,7 +3465,7 @@ HX.FBXAnimationConverter.prototype =
     {
         var limbNode = cluster.limbNode;
         while (limbNode) {
-            if (limbNode.type === "Root")
+            if (limbNode.type !== "LimbNode")
                 return limbNode;
             limbNode = limbNode.parent;
         }
@@ -3560,21 +3543,42 @@ HX.FBXAnimationConverter.prototype =
 
         var numCurveNodes = layer.curveNodes.length;
         var tempJointPoses = [];
-        var hasData = [];
 
         for (var i = 0; i < numJoints; ++i) {
-            tempJointPoses[i] = new HX.FBXAnimationConverter._JointPose();
-            hasData[i] = false;
+            var joint = this._skeleton.getJoint(i);
+            var localBind = joint.inverseBindPose.clone();
+            localBind.invertAffine();
+
+            if (joint.parentIndex !== -1) {
+                var parentInverse = this._skeleton.getJoint(joint.parentIndex).inverseBindPose;
+                localBind.appendAffine(parentInverse);
+            }
+
+            var pose = new HX.FBXAnimationConverter._JointPose();
+            var transform = new HX.Transform();
+
+            localBind.decompose(transform);
+
+            pose["Lcl Translation"].copyFrom(transform.position);
+            transform.rotation.toEuler(pose["Lcl Rotation"]);
+
+            pose["Lcl Rotation"].x *= HX.RAD_TO_DEG;
+            pose["Lcl Rotation"].y *= HX.RAD_TO_DEG;
+            pose["Lcl Rotation"].z *= HX.RAD_TO_DEG;
+
+            pose["Lcl Scaling"].copyFrom(transform.scale);
+
+            tempJointPoses[i] = pose;
         }
 
         for (var i = 0; i < numCurveNodes; ++i) {
             var node = layer.curveNodes[i];
             var jointIndex = node.data;
-            // why would data be null?! so it's not hooked to skeleton w/ property
+
+            // not a skeleton target?
             if (jointIndex === null) continue;
 
             var target = tempJointPoses[jointIndex][node.propertyName];
-            hasData[jointIndex] = true;
 
             for (var key in node.curves) {
                 if (!node.curves.hasOwnProperty(key)) continue;
@@ -3596,18 +3600,13 @@ HX.FBXAnimationConverter.prototype =
         for (var i = 0; i < numJoints; ++i) {
             var jointPose = new HX.SkeletonJointPose();
 
-            if (!hasData[i] && this._bindPosesByIndex[i]) {
-                this._bindPosesByIndex[i].decompose(jointPose);
-            }
-            else {
-                var tempJointPose = tempJointPoses[i];
-                jointPose.position.copyFrom(tempJointPose["Lcl Translation"]);
-                // not supporting non-uniform scaling at this point
-                jointPose.scale = tempJointPose["Lcl Scaling"].x;
-                var rot = tempJointPose["Lcl Rotation"];
-                jointPose.rotation.fromEuler(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
-                skeletonPose.jointPoses[i] = jointPose;
-            }
+            var tempJointPose = tempJointPoses[i];
+            jointPose.position.copyFrom(tempJointPose["Lcl Translation"]);
+            // not supporting non-uniform scaling at this point
+            jointPose.scale = tempJointPose["Lcl Scaling"].x;
+            var rot = tempJointPose["Lcl Rotation"];
+            jointPose.rotation.fromEuler(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
+            skeletonPose.jointPoses[i] = jointPose;
         }
 
         skeletonPose.jointPoses[this._fakeJointIndex] = new HX.SkeletonJointPose();
@@ -3808,7 +3807,7 @@ HX.FBXConverter.prototype =
     get textureTokens() { return this._textureTokens; },
     get textureMaterialMap() { return this._textureMaterialMap; },
 
-    convert: function(rootNode, animationStack, bindPoses, target, settings)
+    convert: function(rootNode, animationStack, target, settings)
     {
         this._settings = settings;
         this._objects = [];
@@ -3816,7 +3815,6 @@ HX.FBXConverter.prototype =
         this._textureMaterialMap = [];
         this._rootNode = rootNode;
         this._animationStack = animationStack;
-        this._bindPoses = bindPoses;
         this._convertGroupNode(rootNode, target);
     },
 
@@ -3853,22 +3851,7 @@ HX.FBXConverter.prototype =
 
     _convertModelMesh: function(fbxNode)
     {
-        var matrix;
-        if (fbxNode.GeometricRotation || fbxNode.GeometricScaling || fbxNode.GeometricTranslation) {
-            var transform = new HX.Transform();
-            // for now there will be problems with this if several geometric transformations are used on the same geometry
-            if (transform.GeometricRotation) transform.rotation = this._convertRotation(fbxNode.GeometricRotation);
-            if (transform.GeometricScaling) transform.scale = fbxNode.GeometricScaling;
-            if (transform.GeometricTranslation) transform.position = fbxNode.GeometricTranslation;
-            matrix = transform.transformationMatrix;
-            //matrix.append(this._settings.orientationMatrix);
-        }
-        else {
-            matrix = this._settings.transformationMatrix;
-        }
-
-
-        var modelConverter = this._convertGeometry(fbxNode.mesh, matrix);
+        var modelConverter = this._convertGeometry(fbxNode.mesh, fbxNode.geometryTransform);
 
         var materials = [];
 
@@ -3909,12 +3892,12 @@ HX.FBXConverter.prototype =
         return quat;
     },
 
-    _convertGeometry: function(node, matrix)
+    _convertGeometry: function(node, geometryMatrix)
     {
         if (this._objects[node.UID]) return this._objects[node.UID];
 
         var converter = new HX.FBXModelInstanceConverter();
-        converter.convertToModel(node, this._animationStack, this._bindPoses, matrix, this._settings);
+        converter.convertToModel(node, this._animationStack, geometryMatrix, this._settings);
 
         this._objects[node.UID] = converter;
         return converter;
@@ -4376,12 +4359,10 @@ HX.FBXModelInstanceConverter.prototype =
                 throw new Error("TODO! Implement blend node");
         }
 
-        // todo: add animation component
-
         return modelInstance;
     },
 
-    convertToModel: function(fbxMesh, fbxAnimationStack, bindPoses, matrix, settings)
+    convertToModel: function(fbxMesh, fbxAnimationStack, geometryMatrix, settings)
     {
         this._perMaterialData = [];
         this._ctrlPointLookUp = [];
@@ -4391,8 +4372,9 @@ HX.FBXModelInstanceConverter.prototype =
         this._modelData = new HX.ModelData();
         this._animationConverter = new HX.FBXAnimationConverter();
 
-        this._generateSkinningData(fbxMesh, bindPoses);
-        this._generateExpandedMeshData(fbxMesh, matrix);
+        if (fbxMesh.deformers)
+            this._generateSkinningData(fbxMesh, geometryMatrix);
+        this._generateExpandedMeshData(fbxMesh, geometryMatrix);
 
         this._vertexStride = HX.MeshData.DEFAULT_VERTEX_SIZE;
         if (this._expandedMesh.hasColor)
@@ -4400,7 +4382,8 @@ HX.FBXModelInstanceConverter.prototype =
 
         this._splitPerMaterial();
         this._generateModel();
-        this._animationConverter.convertClips(fbxAnimationStack, settings);
+        if (fbxMesh.deformers)
+            this._animationConverter.convertClips(fbxAnimationStack, geometryMatrix, settings);
         this._model.name = fbxMesh.name;
     },
 
@@ -4697,13 +4680,13 @@ HX.FBXModelInstanceConverter.prototype =
         this._model = new HX.Model(this._modelData);
     },
 
-    _generateSkinningData: function(fbxMesh, bindPoses)
+    _generateSkinningData: function(fbxMesh, geometryMatrix)
     {
         var len = fbxMesh.deformers.length;
         if (len === 0) return;
         if (len > 1) throw new Error("Multiple skins not supported");
 
-        this._animationConverter.convertSkin(fbxMesh.deformers[0], bindPoses);
+        this._animationConverter.convertSkin(fbxMesh.deformers[0], geometryMatrix);
         this._modelData.skeleton = this._animationConverter.skeleton;
         this._useSkinning = true;
     }
@@ -4859,7 +4842,8 @@ HX.FBXSettings.prototype =
                     frontAxisSign = p.data[4];
                     break;
                 case "TimeMode":
-                    this._frameRate = keyFrames[p.data[4]];
+                    if (keyFrames[p.data[4]])
+                        this._frameRate = keyFrames[p.data[4]];
                     break;
             }
         }
@@ -5706,7 +5690,7 @@ HX.OBJ._ObjectData = function()
 HX.FbxAnimationCurve = function()
 {
     HX.FbxObject.call(this);
-    this.Default = 0.0;
+    this.Default = undefined;
     this.KeyVer = 0.0;
     this.KeyTime = 0.0;
     this.KeyValueFloat = null;
@@ -5880,12 +5864,14 @@ HX.FbxMaterial.prototype.connectProperty = function(obj, propertyName)
 };
 
 HX.FbxMaterial.prototype.toString = function() { return "[FbxMaterial(name="+this.name+")]"; };
+/**
+ *
+ * @constructor
+ */
 HX.FbxMesh = function()
 {
     HX.FbxObject.call(this);
     this.Color = null;
-    //this.BBoxMin = null;
-    //this.BBoxMax = null;
     this["Casts Shadows"] = true;
 
     this.vertices = null;

@@ -428,12 +428,7 @@ HX.Matrix4x4.prototype =
 
     clone: function ()
     {
-        return new HX.Matrix4x4(
-            this._m[0], this._m[4], this._m[8], this._m[12],
-            this._m[1], this._m[5], this._m[9], this._m[13],
-            this._m[2], this._m[6], this._m[10], this._m[14],
-            this._m[3], this._m[7], this._m[11], this._m[15]
-        );
+        return new HX.Matrix4x4(this._m);
     },
 
     transpose: function ()
@@ -643,12 +638,12 @@ HX.Matrix4x4.prototype =
 
     append: function (m)
     {
-        this.multiply(this, m);
+        this.multiply(m, this);
     },
 
     prepend: function (m)
     {
-        this.multiply(m, this);
+        this.multiply(this, m);
     },
 
     appendAffine: function (m)
@@ -810,7 +805,7 @@ HX.Matrix4x4.prototype =
         this._m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23;
     },
 
-    prependRotationQuaternion: function (q)
+    prependQuaternion: function (q)
     {
         var x = q.x, y = q.y, z = q.z, w = q.w;
         var a_m00 = this._m[0], a_m10 = this._m[1], a_m20 = this._m[2];
@@ -1001,9 +996,8 @@ HX.Matrix4x4.prototype =
     {
         this.fromQuaternion(transform.rotation);
         var scale = transform.scale;
-        var position = transform.position;
         this.prependScale(scale.x, scale.y, scale.z);
-        this.appendTranslation(position);
+        this.appendTranslation(transform.position);
     },
 
     /**
@@ -1029,9 +1023,21 @@ HX.Matrix4x4.prototype =
         scale.x = Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
         scale.y = Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
         scale.z = Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
+        var clone = this.clone();
 
-        quat.fromMatrix(this);
+        var rcpX = 1.0 / scale.x, rcpY = 1.0 / scale.y, rcpZ = 1.0 / scale.z;
 
+        clone._m[0] *= rcpX;
+        clone._m[1] *= rcpX;
+        clone._m[2] *= rcpX;
+        clone._m[4] *= rcpY;
+        clone._m[5] *= rcpY;
+        clone._m[6] *= rcpY;
+        clone._m[8] *= rcpZ;
+        clone._m[9] *= rcpZ;
+        clone._m[10] *= rcpZ;
+
+        quat.fromMatrix(clone);
         pos.copyFrom(this.getColumn(3));
 
         return targetOrPos;

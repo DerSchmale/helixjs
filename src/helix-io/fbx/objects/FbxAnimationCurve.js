@@ -1,7 +1,7 @@
 HX.FbxAnimationCurve = function()
 {
     HX.FbxObject.call(this);
-    this.Default = 0.0;
+    this.Default = undefined;
     this.KeyVer = 0.0;
     this.KeyTime = 0.0;
     this.KeyValueFloat = null;

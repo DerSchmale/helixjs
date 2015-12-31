@@ -13,7 +13,7 @@ HX.FBXConverter.prototype =
     get textureTokens() { return this._textureTokens; },
     get textureMaterialMap() { return this._textureMaterialMap; },
 
-    convert: function(rootNode, animationStack, bindPoses, target, settings)
+    convert: function(rootNode, animationStack, target, settings)
     {
         this._settings = settings;
         this._objects = [];
@@ -21,7 +21,6 @@ HX.FBXConverter.prototype =
         this._textureMaterialMap = [];
         this._rootNode = rootNode;
         this._animationStack = animationStack;
-        this._bindPoses = bindPoses;
         this._convertGroupNode(rootNode, target);
     },
 
@@ -58,22 +57,7 @@ HX.FBXConverter.prototype =
 
     _convertModelMesh: function(fbxNode)
     {
-        var matrix;
-        if (fbxNode.GeometricRotation || fbxNode.GeometricScaling || fbxNode.GeometricTranslation) {
-            var transform = new HX.Transform();
-            // for now there will be problems with this if several geometric transformations are used on the same geometry
-            if (transform.GeometricRotation) transform.rotation = this._convertRotation(fbxNode.GeometricRotation);
-            if (transform.GeometricScaling) transform.scale = fbxNode.GeometricScaling;
-            if (transform.GeometricTranslation) transform.position = fbxNode.GeometricTranslation;
-            matrix = transform.transformationMatrix;
-            //matrix.append(this._settings.orientationMatrix);
-        }
-        else {
-            matrix = this._settings.transformationMatrix;
-        }
-
-
-        var modelConverter = this._convertGeometry(fbxNode.mesh, matrix);
+        var modelConverter = this._convertGeometry(fbxNode.mesh, fbxNode.geometryTransform);
 
         var materials = [];
 
@@ -114,12 +98,12 @@ HX.FBXConverter.prototype =
         return quat;
     },
 
-    _convertGeometry: function(node, matrix)
+    _convertGeometry: function(node, geometryMatrix)
     {
         if (this._objects[node.UID]) return this._objects[node.UID];
 
         var converter = new HX.FBXModelInstanceConverter();
-        converter.convertToModel(node, this._animationStack, this._bindPoses, matrix, this._settings);
+        converter.convertToModel(node, this._animationStack, geometryMatrix, this._settings);
 
         this._objects[node.UID] = converter;
         return converter;

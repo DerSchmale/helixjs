@@ -41,7 +41,8 @@ HX.FBXSettings.prototype =
                     frontAxisSign = p.data[4];
                     break;
                 case "TimeMode":
-                    this._frameRate = keyFrames[p.data[4]];
+                    if (keyFrames[p.data[4]])
+                        this._frameRate = keyFrames[p.data[4]];
                     break;
             }
         }

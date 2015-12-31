@@ -25,14 +25,41 @@ HX.FbxNode = function()
     this.mesh = null;
     this.materials = null;
     this.animationCurveNodes = null;
+
+    this._geometricMatrix = null;
 };
 
 HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
     {
-        numChildren: {
+        numChildren:
+        {
             get: function ()
             {
                 return this.children? this.children.length : 0;
+            }
+        },
+
+        geometryTransform:
+        {
+            get: function()
+            {
+                if (!this._geometricMatrix) {
+                    this._geometricMatrix = new HX.Matrix4x4();
+                    if (this.GeometricRotation || this.GeometricScaling || this.GeometricTranslation) {
+                        var transform = new HX.Transform();
+                        // for now there will be problems with this if several geometric transformations are used on the same geometry
+                        if (this.GeometricRotation) {
+                            var quat = new HX.Quaternion();
+                            quat.fromEuler(this.GeometricRotation.x * HX.DEG_TO_RAD, this.GeometricRotation.y * HX.DEG_TO_RAD, this.GeometricRotation.z * HX.DEG_TO_RAD);
+                            transform.rotation = quat;
+                        }
+                        if (this.GeometricScaling) transform.scale = this.GeometricScaling;
+                        if (this.GeometricTranslation) transform.position = this.GeometricTranslation;
+                        this._geometricMatrix.copyFrom(transform.transformationMatrix);
+                    }
+                }
+
+                return this._geometricMatrix;
             }
         }
     }

@@ -74,11 +74,12 @@ HX.SkeletonClipNode.prototype.update = function(dt)
     }
 
     var frameFactor = this._time * clip.frameRate;
+
     var firstIndex = Math.floor(frameFactor);
     var poseA = clip.getFrame(firstIndex);
 
     if (this._interpolate) {
-        var secondIndex = firstIndex == clip.numFrames - 1? 0 : firstIndex + 1;
+        var secondIndex = firstIndex === clip.numFrames - 1? 0 : firstIndex + 1;
         var poseB = clip.getFrame(secondIndex);
         this._pose.interpolate(poseA, poseB, frameFactor - firstIndex);
     }

@@ -49,6 +49,12 @@ HX.SkeletonBlendTree.prototype =
         var rootPose = this._rootNode._pose.jointPoses;
         var globalPose = this._globalPose.jointPoses;
 
+        var p = new HX.Matrix4x4();
+        var c = new HX.Matrix4x4();
+        var pp = new HX.Transform();
+        var cc = new HX.Transform();
+        var sc = new HX.Float4();
+
         for (var i = 0; i < numJoints; ++i) {
             var localJointPose = rootPose[i];
             var globalJointPose = globalPose[i];
@@ -57,8 +63,19 @@ HX.SkeletonBlendTree.prototype =
             if (joint.parentIndex < 0)
                 globalJointPose.copyFrom(localJointPose);
             else {
+                // this doesn't seem to work for MD5, but it should
                 var parentPose = globalPose[joint.parentIndex];
-                var gTr = globalJointPose.position;
+                pp.position.copyFrom(parentPose.position);
+                pp.rotation.copyFrom(parentPose.rotation);
+                pp.scale.set(parentPose.scale, parentPose.scale, parentPose.scale);
+                cc.position.copyFrom(localJointPose.position);
+                cc.rotation.copyFrom(localJointPose.rotation);
+                cc.scale.set(localJointPose.scale, localJointPose.scale, localJointPose.scale);
+                p.compose(pp);
+                c.compose(cc);
+                c.append(p);
+
+                /*var gTr = globalJointPose.position;
                 var ptr = parentPose.position;
                 var pQuad = parentPose.rotation;
                 pQuad.rotate(localJointPose.position, gTr);
@@ -66,7 +83,10 @@ HX.SkeletonBlendTree.prototype =
                 gTr.y += ptr.y;
                 gTr.z += ptr.z;
                 globalJointPose.rotation.multiply(pQuad, localJointPose.rotation);
-                globalJointPose.scale = localJointPose.scale;
+                globalJointPose.scale = parentPose.scale * localJointPose.scale;*/
+
+                c.decompose(globalJointPose.position, globalJointPose.rotation, sc);
+                //globalJointPose.scale = sc.x;
             }
         }
     },
@@ -81,6 +101,7 @@ HX.SkeletonBlendTree.prototype =
             var pose = poses[i];
             var mtx = matrices[i];
             mtx.copyFrom(skeleton.getJoint(i).inverseBindPose);
+
             var sc = pose.scale;
             mtx.appendScale(sc, sc, sc);
             mtx.appendQuaternion(pose.rotation);

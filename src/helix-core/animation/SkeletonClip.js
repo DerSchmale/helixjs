@@ -5,7 +5,7 @@
 HX.SkeletonClip = function()
 {
     this._name = null;
-    this._frameRate = 0;
+    this._frameRate = 24;
     this._frames = [];
     this._transferRootJoint = false;
 };

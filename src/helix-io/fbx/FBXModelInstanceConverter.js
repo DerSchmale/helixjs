@@ -35,12 +35,10 @@ HX.FBXModelInstanceConverter.prototype =
                 throw new Error("TODO! Implement blend node");
         }
 
-        // todo: add animation component
-
         return modelInstance;
     },
 
-    convertToModel: function(fbxMesh, fbxAnimationStack, bindPoses, matrix, settings)
+    convertToModel: function(fbxMesh, fbxAnimationStack, geometryMatrix, settings)
     {
         this._perMaterialData = [];
         this._ctrlPointLookUp = [];
@@ -50,8 +48,9 @@ HX.FBXModelInstanceConverter.prototype =
         this._modelData = new HX.ModelData();
         this._animationConverter = new HX.FBXAnimationConverter();
 
-        this._generateSkinningData(fbxMesh, bindPoses);
-        this._generateExpandedMeshData(fbxMesh, matrix);
+        if (fbxMesh.deformers)
+            this._generateSkinningData(fbxMesh, geometryMatrix);
+        this._generateExpandedMeshData(fbxMesh, geometryMatrix);
 
         this._vertexStride = HX.MeshData.DEFAULT_VERTEX_SIZE;
         if (this._expandedMesh.hasColor)
@@ -59,7 +58,8 @@ HX.FBXModelInstanceConverter.prototype =
 
         this._splitPerMaterial();
         this._generateModel();
-        this._animationConverter.convertClips(fbxAnimationStack, settings);
+        if (fbxMesh.deformers)
+            this._animationConverter.convertClips(fbxAnimationStack, geometryMatrix, settings);
         this._model.name = fbxMesh.name;
     },
 
@@ -356,13 +356,13 @@ HX.FBXModelInstanceConverter.prototype =
         this._model = new HX.Model(this._modelData);
     },
 
-    _generateSkinningData: function(fbxMesh, bindPoses)
+    _generateSkinningData: function(fbxMesh, geometryMatrix)
     {
         var len = fbxMesh.deformers.length;
         if (len === 0) return;
         if (len > 1) throw new Error("Multiple skins not supported");
 
-        this._animationConverter.convertSkin(fbxMesh.deformers[0], bindPoses);
+        this._animationConverter.convertSkin(fbxMesh.deformers[0], geometryMatrix);
         this._modelData.skeleton = this._animationConverter.skeleton;
         this._useSkinning = true;
     }

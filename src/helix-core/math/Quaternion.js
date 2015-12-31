@@ -95,6 +95,9 @@ HX.Quaternion.prototype =
             this.z = s*trace;
             this.w = s*(m._m[1] - m._m[4]);
         }
+
+        // this is to prevent non-normalized due to rounding errors
+        this.normalize();
     },
 
     rotate: function(v, target)

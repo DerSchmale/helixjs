@@ -37,7 +37,7 @@ HX.FBX.prototype.parse = function(data, target)
         console.log("Graph building: " + (newTime - time));
         time = newTime;
 
-        fbxSceneConverter.convert(fbxGraphBuilder.sceneRoot, fbxGraphBuilder.animationStack, fbxGraphBuilder.bindPoses, target, settings);
+        fbxSceneConverter.convert(fbxGraphBuilder.sceneRoot, fbxGraphBuilder.animationStack, target, settings);
 
         newTime = Date.now();
         console.log("Conversion: " + (newTime - time));

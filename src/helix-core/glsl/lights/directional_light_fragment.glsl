@@ -31,11 +31,7 @@ uniform sampler2D hx_gbufferSpecular;
 
 	float readDepth(vec2 uv)
 	{
-	#ifdef HX_NO_DEPTH_TEXTURES
 		return hx_RGBA8ToFloat(texture2D(shadowMap, uv));
-	#else
-		return texture2D(shadowMap, uv).x;
-	#endif
 	}
 
 	// view-space position

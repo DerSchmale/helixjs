@@ -151,7 +151,6 @@ HX.init = function(canvas, options)
         defines += "#define HX_NO_DEPTH_TEXTURES\n";
         if (HX.OPTIONS.maxDepthPrecision)
             defines += "#define HX_MAX_DEPTH_PRECISION\n";
-        HX.MaterialPass.SHADOW_MAP_PASS = HX.MaterialPass.NUM_PASS_TYPES++;
     }
 
     HX.EXT_STANDARD_DERIVATIVES = _getExtension('OES_standard_derivatives');

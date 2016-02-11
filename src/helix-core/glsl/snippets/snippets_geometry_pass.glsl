@@ -38,7 +38,7 @@ void hx_processGeometryMRT(vec4 color, vec3 normal, float depth, float metallicn
 #define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))
 #elif defined(HX_NO_MRT_GBUFFER_SPECULAR)
 #define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, depth))
-#elif defined(HX_SHADOW_MAP_PASS)
+#elif defined(HX_SHADOW_DEPTH_PASS)
 #define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_floatToRGBA8(depth))
 #else
 #define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])

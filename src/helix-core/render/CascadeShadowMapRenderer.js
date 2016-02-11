@@ -12,7 +12,6 @@ HX.CascadeShadowCasterCollector = function(numCascades)
     this._splitPlanes = null;
     this._numCullPlanes = 0;
     this._renderLists = [];
-    this._passType = null;
 };
 
 HX.CascadeShadowCasterCollector.prototype = Object.create(HX.SceneVisitor.prototype);
@@ -21,7 +20,6 @@ HX.CascadeShadowCasterCollector.prototype.getRenderList = function(index) { retu
 
 HX.CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 {
-    this._passType = HX.MaterialPass.SHADOW_MAP_PASS === -1? HX.MaterialPass.GEOMETRY_PASS : HX.MaterialPass.SHADOW_MAP_PASS;
     this._collectorCamera = camera;
     this._bounds.clear();
 
@@ -59,7 +57,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
 
     this._bounds.growToIncludeBound(worldBounds);
 
-    var passIndex = this._passType;
+    var passIndex = HX.MaterialPass.SHADOW_DEPTH_PASS;
 
     var numCascades = this._numCascades;
     var numMeshes = modelInstance.numMeshInstances;
@@ -183,16 +181,9 @@ HX.CascadeShadowMapRenderer.prototype =
 
         HX.pushRenderTarget(this._fbo);
 
-        var passType;
-        if (HX.MaterialPass.SHADOW_MAP_PASS === -1) {
-            HX.clear(HX.GL.DEPTH_BUFFER_BIT);
-            passType = HX.MaterialPass.GEOMETRY_COLOR_PASS;
-        }
-        else {
-            HX.setClearColor(HX.Color.WHITE);
-            HX.clear();
-            passType = HX.MaterialPass.SHADOW_MAP_PASS;
-        }
+        var passType = HX.MaterialPass.SHADOW_DEPTH_PASS;
+        HX.setClearColor(HX.Color.WHITE);
+        HX.clear();
 
         for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex)
         {

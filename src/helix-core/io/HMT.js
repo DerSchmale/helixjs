@@ -85,8 +85,7 @@ HX.HMT.prototype._processPass = function(material, passData, passType, shaders)
             this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "HX_NO_MRT_GBUFFER_SPECULAR");
         }
 
-        if (HX.MaterialPass.SHADOW_MAP_PASS !== -1)
-            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.SHADOW_MAP_PASS, "HX_SHADOW_MAP_PASS");
+        this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.SHADOW_DEPTH_PASS, "HX_SHADOW_DEPTH_PASS");
     }
     else {
         this._addPass(vertexShader, fragmentShader, passData, material, passType);

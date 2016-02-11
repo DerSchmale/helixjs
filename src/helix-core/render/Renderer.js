@@ -178,18 +178,12 @@ HX.Renderer.prototype =
 
     _renderShadowCasters: function ()
     {
-        if (HX.MaterialPass.SHADOW_MAP_PASS === -1)
-            HX.GL.colorMask(false, false, false, false);
-
         var casters = this._renderCollector.getShadowCasters();
         var len = casters.length;
 
         for (var i = 0; i < len; ++i) {
             casters[i].render(this._camera, this._scene)
         }
-
-        if (HX.MaterialPass.SHADOW_MAP_PASS === -1)
-            HX.GL.colorMask(true, true, true, true);
     },
 
     _renderOpaques: function ()

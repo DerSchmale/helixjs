@@ -118,8 +118,8 @@ function initScene(scene)
 
     primitive = HX.PlanePrimitive.create(
         {
-            numSegmentsW: 10,
-            numSegmentsH: 10,
+            numSegmentsW: 50,
+            numSegmentsH: 50,
             width: 50,
             height: 50,
             scaleU: 50,

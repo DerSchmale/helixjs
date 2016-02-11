@@ -19,6 +19,7 @@ HX.TransparencyMode = {
  */
 HX.Material = function ()
 {
+    this._elementType = HX.ElementType.TRIANGLES;
     this._transparencyMode = HX.TransparencyMode.OPAQUE;
     this._passes = new Array(HX.Material.NUM_PASS_TYPES);
     this._renderOrderHint = ++HX.Material.ID_COUNTER;
@@ -68,6 +69,20 @@ HX.Material.prototype = {
         this._renderOrder = value;
     },
 
+    get elementType()
+    {
+        return this._elementType;
+    },
+
+    set elementType(value)
+    {
+        this._elementType = value;
+        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+            if (this._passes[i])
+                this._passes[i].elementType = value;
+        }
+    },
+
     getPass: function (type)
     {
         return this._passes[type];
@@ -80,6 +95,8 @@ HX.Material.prototype = {
             pass.depthTest = HX.Comparison.EQUAL;
 
         if (pass) {
+            pass.elementType = this._elementType;
+
             for (var slotName in this._textures) {
                 if (this._textures.hasOwnProperty(slotName))
                     pass.setTexture(slotName, this._textures[slotName]);

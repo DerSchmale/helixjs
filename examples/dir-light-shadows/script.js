@@ -36,7 +36,7 @@ function initCamera(camera)
     camera.nearDistance = .01;
     camera.farDistance = 50.0;
 
-    var bloom = new HX.BloomEffect([ 300 ], [.5 ]);
+    var bloom = new HX.BloomEffect(300, .5);
     var tonemap = new HX.FilmicToneMapEffect(true);
     tonemap.exposure = 2.0;
 

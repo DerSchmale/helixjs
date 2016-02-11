@@ -42,7 +42,7 @@ function initCamera(camera)
     camera.addComponent(flightController);
 
 
-    var bloom = new HX.BloomEffect([500], [.5 ], 8);
+    var bloom = new HX.BloomEffect(500, .5, 8);
     bloom.thresholdLuminance = 1.0;
     camera.addComponent(bloom);
 

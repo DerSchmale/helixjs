@@ -165,6 +165,7 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
         var l = 0;
         var len = this._numCascades;
         var matrix = new HX.Matrix4x4();
+
         for (var i = 0; i < len; ++i) {
             matrix.multiply(this._shadowMapRenderer.getShadowMatrix(i), camera.worldMatrix);
             var m = matrix._m;

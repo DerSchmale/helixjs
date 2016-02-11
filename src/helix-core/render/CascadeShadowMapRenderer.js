@@ -53,7 +53,7 @@ HX.CascadeShadowCasterCollector.prototype.setSplitPlanes = function(splitPlanes)
 
 HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
 {
-    if (modelInstance._castShadows == false) return;
+    if (modelInstance._castShadows === false) return;
 
     this._bounds.growToIncludeBound(worldBounds);
 
@@ -78,12 +78,11 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
         else
             planeSide = worldBounds.classifyAgainstPlane(this._splitPlanes[cascade]);
 
-        if (planeSide != HX.PlaneSide.FRONT) {
+        if (planeSide !== HX.PlaneSide.FRONT) {
             for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
                 var meshInstance = modelInstance.getMeshInstance(meshIndex);
                 var material = meshInstance.material;
 
-                // TODO: ignore individual geometry passes if MRT is supported
                 if (material.hasPass(passIndex)) {
                     var renderItem = new HX.RenderItem();
                     renderItem.pass = material.getPass(passIndex);
@@ -150,7 +149,7 @@ HX.CascadeShadowMapRenderer.prototype =
 {
     setNumCascades: function(value)
     {
-        if (this._numCascades == value) return;
+        if (this._numCascades === value) return;
         this._numCascades = value;
         this._invalidateShadowMap();
         this._initSplitProperties();
@@ -160,7 +159,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
     setShadowMapSize: function(value)
     {
-        if (this._setShadowMapSize == value) return;
+        if (this._setShadowMapSize === value) return;
         this._setShadowMapSize = value;
         this._invalidateShadowMap();
     },
@@ -285,7 +284,7 @@ HX.CascadeShadowMapRenderer.prototype =
                 this._inverseLightMatrix.transformPoint(localNear, localNear);
                 this._inverseLightMatrix.transformPoint(localFar, localFar);
 
-                if (i == 0) {
+                if (i === 0) {
                     min.copyFrom(localNear);
                     max.copyFrom(localNear);
                 }
@@ -329,7 +328,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
             camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 
-            // cannot clip nearDistance to frustum, b
+            // cannot clip nearDistance to frustum, because casters in front may cast into this frustum
             camera.nearDistance = -maxBound.z;
             camera.farDistance = -min.z;
 
@@ -373,7 +372,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
     getSplitDistances: function()
     {
-        return this._splitDistances
+        return this._splitDistances;
     },
 
     getShadowMatrix: function(cascade)
@@ -439,7 +438,7 @@ HX.CascadeShadowMapRenderer.prototype =
             this._splitRatios[i] = ratio;
             this._splitPlanes[i] = new HX.Float4();
             this._splitDistances[i] = 0;
-            ratio *= .5;
+            ratio *= .25;
         }
     },
 

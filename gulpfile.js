@@ -27,6 +27,7 @@ var coreFiles = [
     // TODO: find better way for dependency management, but don't want horrible module management
     // base classes first
     "src/helix-core/shader/Shader.js",
+    "src/helix-core/material/MaterialPass.js",
     "src/helix-core/material/Material.js",
     "src/helix-core/io/AssetLoader.js",
     "src/helix-core/scene/SceneNode.js",
@@ -46,7 +47,9 @@ var coreFiles = [
     "src/helix-core/effect/*.js",
     "src/helix-core/animation/*.js",
     "src/helix-core/io/*.js",
-    "src/helix-core/utils/*.js"
+    "src/helix-core/utils/*.js",
+
+    "src/helix-core/debug/*.js"
 ];
 
 var ioFiles = [

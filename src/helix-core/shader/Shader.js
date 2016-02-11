@@ -66,9 +66,9 @@ HX.Shader.prototype = {
             this.dispose();
 
             console.log("**********");
-            console.log(vertexShaderCode);
+            HX.Debug.printShaderCode(vertexShaderCode);
             console.log("**********");
-            console.log(fragmentShaderCode);
+            HX.Debug.printShaderCode(fragmentShaderCode);
 
             if (HX.OPTIONS.throwOnShaderError)
                 throw new Error("Error in program linking:" + log);
@@ -101,7 +101,7 @@ HX.Shader.prototype = {
         // Check the compile status, return an error if failed
         if (!HX.GL.getShaderParameter(shader, HX.GL.COMPILE_STATUS)) {
             console.warn(HX.GL.getShaderInfoLog(shader));
-            console.log(code);
+            HX.Debug.printShaderCode(code);
             return false;
         }
 

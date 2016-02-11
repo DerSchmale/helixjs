@@ -29,7 +29,7 @@ HX.InitOptions = function()
     this.ignoreDepthTexturesExtension = false;     // forces storing depth info explicitly
     this.ignoreTextureLODExtension = false;     // forces storing depth info explicitly
     this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
-    this.throwOnShaderError = true;
+    this.throwOnShaderError = false;
     this.lightingModel = HX.BlinnPhongSimpleLightingModel;
 };
 

@@ -1,0 +1,29 @@
+{
+    "version": "0.1",
+    "transparencyMode": "additive",
+    "passes": {
+        "geometry": {
+            "vertexShader": "glsl/waterGeometryVertex.glsl",
+            "fragmentShader": "glsl/waterGeometryFragment.glsl"
+        },
+        "post": {
+            "vertexShader": "glsl/waterPostVertex.glsl",
+            "fragmentShader": "glsl/waterPostFragment.glsl"
+        }
+    },
+    "uniforms": {
+        "specularNormalReflection": 0.025,
+        "roughness": 0.001,
+        "normalScaleOffset1": [ 0.1, 0.0, 0.0 ],
+        "normalScaleOffset2": [ 0.3, 0.0, 0.0 ],
+        "normalScaleOffset3": [ 1.0, 0.0, 0.0 ],
+        "tintedDensity": [ 0.1756, 0.138, 0.117 ],
+        "scatteredColor": [ 0.1, 0.35, 0.25 ],
+        "scatterDensity": 0.01,
+        "refractiveRatio": 0.75,
+        "mixRatios": [0.5, 0.2, 0.15]
+    },
+    "textures": {
+        "normalMap": "../textures/wavemap.png"
+    }
+}

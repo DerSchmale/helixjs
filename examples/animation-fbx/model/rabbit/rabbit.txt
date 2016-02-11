@@ -1,0 +1,5 @@
+Model: Rabbit
+Author: Čestmír Dammer
+Project: www.kelgar.org
+Idea by Rick Hoppmann & Keppu
+License: CC0 - Public Domain

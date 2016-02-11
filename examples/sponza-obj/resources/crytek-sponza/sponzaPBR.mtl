@@ -1,0 +1,396 @@
+# 3ds Max Wavefront OBJ Exporter v0.97b - (c)2007 guruware
+# File Created: 20.08.2010 18:13:43
+
+newmtl leaf
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Sponza_Thorn_diffuse.png
+#	map_d textures_pbr/sponza_thorn_mask.jpg
+	map_bump textures_pbr/Sponza_Thorn_normal.png
+	bump textures_pbr/Sponza_Thorn_normal.png
+	map_Ns textures_pbr/Sponza_Thorn_roughness.jpg
+
+newmtl vase_round
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/VaseRound_diffuse.jpg
+	map_bump textures_pbr/VaseRound_normal.png
+	bump textures_pbr/VaseRound_normal.png
+	map_Ns textures_pbr/VaseRound_roughness.jpg
+
+newmtl Material__57
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/VasePlant_diffuse.png
+	map_bump textures_pbr/VasePlant_normal.png
+	bump textures_pbr/VasePlant_normal.png
+	map_Ns textures_pbr/VasePlant_roughness.jpg
+#	map_d textures_pbr/vase_plant_mask.jpg
+
+newmtl Material__298
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Background_Albedo.jpg
+	map_bump textures_pbr/Background_Normal.png
+	bump textures_pbr/Background_Normal.png
+	map_NS textures_pbr/Background_Roughness.jpg
+
+newmtl bricks
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Sponza_Bricks_a_Albedo.jpg
+	map_bump textures_pbr/Sponza_Bricks_a_Normal.png
+	map_Ns textures_pbr/Sponza_Bricks_a_Roughness.jpg
+	bump textures_pbr/Sponza_Bricks_a_Normal.png
+
+newmtl arch
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Sponza_Arch_diffuse.jpg
+	map_Ns textures_pbr/Sponza_Arch_roughness.jpg
+	map_bump textures_pbr/Sponza_Arch_normal.png
+	bump textures_pbr/Sponza_Arch_normal.png
+
+newmtl ceiling
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Sponza_Ceiling_diffuse.jpg
+	map_Ns textures_pbr/Sponza_Ceiling_roughness.jpg
+	map_bump textures_pbr/Sponza_Ceiling_normal.png
+	bump textures_pbr/Sponza_Ceiling_normal.png
+
+newmtl column_a
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Sponza_Column_a_diffuse.jpg
+	map_bump textures_pbr/Sponza_Column_a_normal.png
+	bump textures_pbr/Sponza_Column_a_normal.png
+	map_Ns textures_pbr/Sponza_Column_a_roughness.jpg
+
+newmtl floor
+	Ns 800.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Sponza_Floor_diffuse.jpg
+	map_bump textures_pbr/Sponza_Floor_normal.png
+	bump textures_pbr/Sponza_Floor_normal.png
+	map_Ns textures_pbr/Sponza_Floor_roughness.jpg
+
+newmtl column_c
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Sponza_Column_c_diffuse.jpg
+	map_bump textures_pbr/Sponza_Column_c_normal.png
+	bump textures_pbr/Sponza_Column_c_normal.png
+	map_Ns textures_pbr/Sponza_Column_c_roughness.jpg
+
+newmtl details
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Sponza_Details_diffuse.jpg
+	map_bump textures_pbr/Sponza_Details_normal.png
+	bump textures_pbr/Sponza_Details_normal.png
+	map_Ns textures_pbr/Sponza_Details_roughness.jpg
+
+newmtl column_b
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Sponza_Column_b_diffuse.jpg
+	map_bump textures_pbr/Sponza_Column_b_normal.png
+	bump textures_pbr/Sponza_Column_b_normal.png
+	map_Ns textures_pbr/Sponza_Column_b_roughness.jpg
+
+newmtl flagpole
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Sponza_FlagPole_diffuse.jpg
+	map_bump textures_pbr/Sponza_FlagPole_normal.png
+	bump textures_pbr/Sponza_FlagPole_normal.png
+	map_Ns textures_pbr/Sponza_FlagPole_roughness.jpg
+
+newmtl fabric_e
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka textures_pbr/Sponza_Fabric_metallic.jpg
+	map_Kd textures_pbr/Sponza_Fabric_Green_diffuse.jpg
+	map_bump textures_pbr/Sponza_Fabric_normal.png
+	bump textures_pbr/Sponza_Fabric_normal.png
+	map_Ns textures_pbr/Sponza_Fabric_roughness.jpg
+
+newmtl fabric_d
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka textures_pbr/Sponza_Fabric_metallic.jpg
+	map_Kd textures_pbr/Sponza_Fabric_Blue_diffuse.jpg
+	map_bump textures_pbr/Sponza_Fabric_normal.png
+	bump textures_pbr/Sponza_Fabric_normal.png
+	map_Ns textures_pbr/Sponza_Fabric_roughness.jpg
+
+newmtl fabric_a
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka textures_pbr/Sponza_Fabric_metallic.jpg
+	map_Kd textures_pbr/Sponza_Fabric_Red_diffuse.jpg
+	map_bump textures_pbr/Sponza_Fabric_normal.png
+	bump textures_pbr/Sponza_Fabric_normal.png
+	map_Ns textures_pbr/Sponza_Fabric_roughness.jpg
+
+newmtl fabric_g
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka textures_pbr/Sponza_Curtain_metallic.jpg
+	map_Kd textures_pbr/Sponza_Curtain_Blue_diffuse.jpg
+	map_bump textures_pbr/Sponza_Curtain_normal.png
+	bump textures_pbr/Sponza_Curtain_normal.png
+	map_Ns textures_pbr/Sponza_Curtain_roughness.jpg
+
+newmtl fabric_c
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka textures_pbr/Sponza_Curtain_metallic.jpg
+	map_Kd textures_pbr/Sponza_Curtain_Red_diffuse.jpg
+	map_bump textures_pbr/Sponza_Curtain_normal.png
+	bump textures_pbr/Sponza_Curtain_normal.png
+	map_Ns textures_pbr/Sponza_Curtain_roughness.jpg
+
+newmtl fabric_f
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka textures_pbr/Sponza_Curtain_metallic.jpg
+	map_Kd textures_pbr/Sponza_Curtain_Green_diffuse.jpg
+	map_bump textures_pbr/Sponza_Curtain_normal.png
+	bump textures_pbr/Sponza_Curtain_normal.png
+	map_Ns textures_pbr/Sponza_Curtain_roughness.jpg
+
+newmtl chain
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Ka textures_pbr/ChainTexture_Metallic.jpg
+	map_Kd textures_pbr/ChainTexture_Albedo.png
+	#map_d textures_pbr/chain_texture_mask.jpg
+	map_bump textures_pbr/ChainTexture_Normal.png
+	bump textures_pbr/ChainTexture_Normal.png
+	map_Ns textures_pbr/ChainTexture_Roughness.jpg
+
+newmtl vase_hanging
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/VaseHanging_diffuse.jpg
+	map_bump textures_pbr/VaseHanging_normal.png
+	bump textures_pbr/VaseHanging_normal.png
+	map_Ns textures_pbr/VaseHanging_roughness.jpg
+
+newmtl vase
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Vase_diffuse.jpg
+	map_bump textures_pbr/Vase_normal.png
+	bump textures_pbr/Vase_normal.png
+	map_Ns textures_pbr/Vase_roughness.jpg
+
+newmtl Material__25
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Lion_Albedo.jpg
+	map_bump textures_pbr/Lion_Normal.png
+	bump textures_pbr/Lion_Normal.png
+	map_Ns textures_pbr/Lion_Roughness.jpg
+
+newmtl roof
+	Ns 99999.0000
+	Ni 1.5000
+	d 1.0000
+	Tr 0.0000
+	Tf 1.0000 1.0000 1.0000 
+	illum 2
+	Ka 0.5880 0.5880 0.5880
+	Kd 0.5880 0.5880 0.5880
+	Ks 0.0000 0.0000 0.0000
+	Ke 0.0000 0.0000 0.0000
+	map_Kd textures_pbr/Sponza_Roof_diffuse.jpg
+	map_bump textures_pbr/Sponza_Roof_normal.png
+	bump textures_pbr/Sponza_Roof_normal.png
+	map_Ns textures_pbr/Sponza_Roof_roughness.jpg

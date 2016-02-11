@@ -3855,9 +3855,14 @@ HX.FBXConverter.prototype =
 
         var materials = [];
 
-        var numMaterials = fbxNode.materials.length;
-        for (var i = 0; i < numMaterials; ++i) {
-            materials[i] = this._convertMaterial(fbxNode.materials[i]);
+        if (fbxNode.materials) {
+            var numMaterials = fbxNode.materials.length;
+            for (var i = 0; i < numMaterials; ++i) {
+                materials[i] = this._convertMaterial(fbxNode.materials[i]);
+            }
+        }
+        else {
+            materials.push(new HX.PBRMaterial());
         }
 
         return modelConverter.createModelInstance(materials);

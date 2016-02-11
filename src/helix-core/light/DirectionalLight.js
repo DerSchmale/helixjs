@@ -8,13 +8,13 @@ HX.DirectionalLight = function()
 
     this._numCascades = 1;
     this._shadowMapSize = 1024;
-    this._ditherShadows = false;
+    this._ditherShadows = true;
     // hard shadows by default
     this._numShadowSamples = 1;
 
     // these two don't need getters/setters (saves on filesize)
     this.shadowSoftness = .01;
-    this.depthBias = .01;
+    this.depthBias = .0;
 
     this.direction = new HX.Float4(-1.0, -1.0, -1.0, 0.0);
     this._matrixData = null;

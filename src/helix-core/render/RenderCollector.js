@@ -6,6 +6,8 @@ HX.RenderCollector = function()
 {
     HX.SceneVisitor.call(this);
 
+    this._renderItemPool = new HX.RenderItemPool();
+
     // linked lists of RenderItem
     this._opaquePasses = new Array( HX.MaterialPass.NUM_PASS_TYPES ); // add in individual pass types
     this._transparentPasses = new Array( HX.MaterialPass.NUM_PASS_TYPES ); // add in individual pass types
@@ -109,7 +111,7 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
             if (pass && pass._enabled) {
                 // TODO: pool items
                 var list = material._transparencyMode === HX.TransparencyMode.OPAQUE? this._opaquePasses : this._transparentPasses;
-                var renderItem = new HX.RenderItem();
+                var renderItem = this._renderItemPool.getItem();
 
                 renderItem.material = material;
                 renderItem.pass = pass;
@@ -149,6 +151,8 @@ HX.RenderCollector.prototype.visitLight = function(light)
 
 HX.RenderCollector.prototype._reset = function()
 {
+    this._renderItemPool.reset();
+
     for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
         this._opaquePasses[i] = [];
 
@@ -209,7 +213,7 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
 
         // for unlit lighting models, these passes may be unavailable
         if (material.hasPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS)) {
-            var normalItem = new HX.RenderItem();
+            var normalItem = this._renderItemPool.getItem();
             normalItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS);
             normalItem.material = renderItem.material;
             normalItem.renderOrderHint = renderItem.renderOrderHint;
@@ -220,7 +224,7 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
         }
 
         if (material.hasPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS)) {
-            var specItem = new HX.RenderItem();
+            var specItem = this._renderItemPool.getItem();
             specItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS);
             specItem.material = renderItem.material;
             specItem.renderOrderHint = renderItem.renderOrderHint;

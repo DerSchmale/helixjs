@@ -12,6 +12,7 @@ HX.CascadeShadowCasterCollector = function(numCascades)
     this._splitPlanes = null;
     this._numCullPlanes = 0;
     this._renderLists = [];
+    this._renderItemPool = new HX.RenderItemPool();
 };
 
 HX.CascadeShadowCasterCollector.prototype = Object.create(HX.SceneVisitor.prototype);
@@ -22,6 +23,7 @@ HX.CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 {
     this._collectorCamera = camera;
     this._bounds.clear();
+    this._renderItemPool.reset();
 
     for (var i = 0; i < this._numCascades; ++i) {
         this._renderLists[i] = [];
@@ -84,7 +86,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
                 var material = meshInstance.material;
 
                 if (material.hasPass(passIndex)) {
-                    var renderItem = new HX.RenderItem();
+                    var renderItem = this._renderItemPool.getItem();
                     renderItem.pass = material.getPass(passIndex);
                     renderItem.meshInstance = meshInstance;
                     renderItem.worldMatrix = worldMatrix;

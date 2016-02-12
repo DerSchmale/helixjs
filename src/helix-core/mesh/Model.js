@@ -32,14 +32,9 @@ HX.MeshData.createDefaultEmpty = function()
 HX.MeshData.prototype = {
     constructor: HX.MeshData,
 
-    getVertexData: function(streamIndex)
+    getVertexData: function (streamIndex)
     {
         return this._vertexData[streamIndex];
-    },
-
-    numVertices: function()
-    {
-        return this._vertexData[0].length / this._vertexStrides[0];
     },
 
     /**
@@ -69,11 +64,16 @@ HX.MeshData.prototype = {
         streamIndex = streamIndex || 0;
         this._numStreams = Math.max(this._numStreams, streamIndex);
         this._vertexStrides[streamIndex] = this._vertexStrides[streamIndex] || 0;
-        this._vertexAttributes.push({name: name, offset: this._vertexStrides[streamIndex], numComponents: numComponents, streamIndex: streamIndex});
+        this._vertexAttributes.push({
+            name: name,
+            offset: this._vertexStrides[streamIndex],
+            numComponents: numComponents,
+            streamIndex: streamIndex
+        });
         this._vertexStrides[streamIndex] += numComponents;
     },
 
-    getVertexAttribute: function(name)
+    getVertexAttribute: function (name)
     {
         var len = this._vertexAttributes.length;
         for (var i = 0; i < len; ++i) {
@@ -85,7 +85,7 @@ HX.MeshData.prototype = {
     /**
      * Returns the stride of each vertex for the given stream index. This matches the total amount of elements used by all vertex attributes combined.
      */
-    getVertexStride: function(streamIndex)
+    getVertexStride: function (streamIndex)
     {
         return this._vertexStrides[streamIndex];
     },

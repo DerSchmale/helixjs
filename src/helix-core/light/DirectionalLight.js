@@ -8,9 +8,6 @@ HX.DirectionalLight = function()
 
     this._numCascades = 1;
     this._shadowMapSize = 1024;
-    this._ditherShadows = true;
-    // hard shadows by default
-    this._numShadowSamples = 1;
 
     // these two don't need getters/setters (saves on filesize)
     this.shadowSoftness = .01;
@@ -18,7 +15,6 @@ HX.DirectionalLight = function()
 
     this.direction = new HX.Float4(-1.0, -1.0, -1.0, 0.0);
     this._matrixData = null;
-    this._shadowSoftnessData = null;
 
     this._dirLocation = null;
     this._colorLocation = null;
@@ -86,37 +82,6 @@ HX.DirectionalLight.prototype = Object.create(HX.Light.prototype,
             }
         },
 
-        numShadowSamples: {
-            get: function()
-            {
-                return this._numShadowSamples;
-            },
-
-            set: function(value)
-            {
-                if (value < 1) {
-                    value = 1;
-                    console.warn("setNumShadowSamples called with value smaller than 1. Real value will be set to 1.");
-                }
-                this._numShadowSamples = value;
-                if (this._castShadows) this._invalidateLightPass();
-            }
-        },
-
-        ditherShadows:
-        {
-            get: function()
-            {
-                return this._ditherShadows;
-            },
-
-            set: function(value)
-            {
-                this._ditherShadows = value;
-                if (this._castShadows) this._invalidateLightPass();
-            }
-        },
-
         direction: {
             get: function()
             {
@@ -172,19 +137,12 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
             for (var j = 0; j < 16; ++j) {
                 this._matrixData[k++] = m[j];
             }
-
-            this._shadowMapRenderer.getSoftness(i, this.shadowSoftness, softness);
-
-            if (this._numShadowSamples > 1) {
-                this._shadowSoftnessData[l++] = softness.x;
-                this._shadowSoftnessData[l++] = softness.y;
-            }
         }
 
         HX.GL.uniformMatrix4fv(this._shadowMatrixLocation, false, this._matrixData);
 
-        if (this._numShadowSamples > 1)
-            HX.GL.uniform2fv(this._shadowSoftnessLocation, this._shadowSoftnessData);
+        if (this._shadowSoftnessLocation)
+            HX.GL.uniform1f(this._shadowSoftnessLocation, light.shadowSoftness);
     }
 
     // render rect mesh
@@ -205,14 +163,12 @@ HX.DirectionalLight.prototype._initLightPass =  function()
     if (this._castShadows) {
         defines.CAST_SHADOWS = 1;
         defines.NUM_CASCADES = this._numCascades;
-        defines.NUM_SHADOW_SAMPLES = this._numShadowSamples;
     }
 
-    if (this._ditherShadows)
-        defines.DITHER_SHADOWS = 1;
-
     var vertexShader = HX.ShaderLibrary.get("directional_light_vertex.glsl", defines);
-    var fragmentShader = HX.LIGHTING_MODEL.getGLSL() + "\n" +
+    var fragmentShader =
+        HX.DIR_SHADOW_MODEL.getGLSL() + "\n" +
+        HX.LIGHTING_MODEL.getGLSL() + "\n" +
         HX.ShaderLibrary.get("directional_light_fragment.glsl", defines);
 
     var pass = new HX.EffectPass(vertexShader, fragmentShader);
@@ -229,11 +185,7 @@ HX.DirectionalLight.prototype._initLightPass =  function()
         this._splitDistancesLocation = this._lightPass.getUniformLocation("splitDistances[0]");
         this._shadowMatrixLocation = this._lightPass.getUniformLocation("shadowMapMatrices[0]");
         this._depthBiasLocation = this._lightPass.getUniformLocation("depthBias");
-
-        if (this._numShadowSamples > 1) {
-            this._shadowSoftnessLocation = this._lightPass.getUniformLocation("shadowMapSoftnesses[0]");
-            this._shadowSoftnessData = new Float32Array(2 * this._numCascades);
-        }
+        this._shadowSoftnessLocation = this._lightPass.getUniformLocation("hx_shadowSoftness");
     }
 };
 

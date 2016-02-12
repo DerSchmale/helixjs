@@ -14,6 +14,9 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
+    HX.SoftDirectionalShadowModel.NUM_SHADOW_SAMPLES = 8;
+    HX.SoftDirectionalShadowModel.DITHER = true;
+    options.directionalShadowModel = HX.SoftDirectionalShadowModel;
     options.useHDR = true;
     options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);

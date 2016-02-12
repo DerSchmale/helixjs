@@ -233,13 +233,6 @@ HX.CascadeShadowMapRenderer.prototype =
         }
     },
 
-    getSoftness: function(cascade, softness, target)
-    {
-        var m = this._shadowMapCameras[cascade].projectionMatrix._m;
-        target.x = m[0] * .5 * softness;
-        target.y = m[5] * .5 * softness;
-    },
-
     _updateCascadeCameras: function(viewCamera, bounds)
     {
         this._localBounds.transformFrom(bounds, this._inverseLightMatrix);

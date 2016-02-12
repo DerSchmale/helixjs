@@ -21,7 +21,7 @@ function initCamera(camera)
     // ADD POST-PROCESSING COMPONENTS:
     camera.addComponent(new HX.FXAA());
 
-    var bloom = new HX.BloomEffect([ 200 ], [ .5 ], 8);
+    var bloom = new HX.BloomEffect(512, 1.0, 8);
     bloom.thresholdLuminance = 1.0;
     camera.addComponent(bloom);
 
@@ -37,9 +37,9 @@ function initScene(scene)
     var light2 = new HX.PointLight();
     var light3 = new HX.PointLight();
 
-    light1.intensity = 70;
-    light2.intensity = 70;
-    light3.intensity = 70;
+    light1.intensity = 30;
+    light2.intensity = 30;
+    light3.intensity = 30;
 
     light1.color = 0xff2020;
     light2.color = 0x2020ff;

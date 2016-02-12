@@ -36,7 +36,7 @@ function initCamera(camera)
     camera.nearDistance = .01;
     camera.farDistance = 50.0;
 
-    var bloom = new HX.BloomEffect([ 300 ], [.5 ]);
+    var bloom = new HX.BloomEffect(300, .5);
     var tonemap = new HX.FilmicToneMapEffect(true);
     tonemap.exposure = 2.0;
 
@@ -118,8 +118,8 @@ function initScene(scene)
 
     primitive = HX.PlanePrimitive.create(
         {
-            numSegmentsW: 10,
-            numSegmentsH: 10,
+            numSegmentsW: 50,
+            numSegmentsH: 50,
             width: 50,
             height: 50,
             scaleU: 50,

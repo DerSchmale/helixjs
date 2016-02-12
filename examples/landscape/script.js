@@ -133,7 +133,7 @@ function initCamera(camera)
     camera.farDistance = 3000.0;
     camera.position = new HX.Float4(-80, -107, -200);
 
-    var bloom = new HX.BloomEffect([ 500 ], [ .25 ]);
+    var bloom = new HX.BloomEffect(500, .25);
     bloom.thresholdLuminance = 1.0;
 
     var tonemap = new HX.FilmicToneMapEffect(true);

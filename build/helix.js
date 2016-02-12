@@ -7780,6 +7780,7 @@ HX.TransparencyMode = {
  */
 HX.Material = function ()
 {
+    this._elementType = HX.ElementType.TRIANGLES;
     this._transparencyMode = HX.TransparencyMode.OPAQUE;
     this._passes = new Array(HX.Material.NUM_PASS_TYPES);
     this._renderOrderHint = ++HX.Material.ID_COUNTER;
@@ -7829,6 +7830,20 @@ HX.Material.prototype = {
         this._renderOrder = value;
     },
 
+    get elementType()
+    {
+        return this._elementType;
+    },
+
+    set elementType(value)
+    {
+        this._elementType = value;
+        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+            if (this._passes[i])
+                this._passes[i].elementType = value;
+        }
+    },
+
     getPass: function (type)
     {
         return this._passes[type];
@@ -7841,6 +7856,8 @@ HX.Material.prototype = {
             pass.depthTest = HX.Comparison.EQUAL;
 
         if (pass) {
+            pass.elementType = this._elementType;
+
             for (var slotName in this._textures) {
                 if (this._textures.hasOwnProperty(slotName))
                     pass.setTexture(slotName, this._textures[slotName]);
@@ -14019,15 +14036,15 @@ HX.ReprojectShader.prototype.execute = function(rect, sourceTexture, depthTextur
 /**
  * @constructor
  */
-HX.BloomBlurPass = function(kernelSizes, weights, directionX, directionY, resolutionX, resolutionY)
+HX.BloomBlurPass = function(kernelSize, strength, directionX, directionY, resolutionX, resolutionY)
 {
-    this._initWeights(kernelSizes, weights);
+    this._initWeights(kernelSize, strength);
 
     var defines = {
         SOURCE_RES: "vec2(float(" + resolutionX + "), float(" + resolutionY + "))",
-        RADIUS: "float(" + Math.ceil(this._kernelSize * .5) + ")",
+        RADIUS: "float(" + Math.ceil(kernelSize * .5) + ")",
         DIRECTION: "vec2(" + directionX + ", " + directionY + ")",
-        NUM_SAMPLES: this._kernelSize
+        NUM_SAMPLES: kernelSize
     };
 
     var vertex = HX.ShaderLibrary.get("bloom_blur_vertex.glsl", defines);
@@ -14040,28 +14057,22 @@ HX.BloomBlurPass = function(kernelSizes, weights, directionX, directionY, resolu
 
 HX.BloomBlurPass.prototype = Object.create(HX.EffectPass.prototype);
 
-HX.BloomBlurPass.prototype._initWeights = function(kernelSizes, weights)
+HX.BloomBlurPass.prototype._initWeights = function(kernelSize)
 {
-    this._kernelSize = 0;
     this._weights = [];
 
-    var gaussians = [];
+    var size = Math.ceil(kernelSize *.5) * 2;
+    var radius = size * .5;
+    var gaussian = HX.CenteredGaussianCurve.fromRadius(radius);
 
-    for (var i = 0; i < kernelSizes.length; ++i) {
-        var radius = Math.ceil(kernelSizes[i] * .5);
-        var size = Math.ceil(kernelSizes[i]);
-        if (size > this._kernelSize)
-            this._kernelSize = size;
-        gaussians[i] = HX.CenteredGaussianCurve.fromRadius(radius);
+    var total = 0;
+    for (var j = 0; j < kernelSize; ++j) {
+        this._weights[j] = gaussian.getValueAt(j - radius);
+        total += this._weights[j];
     }
 
-    var radius = Math.ceil(this._kernelSize * .5);
-
-    for (var j = 0; j < this._kernelSize; ++j) {
-        this._weights[j] = 0;
-        for (var i = 0; i < kernelSizes.length; ++i) {
-            this._weights[j] += gaussians[i].getValueAt(j - radius) * weights[i];
-        }
+    for (var j = 0; j < kernelSize; ++j) {
+        this._weights[j] /= total;
     }
 };
 
@@ -14070,7 +14081,7 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSizes, weights)
  *
  * @constructor
  */
-HX.BloomEffect = function(blurSizes, weights, downScale)
+HX.BloomEffect = function(size, strength, downScale)
 {
     HX.Effect.call(this);
 
@@ -14093,16 +14104,14 @@ HX.BloomEffect = function(blurSizes, weights, downScale)
         this._smallFBOs[i] = new HX.FrameBuffer([this._thresholdMaps[i]]);
     }
 
-    this._blurSizes = blurSizes || [ 512, 256 ];
+    this._size = size || 512;
 
-    if (HX.EXT_HALF_FLOAT_TEXTURES_LINEAR && HX.EXT_HALF_FLOAT_TEXTURES) {
-        this._weights = weights || [.05, .05];
+    this._strength = strength === undefined? 1.0 : undefined;
+
+    if (HX.EXT_HALF_FLOAT_TEXTURES_LINEAR && HX.EXT_HALF_FLOAT_TEXTURES)
         this.thresholdLuminance = 1.0;
-    }
-    else {
-        this._weights = weights || [1.5, 5.0 ];
+    else
         this.thresholdLuminance = .9;
-    }
 
     this._compositePass.setTexture("bloomTexture", this._thresholdMaps[0]);
 };
@@ -14119,19 +14128,13 @@ HX.BloomEffect.prototype._initTextures = function()
 
 HX.BloomEffect.prototype._initBlurPass = function()
 {
-    var sizesX = [];
-    var sizesY = [];
-    var len = this._blurSizes.length;
-    for (var i = 0; i < len; ++i) {
-        sizesX[i] = this._blurSizes[i] / this._downScale;
-        sizesY[i] = this._blurSizes[i] / this._downScale;
-    }
+    var size = this._size / this._downScale;
 
     var width = this._targetWidth / this._downScale;
     var height = this._targetHeight / this._downScale;
     // direction used to provide step size
-    this._blurXPass = new HX.BloomBlurPass(sizesX, this._weights, 1, 0, width, height);
-    this._blurYPass = new HX.BloomBlurPass(sizesY, this._weights, 0, 1, width, height);
+    this._blurXPass = new HX.BloomBlurPass(size, this._strength, 1, 0, width, height);
+    this._blurYPass = new HX.BloomBlurPass(size, this._strength, 0, 1, width, height);
     this._blurXPass.setTexture("sourceTexture", this._thresholdMaps[0]);
     this._blurYPass.setTexture("sourceTexture", this._thresholdMaps[1]);
 };

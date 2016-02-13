@@ -3,9 +3,9 @@ HX.ExponentialDirectionalShadowModel =
     _CONSTANT: 80,
     _CULL_MODE: undefined,
     _BLUR_SHADER: undefined,
-    _NUM_BLUR_SAMPLES: 3,
+    _BLUR_RADIUS: 1,
 
-    DARKENING_FACTOR: .5,
+    DARKENING_FACTOR: .05,
 
     init: function()
     {
@@ -40,7 +40,9 @@ HX.ESMBlurShader = function(defines)
 {
     HX.Shader.call(this);
 
-    defines.NUM_SAMPLES = HX.ExponentialDirectionalShadowModel._NUM_BLUR_SAMPLES;
+    defines.RADIUS = HX.ExponentialDirectionalShadowModel._BLUR_RADIUS;
+    defines.RCP_NUM_SAMPLES = "float(" + (1.0 / (1.0 + 2.0 * HX.ExponentialDirectionalShadowModel._BLUR_RADIUS)) + ")";
+
     var vertex = HX.ShaderLibrary.get("esm_blur_vertex.glsl", defines);
     var fragment = HX.ShaderLibrary.get("esm_blur_fragment.glsl", defines);
 

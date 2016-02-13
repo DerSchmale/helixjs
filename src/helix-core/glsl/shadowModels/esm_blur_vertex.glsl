@@ -7,6 +7,6 @@ uniform vec2 direction; // this is 1/pixelSize
 
 void main()
 {
-	uv = hx_texCoord - float(NUM_SAMPLES) * .5 * direction;
+	uv = hx_texCoord;
 	gl_Position = hx_position;
 }

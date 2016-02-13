@@ -482,12 +482,16 @@ HX.CascadeShadowMapRenderer.prototype =
     {
         var shader = HX.DIR_SHADOW_MODEL._BLUR_SHADER;
 
-        // TODO: create blur shaders for encoded floats and apply
         HX.pushRenderTarget(this._fboBack);
-        // execute blurX
         shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
         HX.popRenderTarget();
 
         shader.execute(HX.RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);
+
+/*        HX.pushRenderTarget(this._fboBack);
+        shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
+        HX.popRenderTarget();
+
+        shader.execute(HX.RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);*/
     }
 };

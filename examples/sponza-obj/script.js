@@ -58,13 +58,9 @@ function initScene(scene)
     var dirLight = new HX.DirectionalLight();
     dirLight.color = new HX.Color(1.0, .9, .7);
     dirLight.direction = new HX.Float4(3.0, -5.0, 1.0);
-    dirLight.depthBias = .005;
     dirLight.intensity = 20.0;
-    dirLight.numShadowSamples = 8;
-    dirLight.shadowSoftness = .02;
-    dirLight.numCascades = 4;
+    dirLight.numCascades = 3;
     dirLight.castShadows = true;
-    dirLight.ditherShadows = true;
 
     scene.attach(dirLight);
 

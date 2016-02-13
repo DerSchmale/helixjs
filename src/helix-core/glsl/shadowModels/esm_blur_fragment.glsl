@@ -11,14 +11,12 @@ float readExp(vec2 coord)
 
 void main()
 {
-    float total = 0.0;
-	vec2 sampleUV = uv;
-	float totalWeight = 0.0;
+    float total = readExp(uv);
 
-	for (int i = 0; i < NUM_SAMPLES; ++i) {
-		total += readExp(sampleUV);
-		sampleUV += direction;
+	for (int i = 1; i <= RADIUS; ++i) {
+	    vec2 offset = direction * float(i);
+		total += readExp(uv + offset) + readExp(uv - offset);
 	}
 
-	gl_FragColor = hx_floatToRGBA8(log(total / float(NUM_SAMPLES)) / HX_ESM_CONSTANT);
+	gl_FragColor = hx_floatToRGBA8(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);
 }

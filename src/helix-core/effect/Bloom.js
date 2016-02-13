@@ -9,7 +9,7 @@ HX.BloomBlurPass = function(kernelSize, strength, directionX, directionY, resolu
         SOURCE_RES: "vec2(float(" + resolutionX + "), float(" + resolutionY + "))",
         RADIUS: "float(" + Math.ceil(kernelSize * .5) + ")",
         DIRECTION: "vec2(" + directionX + ", " + directionY + ")",
-        NUM_SAMPLES: kernelSize
+        NUM_SAMPLES: Math.ceil(kernelSize)
     };
 
     var vertex = HX.ShaderLibrary.get("bloom_blur_vertex.glsl", defines);

@@ -123,11 +123,13 @@ HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
     if (this._numCascades > 4) this._numCascades = 4;
     this._shadowMapSize = shadowMapSize || 1024;
     this._shadowMapInvalid = true;
-    this._fbo = null;
+    this._fboFront = null;
+    this._fboBack = null;
     this._depthBuffer = null;   // only used if depth textures aren't supported
-    this._shadowMap = new HX.Texture2D();
-    this._shadowMap.filter = HX.TextureFilter.NEAREST_NOMIP;
-    this._shadowMap.wrapMode = HX.TextureWrapMode.CLAMP;
+
+    this._shadowMap = this._createShadowBuffer();
+    this._shadowBackBuffer = HX.DIR_SHADOW_MODEL._BLUR_SHADER? this._createShadowBuffer() : null;
+
     this._shadowMatrices = [ new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4() ];
     this._transformToUV = [ new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4() ];
     this._inverseLightMatrix = new HX.Matrix4x4();
@@ -180,7 +182,7 @@ HX.CascadeShadowMapRenderer.prototype =
         this._collectShadowCasters(scene);
         this._updateCascadeCameras(viewCamera, this._casterCollector.getBounds());
 
-        HX.pushRenderTarget(this._fbo);
+        HX.pushRenderTarget(this._fboFront);
 
         var passType = HX.MaterialPass.SHADOW_DEPTH_PASS;
         HX.setClearColor(HX.Color.WHITE);
@@ -191,6 +193,10 @@ HX.CascadeShadowMapRenderer.prototype =
             var viewport = this._viewports[cascadeIndex];
             HX.GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
             HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
+        }
+
+        if (HX.DIR_SHADOW_MODEL._BLUR_SHADER) {
+            this._blur();
         }
 
         HX.popRenderTarget();
@@ -399,19 +405,20 @@ HX.CascadeShadowMapRenderer.prototype =
         var texWidth = this._shadowMapSize * numMapsW;
         var texHeight = this._shadowMapSize * numMapsH;
 
-        // TODO: Check if 16 bits is enough?
-        if (HX.EXT_DEPTH_TEXTURE) {
-            this._shadowMap.initEmpty(texWidth, texHeight, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
-            if (!this._fbo) this._fbo = new HX.FrameBuffer(null, this._shadowMap);
-        }
-        else {
-            this._shadowMap.initEmpty(texWidth, texHeight, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
-            if (!this._depthBuffer) this._depthBuffer = new HX.ReadOnlyDepthBuffer();
-            if (!this._fbo) this._fbo = new HX.FrameBuffer(this._shadowMap, this._depthBuffer);
-            this._depthBuffer.init(texWidth, texHeight);
-        }
-        this._fbo.init();
+        this._shadowMap.initEmpty(texWidth, texHeight, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
+        if (!this._depthBuffer) this._depthBuffer = new HX.ReadOnlyDepthBuffer();
+        if (!this._fboFront) this._fboFront = new HX.FrameBuffer(this._shadowMap, this._depthBuffer);
+
+        this._depthBuffer.init(texWidth, texHeight);
+        this._fboFront.init();
         this._shadowMapInvalid = false;
+
+        if (this._shadowBackBuffer) {
+            this._shadowBackBuffer.initEmpty(texWidth, texHeight, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
+            if (!this._fboBack) this._fboBack = new HX.FrameBuffer(this._shadowBackBuffer, this._depthBuffer);
+            this._fboBack.init();
+            this._fboBack.init();
+        }
 
         this._viewports = [];
         this._viewports.push(new HX.Rect(0, 0, this._shadowMapSize, this._shadowMapSize));
@@ -433,7 +440,7 @@ HX.CascadeShadowMapRenderer.prototype =
             this._splitRatios[i] = ratio;
             this._splitPlanes[i] = new HX.Float4();
             this._splitDistances[i] = 0;
-            ratio *= .25;
+            ratio *= .33;
         }
     },
 
@@ -461,5 +468,26 @@ HX.CascadeShadowMapRenderer.prototype =
         this._transformToUV[1].appendTranslation(new HX.Float4(0.5, 0.0, 0.0));
         this._transformToUV[2].appendTranslation(new HX.Float4(0.0, 0.5, 0.0));
         this._transformToUV[3].appendTranslation(new HX.Float4(0.5, 0.5, 0.0));
+    },
+
+    _createShadowBuffer: function()
+    {
+        var tex = new HX.Texture2D();
+        tex.filter = HX.TextureFilter.NEAREST_NOMIP;
+        tex.wrapMode = HX.TextureWrapMode.CLAMP;
+        return tex;
+    },
+
+    _blur: function()
+    {
+        var shader = HX.DIR_SHADOW_MODEL._BLUR_SHADER;
+
+        // TODO: create blur shaders for encoded floats and apply
+        HX.pushRenderTarget(this._fboBack);
+        // execute blurX
+        shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
+        HX.popRenderTarget();
+
+        shader.execute(HX.RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);
     }
 };

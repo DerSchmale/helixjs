@@ -102,6 +102,9 @@ HX.init = function(canvas, options)
         return extensions.indexOf(name) >= 0 ? HX.GL.getExtension(name) : null;
     }
 
+    // shortcuts
+    HX._initGLProperties();
+
     HX._initLights();
     HX.LIGHTING_MODEL = HX.OPTIONS.lightingModel;
     HX.DIR_SHADOW_MODEL = HX.OPTIONS.directionalShadowModel;
@@ -147,6 +150,13 @@ HX.init = function(canvas, options)
     HX.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_half_float_linear');
     if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR) console.warn('OES_texture_half_float_linear extension not supported!');
 
+    // these SHOULD be implemented, but are not by Chrome
+    HX.EXT_COLOR_BUFFER_FLOAT = _getExtension('WEBGL_color_buffer_float');
+    if (!HX.EXT_COLOR_BUFFER_FLOAT) console.warn('WEBGL_color_buffer_float extension not supported!');
+
+    HX.EXT_COLOR_BUFFER_HALF_FLOAT = _getExtension('EXT_color_buffer_half_float');
+    if (!HX.EXT_COLOR_BUFFER_HALF_FLOAT) console.warn('EXT_color_buffer_half_float extension not supported!');
+
     if (!HX.OPTIONS.ignoreDepthTexturesExtension)
         HX.EXT_DEPTH_TEXTURE = _getExtension('WEBGL_depth_texture');
 
@@ -181,9 +191,6 @@ HX.init = function(canvas, options)
 
     HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
 
-    // shortcuts
-    HX._initGLProperties();
-
     HX.Texture2D._initDefault();
     HX.TextureCube._initDefault();
     HX.BlendState._initDefaults();
@@ -197,6 +204,8 @@ HX.init = function(canvas, options)
 
     HX.onPreFrame = new HX.Signal();  // for engine-specific stuff (entity updates etc), stats updates, etc
     HX.onFrame = new HX.Signal();   // for user-implemented behaviour and rendering
+
+    HX.DIR_SHADOW_MODEL.init();
 
     HX.FRAME_TICKER = new HX.FrameTicker();
     HX.start();

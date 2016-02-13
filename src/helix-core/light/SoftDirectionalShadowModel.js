@@ -1,7 +1,16 @@
 HX.SoftDirectionalShadowModel =
 {
+    _CULL_MODE: undefined,
+
     NUM_SHADOW_SAMPLES: 6,
     DITHER: false,
+
+    BLUR_SHADER: undefined,
+
+    init: function()
+    {
+        HX.SoftDirectionalShadowModel._CULL_MODE = HX.CullMode.FRONT;
+    },
 
     getGLSL: function()
     {

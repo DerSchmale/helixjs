@@ -331,7 +331,6 @@ HX.PBRMaterial.prototype._updatePasses = function()
     if (HX.MaterialPass.SHADOW_DEPTH_PASS !== -1) {
         var defines = "#define HX_SHADOW_DEPTH_PASS\n" + generalDefines;
         this._initPass(HX.MaterialPass.SHADOW_DEPTH_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
-        this._passes[HX.MaterialPass.SHADOW_DEPTH_PASS].cullMode = HX.CullMode.FRONT;
     }
 
     this.setUniform("color", this._color);

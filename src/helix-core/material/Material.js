@@ -91,6 +91,10 @@ HX.Material.prototype = {
     setPass: function (type, pass)
     {
         this._passes[type] = pass;
+
+        if(type === HX.SHADOW_DEPTH_PASS)
+            pass.cullMode = HX.DIR_SHADOW_MODEL._CULL_MODE;
+
         if(type === HX.GEOMETRY_NORMAL_PASS || type === HX.GEOMETRY_SPECULAR_PASS)
             pass.depthTest = HX.Comparison.EQUAL;
 

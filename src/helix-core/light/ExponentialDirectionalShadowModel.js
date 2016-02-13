@@ -5,7 +5,7 @@ HX.ExponentialDirectionalShadowModel =
     _BLUR_SHADER: undefined,
     _BLUR_RADIUS: 1,
 
-    DARKENING_FACTOR: .05,
+    DARKENING_FACTOR: .3,
 
     init: function()
     {

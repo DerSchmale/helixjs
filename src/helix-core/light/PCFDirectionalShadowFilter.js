@@ -1,4 +1,4 @@
-HX.SoftDirectionalShadowModel =
+HX.PCFDirectionalShadowFilter =
 {
     _CULL_MODE: undefined,
 
@@ -9,16 +9,16 @@ HX.SoftDirectionalShadowModel =
 
     init: function()
     {
-        HX.SoftDirectionalShadowModel._CULL_MODE = HX.CullMode.FRONT;
+        HX.PCFDirectionalShadowFilter._CULL_MODE = HX.CullMode.FRONT;
     },
 
     getGLSL: function()
     {
         var defines = {
-            NUM_SHADOW_SAMPLES: HX.SoftDirectionalShadowModel.NUM_SHADOW_SAMPLES
+            NUM_SHADOW_SAMPLES: HX.PCFDirectionalShadowFilter.NUM_SHADOW_SAMPLES
         };
 
-        if (HX.SoftDirectionalShadowModel.DITHER)
+        if (HX.PCFDirectionalShadowFilter.DITHER)
             defines.DITHER_SHADOWS = 1;
 
         return HX.ShaderLibrary.get("dir_shadow_soft.glsl", defines);

@@ -1,4 +1,4 @@
-HX.HardDirectionalShadowModel =
+HX.HardDirectionalShadowFilter =
 {
     _CULL_MODE: undefined,
 
@@ -6,7 +6,7 @@ HX.HardDirectionalShadowModel =
 
     init: function()
     {
-        HX.HardDirectionalShadowModel._CULL_MODE = HX.CullMode.FRONT;
+        HX.HardDirectionalShadowFilter._CULL_MODE = HX.CullMode.FRONT;
     },
 
     getGLSL: function()

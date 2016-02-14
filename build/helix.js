@@ -3102,7 +3102,7 @@ HX.InitOptions = function()
     this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
     this.throwOnShaderError = false;
     this.lightingModel = HX.BlinnPhongSimpleLightingModel;
-    this.directionalShadowModel = HX.HardDirectionalShadowModel;
+    this.directionalShadowFilter = HX.HardDirectionalShadowFilter;
 };
 
 /**
@@ -3178,7 +3178,7 @@ HX.init = function(canvas, options)
 
     HX._initLights();
     HX.LIGHTING_MODEL = HX.OPTIONS.lightingModel;
-    HX.DIR_SHADOW_MODEL = HX.OPTIONS.directionalShadowModel;
+    HX.DIR_SHADOW_MODEL = HX.OPTIONS.directionalShadowFilter;
 
     HX.GLSLIncludeGeometryPass = "\n" + HX.DIR_SHADOW_MODEL.getGLSL() + HX.GLSLIncludeGeometryPass;
 
@@ -11030,35 +11030,35 @@ HX.DirectionalLight.prototype._invalidateLightPass = function()
         this._matrixData = null;
     }
 };
-HX.ExponentialDirectionalShadowModel =
+HX.ExponentialDirectionalShadowFilter =
 {
     _CONSTANT: 80,
     _CULL_MODE: undefined,
     _BLUR_SHADER: undefined,
-    _BLUR_RADIUS: 1,
+    _BLUR_RADIUS: 2,
 
     DARKENING_FACTOR: .3,
 
     init: function()
     {
-        var defines = HX.ExponentialDirectionalShadowModel._getDefines();
+        var defines = HX.ExponentialDirectionalShadowFilter._getDefines();
 
-        HX.ExponentialDirectionalShadowModel._BLUR_SHADER = new HX.ESMBlurShader(defines);
-        HX.ExponentialDirectionalShadowModel._CULL_MODE = HX.CullMode.BACK;
+        HX.ExponentialDirectionalShadowFilter._BLUR_SHADER = new HX.ESMBlurShader(defines);
+        HX.ExponentialDirectionalShadowFilter._CULL_MODE = HX.CullMode.BACK;
     },
 
     getGLSL: function()
     {
-        var defines = HX.ExponentialDirectionalShadowModel._getDefines();
+        var defines = HX.ExponentialDirectionalShadowFilter._getDefines();
         return HX.ShaderLibrary.get("dir_shadow_esm.glsl", defines);
     },
 
     _getDefines: function()
     {
         return {
-            HX_ESM_CONSTANT: "float(" + HX.ExponentialDirectionalShadowModel._CONSTANT + ")",
-            HX_MAX_ESM_VALUE: "float(" + Math.exp(HX.ExponentialDirectionalShadowModel._CONSTANT) + ")",
-            HX_ESM_DARKENING: "float(" + HX.ExponentialDirectionalShadowModel.DARKENING_FACTOR + ")"
+            HX_ESM_CONSTANT: "float(" + HX.ExponentialDirectionalShadowFilter._CONSTANT + ")",
+            HX_MAX_ESM_VALUE: "float(" + Math.exp(HX.ExponentialDirectionalShadowFilter._CONSTANT) + ")",
+            HX_ESM_DARKENING: "float(" + HX.ExponentialDirectionalShadowFilter.DARKENING_FACTOR + ")"
         };
     }
 };
@@ -11072,8 +11072,8 @@ HX.ESMBlurShader = function(defines)
 {
     HX.Shader.call(this);
 
-    defines.RADIUS = HX.ExponentialDirectionalShadowModel._BLUR_RADIUS;
-    defines.RCP_NUM_SAMPLES = "float(" + (1.0 / (1.0 + 2.0 * HX.ExponentialDirectionalShadowModel._BLUR_RADIUS)) + ")";
+    defines.RADIUS = HX.ExponentialDirectionalShadowFilter._BLUR_RADIUS;
+    defines.RCP_NUM_SAMPLES = "float(" + (1.0 / (1.0 + 2.0 * HX.ExponentialDirectionalShadowFilter._BLUR_RADIUS)) + ")";
 
     var vertex = HX.ShaderLibrary.get("esm_blur_vertex.glsl", defines);
     var fragment = HX.ShaderLibrary.get("esm_blur_fragment.glsl", defines);
@@ -11223,7 +11223,7 @@ HX.GlobalIrradianceProbe.prototype._initPass = function()
 
     return pass;
 };
-HX.HardDirectionalShadowModel =
+HX.HardDirectionalShadowFilter =
 {
     _CULL_MODE: undefined,
 
@@ -11231,12 +11231,38 @@ HX.HardDirectionalShadowModel =
 
     init: function()
     {
-        HX.HardDirectionalShadowModel._CULL_MODE = HX.CullMode.FRONT;
+        HX.HardDirectionalShadowFilter._CULL_MODE = HX.CullMode.FRONT;
     },
 
     getGLSL: function()
     {
         return HX.ShaderLibrary.get("dir_shadow_hard.glsl");
+    }
+};
+HX.PCFDirectionalShadowFilter =
+{
+    _CULL_MODE: undefined,
+
+    NUM_SHADOW_SAMPLES: 6,
+    DITHER: false,
+
+    BLUR_SHADER: undefined,
+
+    init: function()
+    {
+        HX.PCFDirectionalShadowFilter._CULL_MODE = HX.CullMode.FRONT;
+    },
+
+    getGLSL: function()
+    {
+        var defines = {
+            NUM_SHADOW_SAMPLES: HX.PCFDirectionalShadowFilter.NUM_SHADOW_SAMPLES
+        };
+
+        if (HX.PCFDirectionalShadowFilter.DITHER)
+            defines.DITHER_SHADOWS = 1;
+
+        return HX.ShaderLibrary.get("dir_shadow_soft.glsl", defines);
     }
 };
 /**
@@ -11458,32 +11484,6 @@ HX.PointLight.prototype._initLightPasses =  function()
     HX.PointLight._sphericalColorLocation = pass.getUniformLocation("lightColor[0]");
     HX.PointLight._sphericalAttenuationFixFactorsLocation = pass.getUniformLocation("attenuationFixFactors[0]");
     HX.PointLight._sphericalLightRadiusLocation = pass.getUniformLocation("lightRadius[0]");
-};
-HX.SoftDirectionalShadowModel =
-{
-    _CULL_MODE: undefined,
-
-    NUM_SHADOW_SAMPLES: 6,
-    DITHER: false,
-
-    BLUR_SHADER: undefined,
-
-    init: function()
-    {
-        HX.SoftDirectionalShadowModel._CULL_MODE = HX.CullMode.FRONT;
-    },
-
-    getGLSL: function()
-    {
-        var defines = {
-            NUM_SHADOW_SAMPLES: HX.SoftDirectionalShadowModel.NUM_SHADOW_SAMPLES
-        };
-
-        if (HX.SoftDirectionalShadowModel.DITHER)
-            defines.DITHER_SHADOWS = 1;
-
-        return HX.ShaderLibrary.get("dir_shadow_soft.glsl", defines);
-    }
 };
 /**
  * @constructor

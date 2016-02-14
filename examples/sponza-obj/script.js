@@ -13,7 +13,7 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.useHDR = true;
     options.maxDepthPrecision = true;
-    options.directionalShadowModel = HX.ExponentialDirectionalShadowModel;
+    options.directionalShadowFilter = HX.ExponentialDirectionalShadowFilter;
     options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);
 };

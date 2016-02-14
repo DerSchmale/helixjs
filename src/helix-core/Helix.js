@@ -31,7 +31,7 @@ HX.InitOptions = function()
     this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
     this.throwOnShaderError = false;
     this.lightingModel = HX.BlinnPhongSimpleLightingModel;
-    this.directionalShadowModel = HX.HardDirectionalShadowModel;
+    this.directionalShadowFilter = HX.HardDirectionalShadowFilter;
 };
 
 /**
@@ -107,7 +107,7 @@ HX.init = function(canvas, options)
 
     HX._initLights();
     HX.LIGHTING_MODEL = HX.OPTIONS.lightingModel;
-    HX.DIR_SHADOW_MODEL = HX.OPTIONS.directionalShadowModel;
+    HX.DIR_SHADOW_MODEL = HX.OPTIONS.directionalShadowFilter;
 
     HX.GLSLIncludeGeometryPass = "\n" + HX.DIR_SHADOW_MODEL.getGLSL() + HX.GLSLIncludeGeometryPass;
 

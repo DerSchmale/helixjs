@@ -1,4 +1,4 @@
-HX.ExponentialDirectionalShadowModel =
+HX.ExponentialDirectionalShadowFilter =
 {
     _CONSTANT: 80,
     _CULL_MODE: undefined,
@@ -9,24 +9,24 @@ HX.ExponentialDirectionalShadowModel =
 
     init: function()
     {
-        var defines = HX.ExponentialDirectionalShadowModel._getDefines();
+        var defines = HX.ExponentialDirectionalShadowFilter._getDefines();
 
-        HX.ExponentialDirectionalShadowModel._BLUR_SHADER = new HX.ESMBlurShader(defines);
-        HX.ExponentialDirectionalShadowModel._CULL_MODE = HX.CullMode.BACK;
+        HX.ExponentialDirectionalShadowFilter._BLUR_SHADER = new HX.ESMBlurShader(defines);
+        HX.ExponentialDirectionalShadowFilter._CULL_MODE = HX.CullMode.BACK;
     },
 
     getGLSL: function()
     {
-        var defines = HX.ExponentialDirectionalShadowModel._getDefines();
+        var defines = HX.ExponentialDirectionalShadowFilter._getDefines();
         return HX.ShaderLibrary.get("dir_shadow_esm.glsl", defines);
     },
 
     _getDefines: function()
     {
         return {
-            HX_ESM_CONSTANT: "float(" + HX.ExponentialDirectionalShadowModel._CONSTANT + ")",
-            HX_MAX_ESM_VALUE: "float(" + Math.exp(HX.ExponentialDirectionalShadowModel._CONSTANT) + ")",
-            HX_ESM_DARKENING: "float(" + HX.ExponentialDirectionalShadowModel.DARKENING_FACTOR + ")"
+            HX_ESM_CONSTANT: "float(" + HX.ExponentialDirectionalShadowFilter._CONSTANT + ")",
+            HX_MAX_ESM_VALUE: "float(" + Math.exp(HX.ExponentialDirectionalShadowFilter._CONSTANT) + ")",
+            HX_ESM_DARKENING: "float(" + HX.ExponentialDirectionalShadowFilter.DARKENING_FACTOR + ")"
         };
     }
 };
@@ -40,8 +40,8 @@ HX.ESMBlurShader = function(defines)
 {
     HX.Shader.call(this);
 
-    defines.RADIUS = HX.ExponentialDirectionalShadowModel._BLUR_RADIUS;
-    defines.RCP_NUM_SAMPLES = "float(" + (1.0 / (1.0 + 2.0 * HX.ExponentialDirectionalShadowModel._BLUR_RADIUS)) + ")";
+    defines.RADIUS = HX.ExponentialDirectionalShadowFilter._BLUR_RADIUS;
+    defines.RCP_NUM_SAMPLES = "float(" + (1.0 / (1.0 + 2.0 * HX.ExponentialDirectionalShadowFilter._BLUR_RADIUS)) + ")";
 
     var vertex = HX.ShaderLibrary.get("esm_blur_vertex.glsl", defines);
     var fragment = HX.ShaderLibrary.get("esm_blur_fragment.glsl", defines);

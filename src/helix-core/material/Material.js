@@ -92,13 +92,13 @@ HX.Material.prototype = {
     {
         this._passes[type] = pass;
 
-        if(type === HX.SHADOW_DEPTH_PASS)
-            pass.cullMode = HX.DIR_SHADOW_MODEL._CULL_MODE;
-
-        if(type === HX.GEOMETRY_NORMAL_PASS || type === HX.GEOMETRY_SPECULAR_PASS)
-            pass.depthTest = HX.Comparison.EQUAL;
-
         if (pass) {
+            if(type === HX.MaterialPass.SHADOW_DEPTH_PASS)
+                pass.cullMode = HX.DIR_SHADOW_FILTER._CULL_MODE;
+
+            if(type === HX.GEOMETRY_NORMAL_PASS || type === HX.GEOMETRY_SPECULAR_PASS)
+                pass.depthTest = HX.Comparison.EQUAL;
+
             pass.elementType = this._elementType;
 
             for (var slotName in this._textures) {

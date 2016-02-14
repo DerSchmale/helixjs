@@ -4,14 +4,19 @@ HX.ExponentialDirectionalShadowFilter =
     _CULL_MODE: undefined,
     _BLUR_SHADER: undefined,
     _BLUR_RADIUS: 1,
+    _SHADOW_MAP_FORMAT: null,
+    _SHADOW_MAP_DATA_TYPE: null,
 
-    NUM_BLUR_PASSES: 2,
+    NUM_BLUR_PASSES: 1,
     DARKENING_FACTOR: .3,
 
     init: function()
     {
         var defines = HX.ExponentialDirectionalShadowFilter._getDefines();
 
+        // ESM is pointless if float is not supported
+        HX.ExponentialDirectionalShadowFilter._SHADOW_MAP_FORMAT = HX.GL.RGB;
+        HX.ExponentialDirectionalShadowFilter._SHADOW_MAP_DATA_TYPE = HX.GL.FLOAT;
         HX.ExponentialDirectionalShadowFilter._BLUR_SHADER = new HX.ESMBlurShader(defines);
         HX.ExponentialDirectionalShadowFilter._CULL_MODE = HX.CullMode.BACK;
     },

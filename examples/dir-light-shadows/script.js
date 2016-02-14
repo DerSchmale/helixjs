@@ -59,9 +59,9 @@ function initScene(scene)
     light.castShadows = true;
     //light.shadowMapSize = 2048;
     //light.shadowSoftness = .01;
-    light.numShadowSamples = 8;
+    //light.numShadowSamples = 8;
     light.numCascades = 3;
-    light.intensity = 1.0;
+    light.intensity = 3.0;
     scene.attach(light);
 
     // textures from http://kay-vriend.blogspot.be/2014/04/tarnished-metal-first-steps-in-pbr-and.html

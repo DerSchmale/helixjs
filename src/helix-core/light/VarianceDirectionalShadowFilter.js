@@ -2,15 +2,20 @@ HX.VarianceDirectionalShadowFilter =
 {
     _CULL_MODE: undefined,
     _BLUR_SHADER: undefined,
-    _BLUR_RADIUS: 1,
+    _BLUR_RADIUS: 2,
+    _SHADOW_MAP_FORMAT: null,
+    _SHADOW_MAP_DATA_TYPE: null,
 
     NUM_BLUR_PASSES: 1,
-    MIN_VARIANCE: .001,
+    MIN_VARIANCE: .0001,
+    LIGHT_BLEED_REDUCTION: .35,
 
     init: function()
     {
         var defines = HX.VarianceDirectionalShadowFilter._getDefines();
 
+        HX.VarianceDirectionalShadowFilter._SHADOW_MAP_FORMAT = HX.GL.RGBA;
+        HX.VarianceDirectionalShadowFilter._SHADOW_MAP_DATA_TYPE = HX.GL.UNSIGNED_BYTE;
         HX.VarianceDirectionalShadowFilter._BLUR_SHADER = new HX.VarianceBlurShader(defines);
         HX.VarianceDirectionalShadowFilter._CULL_MODE = HX.CullMode.BACK;
     },
@@ -24,7 +29,8 @@ HX.VarianceDirectionalShadowFilter =
     _getDefines: function()
     {
         return {
-            HX_VSM_MIN_VARIANCE: "float(" + HX.VarianceDirectionalShadowFilter.MIN_VARIANCE + ")"
+            HX_VSM_MIN_VARIANCE: "float(" + HX.VarianceDirectionalShadowFilter.MIN_VARIANCE + ")",
+            HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + HX.VarianceDirectionalShadowFilter.LIGHT_BLEED_REDUCTION + ")"
         };
     }
 };

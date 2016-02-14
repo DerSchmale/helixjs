@@ -13,9 +13,9 @@ HX.Texture2D = function()
     this.bind();
 
     // set defaults
+    this.maxAnisotropy = HX.DEFAULT_TEXTURE_MAX_ANISOTROPY;
     this.filter = HX.TextureFilter.DEFAULT;
     this.wrapMode = HX.TextureWrapMode.DEFAULT;
-    this.maxAnisotropy = HX.DEFAULT_TEXTURE_MAX_ANISOTROPY;
 
     this._isReady = false;
 
@@ -67,6 +67,10 @@ HX.Texture2D.prototype =
         HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_MIN_FILTER, filter.min);
         HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_MAG_FILTER, filter.mag);
         HX.GL.bindTexture(HX.GL.TEXTURE_2D, null);
+
+        if (filter === HX.TextureFilter.NEAREST_NOMIP || filter === HX.TextureFilter.NEAREST) {
+            this.maxAnisotropy = 1;
+        }
     },
 
     get wrapMode()
@@ -170,8 +174,9 @@ HX.Texture2D.prototype =
     // binds a texture to a given texture unit
     bind: function(unitIndex)
     {
-        if (unitIndex !== undefined)
+        if (unitIndex !== undefined) {
             HX.GL.activeTexture(HX.GL.TEXTURE0 + unitIndex);
+        }
 
         HX.GL.bindTexture(HX.GL.TEXTURE_2D, this._texture);
     },

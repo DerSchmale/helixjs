@@ -107,9 +107,9 @@ HX.init = function(canvas, options)
 
     HX._initLights();
     HX.LIGHTING_MODEL = HX.OPTIONS.lightingModel;
-    HX.DIR_SHADOW_MODEL = HX.OPTIONS.directionalShadowFilter;
+    HX.DIR_SHADOW_FILTER = HX.OPTIONS.directionalShadowFilter;
 
-    HX.GLSLIncludeGeometryPass = "\n" + HX.DIR_SHADOW_MODEL.getGLSL() + HX.GLSLIncludeGeometryPass;
+    HX.GLSLIncludeGeometryPass = "\n" + HX.DIR_SHADOW_FILTER.getGLSL() + HX.GLSLIncludeGeometryPass;
 
     var defines = "";
     if (HX.OPTIONS.useGammaCorrection !== false)
@@ -205,7 +205,7 @@ HX.init = function(canvas, options)
     HX.onPreFrame = new HX.Signal();  // for engine-specific stuff (entity updates etc), stats updates, etc
     HX.onFrame = new HX.Signal();   // for user-implemented behaviour and rendering
 
-    HX.DIR_SHADOW_MODEL.init();
+    HX.DIR_SHADOW_FILTER.init();
 
     HX.FRAME_TICKER = new HX.FrameTicker();
     HX.start();

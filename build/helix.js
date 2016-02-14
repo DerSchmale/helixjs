@@ -3523,7 +3523,7 @@ HX.ShaderLibrary['dir_shadow_soft.glsl'] = '#ifdef DITHER_SHADOWS\n    uniform s
 
 HX.ShaderLibrary['dir_shadow_vsm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(depth * depth));\n}\n\nfloat hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias, vec2 screenUV)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = variance / (variance + diff*diff);\n\n    float shadow = max(upperBound, float(shadowMapCoord.z <= moments.x));\n\n    shadow = saturate((shadow - HX_VSM_LIGHT_BLEED_REDUCTION) / (1.0 - HX_VSM_LIGHT_BLEED_REDUCTION));\n    return shadow;\n}';
 
-HX.ShaderLibrary['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readExp(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readExp(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readExp(uv + offset) + readExp(uv - offset);\n	}\n\n//	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	gl_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
+HX.ShaderLibrary['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	gl_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
 HX.ShaderLibrary['vsm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n	gl_FragColor.xy = hx_floatToRG8(total.x);\n	gl_FragColor.zw = hx_floatToRG8(total.y);\n}';
 
@@ -11032,6 +11032,7 @@ HX.DirectionalLight.prototype._invalidateLightPass = function()
         this._matrixData = null;
     }
 };
+// highly experimental
 HX.ExponentialDirectionalShadowFilter =
 {
     _CONSTANT: 80,
@@ -11520,7 +11521,7 @@ HX.VarianceDirectionalShadowFilter =
         HX.VarianceDirectionalShadowFilter._SHADOW_MAP_FORMAT = HX.GL.RGBA;
         HX.VarianceDirectionalShadowFilter._SHADOW_MAP_DATA_TYPE = HX.GL.UNSIGNED_BYTE;
         HX.VarianceDirectionalShadowFilter._BLUR_SHADER = new HX.VarianceBlurShader(defines);
-        HX.VarianceDirectionalShadowFilter._CULL_MODE = HX.CullMode.BACK;
+        HX.VarianceDirectionalShadowFilter._CULL_MODE = HX.CullMode.FRONT;
     },
 
     getGLSL: function()

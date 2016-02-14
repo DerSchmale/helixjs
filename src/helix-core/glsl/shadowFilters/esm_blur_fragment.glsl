@@ -3,7 +3,7 @@ varying vec2 uv;
 uniform sampler2D source;
 uniform vec2 direction; // this is 1/pixelSize
 
-float readExp(vec2 coord)
+float readValue(vec2 coord)
 {
     float v = texture2D(source, coord).x;
     return v;
@@ -12,11 +12,11 @@ float readExp(vec2 coord)
 
 void main()
 {
-    float total = readExp(uv);
+    float total = readValue(uv);
 
 	for (int i = 1; i <= RADIUS; ++i) {
 	    vec2 offset = direction * float(i);
-		total += readExp(uv + offset) + readExp(uv - offset);
+		total += readValue(uv + offset) + readValue(uv - offset);
 	}
 
 //	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);

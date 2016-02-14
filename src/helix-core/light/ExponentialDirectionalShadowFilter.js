@@ -1,3 +1,4 @@
+// highly experimental
 HX.ExponentialDirectionalShadowFilter =
 {
     _CONSTANT: 80,

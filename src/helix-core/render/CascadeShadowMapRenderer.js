@@ -482,16 +482,12 @@ HX.CascadeShadowMapRenderer.prototype =
     {
         var shader = HX.DIR_SHADOW_MODEL._BLUR_SHADER;
 
-        HX.pushRenderTarget(this._fboBack);
-        shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
-        HX.popRenderTarget();
+        for (var i = 0; i < HX.DIR_SHADOW_MODEL.NUM_BLUR_PASSES; ++i) {
+            HX.pushRenderTarget(this._fboBack);
+            shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
+            HX.popRenderTarget();
 
-        shader.execute(HX.RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);
-
-/*        HX.pushRenderTarget(this._fboBack);
-        shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
-        HX.popRenderTarget();
-
-        shader.execute(HX.RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);*/
+            shader.execute(HX.RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);
+        }
     }
 };

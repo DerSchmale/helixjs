@@ -59,7 +59,7 @@ function initScene(scene)
     dirLight.color = new HX.Color(1.0, .9, .7);
     dirLight.direction = new HX.Float4(3.0, -5.0, 1.0);
     dirLight.intensity = 20.0;
-    dirLight.numCascades = 3;
+    dirLight.numCascades = 4;
     dirLight.castShadows = true;
 
     scene.attach(dirLight);

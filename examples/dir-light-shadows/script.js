@@ -24,12 +24,12 @@ window.onload = function ()
 
 function initRenderer(renderer)
 {
-    renderer.localReflections = new HX.ScreenSpaceReflections(32);
+    //renderer.localReflections = new HX.ScreenSpaceReflections(32);
 
     var ssao = new HX.SSAO(16);
     ssao.strength = 1.5;
-    ssao.sampleRadius = .5;
-    ssao.fallOffDistance = 1.0;
+    ssao.sampleRadius = .25;
+    ssao.fallOffDistance = .5;
     renderer.ambientOcclusion = ssao;
 }
 

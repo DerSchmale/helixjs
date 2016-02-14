@@ -1,33 +1,30 @@
-HX.ExponentialDirectionalShadowFilter =
+HX.VarianceDirectionalShadowFilter =
 {
-    _CONSTANT: 80,
     _CULL_MODE: undefined,
     _BLUR_SHADER: undefined,
     _BLUR_RADIUS: 1,
 
-    NUM_BLUR_PASSES: 2,
-    DARKENING_FACTOR: .3,
+    NUM_BLUR_PASSES: 1,
+    MIN_VARIANCE: .001,
 
     init: function()
     {
-        var defines = HX.ExponentialDirectionalShadowFilter._getDefines();
+        var defines = HX.VarianceDirectionalShadowFilter._getDefines();
 
-        HX.ExponentialDirectionalShadowFilter._BLUR_SHADER = new HX.ESMBlurShader(defines);
-        HX.ExponentialDirectionalShadowFilter._CULL_MODE = HX.CullMode.BACK;
+        HX.VarianceDirectionalShadowFilter._BLUR_SHADER = new HX.VarianceBlurShader(defines);
+        HX.VarianceDirectionalShadowFilter._CULL_MODE = HX.CullMode.BACK;
     },
 
     getGLSL: function()
     {
-        var defines = HX.ExponentialDirectionalShadowFilter._getDefines();
-        return HX.ShaderLibrary.get("dir_shadow_esm.glsl", defines);
+        var defines = HX.VarianceDirectionalShadowFilter._getDefines();
+        return HX.ShaderLibrary.get("dir_shadow_vsm.glsl", defines);
     },
 
     _getDefines: function()
     {
         return {
-            HX_ESM_CONSTANT: "float(" + HX.ExponentialDirectionalShadowFilter._CONSTANT + ")",
-            HX_MAX_ESM_VALUE: "float(" + Math.exp(HX.ExponentialDirectionalShadowFilter._CONSTANT) + ")",
-            HX_ESM_DARKENING: "float(" + HX.ExponentialDirectionalShadowFilter.DARKENING_FACTOR + ")"
+            HX_VSM_MIN_VARIANCE: "float(" + HX.VarianceDirectionalShadowFilter.MIN_VARIANCE + ")"
         };
     }
 };
@@ -37,15 +34,15 @@ HX.ExponentialDirectionalShadowFilter =
  * @param fragmentShader The fragment shader to use while copying.
  * @constructor
  */
-HX.ESMBlurShader = function(defines)
+HX.VarianceBlurShader = function(defines)
 {
     HX.Shader.call(this);
 
-    defines.RADIUS = HX.ExponentialDirectionalShadowFilter._BLUR_RADIUS;
-    defines.RCP_NUM_SAMPLES = "float(" + (1.0 / (1.0 + 2.0 * HX.ExponentialDirectionalShadowFilter._BLUR_RADIUS)) + ")";
+    defines.RADIUS = HX.VarianceDirectionalShadowFilter._BLUR_RADIUS;
+    defines.RCP_NUM_SAMPLES = "float(" + (1.0 / (1.0 + 2.0 * HX.VarianceDirectionalShadowFilter._BLUR_RADIUS)) + ")";
 
     var vertex = HX.ShaderLibrary.get("copy_vertex.glsl", defines);
-    var fragment = HX.ShaderLibrary.get("esm_blur_fragment.glsl", defines);
+    var fragment = HX.ShaderLibrary.get("vsm_blur_fragment.glsl", defines);
 
     this.init(vertex, fragment);
 
@@ -58,9 +55,9 @@ HX.ESMBlurShader = function(defines)
     HX.GL.uniform1i(this._textureLocation, 0);
 };
 
-HX.ESMBlurShader.prototype = Object.create(HX.Shader.prototype);
+HX.VarianceBlurShader.prototype = Object.create(HX.Shader.prototype);
 
-HX.ESMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
+HX.VarianceBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
 {
     HX.setDepthTest(HX.Comparison.DISABLED);
     HX.setCullMode(HX.CullMode.NONE);

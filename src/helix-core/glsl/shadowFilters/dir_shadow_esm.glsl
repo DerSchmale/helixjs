@@ -1,6 +1,6 @@
 vec4 hx_getShadowMapValue(float depth)
 {
-    // I wish we could write exp directly, but precision issues
+    // I wish we could write exp directly, but precision issues (can't encode real floats)
 //    return vec4(exp(HX_ESM_CONSTANT * depth));
 // so when blurring, we'll need to do ln(sum(exp())
     return hx_floatToRGBA8(depth);

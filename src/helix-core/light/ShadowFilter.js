@@ -2,6 +2,7 @@ HX.ShadowFilter = function()
 {
     this._blurShader = null;
     this._numBlurPasses = 1;
+    this.onShaderInvalid = new HX.Signal();
 };
 
 HX.ShadowFilter.prototype =

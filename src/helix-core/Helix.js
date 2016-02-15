@@ -31,6 +31,8 @@ HX.InitOptions = function()
     this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
     this.throwOnShaderError = false;
     this.lightingModel = HX.BlinnPhongSimpleLightingModel;
+
+    // will be assigned to HX.DirectionalLight.SHADOW_FILTER
     this.directionalShadowFilter = HX.HardDirectionalShadowFilter;
 };
 
@@ -107,9 +109,9 @@ HX.init = function(canvas, options)
 
     HX._initLights();
     HX.LIGHTING_MODEL = HX.OPTIONS.lightingModel;
-    HX.DIR_SHADOW_FILTER = HX.OPTIONS.directionalShadowFilter;
+    HX.DirectionalLight.SHADOW_FILTER = HX.OPTIONS.directionalShadowFilter;
 
-    HX.GLSLIncludeGeometryPass = "\n" + HX.DIR_SHADOW_FILTER.getGLSL() + HX.GLSLIncludeGeometryPass;
+    HX.GLSLIncludeGeometryPass = "\n" + HX.DirectionalLight.SHADOW_FILTER.getGLSL() + HX.GLSLIncludeGeometryPass;
 
     var defines = "";
     if (HX.OPTIONS.useGammaCorrection !== false)

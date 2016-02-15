@@ -29,7 +29,7 @@ HX.VarianceDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.pro
             set: function(value)
             {
                 this._lightBleedReduction = value;
-                // TODO: dispatch change event
+                this.onShaderInvalid.dispatch();
             }
         }
     });
@@ -42,7 +42,7 @@ HX.VarianceDirectionalShadowFilter.prototype.getGLSL = function()
 
 HX.VarianceDirectionalShadowFilter.prototype._createBlurShader = function()
 {
-    return new HX.VarianceBlurShader(this._blurRadius);
+    return new HX.VSMBlurShader(this._blurRadius);
 };
 
 HX.VarianceDirectionalShadowFilter.prototype._getDefines = function()
@@ -60,7 +60,7 @@ HX.VarianceDirectionalShadowFilter.prototype._getDefines = function()
  * @param fragmentShader The fragment shader to use while copying.
  * @constructor
  */
-HX.VarianceBlurShader = function(blurRadius)
+HX.VSMBlurShader = function(blurRadius)
 {
     HX.Shader.call(this);
 
@@ -83,9 +83,9 @@ HX.VarianceBlurShader = function(blurRadius)
     HX.GL.uniform1i(this._textureLocation, 0);
 };
 
-HX.VarianceBlurShader.prototype = Object.create(HX.Shader.prototype);
+HX.VSMBlurShader.prototype = Object.create(HX.Shader.prototype);
 
-HX.VarianceBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
+HX.VSMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
 {
     HX.setDepthTest(HX.Comparison.DISABLED);
     HX.setCullMode(HX.CullMode.NONE);

@@ -24,6 +24,9 @@ HX.DirectionalLight = function()
     this._shadowSoftnessLocation = null;
 };
 
+// set on init
+HX.DirectionalLight.SHADOW_FILTER = null;
+
 HX.DirectionalLight.prototype = Object.create(HX.Light.prototype,
     {
         castShadows: {
@@ -34,14 +37,16 @@ HX.DirectionalLight.prototype = Object.create(HX.Light.prototype,
 
             set: function(value)
             {
-                if (this._castShadows == value) return;
+                if (this._castShadows === value) return;
 
                 this._castShadows = value;
 
                 if (value) {
+                    HX.DirectionalLight.SHADOW_FILTER.onShaderInvalid.bind(this._onShadowFilterChange, this);
                     this._shadowMapRenderer = new HX.CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
                 }
                 else {
+                    HX.DirectionalLight.SHADOW_FILTER.onShaderInvalid.unbind(this._onShadowFilterChange);
                     this._shadowMapRenderer.dispose();
                     this._shadowMapRenderer = null;
                 }
@@ -167,7 +172,7 @@ HX.DirectionalLight.prototype._initLightPass =  function()
 
     var vertexShader = HX.ShaderLibrary.get("directional_light_vertex.glsl", defines);
     var fragmentShader =
-        HX.DIR_SHADOW_FILTER.getGLSL() + "\n" +
+        HX.DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
         HX.LIGHTING_MODEL.getGLSL() + "\n" +
         HX.ShaderLibrary.get("directional_light_fragment.glsl", defines);
 
@@ -202,4 +207,9 @@ HX.DirectionalLight.prototype._invalidateLightPass = function()
         this._shadowSoftnessLocation = null;
         this._matrixData = null;
     }
+};
+
+HX.DirectionalLight.prototype._onShadowFilterChange = function()
+{
+    this._invalidateLightPass();
 };

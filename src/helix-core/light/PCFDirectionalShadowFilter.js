@@ -15,8 +15,25 @@ HX.PCFDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.prototyp
 
             set: function(value)
             {
-                this._numShadowSamples = value;
-                // TODO: notify change
+                if (this._numShadowSamples !== value) {
+                    this._numShadowSamples = value;
+                    this.onShaderInvalid.dispatch();
+                }
+            }
+        },
+
+        dither: {
+            get: function()
+            {
+                return this._dither;
+            },
+
+            set: function(value)
+            {
+                if (this._dither !== value) {
+                    this._dither = value;
+                    this.onShaderInvalid.dispatch();
+                }
             }
         }
     }

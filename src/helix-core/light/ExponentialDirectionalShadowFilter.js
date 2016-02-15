@@ -32,7 +32,7 @@ HX.ExponentialDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.
             set: function(value)
             {
                 this._darkeningFactor = value;
-                // TODO: dispatch change event
+                this.onShaderInvalid.dispatch();
             }
         },
 
@@ -46,7 +46,7 @@ HX.ExponentialDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.
             set: function(value)
             {
                 this._expScaleFactor = value;
-                // TODO: dispatch change event
+                this.onShaderInvalid.dispatch();
             }
         }
     });

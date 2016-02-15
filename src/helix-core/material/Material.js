@@ -94,7 +94,7 @@ HX.Material.prototype = {
 
         if (pass) {
             if(type === HX.MaterialPass.SHADOW_DEPTH_PASS)
-                pass.cullMode = HX.DIR_SHADOW_FILTER.getCullMode();
+                pass.cullMode = HX.DirectionalLight.SHADOW_FILTER.getCullMode();
 
             if(type === HX.GEOMETRY_NORMAL_PASS || type === HX.GEOMETRY_SPECULAR_PASS)
                 pass.depthTest = HX.Comparison.EQUAL;

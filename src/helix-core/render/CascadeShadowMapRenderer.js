@@ -128,7 +128,7 @@ HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
     this._depthBuffer = null;   // only used if depth textures aren't supported
 
     this._shadowMap = this._createShadowBuffer();
-    this._shadowBackBuffer = HX.DIR_SHADOW_FILTER.blurShader? this._createShadowBuffer() : null;
+    this._shadowBackBuffer = HX.DirectionalLight.SHADOW_FILTER.blurShader? this._createShadowBuffer() : null;
 
     this._shadowMatrices = [ new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4() ];
     this._transformToUV = [ new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4() ];
@@ -195,7 +195,7 @@ HX.CascadeShadowMapRenderer.prototype =
             HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
         }
 
-        if (HX.DIR_SHADOW_FILTER.blurShader) {
+        if (HX.DirectionalLight.SHADOW_FILTER.blurShader) {
             this._blur();
         }
 
@@ -405,7 +405,7 @@ HX.CascadeShadowMapRenderer.prototype =
         var texWidth = this._shadowMapSize * numMapsW;
         var texHeight = this._shadowMapSize * numMapsH;
 
-        this._shadowMap.initEmpty(texWidth, texHeight, HX.DIR_SHADOW_FILTER.getShadowMapFormat(), HX.DIR_SHADOW_FILTER.getShadowMapDataType());
+        this._shadowMap.initEmpty(texWidth, texHeight, HX.DirectionalLight.SHADOW_FILTER.getShadowMapFormat(), HX.DirectionalLight.SHADOW_FILTER.getShadowMapDataType());
         if (!this._depthBuffer) this._depthBuffer = new HX.ReadOnlyDepthBuffer();
         if (!this._fboFront) this._fboFront = new HX.FrameBuffer(this._shadowMap, this._depthBuffer);
 
@@ -414,7 +414,7 @@ HX.CascadeShadowMapRenderer.prototype =
         this._shadowMapInvalid = false;
 
         if (this._shadowBackBuffer) {
-            this._shadowBackBuffer.initEmpty(texWidth, texHeight, HX.DIR_SHADOW_FILTER.getShadowMapFormat(), HX.DIR_SHADOW_FILTER.getShadowMapDataType());
+            this._shadowBackBuffer.initEmpty(texWidth, texHeight, HX.DirectionalLight.SHADOW_FILTER.getShadowMapFormat(), HX.DirectionalLight.SHADOW_FILTER.getShadowMapDataType());
             if (!this._fboBack) this._fboBack = new HX.FrameBuffer(this._shadowBackBuffer, this._depthBuffer);
             this._fboBack.init();
             this._fboBack.init();
@@ -483,9 +483,9 @@ HX.CascadeShadowMapRenderer.prototype =
 
     _blur: function()
     {
-        var shader = HX.DIR_SHADOW_FILTER.blurShader;
+        var shader = HX.DirectionalLight.SHADOW_FILTER.blurShader;
 
-        for (var i = 0; i < HX.DIR_SHADOW_FILTER.numBlurPasses; ++i) {
+        for (var i = 0; i < HX.DirectionalLight.SHADOW_FILTER.numBlurPasses; ++i) {
             HX.pushRenderTarget(this._fboBack);
             shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
             HX.popRenderTarget();

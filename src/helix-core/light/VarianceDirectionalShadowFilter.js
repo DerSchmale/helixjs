@@ -1,38 +1,58 @@
-HX.VarianceDirectionalShadowFilter =
+HX.VarianceDirectionalShadowFilter = function()
 {
-    _CULL_MODE: undefined,
-    _BLUR_SHADER: undefined,
-    _BLUR_RADIUS: 2,
-    _SHADOW_MAP_FORMAT: null,
-    _SHADOW_MAP_DATA_TYPE: null,
+    HX.ShadowFilter.call(this);
+    this._blurRadius = 2;
+    this._lightBleedReduction = .35;
+};
 
-    NUM_BLUR_PASSES: 1,
-    MIN_VARIANCE: .0001,
-    LIGHT_BLEED_REDUCTION: .35,
-
-    init: function()
+HX.VarianceDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.prototype,
     {
-        var defines = HX.VarianceDirectionalShadowFilter._getDefines();
+        blurRadius: {
+            get: function()
+            {
+                return this._blurRadius;
+            },
 
-        HX.VarianceDirectionalShadowFilter._SHADOW_MAP_FORMAT = HX.GL.RGBA;
-        HX.VarianceDirectionalShadowFilter._SHADOW_MAP_DATA_TYPE = HX.GL.UNSIGNED_BYTE;
-        HX.VarianceDirectionalShadowFilter._BLUR_SHADER = new HX.VarianceBlurShader(defines);
-        HX.VarianceDirectionalShadowFilter._CULL_MODE = HX.CullMode.BACK;
-    },
+            set: function(value)
+            {
+                this._blurRadius = value;
+                this._invalidateBlurShader();
+            }
+        },
 
-    getGLSL: function()
-    {
-        var defines = HX.VarianceDirectionalShadowFilter._getDefines();
-        return HX.ShaderLibrary.get("dir_shadow_vsm.glsl", defines);
-    },
+        lightBleedReduction: {
+            get: function()
+            {
+                return this._lightBleedReduction;
+            },
 
-    _getDefines: function()
-    {
-        return {
-            HX_VSM_MIN_VARIANCE: "float(" + HX.VarianceDirectionalShadowFilter.MIN_VARIANCE + ")",
-            HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + HX.VarianceDirectionalShadowFilter.LIGHT_BLEED_REDUCTION + ")"
-        };
-    }
+            set: function(value)
+            {
+                this._lightBleedReduction = value;
+                // TODO: dispatch change event
+            }
+        }
+    });
+
+HX.VarianceDirectionalShadowFilter.prototype.getGLSL = function()
+{
+    var defines = this._getDefines();
+    return HX.ShaderLibrary.get("dir_shadow_vsm.glsl", defines);
+};
+
+HX.VarianceDirectionalShadowFilter.prototype._createBlurShader = function()
+{
+    return new HX.VarianceBlurShader(this._blurRadius);
+};
+
+HX.VarianceDirectionalShadowFilter.prototype._getDefines = function()
+{
+    var range = 1.0 - this._lightBleedReduction;
+    return {
+        HX_VSM_MIN_VARIANCE: .0001,
+        HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + this._lightBleedReduction + ")",
+        HX_VSM_LIGHT_BLEED_REDUCTION_RANGE: "float(" + range + ")"
+    };
 };
 
 /**
@@ -40,12 +60,14 @@ HX.VarianceDirectionalShadowFilter =
  * @param fragmentShader The fragment shader to use while copying.
  * @constructor
  */
-HX.VarianceBlurShader = function(defines)
+HX.VarianceBlurShader = function(blurRadius)
 {
     HX.Shader.call(this);
 
-    defines.RADIUS = HX.VarianceDirectionalShadowFilter._BLUR_RADIUS;
-    defines.RCP_NUM_SAMPLES = "float(" + (1.0 / (1.0 + 2.0 * HX.VarianceDirectionalShadowFilter._BLUR_RADIUS)) + ")";
+    var defines = {
+        RADIUS: blurRadius,
+        RCP_NUM_SAMPLES: "float(" + (1.0 / (1.0 + 2.0 * blurRadius)) + ")"
+    };
 
     var vertex = HX.ShaderLibrary.get("copy_vertex.glsl", defines);
     var fragment = HX.ShaderLibrary.get("vsm_blur_fragment.glsl", defines);

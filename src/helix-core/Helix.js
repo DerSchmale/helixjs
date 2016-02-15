@@ -205,8 +205,6 @@ HX.init = function(canvas, options)
     HX.onPreFrame = new HX.Signal();  // for engine-specific stuff (entity updates etc), stats updates, etc
     HX.onFrame = new HX.Signal();   // for user-implemented behaviour and rendering
 
-    HX.DIR_SHADOW_FILTER.init();
-
     HX.FRAME_TICKER = new HX.FrameTicker();
     HX.start();
 };

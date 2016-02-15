@@ -33,6 +33,7 @@ var coreFiles = [
     "src/helix-core/scene/SceneNode.js",
     "src/helix-core/entity/*.js",
     "src/helix-core/light/Light.js",
+    "src/helix-core/light/ShadowFilter.js",
     "src/helix-core/scene/SceneVisitor.js",
     "src/helix-core/animation/SkeletonBlendNode.js",
 

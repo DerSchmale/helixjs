@@ -17,6 +17,6 @@ float hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, floa
 
     float shadow = max(upperBound, float(shadowMapCoord.z <= moments.x));
 
-    shadow = saturate((shadow - HX_VSM_LIGHT_BLEED_REDUCTION) / (1.0 - HX_VSM_LIGHT_BLEED_REDUCTION));
+    shadow = saturate((shadow - HX_VSM_LIGHT_BLEED_REDUCTION) / HX_VSM_LIGHT_BLEED_REDUCTION_RANGE);
     return shadow;
 }

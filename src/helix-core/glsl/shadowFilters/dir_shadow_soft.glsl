@@ -1,4 +1,4 @@
-#ifdef DITHER_SHADOWS
+#ifdef HX_PCF_DITHER_SHADOWS
     uniform sampler2D hx_dither2D;
     uniform vec2 hx_dither2DTextureScale;
 #endif
@@ -17,7 +17,7 @@ float hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, floa
     vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);
     float shadowTest = 0.0;
 
-    #ifdef DITHER_SHADOWS
+    #ifdef HX_PCF_DITHER_SHADOWS
         vec4 dither = texture2D(hx_dither2D, screenUV * hx_dither2DTextureScale);
         dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale
     #else

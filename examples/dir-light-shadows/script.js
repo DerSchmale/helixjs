@@ -14,9 +14,7 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    //HX.PCFDirectionalShadowFilter.NUM_SHADOW_SAMPLES = 8;
-    //HX.PCFDirectionalShadowFilter.DITHER = true;
-    options.directionalShadowFilter = HX.VarianceDirectionalShadowFilter;
+    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
     options.useHDR = true;
     options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);

@@ -1,30 +1,40 @@
-HX.PCFDirectionalShadowFilter =
+HX.PCFDirectionalShadowFilter = function()
 {
-    _CULL_MODE: undefined,
-    _SHADOW_MAP_FORMAT: null,
-    _SHADOW_MAP_DATA_TYPE: null,
+    HX.ShadowFilter.call(this);
+    this._numShadowSamples = 6;
+    this._dither = false;
+};
 
-    NUM_SHADOW_SAMPLES: 6,
-    DITHER: false,
-
-    BLUR_SHADER: undefined,
-
-    init: function()
+HX.PCFDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.prototype,
     {
-        HX.PCFDirectionalShadowFilter._SHADOW_MAP_FORMAT = HX.GL.RGBA;
-        HX.PCFDirectionalShadowFilter._SHADOW_MAP_DATA_TYPE = HX.GL.UNSIGNED_INT;
-        HX.PCFDirectionalShadowFilter._CULL_MODE = HX.CullMode.FRONT;
-    },
+        numShadowSamples: {
+            get: function()
+            {
+                return this._numShadowSamples;
+            },
 
-    getGLSL: function()
-    {
-        var defines = {
-            NUM_SHADOW_SAMPLES: HX.PCFDirectionalShadowFilter.NUM_SHADOW_SAMPLES
-        };
-
-        if (HX.PCFDirectionalShadowFilter.DITHER)
-            defines.DITHER_SHADOWS = 1;
-
-        return HX.ShaderLibrary.get("dir_shadow_soft.glsl", defines);
+            set: function(value)
+            {
+                this._numShadowSamples = value;
+                // TODO: notify change
+            }
+        }
     }
+);
+
+HX.PCFDirectionalShadowFilter.prototype.getCullMode = function()
+{
+    return HX.CullMode.FRONT;
+};
+
+HX.PCFDirectionalShadowFilter.prototype.getGLSL = function()
+{
+    var defines = {
+        NUM_SHADOW_SAMPLES: this._numShadowSamples
+    };
+
+    if (this._dither)
+        defines.HX_PCF_DITHER_SHADOWS = 1;
+
+    return HX.ShaderLibrary.get("dir_shadow_soft.glsl", defines);
 };

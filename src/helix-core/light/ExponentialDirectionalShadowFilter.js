@@ -1,54 +1,93 @@
 // highly experimental
-HX.ExponentialDirectionalShadowFilter =
+HX.ExponentialDirectionalShadowFilter = function()
 {
-    _CONSTANT: 80,
-    _CULL_MODE: undefined,
-    _BLUR_SHADER: undefined,
-    _BLUR_RADIUS: 1,
-    _SHADOW_MAP_FORMAT: null,
-    _SHADOW_MAP_DATA_TYPE: null,
-
-    NUM_BLUR_PASSES: 1,
-    DARKENING_FACTOR: .3,
-
-    init: function()
-    {
-        var defines = HX.ExponentialDirectionalShadowFilter._getDefines();
-
-        // ESM is pointless if float is not supported
-        HX.ExponentialDirectionalShadowFilter._SHADOW_MAP_FORMAT = HX.GL.RGB;
-        HX.ExponentialDirectionalShadowFilter._SHADOW_MAP_DATA_TYPE = HX.GL.FLOAT;
-        HX.ExponentialDirectionalShadowFilter._BLUR_SHADER = new HX.ESMBlurShader(defines);
-        HX.ExponentialDirectionalShadowFilter._CULL_MODE = HX.CullMode.BACK;
-    },
-
-    getGLSL: function()
-    {
-        var defines = HX.ExponentialDirectionalShadowFilter._getDefines();
-        return HX.ShaderLibrary.get("dir_shadow_esm.glsl", defines);
-    },
-
-    _getDefines: function()
-    {
-        return {
-            HX_ESM_CONSTANT: "float(" + HX.ExponentialDirectionalShadowFilter._CONSTANT + ")",
-            HX_MAX_ESM_VALUE: "float(" + Math.exp(HX.ExponentialDirectionalShadowFilter._CONSTANT) + ")",
-            HX_ESM_DARKENING: "float(" + HX.ExponentialDirectionalShadowFilter.DARKENING_FACTOR + ")"
-        };
-    }
+    HX.ShadowFilter.call(this);
+    this._expScaleFactor = 80;
+    this._blurRadius = 1;
+    this._darkeningFactor = .35;
 };
 
-/**
- * Base function for basic copies
- * @param fragmentShader The fragment shader to use while copying.
- * @constructor
- */
-HX.ESMBlurShader = function(defines)
+
+HX.ExponentialDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.prototype,
+    {
+        blurRadius: {
+            get: function()
+            {
+                return this._blurRadius;
+            },
+
+            set: function(value)
+            {
+                this._blurRadius = value;
+                this._invalidateBlurShader();
+            }
+        },
+
+        darkeningFactor: {
+            get: function()
+            {
+                return this._darkeningFactor;
+            },
+
+            set: function(value)
+            {
+                this._darkeningFactor = value;
+                // TODO: dispatch change event
+            }
+        },
+
+        // not recommended to change
+        expScaleFactor: {
+            get: function()
+            {
+                return this._expScaleFactor;
+            },
+
+            set: function(value)
+            {
+                this._expScaleFactor = value;
+                // TODO: dispatch change event
+            }
+        }
+    });
+
+HX.ExponentialDirectionalShadowFilter.prototype.getShadowMapFormat = function()
+{
+    return HX.GL.RGB;
+};
+
+HX.ExponentialDirectionalShadowFilter.prototype.getShadowMapDataType = function()
+{
+    return HX.GL.FLOAT;
+};
+
+HX.ExponentialDirectionalShadowFilter.prototype.getGLSL = function()
+{
+    var defines = this._getDefines();
+    return HX.ShaderLibrary.get("dir_shadow_esm.glsl", defines);
+};
+
+HX.ExponentialDirectionalShadowFilter.prototype._getDefines = function()
+{
+    return {
+        HX_ESM_CONSTANT: "float(" + this._expScaleFactor + ")",
+        HX_ESM_DARKENING: "float(" + this._darkeningFactor + ")"
+    };
+};
+
+HX.ExponentialDirectionalShadowFilter.prototype._createBlurShader = function()
+{
+    return new HX.ESMBlurShader(this._blurRadius);
+};
+
+HX.ESMBlurShader = function(blurRadius)
 {
     HX.Shader.call(this);
 
-    defines.RADIUS = HX.ExponentialDirectionalShadowFilter._BLUR_RADIUS;
-    defines.RCP_NUM_SAMPLES = "float(" + (1.0 / (1.0 + 2.0 * HX.ExponentialDirectionalShadowFilter._BLUR_RADIUS)) + ")";
+    var defines = {
+        RADIUS: blurRadius,
+        RCP_NUM_SAMPLES: "float(" + (1.0 / (1.0 + 2.0 * blurRadius)) + ")"
+    };
 
     var vertex = HX.ShaderLibrary.get("copy_vertex.glsl", defines);
     var fragment = HX.ShaderLibrary.get("esm_blur_fragment.glsl", defines);

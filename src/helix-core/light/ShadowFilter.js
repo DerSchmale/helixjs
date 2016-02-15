@@ -35,9 +35,15 @@ HX.ShadowFilter.prototype =
         return this._blurShader;
     },
 
+    // only for those methods that use a blurShader
     get numBlurPasses()
     {
         return this._numBlurPasses;
+    },
+
+    set numBlurPasses(value)
+    {
+        this._numBlurPasses = value;
     },
 
     init: function()

@@ -328,10 +328,8 @@ HX.PBRMaterial.prototype._updatePasses = function()
     }
 
     // need to initialize shadow map pass if its index is not -1
-    if (HX.MaterialPass.SHADOW_DEPTH_PASS !== -1) {
-        var defines = "#define HX_SHADOW_DEPTH_PASS\n" + generalDefines;
-        this._initPass(HX.MaterialPass.SHADOW_DEPTH_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
-    }
+    var defines = "#define HX_SHADOW_DEPTH_PASS\n" + generalDefines;
+    this._initPass(HX.MaterialPass.SHADOW_DEPTH_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
 
     this.setUniform("color", this._color);
     this.setUniform("alpha", this._alpha);

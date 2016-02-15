@@ -9,8 +9,15 @@ project.onInit = function()
 
 window.onload = function ()
 {
+    var shadowFilter = new HX.PCFDirectionalShadowFilter();
+    shadowFilter.softness = .02;
+    shadowFilter.dither = true;
+    shadowFilter.numShadowSamples = 8;
+
     var options = new HX.InitOptions();
     options.useHDR = true;
+    options.directionalShadowFilter = shadowFilter;
+
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -53,8 +60,6 @@ function initScene(scene)
     dirLight.intensity = 1.2;
     dirLight.numCascades = 3;
     dirLight.castShadows = true;
-    dirLight.numShadowSamples = 8;
-    dirLight.shadowSoftness = .05;
 
     scene.attach(dirLight);
 

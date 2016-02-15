@@ -3,8 +3,7 @@
     uniform vec2 hx_dither2DTextureScale;
 #endif
 
-uniform float hx_shadowSoftness;
-uniform vec2 hx_poissonDisk[NUM_SHADOW_SAMPLES];
+uniform vec2 hx_poissonDisk[HX_PCF_NUM_SHADOW_SAMPLES];
 
 vec4 hx_getShadowMapValue(float depth)
 {
@@ -13,7 +12,7 @@ vec4 hx_getShadowMapValue(float depth)
 
 float hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias, vec2 screenUV)
 {
-    vec2 radii = vec2(shadowMapMatrix[0][0], shadowMapMatrix[1][1]) * hx_shadowSoftness;
+    vec2 radii = vec2(shadowMapMatrix[0][0], shadowMapMatrix[1][1]) * HX_PCF_SOFTNESS;
     vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);
     float shadowTest = 0.0;
 
@@ -24,7 +23,7 @@ float hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, floa
         vec4 dither = radii.xxyy;
     #endif
 
-    for (int i = 0; i < NUM_SHADOW_SAMPLES; ++i) {
+    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {
         vec2 offset;
         offset.x = dot(dither.xy, hx_poissonDisk[i]);
         offset.y = dot(dither.zw, hx_poissonDisk[i]);
@@ -33,5 +32,5 @@ float hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, floa
         shadowTest += float(diff < 0.0);
     }
 
-    return shadowTest / float(NUM_SHADOW_SAMPLES);
+    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;
 }

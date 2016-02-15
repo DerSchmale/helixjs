@@ -33,7 +33,7 @@ HX.InitOptions = function()
     this.lightingModel = HX.BlinnPhongSimpleLightingModel;
 
     // will be assigned to HX.DirectionalLight.SHADOW_FILTER
-    this.directionalShadowFilter = HX.HardDirectionalShadowFilter;
+    this.directionalShadowFilter = new HX.HardDirectionalShadowFilter();
 };
 
 /**

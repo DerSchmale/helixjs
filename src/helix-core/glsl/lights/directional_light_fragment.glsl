@@ -18,23 +18,24 @@ uniform sampler2D hx_gbufferSpecular;
 	uniform mat4 shadowMapMatrices[NUM_CASCADES];
 	uniform float splitDistances[NUM_CASCADES];
 	uniform float depthBias;
-#endif
 
-mat4 getShadowMatrix(vec3 viewPos)
-{
-    #if NUM_CASCADES > 1
-        // not very efficient :(
-        for (int i = 0; i < NUM_CASCADES - 1; ++i) {
-            // remember, negative Z!
-            if (viewPos.z > splitDistances[i]) {
-                return shadowMapMatrices[i];
+
+    mat4 getShadowMatrix(vec3 viewPos)
+    {
+        #if NUM_CASCADES > 1
+            // not very efficient :(
+            for (int i = 0; i < NUM_CASCADES - 1; ++i) {
+                // remember, negative Z!
+                if (viewPos.z > splitDistances[i]) {
+                    return shadowMapMatrices[i];
+                }
             }
-        }
-        return shadowMapMatrices[NUM_CASCADES - 1];
-    #else
-        return shadowMapMatrices[0];
-    #endif
-}
+            return shadowMapMatrices[NUM_CASCADES - 1];
+        #else
+            return shadowMapMatrices[0];
+        #endif
+    }
+#endif
 
 vec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 viewVector, vec3 normalSpecularReflectance, float roughness, float metallicness)
 {

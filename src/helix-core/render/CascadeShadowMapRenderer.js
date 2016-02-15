@@ -170,8 +170,6 @@ HX.CascadeShadowMapRenderer.prototype =
 
     render: function(viewCamera, scene)
     {
-        if (!this.TEST) this.TEST = 1;
-
         if (this._shadowMapInvalid)
             this._initShadowMap();
 
@@ -325,7 +323,7 @@ HX.CascadeShadowMapRenderer.prototype =
             right = left + width;
             top = bottom + height;
 
-            var softness = this._light.numShadowSamples === 0? 0 : this._light.shadowSoftness;
+            var softness = HX.DirectionalLight.SHADOW_FILTER.softness ? HX.DirectionalLight.SHADOW_FILTER.softness : .1;
 
             camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 

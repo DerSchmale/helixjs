@@ -150,9 +150,6 @@ function initScene(scene)
     var light = new HX.DirectionalLight();
     light.color = new HX.Color(1.0,.8,.6);
     light.direction = new HX.Float4(0.0, -0.3, -1.0, 0.0);
-    light.numShadowSamples = 8.0;
-    light.shadowSoftness = 3.0;
-    light.depthBias = 0.01;
     light.castShadows = true;
     light.intensity = 3.1415;
     light.shadowMapSize = 2048;

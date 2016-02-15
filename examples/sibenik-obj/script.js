@@ -51,15 +51,6 @@ function initScene(scene)
     var ambientLight = new HX.AmbientLight();
     ambientLight.color = new HX.Color(.3,.3,.3);
 
-    var dirLight = new HX.DirectionalLight();
-    dirLight.color = new HX.Color(1.0, .9, .7);
-    dirLight.direction = new HX.Float4(0.0, -.3, 1.0);
-    dirLight.intensity = 1.2;
-    dirLight.numCascades = 3;
-    dirLight.numShadowSamples = 8;
-    dirLight.shadowSoftness = .05;
-    dirLight.castShadows = true;
-
     pointLight = new HX.PointLight();
     pointLight.color = new HX.Color(.6,.8, 1.0);
     pointLight.intensity = 100.0;
@@ -68,7 +59,6 @@ function initScene(scene)
 
     scene.attach(pointLight);
     scene.attach(ambientLight);
-    scene.attach(dirLight);
 
     var loader = new HX.AssetLoader(HX.OBJ);
     var sibenik = loader.load('resources/sibenik/sibenik.obj');

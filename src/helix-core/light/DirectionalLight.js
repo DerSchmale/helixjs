@@ -10,7 +10,6 @@ HX.DirectionalLight = function()
     this._shadowMapSize = 1024;
 
     // these two don't need getters/setters (saves on filesize)
-    this.shadowSoftness = .01;
     this.depthBias = .0;
 
     this.direction = new HX.Float4(-1.0, -1.0, -1.0, 0.0);
@@ -21,7 +20,6 @@ HX.DirectionalLight = function()
     this._splitDistancesLocation = null;
     this._shadowMatrixLocation = null;
     this._depthBiasLocation = null;
-    this._shadowSoftnessLocation = null;
 };
 
 // set on init
@@ -145,9 +143,6 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
         }
 
         HX.GL.uniformMatrix4fv(this._shadowMatrixLocation, false, this._matrixData);
-
-        if (this._shadowSoftnessLocation)
-            HX.GL.uniform1f(this._shadowSoftnessLocation, light.shadowSoftness);
     }
 
     // render rect mesh
@@ -190,7 +185,6 @@ HX.DirectionalLight.prototype._initLightPass =  function()
         this._splitDistancesLocation = this._lightPass.getUniformLocation("splitDistances[0]");
         this._shadowMatrixLocation = this._lightPass.getUniformLocation("shadowMapMatrices[0]");
         this._depthBiasLocation = this._lightPass.getUniformLocation("depthBias");
-        this._shadowSoftnessLocation = this._lightPass.getUniformLocation("hx_shadowSoftness");
     }
 };
 
@@ -204,7 +198,6 @@ HX.DirectionalLight.prototype._invalidateLightPass = function()
         this._splitDistancesLocation = null;
         this._shadowMatrixLocation = null;
         this._depthBiasLocation = null;
-        this._shadowSoftnessLocation = null;
         this._matrixData = null;
     }
 };

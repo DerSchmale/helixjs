@@ -55,9 +55,6 @@ function initScene(scene)
     light.color = new HX.Color(1.0,.8,.6);
     light.direction = new HX.Float4(0.0, -0.8, -1.0, 0.0);
     light.castShadows = true;
-    //light.shadowMapSize = 2048;
-    //light.shadowSoftness = .01;
-    //light.numShadowSamples = 8;
     light.numCascades = 3;
     light.intensity = 3.0;
     scene.attach(light);

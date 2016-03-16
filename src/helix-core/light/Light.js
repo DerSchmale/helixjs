@@ -9,7 +9,6 @@ HX.Light = function ()
     HX.Entity.call(this);
     this._type = this.getTypeID();
     this._intensity = 3.1415;
-    this._luminanceBound = 1 / 255;
     this._color = new HX.Color(1.0, 1.0, 1.0);
     this._scaledIrradiance = new HX.Color();
     this._castShadows = false;
@@ -65,20 +64,6 @@ Object.defineProperties(HX.Light.prototype, {
 HX.Light.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
     throw new Error("Abstract method!");
-};
-
-/**
- * The minimum luminance to be considered as "contributing to the lighting", used to define bounds. Any amount below this will be zeroed. Defaults to 1/255.
- */
-HX.Light.prototype.getLuminanceBound = function ()
-{
-    return this._luminanceBound;
-};
-
-HX.Light.prototype.setLuminanceBound = function (value)
-{
-    this._luminanceBound = value;
-    this._invalidateWorldBounds();
 };
 
 HX.Light.prototype.luminance = function ()

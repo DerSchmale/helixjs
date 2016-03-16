@@ -93,6 +93,11 @@ HX.Color.prototype =
         this.g = color.g;
         this.b = color.b;
         this.a = color.a;
+    },
+
+    toString: function()
+    {
+        return "Color(" + this.r + ", " + this.g + ", " + this.b + ", " + this.a + ")";
     }
 };
 

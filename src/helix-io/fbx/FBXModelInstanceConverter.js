@@ -59,7 +59,7 @@ HX.FBXModelInstanceConverter.prototype =
         this._splitPerMaterial();
         this._generateModel();
         if (fbxMesh.deformers)
-            this._animationConverter.convertClips(fbxAnimationStack, geometryMatrix, settings);
+            this._animationConverter.convertClips(fbxAnimationStack, fbxMesh, geometryMatrix, settings);
         this._model.name = fbxMesh.name;
     },
 

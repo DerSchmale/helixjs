@@ -62,7 +62,7 @@ HX.MeshData.prototype = {
     addVertexAttribute: function (name, numComponents, streamIndex)
     {
         streamIndex = streamIndex || 0;
-        this._numStreams = Math.max(this._numStreams, streamIndex);
+        this._numStreams = Math.max(this._numStreams, streamIndex + 1);
         this._vertexStrides[streamIndex] = this._vertexStrides[streamIndex] || 0;
         this._vertexAttributes.push({
             name: name,

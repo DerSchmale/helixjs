@@ -54,6 +54,7 @@ HX.SkeletonBlendTree.prototype =
         var pp = new HX.Transform();
         var cc = new HX.Transform();
         var sc = new HX.Float4();
+        var scale = 1.0;
 
         for (var i = 0; i < numJoints; ++i) {
             var localJointPose = rootPose[i];
@@ -63,19 +64,28 @@ HX.SkeletonBlendTree.prototype =
             if (joint.parentIndex < 0)
                 globalJointPose.copyFrom(localJointPose);
             else {
-                // this doesn't seem to work for MD5, but it should
                 var parentPose = globalPose[joint.parentIndex];
-                pp.position.copyFrom(parentPose.position);
+
+                /*pp.position.copyFrom(parentPose.position);
                 pp.rotation.copyFrom(parentPose.rotation);
-                pp.scale.set(parentPose.scale, parentPose.scale, parentPose.scale);
+                // should we inherit scale or not?
+                //pp.scale.set(parentPose.scale, parentPose.scale, parentPose.scale);
                 cc.position.copyFrom(localJointPose.position);
                 cc.rotation.copyFrom(localJointPose.rotation);
-                cc.scale.set(localJointPose.scale, localJointPose.scale, localJointPose.scale);
+                //cc.scale.set(localJointPose.scale, localJointPose.scale, localJointPose.scale);
+
+                // inherit scale:
+                //scale *= localJointPose.scale;
+                scale = localJointPose.scale;
                 p.compose(pp);
                 c.compose(cc);
                 c.append(p);
 
-                /*var gTr = globalJointPose.position;
+                // decompose doesn't work with negative scale -_-
+                c.decompose(globalJointPose.position, globalJointPose.rotation, sc);
+                globalJointPose.scale = scale;*/
+
+                var gTr = globalJointPose.position;
                 var ptr = parentPose.position;
                 var pQuad = parentPose.rotation;
                 pQuad.rotate(localJointPose.position, gTr);
@@ -83,10 +93,7 @@ HX.SkeletonBlendTree.prototype =
                 gTr.y += ptr.y;
                 gTr.z += ptr.z;
                 globalJointPose.rotation.multiply(pQuad, localJointPose.rotation);
-                globalJointPose.scale = parentPose.scale * localJointPose.scale;*/
-
-                c.decompose(globalJointPose.position, globalJointPose.rotation, sc);
-                //globalJointPose.scale = sc.x;
+                globalJointPose.scale = parentPose.scale * localJointPose.scale;
             }
         }
     },

@@ -53,12 +53,22 @@ HX.FBXAnimationConverter.prototype =
         this._fakeJointIndex = this._skeleton.numJoints;
         this._skeleton.addJoint(fakeJoint);
 
+        // are joint poses local perhaps?
+        /*for (var i = this._skeleton.numJoints - 1; i >= 0; --i) {
+            var joint = this._skeleton.getJoint(i);
+
+            if (joint.parentIndex >= 0) {
+                var parent = this._skeleton.getJoint(joint.parentIndex);
+                joint.inverseBindPose.prepend(parent.inverseBindPose);
+            }
+        }*/
+
         for (var key in this._jointUIDLookUp) {
             this._jointUIDLookUp[key].fbxNode.data = null;
         }
     },
 
-    convertClips: function(fbxAnimationStack, geometryMatrix, settings)
+    convertClips: function(fbxAnimationStack, fbxMesh, geometryMatrix, settings)
     {
         this._frameRate = settings.frameRate;
 
@@ -127,11 +137,28 @@ HX.FBXAnimationConverter.prototype =
 
     _assignInverseBindPose: function (cluster, geometryMatrix, joint)
     {
+        // looks like Unreal uses this, along with cluster's limbnode transform to deform vertices?
+        // in that case, should be able to apply this to bind pose instead, since it boils down to the same thing?
         joint.inverseBindPose.copyFrom(cluster.transformLink);
         joint.inverseBindPose.invertAffine();
         joint.inverseBindPose.prependAffine(cluster.transform);
         joint.inverseBindPose.prependAffine(geometryMatrix);
-        //matrix.append(this._settings.orientationMatrix);
+        //joint.inverseBindPose.append(this._settings.orientationMatrix);
+    },
+
+    _getLimbGlobalMatrix: function(node)
+    {
+        if (!node._globalMatrix) {
+            node._globalMatrix = new HX.Matrix4x4();
+            if (node.parent && node.parent.type === "LimbNode") {
+                var parentMatrix = this._getLimbGlobalMatrix(node.parent);
+                node._globalMatrix.multiply(parentMatrix, node.matrix);
+            }
+            else {
+                node._globalMatrix.copyFrom(node.matrix);
+            }
+        }
+        return node._globalMatrix;
     },
 
     // this uses the logic that one of the clusters is bound to have the root node assigned to them
@@ -219,11 +246,13 @@ HX.FBXAnimationConverter.prototype =
         var numCurveNodes = layer.curveNodes.length;
         var tempJointPoses = [];
 
+        // use local bind pose as default
         for (var i = 0; i < numJoints; ++i) {
             var joint = this._skeleton.getJoint(i);
             var localBind = joint.inverseBindPose.clone();
             localBind.invertAffine();
 
+            // by default, use bind pose
             if (joint.parentIndex !== -1) {
                 var parentInverse = this._skeleton.getJoint(joint.parentIndex).inverseBindPose;
                 localBind.appendAffine(parentInverse);
@@ -240,7 +269,6 @@ HX.FBXAnimationConverter.prototype =
             pose["Lcl Rotation"].x *= HX.RAD_TO_DEG;
             pose["Lcl Rotation"].y *= HX.RAD_TO_DEG;
             pose["Lcl Rotation"].z *= HX.RAD_TO_DEG;
-
             pose["Lcl Scaling"].copyFrom(transform.scale);
 
             tempJointPoses[i] = pose;

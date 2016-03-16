@@ -102,29 +102,22 @@ function initScene(scene)
     // using the Signal approach for this demo
     loader.onComplete.bind(function(node)
     {
-        var furMaterial = node.findMaterialByName("Fur");
-         //this is a pretty slow approach, but it's just one model and it looks much nicer than alphathreshold
-        furMaterial.transparencyMode = HX.TransparencyMode.ALPHA;
-        furMaterial.alpha = .6;
-        furMaterial.doubleSided = true;
-
         node.scale.set(.1,.1,.1);
-        //node.position.x = -node.worldBounds.center.x;
-        //node.position.z = -node.worldBounds.center.z;
-        //node.position.y = -node.worldBounds.minimum.y;
+        node.position.x = -node.worldBounds.center.x;
+        node.position.z = -node.worldBounds.center.z;
+        node.position.y = -node.worldBounds.minimum.y;
 
         scene.attach(node);
 
         // something wrong with this fbx file in that the textures aren't connected to the material
 
-        /*var material = node.findMaterialByName("wire_028089177");
+        var material = node.findMaterialByName("wire_028089177");
         var textureLoader = new HX.AssetLoader(HX.JPG);
         material.colorMap = textureLoader.load("model/zombie/diffuse.jpg");
         material.normalMap = textureLoader.load("model/zombie/normal.jpg");
         material.specularMap = textureLoader.load("model/zombie/specular.jpg");
-        material.roughness = 0.0;*/
+        material.roughness = 0.0;
     });
 
-    loader.load("model/rabbit/rabbit-anim.fbx");
-    //loader.load("model/zombie/walk.FBX");
+    loader.load("model/zombie/walk.FBX");
 }

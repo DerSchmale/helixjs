@@ -149,7 +149,7 @@ HX.updateStencilReferenceValue = function(value)
 {
     var currentState = HX._stencilStateStack[HX._stencilStateStack.length - 1];
 
-    if (!currentState) return;
+    if (!currentState || currentState.reference === value) return;
 
     currentState.reference = value;
 

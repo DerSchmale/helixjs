@@ -124,13 +124,11 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
     HX.GL.uniform3f(this._colorLocation, color.r ,color.g, color.b);
 
     if (this._castShadows) {
-        var softness = new HX.Float2();
         var splitDistances = this._shadowMapRenderer.getSplitDistances();
         HX.GL.uniform1fv(this._splitDistancesLocation, new Float32Array(splitDistances));
         HX.GL.uniform1f(this._depthBiasLocation, light.depthBias);
 
         var k = 0;
-        var l = 0;
         var len = this._numCascades;
         var matrix = new HX.Matrix4x4();
 

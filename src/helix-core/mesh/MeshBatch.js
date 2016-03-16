@@ -1,6 +1,7 @@
 HX.MeshBatch = {
     create: function(sourceMeshData, numInstances)
     {
+        var len, i, j;
         var target = new HX.MeshData();
         var sourceIndices = sourceMeshData._indexData;
 
@@ -8,37 +9,40 @@ HX.MeshBatch = {
         target.indexUsage = sourceMeshData.vertexUsage;
 
         var attribs = sourceMeshData._vertexAttributes;
-        for (var i = 0; i < attribs.length; ++i) {
+        var instanceStream = sourceMeshData.numStreams;
+
+        for (i = 0; i < attribs.length; ++i) {
             var attribute = attribs[i];
-            target.addVertexAttribute(attribute.name, attribute.numComponents, sourceMeshData.streamIndex);
+            target.addVertexAttribute(attribute.name, attribute.numComponents, attribute.streamIndex);
         }
 
-        target.addVertexAttribute("hx_instanceID", 1, sourceMeshData.numStreams);
+        target.addVertexAttribute("hx_instanceID", 1, instanceStream);
 
         var instanceData = [];
-        var index = 0;
-        var indexOffset = 0;
         var targetIndices = [];
-        var numVertices = sourceMeshData.getVertexData(0) / sourceMeshData.getVertexStride(0);
-        for (var i = 0; i < numInstances; ++i) {
+        var index = 0;
+        var numVertices = sourceMeshData.numVertices;
+
+        for (i = 0; i < numInstances; ++i) {
             len = sourceIndices.length;
-            for (j = 0; j < len; ++j)
+            for (j = 0; j < len; ++j) {
                 targetIndices[index++] = sourceIndices[j] + numVertices * i;
-            indexOffset = sourceIndices[j] + 1;
+            }
         }
+
         target.setIndexData(targetIndices);
 
-        for (var i = 0; i < sourceMeshData.numStreams; ++i) {
+        for (i = 0; i < sourceMeshData.numStreams; ++i) {
             var targetVertices = [];
             var sourceVertices = sourceMeshData.getVertexData(i);
-            var len = sourceVertices.length;
 
-            index = 0;
             len = sourceVertices.length;
+            index = 0;
 
-            for (var i = 0; i < numInstances; ++i) {
-                for (var j = 0; j < len; ++j) {
-                    targetVertices[index++] = sourceVertices[i];
+            // duplicate vertex data for each instance
+            for (j = 0; j < numInstances; ++j) {
+                for (var k = 0; k < len; ++k) {
+                    targetVertices[index++] = sourceVertices[k];
                 }
             }
 
@@ -46,11 +50,13 @@ HX.MeshBatch = {
         }
 
         index = 0;
-        for (var j = 0; j < numInstances; ++j) {
-            for (var i = 0; i < numVertices; ++i) {
+        for (j = 0; j < numInstances; ++j) {
+            for (i = 0; i < numVertices; ++i) {
                 instanceData[index++] = j;
             }
         }
+
+        target.setVertexData(instanceData, instanceStream);
 
         return target;
     }

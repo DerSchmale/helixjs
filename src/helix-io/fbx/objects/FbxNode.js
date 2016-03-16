@@ -27,6 +27,7 @@ HX.FbxNode = function()
     this.animationCurveNodes = null;
 
     this._geometricMatrix = null;
+    this._matrix = null;
 };
 
 HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
@@ -61,6 +62,33 @@ HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
 
                 return this._geometricMatrix;
             }
+        },
+
+        matrix:
+        {
+            get: function()
+            {
+                if (!this._matrix) {
+                    this._matrix = new HX.Matrix4x4();
+                    var matrix = this._matrix;
+                    if (this.ScalingPivot) matrix.appendTranslation(HX.Float4.negate(this.ScalingPivot));
+                    var scale = this["Lcl Scaling"];
+                    if (scale) matrix.appendScale(scale.x, scale.y, scale.z);
+                    if (this.ScalingPivot) matrix.appendTranslation(this.ScalingPivot);
+                    if (this.ScalingOffset) matrix.appendTranslation(this.ScalingOffset);
+
+                    if (this.RotationPivot) matrix.appendTranslation(HX.Float4.negate(this.RotationPivot));
+                    if (this.PreRotation) matrix.appendQuaternion(this._convertRotation(this.PreRotation));
+                    if (this["Lcl Rotation"]) matrix.appendQuaternion(this._convertRotation(this["Lcl Rotation"]));
+                    if (this.PostRotation) matrix.appendQuaternion(this._convertRotation(this.PostRotation));
+                    if (this.RotationPivot) matrix.appendTranslation(this.RotationPivot);
+                    if (this.RotationOffset) matrix.appendTranslation(this.RotationOffset);
+
+                    if (this["Lcl Translation"]) matrix.appendTranslation(this["Lcl Translation"]);
+                }
+
+                return this._matrix;
+            }
         }
     }
 );
@@ -91,6 +119,7 @@ HX.FbxNode.prototype.connectObject = function(obj)
     }
     else if (obj instanceof HX.FbxMesh) {
         this.mesh = obj;
+        this.mesh.parent = this;
     }
     else if (obj instanceof HX.FbxMaterial) {
         this.materials = this.materials || [];
@@ -102,6 +131,13 @@ HX.FbxNode.prototype.connectObject = function(obj)
     else {
         throw new Error("Incompatible child object " + obj.toString() + " for " + this.type);
     }
+};
+
+HX.FbxNode.prototype._convertRotation = function(v)
+{
+    var quat = new HX.Quaternion();
+    quat.fromEuler(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
+    return quat;
 };
 
 HX.FbxNode.prototype.connectProperty = function(obj, propertyName)

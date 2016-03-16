@@ -40,6 +40,7 @@ window.onload = function ()
     options.useHDR = true;
     options.maxDepthPrecision = true;   // in case depth textures are not supported
     options.lightingModel = HX.GGXLightingModel;
+    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
 
     project.init(document.getElementById("webglContainer"), options);
 };
@@ -153,6 +154,7 @@ function initScene(scene)
     light.castShadows = true;
     light.intensity = 3.1415;
     light.shadowMapSize = 2048;
+    light.numCascades = 4;
     scene.attach(light);
 
 

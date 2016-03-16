@@ -2,7 +2,9 @@
 
 var HX = {
     VERSION: '0.1',
-    INITIALIZED: false
+    INITIALIZED: false,
+
+    DEBUG_COUNTER: 0
 };
 
 /**
@@ -77,7 +79,6 @@ HX.init = function(canvas, options)
 {
     if (HX.INITIALIZED) throw new Error("Can only initialize Helix once!");
 
-    HX.INITIALIZED = true;
 
     HX.TARGET_CANVAS = canvas;
 
@@ -88,7 +89,7 @@ HX.init = function(canvas, options)
 
     var glContext = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
     if (options && options.debug) {
-        // ugly hack
+        // ugly, but prevents having to include the webgl-debug.js file
         eval("glContext = WebGLDebugUtils.makeDebugContext(glContext)");
     }
 
@@ -96,6 +97,8 @@ HX.init = function(canvas, options)
     HX.GL = glContext;
 
     if (!HX.GL) throw new Error("WebGL not supported");
+
+    HX.INITIALIZED = true;
 
     var extensions  = HX.GL.getSupportedExtensions();
 

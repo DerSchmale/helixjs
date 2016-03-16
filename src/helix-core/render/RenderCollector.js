@@ -109,7 +109,6 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
         for (var passIndex = 0; passIndex < HX.MaterialPass.NUM_PASS_TYPES; ++passIndex) {
             var pass = material.getPass(passIndex);
             if (pass && pass._enabled) {
-                // TODO: pool items
                 var list = material._transparencyMode === HX.TransparencyMode.OPAQUE? this._opaquePasses : this._transparentPasses;
                 var renderItem = this._renderItemPool.getItem();
 

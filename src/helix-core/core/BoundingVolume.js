@@ -303,8 +303,7 @@ HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
     }
 };
 
-// numPlanes is provided so we can provide a full frustum but skip near/far tests (useful in some cases)
-// volumes
+// numPlanes is provided so we can provide a full frustum but skip near or far tests (useful in some cases such as directional light frusta)
 HX.BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
     if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE)

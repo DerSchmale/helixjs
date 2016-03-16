@@ -76,31 +76,7 @@ HX.FBXConverter.prototype =
 
     _convertSceneGraphObject: function(fbxNode, hxNode)
     {
-        var matrix = new HX.Matrix4x4();
-
-        if (fbxNode.ScalingPivot) matrix.appendTranslation(HX.Float4.negate(fbxNode.ScalingPivot));
-        var scale = fbxNode["Lcl Scaling"];
-        if (scale) matrix.appendScale(scale.x, scale.y, scale.z);
-        if (fbxNode.ScalingPivot) matrix.appendTranslation(fbxNode.ScalingPivot);
-        if (fbxNode.ScalingOffset) matrix.appendTranslation(fbxNode.ScalingOffset);
-
-        if (fbxNode.RotationPivot) matrix.appendTranslation(HX.Float4.negate(fbxNode.RotationPivot));
-        if (fbxNode.PreRotation) matrix.appendQuaternion(this._convertRotation(fbxNode.PreRotation));
-        if (fbxNode["Lcl Rotation"]) matrix.appendQuaternion(this._convertRotation(fbxNode["Lcl Rotation"]));
-        if (fbxNode.PostRotation) matrix.appendQuaternion(this._convertRotation(fbxNode.PostRotation));
-        if (fbxNode.RotationPivot) matrix.appendTranslation(fbxNode.RotationPivot);
-        if (fbxNode.RotationOffset) matrix.appendTranslation(fbxNode.RotationOffset);
-
-        if (fbxNode["Lcl Translation"]) matrix.appendTranslation(fbxNode["Lcl Translation"]);
-
-        hxNode.transformationMatrix = matrix;
-    },
-
-    _convertRotation: function(v)
-    {
-        var quat = new HX.Quaternion();
-        quat.fromEuler(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
-        return quat;
+        hxNode.transformationMatrix = fbxNode.matrix;
     },
 
     _convertGeometry: function(node, geometryMatrix)

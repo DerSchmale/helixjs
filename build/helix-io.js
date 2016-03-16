@@ -3136,6 +3136,7 @@ HX.FbxNode = function()
     this.animationCurveNodes = null;
 
     this._geometricMatrix = null;
+    this._matrix = null;
 };
 
 HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
@@ -3170,6 +3171,33 @@ HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
 
                 return this._geometricMatrix;
             }
+        },
+
+        matrix:
+        {
+            get: function()
+            {
+                if (!this._matrix) {
+                    this._matrix = new HX.Matrix4x4();
+                    var matrix = this._matrix;
+                    if (this.ScalingPivot) matrix.appendTranslation(HX.Float4.negate(this.ScalingPivot));
+                    var scale = this["Lcl Scaling"];
+                    if (scale) matrix.appendScale(scale.x, scale.y, scale.z);
+                    if (this.ScalingPivot) matrix.appendTranslation(this.ScalingPivot);
+                    if (this.ScalingOffset) matrix.appendTranslation(this.ScalingOffset);
+
+                    if (this.RotationPivot) matrix.appendTranslation(HX.Float4.negate(this.RotationPivot));
+                    if (this.PreRotation) matrix.appendQuaternion(this._convertRotation(this.PreRotation));
+                    if (this["Lcl Rotation"]) matrix.appendQuaternion(this._convertRotation(this["Lcl Rotation"]));
+                    if (this.PostRotation) matrix.appendQuaternion(this._convertRotation(this.PostRotation));
+                    if (this.RotationPivot) matrix.appendTranslation(this.RotationPivot);
+                    if (this.RotationOffset) matrix.appendTranslation(this.RotationOffset);
+
+                    if (this["Lcl Translation"]) matrix.appendTranslation(this["Lcl Translation"]);
+                }
+
+                return this._matrix;
+            }
         }
     }
 );
@@ -3200,6 +3228,7 @@ HX.FbxNode.prototype.connectObject = function(obj)
     }
     else if (obj instanceof HX.FbxMesh) {
         this.mesh = obj;
+        this.mesh.parent = this;
     }
     else if (obj instanceof HX.FbxMaterial) {
         this.materials = this.materials || [];
@@ -3211,6 +3240,13 @@ HX.FbxNode.prototype.connectObject = function(obj)
     else {
         throw new Error("Incompatible child object " + obj.toString() + " for " + this.type);
     }
+};
+
+HX.FbxNode.prototype._convertRotation = function(v)
+{
+    var quat = new HX.Quaternion();
+    quat.fromEuler(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
+    return quat;
 };
 
 HX.FbxNode.prototype.connectProperty = function(obj, propertyName)
@@ -3378,12 +3414,22 @@ HX.FBXAnimationConverter.prototype =
         this._fakeJointIndex = this._skeleton.numJoints;
         this._skeleton.addJoint(fakeJoint);
 
+        // are joint poses local perhaps?
+        /*for (var i = this._skeleton.numJoints - 1; i >= 0; --i) {
+            var joint = this._skeleton.getJoint(i);
+
+            if (joint.parentIndex >= 0) {
+                var parent = this._skeleton.getJoint(joint.parentIndex);
+                joint.inverseBindPose.prepend(parent.inverseBindPose);
+            }
+        }*/
+
         for (var key in this._jointUIDLookUp) {
             this._jointUIDLookUp[key].fbxNode.data = null;
         }
     },
 
-    convertClips: function(fbxAnimationStack, geometryMatrix, settings)
+    convertClips: function(fbxAnimationStack, fbxMesh, geometryMatrix, settings)
     {
         this._frameRate = settings.frameRate;
 
@@ -3452,11 +3498,28 @@ HX.FBXAnimationConverter.prototype =
 
     _assignInverseBindPose: function (cluster, geometryMatrix, joint)
     {
+        // looks like Unreal uses this, along with cluster's limbnode transform to deform vertices?
+        // in that case, should be able to apply this to bind pose instead, since it boils down to the same thing?
         joint.inverseBindPose.copyFrom(cluster.transformLink);
         joint.inverseBindPose.invertAffine();
         joint.inverseBindPose.prependAffine(cluster.transform);
         joint.inverseBindPose.prependAffine(geometryMatrix);
-        //matrix.append(this._settings.orientationMatrix);
+        //joint.inverseBindPose.append(this._settings.orientationMatrix);
+    },
+
+    _getLimbGlobalMatrix: function(node)
+    {
+        if (!node._globalMatrix) {
+            node._globalMatrix = new HX.Matrix4x4();
+            if (node.parent && node.parent.type === "LimbNode") {
+                var parentMatrix = this._getLimbGlobalMatrix(node.parent);
+                node._globalMatrix.multiply(parentMatrix, node.matrix);
+            }
+            else {
+                node._globalMatrix.copyFrom(node.matrix);
+            }
+        }
+        return node._globalMatrix;
     },
 
     // this uses the logic that one of the clusters is bound to have the root node assigned to them
@@ -3544,11 +3607,13 @@ HX.FBXAnimationConverter.prototype =
         var numCurveNodes = layer.curveNodes.length;
         var tempJointPoses = [];
 
+        // use local bind pose as default
         for (var i = 0; i < numJoints; ++i) {
             var joint = this._skeleton.getJoint(i);
             var localBind = joint.inverseBindPose.clone();
             localBind.invertAffine();
 
+            // by default, use bind pose
             if (joint.parentIndex !== -1) {
                 var parentInverse = this._skeleton.getJoint(joint.parentIndex).inverseBindPose;
                 localBind.appendAffine(parentInverse);
@@ -3565,7 +3630,6 @@ HX.FBXAnimationConverter.prototype =
             pose["Lcl Rotation"].x *= HX.RAD_TO_DEG;
             pose["Lcl Rotation"].y *= HX.RAD_TO_DEG;
             pose["Lcl Rotation"].z *= HX.RAD_TO_DEG;
-
             pose["Lcl Scaling"].copyFrom(transform.scale);
 
             tempJointPoses[i] = pose;
@@ -3870,31 +3934,7 @@ HX.FBXConverter.prototype =
 
     _convertSceneGraphObject: function(fbxNode, hxNode)
     {
-        var matrix = new HX.Matrix4x4();
-
-        if (fbxNode.ScalingPivot) matrix.appendTranslation(HX.Float4.negate(fbxNode.ScalingPivot));
-        var scale = fbxNode["Lcl Scaling"];
-        if (scale) matrix.appendScale(scale.x, scale.y, scale.z);
-        if (fbxNode.ScalingPivot) matrix.appendTranslation(fbxNode.ScalingPivot);
-        if (fbxNode.ScalingOffset) matrix.appendTranslation(fbxNode.ScalingOffset);
-
-        if (fbxNode.RotationPivot) matrix.appendTranslation(HX.Float4.negate(fbxNode.RotationPivot));
-        if (fbxNode.PreRotation) matrix.appendQuaternion(this._convertRotation(fbxNode.PreRotation));
-        if (fbxNode["Lcl Rotation"]) matrix.appendQuaternion(this._convertRotation(fbxNode["Lcl Rotation"]));
-        if (fbxNode.PostRotation) matrix.appendQuaternion(this._convertRotation(fbxNode.PostRotation));
-        if (fbxNode.RotationPivot) matrix.appendTranslation(fbxNode.RotationPivot);
-        if (fbxNode.RotationOffset) matrix.appendTranslation(fbxNode.RotationOffset);
-
-        if (fbxNode["Lcl Translation"]) matrix.appendTranslation(fbxNode["Lcl Translation"]);
-
-        hxNode.transformationMatrix = matrix;
-    },
-
-    _convertRotation: function(v)
-    {
-        var quat = new HX.Quaternion();
-        quat.fromEuler(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
-        return quat;
+        hxNode.transformationMatrix = fbxNode.matrix;
     },
 
     _convertGeometry: function(node, geometryMatrix)
@@ -4388,7 +4428,7 @@ HX.FBXModelInstanceConverter.prototype =
         this._splitPerMaterial();
         this._generateModel();
         if (fbxMesh.deformers)
-            this._animationConverter.convertClips(fbxAnimationStack, geometryMatrix, settings);
+            this._animationConverter.convertClips(fbxAnimationStack, fbxMesh, geometryMatrix, settings);
         this._model.name = fbxMesh.name;
     },
 
@@ -5480,6 +5520,7 @@ HX.OBJ.prototype._parseLine = function(line)
 HX.OBJ.prototype._pushNewObject = function(name)
 {
     this._activeObject = new HX.OBJ._ObjectData();
+    this._activeObject.name = name;
     this._objects.push(this._activeObject);
     this._pushNewGroup("hx_default");
 };

@@ -3,7 +3,8 @@
  * @class
  * @constructor
  */
-// row-major order of passing
+// row-major order of passing parameters
+// m00 can be an array
 HX.Matrix4x4 = function (m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 {
     if (m00 !== undefined && isNaN(m00)) {
@@ -1006,6 +1007,9 @@ HX.Matrix4x4.prototype =
      */
     decompose: function (targetOrPos, quat, scale)
     {
+        // TODO: Make this work for negative scale
+        // should sign of cross product be enough, and then just flip 1 axis?
+
         targetOrPos = targetOrPos || new HX.Transform();
 
         var pos;
@@ -1020,9 +1024,19 @@ HX.Matrix4x4.prototype =
         var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
         var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
 
-        scale.x = Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
-        scale.y = Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
-        scale.z = Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
+        // check for negative scale by calculating cross X x Y (positive scale should yield the same Z)
+        var cx = m1*m6 - m2*m5;
+        var cy = m2*m4 - m0*m6;
+        var cz = m0*m5 - m1*m4;
+
+        // dot cross product X x Y with Z < 0? Lefthanded flip.
+        var flipSign = HX.sign(cx * m8 + cy * m9 + cz * m10);
+
+        // we assign the flipSign to all three instead of just 1, so that if a uniform negative scale was used, this will
+        // be preserved
+        scale.x = flipSign * Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
+        scale.y = flipSign * Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
+        scale.z = flipSign * Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
         var clone = this.clone();
 
         var rcpX = 1.0 / scale.x, rcpY = 1.0 / scale.y, rcpZ = 1.0 / scale.z;

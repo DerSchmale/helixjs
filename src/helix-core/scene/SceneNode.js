@@ -77,7 +77,7 @@ Object.defineProperties(HX.SceneNode.prototype, {
         },
         set: function(value)
         {
-            if (this.showDebugBounds === value) return;
+            if (!!this._debugBounds === value) return;
 
             if (value) {
                 this._debugBounds = this._worldBounds.getDebugModelInstance();
@@ -150,6 +150,8 @@ HX.SceneNode.prototype._updateDebugBounds = function()
 {
     var matrix = this._debugBounds.transformationMatrix;
     var bounds = this._worldBounds;
+
+    console.log(bounds._halfExtentX, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
 
     matrix.fromScale(bounds._halfExtentX * 2.0, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
     matrix.appendTranslation(bounds._center);

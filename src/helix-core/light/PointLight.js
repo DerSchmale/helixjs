@@ -21,9 +21,10 @@ HX.PointLight = function()
     HX.PointLight._attenuationData = new Float32Array(HX.PointLight.LIGHTS_PER_BATCH * 2);
     HX.PointLight._radiusData = new Float32Array(HX.PointLight.LIGHTS_PER_BATCH);
 
-    this._luminanceBound = 1.0/255.0;
+    this._luminanceBound = 10.0/255.0;
     this._attenuationFix = 1.0;
     this._radius = 1.0;
+    this.intensity = 3.1415;
 };
 
 HX.PointLight.LIGHTS_PER_BATCH = 20;
@@ -31,19 +32,30 @@ HX.PointLight.SPHERE_SEGMENTS_W = 16;
 HX.PointLight.SPHERE_SEGMENTS_H = 10;
 HX.PointLight.NUM_SPHERE_INDICES = HX.PointLight.SPHERE_SEGMENTS_W * HX.PointLight.SPHERE_SEGMENTS_H * 6;
 
-HX.PointLight.prototype = Object.create(HX.Light.prototype);
+HX.PointLight.prototype = Object.create(HX.Light.prototype,
+    {
+        luminanceBound: {
+            get: function() {
+                return this._luminanceBound;
+            },
+
+            set: function(value)
+            {
+                this._luminanceBound = value;
+                this._updateWorldBounds();
+            }
+        }
+    });
 
 // returns the index of the FIRST UNRENDERED light
 HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
     var intersectsNearPlane = lightCollection[startIndex]._renderOrderHint < 0;
 
-    if (intersectsNearPlane) {
-        return this._renderFullscreenBatch(lightCollection, startIndex, renderer);
-    }
-    else {
+    //if (intersectsNearPlane)
+        //return this._renderFullscreenBatch(lightCollection, startIndex, renderer);
+    //else
         return this._renderSphereBatch(lightCollection, startIndex, renderer);
-    }
 };
 
 HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startIndex, renderer)
@@ -65,7 +77,7 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
 
     for (var i = startIndex; i < end; ++i) {
         var light = lightCollection[i];
-        if (light._type != this._type || light._renderOrderHint < 0) {
+        if (light._type != this._type/* || light._renderOrderHint < 0*/) {
             end = i;
             continue;
         }
@@ -81,7 +93,7 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
         colorData[v3i++] = color.b;
         attData[v2i++] = light._attenuationFix;
         attData[v2i++] = 1.0 / (1.0 - light._attenuationFix);
-        radiusData[v1i++] = light._radius * 2 * 1.0001;
+        radiusData[v1i++] = light._radius * 1.0001;
     }
 
     HX.GL.uniform3fv(HX.PointLight._sphericalPositionLocation, posData);

@@ -239,9 +239,9 @@ HX.ModelInstance.prototype._onModelChange = function()
 // override for better matches
 HX.ModelInstance.prototype._updateWorldBounds = function()
 {
-    HX.Entity.prototype._updateWorldBounds.call(this);
     this._meshBounds.transformFrom(this._model.localBounds, this.worldMatrix);
     this._worldBounds.growToIncludeBound(this._meshBounds);
+    HX.Entity.prototype._updateWorldBounds.call(this);
 };
 
 HX.ModelInstance.prototype.acceptVisitor = function(visitor)

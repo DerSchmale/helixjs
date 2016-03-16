@@ -108,6 +108,7 @@ HX.OBJ.prototype._parseLine = function(line)
 HX.OBJ.prototype._pushNewObject = function(name)
 {
     this._activeObject = new HX.OBJ._ObjectData();
+    this._activeObject.name = name;
     this._objects.push(this._activeObject);
     this._pushNewGroup("hx_default");
 };

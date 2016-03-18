@@ -225,8 +225,8 @@ HX.PointLight.prototype._initLightPasses =  function()
     // do not use rect
     pass.setMesh(HX.PointLight._sphereMesh);
 
-    HX.PointLight._sphericalPositionAttrib = HX.GL.getAttribLocation(pass._shader._program, "hx_position");;
-    HX.PointLight._sphericalInstanceAttrib = HX.GL.getAttribLocation(pass._shader._program, "hx_instanceID");;
+    HX.PointLight._sphericalPositionAttrib = pass.getAttributeLocation("hx_position");
+    HX.PointLight._sphericalInstanceAttrib = pass.getAttributeLocation("hx_instanceID");
     HX.PointLight._sphericalLightPass = pass;
     HX.PointLight._sphericalPositionLocation = pass.getUniformLocation("lightViewPosition[0]");
     HX.PointLight._sphericalColorLocation = pass.getUniformLocation("lightColor[0]");

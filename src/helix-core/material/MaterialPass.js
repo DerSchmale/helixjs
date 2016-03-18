@@ -178,6 +178,11 @@ HX.MaterialPass.prototype = {
             return this._uniforms[name].location;
     },
 
+    getAttributeLocation: function(name)
+    {
+        return HX.GL.getAttribLocation(this._shader._program, name);
+    },
+
     setUniformArray: function(name, value)
     {
         name = name + "[0]";

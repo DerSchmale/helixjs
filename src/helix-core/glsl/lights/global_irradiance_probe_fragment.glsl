@@ -23,5 +23,9 @@ void main()
 	irradianceSample.xyz *= (1.0 - specularSample.z);
 	totalLight += irradianceSample.xyz * colorSample.xyz;
 
+    #ifdef HX_GAMMA_CORRECT_LIGHTS
+        totalLight = hx_linearToGamma(totalLight);
+    #endif
+
 	gl_FragColor = vec4(totalLight, 1.0);
 }

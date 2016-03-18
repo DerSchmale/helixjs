@@ -17,7 +17,8 @@ HX.BoxPrimitive._createMeshData = function(definition)
     var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
 
     var VERTEX_SIZE = HX.MeshData.DEFAULT_VERTEX_SIZE;
-    var data = new HX.MeshData.createDefaultEmpty();
+    var data = new HX.MeshData();
+    data.addVertexAttribute('hx_position', 3);
 
     var NUM_FACES = 6;
 

@@ -48,5 +48,9 @@ void main()
 
 	totalLight += fresnel * attenuation * specProbeSample.xyz;
 
+	#ifdef HX_GAMMA_CORRECT_LIGHTS
+        totalLight = hx_linearToGamma(totalLight);
+    #endif
+
 	gl_FragColor = vec4(totalLight, 1.0);
 }

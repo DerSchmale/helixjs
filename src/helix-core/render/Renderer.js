@@ -136,7 +136,7 @@ HX.Renderer.prototype =
     {
         var renderTargetStackSize = HX._renderTargetStack.length;
         var stencilStackSize = HX._stencilStateStack.length;
-        this._gammaApplied = false;
+        this._gammaApplied = HX.GAMMA_CORRECT_LIGHTS;
         this._camera = camera;
         this._scene = scene;
 

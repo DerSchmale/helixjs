@@ -6,16 +6,11 @@ project.onInit = function()
     initScene(this.scene);
 };
 
-project.onUpdate = function()
-{
-    //console.log(HX.DEBUG_COUNTER);
-    //HX.DEBUG_COUNTER = 0;
-};
-
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.useHDR = true;
+    //options.useGammaCorrection = false;
+    //options.useHDR = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 

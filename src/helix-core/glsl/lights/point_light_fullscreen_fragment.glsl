@@ -50,5 +50,11 @@ void main()
 		totalSpecular += specularReflection;
 	}
 	totalDiffuse *= colorSample.xyz * (1.0 - metallicness);
-	gl_FragColor = vec4(totalDiffuse + totalSpecular, 1.0);
+
+    vec3 totalLight = totalDiffuse + totalSpecular;
+	#ifdef HX_GAMMA_CORRECT_LIGHTS
+        totalLight = hx_linearToGamma(totalLight);
+    #endif
+
+	gl_FragColor = vec4(totalLight, 1.0);
 }

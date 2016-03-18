@@ -2,9 +2,7 @@
 
 var HX = {
     VERSION: '0.1',
-    INITIALIZED: false,
-
-    DEBUG_COUNTER: 0
+    INITIALIZED: false
 };
 
 /**
@@ -188,11 +186,18 @@ HX.init = function(canvas, options)
 
     HX.DEFAULT_TEXTURE_MAX_ANISOTROPY = HX.EXT_TEXTURE_FILTER_ANISOTROPIC? HX.GL.getParameter(HX.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
 
-    if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR || !HX.EXT_HALF_FLOAT_TEXTURES) {
+    if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR || !HX.EXT_HALF_FLOAT_TEXTURES)
         HX.OPTIONS.useHDR = false;
-    }
 
     HX.HDR_FORMAT = HX.OPTIONS.useHDR? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX.GL.UNSIGNED_BYTE;
+
+    HX.GAMMA_CORRECTION_IN_LIGHTS = false;
+
+    // this causes a somewhat incorrect gamma correction to be applied, but looks much better due to encoding limitation
+    if (HX.OPTIONS.useGammaCorrection && !HX.OPTIONS.useHDR) {
+        HX.GAMMA_CORRECT_LIGHTS = true;
+        defines += "#define HX_GAMMA_CORRECT_LIGHTS\n";
+    }
 
     HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
 

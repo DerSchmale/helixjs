@@ -45,6 +45,9 @@ void main()
 	hx_lighting(normal, lightViewDirection, viewDirNorm, lightColorVar * attenuation, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);
 
 	diffuseReflection *= colorSample.xyz * (1.0 - metallicness);
-	gl_FragColor = vec4(diffuseReflection + specularReflection, 0.0);
-//	gl_FragColor = vec4(.1, 0.0, 0.0, 0.0);
+	vec3 totalLight = diffuseReflection + specularReflection;
+	#ifdef HX_GAMMA_CORRECT_LIGHTS
+	    totalLight = hx_linearToGamma(totalLight);
+	#endif
+	gl_FragColor = vec4(totalLight, 1.0);
 }

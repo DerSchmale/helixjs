@@ -73,6 +73,10 @@ void main()
 
 	vec3 totalReflection = hx_calculateLight(colorSample.xyz, normal, lightViewDirection, viewDir, normalSpecularReflectance, roughness, metallicness);
 
-	gl_FragColor = vec4(totalReflection, 0.0);
+    #ifdef HX_GAMMA_CORRECT_LIGHTS
+        totalReflection = hx_linearToGamma(totalReflection);
+    #endif
+
+	gl_FragColor = vec4(totalReflection, 1.0);
 
 }

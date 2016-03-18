@@ -356,7 +356,7 @@ HX.CascadeShadowMapRenderer.prototype =
             var plane = planes[j];
 
             // view frustum planes facing away from the light direction mark a boundary beyond which no shadows need to be known
-            if (HX.dot3(plane, dir) < -0.001)
+            if (HX.dot3(plane, dir) > 0.001)
                 this._cullPlanes[this._numCullPlanes++] = plane;
         }
     },

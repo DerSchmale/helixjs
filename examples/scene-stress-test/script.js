@@ -34,6 +34,7 @@ function initScene(scene)
 {
     for (var i = 0; i < 20; ++i) {
         var light = new HX.PointLight();
+        light.radius = 5;
         scene.attach(light);
         light.position.set(
             (Math.random() - .5) * 20,

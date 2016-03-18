@@ -6,7 +6,7 @@ HX.MeshBatch = {
         var sourceIndices = sourceMeshData._indexData;
 
         target.vertexUsage = sourceMeshData.vertexUsage;
-        target.indexUsage = sourceMeshData.vertexUsage;
+        target.indexUsage = sourceMeshData.indexUsage;
 
         var attribs = sourceMeshData._vertexAttributes;
         var instanceStream = sourceMeshData.numStreams;
@@ -18,13 +18,13 @@ HX.MeshBatch = {
 
         target.addVertexAttribute("hx_instanceID", 1, instanceStream);
 
-        var instanceData = [];
         var targetIndices = [];
         var index = 0;
         var numVertices = sourceMeshData.numVertices;
 
+        len = sourceIndices.length;
+
         for (i = 0; i < numInstances; ++i) {
-            len = sourceIndices.length;
             for (j = 0; j < len; ++j) {
                 targetIndices[index++] = sourceIndices[j] + numVertices * i;
             }
@@ -49,6 +49,7 @@ HX.MeshBatch = {
             target.setVertexData(targetVertices, i);
         }
 
+        var instanceData = [];
         index = 0;
         for (j = 0; j < numInstances; ++j) {
             for (i = 0; i < numVertices; ++i) {
@@ -56,6 +57,9 @@ HX.MeshBatch = {
             }
         }
 
+        // something actually IS wrong with the instance data
+        // drawing an explicit subselection of indices with constant instance index is correct
+        // filling the entire array with 0 doesn't help, so it looks like the data is not set correctly
         target.setVertexData(instanceData, instanceStream);
 
         return target;

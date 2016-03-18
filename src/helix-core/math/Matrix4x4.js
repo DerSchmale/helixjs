@@ -1,10 +1,9 @@
 /**
- * Creates a new Matrix4x4 object
+ * Creates a new Matrix4x4 object.
+ * Column-major storage. Vector multiplication is in column format (ie v' = M x v)
  * @class
  * @constructor
  */
-// row-major order of passing parameters
-// m00 can be an array
 HX.Matrix4x4 = function (m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 {
     if (m00 !== undefined && isNaN(m00)) {

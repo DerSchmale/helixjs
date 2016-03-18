@@ -35,13 +35,13 @@ HX.Float4.distance = function(a, b)
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
 };
 
-HX.Float4.negate = function(a, b, target)
+HX.Float4.negate = function(a, target)
 {
     target = target || new HX.Float4();
-    target.x = -target.x;
-    target.y = -target.y;
-    target.z = -target.z;
-    target.w = -target.w;
+    target.x = -a.x;
+    target.y = -a.y;
+    target.z = -a.z;
+    target.w = -a.w;
     return target;
 };
 

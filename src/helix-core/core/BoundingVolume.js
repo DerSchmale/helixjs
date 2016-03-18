@@ -99,9 +99,14 @@ HX.BoundingVolume.prototype =
 
     transformFrom: function(sourceBound, matrix) { throw new Error("Abstract method!"); },
 
-    // numPlanes is provided so we can provide a full frustum but skip near/far tests (useful in some cases)
-    // convex solid may be infinite
+    /**
+     * Tests whether the bounding box intersects. The convex solid is described as a list of planes pointing outward. Infinite solids are also allowed (Directional Light frusta without a near plane, for example)
+     * @param cullPlanes An Array of planes to be tested. Planes are simply Float4 objects.
+     * @param numPlanes The amount of planes to be tested against. This so we can test less planes than are in the cullPlanes array (Directional Light frusta, for example)
+     * @returns {boolean} Whether or not the bounds intersect the solid.
+     */
     intersectsConvexSolid: function(cullPlanes, numPlanes) { throw new Error("Abstract method!"); },
+
     intersectsBound: function(bound) { throw new Error("Abstract method!"); },
     classifyAgainstPlane: function(plane) { throw new Error("Abstract method!"); },
 
@@ -303,7 +308,7 @@ HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
     }
 };
 
-// numPlanes is provided so we can provide a full frustum but skip near or far tests (useful in some cases such as directional light frusta)
+
 HX.BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
     if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
@@ -318,13 +323,13 @@ HX.BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes
         // find the point that will always have the smallest signed distance
         var plane = cullPlanes[i];
         var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
-        var closestX = planeX < 0? minX : maxX;
-        var closestY = planeY < 0? minY : maxY;
-        var closestZ = planeZ < 0? minZ : maxZ;
+        var closestX = planeX > 0? minX : maxX;
+        var closestY = planeY > 0? minY : maxY;
+        var closestZ = planeZ > 0? minZ : maxZ;
 
         // classify the closest point
         var signedDist = planeX * closestX + planeY * closestY + planeZ * closestZ + planeW;
-        if (signedDist < 0.0)
+        if (signedDist > 0.0)
             return false;
     }
 
@@ -600,8 +605,6 @@ HX.BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
     }
 };
 
-// tests against a convex solid bounded by planes (fe: a frustum)
-// numPlanes is provided so we can provide a full frustum but skip near/far tests (useful in some cases)
 HX.BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
     if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
@@ -610,15 +613,14 @@ HX.BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlan
         return false;
 
     var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
-    var negRadius = -this._halfExtentX;
+    var radius = this._halfExtentX;
 
     for (var i = 0; i < numPlanes; ++i) {
         var plane = cullPlanes[i];
         var signedDist = plane.x * centerX + plane.y * centerY + plane.z * centerZ + plane.w;
 
-        if (signedDist < negRadius) {
+        if (signedDist > radius)
             return false;
-        }
     }
 
     return true;

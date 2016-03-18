@@ -15,11 +15,12 @@ HX.VertexLayout = function(mesh, pass)
         var attribute = mesh.getVertexAttribute(i);
         var index = shader.getVertexAttributeIndex(attribute.name);
 
-        this._numAttributes = Math.max(this._numAttributes, index);
+        this._numAttributes = Math.max(this._numAttributes, index + 1);
 
         // convert offset and stride to bytes
         if (index >= 0) {
             var stride = mesh.getVertexStride(attribute.streamIndex);
+            // convert to bytes
             this.attributes.push({
                 index: index,
                 offset: attribute.offset * 4,
@@ -30,8 +31,6 @@ HX.VertexLayout = function(mesh, pass)
         }
 
     }
-
-    ++this._numAttributes;
 };
 
 HX.VertexLayout.prototype = {
@@ -48,6 +47,7 @@ HX.MeshInstance = function(mesh, material)
 {
     this._mesh = mesh;
     this._meshMaterialLinkInvalid = false;
+    this._vertexLayouts = null;
 
     this.material = material;
 };

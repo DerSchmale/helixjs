@@ -38,8 +38,15 @@ HX.Frustum.CLIP_SPACE_CORNERS = [	new HX.Float4(-1.0, -1.0, -1.0, 1.0),
 
 HX.Frustum.prototype =
 {
-    getPlanes: function() { return this._planes; },
-    getCorners: function() { return this._corners; },
+    /**
+     * An Array of planes describing frustum. The planes are in world space and point outwards.
+     */
+    get planes() { return this._planes; },
+
+    /**
+     * An array containing the 8 vertices of the frustum, in world space.
+     */
+    get corners() { return this._corners; },
 
     update: function(projection, inverseProjection)
     {
@@ -49,6 +56,7 @@ HX.Frustum.prototype =
 
     _updatePlanes: function(projection)
     {
+        // todo: this can all be inlined, but not the highest priority (only once per frame)
         var r1 = projection.getRow(0, this._r1);
         var r2 = projection.getRow(1, this._r2);
         var r3 = projection.getRow(2, this._r3);
@@ -61,8 +69,10 @@ HX.Frustum.prototype =
         HX.Float4.add(r4, r3, this._planes[HX.Frustum.PLANE_NEAR]);
         HX.Float4.subtract(r4, r3, this._planes[HX.Frustum.PLANE_FAR]);
 
-        for (var i = 0; i < 6; ++i)
+        for (var i = 0; i < 6; ++i) {
+            this._planes[i].negate();
             this._planes[i].normalizeAsPlane();
+        }
     },
 
     _updateCorners: function(inverseProjection)

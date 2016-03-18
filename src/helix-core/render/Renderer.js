@@ -417,6 +417,8 @@ HX.Renderer.prototype =
 
         var i = 0;
 
+        // renderBatch returns the first unrendered light, depending on type or properties, etc
+        // so it's just a matter of calling it until i == len
         while (i < len)
             i = lights[i].renderBatch(lights, i, this);
     },

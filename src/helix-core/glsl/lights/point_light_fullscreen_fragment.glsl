@@ -11,7 +11,7 @@ uniform float hx_cameraNearPlaneDistance;
 
 uniform vec3 lightColor[LIGHTS_PER_BATCH];
 uniform vec3 lightViewPosition[LIGHTS_PER_BATCH];
-uniform vec2 attenuationFixFactors[LIGHTS_PER_BATCH];
+uniform float lightRadius[LIGHTS_PER_BATCH];
 
 void main()
 {
@@ -31,7 +31,6 @@ void main()
 
 	vec3 viewDirNorm = normalize(viewDir);
 
-
 	vec3 totalDiffuse = vec3(0.0);
 	vec3 totalSpecular = vec3(0.0);
 	vec3 diffuseReflection;
@@ -39,12 +38,13 @@ void main()
 
 	for (int i = 0; i < LIGHTS_PER_BATCH; ++i) {
 		vec3 lightViewDirection = viewPosition - lightViewPosition[i];
-		float attenuation = 1.0/dot(lightViewDirection, lightViewDirection);
-		// normalize:
-		lightViewDirection *= sqrt(attenuation);
+		// square distance
+		float attenuation = dot(lightViewDirection, lightViewDirection);
+		float distance = sqrt(attenuation);
+		lightViewDirection /= distance;
 
 		// rescale attenuation so that irradiance at bounding edge really is 0
-		attenuation = max(0.0, (attenuation - attenuationFixFactors[i].x) * attenuationFixFactors[i].y);
+		attenuation = max(1.0 / attenuation * (1.0 - distance / lightRadius[i]), 0.0);
 		hx_lighting(normal, lightViewDirection, viewDirNorm, lightColor[i] * attenuation, normalSpecularReflectance, roughness, diffuseReflection, specularReflection);
 		totalDiffuse += diffuseReflection;
 		totalSpecular += specularReflection;

@@ -70,6 +70,7 @@ HX.MeshData.prototype = {
             numComponents: numComponents,
             streamIndex: streamIndex
         });
+
         this._vertexStrides[streamIndex] += numComponents;
     },
 
@@ -104,6 +105,7 @@ HX.MeshData.prototype = {
 /**
  *
  * @param meshData
+ * @param model
  * @constructor
  */
 HX.Mesh = function (meshData, model)
@@ -113,9 +115,9 @@ HX.Mesh = function (meshData, model)
     this._vertexStrides = [];
     this._indexBuffer = new HX.IndexBuffer();
 
-    for (var i = 0; i < meshData._vertexData.length; ++i) {
+    for (var i = 0; i < meshData.numStreams; ++i) {
         var buffer = new HX.VertexBuffer();
-        buffer.uploadData(meshData._vertexData[i], meshData.vertexUsage);
+        buffer.uploadData(meshData.getVertexData(i), meshData.vertexUsage);
         this._vertexBuffers[i] = buffer;
         this._vertexStrides[i] = meshData.getVertexStride(i);
     }

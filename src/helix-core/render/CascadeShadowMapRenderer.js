@@ -251,7 +251,7 @@ HX.CascadeShadowMapRenderer.prototype =
         var min = new HX.Float4();
         var max = new HX.Float4();
 
-        var corners = viewCamera.frustum.getCorners();
+        var corners = viewCamera.frustum.corners;
 
         // camera distances are suboptimal? need to constrain to local near too?
 

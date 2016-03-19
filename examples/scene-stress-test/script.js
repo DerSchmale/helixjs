@@ -52,15 +52,15 @@ function initScene(scene)
 
     var primitive = HX.SpherePrimitive.create(
         {
-            radius:1.0,
+            radius:.24,
             numSegmentsH: 10,
             numSegmentsW: 15
         });
 
-    var spacing = 4;
-    for (var x = -2; x <= 2; ++x) {
-        for (var y = -2; y <= 2; ++y) {
-            for (var z = -2; z <= 2; ++z) {
+    var spacing = 2;
+    for (var x = -5; x <= 5; ++x) {
+        for (var y = -5; y <= 5; ++y) {
+            for (var z = -5; z <= 5; ++z) {
                 var instance = new HX.ModelInstance(primitive, material);
                 instance.position.set(x + Math.random() *.5 -.25, y + Math.random() *.5 -.25, z + Math.random() *.5 -.25);
                 instance.position.scale(spacing);

@@ -1,3 +1,8 @@
+/**
+ * AssetLoader allows loading of any sort of asset. It can be used to load several assets, but onComplete and onFail will be called for each. Use BulkAssetLoader if onComplete should only be called once.
+ * @param ImporterType The type of importer to use for the asset. For example: HX.JPG, HX.HCM (material), HX.OBJ, ... Must be am Importer subtype.
+ * @constructor
+ */
 HX.AssetLoader = function(ImporterType)
 {
     // this can either be listened to, or overwritten by a function
@@ -10,10 +15,6 @@ HX.AssetLoader = function(ImporterType)
 
 HX.AssetLoader.prototype =
 {
-    // if we need to remap filenames, filemapping might be useful
-    // just contains an object table:
-    // { "filename.tga": "filename.jpg", ... }
-    // target: optional, (and usually only used by importers)
     load: function (filename, target)
     {
         function fail(code) {
@@ -43,7 +44,7 @@ HX.AssetLoader.prototype =
             };
 
             image.onError = function() {
-                console.warn("Failed loading texture '" + url + "'");
+                console.warn("Failed loading texture '" + filename + "'");
                 if (onError) onError();
             };
             image.src = filename;

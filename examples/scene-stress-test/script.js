@@ -9,8 +9,7 @@ project.onInit = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    //options.useGammaCorrection = false;
-    //options.useHDR = true;
+    options.useHDR = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -27,9 +26,9 @@ function initCamera(camera)
 
 function initScene(scene)
 {
-    for (var i = 0; i < 100; ++i) {
+    for (var i = 0; i < 200; ++i) {
         var light = new HX.PointLight();
-        light.radius = 10;
+        light.radius = 7;
         scene.attach(light);
         light.position.set(
             (Math.random() - .5) * 20,
@@ -42,25 +41,26 @@ function initScene(scene)
             Math.random(),
             Math.random()
         );
-        light.intensity = 3.1415 * 3;
+        light.intensity = 3.1415;
     }
 
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
     var material = new HX.PBRMaterial();
     material.colorMap = texture;
+    material.roughness = 0.05;
 
     var primitive = HX.SpherePrimitive.create(
         {
-            radius:.25,
+            radius:1.0,
             numSegmentsH: 10,
             numSegmentsW: 15
         });
 
-    var spacing = 2;
-    for (var x = -1; x <= 1; ++x) {
-        for (var y = -1; y <= 1; ++y) {
-            for (var z = -1; z <= 1; ++z) {
+    var spacing = 4;
+    for (var x = -2; x <= 2; ++x) {
+        for (var y = -2; y <= 2; ++y) {
+            for (var z = -2; z <= 2; ++z) {
                 var instance = new HX.ModelInstance(primitive, material);
                 instance.position.set(x + Math.random() *.5 -.25, y + Math.random() *.5 -.25, z + Math.random() *.5 -.25);
                 instance.position.scale(spacing);
@@ -71,12 +71,12 @@ function initScene(scene)
 
     primitive = HX.SpherePrimitive.create(
         {
-            radius:spacing * 8,
+            radius: 16,
             invert:true,
             numSegmentsH: 30,
             numSegmentsW: 45,
-            scaleU: 50,
-            scaleV: 50
+            scaleU: 20,
+            scaleV: 20
         });
     var instance = new HX.ModelInstance(primitive, material);
     scene.attach(instance);

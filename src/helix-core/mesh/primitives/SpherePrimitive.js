@@ -8,22 +8,26 @@ HX.SpherePrimitive = {};
 
 HX.SpherePrimitive.createMeshData = function(definition)
 {
+    definition = definition || {};
     var numSegmentsW = definition.numSegmentsW || 16;
     var numSegmentsH = definition.numSegmentsH || 10;
     var radius = definition.radius || .5;
     var scaleU = definition.scaleU || 1;
     var scaleV = definition.scaleV || 1;
     var flipSign = definition.invert? -1 : 1;
+    var uvs = definition.uvs === undefined? true : definition.uvs;
+    var normals = definition.normals === undefined? true : definition.normals;
+    var tangents = definition.tangents === undefined? true : definition.tangents;
     var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
 
-    var VERTEX_SIZE = HX.MeshData.DEFAULT_VERTEX_SIZE;
-    var data = new HX.MeshData.createDefaultEmpty();
+    var data = new HX.MeshData();
+    data.addVertexAttribute('hx_position', 3);
+    if (normals) data.addVertexAttribute('hx_normal', 3);
+    if (tangents) data.addVertexAttribute('hx_tangent', 4);
+    if (uvs) data.addVertexAttribute('hx_texCoord', 2);
 
-    var numIndices = numSegmentsH*numSegmentsW * 6;
-    var numVertices = (numSegmentsH + 1)*(numSegmentsW + 1);
-
-    var vertices = new Array(numVertices * VERTEX_SIZE);
-    var indices = new Array(numIndices);
+    var vertices = [];
+    var indices = [];
 
     var vertexIndex = 0;
     var indexIndex = 0;
@@ -49,12 +53,28 @@ HX.SpherePrimitive.createMeshData = function(definition)
             var normalY = y * flipSign;
             var normalZ = Math.sin(phi) * segmentUnitRadius * flipSign;
 
-            vertices[vertexIndex] = normalX*radius; vertices[vertexIndex + 1] = normalY*radius; vertices[vertexIndex + 2] = normalZ*radius;
-            vertices[vertexIndex + 3] = normalX * flipSign; vertices[vertexIndex + 4] = normalY * flipSign; vertices[vertexIndex + 5] = normalZ * flipSign;
-            vertices[vertexIndex + 6] = -normalZ; vertices[vertexIndex + 7] = 0; vertices[vertexIndex + 8] = normalX; vertices[vertexIndex + 9] = 1.0;
-            vertices[vertexIndex + 10] = 1.0 - ratioU*scaleU; vertices[vertexIndex + 11] = ratioV*scaleV;
+            // position
+            vertices[vertexIndex++] = normalX*radius;
+            vertices[vertexIndex++] = normalY*radius;
+            vertices[vertexIndex++] = normalZ*radius;
 
-            vertexIndex += VERTEX_SIZE;
+            if (normals) {
+                vertices[vertexIndex++] = normalX * flipSign;
+                vertices[vertexIndex++] = normalY * flipSign;
+                vertices[vertexIndex++] = normalZ * flipSign;
+            }
+
+            if (tangents) {
+                vertices[vertexIndex++] = -normalZ;
+                vertices[vertexIndex++] = 0;
+                vertices[vertexIndex++] = normalX;
+                vertices[vertexIndex++] = 1.0;
+            }
+
+            if (uvs) {
+                vertices[vertexIndex++] = 1.0 - ratioU*scaleU;
+                vertices[vertexIndex++] = ratioV*scaleV;
+            }
         }
     }
 
@@ -79,6 +99,8 @@ HX.SpherePrimitive.createMeshData = function(definition)
                 indices[indexIndex + 3] = base;
                 indices[indexIndex + 4] = base + 1;
                 indices[indexIndex + 5] = base + w + 1;
+
+                indexIndex += 6;
             }
         }
     }

@@ -20,21 +20,19 @@ HX.PlanePrimitive.create = function(definition)
     var height = definition.height || 1;
     var scaleU = definition.scaleU || 1;
     var scaleV = definition.scaleV || 1;
+    var uvs = definition.uvs === undefined? true : definition.uvs;
+    var normals = definition.normals === undefined? true : definition.normals;
+    var tangents = definition.tangents === undefined? true : definition.tangents;
     var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
 
-    var VERTEX_SIZE = HX.MeshData.DEFAULT_VERTEX_SIZE;
-    var data = new HX.MeshData.createDefaultEmpty();
+    var data = new HX.MeshData();
+    data.addVertexAttribute('hx_position', 3);
+    if (normals) data.addVertexAttribute('hx_normal', 3);
+    if (tangents) data.addVertexAttribute('hx_tangent', 4);
+    if (uvs) data.addVertexAttribute('hx_texCoord', 2);
 
-    var numIndices = numSegmentsH*numSegmentsW * 6;
-    var numVertices = (numSegmentsH + 1)*(numSegmentsW + 1);
-
-    if (doubleSided) {
-        numIndices *= 2;
-        numVertices *= 2;
-    }
-
-    var vertices = new Array(numVertices * VERTEX_SIZE);
-    var indices = new Array(numIndices);
+    var vertices = [];
+    var indices = [];
 
     var vertexIndex = 0;
     var indexIndex = 0;
@@ -43,23 +41,19 @@ HX.PlanePrimitive.create = function(definition)
     var posX = 0, posY = 0, posZ = 0;
     var normalX = 0, normalY = 0, normalZ = 0;
     var tangentX = 0, tangentY = 0, tangentZ = 0;
-    var bitangentX = 0, bitangentY = 0, bitangentZ = 0;
     var uvU = 0, uvV = 0;
 
     if (alignment == HX.PlanePrimitive.ALIGN_XY) {
         normalZ = -1;
         tangentX = 1;
-        bitangentY = 1;
     }
     else if (alignment == HX.PlanePrimitive.ALIGN_XZ) {
         normalY = 1;
         tangentX = -1;
-        bitangentZ = 1;
     }
     else {
         normalX = 1;
         tangentZ = 1;
-        bitangentY = 1;
     }
 
     for (var yi = 0; yi <= numSegmentsH; ++yi) {
@@ -90,21 +84,49 @@ HX.PlanePrimitive.create = function(definition)
             uvU *= scaleU;
             uvV *= scaleV;
 
-            vertices[vertexIndex] = posX; vertices[vertexIndex + 1] = posY; vertices[vertexIndex + 2] = posZ;
-            vertices[vertexIndex + 3] = normalX; vertices[vertexIndex + 4] = normalY; vertices[vertexIndex + 5] = normalZ;
-            vertices[vertexIndex + 6] = tangentX; vertices[vertexIndex + 7] = tangentY; vertices[vertexIndex + 8] = tangentZ; vertices[vertexIndex + 9] = 1.0;
-            vertices[vertexIndex + 10] = uvU; vertices[vertexIndex + 11] = uvV;
+            vertices[vertexIndex++] = posX;
+            vertices[vertexIndex++] = posY;
+            vertices[vertexIndex++] = posZ;
 
-            vertexIndex += VERTEX_SIZE;
+            if (normals) {
+                vertices[vertexIndex++] = normalX;
+                vertices[vertexIndex++] = normalY;
+                vertices[vertexIndex++] = normalZ;
+            }
+            if (tangents) {
+                vertices[vertexIndex++] = tangentX;
+                vertices[vertexIndex++] = tangentY;
+                vertices[vertexIndex++] = tangentZ;
+                vertices[vertexIndex++] = 1.0;
+            }
+            if (uvs) {
+                vertices[vertexIndex++] = uvU;
+                vertices[vertexIndex++] = uvV;
+            }
 
             // add vertex with same position, but with inverted normal & tangent
             if (doubleSided) {
-                vertices[vertexIndex] = posX; vertices[vertexIndex + 1] = posY; vertices[vertexIndex + 2] = posZ;
-                vertices[vertexIndex + 3] = -normalX; vertices[vertexIndex + 4] = -normalY; vertices[vertexIndex + 5] = -normalZ;
-                vertices[vertexIndex + 6] = -tangentX; vertices[vertexIndex + 7] = -tangentY; vertices[vertexIndex + 8] = -tangentZ; vertices[vertexIndex + 9] = 1.0;
-                vertices[vertexIndex + 10] = 1.0 - uvU; vertices[vertexIndex + 11] = uvV;
+                vertices[vertexIndex] = posX;
+                vertices[vertexIndex++] = posY;
+                vertices[vertexIndex++] = posZ;
 
-                vertexIndex += VERTEX_SIZE;
+                if (normals) {
+                    vertices[vertexIndex++] = -normalX;
+                    vertices[vertexIndex++] = -normalY;
+                    vertices[vertexIndex++] = -normalZ;
+                }
+
+                if (tangents) {
+                    vertices[vertexIndex++] = -tangentX;
+                    vertices[vertexIndex++] = -tangentY;
+                    vertices[vertexIndex++] = -tangentZ;
+                    vertices[vertexIndex++] = 1.0;
+                }
+
+                if (uvs) {
+                    vertices[vertexIndex++] = 1.0 - uvU;
+                    vertices[vertexIndex++] = uvV;
+                }
             }
 
             if (xi != numSegmentsW && yi != numSegmentsH) {

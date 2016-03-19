@@ -28,7 +28,7 @@ function initScene(scene)
 {
     for (var i = 0; i < 200; ++i) {
         var light = new HX.PointLight();
-        light.radius = 7;
+        light.radius = 5;
         scene.attach(light);
         light.position.set(
             (Math.random() - .5) * 20,
@@ -69,12 +69,11 @@ function initScene(scene)
         }
     }
 
-    primitive = HX.SpherePrimitive.create(
+    primitive = HX.BoxPrimitive.create(
         {
-            radius: 16,
+            width: 22,
             invert:true,
-            numSegmentsH: 30,
-            numSegmentsW: 45,
+            numSegmentsW: 10,
             scaleU: 20,
             scaleV: 20
         });

@@ -13,7 +13,10 @@ HX.PointLight = function()
                 radius: 1.0,
                 invert: true,
                 numSegmentsW: HX.PointLight.SPHERE_SEGMENTS_W,
-                numSegmentsH: HX.PointLight.SPHERE_SEGMENTS_H
+                numSegmentsH: HX.PointLight.SPHERE_SEGMENTS_H,
+                uvs: false,
+                normals: false,
+                tangents: false
             });
 
         HX.PointLight._sphereMesh = new HX.Mesh(HX.MeshBatch.create(sphere, HX.PointLight.LIGHTS_PER_BATCH));
@@ -92,7 +95,7 @@ HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, rend
 
     var vertexBuffers = HX.PointLight._sphereMesh._vertexBuffers;
     vertexBuffers[0].bind();
-    HX_GL.vertexAttribPointer(HX.PointLight._positionAttrib, 3, HX_GL.FLOAT, false, 48, 0);
+    HX_GL.vertexAttribPointer(HX.PointLight._positionAttrib, 3, HX_GL.FLOAT, false, 12, 0);
     vertexBuffers[1].bind();
     HX_GL.vertexAttribPointer(HX.PointLight._instanceAttrib, 1, HX_GL.FLOAT, false, 4, 0);
     HX_GL.uniform3fv(HX.PointLight._positionLocation, posData);

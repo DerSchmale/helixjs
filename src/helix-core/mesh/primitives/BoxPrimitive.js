@@ -6,24 +6,31 @@ HX.BoxPrimitive = {};
 HX.BoxPrimitive._createMeshData = function(definition)
 {
     var numSegmentsW = definition.numSegmentsW || 1;
-    var numSegmentsH = definition.numSegmentsH || 1;
-    var numSegmentsD = definition.numSegmentsD || 1;
+    var numSegmentsH = definition.numSegmentsH || definition.numSegmentsW || 1;
+    var numSegmentsD = definition.numSegmentsD || definition.numSegmentsW || 1;
     var width = definition.width || 1;
     var height = definition.height || width;
     var depth = definition.depth || width;
     var scaleU = definition.scaleU || 1;
     var scaleV = definition.scaleV || 1;
     var flipSign = definition.invert? -1 : 1;
+    var uvs = definition.uvs === undefined? true : definition.uvs;
+    var normals = definition.normals === undefined? true : definition.normals;
+    var tangents = definition.tangents === undefined? true : definition.tangents;
     var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
 
-    var VERTEX_SIZE = HX.MeshData.DEFAULT_VERTEX_SIZE;
     var data = new HX.MeshData();
     data.addVertexAttribute('hx_position', 3);
+    if (normals) data.addVertexAttribute('hx_normal', 3);
+    if (tangents) data.addVertexAttribute('hx_tangent', 4);
+    if (uvs) data.addVertexAttribute('hx_texCoord', 2);
 
-    var NUM_FACES = 6;
+    var vertexStride = data.getVertexStride(0);
 
     var vertices = [];
     var indices = [];
+
+    var NUM_FACES = 6;
 
     var oppositeVertexIndex;
     var vertexIndex = 0;
@@ -35,7 +42,7 @@ HX.BoxPrimitive._createMeshData = function(definition)
     var halfD = depth * .5;
 
     // front and back
-    oppositeVertexIndex = vertexIndex + (numSegmentsW + 1)*(numSegmentsH + 1) * VERTEX_SIZE;
+    oppositeVertexIndex = vertexIndex + (numSegmentsW + 1)*(numSegmentsH + 1) * vertexStride;
 
     for (var hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
         var ratioV = hSegment * rcpNumSegmentsH;
@@ -48,25 +55,47 @@ HX.BoxPrimitive._createMeshData = function(definition)
 
             if (flipSign < 0) ratioU = 1.0 - ratioU;
 
-            // front
-            vertices[vertexIndex] = x*flipSign; vertices[vertexIndex + 1] = y*flipSign; vertices[vertexIndex + 2] = halfD*flipSign;
-            vertices[vertexIndex + 3] = 0; vertices[vertexIndex + 4] = 0; vertices[vertexIndex + 5] = 1;
-            vertices[vertexIndex + 6] = 1; vertices[vertexIndex + 7] = 0; vertices[vertexIndex + 8] = 0; vertices[vertexIndex + 9] = 1;
-            vertices[vertexIndex + 10] = ratioU*scaleU; vertices[vertexIndex + 11] = ratioV*scaleV;
+            // front and back
+            vertices[vertexIndex++] = x*flipSign;
+            vertices[vertexIndex++] = y*flipSign;
+            vertices[vertexIndex++] = halfD*flipSign;
 
-            // back
-            vertices[oppositeVertexIndex] = -x*flipSign; vertices[oppositeVertexIndex + 1] = y*flipSign; vertices[oppositeVertexIndex + 2] = -halfD*flipSign;
-            vertices[oppositeVertexIndex + 3] = 0; vertices[oppositeVertexIndex + 4] = 0; vertices[oppositeVertexIndex + 5] = -1;
-            vertices[oppositeVertexIndex + 6] = -1; vertices[oppositeVertexIndex + 7] = 0; vertices[oppositeVertexIndex + 8] = 0; vertices[vertexIndex + 9] = 1;
-            vertices[oppositeVertexIndex + 10] = ratioU*scaleU; vertices[oppositeVertexIndex + 11] = ratioV*scaleV;
+            vertices[oppositeVertexIndex++] = -x*flipSign;
+            vertices[oppositeVertexIndex++] = y*flipSign;
+            vertices[oppositeVertexIndex++] = -halfD*flipSign;
 
-            vertexIndex += VERTEX_SIZE;
-            oppositeVertexIndex += VERTEX_SIZE;
+
+            if (normals) {
+                vertices[vertexIndex++] = 0;
+                vertices[vertexIndex++] = 0;
+                vertices[vertexIndex++] = 1;
+                vertices[oppositeVertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = -1;
+            }
+
+            if (tangents) {
+                vertices[vertexIndex++] = 1;
+                vertices[vertexIndex++] = 0;
+                vertices[vertexIndex++] = 0;
+                vertices[vertexIndex++] = 1;
+                vertices[oppositeVertexIndex++] = -1;
+                vertices[oppositeVertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = 1;
+            }
+
+            if (uvs) {
+                vertices[vertexIndex++] = ratioU*scaleU;
+                vertices[vertexIndex++] = ratioV*scaleV;
+                vertices[oppositeVertexIndex++] = ratioU*scaleU;
+                vertices[oppositeVertexIndex++] = ratioV*scaleV;
+            }
         }
     }
 
     vertexIndex = oppositeVertexIndex;
-    oppositeVertexIndex = vertexIndex + (numSegmentsD + 1)*(numSegmentsH + 1) * VERTEX_SIZE;
+    oppositeVertexIndex = vertexIndex + (numSegmentsD + 1)*(numSegmentsH + 1) * vertexStride;
 
     for (var hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
         var ratioV = hSegment * rcpNumSegmentsH;
@@ -76,25 +105,45 @@ HX.BoxPrimitive._createMeshData = function(definition)
             var ratioU = dSegment * rcpNumSegmentsD;
             var z = depth * ratioU - halfD;
 
-            // left
-            vertices[vertexIndex] = -halfW; vertices[vertexIndex + 1] = y; vertices[vertexIndex + 2] = z*flipSign;
-            vertices[vertexIndex + 3] = -flipSign; vertices[vertexIndex + 4] = 0; vertices[vertexIndex + 5] = 0;
-            vertices[vertexIndex + 6] = 0; vertices[vertexIndex + 7] = 0; vertices[vertexIndex + 8] = flipSign; vertices[vertexIndex + 9] = 1;
-            vertices[vertexIndex + 10] = ratioU*scaleU; vertices[vertexIndex + 11] = ratioV*scaleV;
+            // left and right
+            vertices[vertexIndex++] = -halfW;
+            vertices[vertexIndex++] = y;
+            vertices[vertexIndex++] = z*flipSign;
+            vertices[oppositeVertexIndex++] = halfW;
+            vertices[oppositeVertexIndex++] = y;
+            vertices[oppositeVertexIndex++] = -z*flipSign;
 
-            // right
-            vertices[oppositeVertexIndex] = halfW; vertices[oppositeVertexIndex + 1] = y; vertices[oppositeVertexIndex + 2] = -z*flipSign;
-            vertices[oppositeVertexIndex + 3] = flipSign; vertices[oppositeVertexIndex + 4] = 0; vertices[oppositeVertexIndex + 5] = 0;
-            vertices[oppositeVertexIndex + 6] = 0; vertices[oppositeVertexIndex + 7] = 0; vertices[oppositeVertexIndex + 8] = -flipSign; vertices[vertexIndex + 9] = 1;
-            vertices[oppositeVertexIndex + 10] = ratioU*scaleU; vertices[oppositeVertexIndex + 11] = ratioV*scaleV;
+            if (normals) {
+                vertices[vertexIndex++] = -flipSign;
+                vertices[vertexIndex++] = 0;
+                vertices[vertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = flipSign;
+                vertices[oppositeVertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = 0;
+            }
 
-            vertexIndex += VERTEX_SIZE;
-            oppositeVertexIndex += VERTEX_SIZE;
+            if (tangents) {
+                vertices[vertexIndex++] = 0;
+                vertices[vertexIndex++] = 0;
+                vertices[vertexIndex++] = flipSign;
+                vertices[vertexIndex++] = 1;
+                vertices[oppositeVertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = -flipSign;
+                vertices[oppositeVertexIndex++] = 1;
+            }
+
+            if (uvs) {
+                vertices[vertexIndex++] = ratioU*scaleU;
+                vertices[vertexIndex++] = ratioV*scaleV;
+                vertices[oppositeVertexIndex++] = ratioU*scaleU;
+                vertices[oppositeVertexIndex++] = ratioV*scaleV;
+            }
         }
     }
 
     vertexIndex = oppositeVertexIndex;
-    oppositeVertexIndex = vertexIndex + (numSegmentsW + 1)*(numSegmentsD + 1) * VERTEX_SIZE;
+    oppositeVertexIndex = vertexIndex + (numSegmentsW + 1)*(numSegmentsD + 1) * vertexStride;
 
     for (var dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
         var ratioV = dSegment * rcpNumSegmentsD;
@@ -104,20 +153,40 @@ HX.BoxPrimitive._createMeshData = function(definition)
             var ratioU = wSegment * rcpNumSegmentsW;
             var x = width * ratioU - halfW;
 
-            // top
-            vertices[vertexIndex] = x; vertices[vertexIndex + 1] = halfH; vertices[vertexIndex + 2] = -z*flipSign;
-            vertices[vertexIndex + 3] = 0; vertices[vertexIndex + 4] = flipSign; vertices[vertexIndex + 5] = 0;
-            vertices[vertexIndex + 6] = 1; vertices[vertexIndex + 7] = 0; vertices[vertexIndex + 8] = 0; vertices[vertexIndex + 9] = 1;
-            vertices[vertexIndex + 10] = ratioU*scaleU; vertices[vertexIndex + 11] = ratioV*scaleV;
+            // top and bottom
+            vertices[vertexIndex++] = x;
+            vertices[vertexIndex++] = halfH;
+            vertices[vertexIndex++] = -z*flipSign;
+            vertices[oppositeVertexIndex++] = x;
+            vertices[oppositeVertexIndex++] = -halfH;
+            vertices[oppositeVertexIndex++] = z*flipSign;
 
-            // bottom
-            vertices[oppositeVertexIndex] = x; vertices[oppositeVertexIndex + 1] = -halfH; vertices[oppositeVertexIndex + 2] = z*flipSign;
-            vertices[oppositeVertexIndex + 3] = 0; vertices[oppositeVertexIndex + 4] = -flipSign; vertices[oppositeVertexIndex + 5] = 0;
-            vertices[oppositeVertexIndex + 6] = 1; vertices[oppositeVertexIndex + 7] = 0; vertices[oppositeVertexIndex + 8] = 0; vertices[vertexIndex + 9] = 1;
-            vertices[oppositeVertexIndex + 10] = ratioU*scaleU; vertices[oppositeVertexIndex + 11] = ratioV*scaleV;
+            if (normals) {
+                vertices[vertexIndex++] = 0;
+                vertices[vertexIndex++] = flipSign;
+                vertices[vertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = -flipSign;
+                vertices[oppositeVertexIndex++] = 0;
+            }
 
-            vertexIndex += VERTEX_SIZE;
-            oppositeVertexIndex += VERTEX_SIZE;
+            if (tangents) {
+                vertices[vertexIndex++] = 1;
+                vertices[vertexIndex++] = 0;
+                vertices[vertexIndex++] = 0;
+                vertices[vertexIndex++] = 1;
+                vertices[oppositeVertexIndex++] = 1;
+                vertices[oppositeVertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = 0;
+                vertices[oppositeVertexIndex++] = 1;
+            }
+
+            if (uvs) {
+                vertices[vertexIndex++] = ratioU * scaleU;
+                vertices[vertexIndex++] = ratioV * scaleV;
+                vertices[oppositeVertexIndex++] = ratioU * scaleU;
+                vertices[oppositeVertexIndex++] = ratioV * scaleV;
+            }
         }
     }
 
@@ -157,7 +226,7 @@ HX.BoxPrimitive._createMeshData = function(definition)
             indices[indexIndex + i + 3] = indices[i + 3];
             indices[indexIndex + i + 4] = indices[i + 5];
             indices[indexIndex + i + 5] = indices[i + 4];
-            i += 6;
+            indexIndex += 6;
         }
     }
 

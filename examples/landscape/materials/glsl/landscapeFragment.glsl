@@ -80,22 +80,12 @@ float calcWorldHeight(vec2 coord)
     float largeBumps = pow(snoise(coord / 200.0), 6.0);
     float bumps1 = pow(snoise(coord / 100.0), 6.0);
     float bumps2 = snoise(coord / 50.0);
-    float bumps3 = snoise(coord / 20.0);
-
-    float shelves = 1.0 - snoise(coord / 300.0) * (sin((coord.x + coord.y) / 200.0) * .5 + .5);
-    shelves *= shelves;
-    shelves *= shelves;
-    shelves *= shelves;
-    shelves = 1.0 - shelves;
-
 
     return  mainFold * 200.0 +
     + generalHeight * generalHeight * 100.0
     + largeBumps * largeBumps * largeBumps * largeBumps * 30.0
-    //+ shelves
     + bumps1 * 10.0
-    + bumps2 * bumps2 * bumps2 * 5.0
-    + bumps3 * bumps3 * bumps3 * bumps3 + 3.0;
+    + bumps2 * bumps2 * bumps2 * 5.0;
 }
 
 void main()

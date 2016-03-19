@@ -3076,6 +3076,8 @@ var HX = {
     INITIALIZED: false
 };
 
+var HX_GL = null;
+
 /**
  * Provides a set of options to configure Helix
  * @constructor
@@ -3163,17 +3165,17 @@ HX.init = function(canvas, options)
     }
 
     HX.OPTIONS = options || new HX.InitOptions();
-    HX.GL = glContext;
+    HX_GL = glContext;
 
-    if (!HX.GL) throw new Error("WebGL not supported");
+    if (!HX_GL) throw new Error("WebGL not supported");
 
     HX.INITIALIZED = true;
 
-    var extensions  = HX.GL.getSupportedExtensions();
+    var extensions  = HX_GL.getSupportedExtensions();
 
     function _getExtension(name)
     {
-        return extensions.indexOf(name) >= 0 ? HX.GL.getExtension(name) : null;
+        return extensions.indexOf(name) >= 0 ? HX_GL.getExtension(name) : null;
     }
 
     // shortcuts
@@ -3255,12 +3257,12 @@ HX.init = function(canvas, options)
     //HX.EXT_SRGB = _getExtension('EXT_sRGB');
     //if (!HX.EXT_SRGB) console.warn('EXT_sRGB extension not supported!');
 
-    HX.DEFAULT_TEXTURE_MAX_ANISOTROPY = HX.EXT_TEXTURE_FILTER_ANISOTROPIC? HX.GL.getParameter(HX.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
+    HX.DEFAULT_TEXTURE_MAX_ANISOTROPY = HX.EXT_TEXTURE_FILTER_ANISOTROPIC? HX_GL.getParameter(HX.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
 
     if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR || !HX.EXT_HALF_FLOAT_TEXTURES)
         HX.OPTIONS.useHDR = false;
 
-    HX.HDR_FORMAT = HX.OPTIONS.useHDR? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX.GL.UNSIGNED_BYTE;
+    HX.HDR_FORMAT = HX.OPTIONS.useHDR? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.UNSIGNED_BYTE;
 
     HX.GAMMA_CORRECTION_IN_LIGHTS = false;
 
@@ -3345,7 +3347,7 @@ HX._init2DDitherTexture = function(width, height)
         data[k++] = 1.0;
     }
 
-    HX.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, HX.GL.RGBA, HX.GL.FLOAT);
+    HX.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, HX_GL.RGBA, HX_GL.FLOAT);
     HX.DEFAULT_2D_DITHER_TEXTURE.filter = HX.TextureFilter.NEAREST_NOMIP;
     HX.DEFAULT_2D_DITHER_TEXTURE.wrapMode = HX.TextureWrapMode.REPEAT;
 };
@@ -3354,20 +3356,20 @@ HX._init2DDitherTexture = function(width, height)
 HX._initGLProperties = function()
 {
     HX.TextureFilter = {};
-    HX.TextureFilter.NEAREST = {min: HX.GL.NEAREST_MIPMAP_NEAREST, mag: HX.GL.NEAREST};
-    HX.TextureFilter.BILINEAR = {min: HX.GL.LINEAR_MIPMAP_NEAREST, mag: HX.GL.LINEAR};
-    HX.TextureFilter.TRILINEAR = {min: HX.GL.LINEAR_MIPMAP_LINEAR, mag: HX.GL.LINEAR};
+    HX.TextureFilter.NEAREST = {min: HX_GL.NEAREST_MIPMAP_NEAREST, mag: HX_GL.NEAREST};
+    HX.TextureFilter.BILINEAR = {min: HX_GL.LINEAR_MIPMAP_NEAREST, mag: HX_GL.LINEAR};
+    HX.TextureFilter.TRILINEAR = {min: HX_GL.LINEAR_MIPMAP_LINEAR, mag: HX_GL.LINEAR};
 
     if (HX.EXT_TEXTURE_FILTER_ANISOTROPIC)
-        HX.TextureFilter.TRILINEAR_ANISOTROPIC = {min: HX.GL.LINEAR_MIPMAP_LINEAR, mag: HX.GL.LINEAR};
+        HX.TextureFilter.TRILINEAR_ANISOTROPIC = {min: HX_GL.LINEAR_MIPMAP_LINEAR, mag: HX_GL.LINEAR};
 
 
-    HX.TextureFilter.NEAREST_NOMIP = { min: HX.GL.NEAREST, mag: HX.GL.NEAREST };
-    HX.TextureFilter.BILINEAR_NOMIP = { min: HX.GL.LINEAR, mag: HX.GL.LINEAR };
+    HX.TextureFilter.NEAREST_NOMIP = { min: HX_GL.NEAREST, mag: HX_GL.NEAREST };
+    HX.TextureFilter.BILINEAR_NOMIP = { min: HX_GL.LINEAR, mag: HX_GL.LINEAR };
 
     HX.TextureWrapMode = {};
-    HX.TextureWrapMode.REPEAT = { s: HX.GL.REPEAT, t: HX.GL.REPEAT };
-    HX.TextureWrapMode.CLAMP = { s: HX.GL.CLAMP_TO_EDGE, t: HX.GL.CLAMP_TO_EDGE };
+    HX.TextureWrapMode.REPEAT = { s: HX_GL.REPEAT, t: HX_GL.REPEAT };
+    HX.TextureWrapMode.CLAMP = { s: HX_GL.CLAMP_TO_EDGE, t: HX_GL.CLAMP_TO_EDGE };
 
     // default settings:
     HX.TextureWrapMode.DEFAULT = HX.TextureWrapMode.REPEAT;
@@ -3375,64 +3377,64 @@ HX._initGLProperties = function()
 
     HX.CullMode = {
         NONE: null,
-        BACK: HX.GL.BACK,
-        FRONT: HX.GL.FRONT,
-        ALL: HX.GL.FRONT_AND_BACK
+        BACK: HX_GL.BACK,
+        FRONT: HX_GL.FRONT,
+        ALL: HX_GL.FRONT_AND_BACK
     };
 
     HX.StencilOp = {
-        KEEP: HX.GL.KEEP,
-        ZERO: HX.GL.ZERO,
-        REPLACE: HX.GL.REPLACE,
-        INCREMENT: HX.GL.INCR,
-        INCREMENT_WRAP: HX.GL.INCR_WRAP,
-        DECREMENT: HX.GL.DECR,
-        DECREMENT_WRAP: HX.GL.DECR_WRAP,
-        INVERT: HX.GL.INVERT
+        KEEP: HX_GL.KEEP,
+        ZERO: HX_GL.ZERO,
+        REPLACE: HX_GL.REPLACE,
+        INCREMENT: HX_GL.INCR,
+        INCREMENT_WRAP: HX_GL.INCR_WRAP,
+        DECREMENT: HX_GL.DECR,
+        DECREMENT_WRAP: HX_GL.DECR_WRAP,
+        INVERT: HX_GL.INVERT
     };
 
     HX.Comparison = {
         DISABLED: null,
-        ALWAYS: HX.GL.ALWAYS,
-        NEVER: HX.GL.NEVER,
-        LESS: HX.GL.LESS,
-        EQUAL: HX.GL.EQUAL,
-        LESS_EQUAL: HX.GL.LEQUAL,
-        GREATER: HX.GL.GREATER,
-        NOT_EQUAL: HX.GL.NOTEQUAL,
-        GREATER_EQUAL: HX.GL.GEQUAL
+        ALWAYS: HX_GL.ALWAYS,
+        NEVER: HX_GL.NEVER,
+        LESS: HX_GL.LESS,
+        EQUAL: HX_GL.EQUAL,
+        LESS_EQUAL: HX_GL.LEQUAL,
+        GREATER: HX_GL.GREATER,
+        NOT_EQUAL: HX_GL.NOTEQUAL,
+        GREATER_EQUAL: HX_GL.GEQUAL
     };
 
     HX.ElementType = {
-        POINTS: HX.GL.POINTS,
-        LINES: HX.GL.LINES,
-        LINE_STRIP: HX.GL.LINE_STRIP,
-        LINE_LOOP: HX.GL.LINE_LOOP,
-        TRIANGLES: HX.GL.TRIANGLES,
-        TRIANGLE_STRIP: HX.GL.TRIANGLE_STRIP,
-        TRIANGLE_FAN: HX.GL.TRIANGLE_FAN
+        POINTS: HX_GL.POINTS,
+        LINES: HX_GL.LINES,
+        LINE_STRIP: HX_GL.LINE_STRIP,
+        LINE_LOOP: HX_GL.LINE_LOOP,
+        TRIANGLES: HX_GL.TRIANGLES,
+        TRIANGLE_STRIP: HX_GL.TRIANGLE_STRIP,
+        TRIANGLE_FAN: HX_GL.TRIANGLE_FAN
     };
 
     HX.BlendFactor = {
-        ZERO: HX.GL.ZERO,
-        ONE: HX.GL.ONE,
-        SOURCE_COLOR: HX.GL.SRC_COLOR,
-        ONE_MINUS_SOURCE_COLOR: HX.GL.ONE_MINUS_SRC_COLOR,
-        DESTINATION_COLOR: HX.GL.DST_COLOR,
-        ONE_MINUS_DESTINATION_COLOR: HX.GL.ONE_MINUS_DST_COLOR,
-        SOURCE_ALPHA: HX.GL.SRC_ALPHA,
-        ONE_MINUS_SOURCE_ALPHA: HX.GL.ONE_MINUS_SRC_ALPHA,
-        DESTINATION_ALPHA: HX.GL.DST_ALPHA,
-        ONE_MINUS_DESTINATION_ALPHA: HX.GL.ONE_MINUS_DST_ALPHA,
-        SOURCE_ALPHA_SATURATE: HX.GL.SRC_ALPHA_SATURATE,
-        CONSTANT_ALPHA: HX.GL.CONSTANT_ALPHA,
-        ONE_MINUS_CONSTANT_ALPHA: HX.GL.ONE_MINUS_CONSTANT_ALPHA
+        ZERO: HX_GL.ZERO,
+        ONE: HX_GL.ONE,
+        SOURCE_COLOR: HX_GL.SRC_COLOR,
+        ONE_MINUS_SOURCE_COLOR: HX_GL.ONE_MINUS_SRC_COLOR,
+        DESTINATION_COLOR: HX_GL.DST_COLOR,
+        ONE_MINUS_DESTINATION_COLOR: HX_GL.ONE_MINUS_DST_COLOR,
+        SOURCE_ALPHA: HX_GL.SRC_ALPHA,
+        ONE_MINUS_SOURCE_ALPHA: HX_GL.ONE_MINUS_SRC_ALPHA,
+        DESTINATION_ALPHA: HX_GL.DST_ALPHA,
+        ONE_MINUS_DESTINATION_ALPHA: HX_GL.ONE_MINUS_DST_ALPHA,
+        SOURCE_ALPHA_SATURATE: HX_GL.SRC_ALPHA_SATURATE,
+        CONSTANT_ALPHA: HX_GL.CONSTANT_ALPHA,
+        ONE_MINUS_CONSTANT_ALPHA: HX_GL.ONE_MINUS_CONSTANT_ALPHA
     };
 
     HX.BlendOperation = {
-        ADD: HX.GL.FUNC_ADD,
-        SUBTRACT: HX.GL.FUNC_SUBTRACT,
-        REVERSE_SUBTRACT: HX.GL.FUNC_REVERSE_SUBTRACT
+        ADD: HX_GL.FUNC_ADD,
+        SUBTRACT: HX_GL.FUNC_SUBTRACT,
+        REVERSE_SUBTRACT: HX_GL.FUNC_REVERSE_SUBTRACT
     };
 };
 HX.ShaderLibrary['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
@@ -3525,13 +3527,13 @@ HX.ShaderLibrary['dir_shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float dept
 
 HX.ShaderLibrary['dir_shadow_pcf.glsl'] = '#ifdef HX_PCF_DITHER_SHADOWS\n    uniform sampler2D hx_dither2D;\n    uniform vec2 hx_dither2DTextureScale;\n#endif\n\nuniform vec2 hx_poissonDisk[HX_PCF_NUM_SHADOW_SAMPLES];\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias, vec2 screenUV)\n{\n    vec2 radii = vec2(shadowMapMatrix[0][0], shadowMapMatrix[1][1]) * HX_PCF_SOFTNESS;\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowTest = 0.0;\n\n    #ifdef HX_PCF_DITHER_SHADOWS\n        vec4 dither = texture2D(hx_dither2D, screenUV * hx_dither2DTextureScale);\n        dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale\n    #else\n        vec4 dither = radii.xxyy;\n    #endif\n\n    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {\n        vec2 offset;\n        offset.x = dot(dither.xy, hx_poissonDisk[i]);\n        offset.y = dot(dither.zw, hx_poissonDisk[i]);\n        float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy + offset));\n        float diff = shadowMapCoord.z - shadowSample - depthBias;\n        shadowTest += float(diff < 0.0);\n    }\n\n    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;\n}';
 
-HX.ShaderLibrary['dir_shadow_vsm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(depth * depth));\n}\n\nfloat hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias, vec2 screenUV)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = variance / (variance + diff*diff);\n\n    float shadow = max(upperBound, float(shadowMapCoord.z <= moments.x));\n\n    shadow = saturate((shadow - HX_VSM_LIGHT_BLEED_REDUCTION) / HX_VSM_LIGHT_BLEED_REDUCTION_RANGE);\n    return shadow;\n}';
+HX.ShaderLibrary['dir_shadow_vsm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(depth * depth));\n}\n\nfloat hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias, vec2 screenUV)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n    // transparents could be closer to the light than casters\n    float diff = max(shadowMapCoord.z - moments.x, 0.0);\n    float upperBound = variance / (variance + diff*diff);\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) / HX_VSM_LIGHT_BLEED_REDUCTION_RANGE);\n}';
 
 HX.ShaderLibrary['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	gl_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
 HX.ShaderLibrary['vsm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n	gl_FragColor.xy = hx_floatToRG8(total.x);\n	gl_FragColor.zw = hx_floatToRG8(total.y);\n}';
 
-HX.ShaderLibrary['snippets_general.glsl'] = 'float saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    value *= 255.0/256.0;\n    vec4 enc = fract(value * vec4(1.0, 255.0, 65025.0, 16581375.0));\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0)) * 256.0 / 255.0;\n}\n\nvec2 hx_floatToRG8(float value)\n{\n// scale to encodable range [0, 1]\n    value *= 255.0/256.0;\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc = fract(enc);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0)) * 256.0 / 255.0;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    #ifdef HX_NO_DEPTH_TEXTURES\n        data.xy = data.xy*4.0 - 2.0;\n        float f = dot(data.xy, data.xy);\n        float g = sqrt(1.0 - f * .25);\n        vec3 normal;\n        normal.xy = data.xy * g;\n        normal.z = 1.0 - f * .5;\n        return normal;\n    #else\n    	return normalize(data.xyz - .5);\n    #endif\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nfloat hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\n// for use when sampling gbuffer data for lighting\nvoid hx_decodeReflectionData(in vec4 colorSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)\n{\n    //prevent from being 0\n    roughness = clamp(specularSample.x, .01, 1.0);\n	metallicness = specularSample.z;\n    normalSpecularReflectance = mix(vec3(specularSample.y * .2), colorSample.xyz, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}';
+HX.ShaderLibrary['snippets_general.glsl'] = 'float saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    #ifdef HX_NO_DEPTH_TEXTURES\n        data.xy = data.xy*4.0 - 2.0;\n        float f = dot(data.xy, data.xy);\n        float g = sqrt(1.0 - f * .25);\n        vec3 normal;\n        normal.xy = data.xy * g;\n        normal.z = 1.0 - f * .5;\n        return normal;\n    #else\n    	return normalize(data.xyz - .5);\n    #endif\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nfloat hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\n// for use when sampling gbuffer data for lighting\nvoid hx_decodeReflectionData(in vec4 colorSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)\n{\n    //prevent from being 0\n    roughness = clamp(specularSample.x, .01, 1.0);\n	metallicness = specularSample.z;\n    normalSpecularReflectance = mix(vec3(specularSample.y * .2), colorSample.xyz, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}';
 
 HX.ShaderLibrary['snippets_geometry_pass.glsl'] = 'vec4 hx_encodeNormalDepth(vec3 normal, float depth)\n{\n	#ifdef HX_NO_DEPTH_TEXTURES\n    	vec4 data;\n    	float p = sqrt(normal.z*8.0 + 8.0);\n        data.xy = normal.xy / p + .5;\n    	#ifdef HX_MAX_DEPTH_PRECISION\n		data.zw = hx_floatToRGBA8(depth).xy;\n		#else\n		data.zw = hx_floatToRG8(depth).xy;\n		#endif\n		return data;\n	#else\n		return vec4(normal * .5 + .5, 1.0);\n    #endif\n}\n\nvec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness, float depth)\n{\n    #if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)\n    depth = hx_floatToRGBA8(depth).z;\n    #else\n    depth = 1.0;\n    #endif\n	return vec4(roughness, specularNormalReflection * 5.0, metallicness, depth);\n}\n\nvoid hx_processGeometryMRT(vec4 color, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 colorData, out vec4 normalData, out vec4 specularData)\n{\n    colorData = color;\n	normalData = hx_encodeNormalDepth(normal, depth);\n    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, depth);\n}\n\n#if defined(HX_NO_MRT_GBUFFER_COLOR)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = color)\n#elif defined(HX_NO_MRT_GBUFFER_NORMALS)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))\n#elif defined(HX_NO_MRT_GBUFFER_SPECULAR)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, depth))\n#elif defined(HX_SHADOW_DEPTH_PASS)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_getShadowMapValue(depth))\n#else\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])\n#endif';
 
@@ -6805,10 +6807,10 @@ HX._clearGLStats = function()
 HX.clear = function(clearMask)
 {
     if (clearMask === undefined)
-        clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT | HX.GL.STENCIL_BUFFER_BIT;
+        clearMask = HX_GL.COLOR_BUFFER_BIT | HX_GL.DEPTH_BUFFER_BIT | HX_GL.STENCIL_BUFFER_BIT;
 
     HX._updateRenderState();
-    HX.GL.clear(clearMask);
+    HX_GL.clear(clearMask);
 };
 
 HX.drawElements = function(elementType, numIndices, offset)
@@ -6816,7 +6818,7 @@ HX.drawElements = function(elementType, numIndices, offset)
     ++HX._glStats.numDrawCalls;
     HX._glStats.numTriangles += numIndices / 3;
     HX._updateRenderState();
-    HX.GL.drawElements(elementType, numIndices, HX.GL.UNSIGNED_SHORT, offset);
+    HX_GL.drawElements(elementType, numIndices, HX_GL.UNSIGNED_SHORT, offset);
 };
 
 
@@ -6865,14 +6867,14 @@ HX.enableAttributes = function(count)
     var numActiveAttribs = HX._numActiveAttributes;
     if (numActiveAttribs < count) {
         for (var i = numActiveAttribs; i < count; ++i)
-            HX.GL.enableVertexAttribArray(i);
+            HX_GL.enableVertexAttribArray(i);
     }
     else if (numActiveAttribs > count) {
         // bug in WebGL/ANGLE? When rendering to a render target, disabling vertex attrib array 1 causes errors when using only up to the index below o_O
         // so for now + 1
         count += 1;
         for (var i = count; i < numActiveAttribs; ++i) {
-            HX.GL.disableVertexAttribArray(i);
+            HX_GL.disableVertexAttribArray(i);
         }
     }
 
@@ -6882,7 +6884,7 @@ HX.enableAttributes = function(count)
 HX.setClearColor = function(color)
 {
     color = isNaN(color) ? color : new HX.Color(color);
-    HX.GL.clearColor(color.r, color.g, color.b, color.a);
+    HX_GL.clearColor(color.r, color.g, color.b, color.a);
 };
 
 HX.setCullMode = function(value)
@@ -6915,7 +6917,7 @@ HX.updateStencilReferenceValue = function(value)
     currentState.reference = value;
 
     if (!HX._stencilStateInvalid && currentState.enabled)
-        HX.GL.stencilFunc(currentState.comparison, value, currentState.readMask);
+        HX_GL.stencilFunc(currentState.comparison, value, currentState.readMask);
 };
 
 HX.pushStencilState = function(frameBuffer)
@@ -6936,51 +6938,51 @@ HX._updateRenderState = function()
         var target = HX._renderTargetStack[HX._renderTargetStack.length - 1];
 
         if (target) {
-            HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, target._fbo);
+            HX_GL.bindFramebuffer(HX_GL.FRAMEBUFFER, target._fbo);
 
             if (target._numColorTextures > 1)
                 HX.EXT_DRAW_BUFFERS.drawBuffersWEBGL(target._drawBuffers);
         }
         else
-            HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, null);
+            HX_GL.bindFramebuffer(HX_GL.FRAMEBUFFER, null);
 
         HX._renderTargetInvalid = false;
     }
 
     if (this._viewportInvalid) {
-        HX.GL.viewport(HX._viewport.x, HX._viewport.y, HX._viewport.width, HX._viewport.height);
+        HX_GL.viewport(HX._viewport.x, HX._viewport.y, HX._viewport.width, HX._viewport.height);
         HX._viewportInvalid = false;
     }
 
     if (HX._cullModeInvalid) {
         if (HX._cullMode === HX.CullMode.NONE)
-            HX.GL.disable(HX.GL.CULL_FACE);
+            HX_GL.disable(HX_GL.CULL_FACE);
         else {
-            HX.GL.enable(HX.GL.CULL_FACE);
-            HX.GL.cullFace(HX._cullMode);
+            HX_GL.enable(HX_GL.CULL_FACE);
+            HX_GL.cullFace(HX._cullMode);
         }
     }
 
     if (HX._depthTestInvalid) {
         if (HX._depthTest === HX.Comparison.DISABLED)
-            HX.GL.disable(HX.GL.DEPTH_TEST);
+            HX_GL.disable(HX_GL.DEPTH_TEST);
         else {
-            HX.GL.enable(HX.GL.DEPTH_TEST);
-            HX.GL.depthFunc(HX._depthTest);
+            HX_GL.enable(HX_GL.DEPTH_TEST);
+            HX_GL.depthFunc(HX._depthTest);
         }
     }
 
     if (HX._blendStateInvalid) {
         var state = HX._blendState;
         if (state == null || state.enabled === false)
-            HX.GL.disable(HX.GL.BLEND);
+            HX_GL.disable(HX_GL.BLEND);
         else {
-            HX.GL.enable(HX.GL.BLEND);
-            HX.GL.blendFunc(state.srcFactor, state.dstFactor);
-            HX.GL.blendEquation(state.operator);
+            HX_GL.enable(HX_GL.BLEND);
+            HX_GL.blendFunc(state.srcFactor, state.dstFactor);
+            HX_GL.blendEquation(state.operator);
             var color = state.color;
             if (color)
-                HX.GL.blendColor(color.r, color.g, color.b, color.a);
+                HX_GL.blendColor(color.r, color.g, color.b, color.a);
         }
         HX._blendStateInvalid = false;
     }
@@ -6988,15 +6990,15 @@ HX._updateRenderState = function()
     if (HX._stencilStateInvalid) {
         var state = HX._stencilStateStack[HX._stencilStateStack.length - 1];
         if (state == null || state.enabled === false) {
-            HX.GL.disable(HX.GL.STENCIL_TEST);
-            HX.GL.stencilFunc(HX.Comparison.ALWAYS, 0, 0xff);
-            HX.GL.stencilOp(HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
+            HX_GL.disable(HX_GL.STENCIL_TEST);
+            HX_GL.stencilFunc(HX.Comparison.ALWAYS, 0, 0xff);
+            HX_GL.stencilOp(HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
         }
         else {
-            HX.GL.enable(HX.GL.STENCIL_TEST);
-            HX.GL.stencilFunc(state.comparison, state.reference, state.readMask);
-            HX.GL.stencilOp(state.onStencilFail, state.onDepthFail, state.onPass);
-            HX.GL.stencilMask(state.writeMask);
+            HX_GL.enable(HX_GL.STENCIL_TEST);
+            HX_GL.stencilFunc(state.comparison, state.reference, state.readMask);
+            HX_GL.stencilOp(state.onStencilFail, state.onDepthFail, state.onPass);
+            HX_GL.stencilMask(state.writeMask);
         }
         HX._stencilStateInvalid = false;
     }
@@ -7007,7 +7009,7 @@ HX._updateRenderState = function()
  */
 HX.IndexBuffer = function()
 {
-    this._buffer = HX.GL.createBuffer();
+    this._buffer = HX_GL.createBuffer();
 };
 
 HX.IndexBuffer.prototype = {
@@ -7021,16 +7023,16 @@ HX.IndexBuffer.prototype = {
     uploadData: function(data, usageHint)
     {
         if (usageHint === undefined)
-            usageHint = HX.GL.STATIC_DRAW;
+            usageHint = HX_GL.STATIC_DRAW;
 
         this.bind();
-        HX.GL.bufferData(HX.GL.ELEMENT_ARRAY_BUFFER, data, usageHint);
+        HX_GL.bufferData(HX_GL.ELEMENT_ARRAY_BUFFER, data, usageHint);
     },
 
     dispose: function()
     {
         if (this._buffer) {
-            HX.GL.deleteBuffer(this._buffer);
+            HX_GL.deleteBuffer(this._buffer);
             this._buffer = 0;
         }
     },
@@ -7040,7 +7042,7 @@ HX.IndexBuffer.prototype = {
      */
     bind: function()
     {
-        HX.GL.bindBuffer(HX.GL.ELEMENT_ARRAY_BUFFER, this._buffer);
+        HX_GL.bindBuffer(HX_GL.ELEMENT_ARRAY_BUFFER, this._buffer);
     }
 };
 /**
@@ -7169,7 +7171,7 @@ HX.Signal.prototype =
  */
 HX.VertexBuffer = function()
 {
-    this._buffer = HX.GL.createBuffer();
+    this._buffer = HX_GL.createBuffer();
 };
 
 HX.VertexBuffer.prototype = {
@@ -7183,16 +7185,16 @@ HX.VertexBuffer.prototype = {
     uploadData: function(data, usageHint)
     {
         if (usageHint === undefined)
-            usageHint = HX.GL.STATIC_DRAW;
+            usageHint = HX_GL.STATIC_DRAW;
 
         this.bind();
-        HX.GL.bufferData(HX.GL.ARRAY_BUFFER, data, usageHint);
+        HX_GL.bufferData(HX_GL.ARRAY_BUFFER, data, usageHint);
     },
 
     dispose: function()
     {
         if (this._buffer) {
-            HX.GL.deleteBuffer(this._buffer);
+            HX_GL.deleteBuffer(this._buffer);
             this._buffer = 0;
         }
     },
@@ -7202,7 +7204,7 @@ HX.VertexBuffer.prototype = {
      */
     bind: function()
     {
-        HX.GL.bindBuffer(HX.GL.ARRAY_BUFFER, this._buffer);
+        HX_GL.bindBuffer(HX_GL.ARRAY_BUFFER, this._buffer);
     }
 };
 HX.FileUtils =
@@ -7483,7 +7485,7 @@ HX.Shader.prototype = {
         vertexShaderCode = HX.GLSLIncludeGeneral + vertexShaderCode;
         fragmentShaderCode = HX.GLSLIncludeGeneral + fragmentShaderCode;
 
-        this._vertexShader = HX.GL.createShader(HX.GL.VERTEX_SHADER);
+        this._vertexShader = HX_GL.createShader(HX_GL.VERTEX_SHADER);
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {
             this.dispose();
             if (HX.OPTIONS.throwOnShaderError) {
@@ -7496,7 +7498,7 @@ HX.Shader.prototype = {
             return;
         }
 
-        this._fragmentShader = HX.GL.createShader(HX.GL.FRAGMENT_SHADER);
+        this._fragmentShader = HX_GL.createShader(HX_GL.FRAGMENT_SHADER);
         if (!this._initShader(this._fragmentShader, fragmentShaderCode)) {
             this.dispose();
             if (HX.OPTIONS.throwOnShaderError)
@@ -7505,14 +7507,14 @@ HX.Shader.prototype = {
             return;
         }
 
-        this._program = HX.GL.createProgram();
+        this._program = HX_GL.createProgram();
 
-        HX.GL.attachShader(this._program, this._vertexShader);
-        HX.GL.attachShader(this._program, this._fragmentShader);
-        HX.GL.linkProgram(this._program);
+        HX_GL.attachShader(this._program, this._vertexShader);
+        HX_GL.attachShader(this._program, this._fragmentShader);
+        HX_GL.linkProgram(this._program);
 
-        if (!HX.GL.getProgramParameter(this._program, HX.GL.LINK_STATUS)) {
-            var log = HX.GL.getProgramInfoLog(this._program);
+        if (!HX_GL.getProgramParameter(this._program, HX_GL.LINK_STATUS)) {
+            var log = HX_GL.getProgramInfoLog(this._program);
             this.dispose();
 
             console.log("**********");
@@ -7535,7 +7537,7 @@ HX.Shader.prototype = {
 
     updateRenderState: function(worldMatrix, camera)
     {
-        HX.GL.useProgram(this._program);
+        HX_GL.useProgram(this._program);
 
         var len = this._uniformSetters.length;
         for (var i = 0; i < len; ++i) {
@@ -7545,12 +7547,12 @@ HX.Shader.prototype = {
 
     _initShader: function(shader, code)
     {
-        HX.GL.shaderSource(shader, code);
-        HX.GL.compileShader(shader);
+        HX_GL.shaderSource(shader, code);
+        HX_GL.compileShader(shader);
 
         // Check the compile status, return an error if failed
-        if (!HX.GL.getShaderParameter(shader, HX.GL.COMPILE_STATUS)) {
-            console.warn(HX.GL.getShaderInfoLog(shader));
+        if (!HX_GL.getShaderParameter(shader, HX_GL.COMPILE_STATUS)) {
+            console.warn(HX_GL.getShaderInfoLog(shader));
             HX.Debug.printShaderCode(code);
             return false;
         }
@@ -7560,9 +7562,9 @@ HX.Shader.prototype = {
 
     dispose: function()
     {
-        HX.GL.deleteShader(this._vertexShader);
-        HX.GL.deleteShader(this._fragmentShader);
-        HX.GL.deleteProgram(this._program);
+        HX_GL.deleteShader(this._vertexShader);
+        HX_GL.deleteShader(this._fragmentShader);
+        HX_GL.deleteProgram(this._program);
 
         this._ready = false;
     },
@@ -7571,7 +7573,7 @@ HX.Shader.prototype = {
 
     getVertexAttributeIndex: function(name)
     {
-        return HX.GL.getAttribLocation(this._program, name);
+        return HX_GL.getAttribLocation(this._program, name);
     }
 };
 /**
@@ -7697,12 +7699,12 @@ HX.MaterialPass.prototype = {
 
     _storeUniforms: function()
     {
-        var len = HX.GL.getProgramParameter(this._shader._program, HX.GL.ACTIVE_UNIFORMS);
+        var len = HX_GL.getProgramParameter(this._shader._program, HX_GL.ACTIVE_UNIFORMS);
 
         for (var i = 0; i < len; ++i) {
-            var uniform = HX.GL.getActiveUniform(this._shader._program, i);
+            var uniform = HX_GL.getActiveUniform(this._shader._program, i);
             var name = uniform.name;
-            var location = HX.GL.getUniformLocation(this._shader._program, name);
+            var location = HX_GL.getUniformLocation(this._shader._program, name);
             this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
         }
     },
@@ -7711,7 +7713,7 @@ HX.MaterialPass.prototype = {
     {
         if (!this._uniforms.hasOwnProperty(slotName)) return null;
 
-        HX.GL.useProgram(this._shader._program);
+        HX_GL.useProgram(this._shader._program);
 
         var uniform = this._uniforms[slotName];
 
@@ -7734,7 +7736,7 @@ HX.MaterialPass.prototype = {
             slot = new HX.TextureSlot();
             slot.name = slotName;
             this._textureSlots.push(slot);
-            HX.GL.uniform1i(location, i);
+            HX_GL.uniform1i(location, i);
             slot.location = location;
         }
 
@@ -7756,7 +7758,7 @@ HX.MaterialPass.prototype = {
 
     getAttributeLocation: function(name)
     {
-        return HX.GL.getAttribLocation(this._shader._program, name);
+        return HX_GL.getAttribLocation(this._shader._program, name);
     },
 
     setUniformArray: function(name, value)
@@ -7768,44 +7770,44 @@ HX.MaterialPass.prototype = {
 
         var uniform = this._uniforms[name];
 
-        HX.GL.useProgram(this._shader._program);
+        HX_GL.useProgram(this._shader._program);
 
         switch(uniform.type) {
-            case HX.GL.FLOAT:
-                HX.GL.uniform1fv(uniform.location, value);
+            case HX_GL.FLOAT:
+                HX_GL.uniform1fv(uniform.location, value);
                 break;
-            case HX.GL.FLOAT_VEC2:
-                HX.GL.uniform2fv(uniform.location, value);
+            case HX_GL.FLOAT_VEC2:
+                HX_GL.uniform2fv(uniform.location, value);
                 break;
-            case HX.GL.FLOAT_VEC3:
-                HX.GL.uniform3fv(uniform.location, value);
+            case HX_GL.FLOAT_VEC3:
+                HX_GL.uniform3fv(uniform.location, value);
                 break;
-            case HX.GL.FLOAT_VEC4:
-                HX.GL.uniform4fv(uniform.location, value);
+            case HX_GL.FLOAT_VEC4:
+                HX_GL.uniform4fv(uniform.location, value);
                 break;
-            case HX.GL.INT:
-                HX.GL.uniform1iv(uniform.location, value);
+            case HX_GL.INT:
+                HX_GL.uniform1iv(uniform.location, value);
                 break;
-            case HX.GL.INT_VEC2:
-                HX.GL.uniform2iv(uniform.location, value);
+            case HX_GL.INT_VEC2:
+                HX_GL.uniform2iv(uniform.location, value);
                 break;
-            case HX.GL.INT_VEC3:
-                HX.GL.uniform3iv(uniform.location, value);
+            case HX_GL.INT_VEC3:
+                HX_GL.uniform3iv(uniform.location, value);
                 break;
-            case HX.GL.INT_VEC4:
-                HX.GL.uniform1iv(uniform.location, value);
+            case HX_GL.INT_VEC4:
+                HX_GL.uniform1iv(uniform.location, value);
                 break;
-            case HX.GL.BOOL:
-                HX.GL.uniform1bv(uniform.location, value);
+            case HX_GL.BOOL:
+                HX_GL.uniform1bv(uniform.location, value);
                 break;
-            case HX.GL.BOOL_VEC2:
-                HX.GL.uniform2bv(uniform.location, value);
+            case HX_GL.BOOL_VEC2:
+                HX_GL.uniform2bv(uniform.location, value);
                 break;
-            case HX.GL.BOOL_VEC3:
-                HX.GL.uniform3bv(uniform.location, value);
+            case HX_GL.BOOL_VEC3:
+                HX_GL.uniform3bv(uniform.location, value);
                 break;
-            case HX.GL.BOOL_VEC4:
-                HX.GL.uniform4bv(uniform.location, value);
+            case HX_GL.BOOL_VEC4:
+                HX_GL.uniform4bv(uniform.location, value);
                 break;
             default:
                 throw new Error("Unsupported uniform format for setting. May be a todo.");
@@ -7820,44 +7822,44 @@ HX.MaterialPass.prototype = {
 
         var uniform = this._uniforms[name];
 
-        HX.GL.useProgram(this._shader._program);
+        HX_GL.useProgram(this._shader._program);
 
         switch(uniform.type) {
-            case HX.GL.FLOAT:
-                HX.GL.uniform1f(uniform.location, value);
+            case HX_GL.FLOAT:
+                HX_GL.uniform1f(uniform.location, value);
                 break;
-            case HX.GL.FLOAT_VEC2:
-                HX.GL.uniform2f(uniform.location, value.x, value.y);
+            case HX_GL.FLOAT_VEC2:
+                HX_GL.uniform2f(uniform.location, value.x, value.y);
                 break;
-            case HX.GL.FLOAT_VEC3:
-                HX.GL.uniform3f(uniform.location, value.x || value.r || 0, value.y || value.g || 0, value.z || value.b || 0 );
+            case HX_GL.FLOAT_VEC3:
+                HX_GL.uniform3f(uniform.location, value.x || value.r || 0, value.y || value.g || 0, value.z || value.b || 0 );
                 break;
-            case HX.GL.FLOAT_VEC4:
-                HX.GL.uniform4f(uniform.location, value.x || value.r || 0, value.y || value.g || 0, value.z || value.b || 0, value.w || value.a || 0);
+            case HX_GL.FLOAT_VEC4:
+                HX_GL.uniform4f(uniform.location, value.x || value.r || 0, value.y || value.g || 0, value.z || value.b || 0, value.w || value.a || 0);
                 break;
-            case HX.GL.INT:
-                HX.GL.uniform1i(uniform.location, value);
+            case HX_GL.INT:
+                HX_GL.uniform1i(uniform.location, value);
                 break;
-            case HX.GL.INT_VEC2:
-                HX.GL.uniform2i(uniform.location, value.x, value.y);
+            case HX_GL.INT_VEC2:
+                HX_GL.uniform2i(uniform.location, value.x, value.y);
                 break;
-            case HX.GL.INT_VEC3:
-                HX.GL.uniform3i(uniform.location, value.x, value.y, value.z);
+            case HX_GL.INT_VEC3:
+                HX_GL.uniform3i(uniform.location, value.x, value.y, value.z);
                 break;
-            case HX.GL.INT_VEC4:
-                HX.GL.uniform1i(uniform.location, value.x, value.y, value.z, value.w);
+            case HX_GL.INT_VEC4:
+                HX_GL.uniform1i(uniform.location, value.x, value.y, value.z, value.w);
                 break;
-            case HX.GL.BOOL:
-                HX.GL.uniform1i(uniform.location, value);
+            case HX_GL.BOOL:
+                HX_GL.uniform1i(uniform.location, value);
                 break;
-            case HX.GL.BOOL_VEC2:
-                HX.GL.uniform2i(uniform.location, value.x, value.y);
+            case HX_GL.BOOL_VEC2:
+                HX_GL.uniform2i(uniform.location, value.x, value.y);
                 break;
-            case HX.GL.BOOL_VEC3:
-                HX.GL.uniform3i(uniform.location, value.x, value.y, value.z);
+            case HX_GL.BOOL_VEC3:
+                HX_GL.uniform3i(uniform.location, value.x, value.y, value.z);
                 break;
-            case HX.GL.BOOL_VEC4:
-                HX.GL.uniform4i(uniform.location, value.x, value.y, value.z, value.w);
+            case HX_GL.BOOL_VEC4:
+                HX_GL.uniform4i(uniform.location, value.x, value.y, value.z, value.w);
                 break;
             default:
                 throw new Error("Unsupported uniform format for setting. May be a todo.");
@@ -8669,12 +8671,12 @@ HX.ShadowFilter.prototype =
 {
     getShadowMapFormat: function()
     {
-        return HX.GL.RGBA;
+        return HX_GL.RGBA;
     },
 
     getShadowMapDataType: function()
     {
-        return HX.GL.UNSIGNED_BYTE;
+        return HX_GL.UNSIGNED_BYTE;
     },
 
     getGLSL: function()
@@ -8863,7 +8865,7 @@ HX.EffectPass.prototype.updateRenderState = function(renderer)
 
     for (var i = 0; i < len; ++i) {
         var attribute = attributes[i];
-        HX.GL.vertexAttribPointer(attribute.index, attribute.numComponents, HX.GL.FLOAT, false, attribute.stride, attribute.offset);
+        HX_GL.vertexAttribPointer(attribute.index, attribute.numComponents, HX_GL.FLOAT, false, attribute.stride, attribute.offset);
     }
 
     HX.enableAttributes(layout._numAttributes);
@@ -8903,7 +8905,7 @@ HX.Effect.prototype.draw = function(dt)
 HX.Effect.prototype._drawPass = function(pass)
 {
     pass.updateRenderState(this._renderer);
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 HX.Effect.prototype.onAdded = function()
@@ -9050,7 +9052,7 @@ HX.UniformSetter._findSetters = function(shader)
 {
     var setters = [];
     for (var uniformName in HX.UniformSetter._table) {
-        var location = HX.GL.getUniformLocation(shader._program, uniformName);
+        var location = HX_GL.getUniformLocation(shader._program, uniformName);
         if (location == null) continue;
         var setter = new HX.UniformSetter._table[uniformName]();
         setters.push(setter);
@@ -9095,7 +9097,7 @@ HX.WorldMatrixSetter = function()
 
 HX.WorldMatrixSetter.prototype.execute = function (camera, renderItem)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, renderItem.worldMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, renderItem.worldMatrix._m);
 };
 
 
@@ -9105,7 +9107,7 @@ HX.ViewProjectionSetter = function()
 
 HX.ViewProjectionSetter.prototype.execute = function(camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.viewProjectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.viewProjectionMatrix._m);
 };
 
 HX.InverseViewProjectionSetter = function()
@@ -9114,7 +9116,7 @@ HX.InverseViewProjectionSetter = function()
 
 HX.InverseViewProjectionSetter.prototype.execute = function(camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
 };
 
 HX.InverseWVPSetter = function()
@@ -9123,7 +9125,7 @@ HX.InverseWVPSetter = function()
 
 HX.InverseWVPSetter.prototype.execute = function(camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
 };
 
 HX.ProjectionSetter = function()
@@ -9132,7 +9134,7 @@ HX.ProjectionSetter = function()
 
 HX.ProjectionSetter.prototype.execute = function(camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.projectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.projectionMatrix._m);
 };
 
 HX.InverseProjectionSetter = function()
@@ -9141,7 +9143,7 @@ HX.InverseProjectionSetter = function()
 
 HX.InverseProjectionSetter.prototype.execute = function(camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.inverseProjectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.inverseProjectionMatrix._m);
 };
 
 HX.WorldViewProjectionSetter = function()
@@ -9155,7 +9157,7 @@ HX.WorldViewProjectionSetter.prototype.execute = function()
     return function(camera, renderItem)
     {
         matrix.multiply(camera.viewProjectionMatrix, renderItem.worldMatrix);
-        HX.GL.uniformMatrix4fv(this.location, false, m);
+        HX_GL.uniformMatrix4fv(this.location, false, m);
     };
 }();
 
@@ -9170,7 +9172,7 @@ HX.WorldViewMatrixSetter.prototype.execute = function(){
     return function (camera, renderItem)
     {
         matrix.multiply(camera.viewMatrix, renderItem.worldMatrix);
-        HX.GL.uniformMatrix4fv(this.location, false, m);
+        HX_GL.uniformMatrix4fv(this.location, false, m);
     }
 }();
 
@@ -9184,7 +9186,7 @@ HX.NormalWorldMatrixSetter.prototype.execute = function() {
     return function (camera, renderItem)
     {
         renderItem.worldMatrix.writeNormalMatrix(data);
-        HX.GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
+        HX_GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
     }
 }();
 
@@ -9201,7 +9203,7 @@ HX.NormalWorldViewMatrixSetter.prototype.execute = function() {
     {
         matrix.multiply(camera.viewMatrix, renderItem.worldMatrix);
         matrix.writeNormalMatrix(data);
-        HX.GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
+        HX_GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
     }
 }();
 
@@ -9212,7 +9214,7 @@ HX.CameraWorldPosSetter = function()
 HX.CameraWorldPosSetter.prototype.execute = function (camera)
 {
     var arr = camera.worldMatrix._m;
-    HX.GL.uniform3f(this.location, arr[12], arr[13], arr[14]);
+    HX_GL.uniform3f(this.location, arr[12], arr[13], arr[14]);
 };
 
 HX.CameraWorldMatrixSetter = function()
@@ -9222,7 +9224,7 @@ HX.CameraWorldMatrixSetter = function()
 HX.CameraWorldMatrixSetter.prototype.execute = function (camera)
 {
     var matrix = camera.worldMatrix;
-    HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, matrix._m);
 };
 
 HX.CameraFrustumRangeSetter = function()
@@ -9231,7 +9233,7 @@ HX.CameraFrustumRangeSetter = function()
 
 HX.CameraFrustumRangeSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform1f(this.location, camera._farDistance - camera._nearDistance);
+    HX_GL.uniform1f(this.location, camera._farDistance - camera._nearDistance);
 };
 
 HX.RCPCameraFrustumRangeSetter = function()
@@ -9240,7 +9242,7 @@ HX.RCPCameraFrustumRangeSetter = function()
 
 HX.RCPCameraFrustumRangeSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform1f(this.location, 1.0 / (camera._farDistance - camera._nearDistance));
+    HX_GL.uniform1f(this.location, 1.0 / (camera._farDistance - camera._nearDistance));
 };
 
 HX.CameraNearPlaneDistanceSetter = function()
@@ -9249,7 +9251,7 @@ HX.CameraNearPlaneDistanceSetter = function()
 
 HX.CameraNearPlaneDistanceSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform1f(this.location, camera._nearDistance);
+    HX_GL.uniform1f(this.location, camera._nearDistance);
 };
 
 HX.CameraFarPlaneDistanceSetter = function()
@@ -9258,7 +9260,7 @@ HX.CameraFarPlaneDistanceSetter = function()
 
 HX.CameraFarPlaneDistanceSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform1f(this.location, camera._farDistance);
+    HX_GL.uniform1f(this.location, camera._farDistance);
 };
 
 HX.ViewMatrixSetter = function()
@@ -9267,7 +9269,7 @@ HX.ViewMatrixSetter = function()
 
 HX.ViewMatrixSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.viewMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.viewMatrix._m);
 };
 
 HX.RenderTargetResolutionSetter = function()
@@ -9276,7 +9278,7 @@ HX.RenderTargetResolutionSetter = function()
 
 HX.RenderTargetResolutionSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform2f(this.location, camera._renderTargetWidth, camera._renderTargetHeight);
+    HX_GL.uniform2f(this.location, camera._renderTargetWidth, camera._renderTargetHeight);
 };
 
 HX.RCPRenderTargetResolutionSetter = function()
@@ -9285,7 +9287,7 @@ HX.RCPRenderTargetResolutionSetter = function()
 
 HX.RCPRenderTargetResolutionSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform2f(this.location, 1.0/camera._renderTargetWidth, 1.0/camera._renderTargetHeight);
+    HX_GL.uniform2f(this.location, 1.0/camera._renderTargetWidth, 1.0/camera._renderTargetHeight);
 };
 
 HX.Dither2DTextureScaleSetter = function()
@@ -9294,7 +9296,7 @@ HX.Dither2DTextureScaleSetter = function()
 
 HX.Dither2DTextureScaleSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform2f(this.location, camera._renderTargetWidth / HX.DEFAULT_2D_DITHER_TEXTURE.width, camera._renderTargetHeight / HX.DEFAULT_2D_DITHER_TEXTURE.height);
+    HX_GL.uniform2f(this.location, camera._renderTargetWidth / HX.DEFAULT_2D_DITHER_TEXTURE.width, camera._renderTargetHeight / HX.DEFAULT_2D_DITHER_TEXTURE.height);
 };
 
 HX.PoissonDiskSetter = function()
@@ -9303,7 +9305,7 @@ HX.PoissonDiskSetter = function()
 
 HX.PoissonDiskSetter.prototype.execute = function ()
 {
-    HX.GL.uniform2fv(this.location, HX.PoissonDisk.DEFAULT_FLOAT32);
+    HX_GL.uniform2fv(this.location, HX.PoissonDisk.DEFAULT_FLOAT32);
 };
 
 HX.SkinningMatricesSetter = function()
@@ -9323,7 +9325,7 @@ HX.SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
             matrices[i].writeData(this._data, j);
             j += 16;
         }
-        HX.GL.uniformMatrix4fv(this.location, false, this._data);
+        HX_GL.uniformMatrix4fv(this.location, false, this._data);
     }
 };
 
@@ -10402,8 +10404,8 @@ HX.MeshData = function ()
     this._vertexStrides = [];
     this._vertexData = [];
     this._indexData = undefined;
-    this.vertexUsage = HX.GL.STATIC_DRAW;
-    this.indexUsage = HX.GL.STATIC_DRAW;
+    this.vertexUsage = HX_GL.STATIC_DRAW;
+    this.indexUsage = HX_GL.STATIC_DRAW;
     this._vertexAttributes = [];
     this._numStreams = 0;
 };
@@ -10786,7 +10788,7 @@ HX.MeshInstance.prototype = {
         for (var i = 0; i < len; ++i) {
             var attribute = attributes[i];
             vertexBuffers[attribute.streamIndex].bind();
-            HX.GL.vertexAttribPointer(attribute.index, attribute.numComponents, HX.GL.FLOAT, false, attribute.stride, attribute.offset);
+            HX_GL.vertexAttribPointer(attribute.index, attribute.numComponents, HX_GL.FLOAT, false, attribute.stride, attribute.offset);
         }
 
         HX.enableAttributes(layout._numAttributes);
@@ -11107,13 +11109,13 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
     var dir = camera.viewMatrix.transform(light.direction);
     var color = light._scaledIrradiance;
 
-    HX.GL.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
-    HX.GL.uniform3f(this._colorLocation, color.r ,color.g, color.b);
+    HX_GL.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
+    HX_GL.uniform3f(this._colorLocation, color.r ,color.g, color.b);
 
     if (this._castShadows) {
         var splitDistances = this._shadowMapRenderer.getSplitDistances();
-        HX.GL.uniform1fv(this._splitDistancesLocation, new Float32Array(splitDistances));
-        HX.GL.uniform1f(this._depthBiasLocation, light.depthBias);
+        HX_GL.uniform1fv(this._splitDistancesLocation, new Float32Array(splitDistances));
+        HX_GL.uniform1f(this._depthBiasLocation, light.depthBias);
 
         var k = 0;
         var len = this._numCascades;
@@ -11127,11 +11129,11 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
             }
         }
 
-        HX.GL.uniformMatrix4fv(this._shadowMatrixLocation, false, this._matrixData);
+        HX_GL.uniformMatrix4fv(this._shadowMatrixLocation, false, this._matrixData);
     }
 
     // render rect mesh
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 
     return startIndex + 1;
 };
@@ -11246,12 +11248,12 @@ HX.ExponentialDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.
 
 HX.ExponentialDirectionalShadowFilter.prototype.getShadowMapFormat = function()
 {
-    return HX.GL.RGB;
+    return HX_GL.RGB;
 };
 
 HX.ExponentialDirectionalShadowFilter.prototype.getShadowMapDataType = function()
 {
-    return HX.GL.FLOAT;
+    return HX_GL.FLOAT;
 };
 
 HX.ExponentialDirectionalShadowFilter.prototype.getGLSL = function()
@@ -11287,13 +11289,13 @@ HX.ESMBlurShader = function(blurRadius)
 
     this.init(vertex, fragment);
 
-    this._textureLocation = HX.GL.getUniformLocation(this._program, "source");
-    this._directionLocation = HX.GL.getUniformLocation(this._program, "direction");
-    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+    this._textureLocation = HX_GL.getUniformLocation(this._program, "source");
+    this._directionLocation = HX_GL.getUniformLocation(this._program, "direction");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.useProgram(this._program);
-    HX.GL.uniform1i(this._textureLocation, 0);
+    HX_GL.useProgram(this._program);
+    HX_GL.uniform1i(this._textureLocation, 0);
 };
 
 HX.ESMBlurShader.prototype = Object.create(HX.Shader.prototype);
@@ -11310,14 +11312,14 @@ HX.ESMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
 
     texture.bind(0);
 
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 
-    HX.GL.uniform2f(this._directionLocation, dirX, dirY);
+    HX_GL.uniform2f(this._directionLocation, dirX, dirY);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 /**
  * Can be used directly, or have SkyBox manage this for you (generally the best approach). Acts as an infinite environment map.
@@ -11343,11 +11345,11 @@ HX.GlobalSpecularProbe.prototype.render = function(renderer)
     if (this._texture) {
         var maxMip = Math.floor(HX.log2(this._texture.size));
         var mipOffset = 0;
-        HX.GL.uniform1f(this._numMipsLocation, maxMip - mipOffset);
+        HX_GL.uniform1f(this._numMipsLocation, maxMip - mipOffset);
     }
 
     // render rect mesh
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
@@ -11406,7 +11408,7 @@ HX.GlobalIrradianceProbe.prototype.render = function(renderer)
     this._pass.updateRenderState(renderer);
 
     // render rect mesh
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 HX.GlobalIrradianceProbe.prototype._updateWorldBounds = function()
@@ -11615,12 +11617,12 @@ HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, rend
 
     var vertexBuffers = HX.PointLight._sphereMesh._vertexBuffers;
     vertexBuffers[0].bind();
-    HX.GL.vertexAttribPointer(HX.PointLight._positionAttrib, 3, HX.GL.FLOAT, false, 48, 0);
+    HX_GL.vertexAttribPointer(HX.PointLight._positionAttrib, 3, HX_GL.FLOAT, false, 48, 0);
     vertexBuffers[1].bind();
-    HX.GL.vertexAttribPointer(HX.PointLight._instanceAttrib, 1, HX.GL.FLOAT, false, 4, 0);
-    HX.GL.uniform3fv(HX.PointLight._positionLocation, posData);
-    HX.GL.uniform3fv(HX.PointLight._colorLocation, colorData);
-    HX.GL.uniform1fv(HX.PointLight._lightRadiusLocation, radiusData);
+    HX_GL.vertexAttribPointer(HX.PointLight._instanceAttrib, 1, HX_GL.FLOAT, false, 4, 0);
+    HX_GL.uniform3fv(HX.PointLight._positionLocation, posData);
+    HX_GL.uniform3fv(HX.PointLight._colorLocation, colorData);
+    HX_GL.uniform1fv(HX.PointLight._lightRadiusLocation, radiusData);
 
     // TODO: Should only draw when depth sphere > depth scene
     // but should also use stencil buffer to mark when front sphere depth > depth scene, because then it doesn't light anything
@@ -11628,7 +11630,7 @@ HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, rend
     // could we still reserve a bit somewhere?
     HX.setDepthTest(HX.Comparison.GREATER);
     HX.setCullMode(HX.CullMode.BACK);
-    HX.drawElements(HX.GL.TRIANGLES, HX.PointLight.NUM_SPHERE_INDICES * (end - startIndex), 0);
+    HX.drawElements(HX_GL.TRIANGLES, HX.PointLight.NUM_SPHERE_INDICES * (end - startIndex), 0);
 
     HX.setDepthTest(HX.Comparison.ALWAYS);
 
@@ -11743,13 +11745,13 @@ HX.VSMBlurShader = function(blurRadius)
 
     this.init(vertex, fragment);
 
-    this._textureLocation = HX.GL.getUniformLocation(this._program, "source");
-    this._directionLocation = HX.GL.getUniformLocation(this._program, "direction");
-    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+    this._textureLocation = HX_GL.getUniformLocation(this._program, "source");
+    this._directionLocation = HX_GL.getUniformLocation(this._program, "direction");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.useProgram(this._program);
-    HX.GL.uniform1i(this._textureLocation, 0);
+    HX_GL.useProgram(this._program);
+    HX_GL.uniform1i(this._textureLocation, 0);
 };
 
 HX.VSMBlurShader.prototype = Object.create(HX.Shader.prototype);
@@ -11766,14 +11768,14 @@ HX.VSMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
 
     texture.bind(0);
 
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 
-    HX.GL.uniform2f(this._directionLocation, dirX, dirY);
+    HX_GL.uniform2f(this._directionLocation, dirX, dirY);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 /**
  * @constructor
@@ -12252,7 +12254,7 @@ HX.FrameBuffer = function(colorTextures, depthBuffer)
         this._drawBuffers = null;
     }
 
-    this._fbo = HX.GL.createFramebuffer();
+    this._fbo = HX_GL.createFramebuffer();
 };
 
 HX.FrameBuffer.prototype = {
@@ -12265,12 +12267,12 @@ HX.FrameBuffer.prototype = {
      *
      * @param width
      * @param height
-     * @param formats An Array of formats for each color buffer. If only one provided, it will be used for all. Defaults to [ HX.GL.RGBA ]
-     * @param dataTypes An Array of data types for each color buffer. If only one provided, it will be used for all. Defaults to [ HX.GL.UNSIGNED_BYTE ]
+     * @param formats An Array of formats for each color buffer. If only one provided, it will be used for all. Defaults to [ HX_GL.RGBA ]
+     * @param dataTypes An Array of data types for each color buffer. If only one provided, it will be used for all. Defaults to [ HX_GL.UNSIGNED_BYTE ]
      */
     init: function()
     {
-        HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, this._fbo);
+        HX_GL.bindFramebuffer(HX_GL.FRAMEBUFFER, this._fbo);
 
         if (this._colorTextures) {
             this._width = this._colorTextures[0]._width;
@@ -12285,36 +12287,36 @@ HX.FrameBuffer.prototype = {
             var texture = this._colorTextures[i];
 
             if (HX.EXT_DRAW_BUFFERS)
-                HX.GL.framebufferTexture2D(HX.GL.FRAMEBUFFER, HX.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, HX.GL.TEXTURE_2D, texture._texture, 0);
+                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, HX_GL.TEXTURE_2D, texture._texture, 0);
             else
             // try using default (will only work for 1 color texture tho)
-                HX.GL.framebufferTexture2D(HX.GL.FRAMEBUFFER, HX.GL.COLOR_ATTACHMENT0 + i, HX.GL.TEXTURE_2D, texture._texture, 0);
+                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX_GL.COLOR_ATTACHMENT0 + i, HX_GL.TEXTURE_2D, texture._texture, 0);
         }
 
 
         if (this._depthBuffer) {
             if (this._depthBuffer instanceof HX.Texture2D) {
-                HX.GL.framebufferTexture2D(HX.GL.FRAMEBUFFER, HX.GL.DEPTH_STENCIL_ATTACHMENT, HX.GL.TEXTURE_2D, this._depthBuffer._texture, 0);
+                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX_GL.DEPTH_STENCIL_ATTACHMENT, HX_GL.TEXTURE_2D, this._depthBuffer._texture, 0);
             }
             else {
-                HX.GL.bindRenderbuffer(HX.GL.RENDERBUFFER, this._depthBuffer._renderBuffer);
-                HX.GL.framebufferRenderbuffer(HX.GL.FRAMEBUFFER, HX.GL.DEPTH_STENCIL_ATTACHMENT, HX.GL.RENDERBUFFER, this._depthBuffer._renderBuffer);
+                HX_GL.bindRenderbuffer(HX_GL.RENDERBUFFER, this._depthBuffer._renderBuffer);
+                HX_GL.framebufferRenderbuffer(HX_GL.FRAMEBUFFER, HX_GL.DEPTH_STENCIL_ATTACHMENT, HX_GL.RENDERBUFFER, this._depthBuffer._renderBuffer);
             }
         }
 
-        var status = HX.GL.checkFramebufferStatus(HX.GL.FRAMEBUFFER);
+        var status = HX_GL.checkFramebufferStatus(HX_GL.FRAMEBUFFER);
 
         switch (status) {
-            case HX.GL.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+            case HX_GL.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
                 console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
                 break;
-            case HX.GL.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+            case HX_GL.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
                 console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
                 break;
-            case HX.GL.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+            case HX_GL.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
                 console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
                 break;
-            case HX.GL.FRAMEBUFFER_UNSUPPORTED:
+            case HX_GL.FRAMEBUFFER_UNSUPPORTED:
                 console.warn("Failed to initialize FBO: FRAMEBUFFER_UNSUPPORTED");
                 break;
         }
@@ -12322,7 +12324,7 @@ HX.FrameBuffer.prototype = {
 
     dispose: function()
     {
-        HX.GL.deleteFramebuffer(this._fbo);
+        HX_GL.deleteFramebuffer(this._fbo);
     }
 };
 /**
@@ -12330,7 +12332,7 @@ HX.FrameBuffer.prototype = {
  */
 HX.ReadOnlyDepthBuffer = function()
 {
-    this._renderBuffer = HX.GL.createRenderbuffer();
+    this._renderBuffer = HX_GL.createRenderbuffer();
 };
 
 HX.ReadOnlyDepthBuffer.prototype = {
@@ -12343,21 +12345,21 @@ HX.ReadOnlyDepthBuffer.prototype = {
      *
      * @param width
      * @param height
-     * @param formats An Array of formats for each color buffer. If only one provided, it will be used for all. Defaults to [ HX.GL.RGBA ]
-     * @param dataTypes An Array of data types for each color buffer. If only one provided, it will be used for all. Defaults to [ HX.GL.UNSIGNED_BYTE ]
+     * @param formats An Array of formats for each color buffer. If only one provided, it will be used for all. Defaults to [ HX_GL.RGBA ]
+     * @param dataTypes An Array of data types for each color buffer. If only one provided, it will be used for all. Defaults to [ HX_GL.UNSIGNED_BYTE ]
      */
     init: function(width, height)
     {
         this._width = width;
         this._height = height;
 
-        HX.GL.bindRenderbuffer(HX.GL.RENDERBUFFER, this._renderBuffer);
-        HX.GL.renderbufferStorage(HX.GL.RENDERBUFFER, HX.GL.DEPTH_STENCIL, width, height);
+        HX_GL.bindRenderbuffer(HX_GL.RENDERBUFFER, this._renderBuffer);
+        HX_GL.renderbufferStorage(HX_GL.RENDERBUFFER, HX_GL.DEPTH_STENCIL, width, height);
     },
 
     dispose: function()
     {
-        HX.GL.deleteRenderBuffer(this._renderBuffer);
+        HX_GL.deleteRenderBuffer(this._renderBuffer);
     }
 };
 /**
@@ -12368,7 +12370,7 @@ HX.Texture2D = function()
 {
     this._name = null;
     this._default = HX.Texture2D.DEFAULT;
-    this._texture = HX.GL.createTexture();
+    this._texture = HX_GL.createTexture();
     this._width = 0;
     this._height = 0;
 
@@ -12381,7 +12383,7 @@ HX.Texture2D = function()
 
     this._isReady = false;
 
-    HX.GL.bindTexture(HX.GL.TEXTURE_2D, null);
+    HX_GL.bindTexture(HX_GL.TEXTURE_2D, null);
 };
 
 HX.Texture2D._initDefault = function()
@@ -12406,15 +12408,15 @@ HX.Texture2D.prototype =
 
     dispose: function()
     {
-        HX.GL.deleteTexture(this._texture);
+        HX_GL.deleteTexture(this._texture);
         this._isReady = false;
     },
 
     generateMipmap: function()
     {
         this.bind();
-        HX.GL.generateMipmap(HX.GL.TEXTURE_2D);
-        HX.GL.bindTexture(HX.GL.TEXTURE_2D, null);
+        HX_GL.generateMipmap(HX_GL.TEXTURE_2D);
+        HX_GL.bindTexture(HX_GL.TEXTURE_2D, null);
     },
 
     get filter()
@@ -12426,9 +12428,9 @@ HX.Texture2D.prototype =
     {
         this._filter = filter;
         this.bind();
-        HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_MIN_FILTER, filter.min);
-        HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_MAG_FILTER, filter.mag);
-        HX.GL.bindTexture(HX.GL.TEXTURE_2D, null);
+        HX_GL.texParameteri(HX_GL.TEXTURE_2D, HX_GL.TEXTURE_MIN_FILTER, filter.min);
+        HX_GL.texParameteri(HX_GL.TEXTURE_2D, HX_GL.TEXTURE_MAG_FILTER, filter.mag);
+        HX_GL.bindTexture(HX_GL.TEXTURE_2D, null);
 
         if (filter === HX.TextureFilter.NEAREST_NOMIP || filter === HX.TextureFilter.NEAREST) {
             this.maxAnisotropy = 1;
@@ -12444,9 +12446,9 @@ HX.Texture2D.prototype =
     {
         this._wrapMode = mode;
         this.bind();
-        HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_WRAP_S, mode.s);
-        HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.GL.TEXTURE_WRAP_T, mode.t);
-        HX.GL.bindTexture(HX.GL.TEXTURE_2D, null);
+        HX_GL.texParameteri(HX_GL.TEXTURE_2D, HX_GL.TEXTURE_WRAP_S, mode.s);
+        HX_GL.texParameteri(HX_GL.TEXTURE_2D, HX_GL.TEXTURE_WRAP_T, mode.t);
+        HX_GL.bindTexture(HX_GL.TEXTURE_2D, null);
     },
 
     get maxAnisotropy()
@@ -12463,8 +12465,8 @@ HX.Texture2D.prototype =
 
         this.bind();
         if (HX.EXT_TEXTURE_FILTER_ANISOTROPIC)
-            HX.GL.texParameteri(HX.GL.TEXTURE_2D, HX.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
-        HX.GL.bindTexture(HX.GL.TEXTURE_2D, null);
+            HX_GL.texParameteri(HX_GL.TEXTURE_2D, HX.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
+        HX_GL.bindTexture(HX_GL.TEXTURE_2D, null);
     },
 
     get width() { return this._width; },
@@ -12472,18 +12474,18 @@ HX.Texture2D.prototype =
 
     initEmpty: function(width, height, format, dataType)
     {
-        format = format || HX.GL.RGBA;
-        dataType = dataType || HX.GL.UNSIGNED_BYTE;
+        format = format || HX_GL.RGBA;
+        dataType = dataType || HX_GL.UNSIGNED_BYTE;
 
         this.bind();
         this._width = width;
         this._height = height;
 
-        HX.GL.texImage2D(HX.GL.TEXTURE_2D, 0, format, width, height, 0, format, dataType, null);
+        HX_GL.texImage2D(HX_GL.TEXTURE_2D, 0, format, width, height, 0, format, dataType, null);
 
         this._isReady = true;
 
-        HX.GL.bindTexture(HX.GL.TEXTURE_2D, null);
+        HX_GL.bindTexture(HX_GL.TEXTURE_2D, null);
     },
 
     uploadData: function(data, width, height, generateMips, format, dataType)
@@ -12491,20 +12493,20 @@ HX.Texture2D.prototype =
         this._width = width;
         this._height = height;
 
-        format = format || HX.GL.RGBA;
-        dataType = dataType || HX.GL.UNSIGNED_BYTE;
+        format = format || HX_GL.RGBA;
+        dataType = dataType || HX_GL.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? false: generateMips;
 
         this.bind();
 
-        HX.GL.texImage2D(HX.GL.TEXTURE_2D, 0, format, width, height, 0, format, dataType, data);
+        HX_GL.texImage2D(HX_GL.TEXTURE_2D, 0, format, width, height, 0, format, dataType, data);
 
         if (generateMips)
-            HX.GL.generateMipmap(HX.GL.TEXTURE_2D);
+            HX_GL.generateMipmap(HX_GL.TEXTURE_2D);
 
         this._isReady = true;
 
-        HX.GL.bindTexture(HX.GL.TEXTURE_2D, null);
+        HX_GL.bindTexture(HX_GL.TEXTURE_2D, null);
     },
 
     uploadImage: function(image, width, height, generateMips, format, dataType)
@@ -12512,23 +12514,23 @@ HX.Texture2D.prototype =
         this._width = width;
         this._height = height;
 
-        format = format || HX.GL.RGBA;
-        dataType = dataType || HX.GL.UNSIGNED_BYTE;
+        format = format || HX_GL.RGBA;
+        dataType = dataType || HX_GL.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? true: generateMips;
 
         this.bind();
 
         if (image)
-            HX.GL.pixelStorei(HX.GL.UNPACK_FLIP_Y_WEBGL, 1);
+            HX_GL.pixelStorei(HX_GL.UNPACK_FLIP_Y_WEBGL, 1);
 
-        HX.GL.texImage2D(HX.GL.TEXTURE_2D, 0, format, format, dataType, image);
+        HX_GL.texImage2D(HX_GL.TEXTURE_2D, 0, format, format, dataType, image);
 
         if (generateMips)
-            HX.GL.generateMipmap(HX.GL.TEXTURE_2D);
+            HX_GL.generateMipmap(HX_GL.TEXTURE_2D);
 
         this._isReady = true;
 
-        HX.GL.bindTexture(HX.GL.TEXTURE_2D, null);
+        HX_GL.bindTexture(HX_GL.TEXTURE_2D, null);
     },
 
     isReady: function() { return this._isReady; },
@@ -12537,10 +12539,10 @@ HX.Texture2D.prototype =
     bind: function(unitIndex)
     {
         if (unitIndex !== undefined) {
-            HX.GL.activeTexture(HX.GL.TEXTURE0 + unitIndex);
+            HX_GL.activeTexture(HX_GL.TEXTURE0 + unitIndex);
         }
 
-        HX.GL.bindTexture(HX.GL.TEXTURE_2D, this._texture);
+        HX_GL.bindTexture(HX_GL.TEXTURE_2D, this._texture);
     },
 
     toString: function()
@@ -12558,7 +12560,7 @@ HX.TextureCube = function()
 {
     this._name = null;
     this._default = HX.TextureCube.DEFAULT;
-    this._texture = HX.GL.createTexture();
+    this._texture = HX_GL.createTexture();
     this._size = 0;
 
     this.bind();
@@ -12574,7 +12576,7 @@ HX.TextureCube._initDefault = function()
     HX.TextureCube.DEFAULT = new HX.TextureCube();
     HX.TextureCube.DEFAULT.uploadData([data, data, data, data, data, data], 1, true);
     HX.TextureCube.DEFAULT.filter = HX.TextureFilter.NEAREST_NOMIP;
-    HX.GL.bindTexture(HX.GL.TEXTURE_CUBE_MAP, null);
+    HX_GL.bindTexture(HX_GL.TEXTURE_CUBE_MAP, null);
 };
 
 HX.TextureCube.prototype =
@@ -12593,15 +12595,15 @@ HX.TextureCube.prototype =
 
     dispose: function()
     {
-        HX.GL.deleteTexture(this._texture);
+        HX_GL.deleteTexture(this._texture);
         this._isReady = false;
     },
 
     generateMipmap: function()
     {
         this.bind();
-        HX.GL.generateMipmap(HX.GL.TEXTURE_CUBE_MAP);
-        HX.GL.bindTexture(HX.GL.TEXTURE_CUBE_MAP, null);
+        HX_GL.generateMipmap(HX_GL.TEXTURE_CUBE_MAP);
+        HX_GL.bindTexture(HX_GL.TEXTURE_CUBE_MAP, null);
     },
 
     get filter()
@@ -12613,9 +12615,9 @@ HX.TextureCube.prototype =
     {
         this._filter = filter;
         this.bind();
-        HX.GL.texParameteri(HX.GL.TEXTURE_CUBE_MAP, HX.GL.TEXTURE_MIN_FILTER, filter.min);
-        HX.GL.texParameteri(HX.GL.TEXTURE_CUBE_MAP, HX.GL.TEXTURE_MAG_FILTER, filter.mag);
-        HX.GL.bindTexture(HX.GL.TEXTURE_CUBE_MAP, null);
+        HX_GL.texParameteri(HX_GL.TEXTURE_CUBE_MAP, HX_GL.TEXTURE_MIN_FILTER, filter.min);
+        HX_GL.texParameteri(HX_GL.TEXTURE_CUBE_MAP, HX_GL.TEXTURE_MAG_FILTER, filter.mag);
+        HX_GL.bindTexture(HX_GL.TEXTURE_CUBE_MAP, null);
     },
 
     get maxAnisotropy()
@@ -12632,58 +12634,58 @@ HX.TextureCube.prototype =
 
         this.bind();
         if (HX.EXT_TEXTURE_FILTER_ANISOTROPIC)
-            HX.GL.texParameteri(HX.GL.TEXTURE_CUBE_MAP, HX.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
-        HX.GL.bindTexture(HX.GL.TEXTURE_CUBE_MAP, null);
+            HX_GL.texParameteri(HX_GL.TEXTURE_CUBE_MAP, HX.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
+        HX_GL.bindTexture(HX_GL.TEXTURE_CUBE_MAP, null);
     },
 
     get size() { return this._size; },
 
     initEmpty: function(size, format, dataType)
     {
-        format = format || HX.GL.RGBA;
-        dataType = dataType || HX.GL.UNSIGNED_BYTE;
+        format = format || HX_GL.RGBA;
+        dataType = dataType || HX_GL.UNSIGNED_BYTE;
 
         this._size = size;
 
         this.bind();
 
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_POSITIVE_X, 0, format, size, size, 0, format, dataType, null);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, format, size, size, 0, format, dataType, null);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, format, size, size, 0, format, dataType, null);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, format, size, size, 0, format, dataType, null);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, format, size, size, 0, format, dataType, null);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, format, size, size, 0, format, dataType, null);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_POSITIVE_X, 0, format, size, size, 0, format, dataType, null);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, format, size, size, 0, format, dataType, null);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, format, size, size, 0, format, dataType, null);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, format, size, size, 0, format, dataType, null);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, format, size, size, 0, format, dataType, null);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, format, size, size, 0, format, dataType, null);
 
         this._isReady = true;
 
-        HX.GL.bindTexture(HX.GL.TEXTURE_2D, null);
+        HX_GL.bindTexture(HX_GL.TEXTURE_2D, null);
     },
 
     uploadData: function(data, size, generateMips, format, dataType)
     {
         this._size = size;
 
-        format = format || HX.GL.RGBA;
-        dataType = dataType || HX.GL.UNSIGNED_BYTE;
+        format = format || HX_GL.RGBA;
+        dataType = dataType || HX_GL.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? true: generateMips;
 
         this.bind();
 
-        HX.GL.pixelStorei(HX.GL.UNPACK_FLIP_Y_WEBGL, 0);
+        HX_GL.pixelStorei(HX_GL.UNPACK_FLIP_Y_WEBGL, 0);
 
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_POSITIVE_X, 0, format, size, size, 0, format, dataType, data[0]);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, format, size, size, 0, format, dataType, data[1]);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, format, size, size, 0, format, dataType, data[2]);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, format, size, size, 0, format, dataType, data[3]);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, format, size, size, 0, format, dataType, data[4]);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, format, size, size, 0, format, dataType, data[5]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_POSITIVE_X, 0, format, size, size, 0, format, dataType, data[0]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, format, size, size, 0, format, dataType, data[1]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, format, size, size, 0, format, dataType, data[2]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, format, size, size, 0, format, dataType, data[3]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, format, size, size, 0, format, dataType, data[4]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, format, size, size, 0, format, dataType, data[5]);
 
         if (generateMips)
-            HX.GL.generateMipmap(HX.GL.TEXTURE_CUBE_MAP);
+            HX_GL.generateMipmap(HX_GL.TEXTURE_CUBE_MAP);
 
         this._isReady = true;
 
-        HX.GL.bindTexture(HX.GL.TEXTURE_CUBE_MAP, null);
+        HX_GL.bindTexture(HX_GL.TEXTURE_CUBE_MAP, null);
     },
 
     uploadImages: function(images, generateMips, format, dataType)
@@ -12694,34 +12696,34 @@ HX.TextureCube.prototype =
 
         if (generateMips) {
             this.bind();
-            HX.GL.generateMipmap(HX.GL.TEXTURE_CUBE_MAP);
+            HX_GL.generateMipmap(HX_GL.TEXTURE_CUBE_MAP);
         }
 
         this._isReady = true;
 
-        HX.GL.bindTexture(HX.GL.TEXTURE_CUBE_MAP, null);
+        HX_GL.bindTexture(HX_GL.TEXTURE_CUBE_MAP, null);
     },
 
     uploadImagesToMipLevel: function(images, mipLevel, format, dataType)
     {
-        format = format || HX.GL.RGBA;
-        dataType = dataType || HX.GL.UNSIGNED_BYTE;
+        format = format || HX_GL.RGBA;
+        dataType = dataType || HX_GL.UNSIGNED_BYTE;
 
         if (mipLevel == 0)
             this._size = images[0].naturalWidth;
 
         this.bind();
 
-        HX.GL.pixelStorei(HX.GL.UNPACK_FLIP_Y_WEBGL, 0);
+        HX_GL.pixelStorei(HX_GL.UNPACK_FLIP_Y_WEBGL, 0);
 
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_POSITIVE_X, mipLevel, format, format, dataType, images[0]);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_NEGATIVE_X, mipLevel, format, format, dataType, images[1]);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_POSITIVE_Y, mipLevel, format, format, dataType, images[2]);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_NEGATIVE_Y, mipLevel, format, format, dataType, images[3]);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_POSITIVE_Z, mipLevel, format, format, dataType, images[4]);
-        HX.GL.texImage2D(HX.GL.TEXTURE_CUBE_MAP_NEGATIVE_Z, mipLevel, format, format, dataType, images[5]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_POSITIVE_X, mipLevel, format, format, dataType, images[0]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_X, mipLevel, format, format, dataType, images[1]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_POSITIVE_Y, mipLevel, format, format, dataType, images[2]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_Y, mipLevel, format, format, dataType, images[3]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_POSITIVE_Z, mipLevel, format, format, dataType, images[4]);
+        HX_GL.texImage2D(HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_Z, mipLevel, format, format, dataType, images[5]);
 
-        HX.GL.bindTexture(HX.GL.TEXTURE_CUBE_MAP, null);
+        HX_GL.bindTexture(HX_GL.TEXTURE_CUBE_MAP, null);
     },
 
     isReady: function() { return this._isReady; },
@@ -12730,9 +12732,9 @@ HX.TextureCube.prototype =
     bind: function(unitIndex)
     {
         if (unitIndex !== undefined)
-            HX.GL.activeTexture(HX.GL.TEXTURE0 + unitIndex);
+            HX_GL.activeTexture(HX_GL.TEXTURE0 + unitIndex);
 
-        HX.GL.bindTexture(HX.GL.TEXTURE_CUBE_MAP, this._texture);
+        HX_GL.bindTexture(HX_GL.TEXTURE_CUBE_MAP, this._texture);
     },
 
     toString: function()
@@ -12973,7 +12975,7 @@ HX.CascadeShadowMapRenderer.prototype =
         for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex)
         {
             var viewport = this._viewports[cascadeIndex];
-            HX.GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+            HX_GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
             HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
         }
 
@@ -13367,7 +13369,6 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
     this._camera = camera;
     camera.worldMatrix.getColumn(2, this._cameraZAxis);
     this._frustum = camera.frustum;
-    this._nearPlane = this._frustum._planes[HX.Frustum.PLANE_NEAR];
     this._reset();
 
     scene.acceptVisitor(this);
@@ -13652,7 +13653,7 @@ HX.Renderer.HDRBuffers.prototype =
 
     resize: function(width, height)
     {
-        this.texture.initEmpty(width, height, HX.GL.RGBA, HX.HDR_FORMAT);
+        this.texture.initEmpty(width, height, HX_GL.RGBA, HX.HDR_FORMAT);
         this.fbo.init();
         this.fboDepth.init();
     }
@@ -13873,7 +13874,7 @@ HX.Renderer.prototype =
 
     _renderToGBufferMultiPass: function ()
     {
-        var clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT | HX.GL.STENCIL_BUFFER_BIT;
+        var clearMask = HX_GL.COLOR_BUFFER_BIT | HX_GL.DEPTH_BUFFER_BIT | HX_GL.STENCIL_BUFFER_BIT;
         var passIndices = [HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
 
         for (var i = 0; i < 3; ++i) {
@@ -13882,7 +13883,7 @@ HX.Renderer.prototype =
             this._renderPass(passIndices[i]);
 
             if (i == 0)
-                clearMask = HX.GL.COLOR_BUFFER_BIT;
+                clearMask = HX_GL.COLOR_BUFFER_BIT;
 
             HX.popRenderTarget();
         }
@@ -13964,14 +13965,14 @@ HX.Renderer.prototype =
 
     _renderLightAccumulation: function ()
     {
-        HX.GL.depthMask(false);
+        HX_GL.depthMask(false);
 
-        HX.clear(HX.GL.COLOR_BUFFER_BIT);
+        HX.clear(HX_GL.COLOR_BUFFER_BIT);
 
         this._renderGlobalIllumination();
         this._renderDirectLights();
 
-        HX.GL.depthMask(true);
+        HX_GL.depthMask(true);
     },
 
     _renderDirectLights: function ()
@@ -14094,12 +14095,12 @@ HX.Renderer.prototype =
     _updateGBuffer: function (width, height)
     {
         if (HX.EXT_DEPTH_TEXTURE)
-            this._depthBuffer.initEmpty(width, height, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
+            this._depthBuffer.initEmpty(width, height, HX_GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
         else
             this._depthBuffer.init(width, height);
 
         for (var i = 0; i < this._gbuffer.length; ++i) {
-            this._gbuffer[i].initEmpty(width, height, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
+            this._gbuffer[i].initEmpty(width, height, HX_GL.RGBA, HX_GL.UNSIGNED_BYTE);
         }
 
         for (var i = 0; i < this._gbufferSingleFBOs.length; ++i)
@@ -14236,12 +14237,12 @@ HX.CustomCopyShader = function(fragmentShader)
     HX.Shader.call(this);
     this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), fragmentShader);
 
-    this._textureLocation = HX.GL.getUniformLocation(this._program, "sampler");
-    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+    this._textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.useProgram(this._program);
-    HX.GL.uniform1i(this._textureLocation, 0);
+    HX_GL.useProgram(this._program);
+    HX_GL.uniform1i(this._textureLocation, 0);
 };
 
 HX.CustomCopyShader.prototype = Object.create(HX.Shader.prototype);
@@ -14258,12 +14259,12 @@ HX.CustomCopyShader.prototype.execute = function(rect, texture)
 
     texture.bind(0);
 
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 
@@ -14295,8 +14296,8 @@ HX.MultiplyColorCopyShader = function()
 {
     HX.CustomCopyShader.call(this, HX.ShaderLibrary.get("multiply_color_fragment.glsl"));
 
-    HX.GL.useProgram(this._program);
-    this._colorLocation = HX.GL.getUniformLocation(this._program, "color");
+    HX_GL.useProgram(this._program);
+    this._colorLocation = HX_GL.getUniformLocation(this._program, "color");
 };
 
 HX.MultiplyColorCopyShader.prototype = Object.create(HX.CustomCopyShader.prototype);
@@ -14313,13 +14314,13 @@ HX.MultiplyColorCopyShader.prototype.execute = function(rect, texture, color)
 
     texture.bind(0);
 
-    HX.GL.uniform4f(this._colorLocation, color.r, color.g, color.b, color.a);
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+    HX_GL.uniform4f(this._colorLocation, color.r, color.g, color.b, color.a);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 
@@ -14332,14 +14333,14 @@ HX.CopyWithSeparateAlpha = function()
     HX.Shader.call(this);
     this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), HX.ShaderLibrary.get("copy_with_separate_alpha_fragment.glsl"));
 
-    this._textureLocation = HX.GL.getUniformLocation(this._program, "sampler");
-    this._alphaLocation = HX.GL.getUniformLocation(this._program, "alphaSource");
-    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+    this._textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
+    this._alphaLocation = HX_GL.getUniformLocation(this._program, "alphaSource");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.useProgram(this._program);
-    HX.GL.uniform1i(this._textureLocation, 0);
-    HX.GL.uniform1i(this._alphaLocation, 1);
+    HX_GL.useProgram(this._program);
+    HX_GL.uniform1i(this._textureLocation, 0);
+    HX_GL.uniform1i(this._alphaLocation, 1);
 };
 
 HX.CopyWithSeparateAlpha.prototype = Object.create(HX.Shader.prototype);
@@ -14357,12 +14358,12 @@ HX.CopyWithSeparateAlpha.prototype.execute = function(rect, texture, alphaTextur
     texture.bind(0);
     alphaTexture.bind(1);
 
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 /**
@@ -14408,18 +14409,18 @@ HX.LinearizeDepthShader = function()
 
     this.init(HX.ShaderLibrary.get("linearize_depth_vertex.glsl"), HX.ShaderLibrary.get("linearize_depth_fragment.glsl"));
 
-    HX.GL.useProgram(this._program);
+    HX_GL.useProgram(this._program);
 
-    this._textureLocation = HX.GL.getUniformLocation(this._program, "sampler");
-    this._textureLocation2 = HX.GL.getUniformLocation(this._program, "sampler2");
-    this._rcpFrustumRangeLocation = HX.GL.getUniformLocation(this._program, "hx_rcpCameraFrustumRange");
-    this._projectionLocation = HX.GL.getUniformLocation(this._program, "hx_projectionMatrix");
-    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+    this._textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
+    this._textureLocation2 = HX_GL.getUniformLocation(this._program, "sampler2");
+    this._rcpFrustumRangeLocation = HX_GL.getUniformLocation(this._program, "hx_rcpCameraFrustumRange");
+    this._projectionLocation = HX_GL.getUniformLocation(this._program, "hx_projectionMatrix");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.uniform1i(this._textureLocation, 0);
+    HX_GL.uniform1i(this._textureLocation, 0);
     if (this._textureLocation2)
-        HX.GL.uniform1i(this._textureLocation2, 1);
+        HX_GL.uniform1i(this._textureLocation2, 1);
 };
 
 HX.LinearizeDepthShader.prototype = Object.create(HX.Shader.prototype);
@@ -14439,14 +14440,14 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera, text
     if (texture2)
         texture2.bind(1);
 
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
-    HX.GL.uniform1f(this._rcpFrustumRangeLocation, 1.0/(camera.nearDistance - camera.farDistance));
-    HX.GL.uniformMatrix4fv(this._projectionLocation, false, camera.projectionMatrix._m);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
+    HX_GL.uniform1f(this._rcpFrustumRangeLocation, 1.0/(camera.nearDistance - camera.farDistance));
+    HX_GL.uniformMatrix4fv(this._projectionLocation, false, camera.projectionMatrix._m);
 
     HX.enableAttributes(2);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 
@@ -14460,15 +14461,15 @@ HX.ReprojectShader = function()
     this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), HX.ShaderLibrary.get("reproject_fragment.glsl"));
 
     this._reprojectionMatrix = new HX.Matrix4x4();
-    this._sourceLocation = HX.GL.getUniformLocation(this._program, "source");
-    this._depthLocation = HX.GL.getUniformLocation(this._program, "depth");
-    this._reprojectionMatrixLocation = HX.GL.getUniformLocation(this._program, "reprojectionMatrix");
-    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+    this._sourceLocation = HX_GL.getUniformLocation(this._program, "source");
+    this._depthLocation = HX_GL.getUniformLocation(this._program, "depth");
+    this._reprojectionMatrixLocation = HX_GL.getUniformLocation(this._program, "reprojectionMatrix");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.useProgram(this._program);
-    HX.GL.uniform1i(this._sourceLocation , 0);
-    HX.GL.uniform1i(this._depthLocation, 1);
+    HX_GL.useProgram(this._program);
+    HX_GL.uniform1i(this._sourceLocation , 0);
+    HX_GL.uniform1i(this._depthLocation, 1);
 };
 
 HX.ReprojectShader.prototype = Object.create(HX.Shader.prototype);
@@ -14488,14 +14489,14 @@ HX.ReprojectShader.prototype.execute = function(rect, sourceTexture, depthTextur
 
     this._reprojectionMatrix.multiply(oldViewProjection, camera.inverseViewProjectionMatrix);
 
-    HX.GL.uniformMatrix4fv(this._reprojectionMatrixLocation, false, this._reprojectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this._reprojectionMatrixLocation, false, this._reprojectionMatrix._m);
 
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 /**
  * @constructor
@@ -14585,7 +14586,7 @@ HX.BloomEffect.prototype = Object.create(HX.Effect.prototype);
 HX.BloomEffect.prototype._initTextures = function()
 {
     for (var i = 0; i < 2; ++i) {
-        this._thresholdMaps[i].initEmpty(Math.ceil(this._targetWidth / this._downScale), Math.ceil(this._targetHeight / this._downScale), HX.GL.RGB, HX.HDR_FORMAT);
+        this._thresholdMaps[i].initEmpty(Math.ceil(this._targetWidth / this._downScale), Math.ceil(this._targetHeight / this._downScale), HX_GL.RGB, HX.HDR_FORMAT);
         this._smallFBOs[i].init();
     }
 };
@@ -15055,7 +15056,7 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
 {
     var w = this._renderer._width * this._scale;
     var h = this._renderer._height * this._scale;
-    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, null, HX.GL.RGBA, HX.HDR_FORMAT)) {
+    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, null, HX_GL.RGBA, HX.HDR_FORMAT)) {
         this._depthBuffer.init(w, h);
         this._fbo.init();
         this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
@@ -15064,11 +15065,11 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
     HX.pushRenderTarget(this._fbo);
         HX.setClearColor(HX.Color.ZERO);
         HX.clear();
-        HX.GL.colorMask(false, false, false, false);
+        HX_GL.colorMask(false, false, false, false);
         HX.pushStencilState(this._stencilWriteState);
         this._drawPass(this._stencilPass);
         HX.popStencilState();
-        HX.GL.colorMask(true, true, true, true);
+        HX_GL.colorMask(true, true, true, true);
 
         HX.pushStencilState(this._stencilReadState);
 
@@ -15257,7 +15258,7 @@ HX.ToneMapEffect = function(adaptive)
         this._extractLuminancePass.blendState = new HX.BlendState(HX.BlendFactor.CONSTANT_ALPHA, HX.BlendFactor.ONE_MINUS_CONSTANT_ALPHA, HX.BlendOperation.ADD, new HX.Color(1.0, 1.0, 1.0, 1.0));
 
         this._luminanceMap = new HX.Texture2D();
-        this._luminanceMap.initEmpty(256, 256, HX.GL.RGBA, HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
+        this._luminanceMap.initEmpty(256, 256, HX_GL.RGBA, HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
         this._luminanceFBO = new HX.FrameBuffer(this._luminanceMap);
         this._luminanceFBO.init();
 
@@ -16424,7 +16425,7 @@ HX.HMT._PROPERTY_MAP = null;
 
 HX.HMT._initPropertyMap = function() {
     HX.HMT._PROPERTY_MAP = HX.HMT._PROPERTY_MAP || {
-        back: HX.GL.BACK,
+        back: HX_GL.BACK,
         front: HX.CullMode.FRONT,
         both: HX.CullMode.ALL,
         none: null,

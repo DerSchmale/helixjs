@@ -39,7 +39,7 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.useHDR = true;
     options.maxDepthPrecision = true;   // in case depth textures are not supported
-    options.lightingModel = HX.GGXLightingModel;
+    //options.lightingModel = HX.GGXLightingModel;
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
 
     project.init(document.getElementById("webglContainer"), options);

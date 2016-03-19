@@ -21,29 +21,28 @@ vec4 saturate(vec4 value)
 // Only for 0 - 1
 vec4 hx_floatToRGBA8(float value)
 {
-    value *= 255.0/256.0;
-    vec4 enc = fract(value * vec4(1.0, 255.0, 65025.0, 16581375.0));
+    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);
+    // cannot fract first value or 1 would not be encodable
+    enc.yzw = fract(enc.yzw);
     return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);
 }
 
 float hx_RGBA8ToFloat(vec4 rgba)
 {
-    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0)) * 256.0 / 255.0;
+    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));
 }
 
 vec2 hx_floatToRG8(float value)
 {
-// scale to encodable range [0, 1]
-    value *= 255.0/256.0;
     vec2 enc = vec2(1.0, 255.0) * value;
-    enc = fract(enc);
+    enc.y = fract(enc.y);
     enc.x -= enc.y / 255.0;
     return enc;
 }
 
 float hx_RG8ToFloat(vec2 rg)
 {
-    return dot(rg, vec2(1.0, 1.0/255.0)) * 256.0 / 255.0;
+    return dot(rg, vec2(1.0, 1.0/255.0));
 }
 
 vec3 hx_decodeNormal(vec4 data)

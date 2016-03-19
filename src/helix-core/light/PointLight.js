@@ -55,20 +55,10 @@ HX.PointLight.prototype = Object.create(HX.Light.prototype,
 // returns the index of the FIRST UNRENDERED light
 HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
-    var intersectsNearPlane = lightCollection[startIndex]._renderOrderHint > 0;
-
-    if (intersectsNearPlane)
-        return this._renderFullscreenBatch(lightCollection, startIndex, renderer);
-    else
-        return this._renderSphereBatch(lightCollection, startIndex, renderer);
-};
-
-HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startIndex, renderer)
-{
     var end = startIndex + HX.PointLight.LIGHTS_PER_BATCH;
     if (end > lightCollection.length) end = lightCollection.length;
 
-    HX.PointLight._sphericalLightPass.updateRenderState(renderer);
+    HX.PointLight._lightPass.updateRenderState(renderer);
 
     var camera = renderer._camera;
     var posData = HX.PointLight._positionData;
@@ -81,7 +71,7 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
 
     for (var i = startIndex; i < end; ++i) {
         var light = lightCollection[i];
-        if (light._type != this._type || light._renderOrderHint > 0) {
+        if (light._type != this._type/* || light._renderOrderHint > 0*/) {
             end = i;
             break;
         }
@@ -102,12 +92,12 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
 
     var vertexBuffers = HX.PointLight._sphereMesh._vertexBuffers;
     vertexBuffers[0].bind();
-    HX.GL.vertexAttribPointer(HX.PointLight._sphericalPositionAttrib, 3, HX.GL.FLOAT, false, 48, 0);
+    HX.GL.vertexAttribPointer(HX.PointLight._positionAttrib, 3, HX.GL.FLOAT, false, 48, 0);
     vertexBuffers[1].bind();
-    HX.GL.vertexAttribPointer(HX.PointLight._sphericalInstanceAttrib, 1, HX.GL.FLOAT, false, 4, 0);
-    HX.GL.uniform3fv(HX.PointLight._sphericalPositionLocation, posData);
-    HX.GL.uniform3fv(HX.PointLight._sphericalColorLocation, colorData);
-    HX.GL.uniform1fv(HX.PointLight._sphericalLightRadiusLocation, radiusData);
+    HX.GL.vertexAttribPointer(HX.PointLight._instanceAttrib, 1, HX.GL.FLOAT, false, 4, 0);
+    HX.GL.uniform3fv(HX.PointLight._positionLocation, posData);
+    HX.GL.uniform3fv(HX.PointLight._colorLocation, colorData);
+    HX.GL.uniform1fv(HX.PointLight._lightRadiusLocation, radiusData);
 
     // TODO: Should only draw when depth sphere > depth scene
     // but should also use stencil buffer to mark when front sphere depth > depth scene, because then it doesn't light anything
@@ -118,78 +108,6 @@ HX.PointLight.prototype._renderSphereBatch = function(lightCollection, startInde
     HX.drawElements(HX.GL.TRIANGLES, HX.PointLight.NUM_SPHERE_INDICES * (end - startIndex), 0);
 
     HX.setDepthTest(HX.Comparison.ALWAYS);
-
-    return end;
-};
-
-HX.PointLight.prototype.initFullScreenPass = function (passIndex)
-{
-    var defines = {
-        LIGHTS_PER_BATCH: passIndex + 1
-    };
-    var pass = new HX.EffectPass(
-        HX.ShaderLibrary.get("point_light_fullscreen_vertex.glsl", defines),
-        HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_fullscreen_fragment.glsl", defines)
-    );
-    pass.blendState = HX.BlendState.ADD;
-
-    HX.PointLight._fullScreenPositionLocations[passIndex] = pass.getUniformLocation("lightViewPosition[0]");
-    HX.PointLight._fullScreenColorLocations[passIndex] = pass.getUniformLocation("lightColor[0]");
-    HX.PointLight._fullScreenRadiusLocations[passIndex] = pass.getUniformLocation("lightRadius[0]");
-    HX.PointLight._fullScreenLightPasses[passIndex] = pass;
-};
-
-HX.PointLight.prototype._renderFullscreenBatch = function(lightCollection, startIndex, renderer)
-{
-    // TODO: provide a shader for each light count?
-    var end = startIndex + HX.PointLight.LIGHTS_PER_BATCH;
-    if (end > lightCollection.length) end = lightCollection.length;
-
-    var posData = HX.PointLight._positionData;
-    var colorData = HX.PointLight._colorData;
-    var radiusData = HX.PointLight._radiusData;
-    var pos = new HX.Float4();
-    var viewMatrix = renderer._camera.viewMatrix;
-
-    var v3i = 0, v1i = 0;
-
-    for (var i = startIndex; i < end; ++i) {
-        var light = lightCollection[i];
-
-        // either type switch or light._renderOrderHint change
-        if (light._type != this._type || light._renderOrderHint < 0) {
-            end = i;
-            continue;
-        }
-
-        light.worldMatrix.getColumn(3, pos);
-        viewMatrix.transformPoint(pos, pos);
-
-        var color = light._scaledIrradiance;
-
-        posData[v3i] = pos.x;
-        colorData[v3i++] = color.r;
-        posData[v3i] = pos.y;
-        colorData[v3i++] = color.g;
-        posData[v3i] = pos.z;
-        colorData[v3i++] = color.b;
-        // linear att: 1.0 - distance / radius
-        radiusData[v1i++] = light._radius;
-    }
-
-    var passIndex = i - startIndex - 1;
-
-    if (!HX.PointLight._fullScreenLightPasses[passIndex]) {
-        this.initFullScreenPass(passIndex);
-    }
-
-    HX.PointLight._fullScreenLightPasses[passIndex].updateRenderState(renderer);
-
-    HX.GL.uniform3fv(HX.PointLight._fullScreenPositionLocations[passIndex], posData);
-    HX.GL.uniform3fv(HX.PointLight._fullScreenColorLocations[passIndex], colorData);
-    HX.GL.uniform1fv(HX.PointLight._fullScreenRadiusLocations[passIndex], radiusData);
-
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
 
     return end;
 };
@@ -206,18 +124,12 @@ HX.PointLight.prototype._updateWorldBounds = function()
 
 HX.PointLight.prototype._initLightPasses =  function()
 {
-    // the full screen passes will be generated on demand
-    HX.PointLight._fullScreenLightPasses = [];
-    HX.PointLight._fullScreenPositionLocations = [];
-    HX.PointLight._fullScreenColorLocations = [];
-    HX.PointLight._fullScreenRadiusLocations = [];
-
     var defines = {
         LIGHTS_PER_BATCH: HX.PointLight.LIGHTS_PER_BATCH
     };
     var pass = new HX.EffectPass(
-        HX.ShaderLibrary.get("point_light_spherical_vertex.glsl", defines),
-        HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_spherical_fragment.glsl", defines)
+        HX.ShaderLibrary.get("point_light_vertex.glsl", defines),
+        HX.LIGHTING_MODEL.getGLSL() + HX.ShaderLibrary.get("point_light_fragment.glsl", defines)
     );
 
     pass.blendState = HX.BlendState.ADD;
@@ -225,10 +137,10 @@ HX.PointLight.prototype._initLightPasses =  function()
     // do not use rect
     pass.setMesh(HX.PointLight._sphereMesh);
 
-    HX.PointLight._sphericalPositionAttrib = pass.getAttributeLocation("hx_position");
-    HX.PointLight._sphericalInstanceAttrib = pass.getAttributeLocation("hx_instanceID");
-    HX.PointLight._sphericalLightPass = pass;
-    HX.PointLight._sphericalPositionLocation = pass.getUniformLocation("lightViewPosition[0]");
-    HX.PointLight._sphericalColorLocation = pass.getUniformLocation("lightColor[0]");
-    HX.PointLight._sphericalLightRadiusLocation = pass.getUniformLocation("lightRadius[0]");
+    HX.PointLight._positionAttrib = pass.getAttributeLocation("hx_position");
+    HX.PointLight._instanceAttrib = pass.getAttributeLocation("hx_instanceID");
+    HX.PointLight._lightPass = pass;
+    HX.PointLight._positionLocation = pass.getUniformLocation("lightViewPosition[0]");
+    HX.PointLight._colorLocation = pass.getUniformLocation("lightColor[0]");
+    HX.PointLight._lightRadiusLocation = pass.getUniformLocation("lightRadius[0]");
 };

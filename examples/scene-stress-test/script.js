@@ -27,9 +27,9 @@ function initCamera(camera)
 
 function initScene(scene)
 {
-    for (var i = 0; i < 20; ++i) {
+    for (var i = 0; i < 100; ++i) {
         var light = new HX.PointLight();
-        light.radius = 5;
+        light.radius = 10;
         scene.attach(light);
         light.position.set(
             (Math.random() - .5) * 20,
@@ -58,9 +58,9 @@ function initScene(scene)
         });
 
     var spacing = 2;
-    for (var x = -5; x <= 5; ++x) {
-        for (var y = -5; y <= 5; ++y) {
-            for (var z = -5; z <= 5; ++z) {
+    for (var x = -1; x <= 1; ++x) {
+        for (var y = -1; y <= 1; ++y) {
+            for (var z = -1; z <= 1; ++z) {
                 var instance = new HX.ModelInstance(primitive, material);
                 instance.position.set(x + Math.random() *.5 -.25, y + Math.random() *.5 -.25, z + Math.random() *.5 -.25);
                 instance.position.scale(spacing);

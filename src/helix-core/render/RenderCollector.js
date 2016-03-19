@@ -148,15 +148,6 @@ HX.RenderCollector.prototype.visitLight = function(light)
 {
     this._lights.push(light);
     if (light._castShadows) this._shadowCasters.push(light._shadowMapRenderer);
-
-    var bounds = light.worldBounds;
-    var near = this._nearPlane;
-
-    var center = bounds._center;
-
-    // render order hint for lights is used to determine whether or not they intersect the near plane (in which case we want a quad render pass to be more efficient)
-    // so > 0 is intersecting, < 0 is not
-    light._renderOrderHint = center.x * near.x + center.y * near.y + center.z * near.z + near.w + bounds.getRadius();
 };
 
 HX.RenderCollector.prototype._reset = function()
@@ -201,8 +192,6 @@ HX.RenderCollector.prototype._sortOpaques = function(a, b)
 HX.RenderCollector.prototype._sortLights = function(a, b)
 {
     return  a._type === b._type?
-            a._castShadows === b._castShadows ?
-            a._renderOrderHint - b._renderOrderHint :
             a._castShadows? 1 : -1 :
             a._type - b._type;
 };

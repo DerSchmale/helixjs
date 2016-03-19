@@ -92,12 +92,12 @@ HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, rend
 
     var vertexBuffers = HX.PointLight._sphereMesh._vertexBuffers;
     vertexBuffers[0].bind();
-    HX.GL.vertexAttribPointer(HX.PointLight._positionAttrib, 3, HX.GL.FLOAT, false, 48, 0);
+    HX_GL.vertexAttribPointer(HX.PointLight._positionAttrib, 3, HX_GL.FLOAT, false, 48, 0);
     vertexBuffers[1].bind();
-    HX.GL.vertexAttribPointer(HX.PointLight._instanceAttrib, 1, HX.GL.FLOAT, false, 4, 0);
-    HX.GL.uniform3fv(HX.PointLight._positionLocation, posData);
-    HX.GL.uniform3fv(HX.PointLight._colorLocation, colorData);
-    HX.GL.uniform1fv(HX.PointLight._lightRadiusLocation, radiusData);
+    HX_GL.vertexAttribPointer(HX.PointLight._instanceAttrib, 1, HX_GL.FLOAT, false, 4, 0);
+    HX_GL.uniform3fv(HX.PointLight._positionLocation, posData);
+    HX_GL.uniform3fv(HX.PointLight._colorLocation, colorData);
+    HX_GL.uniform1fv(HX.PointLight._lightRadiusLocation, radiusData);
 
     // TODO: Should only draw when depth sphere > depth scene
     // but should also use stencil buffer to mark when front sphere depth > depth scene, because then it doesn't light anything
@@ -105,7 +105,7 @@ HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, rend
     // could we still reserve a bit somewhere?
     HX.setDepthTest(HX.Comparison.GREATER);
     HX.setCullMode(HX.CullMode.BACK);
-    HX.drawElements(HX.GL.TRIANGLES, HX.PointLight.NUM_SPHERE_INDICES * (end - startIndex), 0);
+    HX.drawElements(HX_GL.TRIANGLES, HX.PointLight.NUM_SPHERE_INDICES * (end - startIndex), 0);
 
     HX.setDepthTest(HX.Comparison.ALWAYS);
 

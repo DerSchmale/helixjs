@@ -22,11 +22,11 @@ HX.GlobalSpecularProbe.prototype.render = function(renderer)
     if (this._texture) {
         var maxMip = Math.floor(HX.log2(this._texture.size));
         var mipOffset = 0;
-        HX.GL.uniform1f(this._numMipsLocation, maxMip - mipOffset);
+        HX_GL.uniform1f(this._numMipsLocation, maxMip - mipOffset);
     }
 
     // render rect mesh
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
@@ -85,7 +85,7 @@ HX.GlobalIrradianceProbe.prototype.render = function(renderer)
     this._pass.updateRenderState(renderer);
 
     // render rect mesh
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 HX.GlobalIrradianceProbe.prototype._updateWorldBounds = function()

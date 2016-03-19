@@ -9,12 +9,12 @@ HX.ShadowFilter.prototype =
 {
     getShadowMapFormat: function()
     {
-        return HX.GL.RGBA;
+        return HX_GL.RGBA;
     },
 
     getShadowMapDataType: function()
     {
-        return HX.GL.UNSIGNED_BYTE;
+        return HX_GL.UNSIGNED_BYTE;
     },
 
     getGLSL: function()

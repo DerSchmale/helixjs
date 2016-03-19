@@ -4,7 +4,7 @@
  */
 HX.IndexBuffer = function()
 {
-    this._buffer = HX.GL.createBuffer();
+    this._buffer = HX_GL.createBuffer();
 };
 
 HX.IndexBuffer.prototype = {
@@ -18,16 +18,16 @@ HX.IndexBuffer.prototype = {
     uploadData: function(data, usageHint)
     {
         if (usageHint === undefined)
-            usageHint = HX.GL.STATIC_DRAW;
+            usageHint = HX_GL.STATIC_DRAW;
 
         this.bind();
-        HX.GL.bufferData(HX.GL.ELEMENT_ARRAY_BUFFER, data, usageHint);
+        HX_GL.bufferData(HX_GL.ELEMENT_ARRAY_BUFFER, data, usageHint);
     },
 
     dispose: function()
     {
         if (this._buffer) {
-            HX.GL.deleteBuffer(this._buffer);
+            HX_GL.deleteBuffer(this._buffer);
             this._buffer = 0;
         }
     },
@@ -37,6 +37,6 @@ HX.IndexBuffer.prototype = {
      */
     bind: function()
     {
-        HX.GL.bindBuffer(HX.GL.ELEMENT_ARRAY_BUFFER, this._buffer);
+        HX_GL.bindBuffer(HX_GL.ELEMENT_ARRAY_BUFFER, this._buffer);
     }
 };

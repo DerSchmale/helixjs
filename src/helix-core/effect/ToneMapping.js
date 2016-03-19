@@ -17,7 +17,7 @@ HX.ToneMapEffect = function(adaptive)
         this._extractLuminancePass.blendState = new HX.BlendState(HX.BlendFactor.CONSTANT_ALPHA, HX.BlendFactor.ONE_MINUS_CONSTANT_ALPHA, HX.BlendOperation.ADD, new HX.Color(1.0, 1.0, 1.0, 1.0));
 
         this._luminanceMap = new HX.Texture2D();
-        this._luminanceMap.initEmpty(256, 256, HX.GL.RGBA, HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
+        this._luminanceMap.initEmpty(256, 256, HX_GL.RGBA, HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
         this._luminanceFBO = new HX.FrameBuffer(this._luminanceMap);
         this._luminanceFBO.init();
 

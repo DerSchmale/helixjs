@@ -5,6 +5,8 @@ var HX = {
     INITIALIZED: false
 };
 
+var HX_GL = null;
+
 /**
  * Provides a set of options to configure Helix
  * @constructor
@@ -92,17 +94,17 @@ HX.init = function(canvas, options)
     }
 
     HX.OPTIONS = options || new HX.InitOptions();
-    HX.GL = glContext;
+    HX_GL = glContext;
 
-    if (!HX.GL) throw new Error("WebGL not supported");
+    if (!HX_GL) throw new Error("WebGL not supported");
 
     HX.INITIALIZED = true;
 
-    var extensions  = HX.GL.getSupportedExtensions();
+    var extensions  = HX_GL.getSupportedExtensions();
 
     function _getExtension(name)
     {
-        return extensions.indexOf(name) >= 0 ? HX.GL.getExtension(name) : null;
+        return extensions.indexOf(name) >= 0 ? HX_GL.getExtension(name) : null;
     }
 
     // shortcuts
@@ -184,12 +186,12 @@ HX.init = function(canvas, options)
     //HX.EXT_SRGB = _getExtension('EXT_sRGB');
     //if (!HX.EXT_SRGB) console.warn('EXT_sRGB extension not supported!');
 
-    HX.DEFAULT_TEXTURE_MAX_ANISOTROPY = HX.EXT_TEXTURE_FILTER_ANISOTROPIC? HX.GL.getParameter(HX.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
+    HX.DEFAULT_TEXTURE_MAX_ANISOTROPY = HX.EXT_TEXTURE_FILTER_ANISOTROPIC? HX_GL.getParameter(HX.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
 
     if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR || !HX.EXT_HALF_FLOAT_TEXTURES)
         HX.OPTIONS.useHDR = false;
 
-    HX.HDR_FORMAT = HX.OPTIONS.useHDR? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX.GL.UNSIGNED_BYTE;
+    HX.HDR_FORMAT = HX.OPTIONS.useHDR? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.UNSIGNED_BYTE;
 
     HX.GAMMA_CORRECTION_IN_LIGHTS = false;
 
@@ -274,7 +276,7 @@ HX._init2DDitherTexture = function(width, height)
         data[k++] = 1.0;
     }
 
-    HX.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, HX.GL.RGBA, HX.GL.FLOAT);
+    HX.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, HX_GL.RGBA, HX_GL.FLOAT);
     HX.DEFAULT_2D_DITHER_TEXTURE.filter = HX.TextureFilter.NEAREST_NOMIP;
     HX.DEFAULT_2D_DITHER_TEXTURE.wrapMode = HX.TextureWrapMode.REPEAT;
 };
@@ -283,20 +285,20 @@ HX._init2DDitherTexture = function(width, height)
 HX._initGLProperties = function()
 {
     HX.TextureFilter = {};
-    HX.TextureFilter.NEAREST = {min: HX.GL.NEAREST_MIPMAP_NEAREST, mag: HX.GL.NEAREST};
-    HX.TextureFilter.BILINEAR = {min: HX.GL.LINEAR_MIPMAP_NEAREST, mag: HX.GL.LINEAR};
-    HX.TextureFilter.TRILINEAR = {min: HX.GL.LINEAR_MIPMAP_LINEAR, mag: HX.GL.LINEAR};
+    HX.TextureFilter.NEAREST = {min: HX_GL.NEAREST_MIPMAP_NEAREST, mag: HX_GL.NEAREST};
+    HX.TextureFilter.BILINEAR = {min: HX_GL.LINEAR_MIPMAP_NEAREST, mag: HX_GL.LINEAR};
+    HX.TextureFilter.TRILINEAR = {min: HX_GL.LINEAR_MIPMAP_LINEAR, mag: HX_GL.LINEAR};
 
     if (HX.EXT_TEXTURE_FILTER_ANISOTROPIC)
-        HX.TextureFilter.TRILINEAR_ANISOTROPIC = {min: HX.GL.LINEAR_MIPMAP_LINEAR, mag: HX.GL.LINEAR};
+        HX.TextureFilter.TRILINEAR_ANISOTROPIC = {min: HX_GL.LINEAR_MIPMAP_LINEAR, mag: HX_GL.LINEAR};
 
 
-    HX.TextureFilter.NEAREST_NOMIP = { min: HX.GL.NEAREST, mag: HX.GL.NEAREST };
-    HX.TextureFilter.BILINEAR_NOMIP = { min: HX.GL.LINEAR, mag: HX.GL.LINEAR };
+    HX.TextureFilter.NEAREST_NOMIP = { min: HX_GL.NEAREST, mag: HX_GL.NEAREST };
+    HX.TextureFilter.BILINEAR_NOMIP = { min: HX_GL.LINEAR, mag: HX_GL.LINEAR };
 
     HX.TextureWrapMode = {};
-    HX.TextureWrapMode.REPEAT = { s: HX.GL.REPEAT, t: HX.GL.REPEAT };
-    HX.TextureWrapMode.CLAMP = { s: HX.GL.CLAMP_TO_EDGE, t: HX.GL.CLAMP_TO_EDGE };
+    HX.TextureWrapMode.REPEAT = { s: HX_GL.REPEAT, t: HX_GL.REPEAT };
+    HX.TextureWrapMode.CLAMP = { s: HX_GL.CLAMP_TO_EDGE, t: HX_GL.CLAMP_TO_EDGE };
 
     // default settings:
     HX.TextureWrapMode.DEFAULT = HX.TextureWrapMode.REPEAT;
@@ -304,63 +306,63 @@ HX._initGLProperties = function()
 
     HX.CullMode = {
         NONE: null,
-        BACK: HX.GL.BACK,
-        FRONT: HX.GL.FRONT,
-        ALL: HX.GL.FRONT_AND_BACK
+        BACK: HX_GL.BACK,
+        FRONT: HX_GL.FRONT,
+        ALL: HX_GL.FRONT_AND_BACK
     };
 
     HX.StencilOp = {
-        KEEP: HX.GL.KEEP,
-        ZERO: HX.GL.ZERO,
-        REPLACE: HX.GL.REPLACE,
-        INCREMENT: HX.GL.INCR,
-        INCREMENT_WRAP: HX.GL.INCR_WRAP,
-        DECREMENT: HX.GL.DECR,
-        DECREMENT_WRAP: HX.GL.DECR_WRAP,
-        INVERT: HX.GL.INVERT
+        KEEP: HX_GL.KEEP,
+        ZERO: HX_GL.ZERO,
+        REPLACE: HX_GL.REPLACE,
+        INCREMENT: HX_GL.INCR,
+        INCREMENT_WRAP: HX_GL.INCR_WRAP,
+        DECREMENT: HX_GL.DECR,
+        DECREMENT_WRAP: HX_GL.DECR_WRAP,
+        INVERT: HX_GL.INVERT
     };
 
     HX.Comparison = {
         DISABLED: null,
-        ALWAYS: HX.GL.ALWAYS,
-        NEVER: HX.GL.NEVER,
-        LESS: HX.GL.LESS,
-        EQUAL: HX.GL.EQUAL,
-        LESS_EQUAL: HX.GL.LEQUAL,
-        GREATER: HX.GL.GREATER,
-        NOT_EQUAL: HX.GL.NOTEQUAL,
-        GREATER_EQUAL: HX.GL.GEQUAL
+        ALWAYS: HX_GL.ALWAYS,
+        NEVER: HX_GL.NEVER,
+        LESS: HX_GL.LESS,
+        EQUAL: HX_GL.EQUAL,
+        LESS_EQUAL: HX_GL.LEQUAL,
+        GREATER: HX_GL.GREATER,
+        NOT_EQUAL: HX_GL.NOTEQUAL,
+        GREATER_EQUAL: HX_GL.GEQUAL
     };
 
     HX.ElementType = {
-        POINTS: HX.GL.POINTS,
-        LINES: HX.GL.LINES,
-        LINE_STRIP: HX.GL.LINE_STRIP,
-        LINE_LOOP: HX.GL.LINE_LOOP,
-        TRIANGLES: HX.GL.TRIANGLES,
-        TRIANGLE_STRIP: HX.GL.TRIANGLE_STRIP,
-        TRIANGLE_FAN: HX.GL.TRIANGLE_FAN
+        POINTS: HX_GL.POINTS,
+        LINES: HX_GL.LINES,
+        LINE_STRIP: HX_GL.LINE_STRIP,
+        LINE_LOOP: HX_GL.LINE_LOOP,
+        TRIANGLES: HX_GL.TRIANGLES,
+        TRIANGLE_STRIP: HX_GL.TRIANGLE_STRIP,
+        TRIANGLE_FAN: HX_GL.TRIANGLE_FAN
     };
 
     HX.BlendFactor = {
-        ZERO: HX.GL.ZERO,
-        ONE: HX.GL.ONE,
-        SOURCE_COLOR: HX.GL.SRC_COLOR,
-        ONE_MINUS_SOURCE_COLOR: HX.GL.ONE_MINUS_SRC_COLOR,
-        DESTINATION_COLOR: HX.GL.DST_COLOR,
-        ONE_MINUS_DESTINATION_COLOR: HX.GL.ONE_MINUS_DST_COLOR,
-        SOURCE_ALPHA: HX.GL.SRC_ALPHA,
-        ONE_MINUS_SOURCE_ALPHA: HX.GL.ONE_MINUS_SRC_ALPHA,
-        DESTINATION_ALPHA: HX.GL.DST_ALPHA,
-        ONE_MINUS_DESTINATION_ALPHA: HX.GL.ONE_MINUS_DST_ALPHA,
-        SOURCE_ALPHA_SATURATE: HX.GL.SRC_ALPHA_SATURATE,
-        CONSTANT_ALPHA: HX.GL.CONSTANT_ALPHA,
-        ONE_MINUS_CONSTANT_ALPHA: HX.GL.ONE_MINUS_CONSTANT_ALPHA
+        ZERO: HX_GL.ZERO,
+        ONE: HX_GL.ONE,
+        SOURCE_COLOR: HX_GL.SRC_COLOR,
+        ONE_MINUS_SOURCE_COLOR: HX_GL.ONE_MINUS_SRC_COLOR,
+        DESTINATION_COLOR: HX_GL.DST_COLOR,
+        ONE_MINUS_DESTINATION_COLOR: HX_GL.ONE_MINUS_DST_COLOR,
+        SOURCE_ALPHA: HX_GL.SRC_ALPHA,
+        ONE_MINUS_SOURCE_ALPHA: HX_GL.ONE_MINUS_SRC_ALPHA,
+        DESTINATION_ALPHA: HX_GL.DST_ALPHA,
+        ONE_MINUS_DESTINATION_ALPHA: HX_GL.ONE_MINUS_DST_ALPHA,
+        SOURCE_ALPHA_SATURATE: HX_GL.SRC_ALPHA_SATURATE,
+        CONSTANT_ALPHA: HX_GL.CONSTANT_ALPHA,
+        ONE_MINUS_CONSTANT_ALPHA: HX_GL.ONE_MINUS_CONSTANT_ALPHA
     };
 
     HX.BlendOperation = {
-        ADD: HX.GL.FUNC_ADD,
-        SUBTRACT: HX.GL.FUNC_SUBTRACT,
-        REVERSE_SUBTRACT: HX.GL.FUNC_REVERSE_SUBTRACT
+        ADD: HX_GL.FUNC_ADD,
+        SUBTRACT: HX_GL.FUNC_SUBTRACT,
+        REVERSE_SUBTRACT: HX_GL.FUNC_REVERSE_SUBTRACT
     };
 };

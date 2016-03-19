@@ -53,12 +53,12 @@ HX.ExponentialDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.
 
 HX.ExponentialDirectionalShadowFilter.prototype.getShadowMapFormat = function()
 {
-    return HX.GL.RGB;
+    return HX_GL.RGB;
 };
 
 HX.ExponentialDirectionalShadowFilter.prototype.getShadowMapDataType = function()
 {
-    return HX.GL.FLOAT;
+    return HX_GL.FLOAT;
 };
 
 HX.ExponentialDirectionalShadowFilter.prototype.getGLSL = function()
@@ -94,13 +94,13 @@ HX.ESMBlurShader = function(blurRadius)
 
     this.init(vertex, fragment);
 
-    this._textureLocation = HX.GL.getUniformLocation(this._program, "source");
-    this._directionLocation = HX.GL.getUniformLocation(this._program, "direction");
-    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+    this._textureLocation = HX_GL.getUniformLocation(this._program, "source");
+    this._directionLocation = HX_GL.getUniformLocation(this._program, "direction");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.useProgram(this._program);
-    HX.GL.uniform1i(this._textureLocation, 0);
+    HX_GL.useProgram(this._program);
+    HX_GL.uniform1i(this._textureLocation, 0);
 };
 
 HX.ESMBlurShader.prototype = Object.create(HX.Shader.prototype);
@@ -117,12 +117,12 @@ HX.ESMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
 
     texture.bind(0);
 
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 
-    HX.GL.uniform2f(this._directionLocation, dirX, dirY);
+    HX_GL.uniform2f(this._directionLocation, dirX, dirY);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };

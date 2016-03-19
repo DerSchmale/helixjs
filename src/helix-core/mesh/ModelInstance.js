@@ -97,7 +97,7 @@ HX.MeshInstance.prototype = {
         for (var i = 0; i < len; ++i) {
             var attribute = attributes[i];
             vertexBuffers[attribute.streamIndex].bind();
-            HX.GL.vertexAttribPointer(attribute.index, attribute.numComponents, HX.GL.FLOAT, false, attribute.stride, attribute.offset);
+            HX_GL.vertexAttribPointer(attribute.index, attribute.numComponents, HX_GL.FLOAT, false, attribute.stride, attribute.offset);
         }
 
         HX.enableAttributes(layout._numAttributes);

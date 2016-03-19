@@ -8,12 +8,12 @@ HX.CustomCopyShader = function(fragmentShader)
     HX.Shader.call(this);
     this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), fragmentShader);
 
-    this._textureLocation = HX.GL.getUniformLocation(this._program, "sampler");
-    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+    this._textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.useProgram(this._program);
-    HX.GL.uniform1i(this._textureLocation, 0);
+    HX_GL.useProgram(this._program);
+    HX_GL.uniform1i(this._textureLocation, 0);
 };
 
 HX.CustomCopyShader.prototype = Object.create(HX.Shader.prototype);
@@ -30,12 +30,12 @@ HX.CustomCopyShader.prototype.execute = function(rect, texture)
 
     texture.bind(0);
 
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 
@@ -67,8 +67,8 @@ HX.MultiplyColorCopyShader = function()
 {
     HX.CustomCopyShader.call(this, HX.ShaderLibrary.get("multiply_color_fragment.glsl"));
 
-    HX.GL.useProgram(this._program);
-    this._colorLocation = HX.GL.getUniformLocation(this._program, "color");
+    HX_GL.useProgram(this._program);
+    this._colorLocation = HX_GL.getUniformLocation(this._program, "color");
 };
 
 HX.MultiplyColorCopyShader.prototype = Object.create(HX.CustomCopyShader.prototype);
@@ -85,13 +85,13 @@ HX.MultiplyColorCopyShader.prototype.execute = function(rect, texture, color)
 
     texture.bind(0);
 
-    HX.GL.uniform4f(this._colorLocation, color.r, color.g, color.b, color.a);
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+    HX_GL.uniform4f(this._colorLocation, color.r, color.g, color.b, color.a);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 
@@ -104,14 +104,14 @@ HX.CopyWithSeparateAlpha = function()
     HX.Shader.call(this);
     this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), HX.ShaderLibrary.get("copy_with_separate_alpha_fragment.glsl"));
 
-    this._textureLocation = HX.GL.getUniformLocation(this._program, "sampler");
-    this._alphaLocation = HX.GL.getUniformLocation(this._program, "alphaSource");
-    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+    this._textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
+    this._alphaLocation = HX_GL.getUniformLocation(this._program, "alphaSource");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.useProgram(this._program);
-    HX.GL.uniform1i(this._textureLocation, 0);
-    HX.GL.uniform1i(this._alphaLocation, 1);
+    HX_GL.useProgram(this._program);
+    HX_GL.uniform1i(this._textureLocation, 0);
+    HX_GL.uniform1i(this._alphaLocation, 1);
 };
 
 HX.CopyWithSeparateAlpha.prototype = Object.create(HX.Shader.prototype);
@@ -129,12 +129,12 @@ HX.CopyWithSeparateAlpha.prototype.execute = function(rect, texture, alphaTextur
     texture.bind(0);
     alphaTexture.bind(1);
 
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 /**
@@ -180,18 +180,18 @@ HX.LinearizeDepthShader = function()
 
     this.init(HX.ShaderLibrary.get("linearize_depth_vertex.glsl"), HX.ShaderLibrary.get("linearize_depth_fragment.glsl"));
 
-    HX.GL.useProgram(this._program);
+    HX_GL.useProgram(this._program);
 
-    this._textureLocation = HX.GL.getUniformLocation(this._program, "sampler");
-    this._textureLocation2 = HX.GL.getUniformLocation(this._program, "sampler2");
-    this._rcpFrustumRangeLocation = HX.GL.getUniformLocation(this._program, "hx_rcpCameraFrustumRange");
-    this._projectionLocation = HX.GL.getUniformLocation(this._program, "hx_projectionMatrix");
-    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+    this._textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
+    this._textureLocation2 = HX_GL.getUniformLocation(this._program, "sampler2");
+    this._rcpFrustumRangeLocation = HX_GL.getUniformLocation(this._program, "hx_rcpCameraFrustumRange");
+    this._projectionLocation = HX_GL.getUniformLocation(this._program, "hx_projectionMatrix");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.uniform1i(this._textureLocation, 0);
+    HX_GL.uniform1i(this._textureLocation, 0);
     if (this._textureLocation2)
-        HX.GL.uniform1i(this._textureLocation2, 1);
+        HX_GL.uniform1i(this._textureLocation2, 1);
 };
 
 HX.LinearizeDepthShader.prototype = Object.create(HX.Shader.prototype);
@@ -211,14 +211,14 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera, text
     if (texture2)
         texture2.bind(1);
 
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
-    HX.GL.uniform1f(this._rcpFrustumRangeLocation, 1.0/(camera.nearDistance - camera.farDistance));
-    HX.GL.uniformMatrix4fv(this._projectionLocation, false, camera.projectionMatrix._m);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
+    HX_GL.uniform1f(this._rcpFrustumRangeLocation, 1.0/(camera.nearDistance - camera.farDistance));
+    HX_GL.uniformMatrix4fv(this._projectionLocation, false, camera.projectionMatrix._m);
 
     HX.enableAttributes(2);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 
@@ -232,15 +232,15 @@ HX.ReprojectShader = function()
     this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), HX.ShaderLibrary.get("reproject_fragment.glsl"));
 
     this._reprojectionMatrix = new HX.Matrix4x4();
-    this._sourceLocation = HX.GL.getUniformLocation(this._program, "source");
-    this._depthLocation = HX.GL.getUniformLocation(this._program, "depth");
-    this._reprojectionMatrixLocation = HX.GL.getUniformLocation(this._program, "reprojectionMatrix");
-    this._positionAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = HX.GL.getAttribLocation(this._program, "hx_texCoord");
+    this._sourceLocation = HX_GL.getUniformLocation(this._program, "source");
+    this._depthLocation = HX_GL.getUniformLocation(this._program, "depth");
+    this._reprojectionMatrixLocation = HX_GL.getUniformLocation(this._program, "reprojectionMatrix");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
-    HX.GL.useProgram(this._program);
-    HX.GL.uniform1i(this._sourceLocation , 0);
-    HX.GL.uniform1i(this._depthLocation, 1);
+    HX_GL.useProgram(this._program);
+    HX_GL.uniform1i(this._sourceLocation , 0);
+    HX_GL.uniform1i(this._depthLocation, 1);
 };
 
 HX.ReprojectShader.prototype = Object.create(HX.Shader.prototype);
@@ -260,12 +260,12 @@ HX.ReprojectShader.prototype.execute = function(rect, sourceTexture, depthTextur
 
     this._reprojectionMatrix.multiply(oldViewProjection, camera.inverseViewProjectionMatrix);
 
-    HX.GL.uniformMatrix4fv(this._reprojectionMatrixLocation, false, this._reprojectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this._reprojectionMatrixLocation, false, this._reprojectionMatrix._m);
 
-    HX.GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX.GL.FLOAT, false, 16, 0);
-    HX.GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX.GL.FLOAT, false, 16, 8);
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
 
     HX.enableAttributes(2);
 
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };

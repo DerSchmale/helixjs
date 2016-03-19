@@ -44,10 +44,10 @@ HX._clearGLStats = function()
 HX.clear = function(clearMask)
 {
     if (clearMask === undefined)
-        clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT | HX.GL.STENCIL_BUFFER_BIT;
+        clearMask = HX_GL.COLOR_BUFFER_BIT | HX_GL.DEPTH_BUFFER_BIT | HX_GL.STENCIL_BUFFER_BIT;
 
     HX._updateRenderState();
-    HX.GL.clear(clearMask);
+    HX_GL.clear(clearMask);
 };
 
 HX.drawElements = function(elementType, numIndices, offset)
@@ -55,7 +55,7 @@ HX.drawElements = function(elementType, numIndices, offset)
     ++HX._glStats.numDrawCalls;
     HX._glStats.numTriangles += numIndices / 3;
     HX._updateRenderState();
-    HX.GL.drawElements(elementType, numIndices, HX.GL.UNSIGNED_SHORT, offset);
+    HX_GL.drawElements(elementType, numIndices, HX_GL.UNSIGNED_SHORT, offset);
 };
 
 
@@ -104,14 +104,14 @@ HX.enableAttributes = function(count)
     var numActiveAttribs = HX._numActiveAttributes;
     if (numActiveAttribs < count) {
         for (var i = numActiveAttribs; i < count; ++i)
-            HX.GL.enableVertexAttribArray(i);
+            HX_GL.enableVertexAttribArray(i);
     }
     else if (numActiveAttribs > count) {
         // bug in WebGL/ANGLE? When rendering to a render target, disabling vertex attrib array 1 causes errors when using only up to the index below o_O
         // so for now + 1
         count += 1;
         for (var i = count; i < numActiveAttribs; ++i) {
-            HX.GL.disableVertexAttribArray(i);
+            HX_GL.disableVertexAttribArray(i);
         }
     }
 
@@ -121,7 +121,7 @@ HX.enableAttributes = function(count)
 HX.setClearColor = function(color)
 {
     color = isNaN(color) ? color : new HX.Color(color);
-    HX.GL.clearColor(color.r, color.g, color.b, color.a);
+    HX_GL.clearColor(color.r, color.g, color.b, color.a);
 };
 
 HX.setCullMode = function(value)
@@ -154,7 +154,7 @@ HX.updateStencilReferenceValue = function(value)
     currentState.reference = value;
 
     if (!HX._stencilStateInvalid && currentState.enabled)
-        HX.GL.stencilFunc(currentState.comparison, value, currentState.readMask);
+        HX_GL.stencilFunc(currentState.comparison, value, currentState.readMask);
 };
 
 HX.pushStencilState = function(frameBuffer)
@@ -175,51 +175,51 @@ HX._updateRenderState = function()
         var target = HX._renderTargetStack[HX._renderTargetStack.length - 1];
 
         if (target) {
-            HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, target._fbo);
+            HX_GL.bindFramebuffer(HX_GL.FRAMEBUFFER, target._fbo);
 
             if (target._numColorTextures > 1)
                 HX.EXT_DRAW_BUFFERS.drawBuffersWEBGL(target._drawBuffers);
         }
         else
-            HX.GL.bindFramebuffer(HX.GL.FRAMEBUFFER, null);
+            HX_GL.bindFramebuffer(HX_GL.FRAMEBUFFER, null);
 
         HX._renderTargetInvalid = false;
     }
 
     if (this._viewportInvalid) {
-        HX.GL.viewport(HX._viewport.x, HX._viewport.y, HX._viewport.width, HX._viewport.height);
+        HX_GL.viewport(HX._viewport.x, HX._viewport.y, HX._viewport.width, HX._viewport.height);
         HX._viewportInvalid = false;
     }
 
     if (HX._cullModeInvalid) {
         if (HX._cullMode === HX.CullMode.NONE)
-            HX.GL.disable(HX.GL.CULL_FACE);
+            HX_GL.disable(HX_GL.CULL_FACE);
         else {
-            HX.GL.enable(HX.GL.CULL_FACE);
-            HX.GL.cullFace(HX._cullMode);
+            HX_GL.enable(HX_GL.CULL_FACE);
+            HX_GL.cullFace(HX._cullMode);
         }
     }
 
     if (HX._depthTestInvalid) {
         if (HX._depthTest === HX.Comparison.DISABLED)
-            HX.GL.disable(HX.GL.DEPTH_TEST);
+            HX_GL.disable(HX_GL.DEPTH_TEST);
         else {
-            HX.GL.enable(HX.GL.DEPTH_TEST);
-            HX.GL.depthFunc(HX._depthTest);
+            HX_GL.enable(HX_GL.DEPTH_TEST);
+            HX_GL.depthFunc(HX._depthTest);
         }
     }
 
     if (HX._blendStateInvalid) {
         var state = HX._blendState;
         if (state == null || state.enabled === false)
-            HX.GL.disable(HX.GL.BLEND);
+            HX_GL.disable(HX_GL.BLEND);
         else {
-            HX.GL.enable(HX.GL.BLEND);
-            HX.GL.blendFunc(state.srcFactor, state.dstFactor);
-            HX.GL.blendEquation(state.operator);
+            HX_GL.enable(HX_GL.BLEND);
+            HX_GL.blendFunc(state.srcFactor, state.dstFactor);
+            HX_GL.blendEquation(state.operator);
             var color = state.color;
             if (color)
-                HX.GL.blendColor(color.r, color.g, color.b, color.a);
+                HX_GL.blendColor(color.r, color.g, color.b, color.a);
         }
         HX._blendStateInvalid = false;
     }
@@ -227,15 +227,15 @@ HX._updateRenderState = function()
     if (HX._stencilStateInvalid) {
         var state = HX._stencilStateStack[HX._stencilStateStack.length - 1];
         if (state == null || state.enabled === false) {
-            HX.GL.disable(HX.GL.STENCIL_TEST);
-            HX.GL.stencilFunc(HX.Comparison.ALWAYS, 0, 0xff);
-            HX.GL.stencilOp(HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
+            HX_GL.disable(HX_GL.STENCIL_TEST);
+            HX_GL.stencilFunc(HX.Comparison.ALWAYS, 0, 0xff);
+            HX_GL.stencilOp(HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
         }
         else {
-            HX.GL.enable(HX.GL.STENCIL_TEST);
-            HX.GL.stencilFunc(state.comparison, state.reference, state.readMask);
-            HX.GL.stencilOp(state.onStencilFail, state.onDepthFail, state.onPass);
-            HX.GL.stencilMask(state.writeMask);
+            HX_GL.enable(HX_GL.STENCIL_TEST);
+            HX_GL.stencilFunc(state.comparison, state.reference, state.readMask);
+            HX_GL.stencilOp(state.onStencilFail, state.onDepthFail, state.onPass);
+            HX_GL.stencilMask(state.writeMask);
         }
         HX._stencilStateInvalid = false;
     }

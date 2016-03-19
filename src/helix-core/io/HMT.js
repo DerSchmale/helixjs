@@ -182,7 +182,7 @@ HX.HMT._PROPERTY_MAP = null;
 
 HX.HMT._initPropertyMap = function() {
     HX.HMT._PROPERTY_MAP = HX.HMT._PROPERTY_MAP || {
-        back: HX.GL.BACK,
+        back: HX_GL.BACK,
         front: HX.CullMode.FRONT,
         both: HX.CullMode.ALL,
         none: null,

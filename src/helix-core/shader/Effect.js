@@ -40,7 +40,7 @@ HX.EffectPass.prototype.updateRenderState = function(renderer)
 
     for (var i = 0; i < len; ++i) {
         var attribute = attributes[i];
-        HX.GL.vertexAttribPointer(attribute.index, attribute.numComponents, HX.GL.FLOAT, false, attribute.stride, attribute.offset);
+        HX_GL.vertexAttribPointer(attribute.index, attribute.numComponents, HX_GL.FLOAT, false, attribute.stride, attribute.offset);
     }
 
     HX.enableAttributes(layout._numAttributes);
@@ -80,7 +80,7 @@ HX.Effect.prototype.draw = function(dt)
 HX.Effect.prototype._drawPass = function(pass)
 {
     pass.updateRenderState(this._renderer);
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 HX.Effect.prototype.onAdded = function()

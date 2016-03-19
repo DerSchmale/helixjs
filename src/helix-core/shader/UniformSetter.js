@@ -15,7 +15,7 @@ HX.UniformSetter._findSetters = function(shader)
 {
     var setters = [];
     for (var uniformName in HX.UniformSetter._table) {
-        var location = HX.GL.getUniformLocation(shader._program, uniformName);
+        var location = HX_GL.getUniformLocation(shader._program, uniformName);
         if (location == null) continue;
         var setter = new HX.UniformSetter._table[uniformName]();
         setters.push(setter);
@@ -60,7 +60,7 @@ HX.WorldMatrixSetter = function()
 
 HX.WorldMatrixSetter.prototype.execute = function (camera, renderItem)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, renderItem.worldMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, renderItem.worldMatrix._m);
 };
 
 
@@ -70,7 +70,7 @@ HX.ViewProjectionSetter = function()
 
 HX.ViewProjectionSetter.prototype.execute = function(camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.viewProjectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.viewProjectionMatrix._m);
 };
 
 HX.InverseViewProjectionSetter = function()
@@ -79,7 +79,7 @@ HX.InverseViewProjectionSetter = function()
 
 HX.InverseViewProjectionSetter.prototype.execute = function(camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
 };
 
 HX.InverseWVPSetter = function()
@@ -88,7 +88,7 @@ HX.InverseWVPSetter = function()
 
 HX.InverseWVPSetter.prototype.execute = function(camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
 };
 
 HX.ProjectionSetter = function()
@@ -97,7 +97,7 @@ HX.ProjectionSetter = function()
 
 HX.ProjectionSetter.prototype.execute = function(camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.projectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.projectionMatrix._m);
 };
 
 HX.InverseProjectionSetter = function()
@@ -106,7 +106,7 @@ HX.InverseProjectionSetter = function()
 
 HX.InverseProjectionSetter.prototype.execute = function(camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.inverseProjectionMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.inverseProjectionMatrix._m);
 };
 
 HX.WorldViewProjectionSetter = function()
@@ -120,7 +120,7 @@ HX.WorldViewProjectionSetter.prototype.execute = function()
     return function(camera, renderItem)
     {
         matrix.multiply(camera.viewProjectionMatrix, renderItem.worldMatrix);
-        HX.GL.uniformMatrix4fv(this.location, false, m);
+        HX_GL.uniformMatrix4fv(this.location, false, m);
     };
 }();
 
@@ -135,7 +135,7 @@ HX.WorldViewMatrixSetter.prototype.execute = function(){
     return function (camera, renderItem)
     {
         matrix.multiply(camera.viewMatrix, renderItem.worldMatrix);
-        HX.GL.uniformMatrix4fv(this.location, false, m);
+        HX_GL.uniformMatrix4fv(this.location, false, m);
     }
 }();
 
@@ -149,7 +149,7 @@ HX.NormalWorldMatrixSetter.prototype.execute = function() {
     return function (camera, renderItem)
     {
         renderItem.worldMatrix.writeNormalMatrix(data);
-        HX.GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
+        HX_GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
     }
 }();
 
@@ -166,7 +166,7 @@ HX.NormalWorldViewMatrixSetter.prototype.execute = function() {
     {
         matrix.multiply(camera.viewMatrix, renderItem.worldMatrix);
         matrix.writeNormalMatrix(data);
-        HX.GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
+        HX_GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
     }
 }();
 
@@ -177,7 +177,7 @@ HX.CameraWorldPosSetter = function()
 HX.CameraWorldPosSetter.prototype.execute = function (camera)
 {
     var arr = camera.worldMatrix._m;
-    HX.GL.uniform3f(this.location, arr[12], arr[13], arr[14]);
+    HX_GL.uniform3f(this.location, arr[12], arr[13], arr[14]);
 };
 
 HX.CameraWorldMatrixSetter = function()
@@ -187,7 +187,7 @@ HX.CameraWorldMatrixSetter = function()
 HX.CameraWorldMatrixSetter.prototype.execute = function (camera)
 {
     var matrix = camera.worldMatrix;
-    HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, matrix._m);
 };
 
 HX.CameraFrustumRangeSetter = function()
@@ -196,7 +196,7 @@ HX.CameraFrustumRangeSetter = function()
 
 HX.CameraFrustumRangeSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform1f(this.location, camera._farDistance - camera._nearDistance);
+    HX_GL.uniform1f(this.location, camera._farDistance - camera._nearDistance);
 };
 
 HX.RCPCameraFrustumRangeSetter = function()
@@ -205,7 +205,7 @@ HX.RCPCameraFrustumRangeSetter = function()
 
 HX.RCPCameraFrustumRangeSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform1f(this.location, 1.0 / (camera._farDistance - camera._nearDistance));
+    HX_GL.uniform1f(this.location, 1.0 / (camera._farDistance - camera._nearDistance));
 };
 
 HX.CameraNearPlaneDistanceSetter = function()
@@ -214,7 +214,7 @@ HX.CameraNearPlaneDistanceSetter = function()
 
 HX.CameraNearPlaneDistanceSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform1f(this.location, camera._nearDistance);
+    HX_GL.uniform1f(this.location, camera._nearDistance);
 };
 
 HX.CameraFarPlaneDistanceSetter = function()
@@ -223,7 +223,7 @@ HX.CameraFarPlaneDistanceSetter = function()
 
 HX.CameraFarPlaneDistanceSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform1f(this.location, camera._farDistance);
+    HX_GL.uniform1f(this.location, camera._farDistance);
 };
 
 HX.ViewMatrixSetter = function()
@@ -232,7 +232,7 @@ HX.ViewMatrixSetter = function()
 
 HX.ViewMatrixSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniformMatrix4fv(this.location, false, camera.viewMatrix._m);
+    HX_GL.uniformMatrix4fv(this.location, false, camera.viewMatrix._m);
 };
 
 HX.RenderTargetResolutionSetter = function()
@@ -241,7 +241,7 @@ HX.RenderTargetResolutionSetter = function()
 
 HX.RenderTargetResolutionSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform2f(this.location, camera._renderTargetWidth, camera._renderTargetHeight);
+    HX_GL.uniform2f(this.location, camera._renderTargetWidth, camera._renderTargetHeight);
 };
 
 HX.RCPRenderTargetResolutionSetter = function()
@@ -250,7 +250,7 @@ HX.RCPRenderTargetResolutionSetter = function()
 
 HX.RCPRenderTargetResolutionSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform2f(this.location, 1.0/camera._renderTargetWidth, 1.0/camera._renderTargetHeight);
+    HX_GL.uniform2f(this.location, 1.0/camera._renderTargetWidth, 1.0/camera._renderTargetHeight);
 };
 
 HX.Dither2DTextureScaleSetter = function()
@@ -259,7 +259,7 @@ HX.Dither2DTextureScaleSetter = function()
 
 HX.Dither2DTextureScaleSetter.prototype.execute = function (camera)
 {
-    HX.GL.uniform2f(this.location, camera._renderTargetWidth / HX.DEFAULT_2D_DITHER_TEXTURE.width, camera._renderTargetHeight / HX.DEFAULT_2D_DITHER_TEXTURE.height);
+    HX_GL.uniform2f(this.location, camera._renderTargetWidth / HX.DEFAULT_2D_DITHER_TEXTURE.width, camera._renderTargetHeight / HX.DEFAULT_2D_DITHER_TEXTURE.height);
 };
 
 HX.PoissonDiskSetter = function()
@@ -268,7 +268,7 @@ HX.PoissonDiskSetter = function()
 
 HX.PoissonDiskSetter.prototype.execute = function ()
 {
-    HX.GL.uniform2fv(this.location, HX.PoissonDisk.DEFAULT_FLOAT32);
+    HX_GL.uniform2fv(this.location, HX.PoissonDisk.DEFAULT_FLOAT32);
 };
 
 HX.SkinningMatricesSetter = function()
@@ -288,7 +288,7 @@ HX.SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
             matrices[i].writeData(this._data, j);
             j += 16;
         }
-        HX.GL.uniformMatrix4fv(this.location, false, this._data);
+        HX_GL.uniformMatrix4fv(this.location, false, this._data);
     }
 };
 

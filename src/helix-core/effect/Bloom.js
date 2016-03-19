@@ -86,7 +86,7 @@ HX.BloomEffect.prototype = Object.create(HX.Effect.prototype);
 HX.BloomEffect.prototype._initTextures = function()
 {
     for (var i = 0; i < 2; ++i) {
-        this._thresholdMaps[i].initEmpty(Math.ceil(this._targetWidth / this._downScale), Math.ceil(this._targetHeight / this._downScale), HX.GL.RGB, HX.HDR_FORMAT);
+        this._thresholdMaps[i].initEmpty(Math.ceil(this._targetWidth / this._downScale), Math.ceil(this._targetHeight / this._downScale), HX_GL.RGB, HX.HDR_FORMAT);
         this._smallFBOs[i].init();
     }
 };

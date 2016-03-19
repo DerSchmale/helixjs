@@ -189,7 +189,7 @@ HX.CascadeShadowMapRenderer.prototype =
         for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex)
         {
             var viewport = this._viewports[cascadeIndex];
-            HX.GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+            HX_GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
             HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
         }
 

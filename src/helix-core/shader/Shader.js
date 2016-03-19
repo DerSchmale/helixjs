@@ -33,7 +33,7 @@ HX.Shader.prototype = {
         vertexShaderCode = HX.GLSLIncludeGeneral + vertexShaderCode;
         fragmentShaderCode = HX.GLSLIncludeGeneral + fragmentShaderCode;
 
-        this._vertexShader = HX.GL.createShader(HX.GL.VERTEX_SHADER);
+        this._vertexShader = HX_GL.createShader(HX_GL.VERTEX_SHADER);
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {
             this.dispose();
             if (HX.OPTIONS.throwOnShaderError) {
@@ -46,7 +46,7 @@ HX.Shader.prototype = {
             return;
         }
 
-        this._fragmentShader = HX.GL.createShader(HX.GL.FRAGMENT_SHADER);
+        this._fragmentShader = HX_GL.createShader(HX_GL.FRAGMENT_SHADER);
         if (!this._initShader(this._fragmentShader, fragmentShaderCode)) {
             this.dispose();
             if (HX.OPTIONS.throwOnShaderError)
@@ -55,14 +55,14 @@ HX.Shader.prototype = {
             return;
         }
 
-        this._program = HX.GL.createProgram();
+        this._program = HX_GL.createProgram();
 
-        HX.GL.attachShader(this._program, this._vertexShader);
-        HX.GL.attachShader(this._program, this._fragmentShader);
-        HX.GL.linkProgram(this._program);
+        HX_GL.attachShader(this._program, this._vertexShader);
+        HX_GL.attachShader(this._program, this._fragmentShader);
+        HX_GL.linkProgram(this._program);
 
-        if (!HX.GL.getProgramParameter(this._program, HX.GL.LINK_STATUS)) {
-            var log = HX.GL.getProgramInfoLog(this._program);
+        if (!HX_GL.getProgramParameter(this._program, HX_GL.LINK_STATUS)) {
+            var log = HX_GL.getProgramInfoLog(this._program);
             this.dispose();
 
             console.log("**********");
@@ -85,7 +85,7 @@ HX.Shader.prototype = {
 
     updateRenderState: function(worldMatrix, camera)
     {
-        HX.GL.useProgram(this._program);
+        HX_GL.useProgram(this._program);
 
         var len = this._uniformSetters.length;
         for (var i = 0; i < len; ++i) {
@@ -95,12 +95,12 @@ HX.Shader.prototype = {
 
     _initShader: function(shader, code)
     {
-        HX.GL.shaderSource(shader, code);
-        HX.GL.compileShader(shader);
+        HX_GL.shaderSource(shader, code);
+        HX_GL.compileShader(shader);
 
         // Check the compile status, return an error if failed
-        if (!HX.GL.getShaderParameter(shader, HX.GL.COMPILE_STATUS)) {
-            console.warn(HX.GL.getShaderInfoLog(shader));
+        if (!HX_GL.getShaderParameter(shader, HX_GL.COMPILE_STATUS)) {
+            console.warn(HX_GL.getShaderInfoLog(shader));
             HX.Debug.printShaderCode(code);
             return false;
         }
@@ -110,9 +110,9 @@ HX.Shader.prototype = {
 
     dispose: function()
     {
-        HX.GL.deleteShader(this._vertexShader);
-        HX.GL.deleteShader(this._fragmentShader);
-        HX.GL.deleteProgram(this._program);
+        HX_GL.deleteShader(this._vertexShader);
+        HX_GL.deleteShader(this._fragmentShader);
+        HX_GL.deleteProgram(this._program);
 
         this._ready = false;
     },
@@ -121,6 +121,6 @@ HX.Shader.prototype = {
 
     getVertexAttributeIndex: function(name)
     {
-        return HX.GL.getAttribLocation(this._program, name);
+        return HX_GL.getAttribLocation(this._program, name);
     }
 };

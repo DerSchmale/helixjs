@@ -104,7 +104,7 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
 {
     var w = this._renderer._width * this._scale;
     var h = this._renderer._height * this._scale;
-    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, null, HX.GL.RGBA, HX.HDR_FORMAT)) {
+    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, null, HX_GL.RGBA, HX.HDR_FORMAT)) {
         this._depthBuffer.init(w, h);
         this._fbo.init();
         this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
@@ -113,11 +113,11 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
     HX.pushRenderTarget(this._fbo);
         HX.setClearColor(HX.Color.ZERO);
         HX.clear();
-        HX.GL.colorMask(false, false, false, false);
+        HX_GL.colorMask(false, false, false, false);
         HX.pushStencilState(this._stencilWriteState);
         this._drawPass(this._stencilPass);
         HX.popStencilState();
-        HX.GL.colorMask(true, true, true, true);
+        HX_GL.colorMask(true, true, true, true);
 
         HX.pushStencilState(this._stencilReadState);
 

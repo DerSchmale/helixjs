@@ -44,7 +44,6 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
     this._camera = camera;
     camera.worldMatrix.getColumn(2, this._cameraZAxis);
     this._frustum = camera.frustum;
-    this._nearPlane = this._frustum._planes[HX.Frustum.PLANE_NEAR];
     this._reset();
 
     scene.acceptVisitor(this);

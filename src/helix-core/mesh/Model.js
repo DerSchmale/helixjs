@@ -7,8 +7,8 @@ HX.MeshData = function ()
     this._vertexStrides = [];
     this._vertexData = [];
     this._indexData = undefined;
-    this.vertexUsage = HX.GL.STATIC_DRAW;
-    this.indexUsage = HX.GL.STATIC_DRAW;
+    this.vertexUsage = HX_GL.STATIC_DRAW;
+    this.indexUsage = HX_GL.STATIC_DRAW;
     this._vertexAttributes = [];
     this._numStreams = 0;
 };

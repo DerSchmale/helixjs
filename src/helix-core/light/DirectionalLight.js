@@ -120,13 +120,13 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
     var dir = camera.viewMatrix.transform(light.direction);
     var color = light._scaledIrradiance;
 
-    HX.GL.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
-    HX.GL.uniform3f(this._colorLocation, color.r ,color.g, color.b);
+    HX_GL.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
+    HX_GL.uniform3f(this._colorLocation, color.r ,color.g, color.b);
 
     if (this._castShadows) {
         var splitDistances = this._shadowMapRenderer.getSplitDistances();
-        HX.GL.uniform1fv(this._splitDistancesLocation, new Float32Array(splitDistances));
-        HX.GL.uniform1f(this._depthBiasLocation, light.depthBias);
+        HX_GL.uniform1fv(this._splitDistancesLocation, new Float32Array(splitDistances));
+        HX_GL.uniform1f(this._depthBiasLocation, light.depthBias);
 
         var k = 0;
         var len = this._numCascades;
@@ -140,11 +140,11 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
             }
         }
 
-        HX.GL.uniformMatrix4fv(this._shadowMatrixLocation, false, this._matrixData);
+        HX_GL.uniformMatrix4fv(this._shadowMatrixLocation, false, this._matrixData);
     }
 
     // render rect mesh
-    HX.drawElements(HX.GL.TRIANGLES, 6, 0);
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 
     return startIndex + 1;
 };

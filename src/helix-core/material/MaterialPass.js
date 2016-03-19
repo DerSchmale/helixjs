@@ -121,12 +121,12 @@ HX.MaterialPass.prototype = {
 
     _storeUniforms: function()
     {
-        var len = HX.GL.getProgramParameter(this._shader._program, HX.GL.ACTIVE_UNIFORMS);
+        var len = HX_GL.getProgramParameter(this._shader._program, HX_GL.ACTIVE_UNIFORMS);
 
         for (var i = 0; i < len; ++i) {
-            var uniform = HX.GL.getActiveUniform(this._shader._program, i);
+            var uniform = HX_GL.getActiveUniform(this._shader._program, i);
             var name = uniform.name;
-            var location = HX.GL.getUniformLocation(this._shader._program, name);
+            var location = HX_GL.getUniformLocation(this._shader._program, name);
             this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
         }
     },
@@ -135,7 +135,7 @@ HX.MaterialPass.prototype = {
     {
         if (!this._uniforms.hasOwnProperty(slotName)) return null;
 
-        HX.GL.useProgram(this._shader._program);
+        HX_GL.useProgram(this._shader._program);
 
         var uniform = this._uniforms[slotName];
 
@@ -158,7 +158,7 @@ HX.MaterialPass.prototype = {
             slot = new HX.TextureSlot();
             slot.name = slotName;
             this._textureSlots.push(slot);
-            HX.GL.uniform1i(location, i);
+            HX_GL.uniform1i(location, i);
             slot.location = location;
         }
 
@@ -180,7 +180,7 @@ HX.MaterialPass.prototype = {
 
     getAttributeLocation: function(name)
     {
-        return HX.GL.getAttribLocation(this._shader._program, name);
+        return HX_GL.getAttribLocation(this._shader._program, name);
     },
 
     setUniformArray: function(name, value)
@@ -192,44 +192,44 @@ HX.MaterialPass.prototype = {
 
         var uniform = this._uniforms[name];
 
-        HX.GL.useProgram(this._shader._program);
+        HX_GL.useProgram(this._shader._program);
 
         switch(uniform.type) {
-            case HX.GL.FLOAT:
-                HX.GL.uniform1fv(uniform.location, value);
+            case HX_GL.FLOAT:
+                HX_GL.uniform1fv(uniform.location, value);
                 break;
-            case HX.GL.FLOAT_VEC2:
-                HX.GL.uniform2fv(uniform.location, value);
+            case HX_GL.FLOAT_VEC2:
+                HX_GL.uniform2fv(uniform.location, value);
                 break;
-            case HX.GL.FLOAT_VEC3:
-                HX.GL.uniform3fv(uniform.location, value);
+            case HX_GL.FLOAT_VEC3:
+                HX_GL.uniform3fv(uniform.location, value);
                 break;
-            case HX.GL.FLOAT_VEC4:
-                HX.GL.uniform4fv(uniform.location, value);
+            case HX_GL.FLOAT_VEC4:
+                HX_GL.uniform4fv(uniform.location, value);
                 break;
-            case HX.GL.INT:
-                HX.GL.uniform1iv(uniform.location, value);
+            case HX_GL.INT:
+                HX_GL.uniform1iv(uniform.location, value);
                 break;
-            case HX.GL.INT_VEC2:
-                HX.GL.uniform2iv(uniform.location, value);
+            case HX_GL.INT_VEC2:
+                HX_GL.uniform2iv(uniform.location, value);
                 break;
-            case HX.GL.INT_VEC3:
-                HX.GL.uniform3iv(uniform.location, value);
+            case HX_GL.INT_VEC3:
+                HX_GL.uniform3iv(uniform.location, value);
                 break;
-            case HX.GL.INT_VEC4:
-                HX.GL.uniform1iv(uniform.location, value);
+            case HX_GL.INT_VEC4:
+                HX_GL.uniform1iv(uniform.location, value);
                 break;
-            case HX.GL.BOOL:
-                HX.GL.uniform1bv(uniform.location, value);
+            case HX_GL.BOOL:
+                HX_GL.uniform1bv(uniform.location, value);
                 break;
-            case HX.GL.BOOL_VEC2:
-                HX.GL.uniform2bv(uniform.location, value);
+            case HX_GL.BOOL_VEC2:
+                HX_GL.uniform2bv(uniform.location, value);
                 break;
-            case HX.GL.BOOL_VEC3:
-                HX.GL.uniform3bv(uniform.location, value);
+            case HX_GL.BOOL_VEC3:
+                HX_GL.uniform3bv(uniform.location, value);
                 break;
-            case HX.GL.BOOL_VEC4:
-                HX.GL.uniform4bv(uniform.location, value);
+            case HX_GL.BOOL_VEC4:
+                HX_GL.uniform4bv(uniform.location, value);
                 break;
             default:
                 throw new Error("Unsupported uniform format for setting. May be a todo.");
@@ -244,44 +244,44 @@ HX.MaterialPass.prototype = {
 
         var uniform = this._uniforms[name];
 
-        HX.GL.useProgram(this._shader._program);
+        HX_GL.useProgram(this._shader._program);
 
         switch(uniform.type) {
-            case HX.GL.FLOAT:
-                HX.GL.uniform1f(uniform.location, value);
+            case HX_GL.FLOAT:
+                HX_GL.uniform1f(uniform.location, value);
                 break;
-            case HX.GL.FLOAT_VEC2:
-                HX.GL.uniform2f(uniform.location, value.x, value.y);
+            case HX_GL.FLOAT_VEC2:
+                HX_GL.uniform2f(uniform.location, value.x, value.y);
                 break;
-            case HX.GL.FLOAT_VEC3:
-                HX.GL.uniform3f(uniform.location, value.x || value.r || 0, value.y || value.g || 0, value.z || value.b || 0 );
+            case HX_GL.FLOAT_VEC3:
+                HX_GL.uniform3f(uniform.location, value.x || value.r || 0, value.y || value.g || 0, value.z || value.b || 0 );
                 break;
-            case HX.GL.FLOAT_VEC4:
-                HX.GL.uniform4f(uniform.location, value.x || value.r || 0, value.y || value.g || 0, value.z || value.b || 0, value.w || value.a || 0);
+            case HX_GL.FLOAT_VEC4:
+                HX_GL.uniform4f(uniform.location, value.x || value.r || 0, value.y || value.g || 0, value.z || value.b || 0, value.w || value.a || 0);
                 break;
-            case HX.GL.INT:
-                HX.GL.uniform1i(uniform.location, value);
+            case HX_GL.INT:
+                HX_GL.uniform1i(uniform.location, value);
                 break;
-            case HX.GL.INT_VEC2:
-                HX.GL.uniform2i(uniform.location, value.x, value.y);
+            case HX_GL.INT_VEC2:
+                HX_GL.uniform2i(uniform.location, value.x, value.y);
                 break;
-            case HX.GL.INT_VEC3:
-                HX.GL.uniform3i(uniform.location, value.x, value.y, value.z);
+            case HX_GL.INT_VEC3:
+                HX_GL.uniform3i(uniform.location, value.x, value.y, value.z);
                 break;
-            case HX.GL.INT_VEC4:
-                HX.GL.uniform1i(uniform.location, value.x, value.y, value.z, value.w);
+            case HX_GL.INT_VEC4:
+                HX_GL.uniform1i(uniform.location, value.x, value.y, value.z, value.w);
                 break;
-            case HX.GL.BOOL:
-                HX.GL.uniform1i(uniform.location, value);
+            case HX_GL.BOOL:
+                HX_GL.uniform1i(uniform.location, value);
                 break;
-            case HX.GL.BOOL_VEC2:
-                HX.GL.uniform2i(uniform.location, value.x, value.y);
+            case HX_GL.BOOL_VEC2:
+                HX_GL.uniform2i(uniform.location, value.x, value.y);
                 break;
-            case HX.GL.BOOL_VEC3:
-                HX.GL.uniform3i(uniform.location, value.x, value.y, value.z);
+            case HX_GL.BOOL_VEC3:
+                HX_GL.uniform3i(uniform.location, value.x, value.y, value.z);
                 break;
-            case HX.GL.BOOL_VEC4:
-                HX.GL.uniform4i(uniform.location, value.x, value.y, value.z, value.w);
+            case HX_GL.BOOL_VEC4:
+                HX_GL.uniform4i(uniform.location, value.x, value.y, value.z, value.w);
                 break;
             default:
                 throw new Error("Unsupported uniform format for setting. May be a todo.");

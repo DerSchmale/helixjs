@@ -88,7 +88,7 @@ HX.Renderer.HDRBuffers.prototype =
 
     resize: function(width, height)
     {
-        this.texture.initEmpty(width, height, HX.GL.RGBA, HX.HDR_FORMAT);
+        this.texture.initEmpty(width, height, HX_GL.RGBA, HX.HDR_FORMAT);
         this.fbo.init();
         this.fboDepth.init();
     }
@@ -309,7 +309,7 @@ HX.Renderer.prototype =
 
     _renderToGBufferMultiPass: function ()
     {
-        var clearMask = HX.GL.COLOR_BUFFER_BIT | HX.GL.DEPTH_BUFFER_BIT | HX.GL.STENCIL_BUFFER_BIT;
+        var clearMask = HX_GL.COLOR_BUFFER_BIT | HX_GL.DEPTH_BUFFER_BIT | HX_GL.STENCIL_BUFFER_BIT;
         var passIndices = [HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
 
         for (var i = 0; i < 3; ++i) {
@@ -318,7 +318,7 @@ HX.Renderer.prototype =
             this._renderPass(passIndices[i]);
 
             if (i == 0)
-                clearMask = HX.GL.COLOR_BUFFER_BIT;
+                clearMask = HX_GL.COLOR_BUFFER_BIT;
 
             HX.popRenderTarget();
         }
@@ -400,14 +400,14 @@ HX.Renderer.prototype =
 
     _renderLightAccumulation: function ()
     {
-        HX.GL.depthMask(false);
+        HX_GL.depthMask(false);
 
-        HX.clear(HX.GL.COLOR_BUFFER_BIT);
+        HX.clear(HX_GL.COLOR_BUFFER_BIT);
 
         this._renderGlobalIllumination();
         this._renderDirectLights();
 
-        HX.GL.depthMask(true);
+        HX_GL.depthMask(true);
     },
 
     _renderDirectLights: function ()
@@ -530,12 +530,12 @@ HX.Renderer.prototype =
     _updateGBuffer: function (width, height)
     {
         if (HX.EXT_DEPTH_TEXTURE)
-            this._depthBuffer.initEmpty(width, height, HX.GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
+            this._depthBuffer.initEmpty(width, height, HX_GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
         else
             this._depthBuffer.init(width, height);
 
         for (var i = 0; i < this._gbuffer.length; ++i) {
-            this._gbuffer[i].initEmpty(width, height, HX.GL.RGBA, HX.GL.UNSIGNED_BYTE);
+            this._gbuffer[i].initEmpty(width, height, HX_GL.RGBA, HX_GL.UNSIGNED_BYTE);
         }
 
         for (var i = 0; i < this._gbufferSingleFBOs.length; ++i)

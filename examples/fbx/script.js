@@ -2,7 +2,6 @@ var project = new DemoProject();
 
 project.onInit = function()
 {
-    initRenderer(this.renderer);
     initCamera(this.camera);
     initScene(this.scene);
 };
@@ -17,23 +16,9 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.useHDR = true;
     options.directionalShadowFilter = shadowFilter;
+
     project.init(document.getElementById('webglContainer'), options);
 };
-
-function initRenderer(renderer)
-{
-    /*var ssr = new HX.ScreenSpaceReflections(32);
-    ssr.scale = .25;
-    ssr.stepSize = 20;
-    renderer.localReflections = ssr;*/
-
-    var ssao = new HX.HBAO(5, 5);
-    ssao.strength = 1.0;
-    ssao.sampleRadius = .25;
-    ssao.fallOffDistance = .5;
-    ssao.scale = 1.0;
-    renderer.ambientOcclusion = ssao;
-}
 
 function initCamera(camera)
 {

@@ -2,7 +2,6 @@ var project = new DemoProject();
 
 project.onInit = function()
 {
-    initRenderer(this.renderer);
     initCamera(this.camera);
     initScene(this.scene);
 };
@@ -20,20 +19,6 @@ window.onload = function ()
 
     project.init(document.getElementById('webglContainer'), options);
 };
-
-function initRenderer(renderer)
-{
-    /*var ssr = new HX.ScreenSpaceReflections(32);
-    ssr.scale = .25;
-    ssr.stepSize = 20;
-    renderer.localReflections = ssr;*/
-
-    var ssao = new HX.SSAO(25);
-    ssao.strength = 2.0;
-    ssao.sampleRadius = .5;
-    ssao.fallOffDistance = 1.0;
-    renderer.ambientOcclusion = ssao;
-}
 
 function initCamera(camera)
 {

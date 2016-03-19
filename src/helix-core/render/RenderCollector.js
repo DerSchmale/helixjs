@@ -101,27 +101,35 @@ HX.RenderCollector.prototype.visitEffects = function(effects, ownerNode)
 HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
 {
     var numMeshes = modelInstance.numMeshInstances;
+    var cameraZAxis = this._cameraZAxis;
+    var cameraZ_X = cameraZAxis.x, cameraZ_Y = cameraZAxis.y, cameraZ_Z = cameraZAxis.z;
+    var skeleton = modelInstance.skeleton;
+    var skeletonMatrices = modelInstance.skeletonMatrices;
+    var renderPool = this._renderItemPool;
+    var opaque = HX.TransparencyMode.OPAQUE;
+    var camera = this._camera;
 
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
         var material = meshInstance.material;
+        var transparencyMode = material._transparencyMode;
+        var list = transparencyMode === opaque? this._opaquePasses : this._transparentPasses;
 
         for (var passIndex = 0; passIndex < HX.MaterialPass.NUM_PASS_TYPES; ++passIndex) {
             var pass = material.getPass(passIndex);
             if (pass && pass._enabled) {
-                var list = material._transparencyMode === HX.TransparencyMode.OPAQUE? this._opaquePasses : this._transparentPasses;
-                var renderItem = this._renderItemPool.getItem();
+                var renderItem = renderPool.getItem();
 
                 renderItem.material = material;
                 renderItem.pass = pass;
                 renderItem.meshInstance = meshInstance;
-                renderItem.skeleton = modelInstance.skeleton;
-                renderItem.skeletonMatrices = modelInstance.skeletonMatrices;
+                renderItem.skeleton = skeleton;
+                renderItem.skeletonMatrices = skeletonMatrices;
                 // distance along Z axis:
                 var center = worldBounds._center;
-                renderItem.renderOrderHint = center.x * this._cameraZAxis.x + center.y * this._cameraZAxis.y + center.z * this._cameraZAxis.z;
+                renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
                 renderItem.worldMatrix = worldMatrix;
-                renderItem.camera = this._camera;
+                renderItem.camera = camera;
                 list[passIndex].push(renderItem);
             }
         }
@@ -192,10 +200,10 @@ HX.RenderCollector.prototype._sortOpaques = function(a, b)
 
 HX.RenderCollector.prototype._sortLights = function(a, b)
 {
-    return  a._type == b._type?
-                    a._castShadows == b._castShadows ?
-                    a._renderOrderHint - b._renderOrderHint :
-                    a._castShadows? 1 : -1 :
+    return  a._type === b._type?
+            a._castShadows === b._castShadows ?
+            a._renderOrderHint - b._renderOrderHint :
+            a._castShadows? 1 : -1 :
             a._type - b._type;
 };
 
@@ -207,32 +215,36 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
     var len = colorPasses.length;
     var n = 0;
     var s = 0;
+    var camera = this._camera;
+    var renderItemPool = this._renderItemPool;
 
     for (var i = 0; i < len; ++i) {
         var renderItem = colorPasses[i];
         var meshInstance = renderItem.meshInstance;
+        var worldMatrix = renderItem.worldMatrix;
         var material = renderItem.material;
+        var renderOrderHint = renderItem.renderOrderHint;
 
         // for unlit lighting models, these passes may be unavailable
         if (material.hasPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS)) {
-            var normalItem = this._renderItemPool.getItem();
+            var normalItem = renderItemPool.getItem();
             normalItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS);
-            normalItem.material = renderItem.material;
-            normalItem.renderOrderHint = renderItem.renderOrderHint;
-            normalItem.meshInstance = renderItem.meshInstance;
-            normalItem.worldMatrix = renderItem.worldMatrix;
-            normalItem.camera = this._camera;
+            normalItem.material = material;
+            normalItem.renderOrderHint = renderOrderHint;
+            normalItem.meshInstance = meshInstance;
+            normalItem.worldMatrix = worldMatrix;
+            normalItem.camera = camera;
             normalPasses[n++] = normalItem;
         }
 
         if (material.hasPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS)) {
-            var specItem = this._renderItemPool.getItem();
+            var specItem = renderItemPool.getItem();
             specItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS);
-            specItem.material = renderItem.material;
-            specItem.renderOrderHint = renderItem.renderOrderHint;
-            specItem.meshInstance = renderItem.meshInstance;
-            specItem.worldMatrix = renderItem.worldMatrix;
-            specItem.camera = this._camera;
+            specItem.material = material;
+            specItem.renderOrderHint = renderOrderHint;
+            specItem.meshInstance = meshInstance;
+            specItem.worldMatrix = worldMatrix;
+            specItem.camera = camera;
             specularPasses[s++] = specItem;
         }
     }

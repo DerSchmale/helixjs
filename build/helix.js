@@ -3523,6 +3523,12 @@ HX.ShaderLibrary['multiply_color_fragment.glsl'] = 'varying vec2 uv;\n\nuniform 
 
 HX.ShaderLibrary['reproject_fragment.glsl'] = 'uniform sampler2D depth;\nuniform sampler2D source;\n\nvarying vec2 uv;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform mat4 reprojectionMatrix;\n\nvec2 reproject(vec2 uv, float z)\n{\n    // need z in NDC homogeneous coords to be able to unproject\n    vec4 ndc;\n    ndc.xy = uv.xy * 2.0 - 1.0;\n    // Unprojected Z will just end up being Z again, so could put this in the unprojection matrix itself?\n    ndc.z = (hx_projectionMatrix[2][2] * z + hx_projectionMatrix[3][2]) / -z;   // ndc = hom.z / hom.w\n    ndc.w = 1.0;\n    vec4 hom = reprojectionMatrix * ndc;\n    return hom.xy / hom.w * .5 + .5;\n}\n\nvoid main()\n{\n    float depth = hx_sampleLinearDepth(depth, uv);\n    float z = -hx_cameraNearPlaneDistance - depth * hx_cameraFrustumRange;\n    vec2 reprojectedUV = reproject(uv, z);\n    gl_FragColor = texture2D(source, reprojectedUV);\n}\n\n';
 
+HX.ShaderLibrary['snippets_general.glsl'] = 'float saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    value *= 255.0/256.0;\n    vec4 enc = fract(value * vec4(1.0, 255.0, 65025.0, 16581375.0));\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0)) * 256.0 / 255.0;\n}\n\nvec2 hx_floatToRG8(float value)\n{\n// scale to encodable range [0, 1]\n    value *= 255.0/256.0;\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc = fract(enc);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0)) * 256.0 / 255.0;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    #ifdef HX_NO_DEPTH_TEXTURES\n        data.xy = data.xy*4.0 - 2.0;\n        float f = dot(data.xy, data.xy);\n        float g = sqrt(1.0 - f * .25);\n        vec3 normal;\n        normal.xy = data.xy * g;\n        normal.z = 1.0 - f * .5;\n        return normal;\n    #else\n    	return normalize(data.xyz - .5);\n    #endif\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nfloat hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\n// for use when sampling gbuffer data for lighting\nvoid hx_decodeReflectionData(in vec4 colorSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)\n{\n    //prevent from being 0\n    roughness = clamp(specularSample.x, .01, 1.0);\n	metallicness = specularSample.z;\n    normalSpecularReflectance = mix(vec3(specularSample.y * .2), colorSample.xyz, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}';
+
+HX.ShaderLibrary['snippets_geometry_pass.glsl'] = 'vec4 hx_encodeNormalDepth(vec3 normal, float depth)\n{\n	#ifdef HX_NO_DEPTH_TEXTURES\n    	vec4 data;\n    	float p = sqrt(normal.z*8.0 + 8.0);\n        data.xy = normal.xy / p + .5;\n    	#ifdef HX_MAX_DEPTH_PRECISION\n		data.zw = hx_floatToRGBA8(depth).xy;\n		#else\n		data.zw = hx_floatToRG8(depth).xy;\n		#endif\n		return data;\n	#else\n		return vec4(normal * .5 + .5, 1.0);\n    #endif\n}\n\nvec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness, float depth)\n{\n    #if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)\n    depth = hx_floatToRGBA8(depth).z;\n    #else\n    depth = 1.0;\n    #endif\n	return vec4(roughness, specularNormalReflection * 5.0, metallicness, depth);\n}\n\nvoid hx_processGeometryMRT(vec4 color, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 colorData, out vec4 normalData, out vec4 specularData)\n{\n    colorData = color;\n	normalData = hx_encodeNormalDepth(normal, depth);\n    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, depth);\n}\n\n#if defined(HX_NO_MRT_GBUFFER_COLOR)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = color)\n#elif defined(HX_NO_MRT_GBUFFER_NORMALS)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))\n#elif defined(HX_NO_MRT_GBUFFER_SPECULAR)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, depth))\n#elif defined(HX_SHADOW_DEPTH_PASS)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_getShadowMapValue(depth))\n#else\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])\n#endif';
+
+HX.ShaderLibrary['snippets_tonemap.glsl'] = 'varying vec2 uv;\n\n#ifdef ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef ADAPTIVE\n    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x);\n	float key = 1.03 - (2.0 / (2.0 + log(referenceLuminance + 1.0)/log(10.0)));\n	float exposure = key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
+
 HX.ShaderLibrary['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias, vec2 screenUV)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
 
 HX.ShaderLibrary['dir_shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias, vec2 screenUV)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
@@ -3534,12 +3540,6 @@ HX.ShaderLibrary['dir_shadow_vsm.glsl'] = 'vec4 hx_getShadowMapValue(float depth
 HX.ShaderLibrary['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	gl_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
 HX.ShaderLibrary['vsm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n	gl_FragColor.xy = hx_floatToRG8(total.x);\n	gl_FragColor.zw = hx_floatToRG8(total.y);\n}';
-
-HX.ShaderLibrary['snippets_general.glsl'] = 'float saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    value *= 255.0/256.0;\n    vec4 enc = fract(value * vec4(1.0, 255.0, 65025.0, 16581375.0));\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0)) * 256.0 / 255.0;\n}\n\nvec2 hx_floatToRG8(float value)\n{\n// scale to encodable range [0, 1]\n    value *= 255.0/256.0;\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc = fract(enc);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0)) * 256.0 / 255.0;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    #ifdef HX_NO_DEPTH_TEXTURES\n        data.xy = data.xy*4.0 - 2.0;\n        float f = dot(data.xy, data.xy);\n        float g = sqrt(1.0 - f * .25);\n        vec3 normal;\n        normal.xy = data.xy * g;\n        normal.z = 1.0 - f * .5;\n        return normal;\n    #else\n    	return normalize(data.xyz - .5);\n    #endif\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nfloat hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\n// for use when sampling gbuffer data for lighting\nvoid hx_decodeReflectionData(in vec4 colorSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)\n{\n    //prevent from being 0\n    roughness = clamp(specularSample.x, .01, 1.0);\n	metallicness = specularSample.z;\n    normalSpecularReflectance = mix(vec3(specularSample.y * .2), colorSample.xyz, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}';
-
-HX.ShaderLibrary['snippets_geometry_pass.glsl'] = 'vec4 hx_encodeNormalDepth(vec3 normal, float depth)\n{\n	#ifdef HX_NO_DEPTH_TEXTURES\n    	vec4 data;\n    	float p = sqrt(normal.z*8.0 + 8.0);\n        data.xy = normal.xy / p + .5;\n    	#ifdef HX_MAX_DEPTH_PRECISION\n		data.zw = hx_floatToRGBA8(depth).xy;\n		#else\n		data.zw = hx_floatToRG8(depth).xy;\n		#endif\n		return data;\n	#else\n		return vec4(normal * .5 + .5, 1.0);\n    #endif\n}\n\nvec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness, float depth)\n{\n    #if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)\n    depth = hx_floatToRGBA8(depth).z;\n    #else\n    depth = 1.0;\n    #endif\n	return vec4(roughness, specularNormalReflection * 5.0, metallicness, depth);\n}\n\nvoid hx_processGeometryMRT(vec4 color, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 colorData, out vec4 normalData, out vec4 specularData)\n{\n    colorData = color;\n	normalData = hx_encodeNormalDepth(normal, depth);\n    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, depth);\n}\n\n#if defined(HX_NO_MRT_GBUFFER_COLOR)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = color)\n#elif defined(HX_NO_MRT_GBUFFER_NORMALS)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))\n#elif defined(HX_NO_MRT_GBUFFER_SPECULAR)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, depth))\n#elif defined(HX_SHADOW_DEPTH_PASS)\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_getShadowMapValue(depth))\n#else\n#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])\n#endif';
-
-HX.ShaderLibrary['snippets_tonemap.glsl'] = 'varying vec2 uv;\n\n#ifdef ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef ADAPTIVE\n    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x);\n	float key = 1.03 - (2.0 / (2.0 + log(referenceLuminance + 1.0)/log(10.0)));\n	float exposure = key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
 
 HX.ShaderLibrary['ao_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 halfTexelOffset;\n\nvoid main()\n{\n    vec4 total = texture2D(source, uv - halfTexelOffset * 3.0);\n    total += texture2D(source, uv + halfTexelOffset);\n	gl_FragColor = total * .5;\n}';
 
@@ -4068,24 +4068,24 @@ HX.Matrix4x4 = function (m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, 
         this._m = new Float32Array(m00);
     }
     else {
-        this._m = new Float32Array(16);
+        var m = this._m = new Float32Array(16);
 
-        this._m[0] = m00 === undefined ? 1 : 0;
-        this._m[1] = m10 || 0;
-        this._m[2] = m20 || 0;
-        this._m[3] = m30 || 0;
-        this._m[4] = m01 || 0;
-        this._m[5] = m11 === undefined ? 1 : 0;
-        this._m[6] = m21 || 0;
-        this._m[7] = m31 || 0;
-        this._m[8] = m02 || 0;
-        this._m[9] = m12 || 0;
-        this._m[10] = m22 === undefined ? 1 : 0;
-        this._m[11] = m32 || 0;
-        this._m[12] = m03 || 0;
-        this._m[13] = m13 || 0;
-        this._m[14] = m23 || 0;
-        this._m[15] = m33 === undefined ? 1 : 0;
+        m[0] = m00 === undefined ? 1 : 0;
+        m[1] = m10 || 0;
+        m[2] = m20 || 0;
+        m[3] = m30 || 0;
+        m[4] = m01 || 0;
+        m[5] = m11 === undefined ? 1 : 0;
+        m[6] = m21 || 0;
+        m[7] = m31 || 0;
+        m[8] = m02 || 0;
+        m[9] = m12 || 0;
+        m[10] = m22 === undefined ? 1 : 0;
+        m[11] = m32 || 0;
+        m[12] = m03 || 0;
+        m[13] = m13 || 0;
+        m[14] = m23 || 0;
+        m[15] = m33 === undefined ? 1 : 0;
     }
 };
 
@@ -4135,9 +4135,10 @@ HX.Matrix4x4.prototype =
         target = target || new HX.Float4();
         var x = v.x, y = v.y, z = v.z;
 
-        target.x = this._m[0] * x + this._m[4] * y + this._m[8] * z;
-        target.y = this._m[1] * x + this._m[5] * y + this._m[9] * z;
-        target.z = this._m[2] * x + this._m[6] * y + this._m[10] * z;
+        var m = this._m;
+        target.x = m[0] * x + m[4] * y + m[8] * z;
+        target.y = m[1] * x + m[5] * y + m[9] * z;
+        target.z = m[2] * x + m[6] * y + m[10] * z;
         target.w = 0.0;
 
         return target;
@@ -4151,9 +4152,10 @@ HX.Matrix4x4.prototype =
         target = target || new HX.Float4();
         var x = v.x, y = v.y, z = v.z;
 
-        var m00 = this._m[0], m10 = this._m[1], m20 = this._m[2];
-        var m01 = this._m[4], m11 = this._m[5], m21 = this._m[6];
-        var m02 = this._m[8], m12 = this._m[9], m22 = this._m[10];
+        var m = this._m;
+        var m00 = m[0], m10 = m[1], m20 = m[2];
+        var m01 = m[4], m11 = m[5], m21 = m[6];
+        var m02 = m[8], m12 = m[9], m22 = m[10];
 
         if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
         if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
@@ -4167,103 +4169,110 @@ HX.Matrix4x4.prototype =
         return target;
     },
 
-    copyFrom: function(m)
+    copyFrom: function(a)
     {
-        this._m[0] = m._m[0];
-        this._m[1] = m._m[1];
-        this._m[2] = m._m[2];
-        this._m[3] = m._m[3];
-        this._m[4] = m._m[4];
-        this._m[5] = m._m[5];
-        this._m[6] = m._m[6];
-        this._m[7] = m._m[7];
-        this._m[8] = m._m[8];
-        this._m[9] = m._m[9];
-        this._m[10] = m._m[10];
-        this._m[11] = m._m[11];
-        this._m[12] = m._m[12];
-        this._m[13] = m._m[13];
-        this._m[14] = m._m[14];
-        this._m[15] = m._m[15];
+        var m = this._m;
+        var mm = a._m;
+        m[0] = mm[0];
+        m[1] = mm[1];
+        m[2] = mm[2];
+        m[3] = mm[3];
+        m[4] = mm[4];
+        m[5] = mm[5];
+        m[6] = mm[6];
+        m[7] = mm[7];
+        m[8] = mm[8];
+        m[9] = mm[9];
+        m[10] = mm[10];
+        m[11] = mm[11];
+        m[12] = mm[12];
+        m[13] = mm[13];
+        m[14] = mm[14];
+        m[15] = mm[15];
     },
 
     fromQuaternion: function (q)
     {
         var x = q.x, y = q.y, z = q.z, w = q.w;
 
-        this._m[0] = 1 - 2 * (y * y + z * z);
-        this._m[1] = 2 * (x * y + w * z);
-        this._m[2] = 2 * (x * z - w * y);
-        this._m[3] = 0;
-        this._m[4] = 2 * (x * y - w * z);
-        this._m[5] = 1 - 2 * (x * x + z * z);
-        this._m[6] = 2 * (y * z + w * x);
-        this._m[7] = 0;
-        this._m[8] = 2 * (x * z + w * y);
-        this._m[9] = 2 * (y * z - w * x);
-        this._m[10] = 1 - 2 * (x * x + y * y);
-        this._m[11] = 0;
-        this._m[12] = 0;
-        this._m[13] = 0;
-        this._m[14] = 0;
-        this._m[15] = 1;
+        var m = this._m;
+        m[0] = 1 - 2 * (y * y + z * z);
+        m[1] = 2 * (x * y + w * z);
+        m[2] = 2 * (x * z - w * y);
+        m[3] = 0;
+        m[4] = 2 * (x * y - w * z);
+        m[5] = 1 - 2 * (x * x + z * z);
+        m[6] = 2 * (y * z + w * x);
+        m[7] = 0;
+        m[8] = 2 * (x * z + w * y);
+        m[9] = 2 * (y * z - w * x);
+        m[10] = 1 - 2 * (x * x + y * y);
+        m[11] = 0;
+        m[12] = 0;
+        m[13] = 0;
+        m[14] = 0;
+        m[15] = 1;
     },
 
     multiply: function (a, b)
     {
-        var a_m00 = a._m[0], a_m10 = a._m[1], a_m20 = a._m[2], a_m30 = a._m[3];
-        var a_m01 = a._m[4], a_m11 = a._m[5], a_m21 = a._m[6], a_m31 = a._m[7];
-        var a_m02 = a._m[8], a_m12 = a._m[9], a_m22 = a._m[10], a_m32 = a._m[11];
-        var a_m03 = a._m[12], a_m13 = a._m[13], a_m23 = a._m[14], a_m33 = a._m[15];
-        var b_m00 = b._m[0], b_m10 = b._m[1], b_m20 = b._m[2], b_m30 = b._m[3];
-        var b_m01 = b._m[4], b_m11 = b._m[5], b_m21 = b._m[6], b_m31 = b._m[7];
-        var b_m02 = b._m[8], b_m12 = b._m[9], b_m22 = b._m[10], b_m32 = b._m[11];
-        var b_m03 = b._m[12], b_m13 = b._m[13], b_m23 = b._m[14], b_m33 = b._m[15];
+        var am = a._m, bm = b._m;
+        var a_m00 = am[0], a_m10 = am[1], a_m20 = am[2], a_m30 = am[3];
+        var a_m01 = am[4], a_m11 = am[5], a_m21 = am[6], a_m31 = am[7];
+        var a_m02 = am[8], a_m12 = am[9], a_m22 = am[10], a_m32 = am[11];
+        var a_m03 = am[12], a_m13 = am[13], a_m23 = am[14], a_m33 = am[15];
+        var b_m00 = bm[0], b_m10 = bm[1], b_m20 = bm[2], b_m30 = bm[3];
+        var b_m01 = bm[4], b_m11 = bm[5], b_m21 = bm[6], b_m31 = bm[7];
+        var b_m02 = bm[8], b_m12 = bm[9], b_m22 = bm[10], b_m32 = bm[11];
+        var b_m03 = bm[12], b_m13 = bm[13], b_m23 = bm[14], b_m33 = bm[15];
 
-        this._m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20 + a_m03 * b_m30;
-        this._m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20 + a_m13 * b_m30;
-        this._m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20 + a_m23 * b_m30;
-        this._m[3] = a_m30 * b_m00 + a_m31 * b_m10 + a_m32 * b_m20 + a_m33 * b_m30;
-        this._m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21 + a_m03 * b_m31;
-        this._m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21 + a_m13 * b_m31;
-        this._m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21 + a_m23 * b_m31;
-        this._m[7] = a_m30 * b_m01 + a_m31 * b_m11 + a_m32 * b_m21 + a_m33 * b_m31;
-        this._m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22 + a_m03 * b_m32;
-        this._m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22 + a_m13 * b_m32;
-        this._m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22 + a_m23 * b_m32;
-        this._m[11] = a_m30 * b_m02 + a_m31 * b_m12 + a_m32 * b_m22 + a_m33 * b_m32;
-        this._m[12] = a_m00 * b_m03 + a_m01 * b_m13 + a_m02 * b_m23 + a_m03 * b_m33;
-        this._m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23 + a_m13 * b_m33;
-        this._m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23 + a_m23 * b_m33;
-        this._m[15] = a_m30 * b_m03 + a_m31 * b_m13 + a_m32 * b_m23 + a_m33 * b_m33;
+        var m = this._m;
+        m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20 + a_m03 * b_m30;
+        m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20 + a_m13 * b_m30;
+        m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20 + a_m23 * b_m30;
+        m[3] = a_m30 * b_m00 + a_m31 * b_m10 + a_m32 * b_m20 + a_m33 * b_m30;
+        m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21 + a_m03 * b_m31;
+        m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21 + a_m13 * b_m31;
+        m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21 + a_m23 * b_m31;
+        m[7] = a_m30 * b_m01 + a_m31 * b_m11 + a_m32 * b_m21 + a_m33 * b_m31;
+        m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22 + a_m03 * b_m32;
+        m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22 + a_m13 * b_m32;
+        m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22 + a_m23 * b_m32;
+        m[11] = a_m30 * b_m02 + a_m31 * b_m12 + a_m32 * b_m22 + a_m33 * b_m32;
+        m[12] = a_m00 * b_m03 + a_m01 * b_m13 + a_m02 * b_m23 + a_m03 * b_m33;
+        m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23 + a_m13 * b_m33;
+        m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23 + a_m23 * b_m33;
+        m[15] = a_m30 * b_m03 + a_m31 * b_m13 + a_m32 * b_m23 + a_m33 * b_m33;
     },
 
     multiplyAffine: function (a, b)
     {
-        var a_m00 = a._m[0], a_m10 = a._m[1], a_m20 = a._m[2];
-        var a_m01 = a._m[4], a_m11 = a._m[5], a_m21 = a._m[6];
-        var a_m02 = a._m[8], a_m12 = a._m[9], a_m22 = a._m[10];
-        var a_m03 = a._m[12], a_m13 = a._m[13], a_m23 = a._m[14];
-        var b_m00 = b._m[0], b_m10 = b._m[1], b_m20 = b._m[2];
-        var b_m01 = b._m[4], b_m11 = b._m[5], b_m21 = b._m[6];
-        var b_m02 = b._m[8], b_m12 = b._m[9], b_m22 = b._m[10];
-        var b_m03 = b._m[12], b_m13 = b._m[13], b_m23 = b._m[14];
+        var am = a._m, bm = b._m;
+        var a_m00 = am[0], a_m10 = am[1], a_m20 = am[2];
+        var a_m01 = am[4], a_m11 = am[5], a_m21 = am[6];
+        var a_m02 = am[8], a_m12 = am[9], a_m22 = am[10];
+        var a_m03 = am[12], a_m13 = am[13], a_m23 = am[14];
+        var b_m00 = bm[0], b_m10 = bm[1], b_m20 = bm[2];
+        var b_m01 = bm[4], b_m11 = bm[5], b_m21 = bm[6];
+        var b_m02 = bm[8], b_m12 = bm[9], b_m22 = bm[10];
+        var b_m03 = bm[12], b_m13 = bm[13], b_m23 = bm[14];
 
-        this._m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20;
-        this._m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20;
-        this._m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20;
+        var m = this._m;
+        m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20;
+        m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20;
+        m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20;
 
-        this._m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21;
-        this._m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21;
-        this._m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21;
+        m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21;
+        m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21;
+        m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21;
 
-        this._m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
-        this._m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
-        this._m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
+        m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
+        m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
+        m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
 
-        this._m[12] = a_m00 * b_m03 + a_m01 * b_m13 + a_m02 * b_m23 + a_m03;
-        this._m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23 + a_m13;
-        this._m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23 + a_m23;
+        m[12] = a_m00 * b_m03 + a_m01 * b_m13 + a_m02 * b_m23 + a_m03;
+        m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23 + a_m13;
+        m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23 + a_m23;
 
     },
 
@@ -4277,22 +4286,23 @@ HX.Matrix4x4.prototype =
         var x = axis.x * rcpLen, y = axis.y * rcpLen, z = axis.z * rcpLen;
         var oneMinCos = 1 - cos;
 
-        this._m[0] = oneMinCos * x * x + cos;
-        this._m[1] = oneMinCos * x * y + sin * z;
-        this._m[2] = oneMinCos * x * z - sin * y;
-        this._m[3] = 0;
-        this._m[4] = oneMinCos * x * y - sin * z;
-        this._m[5] = oneMinCos * y * y + cos;
-        this._m[6] = oneMinCos * y * z + sin * x;
-        this._m[7] = 0;
-        this._m[8] = oneMinCos * x * z + sin * y;
-        this._m[9] = oneMinCos * y * z - sin * x;
-        this._m[10] = oneMinCos * z * z + cos;
-        this._m[11] = 0;
-        this._m[12] = 0;
-        this._m[13] = 0;
-        this._m[14] = 0;
-        this._m[15] = 1;
+        var m = this._m;
+        m[0] = oneMinCos * x * x + cos;
+        m[1] = oneMinCos * x * y + sin * z;
+        m[2] = oneMinCos * x * z - sin * y;
+        m[3] = 0;
+        m[4] = oneMinCos * x * y - sin * z;
+        m[5] = oneMinCos * y * y + cos;
+        m[6] = oneMinCos * y * z + sin * x;
+        m[7] = 0;
+        m[8] = oneMinCos * x * z + sin * y;
+        m[9] = oneMinCos * y * z - sin * x;
+        m[10] = oneMinCos * z * z + cos;
+        m[11] = 0;
+        m[12] = 0;
+        m[13] = 0;
+        m[14] = 0;
+        m[15] = 1;
     },
 
     // this actually doesn't use a vector, because they're three unrelated quantities. A vector just doesn't make sense here, mathematically.
@@ -4305,22 +4315,23 @@ HX.Matrix4x4.prototype =
         var cosZ = Math.cos(z);
         var sinZ = Math.sin(z);
 
-        this._m[0] = cosY * cosZ;
-        this._m[1] = cosX * sinZ + sinX * sinY * cosZ;
-        this._m[2] = sinX * sinZ - cosX * sinY * cosZ;
-        this._m[3] = 0;
-        this._m[4] = -cosY * sinZ;
-        this._m[5] = cosX * cosZ - sinX * sinY * sinZ;
-        this._m[6] = sinX * cosZ + cosX * sinY * sinZ;
-        this._m[7] = 0;
-        this._m[8] = sinY;
-        this._m[9] = -sinX * cosY;
-        this._m[10] = cosX * cosY;
-        this._m[11] = 0;
-        this._m[12] = 0;
-        this._m[13] = 0;
-        this._m[14] = 0;
-        this._m[15] = 1;
+        var m = this._m;
+        m[0] = cosY * cosZ;
+        m[1] = cosX * sinZ + sinX * sinY * cosZ;
+        m[2] = sinX * sinZ - cosX * sinY * cosZ;
+        m[3] = 0;
+        m[4] = -cosY * sinZ;
+        m[5] = cosX * cosZ - sinX * sinY * sinZ;
+        m[6] = sinX * cosZ + cosX * sinY * sinZ;
+        m[7] = 0;
+        m[8] = sinY;
+        m[9] = -sinX * cosY;
+        m[10] = cosX * cosY;
+        m[11] = 0;
+        m[12] = 0;
+        m[13] = 0;
+        m[14] = 0;
+        m[15] = 1;
     },
 
     // Tait-Bryan angles, not classic Euler
@@ -4345,42 +4356,44 @@ HX.Matrix4x4.prototype =
         var xAxisY = yAxisZ * zAxisX - yAxisX * zAxisZ;
         var xAxisZ = yAxisX * zAxisY - yAxisY * zAxisX;
 
-        this._m[0] = xAxisX;
-        this._m[1] = xAxisY;
-        this._m[2] = xAxisZ;
-        this._m[3] = 0;
-        this._m[4] = yAxisX;
-        this._m[5] = yAxisY;
-        this._m[6] = yAxisZ;
-        this._m[7] = 0;
-        this._m[8] = zAxisX;
-        this._m[9] = zAxisY;
-        this._m[10] = zAxisZ;
-        this._m[11] = 0;
-        this._m[12] = 0;
-        this._m[13] = 0;
-        this._m[14] = 0;
-        this._m[15] = 1;
+        var m = this._m;
+        m[0] = xAxisX;
+        m[1] = xAxisY;
+        m[2] = xAxisZ;
+        m[3] = 0;
+        m[4] = yAxisX;
+        m[5] = yAxisY;
+        m[6] = yAxisZ;
+        m[7] = 0;
+        m[8] = zAxisX;
+        m[9] = zAxisY;
+        m[10] = zAxisZ;
+        m[11] = 0;
+        m[12] = 0;
+        m[13] = 0;
+        m[14] = 0;
+        m[15] = 1;
     },
 
     fromTranslation: function (v)
     {
-        this._m[0] = 1;
-        this._m[1] = 0;
-        this._m[2] = 0;
-        this._m[3] = 0;
-        this._m[4] = 0;
-        this._m[5] = 1;
-        this._m[6] = 0;
-        this._m[7] = 0;
-        this._m[8] = 0;
-        this._m[9] = 0;
-        this._m[10] = 1;
-        this._m[11] = 0;
-        this._m[12] = v.x;
-        this._m[13] = v.y;
-        this._m[14] = v.z;
-        this._m[15] = 1;
+        var m = this._m;
+        m[0] = 1;
+        m[1] = 0;
+        m[2] = 0;
+        m[3] = 0;
+        m[4] = 0;
+        m[5] = 1;
+        m[6] = 0;
+        m[7] = 0;
+        m[8] = 0;
+        m[9] = 0;
+        m[10] = 1;
+        m[11] = 0;
+        m[12] = v.x;
+        m[13] = v.y;
+        m[14] = v.z;
+        m[15] = 1;
     },
 
     fromScale: function (x, y, z)
@@ -4388,22 +4401,23 @@ HX.Matrix4x4.prototype =
         if (y === undefined)
             y = z = x;
 
-        this._m[0] = x;
-        this._m[1] = 0;
-        this._m[2] = 0;
-        this._m[3] = 0;
-        this._m[4] = 0;
-        this._m[5] = y;
-        this._m[6] = 0;
-        this._m[7] = 0;
-        this._m[8] = 0;
-        this._m[9] = 0;
-        this._m[10] = z;
-        this._m[11] = 0;
-        this._m[12] = 0;
-        this._m[13] = 0;
-        this._m[14] = 0;
-        this._m[15] = 1;
+        var m = this._m;
+        m[0] = x;
+        m[1] = 0;
+        m[2] = 0;
+        m[3] = 0;
+        m[4] = 0;
+        m[5] = y;
+        m[6] = 0;
+        m[7] = 0;
+        m[8] = 0;
+        m[9] = 0;
+        m[10] = z;
+        m[11] = 0;
+        m[12] = 0;
+        m[13] = 0;
+        m[14] = 0;
+        m[15] = 1;
     },
 
     fromPerspectiveProjection: function (vFOV, aspectRatio, nearDistance, farDistance)
@@ -4412,25 +4426,26 @@ HX.Matrix4x4.prototype =
         var xMax = yMax / aspectRatio;
         var rcpFrustumDepth = 1.0 / (nearDistance - farDistance);
 
-        this._m[0] = xMax;
-        this._m[1] = 0;
-        this._m[2] = 0;
-        this._m[3] = 0;
+        var m = this._m;
+        m[0] = xMax;
+        m[1] = 0;
+        m[2] = 0;
+        m[3] = 0;
 
-        this._m[4] = 0;
-        this._m[5] = yMax;
-        this._m[6] = 0;
-        this._m[7] = 0;
+        m[4] = 0;
+        m[5] = yMax;
+        m[6] = 0;
+        m[7] = 0;
 
-        this._m[8] = 0;
-        this._m[9] = 0;
-        this._m[10] = (farDistance + nearDistance) * rcpFrustumDepth;
-        this._m[11] = -1;
+        m[8] = 0;
+        m[9] = 0;
+        m[10] = (farDistance + nearDistance) * rcpFrustumDepth;
+        m[11] = -1;
 
-        this._m[12] = 0;
-        this._m[13] = 0;
-        this._m[14] = 2 * nearDistance * farDistance * rcpFrustumDepth;
-        this._m[15] = 0;
+        m[12] = 0;
+        m[13] = 0;
+        m[14] = 2 * nearDistance * farDistance * rcpFrustumDepth;
+        m[15] = 0;
     },
 
     fromOrthographicOffCenterProjection: function (left, right, top, bottom, nearDistance, farDistance)
@@ -4439,25 +4454,26 @@ HX.Matrix4x4.prototype =
         var rcpHeight = 1.0 / (top - bottom);
         var rcpDepth = 1.0 / (nearDistance - farDistance);
 
-        this._m[0] = 2.0 * rcpWidth;
-        this._m[1] = 0;
-        this._m[2] = 0;
-        this._m[3] = 0;
+        var m = this._m;
+        m[0] = 2.0 * rcpWidth;
+        m[1] = 0;
+        m[2] = 0;
+        m[3] = 0;
 
-        this._m[4] = 0;
-        this._m[5] = 2.0 * rcpHeight;
-        this._m[6] = 0;
-        this._m[7] = 0;
+        m[4] = 0;
+        m[5] = 2.0 * rcpHeight;
+        m[6] = 0;
+        m[7] = 0;
 
-        this._m[8] = 0;
-        this._m[9] = 0;
-        this._m[10] = 2.0 * rcpDepth;
-        this._m[11] = 0;
+        m[8] = 0;
+        m[9] = 0;
+        m[10] = 2.0 * rcpDepth;
+        m[11] = 0;
 
-        this._m[12] = -(left + right) * rcpWidth;
-        this._m[13] = -(top + bottom) * rcpHeight;
-        this._m[14] = (farDistance + nearDistance) * rcpDepth;
-        this._m[15] = 1;
+        m[12] = -(left + right) * rcpWidth;
+        m[13] = -(top + bottom) * rcpHeight;
+        m[14] = (farDistance + nearDistance) * rcpDepth;
+        m[15] = 1;
     },
 
     fromOrthographicProjection: function (width, height, nearDistance, farDistance)
@@ -4466,22 +4482,23 @@ HX.Matrix4x4.prototype =
         var xMax = yMax * aspectRatio;
         var rcpFrustumDepth = 1.0 / (nearDistance - farDistance);
 
-        this._m[0] = 1 / xMax;
-        this._m[1] = 0;
-        this._m[2] = 0;
-        this._m[3] = 0;
-        this._m[4] = 0;
-        this._m[5] = 1 / yMax;
-        this._m[6] = 0;
-        this._m[7] = 0;
-        this._m[8] = 0;
-        this._m[9] = 0;
-        this._m[10] = 2 * rcpFrustumDepth;
-        this._m[11] = 0;
-        this._m[12] = 0;
-        this._m[13] = 0;
-        this._m[14] = (farDistance + nearDistance) * rcpFrustumDepth;
-        this._m[15] = 1;
+        var m = this._m;
+        m[0] = 1 / xMax;
+        m[1] = 0;
+        m[2] = 0;
+        m[3] = 0;
+        m[4] = 0;
+        m[5] = 1 / yMax;
+        m[6] = 0;
+        m[7] = 0;
+        m[8] = 0;
+        m[9] = 0;
+        m[10] = 2 * rcpFrustumDepth;
+        m[11] = 0;
+        m[12] = 0;
+        m[13] = 0;
+        m[14] = (farDistance + nearDistance) * rcpFrustumDepth;
+        m[15] = 1;
     },
 
     clone: function ()
@@ -4491,28 +4508,29 @@ HX.Matrix4x4.prototype =
 
     transpose: function ()
     {
-        var m1 = this._m[1];
-        var m2 = this._m[2];
-        var m3 = this._m[3];
-        var m6 = this._m[6];
-        var m7 = this._m[7];
-        var m11 = this._m[11];
+        var m = this._m;
+        var m1 = m[1];
+        var m2 = m[2];
+        var m3 = m[3];
+        var m6 = m[6];
+        var m7 = m[7];
+        var m11 = m[11];
 
-        this._m[1] = this._m[4];
-        this._m[2] = this._m[8];
-        this._m[3] = this._m[12];
+        m[1] = m[4];
+        m[2] = m[8];
+        m[3] = m[12];
 
-        this._m[4] = m1;
-        this._m[6] = this._m[9];
-        this._m[7] = this._m[13];
+        m[4] = m1;
+        m[6] = m[9];
+        m[7] = m[13];
 
-        this._m[8] = m2;
-        this._m[9] = m6;
-        this._m[11] = this._m[14];
+        m[8] = m2;
+        m[9] = m6;
+        m[11] = m[14];
 
-        this._m[12] = m3;
-        this._m[13] = m7;
-        this._m[14] = m11;
+        m[12] = m3;
+        m[13] = m7;
+        m[14] = m11;
     },
 
     /**
@@ -4530,12 +4548,13 @@ HX.Matrix4x4.prototype =
         var r2 = row < 2 ? 2 : 1;
         var r3 = row == 3 ? 2 : 3;
 
-        var m21 = this._m[c1 | r2], m22 = this._m[r2 | c2], m23 = this._m[c3 | r2];
-        var m31 = this._m[c1 | r3], m32 = this._m[c2 | r3], m33 = this._m[r3 | c3];
+        var m = this._m;
+        var m21 = m[c1 | r2], m22 = m[r2 | c2], m23 = m[c3 | r2];
+        var m31 = m[c1 | r3], m32 = m[c2 | r3], m33 = m[r3 | c3];
 
-        return      this._m[c1 | r1] * (m22 * m33 - m23 * m32)
-            - this._m[c2 | r1] * (m21 * m33 - m23 * m31)
-            + this._m[c3 | r1] * (m21 * m32 - m22 * m31);
+        return      m[c1 | r1] * (m22 * m33 - m23 * m32)
+            - m[c2 | r1] * (m21 * m33 - m23 * m31)
+            + m[c3 | r1] * (m21 * m32 - m22 * m31);
     },
 
     cofactor: function (row, col)
@@ -4549,8 +4568,9 @@ HX.Matrix4x4.prototype =
     {
         target = target || new HX.Matrix4x4();
 
+        var tm = target._m;
         for (var i = 0; i < 16; ++i)
-            target._m[i] = this.cofactor(i & 3, i >> 2);
+            tm[i] = this.cofactor(i & 3, i >> 2);
 
         return target;
     },
@@ -4559,15 +4579,17 @@ HX.Matrix4x4.prototype =
     {
         target = target || new HX.Matrix4x4();
 
+        var tm = target._m;
         for (var i = 0; i < 16; ++i)
-            target._m[i] = this.cofactor(i >> 2, i & 3);    // transposed!
+            tm[i] = this.cofactor(i >> 2, i & 3);    // transposed!
 
         return target;
     },
 
     determinant: function ()
     {
-        return this._m[0] * this.determinant3x3(0, 0) - this._m[4] * this.determinant3x3(0, 1) + this._m[8] * this.determinant3x3(0, 2) - this._m[12] * this.determinant3x3(0, 3);
+        var m = this._m;
+        return m[0] * this.determinant3x3(0, 0) - m[4] * this.determinant3x3(0, 1) + m[8] * this.determinant3x3(0, 2) - m[12] * this.determinant3x3(0, 3);
     },
 
     inverseOf: function (m)
@@ -4593,34 +4615,36 @@ HX.Matrix4x4.prototype =
         var m14 = rcpDet * m.cofactor(3, 2);
         var m15 = rcpDet * m.cofactor(3, 3);
 
-        this._m[0] = m0;
-        this._m[1] = m1;
-        this._m[2] = m2;
-        this._m[3] = m3;
-        this._m[4] = m4;
-        this._m[5] = m5;
-        this._m[6] = m6;
-        this._m[7] = m7;
-        this._m[8] = m8;
-        this._m[9] = m9;
-        this._m[10] = m10;
-        this._m[11] = m11;
-        this._m[12] = m12;
-        this._m[13] = m13;
-        this._m[14] = m14;
-        this._m[15] = m15;
+        var m = this._m;
+        m[0] = m0;
+        m[1] = m1;
+        m[2] = m2;
+        m[3] = m3;
+        m[4] = m4;
+        m[5] = m5;
+        m[6] = m6;
+        m[7] = m7;
+        m[8] = m8;
+        m[9] = m9;
+        m[10] = m10;
+        m[11] = m11;
+        m[12] = m12;
+        m[13] = m13;
+        m[14] = m14;
+        m[15] = m15;
     },
 
     /**
      * If you know it's an affine matrix (such as general transforms rather than perspective projection matrices), use this.
      * @param m
      */
-    inverseAffineOf: function (m)
+    inverseAffineOf: function (a)
     {
-        var m0 = m._m[0], m1 = m._m[1], m2 = m._m[2];
-        var m4 = m._m[4], m5 = m._m[5], m6 = m._m[6];
-        var m8 = m._m[8], m9 = m._m[9], m10 = m._m[10];
-        var m12 = m._m[12], m13 = m._m[13], m14 = m._m[14];
+        var mm = a._m;
+        var m0 = mm[0], m1 = mm[1], m2 = mm[2];
+        var m4 = mm[4], m5 = mm[5], m6 = mm[6];
+        var m8 = mm[8], m9 = mm[9], m10 = mm[10];
+        var m12 = mm[12], m13 = mm[13], m14 = mm[14];
         var determinant = m0 * (m5 * m10 - m9 * m6) - m4 * (m1 * m10 - m9 * m2) + m8 * (m1 * m6 - m5 * m2);
         var rcpDet = 1.0 / determinant;
 
@@ -4634,22 +4658,23 @@ HX.Matrix4x4.prototype =
         var n9 = (m8 * m1 - m0 * m9) * rcpDet;
         var n10 = (m0 * m5 - m4 * m1) * rcpDet;
 
-        this._m[0] = n0;
-        this._m[1] = n1;
-        this._m[2] = n2;
-        this._m[3] = 0;
-        this._m[4] = n4;
-        this._m[5] = n5;
-        this._m[6] = n6;
-        this._m[7] = 0;
-        this._m[8] = n8;
-        this._m[9] = n9;
-        this._m[10] = n10;
-        this._m[11] = 0;
-        this._m[12] = -n0 * m12 - n4 * m13 - n8 * m14;
-        this._m[13] = -n1 * m12 - n5 * m13 - n9 * m14;
-        this._m[14] = -n2 * m12 - n6 * m13 - n10 * m14;
-        this._m[15] = 1;
+        var m = this._m;
+        m[0] = n0;
+        m[1] = n1;
+        m[2] = n2;
+        m[3] = 0;
+        m[4] = n4;
+        m[5] = n5;
+        m[6] = n6;
+        m[7] = 0;
+        m[8] = n8;
+        m[9] = n9;
+        m[10] = n10;
+        m[11] = 0;
+        m[12] = -n0 * m12 - n4 * m13 - n8 * m14;
+        m[13] = -n1 * m12 - n5 * m13 - n9 * m14;
+        m[14] = -n2 * m12 - n6 * m13 - n10 * m14;
+        m[15] = 1;
     },
 
     /**
@@ -4658,9 +4683,10 @@ HX.Matrix4x4.prototype =
     writeNormalMatrix: function (array, index)
     {
         index = index || 0;
-        var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2];
-        var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
-        var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
+        var m = this._m;
+        var m0 = m[0], m1 = m[1], m2 = m[2];
+        var m4 = m[4], m5 = m[5], m6 = m[6];
+        var m8 = m[8], m9 = m[9], m10 = m[10];
 
         var determinant = m0 * (m5 * m10 - m9 * m6) - m4 * (m1 * m10 - m9 * m2) + m8 * (m1 * m6 - m5 * m2);
         var rcpDet = 1.0 / determinant;
@@ -4714,70 +4740,78 @@ HX.Matrix4x4.prototype =
         this.multiplyAffine(this, m);
     },
 
-    add: function (m)
+    add: function (a)
     {
-        this._m[0] += m._m[0];
-        this._m[1] += m._m[1];
-        this._m[2] += m._m[2];
-        this._m[3] += m._m[3];
-        this._m[4] += m._m[4];
-        this._m[5] += m._m[5];
-        this._m[6] += m._m[6];
-        this._m[7] += m._m[7];
-        this._m[8] += m._m[8];
-        this._m[9] += m._m[9];
-        this._m[10] += m._m[10];
-        this._m[11] += m._m[11];
-        this._m[12] += m._m[12];
-        this._m[13] += m._m[13];
-        this._m[14] += m._m[14];
-        this._m[15] += m._m[15];
+        var m = this._m;
+        var mm = a._m;
+        m[0] += mm[0];
+        m[1] += mm[1];
+        m[2] += mm[2];
+        m[3] += mm[3];
+        m[4] += mm[4];
+        m[5] += mm[5];
+        m[6] += mm[6];
+        m[7] += mm[7];
+        m[8] += mm[8];
+        m[9] += mm[9];
+        m[10] += mm[10];
+        m[11] += mm[11];
+        m[12] += mm[12];
+        m[13] += mm[13];
+        m[14] += mm[14];
+        m[15] += mm[15];
     },
 
-    addAffine: function (m)
+    addAffine: function (a)
     {
-        this._m[0] += m._m[0];
-        this._m[1] += m._m[1];
-        this._m[2] += m._m[2];
-        this._m[4] += m._m[4];
-        this._m[5] += m._m[5];
-        this._m[6] += m._m[6];
-        this._m[8] += m._m[8];
-        this._m[9] += m._m[9];
-        this._m[10] += m._m[10];
+        var m = this._m;
+        var mm = a._m;
+        m[0] += mm[0];
+        m[1] += mm[1];
+        m[2] += mm[2];
+        m[4] += mm[4];
+        m[5] += mm[5];
+        m[6] += mm[6];
+        m[8] += mm[8];
+        m[9] += mm[9];
+        m[10] += mm[10];
     },
 
-    subtract: function (m)
+    subtract: function (a)
     {
-        this._m[0] -= m._m[0];
-        this._m[1] -= m._m[1];
-        this._m[2] -= m._m[2];
-        this._m[3] -= m._m[3];
-        this._m[4] -= m._m[4];
-        this._m[5] -= m._m[5];
-        this._m[6] -= m._m[6];
-        this._m[7] -= m._m[7];
-        this._m[8] -= m._m[8];
-        this._m[9] -= m._m[9];
-        this._m[10] -= m._m[10];
-        this._m[11] -= m._m[11];
-        this._m[12] -= m._m[12];
-        this._m[13] -= m._m[13];
-        this._m[14] -= m._m[14];
-        this._m[15] -= m._m[15];
+        var m = this._m;
+        var mm = a._m;
+        m[0] -= mm[0];
+        m[1] -= mm[1];
+        m[2] -= mm[2];
+        m[3] -= mm[3];
+        m[4] -= mm[4];
+        m[5] -= mm[5];
+        m[6] -= mm[6];
+        m[7] -= mm[7];
+        m[8] -= mm[8];
+        m[9] -= mm[9];
+        m[10] -= mm[10];
+        m[11] -= mm[11];
+        m[12] -= mm[12];
+        m[13] -= mm[13];
+        m[14] -= mm[14];
+        m[15] -= mm[15];
     },
 
-    subtractAffine: function (m)
+    subtractAffine: function (a)
     {
-        this._m[0] -= m._m[0];
-        this._m[1] -= m._m[1];
-        this._m[2] -= m._m[2];
-        this._m[4] -= m._m[4];
-        this._m[5] -= m._m[5];
-        this._m[6] -= m._m[6];
-        this._m[8] -= m._m[8];
-        this._m[9] -= m._m[9];
-        this._m[10] -= m._m[10];
+        var m = this._m;
+        var mm = a._m;
+        m[0] -= mm[0];
+        m[1] -= mm[1];
+        m[2] -= mm[2];
+        m[4] -= mm[4];
+        m[5] -= mm[5];
+        m[6] -= mm[6];
+        m[8] -= mm[8];
+        m[9] -= mm[9];
+        m[10] -= mm[10];
     },
 
     appendScale: function (x, y, z)
@@ -4785,18 +4819,19 @@ HX.Matrix4x4.prototype =
         if (y === undefined)
             y = z = x;
 
-        this._m[0] *= x;
-        this._m[1] *= y;
-        this._m[2] *= z;
-        this._m[4] *= x;
-        this._m[5] *= y;
-        this._m[6] *= z;
-        this._m[8] *= x;
-        this._m[9] *= y;
-        this._m[10] *= z;
-        this._m[12] *= x;
-        this._m[13] *= y;
-        this._m[14] *= z;
+        var m = this._m;
+        m[0] *= x;
+        m[1] *= y;
+        m[2] *= z;
+        m[4] *= x;
+        m[5] *= y;
+        m[6] *= z;
+        m[8] *= x;
+        m[9] *= y;
+        m[10] *= z;
+        m[12] *= x;
+        m[13] *= y;
+        m[14] *= z;
     },
 
     prependScale: function (x, y, z)
@@ -4804,91 +4839,97 @@ HX.Matrix4x4.prototype =
         if (y === undefined)
             y = z = x;
 
-        this._m[0] *= x;
-        this._m[1] *= x;
-        this._m[2] *= x;
-        this._m[3] *= x;
-        this._m[4] *= y;
-        this._m[5] *= y;
-        this._m[6] *= y;
-        this._m[7] *= y;
-        this._m[8] *= z;
-        this._m[9] *= z;
-        this._m[10] *= z;
-        this._m[11] *= z;
+        var m = this._m;
+        m[0] *= x;
+        m[1] *= x;
+        m[2] *= x;
+        m[3] *= x;
+        m[4] *= y;
+        m[5] *= y;
+        m[6] *= y;
+        m[7] *= y;
+        m[8] *= z;
+        m[9] *= z;
+        m[10] *= z;
+        m[11] *= z;
     },
 
     appendTranslation: function (v)
     {
-        this._m[12] += v.x;
-        this._m[13] += v.y;
-        this._m[14] += v.z;
+        var m = this._m;
+        m[12] += v.x;
+        m[13] += v.y;
+        m[14] += v.z;
     },
 
     prependTranslation: function (v)
     {
+        var m = this._m;
         var x = v.x, y = v.y, z = v.z;
-        this._m[12] += this._m[0] * x + this._m[4] * y + this._m[8] * z;
-        this._m[13] += this._m[1] * x + this._m[5] * y + this._m[9] * z;
-        this._m[14] += this._m[2] * x + this._m[6] * y + this._m[10] * z;
-        this._m[15] += this._m[3] * x + this._m[7] * y + this._m[11] * z;
+        m[12] += m[0] * x + m[4] * y + m[8] * z;
+        m[13] += m[1] * x + m[5] * y + m[9] * z;
+        m[14] += m[2] * x + m[6] * y + m[10] * z;
+        m[15] += m[3] * x + m[7] * y + m[11] * z;
     },
 
     appendQuaternion: function (q)
     {
+        var m = this._m;
         var x = q.x, y = q.y, z = q.z, w = q.w;
         var a_m00 = 1 - 2 * (y * y + z * z), a_m10 = 2 * (x * y + w * z), a_m20 = 2 * (x * z - w * y);
         var a_m01 = 2 * (x * y - w * z), a_m11 = 1 - 2 * (x * x + z * z), a_m21 = 2 * (y * z + w * x);
         var a_m02 = 2 * (x * z + w * y), a_m12 = 2 * (y * z - w * x), a_m22 = 1 - 2 * (x * x + y * y);
 
-        var b_m00 = this._m[0], b_m10 = this._m[1], b_m20 = this._m[2];
-        var b_m01 = this._m[4], b_m11 = this._m[5], b_m21 = this._m[6];
-        var b_m02 = this._m[8], b_m12 = this._m[9], b_m22 = this._m[10];
-        var b_m03 = this._m[12], b_m13 = this._m[13], b_m23 = this._m[14];
+        var b_m00 = m[0], b_m10 = m[1], b_m20 = m[2];
+        var b_m01 = m[4], b_m11 = m[5], b_m21 = m[6];
+        var b_m02 = m[8], b_m12 = m[9], b_m22 = m[10];
+        var b_m03 = m[12], b_m13 = m[13], b_m23 = m[14];
 
-        this._m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20;
-        this._m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20;
-        this._m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20;
+        m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20;
+        m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20;
+        m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20;
 
-        this._m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21;
-        this._m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21;
-        this._m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21;
+        m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21;
+        m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21;
+        m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21;
 
-        this._m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
-        this._m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
-        this._m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
+        m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
+        m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
+        m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
 
-        this._m[12] = a_m00 * b_m03 + a_m01 * b_m13 + a_m02 * b_m23;
-        this._m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23;
-        this._m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23;
+        m[12] = a_m00 * b_m03 + a_m01 * b_m13 + a_m02 * b_m23;
+        m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23;
+        m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23;
     },
 
     prependQuaternion: function (q)
     {
+        var m = this._m;
         var x = q.x, y = q.y, z = q.z, w = q.w;
-        var a_m00 = this._m[0], a_m10 = this._m[1], a_m20 = this._m[2];
-        var a_m01 = this._m[4], a_m11 = this._m[5], a_m21 = this._m[6];
-        var a_m02 = this._m[8], a_m12 = this._m[9], a_m22 = this._m[10];
+        var a_m00 = m[0], a_m10 = m[1], a_m20 = m[2];
+        var a_m01 = m[4], a_m11 = m[5], a_m21 = m[6];
+        var a_m02 = m[8], a_m12 = m[9], a_m22 = m[10];
 
         var b_m00 = 1 - 2 * (y * y + z * z), b_m10 = 2 * (x * y + w * z), b_m20 = 2 * (x * z - w * y);
         var b_m01 = 2 * (x * y - w * z), b_m11 = 1 - 2 * (x * x + z * z), b_m21 = 2 * (y * z + w * x);
         var b_m02 = 2 * (x * z + w * y), b_m12 = 2 * (y * z - w * x), b_m22 = 1 - 2 * (x * x + y * y);
 
-        this._m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20;
-        this._m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20;
-        this._m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20;
+        m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20;
+        m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20;
+        m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20;
 
-        this._m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21;
-        this._m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21;
-        this._m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21;
+        m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21;
+        m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21;
+        m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21;
 
-        this._m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
-        this._m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
-        this._m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
+        m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
+        m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
+        m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
     },
 
     appendRotationAxisAngle: function (axis, radians)
     {
+        var m = this._m;
         var cos = Math.cos(radians);
         var sin = Math.sin(radians);
         var rcpLen = 1 / axis.length;
@@ -4900,30 +4941,31 @@ HX.Matrix4x4.prototype =
         var a_m01 = oneMinCos * x * y - sin * z, a_m11 = oneMinCos * y * y + cos, a_m21 = oneMinCos * y * z + sin * x;
         var a_m02 = oneMinCos * x * z + sin * y, a_m12 = oneMinCos * y * z - sin * x, a_m22 = oneMinCos * z * z + cos;
 
-        var b_m00 = this._m[0], b_m10 = this._m[1], b_m20 = this._m[2];
-        var b_m01 = this._m[4], b_m11 = this._m[5], b_m21 = this._m[6];
-        var b_m02 = this._m[8], b_m12 = this._m[9], b_m22 = this._m[10];
-        var b_m03 = this._m[12], b_m13 = this._m[13], b_m23 = this._m[14];
+        var b_m00 = m[0], b_m10 = m[1], b_m20 = m[2];
+        var b_m01 = m[4], b_m11 = m[5], b_m21 = m[6];
+        var b_m02 = m[8], b_m12 = m[9], b_m22 = m[10];
+        var b_m03 = m[12], b_m13 = m[13], b_m23 = m[14];
 
-        this._m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20;
-        this._m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20;
-        this._m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20;
+        m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20;
+        m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20;
+        m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20;
 
-        this._m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21;
-        this._m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21;
-        this._m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21;
+        m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21;
+        m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21;
+        m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21;
 
-        this._m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
-        this._m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
-        this._m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
+        m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
+        m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
+        m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
 
-        this._m[12] = a_m00 * b_m03 + a_m01 * b_m13 + a_m02 * b_m23;
-        this._m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23;
-        this._m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23;
+        m[12] = a_m00 * b_m03 + a_m01 * b_m13 + a_m02 * b_m23;
+        m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23;
+        m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23;
     },
 
     prependRotationAxisAngle: function (axis, radians)
     {
+        var m = this._m;
         var cos = Math.cos(radians);
         var sin = Math.sin(radians);
         var rcpLen = 1 / axis.length;
@@ -4931,43 +4973,45 @@ HX.Matrix4x4.prototype =
         var x = axis.x * rcpLen, y = axis.y * rcpLen, z = axis.z * rcpLen;
         var oneMinCos = 1 - cos;
 
-        var a_m00 = this._m[0], a_m10 = this._m[1], a_m20 = this._m[2];
-        var a_m01 = this._m[4], a_m11 = this._m[5], a_m21 = this._m[6];
-        var a_m02 = this._m[8], a_m12 = this._m[9], a_m22 = this._m[10];
+        var a_m00 = m[0], a_m10 = m[1], a_m20 = m[2];
+        var a_m01 = m[4], a_m11 = m[5], a_m21 = m[6];
+        var a_m02 = m[8], a_m12 = m[9], a_m22 = m[10];
 
         var b_m00 = oneMinCos * x * x + cos, b_m10 = oneMinCos * x * y + sin * z, b_m20 = oneMinCos * x * z - sin * y;
         var b_m01 = oneMinCos * x * y - sin * z, b_m11 = oneMinCos * y * y + cos, b_m21 = oneMinCos * y * z + sin * x;
         var b_m02 = oneMinCos * x * z + sin * y, b_m12 = oneMinCos * y * z - sin * x, b_m22 = oneMinCos * z * z + cos;
 
-        this._m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20;
-        this._m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20;
-        this._m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20;
+        m[0] = a_m00 * b_m00 + a_m01 * b_m10 + a_m02 * b_m20;
+        m[1] = a_m10 * b_m00 + a_m11 * b_m10 + a_m12 * b_m20;
+        m[2] = a_m20 * b_m00 + a_m21 * b_m10 + a_m22 * b_m20;
 
-        this._m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21;
-        this._m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21;
-        this._m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21;
+        m[4] = a_m00 * b_m01 + a_m01 * b_m11 + a_m02 * b_m21;
+        m[5] = a_m10 * b_m01 + a_m11 * b_m11 + a_m12 * b_m21;
+        m[6] = a_m20 * b_m01 + a_m21 * b_m11 + a_m22 * b_m21;
 
-        this._m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
-        this._m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
-        this._m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
+        m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
+        m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
+        m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
     },
 
     getRow: function (index, target)
     {
+        var m = this._m;
         target = target || new HX.Float4();
-        target.x = this._m[index];
-        target.y = this._m[index | 4];
-        target.z = this._m[index | 8];
-        target.w = this._m[index | 12];
+        target.x = m[index];
+        target.y = m[index | 4];
+        target.z = m[index | 8];
+        target.w = m[index | 12];
         return target;
     },
 
     setRow: function (index, v)
     {
-        this._m[index] = v.x;
-        this._m[index | 4] = v.y;
-        this._m[index | 8] = v.z;
-        this._m[index | 12] = v.w;
+        var m = this._m;
+        m[index] = v.x;
+        m[index | 4] = v.y;
+        m[index | 8] = v.z;
+        m[index | 12] = v.w;
     },
 
     getElement: function(row, col)
@@ -4982,22 +5026,24 @@ HX.Matrix4x4.prototype =
 
     getColumn: function (index, target)
     {
+        var m = this._m;
         target = target || new HX.Float4();
         index <<= 2;
-        target.x = this._m[index];
-        target.y = this._m[index | 1];
-        target.z = this._m[index | 2];
-        target.w = this._m[index | 3];
+        target.x = m[index];
+        target.y = m[index | 1];
+        target.z = m[index | 2];
+        target.w = m[index | 3];
         return target;
     },
 
     setColumn: function (index, v)
     {
+        var m = this._m;
         index <<= 2;
-        this._m[index] = v.x;
-        this._m[index | 1] = v.y;
-        this._m[index | 2] = v.z;
-        this._m[index | 3] = v.w;
+        m[index] = v.x;
+        m[index | 1] = v.y;
+        m[index | 2] = v.z;
+        m[index | 3] = v.w;
     },
 
     /**
@@ -5029,22 +5075,23 @@ HX.Matrix4x4.prototype =
         var yAxis = new HX.Float4();
         yAxis.cross(zAxis, xAxis);	// should already be unit length
 
-        this._m[0] = xAxis.x;
-        this._m[1] = xAxis.y;
-        this._m[2] = xAxis.z;
-        this._m[3] = 0.0;
-        this._m[4] = yAxis.x;
-        this._m[5] = yAxis.y;
-        this._m[6] = yAxis.z;
-        this._m[7] = 0.0;
-        this._m[8] = zAxis.x;
-        this._m[9] = zAxis.y;
-        this._m[10] = zAxis.z;
-        this._m[11] = 0.0;
-        this._m[12] = eye.x;
-        this._m[13] = eye.y;
-        this._m[14] = eye.z;
-        this._m[15] = 1.0;
+        var m = this._m;
+        m[0] = xAxis.x;
+        m[1] = xAxis.y;
+        m[2] = xAxis.z;
+        m[3] = 0.0;
+        m[4] = yAxis.x;
+        m[5] = yAxis.y;
+        m[6] = yAxis.z;
+        m[7] = 0.0;
+        m[8] = zAxis.x;
+        m[9] = zAxis.y;
+        m[10] = zAxis.z;
+        m[11] = 0.0;
+        m[12] = eye.x;
+        m[13] = eye.y;
+        m[14] = eye.z;
+        m[15] = 1.0;
     },
 
     /**
@@ -5064,9 +5111,6 @@ HX.Matrix4x4.prototype =
      */
     decompose: function (targetOrPos, quat, scale)
     {
-        // TODO: Make this work for negative scale
-        // should sign of cross product be enough, and then just flip 1 axis?
-
         targetOrPos = targetOrPos || new HX.Transform();
 
         var pos;
@@ -5077,9 +5121,10 @@ HX.Matrix4x4.prototype =
         }
         else pos = targetOrPos;
 
-        var m0 = this._m[0], m1 = this._m[1], m2 = this._m[2];
-        var m4 = this._m[4], m5 = this._m[5], m6 = this._m[6];
-        var m8 = this._m[8], m9 = this._m[9], m10 = this._m[10];
+        var m = this._m;
+        var m0 = m[0], m1 = m[1], m2 = m[2];
+        var m4 = m[4], m5 = m[5], m6 = m[6];
+        var m8 = m[8], m9 = m[9], m10 = m[10];
 
         // check for negative scale by calculating cross X x Y (positive scale should yield the same Z)
         var cx = m1*m6 - m2*m5;
@@ -5098,15 +5143,16 @@ HX.Matrix4x4.prototype =
 
         var rcpX = 1.0 / scale.x, rcpY = 1.0 / scale.y, rcpZ = 1.0 / scale.z;
 
-        clone._m[0] *= rcpX;
-        clone._m[1] *= rcpX;
-        clone._m[2] *= rcpX;
-        clone._m[4] *= rcpY;
-        clone._m[5] *= rcpY;
-        clone._m[6] *= rcpY;
-        clone._m[8] *= rcpZ;
-        clone._m[9] *= rcpZ;
-        clone._m[10] *= rcpZ;
+        var cm = clone._m;
+        cm[0] *= rcpX;
+        cm[1] *= rcpX;
+        cm[2] *= rcpX;
+        cm[4] *= rcpY;
+        cm[5] *= rcpY;
+        cm[6] *= rcpY;
+        cm[8] *= rcpZ;
+        cm[9] *= rcpZ;
+        cm[10] *= rcpZ;
 
         quat.fromMatrix(clone);
         pos.copyFrom(this.getColumn(3));
@@ -5116,32 +5162,34 @@ HX.Matrix4x4.prototype =
 
     swapColums: function(i, j)
     {
+        var m = this._m;
         if (i === j) return;
         i <<= 2;
         j <<= 2;
-        var x = this._m[i];
-        var y = this._m[i | 1];
-        var z = this._m[i | 2];
-        var w = this._m[i | 3];
-        this._m[i] = this._m[j];
-        this._m[i | 1] = this._m[j | 1];
-        this._m[i | 2] = this._m[j | 2];
-        this._m[i | 3] = this._m[j | 3];
-        this._m[j] = x;
-        this._m[j | 1] = y;
-        this._m[j | 2] = z;
-        this._m[j | 3] = w;
+        var x = m[i];
+        var y = m[i | 1];
+        var z = m[i | 2];
+        var w = m[i | 3];
+        m[i] = m[j];
+        m[i | 1] = m[j | 1];
+        m[i | 2] = m[j | 2];
+        m[i | 3] = m[j | 3];
+        m[j] = x;
+        m[j | 1] = y;
+        m[j | 2] = z;
+        m[j | 3] = w;
     },
 
     toString: function()
     {
+        var m = this._m;
         var str = "";
         for (var i = 0; i < 16; ++i) {
             var mod = i & 0x3;
             if (mod === 0)
                 str += "[";
 
-            str += this._m[i];
+            str += m[i];
 
             if (mod === 3)
                 str += "]\n";
@@ -8697,32 +8745,28 @@ HX.RenderItem = function()
 
 HX.RenderItemPool = function()
 {
-    this._head = null;
-    this._pool = null;
-};
+    var head = null;
+    var pool = null;
 
-HX.RenderItemPool.prototype =
-{
-    getItem: function()
+    this.getItem = function()
     {
-        if (this._head) {
-            var head = this._head;
+        if (head) {
             var item = head;
-            this._head = head.next;
+            head = head.next;
             return item;
         }
         else {
             var item = new HX.RenderItemPool();
-            item.next = this._pool;
-            this._pool = item;
+            item.next = pool;
+            pool = item;
             return item;
         }
-    },
+    };
 
-    reset: function()
+    this.reset = function()
     {
-        this._head = this._pool;
-    }
+        head = pool;
+    };
 };
 
 /**
@@ -9063,8 +9107,7 @@ HX.ViewProjectionSetter = function()
 
 HX.ViewProjectionSetter.prototype.execute = function(camera)
 {
-    var matrix = camera.viewProjectionMatrix;
-    HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
+    HX.GL.uniformMatrix4fv(this.location, false, camera.viewProjectionMatrix._m);
 };
 
 HX.InverseViewProjectionSetter = function()
@@ -9073,8 +9116,7 @@ HX.InverseViewProjectionSetter = function()
 
 HX.InverseViewProjectionSetter.prototype.execute = function(camera)
 {
-    var matrix = camera.inverseViewProjectionMatrix;
-    HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
+    HX.GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
 };
 
 HX.InverseWVPSetter = function()
@@ -9083,8 +9125,7 @@ HX.InverseWVPSetter = function()
 
 HX.InverseWVPSetter.prototype.execute = function(camera)
 {
-    var matrix = camera.inverseViewProjectionMatrix;
-    HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
+    HX.GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
 };
 
 HX.ProjectionSetter = function()
@@ -9093,8 +9134,7 @@ HX.ProjectionSetter = function()
 
 HX.ProjectionSetter.prototype.execute = function(camera)
 {
-    var matrix = camera.projectionMatrix;
-    HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
+    HX.GL.uniformMatrix4fv(this.location, false, camera.projectionMatrix._m);
 };
 
 HX.InverseProjectionSetter = function()
@@ -9103,57 +9143,69 @@ HX.InverseProjectionSetter = function()
 
 HX.InverseProjectionSetter.prototype.execute = function(camera)
 {
-    var matrix = camera.inverseProjectionMatrix;
-    HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
+    HX.GL.uniformMatrix4fv(this.location, false, camera.inverseProjectionMatrix._m);
 };
 
 HX.WorldViewProjectionSetter = function()
 {
-    this._matrix = new HX.Matrix4x4();
 };
 
-HX.WorldViewProjectionSetter.prototype.execute = function(camera, renderItem)
+HX.WorldViewProjectionSetter.prototype.execute = function()
 {
-    this._matrix.multiply(camera.viewProjectionMatrix, renderItem.worldMatrix);
-    HX.GL.uniformMatrix4fv(this.location, false, this._matrix._m);
-};
+    var matrix = new HX.Matrix4x4();
+    var m = matrix._m;
+    return function(camera, renderItem)
+    {
+        matrix.multiply(camera.viewProjectionMatrix, renderItem.worldMatrix);
+        HX.GL.uniformMatrix4fv(this.location, false, m);
+    };
+}();
 
 HX.WorldViewMatrixSetter = function()
 {
     this._matrix = new HX.Matrix4x4();
 };
 
-HX.WorldViewMatrixSetter.prototype.execute = function (camera, renderItem)
-{
-    this._matrix.multiply(camera.viewMatrix, renderItem.worldMatrix);
-    HX.GL.uniformMatrix4fv(this.location, false, this._matrix._m);
-};
+HX.WorldViewMatrixSetter.prototype.execute = function(){
+    var matrix = new HX.Matrix4x4();
+    var m = matrix._m;
+    return function (camera, renderItem)
+    {
+        matrix.multiply(camera.viewMatrix, renderItem.worldMatrix);
+        HX.GL.uniformMatrix4fv(this.location, false, m);
+    }
+}();
 
 
 HX.NormalWorldMatrixSetter = function()
 {
-    this._data = new Float32Array(9);
 };
 
-HX.NormalWorldMatrixSetter.prototype.execute = function (camera, renderItem)
-{
-    renderItem.worldMatrix.writeNormalMatrix(this._data);
-    HX.GL.uniformMatrix3fv(this.location, false, this._data);    // transpose of inverse
-};
+HX.NormalWorldMatrixSetter.prototype.execute = function() {
+    var data = new Float32Array(9);
+    return function (camera, renderItem)
+    {
+        renderItem.worldMatrix.writeNormalMatrix(data);
+        HX.GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
+    }
+}();
 
 
 HX.NormalWorldViewMatrixSetter = function()
 {
-    this._matrix = new HX.Matrix4x4();
-    this._data = new Float32Array(9);
 };
 
-HX.NormalWorldViewMatrixSetter.prototype.execute = function (camera, renderItem)
-{
-    this._matrix.multiply(camera.viewMatrix, renderItem.worldMatrix);
-    this._matrix.writeNormalMatrix(this._data);
-    HX.GL.uniformMatrix3fv(this.location, false, this._data);    // transpose of inverse
-};
+HX.NormalWorldViewMatrixSetter.prototype.execute = function() {
+    var matrix = new HX.Matrix4x4();
+    var data = new Float32Array(9);
+
+    return function (camera, renderItem)
+    {
+        matrix.multiply(camera.viewMatrix, renderItem.worldMatrix);
+        matrix.writeNormalMatrix(data);
+        HX.GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
+    }
+}();
 
 HX.CameraWorldPosSetter = function()
 {
@@ -9217,8 +9269,7 @@ HX.ViewMatrixSetter = function()
 
 HX.ViewMatrixSetter.prototype.execute = function (camera)
 {
-    var matrix = camera.viewMatrix;
-    HX.GL.uniformMatrix4fv(this.location, false, matrix._m);
+    HX.GL.uniformMatrix4fv(this.location, false, camera.viewMatrix._m);
 };
 
 HX.RenderTargetResolutionSetter = function()
@@ -13411,11 +13462,11 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
 
     scene.acceptVisitor(this);
 
-    this._opaquePasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques);
-    this._opaquePasses[HX.MaterialPass.POST_PASS].sort(this._sortOpaques);
+    //this._opaquePasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques);
+    //this._opaquePasses[HX.MaterialPass.POST_PASS].sort(this._sortOpaques);
 
-    this._transparentPasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortTransparents);
-    this._transparentPasses[HX.MaterialPass.POST_PASS].sort(this._sortTransparents);
+    //this._transparentPasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortTransparents);
+    //this._transparentPasses[HX.MaterialPass.POST_PASS].sort(this._sortTransparents);
 
     if (!HX.EXT_DRAW_BUFFERS) {
         this._copyLegacyPasses(this._opaquePasses);
@@ -13463,27 +13514,35 @@ HX.RenderCollector.prototype.visitEffects = function(effects, ownerNode)
 HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
 {
     var numMeshes = modelInstance.numMeshInstances;
+    var cameraZAxis = this._cameraZAxis;
+    var cameraZ_X = cameraZAxis.x, cameraZ_Y = cameraZAxis.y, cameraZ_Z = cameraZAxis.z;
+    var skeleton = modelInstance.skeleton;
+    var skeletonMatrices = modelInstance.skeletonMatrices;
+    var renderPool = this._renderItemPool;
+    var opaque = HX.TransparencyMode.OPAQUE;
+    var camera = this._camera;
 
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
         var material = meshInstance.material;
+        var transparencyMode = material._transparencyMode;
+        var list = transparencyMode === opaque? this._opaquePasses : this._transparentPasses;
 
         for (var passIndex = 0; passIndex < HX.MaterialPass.NUM_PASS_TYPES; ++passIndex) {
             var pass = material.getPass(passIndex);
             if (pass && pass._enabled) {
-                var list = material._transparencyMode === HX.TransparencyMode.OPAQUE? this._opaquePasses : this._transparentPasses;
-                var renderItem = this._renderItemPool.getItem();
+                var renderItem = renderPool.getItem();
 
                 renderItem.material = material;
                 renderItem.pass = pass;
                 renderItem.meshInstance = meshInstance;
-                renderItem.skeleton = modelInstance.skeleton;
-                renderItem.skeletonMatrices = modelInstance.skeletonMatrices;
+                renderItem.skeleton = skeleton;
+                renderItem.skeletonMatrices = skeletonMatrices;
                 // distance along Z axis:
                 var center = worldBounds._center;
-                renderItem.renderOrderHint = center.x * this._cameraZAxis.x + center.y * this._cameraZAxis.y + center.z * this._cameraZAxis.z;
+                renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
                 renderItem.worldMatrix = worldMatrix;
-                renderItem.camera = this._camera;
+                renderItem.camera = camera;
                 list[passIndex].push(renderItem);
             }
         }
@@ -13554,10 +13613,10 @@ HX.RenderCollector.prototype._sortOpaques = function(a, b)
 
 HX.RenderCollector.prototype._sortLights = function(a, b)
 {
-    return  a._type == b._type?
-                    a._castShadows == b._castShadows ?
-                    a._renderOrderHint - b._renderOrderHint :
-                    a._castShadows? 1 : -1 :
+    return  a._type === b._type?
+            a._castShadows === b._castShadows ?
+            a._renderOrderHint - b._renderOrderHint :
+            a._castShadows? 1 : -1 :
             a._type - b._type;
 };
 
@@ -13569,32 +13628,36 @@ HX.RenderCollector.prototype._copyLegacyPasses = function(list)
     var len = colorPasses.length;
     var n = 0;
     var s = 0;
+    var camera = this._camera;
+    var renderItemPool = this._renderItemPool;
 
     for (var i = 0; i < len; ++i) {
         var renderItem = colorPasses[i];
         var meshInstance = renderItem.meshInstance;
+        var worldMatrix = renderItem.worldMatrix;
         var material = renderItem.material;
+        var renderOrderHint = renderItem.renderOrderHint;
 
         // for unlit lighting models, these passes may be unavailable
         if (material.hasPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS)) {
-            var normalItem = this._renderItemPool.getItem();
+            var normalItem = renderItemPool.getItem();
             normalItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS);
-            normalItem.material = renderItem.material;
-            normalItem.renderOrderHint = renderItem.renderOrderHint;
-            normalItem.meshInstance = renderItem.meshInstance;
-            normalItem.worldMatrix = renderItem.worldMatrix;
-            normalItem.camera = this._camera;
+            normalItem.material = material;
+            normalItem.renderOrderHint = renderOrderHint;
+            normalItem.meshInstance = meshInstance;
+            normalItem.worldMatrix = worldMatrix;
+            normalItem.camera = camera;
             normalPasses[n++] = normalItem;
         }
 
         if (material.hasPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS)) {
-            var specItem = this._renderItemPool.getItem();
+            var specItem = renderItemPool.getItem();
             specItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS);
-            specItem.material = renderItem.material;
-            specItem.renderOrderHint = renderItem.renderOrderHint;
-            specItem.meshInstance = renderItem.meshInstance;
-            specItem.worldMatrix = renderItem.worldMatrix;
-            specItem.camera = this._camera;
+            specItem.material = material;
+            specItem.renderOrderHint = renderOrderHint;
+            specItem.meshInstance = meshInstance;
+            specItem.worldMatrix = worldMatrix;
+            specItem.camera = camera;
             specularPasses[s++] = specItem;
         }
     }

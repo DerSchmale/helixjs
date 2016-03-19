@@ -15,6 +15,7 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+    options.directionalShadowFilter.blurRadius = 1;
     options.useHDR = true;
     options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);
@@ -57,6 +58,8 @@ function initScene(scene)
     light.castShadows = true;
     light.numCascades = 3;
     light.intensity = 3.0;
+    // add 1 for show (numCascades === 3, so cutoff is after 3)
+    light.setCascadeRatios(.06,.12,.18, 1);
     scene.attach(light);
 
     // textures from http://kay-vriend.blogspot.be/2014/04/tarnished-metal-first-steps-in-pbr-and.html
@@ -126,7 +129,6 @@ function initScene(scene)
 
     var modelInstance = new HX.ModelInstance(primitive, material);
     modelInstance.position.y = -.25;
-    //modelInstance.castShadows = false;
     scene.attach(modelInstance);
 
     var cubeLoader = new HX.AssetLoader(HX.HCM);

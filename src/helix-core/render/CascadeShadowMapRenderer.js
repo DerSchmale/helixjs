@@ -369,9 +369,24 @@ HX.CascadeShadowMapRenderer.prototype =
         this._casterCollector.collect(this._collectorCamera, scene);
     },
 
-    getSplitDistances: function()
+    get splitDistances()
     {
         return this._splitDistances;
+    },
+
+    /**
+     * The ratios that define every cascade's split distance. Reset when numCascades change. 1 is at the far plane, 0 is at the near plane.
+     * @param r1
+     * @param r2
+     * @param r3
+     * @param r4
+     */
+    setSplitRatios: function(r1, r2, r3, r4)
+    {
+        this._splitRatios[0] = r1;
+        this._splitRatios[1] = r2;
+        this._splitRatios[2] = r3;
+        this._splitRatios[3] = r4;
     },
 
     getShadowMatrix: function(cascade)

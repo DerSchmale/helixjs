@@ -106,7 +106,18 @@ HX.DirectionalLight.prototype = Object.create(HX.Light.prototype,
         }
     });
 
-// returns the index of the FIRST UNRENDERED light
+/**
+ * The ratios that define every cascade's split distance. Reset when numCascades change. 1 is at the far plane, 0 is at the near plane. Passing more than numCascades has no effect.
+ * @param r1
+ * @param r2
+ * @param r3
+ * @param r4
+ */
+HX.DirectionalLight.prototype.setCascadeRatios = function(r1, r2, r3, r4)
+{
+    this._shadowMapRenderer.setSplitRatios(r1, r2, r3, r4);
+};
+
 HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
     if (!this._lightPass)
@@ -124,7 +135,7 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
     HX_GL.uniform3f(this._colorLocation, color.r ,color.g, color.b);
 
     if (this._castShadows) {
-        var splitDistances = this._shadowMapRenderer.getSplitDistances();
+        var splitDistances = this._shadowMapRenderer.splitDistances;
         HX_GL.uniform1fv(this._splitDistancesLocation, new Float32Array(splitDistances));
         HX_GL.uniform1f(this._depthBiasLocation, light.depthBias);
 

@@ -58,7 +58,9 @@ HX.ShadowFilter.prototype =
 
     _invalidateBlurShader: function()
     {
-        this._blurShader.dispose();
-        this._blurShader = null;
+        if (this._blurShader) {
+            this._blurShader.dispose();
+            this._blurShader = null;
+        }
     }
 };

@@ -53,7 +53,12 @@ vec3 hx_calculateLight(vec3 diffuseAlbedo, vec3 normal, vec3 lightDir, vec3 view
 		float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
 		vec3 viewPos = viewZ * viewVector;
 		mat4 shadowMatrix = getShadowMatrix(viewPos);
-		totalReflection *= hx_getShadow(shadowMap, viewPos, shadowMatrix, depthBias, uv);
+		float shadow = hx_getShadow(shadowMap, viewPos, shadowMatrix, depthBias, uv);
+//		#if NUM_CASCADES > 1
+		// should not cast shadows past the cutoff point
+		shadow = max(shadow, float(viewPos.z < splitDistances[NUM_CASCADES - 1]));
+//		#endif
+		totalReflection *= shadow;
 	#endif
 
     return totalReflection;

@@ -73,7 +73,7 @@ function initScene(scene)
     var material = new HX.PBRMaterial();
     material.colorMap = albedoMap;
     material.normalMap = normalMap;
-    material.roughness = .3;
+    material.setRoughness(.3);
 
     var primitive = HX.SpherePrimitive.create(
         {

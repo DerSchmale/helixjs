@@ -72,7 +72,7 @@ function initScene(scene)
     material.colorMap = colorMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
-    material.roughness = 0.0;
+    material.setRoughness(0.0);
 
     var primitive = HX.PlanePrimitive.create(
         {
@@ -116,7 +116,7 @@ function initScene(scene)
         material.colorMap = textureLoader.load("model/zombie/diffuse.jpg");
         material.normalMap = textureLoader.load("model/zombie/normal.jpg");
         material.specularMap = textureLoader.load("model/zombie/specular.jpg");
-        material.roughness = 0.0;
+        material.setRoughness(0.0);
     });
 
     loader.load("model/zombie/walk.FBX");

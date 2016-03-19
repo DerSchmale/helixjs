@@ -57,7 +57,7 @@ function initScene(scene)
     material.colorMap = colorMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
-    material.roughness = 1.0;
+    material.setRoughness(1.0);
 
     var primitive = HX.PlanePrimitive.create(
         {

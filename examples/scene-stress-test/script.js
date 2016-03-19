@@ -48,7 +48,7 @@ function initScene(scene)
     var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
     var material = new HX.PBRMaterial();
     material.colorMap = texture;
-    material.roughness = 0.05;
+    material.setRoughness(0.05);
 
     var primitive = HX.SpherePrimitive.create(
         {

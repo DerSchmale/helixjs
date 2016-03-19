@@ -60,7 +60,7 @@ function initScene(scene)
             var material = new HX.PBRMaterial();
             //var gold = new HX.Color(1, 0.765557, 0.336057);
             //material.color = gold.linearToGamma();
-            material.roughness = x / (numX - 1.0);
+            material.setRoughness(x / (numX - 1.0));
             material.metallicness = y / (numY - 1.0);
 
             var modelInstance = new HX.ModelInstance(primitive, material);

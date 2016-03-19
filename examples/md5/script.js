@@ -57,7 +57,7 @@ function initScene(scene)
     material.colorMap = colorMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
-    material.roughness = 1.0;
+    material.setRoughness(1.0);
 
     var primitive = HX.PlanePrimitive.create(
         {
@@ -101,18 +101,18 @@ function initScene(scene)
     materialHelmet.specularMap = texLoader.load("model/bob_helmet_s.jpg");
     materialHelmet.normalMap = texLoader.load("model/bob_helmet_local.png");
     materialHelmet.metallicness = 1.0;
-    materialHelmet.roughness = .1;
+    materialHelmet.setRoughness(.1);
     materialHelmet.doubleSided = true;
 
     materialLantern.colorMap = texLoader.load("model/lantern.jpg");
     materialLantern.normalMap = texLoader.load("model/lantern_local.png");
     materialLantern.metallicness = 1.0;
-    materialLantern.roughness = .5;
+    materialLantern.setRoughness(.5);
 
     materialLanternTop.colorMap = texLoader.load("model/lantern_top.jpg");
     materialLanternTop.normalMap = texLoader.load("model/lantern_top_local.png");
     materialLanternTop.metallicness = 1.0;
-    materialLanternTop.roughness = .5;
+    materialLanternTop.setRoughness(.5);
     materialLanternTop.doubleSided = true;
 
     var loader = new HX.AssetLoader(HX.MD5Mesh);

@@ -14,7 +14,8 @@ HX.PBRMaterial = function()
     this._maskMap = null;
     this._specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
     this._metallicness = 0.0;
-    this._roughness = 0.3;
+    this._minRoughness = 0.3;
+    this._maxRoughness = 1.0;
     this._specularNormalReflection = 0.027;
     this._refractiveRatio = 1.0 / 1.33;
     this._transparent = false;
@@ -26,9 +27,14 @@ HX.PBRMaterial = function()
     this.color = this._color;
     this.alpha = 1.0;
     this.metallicness = this._metallicness;
-    this.roughness = this._roughness;
+    this.roughness = this._minRoughness;
     this.specularNormalReflection = this._specularNormalReflection;
     this.refractiveRatio = this._refractiveRatio;
+};
+
+HX.PBRMaterial.roughnessFromShininess = function(specularPower)
+{
+    return Math.sqrt(2.0/(specularPower + 2.0));
 };
 
 /**
@@ -140,6 +146,9 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             }
         },
 
+        /**
+         * The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
+         */
         specularMap: {
             get: function ()
             {
@@ -212,15 +221,17 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             }
         },
 
-        roughness: {
+        minRoughness: {
             get: function ()
             {
-                return this._roughness;
-            },
-            set: function (value)
+                return this._minRoughness;
+            }
+        },
+
+        maxRoughness: {
+            get: function ()
             {
-                this._roughness = HX.saturate(value);
-                this.setUniform("roughness", this._roughness);
+                return this._maxRoughness;
             }
         },
 
@@ -275,6 +286,13 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
     }
 );
 
+HX.PBRMaterial.prototype.setRoughness = function(min, max)
+{
+    this._minRoughness = min;
+    this._maxRoughness = max || 1.0;
+    this.setUniform("maxRoughness", this._maxRoughness);
+    this.setUniform("minRoughness", this._minRoughness);
+};
 
 HX.PBRMaterial.prototype.getPass = function(type)
 {
@@ -334,6 +352,9 @@ HX.PBRMaterial.prototype._updatePasses = function()
     this.setUniform("color", this._color);
     this.setUniform("alpha", this._alpha);
     this.setUniform("alphaThreshold", this._alphaThreshold);
+
+    this.setUniform("maxRoughness", this._maxRoughness);
+    this.setUniform("minRoughness", this._minRoughness);
 
     if (this._colorMap) this.setTexture("colorMap", this._colorMap);
     if (this._normalMap) this.setTexture("normalMap", this._normalMap);

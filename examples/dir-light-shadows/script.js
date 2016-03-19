@@ -38,7 +38,7 @@ function initCamera(camera)
     camera.nearDistance = .01;
     camera.farDistance = 50.0;
 
-    var bloom = new HX.BloomEffect(300, .5);
+    var bloom = new HX.BloomEffect(100, .001, 2);
     var tonemap = new HX.FilmicToneMapEffect(true);
     tonemap.exposure = 2.0;
 
@@ -57,7 +57,7 @@ function initScene(scene)
     light.direction = new HX.Float4(0.0, -0.8, -1.0, 0.0);
     light.castShadows = true;
     light.numCascades = 3;
-    light.intensity = 3.0;
+    light.intensity = 1.0;
     // add 1 for show (numCascades === 3, so cutoff is after 3)
     light.setCascadeRatios(.06,.12,.18, 1);
     scene.attach(light);
@@ -73,14 +73,14 @@ function initScene(scene)
     opaqueMaterial.specularMap = specularMap;
     opaqueMaterial.specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ALL;
     opaqueMaterial.metallicness = 1.0;
-    opaqueMaterial.roughness = 0.001;
+    opaqueMaterial.setRoughness(0.05, .5);
 
     var transparentMaterial = new HX.PBRMaterial();
     transparentMaterial.color = 0x801010;
     transparentMaterial.transparent = true;
     transparentMaterial.refractiveRatio = 1.0 / 1.1;
     transparentMaterial.refract = true;
-    transparentMaterial.roughness = .01;
+    transparentMaterial.setRoughness(.01);
 
     var primitive = HX.SpherePrimitive.create(
         {
@@ -112,7 +112,7 @@ function initScene(scene)
     material.colorMap = colorMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
-    material.roughness = 1.0;
+    material.setRoughness(1.0);
 
     // also apply to transparent, just for fun
     transparentMaterial.normalMap = normalMap;

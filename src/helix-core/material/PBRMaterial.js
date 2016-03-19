@@ -221,17 +221,31 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             }
         },
 
-        minRoughness: {
+        minRoughness:
+        {
             get: function ()
             {
                 return this._minRoughness;
+            },
+
+            set: function(value)
+            {
+                this._minRoughness = value;
+                this.setUniform("minRoughness", this._minRoughness);
             }
         },
 
-        maxRoughness: {
+        maxRoughness:
+        {
             get: function ()
             {
                 return this._maxRoughness;
+            },
+
+            set: function(value)
+            {
+                this._maxRoughness = value;
+                this.setUniform("minRoughness", this._minRoughness);
             }
         },
 
@@ -288,10 +302,8 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
 
 HX.PBRMaterial.prototype.setRoughness = function(min, max)
 {
-    this._minRoughness = min;
-    this._maxRoughness = max || 1.0;
-    this.setUniform("maxRoughness", this._maxRoughness);
-    this.setUniform("minRoughness", this._minRoughness);
+    this.minRoughness = min;
+    this.maxRoughness = max || 1.0;
 };
 
 HX.PBRMaterial.prototype.getPass = function(type)

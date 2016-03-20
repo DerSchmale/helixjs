@@ -31,6 +31,7 @@ HX.Renderer = function ()
     this._width = 0;
     this._height = 0;
 
+    // TODO: How many of these can be single instances?
     this._copyAmbient = new HX.MultiplyColorCopyShader();
     this._reproject = new HX.ReprojectShader();
     this._copyTexture = new HX.CopyChannelsShader();
@@ -132,7 +133,14 @@ HX.Renderer.prototype =
         this._ssrTexture = this._ssrEffect? this._ssrEffect.getSSRTexture() : null;
     },
 
-    render: function (camera, scene, dt)
+    /**
+     * It's not recommended changing render targets if they have different sizes (so splitscreen should be fine). Otherwise, use different renderer instances.
+     * @param camera
+     * @param scene
+     * @param dt
+     * @param renderTarget (optional)
+     */
+    render: function (camera, scene, dt, renderTarget)
     {
         var renderTargetStackSize = HX._renderTargetStack.length;
         var stencilStackSize = HX._stencilStateStack.length;
@@ -140,35 +148,42 @@ HX.Renderer.prototype =
         this._camera = camera;
         this._scene = scene;
 
-        this._aoTexture = this._aoEffect ? this._aoEffect.getAOTexture() : null;
-
-        this._updateSize();
-
-        camera._setRenderTargetResolution(this._width, this._height);
-        this._renderCollector.collect(camera, scene);
-
-        this._renderShadowCasters();
-
-        HX.pushRenderTarget(this._hdrFront.fboDepth);
+        HX.pushRenderTarget(renderTarget);
+        if (renderTarget) HX.clear();
         {
-            this._renderOpaques();
+            this._aoTexture = this._aoEffect ? this._aoEffect.getAOTexture() : null;
 
-            this._renderPostPass(HX.MaterialPass.POST_LIGHT_PASS);
-            this._renderPostPass(HX.MaterialPass.POST_PASS, true);
+            this._updateSize(renderTarget);
 
-            // don't use AO for transparents
-            if (this._aoTexture) this._aoTexture = null;
+            camera._setRenderTargetResolution(this._width, this._height);
+            this._renderCollector.collect(camera, scene);
 
-            this._renderTransparents();
+            this._renderShadowCasters();
+
+            HX.pushRenderTarget(this._hdrFront.fboDepth);
+            {
+                this._renderOpaques();
+
+                this._renderPostPass(HX.MaterialPass.POST_LIGHT_PASS);
+                this._renderPostPass(HX.MaterialPass.POST_PASS, true);
+
+                // don't use AO for transparents
+                if (this._aoTexture) this._aoTexture = null;
+
+                this._renderTransparents();
+            }
+            HX.popRenderTarget();
+
+            if (this._ssrEffect != null)
+                this._ssrEffect.render(this, dt);
+
+            this._renderToScreen(dt);
+
+            this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
         }
         HX.popRenderTarget();
 
-        if (this._ssrEffect != null)
-            this._ssrEffect.render(this, dt);
-
-        this._renderToScreen(dt);
-
-        this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
+        HX.setBlendState();
 
         if (HX._renderTargetStack.length > renderTargetStackSize) throw new Error("Unpopped render targets!");
         if (HX._renderTargetStack.length < renderTargetStackSize) throw new Error("Overpopped render targets!");
@@ -586,11 +601,20 @@ HX.Renderer.prototype =
             HX.pushRenderTarget(this._hdrFront.fbo);
     },
 
-    _updateSize: function ()
+    _updateSize: function (renderTarget)
     {
-        if (this._width !== HX.TARGET_CANVAS.clientWidth || this._height !== HX.TARGET_CANVAS.clientHeight) {
-            this._width = HX.TARGET_CANVAS.clientWidth;
-            this._height = HX.TARGET_CANVAS.clientHeight;
+        var width, height;
+        if (renderTarget) {
+            width = renderTarget.width;
+            height = renderTarget.height;
+        }
+        else {
+            width = HX.TARGET_CANVAS.clientWidth;
+            height = HX.TARGET_CANVAS.clientHeight;
+        }
+        if (this._width !== width || this._height !== height) {
+            this._width = width;
+            this._height = height;
             this._updateGBuffer(this._width, this._height);
             this._hdrBack.resize(this._width, this._height);
             this._hdrFront.resize(this._width, this._height);

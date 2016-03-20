@@ -193,6 +193,11 @@ Object.defineProperties(HX.Camera.prototype, {
     }
 });
 
+HX.Camera.prototype.acceptVisitor = function(visitor)
+{
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+};
+
 HX.Camera.prototype._setRenderTargetResolution = function(width, height)
 {
     this._renderTargetWidth = width;

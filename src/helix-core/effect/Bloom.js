@@ -1,9 +1,9 @@
 /**
  * @constructor
  */
-HX.BloomBlurPass = function(kernelSize, strength, directionX, directionY, resolutionX, resolutionY)
+HX.BloomBlurPass = function(kernelSize, directionX, directionY, resolutionX, resolutionY)
 {
-    this._initWeights(kernelSize, strength);
+    this._initWeights(kernelSize);
 
     var defines = {
         SOURCE_RES: "vec2(float(" + resolutionX + "), float(" + resolutionY + "))",
@@ -37,7 +37,7 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSize)
     }
 
     for (var j = 0; j < kernelSize; ++j) {
-        this._weights[j] /= total;
+        this._weights[j] *= total;
     }
 };
 
@@ -71,7 +71,7 @@ HX.BloomEffect = function(size, strength, downScale)
 
     this._size = size || 512;
 
-    this._strength = strength === undefined? 1.0 : undefined;
+    this._strength = strength === undefined? 1.0 : strength;
 
     if (HX.EXT_HALF_FLOAT_TEXTURES_LINEAR && HX.EXT_HALF_FLOAT_TEXTURES)
         this.thresholdLuminance = 1.0;
@@ -79,9 +79,23 @@ HX.BloomEffect = function(size, strength, downScale)
         this.thresholdLuminance = .9;
 
     this._compositePass.setTexture("bloomTexture", this._thresholdMaps[0]);
+
+    this.strength = strength;
 };
 
-HX.BloomEffect.prototype = Object.create(HX.Effect.prototype);
+HX.BloomEffect.prototype = Object.create(HX.Effect.prototype,
+    {
+        strength: {
+            get: function() {
+                return this._strength;
+            },
+
+            set: function(value) {
+                this._strength = value;
+                this._compositePass.setUniform("strength", this._strength);
+            }
+        }
+    });
 
 HX.BloomEffect.prototype._initTextures = function()
 {
@@ -98,8 +112,8 @@ HX.BloomEffect.prototype._initBlurPass = function()
     var width = this._targetWidth / this._downScale;
     var height = this._targetHeight / this._downScale;
     // direction used to provide step size
-    this._blurXPass = new HX.BloomBlurPass(size, this._strength, 1, 0, width, height);
-    this._blurYPass = new HX.BloomBlurPass(size, this._strength, 0, 1, width, height);
+    this._blurXPass = new HX.BloomBlurPass(size, 1, 0, width, height);
+    this._blurYPass = new HX.BloomBlurPass(size, 0, 1, width, height);
     this._blurXPass.setTexture("sourceTexture", this._thresholdMaps[0]);
     this._blurYPass.setTexture("sourceTexture", this._thresholdMaps[1]);
 };

@@ -87,9 +87,10 @@ HX.RenderCollector.prototype.visitScene = function (scene)
     }
 };
 
-HX.RenderCollector.prototype.visitEffects = function(effects, ownerNode)
+HX.RenderCollector.prototype.visitEffects = function(effects)
 {
-    if (ownerNode === this._camera) return;
+    // camera does not pass effects
+    //if (ownerNode === this._camera) return;
     var len = effects.length;
 
     for (var i = 0; i < len; ++i) {

@@ -89,5 +89,5 @@ void main()
     #endif
 
     // todo: should we linearize depth here instead?
-    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, gl_FragCoord.z, metallicnessOut, specNormalReflOut, roughnessOut);
+    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, metallicnessOut, specNormalReflOut, roughnessOut);
 }

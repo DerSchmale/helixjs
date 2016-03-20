@@ -33,13 +33,13 @@ void hx_processGeometryMRT(vec4 color, vec3 normal, float depth, float metallicn
 }
 
 #if defined(HX_NO_MRT_GBUFFER_COLOR)
-#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = color)
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = color)
 #elif defined(HX_NO_MRT_GBUFFER_NORMALS)
-#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, depth))
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, gl_FragCoord.z))
 #elif defined(HX_NO_MRT_GBUFFER_SPECULAR)
-#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, depth))
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, gl_FragCoord.z))
 #elif defined(HX_SHADOW_DEPTH_PASS)
-#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_getShadowMapValue(depth))
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z))
 #else
-#define hx_processGeometry(color, normal, depth, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, depth, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, gl_FragCoord.z, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])
 #endif

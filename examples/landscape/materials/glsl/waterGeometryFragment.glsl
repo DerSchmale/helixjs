@@ -8,7 +8,6 @@ uniform vec3 normalScaleOffset2;
 uniform vec3 normalScaleOffset3;
 uniform vec3 mixRatios;
 
-uniform float refractiveRatio;
 uniform vec3 scatteredColor;
 uniform float scatterDensity;
 

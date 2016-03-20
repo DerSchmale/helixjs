@@ -40,7 +40,7 @@ void main()
    float distance = max(hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange + viewPosition.z, 0.0);
 
    vec3 viewDir = normalize(viewPosition);
-   vec2 samplePos = screenUV - refract(vec3(0.0, 0.0, 1.0), normal, refractiveRatio).xy * clamp(distance * .5 / projPosition.w, 0.0, .1);
+   vec2 samplePos = screenUV - refract(vec3(0.0, 0.0, 1.0), normal, refractiveRatio).xy * clamp(distance, 0.0, 5.0) / projPosition.w;
    vec4 color = texture2D(hx_backbuffer, samplePos);
 
    color.x *= exp(-distance * tintedDensity.r);

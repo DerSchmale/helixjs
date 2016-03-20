@@ -17,9 +17,9 @@
         "normalScaleOffset1": [ 0.1, 0.0, 0.0 ],
         "normalScaleOffset2": [ 0.3, 0.0, 0.0 ],
         "normalScaleOffset3": [ 1.0, 0.0, 0.0 ],
-        "tintedDensity": [ 0.1756, 0.138, 0.117 ],
+        "tintedDensity": [ 0.25, 0.178, 0.117 ],
         "scatteredColor": [ 0.1, 0.35, 0.25 ],
-        "scatterDensity": 0.01,
+        "scatterDensity": 0.015,
         "refractiveRatio": 0.75,
         "mixRatios": [0.5, 0.2, 0.15]
     },

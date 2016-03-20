@@ -47,9 +47,9 @@ window.onload = function ()
 
 function initRenderer(renderer)
 {
-    renderer.localReflections = new HX.ScreenSpaceReflections(64);
-    renderer.localReflections.maxDistance = 4000.0;
-    renderer.localReflections.scale = 1.0;
+    //renderer.localReflections = new HX.ScreenSpaceReflections(64);
+    //renderer.localReflections.maxDistance = 4000.0;
+    //renderer.localReflections.scale = 1.0;
 
     var ssao = new HX.HBAO(5, 6);
     ssao.sampleRadius = 1000.0;
@@ -126,8 +126,8 @@ function initWater(scene)
 function initCamera(camera)
 {
     var fog = new HX.FogEffect();
-    fog.density = .0005;
-    fog.startDistance = 0.0;
+    fog.density = .001;
+    fog.startDistance = 100.0;
     fog.tint = new HX.Color(0x38526b).gammaToLinear();
 
     camera.nearDistance = .1;

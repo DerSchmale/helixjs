@@ -55,7 +55,7 @@ HX.drawElements = function(elementType, numIndices, offset)
     ++HX._glStats.numDrawCalls;
     HX._glStats.numTriangles += numIndices / 3;
     HX._updateRenderState();
-    HX_GL.drawElements(elementType, numIndices, HX_GL.UNSIGNED_SHORT, offset);
+    HX_GL.drawElements(elementType, numIndices, HX_GL.UNSIGNED_SHORT, offset * 2);
 };
 
 

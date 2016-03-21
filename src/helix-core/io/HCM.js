@@ -1,3 +1,7 @@
+/**
+ *
+ * @constructor
+ */
 HX.HCM = function()
 {
     HX.Importer.call(this, HX.TextureCube);

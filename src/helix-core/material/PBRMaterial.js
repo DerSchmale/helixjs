@@ -27,7 +27,7 @@ HX.PBRMaterial = function()
     this.color = this._color;
     this.alpha = 1.0;
     this.metallicness = this._metallicness;
-    this.roughness = this._minRoughness;
+    this.setRoughness(this._minRoughness);
     this.specularNormalReflection = this._specularNormalReflection;
     this.refractiveRatio = this._refractiveRatio;
 };

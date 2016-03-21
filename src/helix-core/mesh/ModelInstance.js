@@ -13,7 +13,7 @@ HX.VertexLayout = function(mesh, pass)
 
     for (var i = 0; i < mesh.numVertexAttributes; ++i) {
         var attribute = mesh.getVertexAttribute(i);
-        var index = shader.getVertexAttributeIndex(attribute.name);
+        var index = shader.getAttributeLocation(attribute.name);
 
         this._numAttributes = Math.max(this._numAttributes, index + 1);
 

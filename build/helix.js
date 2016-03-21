@@ -3473,6 +3473,26 @@ HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n
 
 HX.ShaderLibrary['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_inverseViewProjectionMatrix;\nuniform vec3 hx_cameraWorldPosition;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube\nvoid main()\n{\n    vec4 unproj = hx_inverseViewProjectionMatrix * hx_position;\n    viewWorldDir = unproj.xyz / unproj.w - hx_cameraWorldPosition;\n    gl_Position = vec4(hx_position.xy, 1.0, 1.0);  // make sure it\'s drawn behind everything else\n}';
 
+HX.ShaderLibrary['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
+
+HX.ShaderLibrary['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
+
+HX.ShaderLibrary['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['copy_with_separate_alpha_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform sampler2D alphaSource;\n\nvoid main()\n{\n   gl_FragColor = texture2D(sampler, uv);\n   gl_FragColor.a = texture2D(alphaSource, uv).a;\n}\n';
+
+HX.ShaderLibrary['debug_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(1.0 - hx_sampleLinearDepth(sampler, uv));\n}';
+
+HX.ShaderLibrary['debug_normals_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   vec4 data = texture2D(sampler, uv);\n   vec3 normal = hx_decodeNormal(data);\n   gl_FragColor = vec4(normal * .5 + .5, 1.0);\n}';
+
+HX.ShaderLibrary['linearize_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n#if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)\nuniform sampler2D sampler2; // contains the final precision in the w channel\n#endif\nuniform mat4 hx_projectionMatrix;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nfloat readDepth()\n{\n#ifdef HX_NO_DEPTH_TEXTURES\n    vec4 data;\n    data.xy = texture2D(sampler, uv).zw;\n    #ifdef HX_MAX_DEPTH_PRECISION\n        data.z = texture2D(sampler2, uv).w;\n        data.w = 0.0;\n        return hx_RGBA8ToFloat(data);\n    #else\n        return hx_RG8ToFloat(data.xy);\n    #endif\n#else\n    return texture2D(sampler, uv).x;\n#endif\n}\n\nvoid main()\n{\n	float depth = readDepth();\n	float linear = (-hx_depthToViewZ(depth, hx_projectionMatrix) - hx_cameraNearPlaneDistance) / hx_cameraFrustumRange;\n	gl_FragColor = hx_floatToRGBA8(linear);\n}';
+
+HX.ShaderLibrary['linearize_depth_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['multiply_color_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform vec4 color;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * color;\n}\n';
+
+HX.ShaderLibrary['reproject_fragment.glsl'] = 'uniform sampler2D depth;\nuniform sampler2D source;\n\nvarying vec2 uv;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform mat4 reprojectionMatrix;\n\nvec2 reproject(vec2 uv, float z)\n{\n    // need z in NDC homogeneous coords to be able to unproject\n    vec4 ndc;\n    ndc.xy = uv.xy * 2.0 - 1.0;\n    // Unprojected Z will just end up being Z again, so could put this in the unprojection matrix itself?\n    ndc.z = (hx_projectionMatrix[2][2] * z + hx_projectionMatrix[3][2]) / -z;   // ndc = hom.z / hom.w\n    ndc.w = 1.0;\n    vec4 hom = reprojectionMatrix * ndc;\n    return hom.xy / hom.w * .5 + .5;\n}\n\nvoid main()\n{\n    float depth = hx_sampleLinearDepth(depth, uv);\n    float z = -hx_cameraNearPlaneDistance - depth * hx_cameraFrustumRange;\n    vec2 reprojectedUV = reproject(uv, z);\n    gl_FragColor = texture2D(source, reprojectedUV);\n}\n\n';
+
 HX.ShaderLibrary['bloom_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform float gaussianWeights[NUM_SAMPLES];\n\nvoid main()\n{\n	vec4 total = vec4(0.0);\n	vec2 sampleUV = uv;\n	vec2 stepSize = DIRECTION / SOURCE_RES;\n	float totalWeight = 0.0;\n	for (int i = 0; i < NUM_SAMPLES; ++i) {\n		total += texture2D(sourceTexture, sampleUV) * gaussianWeights[i];\n		sampleUV += stepSize;\n	}\n	gl_FragColor = total;\n}';
 
 HX.ShaderLibrary['bloom_blur_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord - RADIUS * DIRECTION / SOURCE_RES;\n	gl_Position = hx_position;\n}';
@@ -3501,26 +3521,6 @@ HX.ShaderLibrary['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nunifo
 
 HX.ShaderLibrary['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	gl_FragColor = color / (1.0 + color);\n}';
 
-HX.ShaderLibrary['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
-
-HX.ShaderLibrary['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
-
-HX.ShaderLibrary['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['copy_with_separate_alpha_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform sampler2D alphaSource;\n\nvoid main()\n{\n   gl_FragColor = texture2D(sampler, uv);\n   gl_FragColor.a = texture2D(alphaSource, uv).a;\n}\n';
-
-HX.ShaderLibrary['debug_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(1.0 - hx_sampleLinearDepth(sampler, uv));\n}';
-
-HX.ShaderLibrary['debug_normals_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   vec4 data = texture2D(sampler, uv);\n   vec3 normal = hx_decodeNormal(data);\n   gl_FragColor = vec4(normal * .5 + .5, 1.0);\n}';
-
-HX.ShaderLibrary['linearize_depth_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n#if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)\nuniform sampler2D sampler2; // contains the final precision in the w channel\n#endif\nuniform mat4 hx_projectionMatrix;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nfloat readDepth()\n{\n#ifdef HX_NO_DEPTH_TEXTURES\n    vec4 data;\n    data.xy = texture2D(sampler, uv).zw;\n    #ifdef HX_MAX_DEPTH_PRECISION\n        data.z = texture2D(sampler2, uv).w;\n        data.w = 0.0;\n        return hx_RGBA8ToFloat(data);\n    #else\n        return hx_RG8ToFloat(data.xy);\n    #endif\n#else\n    return texture2D(sampler, uv).x;\n#endif\n}\n\nvoid main()\n{\n	float depth = readDepth();\n	float linear = (-hx_depthToViewZ(depth, hx_projectionMatrix) - hx_cameraNearPlaneDistance) / hx_cameraFrustumRange;\n	gl_FragColor = hx_floatToRGBA8(linear);\n}';
-
-HX.ShaderLibrary['linearize_depth_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['multiply_color_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\nuniform vec4 color;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * color;\n}\n';
-
-HX.ShaderLibrary['reproject_fragment.glsl'] = 'uniform sampler2D depth;\nuniform sampler2D source;\n\nvarying vec2 uv;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform mat4 reprojectionMatrix;\n\nvec2 reproject(vec2 uv, float z)\n{\n    // need z in NDC homogeneous coords to be able to unproject\n    vec4 ndc;\n    ndc.xy = uv.xy * 2.0 - 1.0;\n    // Unprojected Z will just end up being Z again, so could put this in the unprojection matrix itself?\n    ndc.z = (hx_projectionMatrix[2][2] * z + hx_projectionMatrix[3][2]) / -z;   // ndc = hom.z / hom.w\n    ndc.w = 1.0;\n    vec4 hom = reprojectionMatrix * ndc;\n    return hom.xy / hom.w * .5 + .5;\n}\n\nvoid main()\n{\n    float depth = hx_sampleLinearDepth(depth, uv);\n    float z = -hx_cameraNearPlaneDistance - depth * hx_cameraFrustumRange;\n    vec2 reprojectedUV = reproject(uv, z);\n    gl_FragColor = texture2D(source, reprojectedUV);\n}\n\n';
-
 HX.ShaderLibrary['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias, vec2 screenUV)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
 
 HX.ShaderLibrary['dir_shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias, vec2 screenUV)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
@@ -3538,6 +3538,10 @@ HX.ShaderLibrary['snippets_general.glsl'] = 'float saturate(float value)\n{\n   
 HX.ShaderLibrary['snippets_geometry_pass.glsl'] = 'vec4 hx_encodeNormalDepth(vec3 normal, float depth)\n{\n	#ifdef HX_NO_DEPTH_TEXTURES\n    	vec4 data;\n    	float p = sqrt(normal.z*8.0 + 8.0);\n        data.xy = normal.xy / p + .5;\n    	#ifdef HX_MAX_DEPTH_PRECISION\n		data.zw = hx_floatToRGBA8(depth).xy;\n		#else\n		data.zw = hx_floatToRG8(depth).xy;\n		#endif\n		return data;\n	#else\n		return vec4(normal * .5 + .5, 1.0);\n    #endif\n}\n\nvec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness, float depth)\n{\n    #if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)\n    depth = hx_floatToRGBA8(depth).z;\n    #else\n    depth = 1.0;\n    #endif\n	return vec4(roughness, specularNormalReflection * 5.0, metallicness, depth);\n}\n\nvoid hx_processGeometryMRT(vec4 color, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 colorData, out vec4 normalData, out vec4 specularData)\n{\n    colorData = color;\n	normalData = hx_encodeNormalDepth(normal, depth);\n    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, depth);\n}\n\n#if defined(HX_NO_MRT_GBUFFER_COLOR)\n#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = color)\n#elif defined(HX_NO_MRT_GBUFFER_NORMALS)\n#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, gl_FragCoord.z))\n#elif defined(HX_NO_MRT_GBUFFER_SPECULAR)\n#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, gl_FragCoord.z))\n#elif defined(HX_SHADOW_DEPTH_PASS)\n#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z))\n#else\n#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, gl_FragCoord.z, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])\n#endif';
 
 HX.ShaderLibrary['snippets_tonemap.glsl'] = 'varying vec2 uv;\n\n#ifdef ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef ADAPTIVE\n    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x);\n	float key = 1.03 - (2.0 / (2.0 + log(referenceLuminance + 1.0)/log(10.0)));\n	float exposure = key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
+
+HX.ShaderLibrary['2d_to_cube_vertex.glsl'] = '// position to write to\nattribute vec4 hx_position;\n\n// the corner of the cube map\nattribute vec3 corner;\n\nvarying vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
+
+HX.ShaderLibrary['equirectangular_to_cube_fragment.glsl'] = '#define RECIPROCAL_PI2 0.15915494\n\nvarying vec3 direction;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    vec3 dir = normalize(direction);\n    vec2 uv;\n    uv.x = atan( dir.z, dir.x ) * RECIPROCAL_PI2 + 0.5;\n	uv.y = dir.y * 0.5 + 0.5;\n    gl_FragColor = texture2D(source, uv);\n}\n';
 
 HX.ShaderLibrary['ao_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 halfTexelOffset;\n\nvoid main()\n{\n    vec4 total = texture2D(source, uv - halfTexelOffset * 3.0);\n    total += texture2D(source, uv + halfTexelOffset);\n	gl_FragColor = total * .5;\n}';
 
@@ -6818,7 +6822,7 @@ HX.drawElements = function(elementType, numIndices, offset)
     ++HX._glStats.numDrawCalls;
     HX._glStats.numTriangles += numIndices / 3;
     HX._updateRenderState();
-    HX_GL.drawElements(elementType, numIndices, HX_GL.UNSIGNED_SHORT, offset);
+    HX_GL.drawElements(elementType, numIndices, HX_GL.UNSIGNED_SHORT, offset * 2);
 };
 
 
@@ -7571,7 +7575,12 @@ HX.Shader.prototype = {
 
     getProgram: function() { return this._program; },
 
-    getVertexAttributeIndex: function(name)
+    getUniformLocation: function(name)
+    {
+        return HX_GL.getUniformLocation(this._program, name);
+    },
+
+    getAttributeLocation: function(name)
     {
         return HX_GL.getAttribLocation(this._program, name);
     }
@@ -7758,7 +7767,7 @@ HX.MaterialPass.prototype = {
 
     getAttributeLocation: function(name)
     {
-        return HX_GL.getAttribLocation(this._shader._program, name);
+        return this._shader.getAttributeLocation(name);
     },
 
     setUniformArray: function(name, value)
@@ -9399,7 +9408,7 @@ HX.PBRMaterial = function()
     this.color = this._color;
     this.alpha = 1.0;
     this.metallicness = this._metallicness;
-    this.roughness = this._minRoughness;
+    this.setRoughness(this._minRoughness);
     this.specularNormalReflection = this._specularNormalReflection;
     this.refractiveRatio = this._refractiveRatio;
 };
@@ -10798,7 +10807,7 @@ HX.VertexLayout = function(mesh, pass)
 
     for (var i = 0; i < mesh.numVertexAttributes; ++i) {
         var attribute = mesh.getVertexAttribute(i);
-        var index = shader.getVertexAttributeIndex(attribute.name);
+        var index = shader.getAttributeLocation(attribute.name);
 
         this._numAttributes = Math.max(this._numAttributes, index + 1);
 
@@ -12632,10 +12641,11 @@ HX.TorusPrimitive._generate = function(target, definition)
 /**
  * @constructor
  */
-HX.FrameBuffer = function(colorTextures, depthBuffer)
+HX.FrameBuffer = function(colorTextures, depthBuffer, cubeFace)
 {
     if (colorTextures && colorTextures[0] === undefined) colorTextures = [ colorTextures ];
 
+    this._cubeFace = cubeFace;
     this._colorTextures = colorTextures;
     this._numColorTextures = this._colorTextures? this._colorTextures.length : 0;
     this._depthBuffer = depthBuffer;
@@ -12672,8 +12682,13 @@ HX.FrameBuffer.prototype = {
         HX_GL.bindFramebuffer(HX_GL.FRAMEBUFFER, this._fbo);
 
         if (this._colorTextures) {
-            this._width = this._colorTextures[0]._width;
-            this._height = this._colorTextures[0]._height;
+            if (this._cubeFace === undefined) {
+                this._width = this._colorTextures[0]._width;
+                this._height = this._colorTextures[0]._height;
+            }
+            else {
+                this._height = this._width = this._colorTextures[0].size;
+            }
         }
         else  {
             this._width = this._depthBuffer._width;
@@ -12682,12 +12697,13 @@ HX.FrameBuffer.prototype = {
 
         for (var i = 0; i < this._numColorTextures; ++i) {
             var texture = this._colorTextures[i];
+            var target = this._cubeFace === undefined? HX_GL.TEXTURE_2D : this._cubeFace;
 
             if (HX.EXT_DRAW_BUFFERS)
-                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, HX_GL.TEXTURE_2D, texture._texture, 0);
+                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, target, texture._texture, 0);
             else
             // try using default (will only work for 1 color texture tho)
-                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX_GL.COLOR_ATTACHMENT0 + i, HX_GL.TEXTURE_2D, texture._texture, 0);
+                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX_GL.COLOR_ATTACHMENT0 + i, target, texture._texture, 0);
         }
 
 
@@ -12770,6 +12786,8 @@ HX.Texture2D = function()
     this._texture = HX_GL.createTexture();
     this._width = 0;
     this._height = 0;
+    this._format = null;
+    this._dataType = null;
 
     this.bind();
 
@@ -12868,11 +12886,13 @@ HX.Texture2D.prototype =
 
     get width() { return this._width; },
     get height() { return this._height; },
+    get format() { return this._format; },
+    get dataType() { return this._dataType; },
 
     initEmpty: function(width, height, format, dataType)
     {
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
 
         this.bind();
         this._width = width;
@@ -12890,8 +12910,8 @@ HX.Texture2D.prototype =
         this._width = width;
         this._height = height;
 
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? false: generateMips;
 
         this.bind();
@@ -12911,8 +12931,8 @@ HX.Texture2D.prototype =
         this._width = width;
         this._height = height;
 
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? true: generateMips;
 
         this.bind();
@@ -12959,6 +12979,8 @@ HX.TextureCube = function()
     this._default = HX.TextureCube.DEFAULT;
     this._texture = HX_GL.createTexture();
     this._size = 0;
+    this._format = null;
+    this._dataType = null;
 
     this.bind();
     this.filter = HX.TextureFilter.DEFAULT;
@@ -13036,11 +13058,13 @@ HX.TextureCube.prototype =
     },
 
     get size() { return this._size; },
+    get format() { return this._format; },
+    get dataType() { return this._dataType; },
 
     initEmpty: function(size, format, dataType)
     {
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
 
         this._size = size;
 
@@ -13062,8 +13086,8 @@ HX.TextureCube.prototype =
     {
         this._size = size;
 
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? true: generateMips;
 
         this.bind();
@@ -13089,6 +13113,9 @@ HX.TextureCube.prototype =
     {
         generateMips = generateMips === undefined? true: generateMips;
 
+        this._format = format;
+        this._dataType = dataType;
+
         this.uploadImagesToMipLevel(images, 0, format, dataType);
 
         if (generateMips) {
@@ -13103,8 +13130,8 @@ HX.TextureCube.prototype =
 
     uploadImagesToMipLevel: function(images, mipLevel, format, dataType)
     {
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
 
         if (mipLevel == 0)
             this._size = images[0].naturalWidth;
@@ -13162,6 +13189,108 @@ HX.TextureUtils =
     isPowerOfTwo: function(value)
     {
         return value? ((value & -value) === value) : false;
+    },
+
+    equirectangularToCube: function(source, size, generateMipmaps, target)
+    {
+        generateMipmaps = generateMipmaps || true;
+        size = size || source.height;
+
+        if (!HX.TextureUtils._EQUI_TO_CUBE_SHADER)
+            HX.TextureUtils._EQUI_TO_CUBE_SHADER = new HX.Shader(HX.ShaderLibrary.get("2d_to_cube_vertex.glsl"), HX.ShaderLibrary.get("equirectangular_to_cube_fragment.glsl"));
+
+        this._createRenderCubeGeometry();
+
+        target = target || new HX.TextureCube();
+        target.initEmpty(size, source.format, source.dataType);
+        var faces = [ HX_GL.TEXTURE_CUBE_MAP_POSITIVE_X, HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_X, HX_GL.TEXTURE_CUBE_MAP_POSITIVE_Y, HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_Y, HX_GL.TEXTURE_CUBE_MAP_POSITIVE_Z, HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_Z ];
+
+        HX.TextureUtils._EQUI_TO_CUBE_SHADER.updateRenderState();
+
+        var textureLocation = HX.TextureUtils._EQUI_TO_CUBE_SHADER.getUniformLocation("source");
+        var posLocation = HX.TextureUtils._EQUI_TO_CUBE_SHADER.getAttributeLocation("hx_position");
+        var cornerLocation = HX.TextureUtils._EQUI_TO_CUBE_SHADER.getAttributeLocation("corner");
+
+        HX_GL.uniform1i(textureLocation, 0);
+        source.bind(0);
+
+        HX.TextureUtils._TO_CUBE_VERTICES.bind();
+        HX.TextureUtils._TO_CUBE_INDICES.bind();
+        HX_GL.vertexAttribPointer(posLocation, 2, HX_GL.FLOAT, false, 20, 0);
+        HX_GL.vertexAttribPointer(cornerLocation, 3, HX_GL.FLOAT, false, 20, 8);
+
+        HX.enableAttributes(2);
+
+        for (var i = 0; i < 6; ++i) {
+            var fbo = new HX.FrameBuffer(target, null, faces[i]);
+            fbo.init();
+
+            HX.pushRenderTarget(fbo);
+
+            HX.drawElements(HX_GL.TRIANGLES, 6, i * 6);
+            HX.popRenderTarget(fbo);
+
+            fbo.dispose();
+        }
+
+        if (generateMipmaps)
+            target.generateMipmap();
+
+        return target;
+    },
+
+    _createRenderCubeGeometry: function()
+    {
+        if (HX.TextureUtils._TO_CUBE_VERTICES) return;
+        var vertices = [
+            // pos X
+            1.0, 1.0, 1.0, -1.0, -1.0,
+            -1.0, 1.0, 1.0, -1.0, 1.0,
+            -1.0, -1.0, 1.0, 1.0, 1.0,
+            1.0, -1.0, 1.0, 1.0, -1.0,
+
+            // neg X
+            1.0, 1.0, -1.0, -1.0, 1.0,
+            -1.0, 1.0, -1.0, -1.0, -1.0,
+            -1.0, -1.0, -1.0, 1.0, -1.0,
+            1.0, -1.0, -1.0, 1.0, 1.0,
+
+            // pos Y
+            -1.0, -1.0, -1.0, 1.0, -1.0,
+            1.0, -1.0, 1.0, 1.0, -1.0,
+            1.0, 1.0, 1.0, 1.0, 1.0,
+            -1.0, 1.0, -1.0, 1.0, 1.0,
+
+            // neg Y
+            -1.0, -1.0, -1.0, -1.0, 1.0,
+            1.0, -1.0, 1.0, -1.0, 1.0,
+            1.0, 1.0, 1.0, -1.0, -1.0,
+            -1.0, 1.0, -1.0, -1.0, -1.0,
+
+            // pos Z
+            1.0, 1.0, 1.0, -1.0, 1.0,
+            -1.0, 1.0, -1.0, -1.0, 1.0,
+            -1.0, -1.0, -1.0, 1.0, 1.0,
+            1.0, -1.0, 1.0, 1.0, 1.0,
+
+            // neg Z
+            1.0, 1.0, -1.0, -1.0, -1.0,
+            -1.0, 1.0, 1.0, -1.0, -1.0,
+            -1.0, -1.0, 1.0, 1.0, -1.0,
+            1.0, -1.0, -1.0, 1.0, -1.0
+        ];
+        var indices = [
+            0, 1, 2, 0, 2, 3,
+            4, 5, 6, 4, 6, 7,
+            8, 9, 10, 8, 10, 11,
+            12, 13, 14, 12, 14, 15,
+            16, 17, 18, 16, 18, 19,
+            20, 21, 22, 20, 22, 23
+        ];
+        HX.TextureUtils._TO_CUBE_VERTICES = new HX.VertexBuffer();
+        HX.TextureUtils._TO_CUBE_INDICES = new HX.IndexBuffer();
+        HX.TextureUtils._TO_CUBE_VERTICES.uploadData(new Float32Array(vertices));
+        HX.TextureUtils._TO_CUBE_INDICES.uploadData(new Uint16Array(indices));
     }
 };
 HX.BlendState = function(srcFactor, dstFactor, operator, color)
@@ -16649,6 +16778,10 @@ HX.BulkAssetLoader.prototype =
             this.onFail(message);
     }
 };
+/**
+ *
+ * @constructor
+ */
 HX.HCM = function()
 {
     HX.Importer.call(this, HX.TextureCube);
@@ -16993,6 +17126,30 @@ HX.HMT._initPropertyMap = function() {
         opaque: HX.TransparencyMode.OPAQUE
     };
 };
+/**
+ * Loads a jpg or png equirectangular as a cubemap
+ * @constructor
+ */
+HX.JPG_EQUIRECTANGULAR = function()
+{
+    HX.Importer.call(this, HX.TextureCube, HX.Importer.TYPE_IMAGE);
+};
+
+HX.JPG_EQUIRECTANGULAR.prototype = Object.create(HX.Importer.prototype);
+
+HX.JPG_EQUIRECTANGULAR.prototype.parse = function(data, target)
+{
+    var texture2D = new HX.Texture2D();
+    texture2D.wrapMode = HX.TextureWrapMode.REPEAT;
+    texture2D.uploadImage(data, data.naturalWidth, data.naturalHeight, true);
+
+    var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
+    HX.TextureUtils.equirectangularToCube(texture2D, this.options.size, generateMipmaps, target);
+    texture2D.dispose();
+    this._notifyComplete(target);
+};
+
+HX.PNG_EQUIRECTANGULAR = HX.JPG_EQUIRECTANGULAR;
 HX.JPG = function()
 {
     HX.Importer.call(this, HX.Texture2D, HX.Importer.TYPE_IMAGE);

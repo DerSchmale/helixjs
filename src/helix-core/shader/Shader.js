@@ -119,7 +119,12 @@ HX.Shader.prototype = {
 
     getProgram: function() { return this._program; },
 
-    getVertexAttributeIndex: function(name)
+    getUniformLocation: function(name)
+    {
+        return HX_GL.getUniformLocation(this._program, name);
+    },
+
+    getAttributeLocation: function(name)
     {
         return HX_GL.getAttribLocation(this._program, name);
     }

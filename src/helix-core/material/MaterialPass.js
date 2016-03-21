@@ -180,7 +180,7 @@ HX.MaterialPass.prototype = {
 
     getAttributeLocation: function(name)
     {
-        return HX_GL.getAttribLocation(this._shader._program, name);
+        return this._shader.getAttributeLocation(name);
     },
 
     setUniformArray: function(name, value)

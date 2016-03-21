@@ -1,10 +1,11 @@
 /**
  * @constructor
  */
-HX.FrameBuffer = function(colorTextures, depthBuffer)
+HX.FrameBuffer = function(colorTextures, depthBuffer, cubeFace)
 {
     if (colorTextures && colorTextures[0] === undefined) colorTextures = [ colorTextures ];
 
+    this._cubeFace = cubeFace;
     this._colorTextures = colorTextures;
     this._numColorTextures = this._colorTextures? this._colorTextures.length : 0;
     this._depthBuffer = depthBuffer;
@@ -41,8 +42,13 @@ HX.FrameBuffer.prototype = {
         HX_GL.bindFramebuffer(HX_GL.FRAMEBUFFER, this._fbo);
 
         if (this._colorTextures) {
-            this._width = this._colorTextures[0]._width;
-            this._height = this._colorTextures[0]._height;
+            if (this._cubeFace === undefined) {
+                this._width = this._colorTextures[0]._width;
+                this._height = this._colorTextures[0]._height;
+            }
+            else {
+                this._height = this._width = this._colorTextures[0].size;
+            }
         }
         else  {
             this._width = this._depthBuffer._width;
@@ -51,12 +57,13 @@ HX.FrameBuffer.prototype = {
 
         for (var i = 0; i < this._numColorTextures; ++i) {
             var texture = this._colorTextures[i];
+            var target = this._cubeFace === undefined? HX_GL.TEXTURE_2D : this._cubeFace;
 
             if (HX.EXT_DRAW_BUFFERS)
-                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, HX_GL.TEXTURE_2D, texture._texture, 0);
+                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, target, texture._texture, 0);
             else
             // try using default (will only work for 1 color texture tho)
-                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX_GL.COLOR_ATTACHMENT0 + i, HX_GL.TEXTURE_2D, texture._texture, 0);
+                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX_GL.COLOR_ATTACHMENT0 + i, target, texture._texture, 0);
         }
 
 

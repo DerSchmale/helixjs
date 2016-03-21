@@ -9,6 +9,8 @@ HX.Texture2D = function()
     this._texture = HX_GL.createTexture();
     this._width = 0;
     this._height = 0;
+    this._format = null;
+    this._dataType = null;
 
     this.bind();
 
@@ -107,11 +109,13 @@ HX.Texture2D.prototype =
 
     get width() { return this._width; },
     get height() { return this._height; },
+    get format() { return this._format; },
+    get dataType() { return this._dataType; },
 
     initEmpty: function(width, height, format, dataType)
     {
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
 
         this.bind();
         this._width = width;
@@ -129,8 +133,8 @@ HX.Texture2D.prototype =
         this._width = width;
         this._height = height;
 
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? false: generateMips;
 
         this.bind();
@@ -150,8 +154,8 @@ HX.Texture2D.prototype =
         this._width = width;
         this._height = height;
 
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? true: generateMips;
 
         this.bind();
@@ -198,6 +202,8 @@ HX.TextureCube = function()
     this._default = HX.TextureCube.DEFAULT;
     this._texture = HX_GL.createTexture();
     this._size = 0;
+    this._format = null;
+    this._dataType = null;
 
     this.bind();
     this.filter = HX.TextureFilter.DEFAULT;
@@ -275,11 +281,13 @@ HX.TextureCube.prototype =
     },
 
     get size() { return this._size; },
+    get format() { return this._format; },
+    get dataType() { return this._dataType; },
 
     initEmpty: function(size, format, dataType)
     {
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
 
         this._size = size;
 
@@ -301,8 +309,8 @@ HX.TextureCube.prototype =
     {
         this._size = size;
 
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? true: generateMips;
 
         this.bind();
@@ -328,6 +336,9 @@ HX.TextureCube.prototype =
     {
         generateMips = generateMips === undefined? true: generateMips;
 
+        this._format = format;
+        this._dataType = dataType;
+
         this.uploadImagesToMipLevel(images, 0, format, dataType);
 
         if (generateMips) {
@@ -342,8 +353,8 @@ HX.TextureCube.prototype =
 
     uploadImagesToMipLevel: function(images, mipLevel, format, dataType)
     {
-        format = format || HX_GL.RGBA;
-        dataType = dataType || HX_GL.UNSIGNED_BYTE;
+        this._format = format = format || HX_GL.RGBA;
+        this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
 
         if (mipLevel == 0)
             this._size = images[0].naturalWidth;

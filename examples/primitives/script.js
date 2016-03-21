@@ -93,12 +93,14 @@ function initScene(scene)
     modelInstance.position.y = -.3;
     scene.attach(modelInstance);
 
-    primitive = HX.PlanePrimitive.create(
+    primitive = HX.TorusPrimitive.create(
         {
-            alignment: HX.PlanePrimitive.ALIGN_XY,
+            alignment: HX.TorusPrimitive.ALIGN_XY,
             doubleSided: true,
-            width:.5,
-            height:.5
+            radius:.25,
+            tubeRadius:.05,
+            numSegmentsH: 20,
+            numSegmentsW: 30
         });
 
     modelInstance = new HX.ModelInstance(primitive, material);

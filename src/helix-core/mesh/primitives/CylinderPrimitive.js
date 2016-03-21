@@ -115,9 +115,6 @@ HX.CylinderPrimitive._generate = function(target, definition)
                 }
                 break;
 
-            //[ 1, 0,  0 ] [ x ] = [  x ]
-            //[ 0, 0, -1 ] [ y ] = [ -z ]
-            //[ 0, 1,  0 ] [ z ] = [  y ]
             case HX.CylinderPrimitive.ALIGN_Z:
                 positions.push(cx, cy, -halfH);
                 positions.push(cx, cy, halfH);

@@ -42,6 +42,7 @@ var coreFiles = [
     "src/helix-core/scene/*.js",
     "src/helix-core/mesh/*.js",
     "src/helix-core/light/*.js",
+    "src/helix-core/mesh/primitives/Primitive.js",
     "src/helix-core/mesh/primitives/*.js",
     "src/helix-core/texture/*.js",
     "src/helix-core/render/*.js",

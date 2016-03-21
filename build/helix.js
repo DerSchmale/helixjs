@@ -11885,12 +11885,119 @@ HX.VSMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
 
     HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
+HX.Primitive =
+{
+    _ATTRIBS: function()
+    {
+        this.positions = [];
+        this.uvs = null;
+        this.normals = null;
+        this.indices = [];
+    },
+
+    define: function()
+    {
+        var type = {};
+
+        type.createMeshData = function(definition)
+        {
+            var attribs = new HX.Primitive._ATTRIBS();
+            var uvs = definition.uvs === undefined? true : definition.uvs;
+            var normals = definition.normals === undefined? true : definition.normals;
+            var tangents = definition.tangents === undefined? true : definition.tangents;
+
+            var data = new HX.MeshData();
+            data.addVertexAttribute('hx_position', 3);
+
+            if (normals) {
+                data.addVertexAttribute('hx_normal', 3);
+                attribs.normals = [];
+            }
+
+            if (tangents)
+                data.addVertexAttribute('hx_tangent', 4);
+
+            if (uvs) {
+                data.addVertexAttribute('hx_texCoord', 2);
+                attribs.uvs = [];
+            }
+
+            type._generate(attribs, definition);
+
+            var scaleU = definition.scaleU || 1;
+            var scaleV = definition.scaleV || 1;
+
+            var len = attribs.positions.length / 3;
+            var v = 0, v2 = 0, v3 = 0;
+            var vertices = [];
+
+            for (var i = 0; i < len; ++i) {
+                vertices[v++] = attribs.positions[v3];
+                vertices[v++] = attribs.positions[v3 + 1];
+                vertices[v++] = attribs.positions[v3 + 2];
+
+                if (normals) {
+                    vertices[v++] = attribs.normals[v3];
+                    vertices[v++] = attribs.normals[v3 + 1];
+                    vertices[v++] = attribs.normals[v3 + 2];
+                }
+
+                if (tangents)
+                    v += 4;
+
+                if (uvs) {
+                    vertices[v++] = attribs.uvs[v2++] * scaleU;
+                    vertices[v++] = attribs.uvs[v2++] * scaleV;
+                }
+
+                v3 += 3;
+            }
+
+            data.setVertexData(vertices, 0);
+            data.setIndexData(attribs.indices);
+
+            var mode = 0;
+
+            // if data isn't provided, generate it manually
+            if (normals && attribs.normals.length === 0)
+                mode |= HX.NormalTangentGenerator.MODE_NORMALS;
+
+            if (tangents)
+                mode |= HX.NormalTangentGenerator.MODE_TANGENTS;
+
+            if (mode) {
+                var generator = new HX.NormalTangentGenerator();
+                generator.generate(data, mode);
+            }
+
+            return data;
+        };
+
+        type.create = function definition(definition) {
+            definition = definition || {};
+
+            var data = type.createMeshData(definition);
+
+            var modelData = new HX.ModelData();
+            modelData.addMeshData(data);
+
+            return new HX.Model(modelData);
+        };
+
+        type.createMesh = function definition(definition) {
+            var data = type.createMeshData(definition);
+            return new HX.Mesh(data);
+        };
+
+        return type;
+    }
+};
 /**
  * @constructor
  */
-HX.BoxPrimitive = {};
+HX.BoxPrimitive = HX.Primitive.define();
 
-HX.BoxPrimitive._createMeshData = function(definition)
+HX.BoxPrimitive._generate = function(target, definition)
 {
     var numSegmentsW = definition.numSegmentsW || 1;
     var numSegmentsH = definition.numSegmentsH || definition.numSegmentsW || 1;
@@ -11898,29 +12005,9 @@ HX.BoxPrimitive._createMeshData = function(definition)
     var width = definition.width || 1;
     var height = definition.height || width;
     var depth = definition.depth || width;
-    var scaleU = definition.scaleU || 1;
-    var scaleV = definition.scaleV || 1;
     var flipSign = definition.invert? -1 : 1;
-    var uvs = definition.uvs === undefined? true : definition.uvs;
-    var normals = definition.normals === undefined? true : definition.normals;
-    var tangents = definition.tangents === undefined? true : definition.tangents;
     var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
 
-    var data = new HX.MeshData();
-    data.addVertexAttribute('hx_position', 3);
-    if (normals) data.addVertexAttribute('hx_normal', 3);
-    if (tangents) data.addVertexAttribute('hx_tangent', 4);
-    if (uvs) data.addVertexAttribute('hx_texCoord', 2);
-
-    var vertexStride = data.getVertexStride(0);
-
-    var vertices = [];
-    var indices = [];
-
-    var NUM_FACES = 6;
-
-    var oppositeVertexIndex;
-    var vertexIndex = 0;
     var rcpNumSegmentsW = 1/numSegmentsW;
     var rcpNumSegmentsH = 1/numSegmentsH;
     var rcpNumSegmentsD = 1/numSegmentsD;
@@ -11928,9 +12015,13 @@ HX.BoxPrimitive._createMeshData = function(definition)
     var halfH = height * .5;
     var halfD = depth * .5;
 
-    // front and back
-    oppositeVertexIndex = vertexIndex + (numSegmentsW + 1)*(numSegmentsH + 1) * vertexStride;
+    var positions = target.positions;
+    var uvs = target.uvs;
+    var normals = target.normals;
+    var indices = target.indices;
 
+
+    // front and back
     for (var hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
         var ratioV = hSegment * rcpNumSegmentsH;
         var y = height * ratioV - halfH;
@@ -11943,46 +12034,20 @@ HX.BoxPrimitive._createMeshData = function(definition)
             if (flipSign < 0) ratioU = 1.0 - ratioU;
 
             // front and back
-            vertices[vertexIndex++] = x*flipSign;
-            vertices[vertexIndex++] = y*flipSign;
-            vertices[vertexIndex++] = halfD*flipSign;
-
-            vertices[oppositeVertexIndex++] = -x*flipSign;
-            vertices[oppositeVertexIndex++] = y*flipSign;
-            vertices[oppositeVertexIndex++] = -halfD*flipSign;
-
+            positions.push(x*flipSign, y*flipSign, halfD*flipSign);
+            positions.push(-x*flipSign, y*flipSign, -halfD*flipSign);
 
             if (normals) {
-                vertices[vertexIndex++] = 0;
-                vertices[vertexIndex++] = 0;
-                vertices[vertexIndex++] = 1;
-                vertices[oppositeVertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = -1;
-            }
-
-            if (tangents) {
-                vertices[vertexIndex++] = 1;
-                vertices[vertexIndex++] = 0;
-                vertices[vertexIndex++] = 0;
-                vertices[vertexIndex++] = 1;
-                vertices[oppositeVertexIndex++] = -1;
-                vertices[oppositeVertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = 1;
+                normals.push(0, 0, 1);
+                normals.push(0, 0, -1);
             }
 
             if (uvs) {
-                vertices[vertexIndex++] = ratioU*scaleU;
-                vertices[vertexIndex++] = ratioV*scaleV;
-                vertices[oppositeVertexIndex++] = ratioU*scaleU;
-                vertices[oppositeVertexIndex++] = ratioV*scaleV;
+                uvs.push(ratioU, ratioV);
+                uvs.push(ratioU, ratioV);
             }
         }
     }
-
-    vertexIndex = oppositeVertexIndex;
-    oppositeVertexIndex = vertexIndex + (numSegmentsD + 1)*(numSegmentsH + 1) * vertexStride;
 
     for (var hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
         var ratioV = hSegment * rcpNumSegmentsH;
@@ -11993,44 +12058,20 @@ HX.BoxPrimitive._createMeshData = function(definition)
             var z = depth * ratioU - halfD;
 
             // left and right
-            vertices[vertexIndex++] = -halfW;
-            vertices[vertexIndex++] = y;
-            vertices[vertexIndex++] = z*flipSign;
-            vertices[oppositeVertexIndex++] = halfW;
-            vertices[oppositeVertexIndex++] = y;
-            vertices[oppositeVertexIndex++] = -z*flipSign;
+            positions.push(-halfW, y, z*flipSign);
+            positions.push(halfW, y, -z*flipSign);
 
             if (normals) {
-                vertices[vertexIndex++] = -flipSign;
-                vertices[vertexIndex++] = 0;
-                vertices[vertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = flipSign;
-                vertices[oppositeVertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = 0;
-            }
-
-            if (tangents) {
-                vertices[vertexIndex++] = 0;
-                vertices[vertexIndex++] = 0;
-                vertices[vertexIndex++] = flipSign;
-                vertices[vertexIndex++] = 1;
-                vertices[oppositeVertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = -flipSign;
-                vertices[oppositeVertexIndex++] = 1;
+                normals.push(-flipSign, 0, 0);
+                normals.push(flipSign, 0, 0);
             }
 
             if (uvs) {
-                vertices[vertexIndex++] = ratioU*scaleU;
-                vertices[vertexIndex++] = ratioV*scaleV;
-                vertices[oppositeVertexIndex++] = ratioU*scaleU;
-                vertices[oppositeVertexIndex++] = ratioV*scaleV;
+                uvs.push(ratioU, ratioV);
+                uvs.push(ratioU, ratioV);
             }
         }
     }
-
-    vertexIndex = oppositeVertexIndex;
-    oppositeVertexIndex = vertexIndex + (numSegmentsW + 1)*(numSegmentsD + 1) * vertexStride;
 
     for (var dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
         var ratioV = dSegment * rcpNumSegmentsD;
@@ -12041,103 +12082,201 @@ HX.BoxPrimitive._createMeshData = function(definition)
             var x = width * ratioU - halfW;
 
             // top and bottom
-            vertices[vertexIndex++] = x;
-            vertices[vertexIndex++] = halfH;
-            vertices[vertexIndex++] = -z*flipSign;
-            vertices[oppositeVertexIndex++] = x;
-            vertices[oppositeVertexIndex++] = -halfH;
-            vertices[oppositeVertexIndex++] = z*flipSign;
+            positions.push(x, halfH, -z*flipSign);
+            positions.push(x, -halfH, z*flipSign);
 
             if (normals) {
-                vertices[vertexIndex++] = 0;
-                vertices[vertexIndex++] = flipSign;
-                vertices[vertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = -flipSign;
-                vertices[oppositeVertexIndex++] = 0;
-            }
-
-            if (tangents) {
-                vertices[vertexIndex++] = 1;
-                vertices[vertexIndex++] = 0;
-                vertices[vertexIndex++] = 0;
-                vertices[vertexIndex++] = 1;
-                vertices[oppositeVertexIndex++] = 1;
-                vertices[oppositeVertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = 0;
-                vertices[oppositeVertexIndex++] = 1;
+                normals.push(0, flipSign, 0);
+                normals.push(0, -flipSign, 0);
             }
 
             if (uvs) {
-                vertices[vertexIndex++] = ratioU * scaleU;
-                vertices[vertexIndex++] = ratioV * scaleV;
-                vertices[oppositeVertexIndex++] = ratioU * scaleU;
-                vertices[oppositeVertexIndex++] = ratioV * scaleV;
+                uvs.push(1.0 - ratioU, 1.0 - ratioV);
+                uvs.push(1.0 - ratioU, 1.0 - ratioV);
             }
         }
     }
 
     var offset = 0;
-    var indexIndex = 0;
-    for (var face = 0; face < NUM_FACES; ++face) {
+
+    for (var face = 0; face < 3; ++face) {
         // order:
         // front, back, left, right, bottom, top
-        var numSegmentsU = face == 2 || face == 3? numSegmentsD : numSegmentsW;
-        var numSegmentsV = face == 4 || face == 5? numSegmentsD : numSegmentsH;
+        var numSegmentsU = face === 1? numSegmentsD : numSegmentsW;
+        var numSegmentsV = face === 2? numSegmentsD : numSegmentsH;
 
         for (var yi = 0; yi < numSegmentsV; ++yi) {
             for (var xi = 0; xi < numSegmentsU; ++xi) {
                 var w = numSegmentsU + 1;
                 var base = offset + xi + yi*w;
+                var i0 = base << 1;
+                var i1 = (base + w + 1) << 1;
+                var i2 = (base + w) << 1;
+                var i3 = (base + 1) << 1;
 
-                indices[indexIndex] = base;
-                indices[indexIndex + 1] = base + w + 1;
-                indices[indexIndex + 2] = base + w;
-                indices[indexIndex + 3] = base;
-                indices[indexIndex + 4] = base + 1;
-                indices[indexIndex + 5] = base + w + 1;
+                indices.push(i0, i1, i2);
+                indices.push(i0, i3, i1);
 
-                indexIndex += 6;
+                indices.push(i0 | 1, i1 | 1, i2 | 1);
+                indices.push(i0 | 1, i3 | 1, i1 | 1);
             }
         }
         offset += (numSegmentsU + 1) * (numSegmentsV + 1);
     }
 
+    var indexIndex = 0;
     if (doubleSided) {
         var i = 0;
 
         while (i < indexIndex) {
-            indices[indexIndex + i] = indices[i];
-            indices[indexIndex + i + 1] = indices[i + 2];
-            indices[indexIndex + i + 2] = indices[i + 1];
-            indices[indexIndex + i + 3] = indices[i + 3];
-            indices[indexIndex + i + 4] = indices[i + 5];
-            indices[indexIndex + i + 5] = indices[i + 4];
+            indices.push(indices[i], indices[i + 2], indices[i + 1]);
+            indices.push(indices[i + 3], indices[i + 5], indices[i + 4]);
             indexIndex += 6;
         }
     }
-
-    data.setVertexData(vertices, 0);
-    data.setIndexData(indices);
-    return data;
 };
+HX.CylinderPrimitive = HX.Primitive.define();
 
-HX.BoxPrimitive.createMesh = function(definition)
-{
-    var data = HX.BoxPrimitive._createMeshData(definition);
-    return new HX.Mesh(data);
-};
+/**
+ * The alignment dictates which access should be parallel to the sides of the cylinder
+ * @type {number}
+ */
+HX.CylinderPrimitive.ALIGN_X = 1;
+HX.CylinderPrimitive.ALIGN_Y = 2;
+HX.CylinderPrimitive.ALIGN_Z = 3;
 
-HX.BoxPrimitive.create = function(definition)
+HX.CylinderPrimitive._generate = function(target, definition)
 {
     definition = definition || {};
+    var alignment = definition.alignment || HX.CylinderPrimitive.ALIGN_Y;
+    var numSegmentsH = definition.numSegmentsH || 1;
+    var numSegmentsW = definition.numSegmentsW || 1;
+    var radius = definition.radius || 1;
+    var height = definition.height || 1;
+    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
 
-    var data = HX.BoxPrimitive._createMeshData(definition);
+    var positions = target.positions;
+    var uvs = target.uvs;
+    var normals = target.normals;
+    var indices = target.indices;
 
-    var modelData = new HX.ModelData();
-    modelData.addMeshData(data);
+    var rcpNumSegmentsW = 1/numSegmentsW;
+    var rcpNumSegmentsH = 1/numSegmentsH;
 
-    return new HX.Model(modelData);
+    // sides
+    for (var hi = 0; hi <= numSegmentsH; ++hi) {
+        var h = (hi*rcpNumSegmentsH - .5)*height;
+        for (var ci = 0; ci <= numSegmentsW; ++ci) {
+            var angle = ci * rcpNumSegmentsW * Math.PI * 2;
+            var nx = Math.sin(angle);
+            var ny = Math.cos(angle);
+            var cx = nx * radius;
+            var cy = ny * radius;
+
+            switch (alignment) {
+                case HX.CylinderPrimitive.ALIGN_X:
+                    positions.push(-h, cx, -cy);
+                    if (normals) normals.push(0, nx, -ny);
+                    break;
+                case HX.CylinderPrimitive.ALIGN_Y:
+                    positions.push(cx, h, -cy);
+                    if (normals) normals.push(nx, 0, -ny);
+                    break;
+                case HX.CylinderPrimitive.ALIGN_Z:
+                    positions.push(cx, cy, h);
+                    if (normals) normals.push(nx, ny, 0);
+                    break;
+            }
+
+            if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, hi*rcpNumSegmentsH);
+        }
+    }
+
+    for (var hi = 0; hi < numSegmentsH; ++hi) {
+        for (var ci = 0; ci < numSegmentsW; ++ci) {
+            var w = numSegmentsW + 1;
+            var base = ci + hi*w;
+
+            indices.push(base, base + w, base + w + 1);
+            indices.push(base, base + w + 1, base + 1);
+
+            if (doubleSided) {
+                indices.push(base, base + w + 1, base + w);
+                indices.push(base, base + 1, base + w + 1);
+            }
+        }
+    }
+
+
+    // top & bottom
+    var indexOffset = positions.length / 3;
+    var halfH = height * .5;
+    for (var ci = 0; ci < numSegmentsW; ++ci) {
+        var angle = ci * rcpNumSegmentsW * Math.PI * 2;
+        var u = Math.sin(angle);
+        var v = Math.cos(angle);
+        var cx = u * radius;
+        var cy = v * radius;
+
+        u = -u * .5 + .5;
+        v = v * .5 + .5;
+
+        switch (alignment) {
+            case HX.CylinderPrimitive.ALIGN_X:
+                positions.push(halfH, cx, -cy);
+                positions.push(-halfH, cx, -cy);
+
+                if (normals) {
+                    normals.push(1, 0, 0);
+                    normals.push(-1, 0, 0);
+                }
+
+                if (uvs) {
+                    uvs.push(v, 1.0 - u);
+                    uvs.push(1.0 - v,  1.0 - u);
+                }
+                break;
+
+            case HX.CylinderPrimitive.ALIGN_Y:
+                positions.push(cx, -halfH, -cy);
+                positions.push(cx, halfH, -cy);
+
+                if (normals) {
+                    normals.push(0, -1, 0);
+                    normals.push(0, 1, 0);
+                }
+
+                if (uvs) {
+                    uvs.push(u, v);
+                    uvs.push(u, 1.0 - v);
+                }
+                break;
+
+            //[ 1, 0,  0 ] [ x ] = [  x ]
+            //[ 0, 0, -1 ] [ y ] = [ -z ]
+            //[ 0, 1,  0 ] [ z ] = [  y ]
+            case HX.CylinderPrimitive.ALIGN_Z:
+                positions.push(cx, cy, -halfH);
+                positions.push(cx, cy, halfH);
+
+                if (normals) {
+                    normals.push(0, 0, -1);
+                    normals.push(0, 0, 1);
+                }
+
+                if (uvs) {
+                    uvs.push(u, v);
+                    uvs.push(1.0 - u, v);
+                }
+                break;
+        }
+    }
+
+    for (var ci = 1; ci < numSegmentsW - 1; ++ci) {
+        var offset = ci << 1;
+        indices.push(indexOffset, indexOffset + offset, indexOffset + offset + 2);
+        indices.push(indexOffset + 1, indexOffset + offset + 3, indexOffset + offset + 1);
+    }
 };
 /**
  * Provide a definition with the property names to automatically build a primitive. Properties provided in the definition
@@ -12145,13 +12284,13 @@ HX.BoxPrimitive.create = function(definition)
  * @param definition
  * @constructor
  */
-HX.PlanePrimitive = {};
+HX.PlanePrimitive = HX.Primitive.define();
 
 HX.PlanePrimitive.ALIGN_XZ = 1;
 HX.PlanePrimitive.ALIGN_XY = 2;
 HX.PlanePrimitive.ALIGN_YZ = 3;
 
-HX.PlanePrimitive.create = function(definition)
+HX.PlanePrimitive._generate = function(target, definition)
 {
     definition = definition || {};
     var alignment = definition.alignment || HX.PlanePrimitive.ALIGN_XZ;
@@ -12159,43 +12298,25 @@ HX.PlanePrimitive.create = function(definition)
     var numSegmentsH = definition.numSegmentsH || 1;
     var width = definition.width || 1;
     var height = definition.height || 1;
-    var scaleU = definition.scaleU || 1;
-    var scaleV = definition.scaleV || 1;
-    var uvs = definition.uvs === undefined? true : definition.uvs;
-    var normals = definition.normals === undefined? true : definition.normals;
-    var tangents = definition.tangents === undefined? true : definition.tangents;
     var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
 
-    var data = new HX.MeshData();
-    data.addVertexAttribute('hx_position', 3);
-    if (normals) data.addVertexAttribute('hx_normal', 3);
-    if (tangents) data.addVertexAttribute('hx_tangent', 4);
-    if (uvs) data.addVertexAttribute('hx_texCoord', 2);
+    var positions = target.positions;
+    var uvs = target.uvs;
+    var normals = target.normals;
+    var indices = target.indices;
 
-    var vertices = [];
-    var indices = [];
-
-    var vertexIndex = 0;
-    var indexIndex = 0;
     var rcpNumSegmentsW = 1/numSegmentsW;
     var rcpNumSegmentsH = 1/numSegmentsH;
     var posX = 0, posY = 0, posZ = 0;
     var normalX = 0, normalY = 0, normalZ = 0;
-    var tangentX = 0, tangentY = 0, tangentZ = 0;
     var uvU = 0, uvV = 0;
 
-    if (alignment == HX.PlanePrimitive.ALIGN_XY) {
+    if (alignment == HX.PlanePrimitive.ALIGN_XY)
         normalZ = -1;
-        tangentX = 1;
-    }
-    else if (alignment == HX.PlanePrimitive.ALIGN_XZ) {
+    else if (alignment == HX.PlanePrimitive.ALIGN_XZ)
         normalY = 1;
-        tangentX = -1;
-    }
-    else {
+    else
         normalX = 1;
-        tangentZ = 1;
-    }
 
     for (var yi = 0; yi <= numSegmentsH; ++yi) {
         var y = (yi*rcpNumSegmentsH - .5)*height;
@@ -12222,52 +12343,23 @@ HX.PlanePrimitive.create = function(definition)
                 uvV = yi*rcpNumSegmentsH;
             }
 
-            uvU *= scaleU;
-            uvV *= scaleV;
+            positions.push(posX, posY, posZ);
 
-            vertices[vertexIndex++] = posX;
-            vertices[vertexIndex++] = posY;
-            vertices[vertexIndex++] = posZ;
+            if (normals)
+                normals.push(normalX, normalY, normalZ);
 
-            if (normals) {
-                vertices[vertexIndex++] = normalX;
-                vertices[vertexIndex++] = normalY;
-                vertices[vertexIndex++] = normalZ;
-            }
-            if (tangents) {
-                vertices[vertexIndex++] = tangentX;
-                vertices[vertexIndex++] = tangentY;
-                vertices[vertexIndex++] = tangentZ;
-                vertices[vertexIndex++] = 1.0;
-            }
-            if (uvs) {
-                vertices[vertexIndex++] = uvU;
-                vertices[vertexIndex++] = uvV;
-            }
+            if (uvs)
+                uvs.push(uvU, uvV);
 
             // add vertex with same position, but with inverted normal & tangent
             if (doubleSided) {
-                vertices[vertexIndex] = posX;
-                vertices[vertexIndex++] = posY;
-                vertices[vertexIndex++] = posZ;
+                positions.push(posX, posY, posZ);
 
-                if (normals) {
-                    vertices[vertexIndex++] = -normalX;
-                    vertices[vertexIndex++] = -normalY;
-                    vertices[vertexIndex++] = -normalZ;
-                }
+                if (normals)
+                    normals.push(-normalX, -normalY, -normalZ);
 
-                if (tangents) {
-                    vertices[vertexIndex++] = -tangentX;
-                    vertices[vertexIndex++] = -tangentY;
-                    vertices[vertexIndex++] = -tangentZ;
-                    vertices[vertexIndex++] = 1.0;
-                }
-
-                if (uvs) {
-                    vertices[vertexIndex++] = 1.0 - uvU;
-                    vertices[vertexIndex++] = uvV;
-                }
+                if (uvs)
+                    uvs.push(1.0 - uvU, uvV);
             }
 
             if (xi != numSegmentsW && yi != numSegmentsH) {
@@ -12275,35 +12367,16 @@ HX.PlanePrimitive.create = function(definition)
                 var base = xi + yi*w;
                 var mult = doubleSided ? 1 : 0;
 
-                indices[indexIndex] = base << mult;
-                indices[indexIndex + 1] = (base + w) << mult;
-                indices[indexIndex + 2] = (base + w + 1) << mult;
-                indices[indexIndex + 3] = base << mult;
-                indices[indexIndex + 4] = (base + w + 1) << mult;
-                indices[indexIndex + 5] = (base + 1) << mult;
-
-                indexIndex += 6;
+                indices.push(base << mult, (base + w) << mult, (base + w + 1) << mult);
+                indices.push(base << mult, (base + w + 1) << mult, (base + 1) << mult);
 
                 if(doubleSided) {
-                    indices[indexIndex] = ((base + w + 1) << mult) + 1;
-                    indices[indexIndex + 1] = ((base + w) << mult) + 1;
-                    indices[indexIndex + 2] = (base << mult) + 1;
-                    indices[indexIndex + 3] = ((base + 1) << mult) + 1;
-                    indices[indexIndex + 4] = ((base + w + 1) << mult) + 1;
-                    indices[indexIndex + 5] = (base << mult) + 1;
-                    indexIndex += 6;
+                    indices.push(((base + w + 1) << mult) + 1, ((base + w) << mult) + 1, (base << mult) + 1);
+                    indices.push(((base + 1) << mult) + 1, ((base + w + 1) << mult) + 1, (base << mult) + 1);
                 }
             }
         }
     }
-
-    data.setVertexData(vertices, 0);
-    data.setIndexData(indices);
-
-    var modelData = new HX.ModelData();
-    modelData.addMeshData(data);
-
-    return new HX.Model(modelData);
 };
 HX.RectMesh = {};
 
@@ -12324,39 +12397,23 @@ HX.RectMesh._initDefault = function()
 {
     HX.RectMesh.DEFAULT = HX.RectMesh.create();
 };
-/**
- * Provide a definition with the property names to automatically build a primitive. Properties provided in the definition
- * are the same as the setter names (without get/set).
- * @param definition
- * @constructor
- */
-HX.SpherePrimitive = {};
+HX.SpherePrimitive = HX.Primitive.define();
 
-HX.SpherePrimitive.createMeshData = function(definition)
+HX.SpherePrimitive._generate = function(target, definition)
 {
     definition = definition || {};
     var numSegmentsW = definition.numSegmentsW || 16;
     var numSegmentsH = definition.numSegmentsH || 10;
     var radius = definition.radius || .5;
-    var scaleU = definition.scaleU || 1;
-    var scaleV = definition.scaleV || 1;
+
     var flipSign = definition.invert? -1 : 1;
-    var uvs = definition.uvs === undefined? true : definition.uvs;
-    var normals = definition.normals === undefined? true : definition.normals;
-    var tangents = definition.tangents === undefined? true : definition.tangents;
+
     var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
 
-    var data = new HX.MeshData();
-    data.addVertexAttribute('hx_position', 3);
-    if (normals) data.addVertexAttribute('hx_normal', 3);
-    if (tangents) data.addVertexAttribute('hx_tangent', 4);
-    if (uvs) data.addVertexAttribute('hx_texCoord', 2);
+    var positions = target.positions;
+    var uvs = target.uvs;
+    var normals = target.normals;
 
-    var vertices = [];
-    var indices = [];
-
-    var vertexIndex = 0;
-    var indexIndex = 0;
     var rcpNumSegmentsW = 1/numSegmentsW;
     var rcpNumSegmentsH = 1/numSegmentsH;
 
@@ -12380,78 +12437,32 @@ HX.SpherePrimitive.createMeshData = function(definition)
             var normalZ = Math.sin(phi) * segmentUnitRadius * flipSign;
 
             // position
-            vertices[vertexIndex++] = normalX*radius;
-            vertices[vertexIndex++] = normalY*radius;
-            vertices[vertexIndex++] = normalZ*radius;
+            positions.push(normalX*radius, normalY*radius, normalZ*radius);
 
-            if (normals) {
-                vertices[vertexIndex++] = normalX * flipSign;
-                vertices[vertexIndex++] = normalY * flipSign;
-                vertices[vertexIndex++] = normalZ * flipSign;
-            }
+            if (normals)
+                normals.push(normalX * flipSign, normalY * flipSign, normalZ * flipSign);
 
-            if (tangents) {
-                vertices[vertexIndex++] = -normalZ;
-                vertices[vertexIndex++] = 0;
-                vertices[vertexIndex++] = normalX;
-                vertices[vertexIndex++] = 1.0;
-            }
-
-            if (uvs) {
-                vertices[vertexIndex++] = 1.0 - ratioU*scaleU;
-                vertices[vertexIndex++] = ratioV*scaleV;
-            }
+            if (uvs)
+                uvs.push(ratioU, ratioV);
         }
     }
+
+    var indices = target.indices;
 
     for (var polarSegment = 0; polarSegment < numSegmentsH; ++polarSegment) {
         for (var azimuthSegment = 0; azimuthSegment < numSegmentsW; ++azimuthSegment) {
             var w = numSegmentsW + 1;
             var base = azimuthSegment + polarSegment*w;
 
-            indices[indexIndex] = base;
-            indices[indexIndex + 1] = base + w;
-            indices[indexIndex + 2] = base + w + 1;
-            indices[indexIndex + 3] = base;
-            indices[indexIndex + 4] = base + w + 1;
-            indices[indexIndex + 5] = base + 1;
-
-            indexIndex += 6;
+            indices.push(base, base + w, base + w + 1);
+            indices.push(base, base + w + 1, base + 1);
 
             if (doubleSided) {
-                indices[indexIndex] = base;
-                indices[indexIndex + 1] = base + w + 1;
-                indices[indexIndex + 2] = base + w;
-                indices[indexIndex + 3] = base;
-                indices[indexIndex + 4] = base + 1;
-                indices[indexIndex + 5] = base + w + 1;
-
-                indexIndex += 6;
+                indices.push(base, base + w + 1, base + w);
+                indices.push(base, base + 1, base + w + 1);
             }
         }
     }
-
-    data.setVertexData(vertices, 0);
-    data.setIndexData(indices);
-    return data;
-};
-
-HX.SpherePrimitive.createMesh = function(definition)
-{
-    var data = HX.SpherePrimitive.createMeshData(definition);
-    return new HX.Mesh(data);
-};
-
-HX.SpherePrimitive.create = function(definition)
-{
-    definition = definition || {};
-
-    var data = HX.SpherePrimitive.createMeshData(definition);
-
-    var modelData = new HX.ModelData();
-    modelData.addMeshData(data);
-
-    return new HX.Model(modelData);
 };
 /**
  * @constructor

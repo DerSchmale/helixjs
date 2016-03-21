@@ -69,11 +69,10 @@ function initScene(scene)
     modelInstance.position.y = .3;
     scene.attach(modelInstance);
 
-    primitive = HX.CylinderPrimitive.create(
+    primitive = HX.ConePrimitive.create(
         {
             radius:.19,
             height:.5,
-            alignment: HX.CylinderPrimitive.ALIGN_Z,
             numSegmentsH: 10,
             numSegmentsW: 20
         });

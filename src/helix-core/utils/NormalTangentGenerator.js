@@ -70,9 +70,10 @@ HX.NormalTangentGenerator.prototype =
             this._getFloat2At(i + 1, uvOffset, this._uvStride, uv1, uvData);
             this._getFloat2At(i + 2, uvOffset, this._uvStride, uv2, uvData);
 
+            v1.subtract(v0);
+            v2.subtract(v0);
+
             if (this._faceNormals) {
-                v1.subtract(v0);
-                v2.subtract(v0);
                 temp.cross(v1, v2);
 
                 if (!useFaceWeights) temp.normalize();
@@ -90,7 +91,11 @@ HX.NormalTangentGenerator.prototype =
                 HX.Float4.scale(v1, st2.y, temp1);
                 HX.Float4.scale(v2, st1.y, temp2);
                 HX.Float4.subtract(temp1, temp2, temp);
+
                 temp.normalize();
+
+                if (isNaN(temp.x))
+                    console.log(temp.toString());
 
                 this._faceTangents[i] = temp.x;
                 this._faceTangents[i + 1] = temp.y;
@@ -112,7 +117,7 @@ HX.NormalTangentGenerator.prototype =
     {
         this._zeroVectors();
 
-        var bitangents = this._faceTangents ? [] : 0.0;
+        var bitangents = this._faceTangents ? [] : null;
         var indexData = this._meshData._indexData;
         var normalOffset = this._normalAttrib.offset;
         var tangentOffset = this._tangentAttrib.offset;

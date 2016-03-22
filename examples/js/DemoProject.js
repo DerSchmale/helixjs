@@ -33,19 +33,19 @@ DemoProject.prototype.init = function(canvas, initOptions)
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_NORMALS;
                 break;
             case 51:
-                renderer.debugMode = HX.DebugRenderMode.DEBUG_AO;
-                break;
-            case 52:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_ROUGHNESS;
                 break;
-            case 53:
+            case 52:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_METALLICNESS;
                 break;
+            case 53:
+                renderer.debugMode = HX.DebugRenderMode.DEBUG_DEPTH;
+                break;
             case 54:
-                renderer.debugMode = HX.DebugRenderMode.DEBUG_SSR;
+                renderer.debugMode = HX.DebugRenderMode.DEBUG_AO;
                 break;
             case 55:
-                renderer.debugMode = HX.DebugRenderMode.DEBUG_DEPTH;
+                renderer.debugMode = HX.DebugRenderMode.DEBUG_SSR;
                 break;
             case 56:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_LIGHT_ACCUM;

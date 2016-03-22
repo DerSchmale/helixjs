@@ -62,6 +62,7 @@ HX.NormalTangentGenerator.prototype =
         var uvOffset = this._uvAttrib.offset;
         var posData = this._meshData.getVertexData(this._positionAttrib.streamIndex);
         var uvData = this._meshData.getVertexData(this._uvAttrib.streamIndex);
+
         for (var i = 0; i < numIndices; i += 3) {
             this._getFloat3At(i, posOffset, this._positionStride, v0, posData);
             this._getFloat3At(i + 1, posOffset, this._positionStride, v1, posData);
@@ -93,9 +94,6 @@ HX.NormalTangentGenerator.prototype =
                 HX.Float4.subtract(temp1, temp2, temp);
 
                 temp.normalize();
-
-                if (isNaN(temp.x))
-                    console.log(temp.toString());
 
                 this._faceTangents[i] = temp.x;
                 this._faceTangents[i + 1] = temp.y;
@@ -162,7 +160,6 @@ HX.NormalTangentGenerator.prototype =
         var normalIndex = this._normalAttrib.offset;
         var tangentIndex = this._tangentAttrib.offset;
 
-
         for (var i = 0; i < numVertices; ++i) {
             if (this._mode & HX.NormalTangentGenerator.MODE_NORMALS) {
                 normalData[normalIndex] = 0.0;
@@ -207,6 +204,7 @@ HX.NormalTangentGenerator.prototype =
                 tangent.x = tangentData[tangentIndex];
                 tangent.y = tangentData[tangentIndex + 1];
                 tangent.z = tangentData[tangentIndex + 2];
+
                 tangent.normalize();
 
                 bitangent.x = bitangents[bitangentIndex];

@@ -79,6 +79,16 @@ HX.Float4.scale = function(a, s, target)
     target.x = a.x * s;
     target.y = a.y * s;
     target.z = a.z * s;
+    //target.w = a.w * s;
+    return target;
+};
+
+HX.Float4.scale4 = function(a, s, target)
+{
+    target = target || new HX.Float4();
+    target.x = a.x * s;
+    target.y = a.y * s;
+    target.z = a.z * s;
     target.w = a.w * s;
     return target;
 };
@@ -143,6 +153,14 @@ HX.Float4.prototype = {
     },
 
     scale: function(s)
+    {
+        this.x *= s;
+        this.y *= s;
+        this.z *= s;
+        //this.w *= s;
+    },
+
+    scale4: function(s)
     {
         this.x *= s;
         this.y *= s;

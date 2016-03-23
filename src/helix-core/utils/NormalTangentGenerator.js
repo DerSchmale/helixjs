@@ -93,7 +93,8 @@ HX.NormalTangentGenerator.prototype =
                 HX.Float4.scale(v2, st1.y, temp2);
                 HX.Float4.subtract(temp1, temp2, temp);
 
-                temp.normalize();
+                if (temp.lengthSqr > .001)
+                    temp.normalize();
 
                 this._faceTangents[i] = temp.x;
                 this._faceTangents[i + 1] = temp.y;
@@ -205,7 +206,11 @@ HX.NormalTangentGenerator.prototype =
                 tangent.y = tangentData[tangentIndex + 1];
                 tangent.z = tangentData[tangentIndex + 2];
 
-                tangent.normalize();
+                // can happen in singularities
+                if (tangent.lengthSqr < 0.0001)
+                    tangent.set(1.0, 1.0, 1.0, 1.0);
+                else
+                    tangent.normalize();
 
                 bitangent.x = bitangents[bitangentIndex];
                 bitangent.y = bitangents[bitangentIndex + 1];

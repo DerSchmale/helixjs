@@ -1,0 +1,20 @@
+{
+    "version": "0.1",
+    "transparencyMode": "alpha",
+    "passes": {
+        "geometry": {
+            "vertexShader": "glsl/cloud_geometry_vertex.glsl",
+            "fragmentShader": "glsl/cloud_geometry_fragment.glsl",
+
+            "writeDepth": false
+        }
+    },
+    "uniforms": {
+        "color": [ 0.8, 0.78, 0.75 ],
+        "specularNormalReflection": 0.027,
+        "roughness": 0.8
+    },
+    "textures": {
+        "map": "../textures/earth/clouds.png"
+    }
+}

@@ -164,13 +164,16 @@ HX.Renderer.prototype =
             {
                 this._renderOpaques();
 
-                this._renderPostPass(HX.MaterialPass.POST_LIGHT_PASS);
-                this._renderPostPass(HX.MaterialPass.POST_PASS, true);
+                this._renderOpaquePostPass(HX.MaterialPass.POST_LIGHT_PASS);
+                this._renderOpaquePostPass(HX.MaterialPass.POST_PASS, true);
 
                 // don't use AO for transparents
                 if (this._aoTexture) this._aoTexture = null;
-
                 this._renderTransparents();
+
+                this._renderTransparentPostPass(HX.MaterialPass.POST_LIGHT_PASS);
+                this._renderTransparentPostPass(HX.MaterialPass.POST_PASS, true);
+
             }
             HX.popRenderTarget();
 
@@ -388,7 +391,7 @@ HX.Renderer.prototype =
                 break;
             case HX.DebugRenderMode.DEBUG_AO:
                 if (this._aoEffect)
-                    this._copyTexture.execute(HX.RectMesh.DEFAULT, this._aoEffect.getAOTexture());
+                    this._applyGamma.execute(HX.RectMesh.DEFAULT, this._aoEffect.getAOTexture());
                 break;
             case HX.DebugRenderMode.DEBUG_SSR:
                 if (this._ssrEffect)
@@ -415,14 +418,14 @@ HX.Renderer.prototype =
 
     _renderLightAccumulation: function ()
     {
-        HX_GL.depthMask(false);
+        HX.setDepthMask(false);
 
         HX.clear(HX_GL.COLOR_BUFFER_BIT);
 
         this._renderGlobalIllumination();
         this._renderDirectLights();
 
-        HX_GL.depthMask(true);
+        HX.setDepthMask(true);
     },
 
     _renderDirectLights: function ()
@@ -476,18 +479,29 @@ HX.Renderer.prototype =
         HX.popRenderTarget();
     },
 
-    _renderPostPass: function (passType, copySource)
+    _renderOpaquePostPass: function (passType, copySource)
     {
         var opaqueList = this._renderCollector.getOpaqueRenderList(passType);
-        var transparentList = this._renderCollector.getTransparentRenderList(passType);
 
-        if (opaqueList.length === 0 && transparentList.length === 0)
+        if (opaqueList.length === 0)
             return;
 
         if (copySource)
             this._copySource();
 
         this._renderPass(passType, this._renderCollector.getOpaqueRenderList(passType));
+    },
+
+    _renderTransparentPostPass: function (passType, copySource)
+    {
+        var transparentList = this._renderCollector.getTransparentRenderList(passType);
+
+        if (transparentList.length === 0)
+            return;
+
+        if (copySource)
+            this._copySource();
+
         this._renderPass(passType, this._renderCollector.getTransparentRenderList(passType));
     },
 

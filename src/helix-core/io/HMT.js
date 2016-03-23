@@ -57,11 +57,20 @@ HX.HMT.prototype._loadShaders = function(data, material)
 
 HX.HMT.prototype._processMaterial = function(data, shaders, material)
 {
+    var defines = "";
+    if (this.options.defines) {
+        for (var key in this.options.defines) {
+            if (this.options.defines.hasOwnProperty(key)) {
+                defines += "#define " + key + " " + this.options.defines[key] + "\n";
+            }
+        }
+    }
+
     var passes = data.passes;
 
-    if (passes.geometry !== undefined) this._processPass(material, passes.geometry, HX.MaterialPass.GEOMETRY_PASS, shaders);
-    if (passes.postlight !== undefined) this._processPass(material, passes.postlight, HX.MaterialPass.POST_LIGHT_PASS, shaders);
-    if (passes.post !== undefined) this._processPass(material, passes.post, HX.MaterialPass.POST_PASS, shaders);
+    if (passes.geometry !== undefined) this._processPass(material, passes.geometry, HX.MaterialPass.GEOMETRY_PASS, shaders, defines);
+    if (passes.postlight !== undefined) this._processPass(material, passes.postlight, HX.MaterialPass.POST_LIGHT_PASS, shaders, defines);
+    if (passes.post !== undefined) this._processPass(material, passes.post, HX.MaterialPass.POST_PASS, shaders, defines);
 
     if (data.transparencyMode !== undefined) material.transparencyMode = HX.HMT._PROPERTY_MAP[data.transparencyMode];
 
@@ -71,54 +80,61 @@ HX.HMT.prototype._processMaterial = function(data, shaders, material)
     material.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
 };
 
-HX.HMT.prototype._processPass = function(material, passData, passType, shaders)
+HX.HMT.prototype._processPass = function(material, passData, passType, shaders, defines)
 {
     var vertexShader = shaders[this._correctURL(passData.vertexShader)];
     var fragmentShader = shaders[this._correctURL(passData.fragmentShader)];
 
     if (passType === HX.MaterialPass.GEOMETRY_PASS) {
         if (HX.EXT_DRAW_BUFFERS)
-            this._addPass(vertexShader, fragmentShader, passData, material, passType);
+            this._addPass(vertexShader, fragmentShader, passData, material, passType, defines);
         else {
-            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_COLOR_PASS, "HX_NO_MRT_GBUFFER_COLOR");
-            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_NORMAL_PASS, "HX_NO_MRT_GBUFFER_NORMALS");
-            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "HX_NO_MRT_GBUFFER_SPECULAR");
+            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_COLOR_PASS, defines, "HX_NO_MRT_GBUFFER_COLOR");
+            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_NORMAL_PASS, defines, "HX_NO_MRT_GBUFFER_NORMALS");
+            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, defines, "HX_NO_MRT_GBUFFER_SPECULAR");
         }
 
-        this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.SHADOW_DEPTH_PASS, "HX_SHADOW_DEPTH_PASS");
+        this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.SHADOW_DEPTH_PASS, defines, "HX_SHADOW_DEPTH_PASS");
     }
     else {
-        this._addPass(vertexShader, fragmentShader, passData, material, passType);
+        this._addPass(vertexShader, fragmentShader, passData, material, passType, defines);
     }
 };
 
-HX.HMT.prototype._addPass = function(vertexShader, fragmentShader, passData, material, passType, geometryPassTypeDef)
+HX.HMT.prototype._addPass = function(vertexShader, fragmentShader, passData, material, passType, defines, geometryPassTypeDef)
 {
     fragmentShader = HX.GLSLIncludeGeometryPass + fragmentShader;
 
     if (geometryPassTypeDef) {
-        var defines = "#define " + geometryPassTypeDef + "\n";
-        vertexShader = defines + vertexShader;
-        fragmentShader = defines + fragmentShader;
+        var geomDefines = defines + "#define " + geometryPassTypeDef + "\n";
+        vertexShader = geomDefines + vertexShader;
+        fragmentShader = geomDefines + fragmentShader;
     }
 
-    var shader = new HX.Shader(vertexShader, fragmentShader);
+    var shader = new HX.Shader(defines + vertexShader, defines + fragmentShader);
     var pass = new HX.MaterialPass(shader);
 
-    if (passData.elementType)
+    if (passData.hasOwnProperty("elementType"))
         pass.elementType = HX.HMT._PROPERTY_MAP[passData.elementType];
 
-    if (passData.cullMode)
+    if (passData.hasOwnProperty("cullMode"))
         pass.cullMode = HX.HMT._PROPERTY_MAP[passData.cullMode];
 
-    if (passData.blend) {
+    if (passData.hasOwnProperty("depthTest"))
+        pass.depthTest = HX.HMT._PROPERTY_MAP[passData.depthTest];
+
+    if (passData.hasOwnProperty("writeDepth"))
+        pass.writeDepth = passData.writeDepth;
+
+    if (passData.hasOwnProperty("blend")) {
         var blendState = new HX.BlendState();
+        var blend = passData.blend;
 
         if (blend.hasOwnProperty("source"))
             blendState.srcFactor = HX.HMT._PROPERTY_MAP[blend.source];
 
         if (blend.hasOwnProperty("destination"))
-            blendState.srcFactor = HX.HMT._PROPERTY_MAP[blend.destination];
+            blendState.dstFactor = HX.HMT._PROPERTY_MAP[blend.destination];
 
         if (blend.hasOwnProperty("operator"))
             blendState.operator = HX.HMT._PROPERTY_MAP[blend.operator];
@@ -206,6 +222,17 @@ HX.HMT._initPropertyMap = function() {
         // transparency modes
         additive: HX.TransparencyMode.ADDITIVE,
         alpha: HX.TransparencyMode.ALPHA,
-        opaque: HX.TransparencyMode.OPAQUE
+        opaque: HX.TransparencyMode.OPAQUE,
+
+        // depth tests
+        always: HX.Comparison.ALWAYS,
+        disabled: HX.Comparison.DISABLED,
+        equal: HX.Comparison.EQUAL,
+        greater: HX.Comparison.GREATER,
+        greaterEqual: HX.Comparison.GREATER_EQUAL,
+        less: HX.Comparison.LESS,
+        lessEqual: HX.Comparison.LESS_EQUAL,
+        never: HX.Comparison.NEVER,
+        notEqual: HX.Comparison.NOT_EQUAL
     };
 };

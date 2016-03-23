@@ -1,0 +1,12 @@
+{
+    "version": "0.1",
+    "files": {
+        "negX": "negX.jpg",
+        "posX": "posX.jpg",
+        "negY": "negY.jpg",
+        "posY": "posY.jpg",
+        "negZ": "negZ.jpg",
+        "posZ": "posZ.jpg"
+    },
+    "loadMips": false
+}

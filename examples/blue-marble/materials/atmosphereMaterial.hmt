@@ -1,0 +1,31 @@
+{
+    "version": "0.1",
+    "passes": {
+        "post": {
+            "vertexShader": "glsl/atmosphere_post_vertex.glsl",
+            "fragmentShader": "glsl/atmosphere_post_fragment.glsl",
+
+            "cullMode": "front",
+            "writeDepth": false,
+
+            "blend": {
+                "source": "one",
+                "destination": "one",
+                "operator": "add"
+            }
+        }
+    },
+    "uniforms": {
+        "lightDir": [ 0.0, 0.0, 1.0 ],
+
+        "rayleighFactor": 0.0025,
+        "mieFactor": 0.0010,
+
+        "// wavelenBase: ": [ 0.650, 0.570, 0.475 ],
+
+        "// waveLenFactors: ": "1.0 / pow(wavelen, 4)",
+        "waveLenFactors": [ 5.6020, 9.4733, 19.6438 ],
+
+        "mieG": -0.990
+    }
+}

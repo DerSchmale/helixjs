@@ -13,7 +13,8 @@ uniform sampler2D hx_backbuffer;
 vec4 hx_getToneMapScaledColor()
 {
     #ifdef ADAPTIVE
-    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x);
+    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x) - 1.0;
+    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);
 	float key = 1.03 - (2.0 / (2.0 + log(referenceLuminance + 1.0)/log(10.0)));
 	float exposure = key / referenceLuminance * hx_exposure;
 	#else

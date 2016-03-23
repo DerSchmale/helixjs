@@ -90,6 +90,7 @@ HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, rend
         colorData[v3i++] = color.g;
         posData[v3i] = pos.z;
         colorData[v3i++] = color.b;
+        // todo: lights behind camera become too big to render
         radiusData[v1i++] = light._radius * 1.0001; // add some padding to account for imperfect geometry
     }
 

@@ -11,6 +11,7 @@ HX.MaterialPass = function (shader)
     this._elementType = HX.ElementType.TRIANGLES;
     this._cullMode = HX.CullMode.BACK;
     this._depthTest = HX.Comparison.LESS_EQUAL;
+    this._writeDepth = true;
     this._blendState = null;
     this._gbuffer = null;
     this._enabled = true;
@@ -69,6 +70,11 @@ HX.MaterialPass.prototype = {
         this._depthTest = value;
     },
 
+    set writeDepth(value)
+    {
+        this._writeDepth = value;
+    },
+
     get cullMode()
     {
         return this._cullMode;
@@ -116,6 +122,7 @@ HX.MaterialPass.prototype = {
 
         HX.setCullMode(this._cullMode);
         HX.setDepthTest(this._depthTest);
+        HX.setDepthMask(this._writeDepth);
         HX.setBlendState(this._blendState);
     },
 

@@ -3461,6 +3461,10 @@ HX.ShaderLibrary['point_light_fragment.glsl'] = 'varying vec3 viewDir;\n\nunifor
 
 HX.ShaderLibrary['point_light_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute float hx_instanceID;\n\nuniform mat4 hx_viewMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform mat4 hx_projectionMatrix;\n\nuniform vec3 lightViewPosition[LIGHTS_PER_BATCH];\nuniform vec3 lightColor[LIGHTS_PER_BATCH];\nuniform float lightRadius[LIGHTS_PER_BATCH];\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 lightColorVar;\nvarying vec3 lightPositionVar;\nvarying float lightRadiusVar;\n\nvoid main()\n{\n	int instance = int(hx_instanceID);\n	lightPositionVar = lightViewPosition[instance];\n	lightColorVar = lightColor[instance];\n	lightRadiusVar = lightRadius[instance];\n	vec3 viewPos = mat3(hx_viewMatrix) * (hx_position.xyz * lightRadius[instance]) + lightPositionVar;\n	vec4 proj = hx_projectionMatrix * vec4(viewPos, 1.0);\n\n	viewDir = -viewPos / viewPos.z;\n\n	gl_Position = proj;\n}';
 
+HX.ShaderLibrary['default_emission_fragment.glsl'] = 'varying vec2 texCoords;\n\nuniform vec3 color;\nuniform float alpha;\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef ALPHA_THRESHOLD\nuniform float alphaThreshold;\n#endif\n\nuniform sampler2D emissionMap;\n\nvoid main()\n{\n    vec4 outputColor = texture2D(emissionMap, texCoords);\n\n    #ifdef MASK_MAP\n        outputColor *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    gl_FragColor = outputColor;\n}';
+
+HX.ShaderLibrary['default_emission_vertex.glsl'] = 'attribute vec4 hx_position;\n\nattribute vec2 hx_texCoord;\n\nvarying vec2 texCoords;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n#ifdef USE_SKINNING\n    mat4 skinningMatrix = hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)];\n    skinningMatrix += hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)];\n    skinningMatrix += hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)];\n    skinningMatrix += hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)];\n\n    vec4 animPosition = skinningMatrix * hx_position;\n#else\n    vec4 animPosition = hx_position;\n#endif\n\n    texCoords = hx_texCoord;\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
+
 HX.ShaderLibrary['default_geometry_mrt_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float minRoughness;\nuniform float maxRoughness;\nuniform float specularNormalReflection;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nvoid main()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = specularNormalReflection;\n    float roughnessOut = minRoughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = maxRoughness + (minRoughness - maxRoughness) * normalSample.w;\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = maxRoughness + (minRoughness - maxRoughness) * specSample.x;\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    // todo: should we linearize depth here instead?\n    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, metallicnessOut, specNormalReflOut, roughnessOut);\n}';
 
 HX.ShaderLibrary['default_geometry_mrt_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#ifdef USE_SKINNING\nattribute vec4 hx_boneIndices;\nattribute vec4 hx_boneWeights;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\nuniform mat4 hx_skinningMatrices[HX_MAX_BONES];\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nattribute vec3 hx_vertexColor;\nvarying vec3 vertexColor;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform mat4 hx_worldViewMatrix;\n#endif\n\n\nvoid main()\n{\n#ifdef USE_SKINNING\n    mat4 skinningMatrix = hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)];\n    skinningMatrix += hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)];\n    skinningMatrix += hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)];\n    skinningMatrix += hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)];\n\n    vec4 animPosition = skinningMatrix * hx_position;\n    vec3 animNormal = mat3(skinningMatrix) * hx_normal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = mat3(skinningMatrix) * hx_tangent.xyz;\n    #endif\n#else\n    vec4 animPosition = hx_position;\n    vec3 animNormal = hx_normal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz;\n    #endif\n#endif\n\n    gl_Position = hx_wvpMatrix * animPosition;\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * animTangent;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
@@ -3497,7 +3501,7 @@ HX.ShaderLibrary['ssr_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute ve
 
 HX.ShaderLibrary['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	vec3 x = max(vec3(0.0), color.xyz - 0.004);\n\n	// this has pow 2.2 gamma included, not valid if using fast gamma correction\n	//gl_FragColor = vec4((x * (6.2 * x + .5))/(x * (6.2 * x + 1.7) + 0.06), 1.0);\n\n    // Jim Hejl and Richard Burgess-Dawson\n	float a = 6.2;\n    float b = .5;\n    float c = 6.2;\n    float d = 1.7;\n    float e = 0.06;\n\n	// ACES\n	/*float a = 2.51;\n    float b = 0.03;\n    float c = 2.43;\n    float d = 0.59;\n    float e = 0.14;*/\n	gl_FragColor = vec4(saturate((x*(a*x+b))/(x*(c*x+d)+e)), 1.0);\n}';
 
-HX.ShaderLibrary['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_frontbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_frontbuffer, uv);\n	float l = log(.001 + hx_luminance(color));\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
+HX.ShaderLibrary['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_frontbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_frontbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
 
 HX.ShaderLibrary['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	gl_FragColor = color / (1.0 + color);\n}';
 
@@ -3537,7 +3541,7 @@ HX.ShaderLibrary['snippets_general.glsl'] = 'float saturate(float value)\n{\n   
 
 HX.ShaderLibrary['snippets_geometry_pass.glsl'] = 'vec4 hx_encodeNormalDepth(vec3 normal, float depth)\n{\n	#ifdef HX_NO_DEPTH_TEXTURES\n    	vec4 data;\n    	float p = sqrt(normal.z*8.0 + 8.0);\n        data.xy = normal.xy / p + .5;\n    	#ifdef HX_MAX_DEPTH_PRECISION\n		data.zw = hx_floatToRGBA8(depth).xy;\n		#else\n		data.zw = hx_floatToRG8(depth).xy;\n		#endif\n		return data;\n	#else\n		return vec4(normal * .5 + .5, 1.0);\n    #endif\n}\n\nvec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness, float depth)\n{\n    #if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)\n    depth = hx_floatToRGBA8(depth).z;\n    #else\n    depth = 1.0;\n    #endif\n	return vec4(roughness, specularNormalReflection * 5.0, metallicness, depth);\n}\n\nvoid hx_processGeometryMRT(vec4 color, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 colorData, out vec4 normalData, out vec4 specularData)\n{\n    colorData = color;\n	normalData = hx_encodeNormalDepth(normal, depth);\n    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, depth);\n}\n\n#if defined(HX_NO_MRT_GBUFFER_COLOR)\n#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = color)\n#elif defined(HX_NO_MRT_GBUFFER_NORMALS)\n#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, gl_FragCoord.z))\n#elif defined(HX_NO_MRT_GBUFFER_SPECULAR)\n#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, gl_FragCoord.z))\n#elif defined(HX_SHADOW_DEPTH_PASS)\n#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z))\n#else\n#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, gl_FragCoord.z, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])\n#endif';
 
-HX.ShaderLibrary['snippets_tonemap.glsl'] = 'varying vec2 uv;\n\n#ifdef ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef ADAPTIVE\n    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x);\n	float key = 1.03 - (2.0 / (2.0 + log(referenceLuminance + 1.0)/log(10.0)));\n	float exposure = key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
+HX.ShaderLibrary['snippets_tonemap.glsl'] = 'varying vec2 uv;\n\n#ifdef ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef ADAPTIVE\n    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float key = 1.03 - (2.0 / (2.0 + log(referenceLuminance + 1.0)/log(10.0)));\n	float exposure = key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
 
 HX.ShaderLibrary['2d_to_cube_vertex.glsl'] = '// position to write to\nattribute vec4 hx_position;\n\n// the corner of the cube map\nattribute vec3 corner;\n\nvarying vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
 
@@ -5829,686 +5833,6 @@ HX.shuffle = function(array)
     return array;
 };
 /**
- *
- * @param type
- * @constructor
- */
-HX.BoundingVolume = function(type)
-{
-    this._type = type;
-
-    this._expanse = HX.BoundingVolume.EXPANSE_EMPTY;
-    this._minimumX = 0.0;
-    this._minimumY = 0.0;
-    this._minimumZ = 0.0;
-    this._maximumX = 0.0;
-    this._maximumY = 0.0;
-    this._maximumZ = 0.0;
-    this._halfExtentX = 0.0;
-    this._halfExtentY = 0.0;
-    this._halfExtentZ = 0.0;
-    this._center = new HX.Float4();
-};
-
-HX.BoundingVolume.EXPANSE_EMPTY = 0;
-HX.BoundingVolume.EXPANSE_INFINITE = 1;
-HX.BoundingVolume.EXPANSE_FINITE = 2;
-
-HX.BoundingVolume._testAABBToSphere = function(aabb, sphere)
-{
-    // b = sphere var max = aabb._maximum;
-    var maxX = sphere._maximumX;
-    var maxY = sphere._maximumY;
-    var maxZ = sphere._maximumZ;
-    var minX = aabb._minimumX;
-    var minY = aabb._minimumY;
-    var minZ = aabb._minimumZ;
-    var radius = sphere._halfExtentX;
-    var centerX = this._center.x;
-    var centerY = this._center.y;
-    var centerZ = this._center.z;
-    var dot = 0;
-
-    if (minX > centerX) {
-        var diff = centerX - minX;
-        dot += diff * diff;
-    }
-    else if (maxX < centerX) {
-        var diff = centerX - maxX;
-        dot += diff * diff;
-    }
-
-    if (minY > centerY) {
-        var diff = centerY - minY;
-        dot += diff * diff;
-    }
-    else if (maxY < centerY) {
-        var diff = centerY - maxY;
-        dot += diff * diff;
-    }
-
-    if (minZ > centerZ) {
-        var diff = centerZ - minZ;
-        dot += diff * diff;
-    }
-    else if (maxZ < centerZ) {
-        var diff = centerZ - maxZ;
-        dot += diff * diff;
-    }
-
-    return dot < radius * radius;
-};
-
-HX.BoundingVolume.prototype =
-{
-    get expanse() { return this._expanse; },
-    get type() { return this._type; },
-
-    growToIncludeMesh: function(meshData) { throw new Error("Abstract method!"); },
-    growToIncludeBound: function(bounds) { throw new Error("Abstract method!"); },
-    growToIncludeMinMax: function(min, max) { throw new Error("Abstract method!"); },
-
-    clear: function(expanseState)
-    {
-        this._minimumX = this._minimumY = this._minimumZ = 0;
-        this._maximumX = this._maximumY = this._maximumZ = 0;
-        this._center.set(0, 0, 0);
-        this._halfExtentX = this._halfExtentY = this._halfExtentZ = 0;
-        this._expanse = expanseState === undefined? HX.BoundingVolume.EXPANSE_EMPTY : expanseState;
-    },
-
-    // both center/radius and min/max approaches are used, depending on the type, but both are required
-    get minimum() { return new HX.Float4(this._minimumX, this._minimumY, this._minimumZ, 1.0); },
-    get maximum() { return new HX.Float4(this._maximumX, this._maximumY, this._maximumZ, 1.0); },
-
-    get center() { return this._center; },
-    // the half-extents of the box encompassing the bounds.
-    get halfExtent() { return new HX.Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0); },
-    // the radius of the sphere encompassing the bounds. This is implementation-dependent, because the radius is less precise for a box than for a sphere
-    getRadius: function() { throw new Error("Abstract method!"); },
-
-    transformFrom: function(sourceBound, matrix) { throw new Error("Abstract method!"); },
-
-    /**
-     * Tests whether the bounding box intersects. The convex solid is described as a list of planes pointing outward. Infinite solids are also allowed (Directional Light frusta without a near plane, for example)
-     * @param cullPlanes An Array of planes to be tested. Planes are simply Float4 objects.
-     * @param numPlanes The amount of planes to be tested against. This so we can test less planes than are in the cullPlanes array (Directional Light frusta, for example)
-     * @returns {boolean} Whether or not the bounds intersect the solid.
-     */
-    intersectsConvexSolid: function(cullPlanes, numPlanes) { throw new Error("Abstract method!"); },
-
-    intersectsBound: function(bound) { throw new Error("Abstract method!"); },
-    classifyAgainstPlane: function(plane) { throw new Error("Abstract method!"); },
-
-    createDebugModelInstance: function() { throw new Error("Abstract method!"); },
-
-    getDebugModelInstance: function()
-    {
-        if (this._type._debugModel === undefined)
-            this._type._debugModel = this.createDebugModelInstance();
-
-        return this._type._debugModel;
-    },
-
-    getDebugMaterial: function()
-    {
-        if (HX.BoundingVolume._debugMaterial === undefined) {
-            var material = new HX.Material();
-            var shader = new HX.Shader(HX.ShaderLibrary.get("debug_bounds_vertex.glsl"), HX.ShaderLibrary.get("debug_bounds_fragment.glsl"));
-            var materialPass = new HX.MaterialPass(shader);
-            materialPass.elementType = HX.ElementType.LINES;
-            materialPass.cullMode = HX.CullMode.NONE;
-            material.setPass(HX.MaterialPass.POST_LIGHT_PASS, materialPass);
-            material.setUniform("color", new HX.Color(1.0, 0.0, 1.0));
-            HX.BoundingVolume._debugMaterial = material;
-        }
-
-        return HX.BoundingVolume._debugMaterial;
-    },
-
-    toString: function()
-    {
-        return "BoundingVolume: [ " +
-            this._minimumX + ", " +
-            this._minimumY + ", " +
-            this._minimumZ + " ] - [ " +
-            this._maximumX + ", " +
-            this._maximumY + ", " +
-            this._maximumZ + " ], expanse: " +
-            this._expanse;
-    }
-};
-
-/**
- *
- * @constructor
- */
-HX.BoundingAABB = function()
-{
-    HX.BoundingVolume.call(this, HX.BoundingAABB);
-};
-
-HX.BoundingAABB.prototype = Object.create(HX.BoundingVolume.prototype);
-
-HX.BoundingAABB.prototype.growToIncludeMesh = function(meshData)
-{
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
-
-    var attribute = meshData.getVertexAttribute("hx_position");
-    var index = attribute.offset;
-    var stride = meshData.getVertexStride(attribute.streamIndex);
-    var vertices = meshData.getVertexData(attribute.streamIndex);
-    var len = vertices.length;
-    var minX, minY, minZ;
-    var maxX, maxY, maxZ;
-
-    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
-        maxX = minX = vertices[index];
-        maxY = minY = vertices[index + 1];
-        maxZ = minZ = vertices[index + 2];
-        index += stride;
-    }
-    else {
-        minX = this._minimumX; minY = this._minimumY; minZ = this._minimumZ;
-        maxX = this._maximumX; maxY = this._maximumY; maxZ = this._maximumZ;
-    }
-
-    for (; index < len; index += stride) {
-        var x = vertices[index];
-        var y = vertices[index + 1];
-        var z = vertices[index + 2];
-
-        if (x > maxX) maxX = x;
-        else if (x < minX) minX = x;
-        if (y > maxY) maxY = y;
-        else if (y < minY) minY = y;
-        if (z > maxZ) maxZ = z;
-        else if (z < minZ) minZ = z;
-    }
-
-    this._minimumX = minX; this._minimumY = minY; this._minimumZ = minZ;
-    this._maximumX = maxX; this._maximumY = maxY; this._maximumZ = maxZ;
-    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-
-    this._updateCenterAndExtent();
-};
-
-HX.BoundingAABB.prototype.growToIncludeBound = function(bounds)
-{
-    if (bounds._expanse === HX.BoundingVolume.EXPANSE_EMPTY || this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
-
-    if (bounds._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
-        this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
-
-    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
-        this._minimumX = bounds._minimumX;
-        this._minimumY = bounds._minimumY;
-        this._minimumZ = bounds._minimumZ;
-        this._maximumX = bounds._maximumX;
-        this._maximumY = bounds._maximumY;
-        this._maximumZ = bounds._maximumZ;
-        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    }
-    else {
-        if (bounds._minimumX < this._minimumX)
-            this._minimumX = bounds._minimumX;
-        if (bounds._minimumY < this._minimumY)
-            this._minimumY = bounds._minimumY;
-        if (bounds._minimumZ < this._minimumZ)
-            this._minimumZ = bounds._minimumZ;
-        if (bounds._maximumX > this._maximumX)
-            this._maximumX = bounds._maximumX;
-        if (bounds._maximumY > this._maximumY)
-            this._maximumY = bounds._maximumY;
-        if (bounds._maximumZ > this._maximumZ)
-            this._maximumZ = bounds._maximumZ;
-    }
-
-    this._updateCenterAndExtent();
-};
-
-HX.BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
-{
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
-
-    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY) {
-        this._minimumX = min.x;
-        this._minimumY = min.y;
-        this._minimumZ = min.z;
-        this._maximumX = max.x;
-        this._maximumY = max.y;
-        this._maximumZ = max.z;
-        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    }
-    else {
-        if (min.x < this._minimumX)
-            this._minimumX = min.x;
-        if (min.y < this._minimumY)
-            this._minimumY = min.y;
-        if (min.z < this._minimumZ)
-            this._minimumZ = min.z;
-        if (max.x > this._maximumX)
-            this._maximumX = max.x;
-        if (max.y > this._maximumY)
-            this._maximumY = max.y;
-        if (max.z > this._maximumZ)
-            this._maximumZ = max.z;
-    }
-
-    this._updateCenterAndExtent();
-};
-
-HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
-{
-    if (sourceBound._expanse === HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
-        this.clear(sourceBound._expanse);
-    else {
-        var arr = matrix._m;
-        var m00 = arr[0], m10 = arr[1], m20 = arr[2];
-        var m01 = arr[4], m11 = arr[5], m21 = arr[6];
-        var m02 = arr[8], m12 = arr[9], m22 = arr[10];
-
-        var x = sourceBound._center.x;
-        var y = sourceBound._center.y;
-        var z = sourceBound._center.z;
-
-        this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
-        this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
-        this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
-
-        if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
-        if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
-        if (m02 < 0) m02 = -m02; if (m12 < 0) m12 = -m12; if (m22 < 0) m22 = -m22;
-        x = sourceBound._halfExtentX;
-        y = sourceBound._halfExtentY;
-        z = sourceBound._halfExtentZ;
-
-        this._halfExtentX = m00 * x + m01 * y + m02 * z;
-        this._halfExtentY = m10 * x + m11 * y + m12 * z;
-        this._halfExtentZ = m20 * x + m21 * y + m22 * z;
-
-
-        this._minimumX = this._center.x - this._halfExtentX;
-        this._minimumY = this._center.y - this._halfExtentY;
-        this._minimumZ = this._center.z - this._halfExtentZ;
-        this._maximumX = this._center.x + this._halfExtentX;
-        this._maximumY = this._center.y + this._halfExtentY;
-        this._maximumZ = this._center.z + this._halfExtentZ;
-        this._expanse = sourceBound._expanse;
-    }
-};
-
-
-HX.BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
-{
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
-        return true;
-    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
-        return false;
-
-    var minX = this._minimumX, minY = this._minimumY, minZ = this._minimumZ;
-    var maxX = this._maximumX, maxY = this._maximumY, maxZ = this._maximumZ;
-
-    for (var i = 0; i < numPlanes; ++i) {
-        // find the point that will always have the smallest signed distance
-        var plane = cullPlanes[i];
-        var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
-        var closestX = planeX > 0? minX : maxX;
-        var closestY = planeY > 0? minY : maxY;
-        var closestZ = planeZ > 0? minZ : maxZ;
-
-        // classify the closest point
-        var signedDist = planeX * closestX + planeY * closestY + planeZ * closestZ + planeW;
-        if (signedDist > 0.0)
-            return false;
-    }
-
-    return true;
-};
-
-HX.BoundingAABB.prototype.intersectsBound = function(bound)
-{
-    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
-        return false;
-
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
-        return true;
-
-    // both AABB
-    if (bound._type === this._type) {
-        return 	this._maximumX > bound._minimumX &&
-                this._minimumX < bound._maximumX &&
-                this._maximumY > bound._minimumY &&
-                this._minimumY < bound._maximumY &&
-                this._maximumZ > bound._minimumZ &&
-                this._minimumZ < bound._maximumZ;
-    }
-    else {
-        return HX.BoundingVolume._testAABBToSphere(this, bound);
-    }
-};
-
-HX.BoundingAABB.prototype.classifyAgainstPlane = function(plane)
-{
-    var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = planeW;
-
-    var centerDist = planeX * this._center.x + planeY * this._center.y + planeZ * this._center.z + planeW;
-
-    if (planeX < 0) planeX = -planeX;
-    if (planeY < 0) planeY = -planeY;
-    if (planeZ < 0) planeZ = -planeZ;
-
-    var intersectionDist = planeX * this._halfExtentX + planeY * this._halfExtentY + planeZ * this._halfExtentZ;
-
-    if (centerDist > intersectionDist)
-        return HX.PlaneSide.FRONT;
-    else if (centerDist < -intersectionDist)
-        return HX.PlaneSide.BACK;
-    else
-        return HX.PlaneSide.INTERSECTING;
-};
-
-HX.BoundingAABB.prototype.setExplicit = function(min, max)
-{
-    this._minimumX = min.x;
-    this._minimumY = min.y;
-    this._minimumZ = min.z;
-    this._maximumX = max.x;
-    this._maximumY = max.y;
-    this._maximumZ = max.z;
-    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    this._updateCenterAndExtent();
-};
-
-HX.BoundingAABB.prototype._updateCenterAndExtent = function()
-{
-    var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
-    var maxX = this._maximumX; var maxY = this._maximumY; var maxZ = this._maximumZ;
-    this._center.x = (minX + maxX) * .5;
-    this._center.y = (minY + maxY) * .5;
-    this._center.z = (minZ + maxZ) * .5;
-    this._halfExtentX = (maxX - minX) * .5;
-    this._halfExtentY = (maxY - minY) * .5;
-    this._halfExtentZ = (maxZ - minZ) * .5;
-};
-
-// part of the
-HX.BoundingAABB.prototype.getRadius = function()
-{
-    return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
-};
-
-HX.BoundingAABB.prototype.createDebugModelInstance = function()
-{
-    return new HX.ModelInstance(HX.BoxPrimitive.create(), [this.getDebugMaterial()]);
-};
-
-/**
- *
- * @constructor
- */
-HX.BoundingSphere = function()
-{
-    HX.BoundingVolume.call(this, HX.BoundingSphere);
-};
-
-HX.BoundingSphere.prototype = Object.create(HX.BoundingVolume.prototype);
-
-HX.BoundingSphere.prototype.setExplicit = function(center, radius)
-{
-    this._center.copyFrom(center);
-    this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
-    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    this._updateMinAndMax();
-};
-
-HX.BoundingSphere.prototype.growToIncludeMesh = function(meshData)
-{
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
-
-    var attribute = meshData.getVertexAttribute("hx_position");
-    var index = attribute.offset;
-    var stride = meshData.getVertexStride(attribute.streamIndex);
-    var vertices = attribute.getVertexData(attribute.streamIndex);
-    var len = vertices.length;
-    var minX, minY, minZ;
-    var maxX, maxY, maxZ;
-
-    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
-        maxX = minX = vertices[index];
-        maxY = minY = vertices[index + 1];
-        maxZ = minZ = vertices[index + 2];
-        index += stride;
-    }
-    else {
-        minX = this._minimumX; minY = this._minimumY; minZ = this._minimumZ;
-        maxX = this._maximumX; maxY = this._maximumY; maxZ = this._maximumZ;
-    }
-
-    for (; index < len; index += stride) {
-        var x = vertices[index];
-        var y = vertices[index + 1];
-        var z = vertices[index + 2];
-
-        if (x > maxX) maxX = x;
-        else if (x < minX) minX = x;
-        if (y > maxY) maxY = y;
-        else if (y < minY) minY = y;
-        if (z > maxZ) maxZ = z;
-        else if (z < minZ) minZ = z;
-    }
-    var centerX = (maxX + minX) * .5;
-    var centerY = (maxY + minY) * .5;
-    var centerZ = (maxZ + minZ) * .5;
-    var maxSqrRadius = 0.0;
-
-    index = attribute.offset;
-    for (; index < len; index += stride) {
-        var dx = centerX - vertices[index];
-        var dy = centerY - vertices[index + 1];
-        var dz = centerZ - vertices[index + 2];
-        var sqrRadius = dx*dx + dy*dy + dz*dz;
-        if (sqrRadius > maxSqrRadius) maxSqrRadius = sqrRadius;
-    }
-
-    this._center.x = centerX;
-    this._center.y = centerY;
-    this._center.z = centerZ;
-
-    var radius = Math.sqrt(maxSqrRadius);
-    this._halfExtentX = radius;
-    this._halfExtentY = radius;
-    this._halfExtentZ = radius;
-
-    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-
-    this._updateMinAndMax();
-};
-
-HX.BoundingSphere.prototype.growToIncludeBound = function(bounds)
-{
-    if (bounds._expanse === HX.BoundingVolume.EXPANSE_EMPTY || this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
-
-    if (bounds._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
-        this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
-
-    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
-        this._center.x = bounds._center.x;
-        this._center.y = bounds._center.y;
-        this._center.z = bounds._center.z;
-        if (bounds._type == this._type) {
-            this._halfExtentX = bounds._halfExtentX;
-            this._halfExtentY = bounds._halfExtentY;
-            this._halfExtentZ = bounds._halfExtentZ;
-        }
-        else {
-            this._halfExtentX = this._halfExtentY = this._halfExtentZ = bounds.getRadius();
-        }
-        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    }
-
-    else {
-        var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
-        var maxX = this._maximumX; var maxY = this._maximumY; var maxZ = this._maximumZ;
-
-        if (bounds._maximumX > maxX)
-            maxX = bounds._maximumX;
-        if (bounds._maximumY > maxY)
-            maxY = bounds._maximumY;
-        if (bounds._maximumZ > maxZ)
-            maxZ = bounds._maximumZ;
-        if (bounds._minimumX < minX)
-            minX = bounds._minimumX;
-        if (bounds._minimumY < minY)
-            minY = bounds._minimumY;
-        if (bounds._minimumZ < minZ)
-            minZ = bounds._minimumZ;
-
-        this._center.x = (minX + maxX) * .5;
-        this._center.y = (minY + maxY) * .5;
-        this._center.z = (minZ + maxZ) * .5;
-
-        var dx = maxX - this._center.x;
-        var dy = maxY - this._center.y;
-        var dz = maxZ - this._center.z;
-        var radius = Math.sqrt(dx*dx + dy*dy + dz*dz);
-        this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
-    }
-
-    this._updateMinAndMax();
-};
-
-HX.BoundingSphere.prototype.growToIncludeMinMax = function(min, max)
-{
-    // temp solution, not run-time perf critical
-    var aabb = new HX.BoundingAABB();
-    aabb.growToIncludeMinMax(min, max);
-    this.growToIncludeBound(aabb);
-};
-
-HX.BoundingSphere.prototype.getRadius = function()
-{
-    return this._halfExtentX;
-};
-
-HX.BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
-{
-    if (sourceBound._expanse == HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
-        this.clear(sourceBound._expanse);
-    else {
-        var arr = matrix._m;
-        var m00 = arr[0], m10 = arr[1], m20 = arr[2];
-        var m01 = arr[4], m11 = arr[5], m21 = arr[6];
-        var m02 = arr[8], m12 = arr[9], m22 = arr[10];
-
-        var x = sourceBound._center.x;
-        var y = sourceBound._center.y;
-        var z = sourceBound._center.z;
-
-        this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
-        this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
-        this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
-
-
-        if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
-        if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
-        if (m02 < 0) m02 = -m02; if (m12 < 0) m12 = -m12; if (m22 < 0) m22 = -m22;
-        x = sourceBound._halfExtentX;
-        y = sourceBound._halfExtentY;
-        z = sourceBound._halfExtentZ;
-
-        var hx = m00 * x + m01 * y + m02 * z;
-        var hy = m10 * x + m11 * y + m12 * z;
-        var hz = m20 * x + m21 * y + m22 * z;
-
-        var radius = Math.sqrt(hx * hx + hy * hy + hz * hz);
-        this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
-
-        this._minimumX = this._center.x - this._halfExtentX;
-        this._minimumY = this._center.y - this._halfExtentY;
-        this._minimumZ = this._center.z - this._halfExtentZ;
-        this._maximumX = this._center.x + this._halfExtentX;
-        this._maximumY = this._center.y + this._halfExtentY;
-        this._maximumZ = this._center.z + this._halfExtentZ;
-
-        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    }
-};
-
-HX.BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
-{
-    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
-        return true;
-    else if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
-        return false;
-
-    var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
-    var radius = this._halfExtentX;
-
-    for (var i = 0; i < numPlanes; ++i) {
-        var plane = cullPlanes[i];
-        var signedDist = plane.x * centerX + plane.y * centerY + plane.z * centerZ + plane.w;
-
-        if (signedDist > radius)
-            return false;
-    }
-
-    return true;
-};
-
-HX.BoundingSphere.prototype.intersectsBound = function(bound)
-{
-    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
-        return false;
-
-    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
-        return true;
-
-    // both Spheres
-    if (bound._type === this._type) {
-        var dx = this._center.x - bound._center.x;
-        var dy = this._center.y - bound._center.y;
-        var dz = this._center.z - bound._center.z;
-        var touchDistance = this._halfExtentX + bound._halfExtentX;
-        return dx*dx + dy*dy + dz*dz < touchDistance*touchDistance;
-    }
-    else
-        return HX.BoundingVolume._testAABBToSphere(bound, this);
-};
-
-HX.BoundingSphere.prototype.classifyAgainstPlane = function(plane)
-{
-    var dist = plane.x * this._center.x + plane.y * this._center.y + plane.z * this._center.z + plane.w;
-    var radius = this._halfExtentX;
-    if (dist > radius) return HX.PlaneSide.FRONT;
-    else if (dist < -radius) return HX.PlaneSide.BACK;
-    else return HX.PlaneSide.INTERSECTING;
-};
-
-HX.BoundingSphere.prototype._updateMinAndMax = function()
-{
-    var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
-    var radius = this._halfExtentX;
-    this._minimumX = centerX - radius;
-    this._minimumY = centerY - radius;
-    this._minimumZ = centerZ - radius;
-    this._maximumX = centerX + radius;
-    this._maximumY = centerY + radius;
-    this._maximumZ = centerZ + radius;
-};
-
-HX.BoundingSphere.prototype.createDebugModelInstance = function()
-{
-    return new HX.ModelInstance(HX.SpherePrimitive.create({doubleSided:true}), [this.getDebugMaterial()]);
-};
-
-HX.FixedAABB = function()
-{
-    HX.BoundingAABB.call(this);
-};
-
-HX.FixedAABB.prototype = Object.create(HX.BoundingAABB.prototype);
-/**
  * Hexadecimal representations are always 0xAARRGGBB
  * @param rOrHex
  * @param g
@@ -6523,7 +5847,7 @@ HX.Color = function(rOrHex, g, b, a)
 
 HX.Color.prototype =
 {
-    set: function(rOrHex, g, b, a)
+    set: function (rOrHex, g, b, a)
     {
         if (rOrHex === undefined) {
             this.a = 1.0;
@@ -6545,7 +5869,7 @@ HX.Color.prototype =
         }
     },
 
-    hex: function()
+    hex: function ()
     {
         var r = (Math.min(this.r, 1.0) * 0xff);
         var g = (Math.min(this.g, 1.0) * 0xff);
@@ -6554,12 +5878,12 @@ HX.Color.prototype =
         return (r << 16) | (g << 8) | b;
     },
 
-    luminance: function()
+    luminance: function ()
     {
-        return this.r*.30 + this.g*0.59 + this.b*.11;
+        return this.r * .30 + this.g * 0.59 + this.b * .11;
     },
 
-    gammaToLinear: function(target)
+    gammaToLinear: function (target)
     {
         target = target || new HX.Color();
 
@@ -6578,7 +5902,7 @@ HX.Color.prototype =
         return target;
     },
 
-    linearToGamma: function(target)
+    linearToGamma: function (target)
     {
         target = target || new HX.Color();
 
@@ -6597,7 +5921,7 @@ HX.Color.prototype =
         return target;
     },
 
-    copyFrom: function(color)
+    copyFrom: function (color)
     {
         this.r = color.r;
         this.g = color.g;
@@ -6605,9 +5929,19 @@ HX.Color.prototype =
         this.a = color.a;
     },
 
-    toString: function()
+    toString: function ()
     {
         return "Color(" + this.r + ", " + this.g + ", " + this.b + ", " + this.a + ")";
+    },
+
+    clone: function ()
+    {
+        var color = new HX.Color();
+        color.r = this.r;
+        color.g = this.g;
+        color.b = this.b;
+        color.a = this.a;
+        return color;
     }
 };
 
@@ -6796,6 +6130,9 @@ HX._renderTargetInvalid = true;
 HX._viewport = {x: 0, y: 0, width: 0, height: 0};
 HX._viewportInvalid = true;
 
+HX._depthMask = true;
+HX._depthMaskInvalid = true;
+
 HX._cullMode = null;
 HX._cullModeInvalid = true;
 
@@ -6916,6 +6253,13 @@ HX.setCullMode = function(value)
     HX._cullModeInvalid = true;
 };
 
+HX.setDepthMask = function(value)
+{
+    if (HX._depthMask === value) return;
+    HX._depthMask = value;
+    HX._depthMaskInvalid = true;
+};
+
 HX.setDepthTest = function(value)
 {
     if (HX._depthTest === value) return;
@@ -6983,6 +6327,11 @@ HX._updateRenderState = function()
             HX_GL.enable(HX_GL.CULL_FACE);
             HX_GL.cullFace(HX._cullMode);
         }
+    }
+
+    if (HX._depthMaskInvalid) {
+        HX_GL.depthMask(HX._depthMask);
+        HX._depthMaskInvalid = false;
     }
 
     if (HX._depthTestInvalid) {
@@ -7616,6 +6965,7 @@ HX.MaterialPass = function (shader)
     this._elementType = HX.ElementType.TRIANGLES;
     this._cullMode = HX.CullMode.BACK;
     this._depthTest = HX.Comparison.LESS_EQUAL;
+    this._writeDepth = true;
     this._blendState = null;
     this._gbuffer = null;
     this._enabled = true;
@@ -7674,6 +7024,11 @@ HX.MaterialPass.prototype = {
         this._depthTest = value;
     },
 
+    set writeDepth(value)
+    {
+        this._writeDepth = value;
+    },
+
     get cullMode()
     {
         return this._cullMode;
@@ -7721,6 +7076,7 @@ HX.MaterialPass.prototype = {
 
         HX.setCullMode(this._cullMode);
         HX.setDepthTest(this._depthTest);
+        HX.setDepthMask(this._writeDepth);
         HX.setBlendState(this._blendState);
     },
 
@@ -8820,6 +8176,156 @@ HX.SceneVisitor.prototype =
 };
 /**
  *
+ * @param type
+ * @constructor
+ */
+HX.BoundingVolume = function(type)
+{
+    this._type = type;
+
+    this._expanse = HX.BoundingVolume.EXPANSE_EMPTY;
+    this._minimumX = 0.0;
+    this._minimumY = 0.0;
+    this._minimumZ = 0.0;
+    this._maximumX = 0.0;
+    this._maximumY = 0.0;
+    this._maximumZ = 0.0;
+    this._halfExtentX = 0.0;
+    this._halfExtentY = 0.0;
+    this._halfExtentZ = 0.0;
+    this._center = new HX.Float4();
+};
+
+HX.BoundingVolume.EXPANSE_EMPTY = 0;
+HX.BoundingVolume.EXPANSE_INFINITE = 1;
+HX.BoundingVolume.EXPANSE_FINITE = 2;
+
+HX.BoundingVolume._testAABBToSphere = function(aabb, sphere)
+{
+    // b = sphere var max = aabb._maximum;
+    var maxX = sphere._maximumX;
+    var maxY = sphere._maximumY;
+    var maxZ = sphere._maximumZ;
+    var minX = aabb._minimumX;
+    var minY = aabb._minimumY;
+    var minZ = aabb._minimumZ;
+    var radius = sphere._halfExtentX;
+    var centerX = this._center.x;
+    var centerY = this._center.y;
+    var centerZ = this._center.z;
+    var dot = 0;
+
+    if (minX > centerX) {
+        var diff = centerX - minX;
+        dot += diff * diff;
+    }
+    else if (maxX < centerX) {
+        var diff = centerX - maxX;
+        dot += diff * diff;
+    }
+
+    if (minY > centerY) {
+        var diff = centerY - minY;
+        dot += diff * diff;
+    }
+    else if (maxY < centerY) {
+        var diff = centerY - maxY;
+        dot += diff * diff;
+    }
+
+    if (minZ > centerZ) {
+        var diff = centerZ - minZ;
+        dot += diff * diff;
+    }
+    else if (maxZ < centerZ) {
+        var diff = centerZ - maxZ;
+        dot += diff * diff;
+    }
+
+    return dot < radius * radius;
+};
+
+HX.BoundingVolume.prototype =
+{
+    get expanse() { return this._expanse; },
+    get type() { return this._type; },
+
+    growToIncludeMesh: function(meshData) { throw new Error("Abstract method!"); },
+    growToIncludeBound: function(bounds) { throw new Error("Abstract method!"); },
+    growToIncludeMinMax: function(min, max) { throw new Error("Abstract method!"); },
+
+    clear: function(expanseState)
+    {
+        this._minimumX = this._minimumY = this._minimumZ = 0;
+        this._maximumX = this._maximumY = this._maximumZ = 0;
+        this._center.set(0, 0, 0);
+        this._halfExtentX = this._halfExtentY = this._halfExtentZ = 0;
+        this._expanse = expanseState === undefined? HX.BoundingVolume.EXPANSE_EMPTY : expanseState;
+    },
+
+    // both center/radius and min/max approaches are used, depending on the type, but both are required
+    get minimum() { return new HX.Float4(this._minimumX, this._minimumY, this._minimumZ, 1.0); },
+    get maximum() { return new HX.Float4(this._maximumX, this._maximumY, this._maximumZ, 1.0); },
+
+    get center() { return this._center; },
+    // the half-extents of the box encompassing the bounds.
+    get halfExtent() { return new HX.Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0); },
+    // the radius of the sphere encompassing the bounds. This is implementation-dependent, because the radius is less precise for a box than for a sphere
+    getRadius: function() { throw new Error("Abstract method!"); },
+
+    transformFrom: function(sourceBound, matrix) { throw new Error("Abstract method!"); },
+
+    /**
+     * Tests whether the bounding box intersects. The convex solid is described as a list of planes pointing outward. Infinite solids are also allowed (Directional Light frusta without a near plane, for example)
+     * @param cullPlanes An Array of planes to be tested. Planes are simply Float4 objects.
+     * @param numPlanes The amount of planes to be tested against. This so we can test less planes than are in the cullPlanes array (Directional Light frusta, for example)
+     * @returns {boolean} Whether or not the bounds intersect the solid.
+     */
+    intersectsConvexSolid: function(cullPlanes, numPlanes) { throw new Error("Abstract method!"); },
+
+    intersectsBound: function(bound) { throw new Error("Abstract method!"); },
+    classifyAgainstPlane: function(plane) { throw new Error("Abstract method!"); },
+
+    createDebugModelInstance: function() { throw new Error("Abstract method!"); },
+
+    getDebugModelInstance: function()
+    {
+        if (this._type._debugModel === undefined)
+            this._type._debugModel = this.createDebugModelInstance();
+
+        return this._type._debugModel;
+    },
+
+    getDebugMaterial: function()
+    {
+        if (HX.BoundingVolume._debugMaterial === undefined) {
+            var material = new HX.Material();
+            var shader = new HX.Shader(HX.ShaderLibrary.get("debug_bounds_vertex.glsl"), HX.ShaderLibrary.get("debug_bounds_fragment.glsl"));
+            var materialPass = new HX.MaterialPass(shader);
+            materialPass.elementType = HX.ElementType.LINES;
+            materialPass.cullMode = HX.CullMode.NONE;
+            material.setPass(HX.MaterialPass.POST_LIGHT_PASS, materialPass);
+            material.setUniform("color", new HX.Color(1.0, 0.0, 1.0));
+            HX.BoundingVolume._debugMaterial = material;
+        }
+
+        return HX.BoundingVolume._debugMaterial;
+    },
+
+    toString: function()
+    {
+        return "BoundingVolume: [ " +
+            this._minimumX + ", " +
+            this._minimumY + ", " +
+            this._minimumZ + " ] - [ " +
+            this._maximumX + ", " +
+            this._maximumY + ", " +
+            this._maximumZ + " ], expanse: " +
+            this._expanse;
+    }
+};
+/**
+ *
  * @constructor
  */
 HX.SkeletonBlendNode = function()
@@ -9406,6 +8912,7 @@ HX.PBRMaterial = function()
     HX.Material.call(this);
     this._passesInvalid = true;
     this._color = new HX.Color(1, 1, 1, 1);
+    this._emissionMap = null;
     this._colorMap = null;
     this._doubleSided = false;
     this._normalMap = null;
@@ -9508,6 +9015,24 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             {
                 this._color = isNaN(value) ? value : new HX.Color(value);
                 this.setUniform("color", this._color);
+            }
+        },
+
+        emissionMap: {
+            get: function()
+            {
+                return this._emissionMap;
+            },
+
+            set: function(value)
+            {
+                if (!!this._colorMap !== !!value)
+                    this._passesInvalid = true;
+
+                if (!this._passesInvalid && value)
+                    this.setTexture("emissionMap", value);
+
+                this._emissionMap = value;
             }
         },
 
@@ -9648,10 +9173,6 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             }
         },
 
-        // TODO: Provide transparency modes:
-        //  - alpha
-        //  - absorbant
-        //  - absorbant no specular (for performance, removes gbuffer passes)
         transparent:
         {
             get: function() { return this._transparent; },
@@ -9739,6 +9260,9 @@ HX.PBRMaterial.prototype._updatePasses = function()
             var defines = "#define HX_NO_MRT_GBUFFER_COLOR\n" + normalDefines + colorDefines + generalDefines;
             var pass = this._initPass(HX.MaterialPass.POST_LIGHT_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
             pass.blendState = HX.BlendState.MULTIPLY;
+
+            if (this._emissionMap)
+                console.warn("Emission map is not compatible with transparency!");
         }
     }
 
@@ -9775,6 +9299,12 @@ HX.PBRMaterial.prototype._updatePasses = function()
         // do not assign texture or color if transparent (albedo will be black)
         colorPass.setUniform("color", new HX.Color(0, 0, 0, 1));
         colorPass.setTexture("colorMap", null);
+    }
+
+    if ((!this._transparent || !this._refract) && this._emissionMap) {
+        var pass = this._initPass(HX.MaterialPass.POST_LIGHT_PASS, defines, "default_emission_vertex.glsl", "default_emission_fragment.glsl");
+        pass.blendState = HX.BlendState.ADD;
+        this.setTexture("emissionMap", this._emissionMap);
     }
 
     this._passesInvalid = false;
@@ -9859,6 +9389,527 @@ HX.TextureSlot = function() {
     this.location = -1;
     this.texture = null;
     this.name = null;   // for debugging
+};
+/**
+ *
+ * @constructor
+ */
+HX.BoundingAABB = function()
+{
+    HX.BoundingVolume.call(this, HX.BoundingAABB);
+};
+
+HX.BoundingAABB.prototype = Object.create(HX.BoundingVolume.prototype);
+
+HX.BoundingAABB.prototype.growToIncludeMesh = function(meshData)
+{
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+
+    var attribute = meshData.getVertexAttribute("hx_position");
+    var index = attribute.offset;
+    var stride = meshData.getVertexStride(attribute.streamIndex);
+    var vertices = meshData.getVertexData(attribute.streamIndex);
+    var len = vertices.length;
+    var minX, minY, minZ;
+    var maxX, maxY, maxZ;
+
+    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
+        maxX = minX = vertices[index];
+        maxY = minY = vertices[index + 1];
+        maxZ = minZ = vertices[index + 2];
+        index += stride;
+    }
+    else {
+        minX = this._minimumX; minY = this._minimumY; minZ = this._minimumZ;
+        maxX = this._maximumX; maxY = this._maximumY; maxZ = this._maximumZ;
+    }
+
+    for (; index < len; index += stride) {
+        var x = vertices[index];
+        var y = vertices[index + 1];
+        var z = vertices[index + 2];
+
+        if (x > maxX) maxX = x;
+        else if (x < minX) minX = x;
+        if (y > maxY) maxY = y;
+        else if (y < minY) minY = y;
+        if (z > maxZ) maxZ = z;
+        else if (z < minZ) minZ = z;
+    }
+
+    this._minimumX = minX; this._minimumY = minY; this._minimumZ = minZ;
+    this._maximumX = maxX; this._maximumY = maxY; this._maximumZ = maxZ;
+    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+
+    this._updateCenterAndExtent();
+};
+
+HX.BoundingAABB.prototype.growToIncludeBound = function(bounds)
+{
+    if (bounds._expanse === HX.BoundingVolume.EXPANSE_EMPTY || this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+
+    if (bounds._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
+        this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
+
+    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
+        this._minimumX = bounds._minimumX;
+        this._minimumY = bounds._minimumY;
+        this._minimumZ = bounds._minimumZ;
+        this._maximumX = bounds._maximumX;
+        this._maximumY = bounds._maximumY;
+        this._maximumZ = bounds._maximumZ;
+        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    }
+    else {
+        if (bounds._minimumX < this._minimumX)
+            this._minimumX = bounds._minimumX;
+        if (bounds._minimumY < this._minimumY)
+            this._minimumY = bounds._minimumY;
+        if (bounds._minimumZ < this._minimumZ)
+            this._minimumZ = bounds._minimumZ;
+        if (bounds._maximumX > this._maximumX)
+            this._maximumX = bounds._maximumX;
+        if (bounds._maximumY > this._maximumY)
+            this._maximumY = bounds._maximumY;
+        if (bounds._maximumZ > this._maximumZ)
+            this._maximumZ = bounds._maximumZ;
+    }
+
+    this._updateCenterAndExtent();
+};
+
+HX.BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
+{
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+
+    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY) {
+        this._minimumX = min.x;
+        this._minimumY = min.y;
+        this._minimumZ = min.z;
+        this._maximumX = max.x;
+        this._maximumY = max.y;
+        this._maximumZ = max.z;
+        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    }
+    else {
+        if (min.x < this._minimumX)
+            this._minimumX = min.x;
+        if (min.y < this._minimumY)
+            this._minimumY = min.y;
+        if (min.z < this._minimumZ)
+            this._minimumZ = min.z;
+        if (max.x > this._maximumX)
+            this._maximumX = max.x;
+        if (max.y > this._maximumY)
+            this._maximumY = max.y;
+        if (max.z > this._maximumZ)
+            this._maximumZ = max.z;
+    }
+
+    this._updateCenterAndExtent();
+};
+
+HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
+{
+    if (sourceBound._expanse === HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
+        this.clear(sourceBound._expanse);
+    else {
+        var arr = matrix._m;
+        var m00 = arr[0], m10 = arr[1], m20 = arr[2];
+        var m01 = arr[4], m11 = arr[5], m21 = arr[6];
+        var m02 = arr[8], m12 = arr[9], m22 = arr[10];
+
+        var x = sourceBound._center.x;
+        var y = sourceBound._center.y;
+        var z = sourceBound._center.z;
+
+        this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
+        this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
+        this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
+
+        if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
+        if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
+        if (m02 < 0) m02 = -m02; if (m12 < 0) m12 = -m12; if (m22 < 0) m22 = -m22;
+        x = sourceBound._halfExtentX;
+        y = sourceBound._halfExtentY;
+        z = sourceBound._halfExtentZ;
+
+        this._halfExtentX = m00 * x + m01 * y + m02 * z;
+        this._halfExtentY = m10 * x + m11 * y + m12 * z;
+        this._halfExtentZ = m20 * x + m21 * y + m22 * z;
+
+
+        this._minimumX = this._center.x - this._halfExtentX;
+        this._minimumY = this._center.y - this._halfExtentY;
+        this._minimumZ = this._center.z - this._halfExtentZ;
+        this._maximumX = this._center.x + this._halfExtentX;
+        this._maximumY = this._center.y + this._halfExtentY;
+        this._maximumZ = this._center.z + this._halfExtentZ;
+        this._expanse = sourceBound._expanse;
+    }
+};
+
+
+HX.BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
+{
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
+        return true;
+    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
+        return false;
+
+    var minX = this._minimumX, minY = this._minimumY, minZ = this._minimumZ;
+    var maxX = this._maximumX, maxY = this._maximumY, maxZ = this._maximumZ;
+
+    for (var i = 0; i < numPlanes; ++i) {
+        // find the point that will always have the smallest signed distance
+        var plane = cullPlanes[i];
+        var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
+        var closestX = planeX > 0? minX : maxX;
+        var closestY = planeY > 0? minY : maxY;
+        var closestZ = planeZ > 0? minZ : maxZ;
+
+        // classify the closest point
+        var signedDist = planeX * closestX + planeY * closestY + planeZ * closestZ + planeW;
+        if (signedDist > 0.0)
+            return false;
+    }
+
+    return true;
+};
+
+HX.BoundingAABB.prototype.intersectsBound = function(bound)
+{
+    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
+        return false;
+
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
+        return true;
+
+    // both AABB
+    if (bound._type === this._type) {
+        return 	this._maximumX > bound._minimumX &&
+            this._minimumX < bound._maximumX &&
+            this._maximumY > bound._minimumY &&
+            this._minimumY < bound._maximumY &&
+            this._maximumZ > bound._minimumZ &&
+            this._minimumZ < bound._maximumZ;
+    }
+    else {
+        return HX.BoundingVolume._testAABBToSphere(this, bound);
+    }
+};
+
+HX.BoundingAABB.prototype.classifyAgainstPlane = function(plane)
+{
+    var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = planeW;
+
+    var centerDist = planeX * this._center.x + planeY * this._center.y + planeZ * this._center.z + planeW;
+
+    if (planeX < 0) planeX = -planeX;
+    if (planeY < 0) planeY = -planeY;
+    if (planeZ < 0) planeZ = -planeZ;
+
+    var intersectionDist = planeX * this._halfExtentX + planeY * this._halfExtentY + planeZ * this._halfExtentZ;
+
+    if (centerDist > intersectionDist)
+        return HX.PlaneSide.FRONT;
+    else if (centerDist < -intersectionDist)
+        return HX.PlaneSide.BACK;
+    else
+        return HX.PlaneSide.INTERSECTING;
+};
+
+HX.BoundingAABB.prototype.setExplicit = function(min, max)
+{
+    this._minimumX = min.x;
+    this._minimumY = min.y;
+    this._minimumZ = min.z;
+    this._maximumX = max.x;
+    this._maximumY = max.y;
+    this._maximumZ = max.z;
+    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    this._updateCenterAndExtent();
+};
+
+HX.BoundingAABB.prototype._updateCenterAndExtent = function()
+{
+    var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
+    var maxX = this._maximumX; var maxY = this._maximumY; var maxZ = this._maximumZ;
+    this._center.x = (minX + maxX) * .5;
+    this._center.y = (minY + maxY) * .5;
+    this._center.z = (minZ + maxZ) * .5;
+    this._halfExtentX = (maxX - minX) * .5;
+    this._halfExtentY = (maxY - minY) * .5;
+    this._halfExtentZ = (maxZ - minZ) * .5;
+};
+
+// part of the
+HX.BoundingAABB.prototype.getRadius = function()
+{
+    return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
+};
+
+HX.BoundingAABB.prototype.createDebugModelInstance = function()
+{
+    return new HX.ModelInstance(HX.BoxPrimitive.create(), [this.getDebugMaterial()]);
+};
+/**
+ *
+ * @constructor
+ */
+HX.BoundingSphere = function()
+{
+    HX.BoundingVolume.call(this, HX.BoundingSphere);
+};
+
+HX.BoundingSphere.prototype = Object.create(HX.BoundingVolume.prototype);
+
+HX.BoundingSphere.prototype.setExplicit = function(center, radius)
+{
+    this._center.copyFrom(center);
+    this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
+    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    this._updateMinAndMax();
+};
+
+HX.BoundingSphere.prototype.growToIncludeMesh = function(meshData)
+{
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+
+    var attribute = meshData.getVertexAttribute("hx_position");
+    var index = attribute.offset;
+    var stride = meshData.getVertexStride(attribute.streamIndex);
+    var vertices = attribute.getVertexData(attribute.streamIndex);
+    var len = vertices.length;
+    var minX, minY, minZ;
+    var maxX, maxY, maxZ;
+
+    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
+        maxX = minX = vertices[index];
+        maxY = minY = vertices[index + 1];
+        maxZ = minZ = vertices[index + 2];
+        index += stride;
+    }
+    else {
+        minX = this._minimumX; minY = this._minimumY; minZ = this._minimumZ;
+        maxX = this._maximumX; maxY = this._maximumY; maxZ = this._maximumZ;
+    }
+
+    for (; index < len; index += stride) {
+        var x = vertices[index];
+        var y = vertices[index + 1];
+        var z = vertices[index + 2];
+
+        if (x > maxX) maxX = x;
+        else if (x < minX) minX = x;
+        if (y > maxY) maxY = y;
+        else if (y < minY) minY = y;
+        if (z > maxZ) maxZ = z;
+        else if (z < minZ) minZ = z;
+    }
+    var centerX = (maxX + minX) * .5;
+    var centerY = (maxY + minY) * .5;
+    var centerZ = (maxZ + minZ) * .5;
+    var maxSqrRadius = 0.0;
+
+    index = attribute.offset;
+    for (; index < len; index += stride) {
+        var dx = centerX - vertices[index];
+        var dy = centerY - vertices[index + 1];
+        var dz = centerZ - vertices[index + 2];
+        var sqrRadius = dx*dx + dy*dy + dz*dz;
+        if (sqrRadius > maxSqrRadius) maxSqrRadius = sqrRadius;
+    }
+
+    this._center.x = centerX;
+    this._center.y = centerY;
+    this._center.z = centerZ;
+
+    var radius = Math.sqrt(maxSqrRadius);
+    this._halfExtentX = radius;
+    this._halfExtentY = radius;
+    this._halfExtentZ = radius;
+
+    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+
+    this._updateMinAndMax();
+};
+
+HX.BoundingSphere.prototype.growToIncludeBound = function(bounds)
+{
+    if (bounds._expanse === HX.BoundingVolume.EXPANSE_EMPTY || this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+
+    if (bounds._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
+        this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
+
+    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
+        this._center.x = bounds._center.x;
+        this._center.y = bounds._center.y;
+        this._center.z = bounds._center.z;
+        if (bounds._type == this._type) {
+            this._halfExtentX = bounds._halfExtentX;
+            this._halfExtentY = bounds._halfExtentY;
+            this._halfExtentZ = bounds._halfExtentZ;
+        }
+        else {
+            this._halfExtentX = this._halfExtentY = this._halfExtentZ = bounds.getRadius();
+        }
+        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    }
+
+    else {
+        var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
+        var maxX = this._maximumX; var maxY = this._maximumY; var maxZ = this._maximumZ;
+
+        if (bounds._maximumX > maxX)
+            maxX = bounds._maximumX;
+        if (bounds._maximumY > maxY)
+            maxY = bounds._maximumY;
+        if (bounds._maximumZ > maxZ)
+            maxZ = bounds._maximumZ;
+        if (bounds._minimumX < minX)
+            minX = bounds._minimumX;
+        if (bounds._minimumY < minY)
+            minY = bounds._minimumY;
+        if (bounds._minimumZ < minZ)
+            minZ = bounds._minimumZ;
+
+        this._center.x = (minX + maxX) * .5;
+        this._center.y = (minY + maxY) * .5;
+        this._center.z = (minZ + maxZ) * .5;
+
+        var dx = maxX - this._center.x;
+        var dy = maxY - this._center.y;
+        var dz = maxZ - this._center.z;
+        var radius = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
+    }
+
+    this._updateMinAndMax();
+};
+
+HX.BoundingSphere.prototype.growToIncludeMinMax = function(min, max)
+{
+    // temp solution, not run-time perf critical
+    var aabb = new HX.BoundingAABB();
+    aabb.growToIncludeMinMax(min, max);
+    this.growToIncludeBound(aabb);
+};
+
+HX.BoundingSphere.prototype.getRadius = function()
+{
+    return this._halfExtentX;
+};
+
+HX.BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
+{
+    if (sourceBound._expanse == HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+        this.clear(sourceBound._expanse);
+    else {
+        var arr = matrix._m;
+        var m00 = arr[0], m10 = arr[1], m20 = arr[2];
+        var m01 = arr[4], m11 = arr[5], m21 = arr[6];
+        var m02 = arr[8], m12 = arr[9], m22 = arr[10];
+
+        var x = sourceBound._center.x;
+        var y = sourceBound._center.y;
+        var z = sourceBound._center.z;
+
+        this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
+        this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
+        this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
+
+
+        if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
+        if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
+        if (m02 < 0) m02 = -m02; if (m12 < 0) m12 = -m12; if (m22 < 0) m22 = -m22;
+        x = sourceBound._halfExtentX;
+        y = sourceBound._halfExtentY;
+        z = sourceBound._halfExtentZ;
+
+        var hx = m00 * x + m01 * y + m02 * z;
+        var hy = m10 * x + m11 * y + m12 * z;
+        var hz = m20 * x + m21 * y + m22 * z;
+
+        var radius = Math.sqrt(hx * hx + hy * hy + hz * hz);
+        this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
+
+        this._minimumX = this._center.x - this._halfExtentX;
+        this._minimumY = this._center.y - this._halfExtentY;
+        this._minimumZ = this._center.z - this._halfExtentZ;
+        this._maximumX = this._center.x + this._halfExtentX;
+        this._maximumY = this._center.y + this._halfExtentY;
+        this._maximumZ = this._center.z + this._halfExtentZ;
+
+        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    }
+};
+
+HX.BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
+{
+    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
+        return true;
+    else if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+        return false;
+
+    var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
+    var radius = this._halfExtentX;
+
+    for (var i = 0; i < numPlanes; ++i) {
+        var plane = cullPlanes[i];
+        var signedDist = plane.x * centerX + plane.y * centerY + plane.z * centerZ + plane.w;
+
+        if (signedDist > radius)
+            return false;
+    }
+
+    return true;
+};
+
+HX.BoundingSphere.prototype.intersectsBound = function(bound)
+{
+    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+        return false;
+
+    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
+        return true;
+
+    // both Spheres
+    if (bound._type === this._type) {
+        var dx = this._center.x - bound._center.x;
+        var dy = this._center.y - bound._center.y;
+        var dz = this._center.z - bound._center.z;
+        var touchDistance = this._halfExtentX + bound._halfExtentX;
+        return dx*dx + dy*dy + dz*dz < touchDistance*touchDistance;
+    }
+    else
+        return HX.BoundingVolume._testAABBToSphere(bound, this);
+};
+
+HX.BoundingSphere.prototype.classifyAgainstPlane = function(plane)
+{
+    var dist = plane.x * this._center.x + plane.y * this._center.y + plane.z * this._center.z + plane.w;
+    var radius = this._halfExtentX;
+    if (dist > radius) return HX.PlaneSide.FRONT;
+    else if (dist < -radius) return HX.PlaneSide.BACK;
+    else return HX.PlaneSide.INTERSECTING;
+};
+
+HX.BoundingSphere.prototype._updateMinAndMax = function()
+{
+    var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
+    var radius = this._halfExtentX;
+    this._minimumX = centerX - radius;
+    this._minimumY = centerY - radius;
+    this._minimumZ = centerZ - radius;
+    this._maximumX = centerX + radius;
+    this._maximumY = centerY + radius;
+    this._maximumZ = centerZ + radius;
+};
+
+HX.BoundingSphere.prototype.createDebugModelInstance = function()
+{
+    return new HX.ModelInstance(HX.SpherePrimitive.create({doubleSided:true}), [this.getDebugMaterial()]);
 };
 /**
  *
@@ -11074,8 +11125,11 @@ HX.AmbientLight = function()
 {
     // AMBIENT LIGHT IS NOT ACTUALLY A REAL LIGHT OBJECT
     HX.Entity.call(this);
-    this._linearColor = new HX.Color();
+    this._scaledIrradiance = new HX.Color();
+    this._intensity = 1.0;
     this.color = new HX.Color(.1,.1,.1);
+    this._scaledIrradiance = new HX.Color();
+    this._updateScaledIrradiance();
 };
 
 HX.AmbientLight.prototype = Object.create(HX.Entity.prototype);
@@ -11086,15 +11140,17 @@ Object.defineProperties(HX.AmbientLight.prototype, {
         set: function(value)
         {
             this._color = isNaN(value) ? value : new HX.Color(value);
-            if (HX.OPTIONS.useGammaCorrection)
-                this._color.gammaToLinear(this._linearColor);
-            else
-                this._linearColor.copyFrom(this._color);
+            this._updateScaledIrradiance();
         }
     },
 
-    linearColor: {
-        get: function() { return this._linearColor; }
+    intensity: {
+        get: function() { return this._intensity; },
+        set: function(value)
+        {
+            this._intensity = value;
+            this._updateScaledIrradiance();
+        },
     }
 });
 
@@ -11107,6 +11163,19 @@ HX.AmbientLight.prototype.acceptVisitor = function (visitor)
 HX.AmbientLight.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+};
+
+HX.AmbientLight.prototype._updateScaledIrradiance = function()
+{
+    // do not scale by 1/PI. It feels weird to control.
+    if (HX.OPTIONS.useGammaCorrection)
+        this._color.gammaToLinear(this._scaledIrradiance);
+    else
+        this._scaledIrradiance.copyFrom(this._color);
+
+    this._scaledIrradiance.r *= this._intensity;
+    this._scaledIrradiance.g *= this._intensity;
+    this._scaledIrradiance.b *= this._intensity;
 };
 /**
  *
@@ -11747,6 +11816,7 @@ HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, rend
         colorData[v3i++] = color.g;
         posData[v3i] = pos.z;
         colorData[v3i++] = color.b;
+        // todo: lights behind camera become too big to render
         radiusData[v1i++] = light._radius * 1.0001; // add some padding to account for imperfect geometry
     }
 
@@ -14023,9 +14093,11 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
     scene.acceptVisitor(this);
 
     this._opaquePasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques);
+    this._opaquePasses[HX.MaterialPass.POST_LIGHT_PASS].sort(this._sortOpaques);
     this._opaquePasses[HX.MaterialPass.POST_PASS].sort(this._sortOpaques);
 
     this._transparentPasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortTransparents);
+    this._transparentPasses[HX.MaterialPass.POST_LIGHT_PASS].sort(this._sortTransparents);
     this._transparentPasses[HX.MaterialPass.POST_PASS].sort(this._sortTransparents);
 
     if (!HX.EXT_DRAW_BUFFERS) {
@@ -14112,7 +14184,7 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
 
 HX.RenderCollector.prototype.visitAmbientLight = function(light)
 {
-    var color = light.linearColor;
+    var color = light._scaledIrradiance;
     this._ambientColor.r += color.r;
     this._ambientColor.g += color.g;
     this._ambientColor.b += color.b;
@@ -14144,6 +14216,8 @@ HX.RenderCollector.prototype._reset = function()
 
 HX.RenderCollector.prototype._sortTransparents = function(a, b)
 {
+    var diff = a.material._renderOrder - b.material._renderOrder;
+    if (diff !== 0) return diff;
     return b.renderOrderHint - a.renderOrderHint;
 };
 
@@ -14154,8 +14228,8 @@ HX.RenderCollector.prototype._sortOpaques = function(a, b)
     diff = a.material._renderOrder - b.material._renderOrder;
     if (diff !== 0) return diff;
 
-    diff = a.pass._shader._renderOrderHint - b.pass._shader._renderOrderHint;
-    if (diff !== 0) return diff;
+    //diff = a.pass._shader._renderOrderHint - b.pass._shader._renderOrderHint;
+    //if (diff !== 0) return diff;
 
     diff = a.material._renderOrderHint - b.material._renderOrderHint;
     if (diff !== 0) return diff;
@@ -14379,13 +14453,16 @@ HX.Renderer.prototype =
             {
                 this._renderOpaques();
 
-                this._renderPostPass(HX.MaterialPass.POST_LIGHT_PASS);
-                this._renderPostPass(HX.MaterialPass.POST_PASS, true);
+                this._renderOpaquePostPass(HX.MaterialPass.POST_LIGHT_PASS);
+                this._renderOpaquePostPass(HX.MaterialPass.POST_PASS, true);
 
                 // don't use AO for transparents
                 if (this._aoTexture) this._aoTexture = null;
-
                 this._renderTransparents();
+
+                this._renderTransparentPostPass(HX.MaterialPass.POST_LIGHT_PASS);
+                this._renderTransparentPostPass(HX.MaterialPass.POST_PASS, true);
+
             }
             HX.popRenderTarget();
 
@@ -14603,7 +14680,7 @@ HX.Renderer.prototype =
                 break;
             case HX.DebugRenderMode.DEBUG_AO:
                 if (this._aoEffect)
-                    this._copyTexture.execute(HX.RectMesh.DEFAULT, this._aoEffect.getAOTexture());
+                    this._applyGamma.execute(HX.RectMesh.DEFAULT, this._aoEffect.getAOTexture());
                 break;
             case HX.DebugRenderMode.DEBUG_SSR:
                 if (this._ssrEffect)
@@ -14630,14 +14707,14 @@ HX.Renderer.prototype =
 
     _renderLightAccumulation: function ()
     {
-        HX_GL.depthMask(false);
+        HX.setDepthMask(false);
 
         HX.clear(HX_GL.COLOR_BUFFER_BIT);
 
         this._renderGlobalIllumination();
         this._renderDirectLights();
 
-        HX_GL.depthMask(true);
+        HX.setDepthMask(true);
     },
 
     _renderDirectLights: function ()
@@ -14691,18 +14768,29 @@ HX.Renderer.prototype =
         HX.popRenderTarget();
     },
 
-    _renderPostPass: function (passType, copySource)
+    _renderOpaquePostPass: function (passType, copySource)
     {
         var opaqueList = this._renderCollector.getOpaqueRenderList(passType);
-        var transparentList = this._renderCollector.getTransparentRenderList(passType);
 
-        if (opaqueList.length === 0 && transparentList.length === 0)
+        if (opaqueList.length === 0)
             return;
 
         if (copySource)
             this._copySource();
 
         this._renderPass(passType, this._renderCollector.getOpaqueRenderList(passType));
+    },
+
+    _renderTransparentPostPass: function (passType, copySource)
+    {
+        var transparentList = this._renderCollector.getTransparentRenderList(passType);
+
+        if (transparentList.length === 0)
+            return;
+
+        if (copySource)
+            this._copySource();
+
         this._renderPass(passType, this._renderCollector.getTransparentRenderList(passType));
     },
 
@@ -15202,7 +15290,7 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSize)
 
     var size = Math.ceil(kernelSize *.5) * 2;
     var radius = size * .5;
-    var gaussian = HX.CenteredGaussianCurve.fromRadius(radius);
+    var gaussian = HX.CenteredGaussianCurve.fromRadius(radius,.005);
 
     var total = 0;
     for (var j = 0; j < kernelSize; ++j) {
@@ -15220,7 +15308,7 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSize)
  *
  * @constructor
  */
-HX.BloomEffect = function(size, strength, downScale)
+HX.BloomEffect = function(size, strength, downScale, anisotropy)
 {
     HX.Effect.call(this);
 
@@ -15244,6 +15332,7 @@ HX.BloomEffect = function(size, strength, downScale)
     }
 
     this._size = size || 512;
+    this._anisotropy = anisotropy || 1;
 
     this._strength = strength === undefined? 1.0 : strength;
 
@@ -15254,7 +15343,7 @@ HX.BloomEffect = function(size, strength, downScale)
 
     this._compositePass.setTexture("bloomTexture", this._thresholdMaps[0]);
 
-    this.strength = strength;
+    this.strength = this._strength;
 };
 
 HX.BloomEffect.prototype = Object.create(HX.Effect.prototype,
@@ -15287,7 +15376,7 @@ HX.BloomEffect.prototype._initBlurPass = function()
     var height = this._targetHeight / this._downScale;
     // direction used to provide step size
     this._blurXPass = new HX.BloomBlurPass(size, 1, 0, width, height);
-    this._blurYPass = new HX.BloomBlurPass(size, 0, 1, width, height);
+    this._blurYPass = new HX.BloomBlurPass(size * this._anisotropy, 0, 1, width, height);
     this._blurXPass.setTexture("sourceTexture", this._thresholdMaps[0]);
     this._blurYPass.setTexture("sourceTexture", this._thresholdMaps[1]);
 };
@@ -16992,11 +17081,20 @@ HX.HMT.prototype._loadShaders = function(data, material)
 
 HX.HMT.prototype._processMaterial = function(data, shaders, material)
 {
+    var defines = "";
+    if (this.options.defines) {
+        for (var key in this.options.defines) {
+            if (this.options.defines.hasOwnProperty(key)) {
+                defines += "#define " + key + " " + this.options.defines[key] + "\n";
+            }
+        }
+    }
+
     var passes = data.passes;
 
-    if (passes.geometry !== undefined) this._processPass(material, passes.geometry, HX.MaterialPass.GEOMETRY_PASS, shaders);
-    if (passes.postlight !== undefined) this._processPass(material, passes.postlight, HX.MaterialPass.POST_LIGHT_PASS, shaders);
-    if (passes.post !== undefined) this._processPass(material, passes.post, HX.MaterialPass.POST_PASS, shaders);
+    if (passes.geometry !== undefined) this._processPass(material, passes.geometry, HX.MaterialPass.GEOMETRY_PASS, shaders, defines);
+    if (passes.postlight !== undefined) this._processPass(material, passes.postlight, HX.MaterialPass.POST_LIGHT_PASS, shaders, defines);
+    if (passes.post !== undefined) this._processPass(material, passes.post, HX.MaterialPass.POST_PASS, shaders, defines);
 
     if (data.transparencyMode !== undefined) material.transparencyMode = HX.HMT._PROPERTY_MAP[data.transparencyMode];
 
@@ -17006,54 +17104,61 @@ HX.HMT.prototype._processMaterial = function(data, shaders, material)
     material.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
 };
 
-HX.HMT.prototype._processPass = function(material, passData, passType, shaders)
+HX.HMT.prototype._processPass = function(material, passData, passType, shaders, defines)
 {
     var vertexShader = shaders[this._correctURL(passData.vertexShader)];
     var fragmentShader = shaders[this._correctURL(passData.fragmentShader)];
 
     if (passType === HX.MaterialPass.GEOMETRY_PASS) {
         if (HX.EXT_DRAW_BUFFERS)
-            this._addPass(vertexShader, fragmentShader, passData, material, passType);
+            this._addPass(vertexShader, fragmentShader, passData, material, passType, defines);
         else {
-            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_COLOR_PASS, "HX_NO_MRT_GBUFFER_COLOR");
-            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_NORMAL_PASS, "HX_NO_MRT_GBUFFER_NORMALS");
-            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, "HX_NO_MRT_GBUFFER_SPECULAR");
+            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_COLOR_PASS, defines, "HX_NO_MRT_GBUFFER_COLOR");
+            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_NORMAL_PASS, defines, "HX_NO_MRT_GBUFFER_NORMALS");
+            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, defines, "HX_NO_MRT_GBUFFER_SPECULAR");
         }
 
-        this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.SHADOW_DEPTH_PASS, "HX_SHADOW_DEPTH_PASS");
+        this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.SHADOW_DEPTH_PASS, defines, "HX_SHADOW_DEPTH_PASS");
     }
     else {
-        this._addPass(vertexShader, fragmentShader, passData, material, passType);
+        this._addPass(vertexShader, fragmentShader, passData, material, passType, defines);
     }
 };
 
-HX.HMT.prototype._addPass = function(vertexShader, fragmentShader, passData, material, passType, geometryPassTypeDef)
+HX.HMT.prototype._addPass = function(vertexShader, fragmentShader, passData, material, passType, defines, geometryPassTypeDef)
 {
     fragmentShader = HX.GLSLIncludeGeometryPass + fragmentShader;
 
     if (geometryPassTypeDef) {
-        var defines = "#define " + geometryPassTypeDef + "\n";
-        vertexShader = defines + vertexShader;
-        fragmentShader = defines + fragmentShader;
+        var geomDefines = defines + "#define " + geometryPassTypeDef + "\n";
+        vertexShader = geomDefines + vertexShader;
+        fragmentShader = geomDefines + fragmentShader;
     }
 
-    var shader = new HX.Shader(vertexShader, fragmentShader);
+    var shader = new HX.Shader(defines + vertexShader, defines + fragmentShader);
     var pass = new HX.MaterialPass(shader);
 
-    if (passData.elementType)
+    if (passData.hasOwnProperty("elementType"))
         pass.elementType = HX.HMT._PROPERTY_MAP[passData.elementType];
 
-    if (passData.cullMode)
+    if (passData.hasOwnProperty("cullMode"))
         pass.cullMode = HX.HMT._PROPERTY_MAP[passData.cullMode];
 
-    if (passData.blend) {
+    if (passData.hasOwnProperty("depthTest"))
+        pass.depthTest = HX.HMT._PROPERTY_MAP[passData.depthTest];
+
+    if (passData.hasOwnProperty("writeDepth"))
+        pass.writeDepth = passData.writeDepth;
+
+    if (passData.hasOwnProperty("blend")) {
         var blendState = new HX.BlendState();
+        var blend = passData.blend;
 
         if (blend.hasOwnProperty("source"))
             blendState.srcFactor = HX.HMT._PROPERTY_MAP[blend.source];
 
         if (blend.hasOwnProperty("destination"))
-            blendState.srcFactor = HX.HMT._PROPERTY_MAP[blend.destination];
+            blendState.dstFactor = HX.HMT._PROPERTY_MAP[blend.destination];
 
         if (blend.hasOwnProperty("operator"))
             blendState.operator = HX.HMT._PROPERTY_MAP[blend.operator];
@@ -17141,7 +17246,18 @@ HX.HMT._initPropertyMap = function() {
         // transparency modes
         additive: HX.TransparencyMode.ADDITIVE,
         alpha: HX.TransparencyMode.ALPHA,
-        opaque: HX.TransparencyMode.OPAQUE
+        opaque: HX.TransparencyMode.OPAQUE,
+
+        // depth tests
+        always: HX.Comparison.ALWAYS,
+        disabled: HX.Comparison.DISABLED,
+        equal: HX.Comparison.EQUAL,
+        greater: HX.Comparison.GREATER,
+        greaterEqual: HX.Comparison.GREATER_EQUAL,
+        less: HX.Comparison.LESS,
+        lessEqual: HX.Comparison.LESS_EQUAL,
+        never: HX.Comparison.NEVER,
+        notEqual: HX.Comparison.NOT_EQUAL
     };
 };
 /**
@@ -17194,6 +17310,9 @@ HX.HSC.prototype._processObjects = function(definitions, scene)
                 break;
             case "dirlight":
                 object = this._processDirLight(def);
+                break;
+            case "ptlight":
+                object = this._processPointLight(def);
                 break;
             case "amblight":
                 object = this._processAmbientLight(def);
@@ -17277,6 +17396,21 @@ HX.HSC.prototype._processMesh = function(def)
 HX.HSC.prototype._processMaterial = function(def)
 {
     var material = new HX.PBRMaterial();
+    if (def.hasOwnProperty("color")) material.color = new HX.Color(def.color[0], def.color[1], def.color[2]);
+    if (def.hasOwnProperty("metallicness")) material.metallicness = def.metallicness;
+    if (def.hasOwnProperty("specularNormalReflection")) material.specularNormalReflection = def.specularNormalReflection;
+    if (def.hasOwnProperty("refractiveRatio")) {
+        material.refractiveRatio = def.refractiveRatio;
+        material.refract = def.refractiveRatio !== 1;
+    }
+    if (def.hasOwnProperty("transparent")) material.transparent = def.transparent;
+    if (def.hasOwnProperty("alpha")) material.alpha = def.alpha;
+    if (def.hasOwnProperty("alphaThreshold")) material.alphaThreshold = def.alphaThreshold;
+    if (def.hasOwnProperty("roughness")) material.setRoughness(def.roughness);
+    if (def.hasOwnProperty("minRoughness")) material.minRoughness = def.minRoughness;
+    if (def.hasOwnProperty("maxRoughness")) material.maxRoughness = def.maxRoughness;
+    if (def.hasOwnProperty("specularMapMode")) material.specularMapMode = def.specularMapMode;  // 1: SPECULAR_MAP_ROUGHNESS_ONLY, 2: SPECULAR_MAP_ALL, 3: SPECULAR_MAP_SHARE_NORMAL_MAP
+
     return material;
 };
 
@@ -17285,6 +17419,15 @@ HX.HSC.prototype._processDirLight = function(def)
     var light = new HX.DirectionalLight();
     this._processLight(def, light);
     if (def.hasOwnProperty("direction")) light.direction = new HX.Float4(def.direction[0], def.direction[1], def.direction[2]);
+    if (def.hasOwnProperty("shadows")) light.castShadows = def.shadows;
+    return light;
+};
+
+HX.HSC.prototype._processPointLight = function(def)
+{
+    var light = new HX.PointLight();
+    this._processLight(def, light);
+    if (def.hasOwnProperty("radius")) light.radius = def.radius;
     return light;
 };
 
@@ -17300,7 +17443,6 @@ HX.HSC.prototype._processLight = function(def, light)
     this._processSceneNode(def, light);
     if (def.hasOwnProperty("color")) light.color = new HX.Color(def.color[0], def.color[1], def.color[2]);
     if (def.hasOwnProperty("intensity")) light.intensity = def.intensity;
-
 };
 
 HX.HSC.prototype._processModelInstance = function(def)
@@ -17760,7 +17902,8 @@ HX.NormalTangentGenerator.prototype =
                 HX.Float4.scale(v2, st1.y, temp2);
                 HX.Float4.subtract(temp1, temp2, temp);
 
-                temp.normalize();
+                if (temp.lengthSqr > .001)
+                    temp.normalize();
 
                 this._faceTangents[i] = temp.x;
                 this._faceTangents[i + 1] = temp.y;
@@ -17872,7 +18015,11 @@ HX.NormalTangentGenerator.prototype =
                 tangent.y = tangentData[tangentIndex + 1];
                 tangent.z = tangentData[tangentIndex + 2];
 
-                tangent.normalize();
+                // can happen in singularities
+                if (tangent.lengthSqr < 0.0001)
+                    tangent.set(1.0, 1.0, 1.0, 1.0);
+                else
+                    tangent.normalize();
 
                 bitangent.x = bitangents[bitangentIndex];
                 bitangent.y = bitangents[bitangentIndex + 1];
@@ -18049,6 +18196,376 @@ HX.StatsDisplay.prototype =
 
             "<p style='font-size:x-small; width:100%; text-align:right;'>Helix " + HX.VERSION + "<br/></p>";
     }
+};
+FlightController = function()
+{
+    HX.Component.call(this);
+    this._speed = 1.0;
+    this._speedMultiplier = 2.0;
+    this._torquePitch = 0.0;
+    this._torqueYaw = 0.0;
+    this._localVelocity = new HX.Float4(0, 0, 0, 0);
+    this._localAcceleration = new HX.Float4(0, 0, 0, 0);
+    this._pitch = 0.0;
+    this._yaw = 0.0;
+    this._mouseX = 0;
+    this._mouseY = 0;
+
+    this._torque = 1.0;    // m/s^2
+    this._friction = 5.0;    // 1/s
+
+    this._maxAcceleration = this._speed;    // m/s^2
+    this._maxVelocity = this._speed;    // m/s
+
+    this._onKeyDown = null;
+    this._onKeyUp = null;
+};
+
+FlightController.prototype = Object.create(HX.Component.prototype, {
+    speed: {
+        get: function()
+        {
+            return this._speed;
+        },
+
+        set: function(value)
+        {
+            this._speed = value;
+            this._maxAcceleration = value;
+            this._maxVelocity = value;
+        }
+    },
+
+    shiftMultiplier: {
+        get: function()
+        {
+            return this._speedMultiplier;
+        },
+
+        set: function(value)
+        {
+            this._speedMultiplier = value;
+        }
+    },
+
+    pitch: {
+        get: function()
+        {
+            return this._pitch;
+        },
+
+        set: function(value)
+        {
+            this._pitch = value;
+        }
+    },
+
+    yaw: {
+        get: function()
+        {
+            return this._yaw;
+        },
+
+        set: function(value)
+        {
+            this._yaw = value;
+        }
+    },
+
+    roll: {
+        get: function()
+        {
+            return this._roll;
+        },
+
+        set: function(value)
+        {
+            this._roll = value;
+        }
+    },
+
+    torque: {
+        get: function()
+        {
+            return this._torque;
+        },
+
+        set: function(value)
+        {
+            this._torque = value;
+        }
+    },
+
+    friction: {
+        get: function()
+        {
+            return this._friction;
+        },
+
+        set: function(value)
+        {
+            this._friction = value;
+        }
+    }
+});
+
+FlightController.prototype.onAdded = function(dt)
+{
+    var self = this;
+    this._onKeyDown = function(event) {
+        var keyCode = ("which" in event) ? event.which : event.keyCode;
+
+        switch (keyCode) {
+            case 16:
+                self._maxVelocity = self._speed * self._speedMultiplier;
+                self._maxAcceleration = self._speed * self._speedMultiplier;
+                break;
+            case 87:
+                self._setForwardForce(-1.0);
+                break;
+            case 83:
+                self._setForwardForce(1.0);
+                break;
+            case 65:
+                self._setStrideForce(-1.0);
+                break;
+            case 68:
+                self._setStrideForce(1.0);
+                break;
+        }
+    };
+
+    this._onKeyUp = function(event) {
+        var keyCode = ("which" in event) ? event.which : event.keyCode;
+
+        switch (keyCode) {
+            case 16:
+                self._maxVelocity = self._speed;
+                self._maxAcceleration = self._speed;
+                break;
+            case 87:
+            case 83:
+                self._setForwardForce(0.0);
+                break;
+            case 65:
+            case 68:
+                self._setStrideForce(0.0);
+                break;
+        }
+    };
+
+    this._onMouseMove = function(event)
+    {
+        event = event || window.event;
+
+        self._addPitch(-(self._mouseY-event.clientY) / 100);
+        self._addYaw((self._mouseX-event.clientX) / 100);
+
+        self._mouseX = event.clientX;
+        self._mouseY = event.clientY;
+    };
+
+    this._onMouseDown = function(event)
+    {
+        self._mouseX = event.clientX;
+        self._mouseY = event.clientY;
+        document.addEventListener("mousemove", self._onMouseMove);
+    };
+
+    this._onMouseUp = function(event)
+    {
+        document.removeEventListener("mousemove", self._onMouseMove);
+    };
+
+    document.addEventListener("keydown", this._onKeyDown);
+    document.addEventListener("keyup", this._onKeyUp);
+    document.addEventListener("mousedown", this._onMouseDown);
+    document.addEventListener("mouseup", this._onMouseUp);
+};
+
+FlightController.prototype.onRemoved = function(dt)
+{
+    document.removeEventListener("keydown", this._onKeyDown);
+    document.removeEventListener("keyup", this._onKeyUp);
+    document.removeEventListener("mousemove", this._onMouseMove);
+    document.removeEventListener("mousedown", this._onMouseDown);
+    document.removeEventListener("mouseup", this._onMouseUp);
+};
+
+FlightController.prototype.onUpdate = function(dt)
+{
+    var seconds = dt * .001;
+
+    var frictionForce = HX.Float4.scale(this._localVelocity, this._friction*seconds);
+    this._localVelocity.subtract(frictionForce);
+
+    var acceleration = HX.Float4.scale(this._localAcceleration, this._maxAcceleration*seconds);
+    this._localVelocity.add(acceleration);
+
+    var absVelocity = this._localVelocity.length;
+    if (absVelocity > this._maxVelocity)
+        this._localVelocity.scale(this._maxVelocity/absVelocity);
+
+    this._pitch += this._torquePitch;
+    this._yaw += this._torqueYaw;
+
+    if (this._pitch < -Math.PI*.5) this._pitch = -Math.PI*.5;
+    else if (this._pitch > Math.PI*.5) this._pitch = Math.PI*.5;
+
+    var matrix = this.entity.transformationMatrix;
+    // the original position
+    var position = matrix.getColumn(3);
+    var distance = HX.Float4.scale(this._localVelocity, seconds);
+
+    matrix.fromRotationPitchYawRoll(this._pitch, this._yaw, 0.0);
+    matrix.prependTranslation(distance);
+    matrix.appendTranslation(position);
+
+    this.entity.transformationMatrix = matrix;
+};
+
+// ratio is "how far the controller is pushed", from -1 to 1
+FlightController.prototype._setForwardForce = function(ratio)
+{
+    this._localAcceleration.z = ratio * this._maxAcceleration;
+};
+
+FlightController.prototype._setStrideForce = function(ratio)
+{
+    this._localAcceleration.x = ratio * this._maxAcceleration;
+};
+
+FlightController.prototype._setTorquePitch = function(ratio)
+{
+    this._torquePitch = ratio * this._torque;
+};
+
+FlightController.prototype._setTorqueYaw = function(ratio)
+{
+    this._torqueYaw = ratio * this._torque;
+};
+
+FlightController.prototype._addPitch = function(value)
+{
+    this._pitch += value;
+};
+
+FlightController.prototype._addYaw = function(value)
+{
+    this._yaw += value;
+};
+/**
+ *
+ * @param target
+ * @constructor
+ */
+OrbitController = function(lookAtTarget)
+{
+    HX.Component.call(this);
+    this._coords = new HX.Float4(-Math.PI *.75, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
+    this._localAcceleration = new HX.Float4(0.0, 0.0, 0.0, 0.0);
+    this._localVelocity = new HX.Float4(0.0, 0.0, 0.0, 0.0);
+
+    this.maxRadius = 4.0;
+    this.minRadius = 0.1;
+    this.dampen = .9;
+    this.lookAtTarget = lookAtTarget || new HX.Float4(0.0, 0.0, 0.0, 1.0);
+    this._oldMouseX = 0;
+    this._oldMouseY = 0;
+    this._onMouseWheel = null;
+    this._onMouseMove = null;
+};
+
+OrbitController.prototype = Object.create(HX.Component.prototype,
+    {
+        radius: {
+            get: function() { return this._coords.z; },
+            set: function(value) { this._coords.z = value; }
+        },
+
+        azimuth: {
+            get: function() { return this._coords.x; },
+            set: function(value) { this._coords.x = value; }
+        },
+
+        polar: {
+            get: function() { return this._coords.y; },
+            set: function(value) { this._coords.y = value; }
+        }
+    });
+
+OrbitController.prototype.onAdded = function()
+{
+    var self = this;
+
+    this._onMouseWheel = function(event)
+    {
+        self.setZoomImpulse(-event.wheelDelta *.0001);
+    };
+
+    this._onMouseMove = function(event)
+    {
+        var leftDown = event.buttons & 1;
+        if (leftDown) {
+            // it's not a continuous force
+            var dx = event.screenX - this._oldMouseX;
+            var dy = event.screenY - this._oldMouseY;
+            self.setAzimuthImpulse(dx * .005);
+            self.setPolarImpulse(-dy * .005);
+        }
+        this._oldMouseX = event.screenX;
+        this._oldMouseY = event.screenY;
+    };
+
+    // TODO, make removable
+    document.addEventListener("mousewheel", this._onMouseWheel);
+    document.addEventListener("mousemove", this._onMouseMove);
+};
+
+OrbitController.prototype.onRemoved = function()
+{
+    document.removeEventListener("mousewheel", this._onMouseWheel);
+    document.removeEventListener("mousemove", this._onMouseMove);
+};
+
+OrbitController.prototype.onUpdate = function(dt)
+{
+    this._localVelocity.x *= this.dampen;
+    this._localVelocity.y *= this.dampen;
+    this._localVelocity.z *= this.dampen;
+    this._localVelocity.x += this._localAcceleration.x;
+    this._localVelocity.y += this._localAcceleration.y;
+    this._localVelocity.z += this._localAcceleration.z;
+    this._localAcceleration.x = 0.0;
+    this._localAcceleration.y = 0.0;
+    this._localAcceleration.z = 0.0;
+
+    this._coords.add(this._localVelocity);
+    this._coords.y = HX.clamp(this._coords.y, 0.1, Math.PI - .1);
+    this._coords.z = HX.clamp(this._coords.z, this.minRadius, this.maxRadius);
+
+    var matrix = this.entity.transformationMatrix;
+    var pos = new HX.Float4();
+    pos.fromSphericalCoordinates(this._coords.z, this._coords.x, this._coords.y);
+    pos.add(this.lookAtTarget);
+    matrix.lookAt(this.lookAtTarget, pos, HX.Float4.Y_AXIS);
+    this.entity.transformationMatrix = matrix;
+};
+
+    // ratio is "how far the controller is pushed", from -1 to 1
+OrbitController.prototype.setAzimuthImpulse  = function(value)
+{
+    this._localAcceleration.x = value;
+};
+
+OrbitController.prototype.setPolarImpulse = function(value)
+{
+    this._localAcceleration.y = value;
+};
+
+OrbitController.prototype.setZoomImpulse = function(value)
+{
+    this._localAcceleration.z = value;
 };
 HX.Debug = {
     printShaderCode: function(code)

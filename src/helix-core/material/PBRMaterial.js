@@ -7,6 +7,7 @@ HX.PBRMaterial = function()
     HX.Material.call(this);
     this._passesInvalid = true;
     this._color = new HX.Color(1, 1, 1, 1);
+    this._emissionMap = null;
     this._colorMap = null;
     this._doubleSided = false;
     this._normalMap = null;
@@ -109,6 +110,24 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             {
                 this._color = isNaN(value) ? value : new HX.Color(value);
                 this.setUniform("color", this._color);
+            }
+        },
+
+        emissionMap: {
+            get: function()
+            {
+                return this._emissionMap;
+            },
+
+            set: function(value)
+            {
+                if (!!this._colorMap !== !!value)
+                    this._passesInvalid = true;
+
+                if (!this._passesInvalid && value)
+                    this.setTexture("emissionMap", value);
+
+                this._emissionMap = value;
             }
         },
 
@@ -249,10 +268,6 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             }
         },
 
-        // TODO: Provide transparency modes:
-        //  - alpha
-        //  - absorbant
-        //  - absorbant no specular (for performance, removes gbuffer passes)
         transparent:
         {
             get: function() { return this._transparent; },
@@ -340,6 +355,9 @@ HX.PBRMaterial.prototype._updatePasses = function()
             var defines = "#define HX_NO_MRT_GBUFFER_COLOR\n" + normalDefines + colorDefines + generalDefines;
             var pass = this._initPass(HX.MaterialPass.POST_LIGHT_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
             pass.blendState = HX.BlendState.MULTIPLY;
+
+            if (this._emissionMap)
+                console.warn("Emission map is not compatible with transparency!");
         }
     }
 
@@ -376,6 +394,12 @@ HX.PBRMaterial.prototype._updatePasses = function()
         // do not assign texture or color if transparent (albedo will be black)
         colorPass.setUniform("color", new HX.Color(0, 0, 0, 1));
         colorPass.setTexture("colorMap", null);
+    }
+
+    if ((!this._transparent || !this._refract) && this._emissionMap) {
+        var pass = this._initPass(HX.MaterialPass.POST_LIGHT_PASS, defines, "default_emission_vertex.glsl", "default_emission_fragment.glsl");
+        pass.blendState = HX.BlendState.ADD;
+        this.setTexture("emissionMap", this._emissionMap);
     }
 
     this._passesInvalid = false;

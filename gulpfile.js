@@ -35,6 +35,7 @@ var coreFiles = [
     "src/helix-core/light/Light.js",
     "src/helix-core/light/ShadowFilter.js",
     "src/helix-core/scene/SceneVisitor.js",
+    "src/helix-core/scene/BoundingVolume.js",
     "src/helix-core/animation/SkeletonBlendNode.js",
 
     "src/helix-core/shader/*.js",
@@ -50,6 +51,7 @@ var coreFiles = [
     "src/helix-core/animation/*.js",
     "src/helix-core/io/*.js",
     "src/helix-core/utils/*.js",
+    "src/helix-core/controller/*.js",
 
     "src/helix-core/debug/*.js"
 ];

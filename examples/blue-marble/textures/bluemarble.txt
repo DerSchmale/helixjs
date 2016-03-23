@@ -1,0 +1,2 @@
+Earth textures originally taken and adapted from http://visibleearth.nasa.gov/view_cat.php?categoryID=1484
+Moon textures from http://www.celestiamotherlode.net/catalog/moon.php

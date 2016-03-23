@@ -28,7 +28,7 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSize)
 
     var size = Math.ceil(kernelSize *.5) * 2;
     var radius = size * .5;
-    var gaussian = HX.CenteredGaussianCurve.fromRadius(radius);
+    var gaussian = HX.CenteredGaussianCurve.fromRadius(radius,.005);
 
     var total = 0;
     for (var j = 0; j < kernelSize; ++j) {
@@ -46,7 +46,7 @@ HX.BloomBlurPass.prototype._initWeights = function(kernelSize)
  *
  * @constructor
  */
-HX.BloomEffect = function(size, strength, downScale)
+HX.BloomEffect = function(size, strength, downScale, anisotropy)
 {
     HX.Effect.call(this);
 
@@ -70,6 +70,7 @@ HX.BloomEffect = function(size, strength, downScale)
     }
 
     this._size = size || 512;
+    this._anisotropy = anisotropy || 1;
 
     this._strength = strength === undefined? 1.0 : strength;
 
@@ -80,7 +81,7 @@ HX.BloomEffect = function(size, strength, downScale)
 
     this._compositePass.setTexture("bloomTexture", this._thresholdMaps[0]);
 
-    this.strength = strength;
+    this.strength = this._strength;
 };
 
 HX.BloomEffect.prototype = Object.create(HX.Effect.prototype,
@@ -113,7 +114,7 @@ HX.BloomEffect.prototype._initBlurPass = function()
     var height = this._targetHeight / this._downScale;
     // direction used to provide step size
     this._blurXPass = new HX.BloomBlurPass(size, 1, 0, width, height);
-    this._blurYPass = new HX.BloomBlurPass(size, 0, 1, width, height);
+    this._blurYPass = new HX.BloomBlurPass(size * this._anisotropy, 0, 1, width, height);
     this._blurXPass.setTexture("sourceTexture", this._thresholdMaps[0]);
     this._blurYPass.setTexture("sourceTexture", this._thresholdMaps[1]);
 };

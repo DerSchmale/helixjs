@@ -13,7 +13,7 @@ HX.Color = function(rOrHex, g, b, a)
 
 HX.Color.prototype =
 {
-    set: function(rOrHex, g, b, a)
+    set: function (rOrHex, g, b, a)
     {
         if (rOrHex === undefined) {
             this.a = 1.0;
@@ -35,7 +35,7 @@ HX.Color.prototype =
         }
     },
 
-    hex: function()
+    hex: function ()
     {
         var r = (Math.min(this.r, 1.0) * 0xff);
         var g = (Math.min(this.g, 1.0) * 0xff);
@@ -44,12 +44,12 @@ HX.Color.prototype =
         return (r << 16) | (g << 8) | b;
     },
 
-    luminance: function()
+    luminance: function ()
     {
-        return this.r*.30 + this.g*0.59 + this.b*.11;
+        return this.r * .30 + this.g * 0.59 + this.b * .11;
     },
 
-    gammaToLinear: function(target)
+    gammaToLinear: function (target)
     {
         target = target || new HX.Color();
 
@@ -68,7 +68,7 @@ HX.Color.prototype =
         return target;
     },
 
-    linearToGamma: function(target)
+    linearToGamma: function (target)
     {
         target = target || new HX.Color();
 
@@ -87,7 +87,7 @@ HX.Color.prototype =
         return target;
     },
 
-    copyFrom: function(color)
+    copyFrom: function (color)
     {
         this.r = color.r;
         this.g = color.g;
@@ -95,9 +95,19 @@ HX.Color.prototype =
         this.a = color.a;
     },
 
-    toString: function()
+    toString: function ()
     {
         return "Color(" + this.r + ", " + this.g + ", " + this.b + ", " + this.a + ")";
+    },
+
+    clone: function ()
+    {
+        var color = new HX.Color();
+        color.r = this.r;
+        color.g = this.g;
+        color.b = this.b;
+        color.a = this.a;
+        return color;
     }
 };
 

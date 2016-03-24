@@ -38,10 +38,9 @@ function initCamera(camera)
     camera.nearDistance = .1;
     camera.farDistance = 100.0;
 
-    var flightController = new FlightController();
-    flightController.speed = 10.0;
-    camera.addComponent(flightController);
-
+    var floatController = new FloatController();
+    floatController.speed = 10.0;
+    camera.addComponent(floatController);
 
     var bloom = new HX.BloomEffect(500, .5, 8);
     bloom.thresholdLuminance = 1.0;

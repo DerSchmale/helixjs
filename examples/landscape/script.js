@@ -140,10 +140,10 @@ function initCamera(camera)
     var tonemap = new HX.FilmicToneMapEffect(true);
     tonemap.exposure = 1.0;
 
-    var flightController = new FlightController(camera);
-    flightController.speed = 20.0;
-    flightController.shiftMultiplier = 10.0;
-    camera.addComponents([flightController, fog, bloom, tonemap, new HX.FXAA() ]);
+    var floatController = new FloatController(camera);
+    floatController.speed = 20.0;
+    floatController.shiftMultiplier = 10.0;
+    camera.addComponents([floatController, fog, bloom, tonemap, new HX.FXAA() ]);
 }
 
 function initScene(scene)

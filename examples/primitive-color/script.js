@@ -2,8 +2,6 @@ var project = new DemoProject();
 
 project.onInit = function()
 {
-    this.camera.addComponent(new OrbitController());
-
     initScene(this.scene);
 };
 
@@ -17,7 +15,6 @@ function initScene(scene)
     // if we don't use any lights, we at least need an ambient light to show something!
     var light = new HX.AmbientLight();
     light.color = 0xffffff;
-    light.intensity = 1.0;
     scene.attach(light);
 
     var material = new HX.PBRMaterial();

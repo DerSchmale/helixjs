@@ -1,4 +1,4 @@
-FlightController = function()
+FloatController = function()
 {
     HX.Component.call(this);
     this._speed = 1.0;
@@ -22,7 +22,7 @@ FlightController = function()
     this._onKeyUp = null;
 };
 
-FlightController.prototype = Object.create(HX.Component.prototype, {
+FloatController.prototype = Object.create(HX.Component.prototype, {
     speed: {
         get: function()
         {
@@ -110,7 +110,7 @@ FlightController.prototype = Object.create(HX.Component.prototype, {
     }
 });
 
-FlightController.prototype.onAdded = function(dt)
+FloatController.prototype.onAdded = function(dt)
 {
     var self = this;
     this._onKeyDown = function(event) {
@@ -184,7 +184,7 @@ FlightController.prototype.onAdded = function(dt)
     document.addEventListener("mouseup", this._onMouseUp);
 };
 
-FlightController.prototype.onRemoved = function(dt)
+FloatController.prototype.onRemoved = function(dt)
 {
     document.removeEventListener("keydown", this._onKeyDown);
     document.removeEventListener("keyup", this._onKeyUp);
@@ -193,7 +193,7 @@ FlightController.prototype.onRemoved = function(dt)
     document.removeEventListener("mouseup", this._onMouseUp);
 };
 
-FlightController.prototype.onUpdate = function(dt)
+FloatController.prototype.onUpdate = function(dt)
 {
     var seconds = dt * .001;
 
@@ -226,32 +226,32 @@ FlightController.prototype.onUpdate = function(dt)
 };
 
 // ratio is "how far the controller is pushed", from -1 to 1
-FlightController.prototype._setForwardForce = function(ratio)
+FloatController.prototype._setForwardForce = function(ratio)
 {
     this._localAcceleration.z = ratio * this._maxAcceleration;
 };
 
-FlightController.prototype._setStrideForce = function(ratio)
+FloatController.prototype._setStrideForce = function(ratio)
 {
     this._localAcceleration.x = ratio * this._maxAcceleration;
 };
 
-FlightController.prototype._setTorquePitch = function(ratio)
+FloatController.prototype._setTorquePitch = function(ratio)
 {
     this._torquePitch = ratio * this._torque;
 };
 
-FlightController.prototype._setTorqueYaw = function(ratio)
+FloatController.prototype._setTorqueYaw = function(ratio)
 {
     this._torqueYaw = ratio * this._torque;
 };
 
-FlightController.prototype._addPitch = function(value)
+FloatController.prototype._addPitch = function(value)
 {
     this._pitch += value;
 };
 
-FlightController.prototype._addYaw = function(value)
+FloatController.prototype._addYaw = function(value)
 {
     this._yaw += value;
 };

@@ -41,9 +41,9 @@ function initCamera(camera)
     camera.nearDistance = .1;
     camera.farDistance = 200.0;
 
-    var flightController = new FlightController();
-    flightController.speed = 10.0;
-    camera.addComponent(flightController);
+    var floatController = new FloatController();
+    floatController.speed = 10.0;
+    camera.addComponent(floatController);
 }
 
 function initScene(scene)

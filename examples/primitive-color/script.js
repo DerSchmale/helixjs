@@ -20,7 +20,7 @@ function initScene(scene)
     var material = new HX.PBRMaterial();
     material.color = 0xff0000;
 
-    var primitive = HX.SpherePrimitive.create(
+    var primitive = new HX.SpherePrimitive(
         {
             radius:.25
         });

@@ -50,7 +50,7 @@ function initScene(scene)
     material.colorMap = texture;
     material.setRoughness(0.05);
 
-    var primitive = HX.SpherePrimitive.create(
+    var primitive = new HX.SpherePrimitive(
         {
             radius:.24,
             numSegmentsH: 10,
@@ -69,7 +69,7 @@ function initScene(scene)
         }
     }
 
-    primitive = HX.BoxPrimitive.create(
+    primitive = new HX.BoxPrimitive(
         {
             width: 22,
             invert:true,

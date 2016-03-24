@@ -75,7 +75,7 @@ function initScene(scene)
     material.normalMap = normalMap;
     material.setRoughness(.3);
 
-    var primitive = HX.SpherePrimitive.create(
+    var primitive = new HX.SpherePrimitive(
         {
             radius:.25,
             numSegmentsH: 20,

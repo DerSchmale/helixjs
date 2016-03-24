@@ -259,5 +259,5 @@ HX.BoundingAABB.prototype.getRadius = function()
 
 HX.BoundingAABB.prototype.createDebugModelInstance = function()
 {
-    return new HX.ModelInstance(HX.BoxPrimitive.create(), [this.getDebugMaterial()]);
+    return new HX.ModelInstance(new HX.BoxPrimitive(), [this.getDebugMaterial()]);
 };

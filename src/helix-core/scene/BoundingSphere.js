@@ -254,5 +254,5 @@ HX.BoundingSphere.prototype._updateMinAndMax = function()
 
 HX.BoundingSphere.prototype.createDebugModelInstance = function()
 {
-    return new HX.ModelInstance(HX.SpherePrimitive.create({doubleSided:true}), [this.getDebugMaterial()]);
+    return new HX.ModelInstance(new HX.SpherePrimitive({doubleSided:true}), [this.getDebugMaterial()]);
 };

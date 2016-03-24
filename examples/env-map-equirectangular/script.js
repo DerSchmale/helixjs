@@ -35,7 +35,7 @@ function initScene(scene)
     material.setRoughness(.4,.1);
     material.metallicness = 1.0;
 
-    var primitive = HX.TorusPrimitive.create(
+    var primitive = new HX.TorusPrimitive(
         {
             numSegmentsH: 30,
             numSegmentsW: 40,

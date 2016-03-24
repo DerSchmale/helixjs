@@ -50,7 +50,7 @@ function initScene(scene)
     material.refractiveRatio = 1.0 / 1.33;
     material.setRoughness(.04);
 
-    var primitive = HX.SpherePrimitive.create(
+    var primitive = new HX.SpherePrimitive(
         {
             numSegmentsH: 40,
             numSegmentsW: 60

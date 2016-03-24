@@ -57,7 +57,7 @@ function initScene(scene)
     material.specularMap = specularMap;
     material.setRoughness(.2, 1.0);
 
-    var primitive = HX.SpherePrimitive.create(
+    var primitive = new HX.SpherePrimitive(
     {
         radius:.25,
         numSegmentsH: 20,
@@ -69,7 +69,7 @@ function initScene(scene)
     modelInstance.position.y = .3;
     scene.attach(modelInstance);
 
-    primitive = HX.ConePrimitive.create(
+    primitive = new HX.ConePrimitive(
         {
             radius:.19,
             height:.5,
@@ -82,7 +82,7 @@ function initScene(scene)
     modelInstance.position.y = .3;
     scene.attach(modelInstance);
 
-    primitive = HX.BoxPrimitive.create(
+    primitive = new HX.BoxPrimitive(
         {
             width:.5
         });
@@ -92,7 +92,7 @@ function initScene(scene)
     modelInstance.position.y = -.3;
     scene.attach(modelInstance);
 
-    primitive = HX.TorusPrimitive.create(
+    primitive = new HX.TorusPrimitive(
         {
             alignment: HX.TorusPrimitive.ALIGN_XY,
             doubleSided: true,

@@ -24,7 +24,7 @@ function initScene(scene)
     var material = new HX.PBRMaterial();
     material.colorMap = texture;
 
-    var primitive = HX.SpherePrimitive.create(
+    var primitive = new HX.SpherePrimitive(
         {
             radius:.25,
             numSegmentsH: 20,

@@ -74,7 +74,7 @@ function initScene(scene)
     material.specularMap = specularMap;
     material.setRoughness(0.0);
 
-    var primitive = HX.PlanePrimitive.create(
+    var primitive = new HX.PlanePrimitive(
         {
             numSegmentsW: 10,
             numSegmentsH: 10,

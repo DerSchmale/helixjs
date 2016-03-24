@@ -9651,7 +9651,7 @@ HX.BoundingAABB.prototype.getRadius = function()
 
 HX.BoundingAABB.prototype.createDebugModelInstance = function()
 {
-    return new HX.ModelInstance(HX.BoxPrimitive.create(), [this.getDebugMaterial()]);
+    return new HX.ModelInstance(new HX.BoxPrimitive(), [this.getDebugMaterial()]);
 };
 /**
  *
@@ -9909,7 +9909,7 @@ HX.BoundingSphere.prototype._updateMinAndMax = function()
 
 HX.BoundingSphere.prototype.createDebugModelInstance = function()
 {
-    return new HX.ModelInstance(HX.SpherePrimitive.create({doubleSided:true}), [this.getDebugMaterial()]);
+    return new HX.ModelInstance(new HX.SpherePrimitive({doubleSided:true}), [this.getDebugMaterial()]);
 };
 /**
  *
@@ -10453,7 +10453,7 @@ HX.Skybox = function(materialOrTexture)
     if (!(materialOrTexture instanceof HX.Material))
         materialOrTexture = new HX.SkyboxMaterial(materialOrTexture);
 
-    var model = HX.PlanePrimitive.create({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2});
+    var model = new HX.PlanePrimitive({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2});
     model.localBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
     this._modelInstance = new HX.ModelInstance(model, materialOrTexture);
     this._globalSpecularProbe = null;
@@ -11734,7 +11734,7 @@ HX.PointLight = function()
 
     // TODO: use geodesic sphere
     if (!HX.PointLight._initialized) {
-        var sphere = new HX.SpherePrimitive.createMeshData(
+        var sphere = HX.SpherePrimitive.createMeshData(
             {
                 radius: 1.0,
                 invert: true,
@@ -11994,7 +11994,17 @@ HX.Primitive =
 
     define: function()
     {
-        var type = {};
+        var type = function(definition) {
+            definition = definition || {};
+
+            var data = type.createMeshData(definition);
+
+            var modelData = new HX.ModelData();
+            modelData.addMeshData(data);
+            HX.Model.call(this, modelData);
+        };
+
+        type.prototype = Object.create(HX.Model.prototype);
 
         type.createMeshData = function(definition)
         {
@@ -12068,17 +12078,6 @@ HX.Primitive =
             }
 
             return data;
-        };
-
-        type.create = function definition(definition) {
-            definition = definition || {};
-
-            var data = type.createMeshData(definition);
-
-            var modelData = new HX.ModelData();
-            modelData.addMeshData(data);
-
-            return new HX.Model(modelData);
         };
 
         type.createMesh = function definition(definition) {

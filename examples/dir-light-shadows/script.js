@@ -82,7 +82,7 @@ function initScene(scene)
     transparentMaterial.refract = true;
     transparentMaterial.setRoughness(.01);
 
-    var primitive = HX.SpherePrimitive.create(
+    var primitive = new HX.SpherePrimitive(
         {
             radius:.125,
             numSegmentsH: 20,
@@ -117,7 +117,7 @@ function initScene(scene)
     // also apply to transparent, just for fun
     transparentMaterial.normalMap = normalMap;
 
-    primitive = HX.PlanePrimitive.create(
+    primitive = new HX.PlanePrimitive(
         {
             numSegmentsW: 50,
             numSegmentsH: 50,

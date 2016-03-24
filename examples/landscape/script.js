@@ -72,7 +72,7 @@ function initLandscape(scene)
 
     for (var i = 0; i < numPatches; ++i) {
         var offset = Math.pow(i / numPatches, 3.0) * numPatches;
-        var primitive = HX.PlanePrimitive.create(
+        var primitive = new HX.PlanePrimitive(
             {
                 numSegmentsW: maxSegments >> offset,
                 numSegmentsH: maxSegments >> offset,
@@ -103,7 +103,7 @@ function initLandscape(scene)
 
 function initWater(scene)
 {
-    var primitive = HX.PlanePrimitive.create(
+    var primitive = new HX.PlanePrimitive(
         {
             numSegmentsW: 64,
             numSegmentsH: 64,

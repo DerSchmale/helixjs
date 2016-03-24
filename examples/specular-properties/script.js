@@ -46,7 +46,7 @@ function initScene(scene)
     skybox.setGlobalIrradianceProbe(new HX.GlobalIrradianceProbe(skyboxIrradianceTexture));
     scene.skybox = skybox;
 
-    var primitive = HX.SpherePrimitive.create(
+    var primitive = new HX.SpherePrimitive(
         {
             radius:.075,
             numSegmentsH: 20,

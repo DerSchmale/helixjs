@@ -8,7 +8,7 @@ HX.PointLight = function()
 
     // TODO: use geodesic sphere
     if (!HX.PointLight._initialized) {
-        var sphere = new HX.SpherePrimitive.createMeshData(
+        var sphere = HX.SpherePrimitive.createMeshData(
             {
                 radius: 1.0,
                 invert: true,

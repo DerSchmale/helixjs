@@ -10,7 +10,17 @@ HX.Primitive =
 
     define: function()
     {
-        var type = {};
+        var type = function(definition) {
+            definition = definition || {};
+
+            var data = type.createMeshData(definition);
+
+            var modelData = new HX.ModelData();
+            modelData.addMeshData(data);
+            HX.Model.call(this, modelData);
+        };
+
+        type.prototype = Object.create(HX.Model.prototype);
 
         type.createMeshData = function(definition)
         {
@@ -84,17 +94,6 @@ HX.Primitive =
             }
 
             return data;
-        };
-
-        type.create = function definition(definition) {
-            definition = definition || {};
-
-            var data = type.createMeshData(definition);
-
-            var modelData = new HX.ModelData();
-            modelData.addMeshData(data);
-
-            return new HX.Model(modelData);
         };
 
         type.createMesh = function definition(definition) {

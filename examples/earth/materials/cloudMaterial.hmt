@@ -1,0 +1,12 @@
+{
+    "version": "0.1",
+    "passes": {
+        "postlight": {
+            "vertexShader": "glsl/sun_post_vertex.glsl",
+            "fragmentShader": "glsl/sun_post_fragment.glsl"
+        }
+    },
+    "uniforms": {
+        "color": [ 5.0, 5.0, 5.0 ]
+    }
+}

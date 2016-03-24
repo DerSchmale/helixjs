@@ -104,7 +104,7 @@ function initSun(container)
     sunLight.direction = new HX.Float4(-sunPosX, -sunPosY, -sunPosZ);
     container.attach(sunLight);
 
-    var sunSpherePrimitive = HX.SpherePrimitive.create(
+    var sunSpherePrimitive = new HX.SpherePrimitive(
         {
             radius: 0.696
         }
@@ -124,7 +124,7 @@ function initEarth(container)
 {
     var earthRadius = 0.006371;
     var earth = new HX.GroupNode();
-    var earthSpherePrimitive = HX.SpherePrimitive.create(
+    var earthSpherePrimitive = new HX.SpherePrimitive(
         {
             radius: earthRadius,
             numSegmentsH: 60,
@@ -227,7 +227,7 @@ function initMoon(container)
     // bringing it 5x closer than it is
     var distanceToEarth = 0.384400 / 5;
     var moonRadius = 0.001737;
-    var moonSpherePrimitive = HX.SpherePrimitive.create(
+    var moonSpherePrimitive = new HX.SpherePrimitive(
         {
             radius: moonRadius,
             numSegmentsH: 30,

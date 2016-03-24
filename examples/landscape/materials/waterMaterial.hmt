@@ -6,7 +6,7 @@
             "vertexShader": "glsl/waterGeometryVertex.glsl",
             "fragmentShader": "glsl/waterGeometryFragment.glsl"
         },
-        "post": {
+        "postread": {
             "vertexShader": "glsl/waterPostVertex.glsl",
             "fragmentShader": "glsl/waterPostFragment.glsl"
         }

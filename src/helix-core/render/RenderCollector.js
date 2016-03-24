@@ -49,12 +49,12 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
     scene.acceptVisitor(this);
 
     this._opaquePasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques);
-    this._opaquePasses[HX.MaterialPass.POST_LIGHT_PASS].sort(this._sortOpaques);
-    this._opaquePasses[HX.MaterialPass.POST_PASS].sort(this._sortOpaques);
+    this._opaquePasses[HX.MaterialPass.POST_WRITE_ONLY_PASS].sort(this._sortOpaques);
+    this._opaquePasses[HX.MaterialPass.POST_READ_WRITE_PASS].sort(this._sortOpaques);
 
     this._transparentPasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortTransparents);
-    this._transparentPasses[HX.MaterialPass.POST_LIGHT_PASS].sort(this._sortTransparents);
-    this._transparentPasses[HX.MaterialPass.POST_PASS].sort(this._sortTransparents);
+    this._transparentPasses[HX.MaterialPass.POST_WRITE_ONLY_PASS].sort(this._sortTransparents);
+    this._transparentPasses[HX.MaterialPass.POST_READ_WRITE_PASS].sort(this._sortTransparents);
 
     if (!HX.EXT_DRAW_BUFFERS) {
         this._copyLegacyPasses(this._opaquePasses);

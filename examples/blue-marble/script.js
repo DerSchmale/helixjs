@@ -78,7 +78,6 @@ function initCamera(camera)
     controller.speed = .07;
     controller.shiftMultiplier = 5.0;
     controller.yaw = Math.PI;
-
     camera.addComponent(controller);
 
     camera.addComponents(settings.effects);
@@ -197,7 +196,7 @@ function initEarth(container)
     };
     materialLoader.onComplete = function(mat)
     {
-        var pass = mat.getPass(HX.MaterialPass.POST_PASS);
+        var pass = mat.getPass(HX.MaterialPass.POST_READ_WRITE_PASS);
         // just so it ends up in the transparent list
         mat.transparencyMode = HX.TransparencyMode.ALPHA;
         pass.cullMode = HX.CullMode.BACK;

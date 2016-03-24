@@ -25,10 +25,10 @@ HX.MaterialPass = function (shader)
 HX.MaterialPass.GEOMETRY_PASS = 0;
 
 // used for post-lighting, useful for some post-effects that don't need access to the backbuffer
-HX.MaterialPass.POST_LIGHT_PASS = 1;
+HX.MaterialPass.POST_WRITE_ONLY_PASS = 1;
 
 // used for post-effects with lighting accumulation available
-HX.MaterialPass.POST_PASS = 2;
+HX.MaterialPass.POST_READ_WRITE_PASS = 2;
 
 // used for dir lighting etc, depending on shadow mapping type
 HX.MaterialPass.SHADOW_DEPTH_PASS = 3;

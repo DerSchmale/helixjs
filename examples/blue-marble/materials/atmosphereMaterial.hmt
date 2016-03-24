@@ -1,7 +1,7 @@
 {
     "version": "0.1",
     "passes": {
-        "post": {
+        "postread": {
             "vertexShader": "glsl/atmosphere_post_vertex.glsl",
             "fragmentShader": "glsl/atmosphere_post_fragment.glsl",
 

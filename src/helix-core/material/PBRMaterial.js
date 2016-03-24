@@ -349,11 +349,11 @@ HX.PBRMaterial.prototype._updatePasses = function()
         // this is actually the same code as simple albedo output, but multiplicative blending
         if (this._refract) {
             var defines = normalDefines + colorDefines + generalDefines;
-            this._initPass(HX.MaterialPass.POST_PASS, defines, "default_refract_vertex.glsl", "default_refract_fragment.glsl");
+            this._initPass(HX.MaterialPass.POST_READ_WRITE_PASS, defines, "default_refract_vertex.glsl", "default_refract_fragment.glsl");
         }
         else {
             var defines = "#define HX_NO_MRT_GBUFFER_COLOR\n" + normalDefines + colorDefines + generalDefines;
-            var pass = this._initPass(HX.MaterialPass.POST_LIGHT_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+            var pass = this._initPass(HX.MaterialPass.POST_WRITE_ONLY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
             pass.blendState = HX.BlendState.MULTIPLY;
 
             if (this._emissionMap)
@@ -397,7 +397,7 @@ HX.PBRMaterial.prototype._updatePasses = function()
     }
 
     if ((!this._transparent || !this._refract) && this._emissionMap) {
-        var pass = this._initPass(HX.MaterialPass.POST_LIGHT_PASS, defines, "default_emission_vertex.glsl", "default_emission_fragment.glsl");
+        var pass = this._initPass(HX.MaterialPass.POST_WRITE_ONLY_PASS, defines, "default_emission_vertex.glsl", "default_emission_fragment.glsl");
         pass.blendState = HX.BlendState.ADD;
         this.setTexture("emissionMap", this._emissionMap);
     }

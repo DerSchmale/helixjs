@@ -1,7 +1,7 @@
 {
     "version": "0.1",
     "passes": {
-        "postlight": {
+        "postwrite": {
             "vertexShader": "glsl/cloud_post_vertex.glsl",
             "fragmentShader": "glsl/cloud_post_fragment.glsl",
 

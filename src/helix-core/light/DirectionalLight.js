@@ -123,6 +123,7 @@ HX.DirectionalLight.prototype.renderBatch = function(lightCollection, startIndex
     if (!this._lightPass)
         this._initLightPass();
 
+
     var camera = renderer._camera;
 
     this._lightPass.updateRenderState(renderer);

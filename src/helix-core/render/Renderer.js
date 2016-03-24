@@ -164,15 +164,15 @@ HX.Renderer.prototype =
             {
                 this._renderOpaques();
 
-                this._renderOpaquePostPass(HX.MaterialPass.POST_LIGHT_PASS);
-                this._renderOpaquePostPass(HX.MaterialPass.POST_PASS, true);
+                this._renderOpaquePostPass(HX.MaterialPass.POST_WRITE_ONLY_PASS);
+                this._renderOpaquePostPass(HX.MaterialPass.POST_READ_WRITE_PASS, true);
 
                 // don't use AO for transparents
                 if (this._aoTexture) this._aoTexture = null;
                 this._renderTransparents();
 
-                this._renderTransparentPostPass(HX.MaterialPass.POST_LIGHT_PASS);
-                this._renderTransparentPostPass(HX.MaterialPass.POST_PASS, true);
+                this._renderTransparentPostPass(HX.MaterialPass.POST_WRITE_ONLY_PASS);
+                this._renderTransparentPostPass(HX.MaterialPass.POST_READ_WRITE_PASS, true);
 
             }
             HX.popRenderTarget();
@@ -185,8 +185,8 @@ HX.Renderer.prototype =
             this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
         }
         HX.popRenderTarget();
-
         HX.setBlendState();
+        HX.setDepthMask(true);
 
         if (HX._renderTargetStack.length > renderTargetStackSize) throw new Error("Unpopped render targets!");
         if (HX._renderTargetStack.length < renderTargetStackSize) throw new Error("Overpopped render targets!");
@@ -418,14 +418,10 @@ HX.Renderer.prototype =
 
     _renderLightAccumulation: function ()
     {
-        HX.setDepthMask(false);
-
         HX.clear(HX_GL.COLOR_BUFFER_BIT);
 
         this._renderGlobalIllumination();
         this._renderDirectLights();
-
-        HX.setDepthMask(true);
     },
 
     _renderDirectLights: function ()

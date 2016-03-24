@@ -69,8 +69,8 @@ HX.HMT.prototype._processMaterial = function(data, shaders, material)
     var passes = data.passes;
 
     if (passes.geometry !== undefined) this._processPass(material, passes.geometry, HX.MaterialPass.GEOMETRY_PASS, shaders, defines);
-    if (passes.postlight !== undefined) this._processPass(material, passes.postlight, HX.MaterialPass.POST_LIGHT_PASS, shaders, defines);
-    if (passes.post !== undefined) this._processPass(material, passes.post, HX.MaterialPass.POST_PASS, shaders, defines);
+    if (passes.postwrite !== undefined) this._processPass(material, passes.postwrite, HX.MaterialPass.POST_WRITE_ONLY_PASS, shaders, defines);
+    if (passes.postread !== undefined) this._processPass(material, passes.postread, HX.MaterialPass.POST_READ_WRITE_PASS, shaders, defines);
 
     if (data.transparencyMode !== undefined) material.transparencyMode = HX.HMT._PROPERTY_MAP[data.transparencyMode];
 

@@ -128,7 +128,7 @@ HX.BoundingVolume.prototype =
             var materialPass = new HX.MaterialPass(shader);
             materialPass.elementType = HX.ElementType.LINES;
             materialPass.cullMode = HX.CullMode.NONE;
-            material.setPass(HX.MaterialPass.POST_LIGHT_PASS, materialPass);
+            material.setPass(HX.MaterialPass.POST_WRITE_ONLY_PASS, materialPass);
             material.setUniform("color", new HX.Color(1.0, 0.0, 1.0));
             HX.BoundingVolume._debugMaterial = material;
         }

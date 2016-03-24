@@ -47,7 +47,7 @@ function initCamera(camera)
     camera.addComponent(bloom);
 
     var tonemap = new HX.FilmicToneMapEffect(true);
-    tonemap.exposure = 0;
+    tonemap.exposure = 2;
     camera.addComponent(tonemap);
     camera.addComponent(new HX.FXAA());
 }

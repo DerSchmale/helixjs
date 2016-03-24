@@ -6,6 +6,7 @@ HX.EffectPass = function(vertexShader, fragmentShader)
     vertexShader = vertexShader || HX.ShaderLibrary.get("default_post_vertex.glsl");
     var shader = new HX.Shader(vertexShader, fragmentShader);
     HX.MaterialPass.call(this, shader);
+    this.writeDepth = false;
     this._uniformSetters = HX.UniformSetter.getSetters(this._shader);
     this._gbuffer = null;
     this._vertexLayout = null;

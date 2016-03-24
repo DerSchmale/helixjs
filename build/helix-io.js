@@ -4902,409 +4902,6 @@ HX.FBXSettings.prototype =
         this._matrix.invert();
     }
 };
-HX.MD5Anim = function()
-{
-    HX.Importer.call(this, HX.SkeletonClip);
-    this._hierarchy = null;
-    this._baseFrame = null;
-    this._activeFrame = null;
-    this._numJoints = 0;
-
-    this._correctionQuad = new HX.Quaternion();
-    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
-};
-
-HX.MD5Anim.prototype = Object.create(HX.Importer.prototype);
-
-HX.MD5Anim.prototype.parse = function(data, target)
-{
-    this._hierarchy = [];
-    this._baseFrame = [];
-    this._target = target;
-
-    // assuming a valid file, validation isn't our job
-    var lines = data.split("\n");
-    var len = lines.length;
-    var lineFunction = null;
-
-    for (var i = 0; i < len; ++i) {
-        // remove leading & trailing whitespace
-        var line = lines[i].replace(/^\s+|\s+$/g, "");
-        var tokens = line.split(/\s+/);
-
-        if (tokens[0] === "//" || tokens[0] === "")
-            continue;
-
-        if (lineFunction) {
-            lineFunction.call(this, tokens);
-            if (tokens[0] === "}") lineFunction = null;
-        }
-        else switch (tokens[0]) {
-            case "commandline":
-            case "numFrames":
-            case "MD5Version":
-            case "numAnimatedComponents":
-                break;
-            case "numJoints":
-                this._numJoints = parseInt(tokens[1]);
-                break;
-            case "frameRate":
-                target.frameRate = parseInt(tokens[1]);
-                break;
-            case "hierarchy":
-                lineFunction = this._parseHierarchy;
-                break;
-            case "bounds":
-                lineFunction = this._parseBounds;
-                break;
-            case "baseframe":
-                lineFunction = this._parseBaseFrame;
-                break;
-            case "frame":
-                this._activeFrame = new HX.MD5Anim._FrameData();
-                lineFunction = this._parseFrame;
-                break;
-
-        }
-    }
-
-    this._notifyComplete(target);
-};
-
-HX.MD5Anim.prototype._parseHierarchy = function(tokens)
-{
-    if (tokens[0] === "}") return;
-    var data = new HX.MD5Anim._HierachyData();
-    data.name = tokens[0].substring(1, tokens[0].length - 1);
-    data.parent = parseInt(tokens[1]);
-    data.flags = parseInt(tokens[2]);
-    data.startIndex = parseInt(tokens[3]);
-    this._hierarchy.push(data);
-};
-
-HX.MD5Anim.prototype._parseBounds = function(tokens)
-{
-    // don't do anything with bounds for now
-};
-
-HX.MD5Anim.prototype._parseBaseFrame = function(tokens)
-{
-    if (tokens[0] === "}") return;
-    var baseFrame = new HX.MD5Anim._BaseFrameData();
-    var pos = baseFrame.pos;
-    pos.x = parseFloat(tokens[1]);
-    pos.y = parseFloat(tokens[2]);
-    pos.z = parseFloat(tokens[3]);
-    var quat = baseFrame.quat;
-    quat.x = parseFloat(tokens[6]);
-    quat.y = parseFloat(tokens[7]);
-    quat.z = parseFloat(tokens[8]);
-    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
-    if (quat.w < 0.0) quat.w = 0.0;
-    else quat.w = -Math.sqrt(quat.w);
-    this._baseFrame.push(baseFrame);
-};
-
-HX.MD5Anim.prototype._parseFrame = function(tokens)
-{
-    if (tokens[0] === "}") {
-        this._translateFrame();
-        return;
-    }
-
-    var len = tokens.length;
-    for (var i = 0; i < len; ++i) {
-        this._activeFrame.components.push(parseFloat(tokens[i]));
-    }
-};
-
-HX.MD5Anim.prototype._translateFrame = function()
-{
-    var skeletonPose = new HX.SkeletonPose();
-
-    for (var i = 0; i < this._numJoints; ++i) {
-        var pose = new HX.SkeletonJointPose();
-        var hierarchy = this._hierarchy[i];
-        var base = this._baseFrame[i];
-        var flags = hierarchy.flags;
-        var pos = base.pos;
-        var quat = base.quat;
-        var comps = this._activeFrame.components;
-
-        var j = hierarchy.startIndex;
-
-        if (flags & 1) pos.x = comps[j];
-        if (flags & 2) pos.y = comps[j+1];
-        if (flags & 4) pos.z = comps[j+2];
-        if (flags & 8) quat.x = comps[j+3];
-        if (flags & 16) quat.y = comps[j+4];
-        if (flags & 32) quat.z = comps[j+5];
-
-        var w = 1.0 - quat.x * quat.x - quat.y * quat.y - quat.z * quat.z;
-        quat.w = w < 0.0 ? 0.0 : -Math.sqrt(w);
-
-        // transform root joints only
-        if (hierarchy.parent < 0) {
-            pose.rotation.multiply(this._correctionQuad, quat);
-            pose.position = this._correctionQuad.rotate(pos);
-        }
-        else {
-            pose.rotation.copyFrom(quat);
-            pose.position.copyFrom(pos);
-        }
-
-        skeletonPose.jointPoses.push(pose);
-    }
-
-    this._target.addFrame(skeletonPose);
-};
-
-HX.MD5Anim._HierachyData = function()
-{
-    this.name = null;
-    this.parent = -1;
-    this.flags = 0;
-    this.startIndex = 0;
-};
-
-HX.MD5Anim._BaseFrameData = function()
-{
-    this.pos = new HX.Float4();
-    this.quat = new HX.Quaternion();
-};
-
-HX.MD5Anim._FrameData = function()
-{
-    this.components = [];
-}
-/**
- * Warning, MD5 as supported by Helix does not contain any materials nor scene graph information, so it only loads Models, not instances!
- * @constructor
- */
-HX.MD5Mesh = function()
-{
-    HX.Importer.call(this, HX.Model);
-    this._target = null;
-    this._meshData = null;
-    this._jointData = null;
-    this._skeleton = null;
-
-    this._correctionQuad = new HX.Quaternion();
-    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
-};
-
-HX.MD5Mesh.prototype = Object.create(HX.Importer.prototype);
-
-HX.MD5Mesh.prototype.parse = function(data, target)
-{
-    this._modelData = new HX.ModelData();
-    this._skeleton = new HX.Skeleton();
-    this._jointData = [];
-
-    // assuming a valid file, validation isn't our job
-    var lines = data.split("\n");
-    var len = lines.length;
-    var lineFunction = null;
-
-    for (var i = 0; i < len; ++i) {
-        // remove leading & trailing whitespace
-        var line = lines[i].replace(/^\s+|\s+$/g, "");
-        var tokens = line.split(/\s+/);
-
-        if (tokens[0] === "//" || tokens[0] === "")
-            continue;
-
-        if (lineFunction) {
-            lineFunction.call(this, tokens);
-            if (tokens[0] === "}") lineFunction = null;
-        }
-        else switch (tokens[0]) {
-            case "commandline":
-            case "numMeshes":
-            case "numJoints":
-            case "MD5Version":
-                break;
-            case "joints":
-                lineFunction = this._parseJoint;
-                break;
-            case "mesh":
-                this._meshData = new HX.MD5Mesh._MeshData();
-                lineFunction = this._parseMesh;
-                break;
-        }
-    }
-
-    target._setModelData(this._modelData);
-    target.skeleton = this._skeleton;
-    this._notifyComplete(target);
-};
-
-HX.MD5Mesh.prototype._parseJoint = function(tokens)
-{
-    if (tokens[0] === "}") return;
-
-    var jointData = new HX.MD5Mesh._Joint();
-    var pos = jointData.pos;
-    var quat = jointData.quat;
-    jointData.name = tokens[0].substring(1, tokens[0].length - 1);
-
-    jointData.parentIndex = parseInt(tokens[1]);
-
-    pos.x = parseFloat(tokens[3]);
-    pos.y = parseFloat(tokens[4]);
-    pos.z = parseFloat(tokens[5]);
-    this._correctionQuad.rotate(jointData.pos, jointData.pos);
-    quat.x = parseFloat(tokens[8]);
-    quat.y = parseFloat(tokens[9]);
-    quat.z = parseFloat(tokens[10]);
-    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
-    if (quat.w < 0.0) quat.w = 0.0;
-    else quat.w = -Math.sqrt(quat.w);
-
-    quat.multiply(this._correctionQuad, quat);
-    this._jointData.push(jointData);
-
-    var joint = new HX.SkeletonJoint();
-    joint.inverseBindPose.fromQuaternion(quat);
-    var pos = jointData.pos;
-    joint.inverseBindPose.appendTranslation(pos);
-    joint.inverseBindPose.invertAffine();
-    joint.parentIndex = jointData.parentIndex;
-    this._skeleton.addJoint(joint);
-};
-
-HX.MD5Mesh.prototype._parseMesh = function(tokens)
-{
-    switch (tokens[0]) {
-        case "shader":
-        case "numVerts":
-        case "numWeights":
-            break;
-        case "tri":
-            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[4]), parseInt(tokens[3]));
-            break;
-        case "vert":
-            this._parseVert(tokens);
-            break;
-        case "weight":
-            this._parseWeight(tokens);
-            break;
-        case "}":
-            this._translateMesh();
-            break;
-    }
-};
-
-HX.MD5Mesh.prototype._parseVert = function(tokens)
-{
-    var vert = new HX.MD5Mesh._VertexData();
-    vert.u = parseFloat(tokens[3]);
-    vert.v = parseFloat(tokens[4]);
-    vert.startWeight = parseInt(tokens[6]);
-    vert.countWeight = parseInt(tokens[7]);
-    this._meshData.vertexData.push(vert);
-};
-
-HX.MD5Mesh.prototype._parseWeight = function(tokens)
-{
-    var weight = new HX.MD5Mesh._WeightData();
-    weight.joint = parseInt(tokens[2]);
-    weight.bias = parseFloat(tokens[3]);
-    weight.pos.x = parseFloat(tokens[5]);
-    weight.pos.y = parseFloat(tokens[6]);
-    weight.pos.z = parseFloat(tokens[7]);
-    this._meshData.weightData.push(weight);
-};
-
-HX.MD5Mesh.prototype._translateMesh = function()
-{
-    var meshData = new HX.MeshData.createDefaultEmpty();
-    meshData.addVertexAttribute("hx_boneIndices", 4, 1);
-    meshData.addVertexAttribute("hx_boneWeights", 4, 1);
-    var vertices = [];
-    var anims = [];
-
-    var vertexData = this._meshData.vertexData;
-    var len = vertexData.length;
-    var v = 0, a = 0;
-    var x, y, z;
-
-    for (var i = 0; i < len; ++i) {
-        var vertData = vertexData[i];
-        x = y = z = 0;
-
-        if (vertData.countWeight > 4)
-            console.warn("Warning: more than 4 weights assigned. Mesh will not animate correctly");
-
-        for (var w = 0; w < vertData.countWeight; ++w) {
-            var weightData = this._meshData.weightData[vertData.startWeight + w];
-            var joint = this._jointData[weightData.joint];
-            var vec = joint.quat.rotate(weightData.pos);
-            var pos = joint.pos;
-            var bias = weightData.bias;
-            x += (vec.x + pos.x) * bias;
-            y += (vec.y + pos.y) * bias;
-            z += (vec.z + pos.z) * bias;
-            // cap at 4 and hope nothing blows up
-            if (w < 4) {
-                anims[a + w] = weightData.joint;
-                anims[a + 4 + w] = weightData.bias;
-            }
-        }
-
-        vertices[v] = x;
-        vertices[v + 1] = y;
-        vertices[v + 2] = z;
-        vertices[v + 10] = vertData.u;
-        vertices[v + 11] = 1.0 - vertData.v;
-
-        for (var w = vertData.countWeight; w < 4; ++w) {
-            anims[a + w] = 0;
-            anims[a + 4 + w] = 0;
-        }
-
-        a += 8;
-        v += 12;
-    }
-
-    meshData.setVertexData(vertices, 0);
-    meshData.setVertexData(anims, 1);
-    meshData.setIndexData(this._meshData.indices);
-
-    var generator = new HX.NormalTangentGenerator();
-    generator.generate(meshData);
-    this._modelData.addMeshData(meshData);
-};
-
-HX.MD5Mesh._Joint = function()
-{
-    this.name = null;
-    this.parentIndex = -1;
-    this.quat = new HX.Quaternion();
-    this.pos = new HX.Float4();
-};
-
-HX.MD5Mesh._MeshData = function()
-{
-    this.vertexData = [];
-    this.weightData = [];
-    this.indices = [];
-};
-
-HX.MD5Mesh._VertexData = function()
-{
-    this.u = 0;
-    this.v = 0;
-    this.startWeight = 0;
-    this.countWeight = 0;
-};
-
-HX.MD5Mesh._WeightData = function()
-{
-    this.joint = 0;
-    this.bias = 0;
-    this.pos = new HX.Float4();
-};
 
 /**
  *
@@ -5732,6 +5329,409 @@ HX.OBJ._ObjectData = function()
     this.name = "";
     this.groups = [];
     this._activeGroup = null;
+};
+HX.MD5Anim = function()
+{
+    HX.Importer.call(this, HX.SkeletonClip);
+    this._hierarchy = null;
+    this._baseFrame = null;
+    this._activeFrame = null;
+    this._numJoints = 0;
+
+    this._correctionQuad = new HX.Quaternion();
+    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
+};
+
+HX.MD5Anim.prototype = Object.create(HX.Importer.prototype);
+
+HX.MD5Anim.prototype.parse = function(data, target)
+{
+    this._hierarchy = [];
+    this._baseFrame = [];
+    this._target = target;
+
+    // assuming a valid file, validation isn't our job
+    var lines = data.split("\n");
+    var len = lines.length;
+    var lineFunction = null;
+
+    for (var i = 0; i < len; ++i) {
+        // remove leading & trailing whitespace
+        var line = lines[i].replace(/^\s+|\s+$/g, "");
+        var tokens = line.split(/\s+/);
+
+        if (tokens[0] === "//" || tokens[0] === "")
+            continue;
+
+        if (lineFunction) {
+            lineFunction.call(this, tokens);
+            if (tokens[0] === "}") lineFunction = null;
+        }
+        else switch (tokens[0]) {
+            case "commandline":
+            case "numFrames":
+            case "MD5Version":
+            case "numAnimatedComponents":
+                break;
+            case "numJoints":
+                this._numJoints = parseInt(tokens[1]);
+                break;
+            case "frameRate":
+                target.frameRate = parseInt(tokens[1]);
+                break;
+            case "hierarchy":
+                lineFunction = this._parseHierarchy;
+                break;
+            case "bounds":
+                lineFunction = this._parseBounds;
+                break;
+            case "baseframe":
+                lineFunction = this._parseBaseFrame;
+                break;
+            case "frame":
+                this._activeFrame = new HX.MD5Anim._FrameData();
+                lineFunction = this._parseFrame;
+                break;
+
+        }
+    }
+
+    this._notifyComplete(target);
+};
+
+HX.MD5Anim.prototype._parseHierarchy = function(tokens)
+{
+    if (tokens[0] === "}") return;
+    var data = new HX.MD5Anim._HierachyData();
+    data.name = tokens[0].substring(1, tokens[0].length - 1);
+    data.parent = parseInt(tokens[1]);
+    data.flags = parseInt(tokens[2]);
+    data.startIndex = parseInt(tokens[3]);
+    this._hierarchy.push(data);
+};
+
+HX.MD5Anim.prototype._parseBounds = function(tokens)
+{
+    // don't do anything with bounds for now
+};
+
+HX.MD5Anim.prototype._parseBaseFrame = function(tokens)
+{
+    if (tokens[0] === "}") return;
+    var baseFrame = new HX.MD5Anim._BaseFrameData();
+    var pos = baseFrame.pos;
+    pos.x = parseFloat(tokens[1]);
+    pos.y = parseFloat(tokens[2]);
+    pos.z = parseFloat(tokens[3]);
+    var quat = baseFrame.quat;
+    quat.x = parseFloat(tokens[6]);
+    quat.y = parseFloat(tokens[7]);
+    quat.z = parseFloat(tokens[8]);
+    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
+    if (quat.w < 0.0) quat.w = 0.0;
+    else quat.w = -Math.sqrt(quat.w);
+    this._baseFrame.push(baseFrame);
+};
+
+HX.MD5Anim.prototype._parseFrame = function(tokens)
+{
+    if (tokens[0] === "}") {
+        this._translateFrame();
+        return;
+    }
+
+    var len = tokens.length;
+    for (var i = 0; i < len; ++i) {
+        this._activeFrame.components.push(parseFloat(tokens[i]));
+    }
+};
+
+HX.MD5Anim.prototype._translateFrame = function()
+{
+    var skeletonPose = new HX.SkeletonPose();
+
+    for (var i = 0; i < this._numJoints; ++i) {
+        var pose = new HX.SkeletonJointPose();
+        var hierarchy = this._hierarchy[i];
+        var base = this._baseFrame[i];
+        var flags = hierarchy.flags;
+        var pos = base.pos;
+        var quat = base.quat;
+        var comps = this._activeFrame.components;
+
+        var j = hierarchy.startIndex;
+
+        if (flags & 1) pos.x = comps[j];
+        if (flags & 2) pos.y = comps[j+1];
+        if (flags & 4) pos.z = comps[j+2];
+        if (flags & 8) quat.x = comps[j+3];
+        if (flags & 16) quat.y = comps[j+4];
+        if (flags & 32) quat.z = comps[j+5];
+
+        var w = 1.0 - quat.x * quat.x - quat.y * quat.y - quat.z * quat.z;
+        quat.w = w < 0.0 ? 0.0 : -Math.sqrt(w);
+
+        // transform root joints only
+        if (hierarchy.parent < 0) {
+            pose.rotation.multiply(this._correctionQuad, quat);
+            pose.position = this._correctionQuad.rotate(pos);
+        }
+        else {
+            pose.rotation.copyFrom(quat);
+            pose.position.copyFrom(pos);
+        }
+
+        skeletonPose.jointPoses.push(pose);
+    }
+
+    this._target.addFrame(skeletonPose);
+};
+
+HX.MD5Anim._HierachyData = function()
+{
+    this.name = null;
+    this.parent = -1;
+    this.flags = 0;
+    this.startIndex = 0;
+};
+
+HX.MD5Anim._BaseFrameData = function()
+{
+    this.pos = new HX.Float4();
+    this.quat = new HX.Quaternion();
+};
+
+HX.MD5Anim._FrameData = function()
+{
+    this.components = [];
+}
+/**
+ * Warning, MD5 as supported by Helix does not contain any materials nor scene graph information, so it only loads Models, not instances!
+ * @constructor
+ */
+HX.MD5Mesh = function()
+{
+    HX.Importer.call(this, HX.Model);
+    this._target = null;
+    this._meshData = null;
+    this._jointData = null;
+    this._skeleton = null;
+
+    this._correctionQuad = new HX.Quaternion();
+    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
+};
+
+HX.MD5Mesh.prototype = Object.create(HX.Importer.prototype);
+
+HX.MD5Mesh.prototype.parse = function(data, target)
+{
+    this._modelData = new HX.ModelData();
+    this._skeleton = new HX.Skeleton();
+    this._jointData = [];
+
+    // assuming a valid file, validation isn't our job
+    var lines = data.split("\n");
+    var len = lines.length;
+    var lineFunction = null;
+
+    for (var i = 0; i < len; ++i) {
+        // remove leading & trailing whitespace
+        var line = lines[i].replace(/^\s+|\s+$/g, "");
+        var tokens = line.split(/\s+/);
+
+        if (tokens[0] === "//" || tokens[0] === "")
+            continue;
+
+        if (lineFunction) {
+            lineFunction.call(this, tokens);
+            if (tokens[0] === "}") lineFunction = null;
+        }
+        else switch (tokens[0]) {
+            case "commandline":
+            case "numMeshes":
+            case "numJoints":
+            case "MD5Version":
+                break;
+            case "joints":
+                lineFunction = this._parseJoint;
+                break;
+            case "mesh":
+                this._meshData = new HX.MD5Mesh._MeshData();
+                lineFunction = this._parseMesh;
+                break;
+        }
+    }
+
+    target._setModelData(this._modelData);
+    target.skeleton = this._skeleton;
+    this._notifyComplete(target);
+};
+
+HX.MD5Mesh.prototype._parseJoint = function(tokens)
+{
+    if (tokens[0] === "}") return;
+
+    var jointData = new HX.MD5Mesh._Joint();
+    var pos = jointData.pos;
+    var quat = jointData.quat;
+    jointData.name = tokens[0].substring(1, tokens[0].length - 1);
+
+    jointData.parentIndex = parseInt(tokens[1]);
+
+    pos.x = parseFloat(tokens[3]);
+    pos.y = parseFloat(tokens[4]);
+    pos.z = parseFloat(tokens[5]);
+    this._correctionQuad.rotate(jointData.pos, jointData.pos);
+    quat.x = parseFloat(tokens[8]);
+    quat.y = parseFloat(tokens[9]);
+    quat.z = parseFloat(tokens[10]);
+    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
+    if (quat.w < 0.0) quat.w = 0.0;
+    else quat.w = -Math.sqrt(quat.w);
+
+    quat.multiply(this._correctionQuad, quat);
+    this._jointData.push(jointData);
+
+    var joint = new HX.SkeletonJoint();
+    joint.inverseBindPose.fromQuaternion(quat);
+    var pos = jointData.pos;
+    joint.inverseBindPose.appendTranslation(pos);
+    joint.inverseBindPose.invertAffine();
+    joint.parentIndex = jointData.parentIndex;
+    this._skeleton.addJoint(joint);
+};
+
+HX.MD5Mesh.prototype._parseMesh = function(tokens)
+{
+    switch (tokens[0]) {
+        case "shader":
+        case "numVerts":
+        case "numWeights":
+            break;
+        case "tri":
+            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[4]), parseInt(tokens[3]));
+            break;
+        case "vert":
+            this._parseVert(tokens);
+            break;
+        case "weight":
+            this._parseWeight(tokens);
+            break;
+        case "}":
+            this._translateMesh();
+            break;
+    }
+};
+
+HX.MD5Mesh.prototype._parseVert = function(tokens)
+{
+    var vert = new HX.MD5Mesh._VertexData();
+    vert.u = parseFloat(tokens[3]);
+    vert.v = parseFloat(tokens[4]);
+    vert.startWeight = parseInt(tokens[6]);
+    vert.countWeight = parseInt(tokens[7]);
+    this._meshData.vertexData.push(vert);
+};
+
+HX.MD5Mesh.prototype._parseWeight = function(tokens)
+{
+    var weight = new HX.MD5Mesh._WeightData();
+    weight.joint = parseInt(tokens[2]);
+    weight.bias = parseFloat(tokens[3]);
+    weight.pos.x = parseFloat(tokens[5]);
+    weight.pos.y = parseFloat(tokens[6]);
+    weight.pos.z = parseFloat(tokens[7]);
+    this._meshData.weightData.push(weight);
+};
+
+HX.MD5Mesh.prototype._translateMesh = function()
+{
+    var meshData = new HX.MeshData.createDefaultEmpty();
+    meshData.addVertexAttribute("hx_boneIndices", 4, 1);
+    meshData.addVertexAttribute("hx_boneWeights", 4, 1);
+    var vertices = [];
+    var anims = [];
+
+    var vertexData = this._meshData.vertexData;
+    var len = vertexData.length;
+    var v = 0, a = 0;
+    var x, y, z;
+
+    for (var i = 0; i < len; ++i) {
+        var vertData = vertexData[i];
+        x = y = z = 0;
+
+        if (vertData.countWeight > 4)
+            console.warn("Warning: more than 4 weights assigned. Mesh will not animate correctly");
+
+        for (var w = 0; w < vertData.countWeight; ++w) {
+            var weightData = this._meshData.weightData[vertData.startWeight + w];
+            var joint = this._jointData[weightData.joint];
+            var vec = joint.quat.rotate(weightData.pos);
+            var pos = joint.pos;
+            var bias = weightData.bias;
+            x += (vec.x + pos.x) * bias;
+            y += (vec.y + pos.y) * bias;
+            z += (vec.z + pos.z) * bias;
+            // cap at 4 and hope nothing blows up
+            if (w < 4) {
+                anims[a + w] = weightData.joint;
+                anims[a + 4 + w] = weightData.bias;
+            }
+        }
+
+        vertices[v] = x;
+        vertices[v + 1] = y;
+        vertices[v + 2] = z;
+        vertices[v + 10] = vertData.u;
+        vertices[v + 11] = 1.0 - vertData.v;
+
+        for (var w = vertData.countWeight; w < 4; ++w) {
+            anims[a + w] = 0;
+            anims[a + 4 + w] = 0;
+        }
+
+        a += 8;
+        v += 12;
+    }
+
+    meshData.setVertexData(vertices, 0);
+    meshData.setVertexData(anims, 1);
+    meshData.setIndexData(this._meshData.indices);
+
+    var generator = new HX.NormalTangentGenerator();
+    generator.generate(meshData);
+    this._modelData.addMeshData(meshData);
+};
+
+HX.MD5Mesh._Joint = function()
+{
+    this.name = null;
+    this.parentIndex = -1;
+    this.quat = new HX.Quaternion();
+    this.pos = new HX.Float4();
+};
+
+HX.MD5Mesh._MeshData = function()
+{
+    this.vertexData = [];
+    this.weightData = [];
+    this.indices = [];
+};
+
+HX.MD5Mesh._VertexData = function()
+{
+    this.u = 0;
+    this.v = 0;
+    this.startWeight = 0;
+    this.countWeight = 0;
+};
+
+HX.MD5Mesh._WeightData = function()
+{
+    this.joint = 0;
+    this.bias = 0;
+    this.pos = new HX.Float4();
 };
 HX.FbxAnimationCurve = function()
 {

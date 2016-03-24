@@ -109,7 +109,7 @@ function initSun(container)
             radius: 0.696
         }
     );
-
+// TODO: Could replace with local light probes?
     var loader = new HX.AssetLoader(HX.HMT);
     var sunMaterial = loader.load("materials/sunMaterial.hmt");
 
@@ -157,7 +157,8 @@ function initEarth(container)
     earth.attach(globe);
 
     // TODO: parallax mapping
-    // Add Mie scattering?
+    // TODO: subsurface scattering in a post pass?
+    // Use this as a color profile reference: http://www.daz3d.com/forums/uploads/thumbnails/FileUpload/5b/398749c65a6be273811a14073ae6c7.jpg
     var cloudMaterial = materialLoader.load("materials/cloudMaterial.hmt");
     var clouds = new HX.ModelInstance(earthSpherePrimitive, cloudMaterial);
     // putting them a bit higher than they possibly could be

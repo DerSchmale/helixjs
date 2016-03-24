@@ -7,7 +7,7 @@ HX.SceneNode = function()
 {
     HX.Transform.call(this);
     this._name = null;
-    this._worldTransformMatrix = new HX.Matrix4x4();
+    this._worldMatrix = new HX.Matrix4x4();
     this._worldBoundsInvalid = true;
     this._matrixInvalid = true;
     this._worldMatrixInvalid = true;
@@ -64,9 +64,9 @@ Object.defineProperties(HX.SceneNode.prototype, {
         get: function()
         {
             if (this._worldMatrixInvalid)
-                this._updateWorldTransformationMatrix();
+                this._updateWorldMatrix();
 
-            return this._worldTransformMatrix;
+            return this._worldMatrix;
         }
     },
 
@@ -92,7 +92,7 @@ Object.defineProperties(HX.SceneNode.prototype, {
 HX.SceneNode.prototype._applyMatrix = function()
 {
     HX.Transform.prototype._applyMatrix.call(this);
-    this._invalidateWorldTransformationMatrix();
+    this._invalidateWorldMatrix();
 };
 
 HX.SceneNode.prototype.findMaterialByName = function(name)
@@ -118,13 +118,13 @@ HX.SceneNode.prototype.acceptVisitor = function(visitor)
         this._debugBounds.acceptVisitor(visitor);
 };
 
-HX.SceneNode.prototype._invalidateTransformationMatrix = function ()
+HX.SceneNode.prototype._invalidateMatrix = function ()
 {
-    HX.Transform.prototype._invalidateTransformationMatrix.call(this);
-    this._invalidateWorldTransformationMatrix();
+    HX.Transform.prototype._invalidateMatrix.call(this);
+    this._invalidateWorldMatrix();
 };
 
-HX.SceneNode.prototype._invalidateWorldTransformationMatrix = function ()
+HX.SceneNode.prototype._invalidateWorldMatrix = function ()
 {
     this._worldMatrixInvalid = true;
     this._invalidateWorldBounds();
@@ -148,28 +148,28 @@ HX.SceneNode.prototype._updateWorldBounds = function ()
 
 HX.SceneNode.prototype._updateDebugBounds = function()
 {
-    var matrix = this._debugBounds.transformationMatrix;
+    var matrix = this._debugBounds.matrix;
     var bounds = this._worldBounds;
 
     console.log(bounds._halfExtentX, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
 
     matrix.fromScale(bounds._halfExtentX * 2.0, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
     matrix.appendTranslation(bounds._center);
-    this._debugBounds.transformationMatrix = matrix;
+    this._debugBounds.matrix = matrix;
 };
 
-HX.SceneNode.prototype._updateTransformationMatrix = function()
+HX.SceneNode.prototype._updateMatrix = function()
 {
-    HX.Transform.prototype._updateTransformationMatrix.call(this);
+    HX.Transform.prototype._updateMatrix.call(this);
     this._invalidateWorldBounds();
 };
 
-HX.SceneNode.prototype._updateWorldTransformationMatrix = function()
+HX.SceneNode.prototype._updateWorldMatrix = function()
 {
     if (this._parent)
-        this._worldTransformMatrix.multiply(this._parent.worldMatrix, this.transformationMatrix);
+        this._worldMatrix.multiply(this._parent.worldMatrix, this.matrix);
     else
-        this._worldTransformMatrix.copyFrom(this.transformationMatrix);
+        this._worldMatrix.copyFrom(this.matrix);
 
     this._worldMatrixInvalid = false;
 };

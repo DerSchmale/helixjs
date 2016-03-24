@@ -76,7 +76,7 @@ HX.FBXConverter.prototype =
 
     _convertSceneGraphObject: function(fbxNode, hxNode)
     {
-        hxNode.transformationMatrix = fbxNode.matrix;
+        hxNode.matrix = fbxNode.matrix;
     },
 
     _convertGeometry: function(node, geometryMatrix)

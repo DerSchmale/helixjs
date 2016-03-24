@@ -21,7 +21,7 @@ HX.Transform = function()
     this._changeListener.add(this._scale, "x");
     this._changeListener.add(this._scale, "y");
     this._changeListener.add(this._scale, "z");
-    this._changeListener.onChange.bind(this._invalidateTransformationMatrix, this);
+    this._changeListener.onChange.bind(this._invalidateMatrix, this);
 };
 
 HX.Transform.prototype =
@@ -68,26 +68,26 @@ HX.Transform.prototype =
         this._changeListener.enabled = true;
     },
 
-    get transformationMatrix()
+    get matrix()
     {
         if (this._matrixInvalid)
-            this._updateTransformationMatrix();
+            this._updateMatrix();
 
         return this._matrix;
     },
 
-    set transformationMatrix(matrix)
+    set matrix(value)
     {
-        this._matrix.copyFrom(matrix);
+        this._matrix.copyFrom(value);
         this._applyMatrix();
     },
 
-    _invalidateTransformationMatrix: function ()
+    _invalidateMatrix: function ()
     {
         this._matrixInvalid = true;
     },
 
-    _updateTransformationMatrix: function()
+    _updateMatrix: function()
     {
         this._matrix.compose(this);
         this._matrixInvalid = false;

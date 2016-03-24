@@ -69,13 +69,13 @@ HX.GroupNode.prototype.acceptVisitor = function(visitor)
     }
 };
 
-HX.GroupNode.prototype._invalidateWorldTransformationMatrix = function()
+HX.GroupNode.prototype._invalidateWorldMatrix = function()
 {
-    HX.SceneNode.prototype._invalidateWorldTransformationMatrix.call(this);
+    HX.SceneNode.prototype._invalidateWorldMatrix.call(this);
 
     var len = this._children.length;
     for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldTransformationMatrix();
+        this._children[i]._invalidateWorldMatrix();
 };
 
 HX.GroupNode.prototype._updateWorldBounds = function()

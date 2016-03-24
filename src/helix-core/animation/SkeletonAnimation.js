@@ -34,10 +34,10 @@ HX.SkeletonAnimation.prototype.onAdded = function()
 HX.SkeletonAnimation.prototype.onUpdate = function(dt)
 {
     if (this._blendTree.update(dt)) {
-        var matrix = this._entity.transformationMatrix;
+        var matrix = this._entity.matrix;
         var d = this._blendTree.rootJointDeltaPosition;
         matrix.prependTranslation(d);
-        this._entity.transformationMatrix = matrix;
+        this._entity.matrix = matrix;
     }
     this._entity.skeletonMatrices = this._blendTree.matrices;
 };

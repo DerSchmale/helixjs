@@ -213,7 +213,7 @@ FloatController.prototype.onUpdate = function(dt)
     if (this._pitch < -Math.PI*.5) this._pitch = -Math.PI*.5;
     else if (this._pitch > Math.PI*.5) this._pitch = Math.PI*.5;
 
-    var matrix = this.entity.transformationMatrix;
+    var matrix = this.entity.matrix;
     // the original position
     var position = matrix.getColumn(3);
     var distance = HX.Float4.scale(this._localVelocity, seconds);
@@ -222,7 +222,7 @@ FloatController.prototype.onUpdate = function(dt)
     matrix.prependTranslation(distance);
     matrix.appendTranslation(position);
 
-    this.entity.transformationMatrix = matrix;
+    this.entity.matrix = matrix;
 };
 
 // ratio is "how far the controller is pushed", from -1 to 1

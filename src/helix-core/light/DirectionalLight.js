@@ -101,7 +101,7 @@ HX.DirectionalLight.prototype = Object.create(HX.Light.prototype,
                 var position = this.worldMatrix.getColumn(3);
                 var target = HX.Float4.add(value, position);
                 matrix.lookAt(target, position, HX.Float4.Y_AXIS);
-                this.transformationMatrix = matrix;
+                this.matrix = matrix;
             }
         }
     });

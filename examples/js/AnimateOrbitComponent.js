@@ -60,10 +60,10 @@ AnimateOrbitComponent.prototype.onUpdate = function(dt)
 {
     this._radians += dt/1000.0 * this._speed;
 
-    var matrix = this.entity.transformationMatrix;
+    var matrix = this.entity.matrix;
     matrix.fromTranslation(this._radiusVector);
     matrix.appendRotationAxisAngle(this._axis, this._radians);
     matrix.appendTranslation(this._pivotPoint);
 
-    this.entity.transformationMatrix = matrix;
+    this.entity.matrix = matrix;
 };

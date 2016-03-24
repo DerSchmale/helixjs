@@ -37,10 +37,10 @@ AnimateRotateComponent.prototype = Object.create(HX.Component.prototype,
 AnimateRotateComponent.prototype.onUpdate = function(dt)
 {
     this._radians += dt/1000.0 * this._speed;
-    var matrix = this.entity.transformationMatrix;
+    var matrix = this.entity.matrix;
     var position = matrix.getColumn(3);
     matrix.fromRotationAxisAngle(this._axis, this._radians);
     matrix.setColumn(3, position);
 
-    this.entity.transformationMatrix = matrix;
+    this.entity.matrix = matrix;
 };

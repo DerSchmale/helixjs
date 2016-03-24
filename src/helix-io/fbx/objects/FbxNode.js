@@ -56,7 +56,7 @@ HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
                         }
                         if (this.GeometricScaling) transform.scale = this.GeometricScaling;
                         if (this.GeometricTranslation) transform.position = this.GeometricTranslation;
-                        this._geometricMatrix.copyFrom(transform.transformationMatrix);
+                        this._geometricMatrix.copyFrom(transform.matrix);
                     }
                 }
 

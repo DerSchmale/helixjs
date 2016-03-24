@@ -61,7 +61,6 @@ OrbitController.prototype.onAdded = function()
         this._oldMouseY = event.screenY;
     };
 
-    // TODO, make removable
     document.addEventListener("mousewheel", this._onMouseWheel);
     document.addEventListener("mousemove", this._onMouseMove);
 };
@@ -88,12 +87,12 @@ OrbitController.prototype.onUpdate = function(dt)
     this._coords.y = HX.clamp(this._coords.y, 0.1, Math.PI - .1);
     this._coords.z = HX.clamp(this._coords.z, this.minRadius, this.maxRadius);
 
-    var matrix = this.entity.transformationMatrix;
+    var matrix = this.entity.matrix;
     var pos = new HX.Float4();
     pos.fromSphericalCoordinates(this._coords.z, this._coords.x, this._coords.y);
     pos.add(this.lookAtTarget);
     matrix.lookAt(this.lookAtTarget, pos, HX.Float4.Y_AXIS);
-    this.entity.transformationMatrix = matrix;
+    this.entity.matrix = matrix;
 };
 
     // ratio is "how far the controller is pushed", from -1 to 1

@@ -29,8 +29,6 @@ HX.Material = function ()
     this._textures = {};
     this._uniforms = {};
 
-    // practically unused atm, except for unlit (0)
-    this._lightingModelID = 1;
     this._name = null;
 };
 

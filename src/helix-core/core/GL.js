@@ -78,8 +78,8 @@ HX.setViewport = function(rect)
     else {
         HX._viewport.x = 0;
         HX._viewport.y = 0;
-        HX._viewport.width = HX.TARGET_CANVAS.clientWidth;
-        HX._viewport.height = HX.TARGET_CANVAS.clientHeight;
+        HX._viewport.width = HX.TARGET_CANVAS.width;
+        HX._viewport.height = HX.TARGET_CANVAS.height;
     }
 };
 

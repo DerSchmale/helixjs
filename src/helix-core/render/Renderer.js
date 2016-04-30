@@ -31,6 +31,8 @@ HX.Renderer = function ()
     this._width = 0;
     this._height = 0;
 
+    this._scale = 1.0;
+
     // TODO: How many of these can be single instances?
     this._copyAmbient = new HX.MultiplyColorCopyShader();
     this._reproject = new HX.ReprojectShader();
@@ -97,6 +99,16 @@ HX.Renderer.HDRBuffers.prototype =
 
 HX.Renderer.prototype =
 {
+    get scale()
+    {
+        return this._scale;
+    },
+
+    set scale(value)
+    {
+        this._scale = value;
+    },
+
     get camera()
     {
         return this._camera;
@@ -156,37 +168,6 @@ HX.Renderer.prototype =
 
         this._renderShadowCasters();
 
-        this._renderOpaques();
-
-        if (this._ssrEffect != null)
-            this._ssrEffect.render(this, dt);
-
-        this._renderToScreen(renderTarget, dt);
-
-        this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
-
-        HX.popRenderTarget();
-        HX.setBlendState();
-        HX.setDepthMask(true);
-
-        if (HX._renderTargetStack.length > renderTargetStackSize) throw new Error("Unpopped render targets!");
-        if (HX._renderTargetStack.length < renderTargetStackSize) throw new Error("Overpopped render targets!");
-    },
-
-    _renderShadowCasters: function ()
-    {
-        var casters = this._renderCollector.getShadowCasters();
-        var len = casters.length;
-
-        for (var i = 0; i < len; ++i) {
-            casters[i].render(this._camera, this._scene)
-        }
-    },
-
-    _renderOpaques: function ()
-    {
-        HX.setClearColor(HX.Color.BLACK);
-
         this._renderToGBuffer();
 
         if (HX.EXT_DEPTH_TEXTURE)
@@ -196,6 +177,28 @@ HX.Renderer.prototype =
             this._aoEffect.render(this, 0);
 
         this._renderLightAccumulation();
+
+        if (this._ssrEffect)
+            this._ssrEffect.render(this, dt);
+
+        this._renderToScreen(renderTarget, dt);
+
+        this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
+
+        HX.setBlendState();
+        HX.setDepthMask(true);
+
+        if (HX._renderTargetStack.length > renderTargetStackSize) throw new Error("Unpopped render targets!");
+        if (HX._renderTargetStack.length < renderTargetStackSize) throw new Error("Overpopped render targets!");
+    },
+
+    _renderShadowCasters: function ()
+    {
+        var casters = this._renderCollector._shadowCasters;
+        var len = casters.length;
+
+        for (var i = 0; i < len; ++i)
+            casters[i].render(this._camera, this._scene)
     },
 
     _renderToGBuffer: function ()
@@ -230,14 +233,8 @@ HX.Renderer.prototype =
     _linearizeDepth: function ()
     {
         HX.pushRenderTarget(this._linearDepthFBO);
-        var depthTexture;
-        if (HX.EXT_DEPTH_TEXTURE) {
-            depthTexture = this._depthBuffer;
-        }
-        else {
-            depthTexture = this._gbuffer[1];
-        }
-        this._linearizeDepthShader.execute(HX.RectMesh.DEFAULT, depthTexture, this._camera);
+        HX.clear();
+        this._linearizeDepthShader.execute(HX.RectMesh.DEFAULT, this._depthBuffer, this._camera);
         HX.popRenderTarget(this._linearDepthFBO);
     },
 
@@ -251,12 +248,10 @@ HX.Renderer.prototype =
     {
         HX.setBlendState(null);
 
-        if (this._debugMode === HX.DebugRenderMode.NONE) {
+        if (this._debugMode === HX.DebugRenderMode.DEBUG_NONE)
             this._composite(renderTarget, dt);
-        }
-        else {
+        else
             this._renderDebug(renderTarget);
-        }
     },
 
     _renderDebug: function(renderTarget)
@@ -295,16 +290,22 @@ HX.Renderer.prototype =
                     this._applyGamma.execute(HX.RectMesh.DEFAULT, this._ssrTexture);
                 break;
         }
+
+        HX.popRenderTarget();
     },
 
     _composite: function (renderTarget, dt)
     {
-        HX.pushRenderTarget(this._hdrFront.fbo);
-            this._renderEffects(dt, this._renderCollector._effects);
-        HX.popRenderTarget();
+        var effects = this._renderCollector._effects;
+
+        if (effects && effects.length > 0) {
+            HX.pushRenderTarget(this._hdrFront.fbo);
+            this._renderEffects(dt, effects);
+            HX.popRenderTarget();
+        }
 
         HX.pushRenderTarget(renderTarget);
-        if (renderTarget) HX.clear();
+        HX.clear();
 
         // TODO: render directly to screen if last post process effect?
         // OR, provide toneMap property on camera, which gets special treatment
@@ -312,14 +313,18 @@ HX.Renderer.prototype =
             this._copyTextureToScreen.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
         else
             this._applyGamma.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
+
+        HX.popRenderTarget();
     },
 
     _renderLightAccumulation: function ()
     {
-        HX.clear(HX_GL.COLOR_BUFFER_BIT);
+        HX.pushRenderTarget(this._hdrFront.fbo);
+        HX.clear();
 
         this._renderGlobalIllumination();
         this._renderDirectLights();
+        HX.popRenderTarget();
     },
 
     _renderDirectLights: function ()
@@ -367,9 +372,6 @@ HX.Renderer.prototype =
 
     _renderEffects: function (dt, effects)
     {
-        if (!effects || effects.length == 0)
-            return;
-
         var len = effects.length;
 
         for (var i = 0; i < len; ++i) {
@@ -423,8 +425,9 @@ HX.Renderer.prototype =
         }
         else {
             var numFBOs = HX.EXT_DEPTH_TEXTURE? 3 : 4;
-            for (var i = 0; i < numFBOs; ++i)
+            for (var i = 0; i < numFBOs; ++i) {
                 this._gbufferSingleFBOs[i] = new HX.FrameBuffer([this._gbuffer[i]], this._depthBuffer);
+            }
         }
     },
 
@@ -498,8 +501,8 @@ HX.Renderer.prototype =
             height = renderTarget.height;
         }
         else {
-            width = HX.TARGET_CANVAS.clientWidth;
-            height = HX.TARGET_CANVAS.clientHeight;
+            width = HX.TARGET_CANVAS.width * this._scale;
+            height = HX.TARGET_CANVAS.height * this._scale;
         }
         if (this._width !== width || this._height !== height) {
             this._width = width;

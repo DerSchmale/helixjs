@@ -3,7 +3,7 @@
  */
 HX.StatsDisplay = function(container)
 {
-    this._fpsCounter = new HX.FPSCounter(10);
+    this._fpsCounter = new HX.FPSCounter(30);
 
     this._div = document.createElement("div");
     this._div.style.position = "absolute";

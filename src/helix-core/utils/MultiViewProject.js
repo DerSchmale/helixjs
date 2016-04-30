@@ -66,7 +66,6 @@ HX.MultiViewProject.prototype =
 
         this.onUpdate(dt);
 
-        HX.clear();
         this._renderer.render(dt);
     },
 

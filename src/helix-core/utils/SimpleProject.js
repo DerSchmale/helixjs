@@ -19,6 +19,8 @@ HX.SimpleProject.prototype =
         if (this._initialized) throw new Error("Already initialized project!");
 
         HX.init(canvas, initOptions);
+
+        this._canvas = canvas;
         this._resizeCanvas();
 
         this._scene = new HX.Scene();
@@ -30,7 +32,7 @@ HX.SimpleProject.prototype =
 
         window.addEventListener('resize', function()
         {
-            self._resizeCanvas.call(self);
+            self._resizeCanvas();
         });
 
         this.onInit();
@@ -92,8 +94,8 @@ HX.SimpleProject.prototype =
 
     _resizeCanvas: function()
     {
-        this._canvas = document.getElementById('webglContainer');
-        this._canvas.width = this._canvas.clientWidth;
-        this._canvas.height = this._canvas.clientHeight;
+        var pixelRatio = window.devicePixelRatio || 1.0;
+        this._canvas.width = this._canvas.clientWidth * pixelRatio;
+        this._canvas.height = this._canvas.clientHeight * pixelRatio;
     }
 };

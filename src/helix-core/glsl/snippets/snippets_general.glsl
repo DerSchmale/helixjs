@@ -47,17 +47,7 @@ float hx_RG8ToFloat(vec2 rg)
 
 vec3 hx_decodeNormal(vec4 data)
 {
-    #ifdef HX_NO_DEPTH_TEXTURES
-        data.xy = data.xy*4.0 - 2.0;
-        float f = dot(data.xy, data.xy);
-        float g = sqrt(1.0 - f * .25);
-        vec3 normal;
-        normal.xy = data.xy * g;
-        normal.z = 1.0 - f * .5;
-        return normal;
-    #else
-    	return normalize(data.xyz - .5);
-    #endif
+    return normalize(data.xyz - .5);
 }
 
 vec4 hx_gammaToLinear(vec4 color)
@@ -132,7 +122,6 @@ vec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)
 float hx_depthToViewZ(float depthSample, mat4 projectionMatrix)
 {
 //    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])
-
     return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);
 }
 

@@ -38,6 +38,9 @@ HX.StatsDisplay.prototype =
             "Draws: " + HX._glStats.numDrawCalls + "<br/>" +
             "Tris: " + HX._glStats.numTriangles + "</p>" +
 
-            "<p style='font-size:x-small; width:100%; text-align:right;'>Helix " + HX.VERSION + "<br/></p>";
+            "<p style='font-size:x-small; width:100%; text-align:right;'>"+
+            "Helix " + HX.VERSION + "<br/>" +
+            "Hash 0x" + HX.BUILD_HASH.toString(16) + "<br/>" +
+            "</p>";
     }
 };

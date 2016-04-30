@@ -39,6 +39,8 @@ uniform sampler2D specularMap;
 varying vec3 vertexColor;
 #endif
 
+varying float linearDepth;
+
 void main()
 {
     vec4 outputColor = vec4(color, alpha);
@@ -88,6 +90,5 @@ void main()
           #endif
     #endif
 
-    // todo: should we linearize depth here instead?
-    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, metallicnessOut, specNormalReflOut, roughnessOut);
+    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, metallicnessOut, specNormalReflOut, roughnessOut, linearDepth);
 }

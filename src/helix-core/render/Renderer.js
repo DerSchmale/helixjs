@@ -42,14 +42,17 @@ HX.Renderer = function ()
     this._copyWChannel = new HX.CopyChannelsShader("w");
     this._debugDepth = new HX.DebugDepthShader();
     this._debugNormals = new HX.DebugNormalsShader();
-    this._applyAlphaTransparency = new HX.CopyWithSeparateAlpha();
     this._applyGamma = new HX.ApplyGammaShader();
     this._gammaApplied = false;
-    this._linearizeDepthShader = new HX.LinearizeDepthShader();
+
+    if (HX.EXT_DEPTH_TEXTURE) {
+        this._linearizeDepthShader = new HX.LinearizeDepthShader();
+        this._linearDepthFBO = null;
+    }
 
     this._renderCollector = new HX.RenderCollector();
     this._gbufferFBO = null;
-    this._linearDepthFBO = null;
+
     this._depthBuffer = null;
     this._aoEffect = null;
     this._aoTexture = null;
@@ -62,9 +65,6 @@ HX.Renderer = function ()
 
     this._debugMode = HX.DebugRenderMode.DEBUG_NONE;
     this._camera = null;
-
-    this._stencilWriteState = new HX.StencilState(0, HX.Comparison.ALWAYS, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.REPLACE);
-    this._stencilReadState = new HX.StencilState(0, HX.Comparison.EQUAL, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
 
     this._previousViewProjection = new HX.Matrix4x4();
 };
@@ -143,55 +143,34 @@ HX.Renderer.prototype =
     render: function (camera, scene, dt, renderTarget)
     {
         var renderTargetStackSize = HX._renderTargetStack.length;
-        var stencilStackSize = HX._stencilStateStack.length;
         this._gammaApplied = HX.GAMMA_CORRECT_LIGHTS;
         this._camera = camera;
         this._scene = scene;
 
-        HX.pushRenderTarget(renderTarget);
-        if (renderTarget) HX.clear();
-        {
-            this._aoTexture = this._aoEffect ? this._aoEffect.getAOTexture() : null;
+        this._aoTexture = this._aoEffect ? this._aoEffect.getAOTexture() : null;
 
-            this._updateSize(renderTarget);
+        this._updateSize(renderTarget);
 
-            camera._setRenderTargetResolution(this._width, this._height);
-            this._renderCollector.collect(camera, scene);
+        camera._setRenderTargetResolution(this._width, this._height);
+        this._renderCollector.collect(camera, scene);
 
-            this._renderShadowCasters();
+        this._renderShadowCasters();
 
-            HX.pushRenderTarget(this._hdrFront.fboDepth);
-            {
-                this._renderOpaques();
+        this._renderOpaques();
 
-                this._renderOpaquePostPass(HX.MaterialPass.POST_WRITE_ONLY_PASS);
-                this._renderOpaquePostPass(HX.MaterialPass.POST_READ_WRITE_PASS, true);
+        if (this._ssrEffect != null)
+            this._ssrEffect.render(this, dt);
 
-                // don't use AO for transparents
-                if (this._aoTexture) this._aoTexture = null;
-                this._renderTransparents();
+        this._renderToScreen(renderTarget, dt);
 
-                this._renderTransparentPostPass(HX.MaterialPass.POST_WRITE_ONLY_PASS);
-                this._renderTransparentPostPass(HX.MaterialPass.POST_READ_WRITE_PASS, true);
+        this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
 
-            }
-            HX.popRenderTarget();
-
-            if (this._ssrEffect != null)
-                this._ssrEffect.render(this, dt);
-
-            this._renderToScreen(dt);
-
-            this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
-        }
         HX.popRenderTarget();
         HX.setBlendState();
         HX.setDepthMask(true);
 
         if (HX._renderTargetStack.length > renderTargetStackSize) throw new Error("Unpopped render targets!");
         if (HX._renderTargetStack.length < renderTargetStackSize) throw new Error("Overpopped render targets!");
-        if (HX._stencilStateStack.length > stencilStackSize) throw new Error("Unpopped stencil states!");
-        if (HX._stencilStateStack.length < stencilStackSize) throw new Error("Overpopped stencil states!");
     },
 
     _renderShadowCasters: function ()
@@ -206,107 +185,17 @@ HX.Renderer.prototype =
 
     _renderOpaques: function ()
     {
-        HX.pushStencilState(this._stencilWriteState);
-
         HX.setClearColor(HX.Color.BLACK);
 
         this._renderToGBuffer();
 
-        HX.popStencilState();
+        if (HX.EXT_DEPTH_TEXTURE)
+            this._linearizeDepth();
 
-        this._linearizeDepth();
-
-        // only render AO for non-transparents
         if (this._aoEffect !== null)
             this._aoEffect.render(this, 0);
 
-        // no other lighting models are currently supported, but can't shade lightingModel 0, which is unlit:
-        var lightingModelID = 1;
-        this._stencilReadState.reference = lightingModelID << 4;
-
-        HX.pushStencilState(this._stencilReadState);
-
         this._renderLightAccumulation();
-
-        HX.popStencilState();
-    },
-
-    _renderTransparents: function ()
-    {
-        var renderLists = [];
-
-        var passIndices = HX.EXT_DRAW_BUFFERS
-            ? [HX.MaterialPass.GEOMETRY_PASS]
-            : [HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
-        var numPassTypes = passIndices.length;
-
-        for (var j = 0; j < numPassTypes; ++j) {
-            renderLists[j] = this._renderCollector.getTransparentRenderList(passIndices[j]);
-        }
-
-        var baseList = renderLists[0];
-        var len = baseList.length;
-
-        // TODO: Should we render all transparent objects with the same transparency mode?
-        for (var i = 0; i < len; ++i) {
-            this._swapHDRFrontAndBack(true);
-            var material = baseList[i].material;
-            var transparencyMode = material._transparencyMode;
-            var stencilValue = (material._lightingModelID << 4) | transparencyMode;
-            this._stencilWriteState.reference = stencilValue;
-
-            HX.pushStencilState(this._stencilWriteState);
-
-            if (HX.EXT_DRAW_BUFFERS)
-                HX.pushRenderTarget(this._gbufferFBO);
-
-            for (var j = 0; j < numPassTypes; ++j) {
-
-                if (!HX.EXT_DRAW_BUFFERS)
-                    HX.pushRenderTarget(this._gbufferSingleFBOs[j]);
-
-                var passType = passIndices[j];
-                var renderItem = renderLists[j][i];
-
-                var meshInstance = renderItem.meshInstance;
-                var pass = renderItem.pass;
-
-                pass._shader.updateRenderState(renderItem.camera, renderItem);
-                pass.updateRenderState(this);
-                meshInstance.updateRenderState(passType);
-
-                HX.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
-
-                if (!HX.EXT_DRAW_BUFFERS)
-                    HX.popRenderTarget();
-            }
-
-            if (HX.EXT_DRAW_BUFFERS)
-                HX.popRenderTarget();
-
-            HX.popStencilState();
-
-            this._stencilReadState.reference = stencilValue;
-            HX.pushStencilState(this._stencilReadState);
-
-            this._linearizeDepth();
-
-            this._renderLightAccumulation();
-            this._swapHDRFrontAndBack(true);
-
-            switch (transparencyMode) {
-                case HX.TransparencyMode.ADDITIVE:
-                    HX.setBlendState(HX.BlendState.ADD_WITH_ALPHA);
-                    break;
-                case HX.TransparencyMode.ALPHA:
-                    HX.setBlendState(HX.BlendState.ALPHA);
-                    break;
-            }
-
-            this._applyAlphaTransparency.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture, this._gbuffer[0]);
-
-            HX.popStencilState(this._stencilReadState);
-        }
     },
 
     _renderToGBuffer: function ()
@@ -328,16 +217,12 @@ HX.Renderer.prototype =
     _renderToGBufferMultiPass: function ()
     {
         var clearMask = HX_GL.COLOR_BUFFER_BIT | HX_GL.DEPTH_BUFFER_BIT | HX_GL.STENCIL_BUFFER_BIT;
-        var passIndices = [HX.MaterialPass.GEOMETRY_COLOR_PASS, HX.MaterialPass.GEOMETRY_NORMAL_PASS, HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
 
-        for (var i = 0; i < 3; ++i) {
+        var len = this._gbufferSingleFBOs.length;
+        for (var i = 0; i < len; ++i) {
             HX.pushRenderTarget(this._gbufferSingleFBOs[i]);
             HX.clear(clearMask);
-            this._renderPass(passIndices[i]);
-
-            if (i == 0)
-                clearMask = HX_GL.COLOR_BUFFER_BIT;
-
+            this._renderPass(i);
             HX.popRenderTarget();
         }
     },
@@ -345,16 +230,14 @@ HX.Renderer.prototype =
     _linearizeDepth: function ()
     {
         HX.pushRenderTarget(this._linearDepthFBO);
-        var depthTexture, depthTexture2;
+        var depthTexture;
         if (HX.EXT_DEPTH_TEXTURE) {
             depthTexture = this._depthBuffer;
         }
         else {
             depthTexture = this._gbuffer[1];
-            // we keep the smallest precision in specular buffer
-            depthTexture2 = this._gbuffer[2];
         }
-        this._linearizeDepthShader.execute(HX.RectMesh.DEFAULT, depthTexture, this._camera, depthTexture2);
+        this._linearizeDepthShader.execute(HX.RectMesh.DEFAULT, depthTexture, this._camera);
         HX.popRenderTarget(this._linearDepthFBO);
     },
 
@@ -364,9 +247,23 @@ HX.Renderer.prototype =
         effect.render(this, dt);
     },
 
-    _renderToScreen: function (dt)
+    _renderToScreen: function (renderTarget, dt)
     {
         HX.setBlendState(null);
+
+        if (this._debugMode === HX.DebugRenderMode.NONE) {
+            this._composite(renderTarget, dt);
+        }
+        else {
+            this._renderDebug(renderTarget);
+        }
+    },
+
+    _renderDebug: function(renderTarget)
+    {
+        HX.pushRenderTarget(renderTarget);
+        if (renderTarget) HX.clear();
+
         switch (this._debugMode) {
             case HX.DebugRenderMode.DEBUG_COLOR:
                 this._copyTexture.execute(HX.RectMesh.DEFAULT, this._gbuffer[0]);
@@ -397,16 +294,17 @@ HX.Renderer.prototype =
                 if (this._ssrEffect)
                     this._applyGamma.execute(HX.RectMesh.DEFAULT, this._ssrTexture);
                 break;
-            default:
-                this._composite(dt);
         }
     },
 
-    _composite: function (dt)
+    _composite: function (renderTarget, dt)
     {
         HX.pushRenderTarget(this._hdrFront.fbo);
             this._renderEffects(dt, this._renderCollector._effects);
         HX.popRenderTarget();
+
+        HX.pushRenderTarget(renderTarget);
+        if (renderTarget) HX.clear();
 
         // TODO: render directly to screen if last post process effect?
         // OR, provide toneMap property on camera, which gets special treatment
@@ -467,40 +365,6 @@ HX.Renderer.prototype =
         HX.RenderUtils.renderPass(this, passType, renderItems);
     },
 
-    _copySource: function ()
-    {
-        HX.pushRenderTarget(this._hdrBack.fbo);
-        HX.setBlendState(null);
-        this._copyTexture.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
-        HX.popRenderTarget();
-    },
-
-    _renderOpaquePostPass: function (passType, copySource)
-    {
-        var opaqueList = this._renderCollector.getOpaqueRenderList(passType);
-
-        if (opaqueList.length === 0)
-            return;
-
-        if (copySource)
-            this._copySource();
-
-        this._renderPass(passType, this._renderCollector.getOpaqueRenderList(passType));
-    },
-
-    _renderTransparentPostPass: function (passType, copySource)
-    {
-        var transparentList = this._renderCollector.getTransparentRenderList(passType);
-
-        if (transparentList.length === 0)
-            return;
-
-        if (copySource)
-            this._copySource();
-
-        this._renderPass(passType, this._renderCollector.getTransparentRenderList(passType));
-    },
-
     _renderEffects: function (dt, effects)
     {
         if (!effects || effects.length == 0)
@@ -529,6 +393,10 @@ HX.Renderer.prototype =
 
         this._gbuffer = [];
 
+        // 0 = albedo
+        // 1 = normals
+        // 2 = specular
+        // 3 = linear depth
         for (var i = 0; i < 4; ++i) {
             this._gbuffer[i] = new HX.Texture2D();
             this._gbuffer[i].filter = HX.TextureFilter.BILINEAR_NOMIP;
@@ -537,18 +405,26 @@ HX.Renderer.prototype =
 
         this._gbufferSingleFBOs = [];
 
-        for (var i = 0; i < 3; ++i)
-            this._gbufferSingleFBOs[i] = new HX.FrameBuffer([this._gbuffer[i]], this._depthBuffer);
-
         this._createGBufferFBO();
-        this._linearDepthFBO = new HX.FrameBuffer(this._gbuffer[3], null);
+
+        if (HX.EXT_DEPTH_TEXTURE)
+            this._linearDepthFBO = new HX.FrameBuffer(this._gbuffer[3], null);
     },
 
     _createGBufferFBO: function ()
     {
         if (HX.EXT_DRAW_BUFFERS) {
             var targets = [this._gbuffer[0], this._gbuffer[1], this._gbuffer[2]];
+
+            if (!HX.EXT_DEPTH_TEXTURE)
+                targets[3] = this._gbuffer[3];
+
             this._gbufferFBO = new HX.FrameBuffer(targets, this._depthBuffer);
+        }
+        else {
+            var numFBOs = HX.EXT_DEPTH_TEXTURE? 3 : 4;
+            for (var i = 0; i < numFBOs; ++i)
+                this._gbufferSingleFBOs[i] = new HX.FrameBuffer([this._gbuffer[i]], this._depthBuffer);
         }
     },
 
@@ -563,17 +439,20 @@ HX.Renderer.prototype =
             this._gbuffer[i].initEmpty(width, height, HX_GL.RGBA, HX_GL.UNSIGNED_BYTE);
         }
 
-        for (var i = 0; i < this._gbufferSingleFBOs.length; ++i)
-            this._gbufferSingleFBOs[i].init();
-
         this._updateGBufferFBO();
-        this._linearDepthFBO.init();
+
+        if (this._linearDepthFBO)
+            this._linearDepthFBO.init();
     },
 
     _updateGBufferFBO: function ()
     {
         if (HX.EXT_DRAW_BUFFERS)
             this._gbufferFBO.init();
+        else {
+            for (var i = 0; i < this._gbufferSingleFBOs.length; ++i)
+                this._gbufferSingleFBOs[i].init();
+        }
     },
 
     dispose: function ()

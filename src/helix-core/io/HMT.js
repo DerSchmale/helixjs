@@ -69,10 +69,6 @@ HX.HMT.prototype._processMaterial = function(data, shaders, material)
     var passes = data.passes;
 
     if (passes.geometry !== undefined) this._processPass(material, passes.geometry, HX.MaterialPass.GEOMETRY_PASS, shaders, defines);
-    if (passes.postwrite !== undefined) this._processPass(material, passes.postwrite, HX.MaterialPass.POST_WRITE_ONLY_PASS, shaders, defines);
-    if (passes.postread !== undefined) this._processPass(material, passes.postread, HX.MaterialPass.POST_READ_WRITE_PASS, shaders, defines);
-
-    if (data.transparencyMode !== undefined) material.transparencyMode = HX.HMT._PROPERTY_MAP[data.transparencyMode];
 
     this._applyUniforms(data, material);
 
@@ -92,6 +88,8 @@ HX.HMT.prototype._processPass = function(material, passData, passType, shaders, 
             this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_COLOR_PASS, defines, "HX_NO_MRT_GBUFFER_COLOR");
             this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_NORMAL_PASS, defines, "HX_NO_MRT_GBUFFER_NORMALS");
             this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, defines, "HX_NO_MRT_GBUFFER_SPECULAR");
+            if (!HX.EXT_DEPTH_TEXTURE)
+                this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_LINEAR_DEPTH_PASS, defines, "HX_NO_MRT_GBUFFER_LINEAR_DEPTH");
         }
 
         this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.SHADOW_DEPTH_PASS, defines, "HX_SHADOW_DEPTH_PASS");

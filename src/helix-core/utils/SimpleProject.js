@@ -87,7 +87,6 @@ HX.SimpleProject.prototype =
 
         this.onUpdate(dt);
 
-        HX.clear();
         this._renderer.render(this._camera, this._scene, dt);
     },
 

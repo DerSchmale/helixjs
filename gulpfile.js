@@ -2,6 +2,7 @@ var gulp = require('gulp');
 var concat = require('gulp-concat');
 var rename = require('gulp-rename');
 var uglify = require('gulp-uglify');
+var insert = require('gulp-insert');
 var concatCallback = require('gulp-concat-callback');
 var del = require('del');
 
@@ -72,6 +73,7 @@ gulp.task('core', ['glsl'], function ()
     var sources = libs.concat(coreFiles);
     return gulp.src(sources, {base: './'})
         .pipe(concat('helix.js'))
+        .pipe(insert.append(appendHash()))
         .pipe(gulp.dest('./build/'));
 });
 
@@ -105,6 +107,12 @@ gulp.task('clean', ['main', 'glsl'], function ()
 {
     del('./build/tmp');
 });
+
+function appendHash()
+{
+    var hash = Math.round(Math.random() * 0xffff).toString(16);
+    return "HX.BUILD_HASH = 0x" + hash + ";\n";
+}
 
 function appendGLSL(contents, file)
 {

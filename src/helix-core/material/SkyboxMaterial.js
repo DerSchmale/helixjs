@@ -11,6 +11,7 @@ HX.SkyboxMaterial = function(texture)
     var pass = new HX.MaterialPass(shader);
     pass.writeDepth = false;
     pass.cullMode = HX.CullMode.NONE;
+    // TODO: figure out how to do unlit stuff
     this.setPass(HX.MaterialPass.POST_WRITE_ONLY_PASS, pass);
 
     this.setTexture("hx_skybox", texture);

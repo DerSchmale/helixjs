@@ -24,23 +24,20 @@ HX.MaterialPass = function (shader)
 
 HX.MaterialPass.GEOMETRY_PASS = 0;
 
-// used for post-lighting, useful for some post-effects that don't need access to the backbuffer
-HX.MaterialPass.POST_WRITE_ONLY_PASS = 1;
-
-// used for post-effects with lighting accumulation available
-HX.MaterialPass.POST_READ_WRITE_PASS = 2;
-
 // used for dir lighting etc, depending on shadow mapping type
-HX.MaterialPass.SHADOW_DEPTH_PASS = 3;
+// this value will be corrected upon init
+HX.MaterialPass.SHADOW_DEPTH_PASS = -1;
 
 // the individual pass type are not taken into account, they will be dealt with specially
-HX.MaterialPass.NUM_PASS_TYPES = 4;
+// this value will be corrected upon init
+HX.MaterialPass.NUM_PASS_TYPES = 2;
 
 // use diffuse as alias for geometry pass
 // NUM_PASS_TYPES WILL BE SET PROPERLY UPON INITIALISATION DEPENDING ON DRAWBUFFER SUPPORT
 HX.MaterialPass.GEOMETRY_COLOR_PASS = HX.MaterialPass.GEOMETRY_PASS;
-HX.MaterialPass.GEOMETRY_NORMAL_PASS = HX.MaterialPass.NUM_PASS_TYPES;
-HX.MaterialPass.GEOMETRY_SPECULAR_PASS = HX.MaterialPass.NUM_PASS_TYPES + 1;
+HX.MaterialPass.GEOMETRY_NORMAL_PASS = HX.MaterialPass.GEOMETRY_PASS + 1;
+HX.MaterialPass.GEOMETRY_SPECULAR_PASS = HX.MaterialPass.GEOMETRY_PASS + 2;
+HX.MaterialPass.GEOMETRY_LINEAR_DEPTH_PASS = HX.MaterialPass.GEOMETRY_PASS + 3;
 
 HX.MaterialPass.prototype = {
     constructor: HX.MaterialPass,

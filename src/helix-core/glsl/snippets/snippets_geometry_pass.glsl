@@ -1,45 +1,40 @@
-vec4 hx_encodeNormalDepth(vec3 normal, float depth)
+vec4 hx_encodeNormal(vec3 normal)
 {
-	#ifdef HX_NO_DEPTH_TEXTURES
-    	vec4 data;
-    	float p = sqrt(normal.z*8.0 + 8.0);
-        data.xy = normal.xy / p + .5;
-    	#ifdef HX_MAX_DEPTH_PRECISION
-		data.zw = hx_floatToRGBA8(depth).xy;
-		#else
-		data.zw = hx_floatToRG8(depth).xy;
-		#endif
-		return data;
-	#else
-		return vec4(normal * .5 + .5, 1.0);
-    #endif
+    return vec4(normal * .5 + .5, 1.0);
 }
 
-vec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness, float depth)
+vec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, float roughness)
 {
-    #if defined(HX_NO_DEPTH_TEXTURES) && defined(HX_MAX_DEPTH_PRECISION)
-    depth = hx_floatToRGBA8(depth).z;
-    #else
-    depth = 1.0;
-    #endif
-	return vec4(roughness, specularNormalReflection * 5.0, metallicness, depth);
+	return vec4(roughness, specularNormalReflection * 5.0, metallicness, 1.0);
 }
 
-void hx_processGeometryMRT(vec4 color, vec3 normal, float depth, float metallicness, float specularNormalReflection, float roughness, out vec4 colorData, out vec4 normalData, out vec4 specularData)
+#ifdef HX_NO_DEPTH_TEXTURES
+void hx_processGeometryMRT(vec4 color, vec3 normal, float metallicness, float specularNormalReflection, float roughness, float linearDepth, out vec4 colorData, out vec4 normalData, out vec4 specularData, out vec4 depthData)
+#else
+void hx_processGeometryMRT(vec4 color, vec3 normal, float metallicness, float specularNormalReflection, float roughness, float linearDepth, out vec4 colorData, out vec4 normalData, out vec4 specularData)
+#endif
 {
     colorData = color;
-	normalData = hx_encodeNormalDepth(normal, depth);
-    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, depth);
+	normalData = hx_encodeNormal(normal);
+    specularData = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness);
+
+    #ifdef HX_NO_DEPTH_TEXTURES
+    depthData = hx_floatToRGBA8(linearDepth);
+    #endif
 }
 
 #if defined(HX_NO_MRT_GBUFFER_COLOR)
-#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = color)
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness, linearDepth) (gl_FragColor = color)
 #elif defined(HX_NO_MRT_GBUFFER_NORMALS)
-#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeNormalDepth(normal, gl_FragCoord.z))
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness, linearDepth) (gl_FragColor = hx_encodeNormal(normal))
 #elif defined(HX_NO_MRT_GBUFFER_SPECULAR)
-#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness, gl_FragCoord.z))
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness, linearDepth) (gl_FragColor = hx_encodeSpecularData(metallicness, specularNormalReflection, roughness))
+#elif defined(HX_NO_MRT_GBUFFER_LINEAR_DEPTH)
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness, linearDepth) (gl_FragColor = hx_floatToRGBA8(linearDepth))
 #elif defined(HX_SHADOW_DEPTH_PASS)
-#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) (gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z))
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness, linearDepth) (gl_FragColor = hx_getShadowMapValue(linearDepth))
+#elif defined(HX_NO_DEPTH_TEXTURES)
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness, linearDepth) hx_processGeometryMRT(color, normal, metallicness, specularNormalReflection, roughness, linearDepth, gl_FragData[0], gl_FragData[1], gl_FragData[2], gl_FragData[3])
 #else
-#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness) hx_processGeometryMRT(color, normal, gl_FragCoord.z, metallicness, specularNormalReflection, roughness, gl_FragData[0], gl_FragData[1], gl_FragData[2])
+#define hx_processGeometry(color, normal, metallicness, specularNormalReflection, roughness, linearDepth) hx_processGeometryMRT(color, normal, metallicness, specularNormalReflection, roughness, linearDepth, gl_FragData[0], gl_FragData[1], gl_FragData[2])
 #endif

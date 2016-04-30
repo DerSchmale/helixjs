@@ -12,7 +12,6 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.useHDR = true;
-    options.maxDepthPrecision = true;
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
     options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);
@@ -20,10 +19,10 @@ window.onload = function ()
 
 function initRenderer(renderer)
 {
-    var ssr = new HX.ScreenSpaceReflections(32);
-    ssr.scale = .5;
-    ssr.stepSize = 20;
-    renderer.localReflections = ssr;
+    //var ssr = new HX.ScreenSpaceReflections(32);
+    //ssr.scale = .5;
+    //ssr.stepSize = 20;
+    //renderer.localReflections = ssr;
 
     var ssao = new HX.SSAO(25);
     ssao.strength = 2.0;
@@ -42,9 +41,9 @@ function initCamera(camera)
     floatController.speed = 10.0;
     camera.addComponent(floatController);
 
-    var bloom = new HX.BloomEffect(500, .5, 8);
-    bloom.thresholdLuminance = 1.0;
-    camera.addComponent(bloom);
+    //var bloom = new HX.BloomEffect(500, .5, 8);
+    //bloom.thresholdLuminance = 1.0;
+    //camera.addComponent(bloom);
 
     var tonemap = new HX.FilmicToneMapEffect(true);
     tonemap.exposure = 2;

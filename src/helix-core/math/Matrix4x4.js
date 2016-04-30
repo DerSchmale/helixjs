@@ -317,8 +317,13 @@ HX.Matrix4x4.prototype =
         m[15] = 1;
     },
 
-    fromTranslation: function (v)
+    fromTranslation: function (xOrV, y, z)
     {
+        if (y === undefined) {
+            xOrV = xOrV.x;
+            y = xOrV.y;
+            z = xOrV.z;
+        }
         var m = this._m;
         m[0] = 1;
         m[1] = 0;
@@ -332,9 +337,9 @@ HX.Matrix4x4.prototype =
         m[9] = 0;
         m[10] = 1;
         m[11] = 0;
-        m[12] = v.x;
-        m[13] = v.y;
-        m[14] = v.z;
+        m[12] = xOrV;
+        m[13] = y;
+        m[14] = z;
         m[15] = 1;
     },
 

@@ -4,66 +4,37 @@
 AnimateOrbitComponent = function()
 {
     HX.Component.call(this);
-    this._pivotPoint = new HX.Float4();
-    this._radiusVector = new HX.Float4(0.0, 0.0, 1.0);
-    this._radians = 0;
-    this._speed = 1.0; // radians per second
-    this._axis = HX.Float4.Y_AXIS.clone();
+    this.pivotPoint = new HX.Float4();
+    this.radius = 1.0;
+    this.axis = HX.Float4.Y_AXIS.clone();
+    this.radians = 0;
+    this.speed = 1.0; // radians per second
+
+    this._originalMatrix = null;
 };
 
-AnimateOrbitComponent.prototype = Object.create(HX.Component.prototype,
-    {
-        pivotPoint: {
-            get: function ()
-            {
-                return this._pivotPoint;
-            },
-            set: function (value)
-            {
-                this._pivotPoint = value;
-            }
-        },
-        radius: {
-            get: function ()
-            {
-                return this._radiusVector.z;
-            },
-            set: function (value)
-            {
-                this._radiusVector.z = value;
-            }
-        },
-        axis: {
-            get: function ()
-            {
-                return this._axis;
-            },
-            set: function (value)
-            {
-                this._axis = value;
-            }
-        },
-        speed: {
-            get: function ()
-            {
-                return this._speed;
-            },
-            set: function (value)
-            {
-                this._speed = value;
-            }
-        }
-    }
-);
+AnimateOrbitComponent.prototype = Object.create(HX.Component.prototype);
+
+AnimateOrbitComponent.prototype.onAdded = function()
+{
+    // store the original matrix of the object
+    this._originalMatrix = this.entity.matrix.clone();
+};
+
+AnimateOrbitComponent.prototype.onRemoved = function()
+{
+    // reset the original matrix now the component isn't in control anymore
+    this.entity.matrix.copyFrom(this._originalMatrix);
+};
 
 AnimateOrbitComponent.prototype.onUpdate = function(dt)
 {
-    this._radians += dt/1000.0 * this._speed;
+    this.radians += dt/1000.0 * this.speed;
 
     var matrix = this.entity.matrix;
-    matrix.fromTranslation(this._radiusVector);
-    matrix.appendRotationAxisAngle(this._axis, this._radians);
-    matrix.appendTranslation(this._pivotPoint);
+    matrix.fromTranslation(0, 0, this.radius);
+    matrix.appendRotationAxisAngle(this.axis, this.radians);
+    matrix.appendTranslation(this.pivotPoint);
 
     this.entity.matrix = matrix;
 };

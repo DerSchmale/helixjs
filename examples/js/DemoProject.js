@@ -38,7 +38,7 @@ DemoProject.prototype.init = function(canvas, initOptions)
             case 52:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_METALLICNESS;
                 break;
-            case 55:
+            case 53:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_DEPTH;
                 break;
             case 54:

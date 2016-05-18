@@ -22,6 +22,7 @@ varying vec3 bitangent;
 uniform sampler2D normalMap;
 #endif
 
+uniform float hx_transparencyMode;
 uniform float minRoughness;
 uniform float maxRoughness;
 uniform float specularNormalReflection;
@@ -90,5 +91,5 @@ void main()
           #endif
     #endif
 
-    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, metallicnessOut, specNormalReflOut, roughnessOut, 1.0, linearDepth);
+    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, metallicnessOut, specNormalReflOut, roughnessOut, hx_transparencyMode, linearDepth);
 }

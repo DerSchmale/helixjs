@@ -327,5 +327,3 @@ HX.SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
         HX_GL.uniformMatrix4fv(this.location, false, this._data);
     }
 };
-
-

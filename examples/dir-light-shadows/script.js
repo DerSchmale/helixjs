@@ -77,10 +77,10 @@ function initScene(scene)
     opaqueMaterial.setRoughness(0.05, .5);
 
     var transparentMaterial = new HX.PBRMaterial();
+    transparentMaterial.alpha = .5;
+    // if you want to use clear glass, use alpha 1.0, colour black with HX.TransparencyMode.ADDITIVE
     transparentMaterial.color = 0x801010;
-    transparentMaterial.transparent = true;
-    transparentMaterial.refractiveRatio = 1.0 / 1.1;
-    transparentMaterial.refract = true;
+    transparentMaterial.transparencyMode = HX.TransparencyMode.ALPHA;
     transparentMaterial.setRoughness(.01);
 
     var primitive = new HX.SpherePrimitive(

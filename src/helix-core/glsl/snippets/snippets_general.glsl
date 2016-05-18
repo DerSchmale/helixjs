@@ -1,3 +1,7 @@
+#define HX_TRANSPARENCY_OPAQUE 0.0
+#define HX_TRANSPARENCY_ALPHA 1.0 / 255.0
+#define HX_TRANSPARENCY_ADDITIVE 2.0 / 255.0
+
 float saturate(float value)
 {
     return clamp(value, 0.0, 1.0);

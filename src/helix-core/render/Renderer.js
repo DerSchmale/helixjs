@@ -10,8 +10,9 @@ HX.DebugRenderMode = {
     DEBUG_ROUGHNESS: 5,
     DEBUG_DEPTH: 6,
     DEBUG_LIGHT_ACCUM: 7,
-    DEBUG_AO: 8,
-    DEBUG_SSR: 9
+    DEBUG_TRANSPARENCY_MODE: 8,
+    DEBUG_AO: 9,
+    DEBUG_SSR: 10
 };
 
 
@@ -44,10 +45,15 @@ HX.Renderer = function ()
     this._copyZChannel = new HX.CopyChannelsShader("z");
     this._copyWChannel = new HX.CopyChannelsShader("w");
     this._debugDepth = new HX.DebugDepthShader();
+    this._debugTransparencyMode = new HX.DebugTransparencyModeShader();
     this._debugNormals = new HX.DebugNormalsShader();
     this._applyGamma = new HX.ApplyGammaShader();
     this._applyBlendingShader = new HX.ApplyBlendingShader();
+    this._markScanlinesStencilState = new HX.StencilState(0xff, HX.Comparison.ALWAYS, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE);
+    this._applyScanlinesStencilState = new HX.StencilState(0xff, HX.Comparison.EQUAL, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
+    this._markScanlinesShader = new HX.NullShader();
     this._gammaApplied = false;
+    this._scanLineMesh = null;
 
     if (HX.EXT_DEPTH_TEXTURE) {
         this._linearizeDepthShader = new HX.LinearizeDepthShader();
@@ -206,17 +212,42 @@ HX.Renderer.prototype =
 
     _renderToGBuffer: function ()
     {
+        HX.setClearColor(HX.Color.ZERO);    // also set alpha 0
+
         if (HX.EXT_DRAW_BUFFERS)
             this._renderToGBufferMRT();
         else
             this._renderToGBufferMultiPass();
     },
 
+    _renderScanlines: function()
+    {
+        HX.setDepthMask(false);
+        HX_GL.colorMask(false, false, false, false);
+        HX.pushStencilState(this._markScanlinesStencilState);
+        this._markScanlinesShader.execute(this._scanLineMesh);
+        HX.popStencilState();
+        HX_GL.colorMask(true, true, true, true);
+        HX.setDepthMask(true);
+    },
+
     _renderToGBufferMRT: function ()
     {
         HX.pushRenderTarget(this._gbufferFBO);
         HX.clear();
+
         this._renderPass(HX.MaterialPass.GEOMETRY_PASS);
+
+        var transparents = this._renderCollector.getTransparentRenderList(HX.MaterialPass.GEOMETRY_PASS);
+
+        if (transparents.length > 0) {
+            this._renderScanlines();
+
+            HX.pushStencilState(this._applyScanlinesStencilState);
+            this._renderPass(HX.MaterialPass.GEOMETRY_PASS, transparents);
+            HX.popStencilState();
+        }
+
         HX.popRenderTarget();
     },
 
@@ -227,6 +258,17 @@ HX.Renderer.prototype =
             HX.pushRenderTarget(this._gbufferSingleFBOs[i]);
             HX.clear();
             this._renderPass(i);
+
+            var transparents = this._renderCollector.getTransparentRenderList(i);
+
+            if (transparents.length > 0) {
+                this._renderScanlines();
+
+                HX.pushStencilState(this._applyScanlinesStencilState);
+                this._renderPass(i, transparents);
+                HX.popStencilState();
+            }
+
             HX.popRenderTarget();
         }
     },
@@ -281,6 +323,9 @@ HX.Renderer.prototype =
                 break;
             case HX.DebugRenderMode.DEBUG_LIGHT_ACCUM:
                 this._applyGamma.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
+                break;
+            case HX.DebugRenderMode.DEBUG_TRANSPARENCY_MODE:
+                this._debugTransparencyMode.execute(HX.RectMesh.DEFAULT, this._gbuffer[1]);
                 break;
             case HX.DebugRenderMode.DEBUG_AO:
                 if (this._aoEffect)
@@ -449,10 +494,10 @@ HX.Renderer.prototype =
     _updateGBuffer: function (width, height)
     {
         if (HX.EXT_DEPTH_TEXTURE)
-            this._depthBuffer.initEmpty(width, height, HX_GL.DEPTH_COMPONENT, HX_GL.UNSIGNED_SHORT);
-            //this._depthBuffer.initEmpty(width, height, HX_GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
+            //this._depthBuffer.initEmpty(width, height, HX_GL.DEPTH_COMPONENT, HX_GL.UNSIGNED_SHORT);
+            this._depthBuffer.initEmpty(width, height, HX_GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
         else
-            this._depthBuffer.init(width, height, false);
+            this._depthBuffer.init(width, height, true);
 
         for (var i = 0; i < this._gbuffer.length; ++i)
             this._gbuffer[i].initEmpty(width, height, HX_GL.RGBA, HX_GL.UNSIGNED_BYTE);
@@ -523,6 +568,9 @@ HX.Renderer.prototype =
             this._updateGBuffer(this._width, this._height);
             this._hdrBack.resize(this._width, this._height);
             this._hdrFront.resize(this._width, this._height);
+
+            if (this._scanLineMesh) this._scanLineMesh.dispose();
+            this._scanLineMesh = HX.ScanlineMesh.create(height);
         }
     }
 };

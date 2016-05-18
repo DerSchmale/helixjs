@@ -9,7 +9,6 @@ project.onInit = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.useHDR = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -20,19 +19,10 @@ function initCamera(camera)
     controller.polar = Math.PI * .5;
     controller.radius = 1.5;
     camera.addComponent(controller);
-
-    var tonemap = new HX.FilmicToneMapEffect(false);
-    tonemap.exposure = 1.0;
-    camera.addComponent(tonemap);
 }
 
 function initScene(scene)
 {
-    var light = new HX.DirectionalLight();
-    light.intensity = .15;
-    light.color = 0xffffff;
-    scene.attach(light);
-
     var cubeLoader = new HX.AssetLoader(HX.HCM);
     var skyboxSpecularTexture = cubeLoader.load("textures/skybox/skybox_specular.hcm");
     var skyboxIrradianceTexture = cubeLoader.load("textures/skybox/skybox_irradiance.hcm");
@@ -43,18 +33,21 @@ function initScene(scene)
     skybox.setGlobalIrradianceProbe(new HX.GlobalIrradianceProbe(skyboxIrradianceTexture));
     scene.skybox = skybox;
 
-    var material = new HX.PBRMaterial();
-    material.color = 0x801010;
-    material.transparent = true;
-    material.refract = true;
-    material.refractiveRatio = 1.0 / 1.33;
-    material.setRoughness(.04);
+    var light = new HX.DirectionalLight();
+    light.intensity = .15;
+    scene.attach(light);
 
     var primitive = new HX.SpherePrimitive(
         {
-            numSegmentsH: 40,
-            numSegmentsW: 60
+            numSegmentsH: 20,
+            numSegmentsW: 30
         });
+
+    var material = new HX.PBRMaterial();
+    material.alpha = 1.0;
+    material.color = HX.Color.BLACK;
+    material.transparencyMode = HX.TransparencyMode.ADDITIVE;
+    material.setRoughness(.01);
 
     scene.attach(new HX.ModelInstance(primitive, material));
 }

@@ -9,6 +9,8 @@ uniform vec3 color;
 uniform float specularNormalReflection;
 uniform float roughness;
 
+uniform float hx_transparencyMode;
+
 void main()
 {
    vec4 samp = texture2D(map, uv);
@@ -18,5 +20,5 @@ void main()
    TBN[1] = normalize(bitangent);
    vec3 normal = vec3(samp.xy * 2.0 - 1.0, 1.0);
    normal = TBN * normal;
-   hx_processGeometry(hx_gammaToLinear(vec4(color, samp.z)), normal, 0.0, specularNormalReflection, roughness, 1.0, linearDepth);
+   hx_processGeometry(hx_gammaToLinear(vec4(color, samp.z)), normal, 0.0, specularNormalReflection, roughness, hx_transparencyMode, linearDepth);
 }

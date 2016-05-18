@@ -48,11 +48,10 @@ HX._clearGLStats = function()
  */
 HX.clear = function(clearMask)
 {
-    HX._updateRenderState();
-
     if (clearMask === undefined)
         clearMask = HX.COMPLETE_CLEAR_MASK;
 
+    HX._updateRenderState();
     HX_GL.clear(clearMask);
     ++HX._glStats.numClears;
 };
@@ -122,7 +121,7 @@ HX.enableAttributes = function(count)
         }
     }
 
-    HX._numActiveAttributes = 2;
+    HX._numActiveAttributes = count;
 };
 
 HX.setClearColor = function(color)
@@ -200,15 +199,14 @@ HX._updateRenderState = function()
         HX._renderTargetInvalid = false;
     }
 
-    if (HX._depthMaskInvalid) {
-        HX_GL.depthMask(HX._depthMask);
-        HX._depthMaskInvalid = false;
-    }
-
-
     if (this._viewportInvalid) {
         HX_GL.viewport(HX._viewport.x, HX._viewport.y, HX._viewport.width, HX._viewport.height);
         HX._viewportInvalid = false;
+    }
+
+    if (HX._depthMaskInvalid) {
+        HX_GL.depthMask(HX._depthMask);
+        HX._depthMaskInvalid = false;
     }
 
     if (HX._cullModeInvalid) {

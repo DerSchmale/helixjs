@@ -1,4 +1,33 @@
 /**
+ * This really does nothing, just renders a 2D mesh. Useful for simple stencil ops
+ */
+HX.NullShader = function()
+{
+    HX.Shader.call(this);
+    this.init(HX.ShaderLibrary.get("null_vertex.glsl"), HX.ShaderLibrary.get("null_fragment.glsl"));
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+};
+
+HX.NullShader.prototype = Object.create(HX.Shader.prototype);
+
+HX.NullShader.prototype.execute = function(mesh)
+{
+    HX.setDepthTest(HX.Comparison.DISABLED);
+    HX.setCullMode(HX.CullMode.NONE);
+
+    mesh._vertexBuffers[0].bind();
+    mesh._indexBuffer.bind();
+
+    this.updateRenderState();
+
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 8, 0);
+
+    HX.enableAttributes(1);
+
+    HX.drawElements(HX_GL.TRIANGLES, mesh.numIndices, 0);
+};
+
+/**
  * Base function for basic copies
  * @param fragmentShader The fragment shader to use while copying.
  * @constructor
@@ -8,12 +37,13 @@ HX.CustomCopyShader = function(fragmentShader)
     HX.Shader.call(this);
     this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), fragmentShader);
 
-    this._textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
+    var textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
+
     this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
     this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
     HX_GL.useProgram(this._program);
-    HX_GL.uniform1i(this._textureLocation, 0);
+    HX_GL.uniform1i(textureLocation, 0);
 };
 
 HX.CustomCopyShader.prototype = Object.create(HX.Shader.prototype);
@@ -104,14 +134,15 @@ HX.CopyWithSeparateAlpha = function()
     HX.Shader.call(this);
     this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), HX.ShaderLibrary.get("copy_with_separate_alpha_fragment.glsl"));
 
-    this._textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
-    this._alphaLocation = HX_GL.getUniformLocation(this._program, "alphaSource");
+    var textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
+    var alphaLocation = HX_GL.getUniformLocation(this._program, "alphaSource");
+
     this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
     this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
     HX_GL.useProgram(this._program);
-    HX_GL.uniform1i(this._textureLocation, 0);
-    HX_GL.uniform1i(this._alphaLocation, 1);
+    HX_GL.uniform1i(textureLocation, 0);
+    HX_GL.uniform1i(alphaLocation, 1);
 };
 
 HX.CopyWithSeparateAlpha.prototype = Object.create(HX.Shader.prototype);
@@ -144,16 +175,19 @@ HX.CopyWithSeparateAlpha.prototype.execute = function(rect, texture, alphaTextur
 HX.ApplyBlendingShader = function()
 {
     HX.Shader.call(this);
-    this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), HX.ShaderLibrary.get("apply_blending_fragment.glsl"));
+    this.init(HX.ShaderLibrary.get("apply_blending_vertex.glsl"), HX.ShaderLibrary.get("apply_blending_fragment.glsl"));
 
-    this._colorTexLocation = HX_GL.getUniformLocation(this._program, "hx_gbufferColor");
-    this._backBufferLocation = HX_GL.getUniformLocation(this._program, "hx_backbuffer");
+    var colorTexLocation = HX_GL.getUniformLocation(this._program, "hx_gbufferColor");
+    var normalTexLocation = HX_GL.getUniformLocation(this._program, "hx_gbufferNormals");
+    var backBufferLocation = HX_GL.getUniformLocation(this._program, "hx_backbuffer");
     this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
     this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
+    this._pixelHeightLocation = HX_GL.getUniformLocation(this._program, "pixelHeight");
 
     HX_GL.useProgram(this._program);
-    HX_GL.uniform1i(this._colorTexLocation, 0);
-    HX_GL.uniform1i(this._backBufferLocation, 1);
+    HX_GL.uniform1i(colorTexLocation, 0);
+    HX_GL.uniform1i(normalTexLocation, 1);
+    HX_GL.uniform1i(backBufferLocation, 2);
 };
 
 HX.ApplyBlendingShader.prototype = Object.create(HX.Shader.prototype);
@@ -169,7 +203,10 @@ HX.ApplyBlendingShader.prototype.execute = function(rect, gbuffer, hdrBack)
     this.updateRenderState();
 
     gbuffer[0].bind(0);
-    hdrBack.bind(1);
+    gbuffer[1].bind(1);
+    hdrBack.bind(2);
+
+    HX_GL.uniform1f(this._pixelHeightLocation, 1.0 / hdrBack.height);
 
     HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
     HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
@@ -188,6 +225,16 @@ HX.DebugDepthShader = function()
 };
 
 HX.DebugDepthShader.prototype = Object.create(HX.CustomCopyShader.prototype);
+
+/**
+ * Unpack and draw depth values to screen
+ */
+HX.DebugTransparencyModeShader = function()
+{
+    HX.CustomCopyShader.call(this, HX.ShaderLibrary.get("debug_transparency_fragment.glsl"));
+};
+
+HX.DebugTransparencyModeShader.prototype = Object.create(HX.CustomCopyShader.prototype);
 
 
 /**
@@ -224,13 +271,13 @@ HX.LinearizeDepthShader = function()
 
     HX_GL.useProgram(this._program);
 
-    this._textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
+    var textureLocation = HX_GL.getUniformLocation(this._program, "sampler");
+    HX_GL.uniform1i(textureLocation, 0);
+
     this._rcpFrustumRangeLocation = HX_GL.getUniformLocation(this._program, "hx_rcpCameraFrustumRange");
     this._projectionLocation = HX_GL.getUniformLocation(this._program, "hx_projectionMatrix");
     this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
     this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
-
-    HX_GL.uniform1i(this._textureLocation, 0);
 };
 
 HX.LinearizeDepthShader.prototype = Object.create(HX.Shader.prototype);
@@ -270,15 +317,16 @@ HX.ReprojectShader = function()
     this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), HX.ShaderLibrary.get("reproject_fragment.glsl"));
 
     this._reprojectionMatrix = new HX.Matrix4x4();
-    this._sourceLocation = HX_GL.getUniformLocation(this._program, "source");
-    this._depthLocation = HX_GL.getUniformLocation(this._program, "depth");
+    var sourceLocation = HX_GL.getUniformLocation(this._program, "source");
+    var depthLocation = HX_GL.getUniformLocation(this._program, "depth");
+
     this._reprojectionMatrixLocation = HX_GL.getUniformLocation(this._program, "reprojectionMatrix");
     this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
     this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
 
     HX_GL.useProgram(this._program);
-    HX_GL.uniform1i(this._sourceLocation , 0);
-    HX_GL.uniform1i(this._depthLocation, 1);
+    HX_GL.uniform1i(sourceLocation , 0);
+    HX_GL.uniform1i(depthLocation, 1);
 };
 
 HX.ReprojectShader.prototype = Object.create(HX.Shader.prototype);

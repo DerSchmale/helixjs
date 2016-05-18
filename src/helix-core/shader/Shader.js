@@ -6,11 +6,6 @@
  */
 HX.Shader = function(vertexShaderCode, fragmentShaderCode)
 {
-    // can be vertex or fragment shader
-    // Mesh object's vertexLayout should have a map of attrib names + offset into vertex buffer
-    // - on meshInstance creation:
-    //      -> create map of attribute index -> buffer offset
-    //      -> this by binding programme and asking gl for attrib locations
     this._ready = false;
     this._vertexShader = null;
     this._fragmentShader = null;

@@ -7,9 +7,9 @@
  * Blending merely applies to how passes are applied to their render targets.
  */
 HX.TransparencyMode = {
-    OPAQUE: 0,      // light coming from behind the object is blocked.
-    ALPHA: 1,       // light from behind is transparently blended with incoming light
-    ADDITIVE: 2,    // light from behind the object is completely unblocked and added in. Useful for specular-only lighting such as glass, or when refracted diffuse is applied in a post pass.
+    OPAQUE: 0,              // light coming from behind the object is blocked.
+    ALPHA: 1,               // light from behind is transparently blended with incoming light
+    ADDITIVE: 2,            // light from behind the object is completely unblocked and added in
     NUM_MODES: 3
 };
 
@@ -57,6 +57,7 @@ HX.Material.prototype = {
     set transparencyMode(value)
     {
         this._transparencyMode = value;
+        this.setUniform("hx_transparencyMode", this._transparencyMode / 0xff);
     },
 
     get renderOrder()
@@ -96,7 +97,7 @@ HX.Material.prototype = {
             if(type === HX.MaterialPass.SHADOW_DEPTH_PASS)
                 pass.cullMode = HX.DirectionalLight.SHADOW_FILTER.getCullMode();
 
-            if(type === HX.GEOMETRY_NORMAL_PASS || type === HX.GEOMETRY_SPECULAR_PASS)
+            if(type === HX.GEOMETRY_NORMAL_PASS || type === HX.GEOMETRY_SPECULAR_PASS || type == HX.GEOMETRY_LINEAR_DEPTH_PASS)
                 pass.depthTest = HX.Comparison.EQUAL;
 
             pass.elementType = this._elementType;
@@ -106,13 +107,16 @@ HX.Material.prototype = {
                     pass.setTexture(slotName, this._textures[slotName]);
             }
 
-            for (var uniformName in this._uniforms)
+            for (var uniformName in this._uniforms) {
                 if (this._uniforms.hasOwnProperty(uniformName)) {
-                    if (uniformName.charAt(uniformName.length-1) == ']')
+                    if (uniformName.charAt(uniformName.length - 1) == ']')
                         pass.setUniformArray(uniformName.substr(0, uniformName.length - 3), this._uniforms[uniformName]);
                     else
                         pass.setUniform(uniformName, this._uniforms[uniformName]);
                 }
+            }
+
+            pass.setUniform("hx_transparencyMode", this._transparencyMode / 0xff);
         }
 
         this.onChange.dispatch();

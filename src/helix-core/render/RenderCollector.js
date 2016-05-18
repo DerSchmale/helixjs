@@ -49,7 +49,7 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
     scene.acceptVisitor(this);
 
     this._opaquePasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques);
-    this._transparentPasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortTransparents);
+    this._transparentPasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques); // transparents can be treated as opaques in our renderer
 
     if (!HX.EXT_DRAW_BUFFERS) {
         this._copyLegacyPasses(this._opaquePasses);
@@ -109,8 +109,7 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
         var material = meshInstance.material;
-        var transparencyMode = material._transparencyMode;
-        var list = transparencyMode === opaque? this._opaquePasses : this._transparentPasses;
+        var list = material._transparencyMode === opaque? this._opaquePasses : this._transparentPasses;
 
         for (var passIndex = 0; passIndex < HX.MaterialPass.NUM_PASS_TYPES; ++passIndex) {
             var pass = material.getPass(passIndex);
@@ -127,6 +126,7 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
                 renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
                 renderItem.worldMatrix = worldMatrix;
                 renderItem.camera = camera;
+
                 list[passIndex].push(renderItem);
             }
         }
@@ -178,9 +178,6 @@ HX.RenderCollector.prototype._sortOpaques = function(a, b)
 
     diff = a.material._renderOrder - b.material._renderOrder;
     if (diff !== 0) return diff;
-
-    //diff = a.pass._shader._renderOrderHint - b.pass._shader._renderOrderHint;
-    //if (diff !== 0) return diff;
 
     diff = a.material._renderOrderHint - b.material._renderOrderHint;
     if (diff !== 0) return diff;

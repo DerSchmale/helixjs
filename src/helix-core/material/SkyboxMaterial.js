@@ -7,21 +7,16 @@ HX.SkyboxMaterial = function(texture)
 
     var vertexShader = HX.ShaderLibrary.get("default_skybox_vertex.glsl");
     var fragmentShader = HX.GLSLIncludeGeometryPass + HX.ShaderLibrary.get("default_skybox_fragment.glsl");
-    var passType;
 
-    if (HX.EXT_DRAW_BUFFERS) {
-        passType = HX.MaterialPass.GEOMETRY_PASS;
-    }
-    else {
+    if (!HX.EXT_DRAW_BUFFERS)
         fragmentShader = "#define HX_NO_MRT_GBUFFER_COLOR\n" + fragmentShader;
-        passType = HX.MaterialPass.GEOMETRY_COLOR_PASS;
-    }
 
     var shader = new HX.Shader(vertexShader, fragmentShader);
     var pass = new HX.MaterialPass(shader);
     pass.writeDepth = false;
     pass.cullMode = HX.CullMode.NONE;
-    this.setPass(passType, pass);
+    // if no draw buffers, normals and specular don't need to be updated
+    this.setPass(HX.MaterialPass.GEOMETRY_PASS, pass);
 
     this.setTexture("hx_skybox", texture);
 };

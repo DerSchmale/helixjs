@@ -14,6 +14,7 @@ HX.PBRMaterial = function()
     this._maskMap = null;
     this._specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
     this._metallicness = 0.0;
+    this._alpha = 1.0;
     this._minRoughness = 0.3;
     this._maxRoughness = 1.0;
     this._specularNormalReflection = 0.027;
@@ -22,7 +23,7 @@ HX.PBRMaterial = function()
 
     // trigger assignments
     this.color = this._color;
-    this.alpha = 1.0;
+    this.alpha = this._alpha;
     this.metallicness = this._metallicness;
     this.setRoughness(this._minRoughness);
     this.specularNormalReflection = this._specularNormalReflection;
@@ -76,8 +77,6 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             {
                 this._alpha = HX.saturate(value);
                 this.setUniform("alpha", this._alpha);
-
-                this.transparencyMode = value === 1.0? HX.TransparencyMode.OPAQUE : HX.TransparencyMode.ALPHA;
             }
         },
 
@@ -245,19 +244,6 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             }
         },
 
-        transparent:
-        {
-            get: function() { return this._transparent; },
-            set: function(value) {
-                // only specular will be output to hdr buffer, so additive
-                if (this._transparent !== value)
-                    this._passesInvalid = true;
-
-                this._transparent = value;
-                this._transparencyMode = value? HX.TransparencyMode.ADDITIVE : HX.TransparencyMode.OPAQUE;
-            }
-        },
-
         alphaThreshold:
         {
             get: function() { return this._alphaThreshold; },
@@ -302,22 +288,16 @@ HX.PBRMaterial.prototype._updatePasses = function()
     var linearDepthDefines = "";
     var generalDefines = this._generateGeneralDefines();
 
-    // TODO: this is something every material should have to do, so perhaps it should work differently?
-    if (this._transparent) {
-        // handle this properly
-    }
-
-    var colorPass;
     if (HX.EXT_DRAW_BUFFERS) {
         var defines = colorDefines + normalDefines + specularDefines + linearDepthDefines + generalDefines;
-        colorPass = this._initPass(HX.MaterialPass.GEOMETRY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+        this._initPass(HX.MaterialPass.GEOMETRY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
     }
     else {
         colorDefines = "#define HX_NO_MRT_GBUFFER_COLOR\n" + colorDefines + generalDefines;
         normalDefines = "#define HX_NO_MRT_GBUFFER_NORMALS\n" + normalDefines + generalDefines;
         specularDefines = "#define HX_NO_MRT_GBUFFER_SPECULAR\n" + specularDefines + generalDefines;
         linearDepthDefines = "#define HX_NO_MRT_GBUFFER_LINEAR_DEPTH\n" + linearDepthDefines + generalDefines;
-        colorPass = this._initPass(HX.MaterialPass.GEOMETRY_COLOR_PASS, colorDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+        this._initPass(HX.MaterialPass.GEOMETRY_COLOR_PASS, colorDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
         this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
         this._initPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS, specularDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
         if (!HX.EXT_DEPTH_TEXTURE)
@@ -338,12 +318,6 @@ HX.PBRMaterial.prototype._updatePasses = function()
     if (this._colorMap) this.setTexture("colorMap", this._colorMap);
     if (this._normalMap) this.setTexture("normalMap", this._normalMap);
     if (this._specularMap) this.setTexture("specularMap", this._specularMap);
-
-    if (this._transparent) {
-        // do not assign texture or color if transparent (albedo will be black)
-        colorPass.setUniform("color", new HX.Color(0, 0, 0, 1));
-        colorPass.setTexture("colorMap", null);
-    }
 
     this._passesInvalid = false;
 };
@@ -390,7 +364,6 @@ HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fra
     var pass = new HX.MaterialPass(shader);
     pass.cullMode = this._doubleSided? HX.CullMode.NONE : HX.CullMode.BACK;
     this.setPass(type, pass);
-    return pass;
 };
 
 HX.PBRMaterial.prototype._setUseSkinning = function(value)

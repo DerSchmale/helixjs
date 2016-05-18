@@ -17,6 +17,7 @@ uniform float roughness;
 uniform sampler2D hx_gbufferDepth;
 uniform sampler2D hx_backbuffer;
 
+uniform float hx_transparencyMode;
 uniform float hx_cameraFrustumRange;
 uniform float hx_cameraNearPlaneDistance;
 uniform mat4 hx_viewMatrix;
@@ -50,5 +51,5 @@ void main()
     color.xyz = mix(hx_gammaToLinear(scatteredColor), color.xyz, scatter);
     color.w = clamp(distance / 50.0, 0.0, 1.0);
 
-    hx_processGeometry(color, normal, 0.0, specularNormalReflection, roughness, 1.0, linearDepth);
+    hx_processGeometry(color, normal, 0.0, specularNormalReflection, roughness, hx_transparencyMode, linearDepth);
 }

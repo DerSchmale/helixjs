@@ -20,6 +20,7 @@ DemoProject.prototype.init = function(canvas, initOptions)
     debugInfoField.style.removeProperty("left");
     debugInfoField.style.right = "10px";
     debugInfoField.style.top = "10px";
+    debugInfoField.style.display = "none";
 
     document.body.appendChild(debugInfoField);
 
@@ -27,12 +28,14 @@ DemoProject.prototype.init = function(canvas, initOptions)
 
     document.addEventListener("keyup", function(event)
     {
+        debugInfoField.style.display = "inline";
+
         var keyCode = ("which" in event) ? event.which : event.keyCode;
 
         switch (keyCode) {
             case 48:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_NONE;
-                debugInfoField.innerHTML = "";
+                debugInfoField.style.display = "none";
                 break;
             case 49:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_COLOR;
@@ -55,14 +58,18 @@ DemoProject.prototype.init = function(canvas, initOptions)
                 debugInfoField.innerHTML = "Debug: depth";
                 break;
             case 54:
+                renderer.debugMode = HX.DebugRenderMode.DEBUG_TRANSPARENCY_MODE;
+                debugInfoField.innerHTML = "Debug: Transparency";
+                break;
+            case 55:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_AO;
                 debugInfoField.innerHTML = "Debug: AO";
                 break;
-            case 55:
+            case 56:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_SSR;
                 debugInfoField.innerHTML = "Debug: SSR";
                 break;
-            case 56:
+            case 57:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_LIGHT_ACCUM;
                 debugInfoField.innerHTML = "Debug: Light Accumulation";
                 break;

@@ -12,7 +12,7 @@ HX.StatsDisplay = function(container)
     this._div.style.width = "100px";
     //this._div.style.height = "100px";
     this._div.style.background = "rgba(0, 0, 0, .5)";
-    this._div.style.padding = "0px 15px 5px 15px";
+    this._div.style.padding = "10px 15px 10px 15px";
     this._div.style.color = "#ffffff";
     this._div.style.fontFamily = '"Lucida Console", Monaco, monospace';
     this._div.style.fontSize = "small";
@@ -34,13 +34,14 @@ HX.StatsDisplay.prototype =
     {
         this._fpsCounter.update(dt);
         this._div.innerHTML =
-            "<p>FPS: " + this._fpsCounter.averageFPS + "<br/>" +
+            "FPS: " + this._fpsCounter.averageFPS + "<br/>" +
             "Draws: " + HX._glStats.numDrawCalls + "<br/>" +
-            "Tris: " + HX._glStats.numTriangles + "</p>" +
+            "Tris: " + HX._glStats.numTriangles + "<br/>" +
+            "Clears: " + HX._glStats.numClears + "<br/><br/>" +
 
-            "<p style='font-size:x-small; width:100%; text-align:right;'>"+
+            "<div style='font-size:x-small; width:100%; text-align:right;'>"+
             "Helix " + HX.VERSION + "<br/>" +
             "Hash 0x" + HX.BUILD_HASH.toString(16) + "<br/>" +
-            "</p>";
+            "</div>";
     }
 };

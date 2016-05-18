@@ -181,23 +181,25 @@ HX.CascadeShadowMapRenderer.prototype =
         this._updateCascadeCameras(viewCamera, this._casterCollector.getBounds());
 
         HX.pushRenderTarget(this._fboFront);
-
-        var passType = HX.MaterialPass.SHADOW_DEPTH_PASS;
-        HX.setClearColor(HX.Color.WHITE);
-        HX.clear();
-
-        for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex)
         {
-            var viewport = this._viewports[cascadeIndex];
-            HX_GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-            HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
+            var passType = HX.MaterialPass.SHADOW_DEPTH_PASS;
+            HX.setClearColor(HX.Color.WHITE);
+            HX.clear();
+
+            for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex) {
+                var viewport = this._viewports[cascadeIndex];
+                HX_GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+                HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
+            }
+
+            if (HX.DirectionalLight.SHADOW_FILTER.blurShader) {
+                this._blur();
+            }
+
+            HX.popRenderTarget();
         }
 
-        if (HX.DirectionalLight.SHADOW_FILTER.blurShader) {
-            this._blur();
-        }
-
-        HX.popRenderTarget();
+        HX.setClearColor(HX.Color.BLACK);
     },
 
     _updateCollectorCamera: function(viewCamera)
@@ -419,17 +421,16 @@ HX.CascadeShadowMapRenderer.prototype =
         var texHeight = this._shadowMapSize * numMapsH;
 
         this._shadowMap.initEmpty(texWidth, texHeight, HX.DirectionalLight.SHADOW_FILTER.getShadowMapFormat(), HX.DirectionalLight.SHADOW_FILTER.getShadowMapDataType());
-        if (!this._depthBuffer) this._depthBuffer = new HX.ReadOnlyDepthBuffer();
+        if (!this._depthBuffer) this._depthBuffer = new HX.WriteOnlyDepthBuffer();
         if (!this._fboFront) this._fboFront = new HX.FrameBuffer(this._shadowMap, this._depthBuffer);
 
-        this._depthBuffer.init(texWidth, texHeight);
+        this._depthBuffer.init(texWidth, texHeight, false);
         this._fboFront.init();
         this._shadowMapInvalid = false;
 
         if (this._shadowBackBuffer) {
             this._shadowBackBuffer.initEmpty(texWidth, texHeight, HX.DirectionalLight.SHADOW_FILTER.getShadowMapFormat(), HX.DirectionalLight.SHADOW_FILTER.getShadowMapDataType());
             if (!this._fboBack) this._fboBack = new HX.FrameBuffer(this._shadowBackBuffer, this._depthBuffer);
-            this._fboBack.init();
             this._fboBack.init();
         }
 
@@ -500,9 +501,13 @@ HX.CascadeShadowMapRenderer.prototype =
 
         for (var i = 0; i < HX.DirectionalLight.SHADOW_FILTER.numBlurPasses; ++i) {
             HX.pushRenderTarget(this._fboBack);
-            shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
-            HX.popRenderTarget();
+            {
+                HX.clear();
+                shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
+                HX.popRenderTarget();
+            }
 
+            HX.clear();
             shader.execute(HX.RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);
         }
     }

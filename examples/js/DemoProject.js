@@ -15,6 +15,13 @@ DemoProject.prototype.init = function(canvas, initOptions)
     HX.SimpleProject.prototype.init.call(this, canvas, initOptions);
 
     this._stats = new HX.StatsDisplay();
+    var debugInfoField = this._stats._div.cloneNode(false);
+    debugInfoField.style.removeProperty("width");
+    debugInfoField.style.removeProperty("left");
+    debugInfoField.style.right = "10px";
+    debugInfoField.style.top = "10px";
+
+    document.body.appendChild(debugInfoField);
 
     var renderer = this.renderer;
 
@@ -25,30 +32,39 @@ DemoProject.prototype.init = function(canvas, initOptions)
         switch (keyCode) {
             case 48:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_NONE;
+                debugInfoField.innerHTML = "";
                 break;
             case 49:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_COLOR;
+                debugInfoField.innerHTML = "Debug: color";
                 break;
             case 50:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_NORMALS;
+                debugInfoField.innerHTML = "Debug: normals";
                 break;
             case 51:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_ROUGHNESS;
+                debugInfoField.innerHTML = "Debug: roughness";
                 break;
             case 52:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_METALLICNESS;
+                debugInfoField.innerHTML = "Debug: metallicness";
                 break;
             case 53:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_DEPTH;
+                debugInfoField.innerHTML = "Debug: depth";
                 break;
             case 54:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_AO;
+                debugInfoField.innerHTML = "Debug: AO";
                 break;
             case 55:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_SSR;
+                debugInfoField.innerHTML = "Debug: SSR";
                 break;
             case 56:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_LIGHT_ACCUM;
+                debugInfoField.innerHTML = "Debug: Light Accumulation";
                 break;
         }
     });

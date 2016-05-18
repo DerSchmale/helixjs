@@ -20,6 +20,8 @@ HX.TransparencyMode = {
 HX.Material = function ()
 {
     this._elementType = HX.ElementType.TRIANGLES;
+    // TODO: should this be passed to the material as a uniform to figure out how to interlace in hx_processGeometry (= overhead for opaque), or should this be a #define and compilation issue?
+    // could by default do a test, and if #define FORCE_TRANSPARENCY_MODE <mode> is set, do not. This can be used by PBRMaterial or custom materials to trigger recompilations and optimize.
     this._transparencyMode = HX.TransparencyMode.OPAQUE;
     this._passes = new Array(HX.Material.NUM_PASS_TYPES);
     this._renderOrderHint = ++HX.Material.ID_COUNTER;

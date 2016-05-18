@@ -6,12 +6,12 @@ HX.EffectPass = function(vertexShader, fragmentShader)
     vertexShader = vertexShader || HX.ShaderLibrary.get("default_post_vertex.glsl");
     var shader = new HX.Shader(vertexShader, fragmentShader);
     HX.MaterialPass.call(this, shader);
-    this.writeDepth = false;
     this._uniformSetters = HX.UniformSetter.getSetters(this._shader);
     this._gbuffer = null;
     this._vertexLayout = null;
     this._cullMode = HX.CullMode.NONE;
     this._depthTest = HX.Comparison.DISABLED;
+    this._writeDepth = false;
     this.setMesh(HX.RectMesh.DEFAULT);
 
     this.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);

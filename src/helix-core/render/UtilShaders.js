@@ -138,6 +138,48 @@ HX.CopyWithSeparateAlpha.prototype.execute = function(rect, texture, alphaTextur
 };
 
 /**
+ * Copies data in one texture, using a second texture's alpha information
+ * @constructor
+ */
+HX.ApplyBlendingShader = function()
+{
+    HX.Shader.call(this);
+    this.init(HX.ShaderLibrary.get("copy_vertex.glsl"), HX.ShaderLibrary.get("apply_blending_fragment.glsl"));
+
+    this._colorTexLocation = HX_GL.getUniformLocation(this._program, "hx_gbufferColor");
+    this._backBufferLocation = HX_GL.getUniformLocation(this._program, "hx_backbuffer");
+    this._positionAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_position");
+    this._texCoordAttributeLocation = HX_GL.getAttribLocation(this._program, "hx_texCoord");
+
+    HX_GL.useProgram(this._program);
+    HX_GL.uniform1i(this._colorTexLocation, 0);
+    HX_GL.uniform1i(this._backBufferLocation, 1);
+};
+
+HX.ApplyBlendingShader.prototype = Object.create(HX.Shader.prototype);
+
+HX.ApplyBlendingShader.prototype.execute = function(rect, gbuffer, hdrBack)
+{
+    HX.setDepthTest(HX.Comparison.DISABLED);
+    HX.setCullMode(HX.CullMode.NONE);
+
+    rect._vertexBuffers[0].bind();
+    rect._indexBuffer.bind();
+
+    this.updateRenderState();
+
+    gbuffer[0].bind(0);
+    hdrBack.bind(1);
+
+    HX_GL.vertexAttribPointer(this._positionAttributeLocation, 2, HX_GL.FLOAT, false, 16, 0);
+    HX_GL.vertexAttribPointer(this._texCoordAttributeLocation, 2, HX_GL.FLOAT, false, 16, 8);
+
+    HX.enableAttributes(2);
+
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
+};
+
+/**
  * Unpack and draw depth values to screen
  */
 HX.DebugDepthShader = function()
@@ -197,6 +239,7 @@ HX.LinearizeDepthShader.prototype.execute = function(rect, texture, camera)
 {
     HX.setDepthTest(HX.Comparison.DISABLED);
     HX.setCullMode(HX.CullMode.NONE);
+    HX.setDepthMask(false);
     HX.setBlendState(null);
 
     rect._vertexBuffers[0].bind();

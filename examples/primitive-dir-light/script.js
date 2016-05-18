@@ -3,13 +3,18 @@ var project = new DemoProject();
 project.onInit = function()
 {
     this.camera.addComponent(new OrbitController());
+    this.camera.nearDistance = .1;
+    this.camera.farDistance = 1.0;
 
     initScene(this.scene);
 };
 
 window.onload = function ()
 {
-    project.init(document.getElementById('webglContainer'));
+    var options = new HX.InitOptions();
+    //options.ignoreAllExtensions = true;
+    //options.debug = true;
+    project.init(document.getElementById('webglContainer'), options);
 };
 
 function initScene(scene)

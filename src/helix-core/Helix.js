@@ -85,7 +85,11 @@ HX.init = function(canvas, options)
 
     var webglFlags = {
         antialias:false,
-        premultipliedAlpha: false
+        alpha:false,
+        depth:false,
+        stencil:false,
+        premultipliedAlpha: false,
+        preserveDrawingBuffer: false
     };
 
     var glContext = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
@@ -191,7 +195,8 @@ HX.init = function(canvas, options)
 
     HX.GAMMA_CORRECTION_IN_LIGHTS = false;
 
-    // this causes a somewhat incorrect gamma correction to be applied, but looks much better due to encoding limitation
+    // this causes lighting accumulation to happen in gamma space (only accumulation of lights within the same pass is linear)
+    // This yields an incorrect gamma correction to be applied, but looks much better due to encoding limitation (otherwise there would be banding)
     if (HX.OPTIONS.useGammaCorrection && !HX.OPTIONS.useHDR) {
         HX.GAMMA_CORRECT_LIGHTS = true;
         defines += "#define HX_GAMMA_CORRECT_LIGHTS\n";
@@ -367,4 +372,6 @@ HX._initGLProperties = function()
         SUBTRACT: HX_GL.FUNC_SUBTRACT,
         REVERSE_SUBTRACT: HX_GL.FUNC_REVERSE_SUBTRACT
     };
+
+    HX.COMPLETE_CLEAR_MASK = HX_GL.COLOR_BUFFER_BIT | HX_GL.DEPTH_BUFFER_BIT | HX_GL.STENCIL_BUFFER_BIT;
 };

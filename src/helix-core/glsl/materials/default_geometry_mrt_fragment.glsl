@@ -90,5 +90,5 @@ void main()
           #endif
     #endif
 
-    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, metallicnessOut, specNormalReflOut, roughnessOut, linearDepth);
+    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, metallicnessOut, specNormalReflOut, roughnessOut, 1.0, linearDepth);
 }

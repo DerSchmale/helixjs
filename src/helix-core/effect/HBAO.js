@@ -28,6 +28,7 @@ HX.HBAO = function(numRays, numSamplesPerRay)
             NUM_SAMPLES_PER_RAY: numSamplesPerRay
         })
     );
+    // TODO: Can probably perform this in single pass by linear interpolation (only 4 samples needed) -> can then still blur twice if needed
     this._blurPass = new HX.EffectPass(null, HX.ShaderLibrary.get("ao_blur_fragment.glsl"));
 
     this._initSampleDirTexture();
@@ -125,18 +126,27 @@ HX.HBAO.prototype.draw = function(dt)
     }
 
     HX.pushRenderTarget(this._fbo1);
-    this._drawPass(this._aoPass);
+    {
+        HX.clear(HX_GL.COLOR_BUFFER_BIT);
+        this._drawPass(this._aoPass);
 
-    HX.pushRenderTarget(this._fbo2);
-    this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
-    this._sourceTextureSlot.texture = this._aoTexture;
-    this._drawPass(this._blurPass);
+        HX.pushRenderTarget(this._fbo2);
+        {
+            HX.clear(HX_GL.COLOR_BUFFER_BIT);
+            this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
+            this._sourceTextureSlot.texture = this._aoTexture;
+            this._drawPass(this._blurPass);
 
-    HX.popRenderTarget();
-    this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
-    this._sourceTextureSlot.texture = this._backTexture;
-    this._drawPass(this._blurPass);
-    HX.popRenderTarget();
+            HX.popRenderTarget();
+        }
+
+        HX.clear(HX_GL.COLOR_BUFFER_BIT);
+        this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
+        this._sourceTextureSlot.texture = this._backTexture;
+        this._drawPass(this._blurPass);
+
+        HX.popRenderTarget();
+    }
 };
 
 HX.HBAO.prototype._initSampleDirTexture = function()

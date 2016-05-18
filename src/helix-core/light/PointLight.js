@@ -107,11 +107,9 @@ HX.PointLight.prototype.renderBatch = function(lightCollection, startIndex, rend
     // but should also use stencil buffer to mark when front sphere depth > depth scene, because then it doesn't light anything
     // however, stencil buffer is already used for lighting models etc :s
     // could we still reserve a bit somewhere?
-    HX.setDepthTest(HX.Comparison.GREATER);
-    HX.setCullMode(HX.CullMode.BACK);
-    HX.drawElements(HX_GL.TRIANGLES, HX.PointLight.NUM_SPHERE_INDICES * (end - startIndex), 0);
+    // can't use depth test on PowerVR
 
-    HX.setDepthTest(HX.Comparison.ALWAYS);
+    HX.drawElements(HX_GL.TRIANGLES, HX.PointLight.NUM_SPHERE_INDICES * (end - startIndex), 0);
 
     return end;
 };
@@ -137,6 +135,9 @@ HX.PointLight.prototype._initLightPasses =  function()
     );
 
     pass.blendState = HX.BlendState.ADD;
+    pass.depthTest = HX.Comparison.DISABLED;
+    pass.cullMode = HX.CullMode.BACK;
+    pass.writeDepth = false;
 
     // do not use rect
     pass.setMesh(HX.PointLight._sphereMesh);

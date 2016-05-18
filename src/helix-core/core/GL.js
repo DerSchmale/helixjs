@@ -31,13 +31,15 @@ HX._stencilStateInvalid = false;
 HX._glStats =
 {
     numDrawCalls: 0,
-    numTriangles: 0
+    numTriangles: 0,
+    numClears: 0
 };
 
 HX._clearGLStats = function()
 {
     HX._glStats.numDrawCalls = 0;
     HX._glStats.numTriangles = 0;
+    HX._glStats.numClears = 0;
 };
 
 /**
@@ -46,11 +48,13 @@ HX._clearGLStats = function()
  */
 HX.clear = function(clearMask)
 {
-    if (clearMask === undefined)
-        clearMask = HX_GL.COLOR_BUFFER_BIT | HX_GL.DEPTH_BUFFER_BIT | HX_GL.STENCIL_BUFFER_BIT;
-
     HX._updateRenderState();
+
+    if (clearMask === undefined)
+        clearMask = HX.COMPLETE_CLEAR_MASK;
+
     HX_GL.clear(clearMask);
+    ++HX._glStats.numClears;
 };
 
 HX.drawElements = function(elementType, numIndices, offset)
@@ -181,7 +185,7 @@ HX.popStencilState = function()
 
 HX._updateRenderState = function()
 {
-    if (this._renderTargetInvalid) {
+    if (HX._renderTargetInvalid) {
         var target = HX._renderTargetStack[HX._renderTargetStack.length - 1];
 
         if (target) {
@@ -195,6 +199,12 @@ HX._updateRenderState = function()
 
         HX._renderTargetInvalid = false;
     }
+
+    if (HX._depthMaskInvalid) {
+        HX_GL.depthMask(HX._depthMask);
+        HX._depthMaskInvalid = false;
+    }
+
 
     if (this._viewportInvalid) {
         HX_GL.viewport(HX._viewport.x, HX._viewport.y, HX._viewport.width, HX._viewport.height);
@@ -210,11 +220,6 @@ HX._updateRenderState = function()
         }
     }
 
-    if (HX._depthMaskInvalid) {
-        HX_GL.depthMask(HX._depthMask);
-        HX._depthMaskInvalid = false;
-    }
-
     if (HX._depthTestInvalid) {
         if (HX._depthTest === HX.Comparison.DISABLED)
             HX_GL.disable(HX_GL.DEPTH_TEST);
@@ -226,7 +231,7 @@ HX._updateRenderState = function()
 
     if (HX._blendStateInvalid) {
         var state = HX._blendState;
-        if (state == null || state.enabled === false)
+        if (state === null || state === undefined || state.enabled === false)
             HX_GL.disable(HX_GL.BLEND);
         else {
             HX_GL.enable(HX_GL.BLEND);

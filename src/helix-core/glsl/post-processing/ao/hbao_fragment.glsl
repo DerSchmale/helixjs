@@ -3,9 +3,6 @@ uniform float hx_cameraNearPlaneDistance;
 uniform vec2 hx_rcpRenderTargetResolution;
 uniform mat4 hx_projectionMatrix;
 
-
-uniform int numRays;
-uniform int numSamplesPerRay;
 uniform float strengthPerRay;
 uniform float halfSampleRadius;
 uniform float bias;

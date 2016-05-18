@@ -68,12 +68,14 @@ HX.FrameBuffer.prototype = {
 
 
         if (this._depthBuffer) {
+            var attachment = this._depthBuffer.format === HX_GL.DEPTH_STENCIL? HX_GL.DEPTH_STENCIL_ATTACHMENT : HX_GL.DEPTH_ATTACHMENT;
+
             if (this._depthBuffer instanceof HX.Texture2D) {
-                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, HX_GL.DEPTH_STENCIL_ATTACHMENT, HX_GL.TEXTURE_2D, this._depthBuffer._texture, 0);
+                HX_GL.framebufferTexture2D(HX_GL.FRAMEBUFFER, attachment, HX_GL.TEXTURE_2D, this._depthBuffer._texture, 0);
             }
             else {
                 HX_GL.bindRenderbuffer(HX_GL.RENDERBUFFER, this._depthBuffer._renderBuffer);
-                HX_GL.framebufferRenderbuffer(HX_GL.FRAMEBUFFER, HX_GL.DEPTH_STENCIL_ATTACHMENT, HX_GL.RENDERBUFFER, this._depthBuffer._renderBuffer);
+                HX_GL.framebufferRenderbuffer(HX_GL.FRAMEBUFFER, attachment, HX_GL.RENDERBUFFER, this._depthBuffer._renderBuffer);
             }
         }
 

@@ -24,7 +24,7 @@ HX.ScreenSpaceReflections = function(numSamples)
     this.maxDistance = 500.0;
     this.maxRoughness = .4;
 
-    this._depthBuffer = new HX.ReadOnlyDepthBuffer();
+    this._depthBuffer = new HX.WriteOnlyDepthBuffer();
 
     this._ssrTexture = new HX.Texture2D();
     this._ssrTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
@@ -117,6 +117,7 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
         HX.pushStencilState(this._stencilWriteState);
         this._drawPass(this._stencilPass);
         HX.popStencilState();
+
         HX_GL.colorMask(true, true, true, true);
 
         HX.pushStencilState(this._stencilReadState);

@@ -21,7 +21,7 @@ HX.DebugRenderMode = {
  * GBUFFER LAYOUT:
  * 0: COLOR: (color.XYZ, transparency when using transparencyMode, otherwise reserved)
  * 1: NORMALS: (normals.XYZ, unused, or normals.xy, depth.zw if depth texture not supported)
- * 2: REFLECTION: (roughness, normalSpecularReflection, metallicness, extra depth precision if depth texture not supported and max precision is requested)
+ * 2: REFLECTION: (roughness, normalSpecularReflection, metallicness, emission ratio)   // emission ratio defines how much of the albedo is emitted
  * 3: LINEAR DEPTH: (not explicitly written to by user), 0 - 1 linear depth encoded as RGBA
  *
  * @constructor
@@ -31,7 +31,8 @@ HX.Renderer = function ()
     this._width = 0;
     this._height = 0;
 
-    this._scale = 1.0;
+    // devices with high resolution (retina etc)
+    this._scale = window.devicePixelRatio > 1.0? .5 : 1.0;
 
     // TODO: How many of these can be single instances?
     this._copyAmbient = new HX.MultiplyColorCopyShader();
@@ -45,6 +46,7 @@ HX.Renderer = function ()
     this._debugDepth = new HX.DebugDepthShader();
     this._debugNormals = new HX.DebugNormalsShader();
     this._applyGamma = new HX.ApplyGammaShader();
+    this._applyBlendingShader = new HX.ApplyBlendingShader();
     this._gammaApplied = false;
 
     if (HX.EXT_DEPTH_TEXTURE) {
@@ -177,6 +179,7 @@ HX.Renderer.prototype =
             this._aoEffect.render(this, 0);
 
         this._renderLightAccumulation();
+        this._applyBlending();
 
         if (this._ssrEffect)
             this._ssrEffect.render(this, dt);
@@ -219,12 +222,10 @@ HX.Renderer.prototype =
 
     _renderToGBufferMultiPass: function ()
     {
-        var clearMask = HX_GL.COLOR_BUFFER_BIT | HX_GL.DEPTH_BUFFER_BIT | HX_GL.STENCIL_BUFFER_BIT;
-
         var len = this._gbufferSingleFBOs.length;
         for (var i = 0; i < len; ++i) {
             HX.pushRenderTarget(this._gbufferSingleFBOs[i]);
-            HX.clear(clearMask);
+            HX.clear();
             this._renderPass(i);
             HX.popRenderTarget();
         }
@@ -235,7 +236,7 @@ HX.Renderer.prototype =
         HX.pushRenderTarget(this._linearDepthFBO);
         HX.clear();
         this._linearizeDepthShader.execute(HX.RectMesh.DEFAULT, this._depthBuffer, this._camera);
-        HX.popRenderTarget(this._linearDepthFBO);
+        HX.popRenderTarget();
     },
 
     _renderEffect: function (effect, dt)
@@ -246,7 +247,7 @@ HX.Renderer.prototype =
 
     _renderToScreen: function (renderTarget, dt)
     {
-        HX.setBlendState(null);
+        HX.setBlendState();
 
         if (this._debugMode === HX.DebugRenderMode.DEBUG_NONE)
             this._composite(renderTarget, dt);
@@ -300,7 +301,7 @@ HX.Renderer.prototype =
 
         if (effects && effects.length > 0) {
             HX.pushRenderTarget(this._hdrFront.fbo);
-            this._renderEffects(dt, effects);
+                this._renderEffects(dt, effects);
             HX.popRenderTarget();
         }
 
@@ -319,11 +320,25 @@ HX.Renderer.prototype =
 
     _renderLightAccumulation: function ()
     {
+        // for some reason, not using depth breaks lights
         HX.pushRenderTarget(this._hdrFront.fbo);
         HX.clear();
 
         this._renderGlobalIllumination();
         this._renderDirectLights();
+        HX.popRenderTarget();
+    },
+
+    _applyBlending: function ()
+    {
+        this._swapHDRFrontAndBack();
+
+        // for some reason, not using depth breaks lights
+        HX.pushRenderTarget(this._hdrFront.fbo);
+        HX.clear();
+
+        this._applyBlendingShader.execute(HX.RectMesh.DEFAULT, this._gbuffer, this._hdrBack.texture);
+
         HX.popRenderTarget();
     },
 
@@ -390,7 +405,7 @@ HX.Renderer.prototype =
             this._depthBuffer.wrapMode = HX.TextureWrapMode.CLAMP;
         }
         else {
-            this._depthBuffer = new HX.ReadOnlyDepthBuffer();
+            this._depthBuffer = new HX.WriteOnlyDepthBuffer();
         }
 
         this._gbuffer = [];
@@ -424,23 +439,23 @@ HX.Renderer.prototype =
             this._gbufferFBO = new HX.FrameBuffer(targets, this._depthBuffer);
         }
         else {
+            // if we have a depth texture, we'll linearize from that (less used bandwidth with overdraw)
             var numFBOs = HX.EXT_DEPTH_TEXTURE? 3 : 4;
-            for (var i = 0; i < numFBOs; ++i) {
+            for (var i = 0; i < numFBOs; ++i)
                 this._gbufferSingleFBOs[i] = new HX.FrameBuffer([this._gbuffer[i]], this._depthBuffer);
-            }
         }
     },
 
     _updateGBuffer: function (width, height)
     {
         if (HX.EXT_DEPTH_TEXTURE)
-            this._depthBuffer.initEmpty(width, height, HX_GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
+            this._depthBuffer.initEmpty(width, height, HX_GL.DEPTH_COMPONENT, HX_GL.UNSIGNED_SHORT);
+            //this._depthBuffer.initEmpty(width, height, HX_GL.DEPTH_STENCIL, HX.EXT_DEPTH_TEXTURE.UNSIGNED_INT_24_8_WEBGL);
         else
-            this._depthBuffer.init(width, height);
+            this._depthBuffer.init(width, height, false);
 
-        for (var i = 0; i < this._gbuffer.length; ++i) {
+        for (var i = 0; i < this._gbuffer.length; ++i)
             this._gbuffer[i].initEmpty(width, height, HX_GL.RGBA, HX_GL.UNSIGNED_BYTE);
-        }
 
         this._updateGBufferFBO();
 
@@ -481,16 +496,14 @@ HX.Renderer.prototype =
     },
 
     // allows effects to ping pong on the renderer's own buffers
-    _swapHDRFrontAndBack: function(depthStencil)
+    _swapHDRFrontAndBack: function()
     {
         var tmp = this._hdrBack;
         this._hdrBack = this._hdrFront;
         this._hdrFront = tmp;
+
         HX.popRenderTarget();
-        if (depthStencil)
-            HX.pushRenderTarget(this._hdrFront.fboDepth);
-        else
-            HX.pushRenderTarget(this._hdrFront.fbo);
+        HX.pushRenderTarget(this._hdrFront.fbo);
     },
 
     _updateSize: function (renderTarget)
@@ -501,8 +514,8 @@ HX.Renderer.prototype =
             height = renderTarget.height;
         }
         else {
-            width = HX.TARGET_CANVAS.width * this._scale;
-            height = HX.TARGET_CANVAS.height * this._scale;
+            width = Math.floor(HX.TARGET_CANVAS.width * this._scale);
+            height = Math.floor(HX.TARGET_CANVAS.height * this._scale);
         }
         if (this._width !== width || this._height !== height) {
             this._width = width;

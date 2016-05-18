@@ -4,6 +4,7 @@ varying vec3 color1;
 
 uniform vec3 lightDir;
 uniform float mieG;
+uniform float hx_transparencyMode;
 
 #ifdef GROUND_MODE
 varying vec2 uv;
@@ -36,6 +37,7 @@ void main()
     vec3 view = -normalize(viewDir);
     float cosTheta = dot(lightDir, view);
 //    float rayleigh = rayleighPhase(cosTheta);
-    gl_FragColor = vec4(color0 + color1 * miePhase(cosTheta), 1.0);
+    vec4 color = vec4(color0 + color1 * miePhase(cosTheta), 1.0);
+    hx_processGeometry(color, vec3(0.0), 0.0, 0.0, 1.0, hx_transparencyMode, 1.0);
 #endif
 }

@@ -164,6 +164,8 @@ function initEarth(container)
     // parallax mapping will put them down again
     clouds.scale.set(1.005, 1.005, 1.005);
     cloudMaterial.renderOrder = 20;
+    // TODO: merge clouds with geometry
+    cloudMaterial.transparencyMode = HX.TransparencyMode.ALPHA;
     earth.attach(clouds);
 
     var cloudShadowMaterial = materialLoader.load("materials/cloudShadowMaterial.hmt");
@@ -184,19 +186,20 @@ function initEarth(container)
     earth.attach(atmosphere);
     atmosMaterial.setUniform("atmosphereRadius", earthRadius * atmosphereScale);
     atmosMaterial.setUniform("earthRadius", earthRadius);
+    atmosMaterial.transparencyMode = HX.TransparencyMode.ALPHA;
 
     atmosMaterial.setUniform("lightIntensity", scatterIntensity);
     atmosMaterial.setUniform("lightDir", lightDir);
-    atmosMaterial.renderOrder = 50;
+    atmosMaterial.renderOrder = -50;
 
     // create a new loader to pass options
-    materialLoader = new HX.AssetLoader(HX.HMT);
+    /*materialLoader = new HX.AssetLoader(HX.HMT);
     materialLoader.options.defines = {
         GROUND_MODE: 1
     };
     materialLoader.onComplete = function(mat)
     {
-        var pass = mat.getPass(HX.MaterialPass.POST_READ_WRITE_PASS);
+        var pass = mat.getPass(HX.MaterialPass.GEOMETRY_PASS);
         // just so it ends up in the transparent list
         mat.transparencyMode = HX.TransparencyMode.ALPHA;
         pass.cullMode = HX.CullMode.BACK;
@@ -214,7 +217,7 @@ function initEarth(container)
     groundScatterMaterial.setTexture("emissionMap", emissionMap);
 
     var groundScatterSphere = new HX.ModelInstance(earthSpherePrimitive, groundScatterMaterial);
-    earth.attach(groundScatterSphere);
+    earth.attach(groundScatterSphere);*/
 
     earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, 1.0, 0.0);
 

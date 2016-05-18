@@ -2,6 +2,7 @@ varying vec3 normal;
 varying vec3 tangent;
 varying vec3 bitangent;
 varying vec2 uv;
+varying float linearDepth;
 
 uniform sampler2D map;
 

@@ -21,5 +21,5 @@ void main()
    TBN[1] = normalize(bitangent);
    vec3 normal = vec3(samp.xy * 2.0 - 1.0, 1.0);
    normal = TBN * normal;
-   hx_processGeometry(hx_gammaToLinear(vec4(color, samp.z)), normal, 0.0, specularNormalReflection, roughness, hx_transparencyMode, linearDepth);
+   hx_processGeometry(hx_gammaToLinear(vec4(color, samp.z)), normal, 0.0, specularNormalReflection, roughness, 1.0, hx_transparencyMode, linearDepth);
 }

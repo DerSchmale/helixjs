@@ -186,7 +186,7 @@ function initEarth(container)
     earth.attach(atmosphere);
     atmosMaterial.setUniform("atmosphereRadius", earthRadius * atmosphereScale);
     atmosMaterial.setUniform("earthRadius", earthRadius);
-    atmosMaterial.transparencyMode = HX.TransparencyMode.ALPHA;
+    atmosMaterial.transparencyMode = HX.TransparencyMode.ADDITIVE;
 
     atmosMaterial.setUniform("lightIntensity", scatterIntensity);
     atmosMaterial.setUniform("lightDir", lightDir);

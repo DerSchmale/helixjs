@@ -51,7 +51,13 @@ float hx_RG8ToFloat(vec2 rg)
 
 vec3 hx_decodeNormal(vec4 data)
 {
-    return normalize(data.xyz - .5);
+    data.xy = data.xy*4.0 - 2.0;
+    float f = dot(data.xy, data.xy);
+    float g = sqrt(1.0 - f * .25);
+    vec3 normal;
+    normal.xy = data.xy * g;
+    normal.z = 1.0 - f * .5;
+    return normal;
 }
 
 vec4 hx_gammaToLinear(vec4 color)

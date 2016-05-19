@@ -5,6 +5,7 @@ varying vec3 color1;
 uniform vec3 lightDir;
 uniform float mieG;
 uniform float hx_transparencyMode;
+uniform float lightIntensity;
 
 #ifdef GROUND_MODE
 varying vec2 uv;
@@ -42,7 +43,7 @@ void main()
     GeometryData data;
     data.color = color;
     data.transparencyMode = hx_transparencyMode;
-    data.emission = 1.0; // not lit
+    data.emission = lightIntensity;
     data.linearDepth = 1.0;
 
     hx_processGeometry(data);

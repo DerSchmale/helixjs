@@ -17,7 +17,8 @@ uniform float specularNormalReflection;
 uniform float minRoughness;
 uniform float maxRoughness;
 uniform float cloudRoughness;
-uniform vec3 cloudColor;
+uniform vec3 cloudColorDay;
+uniform vec3 cloudColorNight;
 uniform vec3 sunViewDirection;  // sun direction in camera space!
 
 void main()
@@ -30,8 +31,10 @@ void main()
     TBN[2] = normalize(normal);
 
     vec4 outputColor = hx_gammaToLinear(texture2D(colorMap, uv));
-    vec4 emissionSample = hx_gammaToLinear(texture2D(emissionMap, uv));
-    float emission = max(dot(sunViewDirection, TBN[2]), 0.0);
+    vec4 emissionColor = hx_gammaToLinear(texture2D(emissionMap, uv));
+    float emission = dot(sunViewDirection, TBN[2]);
+    // anything above .1 should be mapped to 1.0
+    emission = hx_linearStep(-.2, .1, emission);
 
     vec4 specSample = texture2D(specularMap, uv);
     float roughnessOut = maxRoughness + (minRoughness - maxRoughness) * specSample.x;
@@ -42,14 +45,16 @@ void main()
     vec3 cloudNormal = vec3(cloudSample.xy - .5, .5);
     float cloudAmount = cloudSample.z;
 
+    outputColor.xyz = mix(outputColor.xyz, cloudColorDay, cloudAmount);
+    emissionColor.xyz = mix(emissionColor.xyz, cloudColorNight, cloudAmount);
+
+    outputColor.xyz = mix(outputColor.xyz, emissionColor.xyz, emission);
+
     fragNormal = mix(fragNormal, cloudNormal, cloudAmount);
-    outputColor.xyz = mix(outputColor.xyz, cloudColor, cloudAmount);
     roughnessOut = mix(roughnessOut, cloudRoughness, cloudAmount);
-    emission = emission * (1.0 - cloudAmount);
+//    emission *= hx_linearStep(.5, 0.0, cloudAmount);
 
     fragNormal = TBN * normalize(fragNormal);
-
-    outputColor.xyz = mix(outputColor.xyz, emissionSample.xyz, emission);
 
     // TODO: apply atmospheric scattering
     // need to figure out the scatter distance from surface to atmosphere
@@ -63,7 +68,7 @@ void main()
     data.metallicness = 0.0;
     data.specularNormalReflection = specularNormalReflection;
     data.roughness = roughnessOut;
-    data.emission = emission;
+    data.emission = emission * .5;
     data.transparencyMode = hx_transparencyMode;
     data.linearDepth = linearDepth;
     hx_processGeometry(data);

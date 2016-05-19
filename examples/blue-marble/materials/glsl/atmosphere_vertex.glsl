@@ -16,7 +16,7 @@ uniform float earthRadius;
 uniform float rayleighFactor;
 uniform float mieFactor;
 uniform vec3 waveLenFactors;
-uniform vec3 lightIntensity;
+uniform vec3 lightColor;
 
 #ifdef GROUND_MODE
 attribute vec2 hx_texCoord;
@@ -109,11 +109,11 @@ void main()
     }
 
     #ifdef GROUND_MODE
-        color0 = color * lightIntensity * (rayleighFactor * waveLenFactors + mieFactor);
+        color0 = color * lightColor * (rayleighFactor * waveLenFactors + mieFactor);
         color1 = v3Attenuate;
     #else
-        color0 = color * lightIntensity * rayleighFactor * waveLenFactors;
-        color1 = color * lightIntensity * mieFactor;
+        color0 = color * lightColor * rayleighFactor * waveLenFactors;
+        color1 = color * lightColor * mieFactor;
     #endif
 
     gl_Position = hx_wvpMatrix * hx_position;

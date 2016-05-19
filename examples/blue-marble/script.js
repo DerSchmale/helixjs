@@ -1,6 +1,8 @@
 var project = new DemoProject();
 var sunLight;
 var earthMaterial;
+var earth;
+var time = 0;
 
 var settings = {
     sunIntensity: 50.0,
@@ -20,10 +22,15 @@ project.onInit = function()
 
     initCamera(this.camera);
     initScene(this.scene);
+
+    time = 0;
 };
 
-project.onUpdate = function()
+project.onUpdate = function(dt)
 {
+    time += dt;
+    earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, time * .00001 + 1.0, 0.0);
+
     var v = this.camera.viewMatrix.transformVector(sunLight.direction);
     earthMaterial.setUniform("sunViewDirection", v);
 };
@@ -32,7 +39,7 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.useHDR = true;
-    //options.lightingModel = HX.GGXLightingModel;
+    options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -48,10 +55,10 @@ function initHDRSettings()
     bloom3.thresholdLuminance = 15.0;
 
     var tonemap = new HX.FilmicToneMapEffect(true);
-    tonemap.exposure = -2;
+    tonemap.exposure = -1;
 
     settings.effects = [bloom1, bloom2, bloom3, tonemap];
-    settings.sunIntensity = 50.0;
+    settings.sunIntensity = 10.0;
     settings.cloudColor = new HX.Color(0.8, 0.78, 0.75);
     settings.scatterIntensityBoost = 1.0;
 }
@@ -61,10 +68,10 @@ function initLDRSettings()
     var bloom1 = new HX.BloomEffect(300, 1.5, 8,.75);
     bloom1.thresholdLuminance = .95;
 
-    var bloom2 = new HX.BloomEffect(30, 20.0, 4);
-    bloom2.thresholdLuminance = .99;
+    //var bloom2 = new HX.BloomEffect(30, 20.0, 4);
+    //bloom2.thresholdLuminance = .99;
 
-    settings.effects = [ bloom1, bloom2 ];
+    settings.effects = [ bloom1 ];
     settings.sunIntensity = 4.0;
     settings.cloudColor = new HX.Color(0.64, 0.624, 0.6);
     settings.scatterIntensityBoost = 3.0;
@@ -92,13 +99,6 @@ function initCamera(camera)
 
 function initSun(container)
 {
-    // TODO: Could replace with local light probes?
-    // so one for clouds & earth, one for moon?
-    var ambient = new HX.AmbientLight();
-    ambient.color = 0xaaaaff;
-    ambient.intensity = .2;
-    container.attach(ambient);
-
     var sunPosX = 0;
     var sunPosY = 80;
     var sunPosZ = 150;
@@ -129,7 +129,7 @@ function initSun(container)
 function initEarth(container)
 {
     var earthRadius = 0.006371;
-    var earth = new HX.GroupNode();
+    earth = new HX.GroupNode();
     var earthSpherePrimitive = new HX.SpherePrimitive(
         {
             radius: earthRadius,
@@ -143,9 +143,11 @@ function initEarth(container)
     var lightDir = sunLight.worldMatrix.getColumn(2);
 
     var scatterIntensity = sunLight._scaledIrradiance.clone();
-    scatterIntensity.r *= settings.scatterIntensityBoost;
-    scatterIntensity.g *= settings.scatterIntensityBoost;
-    scatterIntensity.b *= settings.scatterIntensityBoost;
+
+    var luminance = scatterIntensity.luminance();
+    scatterIntensity.x /= luminance;
+    scatterIntensity.y /= luminance;
+    scatterIntensity.z /= luminance;
 
     var materialLoader = new HX.AssetLoader(HX.HMT);
     earthMaterial = materialLoader.load("materials/earthMaterial.hmt");
@@ -160,7 +162,8 @@ function initEarth(container)
     earth.attach(atmosphere);
     atmosMaterial.setUniform("atmosphereRadius", earthRadius * atmosphereScale);
     atmosMaterial.setUniform("earthRadius", earthRadius);
-    atmosMaterial.setUniform("lightIntensity", scatterIntensity);
+    atmosMaterial.setUniform("lightColor", scatterIntensity);
+    atmosMaterial.setUniform("lightIntensity", luminance * settings.scatterIntensityBoost);
     atmosMaterial.setUniform("lightDir", lightDir);
     atmosMaterial.transparencyMode = HX.TransparencyMode.ADDITIVE;
 

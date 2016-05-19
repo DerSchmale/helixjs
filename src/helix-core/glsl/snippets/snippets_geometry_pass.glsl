@@ -27,10 +27,8 @@ vec4 hx_encodeSpecularData(float metallicness, float specularNormalReflection, f
 }
 
 #ifdef HX_NO_DEPTH_TEXTURES
-//void hx_processGeometryMRT(GeometryData data, out vec4 gbuffer[4])
 void hx_processGeometryMRT(GeometryData data, out vec4 gColor, out vec4 gNormals, out vec4 gSpec, out vec4 gDepth)
 #else
-//void hx_processGeometryMRT(GeometryData data, out vec4 gbuffer[3])
 void hx_processGeometryMRT(GeometryData data, out vec4 gColor, out vec4 gNormals, out vec4 gSpec)
 #endif
 {
@@ -44,7 +42,7 @@ void hx_processGeometryMRT(GeometryData data, out vec4 gColor, out vec4 gNormals
 }
 
 #if defined(HX_NO_MRT_GBUFFER_COLOR)
-#define hx_processGeometry(data) (gl_FragColor = color)
+#define hx_processGeometry(data) (gl_FragColor = data.color)
 #elif defined(HX_NO_MRT_GBUFFER_NORMALS)
 #define hx_processGeometry(data) (gl_FragColor = hx_encodeNormal(data.normal, data.emission, data.transparencyMode))
 #elif defined(HX_NO_MRT_GBUFFER_SPECULAR)
@@ -58,6 +56,3 @@ void hx_processGeometryMRT(GeometryData data, out vec4 gColor, out vec4 gNormals
 #else
 #define hx_processGeometry(data) hx_processGeometryMRT(data, gl_FragData[0], gl_FragData[1], gl_FragData[2])
 #endif
-//#else
-//#define hx_processGeometry(data) hx_processGeometryMRT(data, gl_FragData)
-//#endif

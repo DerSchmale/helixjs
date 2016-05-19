@@ -11,6 +11,8 @@
     },
     "uniforms": {
         "lightDir": [ 0.0, 0.0, 1.0 ],
+        "lightColor": [ 1.0, 1.0, 1.0 ],
+        "lightIntensity": 1.0,
 
         "rayleighFactor": 0.0025,
         "mieFactor": 0.0010,

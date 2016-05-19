@@ -33,7 +33,7 @@ HX.Renderer = function ()
     this._height = 0;
 
     // devices with high resolution (retina etc)
-    this._scale = window.devicePixelRatio > 1.0? .5 : 1.0;
+    this._scale = 1.0; //window.devicePixelRatio > 1.0? .5 : 1.0;
 
     // TODO: How many of these can be single instances?
     this._copyAmbient = new HX.MultiplyColorCopyShader();

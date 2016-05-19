@@ -21,14 +21,6 @@ uniform float hx_cameraNearPlaneDistance;
 uniform float hx_rcpCameraFrustumRange;
 uniform vec3 hx_cameraWorldPosition;
 
-uniform vec3 sunViewDirection;
-uniform float atmosphereRadius;
-uniform float earthRadius;
-uniform float rayleighFactor;
-uniform float mieFactor;
-uniform vec3 waveLenFactors;
-uniform vec3 lightIntensity;
-
 // earth origin is at 0, so ignore that
 float getRayIntersectionDistance(vec3 origin, vec3 dir, float radius)
 {

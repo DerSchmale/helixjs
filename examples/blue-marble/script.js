@@ -1,5 +1,6 @@
 var project = new DemoProject();
 var sunLight;
+var earthMaterial;
 
 var settings = {
     sunIntensity: 50.0,
@@ -21,11 +22,17 @@ project.onInit = function()
     initScene(this.scene);
 };
 
+project.onUpdate = function()
+{
+    var v = this.camera.viewMatrix.transformVector(sunLight.direction);
+    earthMaterial.setUniform("sunViewDirection", v);
+};
+
 window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.useHDR = true;
-    options.lightingModel = HX.GGXLightingModel;
+    //options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -131,61 +138,31 @@ function initEarth(container)
         }
     );
 
+    var atmosphereScale = 1.025;
+
     var lightDir = sunLight.worldMatrix.getColumn(2);
-
-    // TODO: Provide custom material that does:
-    // - attenuate the night part in day
-    var materialLoader = new HX.AssetLoader(HX.HMT);
-
-    // TODO: Should emission be completely removed from bright side?
-    var earthMaterial = materialLoader.load("materials/earthMaterial.hmt");
-
-    var globe = new HX.ModelInstance(earthSpherePrimitive, earthMaterial);
-    earth.attach(globe);
 
     var scatterIntensity = sunLight._scaledIrradiance.clone();
     scatterIntensity.r *= settings.scatterIntensityBoost;
     scatterIntensity.g *= settings.scatterIntensityBoost;
     scatterIntensity.b *= settings.scatterIntensityBoost;
 
+    var materialLoader = new HX.AssetLoader(HX.HMT);
+    earthMaterial = materialLoader.load("materials/earthMaterial.hmt");
+
+    var globe = new HX.ModelInstance(earthSpherePrimitive, earthMaterial);
+    earth.attach(globe);
+
     var atmosMaterial = materialLoader.load("materials/atmosphereMaterial.hmt");
     var atmosphere = new HX.ModelInstance(earthSpherePrimitive, atmosMaterial);
-    var atmosphereScale = 1.025;
+
     atmosphere.scale.set(atmosphereScale, atmosphereScale, atmosphereScale);
     earth.attach(atmosphere);
     atmosMaterial.setUniform("atmosphereRadius", earthRadius * atmosphereScale);
     atmosMaterial.setUniform("earthRadius", earthRadius);
-    atmosMaterial.transparencyMode = HX.TransparencyMode.ADDITIVE;
-
     atmosMaterial.setUniform("lightIntensity", scatterIntensity);
     atmosMaterial.setUniform("lightDir", lightDir);
-
-    // create a new loader to pass options
-    /*materialLoader = new HX.AssetLoader(HX.HMT);
-    materialLoader.options.defines = {
-        GROUND_MODE: 1
-    };
-    materialLoader.onComplete = function(mat)
-    {
-        var pass = mat.getPass(HX.MaterialPass.GEOMETRY_PASS);
-        // just so it ends up in the transparent list
-        mat.transparencyMode = HX.TransparencyMode.ALPHA;
-        pass.cullMode = HX.CullMode.BACK;
-        pass.blendState = null;
-        pass.writeDepth = false;
-    };
-
-    // this doesn't allow for the light
-    var groundScatterMaterial = materialLoader.load("materials/atmosphereMaterial.hmt");
-    groundScatterMaterial.setUniform("atmosphereRadius", earthRadius * atmosphereScale);
-    groundScatterMaterial.setUniform("earthRadius", earthRadius);
-    groundScatterMaterial.setUniform("lightIntensity", scatterIntensity);
-    groundScatterMaterial.renderOrder = 100.0;
-    groundScatterMaterial.setUniform("lightDir", lightDir);
-    groundScatterMaterial.setTexture("emissionMap", emissionMap);
-
-    var groundScatterSphere = new HX.ModelInstance(earthSpherePrimitive, groundScatterMaterial);
-    earth.attach(groundScatterSphere);*/
+    atmosMaterial.transparencyMode = HX.TransparencyMode.ADDITIVE;
 
     earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, 1.0, 0.0);
 

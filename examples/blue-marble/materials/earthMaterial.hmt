@@ -11,7 +11,8 @@
         "minRoughness": 0.3,
         "maxRoughness": 0.8,
         "cloudColor": [ 0.8, 0.78, 0.75 ],
-        "cloudRoughness": 0.8
+        "cloudRoughness": 0.8,
+        "sunViewDirection": [ 0.0, 0.0, 1.0 ]
     },
     "textures": {
         "colorMap": "../textures/earth/albedo_large.jpg",

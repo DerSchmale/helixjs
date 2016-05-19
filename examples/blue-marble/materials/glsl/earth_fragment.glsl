@@ -3,6 +3,8 @@ varying vec3 tangent;
 varying vec3 bitangent;
 varying vec2 uv;
 varying float linearDepth;
+varying vec3 scatterColor0;
+varying vec3 scatterColor1;
 
 uniform sampler2D colorMap;
 uniform sampler2D normalMap;
@@ -48,7 +50,9 @@ void main()
     outputColor.xyz = mix(outputColor.xyz, cloudColorDay, cloudAmount);
     emissionColor.xyz = mix(emissionColor.xyz, cloudColorNight, cloudAmount);
 
+    outputColor.xyz = scatterColor1 * .25 * outputColor.xyz;
     outputColor.xyz = mix(outputColor.xyz, emissionColor.xyz, emission);
+    outputColor.xyz += scatterColor0;
 
     fragNormal = mix(fragNormal, cloudNormal, cloudAmount);
     roughnessOut = mix(roughnessOut, cloudRoughness, cloudAmount);
@@ -68,7 +72,7 @@ void main()
     data.metallicness = 0.0;
     data.specularNormalReflection = specularNormalReflection;
     data.roughness = roughnessOut;
-    data.emission = emission * .5;
+    data.emission = emission;
     data.transparencyMode = hx_transparencyMode;
     data.linearDepth = linearDepth;
     hx_processGeometry(data);

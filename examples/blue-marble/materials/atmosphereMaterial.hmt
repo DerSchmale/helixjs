@@ -11,17 +11,28 @@
     },
     "uniforms": {
         "lightDir": [ 0.0, 0.0, 1.0 ],
-        "lightColor": [ 1.0, 1.0, 1.0 ],
-        "lightIntensity": 1.0,
+        "boost": 1.0,
 
         "rayleighFactor": 0.0025,
         "mieFactor": 0.0010,
+
+        "earthRadius": 1.0,
+        "atmosphereRadius": 1.0,
+
+        "// rcpAtmosThickness": " // = 1 / (atmosphereRadius - earthRadius)",
+        "rcpAtmosThickness": 1.0,
+
+        "// rcpThicknessOverScaleDepth": " // rcpAtmosThickness / avgDensityHeight",
+        "rcpThicknessOverScaleDepth": 1.0,
 
         "// wavelenBase: ": [ 0.650, 0.570, 0.475 ],
 
         "// waveLenFactors: ": "1.0 / pow(wavelen, 4)",
         "waveLenFactors": [ 5.6020, 9.4733, 19.6438 ],
 
-        "mieG": -0.990
+        "// Kr4Pi: ": " // 4 * PI * rayleighFactor",
+        "// Km4Pi: ": " // 4 * PI * mieFactor",
+        "// waveLenFactorsKr4PiKm4Pi: ": " // waveLenFactors * Kr4Pi + Km4Pi = (waveLenFactors * rayl + mie) * 4 * pi",
+        "waveLenFactorsKr4PiKm4Pi": [ 0.18855835184, 0.310178802936, 0.629694417296 ]
     }
 }

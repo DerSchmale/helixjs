@@ -58,9 +58,9 @@ function initHDRSettings()
     tonemap.exposure = -1;
 
     settings.effects = [bloom1, bloom2, bloom3, tonemap];
-    settings.sunIntensity = 10.0;
+    settings.sunIntensity = 20.0;
     settings.cloudColor = new HX.Color(0.8, 0.78, 0.75);
-    settings.scatterIntensityBoost = 1.0;
+    settings.scatterIntensityBoost = .25;
 }
 
 function initLDRSettings()
@@ -74,7 +74,7 @@ function initLDRSettings()
     settings.effects = [ bloom1 ];
     settings.sunIntensity = 4.0;
     settings.cloudColor = new HX.Color(0.64, 0.624, 0.6);
-    settings.scatterIntensityBoost = 3.0;
+    settings.scatterIntensityBoost = 2.0;
 }
 
 function initCamera(camera)
@@ -106,7 +106,7 @@ function initSun(container)
     sunLight = new HX.DirectionalLight();
     // sunlight actually has more green in its spectrum, but it's filtered out by the atmosphere
     sunLight.intensity = settings.sunIntensity;
-    sunLight.color = new HX.Color(.98, 1.0, .95);
+    sunLight.color = new HX.Color(1.0, 1.0, 1.0);
     sunLight.direction = new HX.Float4(-sunPosX, -sunPosY, -sunPosZ);
     container.attach(sunLight);
 
@@ -129,6 +129,9 @@ function initSun(container)
 function initEarth(container)
 {
     var earthRadius = 0.006371;
+    var atmosphereScale = 1.025;
+    var avgDensityHeight = .15;
+
     earth = new HX.GroupNode();
     var earthSpherePrimitive = new HX.SpherePrimitive(
         {
@@ -138,19 +141,19 @@ function initEarth(container)
         }
     );
 
-    var atmosphereScale = 1.025;
+    var atmosphereRadius = earthRadius * atmosphereScale;
+    var atmosphereTickness = atmosphereRadius - earthRadius;
 
     var lightDir = sunLight.worldMatrix.getColumn(2);
 
-    var scatterIntensity = sunLight._scaledIrradiance.clone();
-
-    var luminance = scatterIntensity.luminance();
-    scatterIntensity.x /= luminance;
-    scatterIntensity.y /= luminance;
-    scatterIntensity.z /= luminance;
-
     var materialLoader = new HX.AssetLoader(HX.HMT);
     earthMaterial = materialLoader.load("materials/earthMaterial.hmt");
+    earthMaterial.setUniform("lightDir", lightDir);
+    earthMaterial.setUniform("atmosphereRadius", atmosphereRadius);
+    earthMaterial.setUniform("earthRadius", earthRadius);
+    earthMaterial.setUniform("rcpAtmosThickness", 1.0 / atmosphereTickness);
+    earthMaterial.setUniform("rcpThicknessOverScaleDepth", 1.0 / atmosphereTickness / avgDensityHeight);
+    earthMaterial.setUniform("expThicknessOverScaleDepth", Math.exp((earthRadius - atmosphereRadius) / avgDensityHeight));
 
     var globe = new HX.ModelInstance(earthSpherePrimitive, earthMaterial);
     earth.attach(globe);
@@ -160,10 +163,12 @@ function initEarth(container)
 
     atmosphere.scale.set(atmosphereScale, atmosphereScale, atmosphereScale);
     earth.attach(atmosphere);
-    atmosMaterial.setUniform("atmosphereRadius", earthRadius * atmosphereScale);
+    atmosMaterial.setUniform("atmosphereRadius", atmosphereRadius);
     atmosMaterial.setUniform("earthRadius", earthRadius);
-    atmosMaterial.setUniform("lightColor", scatterIntensity);
-    atmosMaterial.setUniform("lightIntensity", luminance * settings.scatterIntensityBoost);
+    atmosMaterial.setUniform("rcpAtmosThickness", 1.0 / atmosphereTickness);
+    atmosMaterial.setUniform("rcpThicknessOverScaleDepth", 1.0 / atmosphereTickness / avgDensityHeight);
+    console.log(settings.sunIntensity * settings.scatterIntensityBoost);
+    atmosMaterial.setUniform("boost", settings.sunIntensity * settings.scatterIntensityBoost);
     atmosMaterial.setUniform("lightDir", lightDir);
     atmosMaterial.transparencyMode = HX.TransparencyMode.ADDITIVE;
 

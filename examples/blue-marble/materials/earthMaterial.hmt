@@ -13,7 +13,18 @@
         "cloudColorDay": [ 0.8, 0.78, 0.75 ],
         "cloudColorNight": [ 0.0, 0.0, 0.05 ],
         "cloudRoughness": 0.8,
-        "sunViewDirection": [ 0.0, 0.0, 1.0 ]
+        "lightDir": [ 0.0, 0.0, 1.0 ],
+        "lightColor": [ 0.0, 0.0, 1.0 ],
+
+        "rcpThicknessOverScaleDepth": 1.0,
+        "expThicknessOverScaleDepth": 1.0,
+        "earthRadius": 1.0,
+        "atmosphereRadius": 1.0,
+        "rcpAtmosThickness": 1.0,
+        "rayleighFactor": 0.0025,
+        "mieFactor": 0.0010,
+        "waveLenFactors": [ 5.6020, 9.4733, 19.6438 ],
+        "waveLenFactorsKr4PiKm4Pi": [ 0.18855835184, 0.310178802936, 0.629694417296 ]
     },
     "textures": {
         "colorMap": "../textures/earth/albedo_large.jpg",

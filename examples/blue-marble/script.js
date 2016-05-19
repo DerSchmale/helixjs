@@ -167,7 +167,6 @@ function initEarth(container)
     atmosMaterial.setUniform("earthRadius", earthRadius);
     atmosMaterial.setUniform("rcpAtmosThickness", 1.0 / atmosphereTickness);
     atmosMaterial.setUniform("rcpThicknessOverScaleDepth", 1.0 / atmosphereTickness / avgDensityHeight);
-    console.log(settings.sunIntensity * settings.scatterIntensityBoost);
     atmosMaterial.setUniform("boost", settings.sunIntensity * settings.scatterIntensityBoost);
     atmosMaterial.setUniform("lightDir", lightDir);
     atmosMaterial.transparencyMode = HX.TransparencyMode.ADDITIVE;

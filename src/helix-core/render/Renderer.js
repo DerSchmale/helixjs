@@ -374,6 +374,9 @@ HX.Renderer.prototype =
         HX.popRenderTarget();
     },
 
+    /**
+     * This shader applies blending and emission
+     */
     _applyBlending: function ()
     {
         this._swapHDRFrontAndBack();

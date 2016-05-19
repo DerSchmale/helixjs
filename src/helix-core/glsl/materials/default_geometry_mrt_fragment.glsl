@@ -91,5 +91,14 @@ void main()
           #endif
     #endif
 
-    hx_processGeometry(hx_gammaToLinear(outputColor), fragNormal, metallicnessOut, specNormalReflOut, roughnessOut, 1.0, hx_transparencyMode, linearDepth);
+    GeometryData data;
+    data.color = hx_gammaToLinear(outputColor);
+    data.normal = fragNormal;
+    data.metallicness = metallicnessOut;
+    data.specularNormalReflection = specNormalReflOut;
+    data.roughness = roughnessOut;
+    data.emission = 0.0;
+    data.transparencyMode = hx_transparencyMode;
+    data.linearDepth = linearDepth;
+    hx_processGeometry(data);
 }

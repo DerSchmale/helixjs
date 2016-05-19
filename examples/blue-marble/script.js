@@ -142,15 +142,16 @@ function initEarth(container)
     var emissionMap = textureLoader.load("textures/earth/emission_large.jpg");
     // clouds: rgb: normals, alpha: amount (alpha) / height
 
-    // TODO: Should emission be completely removed from bright side?
-    var earthMaterial = new HX.PBRMaterial();
-    earthMaterial.colorMap = colorMap;
-    earthMaterial.normalMap = normalMap;
-    earthMaterial.specularMap = specularMap;
-    earthMaterial.specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
-    earthMaterial.setRoughness(.3,.8);
-
     var materialLoader = new HX.AssetLoader(HX.HMT);
+
+    // TODO: Should emission be completely removed from bright side?
+    var earthMaterial = materialLoader.load("materials/earthMaterial.hmt");
+    earthMaterial.setTexture("colorMap", colorMap);
+    earthMaterial.setTexture("normalMap", normalMap);
+    earthMaterial.setTexture("specularMap", specularMap);
+    earthMaterial.setTexture("emissionMap", emissionMap);
+    earthMaterial.setUniform("minRoughness", .3);
+    earthMaterial.setUniform("maxRoughness", .8);
 
     var globe = new HX.ModelInstance(earthSpherePrimitive, earthMaterial);
     earth.attach(globe);

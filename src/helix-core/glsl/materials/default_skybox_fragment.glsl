@@ -4,7 +4,10 @@ uniform samplerCube hx_skybox;
 
 void main()
 {
-    vec4 color = hx_gammaToLinear(textureCube(hx_skybox, viewWorldDir));
-    color.w = 0.0;
-    hx_processGeometry(color, vec3(0.0), 0.0, 0.0, 1.0, 0.0, 0.0, 1.0);
+    GeometryData data;
+    data.color = hx_gammaToLinear(textureCube(hx_skybox, viewWorldDir));
+    data.emission = 1.0;
+    data.transparencyMode = HX_TRANSPARENCY_OPAQUE;
+    data.linearDepth = 1.0;
+    hx_processGeometry(data);
 }

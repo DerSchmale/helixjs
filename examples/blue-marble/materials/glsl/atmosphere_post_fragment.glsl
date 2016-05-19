@@ -38,6 +38,13 @@ void main()
     float cosTheta = dot(lightDir, view);
 //    float rayleigh = rayleighPhase(cosTheta);
     vec4 color = vec4(color0 + color1 * miePhase(cosTheta), 1.0);
-    hx_processGeometry(color, vec3(0.0), 0.0, 0.0, 1.0, 0.0, hx_transparencyMode, 1.0);
+
+    GeometryData data;
+    data.color = color;
+    data.transparencyMode = hx_transparencyMode;
+    data.emission = 1.0; // not lit
+    data.linearDepth = 1.0;
+
+    hx_processGeometry(data);
 #endif
 }

@@ -134,5 +134,14 @@ void main()
     compNormal = TBN * compNormal;
     compNormal = mat3(hx_viewMatrix) * compNormal;
 
-    hx_processGeometry(hx_gammaToLinear(vec4(color, 1.0)), compNormal, 0.0, specularNormalReflection, roughnessOut, 1.0, 0.0, linearDepth);
+    GeometryData data;
+    data.color = hx_gammaToLinear(vec4(color, 1.0));
+    data.normal = compNormal;
+    data.metallicness = 0.0;
+    data.specularNormalReflection = specularNormalReflection;
+    data.roughness = roughnessOut;
+    data.emission = 0.0;
+    data.transparencyMode = 0.0;
+    data.linearDepth = linearDepth;
+    hx_processGeometry(data);
 }

@@ -51,5 +51,14 @@ void main()
     color.xyz = mix(hx_gammaToLinear(scatteredColor), color.xyz, scatter);
     color.w = clamp(distance / 50.0, 0.0, 1.0);
 
-    hx_processGeometry(color, normal, 0.0, specularNormalReflection, roughness, 1.0, hx_transparencyMode, linearDepth);
+    GeometryData data;
+    data.color = color;
+    data.normal = normal;
+    data.metallicness = 0.0;
+    data.specularNormalReflection = specularNormalReflection;
+    data.roughness = roughness;
+    data.emission = 0.0;
+    data.transparencyMode = hx_transparencyMode;
+    data.linearDepth = linearDepth;
+    hx_processGeometry(data);
 }

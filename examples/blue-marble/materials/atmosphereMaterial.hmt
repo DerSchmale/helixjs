@@ -6,13 +6,7 @@
             "fragmentShader": "glsl/atmosphere_post_fragment.glsl",
 
             "cullMode": "front",
-            "writeDepth": false,
-
-            "blend": {
-                "source": "one",
-                "destination": "one",
-                "operator": "add"
-            }
+            "writeDepth": false
         }
     },
     "uniforms": {

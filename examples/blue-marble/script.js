@@ -135,45 +135,13 @@ function initEarth(container)
 
     // TODO: Provide custom material that does:
     // - attenuate the night part in day
-    var textureLoader = new HX.AssetLoader(HX.JPG);
-    var colorMap = textureLoader.load("textures/earth/albedo_large.jpg");
-    var normalMap = textureLoader.load("textures/earth/normals.png");
-    var specularMap = textureLoader.load("textures/earth/specular.jpg");
-    var emissionMap = textureLoader.load("textures/earth/emission_large.jpg");
-    // clouds: rgb: normals, alpha: amount (alpha) / height
-
     var materialLoader = new HX.AssetLoader(HX.HMT);
 
     // TODO: Should emission be completely removed from bright side?
     var earthMaterial = materialLoader.load("materials/earthMaterial.hmt");
-    earthMaterial.setTexture("colorMap", colorMap);
-    earthMaterial.setTexture("normalMap", normalMap);
-    earthMaterial.setTexture("specularMap", specularMap);
-    earthMaterial.setTexture("emissionMap", emissionMap);
-    earthMaterial.setUniform("minRoughness", .3);
-    earthMaterial.setUniform("maxRoughness", .8);
 
     var globe = new HX.ModelInstance(earthSpherePrimitive, earthMaterial);
     earth.attach(globe);
-
-    // TODO: parallax mapping
-    // TODO: subsurface scattering in a post pass?
-    // Use this as a color profile reference: http://www.daz3d.com/forums/uploads/thumbnails/FileUpload/5b/398749c65a6be273811a14073ae6c7.jpg
-    var cloudMaterial = materialLoader.load("materials/cloudMaterial.hmt");
-    var clouds = new HX.ModelInstance(earthSpherePrimitive, cloudMaterial);
-    // putting them a bit higher than they possibly could be
-    // parallax mapping will put them down again
-    clouds.scale.set(1.005, 1.005, 1.005);
-    cloudMaterial.renderOrder = 20;
-    // TODO: merge clouds with geometry
-    cloudMaterial.transparencyMode = HX.TransparencyMode.ALPHA;
-    earth.attach(clouds);
-
-    var cloudShadowMaterial = materialLoader.load("materials/cloudShadowMaterial.hmt");
-    cloudShadowMaterial.renderOrder = 10;
-    var cloudsShadow = new HX.ModelInstance(earthSpherePrimitive, cloudShadowMaterial);
-    cloudsShadow.scale.set(1.005, 1.005, 1.005);
-    earth.attach(cloudsShadow);
 
     var scatterIntensity = sunLight._scaledIrradiance.clone();
     scatterIntensity.r *= settings.scatterIntensityBoost;
@@ -191,7 +159,6 @@ function initEarth(container)
 
     atmosMaterial.setUniform("lightIntensity", scatterIntensity);
     atmosMaterial.setUniform("lightDir", lightDir);
-    atmosMaterial.renderOrder = -50;
 
     // create a new loader to pass options
     /*materialLoader = new HX.AssetLoader(HX.HMT);

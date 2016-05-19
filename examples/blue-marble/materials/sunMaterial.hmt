@@ -2,8 +2,8 @@
     "version": "0.1",
     "passes": {
         "geometry": {
-            "vertexShader": "glsl/sun_post_vertex.glsl",
-            "fragmentShader": "glsl/sun_post_fragment.glsl"
+            "vertexShader": "glsl/sun_vertex.glsl",
+            "fragmentShader": "glsl/sun_fragment.glsl"
         }
     },
     "uniforms": {

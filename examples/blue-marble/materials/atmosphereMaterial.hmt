@@ -2,8 +2,8 @@
     "version": "0.1",
     "passes": {
         "geometry": {
-            "vertexShader": "glsl/atmosphere_post_vertex.glsl",
-            "fragmentShader": "glsl/atmosphere_post_fragment.glsl",
+            "vertexShader": "glsl/atmosphere_vertex.glsl",
+            "fragmentShader": "glsl/atmosphere_fragment.glsl",
 
             "cullMode": "front",
             "writeDepth": false

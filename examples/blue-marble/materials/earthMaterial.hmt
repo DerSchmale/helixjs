@@ -1,12 +1,23 @@
 {
     "version": "0.1",
     "passes": {
-        "postwrite": {
-            "vertexShader": "glsl/sun_post_vertex.glsl",
-            "fragmentShader": "glsl/sun_post_fragment.glsl"
+        "geometry": {
+            "vertexShader": "glsl/earth_vertex.glsl",
+            "fragmentShader": "glsl/earth_fragment.glsl"
         }
     },
     "uniforms": {
-        "color": [ 20.0, 21.0, 19.0 ]
+        "specularNormalReflection": 0.027,
+        "minRoughness": 0.3,
+        "maxRoughness": 0.8,
+        "cloudColor": [ 0.8, 0.78, 0.75 ],
+        "cloudRoughness": 0.8
+    },
+    "textures": {
+        "colorMap": "../textures/earth/albedo_large.jpg",
+        "normalMap": "../textures/earth/normals.png",
+        "specularMap": "../textures/earth/specular.jpg",
+        "cloudMap": "../textures/earth/clouds.png",
+        "emissionMap": "../textures/earth/emission_large.jpg"
     }
 }

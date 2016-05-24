@@ -28,14 +28,11 @@ DemoProject.prototype.init = function(canvas, initOptions)
 
     document.addEventListener("keyup", function(event)
     {
-        debugInfoField.style.display = "inline";
-
         var keyCode = ("which" in event) ? event.which : event.keyCode;
 
         switch (keyCode) {
             case 48:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_NONE;
-                debugInfoField.style.display = "none";
                 break;
             case 49:
                 renderer.debugMode = HX.DebugRenderMode.DEBUG_COLOR;
@@ -74,5 +71,7 @@ DemoProject.prototype.init = function(canvas, initOptions)
                 debugInfoField.innerHTML = "Debug: Light Accumulation";
                 break;
         }
+
+        debugInfoField.style.display = renderer.debugMode === HX.DebugRenderMode.DEBUG_NONE? "none" : "inline";
     });
 };

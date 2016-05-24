@@ -14,9 +14,9 @@ struct GeometryData
 vec4 hx_encodeNormal(vec3 normal, float emission, float transparencyMode)
 {
     vec4 data;
-    /*float p = sqrt(normal.z*8.0 + 8.0);
-    data.xy = normal.xy / p + .5;*/
-    data.xy = normal.xy * .5 + .5;
+    float p = sqrt(normal.z*8.0 + 8.0);
+    data.xy = normal.xy / p + .5;
+    //data.xy = normal.xy * .5 + .5;
     data.z = emission / HX_EMISSION_RANGE;
     data.w = transparencyMode;
     return data;

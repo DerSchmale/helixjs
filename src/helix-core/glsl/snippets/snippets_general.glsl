@@ -53,12 +53,13 @@ float hx_RG8ToFloat(vec2 rg)
 vec3 hx_decodeNormal(vec4 data)
 {
     vec3 normal;
-//    data.xy = data.xy*4.0 - 2.0;
-//    float f = dot(data.xy, data.xy);
-//    float g = sqrt(1.0 - f * .25);
-//    normal.xy = data.xy * g;
-    normal.xy = data.xy * 2.0 - 1.0;
-    normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));
+    data.xy = data.xy*4.0 - 2.0;
+    float f = dot(data.xy, data.xy);
+    float g = sqrt(1.0 - f * .25);
+    normal.xy = data.xy * g;
+    normal.z = 1.0 - f * .5;
+//    normal.xy = data.xy * 2.0 - 1.0;
+//    normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));
     return normal;
 }
 

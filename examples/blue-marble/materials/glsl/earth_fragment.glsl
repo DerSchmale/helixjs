@@ -35,7 +35,6 @@ void main()
     vec4 outputColor = hx_gammaToLinear(texture2D(colorMap, uv));
     vec4 emissionColor = hx_gammaToLinear(texture2D(emissionMap, uv));
     float emission = dot(sunViewDirection, TBN[2]);
-    // anything above .1 should be mapped to 1.0
     emission = hx_linearStep(-.2, .1, emission);
 
     vec4 specSample = texture2D(specularMap, uv);

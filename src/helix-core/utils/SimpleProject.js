@@ -94,7 +94,7 @@ HX.SimpleProject.prototype =
 
     _resizeCanvas: function()
     {
-        var pixelRatio = window.devicePixelRatio || 1.0;
+        var pixelRatio = /*window.devicePixelRatio || */1.0;
         this._canvas.width = this._canvas.clientWidth * pixelRatio;
         this._canvas.height = this._canvas.clientHeight * pixelRatio;
     }

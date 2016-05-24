@@ -10,14 +10,15 @@ OrbitController = function(lookAtTarget)
     this._localAcceleration = new HX.Float4(0.0, 0.0, 0.0, 0.0);
     this._localVelocity = new HX.Float4(0.0, 0.0, 0.0, 0.0);
 
+    this.zoomSpeed = 1.0;
     this.maxRadius = 4.0;
     this.minRadius = 0.1;
     this.dampen = .9;
     this.lookAtTarget = lookAtTarget || new HX.Float4(0.0, 0.0, 0.0, 1.0);
     this._oldMouseX = 0;
     this._oldMouseY = 0;
-    this._onMouseWheel = null;
-    this._onMouseMove = null;
+
+    this._isDown = false;
 };
 
 OrbitController.prototype = Object.create(HX.Component.prototype,
@@ -44,31 +45,83 @@ OrbitController.prototype.onAdded = function()
 
     this._onMouseWheel = function(event)
     {
-        self.setZoomImpulse(-event.wheelDelta *.0001);
+        self.setZoomImpulse(-event.wheelDelta * self.zoomSpeed * .0001);
+    };
+
+    this._onMouseDown = function (event)
+    {
+        self._oldMouseX = undefined;
+        self._oldMouseY = undefined;
+
+        self._isDown = true;
     };
 
     this._onMouseMove = function(event)
     {
-        var leftDown = event.buttons & 1;
-        if (leftDown) {
-            // it's not a continuous force
-            var dx = event.screenX - this._oldMouseX;
-            var dy = event.screenY - this._oldMouseY;
-            self.setAzimuthImpulse(dx * .005);
-            self.setPolarImpulse(-dy * .005);
-        }
-        this._oldMouseX = event.screenX;
-        this._oldMouseY = event.screenY;
+        if (!self._isDown) return;
+        self._updateMove(event.screenX, event.screenY)
     };
+
+    this._onTouchDown = function (event)
+    {
+        self._oldMouseX = undefined;
+        self._oldMouseY = undefined;
+
+        if (event.touches.length === 2) {
+            var touch1 = event.touches[0];
+            var touch2 = event.touches[1];
+            var dx = touch1.screenX - touch2.screenX;
+            var dy = touch1.screenY - touch2.screenY;
+            self._startPitchDistance = Math.sqrt(dx*dx + dy*dy);
+            self._startZoom = self.radius;
+        }
+
+        self._isDown = true;
+    };
+
+    this._onTouchMove = function (event)
+    {
+        event.preventDefault();
+
+        if (!self._isDown) return;
+
+        var numTouches = event.touches.length;
+
+        if (numTouches === 1) {
+            var touch = event.touches[0];
+            self._updateMove(touch.screenX, touch.screenY);
+        }
+        else if (numTouches === 2) {
+            var touch1 = event.touches[0];
+            var touch2 = event.touches[1];
+            var dx = touch1.screenX - touch2.screenX;
+            var dy = touch1.screenY - touch2.screenY;
+            var dist = Math.sqrt(dx*dx + dy*dy);
+            var diff = self._startPitchDistance - dist;
+            self.radius = self._startZoom + diff * .01;
+        }
+    };
+
+    this._onUp = function(event) { self._isDown = false; };
 
     document.addEventListener("mousewheel", this._onMouseWheel);
     document.addEventListener("mousemove", this._onMouseMove);
+    document.addEventListener("touchmove", this._onTouchMove);
+    document.addEventListener("mousedown", this._onMouseDown);
+    document.addEventListener("touchstart", this._onTouchDown);
+    document.addEventListener("mouseup", this._onUp);
+    document.addEventListener("touchend", this._onUp);
 };
 
 OrbitController.prototype.onRemoved = function()
 {
     document.removeEventListener("mousewheel", this._onMouseWheel);
     document.removeEventListener("mousemove", this._onMouseMove);
+    document.removeEventListener("touchmove", this._onTouchMove);
+    document.removeEventListener("mousedown", this._onMouseDown);
+    document.removeEventListener("touchstart", this._onTouchDown);
+    document.removeEventListener("mouseup", this._onUp);
+    document.removeEventListener("touchend", this._onUp);
 };
 
 OrbitController.prototype.onUpdate = function(dt)
@@ -109,4 +162,16 @@ OrbitController.prototype.setPolarImpulse = function(value)
 OrbitController.prototype.setZoomImpulse = function(value)
 {
     this._localAcceleration.z = value;
+};
+
+OrbitController.prototype._updateMove = function(x, y)
+{
+    if (this._oldMouseX !== undefined) {
+        var dx = x - this._oldMouseX;
+        var dy = y - this._oldMouseY;
+        this.setAzimuthImpulse(dx * .0015);
+        this.setPolarImpulse(-dy * .0015);
+    }
+    this._oldMouseX = x;
+    this._oldMouseY = y;
 };

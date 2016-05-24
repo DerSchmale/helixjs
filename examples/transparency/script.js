@@ -23,14 +23,12 @@ function initCamera(camera)
 
 function initScene(scene)
 {
-    var cubeLoader = new HX.AssetLoader(HX.HCM);
-    var skyboxSpecularTexture = cubeLoader.load("textures/skybox/skybox_specular.hcm");
-    var skyboxIrradianceTexture = cubeLoader.load("textures/skybox/skybox_irradiance.hcm");
+    var envMapLoader = new HX.AssetLoader(HX.JPG_EQUIRECTANGULAR);
+    var skyboxTexture = envMapLoader.load("textures/skybox/river_rocks_1k.jpg");
 
     // top level of specular texture is the original skybox texture
-    var skybox = new HX.Skybox(skyboxSpecularTexture);
-    skybox.setGlobalSpecularProbe(new HX.GlobalSpecularProbe(skyboxSpecularTexture));
-    skybox.setGlobalIrradianceProbe(new HX.GlobalIrradianceProbe(skyboxIrradianceTexture));
+    var skybox = new HX.Skybox(skyboxTexture);
+    skybox.setGlobalSpecularProbe(new HX.GlobalSpecularProbe(skyboxTexture));
     scene.skybox = skybox;
 
     var light = new HX.DirectionalLight();

@@ -1,12 +1,12 @@
 {
     "version": "0.1",
     "files": {
-        "negX": "specular/%m/negX.png",
-        "posX": "specular/%m/posX.png",
-        "negY": "specular/%m/negY.png",
-        "posY": "specular/%m/posY.png",
-        "negZ": "specular/%m/negZ.png",
-        "posZ": "specular/%m/posZ.png"
+        "negX": "specular/0/negX.png",
+        "posX": "specular/0/posX.png",
+        "negY": "specular/0/negY.png",
+        "posY": "specular/0/posY.png",
+        "negZ": "specular/0/negZ.png",
+        "posZ": "specular/0/posZ.png"
     },
-    "loadMips": true
+    "loadMips": false
 }

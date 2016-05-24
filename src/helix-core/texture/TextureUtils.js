@@ -58,15 +58,18 @@ HX.TextureUtils =
             fbo.init();
 
             HX.pushRenderTarget(fbo);
-
             HX.drawElements(HX_GL.TRIANGLES, 6, i * 6);
-            HX.popRenderTarget(fbo);
+            HX.popRenderTarget();
 
             fbo.dispose();
         }
 
         if (generateMipmaps)
             target.generateMipmap();
+
+        // TODO: for some reason, if EXT_shader_texture_lod is not supported, mipmapping of rendered-to cubemaps does not work
+        if (!HX.EXT_SHADER_TEXTURE_LOD)
+            target.filter = HX.TextureFilter.BILINEAR_NOMIP;
 
         return target;
     },

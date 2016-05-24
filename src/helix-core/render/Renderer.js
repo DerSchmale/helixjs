@@ -11,8 +11,9 @@ HX.DebugRenderMode = {
     DEBUG_DEPTH: 6,
     DEBUG_LIGHT_ACCUM: 7,
     DEBUG_TRANSPARENCY_MODE: 8,
-    DEBUG_AO: 9,
-    DEBUG_SSR: 10
+    DEBUG_EMISSION: 9,
+    DEBUG_AO: 10,
+    DEBUG_SSR: 11
 };
 
 
@@ -330,6 +331,9 @@ HX.Renderer.prototype =
             case HX.DebugRenderMode.DEBUG_AO:
                 if (this._aoEffect)
                     this._applyGamma.execute(HX.RectMesh.DEFAULT, this._aoEffect.getAOTexture());
+                break;
+            case HX.DebugRenderMode.DEBUG_EMISSION:
+                this._copyZChannel.execute(HX.RectMesh.DEFAULT, this._gbuffer[1]);
                 break;
             case HX.DebugRenderMode.DEBUG_SSR:
                 if (this._ssrEffect)

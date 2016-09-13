@@ -26,7 +26,7 @@ HX.SimpleProject.prototype =
         this._scene = new HX.Scene();
         this._camera = new HX.PerspectiveCamera();
         this._scene.attach(this._camera);
-        this._renderer = new HX.Renderer();
+        this._renderer = new HX.ForwardRenderer();
 
         var self = this;
 

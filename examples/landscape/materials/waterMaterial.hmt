@@ -12,7 +12,7 @@
         }
     },
     "uniforms": {
-        "specularNormalReflection": 0.025,
+        "normalSpecularReflectance": 0.025,
         "roughness": 0.001,
         "normalScaleOffset1": [ 0.1, 0.0, 0.0 ],
         "normalScaleOffset2": [ 0.3, 0.0, 0.0 ],

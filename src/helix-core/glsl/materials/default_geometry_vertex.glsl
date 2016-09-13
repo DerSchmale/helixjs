@@ -32,12 +32,7 @@ varying vec3 tangent;
 varying vec3 bitangent;
 #endif
 
-varying float linearDepth;
-
-uniform float hx_cameraNearPlaneDistance;
-uniform float hx_rcpCameraFrustumRange;
-
-void main()
+void hx_geometry()
 {
 #ifdef USE_SKINNING
     mat4 skinningMatrix = hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)];
@@ -71,8 +66,6 @@ void main()
 #if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)
     texCoords = hx_texCoord;
 #endif
-
-    linearDepth = (-(hx_worldViewMatrix * animPosition).z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;
 
 #ifdef VERTEX_COLORS
     vertexColor = hx_vertexColor;

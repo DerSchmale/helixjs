@@ -7,7 +7,7 @@
         }
     },
     "uniforms": {
-        "specularNormalReflection": 0.01
+        "normalSpecularReflectance": 0.01
     },
     "textures": {
         "grassLargeSampler": "../textures/mossyGround.jpg",

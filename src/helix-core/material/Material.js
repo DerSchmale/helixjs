@@ -1,28 +1,12 @@
-
-
-/**
- * Careful! Transparency and blending are two separate concepts!
- * Transparency represents actual transparent objects and affects how the light interacting with the object is
- * added to the rest of the lit scene.
- * Blending merely applies to how passes are applied to their render targets.
- */
-HX.TransparencyMode = {
-    OPAQUE: 0,              // light coming from behind the object is blocked.
-    ALPHA: 1,               // light from behind is transparently blended with incoming light
-    ADDITIVE: 2,            // light from behind the object is completely unblocked and added in
-    NUM_MODES: 3
-};
-
 /**
  *
  * @constructor
  */
-HX.Material = function ()
+HX.Material = function (geometryVertexShader, geometryFragment, lightingModel)
 {
     this._elementType = HX.ElementType.TRIANGLES;
     // TODO: should this be passed to the material as a uniform to figure out how to interlace in hx_processGeometry (= overhead for opaque), or should this be a #define and compilation issue?
-    // could by default do a test, and if #define FORCE_TRANSPARENCY_MODE <mode> is set, do not. This can be used by PBRMaterial or custom materials to trigger recompilations and optimize.
-    this._transparencyMode = HX.TransparencyMode.OPAQUE;
+    // could by default do a test, and if #define FORCE_TRANSPARENCY_MODE <mode> is set, do not. This can be used by BasicMaterial or custom materials to trigger recompilations and optimize.
     this._passes = new Array(HX.Material.NUM_PASS_TYPES);
     this._renderOrderHint = ++HX.Material.ID_COUNTER;
     // forced render order by user:
@@ -32,12 +16,45 @@ HX.Material = function ()
     this._uniforms = {};
 
     this._name = null;
+    if (geometryVertexShader)
+        this.init(geometryVertexShader, geometryFragment, lightingModel);
 };
 
 HX.Material.ID_COUNTER = 0;
 
+// So... we're throwing things around for materials:
+//  - provide geometry code
+//  - provide light model code
+// This allows a logical separation between geometry stage and lighting stage (which could be useful to support deferred rendering in the future)
+
 HX.Material.prototype = {
     constructor: HX.Material,
+
+    /**
+     * @param vertexShader
+     * @param geometryFragment
+     * @param lightingModel Optional (will result in unlit if omitted)
+     * @param lights Optional (do not render lights dynamically, allowing lighting to happen in 1 pass)
+     */
+    init: function(geometryVertexShader, geometryFragment, lightingModel, lights)
+    {
+        this._dirLights = null;
+        this._dirLightCasters = null;
+        this._pointLights = null;
+
+        if (!lightingModel)
+            this._setPass(HX.MaterialPass.BASE_PASS, new HX.UnlitPass(geometryVertexShader, geometryFragment));
+        else if (lights)
+            this._setPass(HX.MaterialPass.BASE_PASS, new HX.StaticLitPass(geometryVertexShader, geometryFragment, lightingModel, lights));
+        //else
+        //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
+
+        this._setPass(HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new HX.DirectionalShadowPass(geometryVertexShader, geometryFragment));
+
+        // TODO: init dynamic light passes
+        // TODO: init shadow passes
+        // TODO: init depth/normal pass
+    },
 
     get name()
     {
@@ -47,17 +64,6 @@ HX.Material.prototype = {
     set name(value)
     {
         this._name = value;
-    },
-
-    get transparencyMode()
-    {
-        return this._transparencyMode;
-    },
-
-    set transparencyMode(value)
-    {
-        this._transparencyMode = value;
-        this.setUniform("hx_transparencyMode", this._transparencyMode / 0xff);
     },
 
     get renderOrder()
@@ -89,16 +95,16 @@ HX.Material.prototype = {
         return this._passes[type];
     },
 
-    setPass: function (type, pass)
+    _setPass: function (type, pass)
     {
         this._passes[type] = pass;
 
         if (pass) {
-            if(type === HX.MaterialPass.SHADOW_DEPTH_PASS)
+            if(type === HX.MaterialPass.DIR_LIGHT_PASS)
                 pass.cullMode = HX.DirectionalLight.SHADOW_FILTER.getCullMode();
 
-            if(type === HX.GEOMETRY_NORMAL_PASS || type === HX.GEOMETRY_SPECULAR_PASS || type == HX.GEOMETRY_LINEAR_DEPTH_PASS)
-                pass.depthTest = HX.Comparison.EQUAL;
+            //if(type === HX.GEOMETRY_NORMAL_PASS || type === HX.GEOMETRY_SPECULAR_PASS || type == HX.GEOMETRY_LINEAR_DEPTH_PASS)
+            //    pass.depthTest = HX.Comparison.EQUAL;
 
             pass.elementType = this._elementType;
 
@@ -115,8 +121,6 @@ HX.Material.prototype = {
                         pass.setUniform(uniformName, this._uniforms[uniformName]);
                 }
             }
-
-            pass.setUniform("hx_transparencyMode", this._transparencyMode / 0xff);
         }
 
         this.onChange.dispatch();
@@ -186,5 +190,4 @@ HX.Material.prototype = {
     {
         return "[Material(name=" + this._name + ")]";
     }
-
 };

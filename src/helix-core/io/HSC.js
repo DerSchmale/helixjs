@@ -133,10 +133,10 @@ HX.HSC.prototype._processMesh = function(def)
 
 HX.HSC.prototype._processMaterial = function(def)
 {
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     if (def.hasOwnProperty("color")) material.color = new HX.Color(def.color[0], def.color[1], def.color[2]);
     if (def.hasOwnProperty("metallicness")) material.metallicness = def.metallicness;
-    if (def.hasOwnProperty("specularNormalReflection")) material.specularNormalReflection = def.specularNormalReflection;
+    if (def.hasOwnProperty("normalSpecularReflectance")) material.normalSpecularReflectance = def.normalSpecularReflectance;
     if (def.hasOwnProperty("refractiveRatio")) {
         material.refractiveRatio = def.refractiveRatio;
         material.refract = def.refractiveRatio !== 1;

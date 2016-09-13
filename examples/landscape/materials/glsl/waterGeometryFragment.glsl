@@ -11,7 +11,7 @@ uniform vec3 mixRatios;
 uniform vec3 scatteredColor;
 uniform float scatterDensity;
 
-uniform float specularNormalReflection;
+uniform float normalSpecularReflectance;
 uniform float roughness;
 
 uniform sampler2D hx_gbufferDepth;
@@ -55,7 +55,7 @@ void main()
     data.color = color;
     data.normal = normal;
     data.metallicness = 0.0;
-    data.specularNormalReflection = specularNormalReflection;
+    data.normalSpecularReflectance = normalSpecularReflectance;
     data.roughness = roughness;
     data.emission = 0.0;
     data.transparencyMode = hx_transparencyMode;

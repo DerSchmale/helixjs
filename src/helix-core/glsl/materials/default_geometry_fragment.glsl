@@ -25,7 +25,7 @@ uniform sampler2D normalMap;
 uniform float hx_transparencyMode;
 uniform float minRoughness;
 uniform float maxRoughness;
-uniform float specularNormalReflection;
+uniform float normalSpecularReflectance;
 uniform float metallicness;
 
 #if defined(ALPHA_THRESHOLD)
@@ -40,9 +40,7 @@ uniform sampler2D specularMap;
 varying vec3 vertexColor;
 #endif
 
-varying float linearDepth;
-
-void main()
+HX_GeometryData hx_geometry()
 {
     vec4 outputColor = vec4(color, alpha);
 
@@ -63,7 +61,7 @@ void main()
     #endif
 
     float metallicnessOut = metallicness;
-    float specNormalReflOut = specularNormalReflection;
+    float specNormalReflOut = normalSpecularReflectance;
     float roughnessOut = minRoughness;
 
     vec3 fragNormal = normal;
@@ -74,16 +72,16 @@ void main()
         TBN[0] = normalize(tangent);
         TBN[1] = normalize(bitangent);
 
-        fragNormal = TBN * (normalSample.xyz * 2.0 - 1.0);
+        fragNormal = TBN * (normalSample.xyz - .5);
 
         #ifdef NORMAL_ROUGHNESS_MAP
-            roughnessOut = maxRoughness + (minRoughness - maxRoughness) * normalSample.w;
+            roughnessOut = mix(maxRoughness, minRoughness, normalSample.w);
         #endif
     #endif
 
     #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
           vec4 specSample = texture2D(specularMap, texCoords);
-          roughnessOut = maxRoughness + (minRoughness - maxRoughness) * specSample.x;
+          roughnessOut = mix(maxRoughness, minRoughness, specSample.x);
 
           #ifdef SPECULAR_MAP
               specNormalReflOut *= specSample.y;
@@ -91,14 +89,12 @@ void main()
           #endif
     #endif
 
-    GeometryData data;
+    HX_GeometryData data;
     data.color = hx_gammaToLinear(outputColor);
-    data.normal = fragNormal;
+    data.normal = normalize(fragNormal);
     data.metallicness = metallicnessOut;
-    data.specularNormalReflection = specNormalReflOut;
+    data.normalSpecularReflectance = specNormalReflOut;
     data.roughness = roughnessOut;
     data.emission = 0.0;
-    data.transparencyMode = hx_transparencyMode;
-    data.linearDepth = linearDepth;
-    hx_processGeometry(data);
+    return data;
 }

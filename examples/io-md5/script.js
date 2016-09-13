@@ -53,7 +53,7 @@ function initScene(scene)
     var colorMap = textureLoader.load("textures/Sponza_Ceiling_diffuse.jpg");
     var normalMap = textureLoader.load("textures/Sponza_Ceiling_normal.png");
     var specularMap = textureLoader.load("textures/Sponza_Ceiling_roughness.jpg");
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     material.colorMap = colorMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
@@ -83,11 +83,11 @@ function initScene(scene)
     scene.skybox = skybox;
 
     var texLoader = new HX.AssetLoader(HX.JPG);
-    var materialBody = new HX.PBRMaterial();
-    var materialHead = new HX.PBRMaterial();
-    var materialHelmet = new HX.PBRMaterial();
-    var materialLantern = new HX.PBRMaterial();
-    var materialLanternTop = new HX.PBRMaterial();
+    var materialBody = new HX.BasicMaterial();
+    var materialHead = new HX.BasicMaterial();
+    var materialHelmet = new HX.BasicMaterial();
+    var materialLantern = new HX.BasicMaterial();
+    var materialLanternTop = new HX.BasicMaterial();
 
     materialBody.colorMap = texLoader.load("model/bob_body.jpg");
     materialBody.specularMap = texLoader.load("model/bob_body_s.jpg");

@@ -76,7 +76,7 @@ function initScene(scene)
     var albedoMap = textureLoader.load("textures/diffuse.jpg");
     var normalMap = textureLoader.load("textures/normals.jpg");
     var specularMap = textureLoader.load("textures/specular.jpg");
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     material.colorMap = albedoMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;

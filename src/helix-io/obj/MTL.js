@@ -36,13 +36,13 @@ HX.MTL.prototype._parseLine = function(line, target)
 
     switch (tokens[0].toLowerCase()) {
         case "newmtl":
-            this._activeMaterial = new HX.PBRMaterial();
+            this._activeMaterial = new HX.BasicMaterial();
             this._activeMaterial.name = tokens[1];
             target[tokens[1]] = this._activeMaterial;
             break;
         case "ns":
             var specularPower = parseFloat(tokens[1]);
-            this._activeMaterial.setRoughness(HX.PBRMaterial.roughnessFromShininess(specularPower));
+            this._activeMaterial.setRoughness(HX.BasicMaterial.roughnessFromShininess(specularPower));
             break;
         case "kd":
             this._activeMaterial.color = new HX.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));

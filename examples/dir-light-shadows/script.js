@@ -15,9 +15,9 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+    //options.directionalShadowFilter.dither = true;
     options.directionalShadowFilter.blurRadius = 1;
     options.useHDR = true;
-    options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -25,11 +25,11 @@ function initRenderer(renderer)
 {
     //renderer.localReflections = new HX.ScreenSpaceReflections(32);
 
-    var ssao = new HX.SSAO(16);
-    ssao.strength = 1.5;
-    ssao.sampleRadius = .25;
-    ssao.fallOffDistance = .5;
-    renderer.ambientOcclusion = ssao;
+    //var ssao = new HX.SSAO(16);
+    //ssao.strength = 1.5;
+    //ssao.sampleRadius = .25;
+    //ssao.fallOffDistance = .5;
+    //renderer.ambientOcclusion = ssao;
 }
 
 function initCamera(camera)
@@ -48,13 +48,13 @@ function initCamera(camera)
     orbitController.minRadius = .3;
     orbitController.lookAtTarget.y = .25;
 
-    camera.addComponents([bloom, tonemap, orbitController]);
+    camera.addComponents([/*bloom, tonemap, */orbitController]);
 }
 
 function initScene(scene)
 {
     var light = new HX.DirectionalLight();
-    light.color = new HX.Color(1.0,.8,.6);
+    light.color = new HX.Color(0.0, 1.0, 1.0);
     light.direction = new HX.Float4(0.0, -0.8, -1.0, 0.0);
     light.castShadows = true;
     light.numCascades = 3;
@@ -63,25 +63,28 @@ function initScene(scene)
     light.setCascadeRatios(.06,.12,.18, 1);
     scene.attach(light);
 
+    var light2 = new HX.DirectionalLight();
+    light2.color = new HX.Color(1.0, 0.0, 0.0);
+    light2.direction = new HX.Float4(0.5, -0.8, 1.0, 0.0);
+    light2.castShadows = true;
+    light2.numCascades = 1;
+    light2.intensity = 1.0;
+    light2.setCascadeRatios(.18);
+    scene.attach(light2);
+
     // textures from http://kay-vriend.blogspot.be/2014/04/tarnished-metal-first-steps-in-pbr-and.html
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var colorMap = textureLoader.load("textures/Tarnished_Metal_01_diffuse.jpg");
     var normalMap = textureLoader.load("textures/Tarnished_Metal_01_normal.png");
     var specularMap = textureLoader.load("textures/Tarnished_Metal_01_specular.jpg");
-    var opaqueMaterial = new HX.PBRMaterial();
+    var opaqueMaterial = new HX.BasicMaterial();
     opaqueMaterial.colorMap = colorMap;
     opaqueMaterial.normalMap = normalMap;
     opaqueMaterial.specularMap = specularMap;
-    opaqueMaterial.specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ALL;
+    opaqueMaterial.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     opaqueMaterial.metallicness = 1.0;
+    opaqueMaterial.lights = [ light, light2 ];
     opaqueMaterial.setRoughness(0.05, .5);
-
-    var transparentMaterial = new HX.PBRMaterial();
-    transparentMaterial.alpha = .5;
-    // if you want to use clear glass, use alpha 1.0, colour black with HX.TransparencyMode.ADDITIVE
-    transparentMaterial.color = 0x801010;
-    transparentMaterial.transparencyMode = HX.TransparencyMode.ALPHA;
-    transparentMaterial.setRoughness(.01);
 
     var primitive = new HX.SpherePrimitive(
         {
@@ -95,8 +98,7 @@ function initScene(scene)
 
     for (var x = -4; x <= 4; ++x) {
         for (var z = -4; z <= 4; ++z) {
-            var material = x === 0 && z === 0? transparentMaterial : opaqueMaterial;
-            var modelInstance = new HX.ModelInstance(primitive, material);
+            var modelInstance = new HX.ModelInstance(primitive, opaqueMaterial);
             modelInstance.position.x = x * .25 * 1.3;
             modelInstance.position.z = z * .25 * 1.3;
             modelInstance.position.y = (Math.sin(x *.5 + 1) + Math.cos(z *.5 +.5)) * .125 + .1;
@@ -109,14 +111,12 @@ function initScene(scene)
     var colorMap = textureLoader.load("textures/Sponza_Ceiling_diffuse.jpg");
     var normalMap = textureLoader.load("textures/Sponza_Ceiling_normal.png");
     var specularMap = textureLoader.load("textures/Sponza_Ceiling_roughness.jpg");
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     material.colorMap = colorMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
+    material.lights = [ light, light2 ];
     material.setRoughness(1.0);
-
-    // also apply to transparent, just for fun
-    transparentMaterial.normalMap = normalMap;
 
     primitive = new HX.PlanePrimitive(
         {

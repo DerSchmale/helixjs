@@ -29,6 +29,7 @@ HX.UniformSetter._init = function()
 {
     HX.UniformSetter._table = {};
 
+    // TODO: We can probably just use functions for these
     HX.UniformSetter._table.hx_worldMatrix = HX.WorldMatrixSetter;
     HX.UniformSetter._table.hx_worldViewMatrix = HX.WorldViewMatrixSetter;
     HX.UniformSetter._table.hx_wvpMatrix = HX.WorldViewProjectionSetter;
@@ -293,9 +294,9 @@ HX.Dither2DTextureScaleSetter = function()
 {
 };
 
-HX.Dither2DTextureScaleSetter.prototype.execute = function (camera)
+HX.Dither2DTextureScaleSetter.prototype.execute = function ()
 {
-    HX_GL.uniform2f(this.location, camera._renderTargetWidth / HX.DEFAULT_2D_DITHER_TEXTURE.width, camera._renderTargetHeight / HX.DEFAULT_2D_DITHER_TEXTURE.height);
+    HX_GL.uniform2f(this.location, 1.0 / HX.DEFAULT_2D_DITHER_TEXTURE.width, 1.0 / HX.DEFAULT_2D_DITHER_TEXTURE.height);
 };
 
 HX.PoissonDiskSetter = function()

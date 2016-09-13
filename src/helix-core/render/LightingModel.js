@@ -1,45 +1,10 @@
 /**
- * Simple normalized blinn-phong model (NDF * fresnel)
+ * You can add your own, as long as the glsl code contains a function
+ * void hx_brdf(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 normalSpecularReflectance, float roughness, out vec3 diffuseLight, out vec3 specularLight)
  */
-HX.BlinnPhongSimpleLightingModel =
+HX.LightingModel =
 {
-    getGLSL: function() {
-        return HX.ShaderLibrary.get("lighting_blinn_phong.glsl") + "\n\n";
-    }
-};
-
-/**
- * Normalized blinn-phong with visibility and foreshortening terms.
- */
-/*HX.BlinnPhongFullLightingModel =
-{
-    getGLSL: function() {
-        return HX.ShaderLibrary.get("lighting_blinn_phong.glsl",
-                {
-                    VISIBILITY: 1
-                }) + "\n\n";
-    }
-};*/
-
-/**
- * Full GGX model with geometric and foreshortening terms.
- */
-/*HX.GGXFullLightingModel =
-{
-    getGLSL: function() {
-        return HX.ShaderLibrary.get("lighting_ggx.glsl",
-                {
-                    VISIBILITY: 1
-                }) + "\n\n";
-    }
-};*/
-
-/**
- * GGX distribution model without visibility term.
- */
-HX.GGXLightingModel =
-{
-    getGLSL: function() {
-        return HX.ShaderLibrary.get("lighting_ggx.glsl") + "\n\n";
-    }
+    UnlitLightingModel: null,
+    BlinnPhong: HX.ShaderLibrary.get("lighting_blinn_phong.glsl") + "\n\n",
+    GGX: HX.ShaderLibrary.get("lighting_ggx.glsl") + "\n\n"
 };

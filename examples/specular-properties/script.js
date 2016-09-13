@@ -57,9 +57,9 @@ function initScene(scene)
     var numY = 7;
     for (var x = 0; x < numX; ++x) {
         for (var y = 0; y < numY; ++y) {
-            var material = new HX.PBRMaterial();
+            var material = new HX.BasicMaterial();
             //var gold = new HX.Color(1, 0.765557, 0.336057);
-            //material.color = gold.linearToGamma();
+            //material.color = new HX.Color(1, 0.0, 0.0);
             material.setRoughness(x / (numX - 1.0));
             material.metallicness = y / (numY - 1.0);
 

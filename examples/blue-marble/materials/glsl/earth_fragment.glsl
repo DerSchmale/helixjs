@@ -15,7 +15,7 @@ uniform sampler2D emissionMap;
 uniform float hx_transparencyMode;
 uniform vec2 hx_rcpRenderTargetResolution;
 
-uniform float specularNormalReflection;
+uniform float normalSpecularReflectance;
 uniform float minRoughness;
 uniform float maxRoughness;
 uniform float cloudRoughness;
@@ -69,7 +69,7 @@ void main()
     data.color = outputColor;
     data.normal = fragNormal;
     data.metallicness = 0.0;
-    data.specularNormalReflection = specularNormalReflection;
+    data.normalSpecularReflectance = normalSpecularReflectance;
     data.roughness = roughnessOut;
     data.emission = emission;
     data.transparencyMode = hx_transparencyMode;

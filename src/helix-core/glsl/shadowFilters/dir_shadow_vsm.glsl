@@ -1,9 +1,10 @@
 vec4 hx_getShadowMapValue(float depth)
 {
+    // TODO: add dFdx, dFdy stuff
     return vec4(hx_floatToRG8(depth), hx_floatToRG8(depth * depth));
 }
 
-float hx_getShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias, vec2 screenUV)
+float hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)
 {
     vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);
     vec4 s = texture2D(shadowMap, shadowMapCoord.xy);

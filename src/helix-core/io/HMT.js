@@ -217,11 +217,6 @@ HX.HMT._initPropertyMap = function() {
         subtract: HX.BlendOperation.SUBTRACT,
         reverseSubtract: HX.BlendOperation.REVERSE_SUBTRACT,
 
-        // transparency modes
-        additive: HX.TransparencyMode.ADDITIVE,
-        alpha: HX.TransparencyMode.ALPHA,
-        opaque: HX.TransparencyMode.OPAQUE,
-
         // depth tests
         always: HX.Comparison.ALWAYS,
         disabled: HX.Comparison.DISABLED,

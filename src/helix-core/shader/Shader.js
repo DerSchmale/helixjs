@@ -28,6 +28,9 @@ HX.Shader.prototype = {
         vertexShaderCode = HX.GLSLIncludeGeneral + vertexShaderCode;
         fragmentShaderCode = HX.GLSLIncludeGeneral + fragmentShaderCode;
 
+        vertexShaderCode = this._addDefineGuards(vertexShaderCode);
+        fragmentShaderCode = this._addDefineGuards(fragmentShaderCode);
+
         this._vertexShader = HX_GL.createShader(HX_GL.VERTEX_SHADER);
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {
             this.dispose();
@@ -122,5 +125,40 @@ HX.Shader.prototype = {
     getAttributeLocation: function(name)
     {
         return HX_GL.getAttribLocation(this._program, name);
+    },
+
+    _addDefineGuards: function(code)
+    {
+        code = this._guard(code, /^uniform\s+\w+\s+hx_\w+\s*;/gm);
+        code = this._guard(code, /^attribute\s+\w+\s+hx_\w+\s*;/gm);
+
+
+        return code;
+    },
+
+    // this makes sure reserved uniforms are only used once, makes it easier to combine several snippets
+    _guard: function(code, regEx)
+    {
+        var result = code.match(regEx) || [];
+        var covered = {};
+
+        for (var i = 0; i < result.length; ++i) {
+            var occ = result[i];
+            if (covered[occ]) continue;
+            var start = occ.indexOf("hx_");
+            var end = occ.indexOf(";");
+            var name = occ.substring(start, end);
+            name = name.trim();
+            covered[occ] = true;
+            var defName = name.toUpperCase();
+            var repl =  "#ifndef " + defName + "\n" +
+                        "#define " + defName + "\n" +
+                        occ + "\n" +
+                        "#endif\n";
+            var replReg = new RegExp(occ, "g");
+            code = code.replace(replReg, repl);
+        }
+
+        return code;
     }
 };

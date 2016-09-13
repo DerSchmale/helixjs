@@ -10,14 +10,13 @@ project.onInit = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);
 };
 
 function initScene(scene)
 {
     var ambientLight = new HX.AmbientLight();
-    ambientLight.color = new HX.Color(.1, .1,.1);
+    ambientLight.intensity = .02;
     var light1 = new HX.PointLight();
     var light2 = new HX.PointLight();
     var light3 = new HX.PointLight();
@@ -51,7 +50,9 @@ function initScene(scene)
     var albedoMap = textureLoader.load("textures/diffuse.jpg");
     var normalMap = textureLoader.load("textures/normals.jpg");
     var specularMap = textureLoader.load("textures/specular.jpg");
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
+    material.lights = [ light1, light2, light3 ];
+    material.lightingModel = HX.LightingModel.GGX;
     material.colorMap = albedoMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;

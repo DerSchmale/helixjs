@@ -9,7 +9,6 @@ HX.RenderItem = function()
     this.skeleton = null;
     this.skeletonMatrices = null;
     this.material = null;
-    this.pass = null;
     this.camera = null;
     this.renderOrderHint = 0;
 

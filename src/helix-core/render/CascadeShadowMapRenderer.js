@@ -59,7 +59,7 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
 
     this._bounds.growToIncludeBound(worldBounds);
 
-    var passIndex = HX.MaterialPass.SHADOW_DEPTH_PASS;
+    var passIndex = HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
 
     var numCascades = this._numCascades;
     var numMeshes = modelInstance.numMeshInstances;
@@ -151,7 +151,12 @@ HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
 
 HX.CascadeShadowMapRenderer.prototype =
 {
-    setNumCascades: function(value)
+    get numCascades()
+    {
+        return this._numCascades;
+    },
+
+    set numCascades(value)
     {
         if (this._numCascades === value) return;
         this._numCascades = value;
@@ -161,10 +166,15 @@ HX.CascadeShadowMapRenderer.prototype =
         this._casterCollector = new HX.CascadeShadowCasterCollector(value);
     },
 
-    setShadowMapSize: function(value)
+    get shadowMapSize()
     {
-        if (this._setShadowMapSize === value) return;
-        this._setShadowMapSize = value;
+        return this._shadowMapSize;
+    },
+
+    set shadowMapSize(value)
+    {
+        if (this._shadowMapSize === value) return;
+        this._shadowMapSize = value;
         this._invalidateShadowMap();
     },
 
@@ -182,7 +192,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
         HX.pushRenderTarget(this._fboFront);
         {
-            var passType = HX.MaterialPass.SHADOW_DEPTH_PASS;
+            var passType = HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
             HX.setClearColor(HX.Color.WHITE);
             HX.clear();
 
@@ -192,9 +202,8 @@ HX.CascadeShadowMapRenderer.prototype =
                 HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
             }
 
-            if (HX.DirectionalLight.SHADOW_FILTER.blurShader) {
+            if (HX.DirectionalLight.SHADOW_FILTER.blurShader)
                 this._blur();
-            }
 
             HX.popRenderTarget();
         }
@@ -394,17 +403,6 @@ HX.CascadeShadowMapRenderer.prototype =
     getShadowMatrix: function(cascade)
     {
         return this._shadowMatrices[cascade];
-    },
-
-    dispose: function()
-    {
-        HX.Renderer.call.dispose(this);
-        if (this._depthBuffer) {
-            this._depthBuffer.dispose();
-            this._depthBuffer = null;
-        }
-        this._shadowMap.dispose();
-        this._shadowMap = null;
     },
 
     _invalidateShadowMap: function()

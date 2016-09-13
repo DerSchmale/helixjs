@@ -46,7 +46,7 @@ function initScene(scene)
 
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     material.colorMap = texture;
     material.setRoughness(0.05);
 

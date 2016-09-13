@@ -1,8 +1,3 @@
-#define HX_TRANSPARENCY_OPAQUE 0.0
-#define HX_TRANSPARENCY_ALPHA 1.0 / 255.0
-#define HX_TRANSPARENCY_ADDITIVE 2.0 / 255.0
-#define HX_EMISSION_RANGE 25.5
-
 float saturate(float value)
 {
     return clamp(value, 0.0, 1.0);
@@ -48,6 +43,15 @@ vec2 hx_floatToRG8(float value)
 float hx_RG8ToFloat(vec2 rg)
 {
     return dot(rg, vec2(1.0, 1.0/255.0));
+}
+
+// emission of 1.0 is the same as "unlit", anything above emits more
+vec2 hx_encodeNormal(vec3 normal)
+{
+    vec2 data;
+    float p = sqrt(normal.z*8.0 + 8.0);
+    data = normal.xy / p + .5;
+    return data;
 }
 
 vec3 hx_decodeNormal(vec4 data)
@@ -141,15 +145,6 @@ float hx_depthToViewZ(float depthSample, mat4 projectionMatrix)
 vec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)
 {
     return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);
-}
-
-// for use when sampling gbuffer data for lighting
-void hx_decodeReflectionData(in vec4 colorSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness, out float metallicness)
-{
-    //prevent from being 0
-    roughness = clamp(specularSample.x, .01, 1.0);
-	metallicness = specularSample.z;
-    normalSpecularReflectance = mix(vec3(specularSample.y * .2), colorSample.xyz, metallicness);
 }
 
 vec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)

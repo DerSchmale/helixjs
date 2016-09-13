@@ -25,7 +25,7 @@ float hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)
 	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;
 }
 
-void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 specularNormalReflection, float roughness, out vec3 diffuseColor, out vec3 specularColor)
+void hx_brdf(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 normalSpecularReflectance, float roughness, out vec3 diffuseColor, out vec3 specularColor)
 {
 	float nDotL = max(-dot(lightDir, normal), 0.0);
 	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI
@@ -40,7 +40,7 @@ void hx_lighting(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 ligh
 	float power = cosAngle*cosAngle;
 	power *= power;
 	power *= cosAngle;
-	vec3 fresnel = specularNormalReflection + (1.0 - specularNormalReflection)*power;
+	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;
 
 // / PI factor is encoded in light colour
 	//approximated fresnel-based energy conservation

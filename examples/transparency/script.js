@@ -41,7 +41,7 @@ function initScene(scene)
             numSegmentsW: 30
         });
 
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     material.alpha = 1.0;
     material.color = HX.Color.BLACK;
     material.transparencyMode = HX.TransparencyMode.ADDITIVE;

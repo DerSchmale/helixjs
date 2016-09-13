@@ -22,8 +22,8 @@ HX.InitOptions = function()
     this.useGammaCorrection = true;
     this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
 
-    // provide an array of light types if you wish to extend the direct lights with your own types
-    this.customLights = [];
+    this.maxPointLightsPerPass = 3;
+    this.maxDirLightsPerPass = 1;
 
     // debug-related
     this.debug = false;   // requires webgl-debug.js:
@@ -33,7 +33,6 @@ HX.InitOptions = function()
     this.ignoreTextureLODExtension = false;     // forces storing depth info explicitly
     this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
     this.throwOnShaderError = false;
-    this.lightingModel = HX.BlinnPhongSimpleLightingModel;
 
     // will be assigned to HX.DirectionalLight.SHADOW_FILTER
     this.directionalShadowFilter = new HX.HardDirectionalShadowFilter();
@@ -116,8 +115,6 @@ HX.init = function(canvas, options)
     HX._initGLProperties();
 
     HX._initLights();
-    HX.LIGHTING_MODEL = HX.OPTIONS.lightingModel;
-    HX.DirectionalLight.SHADOW_FILTER = HX.OPTIONS.directionalShadowFilter;
 
     HX.GLSLIncludeGeometryPass = "\n" + HX.DirectionalLight.SHADOW_FILTER.getGLSL() + HX.GLSLIncludeGeometryPass;
 
@@ -202,13 +199,9 @@ HX.init = function(canvas, options)
         defines += "#define HX_GAMMA_CORRECT_LIGHTS\n";
     }
 
-    // include individual geometry shaders
-    if (!HX.EXT_DRAW_BUFFERS)
-        HX.MaterialPass.NUM_PASS_TYPES += !!HX.EXT_DEPTH_TEXTURE? 2 : 3;
-
-    HX.MaterialPass.SHADOW_DEPTH_PASS = HX.MaterialPass.NUM_PASS_TYPES - 1;
-
     HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
+
+    HX._initMaterialPasses();
 
     HX.Texture2D._initDefault();
     HX.TextureCube._initDefault();
@@ -241,19 +234,23 @@ HX.stop = function()
     HX.FRAME_TICKER.stop();
 };
 
+HX._initMaterialPasses = function()
+{
+    var options = HX.OPTIONS;
+    HX.MaterialPass.BASE_PASS = 0;
+    HX.MaterialPass.DIR_LIGHT_PASS = 1;
+    // assume only one dir light with shadow per pass, since it's normally only the sun
+    HX.MaterialPass.DIR_LIGHT_SHADOW_PASS = HX.MaterialPass.DIR_LIGHT_PASS + options.maxDirLightsPerPass;
+    HX.MaterialPass.POINT_LIGHT_PASS = HX.MaterialPass.DIR_LIGHT_SHADOW_PASS + 1;
+    HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = HX.MaterialPass.POINT_LIGHT_PASS + options.maxPointLightsPerPass;
+    HX.MaterialPass.NUM_PASS_TYPES = HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS + 1;
+};
+
 HX._initLights = function()
 {
-    HX.LIGHT_TYPES = [ HX.AmbientLight, HX.DirectionalLight, HX.PointLight ].concat(HX.OPTIONS.customLights);
-
-    for (var i = 0; i < HX.LIGHT_TYPES.length; ++i) {
-        var type = HX.LIGHT_TYPES[i];
-        var closure = function() {
-            var j = i;
-            return function() { return j; }
-        };
-
-        type.prototype.getTypeID = closure();
-    }
+    HX.DirectionalLight.getTypeID = HX.DirectionalLight.prototype.getTypeID = function() { return 0; };
+    HX.PointLight.getTypeID = HX.PointLight.prototype.getTypeID = function() { return 1; };
+    HX.DirectionalLight.SHADOW_FILTER = HX.OPTIONS.directionalShadowFilter;
 };
 
 HX._init2DDitherTexture = function(width, height)

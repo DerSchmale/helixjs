@@ -13,14 +13,9 @@ window.onload = function ()
 
 function initScene(scene)
 {
-    // add ambient light so we can actually see something
-    var light = new HX.AmbientLight();
-    light.color = 0xffffff;
-    scene.attach(light);
-
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     material.colorMap = texture;
 
     var primitive = new HX.SpherePrimitive(

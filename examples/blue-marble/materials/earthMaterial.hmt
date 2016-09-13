@@ -7,7 +7,7 @@
         }
     },
     "uniforms": {
-        "specularNormalReflection": 0.027,
+        "normalSpecularReflectance": 0.027,
         "minRoughness": 0.3,
         "maxRoughness": 0.8,
         "cloudColorDay": [ 0.8, 0.78, 0.75 ],

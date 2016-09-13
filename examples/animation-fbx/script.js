@@ -68,7 +68,7 @@ function initScene(scene)
     var colorMap = textureLoader.load("textures/Sponza_Ceiling_diffuse.jpg");
     var normalMap = textureLoader.load("textures/Sponza_Ceiling_normal.png");
     var specularMap = textureLoader.load("textures/Sponza_Ceiling_roughness.jpg");
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     material.colorMap = colorMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;

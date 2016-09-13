@@ -24,10 +24,17 @@ function initScene(scene)
     light.intensity = 5.0;
     scene.attach(light);
 
+    var ambientLight = new HX.AmbientLight();
+    ambientLight.intensity = .02;
+    scene.attach(ambientLight);
+
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     material.colorMap = texture;
+    // do not collect lights dynamically
+    material.lightingModel = HX.LightingModel.GGX;
+    material.lights = [ light ];
 
     var primitive = new HX.SpherePrimitive(
         {

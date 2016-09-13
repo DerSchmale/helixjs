@@ -193,7 +193,7 @@ function initMoon(container)
     var colorMap = textureLoader.load("textures/moon/albedo.jpg");
     var normalMap = textureLoader.load("textures/moon/normals.png");
 
-    var moonMaterial = new HX.PBRMaterial();
+    var moonMaterial = new HX.BasicMaterial();
     moonMaterial.colorMap = colorMap;
     moonMaterial.normalMap = normalMap;
     moonMaterial.setRoughness(.99);

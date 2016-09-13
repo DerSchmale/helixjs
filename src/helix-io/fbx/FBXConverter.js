@@ -68,7 +68,7 @@ HX.FBXConverter.prototype =
             }
         }
         else {
-            materials.push(new HX.PBRMaterial());
+            materials.push(new HX.BasicMaterial());
         }
 
         return modelConverter.createModelInstance(materials);
@@ -94,11 +94,11 @@ HX.FBXConverter.prototype =
     {
         if (this._objects[fbxMaterial.UID]) return this._objects[fbxMaterial.UID];
 
-        var hxMaterial = new HX.PBRMaterial();
+        var hxMaterial = new HX.BasicMaterial();
         hxMaterial.name = fbxMaterial.name;
         if (fbxMaterial.DiffuseColor) hxMaterial.color = fbxMaterial.DiffuseColor;
         if (fbxMaterial.Shininess) fbxMaterial.ShininessExponent = fbxMaterial.Shininess;
-        if (fbxMaterial.ShininessExponent) hxMaterial.setRoughness(HX.PBRMaterial.roughnessFromShininess(fbxMaterial.Shininess));
+        if (fbxMaterial.ShininessExponent) hxMaterial.setRoughness(HX.BasicMaterial.roughnessFromShininess(fbxMaterial.Shininess));
 
         if (fbxMaterial.textures) {
             if (fbxMaterial.textures["NormalMap"])

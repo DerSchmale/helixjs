@@ -27,7 +27,7 @@ HX.MultiRenderer.prototype =
 {
     addView: function (view)
     {
-        view._renderer = new HX.Renderer();
+        view._renderer = new HX.ForwardRenderer();
         view._texture = new HX.Texture2D();
         view._texture.filter = HX.TextureFilter.BILINEAR_NOMIP;
         view._texture.wrapMode = HX.TextureWrapMode.CLAMP;

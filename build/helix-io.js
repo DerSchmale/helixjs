@@ -3926,7 +3926,7 @@ HX.FBXConverter.prototype =
             }
         }
         else {
-            materials.push(new HX.PBRMaterial());
+            materials.push(new HX.BasicMaterial());
         }
 
         return modelConverter.createModelInstance(materials);
@@ -3952,11 +3952,11 @@ HX.FBXConverter.prototype =
     {
         if (this._objects[fbxMaterial.UID]) return this._objects[fbxMaterial.UID];
 
-        var hxMaterial = new HX.PBRMaterial();
+        var hxMaterial = new HX.BasicMaterial();
         hxMaterial.name = fbxMaterial.name;
         if (fbxMaterial.DiffuseColor) hxMaterial.color = fbxMaterial.DiffuseColor;
         if (fbxMaterial.Shininess) fbxMaterial.ShininessExponent = fbxMaterial.Shininess;
-        if (fbxMaterial.ShininessExponent) hxMaterial.setRoughness(HX.PBRMaterial.roughnessFromShininess(fbxMaterial.Shininess));
+        if (fbxMaterial.ShininessExponent) hxMaterial.setRoughness(HX.BasicMaterial.roughnessFromShininess(fbxMaterial.Shininess));
 
         if (fbxMaterial.textures) {
             if (fbxMaterial.textures["NormalMap"])
@@ -5343,13 +5343,13 @@ HX.MTL.prototype._parseLine = function(line, target)
 
     switch (tokens[0].toLowerCase()) {
         case "newmtl":
-            this._activeMaterial = new HX.PBRMaterial();
+            this._activeMaterial = new HX.BasicMaterial();
             this._activeMaterial.name = tokens[1];
             target[tokens[1]] = this._activeMaterial;
             break;
         case "ns":
             var specularPower = parseFloat(tokens[1]);
-            this._activeMaterial.setRoughness(HX.PBRMaterial.roughnessFromShininess(specularPower));
+            this._activeMaterial.setRoughness(HX.BasicMaterial.roughnessFromShininess(specularPower));
             break;
         case "kd":
             this._activeMaterial.color = new HX.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
@@ -5423,7 +5423,7 @@ HX.OBJ = function()
     this._normals = [];
     this._uvs = [];
     this._hasNormals = false;
-    this._defaultMaterial = new HX.PBRMaterial();
+    this._defaultMaterial = new HX.BasicMaterial();
     this._target = null;
     this._mtlLibFile = null;
 };

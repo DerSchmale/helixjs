@@ -76,7 +76,7 @@ HX.Entity.prototype.removeComponent = function(component)
         var c = this._components[i];
         if (c !== component) {
             newComps[j++] = c;
-            requiresUpdates = requiresUpdates || !!components.onUpdate;
+            requiresUpdates = requiresUpdates || !!component.onUpdate;
         }
     }
 

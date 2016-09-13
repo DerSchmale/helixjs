@@ -12,12 +12,7 @@ window.onload = function ()
 
 function initScene(scene)
 {
-    // if we don't use any lights, we at least need an ambient light to show something!
-    var light = new HX.AmbientLight();
-    light.color = 0xffffff;
-    scene.attach(light);
-
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     material.color = 0xff0000;
 
     var primitive = new HX.SpherePrimitive(

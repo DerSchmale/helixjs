@@ -11,7 +11,7 @@ HX.OBJ = function()
     this._normals = [];
     this._uvs = [];
     this._hasNormals = false;
-    this._defaultMaterial = new HX.PBRMaterial();
+    this._defaultMaterial = new HX.BasicMaterial();
     this._target = null;
     this._mtlLibFile = null;
 };

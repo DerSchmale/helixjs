@@ -56,6 +56,7 @@ HX.ToneMapEffect.prototype.draw = function(dt)
         this._extractLuminancePass.blendState.color.a = amount;
 
         HX.pushRenderTarget(this._luminanceFBO);
+        HX.clear();
         this._drawPass(this._extractLuminancePass);
         this._luminanceMap.generateMipmap();
         HX.popRenderTarget();

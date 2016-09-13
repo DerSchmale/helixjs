@@ -36,7 +36,7 @@ HX.Matrix4x4.prototype =
     constructor: HX.Matrix4x4,
 
     /**
-     * Transforms a Float4 object (use for homogeneous general case of Float4)
+     * Transforms a Float4 object (use for homogeneous general case of Float4, perspective or when "type" (w) of Float4 is unknown)
      */
     transform: function (v, target)
     {

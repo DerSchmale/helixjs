@@ -5,8 +5,6 @@
 HX.GlobalSpecularProbe = function(texture)
 {
     this._texture = texture;
-
-    this._pass = this._initPass();
 };
 
 // conversion range for spec power to mip
@@ -15,7 +13,14 @@ HX.GlobalSpecularProbe.powerRange1 = .9921;
 
 HX.GlobalSpecularProbe.prototype = Object.create(HX.Light.prototype);
 
-HX.GlobalSpecularProbe.prototype.render = function(renderer)
+HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+    HX.Light.prototype._updateWorldBounds.call(this);
+};
+
+
+/*HX.GlobalSpecularProbe.prototype.render = function(renderer)
 {
     this._pass.updateRenderState(renderer);
 
@@ -27,12 +32,6 @@ HX.GlobalSpecularProbe.prototype.render = function(renderer)
 
     // render rect mesh
     HX.drawElements(HX_GL.TRIANGLES, 6, 0);
-};
-
-HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-    HX.Light.prototype._updateWorldBounds.call(this);
 };
 
 HX.GlobalSpecularProbe.prototype._initPass = function()
@@ -65,7 +64,7 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
     pass.setUniform("maxMipFactor", maxMipFactor);
 
     return pass;
-};
+};*/
 
 
 /**
@@ -75,23 +74,22 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
 HX.GlobalIrradianceProbe = function(texture)
 {
     this._texture = texture;
-    this._pass = this._initPass();
 };
 
 HX.GlobalIrradianceProbe.prototype = Object.create(HX.Light.prototype);
-
-HX.GlobalIrradianceProbe.prototype.render = function(renderer)
-{
-    this._pass.updateRenderState(renderer);
-
-    // render rect mesh
-    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
-};
 
 HX.GlobalIrradianceProbe.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
     HX.Light.prototype._updateWorldBounds.call(this);
+};
+
+/*HX.GlobalIrradianceProbe.prototype.render = function(renderer)
+{
+    this._pass.updateRenderState(renderer);
+
+    // render rect mesh
+    HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
 
 HX.GlobalIrradianceProbe.prototype._initPass = function()
@@ -108,4 +106,4 @@ HX.GlobalIrradianceProbe.prototype._initPass = function()
     pass.setTexture("irradianceProbeSampler", this._texture);
 
     return pass;
-};
+};*/

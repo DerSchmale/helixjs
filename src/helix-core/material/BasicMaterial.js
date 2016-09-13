@@ -1,10 +1,11 @@
 /**
- * PBRMaterial is a default physically plausible rendering material.
+ * BasicMaterial is the default physically plausible rendering material.
  * @constructor
  */
-HX.PBRMaterial = function()
+HX.BasicMaterial = function()
 {
     HX.Material.call(this);
+    this._lightingModel = null;
     this._passesInvalid = true;
     this._color = new HX.Color(1, 1, 1, 1);
     this._colorMap = null;
@@ -12,24 +13,25 @@ HX.PBRMaterial = function()
     this._normalMap = null;
     this._specularMap = null;
     this._maskMap = null;
-    this._specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
+    this._specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
     this._metallicness = 0.0;
     this._alpha = 1.0;
     this._minRoughness = 0.3;
     this._maxRoughness = 1.0;
-    this._specularNormalReflection = 0.027;
+    this._normalSpecularReflectance = 0.027;
     this._alphaThreshold = 1.0;
     this._useVertexColors = false;
+    this._lights = null;
 
     // trigger assignments
     this.color = this._color;
     this.alpha = this._alpha;
     this.metallicness = this._metallicness;
     this.setRoughness(this._minRoughness);
-    this.specularNormalReflection = this._specularNormalReflection;
+    this.normalSpecularReflectance = this._normalSpecularReflectance;
 };
 
-HX.PBRMaterial.roughnessFromShininess = function(specularPower)
+HX.BasicMaterial.roughnessFromShininess = function(specularPower)
 {
     return Math.sqrt(2.0/(specularPower + 2.0));
 };
@@ -37,18 +39,18 @@ HX.PBRMaterial.roughnessFromShininess = function(specularPower)
 /**
  * used for specularMapMode to specify the specular map only uses roughness data
  */
-HX.PBRMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
+HX.BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
 /**
  * used for specularMapMode to specify the specular map has rgb channels containing roughness, normal reflectance and metallicness, respectively
  */
-HX.PBRMaterial.SPECULAR_MAP_ALL = 2;
+HX.BasicMaterial.SPECULAR_MAP_ALL = 2;
 /**
  * used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
  */
-HX.PBRMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
+HX.BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 
-HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
+HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
     {
         doubleSided: {
             get: function()
@@ -77,6 +79,20 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             {
                 this._alpha = HX.saturate(value);
                 this.setUniform("alpha", this._alpha);
+            }
+        },
+
+        // only used with TransparencyMode.ALPHA
+        lights: {
+            get: function ()
+            {
+                return this._lights;
+            },
+            set: function (value)
+            {
+                this._passesInvalid = true;
+                if (!this._lightingModel) this._lightingModel = HX.LightingModel.GGX;
+                this._lights = value;
             }
         },
 
@@ -121,6 +137,20 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
                     this.setTexture("colorMap", value);
 
                 this._colorMap = value;
+            }
+        },
+
+        lightingModel: {
+            get: function ()
+            {
+                return this._lightingModel;
+            },
+            set: function (value)
+            {
+                if (this._lightingModel !== value)
+                    this._passesInvalid = true;
+
+                this._lightingModel = value;
             }
         },
 
@@ -204,15 +234,15 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
             }
         },
 
-        specularNormalReflection: {
+        normalSpecularReflectance: {
             get: function ()
             {
-                return this._specularNormalReflection;
+                return this._normalSpecularReflectance;
             },
             set: function (value)
             {
-                this._specularNormalReflection = HX.saturate(value);
-                this.setUniform("specularNormalReflection", this._specularNormalReflection);
+                this._normalSpecularReflectance = HX.saturate(value);
+                this.setUniform("normalSpecularReflectance", this._normalSpecularReflectance);
             }
         },
 
@@ -258,13 +288,13 @@ HX.PBRMaterial.prototype = Object.create(HX.Material.prototype,
     }
 );
 
-HX.PBRMaterial.prototype.setRoughness = function(min, max)
+HX.BasicMaterial.prototype.setRoughness = function(min, max)
 {
     this.minRoughness = min;
     this.maxRoughness = max || 1.0;
 };
 
-HX.PBRMaterial.prototype.getPass = function(type)
+HX.BasicMaterial.prototype.getPass = function(type)
 {
     if (this._passesInvalid)
         this._updatePasses();
@@ -272,41 +302,19 @@ HX.PBRMaterial.prototype.getPass = function(type)
     return HX.Material.prototype.getPass.call(this, type);
 };
 
-HX.PBRMaterial.prototype._clearPasses = function()
+HX.BasicMaterial.prototype._clearPasses = function()
 {
     for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
-        this.setPass(i, null);
+        this._setPass(i, null);
 };
 
-HX.PBRMaterial.prototype._updatePasses = function()
+HX.BasicMaterial.prototype._updatePasses = function()
 {
     this._clearPasses();
 
-    var colorDefines = this._generateColorDefines();
-    var normalDefines = this._generateNormalDefines();
-    var specularDefines = this._generateSpecularDefines();
-    var linearDepthDefines = "";
-    var generalDefines = this._generateGeneralDefines();
+    var defines = this._generateDefines();
 
-    if (HX.EXT_DRAW_BUFFERS) {
-        var defines = colorDefines + normalDefines + specularDefines + linearDepthDefines + generalDefines;
-        this._initPass(HX.MaterialPass.GEOMETRY_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
-    }
-    else {
-        colorDefines = "#define HX_NO_MRT_GBUFFER_COLOR\n" + colorDefines + generalDefines;
-        normalDefines = "#define HX_NO_MRT_GBUFFER_NORMALS\n" + normalDefines + generalDefines;
-        specularDefines = "#define HX_NO_MRT_GBUFFER_SPECULAR\n" + specularDefines + generalDefines;
-        linearDepthDefines = "#define HX_NO_MRT_GBUFFER_LINEAR_DEPTH\n" + linearDepthDefines + generalDefines;
-        this._initPass(HX.MaterialPass.GEOMETRY_COLOR_PASS, colorDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
-        this._initPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS, normalDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
-        this._initPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS, specularDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
-        if (!HX.EXT_DEPTH_TEXTURE)
-            this._initPass(HX.MaterialPass.GEOMETRY_LINEAR_DEPTH_PASS, linearDepthDefines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
-    }
-
-    // need to initialize shadow map pass if its index is not -1
-    var defines = "#define HX_SHADOW_DEPTH_PASS\n" + generalDefines;
-    this._initPass(HX.MaterialPass.SHADOW_DEPTH_PASS, defines, "default_geometry_mrt_vertex.glsl", "default_geometry_mrt_fragment.glsl");
+    this.init(HX.ShaderLibrary.get("default_geometry_vertex.glsl", defines), HX.ShaderLibrary.get("default_geometry_fragment.glsl", defines), this._lightingModel, this._lights);
 
     this.setUniform("color", this._color);
     this.setUniform("alpha", this._alpha);
@@ -322,51 +330,29 @@ HX.PBRMaterial.prototype._updatePasses = function()
     this._passesInvalid = false;
 };
 
-HX.PBRMaterial.prototype._generateColorDefines = function()
+HX.BasicMaterial.prototype._generateDefines = function()
 {
-    var str = "";
-    if (this._colorMap) str += "#define COLOR_MAP\n";
-    if (this._useVertexColors) str += "#define VERTEX_COLORS\n";
-    return str;
-};
+    var defines = {};
+    if (this._colorMap) defines.COLOR_MAP = 1;
+    if (this._useVertexColors) defines.VERTEX_COLORS = 1;
+    if (this._normalMap) defines.NORMAL_MAP = 1;
+    if (this._maskMap) defines.MASK_MAP = 1;
+    if (this._alphaThreshold) defines.ALPHA_THRESHOLD = 1;
+    if (this._useSkinning) defines.USE_SKINNING = 1;
 
-HX.PBRMaterial.prototype._generateNormalDefines = function()
-{
-    return !!this._normalMap? "#define NORMAL_MAP\n" : "";
-};
-
-HX.PBRMaterial.prototype._generateGeneralDefines = function()
-{
-    var defines = "";
-    if (this._maskMap) defines += "#define MASK_MAP\n";
-    if (this._alphaThreshold < 1.0) defines += "#define ALPHA_THRESHOLD\n";
-    if (this._useSkinning) defines += "#define USE_SKINNING\n";
+    switch (this._specularMapMode) {
+        case HX.BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:
+            if (this._specularMap) defines.ROUGHNESS_MAP = 1;
+            break;
+        case HX.BasicMaterial.SPECULAR_MAP_ALL:
+            if (this._specularMap) defines.SPECULAR_MAP = 1;
+        default:
+            defines.NORMAL_ROUGHNESS_MAP = 1;
+    }
     return defines;
 };
 
-HX.PBRMaterial.prototype._generateSpecularDefines = function()
-{
-    switch (this._specularMapMode) {
-        case HX.PBRMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:
-            return this._specularMap? "#define ROUGHNESS_MAP\n" : "";
-        case HX.PBRMaterial.SPECULAR_MAP_ALL:
-            return this._specularMap? "#define SPECULAR_MAP\n" : "";
-        default:
-            return "#define NORMAL_ROUGHNESS_MAP\n";
-    }
-};
-
-HX.PBRMaterial.prototype._initPass = function(type, defines, vertexShaderID, fragmentShaderID)
-{
-    var vertexShader = defines + HX.ShaderLibrary.get(vertexShaderID);
-    var fragmentShader = defines + HX.GLSLIncludeGeometryPass + HX.ShaderLibrary.get(fragmentShaderID);
-    var shader = new HX.Shader(vertexShader, fragmentShader);
-    var pass = new HX.MaterialPass(shader);
-    pass.cullMode = this._doubleSided? HX.CullMode.NONE : HX.CullMode.BACK;
-    this.setPass(type, pass);
-};
-
-HX.PBRMaterial.prototype._setUseSkinning = function(value)
+HX.BasicMaterial.prototype._setUseSkinning = function(value)
 {
     if (this._useSkinning !== value)
         this._passesInvalid = true;

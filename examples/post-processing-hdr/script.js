@@ -70,10 +70,11 @@ function initScene(scene)
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var albedoMap = textureLoader.load("textures/diffuse.jpg");
     var normalMap = textureLoader.load("textures/normals.png");
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     material.colorMap = albedoMap;
     material.normalMap = normalMap;
     material.setRoughness(.3);
+    material.lights = [ light1, light2, light3 ];
 
     var primitive = new HX.SpherePrimitive(
         {

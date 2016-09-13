@@ -4,8 +4,7 @@ HX.RenderUtils =
      * @param renderer The actual renderer doing the rendering.
      * @param passType
      * @param renderItems
-     * @param transparencyMode (optional) If provided, it will only render passes with the given transparency mode
-     * @returns The index for the first unrendered renderItem in the list (depending on transparencyMode)
+     * @returns The index for the first unrendered renderItem in the list
      * @private
      */
     renderPass: function (renderer, passType, renderItems)
@@ -18,7 +17,8 @@ HX.RenderUtils =
             var renderItem = renderItems[i];
 
             var meshInstance = renderItem.meshInstance;
-            var pass = renderItem.pass;
+            var material = renderItem.material;
+            var pass = material.getPass(passType);
             var shader = pass._shader;
 
             // make sure renderstate is propagated

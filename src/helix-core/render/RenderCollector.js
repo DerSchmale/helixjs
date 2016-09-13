@@ -8,9 +8,10 @@ HX.RenderCollector = function()
 
     this._renderItemPool = new HX.RenderItemPool();
 
-    // linked lists of RenderItem
-    this._opaquePasses = new Array( HX.MaterialPass.NUM_PASS_TYPES ); // add in individual pass types
-    this._transparentPasses = new Array( HX.MaterialPass.NUM_PASS_TYPES ); // add in individual pass types
+    this._opaquesStatic = [];
+    this._opaquesDynamic = [];
+    this._transparentsDynamic = []; // add in individual pass types
+    this._transparentsStatic = []; // add in individual pass types
     this._camera = null;
     this._cameraZAxis = new HX.Float4();
     this._frustum = null;
@@ -24,9 +25,10 @@ HX.RenderCollector = function()
 
 HX.RenderCollector.prototype = Object.create(HX.SceneVisitor.prototype);
 
-HX.RenderCollector.prototype.getOpaqueRenderList = function(passType) { return this._opaquePasses[passType]; };
-// only contains GBUFFER passes:
-HX.RenderCollector.prototype.getTransparentRenderList = function(passType) { return this._transparentPasses[passType]; };
+HX.RenderCollector.prototype.getOpaqueDynamicRenderList = function() { return this._opaquesDynamic; };
+HX.RenderCollector.prototype.getTransparentDynamicRenderList = function() { return this._transparentsDynamic; };
+HX.RenderCollector.prototype.getOpaqueStaticRenderList  = function() { return this._opaquesStatic; };
+HX.RenderCollector.prototype.getTransparentStaticRenderList = function() { return this._transparentsStatic; };
 HX.RenderCollector.prototype.getLights = function() { return this._lights; };
 HX.RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
 HX.RenderCollector.prototype.getEffects = function() { return this._effects; };
@@ -48,13 +50,10 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
 
     scene.acceptVisitor(this);
 
-    this._opaquePasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques);
-    this._transparentPasses[HX.MaterialPass.GEOMETRY_PASS].sort(this._sortOpaques); // transparents can be treated as opaques in our renderer
-
-    if (!HX.EXT_DRAW_BUFFERS) {
-        this._copyLegacyPasses(this._opaquePasses);
-        this._copyLegacyPasses(this._transparentPasses);
-    }
+    this._opaquesStatic.sort(this._sortOpaques);
+    this._opaquesDynamic.sort(this._sortOpaques);
+    this._transparentsStatic.sort(this._sortTransparents);
+    this._transparentsDynamic.sort(this._sortTransparents);
 
     this._lights.sort(this._sortLights);
 
@@ -103,33 +102,32 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
     var skeleton = modelInstance.skeleton;
     var skeletonMatrices = modelInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
-    var opaque = HX.TransparencyMode.OPAQUE;
     var camera = this._camera;
 
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
         var material = meshInstance.material;
-        var list = material._transparencyMode === opaque? this._opaquePasses : this._transparentPasses;
 
-        for (var passIndex = 0; passIndex < HX.MaterialPass.NUM_PASS_TYPES; ++passIndex) {
-            var pass = material.getPass(passIndex);
-            if (pass && pass._enabled) {
-                var renderItem = renderPool.getItem();
 
-                renderItem.material = material;
-                renderItem.pass = pass;
-                renderItem.meshInstance = meshInstance;
-                renderItem.skeleton = skeleton;
-                renderItem.skeletonMatrices = skeletonMatrices;
-                // distance along Z axis:
-                var center = worldBounds._center;
-                renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
-                renderItem.worldMatrix = worldMatrix;
-                renderItem.camera = camera;
+        var renderItem = renderPool.getItem();
 
-                list[passIndex].push(renderItem);
-            }
-        }
+        renderItem.material = material;
+        renderItem.meshInstance = meshInstance;
+        renderItem.skeleton = skeleton;
+        renderItem.skeletonMatrices = skeletonMatrices;
+        // distance along Z axis:
+        var center = worldBounds._center;
+        renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
+        renderItem.worldMatrix = worldMatrix;
+        renderItem.camera = camera;
+
+        if (material.hasPass(HX.MaterialPass.BASE_PASS))
+            this._opaquesStatic.push(renderItem);
+
+        // TODO: Support dynamic lighting
+
+        //var list = this._opaquesDynamic;
+        //list.push(renderItem);
     }
 };
 
@@ -151,12 +149,10 @@ HX.RenderCollector.prototype._reset = function()
 {
     this._renderItemPool.reset();
 
-    for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
-        this._opaquePasses[i] = [];
-
-    for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
-        this._transparentPasses[i] = [];
-
+    this._opaquesDynamic = [];
+    this._opaquesStatic = [];
+    this._transparentsDynamic = [];
+    this._transparentsStatic = [];
     this._lights = [];
     this._shadowCasters = [];
     this._effects = [];
@@ -190,48 +186,4 @@ HX.RenderCollector.prototype._sortLights = function(a, b)
     return  a._type === b._type?
             a._castShadows? 1 : -1 :
             a._type - b._type;
-};
-
-HX.RenderCollector.prototype._copyLegacyPasses = function(list)
-{
-    var colorPasses = list[HX.MaterialPass.GEOMETRY_COLOR_PASS];
-    var normalPasses = list[HX.MaterialPass.GEOMETRY_NORMAL_PASS];
-    var specularPasses = list[HX.MaterialPass.GEOMETRY_SPECULAR_PASS];
-    var len = colorPasses.length;
-    var n = 0;
-    var s = 0;
-    var camera = this._camera;
-    var renderItemPool = this._renderItemPool;
-
-    for (var i = 0; i < len; ++i) {
-        var renderItem = colorPasses[i];
-        var meshInstance = renderItem.meshInstance;
-        var worldMatrix = renderItem.worldMatrix;
-        var material = renderItem.material;
-        var renderOrderHint = renderItem.renderOrderHint;
-
-        // for unlit lighting models, these passes may be unavailable
-        if (material.hasPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS)) {
-            var normalItem = renderItemPool.getItem();
-            normalItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_NORMAL_PASS);
-            normalItem.material = material;
-            normalItem.renderOrderHint = renderOrderHint;
-            normalItem.meshInstance = meshInstance;
-            normalItem.worldMatrix = worldMatrix;
-            normalItem.camera = camera;
-            normalPasses[n++] = normalItem;
-        }
-
-        if (material.hasPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS)) {
-            var specItem = renderItemPool.getItem();
-            specItem.pass = material.getPass(HX.MaterialPass.GEOMETRY_SPECULAR_PASS);
-            specItem.material = material;
-            specItem.renderOrderHint = renderOrderHint;
-            specItem.meshInstance = meshInstance;
-            specItem.worldMatrix = worldMatrix;
-            specItem.camera = camera;
-            specularPasses[s++] = specItem;
-        }
-    }
-
 };

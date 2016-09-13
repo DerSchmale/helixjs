@@ -28,7 +28,7 @@ function initScene(scene)
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var normalMap = textureLoader.load("textures/Tarnished_Metal_01_normal.png");
     var specularMap = textureLoader.load("textures/Tarnished_Metal_01_specular.jpg");
-    var material = new HX.PBRMaterial();
+    var material = new HX.BasicMaterial();
     material.normalMap = normalMap;
     material.specularMap = specularMap;
     // inverting roughness by making min > max

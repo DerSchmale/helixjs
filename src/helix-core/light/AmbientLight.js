@@ -7,8 +7,8 @@ HX.AmbientLight = function()
     // AMBIENT LIGHT IS NOT ACTUALLY A REAL LIGHT OBJECT
     HX.Entity.call(this);
     this._scaledIrradiance = new HX.Color();
-    this._intensity = 1.0;
-    this.color = new HX.Color(.1,.1,.1);
+    this._intensity = .2;
+    this.color = new HX.Color(1, 1, 1);
     this._scaledIrradiance = new HX.Color();
     this._updateScaledIrradiance();
 };

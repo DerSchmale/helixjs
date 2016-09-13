@@ -4,7 +4,7 @@ varying vec3 varTangentZ;
 varying vec2 detailUV;
 varying vec2 largeUV;
 
-uniform float specularNormalReflection;
+uniform float normalSpecularReflectance;
 
 uniform sampler2D grassLargeSampler;
 uniform sampler2D rockLargeSampler;
@@ -138,7 +138,7 @@ void main()
     data.color = hx_gammaToLinear(vec4(color, 1.0));
     data.normal = compNormal;
     data.metallicness = 0.0;
-    data.specularNormalReflection = specularNormalReflection;
+    data.normalSpecularReflectance = normalSpecularReflectance;
     data.roughness = roughnessOut;
     data.emission = 0.0;
     data.transparencyMode = 0.0;

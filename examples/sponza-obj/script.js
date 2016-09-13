@@ -84,7 +84,7 @@ function onSponzaComplete()
 {
     var material = sponza.findMaterialByName("chain");
     material.alphaThreshold = .5;
-    material.specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ALL;
+    material.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     material.metallicness = 1.0;
     material.doubleSided = true;
 
@@ -100,31 +100,31 @@ function onSponzaComplete()
     material.metallicness = 1;
 
     material = sponza.findMaterialByName("fabric_e");
-    material.specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ALL;
+    material.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     material.metallicness = 1;
 
     material = sponza.findMaterialByName("fabric_d");
-    material.specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ALL;
+    material.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     material.metallicness = 1;
 
     material = sponza.findMaterialByName("fabric_a");
-    material.specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ALL;
+    material.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     material.metallicness = 1;
 
     material = sponza.findMaterialByName("fabric_g");
-    material.specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ALL;
+    material.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     material.metallicness = 1;
 
     material = sponza.findMaterialByName("fabric_c");
-    material.specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ALL;
+    material.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     material.metallicness = 1;
 
     material = sponza.findMaterialByName("fabric_f");
-    material.specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ALL;
+    material.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     material.metallicness = 1;
 
     material = sponza.findMaterialByName("details");
-    material.specularMapMode = HX.PBRMaterial.SPECULAR_MAP_ALL;
+    material.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     material.metallicness = 1;
 
     material = sponza.findMaterialByName("vase_hanging");

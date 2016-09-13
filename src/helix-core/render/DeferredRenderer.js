@@ -1,20 +1,4 @@
-/**
- * The debug render mode to inspect properties in the GBuffer, the lighting accumulation buffer, AO, etc.
- */
-HX.DebugRenderMode = {
-    DEBUG_NONE: 0,
-    DEBUG_COLOR: 1,
-    DEBUG_NORMALS: 2,
-    DEBUG_METALLICNESS: 3,
-    DEBUG_SPECULAR_NORMAL_REFLECTION: 4,
-    DEBUG_ROUGHNESS: 5,
-    DEBUG_DEPTH: 6,
-    DEBUG_LIGHT_ACCUM: 7,
-    DEBUG_TRANSPARENCY_MODE: 8,
-    DEBUG_EMISSION: 9,
-    DEBUG_AO: 10,
-    DEBUG_SSR: 11
-};
+// TODO: DELETE THIS
 
 
 /**
@@ -28,7 +12,7 @@ HX.DebugRenderMode = {
  *
  * @constructor
  */
-HX.Renderer = function ()
+HX.DeferredRenderer = function ()
 {
     this._width = 0;
     this._height = 0;
@@ -71,8 +55,8 @@ HX.Renderer = function ()
 
     this._createGBuffer();
 
-    this._hdrBack = new HX.Renderer.HDRBuffers(this._depthBuffer);
-    this._hdrFront = new HX.Renderer.HDRBuffers(this._depthBuffer);
+    this._hdrBack = new HX.DeferredRenderer.HDRBuffers(this._depthBuffer);
+    this._hdrFront = new HX.DeferredRenderer.HDRBuffers(this._depthBuffer);
 
     this._debugMode = HX.DebugRenderMode.DEBUG_NONE;
     this._camera = null;
@@ -80,7 +64,26 @@ HX.Renderer = function ()
     this._previousViewProjection = new HX.Matrix4x4();
 };
 
-HX.Renderer.HDRBuffers = function(depthBuffer)
+/**
+ * The debug render mode to inspect properties in the GBuffer, the lighting accumulation buffer, AO, etc.
+ */
+HX.DeferredRenderer.DebugRenderMode = {
+    DEBUG_NONE: 0,
+    DEBUG_COLOR: 1,
+    DEBUG_NORMALS: 2,
+    DEBUG_METALLICNESS: 3,
+    DEBUG_SPECULAR_NORMAL_REFLECTION: 4,
+    DEBUG_ROUGHNESS: 5,
+    DEBUG_DEPTH: 6,
+    DEBUG_LIGHT_ACCUM: 7,
+    DEBUG_TRANSPARENCY_MODE: 8,
+    DEBUG_EMISSION: 9,
+    DEBUG_AO: 10,
+    DEBUG_SSR: 11
+};
+
+
+HX.DeferredRenderer.HDRBuffers = function(depthBuffer)
 {
     this.texture = new HX.Texture2D();
     this.texture.filter = HX.TextureFilter.BILINEAR_NOMIP;
@@ -89,7 +92,7 @@ HX.Renderer.HDRBuffers = function(depthBuffer)
     this.fboDepth = new HX.FrameBuffer(this.texture, depthBuffer);
 };
 
-HX.Renderer.HDRBuffers.prototype =
+HX.DeferredRenderer.HDRBuffers.prototype =
 {
     dispose: function()
     {
@@ -106,7 +109,7 @@ HX.Renderer.HDRBuffers.prototype =
     }
 };
 
-HX.Renderer.prototype =
+HX.DeferredRenderer.prototype =
 {
     get scale()
     {

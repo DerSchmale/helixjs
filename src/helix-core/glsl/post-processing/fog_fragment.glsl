@@ -7,19 +7,15 @@ uniform float startDistance;
 uniform float hx_cameraFrustumRange;
 uniform float hx_cameraNearPlaneDistance;
 
-uniform sampler2D hx_gbufferDepth;
+uniform sampler2D hx_normalDepth;
 
 void main()
 {
-	float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);
+    vec4 normalDepth = texture2D(hx_normalDepth, uv);
+	float depth = hx_decodeLinearDepth(normalDepth);
 	// do not fog up skybox
-	// this might actually solve itself due to depth map encoding
 	if (depth > .999) depth = 0.0;
-	float distance = depth * hx_cameraFrustumRange;
-
-
-	distance -= startDistance;
-
+	float distance = max(depth * hx_cameraFrustumRange - startDistance, 0.0);
 	float fog = clamp(exp2(-distance * density), 0.0, 1.0);
-	gl_FragColor = vec4(tint, fog);
+	gl_FragColor = vec4(tint, 1.0 - fog);
 }

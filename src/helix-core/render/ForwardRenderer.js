@@ -22,9 +22,11 @@ HX.ForwardRenderer = function ()
     this._hdrBack = new HX.ForwardRenderer.HDRBuffers(this._depthBuffer);
     this._hdrFront = new HX.ForwardRenderer.HDRBuffers(this._depthBuffer);
     this._normalDepthTexture = new HX.Texture2D();
+    this._normalDepthTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
+    this._normalDepthTexture.wrapMode = HX.TextureWrapMode.CLAMP;
     this._normalDepthFBO = new HX.FrameBuffer(this._normalDepthTexture, this._depthBuffer);
     this._renderCollector = new HX.RenderCollector();
-    this._previousViewProjection = new HX.Matrix4x4();
+    //this._previousViewProjection = new HX.Matrix4x4();
     this._depthPrepass = true;
 };
 
@@ -127,18 +129,18 @@ HX.ForwardRenderer.prototype =
 
         var opaqueStaticLit = this._renderCollector.getOpaqueStaticRenderList();
 
+        this._renderNormalDepth(opaqueStaticLit);
+
         HX.pushRenderTarget(this._hdrFront.fboDepth);
             HX.clear();
             // TODO: Need to render dynamically lit opaques too
             this._renderDepthPrepass(opaqueStaticLit);
             this._renderStatics(opaqueStaticLit);
-
-            this._renderNormalDepth(opaqueStaticLit);
-
-            this._composite(renderTarget, dt);
+            this._renderEffects(dt);
         HX.popRenderTarget();
+        this._renderToScreen(renderTarget);
 
-        this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
+        //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
 
         HX.setBlendState();
         HX.setDepthMask(true);
@@ -192,21 +194,12 @@ HX.ForwardRenderer.prototype =
         HX.RenderUtils.renderPass(this, passType, renderItems);
     },
 
-    _composite: function (renderTarget, dt)
+    _renderToScreen: function (renderTarget)
     {
-        var effects = this._renderCollector._effects;
-
-        if (effects && effects.length > 0) {
-            HX.pushRenderTarget(this._hdrFront.fbo);
-            this._renderEffects(dt, effects);
-            HX.popRenderTarget();
-        }
-
         HX.pushRenderTarget(renderTarget);
         HX.clear();
 
         // TODO: render directly to screen if last post process effect?
-        // OR, provide toneMap property on camera, which gets special treatment
         if (this._gammaApplied)
             this._copyTextureToScreen.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
         else
@@ -215,8 +208,11 @@ HX.ForwardRenderer.prototype =
         HX.popRenderTarget();
     },
 
-    _renderEffects: function (dt, effects)
+    _renderEffects: function (dt)
     {
+        var effects = this._renderCollector._effects;
+        if (!effects) return;
+
         var len = effects.length;
 
         for (var i = 0; i < len; ++i) {

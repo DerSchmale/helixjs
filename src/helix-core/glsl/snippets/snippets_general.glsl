@@ -115,9 +115,14 @@ vec3 hx_linearToGamma(vec3 linear)
     return linear;
 }
 
-float hx_sampleLinearDepth(sampler2D tex, vec2 uv)
+/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)
 {
     return hx_RGBA8ToFloat(texture2D(tex, uv));
+}*/
+
+float hx_decodeLinearDepth(vec4 samp)
+{
+    return hx_RG8ToFloat(samp.zw);
 }
 
 vec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)

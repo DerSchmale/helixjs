@@ -49,7 +49,9 @@ function initCamera(camera)
     orbitController.maxRadius = 20.0;
     orbitController.lookAtTarget.y = .25;
 
-    camera.addComponents([/*bloom, tonemap, */orbitController]);
+    var fog = new HX.FogEffect(.1);
+
+    camera.addComponents([fog, /*bloom, tonemap,*/ orbitController]);
 }
 
 function initScene(scene)

@@ -15,10 +15,10 @@ HX.RenderUtils =
 
         for(var i = 0; i < len; ++i) {
             var renderItem = renderItems[i];
-
-            var meshInstance = renderItem.meshInstance;
             var material = renderItem.material;
             var pass = material.getPass(passType);
+            if (!pass) continue;
+            var meshInstance = renderItem.meshInstance;
             var shader = pass._shader;
 
             // make sure renderstate is propagated

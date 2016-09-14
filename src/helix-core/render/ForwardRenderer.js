@@ -23,6 +23,7 @@ HX.ForwardRenderer = function ()
     this._hdrFront = new HX.ForwardRenderer.HDRBuffers(this._depthBuffer);
     this._renderCollector = new HX.RenderCollector();
     this._previousViewProjection = new HX.Matrix4x4();
+    this._depthPrepass = true;
 };
 
 HX.ForwardRenderer.HDRBuffers = function(depthBuffer)
@@ -53,6 +54,16 @@ HX.ForwardRenderer.HDRBuffers.prototype =
 
 HX.ForwardRenderer.prototype =
 {
+    get depthPrepass()
+    {
+        return this._depthPrepass;
+    },
+
+    set depthPrepass(value)
+    {
+        this._depthPrepass = value;
+    },
+
     get scale()
     {
         return this._scale;
@@ -114,6 +125,8 @@ HX.ForwardRenderer.prototype =
 
         HX.pushRenderTarget(this._hdrFront.fboDepth);
             HX.clear();
+            // TODO: Need to render dynamically lit opaques too
+            this._renderDepthPrepass(this._renderCollector.getOpaqueStaticRenderList());
             this._renderStatics(this._renderCollector.getOpaqueStaticRenderList());
 
             this._composite(renderTarget, dt);
@@ -126,6 +139,14 @@ HX.ForwardRenderer.prototype =
 
         if (HX._renderTargetStack.length > renderTargetStackSize) throw new Error("Unpopped render targets!");
         if (HX._renderTargetStack.length < renderTargetStackSize) throw new Error("Overpopped render targets!");
+    },
+
+    _renderDepthPrepass: function(list)
+    {
+        if (!this._depthPrepass) return;
+        HX_GL.colorMask(false, false, false, false);
+        this._renderPass(HX.MaterialPass.NORMAL_DEPTH_PASS, list);
+        HX_GL.colorMask(true, true, true, true);
     },
 
     _renderStatics: function(list)

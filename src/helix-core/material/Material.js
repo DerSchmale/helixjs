@@ -2,7 +2,7 @@
  *
  * @constructor
  */
-HX.Material = function (geometryVertexShader, geometryFragment, lightingModel)
+HX.Material = function(geometryVertexShader, geometryFragment, lightingModel)
 {
     this._elementType = HX.ElementType.TRIANGLES;
     // TODO: should this be passed to the material as a uniform to figure out how to interlace in hx_processGeometry (= overhead for opaque), or should this be a #define and compilation issue?
@@ -49,6 +49,7 @@ HX.Material.prototype = {
         //else
         //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
 
+        this._setPass(HX.MaterialPass.NORMAL_DEPTH_PASS, new HX.NormalDepthPass(geometryVertexShader, geometryFragment));
         this._setPass(HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new HX.DirectionalShadowPass(geometryVertexShader, geometryFragment));
 
         // TODO: init dynamic light passes

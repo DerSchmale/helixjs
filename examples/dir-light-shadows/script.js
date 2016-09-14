@@ -44,8 +44,9 @@ function initCamera(camera)
     tonemap.exposure = 2.0;
 
     var orbitController = new OrbitController();
-    orbitController.radius = 2.0;
+    orbitController.radius = 5.0;
     orbitController.minRadius = .3;
+    orbitController.maxRadius = 20.0;
     orbitController.lookAtTarget.y = .25;
 
     camera.addComponents([/*bloom, tonemap, */orbitController]);
@@ -57,10 +58,10 @@ function initScene(scene)
     light.color = new HX.Color(0.0, 1.0, 1.0);
     light.direction = new HX.Float4(0.0, -0.8, -1.0, 0.0);
     light.castShadows = true;
-    light.numCascades = 3;
-    light.intensity = 1.0;
+    light.numCascades = 4;
+    light.intensity = 2.0;
     // add 1 for show (numCascades === 3, so cutoff is after 3)
-    light.setCascadeRatios(.06,.12,.18, 1);
+    light.setCascadeRatios(.12,.25,.5, 1);
     scene.attach(light);
 
     var light2 = new HX.DirectionalLight();
@@ -68,8 +69,8 @@ function initScene(scene)
     light2.direction = new HX.Float4(0.5, -0.8, 1.0, 0.0);
     light2.castShadows = true;
     light2.numCascades = 1;
-    light2.intensity = 1.0;
-    light2.setCascadeRatios(.18);
+    light2.intensity = 2.0;
+    light2.setCascadeRatios(1.0);
     scene.attach(light2);
 
     // textures from http://kay-vriend.blogspot.be/2014/04/tarnished-metal-first-steps-in-pbr-and.html
@@ -88,7 +89,7 @@ function initScene(scene)
 
     var primitive = new HX.SpherePrimitive(
         {
-            radius:.125,
+            radius:.5,
             numSegmentsH: 20,
             numSegmentsW: 30,
             scaleU: 3,
@@ -96,12 +97,12 @@ function initScene(scene)
         });
 
 
-    for (var x = -4; x <= 4; ++x) {
-        for (var z = -4; z <= 4; ++z) {
+    for (var x = -8; x <= 8; ++x) {
+        for (var z = -8; z <= 8; ++z) {
             var modelInstance = new HX.ModelInstance(primitive, opaqueMaterial);
-            modelInstance.position.x = x * .25 * 1.3;
-            modelInstance.position.z = z * .25 * 1.3;
-            modelInstance.position.y = (Math.sin(x *.5 + 1) + Math.cos(z *.5 +.5)) * .125 + .1;
+            modelInstance.position.x = x * 2.0;
+            modelInstance.position.z = z * 2.0;
+            modelInstance.position.y = (Math.sin(x *.5 + 1) + Math.cos(z *.5 +.5)) * .5 + .75;
             scene.attach(modelInstance);
         }
     }
@@ -120,8 +121,8 @@ function initScene(scene)
 
     primitive = new HX.PlanePrimitive(
         {
-            numSegmentsW: 50,
-            numSegmentsH: 50,
+            numSegmentsW: 20,
+            numSegmentsH: 15,
             width: 50,
             height: 50,
             scaleU: 50,

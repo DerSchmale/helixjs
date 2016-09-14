@@ -238,7 +238,8 @@ HX._initMaterialPasses = function()
 {
     var options = HX.OPTIONS;
     HX.MaterialPass.BASE_PASS = 0;
-    HX.MaterialPass.DIR_LIGHT_PASS = 1;
+    HX.MaterialPass.NORMAL_DEPTH_PASS = 1;
+    HX.MaterialPass.DIR_LIGHT_PASS = 2;
     // assume only one dir light with shadow per pass, since it's normally only the sun
     HX.MaterialPass.DIR_LIGHT_SHADOW_PASS = HX.MaterialPass.DIR_LIGHT_PASS + options.maxDirLightsPerPass;
     HX.MaterialPass.POINT_LIGHT_PASS = HX.MaterialPass.DIR_LIGHT_SHADOW_PASS + 1;

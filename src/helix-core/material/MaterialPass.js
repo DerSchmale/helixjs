@@ -24,7 +24,8 @@ HX.MaterialPass = function (shader)
 // these will be set upon initialization
 // if a shader supports multiple lights per pass, they will take up 3 type slots (fe: 3 point lights: POINT_LIGHT_PASS, POINT_LIGHT_PASS + 1, POINT_LIGHT_PASS + 2)
 HX.MaterialPass.BASE_PASS = 0;  // used for unlit or for predefined lights
-HX.MaterialPass.DIR_LIGHT_PASS = 1;
+HX.MaterialPass.NORMAL_DEPTH_PASS = 1;  // used for unlit or for predefined lights
+HX.MaterialPass.DIR_LIGHT_PASS = 2;
 HX.MaterialPass.DIR_LIGHT_SHADOW_PASS = -1;
 HX.MaterialPass.POINT_LIGHT_PASS = -1;
 HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = -1;

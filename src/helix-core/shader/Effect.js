@@ -7,7 +7,6 @@ HX.EffectPass = function(vertexShader, fragmentShader)
     var shader = new HX.Shader(vertexShader, fragmentShader);
     HX.MaterialPass.call(this, shader);
     this._uniformSetters = HX.UniformSetter.getSetters(this._shader);
-    this._gbuffer = null;
     this._vertexLayout = null;
     this._cullMode = HX.CullMode.NONE;
     this._depthTest = HX.Comparison.DISABLED;
@@ -58,9 +57,17 @@ HX.Effect = function()
     this._isSupported = true;
     this._mesh = null;
     this._outputsGamma = false;
+    this._needsNormalDepth = false;
 };
 
-HX.Effect.prototype = Object.create(HX.Component.prototype);
+HX.Effect.prototype = Object.create(HX.Component.prototype,
+    {
+        needsNormalDepth: {
+            get: function() { return this._needsNormalDepth; },
+            set: function(value) { this._needsNormalDepth = value; }
+        }
+    }
+);
 
 HX.Effect.prototype.isSupported = function()
 {

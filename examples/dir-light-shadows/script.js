@@ -90,8 +90,8 @@ function initScene(scene)
     var primitive = new HX.SpherePrimitive(
         {
             radius:.5,
-            numSegmentsH: 20,
-            numSegmentsW: 30,
+            numSegmentsH: 10,
+            numSegmentsW: 15,
             scaleU: 3,
             scaleV: 3
         });
@@ -121,8 +121,8 @@ function initScene(scene)
 
     primitive = new HX.PlanePrimitive(
         {
-            numSegmentsW: 20,
-            numSegmentsH: 15,
+            numSegmentsW: 5,
+            numSegmentsH: 5,
             width: 50,
             height: 50,
             scaleU: 50,

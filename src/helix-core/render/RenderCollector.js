@@ -21,6 +21,7 @@ HX.RenderCollector = function()
     this._effects = null;
     this._globalSpecularProbe = null;
     this._globalIrradianceProbe = null;
+    this._needsNormalDepth = false;
 };
 
 HX.RenderCollector.prototype = Object.create(HX.SceneVisitor.prototype);
@@ -38,6 +39,10 @@ HX.RenderCollector.prototype.getGlobalIrradianceProbe = function() { return this
 Object.defineProperties(HX.RenderCollector.prototype, {
     ambientColor: {
         get: function() { return this._ambientColor; }
+    },
+
+    needsNormalDepth: {
+        get: function() { return this._needsNormalDepth; }
     }
 });
 
@@ -63,7 +68,9 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
         var len = effects.length;
 
         for (var i = 0; i < len; ++i) {
-            this._effects.push(effects[i]);
+            var effect = effects[i];
+            this._needsNormalDepth = this._needsNormalDepth || effect._needsNormalDepth;
+            this._effects.push(effect);
         }
     }
 };
@@ -158,6 +165,7 @@ HX.RenderCollector.prototype._reset = function()
     this._effects = [];
     this._globalIrradianceProbe = null;
     this._globalSpecularProbe = null;
+    this._needsNormalDepth = false;
     this._ambientColor.set(0, 0, 0, 1);
 };
 

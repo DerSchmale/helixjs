@@ -13,7 +13,6 @@ HX.MaterialPass = function (shader)
     this._depthTest = HX.Comparison.LESS_EQUAL;
     this._writeDepth = true;
     this._blendState = null;
-    this._gbuffer = null;
     this._storeUniforms();
     this._textureSetters = HX.TextureSetter.getSetters(this);
 

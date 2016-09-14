@@ -21,6 +21,8 @@ HX.ForwardRenderer = function ()
     this._depthBuffer = this._createDepthBuffer();
     this._hdrBack = new HX.ForwardRenderer.HDRBuffers(this._depthBuffer);
     this._hdrFront = new HX.ForwardRenderer.HDRBuffers(this._depthBuffer);
+    this._normalDepthTexture = new HX.Texture2D();
+    this._normalDepthFBO = new HX.FrameBuffer(this._normalDepthTexture, this._depthBuffer);
     this._renderCollector = new HX.RenderCollector();
     this._previousViewProjection = new HX.Matrix4x4();
     this._depthPrepass = true;
@@ -123,14 +125,18 @@ HX.ForwardRenderer.prototype =
 
         this._renderShadowCasters();
 
+        var opaqueStaticLit = this._renderCollector.getOpaqueStaticRenderList();
+
         HX.pushRenderTarget(this._hdrFront.fboDepth);
             HX.clear();
             // TODO: Need to render dynamically lit opaques too
-            this._renderDepthPrepass(this._renderCollector.getOpaqueStaticRenderList());
-            this._renderStatics(this._renderCollector.getOpaqueStaticRenderList());
+            this._renderDepthPrepass(opaqueStaticLit);
+            this._renderStatics(opaqueStaticLit);
+
+            this._renderNormalDepth(opaqueStaticLit);
 
             this._composite(renderTarget, dt);
-        HX.popRenderTarget(this._hdrFront.fboDepth);
+        HX.popRenderTarget();
 
         this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
 
@@ -152,6 +158,18 @@ HX.ForwardRenderer.prototype =
     _renderStatics: function(list)
     {
         this._renderPass(HX.MaterialPass.BASE_PASS, list);
+    },
+
+    _renderNormalDepth: function(list)
+    {
+        if (!this._renderCollector.needsNormalDepth) return;
+        HX.pushRenderTarget(this._normalDepthFBO);
+        // furthest depth and alpha must be 1, the rest 0
+        HX.setClearColor(HX.Color.BLUE);
+        HX.clear();
+        this._renderPass(HX.MaterialPass.NORMAL_DEPTH_PASS, list);
+        HX.setClearColor(HX.Color.BLACK);
+        HX.popRenderTarget(this._normalDepthFBO);
     },
 
     _renderShadowCasters: function ()
@@ -226,6 +244,8 @@ HX.ForwardRenderer.prototype =
             this._depthBuffer.init(this._width, this._height, true);
             this._hdrBack.resize(this._width, this._height);
             this._hdrFront.resize(this._width, this._height);
+            this._normalDepthTexture.initEmpty(width, height);
+            this._normalDepthFBO.init();
         }
     },
 

@@ -15,7 +15,7 @@ var settings = {
 
 project.onInit = function()
 {
-    if (HX.OPTIONS.useHDR)
+    if (HX.OPTIONS.hdr)
         initHDRSettings();
     else
         initLDRSettings();
@@ -38,7 +38,7 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.useHDR = true;
+    options.hdr = true;
     options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);
 };

@@ -16,26 +16,4 @@ HX.Skybox = function(materialOrTexture)
     this._globalIrradianceProbe = null;
 };
 
-// TODO: Not sure if we want to always be stuck to a skybox for global probes?
-HX.Skybox.prototype =
-{
-    getGlobalSpecularProbe: function()
-    {
-        return this._globalSpecularProbe;
-    },
-
-    setGlobalSpecularProbe: function(value)
-    {
-        this._globalSpecularProbe = value;
-    },
-
-    getGlobalIrradianceProbe: function()
-    {
-        return this._globalIrradianceProbe;
-    },
-
-    setGlobalIrradianceProbe: function(value)
-    {
-        this._globalIrradianceProbe = value;
-    }
-};
+HX.Skybox.prototype = {};

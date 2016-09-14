@@ -37,7 +37,7 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.useHDR = true;
+    options.hdr = true;
     //options.lightingModel = HX.GGXLightingModel;
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
 

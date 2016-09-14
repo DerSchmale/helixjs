@@ -18,7 +18,7 @@ project.onUpdate = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.useHDR = true;
+    options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 

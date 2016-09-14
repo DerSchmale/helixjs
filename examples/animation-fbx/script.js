@@ -15,7 +15,7 @@ window.onload = function ()
     shadowFilter.numShadowSamples = 8;
 
     var options = new HX.InitOptions();
-    options.useHDR = true;
+    options.hdr = true;
     options.directionalShadowFilter = shadowFilter;
     project.init(document.getElementById('webglContainer'), options);
 };

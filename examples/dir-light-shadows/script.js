@@ -17,7 +17,7 @@ window.onload = function ()
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
     //options.directionalShadowFilter.dither = true;
     options.directionalShadowFilter.blurRadius = 1;
-    options.useHDR = true;
+    options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -38,8 +38,8 @@ function initCamera(camera)
     camera.nearDistance = .01;
     camera.farDistance = 50.0;
 
-    var bloom = new HX.BloomEffect(200, 1, 1);
-    bloom.thresholdLuminance = .5;
+    var bloom = new HX.BloomEffect(400, 1);
+    bloom.thresholdLuminance = .25;
     var tonemap = new HX.FilmicToneMapEffect(true);
     tonemap.exposure = 2.0;
 
@@ -49,9 +49,7 @@ function initCamera(camera)
     orbitController.maxRadius = 20.0;
     orbitController.lookAtTarget.y = .25;
 
-    var fog = new HX.FogEffect(.1);
-
-    camera.addComponents([fog, /*bloom, tonemap,*/ orbitController]);
+    camera.addComponents([bloom, tonemap, orbitController]);
 }
 
 function initScene(scene)
@@ -141,7 +139,7 @@ function initScene(scene)
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxSpecularTexture);
-    skybox.setGlobalSpecularProbe(new HX.GlobalSpecularProbe(skyboxSpecularTexture));
-    skybox.setGlobalIrradianceProbe(new HX.GlobalIrradianceProbe(skyboxIrradianceTexture));
+    var lightProbe = new HX.LightProbe(skyboxSpecularTexture, skyboxIrradianceTexture);
     scene.skybox = skybox;
+    scene.add(lightProbe);
 }

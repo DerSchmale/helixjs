@@ -21,11 +21,9 @@ HX.ForwardRenderer = function ()
     this._depthBuffer = this._createDepthBuffer();
     this._hdrBack = new HX.ForwardRenderer.HDRBuffers(this._depthBuffer);
     this._hdrFront = new HX.ForwardRenderer.HDRBuffers(this._depthBuffer);
-    this._normalDepthTexture = new HX.Texture2D();
-    this._normalDepthTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
-    this._normalDepthTexture.wrapMode = HX.TextureWrapMode.CLAMP;
-    this._normalDepthFBO = new HX.FrameBuffer(this._normalDepthTexture, this._depthBuffer);
     this._renderCollector = new HX.RenderCollector();
+    this._normalDepthTexture = null;
+    this._normalDepthFBO = null;
     //this._previousViewProjection = new HX.Matrix4x4();
     this._depthPrepass = true;
 };
@@ -165,6 +163,7 @@ HX.ForwardRenderer.prototype =
     _renderNormalDepth: function(list)
     {
         if (!this._renderCollector.needsNormalDepth) return;
+        if (!this._normalDepthTexture) this._initNormalDepth();
         HX.pushRenderTarget(this._normalDepthFBO);
         // furthest depth and alpha must be 1, the rest 0
         HX.setClearColor(HX.Color.BLUE);
@@ -240,8 +239,10 @@ HX.ForwardRenderer.prototype =
             this._depthBuffer.init(this._width, this._height, true);
             this._hdrBack.resize(this._width, this._height);
             this._hdrFront.resize(this._width, this._height);
-            this._normalDepthTexture.initEmpty(width, height);
-            this._normalDepthFBO.init();
+            if (this._normalDepthTexture) {
+                this._normalDepthTexture.initEmpty(width, height);
+                this._normalDepthFBO.init();
+            }
         }
     },
 
@@ -265,5 +266,16 @@ HX.ForwardRenderer.prototype =
         }
         else {*/
             return new HX.WriteOnlyDepthBuffer();
+    },
+
+    _initNormalDepth: function()
+    {
+        this._normalDepthTexture = new HX.Texture2D();
+        this._normalDepthTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
+        this._normalDepthTexture.wrapMode = HX.TextureWrapMode.CLAMP;
+        this._normalDepthTexture.initEmpty(this._width, this._height);
+
+        this._normalDepthFBO = new HX.FrameBuffer(this._normalDepthTexture, this._depthBuffer);
+        this._normalDepthFBO.init();
     }
 };

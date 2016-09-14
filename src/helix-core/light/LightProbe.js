@@ -1,19 +1,31 @@
 /**
  * Can be used directly, or have SkyBox manage this for you (generally the best approach). Acts as an infinite environment map.
- * @constructor
  */
-HX.GlobalSpecularProbe = function(texture)
+HX.LightProbe = function(diffuseTexture, specularTexture)
 {
-    this._texture = texture;
+    HX.Entity.call(this);
+    this._specularTexture = specularTexture;
+    this._diffuseTexture = diffuseTexture;
+    this._size = 100;
 };
 
 // conversion range for spec power to mip
-HX.GlobalSpecularProbe.powerRange0 = .00098;
-HX.GlobalSpecularProbe.powerRange1 = .9921;
+HX.LightProbe.powerRange0 = .00098;
+HX.LightProbe.powerRange1 = .9921;
 
-HX.GlobalSpecularProbe.prototype = Object.create(HX.Light.prototype);
+HX.LightProbe.prototype = Object.create(HX.Entity.prototype,
+    {
+        specularTexture: {
+            get: function() { return this._diffuseTexture; },
+            set: function(value) { this._diffuseTexture = value; },
+        },
+        diffuseTexture: {
+            get: function() { return this._diffuseTexture; },
+            set: function(value) { this._diffuseTexture = value; },
+        }
+    });
 
-HX.GlobalSpecularProbe.prototype._updateWorldBounds = function()
+HX.LightProbe.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
     HX.Light.prototype._updateWorldBounds.call(this);
@@ -66,23 +78,6 @@ HX.GlobalSpecularProbe.prototype._initPass = function()
     return pass;
 };*/
 
-
-/**
- * Can be used directly, or have SkyBox manage this for you (generally the best approach). Acts as an infinite environment map.
- * @constructor
- */
-HX.GlobalIrradianceProbe = function(texture)
-{
-    this._texture = texture;
-};
-
-HX.GlobalIrradianceProbe.prototype = Object.create(HX.Light.prototype);
-
-HX.GlobalIrradianceProbe.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-    HX.Light.prototype._updateWorldBounds.call(this);
-};
 
 /*HX.GlobalIrradianceProbe.prototype.render = function(renderer)
 {

@@ -10,7 +10,7 @@ window.onload = function ()
 {
     // INIT WITH OPTIONS TO USE HDR
     var options = new HX.InitOptions();
-    options.useHDR = true;
+    options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 

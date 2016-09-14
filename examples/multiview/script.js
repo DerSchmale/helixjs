@@ -31,7 +31,7 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.lightingModel = HX.GGXLightingModel;
-    options.useHDR = true;
+    options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 

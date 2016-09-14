@@ -7,7 +7,7 @@
 HX.Light = function ()
 {
     HX.Entity.call(this);
-    this._type = this.getTypeID();
+    //this._type = this.getTypeID();
     this._intensity = 3.1415;
     this._color = new HX.Color(1.0, 1.0, 1.0);
     this._scaledIrradiance = new HX.Color();
@@ -16,11 +16,6 @@ HX.Light = function ()
 };
 
 HX.Light.prototype = Object.create(HX.Entity.prototype);
-
-HX.Light.prototype.getTypeID = function()
-{
-    throw new Error("Light is not registered! Be sure to pass the light type into the customLights array upon Helix initialization.");
-};
 
 HX.Light.prototype.acceptVisitor = function (visitor)
 {

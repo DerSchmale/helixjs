@@ -18,7 +18,7 @@ HX.InitOptions = function()
     this.maxBones = 64;
 
     // rendering pipeline options
-    this.useHDR = false;   // only if available
+    this.hdr = false;   // only if available
     this.useGammaCorrection = true;
     this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
 
@@ -186,15 +186,15 @@ HX.init = function(canvas, options)
     HX.DEFAULT_TEXTURE_MAX_ANISOTROPY = HX.EXT_TEXTURE_FILTER_ANISOTROPIC? HX_GL.getParameter(HX.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
 
     if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR || !HX.EXT_HALF_FLOAT_TEXTURES)
-        HX.OPTIONS.useHDR = false;
+        HX.OPTIONS.hdr = false;
 
-    HX.HDR_FORMAT = HX.OPTIONS.useHDR? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.UNSIGNED_BYTE;
+    HX.HDR_FORMAT = HX.OPTIONS.hdr? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.UNSIGNED_BYTE;
 
     HX.GAMMA_CORRECTION_IN_LIGHTS = false;
 
     // this causes lighting accumulation to happen in gamma space (only accumulation of lights within the same pass is linear)
     // This yields an incorrect gamma correction to be applied, but looks much better due to encoding limitation (otherwise there would be banding)
-    if (HX.OPTIONS.useGammaCorrection && !HX.OPTIONS.useHDR) {
+    if (HX.OPTIONS.useGammaCorrection && !HX.OPTIONS.hdr) {
         HX.GAMMA_CORRECT_LIGHTS = true;
         defines += "#define HX_GAMMA_CORRECT_LIGHTS\n";
     }
@@ -249,8 +249,6 @@ HX._initMaterialPasses = function()
 
 HX._initLights = function()
 {
-    HX.DirectionalLight.getTypeID = HX.DirectionalLight.prototype.getTypeID = function() { return 0; };
-    HX.PointLight.getTypeID = HX.PointLight.prototype.getTypeID = function() { return 1; };
     HX.DirectionalLight.SHADOW_FILTER = HX.OPTIONS.directionalShadowFilter;
 };
 

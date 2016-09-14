@@ -11,7 +11,7 @@ project.onInit = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.useHDR = true;
+    options.hdr = true;
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
     options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);

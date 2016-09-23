@@ -114,12 +114,13 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
 
             set: function (value)
             {
-                if (!!this._colorMap !== !!value)
+                if (!!this._colorMap !== !!value) {
                     this._invalidate();
-
-                this.setTexture("colorMap", value);
+                }
 
                 this._colorMap = value;
+
+                this.setTexture("colorMap", value);
             }
         },
 

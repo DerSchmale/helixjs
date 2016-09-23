@@ -82,7 +82,7 @@ HX.Material.prototype =
     set lights(value)
     {
         this._lights = value;
-        if (!this._lightingModel) this._lightingModel = HX.LightingModel.GGX;
+        if (!this._lightingModel && value) this._lightingModel = HX.LightingModel.GGX;
         this._invalidate();
     },
 
@@ -158,6 +158,7 @@ HX.Material.prototype =
 
     hasPass: function (type)
     {
+        if (!this._initialized) this.init();
         return !!this._passes[type];
     },
 
@@ -223,6 +224,7 @@ HX.Material.prototype =
     {
         this._initialized = false;
         this._passes = new Array(HX.Material.NUM_PASS_TYPES);
+        this.onChange.dispatch();
     },
 
     _setSSAOTexture: function(texture)

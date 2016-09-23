@@ -98,3 +98,11 @@ HX.GroupNode.prototype._setScene = function(scene)
     for (var i = 0; i < len; ++i)
         this._children[i]._setScene(scene);
 };
+
+HX.GroupNode.prototype.applyFunction = function(func)
+{
+    func(this);
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i].applyFunction(func);
+};

@@ -184,3 +184,8 @@ HX.SceneNode.prototype.toString = function()
 {
     return "[SceneNode(name=" + this._name + ")]";
 };
+
+HX.SceneNode.prototype.applyFunction = function(func)
+{
+    func(this);
+};

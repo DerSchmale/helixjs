@@ -180,7 +180,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             },
             set: function (value)
             {
-                if (this._specularMapMode != value)
+                if (this._specularMapMode !== value)
                     this._invalidate();
 
                 this._specularMapMode = value;

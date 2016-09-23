@@ -21,12 +21,13 @@ HX.ToneMapEffect = function(adaptive)
         this._luminanceFBO = new HX.FrameBuffer(this._luminanceMap);
         this._luminanceFBO.init();
 
-        this._adaptationRate = 2000.0;
+        this._adaptationRate = 500.0;
 
         this._toneMapPass.setTexture("hx_luminanceMap", this._luminanceMap);
         this._toneMapPass.setUniform("hx_luminanceMipLevel", HX.log2(this._luminanceMap._width));
     }
 
+    this.key = .25;
     this.exposure = 0.0;
 };
 
@@ -56,7 +57,6 @@ HX.ToneMapEffect.prototype.draw = function(dt)
         this._extractLuminancePass.blendState.color.a = amount;
 
         HX.pushRenderTarget(this._luminanceFBO);
-        HX.clear();
         this._drawPass(this._extractLuminancePass);
         this._luminanceMap.generateMipmap();
         HX.popRenderTarget();
@@ -78,6 +78,22 @@ Object.defineProperties(HX.ToneMapEffect.prototype, {
             this._exposure = value;
             if (this._isSupported)
                 this._toneMapPass.setUniform("hx_exposure", Math.pow(2.0, value));
+        }
+    },
+
+    /**
+     * The intended average luminosity in the scene
+     */
+    key: {
+        get: function()
+        {
+            return this._key;
+        },
+        set: function(value)
+        {
+            this._key = value;
+            if (this._isSupported)
+                this._toneMapPass.setUniform("hx_key", value);
         }
     },
 
@@ -115,7 +131,7 @@ HX.ReinhardToneMapEffect.prototype._createToneMapPass = function()
     var extensions = [];
 
     if (this._adaptive) {
-        defines.ADAPTIVE = 1;
+        defines.HX_ADAPTIVE = 1;
         extensions.push("GL_EXT_shader_texture_lod");
     }
 
@@ -144,7 +160,7 @@ HX.FilmicToneMapEffect.prototype._createToneMapPass = function()
     var extensions = [];
 
     if (this._adaptive) {
-        defines.ADAPTIVE = 1;
+        defines.HX_ADAPTIVE = 1;
         extensions.push("GL_EXT_shader_texture_lod");
     }
 

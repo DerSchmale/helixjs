@@ -67,7 +67,6 @@ HX.MeshInstance.prototype = {
 
         this._material = value;
 
-        // TODO: May want to set a default "purple" material when nothing is provided?
         if (this._material) {
             this._material.onChange.bind(this._onMaterialChange, this);
 

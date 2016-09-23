@@ -1,3 +1,5 @@
+#define HX_LOG_10 2.302585093
+
 float saturate(float value)
 {
     return clamp(value, 0.0, 1.0);
@@ -65,6 +67,11 @@ vec3 hx_decodeNormal(vec4 data)
 //    normal.xy = data.xy * 2.0 - 1.0;
 //    normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));
     return normal;
+}
+
+float hx_log10(float val)
+{
+    return log(val) / HX_LOG_10;
 }
 
 vec4 hx_gammaToLinear(vec4 color)

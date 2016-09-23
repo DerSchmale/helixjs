@@ -1,5 +1,6 @@
 var project = new DemoProject();
 var sponza;
+var lights;
 
 project.onInit = function()
 {
@@ -13,7 +14,6 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.hdr = true;
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
-    options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -41,13 +41,14 @@ function initCamera(camera)
     floatController.speed = 10.0;
     camera.addComponent(floatController);
 
-    //var bloom = new HX.BloomEffect(500, .5, 8);
-    //bloom.thresholdLuminance = 1.0;
-    //camera.addComponent(bloom);
+    var bloom = new HX.BloomEffect(500, .5, 8);
+    bloom.thresholdLuminance = .5;
+    camera.addComponent(bloom);
 
     var tonemap = new HX.FilmicToneMapEffect(true);
-    tonemap.exposure = 2;
+    tonemap.exposure = 1;
     camera.addComponent(tonemap);
+
     camera.addComponent(new HX.FXAA());
 }
 
@@ -57,17 +58,10 @@ function initScene(scene)
     dirLight.color = new HX.Color(1.0, .9, .7);
     dirLight.direction = new HX.Float4(3.0, -5.0, 1.0);
     dirLight.intensity = 20.0;
-    dirLight.numCascades = 4;
+    dirLight.numCascades = 3;
     dirLight.castShadows = true;
 
     scene.attach(dirLight);
-
-    var loader = new HX.AssetLoader(HX.OBJ);
-    loader.onComplete.bind(onSponzaComplete);
-
-    sponza = loader.load('resources/crytek-sponza/sponza.obj');
-    sponza.scale.set(1.0/40.0, 1.0/40.0, 1.0/40.0);
-    scene.attach(sponza);
 
     var cubeLoader = new HX.AssetLoader(HX.HCM);
     var skyboxSpecularTexture = cubeLoader.load("resources/skybox/skybox_specular.hcm");
@@ -75,13 +69,35 @@ function initScene(scene)
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxSpecularTexture);
-    skybox.setGlobalSpecularProbe(new HX.GlobalSpecularProbe(skyboxSpecularTexture));
-    skybox.setGlobalIrradianceProbe(new HX.GlobalIrradianceProbe(skyboxIrradianceTexture));
     scene.skybox = skybox;
+
+    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture);
+    scene.attach(lightProbe);
+
+    lights = [ lightProbe, dirLight ];
+
+    var loader = new HX.AssetLoader(HX.OBJ);
+    loader.onComplete.bind(onSponzaComplete);
+    sponza = loader.load('resources/crytek-sponza/sponza.obj');
+    sponza.scale.set(1.0/40.0, 1.0/40.0, 1.0/40.0);
+    scene.attach(sponza);
 }
 
 function onSponzaComplete()
 {
+    sponza.applyFunction(function(obj)
+    {
+        if (obj instanceof HX.ModelInstance) {
+            for (var i = 0; i < obj.numMeshInstances; ++i) {
+                var mesh = obj.getMeshInstance(i);
+                if (mesh.material) {
+                    mesh.material.lights = lights;
+                    mesh.material.ssao = true;
+                }
+            }
+        }
+    });
+
     var material = sponza.findMaterialByName("chain");
     material.alphaThreshold = .5;
     material.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;

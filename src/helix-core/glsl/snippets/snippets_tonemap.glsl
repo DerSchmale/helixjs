@@ -1,22 +1,22 @@
 varying vec2 uv;
 
-#ifdef ADAPTIVE
+#ifdef HX_ADAPTIVE
 uniform sampler2D hx_luminanceMap;
 uniform float hx_luminanceMipLevel;
 #endif
 
 uniform float hx_exposure;
+uniform float hx_key;
 
 uniform sampler2D hx_backbuffer;
 
 
 vec4 hx_getToneMapScaledColor()
 {
-    #ifdef ADAPTIVE
+    #ifdef HX_ADAPTIVE
     float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x) - 1.0;
     referenceLuminance = clamp(referenceLuminance, .08, 1000.0);
-	float key = 1.03 - (2.0 / (2.0 + log(referenceLuminance + 1.0)/log(10.0)));
-	float exposure = key / referenceLuminance * hx_exposure;
+	float exposure = hx_key / referenceLuminance * hx_exposure;
 	#else
 	float exposure = hx_exposure;
 	#endif

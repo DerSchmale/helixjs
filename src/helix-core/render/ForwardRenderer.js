@@ -8,11 +8,6 @@ HX.ForwardRenderer = function ()
     this._copyTextureToScreen = new HX.CopyChannelsShader("xyzw", true);
     this._applyGamma = new HX.ApplyGammaShader();
 
-    if (HX.EXT_DEPTH_TEXTURE) {
-        this._linearizeDepthShader = new HX.LinearizeDepthShader();
-        this._linearDepthFBO = null;
-    }
-
     // devices with high resolution (retina etc)
     this._scale = 1.0; // > 1.0? .5 : 1.0;
 
@@ -94,7 +89,7 @@ HX.ForwardRenderer.prototype =
         if (!this._aoEffect) this._ssaoTexture = this._createDummySSAOTexture();
     },
 
-    get localReflections()
+    /*get localReflections()
     {
         return this._ssrEffect;
     },
@@ -103,7 +98,7 @@ HX.ForwardRenderer.prototype =
     {
         this._ssrEffect = value;
         this._ssrTexture = this._ssrEffect? this._ssrEffect.getSSRTexture() : null;
-    },
+    },*/
 
     /**
      * It's not recommended changing render targets if they have different sizes (so splitscreen should be fine). Otherwise, use different renderer instances.

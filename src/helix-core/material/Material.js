@@ -20,7 +20,7 @@ HX.Material = function(geometryVertexShader, geometryFragmentShader, lightingMod
     this._ssao = false;
     this._geometryVertexShader = geometryVertexShader;
     this._geometryFragmentShader = geometryFragmentShader;
-    this._lightingModel = lightingModel || HX.LightingModel.UnlitLightingModel;
+    this._lightingModel = lightingModel || HX.OPTIONS.defaultLightingModel;
 
     this._initialized = false;
 };

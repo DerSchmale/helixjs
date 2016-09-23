@@ -18,16 +18,17 @@ project.onUpdate = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
+    options.defaultLightingModel = HX.LightingModel.GGX;
     options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 
 function initRenderer(renderer)
 {
-    var ssr = new HX.ScreenSpaceReflections(32);
+    /*var ssr = new HX.ScreenSpaceReflections(32);
     ssr.scale = .25;
     ssr.stepSize = 20;
-    renderer.localReflections = ssr;
+    renderer.localReflections = ssr;*/
 
     var ssao = new HX.HBAO(5, 6);
     ssao.strength = 1.0;

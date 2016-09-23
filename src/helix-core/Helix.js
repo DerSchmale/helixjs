@@ -21,6 +21,7 @@ HX.InitOptions = function()
     this.hdr = false;   // only if available
     this.useGammaCorrection = true;
     this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
+    this.defaultLightingModel = HX.LightingModel.UnlitLightingModel;
 
     this.maxPointLightsPerPass = 3;
     this.maxDirLightsPerPass = 1;
@@ -175,7 +176,7 @@ HX.init = function(canvas, options)
     if (!HX.OPTIONS.ignoreTextureLODExtension)
         HX.EXT_SHADER_TEXTURE_LOD = _getExtension('EXT_shader_texture_lod');
 
-    if (HX.EXT_SHADER_TEXTURE_LOD)
+    if (!HX.EXT_SHADER_TEXTURE_LOD)
         console.warn('EXT_shader_texture_lod extension not supported!');
 
     HX.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension('EXT_texture_filter_anisotropic');

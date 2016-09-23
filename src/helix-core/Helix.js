@@ -175,7 +175,12 @@ HX.init = function(canvas, options)
     if (!HX.OPTIONS.ignoreTextureLODExtension)
         HX.EXT_SHADER_TEXTURE_LOD = _getExtension('EXT_shader_texture_lod');
 
-    if (!HX.EXT_SHADER_TEXTURE_LOD) console.warn('EXT_shader_texture_lod extension not supported!');
+    if (HX.EXT_SHADER_TEXTURE_LOD) {
+        defines += "#define HX_TEXTURE_LOD\n";
+    }
+    else {
+        console.warn('EXT_shader_texture_lod extension not supported!');
+    }
 
     HX.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension('EXT_texture_filter_anisotropic');
     if (!HX.EXT_TEXTURE_FILTER_ANISOTROPIC) console.warn('EXT_texture_filter_anisotropic extension not supported!');

@@ -27,6 +27,7 @@ uniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];
 
 #if HX_NUM_SPECULAR_PROBES > 0
 uniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];
+uniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];
 #endif
 
 
@@ -88,7 +89,7 @@ void main()
     reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
 
     for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {
-        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], reflectedViewDir, fresnel, geometricShadowing, data.roughness);
+        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, geometricShadowing, data.roughness);
     }
     #endif
 

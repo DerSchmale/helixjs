@@ -68,6 +68,8 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
         }
     }
 
+    var extensions = [];
+
     // TODO: Support shadow casters
     var defines = {
         HX_NUM_DIR_LIGHTS: this._dirLights.length,
@@ -78,9 +80,13 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
         HX_MAX_CASCADES: this._maxCascades
     };
 
+    // TODO: Allow material to define whether or not to use LODs
+    if (HX.EXT_SHADER_TEXTURE_LOD && defines.HX_NUM_SPECULAR_PROBES > 0)
+        extensions.push("GL_EXT_shader_texture_lod");
+
     var fragmentShader = lightingModel + "\n" +
         HX.DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
-        HX.ShaderLibrary.get("directional_light.glsl", defines) + "\n" +
+        HX.ShaderLibrary.get("directional_light.glsl", defines, extensions) + "\n" +
         HX.ShaderLibrary.get("point_light.glsl") + "\n" +
         HX.ShaderLibrary.get("light_probe.glsl") + "\n" +
         HX.ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
@@ -117,7 +123,6 @@ HX.StaticLitPass.prototype._assignDirLightCasters = function(camera)
     var len = lights.length;
     var matrix = new HX.Matrix4x4();
     var matrixData = new Float32Array(64);
-    var shadowMaps = [];
 
     for (var i = 0; i < len; ++i) {
         var light = lights[i];
@@ -194,9 +199,15 @@ HX.StaticLitPass.prototype._assignLightProbes = function()
 
     probes = this._specularLightProbes;
     len = probes.length;
-    for (i = 0; i < len; ++i)
+    var mips = [];
+    for (i = 0; i < len; ++i) {
         specularMaps[i] = probes[i].specularTexture;
+        mips[i] =  Math.floor(HX.log2(specularMaps[i].size));
+    }
 
     if (diffuseMaps.length > 0) this.setTextureArray("hx_diffuseProbeMaps", diffuseMaps);
-    if (specularMaps.length > 0) this.setTextureArray("hx_specularProbeMaps", specularMaps);
+    if (specularMaps.length > 0) {
+        this.setTextureArray("hx_specularProbeMaps", specularMaps);
+        this.setUniformArray("hx_specularProbeNumMips", new Float32Array(mips));
+    }
 };

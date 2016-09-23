@@ -42,9 +42,8 @@ function initScene(scene)
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxSpecularTexture);
-    skybox.setGlobalSpecularProbe(new HX.GlobalSpecularProbe(skyboxSpecularTexture));
-    skybox.setGlobalIrradianceProbe(new HX.GlobalIrradianceProbe(skyboxIrradianceTexture));
     scene.skybox = skybox;
+    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
 
     var primitive = new HX.SpherePrimitive(
         {
@@ -53,6 +52,7 @@ function initScene(scene)
             numSegmentsW: 30
         });
 
+    var lights = [ light, lightProbe ];
     var numX = 10;
     var numY = 7;
     for (var x = 0; x < numX; ++x) {
@@ -62,6 +62,7 @@ function initScene(scene)
             //material.color = new HX.Color(1, 0.0, 0.0);
             material.setRoughness(x / (numX - 1.0));
             material.metallicness = y / (numY - 1.0);
+            material.lights = lights;
 
             var modelInstance = new HX.ModelInstance(primitive, material);
             modelInstance.position.x = -((x + .5) / numX - .5) * 3.0;

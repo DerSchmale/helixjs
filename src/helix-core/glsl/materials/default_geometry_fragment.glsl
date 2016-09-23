@@ -22,7 +22,6 @@ varying vec3 bitangent;
 uniform sampler2D normalMap;
 #endif
 
-uniform float hx_transparencyMode;
 uniform float minRoughness;
 uniform float maxRoughness;
 uniform float normalSpecularReflectance;

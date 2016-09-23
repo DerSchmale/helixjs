@@ -23,6 +23,7 @@ HX.Material = function(geometryVertexShader, geometryFragmentShader, lightingMod
     this._lightingModel = lightingModel || HX.OPTIONS.defaultLightingModel;
 
     this._initialized = false;
+    this._blendState = null;
 };
 
 HX.Material.ID_COUNTER = 0;
@@ -62,6 +63,21 @@ HX.Material.prototype =
         if (this._ssao === value) return;
         this._ssao = value;
         this._invalidate();
+    },
+
+    get blendState()
+    {
+        return this._blendState;
+    },
+
+    set blendState(value)
+    {
+        this._blendState = value;
+
+        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+            if (this._passes[i])
+                this._passes[i].blendState = value;
+        }
     },
 
     get name()
@@ -136,6 +152,7 @@ HX.Material.prototype =
                 pass.cullMode = HX.DirectionalLight.SHADOW_FILTER.getCullMode();
 
             pass.elementType = this._elementType;
+            pass.blendState = this._blendState;
 
             for (var slotName in this._textures) {
                 if (this._textures.hasOwnProperty(slotName)) {

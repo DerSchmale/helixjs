@@ -21,7 +21,7 @@ HX.InitOptions = function()
     this.hdr = false;   // only if available
     this.useGammaCorrection = true;
     this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
-    this.defaultLightingModel = HX.LightingModel.UnlitLightingModel;
+    this.defaultLightingModel = HX.LightingModel.Unlit;
 
     this.maxPointLightsPerPass = 3;
     this.maxDirLightsPerPass = 1;

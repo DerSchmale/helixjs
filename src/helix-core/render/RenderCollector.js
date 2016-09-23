@@ -121,13 +121,12 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
         renderItem.worldMatrix = worldMatrix;
         renderItem.camera = camera;
 
-        if (material.hasPass(HX.MaterialPass.BASE_PASS))
-            this._opaquesStatic.push(renderItem);
+        if (material.hasPass(HX.MaterialPass.BASE_PASS)) {
+            var list = material.blendState? this._transparentsStatic : this._opaquesStatic;
+            list.push(renderItem);
+        }
 
         // TODO: Support dynamic lighting
-
-        //var list = this._opaquesDynamic;
-        //list.push(renderItem);
     }
 };
 

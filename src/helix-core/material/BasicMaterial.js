@@ -66,7 +66,6 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             }
         },
 
-        // only used with TransparencyMode.ALPHA
         alpha: {
             get: function ()
             {

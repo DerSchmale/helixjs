@@ -4,7 +4,7 @@
  */
 HX.LightingModel =
 {
-    UnlitLightingModel: null,
+    Unlit: null,
     BlinnPhong: HX.ShaderLibrary.get("lighting_blinn_phong.glsl") + "\n\n",
     GGX: HX.ShaderLibrary.get("lighting_ggx.glsl") + "\n\n"
 };

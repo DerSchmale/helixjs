@@ -28,8 +28,10 @@ function initScene(scene)
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxTexture);
-    skybox.setGlobalSpecularProbe(new HX.GlobalSpecularProbe(skyboxTexture));
     scene.skybox = skybox;
+
+    var lightProbe = new HX.LightProbe(null, skyboxTexture);
+    scene.attach(lightProbe);
 
     var light = new HX.DirectionalLight();
     light.intensity = .15;
@@ -41,11 +43,22 @@ function initScene(scene)
             numSegmentsW: 30
         });
 
+    // the first layer forms the diffuse absorption
     var material = new HX.BasicMaterial();
-    material.alpha = 1.0;
-    material.color = HX.Color.BLACK;
-    material.transparencyMode = HX.TransparencyMode.ADDITIVE;
-    material.setRoughness(.01);
+    material.blendState = HX.BlendState.MULTIPLY;
+    material.color = new HX.Color(.5,.1,.1);
+    material.lightingModel = HX.LightingModel.Unlit
+    material.writeDepth = false;
 
+    scene.attach(new HX.ModelInstance(primitive, material));
+
+    // the second layer forms the
+    material = new HX.BasicMaterial();
+    material.blendState = HX.BlendState.ADD;
+    material.color = HX.Color.BLACK;
+    material.lights = [ lightProbe ];
+    material.writeDepth = false;
+    material.renderOrder = 50;  // be sure the render after first layer
+    material.setRoughness(.01);
     scene.attach(new HX.ModelInstance(primitive, material));
 }

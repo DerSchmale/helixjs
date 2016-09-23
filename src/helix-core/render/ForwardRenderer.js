@@ -122,6 +122,7 @@ HX.ForwardRenderer.prototype =
         this._renderShadowCasters();
 
         var opaqueStaticLit = this._renderCollector.getOpaqueStaticRenderList();
+        var transparentStaticLit = this._renderCollector.getTransparentStaticRenderList();
 
         this._renderNormalDepth(opaqueStaticLit);
         this._renderAO();
@@ -131,6 +132,7 @@ HX.ForwardRenderer.prototype =
             // TODO: Need to render dynamically lit opaques too
             this._renderDepthPrepass(opaqueStaticLit);
             this._renderStatics(opaqueStaticLit);
+            this._renderStatics(transparentStaticLit);
             this._renderEffects(dt);
         HX.popRenderTarget();
         this._renderToScreen(renderTarget);

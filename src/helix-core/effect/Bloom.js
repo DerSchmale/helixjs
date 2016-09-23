@@ -57,7 +57,7 @@ HX.BloomEffect = function(size, strength, downScale, anisotropy)
 
     this._thresholdPass = new HX.EffectPass(null, HX.ShaderLibrary.get("bloom_threshold_fragment.glsl"));
     this._compositePass = new HX.EffectPass(HX.ShaderLibrary.get("bloom_composite_vertex.glsl"), HX.ShaderLibrary.get("bloom_composite_fragment.glsl"));
-    this._compositePass.blendState = HX.BlendState.ADD;
+    this._compositePass.blendState = HX.BlendState.ADD_NO_ALPHA;
 
     this._thresholdMaps = [];
     this._smallFBOs = [];

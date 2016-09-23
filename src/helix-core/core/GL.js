@@ -25,7 +25,7 @@ HX._blendStateInvalid = false;
 
 // this is so that effects can push states on the stack
 // the renderer at the root just pushes one single state and invalidates that constantly
-HX._stencilStateStack = [ null ];
+HX._stencilState = null;
 HX._stencilStateInvalid = false;
 
 HX._glStats =
@@ -160,7 +160,7 @@ HX.setBlendState = function(value)
 
 HX.updateStencilReferenceValue = function(value)
 {
-    var currentState = HX._stencilStateStack[HX._stencilStateStack.length - 1];
+    var currentState = HX._stencilState;
 
     if (!currentState || currentState.reference === value) return;
 
@@ -170,15 +170,9 @@ HX.updateStencilReferenceValue = function(value)
         HX_GL.stencilFunc(currentState.comparison, value, currentState.readMask);
 };
 
-HX.pushStencilState = function(frameBuffer)
+HX.setStencilState = function(value)
 {
-    HX._stencilStateStack.push(frameBuffer);
-    HX._stencilStateInvalid = true;
-};
-
-HX.popStencilState = function()
-{
-    HX._stencilStateStack.pop();
+    HX._stencilState = value;
     HX._stencilStateInvalid = true;
 };
 
@@ -243,7 +237,7 @@ HX._updateRenderState = function()
     }
 
     if (HX._stencilStateInvalid) {
-        var state = HX._stencilStateStack[HX._stencilStateStack.length - 1];
+        var state = HX._stencilState;
         if (state == null || state.enabled === false) {
             HX_GL.disable(HX_GL.STENCIL_TEST);
             HX_GL.stencilFunc(HX.Comparison.ALWAYS, 0, 0xff);

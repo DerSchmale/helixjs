@@ -65,6 +65,14 @@ HX.Effect.prototype = Object.create(HX.Component.prototype,
         needsNormalDepth: {
             get: function() { return this._needsNormalDepth; },
             set: function(value) { this._needsNormalDepth = value; }
+        },
+
+        hdrTarget: {
+            get: function() { this._renderer._hdrFront.fbo; }
+        },
+
+        hdrSource: {
+            get: function() { this._renderer._hdrBack.texture; }
         }
     }
 );

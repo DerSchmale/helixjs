@@ -114,15 +114,13 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
         HX.setClearColor(HX.Color.ZERO);
         HX.clear();
         HX_GL.colorMask(false, false, false, false);
-        HX.pushStencilState(this._stencilWriteState);
+        HX.setStencilState(this._stencilWriteState);
         this._drawPass(this._stencilPass);
-        HX.popStencilState();
 
         HX_GL.colorMask(true, true, true, true);
 
-        HX.pushStencilState(this._stencilReadState);
-
+        HX.setStencilState(this._stencilReadState);
         this._drawPass(this._pass);
-        HX.popStencilState();
+        HX.setStencilState();
     HX.popRenderTarget();
 };

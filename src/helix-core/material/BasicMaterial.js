@@ -111,6 +111,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             {
                 return this._colorMap;
             },
+
             set: function (value)
             {
                 if (!!this._colorMap !== !!value)
@@ -277,7 +278,7 @@ HX.BasicMaterial.prototype._generateDefines = function()
     if (this._useVertexColors) defines.VERTEX_COLORS = 1;
     if (this._normalMap) defines.NORMAL_MAP = 1;
     if (this._maskMap) defines.MASK_MAP = 1;
-    if (this._alphaThreshold) defines.ALPHA_THRESHOLD = 1;
+    if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
     if (this._useSkinning) defines.USE_SKINNING = 1;
 
     switch (this._specularMapMode) {

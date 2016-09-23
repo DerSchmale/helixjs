@@ -132,7 +132,7 @@ HX.Material.prototype =
         this._passes[type] = pass;
 
         if (pass) {
-            if(type === HX.MaterialPass.DIR_LIGHT_PASS)
+            if(type === HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS)
                 pass.cullMode = HX.DirectionalLight.SHADOW_FILTER.getCullMode();
 
             pass.elementType = this._elementType;

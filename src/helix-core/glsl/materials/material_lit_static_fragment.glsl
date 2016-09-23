@@ -73,20 +73,20 @@ void main()
     }
     #endif
 
-    #if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0
-    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
-    #endif
-
     #if HX_NUM_DIFFUSE_PROBES > 0
+    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
     for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {
         diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal);
     }
     #endif
 
     #if HX_NUM_SPECULAR_PROBES > 0
-    vec3 reflectedViewDir = reflect(mat3(hx_cameraWorldMatrix) * viewVector, worldNormal);
-    vec3 fresnel = hx_fresnel(specularColor, reflectedViewDir, worldNormal);
-    float geometricShadowing = hx_probeGeometricShadowing(worldNormal, reflectedViewDir, data.roughness, data.metallicness);
+    vec3 reflectedViewDir = reflect(viewVector, data.normal);
+    vec3 fresnel = hx_fresnel(specularColor, reflectedViewDir, data.normal);
+    float geometricShadowing = hx_probeGeometricShadowing(data.normal, reflectedViewDir, data.roughness, data.metallicness);
+
+    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
+
     for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {
         specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], reflectedViewDir, fresnel, geometricShadowing, data.roughness);
     }

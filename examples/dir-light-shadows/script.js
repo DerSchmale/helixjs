@@ -49,7 +49,7 @@ function initCamera(camera)
     orbitController.maxRadius = 20.0;
     orbitController.lookAtTarget.y = .25;
 
-    camera.addComponents([bloom, tonemap, orbitController]);
+    camera.addComponents([bloom, tonemap, new HX.FXAA(), orbitController]);
 }
 
 function initScene(scene)
@@ -84,7 +84,7 @@ function initScene(scene)
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
     scene.attach(lightProbe);
 
-    var lights = [ /*light, light2, */lightProbe ];
+    var lights = [ light, light2, lightProbe ];
 
     // textures from http://kay-vriend.blogspot.be/2014/04/tarnished-metal-first-steps-in-pbr-and.html
     var textureLoader = new HX.AssetLoader(HX.JPG);

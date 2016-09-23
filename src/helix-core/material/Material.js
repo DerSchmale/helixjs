@@ -2,7 +2,7 @@
  *
  * @constructor
  */
-HX.Material = function(geometryVertexShader, geometryFragment, lightingModel)
+HX.Material = function(geometryVertexShader, geometryFragmentShader, lightingModel)
 {
     this._elementType = HX.ElementType.TRIANGLES;
     // TODO: should this be passed to the material as a uniform to figure out how to interlace in hx_processGeometry (= overhead for opaque), or should this be a #define and compilation issue?
@@ -15,47 +15,45 @@ HX.Material = function(geometryVertexShader, geometryFragment, lightingModel)
     this._textures = {};
     this._uniforms = {};
 
+    this._lights = null;
     this._name = null;
-    if (geometryVertexShader)
-        this.init(geometryVertexShader, geometryFragment, lightingModel);
+    this._geometryVertexShader = geometryVertexShader;
+    this._geometryFragmentShader = geometryFragmentShader;
+    this._lightingModel = lightingModel || HX.LightingModel.UnlitLightingModel;
+
+    this._initialized = false;
 };
 
 HX.Material.ID_COUNTER = 0;
 
-// So... we're throwing things around for materials:
-//  - provide geometry code
-//  - provide light model code
-// This allows a logical separation between geometry stage and lighting stage (which could be useful to support deferred rendering in the future)
-
-HX.Material.prototype = {
-    constructor: HX.Material,
-
-    /**
-     * @param vertexShader
-     * @param geometryFragment
-     * @param lightingModel Optional (will result in unlit if omitted)
-     * @param lights Optional (do not render lights dynamically, allowing lighting to happen in 1 pass)
-     */
-    init: function(geometryVertexShader, geometryFragment, lightingModel, lights)
+HX.Material.prototype =
+{
+    init: function()
     {
+        if (this._initialized) return;
+
         this._dirLights = null;
         this._dirLightCasters = null;
         this._pointLights = null;
 
-        if (!lightingModel)
-            this._setPass(HX.MaterialPass.BASE_PASS, new HX.UnlitPass(geometryVertexShader, geometryFragment));
-        else if (lights)
-            this._setPass(HX.MaterialPass.BASE_PASS, new HX.StaticLitPass(geometryVertexShader, geometryFragment, lightingModel, lights));
+        if (!this._geometryVertexShader || !this._geometryFragmentShader)
+            throw "Cannot call Material.init without shaders!";
+
+        if (!this._lightingModel)
+            this._setPass(HX.MaterialPass.BASE_PASS, new HX.UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
+        else if (this._lights)
+            this._setPass(HX.MaterialPass.BASE_PASS, new HX.StaticLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._lights));
         //else
         //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
 
-        this._setPass(HX.MaterialPass.NORMAL_DEPTH_PASS, new HX.NormalDepthPass(geometryVertexShader, geometryFragment));
-        this._setPass(HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new HX.DirectionalShadowPass(geometryVertexShader, geometryFragment));
+        this._setPass(HX.MaterialPass.NORMAL_DEPTH_PASS, new HX.NormalDepthPass(this._geometryVertexShader, this._geometryFragmentShader));
+        this._setPass(HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new HX.DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 
+        this._initialized = true;
         // TODO: init dynamic light passes
-        // TODO: init shadow passes
-        // TODO: init depth/normal pass
     },
+
+    get initialized() { return this._initialized; },
 
     get name()
     {
@@ -65,6 +63,29 @@ HX.Material.prototype = {
     set name(value)
     {
         this._name = value;
+    },
+
+    get lights()
+    {
+        return this._lights;
+    },
+
+    set lights(value)
+    {
+        this._lights = value;
+        if (!this._lightingModel) this._lightingModel = HX.LightingModel.GGX;
+        this._invalidate();
+    },
+
+    get lightingModel()
+    {
+        return this._lightingModel;
+    },
+
+    set lightingModel(value)
+    {
+        this._lightingModel = value;
+        this._invalidate();
     },
 
     get renderOrder()
@@ -93,6 +114,7 @@ HX.Material.prototype = {
 
     getPass: function (type)
     {
+        if (!this._initialized) this.init();
         return this._passes[type];
     },
 
@@ -104,14 +126,12 @@ HX.Material.prototype = {
             if(type === HX.MaterialPass.DIR_LIGHT_PASS)
                 pass.cullMode = HX.DirectionalLight.SHADOW_FILTER.getCullMode();
 
-            //if(type === HX.GEOMETRY_NORMAL_PASS || type === HX.GEOMETRY_SPECULAR_PASS || type == HX.GEOMETRY_LINEAR_DEPTH_PASS)
-            //    pass.depthTest = HX.Comparison.EQUAL;
-
             pass.elementType = this._elementType;
 
             for (var slotName in this._textures) {
-                if (this._textures.hasOwnProperty(slotName))
+                if (this._textures.hasOwnProperty(slotName)) {
                     pass.setTexture(slotName, this._textures[slotName]);
+                }
             }
 
             for (var uniformName in this._uniforms) {
@@ -134,7 +154,10 @@ HX.Material.prototype = {
 
     setTexture: function(slotName, texture)
     {
-        this._textures[slotName] = texture;
+        if (texture)
+            this._textures[slotName] = texture;
+        else
+            delete this._textures[slotName];
 
         for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
             if (this.hasPass(i)) this._passes[i].setTexture(slotName, texture);
@@ -185,6 +208,12 @@ HX.Material.prototype = {
     _setUseSkinning: function(value)
     {
         this._useSkinning = value;
+    },
+
+    _invalidate: function()
+    {
+        this._initialized = false;
+        this._passes = new Array(HX.Material.NUM_PASS_TYPES);
     },
 
     toString: function()

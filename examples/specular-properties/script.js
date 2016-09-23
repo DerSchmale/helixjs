@@ -44,12 +44,13 @@ function initScene(scene)
     var skybox = new HX.Skybox(skyboxSpecularTexture);
     scene.skybox = skybox;
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
+    scene.attach(lightProbe);
 
     var primitive = new HX.SpherePrimitive(
         {
             radius:.075,
-            numSegmentsH: 20,
-            numSegmentsW: 30
+            numSegmentsH: 10,
+            numSegmentsW: 20
         });
 
     var lights = [ light, lightProbe ];

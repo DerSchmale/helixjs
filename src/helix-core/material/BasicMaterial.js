@@ -5,8 +5,6 @@
 HX.BasicMaterial = function()
 {
     HX.Material.call(this);
-    this._lightingModel = null;
-    this._passesInvalid = true;
     this._color = new HX.Color(1, 1, 1, 1);
     this._colorMap = null;
     this._doubleSided = false;
@@ -21,7 +19,6 @@ HX.BasicMaterial = function()
     this._normalSpecularReflectance = 0.027;
     this._alphaThreshold = 1.0;
     this._useVertexColors = false;
-    this._lights = null;
 
     // trigger assignments
     this.color = this._color;
@@ -82,20 +79,6 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             }
         },
 
-        // only used with TransparencyMode.ALPHA
-        lights: {
-            get: function ()
-            {
-                return this._lights;
-            },
-            set: function (value)
-            {
-                this._passesInvalid = true;
-                if (!this._lightingModel) this._lightingModel = HX.LightingModel.GGX;
-                this._lights = value;
-            }
-        },
-
         // this can ONLY be used if the MeshData was created with a hx_vertexColor attribute!
         useVertexColors: {
             get: function ()
@@ -105,7 +88,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             set: function (value)
             {
                 if (this._useVertexColors !== value)
-                    this._passesInvalid = true;
+                    this._invalidate();
 
                 this._useVertexColors = value;
             }
@@ -131,26 +114,11 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             set: function (value)
             {
                 if (!!this._colorMap !== !!value)
-                    this._passesInvalid = true;
+                    this._invalidate();
 
-                if (!this._passesInvalid && value)
-                    this.setTexture("colorMap", value);
+                this.setTexture("colorMap", value);
 
                 this._colorMap = value;
-            }
-        },
-
-        lightingModel: {
-            get: function ()
-            {
-                return this._lightingModel;
-            },
-            set: function (value)
-            {
-                if (this._lightingModel !== value)
-                    this._passesInvalid = true;
-
-                this._lightingModel = value;
             }
         },
 
@@ -162,10 +130,9 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             set: function (value)
             {
                 if (!!this._normalMap !== !!value)
-                    this._passesInvalid = true;
+                    this._invalidate();
 
-                if (!this._passesInvalid && value)
-                    this.setTexture("normalMap", value);
+                this.setTexture("normalMap", value);
 
                 this._normalMap = value;
             }
@@ -182,10 +149,9 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             set: function (value)
             {
                 if (!!this._specularMap !== !!value)
-                    this._passesInvalid = true;
+                    this._invalidate();
 
-                if (!this._passesInvalid && value)
-                    this.setTexture("specularMap", value);
+                this.setTexture("specularMap", value);
 
                 this._specularMap = value;
             }
@@ -199,10 +165,9 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             set: function (value)
             {
                 if (!!this._maskMap !== !!value)
-                    this._passesInvalid = true;
+                    this._invalidate();
 
-                if (!this._passesInvalid && value)
-                    this.setTexture("maskMap", value);
+                this.setTexture("maskMap", value);
 
                 this._maskMap = value;
             }
@@ -216,7 +181,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             set: function (value)
             {
                 if (this._specularMapMode != value)
-                    this._passesInvalid = true;
+                    this._invalidate();
 
                 this._specularMapMode = value;
             }
@@ -270,7 +235,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             set: function(value)
             {
                 this._maxRoughness = value;
-                this.setUniform("minRoughness", this._minRoughness);
+                this.setUniform("maxRoughness", this._maxRoughness);
             }
         },
 
@@ -280,7 +245,8 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             set: function(value) {
                 value = HX.saturate(value);
                 if ((this._alphaThreshold === 1.0) != (value === 1.0))
-                    this._passesInvalid = true;
+                    this._invalidate();
+
                 this._alphaThreshold = value;
                 this.setUniform("alphaThreshold", value);
             }
@@ -294,40 +260,14 @@ HX.BasicMaterial.prototype.setRoughness = function(min, max)
     this.maxRoughness = max || 1.0;
 };
 
-HX.BasicMaterial.prototype.getPass = function(type)
+HX.BasicMaterial.prototype.init = function()
 {
-    if (this._passesInvalid)
-        this._updatePasses();
-
-    return HX.Material.prototype.getPass.call(this, type);
-};
-
-HX.BasicMaterial.prototype._clearPasses = function()
-{
-    for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
-        this._setPass(i, null);
-};
-
-HX.BasicMaterial.prototype._updatePasses = function()
-{
-    this._clearPasses();
-
     var defines = this._generateDefines();
 
-    this.init(HX.ShaderLibrary.get("default_geometry_vertex.glsl", defines), HX.ShaderLibrary.get("default_geometry_fragment.glsl", defines), this._lightingModel, this._lights);
+    this._geometryVertexShader = HX.ShaderLibrary.get("default_geometry_vertex.glsl", defines);
+    this._geometryFragmentShader = HX.ShaderLibrary.get("default_geometry_fragment.glsl", defines);
 
-    this.setUniform("color", this._color);
-    this.setUniform("alpha", this._alpha);
-    this.setUniform("alphaThreshold", this._alphaThreshold);
-
-    this.setUniform("maxRoughness", this._maxRoughness);
-    this.setUniform("minRoughness", this._minRoughness);
-
-    if (this._colorMap) this.setTexture("colorMap", this._colorMap);
-    if (this._normalMap) this.setTexture("normalMap", this._normalMap);
-    if (this._specularMap) this.setTexture("specularMap", this._specularMap);
-
-    this._passesInvalid = false;
+    HX.Material.prototype.init.call(this);
 };
 
 HX.BasicMaterial.prototype._generateDefines = function()
@@ -355,7 +295,7 @@ HX.BasicMaterial.prototype._generateDefines = function()
 HX.BasicMaterial.prototype._setUseSkinning = function(value)
 {
     if (this._useSkinning !== value)
-        this._passesInvalid = true;
+        this._invalidate();
 
     this._useSkinning = value;
 };

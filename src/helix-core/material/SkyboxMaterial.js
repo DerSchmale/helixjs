@@ -14,6 +14,7 @@ HX.SkyboxMaterial = function(texture)
 
     // if no draw buffers, normals and specular don't need to be updated
     this._setPass(HX.MaterialPass.BASE_PASS, pass);
+    this._initialized = true;
 
     this.setTexture("hx_skybox", texture);
 };

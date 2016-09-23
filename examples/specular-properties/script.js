@@ -21,11 +21,7 @@ function initCamera(camera)
     controller.polar = Math.PI * .5;
     controller.radius = 1.6;
 
-    var tonemap = new HX.FilmicToneMapEffect(false);
-    tonemap.exposure = 1.0;
-
-    var fxaa = new HX.FXAA();
-    camera.addComponents([ controller, tonemap, fxaa ]);
+    camera.addComponents([ controller ]);
 }
 
 function initScene(scene)

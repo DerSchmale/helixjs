@@ -9,9 +9,7 @@ project.onInit = function()
 
 window.onload = function ()
 {
-    var options = new HX.InitOptions();
-    options.lightingModel = HX.GGXLightingModel;
-    project.init(document.getElementById('webglContainer'), options);
+    project.init(document.getElementById('webglContainer'));
 };
 
 function initScene(scene)
@@ -55,6 +53,7 @@ function initScene(scene)
     material.colorMap = albedoMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
+    material.lights = [light1, light2, light3];
     material.setRoughness(.2, 1.0);
 
     var primitive = new HX.SpherePrimitive(

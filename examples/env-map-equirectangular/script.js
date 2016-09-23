@@ -22,8 +22,10 @@ function initScene(scene)
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxTexture);
-    skybox.setGlobalSpecularProbe(new HX.GlobalSpecularProbe(skyboxTexture));
     scene.skybox = skybox;
+
+    var lightProbe = new HX.LightProbe(null, skyboxTexture);
+    scene.attach(lightProbe);
 
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var normalMap = textureLoader.load("textures/Tarnished_Metal_01_normal.png");
@@ -34,6 +36,7 @@ function initScene(scene)
     // inverting roughness by making min > max
     material.setRoughness(.4,.1);
     material.metallicness = 1.0;
+    material.lights = [ lightProbe ];
 
     var primitive = new HX.TorusPrimitive(
         {

@@ -8,8 +8,7 @@ project.onInit = function()
 
 window.onload = function ()
 {
-    var options = new HX.InitOptions();
-    project.init(document.getElementById('webglContainer'), options);
+    project.init(document.getElementById('webglContainer'));
 };
 
 function initCamera(camera)

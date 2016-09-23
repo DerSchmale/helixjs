@@ -6,7 +6,7 @@ HX.LightProbe = function(diffuseTexture, specularTexture)
     HX.Entity.call(this);
     this._specularTexture = specularTexture;
     this._diffuseTexture = diffuseTexture;
-    this._size = 100;
+    this._size = undefined;
 };
 
 // conversion range for spec power to mip
@@ -16,8 +16,8 @@ HX.LightProbe.powerRange1 = .9921;
 HX.LightProbe.prototype = Object.create(HX.Entity.prototype,
     {
         specularTexture: {
-            get: function() { return this._diffuseTexture; },
-            set: function(value) { this._diffuseTexture = value; },
+            get: function() { return this._specularTexture; },
+            set: function(value) { this._specularTexture = value; },
         },
         diffuseTexture: {
             get: function() { return this._diffuseTexture; },

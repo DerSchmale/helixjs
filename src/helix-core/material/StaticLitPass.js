@@ -11,9 +11,14 @@ HX.StaticLitPass = function(geometryVertex, geometryFragment, lightingModel, lig
     this._dirLights = null;
     this._dirLightCasters = null;
     this._pointLights = null;
+    this._diffuseLightProbes = null;
+    this._specularLightProbes = null;
     this._maxCascades = 0;
 
     HX.MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights));
+
+    this._assignShadowMaps();
+    this._assignLightProbes();
 };
 
 HX.StaticLitPass.prototype = Object.create(HX.MaterialPass.prototype);
@@ -24,6 +29,7 @@ HX.StaticLitPass.prototype.updateRenderState = function(renderer)
     this._assignDirLights(renderer._camera);
     this._assignDirLightCasters(renderer._camera);
     this._assignPointLights(renderer._camera);
+    this._assignLightProbes(renderer._camera);
 
     HX.MaterialPass.prototype.updateRenderState.call(this, renderer);
 };
@@ -33,6 +39,8 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
     this._dirLights = [];
     this._dirLightCasters = [];
     this._pointLights = [];
+    this._diffuseLightProbes = [];
+    this._specularLightProbes = [];
 
     this._maxCascades = 0;
 
@@ -51,7 +59,12 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
         }
         else if (light instanceof HX.PointLight) {
             this._pointLights.push(light);
-            break;
+        }
+        else if (light instanceof HX.LightProbe) {
+            if (light.diffuseTexture)
+                this._diffuseLightProbes.push(light);
+            if (light.specularTexture)
+                this._specularLightProbes.push(light);
         }
     }
 
@@ -60,13 +73,16 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
         HX_NUM_DIR_LIGHTS: this._dirLights.length,
         HX_NUM_DIR_LIGHT_CASTERS: this._dirLightCasters.length,
         HX_NUM_POINT_LIGHTS: this._pointLights.length,
+        HX_NUM_DIFFUSE_PROBES: this._diffuseLightProbes.length,
+        HX_NUM_SPECULAR_PROBES: this._specularLightProbes.length,
         HX_MAX_CASCADES: this._maxCascades
     };
 
     var fragmentShader = lightingModel + "\n" +
         HX.DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
-        HX.ShaderLibrary.get("directional_light.glsl", defines) +
-        HX.ShaderLibrary.get("point_light.glsl") +
+        HX.ShaderLibrary.get("directional_light.glsl", defines) + "\n" +
+        HX.ShaderLibrary.get("point_light.glsl") + "\n" +
+        HX.ShaderLibrary.get("light_probe.glsl") + "\n" +
         HX.ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
         geometryFragment + "\n" +
         HX.ShaderLibrary.get("material_lit_static_fragment.glsl");
@@ -126,10 +142,7 @@ HX.StaticLitPass.prototype._assignDirLightCasters = function(camera)
         this.setUniform("hx_directionalLightCasters[" + i + "].splitDistances", splits);
         this.setUniform("hx_directionalLightCasters[" + i + "].depthBias", light.depthBias);
         this.setUniform("hx_directionalLightCasters[" + i + "].maxShadowDistance", splits[numCascades - 1]);
-        shadowMaps[i] = shadowRenderer._shadowMap;
     }
-
-    this.setTextureArray("hx_directionalShadowMaps", shadowMaps);
 };
 
 HX.StaticLitPass.prototype._assignPointLights = function(camera)
@@ -150,4 +163,40 @@ HX.StaticLitPass.prototype._assignPointLights = function(camera)
         this.setUniform("hx_pointLights[" + i + "].position", pos);
         this.setUniform("hx_pointLights[" + i + "].radius", light.radius);
     }
-}
+};
+
+HX.StaticLitPass.prototype._assignShadowMaps = function()
+{
+    var lights = this._dirLightCasters;
+    var len = lights.length;
+    if (len > 0) {
+        var shadowMaps = [];
+
+        for (var i = 0; i < len; ++i) {
+            var light = lights[i];
+            var shadowRenderer = light._shadowMapRenderer;
+            shadowMaps[i] = shadowRenderer._shadowMap;
+        }
+
+        this.setTextureArray("hx_directionalShadowMaps", shadowMaps);
+    }
+};
+
+HX.StaticLitPass.prototype._assignLightProbes = function()
+{
+    var diffuseMaps = [];
+    var specularMaps = [];
+
+    var probes = this._diffuseLightProbes;
+    var len = probes.length;
+    for (var i = 0; i < len; ++i)
+        diffuseMaps[i] = probes[i].diffuseTexture;
+
+    probes = this._specularLightProbes;
+    len = probes.length;
+    for (i = 0; i < len; ++i)
+        specularMaps[i] = probes[i].specularTexture;
+
+    if (diffuseMaps.length > 0) this.setTextureArray("hx_diffuseProbeMaps", diffuseMaps);
+    if (specularMaps.length > 0) this.setTextureArray("hx_specularProbeMaps", specularMaps);
+};

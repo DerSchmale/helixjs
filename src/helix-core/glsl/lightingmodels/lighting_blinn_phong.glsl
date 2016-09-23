@@ -1,11 +1,11 @@
-/*float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
+// this is Schlick-Beckmann attenuation for only the view vector
+float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)
 {
-	float nDotV = max(-dot(normal, viewDir), 0.0);
-    float roughSqr = roughness*roughness;
-    float g1 = nDotV + sqrt( roughSqr + (1.0 - roughSqr) * nDotV * nDotV );
-    float g2 = nDotL + sqrt( roughSqr + (1.0 - roughSqr) * nDotL * nDotL );
-    return 1.0 / (g1 * g2);
-}*/
+//    float nDotV = max(dot(normal, reflection), 0.0);
+//    float att = nDotV / (nDotV * (1.0 - roughness) + roughness);
+    float att = 1.0 - roughness;
+    return mix(att * att, 1.0, metallicness);
+}
 
 // schlick-beckman
 float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
@@ -48,7 +48,7 @@ void hx_brdf(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightCol
 
 	specularColor = irradiance * fresnel * distribution;
 
-#ifdef VISIBILITY
-    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);
-#endif
+//#ifdef HX_VISIBILITY
+//    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);
+//#endif
 }

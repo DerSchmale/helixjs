@@ -17,6 +17,19 @@ uniform float test[HX_NUM_DIR_LIGHT_CASTERS];
 uniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];
 #endif
 
+#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0
+uniform mat4 hx_cameraWorldMatrix;
+#endif
+
+#if HX_NUM_DIFFUSE_PROBES > 0
+uniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];
+#endif
+
+#if HX_NUM_SPECULAR_PROBES > 0
+uniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];
+#endif
+
+
 void main()
 {
     HX_GeometryData data = hx_geometry();
@@ -60,12 +73,28 @@ void main()
     }
     #endif
 
+    #if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0
+    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
+    #endif
+
+    #if HX_NUM_DIFFUSE_PROBES > 0
+    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {
+        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal);
+    }
+    #endif
+
+    #if HX_NUM_SPECULAR_PROBES > 0
+    vec3 reflectedViewDir = reflect(mat3(hx_cameraWorldMatrix) * viewVector, worldNormal);
+    vec3 fresnel = hx_fresnel(specularColor, reflectedViewDir, worldNormal);
+    float geometricShadowing = hx_probeGeometricShadowing(worldNormal, reflectedViewDir, data.roughness, data.metallicness);
+    for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {
+        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], reflectedViewDir, fresnel, geometricShadowing, data.roughness);
+    }
+    #endif
+
     gl_FragColor = vec4((diffuseAccum + hx_ambientColor) * data.color.xyz + specularAccum, data.color.w);
 
     #ifdef HX_GAMMA_CORRECT_LIGHTS
         gl_FragColor = hx_linearToGamma(gl_FragColor);
     #endif
-//    #if HX_NUM_DIR_LIGHT_CASTERS > 0
-//    gl_FragColor = texture2D(hx_directionalShadowMaps[0], texCoords);
-//    #endif
 }

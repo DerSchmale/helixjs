@@ -9,8 +9,6 @@ struct HX_DirectionalLight
     float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]
 };
 
-// TODO: Support shadows (only 1 per pass for directional lights)
-
 void hx_calculateLight(HX_DirectionalLight light, vec3 normal, vec3 viewVector, vec3 normalSpecularReflectance, float roughness, out vec3 diffuse, out vec3 specular)
 {
 	hx_brdf(normal, light.direction, viewVector, light.color, normalSpecularReflectance, roughness, diffuse, specular);

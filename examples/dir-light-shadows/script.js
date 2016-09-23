@@ -73,6 +73,19 @@ function initScene(scene)
     light2.setCascadeRatios(1.0);
     scene.attach(light2);
 
+    var cubeLoader = new HX.AssetLoader(HX.HCM);
+    var skyboxSpecularTexture = cubeLoader.load("textures/skybox/skybox_specular.hcm");
+    var skyboxIrradianceTexture = cubeLoader.load("textures/skybox/skybox_irradiance.hcm");
+
+    // top level of specular texture is the original skybox texture
+    var skybox = new HX.Skybox(skyboxSpecularTexture);
+    scene.skybox = skybox;
+
+    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
+    scene.attach(lightProbe);
+
+    var lights = [ /*light, light2, */lightProbe ];
+
     // textures from http://kay-vriend.blogspot.be/2014/04/tarnished-metal-first-steps-in-pbr-and.html
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var colorMap = textureLoader.load("textures/Tarnished_Metal_01_diffuse.jpg");
@@ -84,7 +97,7 @@ function initScene(scene)
     opaqueMaterial.specularMap = specularMap;
     opaqueMaterial.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     opaqueMaterial.metallicness = 1.0;
-    opaqueMaterial.lights = [ light, light2 ];
+    opaqueMaterial.lights = lights;
     opaqueMaterial.setRoughness(0.05, .5);
 
     var primitive = new HX.SpherePrimitive(
@@ -116,8 +129,8 @@ function initScene(scene)
     material.colorMap = colorMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
-    material.lights = [ light, light2 ];
-    material.setRoughness(1.0);
+    material.lights = lights;
+    material.setRoughness(.3);
 
     primitive = new HX.PlanePrimitive(
         {
@@ -132,14 +145,4 @@ function initScene(scene)
     var modelInstance = new HX.ModelInstance(primitive, material);
     modelInstance.position.y = -.25;
     scene.attach(modelInstance);
-
-    var cubeLoader = new HX.AssetLoader(HX.HCM);
-    var skyboxSpecularTexture = cubeLoader.load("textures/skybox/skybox_specular.hcm");
-    var skyboxIrradianceTexture = cubeLoader.load("textures/skybox/skybox_irradiance.hcm");
-
-    // top level of specular texture is the original skybox texture
-    var skybox = new HX.Skybox(skyboxSpecularTexture);
-    var lightProbe = new HX.LightProbe(skyboxSpecularTexture, skyboxIrradianceTexture);
-    scene.skybox = skybox;
-    scene.add(lightProbe);
 }

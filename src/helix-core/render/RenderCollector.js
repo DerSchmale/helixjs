@@ -19,8 +19,6 @@ HX.RenderCollector = function()
     this._ambientColor = new HX.Color();
     this._shadowCasters = null;
     this._effects = null;
-    this._globalSpecularProbe = null;
-    this._globalIrradianceProbe = null;
     this._needsNormalDepth = false;
 };
 
@@ -33,8 +31,6 @@ HX.RenderCollector.prototype.getTransparentStaticRenderList = function() { retur
 HX.RenderCollector.prototype.getLights = function() { return this._lights; };
 HX.RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
 HX.RenderCollector.prototype.getEffects = function() { return this._effects; };
-HX.RenderCollector.prototype.getGlobalSpecularProbe = function() { return this._globalSpecularProbe; };
-HX.RenderCollector.prototype.getGlobalIrradianceProbe = function() { return this._globalIrradianceProbe; };
 
 Object.defineProperties(HX.RenderCollector.prototype, {
     ambientColor: {
@@ -83,11 +79,8 @@ HX.RenderCollector.prototype.qualifies = function(object)
 HX.RenderCollector.prototype.visitScene = function (scene)
 {
     var skybox = scene._skybox;
-    if (skybox) {
+    if (skybox)
         this.visitModelInstance(skybox._modelInstance, scene._rootNode.worldMatrix, scene._rootNode.worldBounds);
-        this._globalSpecularProbe = skybox.getGlobalSpecularProbe();
-        this._globalIrradianceProbe = skybox.getGlobalIrradianceProbe();
-    }
 };
 
 HX.RenderCollector.prototype.visitEffects = function(effects)
@@ -163,8 +156,6 @@ HX.RenderCollector.prototype._reset = function()
     this._lights = [];
     this._shadowCasters = [];
     this._effects = [];
-    this._globalIrradianceProbe = null;
-    this._globalSpecularProbe = null;
     this._needsNormalDepth = false;
     this._ambientColor.set(0, 0, 0, 1);
 };

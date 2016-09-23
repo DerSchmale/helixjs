@@ -26,6 +26,8 @@ function initCamera(camera)
 
 function initScene(scene)
 {
+    // TODO: Do this dynamically
+    var lights = [ ];
     for (var i = 0; i < 200; ++i) {
         var light = new HX.PointLight();
         light.radius = 5;
@@ -42,11 +44,13 @@ function initScene(scene)
             Math.random()
         );
         light.intensity = 3.1415;
+        lights.push(light);
     }
 
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
     var material = new HX.BasicMaterial();
+    material.lights = lights;
     material.colorMap = texture;
     material.setRoughness(0.05);
 

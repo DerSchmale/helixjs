@@ -83,8 +83,10 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
     };
 
     // TODO: Allow material to define whether or not to use LODs
-    if (HX.EXT_SHADER_TEXTURE_LOD && defines.HX_NUM_SPECULAR_PROBES > 0)
+    if (HX.EXT_SHADER_TEXTURE_LOD && defines.HX_NUM_SPECULAR_PROBES > 0) {
+        defines.HX_TEXTURE_LOD = 1;
         extensions.push("GL_EXT_shader_texture_lod");
+    }
 
     var fragmentShader = lightingModel + "\n" +
         HX.DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +

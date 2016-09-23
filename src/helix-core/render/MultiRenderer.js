@@ -10,7 +10,6 @@ HX.View = function(scene, camera, xRatio, yRatio, widthRatio, heightRatio)
     this.yRatio = yRatio || 0;
     this.widthRatio = widthRatio || 1;
     this.heightRatio = heightRatio || 1;
-    this._debugMode = HX.DebugRenderMode.DEBUG_NONE;
 };
 
 /**
@@ -32,7 +31,6 @@ HX.MultiRenderer.prototype =
         view._texture.filter = HX.TextureFilter.BILINEAR_NOMIP;
         view._texture.wrapMode = HX.TextureWrapMode.CLAMP;
         view._fbo = new HX.FrameBuffer(view._texture);
-        view._renderer.debugMode = this._debugMode;
         this._views.push(view);
     },
 
@@ -74,17 +72,5 @@ HX.MultiRenderer.prototype =
         HX.setViewport(null);
 
         HX.popRenderTarget();
-    },
-
-    get debugMode()
-    {
-        return this._debugMode;
-    },
-
-    set debugMode(value)
-    {
-        this._debugMode = value;
-        for (var i = 0; i < this._views.length; ++i)
-            this._views[i]._renderer.debugMode = value;
     }
 };

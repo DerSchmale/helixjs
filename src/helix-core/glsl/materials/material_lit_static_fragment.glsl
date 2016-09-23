@@ -53,9 +53,8 @@ void main()
 
     float ssao = 1.0;
 
-    vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;
-
     #if HX_APPLY_SSAO
+        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;
         ssao = texture2D(hx_ssao, screenUV).x;
     #endif
 

@@ -24,6 +24,8 @@ HX.ForwardRenderer = function ()
     this._renderCollector = new HX.RenderCollector();
     this._normalDepthTexture = null;
     this._normalDepthFBO = null;
+    this._ssaoTexture = this._createDummySSAOTexture();
+    this._aoEffect = null;
     //this._previousViewProjection = new HX.Matrix4x4();
     this._depthPrepass = true;
 };
@@ -89,6 +91,7 @@ HX.ForwardRenderer.prototype =
     set ambientOcclusion(value)
     {
         this._aoEffect = value;
+        if (!this._aoEffect) this._ssaoTexture = this._createDummySSAOTexture();
     },
 
     get localReflections()
@@ -116,8 +119,6 @@ HX.ForwardRenderer.prototype =
         this._camera = camera;
         this._scene = scene;
 
-        this._aoTexture = this._aoEffect ? this._aoEffect.getAOTexture() : null;
-
         this._updateSize(renderTarget);
 
         camera._setRenderTargetResolution(this._width, this._height);
@@ -128,6 +129,7 @@ HX.ForwardRenderer.prototype =
         var opaqueStaticLit = this._renderCollector.getOpaqueStaticRenderList();
 
         this._renderNormalDepth(opaqueStaticLit);
+        this._renderAO();
 
         HX.pushRenderTarget(this._hdrFront.fboDepth);
             HX.clear();
@@ -162,7 +164,7 @@ HX.ForwardRenderer.prototype =
 
     _renderNormalDepth: function(list)
     {
-        if (!this._renderCollector.needsNormalDepth) return;
+        if (!this._renderCollector.needsNormalDepth && !this._aoEffect) return;
         if (!this._normalDepthTexture) this._initNormalDepth();
         HX.pushRenderTarget(this._normalDepthFBO);
         // furthest depth and alpha must be 1, the rest 0
@@ -171,6 +173,14 @@ HX.ForwardRenderer.prototype =
         this._renderPass(HX.MaterialPass.NORMAL_DEPTH_PASS, list);
         HX.setClearColor(HX.Color.BLACK);
         HX.popRenderTarget(this._normalDepthFBO);
+    },
+
+    _renderAO: function()
+    {
+        if (this._aoEffect) {
+            this._ssaoTexture = this._aoEffect.getAOTexture();
+            this._aoEffect.render(this, 0);
+        }
     },
 
     _renderShadowCasters: function ()
@@ -277,5 +287,13 @@ HX.ForwardRenderer.prototype =
 
         this._normalDepthFBO = new HX.FrameBuffer(this._normalDepthTexture, this._depthBuffer);
         this._normalDepthFBO.init();
+    },
+
+    _createDummySSAOTexture: function()
+    {
+        var data = new Uint8Array([0xff, 0xff, 0xff, 0xff]);
+        var tex = new HX.Texture2D();
+        tex.uploadData(data, 1, 1, true);
+        HX.Texture2D.DEFAULT.filter = HX.TextureFilter.NEAREST_NOMIP;
     }
 };

@@ -17,6 +17,7 @@ HX.Material = function(geometryVertexShader, geometryFragmentShader, lightingMod
 
     this._lights = null;
     this._name = null;
+    this._ssao = false;
     this._geometryVertexShader = geometryVertexShader;
     this._geometryFragmentShader = geometryFragmentShader;
     this._lightingModel = lightingModel || HX.LightingModel.UnlitLightingModel;
@@ -42,7 +43,7 @@ HX.Material.prototype =
         if (!this._lightingModel)
             this._setPass(HX.MaterialPass.BASE_PASS, new HX.UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
         else if (this._lights)
-            this._setPass(HX.MaterialPass.BASE_PASS, new HX.StaticLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._lights));
+            this._setPass(HX.MaterialPass.BASE_PASS, new HX.StaticLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._lights, this._ssao));
         //else
         //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
 
@@ -54,6 +55,14 @@ HX.Material.prototype =
     },
 
     get initialized() { return this._initialized; },
+
+    get ssao() { return this._ssao; },
+    set ssao(value)
+    {
+        if (this._ssao === value) return;
+        this._ssao = value;
+        this._invalidate();
+    },
 
     get name()
     {
@@ -214,6 +223,12 @@ HX.Material.prototype =
     {
         this._initialized = false;
         this._passes = new Array(HX.Material.NUM_PASS_TYPES);
+    },
+
+    _setSSAOTexture: function(texture)
+    {
+        if (this._lights && this._lightingModel)
+            this.getPass(HX.MaterialPass.BASE_PASS)._setSSAOTexture(texture);
     },
 
     toString: function()

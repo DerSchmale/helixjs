@@ -33,6 +33,7 @@ HX.TextureSetter._init = function()
     HX.TextureSetter._table.hx_normalDepth = HX.NormalDepthSetter;
     HX.TextureSetter._table.hx_backbuffer = HX.BackbufferSetter;
     HX.TextureSetter._table.hx_frontbuffer = HX.FrontbufferSetter;
+    HX.TextureSetter._table.hx_ssao = HX.SSAOSetter;
 };
 
 HX.NormalDepthSetter = function()
@@ -65,4 +66,14 @@ HX.BackbufferSetter.prototype.execute = function (renderer)
 {
     if (renderer._hdrBack)
         this.slot.texture = renderer._hdrBack.texture;
+};
+
+
+HX.SSAOSetter = function()
+{
+};
+
+HX.SSAOSetter.prototype.execute = function (renderer)
+{
+    this.slot.texture = renderer._ssaoTexture;
 };

@@ -30,6 +30,12 @@ uniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];
 uniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];
 #endif
 
+#if HX_APPLY_SSAO
+uniform sampler2D hx_ssao;
+
+uniform vec2 hx_rcpRenderTargetResolution;
+#endif
+
 
 void main()
 {
@@ -44,6 +50,14 @@ void main()
     vec3 diffuseAccum = vec3(0.0);
     vec3 specularAccum = vec3(0.0);
     vec3 viewVector = normalize(hx_viewPosition);
+
+    float ssao = 1.0;
+
+    vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;
+
+    #if HX_APPLY_SSAO
+        ssao = texture2D(hx_ssao, screenUV).x;
+    #endif
 
     #if HX_NUM_DIR_LIGHTS > 0
     for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {
@@ -77,7 +91,7 @@ void main()
     #if HX_NUM_DIFFUSE_PROBES > 0
     vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
     for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {
-        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal);
+        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;
     }
     #endif
 
@@ -89,11 +103,11 @@ void main()
     reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
 
     for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {
-        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, geometricShadowing, data.roughness);
+        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, geometricShadowing, data.roughness) * ssao;
     }
     #endif
 
-    gl_FragColor = vec4((diffuseAccum + hx_ambientColor) * data.color.xyz + specularAccum, data.color.w);
+    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum, data.color.w);
 
     #ifdef HX_GAMMA_CORRECT_LIGHTS
         gl_FragColor = hx_linearToGamma(gl_FragColor);

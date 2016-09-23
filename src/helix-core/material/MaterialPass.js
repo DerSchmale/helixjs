@@ -13,6 +13,7 @@ HX.MaterialPass = function (shader)
     this._depthTest = HX.Comparison.LESS_EQUAL;
     this._writeDepth = true;
     this._blendState = null;
+
     this._storeUniforms();
     this._textureSetters = HX.TextureSetter.getSetters(this);
 
@@ -90,8 +91,9 @@ HX.MaterialPass.prototype =
     {
         var len = this._textureSetters.length;
 
-        for (var i = 0; i < len; ++i)
+        for (var i = 0; i < len; ++i) {
             this._textureSetters[i].execute(renderer);
+        }
 
         len = this._textureSlots.length;
 
@@ -152,10 +154,6 @@ HX.MaterialPass.prototype =
         }
 
         if (!slot) {
-            // TODO: Provide numTextures field, if > 1:
-            // or instead of numTextures, can we query the size of the uniform vector?
-            // instead of uniform1i, set uniform1iv
-            // + push a texture slot for each
             var indices = new Int32Array(uniform.size);
             for (var s = 0; s < uniform.size; ++s) {
                 slot = new HX.TextureSlot();
@@ -294,7 +292,7 @@ HX.MaterialPass.prototype =
                 HX_GL.uniform1f(uniform.location, value);
                 break;
             case HX_GL.FLOAT_VEC2:
-                HX_GL.uniform2f(uniform.location, value.x || value[0], value.y || value[1]);
+                HX_GL.uniform2f(uniform.location, value.x || value[0] || 0, value.y || value[1] || 0);
                 break;
             case HX_GL.FLOAT_VEC3:
                 HX_GL.uniform3f(uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0 );

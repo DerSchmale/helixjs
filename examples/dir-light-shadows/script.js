@@ -26,10 +26,11 @@ function initRenderer(renderer)
     //renderer.localReflections = new HX.ScreenSpaceReflections(32);
 
     //var ssao = new HX.SSAO(16);
-    //ssao.strength = 1.5;
-    //ssao.sampleRadius = .25;
-    //ssao.fallOffDistance = .5;
-    //renderer.ambientOcclusion = ssao;
+    var ssao = new HX.HBAO(5, 6);
+    ssao.strength = 5.0;
+    ssao.sampleRadius = 2.0;
+    ssao.fallOffDistance = 2.0;
+    renderer.ambientOcclusion = ssao;
 }
 
 function initCamera(camera)
@@ -49,7 +50,7 @@ function initCamera(camera)
     orbitController.maxRadius = 20.0;
     orbitController.lookAtTarget.y = .25;
 
-    camera.addComponents([bloom, tonemap, new HX.FXAA(), orbitController]);
+    camera.addComponents([/*bloom, tonemap, new HX.FXAA(),*/ orbitController]);
 }
 
 function initScene(scene)
@@ -98,6 +99,7 @@ function initScene(scene)
     opaqueMaterial.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     opaqueMaterial.metallicness = 1.0;
     opaqueMaterial.lights = lights;
+    opaqueMaterial.ssao = true;
     opaqueMaterial.setRoughness(0.05, .5);
 
     var primitive = new HX.SpherePrimitive(
@@ -130,6 +132,7 @@ function initScene(scene)
     material.normalMap = normalMap;
     material.specularMap = specularMap;
     material.lights = lights;
+    material.ssao = true;
     material.setRoughness(.3);
 
     primitive = new HX.PlanePrimitive(

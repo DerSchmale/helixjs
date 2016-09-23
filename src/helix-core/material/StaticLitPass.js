@@ -6,7 +6,7 @@
  * @param lights
  * @constructor
  */
-HX.StaticLitPass = function(geometryVertex, geometryFragment, lightingModel, lights)
+HX.StaticLitPass = function(geometryVertex, geometryFragment, lightingModel, lights, ssao)
 {
     this._dirLights = null;
     this._dirLightCasters = null;
@@ -15,7 +15,8 @@ HX.StaticLitPass = function(geometryVertex, geometryFragment, lightingModel, lig
     this._specularLightProbes = null;
     this._maxCascades = 0;
 
-    HX.MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights));
+    HX.MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights, ssao));
+    this._ssaoSlot = this.getTextureSlot("hx_ssao");
 
     this._assignShadowMaps();
     this._assignLightProbes();
@@ -34,7 +35,7 @@ HX.StaticLitPass.prototype.updateRenderState = function(renderer)
     HX.MaterialPass.prototype.updateRenderState.call(this, renderer);
 };
 
-HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, lights)
+HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, lights, ssao)
 {
     this._dirLights = [];
     this._dirLightCasters = [];
@@ -77,7 +78,8 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
         HX_NUM_POINT_LIGHTS: this._pointLights.length,
         HX_NUM_DIFFUSE_PROBES: this._diffuseLightProbes.length,
         HX_NUM_SPECULAR_PROBES: this._specularLightProbes.length,
-        HX_MAX_CASCADES: this._maxCascades
+        HX_MAX_CASCADES: this._maxCascades,
+        HX_APPLY_SSAO: ssao? 1 : 0
     };
 
     // TODO: Allow material to define whether or not to use LODs
@@ -210,4 +212,9 @@ HX.StaticLitPass.prototype._assignLightProbes = function()
         this.setTextureArray("hx_specularProbeMaps", specularMaps);
         this.setUniformArray("hx_specularProbeNumMips", new Float32Array(mips));
     }
+};
+
+HX.StaticLitPass.prototype._setSSAOTexture = function(texture)
+{
+    this._ssaoSlot.texture = texture;
 };

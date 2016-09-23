@@ -123,6 +123,8 @@ HX.SSAO.prototype.draw = function(dt)
         this._ssaoPass.setUniform("ditherScale", {x: w *.25, y: h *.25});
     }
 
+    HX.setClearColor(HX.Color.WHITE);
+
     HX.pushRenderTarget(this._fbo1);
     HX.clear();
     this._drawPass(this._ssaoPass);
@@ -139,6 +141,8 @@ HX.SSAO.prototype.draw = function(dt)
     this._sourceTextureSlot.texture = this._backTexture;
     this._drawPass(this._blurPass);
     HX.popRenderTarget();
+
+    HX.setClearColor(HX.Color.BLACK);
 };
 
 HX.SSAO.prototype._initDitherTexture = function()

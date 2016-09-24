@@ -57,7 +57,7 @@ void hx_geometry()
 
 // TODO: calculate start offset correctly. Nearest point density is not really 0!
     float fStartAngle = dot(viewDir, nearPos) / atmosphereRadius;
-    float fStartDepth = exp(-1.0 / scaleDepth);
+    float fStartDepth = saturate(exp(-1.0 / scaleDepth));
     float fStartOffset = fStartDepth * scaleDepth * scale(fStartAngle);
 
     float thicknessOverScaleDepth = rcpAtmosThickness / scaleDepth;
@@ -78,7 +78,7 @@ void hx_geometry()
         float lightAngle = dot(lightDir, v3SamplePoint) * rcpHeight;
         float cameraAngle = dot(viewDir, v3SamplePoint) * rcpHeight;
         float scatter = fStartOffset + expThicknessOverScaleDepth * scaleDepth * (scale(lightAngle) - scale(cameraAngle));
-        v3Attenuate = exp(-scatter * waveLenFactorsKr4PiKm4Pi);
+        v3Attenuate = saturate(exp(-scatter * waveLenFactorsKr4PiKm4Pi));
         v3Attenuate = clamp(v3Attenuate, 0.0, 1.0);
         color += v3Attenuate * expThicknessOverScaleDepth * fScaledLength;
         v3SamplePoint += v3SampleRay;

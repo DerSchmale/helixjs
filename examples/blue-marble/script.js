@@ -39,7 +39,6 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
-    options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -58,9 +57,11 @@ function initHDRSettings()
     tonemap.exposure = -2;
 
     settings.effects = [bloom1, bloom2, bloom3, tonemap];
-    settings.sunIntensity = 20.0;
+    settings.sunIntensity = 10.0;
     settings.cloudColor = new HX.Color(0.8, 0.78, 0.75);
+
     settings.scatterIntensityBoost = .25;
+
 }
 
 function initLDRSettings()
@@ -68,13 +69,11 @@ function initLDRSettings()
     var bloom1 = new HX.BloomEffect(300, 1.5, 8,.75);
     bloom1.thresholdLuminance = .95;
 
-    //var bloom2 = new HX.BloomEffect(15, 20.0, 4);
-    //bloom2.thresholdLuminance = .99;
-
     settings.effects = [ bloom1 ];
-    settings.sunIntensity = 4.0;
+    settings.sunIntensity = 10.0;
     settings.cloudColor = new HX.Color(0.64, 0.624, 0.6);
-    settings.scatterIntensityBoost = 2.0;
+
+    settings.scatterIntensityBoost = .25;
 }
 
 function initCamera(camera)

@@ -52,18 +52,19 @@ HX.TextureUtils =
         HX_GL.vertexAttribPointer(cornerLocation, 3, HX_GL.FLOAT, false, 20, 8);
 
         HX.enableAttributes(2);
+        var old = HX.getCurrentRenderTarget();
 
         for (var i = 0; i < 6; ++i) {
             var fbo = new HX.FrameBuffer(target, null, faces[i]);
             fbo.init();
 
-            var old = HX.getCurrentRenderTarget();
             HX.setRenderTarget(fbo);
             HX.drawElements(HX_GL.TRIANGLES, 6, i * 6);
-            HX.setRenderTarget(old);
 
             fbo.dispose();
         }
+
+        HX.setRenderTarget(old);
 
         if (generateMipmaps)
             target.generateMipmap();

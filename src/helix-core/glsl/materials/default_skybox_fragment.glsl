@@ -6,8 +6,7 @@ HX_GeometryData hx_geometry()
 {
     HX_GeometryData data;
     data.color = textureCube(hx_skybox, viewWorldDir);
-    #ifndef HX_GAMMA_CORRECT_LIGHTS
+    data.emission = vec3(0.0);
     data.color = hx_gammaToLinear(data.color);
-    #endif
     return data;
 }

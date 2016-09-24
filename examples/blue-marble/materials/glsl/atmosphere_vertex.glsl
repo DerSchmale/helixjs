@@ -41,7 +41,7 @@ float scale(float cosAngle)
 	return exp(-0.00287 + x*(0.459 + x*(3.83 + x*(-6.80 + x*5.25))));
 }
 
-void main()
+void hx_geometry()
 {
     vec3 farPos = (hx_worldMatrix * hx_position).xyz;
     // points towards camera

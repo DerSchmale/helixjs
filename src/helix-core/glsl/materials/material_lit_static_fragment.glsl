@@ -106,7 +106,7 @@ void main()
     }
     #endif
 
-    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum, data.color.w);
+    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);
 
     #ifdef HX_GAMMA_CORRECT_LIGHTS
         gl_FragColor = hx_linearToGamma(gl_FragColor);

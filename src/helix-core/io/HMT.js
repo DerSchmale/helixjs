@@ -18,16 +18,13 @@ HX.HMT.prototype.parse = function(data, target)
 
 HX.HMT.prototype._gatherShaderFiles = function(data)
 {
-    var passes = data.passes;
     var files = [];
-    for (var key in passes) {
-        if (passes.hasOwnProperty(key)) {
-            var vertex = passes[key].vertexShader;
-            var fragment = passes[key].fragmentShader;
-            if (files.indexOf(vertex) < 0) files.push(this._correctURL(vertex));
-            if (files.indexOf(fragment) < 0) files.push(this._correctURL(fragment));
-        }
-    }
+    var geometry = data.geometry;
+
+    var vertex = geometry.vertexShader;
+    var fragment = geometry.fragmentShader;
+    if (files.indexOf(vertex) < 0) files.push(this._correctURL(vertex));
+    if (files.indexOf(fragment) < 0) files.push(this._correctURL(fragment));
 
     return files;
 };
@@ -66,67 +63,30 @@ HX.HMT.prototype._processMaterial = function(data, shaders, material)
         }
     }
 
-    var passes = data.passes;
+    var geometryVertex = shaders[this._correctURL(data.geometry.vertexShader)];
+    var geometryFragment = shaders[this._correctURL(data.geometry.fragmentShader)];
 
-    if (passes.geometry !== undefined) this._processPass(material, passes.geometry, HX.MaterialPass.GEOMETRY_PASS, shaders, defines);
+    material._geometryVertexShader = geometryVertex;
+    material._geometryFragmentShader = geometryFragment;
+    material.init();
 
     this._applyUniforms(data, material);
 
     // default pre-defined texture
     material.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
-};
 
-HX.HMT.prototype._processPass = function(material, passData, passType, shaders, defines)
-{
-    var vertexShader = shaders[this._correctURL(passData.vertexShader)];
-    var fragmentShader = shaders[this._correctURL(passData.fragmentShader)];
+    if (data.hasOwnProperty("elementType"))
+        material.elementType = HX.HMT._PROPERTY_MAP[data.elementType];
 
-    if (passType === HX.MaterialPass.GEOMETRY_PASS) {
-        if (HX.EXT_DRAW_BUFFERS)
-            this._addPass(vertexShader, fragmentShader, passData, material, passType, defines);
-        else {
-            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_COLOR_PASS, defines, "HX_NO_MRT_GBUFFER_COLOR");
-            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_NORMAL_PASS, defines, "HX_NO_MRT_GBUFFER_NORMALS");
-            this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_SPECULAR_PASS, defines, "HX_NO_MRT_GBUFFER_SPECULAR");
-            if (!HX.EXT_DEPTH_TEXTURE)
-                this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.GEOMETRY_LINEAR_DEPTH_PASS, defines, "HX_NO_MRT_GBUFFER_LINEAR_DEPTH");
-        }
+    if (data.hasOwnProperty("cullMode"))
+        material.cullMode = HX.HMT._PROPERTY_MAP[data.cullMode];
 
-        this._addPass(vertexShader, fragmentShader, passData, material, HX.MaterialPass.SHADOW_DEPTH_PASS, defines, "HX_SHADOW_DEPTH_PASS");
-    }
-    else {
-        this._addPass(vertexShader, fragmentShader, passData, material, passType, defines);
-    }
-};
+    if (data.hasOwnProperty("writeDepth"))
+        material.writeDepth = data.writeDepth;
 
-HX.HMT.prototype._addPass = function(vertexShader, fragmentShader, passData, material, passType, defines, geometryPassTypeDef)
-{
-    fragmentShader = HX.GLSLIncludeGeometryPass + fragmentShader;
-
-    if (geometryPassTypeDef) {
-        var geomDefines = defines + "#define " + geometryPassTypeDef + "\n";
-        vertexShader = geomDefines + vertexShader;
-        fragmentShader = geomDefines + fragmentShader;
-    }
-
-    var shader = new HX.Shader(defines + vertexShader, defines + fragmentShader);
-    var pass = new HX.MaterialPass(shader);
-
-    if (passData.hasOwnProperty("elementType"))
-        pass.elementType = HX.HMT._PROPERTY_MAP[passData.elementType];
-
-    if (passData.hasOwnProperty("cullMode"))
-        pass.cullMode = HX.HMT._PROPERTY_MAP[passData.cullMode];
-
-    if (passData.hasOwnProperty("depthTest"))
-        pass.depthTest = HX.HMT._PROPERTY_MAP[passData.depthTest];
-
-    if (passData.hasOwnProperty("writeDepth"))
-        pass.writeDepth = passData.writeDepth;
-
-    if (passData.hasOwnProperty("blend")) {
+    if (data.hasOwnProperty("blend")) {
         var blendState = new HX.BlendState();
-        var blend = passData.blend;
+        var blend = data.blend;
 
         if (blend.hasOwnProperty("source"))
             blendState.srcFactor = HX.HMT._PROPERTY_MAP[blend.source];
@@ -137,10 +97,8 @@ HX.HMT.prototype._addPass = function(vertexShader, fragmentShader, passData, mat
         if (blend.hasOwnProperty("operator"))
             blendState.operator = HX.HMT._PROPERTY_MAP[blend.operator];
 
-        pass.blendState = blendState;
+        material.blendState = blendState;
     }
-
-    material.setPass(passType, pass);
 };
 
 HX.HMT.prototype._applyUniforms = function(data, material)
@@ -196,7 +154,7 @@ HX.HMT._PROPERTY_MAP = null;
 
 HX.HMT._initPropertyMap = function() {
     HX.HMT._PROPERTY_MAP = HX.HMT._PROPERTY_MAP || {
-        back: HX_GL.BACK,
+        back: HX.CullMode.BACK,
         front: HX.CullMode.FRONT,
         both: HX.CullMode.ALL,
         none: null,

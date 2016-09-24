@@ -94,6 +94,6 @@ HX_GeometryData hx_geometry()
     data.metallicness = metallicnessOut;
     data.normalSpecularReflectance = specNormalReflOut;
     data.roughness = roughnessOut;
-    data.emission = 0.0;
+    data.emission = vec3(0.0);
     return data;
 }

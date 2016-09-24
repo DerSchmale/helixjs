@@ -51,7 +51,7 @@ float scale(float cosAngle)
 	return exp(-0.00287 + x*(0.459 + x*(3.83 + x*(-6.80 + x*5.25))));
 }
 
-void main()
+void hx_geometry()
 {
     uv = hx_texCoord;
     normal = normalize(hx_normalWorldViewMatrix * hx_normal);
@@ -99,12 +99,12 @@ void main()
     vec3 inScattering = vec3(0.0, 0.0, 0.0);
     vec3 attenuation;
 
-    for(int i=0; i < NUM_SAMPLES; i++)
+    for(int i = 0; i < NUM_SAMPLES; i++)
     {
         float height = length(samplePoint);
         float depth = exp(rcpThicknessOverScaleDepth * (earthRadius - height));
         float fScatter = depth*scaleSum - cameraOffset;
-        attenuation = exp(-fScatter * (waveLenFactorsKr4PiKm4Pi));
+        attenuation = clamp(exp(-fScatter * (waveLenFactorsKr4PiKm4Pi)), 0.0, 1.0);
         inScattering += attenuation * (depth * scaledLength);
         samplePoint += sampleRayStep;
     }

@@ -1,11 +1,11 @@
 {
     "version": "0.1",
-    "passes": {
-        "geometry": {
-            "vertexShader": "glsl/earth_vertex.glsl",
-            "fragmentShader": "glsl/earth_fragment.glsl"
-        }
+
+    "geometry": {
+        "vertexShader": "glsl/earth_vertex.glsl",
+        "fragmentShader": "glsl/earth_fragment.glsl"
     },
+
     "uniforms": {
         "normalSpecularReflectance": 0.027,
         "minRoughness": 0.3,

@@ -5,6 +5,8 @@
 HX.Material = function(geometryVertexShader, geometryFragmentShader, lightingModel)
 {
     this._elementType = HX.ElementType.TRIANGLES;
+    this._cullMode = HX.CullMode.BACK;
+    this._writeDepth = true;
     // TODO: should this be passed to the material as a uniform to figure out how to interlace in hx_processGeometry (= overhead for opaque), or should this be a #define and compilation issue?
     // could by default do a test, and if #define FORCE_TRANSPARENCY_MODE <mode> is set, do not. This can be used by BasicMaterial or custom materials to trigger recompilations and optimize.
     this._passes = new Array(HX.Material.NUM_PASS_TYPES);
@@ -32,14 +34,12 @@ HX.Material.prototype =
 {
     init: function()
     {
-        if (this._initialized) return;
+        if (this._initialized || !this._geometryVertexShader || !this._geometryFragmentShader)
+            return;
 
         this._dirLights = null;
         this._dirLightCasters = null;
         this._pointLights = null;
-
-        if (!this._geometryVertexShader || !this._geometryFragmentShader)
-            throw "Cannot call Material.init without shaders!";
 
         if (!this._lightingModel)
             this._setPass(HX.MaterialPass.BASE_PASS, new HX.UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
@@ -137,6 +137,34 @@ HX.Material.prototype =
         }
     },
 
+    get writeDepth()
+    {
+        return this._writeDepth;
+    },
+
+    set writeDepth(value)
+    {
+        this._writeDepth = value;
+        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+            if (this._passes[i])
+                this._passes[i].writeDepth = value;
+        }
+    },
+
+    get cullMode()
+    {
+        return this._cullMode;
+    },
+
+    set cullMode(value)
+    {
+        this._cullMode = value;
+        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+            if (i !== HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && this._passes[i])
+                this._passes[i].cullMode = value;
+        }
+    },
+
     getPass: function (type)
     {
         if (!this._initialized) this.init();
@@ -150,8 +178,11 @@ HX.Material.prototype =
         if (pass) {
             if(type === HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS)
                 pass.cullMode = HX.DirectionalLight.SHADOW_FILTER.getCullMode();
+            else
+                pass.cullMode = this._cullMode;
 
             pass.elementType = this._elementType;
+            pass.writeDepth = this._writeDepth; // TODO: this should probably only be true on base pass
             pass.blendState = this._blendState;
 
             for (var slotName in this._textures) {

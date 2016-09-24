@@ -5,5 +5,5 @@ struct HX_GeometryData
     float metallicness;
     float normalSpecularReflectance;
     float roughness;
-    float emission;
+    vec3 emission;
 };

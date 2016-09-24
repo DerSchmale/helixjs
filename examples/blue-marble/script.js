@@ -29,10 +29,10 @@ project.onInit = function()
 project.onUpdate = function(dt)
 {
     time += dt;
-    earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, time * .00001 + 1.0, 0.0);
+    //earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, time * .00001 + 1.0, 0.0);
 
-    var v = this.camera.viewMatrix.transformVector(sunLight.direction);
-    earthMaterial.setUniform("sunViewDirection", v);
+    //var v = this.camera.viewMatrix.transformVector(sunLight.direction);
+    //earthMaterial.setUniform("sunViewDirection", v);
 };
 
 window.onload = function ()
@@ -55,7 +55,7 @@ function initHDRSettings()
     bloom3.thresholdLuminance = 15.0;
 
     var tonemap = new HX.FilmicToneMapEffect(true);
-    tonemap.exposure = -1;
+    tonemap.exposure = -2;
 
     settings.effects = [bloom1, bloom2, bloom3, tonemap];
     settings.sunIntensity = 20.0;
@@ -154,6 +154,7 @@ function initEarth(container)
     earthMaterial.setUniform("rcpAtmosThickness", 1.0 / atmosphereTickness);
     earthMaterial.setUniform("rcpThicknessOverScaleDepth", 1.0 / atmosphereTickness / avgDensityHeight);
     earthMaterial.setUniform("expThicknessOverScaleDepth", Math.exp((earthRadius - atmosphereRadius) / avgDensityHeight));
+    earthMaterial.lights = [ sunLight ];
 
     var globe = new HX.ModelInstance(earthSpherePrimitive, earthMaterial);
     earth.attach(globe);
@@ -169,7 +170,6 @@ function initEarth(container)
     atmosMaterial.setUniform("rcpThicknessOverScaleDepth", 1.0 / atmosphereTickness / avgDensityHeight);
     atmosMaterial.setUniform("boost", settings.sunIntensity * settings.scatterIntensityBoost);
     atmosMaterial.setUniform("lightDir", lightDir);
-    atmosMaterial.transparencyMode = HX.TransparencyMode.ADDITIVE;
 
     earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, 1.0, 0.0);
 
@@ -197,6 +197,7 @@ function initMoon(container)
     moonMaterial.colorMap = colorMap;
     moonMaterial.normalMap = normalMap;
     moonMaterial.setRoughness(.99);
+    moonMaterial.lights = [ sunLight ];
 
     var moon = new HX.ModelInstance(moonSpherePrimitive, moonMaterial);
 
@@ -221,9 +222,6 @@ function initScene(scene)
 
     scene.detach(project.camera);
     container.attach(project.camera);
-
-    //var cubeLoader = new HX.AssetLoader(HX.HCM);
-    //var skyboxTexture = cubeLoader.load("textures/skybox/stars_skybox.hcm");
 
     var envMapLoader = new HX.AssetLoader(HX.JPG_EQUIRECTANGULAR);
     var skyboxTexture = envMapLoader.load("textures/skybox/milkyway.jpg");

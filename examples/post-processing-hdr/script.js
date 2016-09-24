@@ -19,10 +19,10 @@ function initCamera(camera)
     camera.addComponent(new OrbitController());
 
     // ADD POST-PROCESSING COMPONENTS:
-    camera.addComponent(new HX.FXAA());
+    //camera.addComponent(new HX.FXAA());
 
-    var bloom = new HX.BloomEffect(256, 1.0, 8);
-    bloom.thresholdLuminance = 1.0;
+    var bloom = new HX.Bloom(256, 1.0, 8);
+    bloom.thresholdLuminance = .5;
     camera.addComponent(bloom);
 
     camera.addComponent(new HX.FilmicToneMapEffect());

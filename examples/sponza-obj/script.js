@@ -41,7 +41,7 @@ function initCamera(camera)
     floatController.speed = 10.0;
     camera.addComponent(floatController);
 
-    var bloom = new HX.BloomEffect(250, .5, 8);
+    var bloom = new HX.Bloom(250, .5, 8);
     bloom.thresholdLuminance = .5;
     camera.addComponent(bloom);
 

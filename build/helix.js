@@ -14587,7 +14587,7 @@ HX.ApplyGammaShader.prototype = Object.create(HX.CustomCopyShader.prototype);
  *
  * @constructor
  */
-HX.BloomEffect = function(radius, strength, downScale, anisotropy)
+HX.Bloom = function(radius, strength, downScale, anisotropy)
 {
     HX.Effect.call(this);
 
@@ -14596,11 +14596,11 @@ HX.BloomEffect = function(radius, strength, downScale, anisotropy)
     this._targetWidth = -1;
     this._targetHeight = -1;
 
-    this._radius = radius || 512;
-    this._radius /= this._downScale;
+    radius = radius || 256;
+    radius /= this._downScale;
     this._thresholdPass = new HX.EffectPass(null, HX.ShaderLibrary.get("bloom_threshold_fragment.glsl"));
     this._compositePass = new HX.EffectPass(HX.ShaderLibrary.get("bloom_composite_vertex.glsl"), HX.ShaderLibrary.get("bloom_composite_fragment.glsl"));
-    this._blurPass = new HX.GaussianBlurPass(this._radius);
+    this._blurPass = new HX.GaussianBlurPass(radius);
     this._blurSourceSlot = this._blurPass.getTextureSlot("sourceTexture");
     this._thresholdWidth = -1;
     this._thresholdHeight = -1;
@@ -14629,7 +14629,7 @@ HX.BloomEffect = function(radius, strength, downScale, anisotropy)
     this.strength = this._strength;
 };
 
-HX.BloomEffect.prototype = Object.create(HX.Effect.prototype,
+HX.Bloom.prototype = Object.create(HX.Effect.prototype,
     {
         strength: {
             get: function() {
@@ -14643,7 +14643,7 @@ HX.BloomEffect.prototype = Object.create(HX.Effect.prototype,
         }
     });
 
-HX.BloomEffect.prototype._initTextures = function()
+HX.Bloom.prototype._initTextures = function()
 {
     for (var i = 0; i < 2; ++i) {
         this._thresholdWidth = Math.ceil(this._targetWidth / this._downScale);
@@ -14653,7 +14653,7 @@ HX.BloomEffect.prototype._initTextures = function()
     }
 };
 
-HX.BloomEffect.prototype.draw = function(dt)
+HX.Bloom.prototype.draw = function(dt)
 {
     if (this._renderer._width != this._targetWidth || this._renderer._height != this._targetHeight) {
         this._targetWidth = this._renderer._width;
@@ -14674,7 +14674,7 @@ HX.BloomEffect.prototype.draw = function(dt)
     HX.setRenderTarget(this._smallFBOs[0]);
     HX.clear();
     this._blurSourceSlot.texture = this._thresholdMaps[1];
-    this._blurPass.setUniform("stepSize", {x: 0.0, y: 1.0 / this._thresholdHeight});
+    this._blurPass.setUniform("stepSize", {x: 0.0, y: this._anisotropy / this._thresholdHeight});
     this._drawPass(this._blurPass);
 
     HX.setRenderTarget(this.hdrTarget);
@@ -14682,7 +14682,7 @@ HX.BloomEffect.prototype.draw = function(dt)
     this._drawPass(this._compositePass);
 };
 
-HX.BloomEffect.prototype.dispose = function()
+HX.Bloom.prototype.dispose = function()
 {
     for (var i = 0; i < 2; ++i) {
         this._smallFBOs[i].dispose();
@@ -14693,7 +14693,7 @@ HX.BloomEffect.prototype.dispose = function()
     this._thresholdMaps = null;
 };
 
-Object.defineProperty(HX.BloomEffect.prototype, "thresholdLuminance", {
+Object.defineProperty(HX.Bloom.prototype, "thresholdLuminance", {
     get: function() {
         return this._thresholdLuminance;
     },
@@ -14865,9 +14865,9 @@ HX.FXAA.prototype.draw = function(dt)
  */
 HX.GaussianBlurPass = function(radius)
 {
-    this._initWeights(radius);
-
     radius = Math.floor(radius);
+
+    this._initWeights(radius);
 
     var defines = {
         RADIUS: radius,
@@ -14895,6 +14895,8 @@ HX.GaussianBlurPass.prototype._initWeights = function(radius)
         this._weights[j] = gaussian.getValueAt(j);
         total += j > 0? this._weights[j] * 2.0 : 1.0;
     }
+
+    total = 1.0 / total;
 
     for (var j = 0; j <= radius; ++j) {
         this._weights[j] *= total;
@@ -18001,4 +18003,4 @@ HX.Debug = {
         console.log(str);
     }
 };
-HX.BUILD_HASH = 0xf98d;
+HX.BUILD_HASH = 0x1b85;

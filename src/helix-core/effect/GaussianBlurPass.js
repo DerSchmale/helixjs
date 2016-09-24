@@ -3,9 +3,9 @@
  */
 HX.GaussianBlurPass = function(radius)
 {
-    this._initWeights(radius);
-
     radius = Math.floor(radius);
+
+    this._initWeights(radius);
 
     var defines = {
         RADIUS: radius,
@@ -33,6 +33,8 @@ HX.GaussianBlurPass.prototype._initWeights = function(radius)
         this._weights[j] = gaussian.getValueAt(j);
         total += j > 0? this._weights[j] * 2.0 : 1.0;
     }
+
+    total = 1.0 / total;
 
     for (var j = 0; j <= radius; ++j) {
         this._weights[j] *= total;

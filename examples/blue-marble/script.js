@@ -44,13 +44,13 @@ window.onload = function ()
 
 function initHDRSettings()
 {
-    var bloom1 = new HX.BloomEffect(15, 1.0, 4);
+    var bloom1 = new HX.Bloom(15, 1.0, 4);
     bloom1.thresholdLuminance = 5.0;
 
-    var bloom2 = new HX.BloomEffect(50,.5, 4,.8);
+    var bloom2 = new HX.Bloom(50, .5, 4, .8);
     bloom2.thresholdLuminance = 10.0;
 
-    var bloom3 = new HX.BloomEffect(150,.1, 8,.75);
+    var bloom3 = new HX.Bloom(150, .1, 8, .75);
     bloom3.thresholdLuminance = 15.0;
 
     var tonemap = new HX.FilmicToneMapEffect(true);
@@ -66,7 +66,7 @@ function initHDRSettings()
 
 function initLDRSettings()
 {
-    var bloom1 = new HX.BloomEffect(300, 1.5, 8,.75);
+    var bloom1 = new HX.Bloom(300, 1.5, 8,.75);
     bloom1.thresholdLuminance = .95;
 
     settings.effects = [ bloom1 ];

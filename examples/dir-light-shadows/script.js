@@ -39,10 +39,10 @@ function initCamera(camera)
     camera.nearDistance = .01;
     camera.farDistance = 50.0;
 
-    var bloom = new HX.BloomEffect(400, 1);
+    var bloom = new HX.BloomEffect(200, 1);
     bloom.thresholdLuminance = .25;
     var tonemap = new HX.FilmicToneMapEffect(true);
-    tonemap.exposure = 2.0;
+    tonemap.exposure = 0.0;
 
     var orbitController = new OrbitController();
     orbitController.radius = 5.0;
@@ -50,7 +50,7 @@ function initCamera(camera)
     orbitController.maxRadius = 20.0;
     orbitController.lookAtTarget.y = .25;
 
-    camera.addComponents([/*bloom, tonemap, new HX.FXAA(),*/ orbitController]);
+    camera.addComponents([bloom, tonemap, orbitController]);
 }
 
 function initScene(scene)

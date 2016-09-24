@@ -3458,21 +3458,21 @@ HX.ShaderLibrary['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_P
 
 HX.ShaderLibrary['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position; // in view space?\n    float radius;\n};\n\n\nvoid hx_calculateLight(HX_PointLight light, vec3 normal, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, float roughness, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(normal, direction, viewVector, light.color * attenuation, normalSpecularReflectance, roughness, diffuse, specular);\n}';
 
-HX.ShaderLibrary['bloom_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform float gaussianWeights[NUM_SAMPLES];\n\nvoid main()\n{\n	vec4 total = vec4(0.0);\n	vec2 sampleUV = uv;\n	vec2 stepSize = DIRECTION / SOURCE_RES;\n	float totalWeight = 0.0;\n	for (int i = 0; i < NUM_SAMPLES; ++i) {\n		total += texture2D(sourceTexture, sampleUV) * gaussianWeights[i];\n		sampleUV += stepSize;\n	}\n	gl_FragColor = total;\n}';
-
-HX.ShaderLibrary['bloom_blur_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord - RADIUS * DIRECTION / SOURCE_RES;\n	gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(bloomTexture, uv) * strength;\n}';
+HX.ShaderLibrary['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 HX.ShaderLibrary['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
 
-HX.ShaderLibrary['bloom_threshold_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_frontbuffer;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_frontbuffer, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        gl_FragColor = color * targetLuminance / originalLuminance;\n}\n';
+HX.ShaderLibrary['bloom_threshold_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_backbuffer, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        gl_FragColor = color * targetLuminance / originalLuminance;\n}\n';
 
 HX.ShaderLibrary['default_post_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
 
-HX.ShaderLibrary['fog_fragment.glsl'] = 'varying vec2 uv;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nuniform sampler2D hx_normalDepth;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepth, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox\n	if (depth > .999) depth = 0.0;\n	float distance = max(depth * hx_cameraFrustumRange - startDistance, 0.0);\n	float fog = clamp(exp2(-distance * density), 0.0, 1.0);\n	gl_FragColor = vec4(tint, 1.0 - fog);\n}';
+HX.ShaderLibrary['fog_fragment.glsl'] = 'varying vec2 uv;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nuniform sampler2D hx_normalDepth;\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepth, uv);\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox\n	if (depth > .999) depth = 0.0;\n	float distance = max(depth * hx_cameraFrustumRange - startDistance, 0.0);\n	float fog = clamp(exp2(-distance * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	gl_FragColor = color;\n}';
 
 HX.ShaderLibrary['fxaa_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_backbuffer;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform float edgeThreshold;\nuniform float edgeThresholdMin;\nuniform float edgeSharpness;\n\nfloat luminanceHint(vec4 color)\n{\n	return .30/.59 * color.r + color.g;\n}\n\nvoid main()\n{\n	vec4 center = texture2D(hx_backbuffer, uv);\n	vec2 halfRes = vec2(hx_rcpRenderTargetResolution.x, hx_rcpRenderTargetResolution.y) * .5;\n	float topLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, halfRes.y)));\n	float bottomLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, -halfRes.y)));\n	float topRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, halfRes.y)));\n	float bottomRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, -halfRes.y)));\n\n	float centerLum = luminanceHint(center);\n	float minLum = min(min(topLeftLum, bottomLeftLum), min(topRightLum, bottomRightLum));\n	float maxLum = max(max(topLeftLum, bottomLeftLum), max(topRightLum, bottomRightLum));\n	float range = max(centerLum, maxLum) - min(centerLum, minLum);\n	float threshold = max(edgeThresholdMin, maxLum * edgeThreshold);\n	float applyFXAA = range < threshold? 0.0 : 1.0;\n\n	float diagDiff1 = bottomLeftLum - topRightLum;\n	float diagDiff2 = bottomRightLum - topLeftLum;\n	vec2 dir1 = normalize(vec2(diagDiff1 + diagDiff2, diagDiff1 - diagDiff2));\n	vec4 sampleNeg1 = texture2D(hx_backbuffer, uv - halfRes * dir1);\n	vec4 samplePos1 = texture2D(hx_backbuffer, uv + halfRes * dir1);\n\n	float minComp = min(abs(dir1.x), abs(dir1.y)) * edgeSharpness;\n	vec2 dir2 = clamp(dir1.xy / minComp, -2.0, 2.0) * 2.0;\n	vec4 sampleNeg2 = texture2D(hx_backbuffer, uv - hx_rcpRenderTargetResolution * dir2);\n	vec4 samplePos2 = texture2D(hx_backbuffer, uv + hx_rcpRenderTargetResolution * dir2);\n	vec4 tap1 = sampleNeg1 + samplePos1;\n	vec4 fxaa = (tap1 + sampleNeg2 + samplePos2) * .25;\n	float fxaaLum = luminanceHint(fxaa);\n	if ((fxaaLum < minLum) || (fxaaLum > maxLum))\n		fxaa = tap1 * .5;\n	gl_FragColor = mix(center, fxaa, applyFXAA);\n}';
+
+HX.ShaderLibrary['gaussian_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform vec2 stepSize;\n\nuniform float gaussianWeights[NUM_WEIGHTS];\n\nvoid main()\n{\n	vec4 total = texture2D(sourceTexture, uv) * gaussianWeights[0];\n    vec2 offset = vec2(0.0);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n		offset += stepSize;\n	    vec4 s = texture2D(sourceTexture, uv + offset) + texture2D(sourceTexture, uv - offset);\n		total += s * gaussianWeights[i];\n	}\n\n	gl_FragColor = total;\n}';
+
+HX.ShaderLibrary['gaussian_blur_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
 
 HX.ShaderLibrary['ssr_fragment.glsl'] = '#extension GL_OES_standard_derivatives : enable\n\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D hx_dither2D;\nuniform vec2 hx_renderTargetResolution;\n\nuniform sampler2D hx_frontbuffer;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform vec2 ditherTextureScale;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform float hx_rcpCameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform float maxDistance;\nuniform float stepSize;\nuniform float maxRoughness;\n\n// all in viewspace\n// 0 is start, 1 is end\nfloat raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)\n{\n    vec4 dither = texture2D(hx_dither2D, uv * ditherTextureScale);\n    // Clip to the near plane\n	float rayLength = ((ray0.z + rayDir.z * maxDistance) > -hx_cameraNearPlaneDistance) ?\n						(-hx_cameraNearPlaneDistance - ray0.z) / rayDir.z : maxDistance;\n\n    vec3 ray1 = ray0 + rayDir * rayLength;\n\n    // only need the w component for perspective correct interpolation\n    // need to get adjusted ray end\'s uv value\n    vec4 hom0 = hx_projectionMatrix * vec4(ray0, 1.0);\n    vec4 hom1 = hx_projectionMatrix * vec4(ray1, 1.0);\n    float rcpW0 = 1.0 / hom0.w;\n    float rcpW1 = 1.0 / hom1.w;\n\n    hom0 *= rcpW0;\n    hom1 *= rcpW1;\n\n    // expressed in pixels, so we can snap to 1\n    // need to figure out the ratio between 1 pixel and the entire line \"width\" (if primarily vertical, it\'s actually height)\n\n    // line dimensions in pixels:\n\n    vec2 pixelSize = (hom1.xy - hom0.xy) * hx_renderTargetResolution * .5;\n\n    // line-\"width\" = max(abs(pixelSize.x), abs(pixelSize.y))\n    // ratio pixel/width = 1 / max(abs(pixelSize.x), abs(pixelSize.y))\n\n    float stepRatio = 1.0 / max(abs(pixelSize.x), abs(pixelSize.y)) * stepSize;\n\n    vec2 uvEnd = hom1.xy * .5 + .5;\n\n    vec2 dUV = (uvEnd - uv) * stepRatio;\n    hitUV = uv;\n\n    // linear depth\n    float rayDepth = (-ray0.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n    float rayPerspDepth0 = rayDepth * rcpW0;\n    float rayPerspDepth1 = (-ray1.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange * rcpW1;\n    float rayPerspDepth = rayPerspDepth0;\n    // could probably optimize this:\n    float dRayD = (rayPerspDepth1 - rayPerspDepth0) * stepRatio;\n\n    float rcpW = rcpW0;\n    float dRcpW = (rcpW1 - rcpW0) * stepRatio;\n    float sceneDepth = rayDepth;\n\n    float amount = 0.0;\n\n    hitUV += dUV * dither.z;\n    rayPerspDepth += dRayD * dither.z;\n    rcpW += dRcpW * dither.z;\n\n    float sampleCount;\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        rayDepth = rayPerspDepth / rcpW;\n\n        sceneDepth = hx_sampleLinearDepth(hx_gbufferDepth, hitUV);\n\n        if (rayDepth > sceneDepth + .001) {\n            amount = float(sceneDepth < 1.0);\n            sampleCount = float(i);\n            break;\n        }\n\n        hitUV += dUV;\n        rayPerspDepth += dRayD;\n        rcpW += dRcpW;\n    }\n\n    hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;\n\n    // TODO: fade out last samples\n    amount *= clamp((1.0 - (sampleCount - float(NUM_SAMPLES)) / float(NUM_SAMPLES)) * 5.0, 0.0, 1.0);\n    return amount;\n}\n\nvoid main()\n{\n    vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    vec3 normalSpecularReflectance;\n    float roughness;\n    float metallicness;\n    hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n    vec3 normal = hx_decodeNormal(texture2D(hx_gbufferNormals, uv));\n    vec3 reflDir = reflect(normalize(viewDir), normal);\n\n    vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n    // not physically correct, but attenuation is required to look good\n\n    // step for every pixel\n\n    float absViewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n    vec3 viewSpacePos = absViewZ * viewDir;\n\n    float hitZ = 0.0;\n    vec2 hitUV;\n    float amount = raytrace(viewSpacePos, reflDir, hitZ, hitUV);\n    float fadeFactor = 1.0 - clamp(reflDir.z * 2.0, 0.0, 1.0);\n\n    vec2 borderFactors = abs(hitUV * 2.0 - 1.0);\n    borderFactors = (1.0 - borderFactors) * 10.0;\n    fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);\n\n    float diff = viewSpacePos.z - hitZ;\n    fadeFactor *= hx_linearStep(-1.0, 0.0, diff);\n    fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);\n\n    vec4 reflColor = texture2D(hx_frontbuffer, hitUV);\n\n    float amountUsed = amount * fadeFactor;\n    gl_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);\n}\n\n';
 
@@ -3530,15 +3530,15 @@ HX.ShaderLibrary['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sample
 
 HX.ShaderLibrary['vsm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n	gl_FragColor.xy = hx_floatToRG8(total.x);\n	gl_FragColor.zw = hx_floatToRG8(total.y);\n}';
 
-HX.ShaderLibrary['2d_to_cube_vertex.glsl'] = '// position to write to\nattribute vec4 hx_position;\n\n// the corner of the cube map\nattribute vec3 corner;\n\nvarying vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
-
-HX.ShaderLibrary['equirectangular_to_cube_fragment.glsl'] = '#define RECIPROCAL_PI2 0.15915494\n\nvarying vec3 direction;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    vec3 dir = normalize(direction);\n    vec2 uv;\n    uv.x = atan( dir.z, dir.x ) * RECIPROCAL_PI2 + 0.5;\n	uv.y = dir.y * 0.5 + 0.5;\n    gl_FragColor = texture2D(source, uv);\n}\n';
-
 HX.ShaderLibrary['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\n// emission of 1.0 is the same as \"unlit\", anything above emits more\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(normal.z*8.0 + 8.0);\n    data = normal.xy / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xy = data.xy * g;\n    normal.z = 1.0 - f * .5;\n//    normal.xy = data.xy * 2.0 - 1.0;\n//    normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}';
 
 HX.ShaderLibrary['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    float emission;\n};';
 
 HX.ShaderLibrary['snippets_tonemap.glsl'] = 'varying vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
+
+HX.ShaderLibrary['2d_to_cube_vertex.glsl'] = '// position to write to\nattribute vec4 hx_position;\n\n// the corner of the cube map\nattribute vec3 corner;\n\nvarying vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
+
+HX.ShaderLibrary['equirectangular_to_cube_fragment.glsl'] = '#define RECIPROCAL_PI2 0.15915494\n\nvarying vec3 direction;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    vec3 dir = normalize(direction);\n    vec2 uv;\n    uv.x = atan( dir.z, dir.x ) * RECIPROCAL_PI2 + 0.5;\n	uv.y = dir.y * 0.5 + 0.5;\n    gl_FragColor = texture2D(source, uv);\n}\n';
 
 HX.ShaderLibrary['ao_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 halfTexelOffset;\n\nvoid main()\n{\n    vec4 total = texture2D(source, uv - halfTexelOffset * 3.0);\n    total += texture2D(source, uv + halfTexelOffset);\n	gl_FragColor = total * .5;\n}';
 
@@ -6122,7 +6122,7 @@ HX.DataStream.prototype =
 // properties to keep track of render state
 HX._numActiveAttributes = 0;
 
-HX._renderTargetStack = [ null ];
+HX._renderTarget = null;
 HX._renderTargetInvalid = true;
 
 HX._viewport = {x: 0, y: 0, width: 0, height: 0};
@@ -6142,7 +6142,7 @@ HX._blendStateInvalid = false;
 
 // this is so that effects can push states on the stack
 // the renderer at the root just pushes one single state and invalidates that constantly
-HX._stencilStateStack = [ null ];
+HX._stencilState = null;
 HX._stencilStateInvalid = false;
 
 HX._glStats =
@@ -6205,21 +6205,14 @@ HX.setViewport = function(rect)
 
 HX.getCurrentRenderTarget = function()
 {
-    return HX._renderTargetStack[HX._renderTargetStack.length - 1];
+    return HX._renderTarget;
 };
 
-HX.pushRenderTarget = function(frameBuffer)
+HX.setRenderTarget = function(frameBuffer)
 {
-    HX._renderTargetStack.push(frameBuffer);
+    HX._renderTarget = frameBuffer;
     HX._renderTargetInvalid = true;
     HX.setViewport(frameBuffer);
-};
-
-HX.popRenderTarget = function()
-{
-    HX._renderTargetStack.pop();
-    HX._renderTargetInvalid = true;
-    HX.setViewport(HX._renderTargetStack[HX._renderTargetStack.length - 1]);
 };
 
 HX.enableAttributes = function(count)
@@ -6277,7 +6270,7 @@ HX.setBlendState = function(value)
 
 HX.updateStencilReferenceValue = function(value)
 {
-    var currentState = HX._stencilStateStack[HX._stencilStateStack.length - 1];
+    var currentState = HX._stencilState;
 
     if (!currentState || currentState.reference === value) return;
 
@@ -6287,22 +6280,16 @@ HX.updateStencilReferenceValue = function(value)
         HX_GL.stencilFunc(currentState.comparison, value, currentState.readMask);
 };
 
-HX.pushStencilState = function(frameBuffer)
+HX.setStencilState = function(value)
 {
-    HX._stencilStateStack.push(frameBuffer);
-    HX._stencilStateInvalid = true;
-};
-
-HX.popStencilState = function()
-{
-    HX._stencilStateStack.pop();
+    HX._stencilState = value;
     HX._stencilStateInvalid = true;
 };
 
 HX._updateRenderState = function()
 {
     if (HX._renderTargetInvalid) {
-        var target = HX._renderTargetStack[HX._renderTargetStack.length - 1];
+        var target = HX._renderTarget;
 
         if (target) {
             HX_GL.bindFramebuffer(HX_GL.FRAMEBUFFER, target._fbo);
@@ -6360,7 +6347,7 @@ HX._updateRenderState = function()
     }
 
     if (HX._stencilStateInvalid) {
-        var state = HX._stencilStateStack[HX._stencilStateStack.length - 1];
+        var state = HX._stencilState;
         if (state == null || state.enabled === false) {
             HX_GL.disable(HX_GL.STENCIL_TEST);
             HX_GL.stencilFunc(HX.Comparison.ALWAYS, 0, 0xff);
@@ -8564,6 +8551,14 @@ HX.Effect.prototype = Object.create(HX.Component.prototype,
         needsNormalDepth: {
             get: function() { return this._needsNormalDepth; },
             set: function(value) { this._needsNormalDepth = value; }
+        },
+
+        hdrTarget: {
+            get: function() { return this._renderer._hdrFront.fbo; }
+        },
+
+        hdrSource: {
+            get: function() { return this._renderer._hdrBack.texture; }
         }
     }
 );
@@ -8603,7 +8598,7 @@ HX.Effect.prototype.onRemoved = function()
 /**
  * Used when we need to current render target as a source.
  */
-HX.Effect.prototype._swapHDRBuffers = function()
+HX.Effect.prototype._swapHDRFrontAndBack = function()
 {
     this._renderer._swapHDRFrontAndBack();
 };
@@ -13230,9 +13225,10 @@ HX.TextureUtils =
             var fbo = new HX.FrameBuffer(target, null, faces[i]);
             fbo.init();
 
-            HX.pushRenderTarget(fbo);
+            var old = HX.getCurrentRenderTarget();
+            HX.setRenderTarget(fbo);
             HX.drawElements(HX_GL.TRIANGLES, 6, i * 6);
-            HX.popRenderTarget();
+            HX.setRenderTarget(old);
 
             fbo.dispose();
         }
@@ -13549,23 +13545,20 @@ HX.CascadeShadowMapRenderer.prototype =
         this._collectShadowCasters(scene);
         this._updateCascadeCameras(viewCamera, this._casterCollector.getBounds());
 
-        HX.pushRenderTarget(this._fboFront);
-        {
-            var passType = HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
-            HX.setClearColor(HX.Color.WHITE);
-            HX.clear();
+        HX.setRenderTarget(this._fboFront);
 
-            for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex) {
-                var viewport = this._viewports[cascadeIndex];
-                HX_GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-                HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
-            }
+        var passType = HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
+        HX.setClearColor(HX.Color.WHITE);
+        HX.clear();
 
-            if (HX.DirectionalLight.SHADOW_FILTER.blurShader)
-                this._blur();
-
-            HX.popRenderTarget();
+        for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex) {
+            var viewport = this._viewports[cascadeIndex];
+            HX_GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+            HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
         }
+
+        if (HX.DirectionalLight.SHADOW_FILTER.blurShader)
+            this._blur();
 
         HX.setClearColor(HX.Color.BLACK);
     },
@@ -13857,13 +13850,11 @@ HX.CascadeShadowMapRenderer.prototype =
         var shader = HX.DirectionalLight.SHADOW_FILTER.blurShader;
 
         for (var i = 0; i < HX.DirectionalLight.SHADOW_FILTER.numBlurPasses; ++i) {
-            HX.pushRenderTarget(this._fboBack);
-            {
-                HX.clear();
-                shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
-                HX.popRenderTarget();
-            }
+            HX.setRenderTarget(this._fboBack);
+            HX.clear();
+            shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
 
+            HX.setRenderTarget(this._fboFront);
             HX.clear();
             shader.execute(HX.RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);
         }
@@ -13980,7 +13971,6 @@ HX.ForwardRenderer.prototype =
      */
     render: function (camera, scene, dt, renderTarget)
     {
-        var renderTargetStackSize = HX._renderTargetStack.length;
         this._gammaApplied = HX.GAMMA_CORRECT_LIGHTS;
         this._camera = camera;
         this._scene = scene;
@@ -13998,23 +13988,22 @@ HX.ForwardRenderer.prototype =
         this._renderNormalDepth(opaqueStaticLit);
         this._renderAO();
 
-        HX.pushRenderTarget(this._hdrFront.fboDepth);
-            HX.clear();
-            // TODO: Need to render dynamically lit opaques too
-            this._renderDepthPrepass(opaqueStaticLit);
-            this._renderStatics(opaqueStaticLit);
-            this._renderStatics(transparentStaticLit);
-            this._renderEffects(dt);
-        HX.popRenderTarget();
+        HX.setRenderTarget(this._hdrFront.fboDepth);
+        HX.clear();
+        // TODO: Need to render dynamically lit opaques too
+        this._renderDepthPrepass(opaqueStaticLit);
+        this._renderStatics(opaqueStaticLit);
+        this._renderStatics(transparentStaticLit);
+
+        this._swapHDRFrontAndBack();
+        this._renderEffects(dt);
+
         this._renderToScreen(renderTarget);
 
         //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
 
         HX.setBlendState();
         HX.setDepthMask(true);
-
-        if (HX._renderTargetStack.length > renderTargetStackSize) throw new Error("Unpopped render targets!");
-        if (HX._renderTargetStack.length < renderTargetStackSize) throw new Error("Overpopped render targets!");
     },
 
     _renderDepthPrepass: function(list)
@@ -14034,13 +14023,12 @@ HX.ForwardRenderer.prototype =
     {
         if (!this._renderCollector.needsNormalDepth && !this._aoEffect) return;
         if (!this._normalDepthTexture) this._initNormalDepth();
-        HX.pushRenderTarget(this._normalDepthFBO);
+        HX.setRenderTarget(this._normalDepthFBO);
         // furthest depth and alpha must be 1, the rest 0
         HX.setClearColor(HX.Color.BLUE);
         HX.clear();
         this._renderPass(HX.MaterialPass.NORMAL_DEPTH_PASS, list);
         HX.setClearColor(HX.Color.BLACK);
-        HX.popRenderTarget(this._normalDepthFBO);
     },
 
     _renderAO: function()
@@ -14073,16 +14061,14 @@ HX.ForwardRenderer.prototype =
 
     _renderToScreen: function (renderTarget)
     {
-        HX.pushRenderTarget(renderTarget);
+        HX.setRenderTarget(renderTarget);
         HX.clear();
 
         // TODO: render directly to screen if last post process effect?
         if (this._gammaApplied)
-            this._copyTextureToScreen.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
+            this._copyTextureToScreen.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture);
         else
-            this._applyGamma.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
-
-        HX.popRenderTarget();
+            this._applyGamma.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture);
     },
 
     _renderEffects: function (dt)
@@ -14096,6 +14082,7 @@ HX.ForwardRenderer.prototype =
             var effect = effects[i];
             if (effect.isSupported()) {
                 this._renderEffect(effect, dt);
+                this._swapHDRFrontAndBack();
             }
         }
     },
@@ -14130,9 +14117,6 @@ HX.ForwardRenderer.prototype =
         var tmp = this._hdrBack;
         this._hdrBack = this._hdrFront;
         this._hdrFront = tmp;
-
-        HX.popRenderTarget();
-        HX.pushRenderTarget(this._hdrFront.fbo);
     },
 
     _createDepthBuffer: function()
@@ -14222,12 +14206,10 @@ HX.MultiRenderer.prototype =
 
     render: function (dt, renderTarget)
     {
-        HX.pushRenderTarget(renderTarget);
-
-        var viewport = new HX.Rect();
         var screenWidth = HX.TARGET_CANVAS.clientWidth;
         var screenHeight = HX.TARGET_CANVAS.clientHeight;
-        for (var i = 0; i < this._views.length; ++i) {
+        var numViews = this._views.length;
+        for (var i = 0; i < numViews; ++i) {
             var view = this._views[i];
             var w = Math.floor(screenWidth * view.widthRatio);
             var h = Math.floor(screenHeight * view.heightRatio);
@@ -14238,17 +14220,22 @@ HX.MultiRenderer.prototype =
             }
 
             view._renderer.render(view.camera, view.scene, dt, view._fbo);
+        }
+
+        HX.setRenderTarget(renderTarget);
+        HX.clear();
+
+        var viewport = new HX.Rect();
+
+        for (var i = 0; i < numViews; ++i) {
+            var view = this._views[i];
             viewport.x = Math.floor(view.xRatio * screenWidth);
             viewport.y = Math.floor((1.0 - view.yRatio - view.heightRatio) * screenHeight);
-            viewport.width = w;
-            viewport.height = h;
+            viewport.width = view._texture.width;
+            viewport.height = view._texture.height;
             HX.setViewport(viewport);
             this._copyTexture.execute(HX.RectMesh.DEFAULT, view._texture);
         }
-
-        HX.setViewport(null);
-
-        HX.popRenderTarget();
     }
 };
 /**
@@ -14566,54 +14553,10 @@ HX.ApplyGammaShader = function()
 
 HX.ApplyGammaShader.prototype = Object.create(HX.CustomCopyShader.prototype);
 /**
- * @constructor
- */
-HX.BloomBlurPass = function(kernelSize, directionX, directionY, resolutionX, resolutionY)
-{
-    this._initWeights(kernelSize);
-
-    var defines = {
-        SOURCE_RES: "vec2(float(" + resolutionX + "), float(" + resolutionY + "))",
-        RADIUS: "float(" + Math.ceil(kernelSize * .5) + ")",
-        DIRECTION: "vec2(" + directionX + ", " + directionY + ")",
-        NUM_SAMPLES: Math.ceil(kernelSize)
-    };
-
-    var vertex = HX.ShaderLibrary.get("bloom_blur_vertex.glsl", defines);
-    var fragment = HX.ShaderLibrary.get("bloom_blur_fragment.glsl", defines);
-
-    HX.EffectPass.call(this, vertex, fragment);
-
-    this.setUniformArray("gaussianWeights", new Float32Array(this._weights));
-};
-
-HX.BloomBlurPass.prototype = Object.create(HX.EffectPass.prototype);
-
-HX.BloomBlurPass.prototype._initWeights = function(kernelSize)
-{
-    this._weights = [];
-
-    var size = Math.ceil(kernelSize *.5) * 2;
-    var radius = size * .5;
-    var gaussian = HX.CenteredGaussianCurve.fromRadius(radius,.005);
-
-    var total = 0;
-    for (var j = 0; j < kernelSize; ++j) {
-        this._weights[j] = gaussian.getValueAt(j - radius);
-        total += this._weights[j];
-    }
-
-    for (var j = 0; j < kernelSize; ++j) {
-        this._weights[j] *= total;
-    }
-};
-
-
-/**
  *
  * @constructor
  */
-HX.BloomEffect = function(size, strength, downScale, anisotropy)
+HX.BloomEffect = function(radius, strength, downScale, anisotropy)
 {
     HX.Effect.call(this);
 
@@ -14622,9 +14565,14 @@ HX.BloomEffect = function(size, strength, downScale, anisotropy)
     this._targetWidth = -1;
     this._targetHeight = -1;
 
+    this._radius = radius || 512;
+    this._radius /= this._downScale;
     this._thresholdPass = new HX.EffectPass(null, HX.ShaderLibrary.get("bloom_threshold_fragment.glsl"));
     this._compositePass = new HX.EffectPass(HX.ShaderLibrary.get("bloom_composite_vertex.glsl"), HX.ShaderLibrary.get("bloom_composite_fragment.glsl"));
-    this._compositePass.blendState = HX.BlendState.ADD_NO_ALPHA;
+    this._blurPass = new HX.GaussianBlurPass(this._radius);
+    this._blurSourceSlot = this._blurPass.getTextureSlot("sourceTexture");
+    this._thresholdWidth = -1;
+    this._thresholdHeight = -1;
 
     this._thresholdMaps = [];
     this._smallFBOs = [];
@@ -14636,7 +14584,6 @@ HX.BloomEffect = function(size, strength, downScale, anisotropy)
         this._smallFBOs[i] = new HX.FrameBuffer([this._thresholdMaps[i]]);
     }
 
-    this._size = size || 512;
     this._anisotropy = anisotropy || 1;
 
     this._strength = strength === undefined? 1.0 : strength;
@@ -14668,22 +14615,11 @@ HX.BloomEffect.prototype = Object.create(HX.Effect.prototype,
 HX.BloomEffect.prototype._initTextures = function()
 {
     for (var i = 0; i < 2; ++i) {
-        this._thresholdMaps[i].initEmpty(Math.ceil(this._targetWidth / this._downScale), Math.ceil(this._targetHeight / this._downScale), HX_GL.RGB, HX.HDR_FORMAT);
+        this._thresholdWidth = Math.ceil(this._targetWidth / this._downScale);
+        this._thresholdHeight = Math.ceil(this._targetHeight / this._downScale);
+        this._thresholdMaps[i].initEmpty(this._thresholdWidth, this._thresholdHeight, HX_GL.RGB, HX.HDR_FORMAT);
         this._smallFBOs[i].init();
     }
-};
-
-HX.BloomEffect.prototype._initBlurPass = function()
-{
-    var size = this._size / this._downScale;
-
-    var width = this._targetWidth / this._downScale;
-    var height = this._targetHeight / this._downScale;
-    // direction used to provide step size
-    this._blurXPass = new HX.BloomBlurPass(size, 1, 0, width, height);
-    this._blurYPass = new HX.BloomBlurPass(size * this._anisotropy, 0, 1, width, height);
-    this._blurXPass.setTexture("sourceTexture", this._thresholdMaps[0]);
-    this._blurYPass.setTexture("sourceTexture", this._thresholdMaps[1]);
 };
 
 HX.BloomEffect.prototype.draw = function(dt)
@@ -14692,24 +14628,26 @@ HX.BloomEffect.prototype.draw = function(dt)
         this._targetWidth = this._renderer._width;
         this._targetHeight = this._renderer._height;
         this._initTextures();
-        this._initBlurPass();
     }
 
-    HX.pushRenderTarget(this._smallFBOs[0]);
-    {
-        this._drawPass(this._thresholdPass);
+    HX.setRenderTarget(this._smallFBOs[0]);
+    HX.clear();
+    this._drawPass(this._thresholdPass);
 
-        HX.pushRenderTarget(this._smallFBOs[1]);
-        {
-            this._drawPass(this._blurXPass);
-        }
-        HX.popRenderTarget();
+    HX.setRenderTarget(this._smallFBOs[1]);
+    HX.clear();
+    this._blurSourceSlot.texture = this._thresholdMaps[0];
+    this._blurPass.setUniform("stepSize", {x: 1.0 / this._thresholdWidth, y: 0.0});
+    this._drawPass(this._blurPass);
 
-        this._drawPass(this._blurYPass);
-    }
+    HX.setRenderTarget(this._smallFBOs[0]);
+    HX.clear();
+    this._blurSourceSlot.texture = this._thresholdMaps[1];
+    this._blurPass.setUniform("stepSize", {x: 0.0, y: 1.0 / this._thresholdHeight});
+    this._drawPass(this._blurPass);
 
-    HX.popRenderTarget();
-
+    HX.setRenderTarget(this.hdrTarget);
+    HX.clear();
     this._drawPass(this._compositePass);
 };
 
@@ -14738,6 +14676,64 @@ Object.defineProperty(HX.BloomEffect.prototype, "thresholdLuminance", {
  *
  * @constructor
  */
+HX.Blur = function(numSamples, radius)
+{
+    if (!radius) radius = numSamples;
+    HX.Effect.call(this);
+
+    this._blurPass = new HX.GaussianBlurPass(radius);
+    this._blurSourceSlot = this._blurPass.getTextureSlot("sourceTexture");
+    this._radius = radius;
+    this._numSamples = numSamples;
+};
+
+HX.Blur.prototype = Object.create(HX.Effect.prototype,
+    {
+        radius: {
+            get: function() {
+                return this._radius;
+            },
+
+            set: function(value) {
+                this._radius = value;
+            }
+        }
+    });
+
+HX.Blur.prototype.draw = function(dt)
+{
+    var ratio = this._radius / this._numSamples;
+    // we're manually setting source textures instead of using hx_backbuffer because the GaussianBlurPass needs to
+    // handle different textures too (see bloom)
+    HX.setRenderTarget(this.hdrTarget);
+    HX.clear();
+    this._blurSourceSlot.texture = this.hdrSource;
+    this._blurPass.setUniform("stepSize", {x: ratio / this.hdrSource.width, y: 0.0});
+    this._drawPass(this._blurPass);
+
+    this._swapHDRFrontAndBack();
+
+    HX.setRenderTarget(this.hdrTarget);
+    HX.clear();
+    this._blurSourceSlot.texture = this.hdrSource;
+    this._blurPass.setUniform("stepSize", {x: 0.0, y: ratio / this.hdrSource.height});
+    this._drawPass(this._blurPass);
+};
+
+HX.Blur.prototype.dispose = function()
+{
+    for (var i = 0; i < 2; ++i) {
+        this._smallFBOs[i].dispose();
+        this._thresholdMaps[i].dispose();
+    }
+
+    this._smallFBOs = null;
+    this._thresholdMaps = null;
+};
+/**
+ *
+ * @constructor
+ */
 HX.CopyTexturePass = function()
 {
     HX.EffectPass.call(this, null, HX.ShaderLibrary.get("copy_fragment.glsl"));
@@ -14757,20 +14753,18 @@ HX.CopyTexturePass.prototype.setSourceTexture = function(value)
  * @param height
  * @constructor
  */
-HX.FogEffect = function(density, tint, startDistance)
+HX.Fog = function(density, tint, startDistance)
 {
     HX.Effect.call(this);
 
     this._fogPass = new HX.EffectPass(null, HX.ShaderLibrary.get("fog_fragment.glsl"));
-    this._fogPass.blendState = HX.BlendState.ALPHA; // not sure why INV_ALPHA doesn't work
-
     this.needsNormalDepth = true;
     this.density = density === undefined? .001 : density;
     this.tint = tint === undefined? new HX.Color(1, 1, 1, 1) : tint;
     this.startDistance = startDistance === undefined? 0 : startDistance;
 };
 
-HX.FogEffect.prototype = Object.create(HX.Effect.prototype,
+HX.Fog.prototype = Object.create(HX.Effect.prototype,
     {
         density: {
             get: function()
@@ -14811,8 +14805,10 @@ HX.FogEffect.prototype = Object.create(HX.Effect.prototype,
 );
 
 
-HX.FogEffect.prototype.draw = function(dt)
+HX.Fog.prototype.draw = function(dt)
 {
+    HX.setRenderTarget(this.hdrTarget);
+    HX.clear();
     this._drawPass(this._fogPass);
 };
 HX.FXAA = function()
@@ -14829,8 +14825,49 @@ HX.FXAA.prototype = Object.create(HX.Effect.prototype);
 
 HX.FXAA.prototype.draw = function(dt)
 {
-    this._swapHDRBuffers();
+    HX.setRenderTarget(this.hdrTarget);
+    HX.clear();
     this._drawPass(this._pass);
+};
+/**
+ * @constructor
+ */
+HX.GaussianBlurPass = function(radius)
+{
+    this._initWeights(radius);
+
+    radius = Math.floor(radius);
+
+    var defines = {
+        RADIUS: radius,
+        NUM_WEIGHTS: radius + 1
+    };
+
+    var vertex = HX.ShaderLibrary.get("gaussian_blur_vertex.glsl", defines);
+    var fragment = HX.ShaderLibrary.get("gaussian_blur_fragment.glsl", defines);
+
+    HX.EffectPass.call(this, vertex, fragment);
+
+    this.setUniformArray("gaussianWeights", new Float32Array(this._weights));
+};
+
+HX.GaussianBlurPass.prototype = Object.create(HX.EffectPass.prototype);
+
+HX.GaussianBlurPass.prototype._initWeights = function(radius)
+{
+    this._weights = [];
+
+    var gaussian = HX.CenteredGaussianCurve.fromRadius(radius, .01);
+
+    var total = 0;
+    for (var j = 0; j <= radius; ++j) {
+        this._weights[j] = gaussian.getValueAt(j);
+        total += j > 0? this._weights[j] * 2.0 : 1.0;
+    }
+
+    for (var j = 0; j <= radius; ++j) {
+        this._weights[j] *= total;
+    }
 };
 /**
  * TODO: allow scaling down of textures
@@ -14959,28 +14996,21 @@ HX.HBAO.prototype.draw = function(dt)
         this._aoPass.setUniform("ditherScale", {x: w * .25, y: h * .25});
     }
 
-    HX.pushRenderTarget(this._fbo1);
-    {
-        HX.clear(HX_GL.COLOR_BUFFER_BIT);
-        this._drawPass(this._aoPass);
+    HX.setRenderTarget(this._fbo1);
+    HX.clear();
+    this._drawPass(this._aoPass);
 
-        HX.pushRenderTarget(this._fbo2);
-        {
-            HX.clear(HX_GL.COLOR_BUFFER_BIT);
-            this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
-            this._sourceTextureSlot.texture = this._aoTexture;
-            this._drawPass(this._blurPass);
+    HX.setRenderTarget(this._fbo2);
+    HX.clear();
+    this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
+    this._sourceTextureSlot.texture = this._aoTexture;
+    this._drawPass(this._blurPass);
 
-            HX.popRenderTarget();
-        }
-
-        HX.clear(HX_GL.COLOR_BUFFER_BIT);
-        this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
-        this._sourceTextureSlot.texture = this._backTexture;
-        this._drawPass(this._blurPass);
-
-        HX.popRenderTarget();
-    }
+    HX.setRenderTarget(this._fbo1);
+    HX.clear();
+    this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
+    this._sourceTextureSlot.texture = this._backTexture;
+    this._drawPass(this._blurPass);
 };
 
 HX.HBAO.prototype._initSampleDirTexture = function()
@@ -15158,20 +15188,19 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
         this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
     }
 
+    // TODO: Fix all of this up
     HX.pushRenderTarget(this._fbo);
         HX.setClearColor(HX.Color.ZERO);
         HX.clear();
         HX_GL.colorMask(false, false, false, false);
-        HX.pushStencilState(this._stencilWriteState);
+        HX.setStencilState(this._stencilWriteState);
         this._drawPass(this._stencilPass);
-        HX.popStencilState();
 
         HX_GL.colorMask(true, true, true, true);
 
-        HX.pushStencilState(this._stencilReadState);
-
+        HX.setStencilState(this._stencilReadState);
         this._drawPass(this._pass);
-        HX.popStencilState();
+        HX.setStencilState();
     HX.popRenderTarget();
 };
 /**
@@ -15301,22 +15330,21 @@ HX.SSAO.prototype.draw = function(dt)
 
     HX.setClearColor(HX.Color.WHITE);
 
-    HX.pushRenderTarget(this._fbo1);
+    HX.setRenderTarget(this._fbo1);
     HX.clear();
     this._drawPass(this._ssaoPass);
 
-    HX.pushRenderTarget(this._fbo2);
+    HX.setRenderTarget(this._fbo2);
     HX.clear();
     this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
     this._sourceTextureSlot.texture = this._ssaoTexture;
     this._drawPass(this._blurPass);
-    HX.popRenderTarget();
 
+    HX.setRenderTarget(this._fbo1);
     HX.clear();
     this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
     this._sourceTextureSlot.texture = this._backTexture;
     this._drawPass(this._blurPass);
-    HX.popRenderTarget();
 
     HX.setClearColor(HX.Color.BLACK);
 };
@@ -15401,13 +15429,14 @@ HX.ToneMapEffect.prototype.draw = function(dt)
 
         this._extractLuminancePass.blendState.color.a = amount;
 
-        HX.pushRenderTarget(this._luminanceFBO);
+        HX.setRenderTarget(this._luminanceFBO);
+        // can't clear at this point
         this._drawPass(this._extractLuminancePass);
         this._luminanceMap.generateMipmap();
-        HX.popRenderTarget();
     }
 
-    this._swapHDRBuffers();
+    HX.setRenderTarget(this.hdrTarget);
+    HX.clear();
     this._drawPass(this._toneMapPass);
 };
 
@@ -17983,4 +18012,4 @@ HX.Debug = {
         console.log(str);
     }
 };
-HX.BUILD_HASH = 0x3cb5;
+HX.BUILD_HASH = 0xa0eb;

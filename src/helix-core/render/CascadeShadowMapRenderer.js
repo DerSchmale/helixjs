@@ -190,23 +190,20 @@ HX.CascadeShadowMapRenderer.prototype =
         this._collectShadowCasters(scene);
         this._updateCascadeCameras(viewCamera, this._casterCollector.getBounds());
 
-        HX.pushRenderTarget(this._fboFront);
-        {
-            var passType = HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
-            HX.setClearColor(HX.Color.WHITE);
-            HX.clear();
+        HX.setRenderTarget(this._fboFront);
 
-            for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex) {
-                var viewport = this._viewports[cascadeIndex];
-                HX_GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-                HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
-            }
+        var passType = HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
+        HX.setClearColor(HX.Color.WHITE);
+        HX.clear();
 
-            if (HX.DirectionalLight.SHADOW_FILTER.blurShader)
-                this._blur();
-
-            HX.popRenderTarget();
+        for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex) {
+            var viewport = this._viewports[cascadeIndex];
+            HX_GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+            HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
         }
+
+        if (HX.DirectionalLight.SHADOW_FILTER.blurShader)
+            this._blur();
 
         HX.setClearColor(HX.Color.BLACK);
     },
@@ -498,13 +495,11 @@ HX.CascadeShadowMapRenderer.prototype =
         var shader = HX.DirectionalLight.SHADOW_FILTER.blurShader;
 
         for (var i = 0; i < HX.DirectionalLight.SHADOW_FILTER.numBlurPasses; ++i) {
-            HX.pushRenderTarget(this._fboBack);
-            {
-                HX.clear();
-                shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
-                HX.popRenderTarget();
-            }
+            HX.setRenderTarget(this._fboBack);
+            HX.clear();
+            shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
 
+            HX.setRenderTarget(this._fboFront);
             HX.clear();
             shader.execute(HX.RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);
         }

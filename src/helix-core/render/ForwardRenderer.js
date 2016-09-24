@@ -109,7 +109,6 @@ HX.ForwardRenderer.prototype =
      */
     render: function (camera, scene, dt, renderTarget)
     {
-        var renderTargetStackSize = HX._renderTargetStack.length;
         this._gammaApplied = HX.GAMMA_CORRECT_LIGHTS;
         this._camera = camera;
         this._scene = scene;
@@ -127,23 +126,22 @@ HX.ForwardRenderer.prototype =
         this._renderNormalDepth(opaqueStaticLit);
         this._renderAO();
 
-        HX.pushRenderTarget(this._hdrFront.fboDepth);
-            HX.clear();
-            // TODO: Need to render dynamically lit opaques too
-            this._renderDepthPrepass(opaqueStaticLit);
-            this._renderStatics(opaqueStaticLit);
-            this._renderStatics(transparentStaticLit);
-            this._renderEffects(dt);
-        HX.popRenderTarget();
+        HX.setRenderTarget(this._hdrFront.fboDepth);
+        HX.clear();
+        // TODO: Need to render dynamically lit opaques too
+        this._renderDepthPrepass(opaqueStaticLit);
+        this._renderStatics(opaqueStaticLit);
+        this._renderStatics(transparentStaticLit);
+
+        this._swapHDRFrontAndBack();
+        this._renderEffects(dt);
+
         this._renderToScreen(renderTarget);
 
         //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
 
         HX.setBlendState();
         HX.setDepthMask(true);
-
-        if (HX._renderTargetStack.length > renderTargetStackSize) throw new Error("Unpopped render targets!");
-        if (HX._renderTargetStack.length < renderTargetStackSize) throw new Error("Overpopped render targets!");
     },
 
     _renderDepthPrepass: function(list)
@@ -163,13 +161,12 @@ HX.ForwardRenderer.prototype =
     {
         if (!this._renderCollector.needsNormalDepth && !this._aoEffect) return;
         if (!this._normalDepthTexture) this._initNormalDepth();
-        HX.pushRenderTarget(this._normalDepthFBO);
+        HX.setRenderTarget(this._normalDepthFBO);
         // furthest depth and alpha must be 1, the rest 0
         HX.setClearColor(HX.Color.BLUE);
         HX.clear();
         this._renderPass(HX.MaterialPass.NORMAL_DEPTH_PASS, list);
         HX.setClearColor(HX.Color.BLACK);
-        HX.popRenderTarget(this._normalDepthFBO);
     },
 
     _renderAO: function()
@@ -202,16 +199,14 @@ HX.ForwardRenderer.prototype =
 
     _renderToScreen: function (renderTarget)
     {
-        HX.pushRenderTarget(renderTarget);
+        HX.setRenderTarget(renderTarget);
         HX.clear();
 
         // TODO: render directly to screen if last post process effect?
         if (this._gammaApplied)
-            this._copyTextureToScreen.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
+            this._copyTextureToScreen.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture);
         else
-            this._applyGamma.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
-
-        HX.popRenderTarget();
+            this._applyGamma.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture);
     },
 
     _renderEffects: function (dt)
@@ -225,6 +220,7 @@ HX.ForwardRenderer.prototype =
             var effect = effects[i];
             if (effect.isSupported()) {
                 this._renderEffect(effect, dt);
+                this._swapHDRFrontAndBack();
             }
         }
     },
@@ -259,9 +255,6 @@ HX.ForwardRenderer.prototype =
         var tmp = this._hdrBack;
         this._hdrBack = this._hdrFront;
         this._hdrFront = tmp;
-
-        HX.popRenderTarget();
-        HX.pushRenderTarget(this._hdrFront.fbo);
     },
 
     _createDepthBuffer: function()

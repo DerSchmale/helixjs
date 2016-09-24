@@ -45,12 +45,10 @@ HX.MultiRenderer.prototype =
 
     render: function (dt, renderTarget)
     {
-        HX.pushRenderTarget(renderTarget);
-
-        var viewport = new HX.Rect();
         var screenWidth = HX.TARGET_CANVAS.clientWidth;
         var screenHeight = HX.TARGET_CANVAS.clientHeight;
-        for (var i = 0; i < this._views.length; ++i) {
+        var numViews = this._views.length;
+        for (var i = 0; i < numViews; ++i) {
             var view = this._views[i];
             var w = Math.floor(screenWidth * view.widthRatio);
             var h = Math.floor(screenHeight * view.heightRatio);
@@ -61,16 +59,21 @@ HX.MultiRenderer.prototype =
             }
 
             view._renderer.render(view.camera, view.scene, dt, view._fbo);
+        }
+
+        HX.setRenderTarget(renderTarget);
+        HX.clear();
+
+        var viewport = new HX.Rect();
+
+        for (var i = 0; i < numViews; ++i) {
+            var view = this._views[i];
             viewport.x = Math.floor(view.xRatio * screenWidth);
             viewport.y = Math.floor((1.0 - view.yRatio - view.heightRatio) * screenHeight);
-            viewport.width = w;
-            viewport.height = h;
+            viewport.width = view._texture.width;
+            viewport.height = view._texture.height;
             HX.setViewport(viewport);
             this._copyTexture.execute(HX.RectMesh.DEFAULT, view._texture);
         }
-
-        HX.setViewport(null);
-
-        HX.popRenderTarget();
     }
 };

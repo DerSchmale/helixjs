@@ -6,20 +6,18 @@
  * @param height
  * @constructor
  */
-HX.FogEffect = function(density, tint, startDistance)
+HX.Fog = function(density, tint, startDistance)
 {
     HX.Effect.call(this);
 
     this._fogPass = new HX.EffectPass(null, HX.ShaderLibrary.get("fog_fragment.glsl"));
-    this._fogPass.blendState = HX.BlendState.ALPHA; // not sure why INV_ALPHA doesn't work
-
     this.needsNormalDepth = true;
     this.density = density === undefined? .001 : density;
     this.tint = tint === undefined? new HX.Color(1, 1, 1, 1) : tint;
     this.startDistance = startDistance === undefined? 0 : startDistance;
 };
 
-HX.FogEffect.prototype = Object.create(HX.Effect.prototype,
+HX.Fog.prototype = Object.create(HX.Effect.prototype,
     {
         density: {
             get: function()
@@ -60,7 +58,9 @@ HX.FogEffect.prototype = Object.create(HX.Effect.prototype,
 );
 
 
-HX.FogEffect.prototype.draw = function(dt)
+HX.Fog.prototype.draw = function(dt)
 {
+    HX.setRenderTarget(this.hdrTarget);
+    HX.clear();
     this._drawPass(this._fogPass);
 };

@@ -110,6 +110,7 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
         this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
     }
 
+    // TODO: Fix all of this up
     HX.pushRenderTarget(this._fbo);
         HX.setClearColor(HX.Color.ZERO);
         HX.clear();

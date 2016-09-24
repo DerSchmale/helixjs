@@ -68,11 +68,11 @@ HX.Effect.prototype = Object.create(HX.Component.prototype,
         },
 
         hdrTarget: {
-            get: function() { this._renderer._hdrFront.fbo; }
+            get: function() { return this._renderer._hdrFront.fbo; }
         },
 
         hdrSource: {
-            get: function() { this._renderer._hdrBack.texture; }
+            get: function() { return this._renderer._hdrBack.texture; }
         }
     }
 );
@@ -112,7 +112,7 @@ HX.Effect.prototype.onRemoved = function()
 /**
  * Used when we need to current render target as a source.
  */
-HX.Effect.prototype._swapHDRBuffers = function()
+HX.Effect.prototype._swapHDRFrontAndBack = function()
 {
     this._renderer._swapHDRFrontAndBack();
 };

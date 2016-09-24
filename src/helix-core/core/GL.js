@@ -5,7 +5,7 @@
 // properties to keep track of render state
 HX._numActiveAttributes = 0;
 
-HX._renderTargetStack = [ null ];
+HX._renderTarget = null;
 HX._renderTargetInvalid = true;
 
 HX._viewport = {x: 0, y: 0, width: 0, height: 0};
@@ -88,21 +88,14 @@ HX.setViewport = function(rect)
 
 HX.getCurrentRenderTarget = function()
 {
-    return HX._renderTargetStack[HX._renderTargetStack.length - 1];
+    return HX._renderTarget;
 };
 
-HX.pushRenderTarget = function(frameBuffer)
+HX.setRenderTarget = function(frameBuffer)
 {
-    HX._renderTargetStack.push(frameBuffer);
+    HX._renderTarget = frameBuffer;
     HX._renderTargetInvalid = true;
     HX.setViewport(frameBuffer);
-};
-
-HX.popRenderTarget = function()
-{
-    HX._renderTargetStack.pop();
-    HX._renderTargetInvalid = true;
-    HX.setViewport(HX._renderTargetStack[HX._renderTargetStack.length - 1]);
 };
 
 HX.enableAttributes = function(count)
@@ -179,7 +172,7 @@ HX.setStencilState = function(value)
 HX._updateRenderState = function()
 {
     if (HX._renderTargetInvalid) {
-        var target = HX._renderTargetStack[HX._renderTargetStack.length - 1];
+        var target = HX._renderTarget;
 
         if (target) {
             HX_GL.bindFramebuffer(HX_GL.FRAMEBUFFER, target._fbo);

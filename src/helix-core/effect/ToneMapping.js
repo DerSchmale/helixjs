@@ -56,13 +56,14 @@ HX.ToneMapEffect.prototype.draw = function(dt)
 
         this._extractLuminancePass.blendState.color.a = amount;
 
-        HX.pushRenderTarget(this._luminanceFBO);
+        HX.setRenderTarget(this._luminanceFBO);
+        // can't clear at this point
         this._drawPass(this._extractLuminancePass);
         this._luminanceMap.generateMipmap();
-        HX.popRenderTarget();
     }
 
-    this._swapHDRBuffers();
+    HX.setRenderTarget(this.hdrTarget);
+    HX.clear();
     this._drawPass(this._toneMapPass);
 };
 

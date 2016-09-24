@@ -12,6 +12,7 @@ HX.FXAA.prototype = Object.create(HX.Effect.prototype);
 
 HX.FXAA.prototype.draw = function(dt)
 {
-    this._swapHDRBuffers();
+    HX.setRenderTarget(this.hdrTarget);
+    HX.clear();
     this._drawPass(this._pass);
 };

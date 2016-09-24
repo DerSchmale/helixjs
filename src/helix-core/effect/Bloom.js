@@ -1,52 +1,8 @@
 /**
- * @constructor
- */
-HX.BloomBlurPass = function(kernelSize, directionX, directionY, resolutionX, resolutionY)
-{
-    this._initWeights(kernelSize);
-
-    var defines = {
-        SOURCE_RES: "vec2(float(" + resolutionX + "), float(" + resolutionY + "))",
-        RADIUS: "float(" + Math.ceil(kernelSize * .5) + ")",
-        DIRECTION: "vec2(" + directionX + ", " + directionY + ")",
-        NUM_SAMPLES: Math.ceil(kernelSize)
-    };
-
-    var vertex = HX.ShaderLibrary.get("bloom_blur_vertex.glsl", defines);
-    var fragment = HX.ShaderLibrary.get("bloom_blur_fragment.glsl", defines);
-
-    HX.EffectPass.call(this, vertex, fragment);
-
-    this.setUniformArray("gaussianWeights", new Float32Array(this._weights));
-};
-
-HX.BloomBlurPass.prototype = Object.create(HX.EffectPass.prototype);
-
-HX.BloomBlurPass.prototype._initWeights = function(kernelSize)
-{
-    this._weights = [];
-
-    var size = Math.ceil(kernelSize *.5) * 2;
-    var radius = size * .5;
-    var gaussian = HX.CenteredGaussianCurve.fromRadius(radius,.005);
-
-    var total = 0;
-    for (var j = 0; j < kernelSize; ++j) {
-        this._weights[j] = gaussian.getValueAt(j - radius);
-        total += this._weights[j];
-    }
-
-    for (var j = 0; j < kernelSize; ++j) {
-        this._weights[j] *= total;
-    }
-};
-
-
-/**
  *
  * @constructor
  */
-HX.BloomEffect = function(size, strength, downScale, anisotropy)
+HX.BloomEffect = function(radius, strength, downScale, anisotropy)
 {
     HX.Effect.call(this);
 
@@ -55,9 +11,14 @@ HX.BloomEffect = function(size, strength, downScale, anisotropy)
     this._targetWidth = -1;
     this._targetHeight = -1;
 
+    this._radius = radius || 512;
+    this._radius /= this._downScale;
     this._thresholdPass = new HX.EffectPass(null, HX.ShaderLibrary.get("bloom_threshold_fragment.glsl"));
     this._compositePass = new HX.EffectPass(HX.ShaderLibrary.get("bloom_composite_vertex.glsl"), HX.ShaderLibrary.get("bloom_composite_fragment.glsl"));
-    this._compositePass.blendState = HX.BlendState.ADD_NO_ALPHA;
+    this._blurPass = new HX.GaussianBlurPass(this._radius);
+    this._blurSourceSlot = this._blurPass.getTextureSlot("sourceTexture");
+    this._thresholdWidth = -1;
+    this._thresholdHeight = -1;
 
     this._thresholdMaps = [];
     this._smallFBOs = [];
@@ -69,7 +30,6 @@ HX.BloomEffect = function(size, strength, downScale, anisotropy)
         this._smallFBOs[i] = new HX.FrameBuffer([this._thresholdMaps[i]]);
     }
 
-    this._size = size || 512;
     this._anisotropy = anisotropy || 1;
 
     this._strength = strength === undefined? 1.0 : strength;
@@ -101,22 +61,11 @@ HX.BloomEffect.prototype = Object.create(HX.Effect.prototype,
 HX.BloomEffect.prototype._initTextures = function()
 {
     for (var i = 0; i < 2; ++i) {
-        this._thresholdMaps[i].initEmpty(Math.ceil(this._targetWidth / this._downScale), Math.ceil(this._targetHeight / this._downScale), HX_GL.RGB, HX.HDR_FORMAT);
+        this._thresholdWidth = Math.ceil(this._targetWidth / this._downScale);
+        this._thresholdHeight = Math.ceil(this._targetHeight / this._downScale);
+        this._thresholdMaps[i].initEmpty(this._thresholdWidth, this._thresholdHeight, HX_GL.RGB, HX.HDR_FORMAT);
         this._smallFBOs[i].init();
     }
-};
-
-HX.BloomEffect.prototype._initBlurPass = function()
-{
-    var size = this._size / this._downScale;
-
-    var width = this._targetWidth / this._downScale;
-    var height = this._targetHeight / this._downScale;
-    // direction used to provide step size
-    this._blurXPass = new HX.BloomBlurPass(size, 1, 0, width, height);
-    this._blurYPass = new HX.BloomBlurPass(size * this._anisotropy, 0, 1, width, height);
-    this._blurXPass.setTexture("sourceTexture", this._thresholdMaps[0]);
-    this._blurYPass.setTexture("sourceTexture", this._thresholdMaps[1]);
 };
 
 HX.BloomEffect.prototype.draw = function(dt)
@@ -125,24 +74,26 @@ HX.BloomEffect.prototype.draw = function(dt)
         this._targetWidth = this._renderer._width;
         this._targetHeight = this._renderer._height;
         this._initTextures();
-        this._initBlurPass();
     }
 
-    HX.pushRenderTarget(this._smallFBOs[0]);
-    {
-        this._drawPass(this._thresholdPass);
+    HX.setRenderTarget(this._smallFBOs[0]);
+    HX.clear();
+    this._drawPass(this._thresholdPass);
 
-        HX.pushRenderTarget(this._smallFBOs[1]);
-        {
-            this._drawPass(this._blurXPass);
-        }
-        HX.popRenderTarget();
+    HX.setRenderTarget(this._smallFBOs[1]);
+    HX.clear();
+    this._blurSourceSlot.texture = this._thresholdMaps[0];
+    this._blurPass.setUniform("stepSize", {x: 1.0 / this._thresholdWidth, y: 0.0});
+    this._drawPass(this._blurPass);
 
-        this._drawPass(this._blurYPass);
-    }
+    HX.setRenderTarget(this._smallFBOs[0]);
+    HX.clear();
+    this._blurSourceSlot.texture = this._thresholdMaps[1];
+    this._blurPass.setUniform("stepSize", {x: 0.0, y: 1.0 / this._thresholdHeight});
+    this._drawPass(this._blurPass);
 
-    HX.popRenderTarget();
-
+    HX.setRenderTarget(this.hdrTarget);
+    HX.clear();
     this._drawPass(this._compositePass);
 };
 

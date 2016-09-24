@@ -57,9 +57,10 @@ HX.TextureUtils =
             var fbo = new HX.FrameBuffer(target, null, faces[i]);
             fbo.init();
 
-            HX.pushRenderTarget(fbo);
+            var old = HX.getCurrentRenderTarget();
+            HX.setRenderTarget(fbo);
             HX.drawElements(HX_GL.TRIANGLES, 6, i * 6);
-            HX.popRenderTarget();
+            HX.setRenderTarget(old);
 
             fbo.dispose();
         }

@@ -187,7 +187,11 @@ HX.Material.prototype =
 
             for (var slotName in this._textures) {
                 if (this._textures.hasOwnProperty(slotName)) {
-                    pass.setTexture(slotName, this._textures[slotName]);
+                    var texture = this._textures[slotName];
+                    if (texture instanceof Array)
+                        pass.setTextureArray(slotName, texture);
+                    else
+                        pass.setTexture(slotName, texture);
                 }
             }
 
@@ -219,6 +223,17 @@ HX.Material.prototype =
 
         for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
             if (this.hasPass(i)) this._passes[i].setTexture(slotName, texture);
+    },
+
+    setTextureArray: function(slotName, textures)
+    {
+        if (textures)
+            this._textures[slotName] = textures;
+        else
+            delete this._textures[slotName];
+
+        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
+            if (this.hasPass(i)) this._passes[i].setTextureArray(slotName, textures);
     },
 
     /**

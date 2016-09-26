@@ -16,6 +16,7 @@ var coreGLSLFiles = [
 
 var coreFiles = [
     "src/helix-core/Helix.js",
+    "src/helix-core/shader/ShaderLibrary.js",
     "./build/tmp/*.js",
     "src/helix-core/shader/glslinclude.js",
 
@@ -25,7 +26,6 @@ var coreFiles = [
     "src/helix-core/io/URLLoader.js",
     "src/helix-core/io/BulkURLLoader.js",
 
-    // TODO: find better way for dependency management, but don't want horrible module management
     // base classes first
     "src/helix-core/shader/Shader.js",
     "src/helix-core/material/MaterialPass.js",
@@ -33,28 +33,15 @@ var coreFiles = [
     "src/helix-core/io/AssetLoader.js",
     "src/helix-core/scene/SceneNode.js",
     "src/helix-core/entity/*.js",
+    "src/helix-core/shader/Effect.js",
     "src/helix-core/light/Light.js",
     "src/helix-core/light/ShadowFilter.js",
     "src/helix-core/scene/SceneVisitor.js",
     "src/helix-core/scene/BoundingVolume.js",
     "src/helix-core/animation/SkeletonBlendNode.js",
-
-    "src/helix-core/shader/*.js",
-    "src/helix-core/material/*.js",
-    "src/helix-core/scene/*.js",
-    "src/helix-core/mesh/*.js",
-    "src/helix-core/light/*.js",
     "src/helix-core/mesh/primitives/Primitive.js",
-    "src/helix-core/mesh/primitives/*.js",
-    "src/helix-core/texture/*.js",
-    "src/helix-core/render/*.js",
-    "src/helix-core/effect/*.js",
-    "src/helix-core/animation/*.js",
-    "src/helix-core/io/*.js",
-    "src/helix-core/utils/*.js",
-    "src/helix-core/controller/*.js",
 
-    "src/helix-core/debug/*.js"
+    "src/helix-core/**/*.js"
 ];
 
 var ioFiles = [

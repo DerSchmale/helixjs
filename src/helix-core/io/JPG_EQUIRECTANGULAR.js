@@ -16,7 +16,7 @@ HX.JPG_EQUIRECTANGULAR.prototype.parse = function(data, target)
     texture2D.uploadImage(data, data.naturalWidth, data.naturalHeight, true);
 
     var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
-    HX.TextureUtils.equirectangularToCube(texture2D, this.options.size, generateMipmaps, target);
+    HX.EquirectangularTexture.toCube(texture2D, this.options.size, generateMipmaps, target);
     texture2D.dispose();
     this._notifyComplete(target);
 };

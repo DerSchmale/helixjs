@@ -1,0 +1,19 @@
+{
+    "version": "0.1",
+
+    "geometry": {
+        "vertexShader": "glsl/terrain_vertex.glsl",
+        "fragmentShader": "glsl/terrain_fragment.glsl"
+    },
+
+    "uniforms": {
+        "grassScale": 300.0,
+        "rockScale": 300.0
+    },
+
+    "textures": {
+        "grassTexture": "../textures/mossyGround.jpg",
+        "rockTexture": "../textures/Rock_02_UV_H_CM_1.jpg",
+        "rockNormals": "../textures/rockLargeNormals.png"
+    }
+}

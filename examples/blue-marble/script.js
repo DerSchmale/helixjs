@@ -29,10 +29,10 @@ project.onInit = function()
 project.onUpdate = function(dt)
 {
     time += dt;
-    //earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, time * .00001 + 1.0, 0.0);
+    earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, time * .00001 + 1.0, 0.0);
 
-    //var v = this.camera.viewMatrix.transformVector(sunLight.direction);
-    //earthMaterial.setUniform("sunViewDirection", v);
+    var v = this.camera.viewMatrix.transformVector(sunLight.direction);
+    earthMaterial.setUniform("sunViewDirection", v);
 };
 
 window.onload = function ()
@@ -54,10 +54,10 @@ function initHDRSettings()
     bloom3.thresholdLuminance = 15.0;
 
     var tonemap = new HX.FilmicToneMapEffect(true);
-    tonemap.exposure = -2;
+    tonemap.exposure = -3;
 
     settings.effects = [bloom1, bloom2, bloom3, tonemap];
-    settings.sunIntensity = 10.0;
+    settings.sunIntensity = 20.0;
     settings.cloudColor = new HX.Color(0.8, 0.78, 0.75);
 
     settings.scatterIntensityBoost = .25;

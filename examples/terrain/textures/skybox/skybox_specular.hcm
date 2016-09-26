@@ -1,0 +1,12 @@
+{
+    "version": "0.1",
+    "files": {
+        "negX": "specular/Daylight_Box_Left.jpg",
+        "posX": "specular/Daylight_Box_Right.jpg",
+        "negY": "specular/Daylight_Box_Bottom.jpg",
+        "posY": "specular/Daylight_Box_Top.jpg",
+        "negZ": "specular/Daylight_Box_Back.jpg",
+        "posZ": "specular/Daylight_Box_Front.jpg"
+    },
+    "loadMips": false
+}

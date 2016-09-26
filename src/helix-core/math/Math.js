@@ -28,6 +28,11 @@ HX.sign = function(v)
             v > 0.0? 1.0 : -1.0;
 };
 
+HX.isPowerOfTwo = function(value)
+{
+    return value? ((value & -value) === value) : false;
+};
+
 HX.RCP_LOG_OF_2 = 1.0 / Math.log(2);
 HX.DEG_TO_RAD = Math.PI / 180.0;
 HX.RAD_TO_DEG = 180.0 / Math.PI;

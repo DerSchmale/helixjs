@@ -77,7 +77,7 @@ HX.HCM.prototype._loadMipChain = function(urls, target)
 
     firstImage.onload = function()
     {
-        if (firstImage.naturalWidth != firstImage.naturalHeight || !HX.TextureUtils.isPowerOfTwo(firstImage.naturalWidth)) {
+        if (firstImage.naturalWidth != firstImage.naturalHeight || !HX.isPowerOfTwo(firstImage.naturalWidth)) {
             self._notifyFailure("Failed loading mipchain: incorrect dimensions");
         }
         else {

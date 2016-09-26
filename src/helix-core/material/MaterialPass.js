@@ -191,7 +191,7 @@ HX.MaterialPass.prototype =
             for (var i = 0; i < len; ++i) {
                 var slot = this._textureSlots[firstSlot.index + i];
                 // make sure we're not overshooting the array and writing to another element (larger arrays are allowed analogous to uniform arrays)
-                if (slot.location !== location) return;
+                if (!slot || slot.location !== location) return;
                 slot.texture = textures[i];
             }
         }

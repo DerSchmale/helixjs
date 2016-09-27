@@ -19,11 +19,6 @@ varying vec3 worldPosition;
 float getHeight(vec2 worldPos)
 {
     vec2 coord = .5 + worldPos / worldSize;
-//    vec4 data = texture2D(heightMap, coord);
-//    vec2 fr = fract(coord * heightMapSize);
-//    float t = mix(data.x, data.y, fr.x);
-//    float b = mix(data.z, data.w, fr.x);
-//    float offsetY = mix(b, t, fr.y);
     float offsetY = hx_RGBA8ToFloat(texture2D(heightMap, coord));
     return offsetY * hx_elevationScale + hx_elevationOffset;
 }

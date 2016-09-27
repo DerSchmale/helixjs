@@ -6,15 +6,16 @@
  * @param height
  * @constructor
  */
-HX.Fog = function(density, tint, startDistance)
+HX.Fog = function(density, tint, heightFallOff, startDistance)
 {
     HX.Effect.call(this);
 
-    this._fogPass = new HX.EffectPass(null, HX.ShaderLibrary.get("fog_fragment.glsl"));
+    this._fogPass = new HX.EffectPass(HX.ShaderLibrary.get("fog_vertex.glsl"), HX.ShaderLibrary.get("fog_fragment.glsl"));
     this.needsNormalDepth = true;
     this.density = density === undefined? .001 : density;
     this.tint = tint === undefined? new HX.Color(1, 1, 1, 1) : tint;
     this.startDistance = startDistance === undefined? 0 : startDistance;
+    this.heightFallOff = heightFallOff === undefined? 0.01 : heightFallOff;
 };
 
 HX.Fog.prototype = Object.create(HX.Effect.prototype,
@@ -52,6 +53,18 @@ HX.Fog.prototype = Object.create(HX.Effect.prototype,
             {
                 this._startDistance = value;
                 this._fogPass.setUniform("startDistance", value);
+            }
+        },
+
+        heightFallOff: {
+            get: function()
+            {
+                return this._heightFallOff;
+            },
+            set: function(value)
+            {
+                this._heightFallOff = value;
+                this._fogPass.setUniform("heightFallOff", value);
             }
         }
     }

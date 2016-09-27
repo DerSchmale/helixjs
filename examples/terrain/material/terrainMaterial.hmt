@@ -8,12 +8,15 @@
 
     "uniforms": {
         "grassScale": 300.0,
-        "rockScale": 300.0
+        "rockScale": 300.0,
+        "detailScale": 2918.0
     },
 
     "textures": {
         "grassTexture": "../textures/mossyGround.jpg",
         "rockTexture": "../textures/Rock_02_UV_H_CM_1.jpg",
-        "rockNormals": "../textures/rockLargeNormals.png"
+        "rockNormals": "../textures/rockLargeNormals.png",
+        "detailTexture": "../textures/detail.jpg",
+        "grassDetailNormals": "../textures/grassDetailNormals.png"
     }
 }

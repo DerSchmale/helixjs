@@ -20,6 +20,8 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
+    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+    options.directionalShadowFilter.blurRadius = 1;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -38,12 +40,20 @@ function initCamera(camera)
     controller.yaw = Math.PI;
     camera.addComponent(controller);
 
-    camera.addComponent(new HX.Fog(0.001, new HX.Color(0x4988ff)));
+    camera.addComponent(new HX.Fog(0.0015, new HX.Color(0x4988ff), 0.005));
+
+    var tonemap = new HX.FilmicToneMapEffect();
+    //camera.addComponent(tonemap);
 }
 
 function initScene(scene)
 {
     var sun = new HX.DirectionalLight();
+    sun.direction = new HX.Float4(0.0, -.5, -1.0, 0.0);
+    sun.intensity = 5;
+    //sun.castShadows = true;
+    //sun.numCascades = 4;
+    //sun.setCascadeRatios(.01,.07,.15, .3);
     scene.attach(sun);
 
     // TODO: Add procedural skybox

@@ -4,34 +4,35 @@ uniform sampler2D heightMap;
 uniform sampler2D terrainMap;
 uniform sampler2D grassTexture;
 uniform sampler2D rockTexture;
+uniform sampler2D detailTexture;
 uniform sampler2D rockNormals;
+uniform sampler2D grassDetailNormals;
 
 uniform float hx_elevationScale;
 uniform mat4 hx_viewMatrix;
 
 
 varying vec2 uv;
-//varying vec3 varTangentX;
-//varying vec3 varTangentZ;
 
+uniform float detailScale;
 uniform float grassScale;
 uniform float rockScale;
 uniform float heightMapSize;
 uniform float worldSize;
 
-vec3 getGrassColor()
+vec3 getGrassColor(vec4 detail)
 {
-    return texture2D(grassTexture, uv * grassScale).xyz;
+    return texture2D(grassTexture, uv * grassScale).xyz * detail.x;
 }
 
 vec3 getGrassNormal()
 {
-    return vec3(0.0, 0.0, 1.0);
+    return texture2D(grassDetailNormals, uv * detailScale).xyz;
 }
 
-vec3 getRockColor()
+vec3 getRockColor(vec4 detail)
 {
-    return texture2D(rockTexture, uv * rockScale).xyz;
+    return texture2D(rockTexture, uv * rockScale).xyz * detail.y;
 }
 
 vec3 getRockNormal()
@@ -39,7 +40,7 @@ vec3 getRockNormal()
     return texture2D(rockNormals, uv * rockScale).xyz;
 }
 
-vec3 getSnowColor()
+vec3 getSnowColor(vec4 detail)
 {
     return vec3(1.0, 1.0, 1.0);
 }
@@ -63,20 +64,29 @@ HX_GeometryData hx_geometry()
     tangentX = normalize(tangentX);
     tangentZ = normalize(tangentZ);
 
+    float grassRoughness = .9;
+    float rockRoughness = .6;
+    float snowRoughness = .1;
+
     vec3 normal = cross(tangentZ, tangentX);
     mat3 TBN = mat3(tangentX, tangentZ, normal);
 
     HX_GeometryData data;
     vec4 terrain = texture2D(terrainMap, uv);
-    vec3 grass = getGrassColor();
+    vec4 detail = texture2D(detailTexture, uv * detailScale);
+    vec3 grass = getGrassColor(detail);
     vec3 grassNormal = getGrassNormal();
-    vec3 rock = getRockColor();
+    vec3 rock = getRockColor(detail);
     vec3 rockNormal = getRockNormal();
-    vec3 snow = getSnowColor();
+    vec3 snow = getSnowColor(detail);
     vec3 snowNormal = getSnowNormal();
     vec3 color = mix(grass, snow, terrain.z);
-    vec3 localNorm = mix(grassNormal, snowNormal, terrain.z);
     color = mix(color, rock, terrain.y);
+
+    float roughness = mix(grassRoughness, snowRoughness, terrain.z);
+    roughness = mix(roughness, rockRoughness, terrain.y);
+
+    vec3 localNorm = mix(grassNormal, snowNormal, terrain.z);
     localNorm = mix(localNorm, rockNormal, terrain.y);
     normal = TBN * normalize(localNorm);
     normal =  mat3(hx_viewMatrix) * normal;
@@ -84,7 +94,7 @@ HX_GeometryData hx_geometry()
     data.normal = normal;
     data.metallicness = 0.0;
     data.normalSpecularReflectance = 0.027;
-    data.roughness = 0.9;
+    data.roughness = roughness;
     data.emission = vec3(0.0);
     return data;
 }

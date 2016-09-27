@@ -45,6 +45,7 @@ HX.Terrain.prototype._createModel = function(size, numSegments, subDiv)
     var cellSize = size * rcpNumSegments;
 
     meshData.addVertexAttribute("hx_position", 3);
+    meshData.addVertexAttribute("hx_normal", 3);
     meshData.addVertexAttribute("hx_cellSize", 1);
 
     var vertices = [];
@@ -60,7 +61,7 @@ HX.Terrain.prototype._createModel = function(size, numSegments, subDiv)
         for (var xi = 0; xi <= numSegments; ++xi) {
             var x = (xi*rcpNumSegments - .5) * size;
 
-            vertices.push(x, 0, z, cellSize);
+            vertices.push(x, 0, z, 0, 1, 0, cellSize);
 
             if (xi !== numSegments && zi !== numZ) {
                 var base = xi + zi * w;
@@ -71,15 +72,15 @@ HX.Terrain.prototype._createModel = function(size, numSegments, subDiv)
         }
     }
 
-    var highIndexX = vertices.length / 4;
+    var highIndexX = vertices.length / 7;
     var halfCellSize = cellSize * .5;
 
     if (subDiv !== 0) {
         var z = (numSegments * rcpNumSegments - .5) * size;
         for (var xi = 0; xi <= numSegments; ++xi) {
             var x = (xi*rcpNumSegments - .5) * size;
-            vertices.push(x, 0, z, halfCellSize);
-            vertices.push(x + halfCellSize, 0, z, halfCellSize);
+            vertices.push(x, 0, z, 0, 1, 0, halfCellSize);
+            vertices.push(x + halfCellSize, 0, z, 0, 1, 0, halfCellSize);
 
             var base = xi + numZ * w;
 

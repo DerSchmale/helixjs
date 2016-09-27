@@ -36,7 +36,7 @@ void hx_geometry()
     uv = .5 + worldPos.xz / worldSize;
 
     worldPos.y += getHeight(worldPos.xz);
-    // TODO: We could figure out clip map level based on hx_cellSize and texture size as an improvement if LOD is supported!
+// TODO: We could figure out clip map level based on hx_cellSize and texture size as an improvement if LOD is supported!
 
     gl_Position = hx_viewProjectionMatrix * worldPos;
 

@@ -40,11 +40,12 @@ WebGLDebugUtils = function() {
    * @param {string} msg Message to log.
    */
   var error = function(msg) {
-    if (window.console && window.console.error) {
+    /*if (window.console && window.console.error) {
       window.console.error(msg);
     } else {
       log(msg);
-    }
+    }*/
+    throw msg;
   };
 
 

@@ -21,6 +21,7 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
+    //options.debug = true;
     options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
 };
@@ -72,12 +73,11 @@ function initScene(scene)
     // otherwise, fall back to grass
     var materialLoader = new HX.AssetLoader(HX.HMT);
     terrainMaterial = materialLoader.load("material/terrainMaterial.hmt");
+
     terrainMaterial.setTexture("heightMap", heightMap);
     terrainMaterial.setTexture("terrainMap", terrainMap);
     terrainMaterial.setUniform("heightMapSize", 2048);
     terrainMaterial.setUniform("worldSize", worldSize);
-
-    //terrainMaterial.elementType = HX.ElementType.LINES;
 
     terrainMaterial.lights = [ sun, lightProbe ];
 

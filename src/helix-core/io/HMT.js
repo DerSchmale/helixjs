@@ -126,8 +126,10 @@ HX.HMT.prototype._loadTextures = function(data, material)
     var files = [];
 
     for (var key in data.textures) {
-        if (data.textures.hasOwnProperty(key))
+        if (data.textures.hasOwnProperty(key)) {
             files.push(this._correctURL(data.textures[key]));
+            material.setTexture(key, HX.Texture2D.DEFAULT);
+        }
     }
 
     var bulkLoader = new HX.BulkAssetLoader();

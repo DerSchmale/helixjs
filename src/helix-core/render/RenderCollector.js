@@ -108,6 +108,7 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
         var material = meshInstance.material;
 
+        if (!material._initialized) continue;
 
         var renderItem = renderPool.getItem();
 

@@ -21,8 +21,8 @@
         "earthRadius": 1.0,
         "atmosphereRadius": 1.0,
         "rcpAtmosThickness": 1.0,
-        "rayleighFactor": 0.0025,
-        "mieFactor": 0.0010,
+        "rayleighFactor": 0.005,
+        "mieFactor": 0.1,
         "waveLenFactors": [ 5.6020, 9.4733, 19.6438 ],
         "waveLenFactorsKr4PiKm4Pi": [ 0.18855835184, 0.310178802936, 0.629694417296 ]
     },

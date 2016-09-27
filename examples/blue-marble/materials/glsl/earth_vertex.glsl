@@ -12,6 +12,7 @@ varying vec3 bitangent;
 varying float linearDepth;
 varying vec3 scatterColor0;
 varying vec3 scatterColor1;
+varying vec3 viewDir;
 
 uniform mat4 hx_wvpMatrix;
 uniform mat4 hx_worldViewMatrix;
@@ -59,6 +60,7 @@ void hx_geometry()
     bitangent = cross(tangent, normal) * hx_tangent.w;
 
     vec3 pos = (hx_worldViewMatrix * hx_position).xyz;
+    viewDir = pos;
     linearDepth = (-pos.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;
     gl_Position = hx_wvpMatrix * hx_position;
 

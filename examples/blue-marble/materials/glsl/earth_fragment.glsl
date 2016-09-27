@@ -50,7 +50,7 @@ HX_GeometryData hx_geometry()
     emissionColor = mix(emissionColor, cloudColorNight, cloudAmount) * .5;
 
     outputColor.xyz = scatterColor1 * .25 * outputColor.xyz;
-    outputColor.xyz += scatterColor0;
+//    outputColor.xyz += scatterColor0;
 
     fragNormal = mix(fragNormal, cloudNormal, cloudAmount);
     roughnessOut = mix(roughnessOut, cloudRoughness, cloudAmount);
@@ -63,6 +63,6 @@ HX_GeometryData hx_geometry()
     data.metallicness = 0.0;
     data.normalSpecularReflectance = normalSpecularReflectance;
     data.roughness = roughnessOut;
-    data.emission = emission * emissionColor;
+    data.emission = scatterColor0 + emission * emissionColor;
     return data;
 }

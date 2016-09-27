@@ -12,9 +12,9 @@ uniform sampler2D heightMap;
 //uniform float heightMapSize;
 
 varying vec2 uv;
-varying vec3 varTangentX;
-varying vec3 varTangentZ;
-//varying vec3 worldPosition;
+//varying vec3 varTangentX;
+//varying vec3 varTangentZ;
+varying vec3 worldPosition;
 
 float getHeight(vec2 worldPos)
 {
@@ -24,7 +24,7 @@ float getHeight(vec2 worldPos)
 //    float t = mix(data.x, data.y, fr.x);
 //    float b = mix(data.z, data.w, fr.x);
 //    float offsetY = mix(b, t, fr.y);
-    float offsetY = texture2D(heightMap, coord).x;
+    float offsetY = hx_RGBA8ToFloat(texture2D(heightMap, coord));
     return offsetY * hx_elevationScale + hx_elevationOffset;
 }
 
@@ -40,22 +40,5 @@ void hx_geometry()
 
     gl_Position = hx_viewProjectionMatrix * worldPos;
 
-    vec3 neighbourPX = worldPos.xyz;
-    neighbourPX.x += hx_cellSize;
-    vec3 neighbourPZ = worldPos.xyz;
-    neighbourPZ.z += hx_cellSize;
-    vec3 neighbourNX = worldPos.xyz;
-    neighbourNX.x -= hx_cellSize;
-    vec3 neighbourNZ = worldPos.xyz;
-    neighbourNZ.z -= hx_cellSize;
-
-    neighbourPX.y += getHeight(neighbourPX.xz);
-    neighbourNX.y += getHeight(neighbourNX.xz);
-    neighbourPZ.y += getHeight(neighbourPZ.xz);
-    neighbourNZ.y += getHeight(neighbourNZ.xz);
-
-    varTangentX = mat3(hx_viewMatrix) * (neighbourPX - neighbourNX);
-    varTangentZ = mat3(hx_viewMatrix) * (neighbourPZ - neighbourNZ);
-
-//    worldPosition = worldPos.xyz;
+    worldPosition = worldPos.xyz;
 }

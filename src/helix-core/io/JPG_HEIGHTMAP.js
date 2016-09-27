@@ -16,7 +16,7 @@ HX.JPG_HEIGHTMAP.prototype.parse = function(data, target)
     texture2D.uploadImage(data, data.naturalWidth, data.naturalHeight, true);
 
     var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
-    HX.HeightMap.from8BitTexture(texture2D, data.naturalWidth / 64, generateMipmaps, target);
+    HX.HeightMap.from8BitTexture(texture2D, generateMipmaps, target);
     texture2D.dispose();
     this._notifyComplete(target);
 };

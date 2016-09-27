@@ -1,4 +1,4 @@
-//#extension GL_OES_standard_derivatives : enable
+#extension GL_OES_standard_derivatives : enable
 
 uniform sampler2D heightMap;
 uniform sampler2D terrainMap;
@@ -11,12 +11,13 @@ uniform mat4 hx_viewMatrix;
 
 
 varying vec2 uv;
-varying vec3 varTangentX;
-varying vec3 varTangentZ;
+//varying vec3 varTangentX;
+//varying vec3 varTangentZ;
 
 uniform float grassScale;
 uniform float rockScale;
 uniform float heightMapSize;
+uniform float worldSize;
 
 vec3 getGrassColor()
 {
@@ -51,22 +52,19 @@ vec3 getSnowNormal()
 
 HX_GeometryData hx_geometry()
 {
-    // TODO: We could get a per-pixel normal from the height map, but we're getting noise
-//    float height = texture2D(heightMap, uv).x;
-//    float heightX = texture2D(heightMap, uv + vec2(1.0 / heightMapSize, 0.0)).x;
-//    float heightY = texture2D(heightMap, uv + vec2(0.0, 1.0 / heightMapSize)).x;
-//    vec3 locNorm;
-//    locNorm.x = heightX - height;
-//    locNorm.y = 1.0 / hx_elevationScale;
-//    locNorm.z = heightZ - height;
+    float height = hx_RGBA8ToFloat(texture2D(heightMap, uv));
+    float stepSize = max(max(fwidth(uv.x), fwidth(uv.y)), 1.0 / heightMapSize);
+    vec3 tangentX = vec3(stepSize * worldSize, 0.0, 0.0);
+    vec3 tangentZ = vec3(0.0, 0.0, stepSize * worldSize);
 
-    vec3 tangentX = normalize(varTangentX);
-    vec3 tangentZ = normalize(varTangentZ);
+    tangentX.y = (hx_RGBA8ToFloat(texture2D(heightMap, uv + vec2(stepSize, 0.0))) - height) * hx_elevationScale;
+    tangentZ.y = (hx_RGBA8ToFloat(texture2D(heightMap, uv + vec2(0.0, stepSize))) - height) * hx_elevationScale;
+
+    tangentX = normalize(tangentX);
+    tangentZ = normalize(tangentZ);
 
     vec3 normal = cross(tangentZ, tangentX);
-
     mat3 TBN = mat3(tangentX, tangentZ, normal);
-//    normal = TBN * normalize(locNorm);
 
     HX_GeometryData data;
     vec4 terrain = texture2D(terrainMap, uv);
@@ -81,6 +79,7 @@ HX_GeometryData hx_geometry()
     color = mix(color, rock, terrain.y);
     localNorm = mix(localNorm, rockNormal, terrain.y);
     normal = TBN * normalize(localNorm);
+    normal =  mat3(hx_viewMatrix) * normal;
     data.color = vec4(color, 1.0);
     data.normal = normal;
     data.metallicness = 0.0;

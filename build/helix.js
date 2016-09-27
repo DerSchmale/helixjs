@@ -3458,28 +3458,6 @@ HX.ShaderLibrary['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_P
 
 HX.ShaderLibrary['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position; // in view space?\n    float radius;\n};\n\n\nvoid hx_calculateLight(HX_PointLight light, vec3 normal, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, float roughness, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(normal, direction, viewVector, light.color * attenuation, normalSpecularReflectance, roughness, diffuse, specular);\n}';
 
-HX.ShaderLibrary['default_geometry_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float minRoughness;\nuniform float maxRoughness;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = minRoughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = mix(maxRoughness, minRoughness, normalSample.w);\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = mix(maxRoughness, minRoughness, specSample.x);\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    HX_GeometryData data;\n    data.color = hx_gammaToLinear(outputColor);\n    data.normal = normalize(fragNormal);\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n    data.emission = vec3(0.0);\n    return data;\n}';
-
-HX.ShaderLibrary['default_geometry_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#ifdef USE_SKINNING\nattribute vec4 hx_boneIndices;\nattribute vec4 hx_boneWeights;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\nuniform mat4 hx_skinningMatrices[HX_MAX_BONES];\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\nuniform mat4 hx_worldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nattribute vec3 hx_vertexColor;\nvarying vec3 vertexColor;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\nvoid hx_geometry()\n{\n#ifdef USE_SKINNING\n    mat4 skinningMatrix = hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)];\n    skinningMatrix += hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)];\n    skinningMatrix += hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)];\n    skinningMatrix += hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)];\n\n    vec4 animPosition = skinningMatrix * hx_position;\n    vec3 animNormal = mat3(skinningMatrix) * hx_normal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = mat3(skinningMatrix) * hx_tangent.xyz;\n    #endif\n#else\n    vec4 animPosition = hx_position;\n    vec3 animNormal = hx_normal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz;\n    #endif\n#endif\n\n    gl_Position = hx_wvpMatrix * animPosition;\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * animTangent;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
-
-HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = textureCube(hx_skybox, viewWorldDir);\n    data.emission = vec3(0.0);\n    data.color = hx_gammaToLinear(data.color);\n    return data;\n}';
-
-HX.ShaderLibrary['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform vec3 hx_cameraWorldPosition;\nuniform float hx_cameraFarPlaneDistance;\nuniform mat4 hx_viewProjectionMatrix;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube causes jittering of the skybox\nvoid hx_geometry()\n{\n    viewWorldDir = hx_position.xyz;\n    vec4 pos = hx_position;\n    // use a decent portion of the frustum to prevent FP issues\n    pos.xyz = pos.xyz * hx_cameraFarPlaneDistance + hx_cameraWorldPosition;\n    pos = hx_viewProjectionMatrix * pos;\n    // make sure it\'s drawn behind everything else, so z = 1.0\n    pos.z = pos.w;\n    gl_Position = pos;\n}\n\n';
-
-HX.ShaderLibrary['material_dir_shadow_fragment.glsl'] = 'void main()\n{\n    // geometry is really only used for kil instructions if necessary\n    // hopefully the compiler optimizes the rest out for us\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z);\n}';
-
-HX.ShaderLibrary['material_lit_static_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\n\n#if HX_NUM_DIR_LIGHTS > 0\nuniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_DIR_LIGHT_CASTERS > 0\nuniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];\n\nuniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];\nuniform float test[HX_NUM_DIR_LIGHT_CASTERS];\n#endif\n\n#if HX_NUM_POINT_LIGHTS > 0\nuniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\nuniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\nuniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#if HX_APPLY_SSAO\nuniform sampler2D hx_ssao;\n\nuniform vec2 hx_rcpRenderTargetResolution;\n#endif\n\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // TODO: Provide support for proper AO so it\'s not a bad post-process effect?\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ssao = 1.0;\n\n    #if HX_APPLY_SSAO\n        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n        ssao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLights[i], data.normal, viewVector, specularColor, data.roughness, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIR_LIGHT_CASTERS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLightCasters[i], data.normal, viewVector, specularColor, data.roughness, diffuse, specular);\n        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);\n        diffuseAccum += diffuse * shadow;\n        specularAccum += specular * shadow;\n    }\n    #endif\n\n\n    #if HX_NUM_POINT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_pointLights[i], data.normal, viewVector, hx_viewPosition, specularColor, data.roughness, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {\n        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;\n    }\n    #endif\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnel(specularColor, reflectedViewDir, data.normal);\n    float geometricShadowing = hx_probeGeometricShadowing(data.normal, reflectedViewDir, data.roughness, data.metallicness);\n\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n    for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, geometricShadowing, data.roughness) * ssao;\n    }\n    #endif\n\n    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
-
-HX.ShaderLibrary['material_lit_static_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_worldViewMatrix;\n\nvarying vec3 hx_viewPosition;\n\nvoid main()\n{\n    hx_geometry();\n    hx_viewPosition = (hx_worldViewMatrix * hx_position).xyz;\n}';
-
-HX.ShaderLibrary['material_normal_depth_fragment.glsl'] = 'varying float hx_linearDepth;\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor.xy = hx_encodeNormal(data.normal);\n    gl_FragColor.zw = hx_floatToRG8(hx_linearDepth);\n//    gl_FragColor.zw = hx_floatToRG8(gl_FragCoord.z);\n}';
-
-HX.ShaderLibrary['material_normal_depth_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvarying float hx_linearDepth;\n\nuniform mat4 hx_worldViewMatrix;\nuniform float hx_rcpCameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nvoid main()\n{\n    hx_geometry();\n\n    vec4 hx_viewPos = hx_worldViewMatrix * hx_position;\n    hx_linearDepth = (-hx_viewPos.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n}';
-
-HX.ShaderLibrary['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = data.color;\n    gl_FragColor.xyz += data.emission;\n\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
-
-HX.ShaderLibrary['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
-
 HX.ShaderLibrary['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 HX.ShaderLibrary['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3509,6 +3487,28 @@ HX.ShaderLibrary['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec4 color 
 HX.ShaderLibrary['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
 
 HX.ShaderLibrary['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	gl_FragColor = color / (1.0 + color);\n}';
+
+HX.ShaderLibrary['default_geometry_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float minRoughness;\nuniform float maxRoughness;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = minRoughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut = mix(maxRoughness, minRoughness, normalSample.w);\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut = mix(maxRoughness, minRoughness, specSample.x);\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    HX_GeometryData data;\n    data.color = hx_gammaToLinear(outputColor);\n    data.normal = normalize(fragNormal);\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n    data.emission = vec3(0.0);\n    return data;\n}';
+
+HX.ShaderLibrary['default_geometry_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n#ifdef USE_SKINNING\nattribute vec4 hx_boneIndices;\nattribute vec4 hx_boneWeights;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\nuniform mat4 hx_skinningMatrices[HX_MAX_BONES];\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\nuniform mat4 hx_worldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nattribute vec3 hx_vertexColor;\nvarying vec3 vertexColor;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\nvoid hx_geometry()\n{\n#ifdef USE_SKINNING\n    mat4 skinningMatrix = hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)];\n    skinningMatrix += hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)];\n    skinningMatrix += hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)];\n    skinningMatrix += hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)];\n\n    vec4 animPosition = skinningMatrix * hx_position;\n    vec3 animNormal = mat3(skinningMatrix) * hx_normal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = mat3(skinningMatrix) * hx_tangent.xyz;\n    #endif\n#else\n    vec4 animPosition = hx_position;\n    vec3 animNormal = hx_normal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz;\n    #endif\n#endif\n\n    gl_Position = hx_wvpMatrix * animPosition;\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * animTangent;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
+
+HX.ShaderLibrary['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = textureCube(hx_skybox, viewWorldDir);\n    data.emission = vec3(0.0);\n    data.color = hx_gammaToLinear(data.color);\n    return data;\n}';
+
+HX.ShaderLibrary['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform vec3 hx_cameraWorldPosition;\nuniform float hx_cameraFarPlaneDistance;\nuniform mat4 hx_viewProjectionMatrix;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube causes jittering of the skybox\nvoid hx_geometry()\n{\n    viewWorldDir = hx_position.xyz;\n    vec4 pos = hx_position;\n    // use a decent portion of the frustum to prevent FP issues\n    pos.xyz = pos.xyz * hx_cameraFarPlaneDistance + hx_cameraWorldPosition;\n    pos = hx_viewProjectionMatrix * pos;\n    // make sure it\'s drawn behind everything else, so z = 1.0\n    pos.z = pos.w;\n    gl_Position = pos;\n}\n\n';
+
+HX.ShaderLibrary['material_dir_shadow_fragment.glsl'] = 'void main()\n{\n    // geometry is really only used for kil instructions if necessary\n    // hopefully the compiler optimizes the rest out for us\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z);\n}';
+
+HX.ShaderLibrary['material_lit_static_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\n\n#if HX_NUM_DIR_LIGHTS > 0\nuniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_DIR_LIGHT_CASTERS > 0\nuniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];\n\nuniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];\nuniform float test[HX_NUM_DIR_LIGHT_CASTERS];\n#endif\n\n#if HX_NUM_POINT_LIGHTS > 0\nuniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\nuniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\nuniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#if HX_APPLY_SSAO\nuniform sampler2D hx_ssao;\n\nuniform vec2 hx_rcpRenderTargetResolution;\n#endif\n\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // TODO: Provide support for proper AO so it\'s not a bad post-process effect?\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ssao = 1.0;\n\n    #if HX_APPLY_SSAO\n        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n        ssao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLights[i], data.normal, viewVector, specularColor, data.roughness, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIR_LIGHT_CASTERS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLightCasters[i], data.normal, viewVector, specularColor, data.roughness, diffuse, specular);\n        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);\n        diffuseAccum += diffuse * shadow;\n        specularAccum += specular * shadow;\n    }\n    #endif\n\n\n    #if HX_NUM_POINT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_pointLights[i], data.normal, viewVector, hx_viewPosition, specularColor, data.roughness, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {\n        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;\n    }\n    #endif\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnel(specularColor, reflectedViewDir, data.normal);\n    float geometricShadowing = hx_probeGeometricShadowing(data.normal, reflectedViewDir, data.roughness, data.metallicness);\n\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n    for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, geometricShadowing, data.roughness) * ssao;\n    }\n    #endif\n\n    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+HX.ShaderLibrary['material_lit_static_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_worldViewMatrix;\n\nvarying vec3 hx_viewPosition;\n\nvoid main()\n{\n    hx_geometry();\n    hx_viewPosition = (hx_worldViewMatrix * hx_position).xyz;\n}';
+
+HX.ShaderLibrary['material_normal_depth_fragment.glsl'] = 'varying float hx_linearDepth;\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor.xy = hx_encodeNormal(data.normal);\n    gl_FragColor.zw = hx_floatToRG8(hx_linearDepth);\n//    gl_FragColor.zw = hx_floatToRG8(gl_FragCoord.z);\n}';
+
+HX.ShaderLibrary['material_normal_depth_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvarying float hx_linearDepth;\n\nuniform mat4 hx_worldViewMatrix;\nuniform float hx_rcpCameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nvoid main()\n{\n    hx_geometry();\n\n    vec4 hx_viewPos = hx_worldViewMatrix * hx_position;\n    hx_linearDepth = (-hx_viewPos.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n}';
+
+HX.ShaderLibrary['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = data.color;\n    gl_FragColor.xyz += data.emission;\n\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+HX.ShaderLibrary['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
 HX.ShaderLibrary['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
 
@@ -8765,440 +8765,6 @@ HX.Primitive =
         return type;
     }
 };
-FloatController = function()
-{
-    HX.Component.call(this);
-    this._speed = 1.0;
-    this._speedMultiplier = 2.0;
-    this._torquePitch = 0.0;
-    this._torqueYaw = 0.0;
-    this._localVelocity = new HX.Float4(0, 0, 0, 0);
-    this._localAcceleration = new HX.Float4(0, 0, 0, 0);
-    this._pitch = 0.0;
-    this._yaw = 0.0;
-    this._mouseX = 0;
-    this._mouseY = 0;
-
-    this._torque = 1.0;    // m/s^2
-    this._friction = 5.0;    // 1/s
-
-    this._maxAcceleration = this._speed;    // m/s^2
-    this._maxVelocity = this._speed;    // m/s
-
-    this._onKeyDown = null;
-    this._onKeyUp = null;
-};
-
-FloatController.prototype = Object.create(HX.Component.prototype, {
-    speed: {
-        get: function()
-        {
-            return this._speed;
-        },
-
-        set: function(value)
-        {
-            this._speed = value;
-            this._maxAcceleration = value;
-            this._maxVelocity = value;
-        }
-    },
-
-    shiftMultiplier: {
-        get: function()
-        {
-            return this._speedMultiplier;
-        },
-
-        set: function(value)
-        {
-            this._speedMultiplier = value;
-        }
-    },
-
-    pitch: {
-        get: function()
-        {
-            return this._pitch;
-        },
-
-        set: function(value)
-        {
-            this._pitch = value;
-        }
-    },
-
-    yaw: {
-        get: function()
-        {
-            return this._yaw;
-        },
-
-        set: function(value)
-        {
-            this._yaw = value;
-        }
-    },
-
-    roll: {
-        get: function()
-        {
-            return this._roll;
-        },
-
-        set: function(value)
-        {
-            this._roll = value;
-        }
-    },
-
-    torque: {
-        get: function()
-        {
-            return this._torque;
-        },
-
-        set: function(value)
-        {
-            this._torque = value;
-        }
-    },
-
-    friction: {
-        get: function()
-        {
-            return this._friction;
-        },
-
-        set: function(value)
-        {
-            this._friction = value;
-        }
-    }
-});
-
-FloatController.prototype.onAdded = function(dt)
-{
-    var self = this;
-    this._onKeyDown = function(event) {
-        var keyCode = ("which" in event) ? event.which : event.keyCode;
-
-        switch (keyCode) {
-            case 16:
-                self._maxVelocity = self._speed * self._speedMultiplier;
-                self._maxAcceleration = self._speed * self._speedMultiplier;
-                break;
-            case 87:
-                self._setForwardForce(-1.0);
-                break;
-            case 83:
-                self._setForwardForce(1.0);
-                break;
-            case 65:
-                self._setStrideForce(-1.0);
-                break;
-            case 68:
-                self._setStrideForce(1.0);
-                break;
-        }
-    };
-
-    this._onKeyUp = function(event) {
-        var keyCode = ("which" in event) ? event.which : event.keyCode;
-
-        switch (keyCode) {
-            case 16:
-                self._maxVelocity = self._speed;
-                self._maxAcceleration = self._speed;
-                break;
-            case 87:
-            case 83:
-                self._setForwardForce(0.0);
-                break;
-            case 65:
-            case 68:
-                self._setStrideForce(0.0);
-                break;
-        }
-    };
-
-    this._onMouseMove = function(event)
-    {
-        event = event || window.event;
-
-        self._addPitch(-(self._mouseY-event.clientY) / 100);
-        self._addYaw((self._mouseX-event.clientX) / 100);
-
-        self._mouseX = event.clientX;
-        self._mouseY = event.clientY;
-    };
-
-    this._onMouseDown = function(event)
-    {
-        self._mouseX = event.clientX;
-        self._mouseY = event.clientY;
-        document.addEventListener("mousemove", self._onMouseMove);
-    };
-
-    this._onMouseUp = function(event)
-    {
-        document.removeEventListener("mousemove", self._onMouseMove);
-    };
-
-    document.addEventListener("keydown", this._onKeyDown);
-    document.addEventListener("keyup", this._onKeyUp);
-    document.addEventListener("mousedown", this._onMouseDown);
-    document.addEventListener("mouseup", this._onMouseUp);
-};
-
-FloatController.prototype.onRemoved = function(dt)
-{
-    document.removeEventListener("keydown", this._onKeyDown);
-    document.removeEventListener("keyup", this._onKeyUp);
-    document.removeEventListener("mousemove", this._onMouseMove);
-    document.removeEventListener("mousedown", this._onMouseDown);
-    document.removeEventListener("mouseup", this._onMouseUp);
-};
-
-FloatController.prototype.onUpdate = function(dt)
-{
-    var seconds = dt * .001;
-
-    var frictionForce = HX.Float4.scale(this._localVelocity, this._friction*seconds);
-    this._localVelocity.subtract(frictionForce);
-
-    var acceleration = HX.Float4.scale(this._localAcceleration, this._maxAcceleration*seconds);
-    this._localVelocity.add(acceleration);
-
-    var absVelocity = this._localVelocity.length;
-    if (absVelocity > this._maxVelocity)
-        this._localVelocity.scale(this._maxVelocity/absVelocity);
-
-    this._pitch += this._torquePitch;
-    this._yaw += this._torqueYaw;
-
-    if (this._pitch < -Math.PI*.5) this._pitch = -Math.PI*.5;
-    else if (this._pitch > Math.PI*.5) this._pitch = Math.PI*.5;
-
-    var matrix = this.entity.matrix;
-    // the original position
-    var position = matrix.getColumn(3);
-    var distance = HX.Float4.scale(this._localVelocity, seconds);
-
-    matrix.fromRotationPitchYawRoll(this._pitch, this._yaw, 0.0);
-    matrix.prependTranslation(distance);
-    matrix.appendTranslation(position);
-
-    this.entity.matrix = matrix;
-};
-
-// ratio is "how far the controller is pushed", from -1 to 1
-FloatController.prototype._setForwardForce = function(ratio)
-{
-    this._localAcceleration.z = ratio * this._maxAcceleration;
-};
-
-FloatController.prototype._setStrideForce = function(ratio)
-{
-    this._localAcceleration.x = ratio * this._maxAcceleration;
-};
-
-FloatController.prototype._setTorquePitch = function(ratio)
-{
-    this._torquePitch = ratio * this._torque;
-};
-
-FloatController.prototype._setTorqueYaw = function(ratio)
-{
-    this._torqueYaw = ratio * this._torque;
-};
-
-FloatController.prototype._addPitch = function(value)
-{
-    this._pitch += value;
-};
-
-FloatController.prototype._addYaw = function(value)
-{
-    this._yaw += value;
-};
-/**
- *
- * @param target
- * @constructor
- */
-OrbitController = function(lookAtTarget)
-{
-    HX.Component.call(this);
-    this._coords = new HX.Float4(Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
-    this._localAcceleration = new HX.Float4(0.0, 0.0, 0.0, 0.0);
-    this._localVelocity = new HX.Float4(0.0, 0.0, 0.0, 0.0);
-
-    this.zoomSpeed = 1.0;
-    this.maxRadius = 4.0;
-    this.minRadius = 0.1;
-    this.dampen = .9;
-    this.lookAtTarget = lookAtTarget || new HX.Float4(0.0, 0.0, 0.0, 1.0);
-    this._oldMouseX = 0;
-    this._oldMouseY = 0;
-
-    this._isDown = false;
-};
-
-OrbitController.prototype = Object.create(HX.Component.prototype,
-    {
-        radius: {
-            get: function() { return this._coords.z; },
-            set: function(value) { this._coords.z = value; }
-        },
-
-        azimuth: {
-            get: function() { return this._coords.x; },
-            set: function(value) { this._coords.x = value; }
-        },
-
-        polar: {
-            get: function() { return this._coords.y; },
-            set: function(value) { this._coords.y = value; }
-        }
-    });
-
-OrbitController.prototype.onAdded = function()
-{
-    var self = this;
-
-    this._onMouseWheel = function(event)
-    {
-        self.setZoomImpulse(-event.wheelDelta * self.zoomSpeed * .0001);
-    };
-
-    this._onMouseDown = function (event)
-    {
-        self._oldMouseX = undefined;
-        self._oldMouseY = undefined;
-
-        self._isDown = true;
-    };
-
-    this._onMouseMove = function(event)
-    {
-        if (!self._isDown) return;
-        self._updateMove(event.screenX, event.screenY)
-    };
-
-    this._onTouchDown = function (event)
-    {
-        self._oldMouseX = undefined;
-        self._oldMouseY = undefined;
-
-        if (event.touches.length === 2) {
-            var touch1 = event.touches[0];
-            var touch2 = event.touches[1];
-            var dx = touch1.screenX - touch2.screenX;
-            var dy = touch1.screenY - touch2.screenY;
-            self._startPitchDistance = Math.sqrt(dx*dx + dy*dy);
-            self._startZoom = self.radius;
-        }
-
-        self._isDown = true;
-    };
-
-    this._onTouchMove = function (event)
-    {
-        event.preventDefault();
-
-        if (!self._isDown) return;
-
-        var numTouches = event.touches.length;
-
-        if (numTouches === 1) {
-            var touch = event.touches[0];
-            self._updateMove(touch.screenX, touch.screenY);
-        }
-        else if (numTouches === 2) {
-            var touch1 = event.touches[0];
-            var touch2 = event.touches[1];
-            var dx = touch1.screenX - touch2.screenX;
-            var dy = touch1.screenY - touch2.screenY;
-            var dist = Math.sqrt(dx*dx + dy*dy);
-            var diff = self._startPitchDistance - dist;
-            self.radius = self._startZoom + diff * .01;
-        }
-    };
-
-    this._onUp = function(event) { self._isDown = false; };
-
-    document.addEventListener("mousewheel", this._onMouseWheel);
-    document.addEventListener("mousemove", this._onMouseMove);
-    document.addEventListener("touchmove", this._onTouchMove);
-    document.addEventListener("mousedown", this._onMouseDown);
-    document.addEventListener("touchstart", this._onTouchDown);
-    document.addEventListener("mouseup", this._onUp);
-    document.addEventListener("touchend", this._onUp);
-};
-
-OrbitController.prototype.onRemoved = function()
-{
-    document.removeEventListener("mousewheel", this._onMouseWheel);
-    document.removeEventListener("mousemove", this._onMouseMove);
-    document.removeEventListener("touchmove", this._onTouchMove);
-    document.removeEventListener("mousedown", this._onMouseDown);
-    document.removeEventListener("touchstart", this._onTouchDown);
-    document.removeEventListener("mouseup", this._onUp);
-    document.removeEventListener("touchend", this._onUp);
-};
-
-OrbitController.prototype.onUpdate = function(dt)
-{
-    this._localVelocity.x *= this.dampen;
-    this._localVelocity.y *= this.dampen;
-    this._localVelocity.z *= this.dampen;
-    this._localVelocity.x += this._localAcceleration.x;
-    this._localVelocity.y += this._localAcceleration.y;
-    this._localVelocity.z += this._localAcceleration.z;
-    this._localAcceleration.x = 0.0;
-    this._localAcceleration.y = 0.0;
-    this._localAcceleration.z = 0.0;
-
-    this._coords.add(this._localVelocity);
-    this._coords.y = HX.clamp(this._coords.y, 0.1, Math.PI - .1);
-    this._coords.z = HX.clamp(this._coords.z, this.minRadius, this.maxRadius);
-
-    var matrix = this.entity.matrix;
-    var pos = new HX.Float4();
-    pos.fromSphericalCoordinates(this._coords.z, this._coords.x, this._coords.y);
-    pos.add(this.lookAtTarget);
-    matrix.lookAt(this.lookAtTarget, pos, HX.Float4.Y_AXIS);
-    this.entity.matrix = matrix;
-};
-
-    // ratio is "how far the controller is pushed", from -1 to 1
-OrbitController.prototype.setAzimuthImpulse  = function(value)
-{
-    this._localAcceleration.x = value;
-};
-
-OrbitController.prototype.setPolarImpulse = function(value)
-{
-    this._localAcceleration.y = value;
-};
-
-OrbitController.prototype.setZoomImpulse = function(value)
-{
-    this._localAcceleration.z = value;
-};
-
-OrbitController.prototype._updateMove = function(x, y)
-{
-    if (this._oldMouseX !== undefined) {
-        var dx = x - this._oldMouseX;
-        var dy = y - this._oldMouseY;
-        this.setAzimuthImpulse(dx * .0015);
-        this.setPolarImpulse(-dy * .0015);
-    }
-    this._oldMouseX = x;
-    this._oldMouseY = y;
-};
 /**
  *
  * @constructor
@@ -9808,6 +9374,440 @@ HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps)
 HX.SkeletonClipNode.prototype._applyValue = function(value)
 {
     this.time = value * this._clip.duration;
+};
+FloatController = function()
+{
+    HX.Component.call(this);
+    this._speed = 1.0;
+    this._speedMultiplier = 2.0;
+    this._torquePitch = 0.0;
+    this._torqueYaw = 0.0;
+    this._localVelocity = new HX.Float4(0, 0, 0, 0);
+    this._localAcceleration = new HX.Float4(0, 0, 0, 0);
+    this._pitch = 0.0;
+    this._yaw = 0.0;
+    this._mouseX = 0;
+    this._mouseY = 0;
+
+    this._torque = 1.0;    // m/s^2
+    this._friction = 5.0;    // 1/s
+
+    this._maxAcceleration = this._speed;    // m/s^2
+    this._maxVelocity = this._speed;    // m/s
+
+    this._onKeyDown = null;
+    this._onKeyUp = null;
+};
+
+FloatController.prototype = Object.create(HX.Component.prototype, {
+    speed: {
+        get: function()
+        {
+            return this._speed;
+        },
+
+        set: function(value)
+        {
+            this._speed = value;
+            this._maxAcceleration = value;
+            this._maxVelocity = value;
+        }
+    },
+
+    shiftMultiplier: {
+        get: function()
+        {
+            return this._speedMultiplier;
+        },
+
+        set: function(value)
+        {
+            this._speedMultiplier = value;
+        }
+    },
+
+    pitch: {
+        get: function()
+        {
+            return this._pitch;
+        },
+
+        set: function(value)
+        {
+            this._pitch = value;
+        }
+    },
+
+    yaw: {
+        get: function()
+        {
+            return this._yaw;
+        },
+
+        set: function(value)
+        {
+            this._yaw = value;
+        }
+    },
+
+    roll: {
+        get: function()
+        {
+            return this._roll;
+        },
+
+        set: function(value)
+        {
+            this._roll = value;
+        }
+    },
+
+    torque: {
+        get: function()
+        {
+            return this._torque;
+        },
+
+        set: function(value)
+        {
+            this._torque = value;
+        }
+    },
+
+    friction: {
+        get: function()
+        {
+            return this._friction;
+        },
+
+        set: function(value)
+        {
+            this._friction = value;
+        }
+    }
+});
+
+FloatController.prototype.onAdded = function(dt)
+{
+    var self = this;
+    this._onKeyDown = function(event) {
+        var keyCode = ("which" in event) ? event.which : event.keyCode;
+
+        switch (keyCode) {
+            case 16:
+                self._maxVelocity = self._speed * self._speedMultiplier;
+                self._maxAcceleration = self._speed * self._speedMultiplier;
+                break;
+            case 87:
+                self._setForwardForce(-1.0);
+                break;
+            case 83:
+                self._setForwardForce(1.0);
+                break;
+            case 65:
+                self._setStrideForce(-1.0);
+                break;
+            case 68:
+                self._setStrideForce(1.0);
+                break;
+        }
+    };
+
+    this._onKeyUp = function(event) {
+        var keyCode = ("which" in event) ? event.which : event.keyCode;
+
+        switch (keyCode) {
+            case 16:
+                self._maxVelocity = self._speed;
+                self._maxAcceleration = self._speed;
+                break;
+            case 87:
+            case 83:
+                self._setForwardForce(0.0);
+                break;
+            case 65:
+            case 68:
+                self._setStrideForce(0.0);
+                break;
+        }
+    };
+
+    this._onMouseMove = function(event)
+    {
+        event = event || window.event;
+
+        self._addPitch(-(self._mouseY-event.clientY) / 100);
+        self._addYaw((self._mouseX-event.clientX) / 100);
+
+        self._mouseX = event.clientX;
+        self._mouseY = event.clientY;
+    };
+
+    this._onMouseDown = function(event)
+    {
+        self._mouseX = event.clientX;
+        self._mouseY = event.clientY;
+        document.addEventListener("mousemove", self._onMouseMove);
+    };
+
+    this._onMouseUp = function(event)
+    {
+        document.removeEventListener("mousemove", self._onMouseMove);
+    };
+
+    document.addEventListener("keydown", this._onKeyDown);
+    document.addEventListener("keyup", this._onKeyUp);
+    document.addEventListener("mousedown", this._onMouseDown);
+    document.addEventListener("mouseup", this._onMouseUp);
+};
+
+FloatController.prototype.onRemoved = function(dt)
+{
+    document.removeEventListener("keydown", this._onKeyDown);
+    document.removeEventListener("keyup", this._onKeyUp);
+    document.removeEventListener("mousemove", this._onMouseMove);
+    document.removeEventListener("mousedown", this._onMouseDown);
+    document.removeEventListener("mouseup", this._onMouseUp);
+};
+
+FloatController.prototype.onUpdate = function(dt)
+{
+    var seconds = dt * .001;
+
+    var frictionForce = HX.Float4.scale(this._localVelocity, this._friction*seconds);
+    this._localVelocity.subtract(frictionForce);
+
+    var acceleration = HX.Float4.scale(this._localAcceleration, this._maxAcceleration*seconds);
+    this._localVelocity.add(acceleration);
+
+    var absVelocity = this._localVelocity.length;
+    if (absVelocity > this._maxVelocity)
+        this._localVelocity.scale(this._maxVelocity/absVelocity);
+
+    this._pitch += this._torquePitch;
+    this._yaw += this._torqueYaw;
+
+    if (this._pitch < -Math.PI*.5) this._pitch = -Math.PI*.5;
+    else if (this._pitch > Math.PI*.5) this._pitch = Math.PI*.5;
+
+    var matrix = this.entity.matrix;
+    // the original position
+    var position = matrix.getColumn(3);
+    var distance = HX.Float4.scale(this._localVelocity, seconds);
+
+    matrix.fromRotationPitchYawRoll(this._pitch, this._yaw, 0.0);
+    matrix.prependTranslation(distance);
+    matrix.appendTranslation(position);
+
+    this.entity.matrix = matrix;
+};
+
+// ratio is "how far the controller is pushed", from -1 to 1
+FloatController.prototype._setForwardForce = function(ratio)
+{
+    this._localAcceleration.z = ratio * this._maxAcceleration;
+};
+
+FloatController.prototype._setStrideForce = function(ratio)
+{
+    this._localAcceleration.x = ratio * this._maxAcceleration;
+};
+
+FloatController.prototype._setTorquePitch = function(ratio)
+{
+    this._torquePitch = ratio * this._torque;
+};
+
+FloatController.prototype._setTorqueYaw = function(ratio)
+{
+    this._torqueYaw = ratio * this._torque;
+};
+
+FloatController.prototype._addPitch = function(value)
+{
+    this._pitch += value;
+};
+
+FloatController.prototype._addYaw = function(value)
+{
+    this._yaw += value;
+};
+/**
+ *
+ * @param target
+ * @constructor
+ */
+OrbitController = function(lookAtTarget)
+{
+    HX.Component.call(this);
+    this._coords = new HX.Float4(Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
+    this._localAcceleration = new HX.Float4(0.0, 0.0, 0.0, 0.0);
+    this._localVelocity = new HX.Float4(0.0, 0.0, 0.0, 0.0);
+
+    this.zoomSpeed = 1.0;
+    this.maxRadius = 4.0;
+    this.minRadius = 0.1;
+    this.dampen = .9;
+    this.lookAtTarget = lookAtTarget || new HX.Float4(0.0, 0.0, 0.0, 1.0);
+    this._oldMouseX = 0;
+    this._oldMouseY = 0;
+
+    this._isDown = false;
+};
+
+OrbitController.prototype = Object.create(HX.Component.prototype,
+    {
+        radius: {
+            get: function() { return this._coords.z; },
+            set: function(value) { this._coords.z = value; }
+        },
+
+        azimuth: {
+            get: function() { return this._coords.x; },
+            set: function(value) { this._coords.x = value; }
+        },
+
+        polar: {
+            get: function() { return this._coords.y; },
+            set: function(value) { this._coords.y = value; }
+        }
+    });
+
+OrbitController.prototype.onAdded = function()
+{
+    var self = this;
+
+    this._onMouseWheel = function(event)
+    {
+        self.setZoomImpulse(-event.wheelDelta * self.zoomSpeed * .0001);
+    };
+
+    this._onMouseDown = function (event)
+    {
+        self._oldMouseX = undefined;
+        self._oldMouseY = undefined;
+
+        self._isDown = true;
+    };
+
+    this._onMouseMove = function(event)
+    {
+        if (!self._isDown) return;
+        self._updateMove(event.screenX, event.screenY)
+    };
+
+    this._onTouchDown = function (event)
+    {
+        self._oldMouseX = undefined;
+        self._oldMouseY = undefined;
+
+        if (event.touches.length === 2) {
+            var touch1 = event.touches[0];
+            var touch2 = event.touches[1];
+            var dx = touch1.screenX - touch2.screenX;
+            var dy = touch1.screenY - touch2.screenY;
+            self._startPitchDistance = Math.sqrt(dx*dx + dy*dy);
+            self._startZoom = self.radius;
+        }
+
+        self._isDown = true;
+    };
+
+    this._onTouchMove = function (event)
+    {
+        event.preventDefault();
+
+        if (!self._isDown) return;
+
+        var numTouches = event.touches.length;
+
+        if (numTouches === 1) {
+            var touch = event.touches[0];
+            self._updateMove(touch.screenX, touch.screenY);
+        }
+        else if (numTouches === 2) {
+            var touch1 = event.touches[0];
+            var touch2 = event.touches[1];
+            var dx = touch1.screenX - touch2.screenX;
+            var dy = touch1.screenY - touch2.screenY;
+            var dist = Math.sqrt(dx*dx + dy*dy);
+            var diff = self._startPitchDistance - dist;
+            self.radius = self._startZoom + diff * .01;
+        }
+    };
+
+    this._onUp = function(event) { self._isDown = false; };
+
+    document.addEventListener("mousewheel", this._onMouseWheel);
+    document.addEventListener("mousemove", this._onMouseMove);
+    document.addEventListener("touchmove", this._onTouchMove);
+    document.addEventListener("mousedown", this._onMouseDown);
+    document.addEventListener("touchstart", this._onTouchDown);
+    document.addEventListener("mouseup", this._onUp);
+    document.addEventListener("touchend", this._onUp);
+};
+
+OrbitController.prototype.onRemoved = function()
+{
+    document.removeEventListener("mousewheel", this._onMouseWheel);
+    document.removeEventListener("mousemove", this._onMouseMove);
+    document.removeEventListener("touchmove", this._onTouchMove);
+    document.removeEventListener("mousedown", this._onMouseDown);
+    document.removeEventListener("touchstart", this._onTouchDown);
+    document.removeEventListener("mouseup", this._onUp);
+    document.removeEventListener("touchend", this._onUp);
+};
+
+OrbitController.prototype.onUpdate = function(dt)
+{
+    this._localVelocity.x *= this.dampen;
+    this._localVelocity.y *= this.dampen;
+    this._localVelocity.z *= this.dampen;
+    this._localVelocity.x += this._localAcceleration.x;
+    this._localVelocity.y += this._localAcceleration.y;
+    this._localVelocity.z += this._localAcceleration.z;
+    this._localAcceleration.x = 0.0;
+    this._localAcceleration.y = 0.0;
+    this._localAcceleration.z = 0.0;
+
+    this._coords.add(this._localVelocity);
+    this._coords.y = HX.clamp(this._coords.y, 0.1, Math.PI - .1);
+    this._coords.z = HX.clamp(this._coords.z, this.minRadius, this.maxRadius);
+
+    var matrix = this.entity.matrix;
+    var pos = new HX.Float4();
+    pos.fromSphericalCoordinates(this._coords.z, this._coords.x, this._coords.y);
+    pos.add(this.lookAtTarget);
+    matrix.lookAt(this.lookAtTarget, pos, HX.Float4.Y_AXIS);
+    this.entity.matrix = matrix;
+};
+
+    // ratio is "how far the controller is pushed", from -1 to 1
+OrbitController.prototype.setAzimuthImpulse  = function(value)
+{
+    this._localAcceleration.x = value;
+};
+
+OrbitController.prototype.setPolarImpulse = function(value)
+{
+    this._localAcceleration.y = value;
+};
+
+OrbitController.prototype.setZoomImpulse = function(value)
+{
+    this._localAcceleration.z = value;
+};
+
+OrbitController.prototype._updateMove = function(x, y)
+{
+    if (this._oldMouseX !== undefined) {
+        var dx = x - this._oldMouseX;
+        var dy = y - this._oldMouseY;
+        this.setAzimuthImpulse(dx * .0015);
+        this.setPolarImpulse(-dy * .0015);
+    }
+    this._oldMouseX = x;
+    this._oldMouseY = y;
 };
 HX.Debug = {
     printShaderCode: function(code)
@@ -18390,4 +18390,4 @@ HX.TorusPrimitive._generate = function(target, definition)
             }
         }
     }
-};HX.BUILD_HASH = 0xdd92;
+};HX.BUILD_HASH = 0x1f3e;

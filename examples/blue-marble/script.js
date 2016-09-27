@@ -47,14 +47,16 @@ function initHDRSettings()
     var bloom1 = new HX.Bloom(15, 1.0, 4);
     bloom1.thresholdLuminance = 5.0;
 
-    var bloom2 = new HX.Bloom(50, .5, 4, .8);
-    bloom2.thresholdLuminance = 10.0;
+    var bloom2 = new HX.Bloom(100, .25, 4,.8);
+    bloom2.thresholdLuminance = 5.0;
 
-    var bloom3 = new HX.Bloom(150, .1, 8, .75);
+    var bloom3 = new HX.Bloom(500, .1, 8,.2);
     bloom3.thresholdLuminance = 15.0;
 
+    // TODO: Implement pseudo lens flare
+
     var tonemap = new HX.FilmicToneMapEffect(true);
-    tonemap.exposure = -3;
+    tonemap.exposure = -2;
 
     settings.effects = [bloom1, bloom2, bloom3, tonemap];
     settings.sunIntensity = 20.0;

@@ -21,7 +21,7 @@
         "rayleighFactor": 0.0025,
         "mieFactor": 0.0010,
 
-        "mieG": 0.75,
+        "mieG": -0.99,
 
         "earthRadius": 1.0,
         "atmosphereRadius": 1.0,

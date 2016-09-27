@@ -47,7 +47,7 @@ HX_GeometryData hx_geometry()
     float cloudAmount = cloudSample.z;
 
     outputColor.xyz = mix(outputColor.xyz, cloudColorDay, cloudAmount);
-    emissionColor = mix(emissionColor, cloudColorNight, cloudAmount);
+    emissionColor = mix(emissionColor, cloudColorNight, cloudAmount) * .5;
 
     outputColor.xyz = scatterColor1 * .25 * outputColor.xyz;
     outputColor.xyz += scatterColor0;

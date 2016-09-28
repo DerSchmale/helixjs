@@ -83,6 +83,7 @@ function initCamera(camera)
     camera.position.x = -.01;
     camera.position.y = -.0001;
     camera.position.z = -.01;
+
     camera.lookAt(HX.Float4.ORIGIN_POINT);
     // earth sun distance ~150
 
@@ -100,9 +101,10 @@ function initCamera(camera)
 
 function initSun(container)
 {
+    var distanceToSun = 150 / 5;    // same as with moon, we're bringing it 5x closer than it is
     var sunPosX = 0;
-    var sunPosY = 80;
-    var sunPosZ = 150;
+    var sunPosY = 8;
+    var sunPosZ = 15;
 
     sunLight = new HX.DirectionalLight();
     // sunlight actually has more green in its spectrum, but it's filtered out by the atmosphere
@@ -123,7 +125,8 @@ function initSun(container)
     var sun = new HX.ModelInstance(sunSpherePrimitive, sunMaterial);
     // not heliocentric, apparently ;)
     // let's put the sun away and the earth at 0, so camera animation is easier
-    sun.position.set(sunPosX, sunPosY, sunPosZ);
+    var len = distanceToSun / Math.sqrt(sunPosX * sunPosX + sunPosY * sunPosY + sunPosZ * sunPosZ);
+    sun.position.set(sunPosX * len, sunPosY * len, sunPosZ * len);
     container.attach(sun);
 }
 
@@ -181,7 +184,7 @@ function initMoon(container)
 {
     // bringing it 5x closer than it is
     var distanceToEarth = 0.384400 / 5;
-    var moonRadius = 0.001737;
+    var moonRadius = 0.001738;
     var moonSpherePrimitive = new HX.SpherePrimitive(
         {
             radius: moonRadius,

@@ -12,9 +12,6 @@ uniform sampler2D heightMap;
 //uniform float heightMapSize;
 
 varying vec2 uv;
-//varying vec3 varTangentX;
-//varying vec3 varTangentZ;
-varying vec3 worldPosition;
 
 float getHeight(vec2 worldPos)
 {
@@ -34,6 +31,4 @@ void hx_geometry()
 // TODO: We could figure out clip map level based on hx_cellSize and texture size as an improvement if LOD is supported!
 
     gl_Position = hx_viewProjectionMatrix * worldPos;
-
-    worldPosition = worldPos.xyz;
 }

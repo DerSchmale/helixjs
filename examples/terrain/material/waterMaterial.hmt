@@ -1,0 +1,21 @@
+{
+    "version": "0.1",
+
+    "geometry": {
+        "vertexShader": "glsl/water_vertex.glsl",
+        "fragmentShader": "glsl/water_fragment.glsl"
+    },
+
+    "uniforms": {
+        "roughness": 0.01,
+        "normalScale": 0.003,
+        "normalScale1": 0.03,
+        "normalScale2": 0.2,
+        "normalOffset1": [ 0.0, 0.0 ],
+        "normalOffset2": [ 0.0, 0.0 ]
+    },
+
+    "textures": {
+        "waveMap": "../textures/wavemap.png"
+    }
+}

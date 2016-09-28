@@ -1,7 +1,12 @@
 var project = new DemoProject();
 var terrainMaterial;
+var waterMaterial;
 var time = 0;
-var worldSize = 25000;
+
+// 1 = 10m
+var worldSize = 2500;
+var waterLevel = -41;
+var fog;
 
 project.onInit = function()
 {
@@ -14,6 +19,8 @@ project.onInit = function()
 project.onUpdate = function(dt)
 {
     time += dt;
+    waterMaterial.setUniform("normalOffset1", [ time * 0.0004, time * 0.0005 ]);
+    waterMaterial.setUniform("normalOffset2", [ -time * 0.0001, -time * 0.0002 ]);
 };
 
 window.onload = function ()
@@ -27,20 +34,21 @@ window.onload = function ()
 
 function initCamera(camera)
 {
-    camera.position.x = 316 / 2048 * worldSize;
-    camera.position.y = 350;
-    camera.position.z = 799 / 2048 * worldSize;
+    camera.position.x = (1680 / 2048 - .5) * worldSize;
+    camera.position.y = -40;
+    camera.position.z = -(1814 / 2048 - .5) * worldSize;
 
     camera.nearDistance = 0.1;
-    camera.farDistance = 4000.0;
+    camera.farDistance = 400.0;
 
     var controller = new FloatController();
-    controller.speed = 7.0;
+    controller.speed = .7;
     controller.shiftMultiplier = 50.0;
     controller.yaw = Math.PI;
     camera.addComponent(controller);
 
-    camera.addComponent(new HX.Fog(0.0015, new HX.Color(0x4988ff), 0.005));
+    fog = new HX.Fog(0.003, new HX.Color(0x4988ff), 0.005);
+    camera.addComponent(fog);
 
     var tonemap = new HX.FilmicToneMapEffect();
     //camera.addComponent(tonemap);
@@ -82,6 +90,7 @@ function initScene(scene)
     terrainMaterial = materialLoader.load("material/terrainMaterial.hmt");
     //terrainMaterial.elementType = HX.ElementType.LINES;
 
+
     terrainMaterial.setTexture("heightMap", heightMap);
     terrainMaterial.setTexture("terrainMap", terrainMap);
     terrainMaterial.setUniform("heightMapSize", 2048);
@@ -89,7 +98,14 @@ function initScene(scene)
 
     terrainMaterial.lights = [ sun, lightProbe ];
 
+    waterMaterial = materialLoader.load("material/waterMaterial.hmt");
+    waterMaterial.lights = [ sun, lightProbe ];
+    //waterMaterial.elementType = HX.ElementType.LINES;
     // 4km visibility in all sides
-    var terrain = new HX.Terrain(8000, -1000, 2000, 4, terrainMaterial, 32);
+    var terrain = new HX.Terrain(800, -100, 200, 4, terrainMaterial, 32);
     scene.attach(terrain);
+
+    var water = new HX.Terrain(800, 0, 1, 3, waterMaterial, 16);
+    water.position.y = waterLevel;
+    scene.attach(water);
 }

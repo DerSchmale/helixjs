@@ -47,7 +47,6 @@ float hx_RG8ToFloat(vec2 rg)
     return dot(rg, vec2(1.0, 1.0/255.0));
 }
 
-// emission of 1.0 is the same as "unlit", anything above emits more
 vec2 hx_encodeNormal(vec3 normal)
 {
     vec2 data;
@@ -64,8 +63,6 @@ vec3 hx_decodeNormal(vec4 data)
     float g = sqrt(1.0 - f * .25);
     normal.xy = data.xy * g;
     normal.z = 1.0 - f * .5;
-//    normal.xy = data.xy * 2.0 - 1.0;
-//    normal.z = sqrt(1.0 - dot(normal.xy, normal.xy));
     return normal;
 }
 

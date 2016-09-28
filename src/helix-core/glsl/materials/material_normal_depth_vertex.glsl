@@ -10,6 +10,5 @@ void main()
 {
     hx_geometry();
 
-    vec4 hx_viewPos = hx_worldViewMatrix * hx_position;
-    hx_linearDepth = (-hx_viewPos.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;
+    hx_linearDepth = (gl_Position.w - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;
 }

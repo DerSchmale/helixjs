@@ -1,7 +1,9 @@
 #extension GL_OES_standard_derivatives : enable
 
 uniform sampler2D heightMap;
+uniform sampler2D sandNormals;
 uniform sampler2D terrainMap;
+uniform sampler2D sandTexture;
 uniform sampler2D grassTexture;
 uniform sampler2D rockTexture;
 uniform sampler2D detailTexture;
@@ -19,6 +21,16 @@ uniform float grassScale;
 uniform float rockScale;
 uniform float heightMapSize;
 uniform float worldSize;
+
+vec3 getSandColor()
+{
+    return texture2D(sandTexture, uv * detailScale).xyz;
+}
+
+vec3 getSandNormal()
+{
+    return texture2D(sandNormals, uv * grassScale).xyz;
+}
 
 vec3 getGrassColor(vec4 detail)
 {
@@ -74,6 +86,8 @@ HX_GeometryData hx_geometry()
     HX_GeometryData data;
     vec4 terrain = texture2D(terrainMap, uv);
     vec4 detail = texture2D(detailTexture, uv * detailScale);
+    vec3 sand = getSandColor();
+    vec3 sandNormal = getSandNormal();
     vec3 grass = getGrassColor(detail);
     vec3 grassNormal = getGrassNormal();
     vec3 rock = getRockColor(detail);
@@ -82,16 +96,16 @@ HX_GeometryData hx_geometry()
     vec3 snowNormal = getSnowNormal();
     vec3 color = mix(grass, snow, terrain.z);
     color = mix(color, rock, terrain.y);
+    color = mix(color, sand, terrain.x);
 
     float roughness = mix(grassRoughness, snowRoughness, terrain.z);
     roughness = mix(roughness, rockRoughness, terrain.y);
 
     vec3 localNorm = mix(grassNormal, snowNormal, terrain.z);
     localNorm = mix(localNorm, rockNormal, terrain.y);
-    normal = TBN * normalize(localNorm);
-    normal =  mat3(hx_viewMatrix) * normal;
+    localNorm = mix(localNorm, sandNormal, terrain.x);
     data.color = vec4(color, 1.0);
-    data.normal = normal;
+    data.normal = mat3(hx_viewMatrix) * TBN * normalize(localNorm - .5);
     data.metallicness = 0.0;
     data.normalSpecularReflectance = 0.027;
     data.roughness = roughness;

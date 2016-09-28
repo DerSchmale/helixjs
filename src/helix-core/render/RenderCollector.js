@@ -110,6 +110,8 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
 
         if (!material._initialized) continue;
 
+        this._needsNormalDepth = this._needsNormalDepth || material._needsNormalDepth;
+
         var renderItem = renderPool.getItem();
 
         renderItem.material = material;

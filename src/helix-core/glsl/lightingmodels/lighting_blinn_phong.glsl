@@ -34,7 +34,7 @@ void hx_brdf(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightCol
 
 	float distribution = hx_blinnPhongDistribution(roughness, normal, halfVector);
 
-	float halfDotLight = dot(halfVector, lightDir);
+	float halfDotLight = max(dot(halfVector, lightDir), 0.0);
 	float cosAngle = 1.0 - halfDotLight;
 	// to the 5th power
 	float power = cosAngle*cosAngle;

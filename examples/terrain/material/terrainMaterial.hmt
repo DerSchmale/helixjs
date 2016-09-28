@@ -13,6 +13,8 @@
     },
 
     "textures": {
+        "sandTexture": "../textures/sand.jpg",
+        "sandNormals": "../textures/sand_normals.png",
         "grassTexture": "../textures/mossyGround.jpg",
         "rockTexture": "../textures/Rock_02_UV_H_CM_1.jpg",
         "rockNormals": "../textures/rockLargeNormals.png",

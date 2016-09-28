@@ -26,6 +26,7 @@ HX.Material = function(geometryVertexShader, geometryFragmentShader, lightingMod
 
     this._initialized = false;
     this._blendState = null;
+    this._needsNormalDepth = false;
 };
 
 HX.Material.ID_COUNTER = 0;
@@ -37,6 +38,7 @@ HX.Material.prototype =
         if (this._initialized || !this._geometryVertexShader || !this._geometryFragmentShader)
             return;
 
+        this._needsNormalDepth = false;
         this._dirLights = null;
         this._dirLightCasters = null;
         this._pointLights = null;
@@ -176,6 +178,9 @@ HX.Material.prototype =
         this._passes[type] = pass;
 
         if (pass) {
+            if (pass.getTextureSlot("hx_normalDepth"))
+                this._needsNormalDepth = true;
+
             if(type === HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS)
                 pass.cullMode = HX.DirectionalLight.SHADOW_FILTER.getCullMode();
             else

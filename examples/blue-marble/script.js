@@ -101,7 +101,7 @@ function initCamera(camera)
 
 function initSun(container)
 {
-    var distanceToSun = 150 / 5;    // same as with moon, we're bringing it 5x closer than it is
+    var distanceToSun = 150 / 2.5;    // same as with moon, we're bringing it 5x closer than it is
     var sunPosX = 0;
     var sunPosY = 8;
     var sunPosZ = 15;

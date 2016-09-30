@@ -104,8 +104,10 @@ HX_GeometryData hx_geometry()
     vec3 localNorm = mix(grassNormal, snowNormal, terrain.z);
     localNorm = mix(localNorm, rockNormal, terrain.y);
     localNorm = mix(localNorm, sandNormal, terrain.x);
+
+    normal = mat3(hx_viewMatrix) * TBN * normalize(localNorm - .5);
     data.color = vec4(color, 1.0);
-    data.normal = mat3(hx_viewMatrix) * TBN * normalize(localNorm - .5);
+    data.normal = normal;
     data.metallicness = 0.0;
     data.normalSpecularReflectance = 0.027;
     data.roughness = roughness;

@@ -1,11 +1,11 @@
 var project = new DemoProject();
 var terrainMaterial;
-var waterMaterial;
+var waterSurfaceMaterial;
 var time = 0;
 
 // 1 = 10m
 var worldSize = 2500;
-var waterLevel = -41;
+var waterLevel = -5;
 var fog;
 
 project.onInit = function()
@@ -19,8 +19,8 @@ project.onInit = function()
 project.onUpdate = function(dt)
 {
     time += dt;
-    waterMaterial.setUniform("normalOffset1", [ time * 0.0004, time * 0.0005 ]);
-    waterMaterial.setUniform("normalOffset2", [ -time * 0.0001, -time * 0.0002 ]);
+    waterSurfaceMaterial.setUniform("normalOffset1", [ -time * 0.0004, -time * 0.0005 ]);
+    waterSurfaceMaterial.setUniform("normalOffset2", [ time * 0.0001, time * 0.0002 ]);
 };
 
 window.onload = function ()
@@ -35,29 +35,29 @@ window.onload = function ()
 function initCamera(camera)
 {
     camera.position.x = (1680 / 2048 - .5) * worldSize;
-    camera.position.y = -40;
+    camera.position.y = waterLevel + .18;
     camera.position.z = -(1814 / 2048 - .5) * worldSize;
 
     camera.nearDistance = 0.1;
     camera.farDistance = 400.0;
 
     var controller = new FloatController();
-    controller.speed = .7;
-    controller.shiftMultiplier = 50.0;
+    controller.speed = 1.7;
+    controller.shiftMultiplier = 70.0;
     controller.yaw = Math.PI;
     camera.addComponent(controller);
 
     fog = new HX.Fog(0.003, new HX.Color(0x4988ff), 0.005);
     camera.addComponent(fog);
 
-    var tonemap = new HX.FilmicToneMapEffect();
-    //camera.addComponent(tonemap);
+    // var tonemap = new HX.FilmicToneMapEffect();
+    // camera.addComponent(tonemap);
 }
 
 function initScene(scene)
 {
     var sun = new HX.DirectionalLight();
-    sun.direction = new HX.Float4(0.0, -.5, -1.0, 0.0);
+    sun.direction = new HX.Float4(-0.3, -1.0, -1.0, 0.0);
     sun.intensity = 5;
     //sun.castShadows = true;
     //sun.numCascades = 4;
@@ -98,14 +98,23 @@ function initScene(scene)
 
     terrainMaterial.lights = [ sun, lightProbe ];
 
-    waterMaterial = materialLoader.load("material/waterMaterial.hmt");
-    waterMaterial.lights = [ sun, lightProbe ];
-    //waterMaterial.elementType = HX.ElementType.LINES;
-    // 4km visibility in all sides
-    var terrain = new HX.Terrain(800, -100, 200, 4, terrainMaterial, 32);
-    scene.attach(terrain);
+    var waterSubSurfaceMaterial = materialLoader.load("material/waterAbsorbMaterial.hmt");
 
-    var water = new HX.Terrain(800, 0, 1, 3, waterMaterial, 16);
-    water.position.y = waterLevel;
-    scene.attach(water);
+    waterSurfaceMaterial = materialLoader.load("material/waterSurfaceMaterial.hmt");
+    waterSurfaceMaterial.lights = [ sun, lightProbe ];
+
+    waterSubSurfaceMaterial.renderOrder = 50;
+    waterSurfaceMaterial.renderOrder = 100;
+
+    var terrain = new HX.Terrain(800, -100, 200, 4, terrainMaterial, 32);
+
+    var waterSurface = new HX.Terrain(800, 0, 1, 3, waterSurfaceMaterial, 16);
+    waterSurface.position.y = waterLevel;
+
+    var waterSubsurface = new HX.Terrain(800, 0, 1, 3, waterSubSurfaceMaterial, 16);
+    waterSubsurface.position.y = waterLevel;
+
+    scene.attach(terrain);
+    scene.attach(waterSurface);
+    scene.attach(waterSubsurface);
 }

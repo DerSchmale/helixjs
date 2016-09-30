@@ -25,6 +25,8 @@ float hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)
     return roughSqr / (denom * denom);
 }
 
+// light dir is to the lit surface
+// view dir is to the lit surface
 void hx_brdf(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 normalSpecularReflectance, float roughness, out vec3 diffuseColor, out vec3 specularColor)
 {
 	float nDotL = max(-dot(lightDir, normal), 0.0);

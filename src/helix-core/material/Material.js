@@ -52,7 +52,7 @@ HX.Material.prototype =
 
         this._setPass(HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new HX.DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 
-        if (!this._needsNormalDepth)
+        if (!this._needsNormalDepth && this._writeDepth)
             this._setPass(HX.MaterialPass.NORMAL_DEPTH_PASS, new HX.NormalDepthPass(this._geometryVertexShader, this._geometryFragmentShader));
 
         this._initialized = true;
@@ -149,9 +149,17 @@ HX.Material.prototype =
     set writeDepth(value)
     {
         this._writeDepth = value;
+
+        if (!value && this._passes[HX.MaterialPass.NORMAL_DEPTH_PASS]) {
+            this._passes[HX.MaterialPass.NORMAL_DEPTH_PASS] = null;
+        }
+        else if (value && !this._passes[HX.MaterialPass.NORMAL_DEPTH_PASS])
+            this._invalidate();
+
         for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
             if (this._passes[i])
                 this._passes[i].writeDepth = value;
+
         }
     },
 

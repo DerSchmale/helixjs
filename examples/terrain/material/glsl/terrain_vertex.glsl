@@ -9,16 +9,8 @@ uniform float hx_elevationScale;
 uniform float worldSize;
 
 uniform sampler2D heightMap;
-//uniform float heightMapSize;
 
 varying vec2 uv;
-
-float getHeight(vec2 worldPos)
-{
-    vec2 coord = .5 + worldPos / worldSize;
-    float offsetY = hx_RGBA8ToFloat(texture2D(heightMap, coord));
-    return offsetY * hx_elevationScale + hx_elevationOffset;
-}
 
 void hx_geometry()
 {
@@ -27,7 +19,8 @@ void hx_geometry()
     worldPos.xz = floor(worldPos.xz / hx_cellSize) * hx_cellSize;
     uv = .5 + worldPos.xz / worldSize;
 
-    worldPos.y += getHeight(worldPos.xz);
+    float offsetY = hx_RGBA8ToFloat(texture2D(heightMap, uv));
+    worldPos.y += offsetY * hx_elevationScale + hx_elevationOffset;
 // TODO: We could figure out clip map level based on hx_cellSize and texture size as an improvement if LOD is supported!
 
     gl_Position = hx_viewProjectionMatrix * worldPos;

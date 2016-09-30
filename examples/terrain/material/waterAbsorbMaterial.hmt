@@ -1,0 +1,23 @@
+{
+    "version": "0.1",
+
+    "geometry": {
+        "vertexShader": "glsl/water_absorb_vertex.glsl",
+        "fragmentShader": "glsl/water_absorb_fragment.glsl"
+    },
+
+    "writeDepth": false,
+
+    "uniforms": {
+        "absorptionDensity": [ 1.0, 0.712, 0.468 ]
+    },
+
+    "blend": {
+        "source": "zero",
+        "destination": "sourceColor"
+    },
+
+    "textures": {
+        "waveMap": "../textures/wavemap.png"
+    }
+}

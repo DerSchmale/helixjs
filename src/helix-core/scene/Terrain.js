@@ -38,11 +38,12 @@ HX.Terrain.prototype = Object.create(HX.GroupNode.prototype, {
  * @returns {HX.Model}
  * @private
  */
-HX.Terrain.prototype._createModel = function(size, numSegments, subDiv)
+HX.Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
 {
     var rcpNumSegments = 1.0 / numSegments;
     var meshData = new HX.MeshData();
     var cellSize = size * rcpNumSegments;
+    var halfCellSize = cellSize * .5;
 
     meshData.addVertexAttribute("hx_position", 3);
     meshData.addVertexAttribute("hx_normal", 3);
@@ -61,7 +62,9 @@ HX.Terrain.prototype._createModel = function(size, numSegments, subDiv)
         for (var xi = 0; xi <= numSegments; ++xi) {
             var x = (xi*rcpNumSegments - .5) * size;
 
-            vertices.push(x, 0, z, 0, 1, 0, cellSize);
+            // the one corner that attaches to higher resolution neighbours needs to snap like them
+            var s = !lastLevel && xi === numSegments && zi === numSegments? halfCellSize : cellSize;
+            vertices.push(x, 0, z, 0, 1, 0, s);
 
             if (xi !== numSegments && zi !== numZ) {
                 var base = xi + zi * w;
@@ -73,18 +76,17 @@ HX.Terrain.prototype._createModel = function(size, numSegments, subDiv)
     }
 
     var highIndexX = vertices.length / 7;
-    var halfCellSize = cellSize * .5;
 
-    if (subDiv !== 0) {
+    if (subDiv) {
         var z = (numSegments * rcpNumSegments - .5) * size;
         for (var xi = 0; xi <= numSegments; ++xi) {
             var x = (xi*rcpNumSegments - .5) * size;
-            vertices.push(x, 0, z, 0, 1, 0, halfCellSize);
-            vertices.push(x + halfCellSize, 0, z, 0, 1, 0, halfCellSize);
-
-            var base = xi + numZ * w;
+            vertices.push(x, 0, z, 0, 1, 0);
+            vertices.push(halfCellSize);
 
             if (xi !== numSegments) {
+                var base = xi + numZ * w;
+                vertices.push(x + halfCellSize, 0, z, 0, 1, 0, halfCellSize);
                 indices.push(base, highIndexX + xi * 2, highIndexX + xi * 2 + 1);
                 indices.push(base, highIndexX + xi * 2 + 1, base + 1);
                 indices.push(highIndexX + xi * 2 + 1, highIndexX + xi * 2 + 2, base + 1);
@@ -110,7 +112,7 @@ HX.Terrain.prototype._initModels = function(gridSize)
     for (var level = 0; level < this._numLevels; ++level) {
         if (level === this._numLevels - 1) {
             // do not subdivide max detail
-            var model = this._createModel(modelSize, gridSize, false);
+            var model = this._createModel(modelSize, gridSize, false, true);
             this._models[level] = {
                 edge: model,
                 corner: model
@@ -118,8 +120,8 @@ HX.Terrain.prototype._initModels = function(gridSize)
         }
         else {
             this._models[level] = {
-                edge: this._createModel(modelSize, gridSize, true),
-                corner: this._createModel(modelSize, gridSize, false)
+                edge: this._createModel(modelSize, gridSize, true, false),
+                corner: this._createModel(modelSize, gridSize, false, false)
             };
         }
 
@@ -154,14 +156,24 @@ HX.Terrain.prototype._initTree = function()
             else {
                 var rotation = 0;
                 var mode = "edge";
-                if (xi % 3 === yi % 3)
+                var add = true;
+                // if both are 0, we have a corner
+                if (xi % 3 === yi % 3) {
                     mode = "corner";
+                    console.log(mode, xi, yi);
+
+                    if (xi === 0 && yi === 0) rotation = 0;
+                    if (xi === 0 && yi === 3) rotation = 1;
+                    if (xi === 3 && yi === 3) rotation = 2;
+                    if (xi === 3 && yi === 0) rotation = -1;
+                }
                 else {
                     if (yi === 3) rotation = 2;
                     if (xi === 3) rotation = -1;
                     if (xi === 0) rotation = 1;
                 }
-                this._addModel(x, y, level, rotation, mode);
+                if (add)
+                    this._addModel(x, y, level, rotation, mode);
             }
         }
     }
@@ -190,40 +202,48 @@ HX.Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
                         mode = "edge";
                         rotation = 1;
                     }
-                    if (xi > 0 && yi < 0) {
+                    else if (xi > 0 && yi < 0) {
                         mode = "edge";
                         rotation = 0;
                     }
+                    else
+                        rotation = 0;
                 }
-                if (x > 0 && y > 0) {
+                else if (x > 0 && y > 0) {
                     if (xi > 0 && yi < 0) {
                         mode = "edge";
                         rotation = -1;
                     }
-                    if (xi < 0 && yi > 0) {
+                    else if (xi < 0 && yi > 0) {
                         mode = "edge";
                         rotation = 2;
                     }
+                    else
+                        rotation = 2;
                 }
-                if (x < 0 && y > 0) {
+                else if (x < 0 && y > 0) {
                     if (xi > 0 && yi > 0) {
                         mode = "edge";
                         rotation = 2;
                     }
-                    if (xi < 0 && yi < 0) {
+                    else if (xi < 0 && yi < 0) {
                         mode = "edge";
                         rotation = 1;
                     }
+                    else
+                        rotation = 1;
                 }
-                if (x > 0 && y < 0) {
+                else if (x > 0 && y < 0) {
                     if (xi < 0 && yi < 0) {
                         mode = "edge";
                         rotation = 0;
                     }
-                    if (xi > 0 && yi > 0) {
+                    else if (xi > 0 && yi > 0) {
                         mode = "edge";
                         rotation = -1;
                     }
+                    else
+                        rotation = -1;
                 }
 
                 this._addModel(x + size * xi, y + size * yi, level, rotation, mode);

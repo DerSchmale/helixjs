@@ -22,7 +22,7 @@ void main()
 	if (normalDepth.z == 1.0 && normalDepth.w == 1.0) depth = 0.0;
 	float absViewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
 	vec3 viewVec = viewDir * absViewZ;
-	float fogFactor = length(viewVec);// * exp(-heightFallOff * hx_cameraWorldPosition.y);
+	float fogFactor = max(length(viewVec) - startDistance, 0.0);// * exp(-heightFallOff * hx_cameraWorldPosition.y);
 //    if( abs( viewVec.y ) > 0.1 )
 //	{
 		float t = heightFallOff * (viewVec.y + hx_cameraWorldPosition.y);

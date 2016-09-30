@@ -123,6 +123,7 @@ HX.ForwardRenderer.prototype =
         var opaqueStaticLit = this._renderCollector.getOpaqueStaticRenderList();
         var transparentStaticLit = this._renderCollector.getTransparentStaticRenderList();
 
+        HX.setDepthMask(true);
         this._renderNormalDepth(opaqueStaticLit);
         this._renderAO();
 

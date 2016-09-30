@@ -205,6 +205,8 @@ HX.CascadeShadowMapRenderer.prototype =
         if (HX.DirectionalLight.SHADOW_FILTER.blurShader)
             this._blur();
 
+        HX.setRenderTarget();
+
         HX.setClearColor(HX.Color.BLACK);
     },
 

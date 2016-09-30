@@ -13,6 +13,13 @@ project.onInit = function()
     initCamera(this.camera);
     initScene(this.scene);
 
+    var ssao = new HX.HBAO();
+    ssao.radius = 100.0;
+    ssao.strength = 3.14;
+    ssao.fallOffDistance = 500.0;
+    ssao.bias = 0.1;
+    this.renderer.ambientOcclusion = ssao;
+
     time = 0;
 };
 
@@ -27,8 +34,8 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
-    // options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
-    // options.directionalShadowFilter.blurRadius = 1;
+    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+    options.directionalShadowFilter.blurRadius = 1;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -47,7 +54,7 @@ function initCamera(camera)
     controller.yaw = Math.PI;
     camera.addComponent(controller);
 
-    fog = new HX.Fog(0.003, new HX.Color(0x4988ff), 0.005);
+    fog = new HX.Fog(0.0015, new HX.Color(0x4988ff), 0.005);
     camera.addComponent(fog);
 
     // var tonemap = new HX.FilmicToneMapEffect();
@@ -57,8 +64,8 @@ function initCamera(camera)
 function initScene(scene)
 {
     var sun = new HX.DirectionalLight();
-    sun.direction = new HX.Float4(-0.3, -1.0, -1.0, 0.0);
-    sun.depthBias = 10;
+    sun.direction = new HX.Float4(-0.3, -.3, 1.0, 0.0);
+    // sun.depthBias = 10.0;
     sun.intensity = 5;
     sun.castShadows = true;
     sun.numCascades = 4;
@@ -89,13 +96,11 @@ function initScene(scene)
     // otherwise, fall back to grass
     var materialLoader = new HX.AssetLoader(HX.HMT);
     terrainMaterial = materialLoader.load("material/terrainMaterial.hmt");
-    //terrainMaterial.elementType = HX.ElementType.LINES;
-
-
     terrainMaterial.setTexture("heightMap", heightMap);
     terrainMaterial.setTexture("terrainMap", terrainMap);
     terrainMaterial.setUniform("heightMapSize", 2048);
     terrainMaterial.setUniform("worldSize", worldSize);
+    terrainMaterial.ssao = true;
 
     terrainMaterial.lights = [ sun, lightProbe ];
 

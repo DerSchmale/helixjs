@@ -71,7 +71,6 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
 
     var extensions = [];
 
-    // TODO: Support shadow casters
     var defines = {
         HX_NUM_DIR_LIGHTS: this._dirLights.length,
         HX_NUM_DIR_LIGHT_CASTERS: this._dirLightCasters.length,

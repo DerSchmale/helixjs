@@ -6,6 +6,7 @@ HX.DirectionalLight = function()
 {
     HX.Light.call(this);
 
+    this.depthBias = .0;
     this._numCascades = 1;
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;

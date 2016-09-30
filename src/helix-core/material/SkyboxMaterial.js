@@ -14,7 +14,7 @@ HX.SkyboxMaterial = function(texture)
     var pass = new HX.UnlitPass(vertexShader, fragmentShader);
 
     // if no draw buffers, normals and specular don't need to be updated
-    this._setPass(HX.MaterialPass.BASE_PASS, pass);
+    this.setPass(HX.MaterialPass.BASE_PASS, pass);
     this._initialized = true;
     this._renderOrder = Number.POSITIVE_INFINITY;
 

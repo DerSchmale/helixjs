@@ -6,8 +6,6 @@
         "fragmentShader": "glsl/water_surface_fragment.glsl"
     },
 
-    "writeDepth": false,
-
     "uniforms": {
         "roughness": 0.01,
         "normalScale": 0.003,

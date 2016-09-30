@@ -160,8 +160,6 @@ HX.Terrain.prototype._initTree = function()
                 // if both are 0, we have a corner
                 if (xi % 3 === yi % 3) {
                     mode = "corner";
-                    console.log(mode, xi, yi);
-
                     if (xi === 0 && yi === 0) rotation = 0;
                     if (xi === 0 && yi === 3) rotation = 1;
                     if (xi === 3 && yi === 3) rotation = 2;

@@ -27,8 +27,8 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
-    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
-    options.directionalShadowFilter.blurRadius = 1;
+    // options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+    // options.directionalShadowFilter.blurRadius = 1;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -39,7 +39,7 @@ function initCamera(camera)
     camera.position.z = -(1814 / 2048 - .5) * worldSize;
 
     camera.nearDistance = 0.1;
-    camera.farDistance = 400.0;
+    camera.farDistance = 2000.0;
 
     var controller = new FloatController();
     controller.speed = 1.7;
@@ -58,10 +58,11 @@ function initScene(scene)
 {
     var sun = new HX.DirectionalLight();
     sun.direction = new HX.Float4(-0.3, -1.0, -1.0, 0.0);
+    sun.depthBias = 10;
     sun.intensity = 5;
-    //sun.castShadows = true;
-    //sun.numCascades = 4;
-    //sun.setCascadeRatios(.01,.07,.15, .3);
+    sun.castShadows = true;
+    sun.numCascades = 4;
+    sun.setCascadeRatios(.01,.07,.15, .3);
     scene.attach(sun);
 
     // TODO: Add procedural skybox
@@ -106,12 +107,12 @@ function initScene(scene)
     waterSubSurfaceMaterial.renderOrder = 50;
     waterSurfaceMaterial.renderOrder = 100;
 
-    var terrain = new HX.Terrain(800, -100, 200, 4, terrainMaterial, 32);
+    var terrain = new HX.Terrain(4000, -100, 200, 4, terrainMaterial, 32);
 
-    var waterSurface = new HX.Terrain(800, 0, 1, 3, waterSurfaceMaterial, 16);
+    var waterSurface = new HX.Terrain(4000, 0, 1, 3, waterSurfaceMaterial, 16);
     waterSurface.position.y = waterLevel;
 
-    var waterSubsurface = new HX.Terrain(800, 0, 1, 3, waterSubSurfaceMaterial, 16);
+    var waterSubsurface = new HX.Terrain(4000, 0, 1, 3, waterSubSurfaceMaterial, 16);
     waterSubsurface.position.y = waterLevel;
 
     scene.attach(terrain);

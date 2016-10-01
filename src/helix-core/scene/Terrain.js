@@ -12,6 +12,7 @@ HX.Terrain = function(terrainSize, minElevation, maxElevation, numLevels, materi
     var gridSize = Math.ceil(detail * .5) * 2.0; // round off to 2
 
     this._snapSize = (this._terrainSize / detail) >> this._numLevels;
+    if (this._snapSize === 0) this._snapSize = 0.01;
 
     this._material = material;
     material.setUniform("hx_elevationOffset", minElevation);

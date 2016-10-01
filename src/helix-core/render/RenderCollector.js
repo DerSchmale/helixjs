@@ -20,6 +20,7 @@ HX.RenderCollector = function()
     this._shadowCasters = null;
     this._effects = null;
     this._needsNormalDepth = false;
+    this._needsBackbuffer = false;
 };
 
 HX.RenderCollector.prototype = Object.create(HX.SceneVisitor.prototype);
@@ -39,6 +40,10 @@ Object.defineProperties(HX.RenderCollector.prototype, {
 
     needsNormalDepth: {
         get: function() { return this._needsNormalDepth; }
+    },
+
+    needsBackbuffer: {
+        get: function() { return this._needsBackbuffer; }
     }
 });
 
@@ -111,6 +116,7 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
         if (!material._initialized) continue;
 
         this._needsNormalDepth = this._needsNormalDepth || material._needsNormalDepth;
+        this._needsBackbuffer = this._needsBackbuffer || material._needsBackbuffer;
 
         var renderItem = renderPool.getItem();
 
@@ -125,7 +131,7 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
         renderItem.camera = camera;
 
         if (material.hasPass(HX.MaterialPass.BASE_PASS)) {
-            var list = material.blendState? this._transparentsStatic : this._opaquesStatic;
+            var list = material.blendState || material._needsBackbuffer? this._transparentsStatic : this._opaquesStatic;
             list.push(renderItem);
         }
 

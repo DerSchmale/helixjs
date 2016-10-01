@@ -1,6 +1,6 @@
 var project = new DemoProject();
 var terrainMaterial;
-var waterSurfaceMaterial;
+var waterMaterial;
 var time = 0;
 
 // 1 = 10m
@@ -26,8 +26,8 @@ project.onInit = function()
 project.onUpdate = function(dt)
 {
     time += dt;
-    waterSurfaceMaterial.setUniform("normalOffset1", [ -time * 0.0004, -time * 0.0005 ]);
-    waterSurfaceMaterial.setUniform("normalOffset2", [ time * 0.0001, time * 0.0002 ]);
+    waterMaterial.setUniform("normalOffset1", [ -time * 0.0004, -time * 0.0005 ]);
+    waterMaterial.setUniform("normalOffset2", [ time * 0.0001, time * 0.0002 ]);
 };
 
 window.onload = function ()
@@ -104,23 +104,14 @@ function initScene(scene)
 
     terrainMaterial.lights = [ sun, lightProbe ];
 
-    var waterSubSurfaceMaterial = materialLoader.load("material/waterAbsorbMaterial.hmt");
-
-    waterSurfaceMaterial = materialLoader.load("material/waterSurfaceMaterial.hmt");
-    waterSurfaceMaterial.lights = [ sun, lightProbe ];
-
-    waterSubSurfaceMaterial.renderOrder = 50;
-    waterSurfaceMaterial.renderOrder = 100;
+    waterMaterial = materialLoader.load("material/waterMaterial.hmt");
+    waterMaterial.lights = [ sun, lightProbe ];
 
     var terrain = new HX.Terrain(4000, -100, 200, 4, terrainMaterial, 32);
 
-    var waterSurface = new HX.Terrain(4000, 0, 1, 3, waterSurfaceMaterial, 16);
-    waterSurface.position.y = waterLevel;
-
-    var waterSubsurface = new HX.Terrain(4000, 0, 1, 3, waterSubSurfaceMaterial, 16);
-    waterSubsurface.position.y = waterLevel;
+    var water = new HX.Terrain(4000, 0, 1, 3, waterMaterial, 16);
+    water.position.y = waterLevel;
 
     scene.attach(terrain);
-    scene.attach(waterSurface);
-    scene.attach(waterSubsurface);
+    scene.attach(water);
 }

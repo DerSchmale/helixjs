@@ -87,7 +87,7 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
         extensions.push("GL_EXT_shader_texture_lod");
     }
 
-    var fragmentShader = lightingModel + "\n" +
+    var fragmentShader = lightingModel + "\n\n\n" +
         HX.DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
         HX.ShaderLibrary.get("directional_light.glsl", defines, extensions) + "\n" +
         HX.ShaderLibrary.get("point_light.glsl") + "\n" +

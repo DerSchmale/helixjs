@@ -23,8 +23,10 @@ HX.HMT.prototype._gatherShaderFiles = function(data)
 
     var vertex = geometry.vertexShader;
     var fragment = geometry.fragmentShader;
+    var lighting = data.lightingModel;
     if (files.indexOf(vertex) < 0) files.push(this._correctURL(vertex));
     if (files.indexOf(fragment) < 0) files.push(this._correctURL(fragment));
+    if (lighting && files.indexOf(lighting) < 0) files.push(this._correctURL(lighting));
 
     return files;
 };
@@ -69,6 +71,9 @@ HX.HMT.prototype._processMaterial = function(data, shaders, material)
     material._geometryVertexShader = geometryVertex;
     material._geometryFragmentShader = geometryFragment;
     material.init();
+
+    if (data.lightingModel)
+        material.lightingModel = shaders[this._correctURL(data.lightingModel)];
 
     this._applyUniforms(data, material);
 

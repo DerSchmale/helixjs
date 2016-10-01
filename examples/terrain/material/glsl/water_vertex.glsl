@@ -9,7 +9,7 @@ uniform float hx_rcpCameraFrustumRange;
 varying vec2 uv1;
 varying vec2 uv2;
 varying vec4 proj;
-varying float linearDepth;
+varying vec3 viewPos;
 
 
 uniform float normalScale1;
@@ -20,8 +20,7 @@ uniform vec2 normalOffset2;
 void hx_geometry()
 {
     vec4 worldPos = hx_worldMatrix * hx_position;
-    vec3 viewPos = (hx_viewMatrix * worldPos).xyz;
-    linearDepth = (-viewPos.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;
+    viewPos = (hx_viewMatrix * worldPos).xyz;
     // snap to cell size is required to not get a floating interpolated landscape
     uv1 = (worldPos.xz + normalOffset1) * normalScale1;
     uv2 = (worldPos.xz + normalOffset2) * normalScale2;

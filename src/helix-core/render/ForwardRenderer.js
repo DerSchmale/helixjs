@@ -5,7 +5,7 @@ HX.ForwardRenderer = function ()
 
     this._gammaApplied = false;
 
-    this._copyTextureToScreen = new HX.CopyChannelsShader("xyzw", true);
+    this._copyTextureShader = new HX.CopyChannelsShader("xyzw", true);
     this._applyGamma = new HX.ApplyGammaShader();
 
     // devices with high resolution (retina etc)
@@ -129,10 +129,17 @@ HX.ForwardRenderer.prototype =
 
         HX.setRenderTarget(this._hdrFront.fboDepth);
         HX.clear();
-        // TODO: Need to render dynamically lit opaques too
         this._renderDepthPrepass(opaqueStaticLit);
+
         this._renderStatics(opaqueStaticLit);
+        // TODO: Render dynamic lit opaques here
+
+        // THIS IS EXTREMELY INEFFICIENT ON SOME PLATFORMS
+        if (this._renderCollector.needsBackbuffer)
+            this._copyToBackBuffer();
+
         this._renderStatics(transparentStaticLit);
+        // TODO: Render dynamic lit transparents here
 
         this._swapHDRFrontAndBack();
         this._renderEffects(dt);
@@ -205,7 +212,7 @@ HX.ForwardRenderer.prototype =
 
         // TODO: render directly to screen if last post process effect?
         if (this._gammaApplied)
-            this._copyTextureToScreen.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture);
+            this._copyTextureShader.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture);
         else
             this._applyGamma.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture);
     },
@@ -286,5 +293,14 @@ HX.ForwardRenderer.prototype =
         var tex = new HX.Texture2D();
         tex.uploadData(data, 1, 1, true);
         HX.Texture2D.DEFAULT.filter = HX.TextureFilter.NEAREST_NOMIP;
+    },
+
+    _copyToBackBuffer: function()
+    {
+        HX.setRenderTarget(this._hdrBack.fbo);
+        HX.clear();
+        this._copyTextureShader.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
+        HX.setRenderTarget(this._hdrFront.fboDepth);
+        // DO NOT CLEAR. This can be very slow on tiled gpu architectures such as PowerVR
     }
 };

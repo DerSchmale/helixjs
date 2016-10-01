@@ -13,12 +13,12 @@ project.onInit = function()
     initCamera(this.camera);
     initScene(this.scene);
 
-    var ssao = new HX.HBAO();
+    /*var ssao = new HX.HBAO();
     ssao.radius = 100.0;
     ssao.strength = 3.14;
     ssao.fallOffDistance = 500.0;
     ssao.bias = 0.1;
-    this.renderer.ambientOcclusion = ssao;
+    this.renderer.ambientOcclusion = ssao;*/
 
     time = 0;
 };
@@ -100,7 +100,7 @@ function initScene(scene)
     terrainMaterial.setTexture("terrainMap", terrainMap);
     terrainMaterial.setUniform("heightMapSize", 2048);
     terrainMaterial.setUniform("worldSize", worldSize);
-    terrainMaterial.ssao = true;
+    // terrainMaterial.ssao = true;
 
     terrainMaterial.lights = [ sun, lightProbe ];
 

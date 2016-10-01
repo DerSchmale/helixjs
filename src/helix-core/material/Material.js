@@ -79,7 +79,7 @@ HX.Material.prototype =
         this._blendState = value;
 
         for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
-            if (this._passes[i])
+            if (i !== HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && i !== HX.MaterialPass.NORMAL_DEPTH_PASS && this._passes[i])
                 this._passes[i].blendState = value;
         }
     },
@@ -198,7 +198,9 @@ HX.Material.prototype =
 
             pass.elementType = this._elementType;
             pass.writeDepth = this._writeDepth; // TODO: this should probably only be true on base pass
-            pass.blendState = this._blendState;
+
+            if (type !== HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && type !== HX.MaterialPass.NORMAL_DEPTH_PASS)
+                pass.blendState = this._blendState;
 
             for (var slotName in this._textures) {
                 if (this._textures.hasOwnProperty(slotName)) {

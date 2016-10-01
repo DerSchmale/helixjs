@@ -14,6 +14,8 @@ varying vec2 uv;
 
 void hx_geometry()
 {
+// there should be an interpolation between two adjacent detail levels
+
     vec4 worldPos = hx_worldMatrix * hx_position;
     // snap to cell size is required to not get a floating interpolated landscape
     worldPos.xz = floor(worldPos.xz / hx_cellSize) * hx_cellSize;

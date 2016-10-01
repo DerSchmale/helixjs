@@ -12,7 +12,7 @@ vec4 hx_getShadowMapValue(float depth)
 
 float hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)
 {
-    vec2 radii = vec2(shadowMapMatrix[0][0], shadowMapMatrix[1][1]) * HX_PCF_SOFTNESS;
+    vec2 radii = vec2(shadowMapMatrix[0][0], shadowMapMatrix[1][1]) * float(HX_PCF_SOFTNESS);
     vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);
     float shadowTest = 0.0;
 

@@ -57,8 +57,9 @@ function initCamera(camera)
     fog = new HX.Fog(0.0015, new HX.Color(0x4988ff), 0.005);
     camera.addComponent(fog);
 
-    // var tonemap = new HX.FilmicToneMapEffect();
-    // camera.addComponent(tonemap);
+    var tonemap = new HX.FilmicToneMapEffect();
+    tonemap.exposure = 0.0;
+    camera.addComponent(tonemap);
 }
 
 function initScene(scene)
@@ -69,7 +70,7 @@ function initScene(scene)
     sun.intensity = 5;
     sun.castShadows = true;
     sun.numCascades = 4;
-    sun.setCascadeRatios(.01,.07,.15, .3);
+    // sun.setCascadeRatios(.01,.07,.15, .3);
     scene.attach(sun);
 
     // TODO: Add procedural skybox
@@ -85,7 +86,6 @@ function initScene(scene)
 
     var heightMapLoader = new HX.AssetLoader(HX.JPG_HEIGHTMAP);
     var heightMap = heightMapLoader.load("textures/heightMap.png");
-
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var terrainMap = textureLoader.load("textures/terrainMap.jpg");
 

@@ -78,7 +78,7 @@ HX_GeometryData hx_geometry()
 
     float grassRoughness = .9;
     float rockRoughness = .6;
-    float snowRoughness = .1;
+    float snowRoughness = .2;
 
     vec3 normal = cross(tangentZ, tangentX);
     mat3 TBN = mat3(tangentX, tangentZ, normal);

@@ -100,14 +100,8 @@ HX.init = function(canvas, options)
     if (!HX.OPTIONS.ignoreDrawBuffersExtension)
         HX.EXT_DRAW_BUFFERS = _getExtension('WEBGL_draw_buffers');
 
-    if (HX.EXT_DRAW_BUFFERS && HX.EXT_DRAW_BUFFERS.MAX_DRAW_BUFFERS_WEBGL >= 3) {
+    if (HX.EXT_DRAW_BUFFERS && HX.EXT_DRAW_BUFFERS.MAX_DRAW_BUFFERS_WEBGL >= 3)
         defines += "#extension GL_EXT_draw_buffers : require\n";
-    }
-    else {
-        defines += "#define HX_SEPARATE_GEOMETRY_PASSES\n";
-        console.warn('WEBGL_draw_buffers extension not supported!');
-        HX.EXT_DRAW_BUFFERS = null;
-    }
 
     HX.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
     if (!HX.EXT_FLOAT_TEXTURES) console.warn('OES_texture_float extension not supported!');

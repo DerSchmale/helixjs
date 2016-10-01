@@ -179,3 +179,5 @@ float hx_linearStep(float lower, float upper, float x)
 {
     return clamp((x - lower) / (upper - lower), 0.0, 1.0);
 }
+
+#define hx_getSkinningMatrix() (hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)] + hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)] + hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)] + hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)]);

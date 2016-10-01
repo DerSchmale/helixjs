@@ -35,10 +35,7 @@ varying vec3 bitangent;
 void hx_geometry()
 {
 #ifdef USE_SKINNING
-    mat4 skinningMatrix = hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)];
-    skinningMatrix += hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)];
-    skinningMatrix += hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)];
-    skinningMatrix += hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)];
+    mat4 skinningMatrix = hx_getSkinningMatrix();
 
     vec4 animPosition = skinningMatrix * hx_position;
     vec3 animNormal = mat3(skinningMatrix) * hx_normal;

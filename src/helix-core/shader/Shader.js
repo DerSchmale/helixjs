@@ -81,13 +81,13 @@ HX.Shader.prototype = {
         this._uniformSetters = HX.UniformSetter.getSetters(this);
     },
 
-    updateRenderState: function(worldMatrix, camera)
+    updateRenderState: function(camera, renderItem)
     {
         HX_GL.useProgram(this._program);
 
         var len = this._uniformSetters.length;
         for (var i = 0; i < len; ++i) {
-            this._uniformSetters[i].execute(worldMatrix, camera);
+            this._uniformSetters[i].execute(camera, renderItem);
         }
     },
 

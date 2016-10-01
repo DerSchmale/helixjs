@@ -31,6 +31,13 @@ HX_GeometryData hx_geometry()
     data.color.z = exp(absorb.z);
     data.color.w = 1.0;
 
+    // TODO: If we'd have access to refraction data...
+    // - calculate the background colour * absorption
+    // - use normal blend mode, and thus:
+    // - add in volumetric inscattering in this pass through a volumetric lightingModel
+    // - should also calculate how much light actually reaches the background, and modulate the colour with this
+    //      -> would need to reconstruct position and intersect light dir with water height
+    //      (this is already possible, I suppose)
 
     data.normal = vec3(0.0);
     data.metallicness = 0.0;

@@ -310,7 +310,7 @@ HX.PoissonDiskSetter.prototype.execute = function ()
 
 HX.SkinningMatricesSetter = function()
 {
-    this._data = new Float32Array(64 * 16);
+    this._data = new Float32Array(HX.OPTIONS.maxBones * 16);
 };
 
 HX.SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
@@ -321,6 +321,7 @@ HX.SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
         var matrices = renderItem.skeletonMatrices;
         var numJoints = skeleton.numJoints;
         var j = 0;
+        // TODO: This rewrites the data every time, should only happen once a frame
         for (var i = 0; i < numJoints; ++i) {
             matrices[i].writeData(this._data, j);
             j += 16;

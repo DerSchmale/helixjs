@@ -1,5 +1,3 @@
-attribute vec4 hx_position;
-
 varying float hx_linearDepth;
 
 uniform mat4 hx_worldViewMatrix;

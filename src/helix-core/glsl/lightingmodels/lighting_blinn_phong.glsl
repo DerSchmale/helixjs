@@ -25,14 +25,14 @@ float hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)
 	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;
 }
 
-void hx_brdf(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 normalSpecularReflectance, float roughness, out vec3 diffuseColor, out vec3 specularColor)
+void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)
 {
-	float nDotL = max(-dot(lightDir, normal), 0.0);
+	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);
 	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI
 
 	vec3 halfVector = normalize(lightDir + viewDir);
 
-	float distribution = hx_blinnPhongDistribution(roughness, normal, halfVector);
+	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);
 
 	float halfDotLight = max(dot(halfVector, lightDir), 0.0);
 	float cosAngle = 1.0 - halfDotLight;
@@ -43,12 +43,10 @@ void hx_brdf(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightCol
 	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;
 
 // / PI factor is encoded in light colour
-	//approximated fresnel-based energy conservation
 	diffuseColor = irradiance;
-
 	specularColor = irradiance * fresnel * distribution;
 
 //#ifdef HX_VISIBILITY
-//    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);
+//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);
 //#endif
 }

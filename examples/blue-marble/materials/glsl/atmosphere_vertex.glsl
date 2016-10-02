@@ -79,7 +79,6 @@ void hx_geometry()
         float cameraAngle = dot(viewDir, v3SamplePoint) * rcpHeight;
         float scatter = fStartOffset + expThicknessOverScaleDepth * scaleDepth * (scale(lightAngle) - scale(cameraAngle));
         v3Attenuate = saturate(exp(-scatter * waveLenFactorsKr4PiKm4Pi));
-        v3Attenuate = clamp(v3Attenuate, 0.0, 1.0);
         color += v3Attenuate * expThicknessOverScaleDepth * fScaledLength;
         v3SamplePoint += v3SampleRay;
     }

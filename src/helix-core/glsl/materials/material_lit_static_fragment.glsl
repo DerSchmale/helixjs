@@ -61,7 +61,7 @@ void main()
     #if HX_NUM_DIR_LIGHTS > 0
     for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {
         vec3 diffuse, specular;
-        hx_calculateLight(hx_directionalLights[i], data.normal, viewVector, specularColor, data.roughness, diffuse, specular);
+        hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
         diffuseAccum += diffuse;
         specularAccum += specular;
     }
@@ -70,7 +70,7 @@ void main()
     #if HX_NUM_DIR_LIGHT_CASTERS > 0
     for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {
         vec3 diffuse, specular;
-        hx_calculateLight(hx_directionalLightCasters[i], data.normal, viewVector, specularColor, data.roughness, diffuse, specular);
+        hx_calculateLight(hx_directionalLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
         float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);
         diffuseAccum += diffuse * shadow;
         specularAccum += specular * shadow;
@@ -81,7 +81,7 @@ void main()
     #if HX_NUM_POINT_LIGHTS > 0
     for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {
         vec3 diffuse, specular;
-        hx_calculateLight(hx_pointLights[i], data.normal, viewVector, hx_viewPosition, specularColor, data.roughness, diffuse, specular);
+        hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
         diffuseAccum += diffuse;
         specularAccum += specular;
     }

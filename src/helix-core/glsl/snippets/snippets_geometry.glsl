@@ -6,4 +6,5 @@ struct HX_GeometryData
     float normalSpecularReflectance;
     float roughness;
     vec3 emission;
+    vec4 data;  // this can be anything the lighting model requires
 };

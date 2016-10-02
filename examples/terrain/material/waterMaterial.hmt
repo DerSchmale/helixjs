@@ -16,6 +16,7 @@
         "normalOffset1": [ 0.0, 0.0 ],
         "normalOffset2": [ 0.0, 0.0 ],
         "absorptionDensity": [ 1.0, 0.712, 0.468 ],
+        "inScatterDensity": [ 1.0, 0.5, 0.612 ],
         "indexOfRefraction": 1.33
     },
 

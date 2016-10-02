@@ -9,9 +9,9 @@ struct HX_DirectionalLight
     float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]
 };
 
-void hx_calculateLight(HX_DirectionalLight light, vec3 normal, vec3 viewVector, vec3 normalSpecularReflectance, float roughness, out vec3 diffuse, out vec3 specular)
+void hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)
 {
-	hx_brdf(normal, light.direction, viewVector, light.color, normalSpecularReflectance, roughness, diffuse, specular);
+	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);
 }
 
 mat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)

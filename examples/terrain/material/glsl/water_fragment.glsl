@@ -9,6 +9,7 @@ uniform float hx_cameraNearPlaneDistance;
 uniform float hx_cameraFrustumRange;
 uniform float indexOfRefraction;
 uniform vec3 absorptionDensity;
+uniform vec3 inScatterDensity;
 
 varying vec2 uv1;
 varying vec2 uv2;
@@ -58,7 +59,9 @@ HX_GeometryData hx_geometry()
     data.normal = normal;
     data.metallicness = 0.0;
     data.normalSpecularReflectance = 0.027;
-    data.roughness = roughness; // todo: add z falloff
+    data.roughness = roughness; // todo: add z falloff?
     data.emission = backColor.xyz * absorb;
+    // in this case, the lighting model expects the data object to contain the water's absorption properties and the distance of the ray between surface and bottom
+    data.data = vec4(inScatterDensity, min(dist, 20.0));
     return data;
 }

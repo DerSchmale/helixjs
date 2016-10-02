@@ -28,8 +28,8 @@ HX.Shader.prototype = {
         vertexShaderCode = HX.GLSLIncludeGeneral + vertexShaderCode;
         fragmentShaderCode = HX.GLSLIncludeGeneral + fragmentShaderCode;
 
-        vertexShaderCode = this._addDefineGuards(vertexShaderCode);
-        fragmentShaderCode = this._addDefineGuards(fragmentShaderCode);
+        vertexShaderCode = this._processShaderCode(vertexShaderCode);
+        fragmentShaderCode = this._processShaderCode(fragmentShaderCode);
 
         this._vertexShader = HX_GL.createShader(HX_GL.VERTEX_SHADER);
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {
@@ -127,12 +127,20 @@ HX.Shader.prototype = {
         return HX_GL.getAttribLocation(this._program, name);
     },
 
-    _addDefineGuards: function(code)
+    _processShaderCode: function(code)
     {
+        code = this._processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
+        code = this._processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
         code = this._guard(code, /^uniform\s+\w+\s+hx_\w+\s*;/gm);
         code = this._guard(code, /^attribute\s+\w+\s+hx_\w+\s*;/gm);
+        return code;
+    },
 
-
+    _processExtensions: function(code, regEx, extension)
+    {
+        var index = code.search(regEx);
+        if (index < 0) return code;
+        code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");
         return code;
     },
 

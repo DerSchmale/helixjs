@@ -11,15 +11,9 @@ HX.ShaderLibrary = {
      * @param extensions (Optional) An array of extensions to be required
      * @returns A string containing the shader code from the files with defines prepended
      */
-    get: function(filename, defines, extensions)
+    get: function(filename, defines)
     {
         var defineString = "";
-
-        if (extensions) {
-            for (var i = 0; i < extensions.length; ++i) {
-                defineString += "#extension " + extensions[i] + " : require\n";
-            }
-        }
 
         for (var key in defines) {
             if (defines.hasOwnProperty(key)) {

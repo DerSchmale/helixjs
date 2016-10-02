@@ -33,8 +33,8 @@ function initScene(scene)
     var material = new HX.BasicMaterial();
     material.normalMap = normalMap;
     material.specularMap = specularMap;
-    // inverting roughness by making min > max
-    material.setRoughness(.4,.1);
+    material.roughness = .25;
+    material.roughnessRange = -.1;  // invert roughness by making range negative
     material.metallicness = 1.0;
     material.lights = [ lightProbe ];
 

@@ -73,7 +73,7 @@ function initScene(scene)
     var material = new HX.BasicMaterial();
     material.colorMap = albedoMap;
     material.normalMap = normalMap;
-    material.setRoughness(.3);
+    material.roughness = .3;
     material.lights = [ light1, light2, light3 ];
 
     var primitive = new HX.SpherePrimitive(

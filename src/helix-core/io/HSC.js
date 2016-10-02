@@ -144,9 +144,8 @@ HX.HSC.prototype._processMaterial = function(def)
     if (def.hasOwnProperty("transparent")) material.transparent = def.transparent;
     if (def.hasOwnProperty("alpha")) material.alpha = def.alpha;
     if (def.hasOwnProperty("alphaThreshold")) material.alphaThreshold = def.alphaThreshold;
-    if (def.hasOwnProperty("roughness")) material.setRoughness(def.roughness);
-    if (def.hasOwnProperty("minRoughness")) material.minRoughness = def.minRoughness;
-    if (def.hasOwnProperty("maxRoughness")) material.maxRoughness = def.maxRoughness;
+    if (def.hasOwnProperty("roughness")) material.roughness = def.roughness;
+    if (def.hasOwnProperty("roughnessRange")) material.roughnessRange = def.roughnessRange;
     if (def.hasOwnProperty("specularMapMode")) material.specularMapMode = def.specularMapMode;  // 1: SPECULAR_MAP_ROUGHNESS_ONLY, 2: SPECULAR_MAP_ALL, 3: SPECULAR_MAP_SHARE_NORMAL_MAP
 
     return material;

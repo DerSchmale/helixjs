@@ -56,7 +56,8 @@ function initScene(scene)
     material.colorMap = albedoMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
-    material.setRoughness(.2, 1.0);
+    material.roughness = .6;
+    material.roughnessRange = .4;
 
     var primitive = new HX.SpherePrimitive(
         {

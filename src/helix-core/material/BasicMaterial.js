@@ -14,8 +14,8 @@ HX.BasicMaterial = function()
     this._specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
     this._metallicness = 0.0;
     this._alpha = 1.0;
-    this._minRoughness = 0.3;
-    this._maxRoughness = 1.0;
+    this._roughness = 0.5;
+    this._roughnessRange = .5;
     this._normalSpecularReflectance = 0.027;
     this._alphaThreshold = 1.0;
     this._useVertexColors = false;
@@ -24,7 +24,7 @@ HX.BasicMaterial = function()
     this.color = this._color;
     this.alpha = this._alpha;
     this.metallicness = this._metallicness;
-    this.setRoughness(this._minRoughness);
+    this.roughness = this._roughness;
     this.normalSpecularReflectance = this._normalSpecularReflectance;
 };
 
@@ -212,31 +212,35 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             }
         },
 
-        minRoughness:
+        roughness:
         {
             get: function ()
             {
-                return this._minRoughness;
+                return this._roughness;
             },
 
             set: function(value)
             {
-                this._minRoughness = value;
-                this.setUniform("minRoughness", this._minRoughness);
+                this._roughness = value;
+                this.setUniform("roughness", this._roughness);
             }
         },
 
-        maxRoughness:
+        /**
+         * When using a roughness texture, roughness represents the middle roughness, range the deviation from there.
+         * So textured roughness ranges from [roughness - roughnessRange, roughness + roughnessRange]
+         */
+        roughnessRange:
         {
             get: function ()
             {
-                return this._maxRoughness;
+                return this._roughnessRange;
             },
 
             set: function(value)
             {
-                this._maxRoughness = value;
-                this.setUniform("maxRoughness", this._maxRoughness);
+                this._roughnessRange = value;
+                this.setUniform("roughnessRange", this._roughnessRange * 2.0);
             }
         },
 
@@ -254,12 +258,6 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
         }
     }
 );
-
-HX.BasicMaterial.prototype.setRoughness = function(min, max)
-{
-    this.minRoughness = min;
-    this.maxRoughness = max || 1.0;
-};
 
 HX.BasicMaterial.prototype.init = function()
 {

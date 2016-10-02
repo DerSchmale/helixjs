@@ -200,7 +200,7 @@ function initMoon(container)
     var moonMaterial = new HX.BasicMaterial();
     moonMaterial.colorMap = colorMap;
     moonMaterial.normalMap = normalMap;
-    moonMaterial.setRoughness(.99);
+    moonMaterial.roughness = .99;
     moonMaterial.lights = [ sunLight ];
 
     var moon = new HX.ModelInstance(moonSpherePrimitive, moonMaterial);

@@ -42,7 +42,7 @@ function initCamera(camera)
     var bloom = new HX.Bloom(200, 1);
     bloom.thresholdLuminance = .25;
     var tonemap = new HX.FilmicToneMapEffect(true);
-    tonemap.exposure = 0.0;
+    tonemap.exposure = 1.0;
 
     var orbitController = new OrbitController();
     orbitController.radius = 5.0;
@@ -100,7 +100,8 @@ function initScene(scene)
     opaqueMaterial.metallicness = 1.0;
     opaqueMaterial.lights = lights;
     opaqueMaterial.ssao = true;
-    opaqueMaterial.setRoughness(0.05, .5);
+    opaqueMaterial.roughness = 0.5;
+    opaqueMaterial.roughnessRange = 0.4;
 
     var primitive = new HX.SpherePrimitive(
         {
@@ -133,7 +134,7 @@ function initScene(scene)
     material.specularMap = specularMap;
     material.lights = lights;
     material.ssao = true;
-    material.setRoughness(.3);
+    material.roughness = .3;
 
     primitive = new HX.PlanePrimitive(
         {

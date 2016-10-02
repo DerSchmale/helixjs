@@ -42,7 +42,7 @@ HX.MTL.prototype._parseLine = function(line, target)
             break;
         case "ns":
             var specularPower = parseFloat(tokens[1]);
-            this._activeMaterial.setRoughness(HX.BasicMaterial.roughnessFromShininess(specularPower));
+            this._activeMaterial.roughness = HX.BasicMaterial.roughnessFromShininess(specularPower);
             break;
         case "kd":
             this._activeMaterial.color = new HX.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));

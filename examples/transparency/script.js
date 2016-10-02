@@ -59,6 +59,6 @@ function initScene(scene)
     material.lights = [ lightProbe ];
     material.writeDepth = false;
     material.renderOrder = 50;  // be sure the render after first layer
-    material.setRoughness(.01);
+    material.roughness = .01;
     scene.attach(new HX.ModelInstance(primitive, material));
 }

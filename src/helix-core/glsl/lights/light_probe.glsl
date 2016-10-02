@@ -1,5 +1,6 @@
 #define HX_PROBE_K0 .00098
 #define HX_PROBE_K1 .9921
+
 /*
 var minRoughness = 0.0014;
 var maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;

@@ -22,8 +22,8 @@ varying vec3 bitangent;
 uniform sampler2D normalMap;
 #endif
 
-uniform float minRoughness;
-uniform float maxRoughness;
+uniform float roughness;
+uniform float roughnessRange;
 uniform float normalSpecularReflectance;
 uniform float metallicness;
 
@@ -61,7 +61,7 @@ HX_GeometryData hx_geometry()
 
     float metallicnessOut = metallicness;
     float specNormalReflOut = normalSpecularReflectance;
-    float roughnessOut = minRoughness;
+    float roughnessOut = roughness;
 
     vec3 fragNormal = normal;
     #ifdef NORMAL_MAP
@@ -74,13 +74,13 @@ HX_GeometryData hx_geometry()
         fragNormal = TBN * (normalSample.xyz - .5);
 
         #ifdef NORMAL_ROUGHNESS_MAP
-            roughnessOut = mix(maxRoughness, minRoughness, normalSample.w);
+            roughnessOut -= roughnessRange * (normalSample.w - .5);
         #endif
     #endif
 
     #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
           vec4 specSample = texture2D(specularMap, texCoords);
-          roughnessOut = mix(maxRoughness, minRoughness, specSample.x);
+          roughnessOut -= roughnessRange * (specSample.x - .5);
 
           #ifdef SPECULAR_MAP
               specNormalReflOut *= specSample.y;

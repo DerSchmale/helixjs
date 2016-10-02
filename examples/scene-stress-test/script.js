@@ -52,7 +52,7 @@ function initScene(scene)
     var material = new HX.BasicMaterial();
     material.lights = lights;
     material.colorMap = texture;
-    material.setRoughness(0.05);
+    material.roughness = 0.05;
 
     var primitive = new HX.SpherePrimitive(
         {

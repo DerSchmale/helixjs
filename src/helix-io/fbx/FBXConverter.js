@@ -98,7 +98,7 @@ HX.FBXConverter.prototype =
         hxMaterial.name = fbxMaterial.name;
         if (fbxMaterial.DiffuseColor) hxMaterial.color = fbxMaterial.DiffuseColor;
         if (fbxMaterial.Shininess) fbxMaterial.ShininessExponent = fbxMaterial.Shininess;
-        if (fbxMaterial.ShininessExponent) hxMaterial.setRoughness(HX.BasicMaterial.roughnessFromShininess(fbxMaterial.Shininess));
+        if (fbxMaterial.ShininessExponent) hxMaterial.roughness = HX.BasicMaterial.roughnessFromShininess(fbxMaterial.Shininess);
 
         if (fbxMaterial.textures) {
             if (fbxMaterial.textures["NormalMap"])

@@ -34,8 +34,14 @@ HX_GeometryData hx_geometry()
     vec3 refractDir = refract(viewDir, normal, 1.0 / indexOfRefraction);
 // cannot clamp, as this would make any deep region have the same offset, which looks weird
     vec2 offset = refractDir.xy / proj.w * dist;
-//    offset = clamp(offset, -.05, .05);
     screenCoord += offset;
+
+    // mirror wrapping looks best
+    if (screenCoord.x > 1.0) screenCoord.x -= (screenCoord.x - 1.0) * 2.0;
+    else if (screenCoord.x < 0.0) screenCoord.x -= screenCoord.x * 2.0;
+
+    if (screenCoord.y > 1.0) screenCoord.y -= (screenCoord.y - 1.0) * 2.0;
+    else if (screenCoord.y < 0.0) screenCoord.y -= screenCoord.y * 2.0;
 
     vec4 backColor = texture2D(hx_backbuffer, screenCoord);
 

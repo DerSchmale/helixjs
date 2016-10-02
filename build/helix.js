@@ -3442,15 +3442,15 @@ HX.ShaderLibrary['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid ma
 
 HX.ShaderLibrary['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
-HX.ShaderLibrary['lighting_blinn_phong.glsl'] = '// this is Schlick-Beckmann attenuation for only the view vector\nfloat hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n//    float nDotV = max(dot(normal, reflection), 0.0);\n//    float att = nDotV / (nDotV * (1.0 - roughness) + roughness);\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 normalSpecularReflectance, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n//#endif\n}';
-
-HX.ShaderLibrary['lighting_ggx.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    /*float nDotV = max(dot(normal, reflection), 0.0);\n    float att = nDotV / (nDotV * (1.0 - roughness) + roughness);*/\n    // TODO: Get a better approximation\n    float att = 1.0 - roughness;\n    return mix(att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 normalSpecularReflectance, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
-
 HX.ShaderLibrary['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, vec3 normal, vec3 viewVector, vec3 normalSpecularReflectance, float roughness, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(normal, light.direction, viewVector, light.color, normalSpecularReflectance, roughness, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n// HX_MAX_CASCADES is the maximum amount of all cascades for the lights used in this shader\n    #if HX_MAX_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_MAX_CASCADES - 1; ++i) {\n            // remember, negative Z!\n            if (viewPos.z > light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_MAX_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    float shadow = hx_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);\n    return max(shadow, float(viewPos.z < light.maxShadowDistance));\n}';
 
 HX.ShaderLibrary['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float geometricFactor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor * geometricFactor;\n}';
 
 HX.ShaderLibrary['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position; // in view space?\n    float radius;\n};\n\n\nvoid hx_calculateLight(HX_PointLight light, vec3 normal, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, float roughness, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(normal, direction, viewVector, light.color * attenuation, normalSpecularReflectance, roughness, diffuse, specular);\n}';
+
+HX.ShaderLibrary['lighting_blinn_phong.glsl'] = '// this is Schlick-Beckmann attenuation for only the view vector\nfloat hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n//    float nDotV = max(dot(normal, reflection), 0.0);\n//    float att = nDotV / (nDotV * (1.0 - roughness) + roughness);\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 normalSpecularReflectance, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	//approximated fresnel-based energy conservation\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n//#endif\n}';
+
+HX.ShaderLibrary['lighting_ggx.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    /*float nDotV = max(dot(normal, reflection), 0.0);\n    float att = nDotV / (nDotV * (1.0 - roughness) + roughness);*/\n    // TODO: Get a better approximation\n    float att = 1.0 - roughness;\n    return mix(att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in vec3 normal, in vec3 lightDir, in vec3 viewDir, in vec3 lightColor, vec3 normalSpecularReflectance, float roughness, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(roughness, normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, roughness, nDotL);\n#endif\n}';
 
 HX.ShaderLibrary['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
@@ -3514,6 +3514,12 @@ HX.ShaderLibrary['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4
 
 HX.ShaderLibrary['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
+HX.ShaderLibrary['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(normal.z*8.0 + 8.0);\n    data = normal.xy / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xy = data.xy * g;\n    normal.z = 1.0 - f * .5;\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\n#define hx_getSkinningMatrix() (hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)] + hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)] + hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)] + hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)]);';
+
+HX.ShaderLibrary['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    vec3 emission;\n};';
+
+HX.ShaderLibrary['snippets_tonemap.glsl'] = 'varying vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
+
 HX.ShaderLibrary['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
 
 HX.ShaderLibrary['dir_shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
@@ -3525,12 +3531,6 @@ HX.ShaderLibrary['dir_shadow_vsm.glsl'] = 'vec4 hx_getShadowMapValue(float depth
 HX.ShaderLibrary['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	gl_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
 HX.ShaderLibrary['vsm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n	gl_FragColor.xy = hx_floatToRG8(total.x);\n	gl_FragColor.zw = hx_floatToRG8(total.y);\n}';
-
-HX.ShaderLibrary['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(normal.z*8.0 + 8.0);\n    data = normal.xy / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xy = data.xy * g;\n    normal.z = 1.0 - f * .5;\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\n#define hx_getSkinningMatrix() (hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)] + hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)] + hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)] + hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)]);';
-
-HX.ShaderLibrary['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    vec3 emission;\n};';
-
-HX.ShaderLibrary['snippets_tonemap.glsl'] = 'varying vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
 
 HX.ShaderLibrary['2d_to_cube_vertex.glsl'] = '// position to write to\nattribute vec4 hx_position;\n\n// the corner of the cube map\nattribute vec3 corner;\n\nvarying vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
 
@@ -8781,6 +8781,440 @@ HX.Primitive =
         return type;
     }
 };
+FloatController = function()
+{
+    HX.Component.call(this);
+    this._speed = 1.0;
+    this._speedMultiplier = 2.0;
+    this._torquePitch = 0.0;
+    this._torqueYaw = 0.0;
+    this._localVelocity = new HX.Float4(0, 0, 0, 0);
+    this._localAcceleration = new HX.Float4(0, 0, 0, 0);
+    this._pitch = 0.0;
+    this._yaw = 0.0;
+    this._mouseX = 0;
+    this._mouseY = 0;
+
+    this._torque = 1.0;    // m/s^2
+    this._friction = 5.0;    // 1/s
+
+    this._maxAcceleration = this._speed;    // m/s^2
+    this._maxVelocity = this._speed;    // m/s
+
+    this._onKeyDown = null;
+    this._onKeyUp = null;
+};
+
+FloatController.prototype = Object.create(HX.Component.prototype, {
+    speed: {
+        get: function()
+        {
+            return this._speed;
+        },
+
+        set: function(value)
+        {
+            this._speed = value;
+            this._maxAcceleration = value;
+            this._maxVelocity = value;
+        }
+    },
+
+    shiftMultiplier: {
+        get: function()
+        {
+            return this._speedMultiplier;
+        },
+
+        set: function(value)
+        {
+            this._speedMultiplier = value;
+        }
+    },
+
+    pitch: {
+        get: function()
+        {
+            return this._pitch;
+        },
+
+        set: function(value)
+        {
+            this._pitch = value;
+        }
+    },
+
+    yaw: {
+        get: function()
+        {
+            return this._yaw;
+        },
+
+        set: function(value)
+        {
+            this._yaw = value;
+        }
+    },
+
+    roll: {
+        get: function()
+        {
+            return this._roll;
+        },
+
+        set: function(value)
+        {
+            this._roll = value;
+        }
+    },
+
+    torque: {
+        get: function()
+        {
+            return this._torque;
+        },
+
+        set: function(value)
+        {
+            this._torque = value;
+        }
+    },
+
+    friction: {
+        get: function()
+        {
+            return this._friction;
+        },
+
+        set: function(value)
+        {
+            this._friction = value;
+        }
+    }
+});
+
+FloatController.prototype.onAdded = function(dt)
+{
+    var self = this;
+    this._onKeyDown = function(event) {
+        var keyCode = ("which" in event) ? event.which : event.keyCode;
+
+        switch (keyCode) {
+            case 16:
+                self._maxVelocity = self._speed * self._speedMultiplier;
+                self._maxAcceleration = self._speed * self._speedMultiplier;
+                break;
+            case 87:
+                self._setForwardForce(-1.0);
+                break;
+            case 83:
+                self._setForwardForce(1.0);
+                break;
+            case 65:
+                self._setStrideForce(-1.0);
+                break;
+            case 68:
+                self._setStrideForce(1.0);
+                break;
+        }
+    };
+
+    this._onKeyUp = function(event) {
+        var keyCode = ("which" in event) ? event.which : event.keyCode;
+
+        switch (keyCode) {
+            case 16:
+                self._maxVelocity = self._speed;
+                self._maxAcceleration = self._speed;
+                break;
+            case 87:
+            case 83:
+                self._setForwardForce(0.0);
+                break;
+            case 65:
+            case 68:
+                self._setStrideForce(0.0);
+                break;
+        }
+    };
+
+    this._onMouseMove = function(event)
+    {
+        event = event || window.event;
+
+        self._addPitch(-(self._mouseY-event.clientY) / 100);
+        self._addYaw((self._mouseX-event.clientX) / 100);
+
+        self._mouseX = event.clientX;
+        self._mouseY = event.clientY;
+    };
+
+    this._onMouseDown = function(event)
+    {
+        self._mouseX = event.clientX;
+        self._mouseY = event.clientY;
+        document.addEventListener("mousemove", self._onMouseMove);
+    };
+
+    this._onMouseUp = function(event)
+    {
+        document.removeEventListener("mousemove", self._onMouseMove);
+    };
+
+    document.addEventListener("keydown", this._onKeyDown);
+    document.addEventListener("keyup", this._onKeyUp);
+    document.addEventListener("mousedown", this._onMouseDown);
+    document.addEventListener("mouseup", this._onMouseUp);
+};
+
+FloatController.prototype.onRemoved = function(dt)
+{
+    document.removeEventListener("keydown", this._onKeyDown);
+    document.removeEventListener("keyup", this._onKeyUp);
+    document.removeEventListener("mousemove", this._onMouseMove);
+    document.removeEventListener("mousedown", this._onMouseDown);
+    document.removeEventListener("mouseup", this._onMouseUp);
+};
+
+FloatController.prototype.onUpdate = function(dt)
+{
+    var seconds = dt * .001;
+
+    var frictionForce = HX.Float4.scale(this._localVelocity, this._friction*seconds);
+    this._localVelocity.subtract(frictionForce);
+
+    var acceleration = HX.Float4.scale(this._localAcceleration, this._maxAcceleration*seconds);
+    this._localVelocity.add(acceleration);
+
+    var absVelocity = this._localVelocity.length;
+    if (absVelocity > this._maxVelocity)
+        this._localVelocity.scale(this._maxVelocity/absVelocity);
+
+    this._pitch += this._torquePitch;
+    this._yaw += this._torqueYaw;
+
+    if (this._pitch < -Math.PI*.5) this._pitch = -Math.PI*.5;
+    else if (this._pitch > Math.PI*.5) this._pitch = Math.PI*.5;
+
+    var matrix = this.entity.matrix;
+    // the original position
+    var position = matrix.getColumn(3);
+    var distance = HX.Float4.scale(this._localVelocity, seconds);
+
+    matrix.fromRotationPitchYawRoll(this._pitch, this._yaw, 0.0);
+    matrix.prependTranslation(distance);
+    matrix.appendTranslation(position);
+
+    this.entity.matrix = matrix;
+};
+
+// ratio is "how far the controller is pushed", from -1 to 1
+FloatController.prototype._setForwardForce = function(ratio)
+{
+    this._localAcceleration.z = ratio * this._maxAcceleration;
+};
+
+FloatController.prototype._setStrideForce = function(ratio)
+{
+    this._localAcceleration.x = ratio * this._maxAcceleration;
+};
+
+FloatController.prototype._setTorquePitch = function(ratio)
+{
+    this._torquePitch = ratio * this._torque;
+};
+
+FloatController.prototype._setTorqueYaw = function(ratio)
+{
+    this._torqueYaw = ratio * this._torque;
+};
+
+FloatController.prototype._addPitch = function(value)
+{
+    this._pitch += value;
+};
+
+FloatController.prototype._addYaw = function(value)
+{
+    this._yaw += value;
+};
+/**
+ *
+ * @param target
+ * @constructor
+ */
+OrbitController = function(lookAtTarget)
+{
+    HX.Component.call(this);
+    this._coords = new HX.Float4(Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
+    this._localAcceleration = new HX.Float4(0.0, 0.0, 0.0, 0.0);
+    this._localVelocity = new HX.Float4(0.0, 0.0, 0.0, 0.0);
+
+    this.zoomSpeed = 1.0;
+    this.maxRadius = 4.0;
+    this.minRadius = 0.1;
+    this.dampen = .9;
+    this.lookAtTarget = lookAtTarget || new HX.Float4(0.0, 0.0, 0.0, 1.0);
+    this._oldMouseX = 0;
+    this._oldMouseY = 0;
+
+    this._isDown = false;
+};
+
+OrbitController.prototype = Object.create(HX.Component.prototype,
+    {
+        radius: {
+            get: function() { return this._coords.z; },
+            set: function(value) { this._coords.z = value; }
+        },
+
+        azimuth: {
+            get: function() { return this._coords.x; },
+            set: function(value) { this._coords.x = value; }
+        },
+
+        polar: {
+            get: function() { return this._coords.y; },
+            set: function(value) { this._coords.y = value; }
+        }
+    });
+
+OrbitController.prototype.onAdded = function()
+{
+    var self = this;
+
+    this._onMouseWheel = function(event)
+    {
+        self.setZoomImpulse(-event.wheelDelta * self.zoomSpeed * .0001);
+    };
+
+    this._onMouseDown = function (event)
+    {
+        self._oldMouseX = undefined;
+        self._oldMouseY = undefined;
+
+        self._isDown = true;
+    };
+
+    this._onMouseMove = function(event)
+    {
+        if (!self._isDown) return;
+        self._updateMove(event.screenX, event.screenY)
+    };
+
+    this._onTouchDown = function (event)
+    {
+        self._oldMouseX = undefined;
+        self._oldMouseY = undefined;
+
+        if (event.touches.length === 2) {
+            var touch1 = event.touches[0];
+            var touch2 = event.touches[1];
+            var dx = touch1.screenX - touch2.screenX;
+            var dy = touch1.screenY - touch2.screenY;
+            self._startPitchDistance = Math.sqrt(dx*dx + dy*dy);
+            self._startZoom = self.radius;
+        }
+
+        self._isDown = true;
+    };
+
+    this._onTouchMove = function (event)
+    {
+        event.preventDefault();
+
+        if (!self._isDown) return;
+
+        var numTouches = event.touches.length;
+
+        if (numTouches === 1) {
+            var touch = event.touches[0];
+            self._updateMove(touch.screenX, touch.screenY);
+        }
+        else if (numTouches === 2) {
+            var touch1 = event.touches[0];
+            var touch2 = event.touches[1];
+            var dx = touch1.screenX - touch2.screenX;
+            var dy = touch1.screenY - touch2.screenY;
+            var dist = Math.sqrt(dx*dx + dy*dy);
+            var diff = self._startPitchDistance - dist;
+            self.radius = self._startZoom + diff * .01;
+        }
+    };
+
+    this._onUp = function(event) { self._isDown = false; };
+
+    document.addEventListener("mousewheel", this._onMouseWheel);
+    document.addEventListener("mousemove", this._onMouseMove);
+    document.addEventListener("touchmove", this._onTouchMove);
+    document.addEventListener("mousedown", this._onMouseDown);
+    document.addEventListener("touchstart", this._onTouchDown);
+    document.addEventListener("mouseup", this._onUp);
+    document.addEventListener("touchend", this._onUp);
+};
+
+OrbitController.prototype.onRemoved = function()
+{
+    document.removeEventListener("mousewheel", this._onMouseWheel);
+    document.removeEventListener("mousemove", this._onMouseMove);
+    document.removeEventListener("touchmove", this._onTouchMove);
+    document.removeEventListener("mousedown", this._onMouseDown);
+    document.removeEventListener("touchstart", this._onTouchDown);
+    document.removeEventListener("mouseup", this._onUp);
+    document.removeEventListener("touchend", this._onUp);
+};
+
+OrbitController.prototype.onUpdate = function(dt)
+{
+    this._localVelocity.x *= this.dampen;
+    this._localVelocity.y *= this.dampen;
+    this._localVelocity.z *= this.dampen;
+    this._localVelocity.x += this._localAcceleration.x;
+    this._localVelocity.y += this._localAcceleration.y;
+    this._localVelocity.z += this._localAcceleration.z;
+    this._localAcceleration.x = 0.0;
+    this._localAcceleration.y = 0.0;
+    this._localAcceleration.z = 0.0;
+
+    this._coords.add(this._localVelocity);
+    this._coords.y = HX.clamp(this._coords.y, 0.1, Math.PI - .1);
+    this._coords.z = HX.clamp(this._coords.z, this.minRadius, this.maxRadius);
+
+    var matrix = this.entity.matrix;
+    var pos = new HX.Float4();
+    pos.fromSphericalCoordinates(this._coords.z, this._coords.x, this._coords.y);
+    pos.add(this.lookAtTarget);
+    matrix.lookAt(this.lookAtTarget, pos, HX.Float4.Y_AXIS);
+    this.entity.matrix = matrix;
+};
+
+    // ratio is "how far the controller is pushed", from -1 to 1
+OrbitController.prototype.setAzimuthImpulse  = function(value)
+{
+    this._localAcceleration.x = value;
+};
+
+OrbitController.prototype.setPolarImpulse = function(value)
+{
+    this._localAcceleration.y = value;
+};
+
+OrbitController.prototype.setZoomImpulse = function(value)
+{
+    this._localAcceleration.z = value;
+};
+
+OrbitController.prototype._updateMove = function(x, y)
+{
+    if (this._oldMouseX !== undefined) {
+        var dx = x - this._oldMouseX;
+        var dy = y - this._oldMouseY;
+        this.setAzimuthImpulse(dx * .0015);
+        this.setPolarImpulse(-dy * .0015);
+    }
+    this._oldMouseX = x;
+    this._oldMouseY = y;
+};
 /**
  *
  * @constructor
@@ -9390,440 +9824,6 @@ HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps)
 HX.SkeletonClipNode.prototype._applyValue = function(value)
 {
     this.time = value * this._clip.duration;
-};
-FloatController = function()
-{
-    HX.Component.call(this);
-    this._speed = 1.0;
-    this._speedMultiplier = 2.0;
-    this._torquePitch = 0.0;
-    this._torqueYaw = 0.0;
-    this._localVelocity = new HX.Float4(0, 0, 0, 0);
-    this._localAcceleration = new HX.Float4(0, 0, 0, 0);
-    this._pitch = 0.0;
-    this._yaw = 0.0;
-    this._mouseX = 0;
-    this._mouseY = 0;
-
-    this._torque = 1.0;    // m/s^2
-    this._friction = 5.0;    // 1/s
-
-    this._maxAcceleration = this._speed;    // m/s^2
-    this._maxVelocity = this._speed;    // m/s
-
-    this._onKeyDown = null;
-    this._onKeyUp = null;
-};
-
-FloatController.prototype = Object.create(HX.Component.prototype, {
-    speed: {
-        get: function()
-        {
-            return this._speed;
-        },
-
-        set: function(value)
-        {
-            this._speed = value;
-            this._maxAcceleration = value;
-            this._maxVelocity = value;
-        }
-    },
-
-    shiftMultiplier: {
-        get: function()
-        {
-            return this._speedMultiplier;
-        },
-
-        set: function(value)
-        {
-            this._speedMultiplier = value;
-        }
-    },
-
-    pitch: {
-        get: function()
-        {
-            return this._pitch;
-        },
-
-        set: function(value)
-        {
-            this._pitch = value;
-        }
-    },
-
-    yaw: {
-        get: function()
-        {
-            return this._yaw;
-        },
-
-        set: function(value)
-        {
-            this._yaw = value;
-        }
-    },
-
-    roll: {
-        get: function()
-        {
-            return this._roll;
-        },
-
-        set: function(value)
-        {
-            this._roll = value;
-        }
-    },
-
-    torque: {
-        get: function()
-        {
-            return this._torque;
-        },
-
-        set: function(value)
-        {
-            this._torque = value;
-        }
-    },
-
-    friction: {
-        get: function()
-        {
-            return this._friction;
-        },
-
-        set: function(value)
-        {
-            this._friction = value;
-        }
-    }
-});
-
-FloatController.prototype.onAdded = function(dt)
-{
-    var self = this;
-    this._onKeyDown = function(event) {
-        var keyCode = ("which" in event) ? event.which : event.keyCode;
-
-        switch (keyCode) {
-            case 16:
-                self._maxVelocity = self._speed * self._speedMultiplier;
-                self._maxAcceleration = self._speed * self._speedMultiplier;
-                break;
-            case 87:
-                self._setForwardForce(-1.0);
-                break;
-            case 83:
-                self._setForwardForce(1.0);
-                break;
-            case 65:
-                self._setStrideForce(-1.0);
-                break;
-            case 68:
-                self._setStrideForce(1.0);
-                break;
-        }
-    };
-
-    this._onKeyUp = function(event) {
-        var keyCode = ("which" in event) ? event.which : event.keyCode;
-
-        switch (keyCode) {
-            case 16:
-                self._maxVelocity = self._speed;
-                self._maxAcceleration = self._speed;
-                break;
-            case 87:
-            case 83:
-                self._setForwardForce(0.0);
-                break;
-            case 65:
-            case 68:
-                self._setStrideForce(0.0);
-                break;
-        }
-    };
-
-    this._onMouseMove = function(event)
-    {
-        event = event || window.event;
-
-        self._addPitch(-(self._mouseY-event.clientY) / 100);
-        self._addYaw((self._mouseX-event.clientX) / 100);
-
-        self._mouseX = event.clientX;
-        self._mouseY = event.clientY;
-    };
-
-    this._onMouseDown = function(event)
-    {
-        self._mouseX = event.clientX;
-        self._mouseY = event.clientY;
-        document.addEventListener("mousemove", self._onMouseMove);
-    };
-
-    this._onMouseUp = function(event)
-    {
-        document.removeEventListener("mousemove", self._onMouseMove);
-    };
-
-    document.addEventListener("keydown", this._onKeyDown);
-    document.addEventListener("keyup", this._onKeyUp);
-    document.addEventListener("mousedown", this._onMouseDown);
-    document.addEventListener("mouseup", this._onMouseUp);
-};
-
-FloatController.prototype.onRemoved = function(dt)
-{
-    document.removeEventListener("keydown", this._onKeyDown);
-    document.removeEventListener("keyup", this._onKeyUp);
-    document.removeEventListener("mousemove", this._onMouseMove);
-    document.removeEventListener("mousedown", this._onMouseDown);
-    document.removeEventListener("mouseup", this._onMouseUp);
-};
-
-FloatController.prototype.onUpdate = function(dt)
-{
-    var seconds = dt * .001;
-
-    var frictionForce = HX.Float4.scale(this._localVelocity, this._friction*seconds);
-    this._localVelocity.subtract(frictionForce);
-
-    var acceleration = HX.Float4.scale(this._localAcceleration, this._maxAcceleration*seconds);
-    this._localVelocity.add(acceleration);
-
-    var absVelocity = this._localVelocity.length;
-    if (absVelocity > this._maxVelocity)
-        this._localVelocity.scale(this._maxVelocity/absVelocity);
-
-    this._pitch += this._torquePitch;
-    this._yaw += this._torqueYaw;
-
-    if (this._pitch < -Math.PI*.5) this._pitch = -Math.PI*.5;
-    else if (this._pitch > Math.PI*.5) this._pitch = Math.PI*.5;
-
-    var matrix = this.entity.matrix;
-    // the original position
-    var position = matrix.getColumn(3);
-    var distance = HX.Float4.scale(this._localVelocity, seconds);
-
-    matrix.fromRotationPitchYawRoll(this._pitch, this._yaw, 0.0);
-    matrix.prependTranslation(distance);
-    matrix.appendTranslation(position);
-
-    this.entity.matrix = matrix;
-};
-
-// ratio is "how far the controller is pushed", from -1 to 1
-FloatController.prototype._setForwardForce = function(ratio)
-{
-    this._localAcceleration.z = ratio * this._maxAcceleration;
-};
-
-FloatController.prototype._setStrideForce = function(ratio)
-{
-    this._localAcceleration.x = ratio * this._maxAcceleration;
-};
-
-FloatController.prototype._setTorquePitch = function(ratio)
-{
-    this._torquePitch = ratio * this._torque;
-};
-
-FloatController.prototype._setTorqueYaw = function(ratio)
-{
-    this._torqueYaw = ratio * this._torque;
-};
-
-FloatController.prototype._addPitch = function(value)
-{
-    this._pitch += value;
-};
-
-FloatController.prototype._addYaw = function(value)
-{
-    this._yaw += value;
-};
-/**
- *
- * @param target
- * @constructor
- */
-OrbitController = function(lookAtTarget)
-{
-    HX.Component.call(this);
-    this._coords = new HX.Float4(Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
-    this._localAcceleration = new HX.Float4(0.0, 0.0, 0.0, 0.0);
-    this._localVelocity = new HX.Float4(0.0, 0.0, 0.0, 0.0);
-
-    this.zoomSpeed = 1.0;
-    this.maxRadius = 4.0;
-    this.minRadius = 0.1;
-    this.dampen = .9;
-    this.lookAtTarget = lookAtTarget || new HX.Float4(0.0, 0.0, 0.0, 1.0);
-    this._oldMouseX = 0;
-    this._oldMouseY = 0;
-
-    this._isDown = false;
-};
-
-OrbitController.prototype = Object.create(HX.Component.prototype,
-    {
-        radius: {
-            get: function() { return this._coords.z; },
-            set: function(value) { this._coords.z = value; }
-        },
-
-        azimuth: {
-            get: function() { return this._coords.x; },
-            set: function(value) { this._coords.x = value; }
-        },
-
-        polar: {
-            get: function() { return this._coords.y; },
-            set: function(value) { this._coords.y = value; }
-        }
-    });
-
-OrbitController.prototype.onAdded = function()
-{
-    var self = this;
-
-    this._onMouseWheel = function(event)
-    {
-        self.setZoomImpulse(-event.wheelDelta * self.zoomSpeed * .0001);
-    };
-
-    this._onMouseDown = function (event)
-    {
-        self._oldMouseX = undefined;
-        self._oldMouseY = undefined;
-
-        self._isDown = true;
-    };
-
-    this._onMouseMove = function(event)
-    {
-        if (!self._isDown) return;
-        self._updateMove(event.screenX, event.screenY)
-    };
-
-    this._onTouchDown = function (event)
-    {
-        self._oldMouseX = undefined;
-        self._oldMouseY = undefined;
-
-        if (event.touches.length === 2) {
-            var touch1 = event.touches[0];
-            var touch2 = event.touches[1];
-            var dx = touch1.screenX - touch2.screenX;
-            var dy = touch1.screenY - touch2.screenY;
-            self._startPitchDistance = Math.sqrt(dx*dx + dy*dy);
-            self._startZoom = self.radius;
-        }
-
-        self._isDown = true;
-    };
-
-    this._onTouchMove = function (event)
-    {
-        event.preventDefault();
-
-        if (!self._isDown) return;
-
-        var numTouches = event.touches.length;
-
-        if (numTouches === 1) {
-            var touch = event.touches[0];
-            self._updateMove(touch.screenX, touch.screenY);
-        }
-        else if (numTouches === 2) {
-            var touch1 = event.touches[0];
-            var touch2 = event.touches[1];
-            var dx = touch1.screenX - touch2.screenX;
-            var dy = touch1.screenY - touch2.screenY;
-            var dist = Math.sqrt(dx*dx + dy*dy);
-            var diff = self._startPitchDistance - dist;
-            self.radius = self._startZoom + diff * .01;
-        }
-    };
-
-    this._onUp = function(event) { self._isDown = false; };
-
-    document.addEventListener("mousewheel", this._onMouseWheel);
-    document.addEventListener("mousemove", this._onMouseMove);
-    document.addEventListener("touchmove", this._onTouchMove);
-    document.addEventListener("mousedown", this._onMouseDown);
-    document.addEventListener("touchstart", this._onTouchDown);
-    document.addEventListener("mouseup", this._onUp);
-    document.addEventListener("touchend", this._onUp);
-};
-
-OrbitController.prototype.onRemoved = function()
-{
-    document.removeEventListener("mousewheel", this._onMouseWheel);
-    document.removeEventListener("mousemove", this._onMouseMove);
-    document.removeEventListener("touchmove", this._onTouchMove);
-    document.removeEventListener("mousedown", this._onMouseDown);
-    document.removeEventListener("touchstart", this._onTouchDown);
-    document.removeEventListener("mouseup", this._onUp);
-    document.removeEventListener("touchend", this._onUp);
-};
-
-OrbitController.prototype.onUpdate = function(dt)
-{
-    this._localVelocity.x *= this.dampen;
-    this._localVelocity.y *= this.dampen;
-    this._localVelocity.z *= this.dampen;
-    this._localVelocity.x += this._localAcceleration.x;
-    this._localVelocity.y += this._localAcceleration.y;
-    this._localVelocity.z += this._localAcceleration.z;
-    this._localAcceleration.x = 0.0;
-    this._localAcceleration.y = 0.0;
-    this._localAcceleration.z = 0.0;
-
-    this._coords.add(this._localVelocity);
-    this._coords.y = HX.clamp(this._coords.y, 0.1, Math.PI - .1);
-    this._coords.z = HX.clamp(this._coords.z, this.minRadius, this.maxRadius);
-
-    var matrix = this.entity.matrix;
-    var pos = new HX.Float4();
-    pos.fromSphericalCoordinates(this._coords.z, this._coords.x, this._coords.y);
-    pos.add(this.lookAtTarget);
-    matrix.lookAt(this.lookAtTarget, pos, HX.Float4.Y_AXIS);
-    this.entity.matrix = matrix;
-};
-
-    // ratio is "how far the controller is pushed", from -1 to 1
-OrbitController.prototype.setAzimuthImpulse  = function(value)
-{
-    this._localAcceleration.x = value;
-};
-
-OrbitController.prototype.setPolarImpulse = function(value)
-{
-    this._localAcceleration.y = value;
-};
-
-OrbitController.prototype.setZoomImpulse = function(value)
-{
-    this._localAcceleration.z = value;
-};
-
-OrbitController.prototype._updateMove = function(x, y)
-{
-    if (this._oldMouseX !== undefined) {
-        var dx = x - this._oldMouseX;
-        var dy = y - this._oldMouseY;
-        this.setAzimuthImpulse(dx * .0015);
-        this.setPolarImpulse(-dy * .0015);
-    }
-    this._oldMouseX = x;
-    this._oldMouseY = y;
 };
 HX.Debug = {
     printShaderCode: function(code)
@@ -18460,4 +18460,4 @@ HX.TorusPrimitive._generate = function(target, definition)
             }
         }
     }
-};HX.BUILD_HASH = 0xc70;
+};HX.BUILD_HASH = 0xdfa1;

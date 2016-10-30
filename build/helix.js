@@ -3468,16 +3468,6 @@ HX.ShaderLibrary['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_Geome
 
 HX.ShaderLibrary['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
-HX.ShaderLibrary['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
-
-HX.ShaderLibrary['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
-
-HX.ShaderLibrary['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-HX.ShaderLibrary['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
-
-HX.ShaderLibrary['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
 HX.ShaderLibrary['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 HX.ShaderLibrary['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3507,6 +3497,16 @@ HX.ShaderLibrary['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec4 color 
 HX.ShaderLibrary['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
 
 HX.ShaderLibrary['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	gl_FragColor = color / (1.0 + lum);\n}';
+
+HX.ShaderLibrary['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
+
+HX.ShaderLibrary['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
+
+HX.ShaderLibrary['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+HX.ShaderLibrary['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
+
+HX.ShaderLibrary['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 HX.ShaderLibrary['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
 
@@ -8677,6 +8677,96 @@ HX.SkeletonBlendNode.prototype =
 
     _applyValue: function(value) {}
 };
+/**
+ * A Model combines a list of Meshes
+ * @param modelData
+ * @constructor
+ */
+HX.Model = function (modelData)
+{
+    this._name = null;
+    this._localBounds = new HX.BoundingAABB();
+    this._skeleton = null;
+    this.onChange = new HX.Signal();
+
+    if (modelData) {
+        this._meshes = null;
+        this._setModelData(modelData);
+    }
+    else
+        this._meshes = [];
+};
+
+HX.Model.prototype =
+{
+    constructor: HX.Model,
+
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
+
+    get numMeshes()
+    {
+        return this._meshes.length;
+    },
+
+    getMesh: function (index)
+    {
+        return this._meshes[index];
+    },
+
+    dispose: function()
+    {
+        if (this._meshes)
+            for (var i = 0; i < this._meshes.length; ++i)
+                this._meshes[i].dispose();
+    },
+
+    get localBounds()
+    {
+        return this._localBounds;
+    },
+
+
+    get skeleton()
+    {
+        return this._skeleton;
+    },
+
+    set skeleton(value)
+    {
+        this._skeleton = value;
+    },
+
+    _setModelData: function (modelData)
+    {
+        this.dispose();
+
+        this._localBounds.clear();
+        this._meshes = [];
+
+        for (var i = 0; i < modelData.numMeshes; ++i) {
+            var meshData = modelData.getMeshData(i);
+            this._localBounds.growToIncludeMesh(meshData);
+            this._meshes.push(new HX.Mesh(meshData, this));
+        }
+
+        this.skeleton = modelData.skeleton;
+
+        this.onChange.dispatch();
+    },
+
+    toString: function()
+    {
+        return "[Model(name=" + this._name + ")]";
+    }
+};
 HX.Primitive =
 {
     _ATTRIBS: function()
@@ -8782,440 +8872,6 @@ HX.Primitive =
 
         return type;
     }
-};
-FloatController = function()
-{
-    HX.Component.call(this);
-    this._speed = 1.0;
-    this._speedMultiplier = 2.0;
-    this._torquePitch = 0.0;
-    this._torqueYaw = 0.0;
-    this._localVelocity = new HX.Float4(0, 0, 0, 0);
-    this._localAcceleration = new HX.Float4(0, 0, 0, 0);
-    this._pitch = 0.0;
-    this._yaw = 0.0;
-    this._mouseX = 0;
-    this._mouseY = 0;
-
-    this._torque = 1.0;    // m/s^2
-    this._friction = 5.0;    // 1/s
-
-    this._maxAcceleration = this._speed;    // m/s^2
-    this._maxVelocity = this._speed;    // m/s
-
-    this._onKeyDown = null;
-    this._onKeyUp = null;
-};
-
-FloatController.prototype = Object.create(HX.Component.prototype, {
-    speed: {
-        get: function()
-        {
-            return this._speed;
-        },
-
-        set: function(value)
-        {
-            this._speed = value;
-            this._maxAcceleration = value;
-            this._maxVelocity = value;
-        }
-    },
-
-    shiftMultiplier: {
-        get: function()
-        {
-            return this._speedMultiplier;
-        },
-
-        set: function(value)
-        {
-            this._speedMultiplier = value;
-        }
-    },
-
-    pitch: {
-        get: function()
-        {
-            return this._pitch;
-        },
-
-        set: function(value)
-        {
-            this._pitch = value;
-        }
-    },
-
-    yaw: {
-        get: function()
-        {
-            return this._yaw;
-        },
-
-        set: function(value)
-        {
-            this._yaw = value;
-        }
-    },
-
-    roll: {
-        get: function()
-        {
-            return this._roll;
-        },
-
-        set: function(value)
-        {
-            this._roll = value;
-        }
-    },
-
-    torque: {
-        get: function()
-        {
-            return this._torque;
-        },
-
-        set: function(value)
-        {
-            this._torque = value;
-        }
-    },
-
-    friction: {
-        get: function()
-        {
-            return this._friction;
-        },
-
-        set: function(value)
-        {
-            this._friction = value;
-        }
-    }
-});
-
-FloatController.prototype.onAdded = function(dt)
-{
-    var self = this;
-    this._onKeyDown = function(event) {
-        var keyCode = ("which" in event) ? event.which : event.keyCode;
-
-        switch (keyCode) {
-            case 16:
-                self._maxVelocity = self._speed * self._speedMultiplier;
-                self._maxAcceleration = self._speed * self._speedMultiplier;
-                break;
-            case 87:
-                self._setForwardForce(-1.0);
-                break;
-            case 83:
-                self._setForwardForce(1.0);
-                break;
-            case 65:
-                self._setStrideForce(-1.0);
-                break;
-            case 68:
-                self._setStrideForce(1.0);
-                break;
-        }
-    };
-
-    this._onKeyUp = function(event) {
-        var keyCode = ("which" in event) ? event.which : event.keyCode;
-
-        switch (keyCode) {
-            case 16:
-                self._maxVelocity = self._speed;
-                self._maxAcceleration = self._speed;
-                break;
-            case 87:
-            case 83:
-                self._setForwardForce(0.0);
-                break;
-            case 65:
-            case 68:
-                self._setStrideForce(0.0);
-                break;
-        }
-    };
-
-    this._onMouseMove = function(event)
-    {
-        event = event || window.event;
-
-        self._addPitch(-(self._mouseY-event.clientY) / 100);
-        self._addYaw((self._mouseX-event.clientX) / 100);
-
-        self._mouseX = event.clientX;
-        self._mouseY = event.clientY;
-    };
-
-    this._onMouseDown = function(event)
-    {
-        self._mouseX = event.clientX;
-        self._mouseY = event.clientY;
-        document.addEventListener("mousemove", self._onMouseMove);
-    };
-
-    this._onMouseUp = function(event)
-    {
-        document.removeEventListener("mousemove", self._onMouseMove);
-    };
-
-    document.addEventListener("keydown", this._onKeyDown);
-    document.addEventListener("keyup", this._onKeyUp);
-    document.addEventListener("mousedown", this._onMouseDown);
-    document.addEventListener("mouseup", this._onMouseUp);
-};
-
-FloatController.prototype.onRemoved = function(dt)
-{
-    document.removeEventListener("keydown", this._onKeyDown);
-    document.removeEventListener("keyup", this._onKeyUp);
-    document.removeEventListener("mousemove", this._onMouseMove);
-    document.removeEventListener("mousedown", this._onMouseDown);
-    document.removeEventListener("mouseup", this._onMouseUp);
-};
-
-FloatController.prototype.onUpdate = function(dt)
-{
-    var seconds = dt * .001;
-
-    var frictionForce = HX.Float4.scale(this._localVelocity, this._friction*seconds);
-    this._localVelocity.subtract(frictionForce);
-
-    var acceleration = HX.Float4.scale(this._localAcceleration, this._maxAcceleration*seconds);
-    this._localVelocity.add(acceleration);
-
-    var absVelocity = this._localVelocity.length;
-    if (absVelocity > this._maxVelocity)
-        this._localVelocity.scale(this._maxVelocity/absVelocity);
-
-    this._pitch += this._torquePitch;
-    this._yaw += this._torqueYaw;
-
-    if (this._pitch < -Math.PI*.5) this._pitch = -Math.PI*.5;
-    else if (this._pitch > Math.PI*.5) this._pitch = Math.PI*.5;
-
-    var matrix = this.entity.matrix;
-    // the original position
-    var position = matrix.getColumn(3);
-    var distance = HX.Float4.scale(this._localVelocity, seconds);
-
-    matrix.fromRotationPitchYawRoll(this._pitch, this._yaw, 0.0);
-    matrix.prependTranslation(distance);
-    matrix.appendTranslation(position);
-
-    this.entity.matrix = matrix;
-};
-
-// ratio is "how far the controller is pushed", from -1 to 1
-FloatController.prototype._setForwardForce = function(ratio)
-{
-    this._localAcceleration.z = ratio * this._maxAcceleration;
-};
-
-FloatController.prototype._setStrideForce = function(ratio)
-{
-    this._localAcceleration.x = ratio * this._maxAcceleration;
-};
-
-FloatController.prototype._setTorquePitch = function(ratio)
-{
-    this._torquePitch = ratio * this._torque;
-};
-
-FloatController.prototype._setTorqueYaw = function(ratio)
-{
-    this._torqueYaw = ratio * this._torque;
-};
-
-FloatController.prototype._addPitch = function(value)
-{
-    this._pitch += value;
-};
-
-FloatController.prototype._addYaw = function(value)
-{
-    this._yaw += value;
-};
-/**
- *
- * @param target
- * @constructor
- */
-OrbitController = function(lookAtTarget)
-{
-    HX.Component.call(this);
-    this._coords = new HX.Float4(Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
-    this._localAcceleration = new HX.Float4(0.0, 0.0, 0.0, 0.0);
-    this._localVelocity = new HX.Float4(0.0, 0.0, 0.0, 0.0);
-
-    this.zoomSpeed = 1.0;
-    this.maxRadius = 4.0;
-    this.minRadius = 0.1;
-    this.dampen = .9;
-    this.lookAtTarget = lookAtTarget || new HX.Float4(0.0, 0.0, 0.0, 1.0);
-    this._oldMouseX = 0;
-    this._oldMouseY = 0;
-
-    this._isDown = false;
-};
-
-OrbitController.prototype = Object.create(HX.Component.prototype,
-    {
-        radius: {
-            get: function() { return this._coords.z; },
-            set: function(value) { this._coords.z = value; }
-        },
-
-        azimuth: {
-            get: function() { return this._coords.x; },
-            set: function(value) { this._coords.x = value; }
-        },
-
-        polar: {
-            get: function() { return this._coords.y; },
-            set: function(value) { this._coords.y = value; }
-        }
-    });
-
-OrbitController.prototype.onAdded = function()
-{
-    var self = this;
-
-    this._onMouseWheel = function(event)
-    {
-        self.setZoomImpulse(-event.wheelDelta * self.zoomSpeed * .0001);
-    };
-
-    this._onMouseDown = function (event)
-    {
-        self._oldMouseX = undefined;
-        self._oldMouseY = undefined;
-
-        self._isDown = true;
-    };
-
-    this._onMouseMove = function(event)
-    {
-        if (!self._isDown) return;
-        self._updateMove(event.screenX, event.screenY)
-    };
-
-    this._onTouchDown = function (event)
-    {
-        self._oldMouseX = undefined;
-        self._oldMouseY = undefined;
-
-        if (event.touches.length === 2) {
-            var touch1 = event.touches[0];
-            var touch2 = event.touches[1];
-            var dx = touch1.screenX - touch2.screenX;
-            var dy = touch1.screenY - touch2.screenY;
-            self._startPitchDistance = Math.sqrt(dx*dx + dy*dy);
-            self._startZoom = self.radius;
-        }
-
-        self._isDown = true;
-    };
-
-    this._onTouchMove = function (event)
-    {
-        event.preventDefault();
-
-        if (!self._isDown) return;
-
-        var numTouches = event.touches.length;
-
-        if (numTouches === 1) {
-            var touch = event.touches[0];
-            self._updateMove(touch.screenX, touch.screenY);
-        }
-        else if (numTouches === 2) {
-            var touch1 = event.touches[0];
-            var touch2 = event.touches[1];
-            var dx = touch1.screenX - touch2.screenX;
-            var dy = touch1.screenY - touch2.screenY;
-            var dist = Math.sqrt(dx*dx + dy*dy);
-            var diff = self._startPitchDistance - dist;
-            self.radius = self._startZoom + diff * .01;
-        }
-    };
-
-    this._onUp = function(event) { self._isDown = false; };
-
-    document.addEventListener("mousewheel", this._onMouseWheel);
-    document.addEventListener("mousemove", this._onMouseMove);
-    document.addEventListener("touchmove", this._onTouchMove);
-    document.addEventListener("mousedown", this._onMouseDown);
-    document.addEventListener("touchstart", this._onTouchDown);
-    document.addEventListener("mouseup", this._onUp);
-    document.addEventListener("touchend", this._onUp);
-};
-
-OrbitController.prototype.onRemoved = function()
-{
-    document.removeEventListener("mousewheel", this._onMouseWheel);
-    document.removeEventListener("mousemove", this._onMouseMove);
-    document.removeEventListener("touchmove", this._onTouchMove);
-    document.removeEventListener("mousedown", this._onMouseDown);
-    document.removeEventListener("touchstart", this._onTouchDown);
-    document.removeEventListener("mouseup", this._onUp);
-    document.removeEventListener("touchend", this._onUp);
-};
-
-OrbitController.prototype.onUpdate = function(dt)
-{
-    this._localVelocity.x *= this.dampen;
-    this._localVelocity.y *= this.dampen;
-    this._localVelocity.z *= this.dampen;
-    this._localVelocity.x += this._localAcceleration.x;
-    this._localVelocity.y += this._localAcceleration.y;
-    this._localVelocity.z += this._localAcceleration.z;
-    this._localAcceleration.x = 0.0;
-    this._localAcceleration.y = 0.0;
-    this._localAcceleration.z = 0.0;
-
-    this._coords.add(this._localVelocity);
-    this._coords.y = HX.clamp(this._coords.y, 0.1, Math.PI - .1);
-    this._coords.z = HX.clamp(this._coords.z, this.minRadius, this.maxRadius);
-
-    var matrix = this.entity.matrix;
-    var pos = new HX.Float4();
-    pos.fromSphericalCoordinates(this._coords.z, this._coords.x, this._coords.y);
-    pos.add(this.lookAtTarget);
-    matrix.lookAt(this.lookAtTarget, pos, HX.Float4.Y_AXIS);
-    this.entity.matrix = matrix;
-};
-
-    // ratio is "how far the controller is pushed", from -1 to 1
-OrbitController.prototype.setAzimuthImpulse  = function(value)
-{
-    this._localAcceleration.x = value;
-};
-
-OrbitController.prototype.setPolarImpulse = function(value)
-{
-    this._localAcceleration.y = value;
-};
-
-OrbitController.prototype.setZoomImpulse = function(value)
-{
-    this._localAcceleration.z = value;
-};
-
-OrbitController.prototype._updateMove = function(x, y)
-{
-    if (this._oldMouseX !== undefined) {
-        var dx = x - this._oldMouseX;
-        var dy = y - this._oldMouseY;
-        this.setAzimuthImpulse(dx * .0015);
-        this.setPolarImpulse(-dy * .0015);
-    }
-    this._oldMouseX = x;
-    this._oldMouseY = y;
 };
 /**
  *
@@ -9827,6 +9483,452 @@ HX.SkeletonClipNode.prototype._applyValue = function(value)
 {
     this.time = value * this._clip.duration;
 };
+FloatController = function()
+{
+    HX.Component.call(this);
+    this._speed = 1.0;
+    this._speedMultiplier = 2.0;
+    this._torquePitch = 0.0;
+    this._torqueYaw = 0.0;
+    this._localVelocity = new HX.Float4(0, 0, 0, 0);
+    this._localAcceleration = new HX.Float4(0, 0, 0, 0);
+    this._pitch = 0.0;
+    this._yaw = 0.0;
+    this._mouseX = 0;
+    this._mouseY = 0;
+
+    this._torque = 1.0;    // m/s^2
+    this._friction = 5.0;    // 1/s
+
+    this._maxAcceleration = this._speed;    // m/s^2
+    this._maxVelocity = this._speed;    // m/s
+
+    this._onKeyDown = null;
+    this._onKeyUp = null;
+};
+
+FloatController.prototype = Object.create(HX.Component.prototype, {
+    speed: {
+        get: function()
+        {
+            return this._speed;
+        },
+
+        set: function(value)
+        {
+            this._speed = value;
+            this._maxAcceleration = value;
+            this._maxVelocity = value;
+        }
+    },
+
+    shiftMultiplier: {
+        get: function()
+        {
+            return this._speedMultiplier;
+        },
+
+        set: function(value)
+        {
+            this._speedMultiplier = value;
+        }
+    },
+
+    pitch: {
+        get: function()
+        {
+            return this._pitch;
+        },
+
+        set: function(value)
+        {
+            this._pitch = value;
+        }
+    },
+
+    yaw: {
+        get: function()
+        {
+            return this._yaw;
+        },
+
+        set: function(value)
+        {
+            this._yaw = value;
+        }
+    },
+
+    roll: {
+        get: function()
+        {
+            return this._roll;
+        },
+
+        set: function(value)
+        {
+            this._roll = value;
+        }
+    },
+
+    torque: {
+        get: function()
+        {
+            return this._torque;
+        },
+
+        set: function(value)
+        {
+            this._torque = value;
+        }
+    },
+
+    friction: {
+        get: function()
+        {
+            return this._friction;
+        },
+
+        set: function(value)
+        {
+            this._friction = value;
+        }
+    }
+});
+
+FloatController.prototype.onAdded = function(dt)
+{
+    var self = this;
+    this._onKeyDown = function(event) {
+        var keyCode = ("which" in event) ? event.which : event.keyCode;
+
+        switch (keyCode) {
+            case 16:
+                self._maxVelocity = self._speed * self._speedMultiplier;
+                self._maxAcceleration = self._speed * self._speedMultiplier;
+                break;
+            case 87:
+                self._setForwardForce(-1.0);
+                break;
+            case 83:
+                self._setForwardForce(1.0);
+                break;
+            case 65:
+                self._setStrideForce(-1.0);
+                break;
+            case 68:
+                self._setStrideForce(1.0);
+                break;
+        }
+    };
+
+    this._onKeyUp = function(event) {
+        var keyCode = ("which" in event) ? event.which : event.keyCode;
+
+        switch (keyCode) {
+            case 16:
+                self._maxVelocity = self._speed;
+                self._maxAcceleration = self._speed;
+                break;
+            case 87:
+            case 83:
+                self._setForwardForce(0.0);
+                break;
+            case 65:
+            case 68:
+                self._setStrideForce(0.0);
+                break;
+        }
+    };
+
+    this._onMouseMove = function(event)
+    {
+        event = event || window.event;
+
+        self._addPitch(-(self._mouseY-event.clientY) / 100);
+        self._addYaw((self._mouseX-event.clientX) / 100);
+
+        self._mouseX = event.clientX;
+        self._mouseY = event.clientY;
+    };
+
+    this._onMouseDown = function(event)
+    {
+        self._mouseX = event.clientX;
+        self._mouseY = event.clientY;
+        document.addEventListener("mousemove", self._onMouseMove);
+    };
+
+    this._onMouseUp = function(event)
+    {
+        document.removeEventListener("mousemove", self._onMouseMove);
+    };
+
+    document.addEventListener("keydown", this._onKeyDown);
+    document.addEventListener("keyup", this._onKeyUp);
+    document.addEventListener("mousedown", this._onMouseDown);
+    document.addEventListener("mouseup", this._onMouseUp);
+};
+
+FloatController.prototype.onRemoved = function(dt)
+{
+    document.removeEventListener("keydown", this._onKeyDown);
+    document.removeEventListener("keyup", this._onKeyUp);
+    document.removeEventListener("mousemove", this._onMouseMove);
+    document.removeEventListener("mousedown", this._onMouseDown);
+    document.removeEventListener("mouseup", this._onMouseUp);
+};
+
+FloatController.prototype.onUpdate = function(dt)
+{
+    var seconds = dt * .001;
+
+    var frictionForce = HX.Float4.scale(this._localVelocity, this._friction*seconds);
+    this._localVelocity.subtract(frictionForce);
+
+    var acceleration = HX.Float4.scale(this._localAcceleration, this._maxAcceleration*seconds);
+    this._localVelocity.add(acceleration);
+
+    var absVelocity = this._localVelocity.length;
+    if (absVelocity > this._maxVelocity)
+        this._localVelocity.scale(this._maxVelocity/absVelocity);
+
+    this._pitch += this._torquePitch;
+    this._yaw += this._torqueYaw;
+
+    if (this._pitch < -Math.PI*.5) this._pitch = -Math.PI*.5;
+    else if (this._pitch > Math.PI*.5) this._pitch = Math.PI*.5;
+
+    var matrix = this.entity.matrix;
+    // the original position
+    var position = matrix.getColumn(3);
+    var distance = HX.Float4.scale(this._localVelocity, seconds);
+
+    matrix.fromRotationPitchYawRoll(this._pitch, this._yaw, 0.0);
+    matrix.prependTranslation(distance);
+    matrix.appendTranslation(position);
+
+    this.entity.matrix = matrix;
+};
+
+// ratio is "how far the controller is pushed", from -1 to 1
+FloatController.prototype._setForwardForce = function(ratio)
+{
+    this._localAcceleration.z = ratio * this._maxAcceleration;
+};
+
+FloatController.prototype._setStrideForce = function(ratio)
+{
+    this._localAcceleration.x = ratio * this._maxAcceleration;
+};
+
+FloatController.prototype._setTorquePitch = function(ratio)
+{
+    this._torquePitch = ratio * this._torque;
+};
+
+FloatController.prototype._setTorqueYaw = function(ratio)
+{
+    this._torqueYaw = ratio * this._torque;
+};
+
+FloatController.prototype._addPitch = function(value)
+{
+    this._pitch += value;
+};
+
+FloatController.prototype._addYaw = function(value)
+{
+    this._yaw += value;
+};
+/**
+ *
+ * @param target
+ * @constructor
+ */
+OrbitController = function(lookAtTarget)
+{
+    HX.Component.call(this);
+    this._coords = new HX.Float4(Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
+    this._localAcceleration = new HX.Float4(0.0, 0.0, 0.0, 0.0);
+    this._localVelocity = new HX.Float4(0.0, 0.0, 0.0, 0.0);
+
+    this.zoomSpeed = 1.0;
+    this.maxRadius = 4.0;
+    this.minRadius = 0.1;
+    this.dampen = .9;
+    this.lookAtTarget = lookAtTarget || new HX.Float4(0.0, 0.0, 0.0, 1.0);
+    this._oldMouseX = 0;
+    this._oldMouseY = 0;
+
+    this._isDown = false;
+};
+
+OrbitController.prototype = Object.create(HX.Component.prototype,
+    {
+        radius: {
+            get: function() { return this._coords.z; },
+            set: function(value) { this._coords.z = value; }
+        },
+
+        azimuth: {
+            get: function() { return this._coords.x; },
+            set: function(value) { this._coords.x = value; }
+        },
+
+        polar: {
+            get: function() { return this._coords.y; },
+            set: function(value) { this._coords.y = value; }
+        }
+    });
+
+OrbitController.prototype.onAdded = function()
+{
+    var self = this;
+
+    this._onMouseWheel = function(event)
+    {
+        self.setZoomImpulse(-event.wheelDelta * self.zoomSpeed * .0001);
+    };
+
+    this._onMouseDown = function (event)
+    {
+        self._oldMouseX = undefined;
+        self._oldMouseY = undefined;
+
+        self._isDown = true;
+    };
+
+    this._onMouseMove = function(event)
+    {
+        if (!self._isDown) return;
+        self._updateMove(event.screenX, event.screenY)
+    };
+
+    this._onTouchDown = function (event)
+    {
+        self._oldMouseX = undefined;
+        self._oldMouseY = undefined;
+
+        if (event.touches.length === 2) {
+            var touch1 = event.touches[0];
+            var touch2 = event.touches[1];
+            var dx = touch1.screenX - touch2.screenX;
+            var dy = touch1.screenY - touch2.screenY;
+            self._startPitchDistance = Math.sqrt(dx*dx + dy*dy);
+            self._startZoom = self.radius;
+        }
+
+        self._isDown = true;
+    };
+
+    this._onTouchMove = function (event)
+    {
+        event.preventDefault();
+
+        if (!self._isDown) return;
+
+        var numTouches = event.touches.length;
+
+        if (numTouches === 1) {
+            var touch = event.touches[0];
+            self._updateMove(touch.screenX, touch.screenY);
+        }
+        else if (numTouches === 2) {
+            var touch1 = event.touches[0];
+            var touch2 = event.touches[1];
+            var dx = touch1.screenX - touch2.screenX;
+            var dy = touch1.screenY - touch2.screenY;
+            var dist = Math.sqrt(dx*dx + dy*dy);
+            var diff = self._startPitchDistance - dist;
+            self.radius = self._startZoom + diff * .01;
+        }
+    };
+
+    this._onUp = function(event) { self._isDown = false; };
+
+    document.addEventListener("mousewheel", this._onMouseWheel);
+    document.addEventListener("mousemove", this._onMouseMove);
+    document.addEventListener("touchmove", this._onTouchMove);
+    document.addEventListener("mousedown", this._onMouseDown);
+    document.addEventListener("touchstart", this._onTouchDown);
+    document.addEventListener("mouseup", this._onUp);
+    document.addEventListener("touchend", this._onUp);
+};
+
+OrbitController.prototype.onRemoved = function()
+{
+    document.removeEventListener("mousewheel", this._onMouseWheel);
+    document.removeEventListener("mousemove", this._onMouseMove);
+    document.removeEventListener("touchmove", this._onTouchMove);
+    document.removeEventListener("mousedown", this._onMouseDown);
+    document.removeEventListener("touchstart", this._onTouchDown);
+    document.removeEventListener("mouseup", this._onUp);
+    document.removeEventListener("touchend", this._onUp);
+};
+
+OrbitController.prototype.onUpdate = function(dt)
+{
+    this._localVelocity.x *= this.dampen;
+    this._localVelocity.y *= this.dampen;
+    this._localVelocity.z *= this.dampen;
+    this._localVelocity.x += this._localAcceleration.x;
+    this._localVelocity.y += this._localAcceleration.y;
+    this._localVelocity.z += this._localAcceleration.z;
+    this._localAcceleration.x = 0.0;
+    this._localAcceleration.y = 0.0;
+    this._localAcceleration.z = 0.0;
+
+    this._coords.add(this._localVelocity);
+    this._coords.y = HX.clamp(this._coords.y, 0.1, Math.PI - .1);
+    this._coords.z = HX.clamp(this._coords.z, this.minRadius, this.maxRadius);
+
+    var matrix = this.entity.matrix;
+    var pos = new HX.Float4();
+    pos.fromSphericalCoordinates(this._coords.z, this._coords.x, this._coords.y);
+    pos.add(this.lookAtTarget);
+    matrix.lookAt(this.lookAtTarget, pos, HX.Float4.Y_AXIS);
+    this.entity.matrix = matrix;
+};
+
+    // ratio is "how far the controller is pushed", from -1 to 1
+OrbitController.prototype.setAzimuthImpulse  = function(value)
+{
+    this._localAcceleration.x = value;
+};
+
+OrbitController.prototype.setPolarImpulse = function(value)
+{
+    this._localAcceleration.y = value;
+};
+
+OrbitController.prototype.setZoomImpulse = function(value)
+{
+    this._localAcceleration.z = value;
+};
+
+OrbitController.prototype._updateMove = function(x, y)
+{
+    if (this._oldMouseX !== undefined) {
+        var dx = x - this._oldMouseX;
+        var dy = y - this._oldMouseY;
+        this.setAzimuthImpulse(dx * .0015);
+        this.setPolarImpulse(-dy * .0015);
+    }
+    this._oldMouseX = x;
+    this._oldMouseY = y;
+};
+HX.Debug = {
+    printShaderCode: function(code)
+    {
+        var arr = code.split("\n");
+        var str = "";
+        for (var i = 0; i < arr.length; ++i) {
+            str += (i + 1) + ":\t" + arr[i] + "\n";
+        }
+        console.log(str);
+    }
+};
+
 /**
  *
  * @constructor
@@ -10833,18 +10935,6 @@ HX.FilmicToneMapEffect.prototype._createToneMapPass = function()
         extensions + HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" + HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl")
     );
 };
-HX.Debug = {
-    printShaderCode: function(code)
-    {
-        var arr = code.split("\n");
-        var str = "";
-        for (var i = 0; i < arr.length; ++i) {
-            str += (i + 1) + ":\t" + arr[i] + "\n";
-        }
-        console.log(str);
-    }
-};
-
 HX.BulkAssetLoader = function ()
 {
     this._assets = null;
@@ -13104,96 +13194,6 @@ HX.MeshInstance.prototype = {
 };
 
 /**
- * A Model combines a list of Meshes
- * @param modelData
- * @constructor
- */
-HX.Model = function (modelData)
-{
-    this._name = null;
-    this._localBounds = new HX.BoundingAABB();
-    this._skeleton = null;
-    this.onChange = new HX.Signal();
-
-    if (modelData) {
-        this._meshes = null;
-        this._setModelData(modelData);
-    }
-    else
-        this._meshes = [];
-};
-
-HX.Model.prototype =
-{
-    constructor: HX.Model,
-
-    get name()
-    {
-        return this._name;
-    },
-
-    set name(value)
-    {
-        this._name = value;
-    },
-
-    get numMeshes()
-    {
-        return this._meshes.length;
-    },
-
-    getMesh: function (index)
-    {
-        return this._meshes[index];
-    },
-
-    dispose: function()
-    {
-        if (this._meshes)
-            for (var i = 0; i < this._meshes.length; ++i)
-                this._meshes[i].dispose();
-    },
-
-    get localBounds()
-    {
-        return this._localBounds;
-    },
-
-
-    get skeleton()
-    {
-        return this._skeleton;
-    },
-
-    set skeleton(value)
-    {
-        this._skeleton = value;
-    },
-
-    _setModelData: function (modelData)
-    {
-        this.dispose();
-
-        this._localBounds.clear();
-        this._meshes = [];
-
-        for (var i = 0; i < modelData.numMeshes; ++i) {
-            var meshData = modelData.getMeshData(i);
-            this._localBounds.growToIncludeMesh(meshData);
-            this._meshes.push(new HX.Mesh(meshData, this));
-        }
-
-        this.skeleton = modelData.skeleton;
-
-        this.onChange.dispatch();
-    },
-
-    toString: function()
-    {
-        return "[Model(name=" + this._name + ")]";
-    }
-};
-/**
  *
  * @constructor
  */
@@ -15115,1356 +15115,6 @@ HX.SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
 };
 
 /**
- *
- * @constructor
- */
-HX.BoundingAABB = function()
-{
-    HX.BoundingVolume.call(this, HX.BoundingAABB);
-};
-
-HX.BoundingAABB.prototype = Object.create(HX.BoundingVolume.prototype);
-
-HX.BoundingAABB.prototype.growToIncludeMesh = function(meshData)
-{
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
-
-    var attribute = meshData.getVertexAttribute("hx_position");
-    var index = attribute.offset;
-    var stride = meshData.getVertexStride(attribute.streamIndex);
-    var vertices = meshData.getVertexData(attribute.streamIndex);
-    var len = vertices.length;
-    var minX, minY, minZ;
-    var maxX, maxY, maxZ;
-
-    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
-        maxX = minX = vertices[index];
-        maxY = minY = vertices[index + 1];
-        maxZ = minZ = vertices[index + 2];
-        index += stride;
-    }
-    else {
-        minX = this._minimumX; minY = this._minimumY; minZ = this._minimumZ;
-        maxX = this._maximumX; maxY = this._maximumY; maxZ = this._maximumZ;
-    }
-
-    for (; index < len; index += stride) {
-        var x = vertices[index];
-        var y = vertices[index + 1];
-        var z = vertices[index + 2];
-
-        if (x > maxX) maxX = x;
-        else if (x < minX) minX = x;
-        if (y > maxY) maxY = y;
-        else if (y < minY) minY = y;
-        if (z > maxZ) maxZ = z;
-        else if (z < minZ) minZ = z;
-    }
-
-    this._minimumX = minX; this._minimumY = minY; this._minimumZ = minZ;
-    this._maximumX = maxX; this._maximumY = maxY; this._maximumZ = maxZ;
-    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-
-    this._updateCenterAndExtent();
-};
-
-HX.BoundingAABB.prototype.growToIncludeBound = function(bounds)
-{
-    if (bounds._expanse === HX.BoundingVolume.EXPANSE_EMPTY || this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
-
-    if (bounds._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
-        this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
-
-    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
-        this._minimumX = bounds._minimumX;
-        this._minimumY = bounds._minimumY;
-        this._minimumZ = bounds._minimumZ;
-        this._maximumX = bounds._maximumX;
-        this._maximumY = bounds._maximumY;
-        this._maximumZ = bounds._maximumZ;
-        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    }
-    else {
-        if (bounds._minimumX < this._minimumX)
-            this._minimumX = bounds._minimumX;
-        if (bounds._minimumY < this._minimumY)
-            this._minimumY = bounds._minimumY;
-        if (bounds._minimumZ < this._minimumZ)
-            this._minimumZ = bounds._minimumZ;
-        if (bounds._maximumX > this._maximumX)
-            this._maximumX = bounds._maximumX;
-        if (bounds._maximumY > this._maximumY)
-            this._maximumY = bounds._maximumY;
-        if (bounds._maximumZ > this._maximumZ)
-            this._maximumZ = bounds._maximumZ;
-    }
-
-    this._updateCenterAndExtent();
-};
-
-HX.BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
-{
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
-
-    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY) {
-        this._minimumX = min.x;
-        this._minimumY = min.y;
-        this._minimumZ = min.z;
-        this._maximumX = max.x;
-        this._maximumY = max.y;
-        this._maximumZ = max.z;
-        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    }
-    else {
-        if (min.x < this._minimumX)
-            this._minimumX = min.x;
-        if (min.y < this._minimumY)
-            this._minimumY = min.y;
-        if (min.z < this._minimumZ)
-            this._minimumZ = min.z;
-        if (max.x > this._maximumX)
-            this._maximumX = max.x;
-        if (max.y > this._maximumY)
-            this._maximumY = max.y;
-        if (max.z > this._maximumZ)
-            this._maximumZ = max.z;
-    }
-
-    this._updateCenterAndExtent();
-};
-
-HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
-{
-    if (sourceBound._expanse === HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
-        this.clear(sourceBound._expanse);
-    else {
-        var arr = matrix._m;
-        var m00 = arr[0], m10 = arr[1], m20 = arr[2];
-        var m01 = arr[4], m11 = arr[5], m21 = arr[6];
-        var m02 = arr[8], m12 = arr[9], m22 = arr[10];
-
-        var x = sourceBound._center.x;
-        var y = sourceBound._center.y;
-        var z = sourceBound._center.z;
-
-        this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
-        this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
-        this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
-
-        if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
-        if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
-        if (m02 < 0) m02 = -m02; if (m12 < 0) m12 = -m12; if (m22 < 0) m22 = -m22;
-        x = sourceBound._halfExtentX;
-        y = sourceBound._halfExtentY;
-        z = sourceBound._halfExtentZ;
-
-        this._halfExtentX = m00 * x + m01 * y + m02 * z;
-        this._halfExtentY = m10 * x + m11 * y + m12 * z;
-        this._halfExtentZ = m20 * x + m21 * y + m22 * z;
-
-
-        this._minimumX = this._center.x - this._halfExtentX;
-        this._minimumY = this._center.y - this._halfExtentY;
-        this._minimumZ = this._center.z - this._halfExtentZ;
-        this._maximumX = this._center.x + this._halfExtentX;
-        this._maximumY = this._center.y + this._halfExtentY;
-        this._maximumZ = this._center.z + this._halfExtentZ;
-        this._expanse = sourceBound._expanse;
-    }
-};
-
-
-HX.BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
-{
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
-        return true;
-    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
-        return false;
-
-    var minX = this._minimumX, minY = this._minimumY, minZ = this._minimumZ;
-    var maxX = this._maximumX, maxY = this._maximumY, maxZ = this._maximumZ;
-
-    for (var i = 0; i < numPlanes; ++i) {
-        // find the point that will always have the smallest signed distance
-        var plane = cullPlanes[i];
-        var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
-        var closestX = planeX > 0? minX : maxX;
-        var closestY = planeY > 0? minY : maxY;
-        var closestZ = planeZ > 0? minZ : maxZ;
-
-        // classify the closest point
-        var signedDist = planeX * closestX + planeY * closestY + planeZ * closestZ + planeW;
-        if (signedDist > 0.0)
-            return false;
-    }
-
-    return true;
-};
-
-HX.BoundingAABB.prototype.intersectsBound = function(bound)
-{
-    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
-        return false;
-
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
-        return true;
-
-    // both AABB
-    if (bound._type === this._type) {
-        return 	this._maximumX > bound._minimumX &&
-            this._minimumX < bound._maximumX &&
-            this._maximumY > bound._minimumY &&
-            this._minimumY < bound._maximumY &&
-            this._maximumZ > bound._minimumZ &&
-            this._minimumZ < bound._maximumZ;
-    }
-    else {
-        return HX.BoundingVolume._testAABBToSphere(this, bound);
-    }
-};
-
-HX.BoundingAABB.prototype.classifyAgainstPlane = function(plane)
-{
-    var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = planeW;
-
-    var centerDist = planeX * this._center.x + planeY * this._center.y + planeZ * this._center.z + planeW;
-
-    if (planeX < 0) planeX = -planeX;
-    if (planeY < 0) planeY = -planeY;
-    if (planeZ < 0) planeZ = -planeZ;
-
-    var intersectionDist = planeX * this._halfExtentX + planeY * this._halfExtentY + planeZ * this._halfExtentZ;
-
-    if (centerDist > intersectionDist)
-        return HX.PlaneSide.FRONT;
-    else if (centerDist < -intersectionDist)
-        return HX.PlaneSide.BACK;
-    else
-        return HX.PlaneSide.INTERSECTING;
-};
-
-HX.BoundingAABB.prototype.setExplicit = function(min, max)
-{
-    this._minimumX = min.x;
-    this._minimumY = min.y;
-    this._minimumZ = min.z;
-    this._maximumX = max.x;
-    this._maximumY = max.y;
-    this._maximumZ = max.z;
-    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    this._updateCenterAndExtent();
-};
-
-HX.BoundingAABB.prototype._updateCenterAndExtent = function()
-{
-    var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
-    var maxX = this._maximumX; var maxY = this._maximumY; var maxZ = this._maximumZ;
-    this._center.x = (minX + maxX) * .5;
-    this._center.y = (minY + maxY) * .5;
-    this._center.z = (minZ + maxZ) * .5;
-    this._halfExtentX = (maxX - minX) * .5;
-    this._halfExtentY = (maxY - minY) * .5;
-    this._halfExtentZ = (maxZ - minZ) * .5;
-};
-
-// part of the
-HX.BoundingAABB.prototype.getRadius = function()
-{
-    return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
-};
-
-HX.BoundingAABB.prototype.createDebugModelInstance = function()
-{
-    return new HX.ModelInstance(new HX.BoxPrimitive(), [this.getDebugMaterial()]);
-};
-/**
- *
- * @constructor
- */
-HX.BoundingSphere = function()
-{
-    HX.BoundingVolume.call(this, HX.BoundingSphere);
-};
-
-HX.BoundingSphere.prototype = Object.create(HX.BoundingVolume.prototype);
-
-HX.BoundingSphere.prototype.setExplicit = function(center, radius)
-{
-    this._center.copyFrom(center);
-    this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
-    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    this._updateMinAndMax();
-};
-
-HX.BoundingSphere.prototype.growToIncludeMesh = function(meshData)
-{
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
-
-    var attribute = meshData.getVertexAttribute("hx_position");
-    var index = attribute.offset;
-    var stride = meshData.getVertexStride(attribute.streamIndex);
-    var vertices = attribute.getVertexData(attribute.streamIndex);
-    var len = vertices.length;
-    var minX, minY, minZ;
-    var maxX, maxY, maxZ;
-
-    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
-        maxX = minX = vertices[index];
-        maxY = minY = vertices[index + 1];
-        maxZ = minZ = vertices[index + 2];
-        index += stride;
-    }
-    else {
-        minX = this._minimumX; minY = this._minimumY; minZ = this._minimumZ;
-        maxX = this._maximumX; maxY = this._maximumY; maxZ = this._maximumZ;
-    }
-
-    for (; index < len; index += stride) {
-        var x = vertices[index];
-        var y = vertices[index + 1];
-        var z = vertices[index + 2];
-
-        if (x > maxX) maxX = x;
-        else if (x < minX) minX = x;
-        if (y > maxY) maxY = y;
-        else if (y < minY) minY = y;
-        if (z > maxZ) maxZ = z;
-        else if (z < minZ) minZ = z;
-    }
-    var centerX = (maxX + minX) * .5;
-    var centerY = (maxY + minY) * .5;
-    var centerZ = (maxZ + minZ) * .5;
-    var maxSqrRadius = 0.0;
-
-    index = attribute.offset;
-    for (; index < len; index += stride) {
-        var dx = centerX - vertices[index];
-        var dy = centerY - vertices[index + 1];
-        var dz = centerZ - vertices[index + 2];
-        var sqrRadius = dx*dx + dy*dy + dz*dz;
-        if (sqrRadius > maxSqrRadius) maxSqrRadius = sqrRadius;
-    }
-
-    this._center.x = centerX;
-    this._center.y = centerY;
-    this._center.z = centerZ;
-
-    var radius = Math.sqrt(maxSqrRadius);
-    this._halfExtentX = radius;
-    this._halfExtentY = radius;
-    this._halfExtentZ = radius;
-
-    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-
-    this._updateMinAndMax();
-};
-
-HX.BoundingSphere.prototype.growToIncludeBound = function(bounds)
-{
-    if (bounds._expanse === HX.BoundingVolume.EXPANSE_EMPTY || this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
-
-    if (bounds._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
-        this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
-
-    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
-        this._center.x = bounds._center.x;
-        this._center.y = bounds._center.y;
-        this._center.z = bounds._center.z;
-        if (bounds._type == this._type) {
-            this._halfExtentX = bounds._halfExtentX;
-            this._halfExtentY = bounds._halfExtentY;
-            this._halfExtentZ = bounds._halfExtentZ;
-        }
-        else {
-            this._halfExtentX = this._halfExtentY = this._halfExtentZ = bounds.getRadius();
-        }
-        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    }
-
-    else {
-        var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
-        var maxX = this._maximumX; var maxY = this._maximumY; var maxZ = this._maximumZ;
-
-        if (bounds._maximumX > maxX)
-            maxX = bounds._maximumX;
-        if (bounds._maximumY > maxY)
-            maxY = bounds._maximumY;
-        if (bounds._maximumZ > maxZ)
-            maxZ = bounds._maximumZ;
-        if (bounds._minimumX < minX)
-            minX = bounds._minimumX;
-        if (bounds._minimumY < minY)
-            minY = bounds._minimumY;
-        if (bounds._minimumZ < minZ)
-            minZ = bounds._minimumZ;
-
-        this._center.x = (minX + maxX) * .5;
-        this._center.y = (minY + maxY) * .5;
-        this._center.z = (minZ + maxZ) * .5;
-
-        var dx = maxX - this._center.x;
-        var dy = maxY - this._center.y;
-        var dz = maxZ - this._center.z;
-        var radius = Math.sqrt(dx*dx + dy*dy + dz*dz);
-        this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
-    }
-
-    this._updateMinAndMax();
-};
-
-HX.BoundingSphere.prototype.growToIncludeMinMax = function(min, max)
-{
-    // temp solution, not run-time perf critical
-    var aabb = new HX.BoundingAABB();
-    aabb.growToIncludeMinMax(min, max);
-    this.growToIncludeBound(aabb);
-};
-
-HX.BoundingSphere.prototype.getRadius = function()
-{
-    return this._halfExtentX;
-};
-
-HX.BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
-{
-    if (sourceBound._expanse == HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
-        this.clear(sourceBound._expanse);
-    else {
-        var arr = matrix._m;
-        var m00 = arr[0], m10 = arr[1], m20 = arr[2];
-        var m01 = arr[4], m11 = arr[5], m21 = arr[6];
-        var m02 = arr[8], m12 = arr[9], m22 = arr[10];
-
-        var x = sourceBound._center.x;
-        var y = sourceBound._center.y;
-        var z = sourceBound._center.z;
-
-        this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
-        this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
-        this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
-
-
-        if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
-        if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
-        if (m02 < 0) m02 = -m02; if (m12 < 0) m12 = -m12; if (m22 < 0) m22 = -m22;
-        x = sourceBound._halfExtentX;
-        y = sourceBound._halfExtentY;
-        z = sourceBound._halfExtentZ;
-
-        var hx = m00 * x + m01 * y + m02 * z;
-        var hy = m10 * x + m11 * y + m12 * z;
-        var hz = m20 * x + m21 * y + m22 * z;
-
-        var radius = Math.sqrt(hx * hx + hy * hy + hz * hz);
-        this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
-
-        this._minimumX = this._center.x - this._halfExtentX;
-        this._minimumY = this._center.y - this._halfExtentY;
-        this._minimumZ = this._center.z - this._halfExtentZ;
-        this._maximumX = this._center.x + this._halfExtentX;
-        this._maximumY = this._center.y + this._halfExtentY;
-        this._maximumZ = this._center.z + this._halfExtentZ;
-
-        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
-    }
-};
-
-HX.BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
-{
-    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
-        return true;
-    else if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
-        return false;
-
-    var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
-    var radius = this._halfExtentX;
-
-    for (var i = 0; i < numPlanes; ++i) {
-        var plane = cullPlanes[i];
-        var signedDist = plane.x * centerX + plane.y * centerY + plane.z * centerZ + plane.w;
-
-        if (signedDist > radius)
-            return false;
-    }
-
-    return true;
-};
-
-HX.BoundingSphere.prototype.intersectsBound = function(bound)
-{
-    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
-        return false;
-
-    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
-        return true;
-
-    // both Spheres
-    if (bound._type === this._type) {
-        var dx = this._center.x - bound._center.x;
-        var dy = this._center.y - bound._center.y;
-        var dz = this._center.z - bound._center.z;
-        var touchDistance = this._halfExtentX + bound._halfExtentX;
-        return dx*dx + dy*dy + dz*dz < touchDistance*touchDistance;
-    }
-    else
-        return HX.BoundingVolume._testAABBToSphere(bound, this);
-};
-
-HX.BoundingSphere.prototype.classifyAgainstPlane = function(plane)
-{
-    var dist = plane.x * this._center.x + plane.y * this._center.y + plane.z * this._center.z + plane.w;
-    var radius = this._halfExtentX;
-    if (dist > radius) return HX.PlaneSide.FRONT;
-    else if (dist < -radius) return HX.PlaneSide.BACK;
-    else return HX.PlaneSide.INTERSECTING;
-};
-
-HX.BoundingSphere.prototype._updateMinAndMax = function()
-{
-    var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
-    var radius = this._halfExtentX;
-    this._minimumX = centerX - radius;
-    this._minimumY = centerY - radius;
-    this._minimumZ = centerZ - radius;
-    this._maximumX = centerX + radius;
-    this._maximumY = centerY + radius;
-    this._maximumZ = centerZ + radius;
-};
-
-HX.BoundingSphere.prototype.createDebugModelInstance = function()
-{
-    return new HX.ModelInstance(new HX.SpherePrimitive({doubleSided:true}), [this.getDebugMaterial()]);
-};
-/**
- *
- * @constructor
- */
-HX.Frustum = function()
-{
-    this._planes = new Array(6);
-    this._corners = new Array(8);
-
-    for (var i = 0; i < 6; ++i)
-        this._planes[i] = new HX.Float4();
-
-    for (var i = 0; i < 8; ++i)
-        this._corners[i] = new HX.Float4();
-
-    this._r1 = new HX.Float4();
-    this._r2 = new HX.Float4();
-    this._r3 = new HX.Float4();
-    this._r4 = new HX.Float4();
-};
-
-HX.Frustum.PLANE_LEFT = 0;
-HX.Frustum.PLANE_RIGHT = 1;
-HX.Frustum.PLANE_BOTTOM = 2;
-HX.Frustum.PLANE_TOP = 3;
-HX.Frustum.PLANE_NEAR = 4;
-HX.Frustum.PLANE_FAR = 5;
-
-HX.Frustum.CLIP_SPACE_CORNERS = [	new HX.Float4(-1.0, -1.0, -1.0, 1.0),
-                                    new HX.Float4(1.0, -1.0, -1.0, 1.0),
-                                    new HX.Float4(1.0, 1.0, -1.0, 1.0),
-                                    new HX.Float4(-1.0, 1.0, -1.0, 1.0),
-                                    new HX.Float4(-1.0, -1.0, 1.0, 1.0),
-                                    new HX.Float4(1.0, -1.0, 1.0, 1.0),
-                                    new HX.Float4(1.0, 1.0, 1.0, 1.0),
-                                    new HX.Float4(-1.0, 1.0, 1.0, 1.0)
-                                ];
-
-HX.Frustum.prototype =
-{
-    /**
-     * An Array of planes describing frustum. The planes are in world space and point outwards.
-     */
-    get planes() { return this._planes; },
-
-    /**
-     * An array containing the 8 vertices of the frustum, in world space.
-     */
-    get corners() { return this._corners; },
-
-    update: function(projection, inverseProjection)
-    {
-        this._updatePlanes(projection);
-        this._updateCorners(inverseProjection);
-    },
-
-    _updatePlanes: function(projection)
-    {
-        // todo: this can all be inlined, but not the highest priority (only once per frame)
-        var r1 = projection.getRow(0, this._r1);
-        var r2 = projection.getRow(1, this._r2);
-        var r3 = projection.getRow(2, this._r3);
-        var r4 = projection.getRow(3, this._r4);
-
-        HX.Float4.add(r4, r1, this._planes[HX.Frustum.PLANE_LEFT]);
-        HX.Float4.subtract(r4, r1, this._planes[HX.Frustum.PLANE_RIGHT]);
-        HX.Float4.add(r4, r2, this._planes[HX.Frustum.PLANE_BOTTOM]);
-        HX.Float4.subtract(r4, r2, this._planes[HX.Frustum.PLANE_TOP]);
-        HX.Float4.add(r4, r3, this._planes[HX.Frustum.PLANE_NEAR]);
-        HX.Float4.subtract(r4, r3, this._planes[HX.Frustum.PLANE_FAR]);
-
-        for (var i = 0; i < 6; ++i) {
-            this._planes[i].negate();
-            this._planes[i].normalizeAsPlane();
-        }
-    },
-
-    _updateCorners: function(inverseProjection)
-    {
-        for (var i = 0; i < 8; ++i) {
-            var corner = this._corners[i];
-            inverseProjection.transform(HX.Frustum.CLIP_SPACE_CORNERS[i], corner);
-            corner.scale(1.0 / corner.w);
-        }
-    }
-};
-
-/**
- *
- * @constructor
- */
-HX.Camera = function()
-{
-    HX.Entity.call(this);
-
-    this._renderTargetWidth = 0;
-    this._renderTargetHeight = 0;
-    this._viewProjectionMatrixInvalid = true;
-    this._viewProjectionMatrix = new HX.Matrix4x4();
-    this._inverseProjectionMatrix = new HX.Matrix4x4();
-    this._inverseViewProjectionMatrix = new HX.Matrix4x4();
-    this._projectionMatrix = new HX.Matrix4x4();
-    this._viewMatrix = new HX.Matrix4x4();
-    this._projectionMatrixDirty = true;
-    this._nearDistance = .1;
-    this._farDistance = 1000;
-    this._frustum = new HX.Frustum();
-
-    this.position.set(0.0, 0.0, 1.0);
-};
-
-HX.Camera.prototype = Object.create(HX.Entity.prototype);
-
-Object.defineProperties(HX.Camera.prototype, {
-    nearDistance: {
-        get: function() {
-            return this._nearDistance;
-        },
-
-        set: function(value) {
-            this._nearDistance = value;
-            this._invalidateProjectionMatrix();
-        }
-    },
-    farDistance: {
-        get: function() {
-            return this._farDistance;
-        },
-
-        set: function(value) {
-            this._farDistance = value;
-            this._invalidateProjectionMatrix();
-        }
-    },
-
-    viewProjectionMatrix: {
-        get: function() {
-            if (this._viewProjectionMatrixInvalid)
-                this._updateViewProjectionMatrix();
-
-            return this._viewProjectionMatrix;
-        }
-    },
-
-    viewMatrix: {
-        get: function()
-        {
-            if (this._viewProjectionMatrixInvalid)
-                this._updateViewProjectionMatrix();
-
-            return this._viewMatrix;
-        }
-    },
-
-    projectionMatrix: {
-        get: function()
-        {
-            if (this._projectionMatrixDirty)
-                this._updateProjectionMatrix();
-
-            return this._projectionMatrix;
-        }
-    },
-
-    inverseViewProjectionMatrix: {
-        get: function()
-        {
-            if (this._viewProjectionMatrixInvalid)
-                this._updateViewProjectionMatrix();
-
-            return this._inverseViewProjectionMatrix;
-        }
-    },
-
-    inverseProjectionMatrix: {
-        get: function()
-        {
-            if (this._projectionMatrixDirty)
-                this._updateProjectionMatrix();
-
-            return this._inverseProjectionMatrix;
-        }
-    },
-
-    frustum: {
-        get: function()
-        {
-            if (this._viewProjectionMatrixInvalid)
-                this._updateViewProjectionMatrix();
-
-            return this._frustum;
-        }
-    }
-});
-
-HX.Camera.prototype.acceptVisitor = function(visitor)
-{
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
-};
-
-HX.Camera.prototype._setRenderTargetResolution = function(width, height)
-{
-    this._renderTargetWidth = width;
-    this._renderTargetHeight = height;
-};
-
-HX.Camera.prototype._invalidateViewProjectionMatrix = function()
-{
-    this._viewProjectionMatrixInvalid = true;
-};
-
-HX.Camera.prototype._invalidateWorldMatrix = function()
-{
-    HX.Entity.prototype._invalidateWorldMatrix.call(this);
-    this._invalidateViewProjectionMatrix();
-};
-
-HX.Camera.prototype._updateViewProjectionMatrix = function()
-{
-    this._viewMatrix.inverseAffineOf(this.worldMatrix);
-    this._viewProjectionMatrix.multiply(this.projectionMatrix, this._viewMatrix);
-    this._inverseProjectionMatrix.inverseOf(this._projectionMatrix);
-    this._inverseViewProjectionMatrix.inverseOf(this._viewProjectionMatrix);
-    this._frustum.update(this._viewProjectionMatrix, this._inverseViewProjectionMatrix);
-    this._viewProjectionMatrixInvalid = false;
-};
-
-HX.Camera.prototype._invalidateProjectionMatrix = function()
-{
-    this._projectionMatrixDirty = true;
-    this._invalidateViewProjectionMatrix();
-};
-
-HX.Camera.prototype._updateProjectionMatrix = function()
-{
-    throw new Error("Abstract method!");
-};
-
-HX.Camera.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-};
-
-HX.Camera.prototype.toString = function()
-{
-    return "[Camera(name=" + this._name + ")]";
-};
-
-/**
- * @constructor
- */
-HX.PerspectiveCamera = function ()
-{
-    HX.Camera.call(this);
-
-    this._vFOV = 1.047198;  // radians!
-    this._aspectRatio = 0;
-};
-
-
-HX.PerspectiveCamera.prototype = Object.create(HX.Camera.prototype);
-
-Object.defineProperties(HX.PerspectiveCamera.prototype, {
-    verticalFOV: {
-        get: function()
-        {
-            return this._vFOV;
-        },
-        set: function(value)
-        {
-            this._vFOV = value;
-            this._invalidateProjectionMatrix();
-        }
-    }
-});
-
-HX.PerspectiveCamera.prototype._setAspectRatio = function(value)
-{
-    if (this._aspectRatio == value) return;
-
-    this._aspectRatio = value;
-    this._invalidateProjectionMatrix();
-};
-
-HX.PerspectiveCamera.prototype._setRenderTargetResolution = function(width, height)
-{
-    HX.Camera.prototype._setRenderTargetResolution.call(this, width, height);
-    this._setAspectRatio(width / height);
-};
-
-HX.PerspectiveCamera.prototype._updateProjectionMatrix = function()
-{
-    this._projectionMatrix.fromPerspectiveProjection(this._vFOV, this._aspectRatio, this._nearDistance, this._farDistance);
-    this._projectionMatrixDirty = false;
-};
-
-/**
- * @constructor
- */
-HX.OrthographicOffCenterCamera = function ()
-{
-    HX.Camera.call(this);
-    this._left = -1;
-    this._right = 1;
-    this._top = 1;
-    this._bottom = -1;
-};
-
-HX.OrthographicOffCenterCamera.prototype = Object.create(HX.Camera.prototype);
-
-HX.OrthographicOffCenterCamera.prototype.setBounds = function(left, right, top, bottom)
-{
-    this._left = left;
-    this._right = right;
-    this._top = top;
-    this._bottom = bottom;
-    this._invalidateProjectionMatrix();
-};
-
-HX.OrthographicOffCenterCamera.prototype._updateProjectionMatrix = function()
-{
-    this._projectionMatrix.fromOrthographicOffCenterProjection(this._left, this._right, this._top, this._bottom, this._nearDistance, this._farDistance);
-    this._projectionMatrixDirty = false;
-};
-/**
- *
- * @constructor
- */
-HX.GroupNode = function()
-{
-    HX.SceneNode.call(this);
-
-    // child entities (scene nodes)
-    this._children = [];
-};
-
-HX.GroupNode.prototype = Object.create(HX.SceneNode.prototype,
-    {
-        numChildren: {
-            get: function() { return this._children.length; }
-        }
-    });
-
-
-HX.GroupNode.prototype.findNodeByName = function(name)
-{
-    var node = HX.SceneNode.prototype.findNodeByName.call(this, name);
-    if (node) return node;
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i) {
-        node = this._children[i].findNodeByName(name);
-        if (node) return node;
-    }
-};
-
-HX.GroupNode.prototype.attach = function(child)
-{
-    if (child._parent)
-        throw new Error("Child is already parented!");
-
-    child._parent = this;
-    child._setScene(this._scene);
-
-    this._children.push(child);
-    this._invalidateWorldBounds();
-};
-
-HX.GroupNode.prototype.detach = function(child)
-{
-    var index = this._children.indexOf(child);
-
-    if (index < 0)
-        throw new Error("Trying to remove a scene object that is not a child");
-
-    child._parent = null;
-
-    this._children.splice(index, 1);
-    this._invalidateWorldBounds();
-};
-
-HX.GroupNode.prototype.getChild = function(index) { return this._children[index]; };
-
-HX.GroupNode.prototype.acceptVisitor = function(visitor)
-{
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i) {
-        var child = this._children[i];
-
-        if (visitor.qualifies(child))
-            child.acceptVisitor(visitor);
-    }
-};
-
-HX.GroupNode.prototype._invalidateWorldMatrix = function()
-{
-    HX.SceneNode.prototype._invalidateWorldMatrix.call(this);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._children[i]._invalidateWorldMatrix();
-};
-
-HX.GroupNode.prototype._updateWorldBounds = function()
-{
-    var len = this._children.length;
-
-    for (var i = 0; i < len; ++i) {
-        this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
-    }
-
-    HX.SceneNode.prototype._updateWorldBounds.call(this);
-};
-
-HX.GroupNode.prototype._setScene = function(scene)
-{
-    HX.SceneNode.prototype._setScene.call(this, scene);
-
-    var len = this._children.length;
-
-    for (var i = 0; i < len; ++i)
-        this._children[i]._setScene(scene);
-};
-
-HX.GroupNode.prototype.applyFunction = function(func)
-{
-    func(this);
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-        this._children[i].applyFunction(func);
-};
-HX.MaterialQueryVisitor = function(materialName)
-{
-    HX.SceneVisitor.call(this);
-    this._materialName = materialName;
-};
-
-HX.MaterialQueryVisitor.prototype = Object.create(HX.SceneVisitor.prototype,
-    {
-        foundMaterial: {
-            get: function()
-            {
-                return this._foundMaterial;
-            }
-        }
-    });
-
-HX.MaterialQueryVisitor.prototype.qualifies = function(object)
-{
-    // if a material was found, ignore
-    return !this._foundMaterial;
-};
-
-HX.MaterialQueryVisitor.prototype.visitModelInstance = function (modelInstance, worldMatrix)
-{
-    var materials = modelInstance._materials;
-    var len = materials.length;
-    for (var i = 0; i < len; ++i) {
-        var material = materials[i];
-        if (material.name === this._materialName)
-            this._foundMaterial = material;
-    }
-};
-/**
- * Creates a new Scene object
- * @param rootNode (optional) A rootnode to be used, allowing different partition types to be used as the root.
- * @constructor
- */
-HX.Scene = function(rootNode)
-{
-    // the default partition is a BVH node
-    //  -> or this may need to become an infinite bound node?
-    this._rootNode = rootNode || new HX.GroupNode();
-    this._rootNode._setScene(this);
-    this._skybox = null;
-    this._entityEngine = new HX.EntityEngine();
-};
-
-HX.Scene.prototype = {
-    constructor: HX.Scene,
-
-    get skybox() { return this._skybox; },
-    set skybox(value) { this._skybox = value; },
-
-    // TODO: support regex for partial matches
-    findNodeByName: function(name)
-    {
-        return this._rootNode.findNodeByName(name);
-    },
-
-    // TODO: support regex for partial matches
-    findMaterialByName: function(name)
-    {
-        return this._rootNode.findMaterialByName(name);
-    },
-
-    attach: function(child)
-    {
-        this._rootNode.attach(child);
-    },
-
-    detach: function(child)
-    {
-        this._rootNode.detach(child);
-    },
-
-    get numChildren()
-    {
-        return this._rootNode.numChildren;
-    },
-
-    getChild: function(index)
-    {
-        return this._rootNode.getChild(index);
-    },
-
-    contains: function(child)
-    {
-        this._rootNode.contains(child);
-    },
-
-    acceptVisitor: function(visitor)
-    {
-        visitor.visitScene(this);
-        // assume root node will always qualify
-        this._rootNode.acceptVisitor(visitor);
-    },
-
-    get entityEngine()
-    {
-        return this._entityEngine;
-    },
-
-    get worldBounds()
-    {
-        return this._rootNode.worldBounds;
-    }
-};
-/**
- * Skybox provides a backdrop "at infinity" for the scene.
- * @param materialOrTexture Either a texture or a material used to render the skybox. If a texture is passed,
- * HX.SkyboxMaterial is used as material.
- * @constructor
- */
-HX.Skybox = function(materialOrTexture)
-{
-    if (!(materialOrTexture instanceof HX.Material))
-        materialOrTexture = new HX.SkyboxMaterial(materialOrTexture);
-
-    //var model = new HX.PlanePrimitive({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2});
-    var model = new HX.BoxPrimitive({width: 1, invert: true});
-    model.localBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-    this._modelInstance = new HX.ModelInstance(model, materialOrTexture);
-};
-
-HX.Skybox.prototype = {};
-// TODO: there no way to figure out correct mip level for texture
-// TODO: Should we provide a snap size in the vertex data?
-HX.Terrain = function(terrainSize, minElevation, maxElevation, numLevels, material, detail)
-{
-    HX.GroupNode.call(this);
-
-    this._terrainSize = terrainSize || 512;
-    this._minElevation = minElevation;
-    this._maxElevation = maxElevation;
-    this._numLevels = numLevels || 4;
-    detail = detail || 32;
-    var gridSize = Math.ceil(detail * .5) * 2.0; // round off to 2
-
-    // cannot bitshift because we need floating point result
-    this._snapSize = (this._terrainSize / detail) / Math.pow(2, this._numLevels);
-
-    this._material = material;
-    material.setUniform("hx_elevationOffset", minElevation);
-    material.setUniform("hx_elevationScale", maxElevation - minElevation);
-
-    this._initModels(gridSize);
-    this._initTree();
-};
-
-// TODO: Allow setting material
-HX.Terrain.prototype = Object.create(HX.GroupNode.prototype, {
-    terrainSize: {
-        get: function() {
-            return this._terrainSize;
-        }
-    }
-});
-
-/**
- *
- * @param size
- * @param numSegments
- * @param subDiv Subdivide an edge
- * @returns {HX.Model}
- * @private
- */
-HX.Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
-{
-    var rcpNumSegments = 1.0 / numSegments;
-    var meshData = new HX.MeshData();
-    var cellSize = size * rcpNumSegments;
-    var halfCellSize = cellSize * .5;
-
-    meshData.addVertexAttribute("hx_position", 3);
-    meshData.addVertexAttribute("hx_normal", 3);
-    meshData.addVertexAttribute("hx_cellSize", 1);
-
-    var vertices = [];
-    var indices = [];
-
-    var numZ = subDiv? numSegments - 1: numSegments;
-
-    var w = numSegments + 1;
-
-    for (var zi = 0; zi <= numZ; ++zi) {
-        var z = (zi*rcpNumSegments - .5) * size;
-
-        for (var xi = 0; xi <= numSegments; ++xi) {
-            var x = (xi*rcpNumSegments - .5) * size;
-
-            // the one corner that attaches to higher resolution neighbours needs to snap like them
-            var s = !lastLevel && xi === numSegments && zi === numSegments? halfCellSize : cellSize;
-            vertices.push(x, 0, z, 0, 1, 0, s);
-
-            if (xi !== numSegments && zi !== numZ) {
-                var base = xi + zi * w;
-
-                indices.push(base, base + w, base + w + 1);
-                indices.push(base, base + w + 1, base + 1);
-            }
-        }
-    }
-
-    var highIndexX = vertices.length / 7;
-
-    if (subDiv) {
-        var z = (numSegments * rcpNumSegments - .5) * size;
-        for (var xi = 0; xi <= numSegments; ++xi) {
-            var x = (xi*rcpNumSegments - .5) * size;
-            vertices.push(x, 0, z, 0, 1, 0);
-            vertices.push(halfCellSize);
-
-            if (xi !== numSegments) {
-                var base = xi + numZ * w;
-                vertices.push(x + halfCellSize, 0, z, 0, 1, 0, halfCellSize);
-                indices.push(base, highIndexX + xi * 2, highIndexX + xi * 2 + 1);
-                indices.push(base, highIndexX + xi * 2 + 1, base + 1);
-                indices.push(highIndexX + xi * 2 + 1, highIndexX + xi * 2 + 2, base + 1);
-            }
-        }
-    }
-
-    meshData.setVertexData(vertices, 0);
-    meshData.setIndexData(indices);
-
-    var modelData = new HX.ModelData();
-    modelData.addMeshData(meshData);
-    var model = new HX.Model(modelData);
-    model.localBounds.growToIncludeMinMax(new HX.Float4(0, this._minElevation, 0), new HX.Float4(0, this._maxElevation, 0));
-    return model;
-};
-
-HX.Terrain.prototype._initModels = function(gridSize)
-{
-    this._models = [];
-    var modelSize = this._terrainSize * .25;
-
-    for (var level = 0; level < this._numLevels; ++level) {
-        if (level === this._numLevels - 1) {
-            // do not subdivide max detail
-            var model = this._createModel(modelSize, gridSize, false, true);
-            this._models[level] = {
-                edge: model,
-                corner: model
-            };
-        }
-        else {
-            this._models[level] = {
-                edge: this._createModel(modelSize, gridSize, true, false),
-                corner: this._createModel(modelSize, gridSize, false, false)
-            };
-        }
-
-        modelSize *= .5;
-
-    }
-};
-
-HX.Terrain.prototype._initTree = function()
-{
-    var level = 0;
-    var size = this._terrainSize * .25;
-    for (var yi = 0; yi < 4; ++yi) {
-        var y = this._terrainSize * (yi / 4 - .5) + size * .5;
-        for (var xi = 0; xi < 4; ++xi) {
-            var x = this._terrainSize * (xi / 4 - .5) + size * .5;
-            var subX = 0, subY = 0;
-
-            if (xi === 1)
-                subX = 1;
-            else if (xi === 2)
-                subX = -1;
-
-            if (yi === 1)
-                subY = 1;
-            else if (yi === 2)
-                subY = -1;
-
-            if (subX && subY) {
-                this._subDivide(x, y, subX, subY, level + 1, size * .5);
-            }
-            else {
-                var rotation = 0;
-                var mode = "edge";
-                var add = true;
-                // if both are 0, we have a corner
-                if (xi % 3 === yi % 3) {
-                    mode = "corner";
-                    if (xi === 0 && yi === 0) rotation = 0;
-                    if (xi === 0 && yi === 3) rotation = 1;
-                    if (xi === 3 && yi === 3) rotation = 2;
-                    if (xi === 3 && yi === 0) rotation = -1;
-                }
-                else {
-                    if (yi === 3) rotation = 2;
-                    if (xi === 3) rotation = -1;
-                    if (xi === 0) rotation = 1;
-                }
-                if (add)
-                    this._addModel(x, y, level, rotation, mode);
-            }
-        }
-    }
-};
-
-HX.Terrain.prototype._addModel = function(x, y, level, rotation, mode)
-{
-    var modelInstance = new HX.ModelInstance(this._models[level][mode], this._material);
-    modelInstance.position.set(x, 0, y);
-    modelInstance.rotation.fromAxisAngle(HX.Float4.Y_AXIS, rotation * Math.PI * .5);
-    this.attach(modelInstance);
-};
-
-HX.Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
-{
-    size *= .5;
-
-    for (var yi = -1; yi <= 1; yi += 2) {
-        for (var xi = -1; xi <= 1; xi += 2) {
-            if((xi !== subX || yi !== subY) || level === this._numLevels - 1) {
-                var rotation = 0;
-                var mode = "corner";
-                // messy, I know
-                if (x < 0 && y < 0) {
-                    if (xi < 0 && yi > 0) {
-                        mode = "edge";
-                        rotation = 1;
-                    }
-                    else if (xi > 0 && yi < 0) {
-                        mode = "edge";
-                        rotation = 0;
-                    }
-                    else
-                        rotation = 0;
-                }
-                else if (x > 0 && y > 0) {
-                    if (xi > 0 && yi < 0) {
-                        mode = "edge";
-                        rotation = -1;
-                    }
-                    else if (xi < 0 && yi > 0) {
-                        mode = "edge";
-                        rotation = 2;
-                    }
-                    else
-                        rotation = 2;
-                }
-                else if (x < 0 && y > 0) {
-                    if (xi > 0 && yi > 0) {
-                        mode = "edge";
-                        rotation = 2;
-                    }
-                    else if (xi < 0 && yi < 0) {
-                        mode = "edge";
-                        rotation = 1;
-                    }
-                    else
-                        rotation = 1;
-                }
-                else if (x > 0 && y < 0) {
-                    if (xi < 0 && yi < 0) {
-                        mode = "edge";
-                        rotation = 0;
-                    }
-                    else if (xi > 0 && yi > 0) {
-                        mode = "edge";
-                        rotation = -1;
-                    }
-                    else
-                        rotation = -1;
-                }
-
-                this._addModel(x + size * xi, y + size * yi, level, rotation, mode);
-            }
-        }
-    }
-
-    if (level < this._numLevels - 1)
-        this._subDivide(x + size * subX, y + size * subY, subX, subY, level + 1, size);
-};
-
-HX.Terrain.prototype.acceptVisitor = function(visitor)
-{
-    // typechecking isn't nice, but it does what we want
-    if (visitor instanceof HX.RenderCollector) {
-        var pos = visitor._camera.position;
-        this.position.x = Math.floor(pos.x / this._snapSize) * this._snapSize;
-        this.position.z = Math.floor(pos.z / this._snapSize) * this._snapSize;
-    }
-
-    HX.GroupNode.prototype.acceptVisitor.call(this, visitor);
-};
-
-HX.Terrain.prototype._updateWorldBounds = function ()
-{
-    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-};
-/**
  * @constructor
  */
 HX.FrameBuffer = function(colorTextures, depthBuffer, cubeFace)
@@ -17845,6 +16495,1356 @@ HX.StatsDisplay.prototype =
     }
 };
 /**
+ *
+ * @constructor
+ */
+HX.BoundingAABB = function()
+{
+    HX.BoundingVolume.call(this, HX.BoundingAABB);
+};
+
+HX.BoundingAABB.prototype = Object.create(HX.BoundingVolume.prototype);
+
+HX.BoundingAABB.prototype.growToIncludeMesh = function(meshData)
+{
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+
+    var attribute = meshData.getVertexAttribute("hx_position");
+    var index = attribute.offset;
+    var stride = meshData.getVertexStride(attribute.streamIndex);
+    var vertices = meshData.getVertexData(attribute.streamIndex);
+    var len = vertices.length;
+    var minX, minY, minZ;
+    var maxX, maxY, maxZ;
+
+    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
+        maxX = minX = vertices[index];
+        maxY = minY = vertices[index + 1];
+        maxZ = minZ = vertices[index + 2];
+        index += stride;
+    }
+    else {
+        minX = this._minimumX; minY = this._minimumY; minZ = this._minimumZ;
+        maxX = this._maximumX; maxY = this._maximumY; maxZ = this._maximumZ;
+    }
+
+    for (; index < len; index += stride) {
+        var x = vertices[index];
+        var y = vertices[index + 1];
+        var z = vertices[index + 2];
+
+        if (x > maxX) maxX = x;
+        else if (x < minX) minX = x;
+        if (y > maxY) maxY = y;
+        else if (y < minY) minY = y;
+        if (z > maxZ) maxZ = z;
+        else if (z < minZ) minZ = z;
+    }
+
+    this._minimumX = minX; this._minimumY = minY; this._minimumZ = minZ;
+    this._maximumX = maxX; this._maximumY = maxY; this._maximumZ = maxZ;
+    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+
+    this._updateCenterAndExtent();
+};
+
+HX.BoundingAABB.prototype.growToIncludeBound = function(bounds)
+{
+    if (bounds._expanse === HX.BoundingVolume.EXPANSE_EMPTY || this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+
+    if (bounds._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
+        this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
+
+    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
+        this._minimumX = bounds._minimumX;
+        this._minimumY = bounds._minimumY;
+        this._minimumZ = bounds._minimumZ;
+        this._maximumX = bounds._maximumX;
+        this._maximumY = bounds._maximumY;
+        this._maximumZ = bounds._maximumZ;
+        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    }
+    else {
+        if (bounds._minimumX < this._minimumX)
+            this._minimumX = bounds._minimumX;
+        if (bounds._minimumY < this._minimumY)
+            this._minimumY = bounds._minimumY;
+        if (bounds._minimumZ < this._minimumZ)
+            this._minimumZ = bounds._minimumZ;
+        if (bounds._maximumX > this._maximumX)
+            this._maximumX = bounds._maximumX;
+        if (bounds._maximumY > this._maximumY)
+            this._maximumY = bounds._maximumY;
+        if (bounds._maximumZ > this._maximumZ)
+            this._maximumZ = bounds._maximumZ;
+    }
+
+    this._updateCenterAndExtent();
+};
+
+HX.BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
+{
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+
+    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY) {
+        this._minimumX = min.x;
+        this._minimumY = min.y;
+        this._minimumZ = min.z;
+        this._maximumX = max.x;
+        this._maximumY = max.y;
+        this._maximumZ = max.z;
+        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    }
+    else {
+        if (min.x < this._minimumX)
+            this._minimumX = min.x;
+        if (min.y < this._minimumY)
+            this._minimumY = min.y;
+        if (min.z < this._minimumZ)
+            this._minimumZ = min.z;
+        if (max.x > this._maximumX)
+            this._maximumX = max.x;
+        if (max.y > this._maximumY)
+            this._maximumY = max.y;
+        if (max.z > this._maximumZ)
+            this._maximumZ = max.z;
+    }
+
+    this._updateCenterAndExtent();
+};
+
+HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
+{
+    if (sourceBound._expanse === HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
+        this.clear(sourceBound._expanse);
+    else {
+        var arr = matrix._m;
+        var m00 = arr[0], m10 = arr[1], m20 = arr[2];
+        var m01 = arr[4], m11 = arr[5], m21 = arr[6];
+        var m02 = arr[8], m12 = arr[9], m22 = arr[10];
+
+        var x = sourceBound._center.x;
+        var y = sourceBound._center.y;
+        var z = sourceBound._center.z;
+
+        this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
+        this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
+        this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
+
+        if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
+        if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
+        if (m02 < 0) m02 = -m02; if (m12 < 0) m12 = -m12; if (m22 < 0) m22 = -m22;
+        x = sourceBound._halfExtentX;
+        y = sourceBound._halfExtentY;
+        z = sourceBound._halfExtentZ;
+
+        this._halfExtentX = m00 * x + m01 * y + m02 * z;
+        this._halfExtentY = m10 * x + m11 * y + m12 * z;
+        this._halfExtentZ = m20 * x + m21 * y + m22 * z;
+
+
+        this._minimumX = this._center.x - this._halfExtentX;
+        this._minimumY = this._center.y - this._halfExtentY;
+        this._minimumZ = this._center.z - this._halfExtentZ;
+        this._maximumX = this._center.x + this._halfExtentX;
+        this._maximumY = this._center.y + this._halfExtentY;
+        this._maximumZ = this._center.z + this._halfExtentZ;
+        this._expanse = sourceBound._expanse;
+    }
+};
+
+
+HX.BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
+{
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
+        return true;
+    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
+        return false;
+
+    var minX = this._minimumX, minY = this._minimumY, minZ = this._minimumZ;
+    var maxX = this._maximumX, maxY = this._maximumY, maxZ = this._maximumZ;
+
+    for (var i = 0; i < numPlanes; ++i) {
+        // find the point that will always have the smallest signed distance
+        var plane = cullPlanes[i];
+        var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
+        var closestX = planeX > 0? minX : maxX;
+        var closestY = planeY > 0? minY : maxY;
+        var closestZ = planeZ > 0? minZ : maxZ;
+
+        // classify the closest point
+        var signedDist = planeX * closestX + planeY * closestY + planeZ * closestZ + planeW;
+        if (signedDist > 0.0)
+            return false;
+    }
+
+    return true;
+};
+
+HX.BoundingAABB.prototype.intersectsBound = function(bound)
+{
+    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
+        return false;
+
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
+        return true;
+
+    // both AABB
+    if (bound._type === this._type) {
+        return 	this._maximumX > bound._minimumX &&
+            this._minimumX < bound._maximumX &&
+            this._maximumY > bound._minimumY &&
+            this._minimumY < bound._maximumY &&
+            this._maximumZ > bound._minimumZ &&
+            this._minimumZ < bound._maximumZ;
+    }
+    else {
+        return HX.BoundingVolume._testAABBToSphere(this, bound);
+    }
+};
+
+HX.BoundingAABB.prototype.classifyAgainstPlane = function(plane)
+{
+    var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = planeW;
+
+    var centerDist = planeX * this._center.x + planeY * this._center.y + planeZ * this._center.z + planeW;
+
+    if (planeX < 0) planeX = -planeX;
+    if (planeY < 0) planeY = -planeY;
+    if (planeZ < 0) planeZ = -planeZ;
+
+    var intersectionDist = planeX * this._halfExtentX + planeY * this._halfExtentY + planeZ * this._halfExtentZ;
+
+    if (centerDist > intersectionDist)
+        return HX.PlaneSide.FRONT;
+    else if (centerDist < -intersectionDist)
+        return HX.PlaneSide.BACK;
+    else
+        return HX.PlaneSide.INTERSECTING;
+};
+
+HX.BoundingAABB.prototype.setExplicit = function(min, max)
+{
+    this._minimumX = min.x;
+    this._minimumY = min.y;
+    this._minimumZ = min.z;
+    this._maximumX = max.x;
+    this._maximumY = max.y;
+    this._maximumZ = max.z;
+    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    this._updateCenterAndExtent();
+};
+
+HX.BoundingAABB.prototype._updateCenterAndExtent = function()
+{
+    var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
+    var maxX = this._maximumX; var maxY = this._maximumY; var maxZ = this._maximumZ;
+    this._center.x = (minX + maxX) * .5;
+    this._center.y = (minY + maxY) * .5;
+    this._center.z = (minZ + maxZ) * .5;
+    this._halfExtentX = (maxX - minX) * .5;
+    this._halfExtentY = (maxY - minY) * .5;
+    this._halfExtentZ = (maxZ - minZ) * .5;
+};
+
+// part of the
+HX.BoundingAABB.prototype.getRadius = function()
+{
+    return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
+};
+
+HX.BoundingAABB.prototype.createDebugModelInstance = function()
+{
+    return new HX.ModelInstance(new HX.BoxPrimitive(), [this.getDebugMaterial()]);
+};
+/**
+ *
+ * @constructor
+ */
+HX.BoundingSphere = function()
+{
+    HX.BoundingVolume.call(this, HX.BoundingSphere);
+};
+
+HX.BoundingSphere.prototype = Object.create(HX.BoundingVolume.prototype);
+
+HX.BoundingSphere.prototype.setExplicit = function(center, radius)
+{
+    this._center.copyFrom(center);
+    this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
+    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    this._updateMinAndMax();
+};
+
+HX.BoundingSphere.prototype.growToIncludeMesh = function(meshData)
+{
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+
+    var attribute = meshData.getVertexAttribute("hx_position");
+    var index = attribute.offset;
+    var stride = meshData.getVertexStride(attribute.streamIndex);
+    var vertices = attribute.getVertexData(attribute.streamIndex);
+    var len = vertices.length;
+    var minX, minY, minZ;
+    var maxX, maxY, maxZ;
+
+    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
+        maxX = minX = vertices[index];
+        maxY = minY = vertices[index + 1];
+        maxZ = minZ = vertices[index + 2];
+        index += stride;
+    }
+    else {
+        minX = this._minimumX; minY = this._minimumY; minZ = this._minimumZ;
+        maxX = this._maximumX; maxY = this._maximumY; maxZ = this._maximumZ;
+    }
+
+    for (; index < len; index += stride) {
+        var x = vertices[index];
+        var y = vertices[index + 1];
+        var z = vertices[index + 2];
+
+        if (x > maxX) maxX = x;
+        else if (x < minX) minX = x;
+        if (y > maxY) maxY = y;
+        else if (y < minY) minY = y;
+        if (z > maxZ) maxZ = z;
+        else if (z < minZ) minZ = z;
+    }
+    var centerX = (maxX + minX) * .5;
+    var centerY = (maxY + minY) * .5;
+    var centerZ = (maxZ + minZ) * .5;
+    var maxSqrRadius = 0.0;
+
+    index = attribute.offset;
+    for (; index < len; index += stride) {
+        var dx = centerX - vertices[index];
+        var dy = centerY - vertices[index + 1];
+        var dz = centerZ - vertices[index + 2];
+        var sqrRadius = dx*dx + dy*dy + dz*dz;
+        if (sqrRadius > maxSqrRadius) maxSqrRadius = sqrRadius;
+    }
+
+    this._center.x = centerX;
+    this._center.y = centerY;
+    this._center.z = centerZ;
+
+    var radius = Math.sqrt(maxSqrRadius);
+    this._halfExtentX = radius;
+    this._halfExtentY = radius;
+    this._halfExtentZ = radius;
+
+    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+
+    this._updateMinAndMax();
+};
+
+HX.BoundingSphere.prototype.growToIncludeBound = function(bounds)
+{
+    if (bounds._expanse === HX.BoundingVolume.EXPANSE_EMPTY || this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+
+    if (bounds._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
+        this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
+
+    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
+        this._center.x = bounds._center.x;
+        this._center.y = bounds._center.y;
+        this._center.z = bounds._center.z;
+        if (bounds._type == this._type) {
+            this._halfExtentX = bounds._halfExtentX;
+            this._halfExtentY = bounds._halfExtentY;
+            this._halfExtentZ = bounds._halfExtentZ;
+        }
+        else {
+            this._halfExtentX = this._halfExtentY = this._halfExtentZ = bounds.getRadius();
+        }
+        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    }
+
+    else {
+        var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
+        var maxX = this._maximumX; var maxY = this._maximumY; var maxZ = this._maximumZ;
+
+        if (bounds._maximumX > maxX)
+            maxX = bounds._maximumX;
+        if (bounds._maximumY > maxY)
+            maxY = bounds._maximumY;
+        if (bounds._maximumZ > maxZ)
+            maxZ = bounds._maximumZ;
+        if (bounds._minimumX < minX)
+            minX = bounds._minimumX;
+        if (bounds._minimumY < minY)
+            minY = bounds._minimumY;
+        if (bounds._minimumZ < minZ)
+            minZ = bounds._minimumZ;
+
+        this._center.x = (minX + maxX) * .5;
+        this._center.y = (minY + maxY) * .5;
+        this._center.z = (minZ + maxZ) * .5;
+
+        var dx = maxX - this._center.x;
+        var dy = maxY - this._center.y;
+        var dz = maxZ - this._center.z;
+        var radius = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
+    }
+
+    this._updateMinAndMax();
+};
+
+HX.BoundingSphere.prototype.growToIncludeMinMax = function(min, max)
+{
+    // temp solution, not run-time perf critical
+    var aabb = new HX.BoundingAABB();
+    aabb.growToIncludeMinMax(min, max);
+    this.growToIncludeBound(aabb);
+};
+
+HX.BoundingSphere.prototype.getRadius = function()
+{
+    return this._halfExtentX;
+};
+
+HX.BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
+{
+    if (sourceBound._expanse == HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+        this.clear(sourceBound._expanse);
+    else {
+        var arr = matrix._m;
+        var m00 = arr[0], m10 = arr[1], m20 = arr[2];
+        var m01 = arr[4], m11 = arr[5], m21 = arr[6];
+        var m02 = arr[8], m12 = arr[9], m22 = arr[10];
+
+        var x = sourceBound._center.x;
+        var y = sourceBound._center.y;
+        var z = sourceBound._center.z;
+
+        this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
+        this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
+        this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
+
+
+        if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
+        if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
+        if (m02 < 0) m02 = -m02; if (m12 < 0) m12 = -m12; if (m22 < 0) m22 = -m22;
+        x = sourceBound._halfExtentX;
+        y = sourceBound._halfExtentY;
+        z = sourceBound._halfExtentZ;
+
+        var hx = m00 * x + m01 * y + m02 * z;
+        var hy = m10 * x + m11 * y + m12 * z;
+        var hz = m20 * x + m21 * y + m22 * z;
+
+        var radius = Math.sqrt(hx * hx + hy * hy + hz * hz);
+        this._halfExtentX = this._halfExtentY = this._halfExtentZ = radius;
+
+        this._minimumX = this._center.x - this._halfExtentX;
+        this._minimumY = this._center.y - this._halfExtentY;
+        this._minimumZ = this._center.z - this._halfExtentZ;
+        this._maximumX = this._center.x + this._halfExtentX;
+        this._maximumY = this._center.y + this._halfExtentY;
+        this._maximumZ = this._center.z + this._halfExtentZ;
+
+        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    }
+};
+
+HX.BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
+{
+    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
+        return true;
+    else if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+        return false;
+
+    var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
+    var radius = this._halfExtentX;
+
+    for (var i = 0; i < numPlanes; ++i) {
+        var plane = cullPlanes[i];
+        var signedDist = plane.x * centerX + plane.y * centerY + plane.z * centerZ + plane.w;
+
+        if (signedDist > radius)
+            return false;
+    }
+
+    return true;
+};
+
+HX.BoundingSphere.prototype.intersectsBound = function(bound)
+{
+    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+        return false;
+
+    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
+        return true;
+
+    // both Spheres
+    if (bound._type === this._type) {
+        var dx = this._center.x - bound._center.x;
+        var dy = this._center.y - bound._center.y;
+        var dz = this._center.z - bound._center.z;
+        var touchDistance = this._halfExtentX + bound._halfExtentX;
+        return dx*dx + dy*dy + dz*dz < touchDistance*touchDistance;
+    }
+    else
+        return HX.BoundingVolume._testAABBToSphere(bound, this);
+};
+
+HX.BoundingSphere.prototype.classifyAgainstPlane = function(plane)
+{
+    var dist = plane.x * this._center.x + plane.y * this._center.y + plane.z * this._center.z + plane.w;
+    var radius = this._halfExtentX;
+    if (dist > radius) return HX.PlaneSide.FRONT;
+    else if (dist < -radius) return HX.PlaneSide.BACK;
+    else return HX.PlaneSide.INTERSECTING;
+};
+
+HX.BoundingSphere.prototype._updateMinAndMax = function()
+{
+    var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
+    var radius = this._halfExtentX;
+    this._minimumX = centerX - radius;
+    this._minimumY = centerY - radius;
+    this._minimumZ = centerZ - radius;
+    this._maximumX = centerX + radius;
+    this._maximumY = centerY + radius;
+    this._maximumZ = centerZ + radius;
+};
+
+HX.BoundingSphere.prototype.createDebugModelInstance = function()
+{
+    return new HX.ModelInstance(new HX.SpherePrimitive({doubleSided:true}), [this.getDebugMaterial()]);
+};
+/**
+ *
+ * @constructor
+ */
+HX.Frustum = function()
+{
+    this._planes = new Array(6);
+    this._corners = new Array(8);
+
+    for (var i = 0; i < 6; ++i)
+        this._planes[i] = new HX.Float4();
+
+    for (var i = 0; i < 8; ++i)
+        this._corners[i] = new HX.Float4();
+
+    this._r1 = new HX.Float4();
+    this._r2 = new HX.Float4();
+    this._r3 = new HX.Float4();
+    this._r4 = new HX.Float4();
+};
+
+HX.Frustum.PLANE_LEFT = 0;
+HX.Frustum.PLANE_RIGHT = 1;
+HX.Frustum.PLANE_BOTTOM = 2;
+HX.Frustum.PLANE_TOP = 3;
+HX.Frustum.PLANE_NEAR = 4;
+HX.Frustum.PLANE_FAR = 5;
+
+HX.Frustum.CLIP_SPACE_CORNERS = [	new HX.Float4(-1.0, -1.0, -1.0, 1.0),
+                                    new HX.Float4(1.0, -1.0, -1.0, 1.0),
+                                    new HX.Float4(1.0, 1.0, -1.0, 1.0),
+                                    new HX.Float4(-1.0, 1.0, -1.0, 1.0),
+                                    new HX.Float4(-1.0, -1.0, 1.0, 1.0),
+                                    new HX.Float4(1.0, -1.0, 1.0, 1.0),
+                                    new HX.Float4(1.0, 1.0, 1.0, 1.0),
+                                    new HX.Float4(-1.0, 1.0, 1.0, 1.0)
+                                ];
+
+HX.Frustum.prototype =
+{
+    /**
+     * An Array of planes describing frustum. The planes are in world space and point outwards.
+     */
+    get planes() { return this._planes; },
+
+    /**
+     * An array containing the 8 vertices of the frustum, in world space.
+     */
+    get corners() { return this._corners; },
+
+    update: function(projection, inverseProjection)
+    {
+        this._updatePlanes(projection);
+        this._updateCorners(inverseProjection);
+    },
+
+    _updatePlanes: function(projection)
+    {
+        // todo: this can all be inlined, but not the highest priority (only once per frame)
+        var r1 = projection.getRow(0, this._r1);
+        var r2 = projection.getRow(1, this._r2);
+        var r3 = projection.getRow(2, this._r3);
+        var r4 = projection.getRow(3, this._r4);
+
+        HX.Float4.add(r4, r1, this._planes[HX.Frustum.PLANE_LEFT]);
+        HX.Float4.subtract(r4, r1, this._planes[HX.Frustum.PLANE_RIGHT]);
+        HX.Float4.add(r4, r2, this._planes[HX.Frustum.PLANE_BOTTOM]);
+        HX.Float4.subtract(r4, r2, this._planes[HX.Frustum.PLANE_TOP]);
+        HX.Float4.add(r4, r3, this._planes[HX.Frustum.PLANE_NEAR]);
+        HX.Float4.subtract(r4, r3, this._planes[HX.Frustum.PLANE_FAR]);
+
+        for (var i = 0; i < 6; ++i) {
+            this._planes[i].negate();
+            this._planes[i].normalizeAsPlane();
+        }
+    },
+
+    _updateCorners: function(inverseProjection)
+    {
+        for (var i = 0; i < 8; ++i) {
+            var corner = this._corners[i];
+            inverseProjection.transform(HX.Frustum.CLIP_SPACE_CORNERS[i], corner);
+            corner.scale(1.0 / corner.w);
+        }
+    }
+};
+
+/**
+ *
+ * @constructor
+ */
+HX.Camera = function()
+{
+    HX.Entity.call(this);
+
+    this._renderTargetWidth = 0;
+    this._renderTargetHeight = 0;
+    this._viewProjectionMatrixInvalid = true;
+    this._viewProjectionMatrix = new HX.Matrix4x4();
+    this._inverseProjectionMatrix = new HX.Matrix4x4();
+    this._inverseViewProjectionMatrix = new HX.Matrix4x4();
+    this._projectionMatrix = new HX.Matrix4x4();
+    this._viewMatrix = new HX.Matrix4x4();
+    this._projectionMatrixDirty = true;
+    this._nearDistance = .1;
+    this._farDistance = 1000;
+    this._frustum = new HX.Frustum();
+
+    this.position.set(0.0, 0.0, 1.0);
+};
+
+HX.Camera.prototype = Object.create(HX.Entity.prototype);
+
+Object.defineProperties(HX.Camera.prototype, {
+    nearDistance: {
+        get: function() {
+            return this._nearDistance;
+        },
+
+        set: function(value) {
+            this._nearDistance = value;
+            this._invalidateProjectionMatrix();
+        }
+    },
+    farDistance: {
+        get: function() {
+            return this._farDistance;
+        },
+
+        set: function(value) {
+            this._farDistance = value;
+            this._invalidateProjectionMatrix();
+        }
+    },
+
+    viewProjectionMatrix: {
+        get: function() {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._viewProjectionMatrix;
+        }
+    },
+
+    viewMatrix: {
+        get: function()
+        {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._viewMatrix;
+        }
+    },
+
+    projectionMatrix: {
+        get: function()
+        {
+            if (this._projectionMatrixDirty)
+                this._updateProjectionMatrix();
+
+            return this._projectionMatrix;
+        }
+    },
+
+    inverseViewProjectionMatrix: {
+        get: function()
+        {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._inverseViewProjectionMatrix;
+        }
+    },
+
+    inverseProjectionMatrix: {
+        get: function()
+        {
+            if (this._projectionMatrixDirty)
+                this._updateProjectionMatrix();
+
+            return this._inverseProjectionMatrix;
+        }
+    },
+
+    frustum: {
+        get: function()
+        {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._frustum;
+        }
+    }
+});
+
+HX.Camera.prototype.acceptVisitor = function(visitor)
+{
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+};
+
+HX.Camera.prototype._setRenderTargetResolution = function(width, height)
+{
+    this._renderTargetWidth = width;
+    this._renderTargetHeight = height;
+};
+
+HX.Camera.prototype._invalidateViewProjectionMatrix = function()
+{
+    this._viewProjectionMatrixInvalid = true;
+};
+
+HX.Camera.prototype._invalidateWorldMatrix = function()
+{
+    HX.Entity.prototype._invalidateWorldMatrix.call(this);
+    this._invalidateViewProjectionMatrix();
+};
+
+HX.Camera.prototype._updateViewProjectionMatrix = function()
+{
+    this._viewMatrix.inverseAffineOf(this.worldMatrix);
+    this._viewProjectionMatrix.multiply(this.projectionMatrix, this._viewMatrix);
+    this._inverseProjectionMatrix.inverseOf(this._projectionMatrix);
+    this._inverseViewProjectionMatrix.inverseOf(this._viewProjectionMatrix);
+    this._frustum.update(this._viewProjectionMatrix, this._inverseViewProjectionMatrix);
+    this._viewProjectionMatrixInvalid = false;
+};
+
+HX.Camera.prototype._invalidateProjectionMatrix = function()
+{
+    this._projectionMatrixDirty = true;
+    this._invalidateViewProjectionMatrix();
+};
+
+HX.Camera.prototype._updateProjectionMatrix = function()
+{
+    throw new Error("Abstract method!");
+};
+
+HX.Camera.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+};
+
+HX.Camera.prototype.toString = function()
+{
+    return "[Camera(name=" + this._name + ")]";
+};
+
+/**
+ * @constructor
+ */
+HX.PerspectiveCamera = function ()
+{
+    HX.Camera.call(this);
+
+    this._vFOV = 1.047198;  // radians!
+    this._aspectRatio = 0;
+};
+
+
+HX.PerspectiveCamera.prototype = Object.create(HX.Camera.prototype);
+
+Object.defineProperties(HX.PerspectiveCamera.prototype, {
+    verticalFOV: {
+        get: function()
+        {
+            return this._vFOV;
+        },
+        set: function(value)
+        {
+            this._vFOV = value;
+            this._invalidateProjectionMatrix();
+        }
+    }
+});
+
+HX.PerspectiveCamera.prototype._setAspectRatio = function(value)
+{
+    if (this._aspectRatio == value) return;
+
+    this._aspectRatio = value;
+    this._invalidateProjectionMatrix();
+};
+
+HX.PerspectiveCamera.prototype._setRenderTargetResolution = function(width, height)
+{
+    HX.Camera.prototype._setRenderTargetResolution.call(this, width, height);
+    this._setAspectRatio(width / height);
+};
+
+HX.PerspectiveCamera.prototype._updateProjectionMatrix = function()
+{
+    this._projectionMatrix.fromPerspectiveProjection(this._vFOV, this._aspectRatio, this._nearDistance, this._farDistance);
+    this._projectionMatrixDirty = false;
+};
+
+/**
+ * @constructor
+ */
+HX.OrthographicOffCenterCamera = function ()
+{
+    HX.Camera.call(this);
+    this._left = -1;
+    this._right = 1;
+    this._top = 1;
+    this._bottom = -1;
+};
+
+HX.OrthographicOffCenterCamera.prototype = Object.create(HX.Camera.prototype);
+
+HX.OrthographicOffCenterCamera.prototype.setBounds = function(left, right, top, bottom)
+{
+    this._left = left;
+    this._right = right;
+    this._top = top;
+    this._bottom = bottom;
+    this._invalidateProjectionMatrix();
+};
+
+HX.OrthographicOffCenterCamera.prototype._updateProjectionMatrix = function()
+{
+    this._projectionMatrix.fromOrthographicOffCenterProjection(this._left, this._right, this._top, this._bottom, this._nearDistance, this._farDistance);
+    this._projectionMatrixDirty = false;
+};
+/**
+ *
+ * @constructor
+ */
+HX.GroupNode = function()
+{
+    HX.SceneNode.call(this);
+
+    // child entities (scene nodes)
+    this._children = [];
+};
+
+HX.GroupNode.prototype = Object.create(HX.SceneNode.prototype,
+    {
+        numChildren: {
+            get: function() { return this._children.length; }
+        }
+    });
+
+
+HX.GroupNode.prototype.findNodeByName = function(name)
+{
+    var node = HX.SceneNode.prototype.findNodeByName.call(this, name);
+    if (node) return node;
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        node = this._children[i].findNodeByName(name);
+        if (node) return node;
+    }
+};
+
+HX.GroupNode.prototype.attach = function(child)
+{
+    if (child._parent)
+        throw new Error("Child is already parented!");
+
+    child._parent = this;
+    child._setScene(this._scene);
+
+    this._children.push(child);
+    this._invalidateWorldBounds();
+};
+
+HX.GroupNode.prototype.detach = function(child)
+{
+    var index = this._children.indexOf(child);
+
+    if (index < 0)
+        throw new Error("Trying to remove a scene object that is not a child");
+
+    child._parent = null;
+
+    this._children.splice(index, 1);
+    this._invalidateWorldBounds();
+};
+
+HX.GroupNode.prototype.getChild = function(index) { return this._children[index]; };
+
+HX.GroupNode.prototype.acceptVisitor = function(visitor)
+{
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        var child = this._children[i];
+
+        if (visitor.qualifies(child))
+            child.acceptVisitor(visitor);
+    }
+};
+
+HX.GroupNode.prototype._invalidateWorldMatrix = function()
+{
+    HX.SceneNode.prototype._invalidateWorldMatrix.call(this);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i]._invalidateWorldMatrix();
+};
+
+HX.GroupNode.prototype._updateWorldBounds = function()
+{
+    var len = this._children.length;
+
+    for (var i = 0; i < len; ++i) {
+        this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
+    }
+
+    HX.SceneNode.prototype._updateWorldBounds.call(this);
+};
+
+HX.GroupNode.prototype._setScene = function(scene)
+{
+    HX.SceneNode.prototype._setScene.call(this, scene);
+
+    var len = this._children.length;
+
+    for (var i = 0; i < len; ++i)
+        this._children[i]._setScene(scene);
+};
+
+HX.GroupNode.prototype.applyFunction = function(func)
+{
+    func(this);
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i].applyFunction(func);
+};
+HX.MaterialQueryVisitor = function(materialName)
+{
+    HX.SceneVisitor.call(this);
+    this._materialName = materialName;
+};
+
+HX.MaterialQueryVisitor.prototype = Object.create(HX.SceneVisitor.prototype,
+    {
+        foundMaterial: {
+            get: function()
+            {
+                return this._foundMaterial;
+            }
+        }
+    });
+
+HX.MaterialQueryVisitor.prototype.qualifies = function(object)
+{
+    // if a material was found, ignore
+    return !this._foundMaterial;
+};
+
+HX.MaterialQueryVisitor.prototype.visitModelInstance = function (modelInstance, worldMatrix)
+{
+    var materials = modelInstance._materials;
+    var len = materials.length;
+    for (var i = 0; i < len; ++i) {
+        var material = materials[i];
+        if (material.name === this._materialName)
+            this._foundMaterial = material;
+    }
+};
+/**
+ * Creates a new Scene object
+ * @param rootNode (optional) A rootnode to be used, allowing different partition types to be used as the root.
+ * @constructor
+ */
+HX.Scene = function(rootNode)
+{
+    // the default partition is a BVH node
+    //  -> or this may need to become an infinite bound node?
+    this._rootNode = rootNode || new HX.GroupNode();
+    this._rootNode._setScene(this);
+    this._skybox = null;
+    this._entityEngine = new HX.EntityEngine();
+};
+
+HX.Scene.prototype = {
+    constructor: HX.Scene,
+
+    get skybox() { return this._skybox; },
+    set skybox(value) { this._skybox = value; },
+
+    // TODO: support regex for partial matches
+    findNodeByName: function(name)
+    {
+        return this._rootNode.findNodeByName(name);
+    },
+
+    // TODO: support regex for partial matches
+    findMaterialByName: function(name)
+    {
+        return this._rootNode.findMaterialByName(name);
+    },
+
+    attach: function(child)
+    {
+        this._rootNode.attach(child);
+    },
+
+    detach: function(child)
+    {
+        this._rootNode.detach(child);
+    },
+
+    get numChildren()
+    {
+        return this._rootNode.numChildren;
+    },
+
+    getChild: function(index)
+    {
+        return this._rootNode.getChild(index);
+    },
+
+    contains: function(child)
+    {
+        this._rootNode.contains(child);
+    },
+
+    acceptVisitor: function(visitor)
+    {
+        visitor.visitScene(this);
+        // assume root node will always qualify
+        this._rootNode.acceptVisitor(visitor);
+    },
+
+    get entityEngine()
+    {
+        return this._entityEngine;
+    },
+
+    get worldBounds()
+    {
+        return this._rootNode.worldBounds;
+    }
+};
+/**
+ * Skybox provides a backdrop "at infinity" for the scene.
+ * @param materialOrTexture Either a texture or a material used to render the skybox. If a texture is passed,
+ * HX.SkyboxMaterial is used as material.
+ * @constructor
+ */
+HX.Skybox = function(materialOrTexture)
+{
+    if (!(materialOrTexture instanceof HX.Material))
+        materialOrTexture = new HX.SkyboxMaterial(materialOrTexture);
+
+    //var model = new HX.PlanePrimitive({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2});
+    var model = new HX.BoxPrimitive({width: 1, invert: true});
+    model.localBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+    this._modelInstance = new HX.ModelInstance(model, materialOrTexture);
+};
+
+HX.Skybox.prototype = {};
+// TODO: there no way to figure out correct mip level for texture
+// TODO: Should we provide a snap size in the vertex data?
+HX.Terrain = function(terrainSize, minElevation, maxElevation, numLevels, material, detail)
+{
+    HX.GroupNode.call(this);
+
+    this._terrainSize = terrainSize || 512;
+    this._minElevation = minElevation;
+    this._maxElevation = maxElevation;
+    this._numLevels = numLevels || 4;
+    detail = detail || 32;
+    var gridSize = Math.ceil(detail * .5) * 2.0; // round off to 2
+
+    // cannot bitshift because we need floating point result
+    this._snapSize = (this._terrainSize / detail) / Math.pow(2, this._numLevels);
+
+    this._material = material;
+    material.setUniform("hx_elevationOffset", minElevation);
+    material.setUniform("hx_elevationScale", maxElevation - minElevation);
+
+    this._initModels(gridSize);
+    this._initTree();
+};
+
+// TODO: Allow setting material
+HX.Terrain.prototype = Object.create(HX.GroupNode.prototype, {
+    terrainSize: {
+        get: function() {
+            return this._terrainSize;
+        }
+    }
+});
+
+/**
+ *
+ * @param size
+ * @param numSegments
+ * @param subDiv Subdivide an edge
+ * @returns {HX.Model}
+ * @private
+ */
+HX.Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
+{
+    var rcpNumSegments = 1.0 / numSegments;
+    var meshData = new HX.MeshData();
+    var cellSize = size * rcpNumSegments;
+    var halfCellSize = cellSize * .5;
+
+    meshData.addVertexAttribute("hx_position", 3);
+    meshData.addVertexAttribute("hx_normal", 3);
+    meshData.addVertexAttribute("hx_cellSize", 1);
+
+    var vertices = [];
+    var indices = [];
+
+    var numZ = subDiv? numSegments - 1: numSegments;
+
+    var w = numSegments + 1;
+
+    for (var zi = 0; zi <= numZ; ++zi) {
+        var z = (zi*rcpNumSegments - .5) * size;
+
+        for (var xi = 0; xi <= numSegments; ++xi) {
+            var x = (xi*rcpNumSegments - .5) * size;
+
+            // the one corner that attaches to higher resolution neighbours needs to snap like them
+            var s = !lastLevel && xi === numSegments && zi === numSegments? halfCellSize : cellSize;
+            vertices.push(x, 0, z, 0, 1, 0, s);
+
+            if (xi !== numSegments && zi !== numZ) {
+                var base = xi + zi * w;
+
+                indices.push(base, base + w, base + w + 1);
+                indices.push(base, base + w + 1, base + 1);
+            }
+        }
+    }
+
+    var highIndexX = vertices.length / 7;
+
+    if (subDiv) {
+        var z = (numSegments * rcpNumSegments - .5) * size;
+        for (var xi = 0; xi <= numSegments; ++xi) {
+            var x = (xi*rcpNumSegments - .5) * size;
+            vertices.push(x, 0, z, 0, 1, 0);
+            vertices.push(halfCellSize);
+
+            if (xi !== numSegments) {
+                var base = xi + numZ * w;
+                vertices.push(x + halfCellSize, 0, z, 0, 1, 0, halfCellSize);
+                indices.push(base, highIndexX + xi * 2, highIndexX + xi * 2 + 1);
+                indices.push(base, highIndexX + xi * 2 + 1, base + 1);
+                indices.push(highIndexX + xi * 2 + 1, highIndexX + xi * 2 + 2, base + 1);
+            }
+        }
+    }
+
+    meshData.setVertexData(vertices, 0);
+    meshData.setIndexData(indices);
+
+    var modelData = new HX.ModelData();
+    modelData.addMeshData(meshData);
+    var model = new HX.Model(modelData);
+    model.localBounds.growToIncludeMinMax(new HX.Float4(0, this._minElevation, 0), new HX.Float4(0, this._maxElevation, 0));
+    return model;
+};
+
+HX.Terrain.prototype._initModels = function(gridSize)
+{
+    this._models = [];
+    var modelSize = this._terrainSize * .25;
+
+    for (var level = 0; level < this._numLevels; ++level) {
+        if (level === this._numLevels - 1) {
+            // do not subdivide max detail
+            var model = this._createModel(modelSize, gridSize, false, true);
+            this._models[level] = {
+                edge: model,
+                corner: model
+            };
+        }
+        else {
+            this._models[level] = {
+                edge: this._createModel(modelSize, gridSize, true, false),
+                corner: this._createModel(modelSize, gridSize, false, false)
+            };
+        }
+
+        modelSize *= .5;
+
+    }
+};
+
+HX.Terrain.prototype._initTree = function()
+{
+    var level = 0;
+    var size = this._terrainSize * .25;
+    for (var yi = 0; yi < 4; ++yi) {
+        var y = this._terrainSize * (yi / 4 - .5) + size * .5;
+        for (var xi = 0; xi < 4; ++xi) {
+            var x = this._terrainSize * (xi / 4 - .5) + size * .5;
+            var subX = 0, subY = 0;
+
+            if (xi === 1)
+                subX = 1;
+            else if (xi === 2)
+                subX = -1;
+
+            if (yi === 1)
+                subY = 1;
+            else if (yi === 2)
+                subY = -1;
+
+            if (subX && subY) {
+                this._subDivide(x, y, subX, subY, level + 1, size * .5);
+            }
+            else {
+                var rotation = 0;
+                var mode = "edge";
+                var add = true;
+                // if both are 0, we have a corner
+                if (xi % 3 === yi % 3) {
+                    mode = "corner";
+                    if (xi === 0 && yi === 0) rotation = 0;
+                    if (xi === 0 && yi === 3) rotation = 1;
+                    if (xi === 3 && yi === 3) rotation = 2;
+                    if (xi === 3 && yi === 0) rotation = -1;
+                }
+                else {
+                    if (yi === 3) rotation = 2;
+                    if (xi === 3) rotation = -1;
+                    if (xi === 0) rotation = 1;
+                }
+                if (add)
+                    this._addModel(x, y, level, rotation, mode);
+            }
+        }
+    }
+};
+
+HX.Terrain.prototype._addModel = function(x, y, level, rotation, mode)
+{
+    var modelInstance = new HX.ModelInstance(this._models[level][mode], this._material);
+    modelInstance.position.set(x, 0, y);
+    modelInstance.rotation.fromAxisAngle(HX.Float4.Y_AXIS, rotation * Math.PI * .5);
+    this.attach(modelInstance);
+};
+
+HX.Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
+{
+    size *= .5;
+
+    for (var yi = -1; yi <= 1; yi += 2) {
+        for (var xi = -1; xi <= 1; xi += 2) {
+            if((xi !== subX || yi !== subY) || level === this._numLevels - 1) {
+                var rotation = 0;
+                var mode = "corner";
+                // messy, I know
+                if (x < 0 && y < 0) {
+                    if (xi < 0 && yi > 0) {
+                        mode = "edge";
+                        rotation = 1;
+                    }
+                    else if (xi > 0 && yi < 0) {
+                        mode = "edge";
+                        rotation = 0;
+                    }
+                    else
+                        rotation = 0;
+                }
+                else if (x > 0 && y > 0) {
+                    if (xi > 0 && yi < 0) {
+                        mode = "edge";
+                        rotation = -1;
+                    }
+                    else if (xi < 0 && yi > 0) {
+                        mode = "edge";
+                        rotation = 2;
+                    }
+                    else
+                        rotation = 2;
+                }
+                else if (x < 0 && y > 0) {
+                    if (xi > 0 && yi > 0) {
+                        mode = "edge";
+                        rotation = 2;
+                    }
+                    else if (xi < 0 && yi < 0) {
+                        mode = "edge";
+                        rotation = 1;
+                    }
+                    else
+                        rotation = 1;
+                }
+                else if (x > 0 && y < 0) {
+                    if (xi < 0 && yi < 0) {
+                        mode = "edge";
+                        rotation = 0;
+                    }
+                    else if (xi > 0 && yi > 0) {
+                        mode = "edge";
+                        rotation = -1;
+                    }
+                    else
+                        rotation = -1;
+                }
+
+                this._addModel(x + size * xi, y + size * yi, level, rotation, mode);
+            }
+        }
+    }
+
+    if (level < this._numLevels - 1)
+        this._subDivide(x + size * subX, y + size * subY, subX, subY, level + 1, size);
+};
+
+HX.Terrain.prototype.acceptVisitor = function(visitor)
+{
+    // typechecking isn't nice, but it does what we want
+    if (visitor instanceof HX.RenderCollector) {
+        var pos = visitor._camera.position;
+        this.position.x = Math.floor(pos.x / this._snapSize) * this._snapSize;
+        this.position.z = Math.floor(pos.z / this._snapSize) * this._snapSize;
+    }
+
+    HX.GroupNode.prototype.acceptVisitor.call(this, visitor);
+};
+
+HX.Terrain.prototype._updateWorldBounds = function ()
+{
+    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+};
+/**
  * @constructor
  */
 HX.BoxPrimitive = HX.Primitive.define();
@@ -18461,4 +18461,4 @@ HX.TorusPrimitive._generate = function(target, definition)
             }
         }
     }
-};HX.BUILD_HASH = 0xad3c;
+};HX.BUILD_HASH = 0x65e;

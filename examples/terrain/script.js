@@ -4,8 +4,8 @@ var waterMaterial;
 var time = 0;
 
 // 1 = 10m
-var worldSize = 2500;
-var waterLevel = -5;
+var worldSize = 5000;
+var waterLevel = -15;
 var fog;
 
 project.onInit = function()
@@ -14,9 +14,9 @@ project.onInit = function()
     initScene(this.scene);
 
     /*var ssao = new HX.HBAO();
-    ssao.radius = 100.0;
+    ssao.radius = 50.0;
     ssao.strength = 3.14;
-    ssao.fallOffDistance = 500.0;
+    ssao.fallOffDistance = 100.0;
     ssao.bias = 0.1;
     this.renderer.ambientOcclusion = ssao;*/
 
@@ -50,11 +50,11 @@ function initCamera(camera)
 
     var controller = new FloatController();
     controller.speed = 1.7;
-    controller.shiftMultiplier = 70.0;
+    controller.shiftMultiplier = 100.0;
     controller.yaw = Math.PI;
     camera.addComponent(controller);
 
-    fog = new HX.Fog(0.0015, new HX.Color(0x4988ff), 0.005);
+    fog = new HX.Fog(0.0005, new HX.Color(0x3977ff), 0.0005);
     camera.addComponent(fog);
 
     var tonemap = new HX.FilmicToneMapEffect();
@@ -67,9 +67,10 @@ function initScene(scene)
     var sun = new HX.DirectionalLight();
     sun.direction = new HX.Float4(-0.3, -.3, 1.0, 0.0);
     // sun.depthBias = 10.0;
-    sun.intensity = 5;
+    sun.intensity = 3;
     sun.castShadows = true;
-    sun.numCascades = 4;
+    sun.numCascades = 3;
+    // sun.shadowMapSize = 1024;
     // sun.setCascadeRatios(.01,.07,.15, .3);
     scene.attach(sun);
 
@@ -107,7 +108,7 @@ function initScene(scene)
     waterMaterial = materialLoader.load("material/waterMaterial.hmt");
     waterMaterial.lights = [ sun, lightProbe ];
 
-    var terrain = new HX.Terrain(4000, -100, 200, 4, terrainMaterial, 32);
+    var terrain = new HX.Terrain(4000, -100, 200, 5, terrainMaterial, 64);
 
     var water = new HX.Terrain(4000, 0, 1, 3, waterMaterial, 16);
     water.position.y = waterLevel;

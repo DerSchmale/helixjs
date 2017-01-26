@@ -7,9 +7,13 @@
     },
 
     "uniforms": {
-        "grassScale": 300.0,
+        "grassScale": 100.0,
         "rockScale": 300.0,
-        "detailScale": 2918.0
+        "sandScale": 1000.0,
+        "detailScale": 2918.0,
+        "terrainNormalsScale": 7.0,
+        "terrainNormalsDistance": 50.0,
+        "terrainNormalsFade": 300.0
     },
 
     "textures": {
@@ -19,6 +23,7 @@
         "rockTexture": "../textures/Rock_02_UV_H_CM_1.jpg",
         "rockNormals": "../textures/rockLargeNormals.png",
         "detailTexture": "../textures/detail.jpg",
-        "grassDetailNormals": "../textures/grassDetailNormals.png"
+        "grassDetailNormals": "../textures/grassDetailNormals.png",
+        "terrainNormals": "../textures/terrain-normals.png"
     }
 }

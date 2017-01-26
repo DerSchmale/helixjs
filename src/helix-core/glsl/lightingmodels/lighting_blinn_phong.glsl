@@ -1,8 +1,10 @@
-// this is Schlick-Beckmann attenuation for only the view vector
 float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)
 {
-//    float nDotV = max(dot(normal, reflection), 0.0);
-//    float att = nDotV / (nDotV * (1.0 - roughness) + roughness);
+    // schlick-smith
+    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));
+    float nDotV = max(dot(normal, reflection), 0.0);
+    float denom = nDotV * (1.0 - k) + k;
+    return nDotV * nDotV / (denom * denom);   // since l == v*/
     float att = 1.0 - roughness;
     return mix(att * att, 1.0, metallicness);
 }

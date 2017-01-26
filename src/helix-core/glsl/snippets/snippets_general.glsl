@@ -164,6 +164,18 @@ vec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)
     return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;
 }
 
+// https://seblagarde.wordpress.com/2011/08/17/hello-world/
+vec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)
+{
+    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);
+    // to the 5th power
+    float power = pow(cosAngle, 5.0);
+    float gloss = (1.0 - roughness) * (1.0 - roughness);
+    vec3 bound = max(vec3(gloss), normalSpecularReflectance);
+    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;
+}
+
+
 float hx_luminance(vec4 color)
 {
     return dot(color.xyz, vec3(.30, 0.59, .11));

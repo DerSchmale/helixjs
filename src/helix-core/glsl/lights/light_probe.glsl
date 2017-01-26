@@ -15,7 +15,7 @@ vec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)
 	return hx_gammaToLinear(textureCube(texture, normal).xyz);
 }
 
-vec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float geometricFactor, float roughness)
+vec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)
 {
     #ifdef HX_TEXTURE_LOD
     // knald method:
@@ -27,5 +27,5 @@ vec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 ref
     #else
         vec4 specProbeSample = textureCube(texture, reflectedViewDir);
     #endif
-	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor * geometricFactor;
+	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;
 }

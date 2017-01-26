@@ -1,12 +1,3 @@
-float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)
-{
-    /*float nDotV = max(dot(normal, reflection), 0.0);
-    float att = nDotV / (nDotV * (1.0 - roughness) + roughness);*/
-    // TODO: Get a better approximation
-    float att = 1.0 - roughness;
-    return mix(att, 1.0, metallicness);
-}
-
 // schlick-beckman
 float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
 {

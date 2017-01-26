@@ -9,27 +9,33 @@ uniform sampler2D rockTexture;
 uniform sampler2D detailTexture;
 uniform sampler2D rockNormals;
 uniform sampler2D grassDetailNormals;
+uniform sampler2D terrainNormals;
 
 uniform float hx_elevationScale;
 uniform mat4 hx_viewMatrix;
 
-
+varying vec3 viewPosition;
 varying vec2 uv;
 
+uniform float terrainNormalsDistance;
+uniform float terrainNormalsFade;
+
+uniform float terrainNormalsScale;
 uniform float detailScale;
 uniform float grassScale;
+uniform float sandScale;
 uniform float rockScale;
 uniform float heightMapSize;
 uniform float worldSize;
 
 vec3 getSandColor()
 {
-    return texture2D(sandTexture, uv * detailScale).xyz;
+    return texture2D(sandTexture, uv * sandScale).xyz;
 }
 
 vec3 getSandNormal()
 {
-    return texture2D(sandNormals, uv * grassScale).xyz;
+    return texture2D(sandNormals, uv * sandScale).xyz;
 }
 
 vec3 getGrassColor(vec4 detail)
@@ -76,8 +82,8 @@ HX_GeometryData hx_geometry()
     tangentX = normalize(tangentX);
     tangentZ = normalize(tangentZ);
 
-    float grassRoughness = .9;
-    float rockRoughness = .6;
+    float grassRoughness = .65;
+    float rockRoughness = .5;
     float snowRoughness = .2;
 
     vec3 normal = cross(tangentZ, tangentX);
@@ -85,6 +91,7 @@ HX_GeometryData hx_geometry()
 
     HX_GeometryData data;
     vec4 terrain = texture2D(terrainMap, uv);
+    vec3 terrainNormal = texture2D(terrainNormals, uv * terrainNormalsScale).xyz;
     vec4 detail = texture2D(detailTexture, uv * detailScale);
     vec3 sand = getSandColor();
     vec3 sandNormal = getSandNormal();
@@ -95,7 +102,8 @@ HX_GeometryData hx_geometry()
     vec3 snow = getSnowColor(detail);
     vec3 snowNormal = getSnowNormal();
     vec3 color = mix(grass, snow, terrain.z);
-    color = mix(color, rock, terrain.y);
+    float rockAlpha = clamp((terrain.y - rock.x) / .5, 0.0, 1.0);
+    color = mix(color, rock, rockAlpha);
     color = mix(color, sand, terrain.x);
 
     float roughness = mix(grassRoughness, snowRoughness, terrain.z);
@@ -105,8 +113,13 @@ HX_GeometryData hx_geometry()
     localNorm = mix(localNorm, rockNormal, terrain.y);
     localNorm = mix(localNorm, sandNormal, terrain.x);
 
-    normal = mat3(hx_viewMatrix) * TBN * normalize(localNorm - .5);
+    float fadeFactor = 1.0 - clamp((-viewPosition.z - terrainNormalsDistance) / terrainNormalsFade, 0.0, 1.0);
+    localNorm = localNorm  - .5;
+    localNorm.xy = localNorm.xy * fadeFactor + terrainNormal.xy - .5;
+
+    normal = mat3(hx_viewMatrix) * TBN * normalize(localNorm);
     data.color = vec4(color, 1.0);
+//    data.color = vec4(normal * .5 + .5, 1.0);
     data.normal = normal;
     data.metallicness = 0.0;
     data.normalSpecularReflectance = 0.027;

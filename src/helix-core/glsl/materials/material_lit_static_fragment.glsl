@@ -96,13 +96,12 @@ void main()
 
     #if HX_NUM_SPECULAR_PROBES > 0
     vec3 reflectedViewDir = reflect(viewVector, data.normal);
-    vec3 fresnel = hx_fresnel(specularColor, reflectedViewDir, data.normal);
-    float geometricShadowing = hx_probeGeometricShadowing(data.normal, reflectedViewDir, data.roughness, data.metallicness);
+    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);
 
     reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
 
     for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {
-        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, geometricShadowing, data.roughness) * ssao;
+        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ssao;
     }
     #endif
 

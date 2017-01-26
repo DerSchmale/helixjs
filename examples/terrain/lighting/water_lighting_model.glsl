@@ -80,7 +80,7 @@ void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in 
     specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);
 #endif
 
-    specularColor += hx_marchRay(geometry, lightDir, lightColor, viewDir, viewPos);
+//    specularColor += hx_marchRay(geometry, lightDir, lightColor, viewDir, viewPos);
     // TODO: Probably also should add inscattering to specular component (otherwise albedo would be applied)
     // So for inscattering, what do we need:
     //  - fragment view position (!)

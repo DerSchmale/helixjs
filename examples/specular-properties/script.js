@@ -10,7 +10,6 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
-    options.lightingModel = HX.GGXLightingModel;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -21,7 +20,10 @@ function initCamera(camera)
     controller.polar = Math.PI * .5;
     controller.radius = 1.6;
 
-    camera.addComponents([ controller ]);
+    var tonemap = new HX.ReinhardToneMapEffect(false);
+    tonemap.exposure = 1.0;
+
+    camera.addComponents([ controller, tonemap ]);
 }
 
 function initScene(scene)
@@ -29,7 +31,7 @@ function initScene(scene)
     var light = new HX.DirectionalLight();
     light.color = new HX.Color(1.0,.8,.6);
     light.direction = new HX.Float4(0.0, -0.3, -1.0, 0.0);
-    light.intensity = .2;
+    light.intensity = .3;
     scene.attach(light);
 
     var cubeLoader = new HX.AssetLoader(HX.HCM);

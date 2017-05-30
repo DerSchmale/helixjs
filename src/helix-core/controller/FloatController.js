@@ -170,27 +170,27 @@ FloatController.prototype.onAdded = function(dt)
     {
         self._mouseX = event.clientX;
         self._mouseY = event.clientY;
-        document.addEventListener("mousemove", self._onMouseMove);
+        HX.TARGET_CANVAS.addEventListener("mousemove", self._onMouseMove);
     };
 
     this._onMouseUp = function(event)
     {
-        document.removeEventListener("mousemove", self._onMouseMove);
+        HX.TARGET_CANVAS.removeEventListener("mousemove", self._onMouseMove);
     };
 
     document.addEventListener("keydown", this._onKeyDown);
     document.addEventListener("keyup", this._onKeyUp);
-    document.addEventListener("mousedown", this._onMouseDown);
-    document.addEventListener("mouseup", this._onMouseUp);
+    HX.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
+    HX.TARGET_CANVAS.addEventListener("mouseup", this._onMouseUp);
 };
 
 FloatController.prototype.onRemoved = function(dt)
 {
     document.removeEventListener("keydown", this._onKeyDown);
     document.removeEventListener("keyup", this._onKeyUp);
-    document.removeEventListener("mousemove", this._onMouseMove);
-    document.removeEventListener("mousedown", this._onMouseDown);
-    document.removeEventListener("mouseup", this._onMouseUp);
+    HX.TARGET_CANVAS.removeEventListener("mousemove", this._onMouseMove);
+    HX.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
+    HX.TARGET_CANVAS.removeEventListener("mouseup", this._onMouseUp);
 };
 
 FloatController.prototype.onUpdate = function(dt)

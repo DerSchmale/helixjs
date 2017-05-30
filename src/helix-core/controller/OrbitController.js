@@ -104,24 +104,24 @@ OrbitController.prototype.onAdded = function()
 
     this._onUp = function(event) { self._isDown = false; };
 
-    document.addEventListener("mousewheel", this._onMouseWheel);
-    document.addEventListener("mousemove", this._onMouseMove);
-    document.addEventListener("touchmove", this._onTouchMove);
-    document.addEventListener("mousedown", this._onMouseDown);
-    document.addEventListener("touchstart", this._onTouchDown);
-    document.addEventListener("mouseup", this._onUp);
-    document.addEventListener("touchend", this._onUp);
+    HX.TARGET_CANVAS.addEventListener("mousewheel", this._onMouseWheel);
+    HX.TARGET_CANVAS.addEventListener("mousemove", this._onMouseMove);
+    HX.TARGET_CANVAS.addEventListener("touchmove", this._onTouchMove);
+    HX.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
+    HX.TARGET_CANVAS.addEventListener("touchstart", this._onTouchDown);
+    HX.TARGET_CANVAS.addEventListener("mouseup", this._onUp);
+    HX.TARGET_CANVAS.addEventListener("touchend", this._onUp);
 };
 
 OrbitController.prototype.onRemoved = function()
 {
-    document.removeEventListener("mousewheel", this._onMouseWheel);
-    document.removeEventListener("mousemove", this._onMouseMove);
-    document.removeEventListener("touchmove", this._onTouchMove);
-    document.removeEventListener("mousedown", this._onMouseDown);
-    document.removeEventListener("touchstart", this._onTouchDown);
-    document.removeEventListener("mouseup", this._onUp);
-    document.removeEventListener("touchend", this._onUp);
+    HX.TARGET_CANVAS.removeEventListener("mousewheel", this._onMouseWheel);
+    HX.TARGET_CANVAS.removeEventListener("mousemove", this._onMouseMove);
+    HX.TARGET_CANVAS.removeEventListener("touchmove", this._onTouchMove);
+    HX.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
+    HX.TARGET_CANVAS.removeEventListener("touchstart", this._onTouchDown);
+    HX.TARGET_CANVAS.removeEventListener("mouseup", this._onUp);
+    HX.TARGET_CANVAS.removeEventListener("touchend", this._onUp);
 };
 
 OrbitController.prototype.onUpdate = function(dt)

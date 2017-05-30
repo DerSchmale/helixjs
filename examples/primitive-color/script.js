@@ -17,7 +17,7 @@ function initScene(scene)
 
     var primitive = new HX.SpherePrimitive(
         {
-            radius:.25
+            radius: .25
         });
 
     scene.attach(new HX.ModelInstance(primitive, material));

@@ -5,7 +5,9 @@
 HX.BasicMaterial = function(options)
 {
     HX.Material.call(this);
+
     options = options || {};
+
     this._color = options.color || new HX.Color(1, 1, 1, 1);
     this._colorMap = options.colorMap || null;
     this._doubleSided = !!options.doubleSided;
@@ -19,7 +21,7 @@ HX.BasicMaterial = function(options)
     this._roughnessRange = options.roughnessRange === undefined? .5 : options.roughnessRange;
     this._normalSpecularReflectance = options.normalSpecularReflectance === undefined? 0.027 : options.normalSpecularReflectance;
     this._alphaThreshold = options.alphaThreshold === undefined? 1.0 : options.alphaThreshold;
-    this._useVertexColors = options.useVertexColors === undefined? 1.0 : options.useVertexColors;
+    this._useVertexColors = !!options.useVertexColors;
 
     // trigger assignments
     this.color = this._color;
@@ -217,49 +219,49 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
         },
 
         roughness:
-        {
-            get: function ()
             {
-                return this._roughness;
-            },
+                get: function ()
+                {
+                    return this._roughness;
+                },
 
-            set: function(value)
-            {
-                this._roughness = value;
-                this.setUniform("roughness", this._roughness);
-            }
-        },
+                set: function(value)
+                {
+                    this._roughness = value;
+                    this.setUniform("roughness", this._roughness);
+                }
+            },
 
         /**
          * When using a roughness texture, roughness represents the middle roughness, range the deviation from there.
          * So textured roughness ranges from [roughness - roughnessRange, roughness + roughnessRange]
          */
         roughnessRange:
-        {
-            get: function ()
             {
-                return this._roughnessRange;
+                get: function ()
+                {
+                    return this._roughnessRange;
+                },
+
+                set: function(value)
+                {
+                    this._roughnessRange = value;
+                    this.setUniform("roughnessRange", this._roughnessRange * 2.0);
+                }
             },
 
-            set: function(value)
-            {
-                this._roughnessRange = value;
-                this.setUniform("roughnessRange", this._roughnessRange * 2.0);
-            }
-        },
-
         alphaThreshold:
-        {
-            get: function() { return this._alphaThreshold; },
-            set: function(value) {
-                value = HX.saturate(value);
-                if ((this._alphaThreshold === 1.0) != (value === 1.0))
-                    this._invalidate();
+            {
+                get: function() { return this._alphaThreshold; },
+                set: function(value) {
+                    value = HX.saturate(value);
+                    if ((this._alphaThreshold === 1.0) != (value === 1.0))
+                        this._invalidate();
 
-                this._alphaThreshold = value;
-                this.setUniform("alphaThreshold", value);
+                    this._alphaThreshold = value;
+                    this.setUniform("alphaThreshold", value);
+                }
             }
-        }
     }
 );
 

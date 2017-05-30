@@ -1,3 +1,5 @@
+// TODO: Implement this: https://learnopengl.com/#!PBR/Theory
+
 // schlick-beckman
 float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
 {

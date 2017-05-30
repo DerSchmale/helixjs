@@ -2,23 +2,24 @@
  * BasicMaterial is the default physically plausible rendering material.
  * @constructor
  */
-HX.BasicMaterial = function()
+HX.BasicMaterial = function(options)
 {
     HX.Material.call(this);
-    this._color = new HX.Color(1, 1, 1, 1);
-    this._colorMap = null;
-    this._doubleSided = false;
-    this._normalMap = null;
-    this._specularMap = null;
-    this._maskMap = null;
-    this._specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
-    this._metallicness = 0.0;
-    this._alpha = 1.0;
-    this._roughness = 0.5;
-    this._roughnessRange = .5;
-    this._normalSpecularReflectance = 0.027;
-    this._alphaThreshold = 1.0;
-    this._useVertexColors = false;
+    options = options || {};
+    this._color = options.color || new HX.Color(1, 1, 1, 1);
+    this._colorMap = options.colorMap || null;
+    this._doubleSided = !!options.doubleSided;
+    this._normalMap = options.normalMap || null;
+    this._specularMap = options.specularMap || null;
+    this._maskMap = options.maskMap || null;
+    this._specularMapMode = options.specularMapMode || HX.BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
+    this._metallicness = options.metallicness === undefined? 0.0 : options.metallicness;
+    this._alpha = options.alpha === undefined? 1.0 : options.alpha;
+    this._roughness = options.roughness === undefined ? 0.5 : options.roughness;
+    this._roughnessRange = options.roughnessRange === undefined? .5 : options.roughnessRange;
+    this._normalSpecularReflectance = options.normalSpecularReflectance === undefined? 0.027 : options.normalSpecularReflectance;
+    this._alphaThreshold = options.alphaThreshold === undefined? 1.0 : options.alphaThreshold;
+    this._useVertexColors = options.useVertexColors === undefined? 1.0 : options.useVertexColors;
 
     // trigger assignments
     this.color = this._color;
@@ -26,6 +27,9 @@ HX.BasicMaterial = function()
     this.metallicness = this._metallicness;
     this.roughness = this._roughness;
     this.normalSpecularReflectance = this._normalSpecularReflectance;
+
+    if (options.lightingModel !== undefined)
+        this.lightingModel = options.lightingModel;
 };
 
 HX.BasicMaterial.roughnessFromShininess = function(specularPower)

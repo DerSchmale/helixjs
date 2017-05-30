@@ -69,6 +69,8 @@ vec3 getSnowNormal()
     return vec3(0.0, 0.0, 1.0);
 }
 
+// Could use https://gamedevelopment.tutsplus.com/articles/use-tri-planar-texture-mapping-for-better-terrain--gamedev-13821
+// but it'd be pretty heavy
 HX_GeometryData hx_geometry()
 {
     float height = hx_RGBA8ToFloat(texture2D(heightMap, uv));

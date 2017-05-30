@@ -41,12 +41,12 @@ function initCamera(camera)
     floatController.speed = 10.0;
     camera.addComponent(floatController);
 
-    var bloom = new HX.Bloom(250, .5, 8);
-    bloom.thresholdLuminance = .5;
-    camera.addComponent(bloom);
+    // var bloom = new HX.Bloom(250, .5, 8);
+    // bloom.thresholdLuminance = 1.0;
+    // camera.addComponent(bloom);
 
     var tonemap = new HX.FilmicToneMapEffect(true);
-    tonemap.exposure = 1;
+    tonemap.exposure = 2;
     camera.addComponent(tonemap);
 
     camera.addComponent(new HX.FXAA());
@@ -57,7 +57,7 @@ function initScene(scene)
     var dirLight = new HX.DirectionalLight();
     dirLight.color = new HX.Color(1.0, .9, .7);
     dirLight.direction = new HX.Float4(3.0, -5.0, 1.0);
-    dirLight.intensity = 20.0;
+    dirLight.intensity = 5.0;
     dirLight.numCascades = 3;
     dirLight.castShadows = true;
 

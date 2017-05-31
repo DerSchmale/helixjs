@@ -58,7 +58,7 @@ HX.ModelInstance.prototype = Object.create(HX.Entity.prototype, {
 });
 
 /**
- * Used if we choose to deferedly initialize the model
+ * Used if we choose to deferredly initialize the model
  * @param model
  * @param materials
  */

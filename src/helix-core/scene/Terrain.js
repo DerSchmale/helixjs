@@ -2,7 +2,7 @@
 // TODO: Should we provide a snap size in the vertex data?
 HX.Terrain = function(terrainSize, minElevation, maxElevation, numLevels, material, detail)
 {
-    HX.GroupNode.call(this);
+    HX.SceneNode.call(this);
 
     this._terrainSize = terrainSize || 512;
     this._minElevation = minElevation;
@@ -23,7 +23,7 @@ HX.Terrain = function(terrainSize, minElevation, maxElevation, numLevels, materi
 };
 
 // TODO: Allow setting material
-HX.Terrain.prototype = Object.create(HX.GroupNode.prototype, {
+HX.Terrain.prototype = Object.create(HX.SceneNode.prototype, {
     terrainSize: {
         get: function() {
             return this._terrainSize;
@@ -263,7 +263,7 @@ HX.Terrain.prototype.acceptVisitor = function(visitor)
         this.position.z = Math.floor(pos.z / this._snapSize) * this._snapSize;
     }
 
-    HX.GroupNode.prototype.acceptVisitor.call(this, visitor);
+    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
 };
 
 HX.Terrain.prototype._updateWorldBounds = function ()

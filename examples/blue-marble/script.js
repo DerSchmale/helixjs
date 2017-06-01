@@ -136,7 +136,7 @@ function initEarth(container)
     var atmosphereScale = 1.025;
     var avgDensityHeight = .15;
 
-    earth = new HX.GroupNode();
+    earth = new HX.SceneNode();
     var earthSpherePrimitive = new HX.SpherePrimitive(
         {
             radius: earthRadius,
@@ -217,7 +217,7 @@ function initMoon(container)
 function initScene(scene)
 {
     // rotate everything so the skybox is oriented
-    var container = new HX.GroupNode();
+    var container = new HX.SceneNode();
     container.rotation.fromEuler(0, 0, .6);
     scene.attach(container);
     initSun(container);

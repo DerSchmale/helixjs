@@ -89,6 +89,8 @@ HX.Entity.prototype.acceptVisitor = function(visitor)
 {
     HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
 
+    // TODO: visit components
+
     if (this._effects)
         visitor.visitEffects(this._effects, this);
 };

@@ -5,7 +5,7 @@
  */
 HX.OBJ = function()
 {
-    HX.Importer.call(this, HX.GroupNode);
+    HX.Importer.call(this, HX.SceneNode);
     this._objects = [];
     this._vertices = [];
     this._normals = [];

@@ -16,6 +16,7 @@ HX.SceneNode = function()
     this._worldBounds = this._createBoundingVolume();
     this._debugBounds = null;
     this._visible = true;
+    this._children = [];
 
     // used to determine sorting index for the render loop
     // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
@@ -35,6 +36,10 @@ Object.defineProperties(HX.SceneNode.prototype, {
         {
             this._name = value;
         }
+    },
+
+    numChildren: {
+        get: function() { return this._children.length; }
     },
 
     visible: {
@@ -89,6 +94,33 @@ Object.defineProperties(HX.SceneNode.prototype, {
     }
 });
 
+HX.SceneNode.prototype.attach = function(child)
+{
+    if (child._parent)
+        throw new Error("Child is already parented!");
+
+    child._parent = this;
+    child._setScene(this._scene);
+
+    this._children.push(child);
+    this._invalidateWorldBounds();
+};
+
+HX.SceneNode.prototype.detach = function(child)
+{
+    var index = this._children.indexOf(child);
+
+    if (index < 0)
+        throw new Error("Trying to remove a scene object that is not a child");
+
+    child._parent = null;
+
+    this._children.splice(index, 1);
+    this._invalidateWorldBounds();
+};
+
+HX.SceneNode.prototype.getChild = function(index) { return this._children[index]; };
+
 HX.SceneNode.prototype._applyMatrix = function()
 {
     HX.Transform.prototype._applyMatrix.call(this);
@@ -104,18 +136,37 @@ HX.SceneNode.prototype.findMaterialByName = function(name)
 
 HX.SceneNode.prototype.findNodeByName = function(name)
 {
-    return this._name === name? this : null;
+    if (this._name === name) return this;
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        var node = this._children[i].findNodeByName(name);
+        if (node) return node;
+    }
 };
 
 HX.SceneNode.prototype._setScene = function(scene)
 {
     this._scene = scene;
+
+    var len = this._children.length;
+
+    for (var i = 0; i < len; ++i)
+        this._children[i]._setScene(scene);
 };
 
 HX.SceneNode.prototype.acceptVisitor = function(visitor)
 {
     if (this._debugBounds)
         this._debugBounds.acceptVisitor(visitor);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        var child = this._children[i];
+
+        if (visitor.qualifies(child))
+            child.acceptVisitor(visitor);
+    }
 };
 
 HX.SceneNode.prototype._invalidateMatrix = function ()
@@ -128,6 +179,10 @@ HX.SceneNode.prototype._invalidateWorldMatrix = function ()
 {
     this._worldMatrixInvalid = true;
     this._invalidateWorldBounds();
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i]._invalidateWorldMatrix();
 };
 
 HX.SceneNode.prototype._invalidateWorldBounds = function ()
@@ -142,6 +197,12 @@ HX.SceneNode.prototype._invalidateWorldBounds = function ()
 
 HX.SceneNode.prototype._updateWorldBounds = function ()
 {
+    var len = this._children.length;
+
+    for (var i = 0; i < len; ++i) {
+        this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
+    }
+
     if (this._debugBounds)
         this._updateDebugBounds();
 };
@@ -187,5 +248,10 @@ HX.SceneNode.prototype.toString = function()
 
 HX.SceneNode.prototype.applyFunction = function(func)
 {
+    // Heehee, this line amuses me:
     func(this);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i].applyFunction(func);
 };

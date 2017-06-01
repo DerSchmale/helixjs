@@ -3265,7 +3265,7 @@ HX.FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+"
  */
 HX.FBX = function()
 {
-    HX.Importer.call(this, HX.GroupNode, HX.Importer.TYPE_BINARY);
+    HX.Importer.call(this, HX.SceneNode, HX.Importer.TYPE_BINARY);
     this._rootNode = null;
 };
 
@@ -3879,7 +3879,7 @@ HX.FBXConverter.prototype =
         this._textureMaterialMap = [];
         this._rootNode = rootNode;
         this._animationStack = animationStack;
-        this._convertGroupNode(rootNode, target);
+        this._convertSceneNode(rootNode, target);
     },
 
     // handles object of type FbxNode
@@ -3890,8 +3890,8 @@ HX.FBXConverter.prototype =
         if (fbxNode.mesh)
             hxNode = this._convertModelMesh(fbxNode);
         else if (fbxNode.children && fbxNode.children.length > 1) {
-            hxNode = new HX.GroupNode();
-            this._convertGroupNode(fbxNode, hxNode);
+            hxNode = new HX.SceneNode();
+            this._convertSceneNode(fbxNode, hxNode);
         }
         else return null;
 
@@ -3903,7 +3903,7 @@ HX.FBXConverter.prototype =
         return hxNode;
     },
 
-    _convertGroupNode: function(fbxNode, hxNode)
+    _convertSceneNode: function(fbxNode, hxNode)
     {
         var len = fbxNode.children.length;
         for (var i = 0; i < len; ++i) {
@@ -5417,7 +5417,7 @@ HX.MTL.prototype._loadTextures = function(lib)
  */
 HX.OBJ = function()
 {
-    HX.Importer.call(this, HX.GroupNode);
+    HX.Importer.call(this, HX.SceneNode);
     this._objects = [];
     this._vertices = [];
     this._normals = [];

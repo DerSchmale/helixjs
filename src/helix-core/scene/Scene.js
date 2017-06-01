@@ -7,7 +7,7 @@ HX.Scene = function(rootNode)
 {
     // the default partition is a BVH node
     //  -> or this may need to become an infinite bound node?
-    this._rootNode = rootNode || new HX.GroupNode();
+    this._rootNode = rootNode || new HX.SceneNode();
     this._rootNode._setScene(this);
     this._skybox = null;
     this._entityEngine = new HX.EntityEngine();

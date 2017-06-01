@@ -4,7 +4,7 @@
  */
 HX.FBX = function()
 {
-    HX.Importer.call(this, HX.GroupNode, HX.Importer.TYPE_BINARY);
+    HX.Importer.call(this, HX.SceneNode, HX.Importer.TYPE_BINARY);
     this._rootNode = null;
 };
 

@@ -25,7 +25,7 @@ HX.SkeletonJointPose = function()
 {
     this.rotation = new HX.Quaternion();
     this.position = new HX.Float4();
-    this.scale = 1.0;
+    this.scale = new HX.Float4(1, 1, 1);
 };
 
 HX.SkeletonJointPose.prototype =
@@ -34,7 +34,7 @@ HX.SkeletonJointPose.prototype =
     {
         this.rotation.copyFrom(a.rotation);
         this.position.copyFrom(a.position);
-        this.scale = a.scale;
+        this.scale.copyFrom(a.scale);
     },
 
     toString: function()
@@ -72,8 +72,20 @@ HX.SkeletonPose.prototype =
         for (var i = 0; i < len; ++i) {
             target[i].rotation.slerp(a[i].rotation, b[i].rotation, factor);
             target[i].position.lerp(a[i].position, b[i].position, factor);
-            target[i].scale = HX.lerp(a[i].scale, b[i].scale, factor);
+            target[i].scale.lerp(a[i].scale, b[i].scale, factor);
         }
+    },
+
+    copyBindPose: function(skeleton)
+    {
+        var m = new HX.Matrix4x4();
+        for (var i = 0; i < skeleton.numJoints; ++i) {
+            var j = skeleton.getJoint(i);
+            var p = this.jointPoses[i];
+            m.inverseAffineOf(j.inverseBindPose);
+            m.decompose(p);
+        }
+
     },
 
     copyFrom: function(a)

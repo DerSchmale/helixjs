@@ -306,7 +306,7 @@ HX.FBXAnimationConverter.prototype =
             var tempJointPose = tempJointPoses[i];
             jointPose.position.copyFrom(tempJointPose["Lcl Translation"]);
             // not supporting non-uniform scaling at this point
-            jointPose.scale = tempJointPose["Lcl Scaling"].x;
+            jointPose.scale.copyFrom(tempJointPose["Lcl Scaling"]);
             var rot = tempJointPose["Lcl Rotation"];
             jointPose.rotation.fromEuler(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
             skeletonPose.jointPoses[i] = jointPose;

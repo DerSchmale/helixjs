@@ -68,23 +68,19 @@ HX.SkeletonBlendTree.prototype =
 
                 /*pp.position.copyFrom(parentPose.position);
                 pp.rotation.copyFrom(parentPose.rotation);
-                // should we inherit scale or not?
-                //pp.scale.set(parentPose.scale, parentPose.scale, parentPose.scale);
+                pp.scale.copyFrom(parentPose.scale);
+
                 cc.position.copyFrom(localJointPose.position);
                 cc.rotation.copyFrom(localJointPose.rotation);
-                //cc.scale.set(localJointPose.scale, localJointPose.scale, localJointPose.scale);
+                cc.scale.copyFrom(localJointPose.scale);
 
-                // inherit scale:
-                //scale *= localJointPose.scale;
-                scale = localJointPose.scale;
                 p.compose(pp);
                 c.compose(cc);
                 c.append(p);
 
-                // decompose doesn't work with negative scale -_-
-                c.decompose(globalJointPose.position, globalJointPose.rotation, sc);
-                globalJointPose.scale = scale;*/
+                c.decompose(globalJointPose.position, globalJointPose.rotation, globalJointPose.scale);*/
 
+                // TODO: Check if non-uniform scaling is correct
                 var gTr = globalJointPose.position;
                 var ptr = parentPose.position;
                 var pQuad = parentPose.rotation;
@@ -93,7 +89,9 @@ HX.SkeletonBlendTree.prototype =
                 gTr.y += ptr.y;
                 gTr.z += ptr.z;
                 globalJointPose.rotation.multiply(pQuad, localJointPose.rotation);
-                globalJointPose.scale = parentPose.scale * localJointPose.scale;
+                globalJointPose.scale.x = parentPose.scale.x * localJointPose.scale.x;
+                globalJointPose.scale.y = parentPose.scale.y * localJointPose.scale.y;
+                globalJointPose.scale.z = parentPose.scale.z * localJointPose.scale.z;
             }
         }
     },
@@ -110,7 +108,7 @@ HX.SkeletonBlendTree.prototype =
             mtx.copyFrom(skeleton.getJoint(i).inverseBindPose);
 
             var sc = pose.scale;
-            mtx.appendScale(sc, sc, sc);
+            mtx.appendScale(sc.x, sc.y, sc.z);
             mtx.appendQuaternion(pose.rotation);
             mtx.appendTranslation(pose.position);
         }

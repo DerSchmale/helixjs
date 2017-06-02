@@ -21,6 +21,7 @@ HX.ForwardRenderer = function ()
     this._normalDepthFBO = null;
     this._ssaoTexture = this._createDummySSAOTexture();
     this._aoEffect = null;
+    this._backgroundColor = HX.Color.BLACK.clone();
     //this._previousViewProjection = new HX.Matrix4x4();
     this._depthPrepass = true;
 };
@@ -53,6 +54,16 @@ HX.ForwardRenderer.HDRBuffers.prototype =
 
 HX.ForwardRenderer.prototype =
 {
+    get backgroundColor()
+    {
+        return this._backgroundColor;
+    },
+
+    set backgroundColor(value)
+    {
+        this._backgroundColor = new HX.Color(value);
+    },
+
     get depthPrepass()
     {
         return this._depthPrepass;
@@ -113,6 +124,7 @@ HX.ForwardRenderer.prototype =
         this._camera = camera;
         this._scene = scene;
 
+
         this._updateSize(renderTarget);
 
         camera._setRenderTargetResolution(this._width, this._height);
@@ -123,11 +135,14 @@ HX.ForwardRenderer.prototype =
         var opaqueStaticLit = this._renderCollector.getOpaqueStaticRenderList();
         var transparentStaticLit = this._renderCollector.getTransparentStaticRenderList();
 
+        HX.setClearColor(HX.Color.BLACK);
+
         HX.setDepthMask(true);
         this._renderNormalDepth(opaqueStaticLit);
         this._renderAO();
 
         HX.setRenderTarget(this._hdrFront.fboDepth);
+        HX.setClearColor(this._backgroundColor);
         HX.clear();
         this._renderDepthPrepass(opaqueStaticLit);
 
@@ -162,6 +177,7 @@ HX.ForwardRenderer.prototype =
 
     _renderStatics: function(list)
     {
+        HX.setClearColor(this._backgroundColor);
         this._renderPass(HX.MaterialPass.BASE_PASS, list);
     },
 

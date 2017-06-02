@@ -5,6 +5,8 @@ project.onInit = function()
     this.camera.addComponent(new OrbitController());
 
     initScene(this.scene);
+
+    this._renderer.backgroundColor = 0x808080;
 };
 
 window.onload = function ()

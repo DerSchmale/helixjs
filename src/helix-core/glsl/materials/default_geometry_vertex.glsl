@@ -1,5 +1,17 @@
+#ifdef USE_MORPHING
+attribute vec2 hx_morphIndex;
+
+uniform sampler2D hx_morphPositions;
+
+// TODO:
+// uniform sampler2D hx_morphNormals;
+
+// TODO: Remove normal:
+attribute vec3 hx_normal;
+#else
 attribute vec4 hx_position;
 attribute vec3 hx_normal;
+#endif
 
 #ifdef USE_SKINNING
 attribute vec4 hx_boneIndices;
@@ -34,18 +46,27 @@ varying vec3 bitangent;
 
 void hx_geometry()
 {
+#ifdef USE_MORPHING
+// TODO: Also apply to normals
+    vec4 morphedPosition = vec4(texture2D(hx_morphPositions, hx_morphIndex).xyz, 1.0);
+    vec3 morphedNormal = hx_normal;
+#else
+    vec4 morphedPosition = hx_position;
+    vec3 morphedNormal = hx_normal;
+#endif
+
 #ifdef USE_SKINNING
     mat4 skinningMatrix = hx_getSkinningMatrix(0);
 
-    vec4 animPosition = skinningMatrix * hx_position;
-    vec3 animNormal = mat3(skinningMatrix) * hx_normal;
+    vec4 animPosition = skinningMatrix * morphedPosition;
+    vec3 animNormal = mat3(skinningMatrix) * morphedNormal;
 
     #ifdef NORMAL_MAP
     vec3 animTangent = mat3(skinningMatrix) * hx_tangent.xyz;
     #endif
 #else
-    vec4 animPosition = hx_position;
-    vec3 animNormal = hx_normal;
+    vec4 animPosition = morphedPosition;
+    vec3 animNormal = morphedNormal;
 
     #ifdef NORMAL_MAP
     vec3 animTangent = hx_tangent.xyz;

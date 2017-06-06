@@ -11,6 +11,9 @@ HX.MeshData = function ()
     this.indexUsage = HX_GL.STATIC_DRAW;
     this._vertexAttributes = [];
     this._numStreams = 0;
+    this._hasMorphIndices = false;
+    this._morphBufferWidth = 0;
+    this._morphBufferHeight = 0;
 };
 
 HX.MeshData.DEFAULT_VERTEX_SIZE = 12;
@@ -31,6 +34,11 @@ HX.MeshData.createDefaultEmpty = function()
 
 HX.MeshData.prototype = {
     constructor: HX.MeshData,
+
+    get hasMorphIndices()
+    {
+        return this._hasMorphIndices;
+    },
 
     getVertexData: function (streamIndex)
     {
@@ -61,6 +69,8 @@ HX.MeshData.prototype = {
      */
     addVertexAttribute: function (name, numComponents, streamIndex)
     {
+        if (name === "hx_morphIndices") this._hasMorphIndices = true;
+
         streamIndex = streamIndex || 0;
         this._numStreams = Math.max(this._numStreams, streamIndex + 1);
         this._vertexStrides[streamIndex] = this._vertexStrides[streamIndex] || 0;
@@ -99,5 +109,33 @@ HX.MeshData.prototype = {
     get numVertices()
     {
         return this._vertexData[0].length / this._vertexStrides[0];
+    },
+
+    get morphBufferWidth()
+    {
+        return this._morphBufferWidth;
+    },
+
+    get morphBufferHeight()
+    {
+        return this._morphBufferHeight;
+    },
+
+    generateMorphIndices: function()
+    {
+        var num = this.numVertices;
+        var w = this._morphBufferWidth = Math.ceil(Math.sqrt(num));
+        var h = this._morphBufferHeight = Math.ceil(num / this._morphBufferWidth);
+        var stream = this.numStreams;
+        this.addVertexAttribute("hx_morphIndices", 2, stream);
+
+        var data = [];
+        for (var i = 0; i < num; ++i) {
+            var u = (i % w) / w;
+            var v = Math.floor(i / w) / h;
+            data.push(u, v);
+        }
+
+        this.setVertexData(data, stream);
     }
 };

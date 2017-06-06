@@ -16,6 +16,8 @@ HX.Material = function(geometryVertexShader, geometryFragmentShader, lightingMod
     this.onChange = new HX.Signal();
     this._textures = {};
     this._uniforms = {};
+    this._useMorphing = false;
+    this._useSkinning = false;
 
     this._lights = null;
     this._name = null;
@@ -303,6 +305,11 @@ HX.Material.prototype =
     _setUseSkinning: function(value)
     {
         this._useSkinning = value;
+    },
+
+    _setUseMorphing: function(value)
+    {
+        this._useMorphing = value;
     },
 
     _invalidate: function()

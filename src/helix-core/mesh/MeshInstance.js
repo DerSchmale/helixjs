@@ -32,6 +32,7 @@ HX.MeshInstance.prototype = {
             this._material.onChange.bind(this._onMaterialChange, this);
 
             this.material._setUseSkinning(this._material._useSkinning || !!this._mesh._model.skeleton);
+            this.material._setUseMorphing(this._material._useMorphing || this._mesh.hasMorphIndices);
         }
 
         this._linkMeshWithMaterial();

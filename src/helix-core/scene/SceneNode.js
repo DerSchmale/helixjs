@@ -212,8 +212,6 @@ HX.SceneNode.prototype._updateDebugBounds = function()
     var matrix = this._debugBounds.matrix;
     var bounds = this._worldBounds;
 
-    console.log(bounds._halfExtentX, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
-
     matrix.fromScale(bounds._halfExtentX * 2.0, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
     matrix.appendTranslation(bounds._center);
     this._debugBounds.matrix = matrix;

@@ -35,7 +35,7 @@ varying vec3 bitangent;
 void hx_geometry()
 {
 #ifdef USE_SKINNING
-    mat4 skinningMatrix = hx_getSkinningMatrix();
+    mat4 skinningMatrix = hx_getSkinningMatrix(0);
 
     vec4 animPosition = skinningMatrix * hx_position;
     vec3 animNormal = mat3(skinningMatrix) * hx_normal;

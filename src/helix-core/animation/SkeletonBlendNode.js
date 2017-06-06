@@ -19,7 +19,7 @@ HX.SkeletonBlendNode.prototype =
 
     setValue: function(id, value)
     {
-        if (this._valueID == id) {
+        if (this._valueID === id) {
             this._applyValue(value);
         }
     },   // a node can have a value associated with it, either time, interpolation value, directional value, ...

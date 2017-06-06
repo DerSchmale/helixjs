@@ -3259,6 +3259,314 @@ HX.FbxNode.prototype.connectProperty = function(obj, propertyName)
 };
 
 HX.FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+", type="+this.type+")]"; };
+HX.FbxAnimationCurve = function()
+{
+    HX.FbxObject.call(this);
+    this.Default = undefined;
+    this.KeyVer = 0.0;
+    this.KeyTime = 0.0;
+    this.KeyValueFloat = null;
+    this.KeyAttrFlags = 0.0;
+    this.KeyAttrDataFloat = null;
+    this.KeyAttrRefCount = 0.0;
+};
+
+HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
+HX.FbxAnimationCurveNode = function()
+{
+    HX.FbxObject.call(this);
+    this.curves = null;
+    // are these weights?
+    this["d|X"] = 0.0;
+    this["d|Y"] = 0.0;
+    this["d|Z"] = 0.0;
+    this.propertyName = null;
+};
+
+HX.FbxAnimationCurveNode.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimationCurveNode.prototype.toString = function() { return "[FbxAnimationCurveNode(name="+this.name+")]"; };
+
+HX.FbxAnimationCurveNode.prototype.connectProperty = function(obj, propertyName)
+{
+    if (obj instanceof HX.FbxAnimationCurve) {
+        this.curves = this.curves || {};
+        this.curves[propertyName] = obj;
+    }
+};
+HX.FbxAnimLayer = function()
+{
+    HX.FbxObject.call(this);
+    this.curveNodes = null;
+};
+
+HX.FbxAnimLayer.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimLayer.prototype.toString = function() { return "[FbxAnimLayer(name="+this.name+")]"; };
+
+HX.FbxAnimLayer.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxAnimationCurveNode) {
+        this.curveNodes = this.curveNodes || [];
+        this.curveNodes.push(obj);
+    }
+    else
+        throw new Error("Incompatible child object " + obj.toString());
+};
+
+HX.FbxAnimStack = function()
+{
+    HX.FbxObject.call(this);
+
+    this.LocalStart = 0;
+    this.LocalStop = 0;
+    this.ReferenceStart = 0;
+    this.ReferenceStop = 0;
+
+    this.layers = null;
+};
+
+HX.FbxAnimStack.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxAnimStack.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxAnimLayer) {
+        this.layers = this.layers || [];
+        this.layers.push(obj);
+    }
+    else
+        throw new Error("Incompatible child object " + obj.toString());
+};
+
+HX.FbxAnimStack.prototype.toString = function() { return "[FbxAnimStack(name="+this.name+")]"; };
+HX.FbxCluster = function()
+{
+    HX.FbxObject.call(this);
+    this.limbNode = null;
+    this.transform = null;
+    this.transformLink = null;
+    this.indices = null;
+    this.weights = null;
+};
+
+HX.FbxCluster.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxCluster.prototype.toString = function() { return "[FbxCluster(name="+this.name+")]"; };
+
+HX.FbxCluster.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxNode) {
+        this.limbNode = obj;
+    }
+    else
+        throw new Error("Unhandled object connection " + obj.toString());
+};
+HX.FbxFileTexture = function()
+{
+    HX.FbxObject.call(this);
+    this.WrapModeU = 0;
+    this.WrapModeV = 0;
+    //this.UVSet = null;    // we only support a single uv set
+
+    this.relativeFilename = null;
+    this.video = null;
+};
+
+HX.FbxFileTexture.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxFileTexture.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxVideo)
+        this.video = obj;
+    else
+        throw new Error("Incompatible child object!");
+};
+
+HX.FbxFileTexture.prototype.toString = function() { return "[FbxFileTexture(name="+this.name+")]"; };
+HX.FbxLayerElement = function()
+{
+    HX.FbxObject.call(this);
+    this.directData = null;
+    this.indexData = null;
+    this.type = null;   // can be normal, uv, etc ...
+    this.mappingInformationType = 0;
+    this.referenceInformationType = 0;
+};
+
+HX.FbxLayerElement.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxLayerElement.MAPPING_TYPE = {
+    NONE: 0,
+    BY_POLYGON_VERTEX: 1,
+    BY_CONTROL_POINT: 2,
+    BY_POLYGON: 3,
+    ALL_SAME: 4
+};
+
+HX.FbxLayerElement.REFERENCE_TYPE = {
+    DIRECT: 1,
+    INDEX_TO_DIRECT: 2
+};
+
+HX.FbxLayerElement.prototype.toString = function() { return "[FbxLayerElement(name="+this.name+")]"; };
+HX.FbxMaterial = function()
+{
+    HX.FbxObject.call(this);
+    // actual video not supported
+    this.EmissiveColor = null;
+    this.EmissiveFactor = 1;
+    this.DiffuseColor = null;
+    this.DiffuseFactor = 1;
+    //this.NormalMap = null;
+    this.ShininessExponent = undefined;
+    this.Shininess = undefined;
+
+    this.textures = null;
+};
+
+HX.FbxMaterial.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxMaterial.prototype.connectProperty = function(obj, propertyName)
+{
+    if (obj instanceof HX.FbxFileTexture) {
+        this.textures = this.textures || {};
+        this.textures[propertyName] = obj;
+    }
+    else
+        throw new Error("Unknown object property!");
+};
+
+HX.FbxMaterial.prototype.toString = function() { return "[FbxMaterial(name="+this.name+")]"; };
+/**
+ *
+ * @constructor
+ */
+HX.FbxMesh = function()
+{
+    HX.FbxObject.call(this);
+    this.Color = null;
+    this["Casts Shadows"] = true;
+
+    this.vertices = null;
+    this.layerElements = null;
+    this.deformers = null;
+};
+
+HX.FbxMesh.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxMesh.prototype.toString = function() { return "[FbxMesh(name="+this.name+")]"; };
+
+HX.FbxMesh.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxSkin) {
+        this.deformers = this.deformers || [];
+        this.deformers.push(obj);
+    }
+    else {
+        throw new Error("Unhandled object connection " + obj.toString());
+    }
+};
+// probably needs to be subclasses for Light, Camera, etc
+HX.FbxNodeAttribute = function()
+{
+    HX.FbxObject.call(this);
+    // actual video not supported
+    this.type = null;
+};
+
+HX.FbxNodeAttribute.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxNodeAttribute.prototype.toString = function() { return "[FbxNodeAttribute(name="+this.name+", type="+this.type+")]"; };
+HX.FbxPose = function()
+{
+    HX.FbxObject.call(this);
+    this.type = null;
+    this.poseNodes = [];
+};
+
+HX.FbxPose.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxPose.prototype.toString = function() { return "[FbxPose(name="+this.name+")]"; };
+
+HX.FbxPoseNode = function()
+{
+    this.targetUID = null;
+    this.matrix = null;
+}
+HX.FbxSkin = function()
+{
+    HX.FbxObject.call(this);
+    this.clusters = null;
+
+    // data will contain the converter
+};
+
+HX.FbxSkin.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxSkin.prototype.toString = function() { return "[FbxSkin(name="+this.name+")]"; };
+
+HX.FbxSkin.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxCluster) {
+        this.clusters = this.clusters || [];
+        this.clusters.push(obj);
+    }
+    else
+        throw new Error("Unhandled object connection " + obj.toString());
+};
+HX.FbxTime = function(value)
+{
+    this._value = value;
+};
+
+HX.FbxTime.getSpan = function(start, stop)
+{
+    return new HX.FbxTime(stop._value - start._value);
+};
+
+HX.FbxTime.TC_MILLISECOND = 46186158;
+
+HX.FbxTime.prototype =
+{
+    get milliseconds()
+    {
+        return this._value / HX.FbxTime.TC_MILLISECOND;
+    },
+
+    set milliseconds(value)
+    {
+        this._value = value * HX.FbxTime.TC_MILLISECOND;
+    },
+
+    getFrameCount: function(frameRate)
+    {
+        return Math.floor(this.milliseconds / 1000.0 * frameRate);
+    },
+
+    toString: function()
+    {
+        return "[FbxTime(name="+this._value+")]";
+    }
+};
+HX.FbxTrashNode = function()
+{
+    HX.FbxObject.call(this);
+};
+
+HX.FbxTrashNode.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxTrashNode.prototype.toString = function() { return "[FbxTrashNode(name="+this.name+")]"; };
+
+// ignore
+HX.FbxTrashNode.prototype.connectObject = function(obj) {}
+HX.FbxVideo = function()
+{
+    HX.FbxObject.call(this);
+    // actual video not supported
+    this.relativeFilename = null;
+};
+
+HX.FbxVideo.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxVideo.prototype.toString = function() { return "[FbxVideo(name="+this.name+")]"; };
 /**
  *
  * @constructor
@@ -5733,311 +6041,3 @@ HX.OBJ._ObjectData = function()
     this.groups = [];
     this._activeGroup = null;
 };
-HX.FbxAnimationCurve = function()
-{
-    HX.FbxObject.call(this);
-    this.Default = undefined;
-    this.KeyVer = 0.0;
-    this.KeyTime = 0.0;
-    this.KeyValueFloat = null;
-    this.KeyAttrFlags = 0.0;
-    this.KeyAttrDataFloat = null;
-    this.KeyAttrRefCount = 0.0;
-};
-
-HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
-HX.FbxAnimationCurveNode = function()
-{
-    HX.FbxObject.call(this);
-    this.curves = null;
-    // are these weights?
-    this["d|X"] = 0.0;
-    this["d|Y"] = 0.0;
-    this["d|Z"] = 0.0;
-    this.propertyName = null;
-};
-
-HX.FbxAnimationCurveNode.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimationCurveNode.prototype.toString = function() { return "[FbxAnimationCurveNode(name="+this.name+")]"; };
-
-HX.FbxAnimationCurveNode.prototype.connectProperty = function(obj, propertyName)
-{
-    if (obj instanceof HX.FbxAnimationCurve) {
-        this.curves = this.curves || {};
-        this.curves[propertyName] = obj;
-    }
-};
-HX.FbxAnimLayer = function()
-{
-    HX.FbxObject.call(this);
-    this.curveNodes = null;
-};
-
-HX.FbxAnimLayer.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimLayer.prototype.toString = function() { return "[FbxAnimLayer(name="+this.name+")]"; };
-
-HX.FbxAnimLayer.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxAnimationCurveNode) {
-        this.curveNodes = this.curveNodes || [];
-        this.curveNodes.push(obj);
-    }
-    else
-        throw new Error("Incompatible child object " + obj.toString());
-};
-
-HX.FbxAnimStack = function()
-{
-    HX.FbxObject.call(this);
-
-    this.LocalStart = 0;
-    this.LocalStop = 0;
-    this.ReferenceStart = 0;
-    this.ReferenceStop = 0;
-
-    this.layers = null;
-};
-
-HX.FbxAnimStack.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxAnimStack.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxAnimLayer) {
-        this.layers = this.layers || [];
-        this.layers.push(obj);
-    }
-    else
-        throw new Error("Incompatible child object " + obj.toString());
-};
-
-HX.FbxAnimStack.prototype.toString = function() { return "[FbxAnimStack(name="+this.name+")]"; };
-HX.FbxCluster = function()
-{
-    HX.FbxObject.call(this);
-    this.limbNode = null;
-    this.transform = null;
-    this.transformLink = null;
-    this.indices = null;
-    this.weights = null;
-};
-
-HX.FbxCluster.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxCluster.prototype.toString = function() { return "[FbxCluster(name="+this.name+")]"; };
-
-HX.FbxCluster.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxNode) {
-        this.limbNode = obj;
-    }
-    else
-        throw new Error("Unhandled object connection " + obj.toString());
-};
-HX.FbxFileTexture = function()
-{
-    HX.FbxObject.call(this);
-    this.WrapModeU = 0;
-    this.WrapModeV = 0;
-    //this.UVSet = null;    // we only support a single uv set
-
-    this.relativeFilename = null;
-    this.video = null;
-};
-
-HX.FbxFileTexture.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxFileTexture.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxVideo)
-        this.video = obj;
-    else
-        throw new Error("Incompatible child object!");
-};
-
-HX.FbxFileTexture.prototype.toString = function() { return "[FbxFileTexture(name="+this.name+")]"; };
-HX.FbxLayerElement = function()
-{
-    HX.FbxObject.call(this);
-    this.directData = null;
-    this.indexData = null;
-    this.type = null;   // can be normal, uv, etc ...
-    this.mappingInformationType = 0;
-    this.referenceInformationType = 0;
-};
-
-HX.FbxLayerElement.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxLayerElement.MAPPING_TYPE = {
-    NONE: 0,
-    BY_POLYGON_VERTEX: 1,
-    BY_CONTROL_POINT: 2,
-    BY_POLYGON: 3,
-    ALL_SAME: 4
-};
-
-HX.FbxLayerElement.REFERENCE_TYPE = {
-    DIRECT: 1,
-    INDEX_TO_DIRECT: 2
-};
-
-HX.FbxLayerElement.prototype.toString = function() { return "[FbxLayerElement(name="+this.name+")]"; };
-HX.FbxMaterial = function()
-{
-    HX.FbxObject.call(this);
-    // actual video not supported
-    this.EmissiveColor = null;
-    this.EmissiveFactor = 1;
-    this.DiffuseColor = null;
-    this.DiffuseFactor = 1;
-    //this.NormalMap = null;
-    this.ShininessExponent = undefined;
-    this.Shininess = undefined;
-
-    this.textures = null;
-};
-
-HX.FbxMaterial.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxMaterial.prototype.connectProperty = function(obj, propertyName)
-{
-    if (obj instanceof HX.FbxFileTexture) {
-        this.textures = this.textures || {};
-        this.textures[propertyName] = obj;
-    }
-    else
-        throw new Error("Unknown object property!");
-};
-
-HX.FbxMaterial.prototype.toString = function() { return "[FbxMaterial(name="+this.name+")]"; };
-/**
- *
- * @constructor
- */
-HX.FbxMesh = function()
-{
-    HX.FbxObject.call(this);
-    this.Color = null;
-    this["Casts Shadows"] = true;
-
-    this.vertices = null;
-    this.layerElements = null;
-    this.deformers = null;
-};
-
-HX.FbxMesh.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxMesh.prototype.toString = function() { return "[FbxMesh(name="+this.name+")]"; };
-
-HX.FbxMesh.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxSkin) {
-        this.deformers = this.deformers || [];
-        this.deformers.push(obj);
-    }
-    else {
-        throw new Error("Unhandled object connection " + obj.toString());
-    }
-};
-// probably needs to be subclasses for Light, Camera, etc
-HX.FbxNodeAttribute = function()
-{
-    HX.FbxObject.call(this);
-    // actual video not supported
-    this.type = null;
-};
-
-HX.FbxNodeAttribute.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxNodeAttribute.prototype.toString = function() { return "[FbxNodeAttribute(name="+this.name+", type="+this.type+")]"; };
-HX.FbxPose = function()
-{
-    HX.FbxObject.call(this);
-    this.type = null;
-    this.poseNodes = [];
-};
-
-HX.FbxPose.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxPose.prototype.toString = function() { return "[FbxPose(name="+this.name+")]"; };
-
-HX.FbxPoseNode = function()
-{
-    this.targetUID = null;
-    this.matrix = null;
-}
-HX.FbxSkin = function()
-{
-    HX.FbxObject.call(this);
-    this.clusters = null;
-
-    // data will contain the converter
-};
-
-HX.FbxSkin.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxSkin.prototype.toString = function() { return "[FbxSkin(name="+this.name+")]"; };
-
-HX.FbxSkin.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxCluster) {
-        this.clusters = this.clusters || [];
-        this.clusters.push(obj);
-    }
-    else
-        throw new Error("Unhandled object connection " + obj.toString());
-};
-HX.FbxTime = function(value)
-{
-    this._value = value;
-};
-
-HX.FbxTime.getSpan = function(start, stop)
-{
-    return new HX.FbxTime(stop._value - start._value);
-};
-
-HX.FbxTime.TC_MILLISECOND = 46186158;
-
-HX.FbxTime.prototype =
-{
-    get milliseconds()
-    {
-        return this._value / HX.FbxTime.TC_MILLISECOND;
-    },
-
-    set milliseconds(value)
-    {
-        this._value = value * HX.FbxTime.TC_MILLISECOND;
-    },
-
-    getFrameCount: function(frameRate)
-    {
-        return Math.floor(this.milliseconds / 1000.0 * frameRate);
-    },
-
-    toString: function()
-    {
-        return "[FbxTime(name="+this._value+")]";
-    }
-};
-HX.FbxTrashNode = function()
-{
-    HX.FbxObject.call(this);
-};
-
-HX.FbxTrashNode.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxTrashNode.prototype.toString = function() { return "[FbxTrashNode(name="+this.name+")]"; };
-
-// ignore
-HX.FbxTrashNode.prototype.connectObject = function(obj) {}
-HX.FbxVideo = function()
-{
-    HX.FbxObject.call(this);
-    // actual video not supported
-    this.relativeFilename = null;
-};
-
-HX.FbxVideo.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxVideo.prototype.toString = function() { return "[FbxVideo(name="+this.name+")]"; };

@@ -104,7 +104,8 @@ OrbitController.prototype.onAdded = function()
 
     this._onUp = function(event) { self._isDown = false; };
 
-    HX.TARGET_CANVAS.addEventListener("mousewheel", this._onMouseWheel);
+    var mousewheelevt = (/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel";
+    HX.TARGET_CANVAS.addEventListener(mousewheelevt, this._onMouseWheel);
     HX.TARGET_CANVAS.addEventListener("mousemove", this._onMouseMove);
     HX.TARGET_CANVAS.addEventListener("touchmove", this._onTouchMove);
     HX.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
@@ -115,7 +116,8 @@ OrbitController.prototype.onAdded = function()
 
 OrbitController.prototype.onRemoved = function()
 {
-    HX.TARGET_CANVAS.removeEventListener("mousewheel", this._onMouseWheel);
+    var mousewheelevt = (/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel";
+    HX.TARGET_CANVAS.removeEventListener(mousewheelevt, this._onMouseWheel);
     HX.TARGET_CANVAS.removeEventListener("mousemove", this._onMouseMove);
     HX.TARGET_CANVAS.removeEventListener("touchmove", this._onTouchMove);
     HX.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);

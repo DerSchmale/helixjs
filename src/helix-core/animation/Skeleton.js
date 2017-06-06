@@ -81,11 +81,16 @@ HX.SkeletonPose.prototype =
         var m = new HX.Matrix4x4();
         for (var i = 0; i < skeleton.numJoints; ++i) {
             var j = skeleton.getJoint(i);
-            var p = this.jointPoses[i];
+            var p = this.jointPoses[i] = new HX.SkeletonJointPose();
+            // global bind pose matrix
             m.inverseAffineOf(j.inverseBindPose);
+
+            // local bind pose matrix
+            if (j.parentIndex >= 0)
+                m.append(skeleton.getJoint(j.parentIndex).inverseBindPose);
+
             m.decompose(p);
         }
-
     },
 
     copyFrom: function(a)

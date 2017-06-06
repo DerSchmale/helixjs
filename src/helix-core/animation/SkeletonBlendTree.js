@@ -49,12 +49,11 @@ HX.SkeletonBlendTree.prototype =
         var rootPose = this._rootNode._pose.jointPoses;
         var globalPose = this._globalPose.jointPoses;
 
-        var p = new HX.Matrix4x4();
+        /*var p = new HX.Matrix4x4();
         var c = new HX.Matrix4x4();
         var pp = new HX.Transform();
         var cc = new HX.Transform();
-        var sc = new HX.Float4();
-        var scale = 1.0;
+        var sc = new HX.Float4();*/
 
         for (var i = 0; i < numJoints; ++i) {
             var localJointPose = rootPose[i];

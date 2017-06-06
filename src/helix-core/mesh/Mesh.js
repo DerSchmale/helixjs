@@ -63,8 +63,8 @@ HX.Mesh.prototype = {
         var w = meshData.morphBufferWidth;
         var h = meshData.morphBufferHeight;
         var posData = meshData.getVertexAttribute("hx_position");
-        var stride = mesgData.getVertexStride(posData.streamIndex);
-        var data = meshData.getVertexData(posData.stream);
+        var stride = meshData.getVertexStride(posData.streamIndex);
+        var data = meshData.getVertexData(posData.streamIndex);
         var tex = [];
 
         var t = 0;
@@ -76,7 +76,8 @@ HX.Mesh.prototype = {
         }
 
         // fill up texture
-        while (t < w * h * 4) {
+        var len = w * h * 4;
+        while (t < len) {
             tex[t++] = 0.0;
             tex[t++] = 0.0;
             tex[t++] = 0.0;

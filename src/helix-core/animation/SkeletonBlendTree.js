@@ -32,6 +32,11 @@ HX.SkeletonBlendTree.prototype =
 
     get matrices() { return this._matrices; },
 
+    setValue: function(id, value)
+    {
+        this._rootNode.setValue(id, value);
+    },
+
     update: function(dt)
     {
         if (this._rootNode.update(dt)) {

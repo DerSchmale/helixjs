@@ -26,6 +26,12 @@ HX.SkeletonAnimation.prototype = Object.create(HX.Component.prototype,
     }
 );
 
+HX.SkeletonAnimation.prototype.setValue = function(id, value)
+{
+    // if any of the nodes in the animation blend tree has a value id assigned, it can be controlled here from the root.
+    this._blendTree.setValue(id, value);
+};
+
 HX.SkeletonAnimation.prototype.onAdded = function()
 {
     this._blendTree.skeleton = this._entity.skeleton;

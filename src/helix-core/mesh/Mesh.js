@@ -11,7 +11,7 @@ HX.Mesh = function (meshData, model)
     this._vertexStrides = [];
     this._indexBuffer = new HX.IndexBuffer();
     this._hasMorphData = false;
-    this._baseMorphTexture = null;
+    this._baseMorphPositionsTexture = null;
 
     this._renderOrderHint = ++HX.Mesh.ID_COUNTER;
 
@@ -27,6 +27,11 @@ HX.Mesh.prototype = {
     get hasMorphData()
     {
         return this._hasMorphData;
+    },
+
+    get baseMorphPositionsTexture()
+    {
+        return this._baseMorphPositionsTexture;
     },
 
     updateMeshData: function(meshData)
@@ -55,10 +60,10 @@ HX.Mesh.prototype = {
         this._vertexAttributes = meshData._vertexAttributes;
         this._hasMorphData = meshData.hasMorphIndices;
         if (this._hasMorphData)
-            this._initBaseMorphTexture(meshData);
+            this._initBaseMorphTextures(meshData);
     },
 
-    _initBaseMorphTexture: function(meshData)
+    _initBaseMorphTextures: function(meshData)
     {
         var w = meshData.morphBufferWidth;
         var h = meshData.morphBufferHeight;
@@ -85,9 +90,9 @@ HX.Mesh.prototype = {
         }
 
 
-        this._baseMorphTexture = new HX.Texture2D();
-        this._baseMorphTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
-        this._baseMorphTexture.uploadData(new Float32Array(data), w, h, false, HX_GL.RGBA, HX_GL.FLOAT);
+        this._baseMorphPositionsTexture = new HX.Texture2D();
+        this._baseMorphPositionsTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
+        this._baseMorphPositionsTexture.uploadData(new Float32Array(data), w, h, false, HX_GL.RGBA, HX_GL.FLOAT);
     },
 
     dispose: function ()

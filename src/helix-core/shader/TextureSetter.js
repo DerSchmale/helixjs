@@ -4,20 +4,30 @@
  */
 HX.TextureSetter = {};
 
-HX.TextureSetter.getSetters = function(materialPass) {
-    if (HX.TextureSetter._table === undefined)
+HX.TextureSetter.getSettersPerPass = function(materialPass)
+{
+    if (HX.TextureSetter._passTable === undefined)
         HX.TextureSetter._init();
 
-    return HX.TextureSetter._findSetters(materialPass);
+    return HX.TextureSetter._findSetters(materialPass, HX.TextureSetter._passTable);
 };
 
-HX.TextureSetter._findSetters = function(materialPass)
+HX.TextureSetter.getSettersPerInstance = function(materialPass)
+{
+    if (HX.TextureSetter._instanceTable === undefined)
+        HX.TextureSetter._init();
+
+    return HX.TextureSetter._findSetters(materialPass, HX.TextureSetter._instanceTable);
+};
+
+HX.TextureSetter._findSetters = function(materialPass, table)
 {
     var setters = [];
-    for (var slotName in HX.TextureSetter._table) {
+    for (var slotName in table) {
+        if (!table.hasOwnProperty(slotName)) continue;
         var slot = materialPass.getTextureSlot(slotName);
-        if (slot == null) continue;
-        var setter = new HX.TextureSetter._table[slotName]();
+        if (!slot) continue;
+        var setter = new table[slotName]();
         setters.push(setter);
         setter.slot = slot;
     }
@@ -28,13 +38,19 @@ HX.TextureSetter._findSetters = function(materialPass)
 
 HX.TextureSetter._init = function()
 {
-    HX.TextureSetter._table = {};
+    HX.TextureSetter._passTable = {};
+    HX.TextureSetter._instanceTable = {};
 
-    HX.TextureSetter._table.hx_normalDepth = HX.NormalDepthSetter;
-    HX.TextureSetter._table.hx_backbuffer = HX.BackbufferSetter;
-    HX.TextureSetter._table.hx_frontbuffer = HX.FrontbufferSetter;
-    HX.TextureSetter._table.hx_ssao = HX.SSAOSetter;
+    HX.TextureSetter._passTable.hx_normalDepth = HX.NormalDepthSetter;
+    HX.TextureSetter._passTable.hx_backbuffer = HX.BackbufferSetter;
+    HX.TextureSetter._passTable.hx_frontbuffer = HX.FrontbufferSetter;
+    HX.TextureSetter._passTable.hx_ssao = HX.SSAOSetter;
+
+    HX.TextureSetter._instanceTable.hx_morphPositionsTexture = HX.MorphPositionsTextureSetter;
 };
+
+// Texture setters can be either per pass or per instance. The execute method gets passed eithter the renderer or the
+// render item, respectively.
 
 HX.NormalDepthSetter = function()
 {
@@ -57,7 +73,6 @@ HX.FrontbufferSetter.prototype.execute = function (renderer)
         this.slot.texture = renderer._hdrFront.texture;
 };
 
-
 HX.BackbufferSetter = function()
 {
 };
@@ -76,4 +91,14 @@ HX.SSAOSetter = function()
 HX.SSAOSetter.prototype.execute = function (renderer)
 {
     this.slot.texture = renderer._ssaoTexture;
+};
+
+
+HX.MorphPositionsTextureSetter = function()
+{
+};
+
+HX.MorphPositionsTextureSetter.prototype.execute = function (renderItem)
+{
+    this.slot.texture = renderItem.meshInstance.morphPositionsTexture;
 };

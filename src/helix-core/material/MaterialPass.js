@@ -15,7 +15,8 @@ HX.MaterialPass = function (shader)
     this._blendState = null;
 
     this._storeUniforms();
-    this._textureSetters = HX.TextureSetter.getSetters(this);
+    this._textureSettersPass = HX.TextureSetter.getSettersPerPass(this);
+    this._textureSettersInstance = HX.TextureSetter.getSettersPerInstance(this);
 
     // if material supports animations, this would need to be handled properly
     this._useSkinning = false;
@@ -87,12 +88,29 @@ HX.MaterialPass.prototype =
         this._blendState = value;
     },
 
-    updateRenderState: function (renderer)
+    /**
+     * Called per render item.
+     */
+    updateInstanceRenderState: function(camera, renderItem)
     {
-        var len = this._textureSetters.length;
+        var len = this._textureSettersInstance.length;
 
         for (var i = 0; i < len; ++i) {
-            this._textureSetters[i].execute(renderer);
+            this._textureSettersInstance[i].execute(renderItem);
+        }
+
+        this._shader.updateRenderState(camera, renderItem);
+    },
+
+    /**
+     * Only called upon activation, not per render item.
+     */
+    updatePassRenderState: function (renderer)
+    {
+        var len = this._textureSettersPass.length;
+
+        for (var i = 0; i < len; ++i) {
+            this._textureSettersPass[i].execute(renderer);
         }
 
         len = this._textureSlots.length;

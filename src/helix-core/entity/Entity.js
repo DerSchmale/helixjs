@@ -39,6 +39,16 @@ HX.Entity.prototype.removeComponents = function(components)
     }
 };
 
+HX.Entity.prototype.getComponentsByType = function(type)
+{
+    var collection = [];
+    for (var i = 0; i < this._components.length; ++i) {
+        var comp = this._components[i];
+        if (comp instanceof type) collection.push(comp);
+    }
+    return collection;
+};
+
 HX.Entity.prototype.addComponent = function(component)
 {
     if (component._entity)

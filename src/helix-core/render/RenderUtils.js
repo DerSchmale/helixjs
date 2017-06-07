@@ -19,13 +19,12 @@ HX.RenderUtils =
             var pass = material.getPass(passType);
             if (!pass) continue;
             var meshInstance = renderItem.meshInstance;
-            var shader = pass._shader;
 
             // make sure renderstate is propagated
-            shader.updateRenderState(renderItem.camera, renderItem);
+            pass.updateInstanceRenderState(renderItem.camera, renderItem);
 
             if (pass !== activePass) {
-                pass.updateRenderState(renderer);
+                pass.updatePassRenderState(renderer);
                 activePass = pass;
 
                 lastMesh = null;    // need to reset mesh data too

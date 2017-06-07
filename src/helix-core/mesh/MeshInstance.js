@@ -9,12 +9,18 @@ HX.MeshInstance = function(mesh, material)
     this._mesh = mesh;
     this._meshMaterialLinkInvalid = false;
     this._vertexLayouts = null;
+    this._morphPositionsTexture = null;
 
     this.material = material;
 };
 
 HX.MeshInstance.prototype = {
     constructor: HX.MeshInstance,
+
+    get morphPositionsTexture()
+    {
+        return this._morphPositionsTexture;
+    },
 
     get material()
     {
@@ -33,6 +39,9 @@ HX.MeshInstance.prototype = {
 
             this.material._setUseSkinning(this._material._useSkinning || !!this._mesh._model.skeleton);
             this.material._setUseMorphing(this._material._useMorphing || this._mesh.hasMorphData);
+
+            if (this._mesh.hasMorphData)
+                this._morphPositionsTexture = this._mesh.baseMorphPositionsTexture;
         }
 
         this._linkMeshWithMaterial();

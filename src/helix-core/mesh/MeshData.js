@@ -127,7 +127,7 @@ HX.MeshData.prototype = {
         var w = this._morphBufferWidth = Math.ceil(Math.sqrt(num));
         var h = this._morphBufferHeight = Math.ceil(num / this._morphBufferWidth);
         var stream = this.numStreams;
-        this.addVertexAttribute("hx_morphIndices", 2, stream);
+        this.addVertexAttribute("hx_morphIndex", 2, stream);
 
         var data = [];
         for (var i = 0; i < num; ++i) {

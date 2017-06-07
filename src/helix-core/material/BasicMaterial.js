@@ -284,6 +284,7 @@ HX.BasicMaterial.prototype._generateDefines = function()
     if (this._maskMap) defines.MASK_MAP = 1;
     if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
     if (this._useSkinning) defines.USE_SKINNING = 1;
+    if (this._useMorphing) defines.USE_MORPHING = 1;
 
     switch (this._specularMapMode) {
         case HX.BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:

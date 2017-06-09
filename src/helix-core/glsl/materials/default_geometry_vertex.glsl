@@ -1,5 +1,5 @@
 #ifdef USE_MORPHING
-attribute vec2 hx_morphIndex;
+attribute vec2 hx_morphUV;
 
 uniform sampler2D hx_morphPositionsTexture;
 
@@ -48,7 +48,7 @@ void hx_geometry()
 {
 #ifdef USE_MORPHING
 // TODO: Also apply to normals
-    vec4 morphedPosition = vec4(texture2D(hx_morphPositionsTexture, hx_morphIndex).xyz, 1.0);
+    vec4 morphedPosition = vec4(texture2D(hx_morphPositionsTexture, hx_morphUV).xyz, 1.0);
     vec3 morphedNormal = hx_normal;
 #else
     vec4 morphedPosition = hx_position;

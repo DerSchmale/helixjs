@@ -164,6 +164,9 @@ HX.init = function(canvas, options)
 
     HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
 
+    // default copy shader
+    HX.COPY_SHADER = new HX.CopyChannelsShader();
+
     HX._initMaterialPasses();
 
     HX.Texture2D._initDefault();

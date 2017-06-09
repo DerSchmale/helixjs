@@ -139,6 +139,8 @@ HX.Texture2D.prototype =
 
         this.bind();
 
+        HX_GL.pixelStorei(HX_GL.UNPACK_FLIP_Y_WEBGL, 1);
+
         HX_GL.texImage2D(HX_GL.TEXTURE_2D, 0, format, width, height, 0, format, dataType, data);
 
         if (generateMips)

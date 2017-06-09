@@ -100,5 +100,5 @@ HX.MorphPositionsTextureSetter = function()
 
 HX.MorphPositionsTextureSetter.prototype.execute = function (renderItem)
 {
-    this.slot.texture = renderItem.meshInstance.morphPositionsTexture;
+    this.slot.texture = renderItem.meshInstance.morphPose.positionTexture;
 };

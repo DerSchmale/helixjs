@@ -11,7 +11,7 @@ HX.Mesh = function (meshData, model)
     this._vertexStrides = [];
     this._indexBuffer = new HX.IndexBuffer();
     this._hasMorphData = false;
-    this._baseMorphPositionsTexture = null;
+    this._baseMorphPose = null;
 
     this._renderOrderHint = ++HX.Mesh.ID_COUNTER;
 
@@ -29,9 +29,9 @@ HX.Mesh.prototype = {
         return this._hasMorphData;
     },
 
-    get baseMorphPositionsTexture()
+    get baseMorphPose()
     {
-        return this._baseMorphPositionsTexture;
+        return this._baseMorphPose;
     },
 
     updateMeshData: function(meshData)
@@ -55,44 +55,15 @@ HX.Mesh.prototype = {
         }
 
         this._numIndices = meshData._indexData.length;
+        this._numVertices = meshData.numVertices;
 
         this._indexBuffer.uploadData(meshData._indexData, meshData.indexUsage);
         this._vertexAttributes = meshData._vertexAttributes;
-        this._hasMorphData = meshData.hasMorphIndices;
-        if (this._hasMorphData)
-            this._initBaseMorphTextures(meshData);
-    },
-
-    _initBaseMorphTextures: function(meshData)
-    {
-        var w = meshData.morphBufferWidth;
-        var h = meshData.morphBufferHeight;
-        var posData = meshData.getVertexAttribute("hx_position");
-        var stride = meshData.getVertexStride(posData.streamIndex);
-        var data = meshData.getVertexData(posData.streamIndex);
-        var tex = [];
-
-        var t = 0;
-        for (var i = posData.offset; i < data.length; i += stride) {
-            tex[t++] = posData[i];
-            tex[t++] = posData[i + 1];
-            tex[t++] = posData[i + 2];
-            tex[t++] = 1.0;
+        this._hasMorphData = meshData.hasMorphUVs;
+        if (this._hasMorphData) {
+            this._baseMorphPose = new HX.MorphPose();
+            this._baseMorphPose.initFromMeshData(meshData);
         }
-
-        // fill up texture
-        var len = w * h * 4;
-        while (t < len) {
-            tex[t++] = 0.0;
-            tex[t++] = 0.0;
-            tex[t++] = 0.0;
-            tex[t++] = 1.0;
-        }
-
-
-        this._baseMorphPositionsTexture = new HX.Texture2D();
-        this._baseMorphPositionsTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
-        this._baseMorphPositionsTexture.uploadData(new Float32Array(data), w, h, false, HX_GL.RGBA, HX_GL.FLOAT);
     },
 
     dispose: function ()
@@ -100,6 +71,11 @@ HX.Mesh.prototype = {
         for (var i = 0; i < this._vertexBuffers.length; ++i)
             this._vertexBuffers[i].dispose();
         this._indexBuffer.dispose();
+    },
+
+    get numVertices()
+    {
+        return this._numVertices;
     },
 
     get numIndices()

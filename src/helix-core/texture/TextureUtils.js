@@ -16,5 +16,18 @@ HX.TextureUtils =
         texture.initEmpty(width, height, format, dataType);
         if (fbo) fbo.init();
         return true;
+    },
+
+    /**
+     * Copies a texture into a Framebuffer.
+     * @param sourceTexture The source texture to be copied.
+     * @param destFBO The target FBO to copy into.
+     */
+    copy: function(sourceTexture, destFBO)
+    {
+        HX.setRenderTarget(destFBO);
+        HX.clear();
+        HX.COPY_SHADER.execute(HX.RectMesh.DEFAULT, sourceTexture);
+        HX.setRenderTarget(null);
     }
 };

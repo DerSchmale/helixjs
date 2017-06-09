@@ -89,7 +89,7 @@ HX.SkeletonBinaryLerpNode.prototype = Object.create(HX.SkeletonBlendNode.prototy
 HX.SkeletonBinaryLerpNode.prototype.update = function(dt)
 {
     var updated = this._child1.update(dt);
-    updated = updated || this._child2.update(dt);
+    updated = this._child2.update(dt) || updated;
 
     var t = this._t;
     if (updated || this._valueChanged) {

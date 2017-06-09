@@ -19,7 +19,6 @@ HX.View = function(scene, camera, xRatio, yRatio, widthRatio, heightRatio)
 HX.MultiRenderer = function()
 {
     this._views = [];
-    this._copyTexture = new HX.CopyChannelsShader();
 };
 
 HX.MultiRenderer.prototype =
@@ -73,7 +72,7 @@ HX.MultiRenderer.prototype =
             viewport.width = view._texture.width;
             viewport.height = view._texture.height;
             HX.setViewport(viewport);
-            this._copyTexture.execute(HX.RectMesh.DEFAULT, view._texture);
+            HX.COPY_SHADER.execute(HX.RectMesh.DEFAULT, view._texture);
         }
     }
 };

@@ -7,29 +7,37 @@
 HX.MorphBlendNode = function()
 {
     this._valueID = null;
-    this._positionTexture = new HX.Texture2D();
-    this._positionTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
-    this._positionFBO = new HX.FrameBuffer(this._positionTexture);
 };
 
 HX.MorphBlendNode.prototype =
 {
-    // child nodes should ALWAYS be requested to update first
-    update: function(dt)
+    getValueIDs: function(target)
     {
+        if (this._valueID && target.indexOf(this._valueID) < 0)
+            target.push(this._valueID);
     },
 
-    get positionTexture()
+    /**
+     * Updates the state of the animation. Child nodes should ALWAYS be requested to update first.
+     * @param dt The amount of milliseconds passed since the last call.
+     * @returns {boolean} Whether or not the state of this node (or any of its children).
+     */
+    update: function(dt)
     {
-        return this._positionTexture;
+        return false;
+    },
+
+    get pose()
+    {
+        return this._pose;
     },
 
     setMesh: function(mesh)
     {
-        var srcTex = mesh.baseMorphPositionsTexture;
-        this._mesh = mesh;
-        this._positionTexture.initEmpty(srcTex.width, srcTex.height, HX_GL.RGBA, HX_GL.FLOAT);
-        this._positionFBO.init();
+        if (!mesh.hasMorphData)
+            throw new Error("Trying to add vertex morphing for a mesh without morph data!");
+
+        this._pose = mesh.baseMorphPose.clone();
     },
 
     setValue: function(id, value)

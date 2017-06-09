@@ -6,9 +6,12 @@
 HX.MorphAdditiveNode = function()
 {
     HX.MorphBlendNode.call(this, false);
+    if (!HX.MorphAdditiveNode.COPY_SHADER) {
+        HX.MorphAdditiveNode.COPY_SHADER = new HX.BlendColorCopyShader();
+    }
     this._baseNode = null;
     this._additiveNodes = [];
-    this._copyTextureShader = new HX.CopyChannelsShader();
+    this._hasChanged = true;
 };
 
 HX.MorphAdditiveNode.prototype = Object.create(HX.MorphBlendNode.prototype,
@@ -23,7 +26,9 @@ HX.MorphAdditiveNode.prototype = Object.create(HX.MorphBlendNode.prototype,
         {
             this._baseNode = value;
             if (this._mesh)
-                this._additiveNodes.setMesh(this._mesh);
+                this._baseNode.setMesh(this._mesh);
+
+            this._hasChanged = true;
         }
     }
 });
@@ -33,41 +38,77 @@ HX.MorphAdditiveNode.prototype.addAdditiveNode = function(value)
     this._additiveNodes.push(value);
     if (this._mesh)
         value.setMesh(this._mesh);
+
+    this._hasChanged = true;
+};
+
+HX.MorphAdditiveNode.prototype.setValue = function(id, value)
+{
+    HX.MorphBlendNode.prototype.setValue.call(this, id, value);
+
+    if (this._baseNode)
+        this._baseNode.setValue(id, value);
+
+    for (var i = 0; i < this._additiveNodes.length; ++i)
+        this._additiveNodes[i].setValue(id, value);
+};
+
+HX.MorphAdditiveNode.prototype.getValueIDs = function(target)
+{
+    HX.MorphBlendNode.prototype.getValueIDs.call(this, target);
+
+    if (this._baseNode)
+        this._baseNode.getValueIDs(target);
+
+    for (var i = 0; i < this._additiveNodes.length; ++i)
+        this._additiveNodes[i].getValueIDs(target);
+
+    this._hasChanged = true;
 };
 
 HX.MorphAdditiveNode.prototype.setMesh = function(mesh)
 {
+    HX.MorphBlendNode.prototype.setMesh.call(this, mesh);
+
     // use base pose if only additive poses were provided
-    if (!this._baseNode) this._baseNode = new HX.MorphStaticNode(mesh);
+    if (!this._baseNode) this._baseNode = new HX.MorphStaticNode(mesh.baseMorphPose);
 
     this._baseNode.setMesh(mesh);
 
     for (var i = 0; i < this._additiveNodes.length; ++i) {
         this._additiveNodes[i].setMesh(mesh);
     }
+
+    this._hasChanged = true;
 };
 
 HX.MorphAdditiveNode.prototype.update = function(dt)
 {
-    this._baseNode.update(dt);
+    var updated = this._baseNode.update(dt) || this._hasChanged;
 
     for (var i = 0; i < this._additiveNodes.length; ++i)
-        this._additiveNodes[i].update(dt);
+        updated = this._additiveNodes[i].update(dt) || updated;
 
-    HX.setRenderTarget(this._positionFBO);
-    this._copyTextureShader.execute(HX.RectMesh.DEFAULT, this._baseNode.positionTexture);
+    if (!updated) return;
+
+    this._hasChanged = false;
+
+    HX.setRenderTarget(this._pose.positionFBO);
+    HX.clear();
+
+    HX.COPY_SHADER.execute(HX.RectMesh.DEFAULT, this._baseNode.pose.positionTexture);
 
     HX.setBlendState(HX.BlendState.ADD);
+
     var len = this._additiveNodes.length;
     for (var i = 0; i < len; ++i) {
         var node = this._additiveNodes[i];
-        if (node._weight > 0.0) {
-            HX_GL.blendColor(1.0, 1.0, 1.0, node._weight);
-            this._copyTextureShader.execute(HX.RectMesh.DEFAULT, this._additiveNodes[i].positionTexture);
+        var weight = node._weight;
+        if (weight > 0.0) {
+            HX.MorphAdditiveNode.COPY_SHADER.setBlendColor(weight, weight, weight, weight);
+            HX.MorphAdditiveNode.COPY_SHADER.execute(HX.RectMesh.DEFAULT, this._additiveNodes[i].pose.positionTexture);
         }
     }
-
-    HX_GL.blendColor(1.0, 1.0, 1.0, 1.0);
 
     HX.setBlendState(null);
 };

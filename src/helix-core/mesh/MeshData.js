@@ -11,7 +11,7 @@ HX.MeshData = function ()
     this.indexUsage = HX_GL.STATIC_DRAW;
     this._vertexAttributes = [];
     this._numStreams = 0;
-    this._hasMorphIndices = false;
+    this._hasMorphUVs = false;
     this._morphBufferWidth = 0;
     this._morphBufferHeight = 0;
 };
@@ -35,9 +35,9 @@ HX.MeshData.createDefaultEmpty = function()
 HX.MeshData.prototype = {
     constructor: HX.MeshData,
 
-    get hasMorphIndices()
+    get hasMorphUVs()
     {
-        return this._hasMorphIndices;
+        return this._hasMorphUVs;
     },
 
     getVertexData: function (streamIndex)
@@ -69,7 +69,7 @@ HX.MeshData.prototype = {
      */
     addVertexAttribute: function (name, numComponents, streamIndex)
     {
-        if (name === "hx_morphIndices") this._hasMorphIndices = true;
+        if (name === "hx_morphUV") this._hasMorphUVs = true;
 
         streamIndex = streamIndex || 0;
         this._numStreams = Math.max(this._numStreams, streamIndex + 1);
@@ -111,28 +111,17 @@ HX.MeshData.prototype = {
         return this._vertexData[0].length / this._vertexStrides[0];
     },
 
-    get morphBufferWidth()
-    {
-        return this._morphBufferWidth;
-    },
-
-    get morphBufferHeight()
-    {
-        return this._morphBufferHeight;
-    },
-
-    generateMorphIndices: function()
+    generateMorphData: function()
     {
         var num = this.numVertices;
-        var w = this._morphBufferWidth = Math.ceil(Math.sqrt(num));
-        var h = this._morphBufferHeight = Math.ceil(num / this._morphBufferWidth);
+        var dim = HX.MorphPose.getTextureDimensions(num);
         var stream = this.numStreams;
-        this.addVertexAttribute("hx_morphIndex", 2, stream);
+        this.addVertexAttribute("hx_morphUV", 2, stream);
 
         var data = [];
         for (var i = 0; i < num; ++i) {
-            var u = (i % w) / w;
-            var v = Math.floor(i / w) / h;
+            var u = (i % dim.x) / (dim.x - 1);
+            var v = 1.0 - Math.floor(i / dim.x) / (dim.y - 1);
             data.push(u, v);
         }
 

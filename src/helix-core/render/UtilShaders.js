@@ -40,6 +40,7 @@ HX.CustomCopyShader.prototype.execute = function(rect, texture)
 };
 
 
+
 /**
  * Copies one texture's channels (in configurable ways) to another's.
  * @param channel Can be either x, y, z, w or any 4-component swizzle. default is xyzw, meaning a simple copy
@@ -58,6 +59,27 @@ HX.CopyChannelsShader = function(channel, copyAlpha)
 };
 
 HX.CopyChannelsShader.prototype = Object.create(HX.CustomCopyShader.prototype);
+
+
+
+/**
+ * Copies one texture's channels while applying the same logic as gl.blendColor. This because it is broken for float textures.
+ * @constructor
+ */
+HX.BlendColorCopyShader = function()
+{
+    HX.CustomCopyShader.call(this, HX.ShaderLibrary.get("blend_color_copy_fragment.glsl"));
+    this._colorLocation = HX_GL.getUniformLocation(this._program, "blendColor");
+    this.setBlendColor(1, 1, 1, 1);
+};
+
+HX.BlendColorCopyShader.prototype = Object.create(HX.CustomCopyShader.prototype);
+
+HX.BlendColorCopyShader.prototype.setBlendColor = function(r, g, b, a)
+{
+    HX_GL.useProgram(this._program);
+    HX_GL.uniform4f(this._colorLocation, r, g, b, a);
+};
 
 
 /**

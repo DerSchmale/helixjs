@@ -26,6 +26,7 @@ HX.Entity.create = function(components)
 
 HX.Entity.prototype = Object.create(HX.SceneNode.prototype);
 
+
 HX.Entity.prototype.addComponents = function(components)
 {
     for (var i = 0; i < components.length; ++i)
@@ -39,9 +40,18 @@ HX.Entity.prototype.removeComponents = function(components)
     }
 };
 
+HX.Entity.prototype.hasComponentType = function(type)
+{
+    if (!this._components) return false;
+    for (var i = 0; i < this._components.length; ++i) {
+        if (this._components[i] instanceof type) return true;
+    }
+};
+
 HX.Entity.prototype.getComponentsByType = function(type)
 {
     var collection = [];
+    if (!this._components) return collection;
     for (var i = 0; i < this._components.length; ++i) {
         var comp = this._components[i];
         if (comp instanceof type) collection.push(comp);

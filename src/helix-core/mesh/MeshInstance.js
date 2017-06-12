@@ -10,12 +10,23 @@ HX.MeshInstance = function(mesh, material)
     this._meshMaterialLinkInvalid = false;
     this._vertexLayouts = null;
     this._morphPose = null;
+    this._visible = true;
 
     this.material = material;
 };
 
 HX.MeshInstance.prototype = {
     constructor: HX.MeshInstance,
+
+    get visible()
+    {
+        return this._visible;
+    },
+
+    set visible(value)
+    {
+        this._visible = value;
+    },
 
     get morphPose()
     {

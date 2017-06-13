@@ -14,7 +14,7 @@ window.onload = function ()
 
 function initCamera(camera)
 {
-    var controller = new OrbitController();
+    var controller = new HX.OrbitController();
     controller.azimuth = Math.PI * .5;
     controller.polar = Math.PI * .5;
     controller.radius = 1.5;

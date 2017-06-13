@@ -90,7 +90,7 @@ function initCamera(camera)
     camera.nearDistance = 0.0001;
     camera.farDistance = 1000.0;
 
-    var controller = new FloatController();
+    var controller = new HX.FloatController();
     controller.speed = .07;
     controller.shiftMultiplier = 5.0;
     controller.yaw = Math.PI;

@@ -48,7 +48,7 @@ HX.SkeletonFreePoseNode.prototype.setJointTranslation = function(indexOrName, va
 HX.SkeletonFreePoseNode.prototype.setJointScale = function(indexOrName, value)
 {
     var p = this._getJointPose(indexOrName);
-    p.scale.copyFrom(scale);
+    p.scale.copyFrom(value);
     this._poseInvalid = true;
 };
 

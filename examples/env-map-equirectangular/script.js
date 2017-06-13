@@ -2,7 +2,7 @@ var project = new DemoProject();
 
 project.onInit = function()
 {
-    var controller = new OrbitController();
+    var controller = new HX.OrbitController();
     controller.radius = 1.5;
     this.camera.addComponent(controller);
 

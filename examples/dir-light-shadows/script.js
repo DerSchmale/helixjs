@@ -44,7 +44,7 @@ function initCamera(camera)
     var tonemap = new HX.FilmicToneMapEffect(true);
     tonemap.exposure = 1.0;
 
-    var orbitController = new OrbitController();
+    var orbitController = new HX.OrbitController();
     orbitController.radius = 5.0;
     orbitController.minRadius = .3;
     orbitController.maxRadius = 20.0;

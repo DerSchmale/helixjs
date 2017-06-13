@@ -69,7 +69,7 @@ HX.SkeletonPose.prototype =
         }
 
         var target = this.jointPoses;
-        for (var i = 0; i < len; ++i) {
+        for (i = 0; i < len; ++i) {
             target[i].rotation.slerp(a[i].rotation, b[i].rotation, factor);
             target[i].position.lerp(a[i].position, b[i].position, factor);
             target[i].scale.lerp(a[i].scale, b[i].scale, factor);

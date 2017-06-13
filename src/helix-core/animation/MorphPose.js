@@ -62,7 +62,7 @@ HX.MorphPose.prototype =
         }
 
         var len = dim.x * dim.y * 4;
-        for (var i = texData.length; i < len; ++i)
+        for (i = texData.length; i < len; ++i)
             texData[i] = 0.0;
 
         this._positionTexture.uploadData(new Float32Array(texData), dim.x, dim.y, false, HX_GL.RGBA, HX_GL.FLOAT);

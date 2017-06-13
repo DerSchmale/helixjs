@@ -3,7 +3,7 @@
  * @param target
  * @constructor
  */
-OrbitController = function(lookAtTarget)
+HX.OrbitController = function(lookAtTarget)
 {
     HX.Component.call(this);
     this._coords = new HX.Float4(Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
@@ -21,7 +21,7 @@ OrbitController = function(lookAtTarget)
     this._isDown = false;
 };
 
-OrbitController.prototype = Object.create(HX.Component.prototype,
+HX.OrbitController.prototype = Object.create(HX.Component.prototype,
     {
         radius: {
             get: function() { return this._coords.z; },
@@ -39,7 +39,7 @@ OrbitController.prototype = Object.create(HX.Component.prototype,
         }
     });
 
-OrbitController.prototype.onAdded = function()
+HX.OrbitController.prototype.onAdded = function()
 {
     var self = this;
 
@@ -114,7 +114,7 @@ OrbitController.prototype.onAdded = function()
     HX.TARGET_CANVAS.addEventListener("touchend", this._onUp);
 };
 
-OrbitController.prototype.onRemoved = function()
+HX.OrbitController.prototype.onRemoved = function()
 {
     var mousewheelevt = (/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel";
     HX.TARGET_CANVAS.removeEventListener(mousewheelevt, this._onMouseWheel);
@@ -126,7 +126,7 @@ OrbitController.prototype.onRemoved = function()
     HX.TARGET_CANVAS.removeEventListener("touchend", this._onUp);
 };
 
-OrbitController.prototype.onUpdate = function(dt)
+HX.OrbitController.prototype.onUpdate = function(dt)
 {
     this._localVelocity.x *= this.dampen;
     this._localVelocity.y *= this.dampen;
@@ -151,22 +151,22 @@ OrbitController.prototype.onUpdate = function(dt)
 };
 
     // ratio is "how far the controller is pushed", from -1 to 1
-OrbitController.prototype.setAzimuthImpulse  = function(value)
+HX.OrbitController.prototype.setAzimuthImpulse  = function(value)
 {
     this._localAcceleration.x = value;
 };
 
-OrbitController.prototype.setPolarImpulse = function(value)
+HX.OrbitController.prototype.setPolarImpulse = function(value)
 {
     this._localAcceleration.y = value;
 };
 
-OrbitController.prototype.setZoomImpulse = function(value)
+HX.OrbitController.prototype.setZoomImpulse = function(value)
 {
     this._localAcceleration.z = value;
 };
 
-OrbitController.prototype._updateMove = function(x, y)
+HX.OrbitController.prototype._updateMove = function(x, y)
 {
     if (this._oldMouseX !== undefined) {
         var dx = x - this._oldMouseX;

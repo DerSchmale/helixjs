@@ -255,7 +255,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
                 get: function() { return this._alphaThreshold; },
                 set: function(value) {
                     value = HX.saturate(value);
-                    if ((this._alphaThreshold === 1.0) != (value === 1.0))
+                    if ((this._alphaThreshold === 1.0) !== (value === 1.0))
                         this._invalidate();
 
                     this._alphaThreshold = value;
@@ -292,6 +292,7 @@ HX.BasicMaterial.prototype._generateDefines = function()
             break;
         case HX.BasicMaterial.SPECULAR_MAP_ALL:
             if (this._specularMap) defines.SPECULAR_MAP = 1;
+            break;
         default:
             defines.NORMAL_ROUGHNESS_MAP = 1;
     }

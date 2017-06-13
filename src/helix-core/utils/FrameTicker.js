@@ -94,7 +94,7 @@ HX.FrameTicker.prototype = {
      * @private
      */
     _getTime: function() {
-        if (self.performance === undefined || self.performance.now == undefined)
+        if (self.performance === undefined || self.performance.now === undefined)
             return Date.now();
         else
             return self.performance.now();

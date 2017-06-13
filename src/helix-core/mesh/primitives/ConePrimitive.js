@@ -21,20 +21,23 @@ HX.ConePrimitive._generate = function(target, definition)
     var uvs = target.uvs;
     var normals = target.normals;
     var indices = target.indices;
+    var hi, ci;
+    var cx, cy;
+    var angle;
 
     var rcpNumSegmentsW = 1/numSegmentsW;
     var rcpNumSegmentsH = 1/numSegmentsH;
 
     // sides
-    for (var hi = 0; hi <= numSegmentsH; ++hi) {
+    for (hi = 0; hi <= numSegmentsH; ++hi) {
         var rad = (1.0 - hi * rcpNumSegmentsH) * radius;
         var h = (hi*rcpNumSegmentsH - .5)*height;
-        for (var ci = 0; ci <= numSegmentsW; ++ci) {
-            var angle = ci * rcpNumSegmentsW * Math.PI * 2;
+        for (ci = 0; ci <= numSegmentsW; ++ci) {
+            angle = ci * rcpNumSegmentsW * Math.PI * 2;
             var nx = Math.sin(angle);
             var ny = Math.cos(angle);
-            var cx = nx * rad;
-            var cy = ny * rad;
+            cx = nx * rad;
+            cy = ny * rad;
 
             positions.push(cx, h, -cy);
             if (normals) normals.push(nx, 0, -ny);
@@ -43,11 +46,11 @@ HX.ConePrimitive._generate = function(target, definition)
         }
     }
 
-    for (var ci = 0; ci < numSegmentsW; ++ci) {
-        for (var hi = 0; hi < numSegmentsH - 1; ++hi) {
-            var w = numSegmentsW + 1;
-            var base = ci + hi*w;
-
+    var w = numSegmentsW + 1;
+    var base;
+    for (ci = 0; ci < numSegmentsW; ++ci) {
+        for (hi = 0; hi < numSegmentsH - 1; ++hi) {
+            base = ci + hi*w;
             indices.push(base, base + w, base + w + 1);
             indices.push(base, base + w + 1, base + 1);
 
@@ -58,20 +61,19 @@ HX.ConePrimitive._generate = function(target, definition)
         }
 
         // tip only needs 1 tri
-        var w = numSegmentsW + 1;
-        var base = ci + (numSegmentsH - 1)*w;
+        base = ci + (numSegmentsH - 1)*w;
         indices.push(base, base + w + 1, base + 1);
     }
 
     // top & bottom
     var indexOffset = positions.length / 3;
     var halfH = height * .5;
-    for (var ci = 0; ci < numSegmentsW; ++ci) {
-        var angle = ci * rcpNumSegmentsW * Math.PI * 2;
+    for (ci = 0; ci < numSegmentsW; ++ci) {
+        angle = ci * rcpNumSegmentsW * Math.PI * 2;
         var u = Math.sin(angle);
         var v = Math.cos(angle);
-        var cx = u * radius;
-        var cy = v * radius;
+        cx = u * radius;
+        cy = v * radius;
 
         u = -u * .5 + .5;
         v = v * .5 + .5;
@@ -81,6 +83,6 @@ HX.ConePrimitive._generate = function(target, definition)
         if (uvs) uvs.push(u, v);
     }
 
-    for (var ci = 1; ci < numSegmentsW - 1; ++ci)
+    for (ci = 1; ci < numSegmentsW - 1; ++ci)
         indices.push(indexOffset, indexOffset + ci, indexOffset + ci + 1);
 };

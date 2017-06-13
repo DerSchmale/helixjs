@@ -94,6 +94,8 @@ HX.FrameBuffer.prototype = {
             case HX_GL.FRAMEBUFFER_UNSUPPORTED:
                 console.warn("Failed to initialize FBO: FRAMEBUFFER_UNSUPPORTED");
                 break;
+            default:
+                // nothing
         }
     },
 

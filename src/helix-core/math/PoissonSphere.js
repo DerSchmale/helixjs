@@ -78,7 +78,7 @@ HX.PoissonSphere.prototype =
             var x = Math.random() * 2.0 - 1.0;
             var y = Math.random() * 2.0 - 1.0;
             var z = Math.random() * 2.0 - 1.0;
-            if (this._mode == HX.PoissonSphere.BOX || (x * x + y * y + z * z <= 1))
+            if (this._mode === HX.PoissonSphere.BOX || (x * x + y * y + z * z <= 1))
                 return new HX.Float4(x, y, z, 0.0);
         }
     },

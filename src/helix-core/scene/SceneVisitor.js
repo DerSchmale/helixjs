@@ -23,17 +23,19 @@ HX.RenderItemPool = function()
 
     this.getItem = function()
     {
+        var item;
+
         if (head) {
-            var item = head;
+            item = head;
             head = head.next;
-            return item;
         }
         else {
-            var item = new HX.RenderItemPool();
+            item = new HX.RenderItemPool();
             item.next = pool;
             pool = item;
-            return item;
         }
+
+        return item;
     };
 
     this.reset = function()

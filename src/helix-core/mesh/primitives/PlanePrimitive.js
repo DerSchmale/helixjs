@@ -31,9 +31,9 @@ HX.PlanePrimitive._generate = function(target, definition)
     var normalX = 0, normalY = 0, normalZ = 0;
     var uvU = 0, uvV = 0;
 
-    if (alignment == HX.PlanePrimitive.ALIGN_XY)
+    if (alignment === HX.PlanePrimitive.ALIGN_XY)
         normalZ = -1;
-    else if (alignment == HX.PlanePrimitive.ALIGN_XZ)
+    else if (alignment === HX.PlanePrimitive.ALIGN_XZ)
         normalY = 1;
     else
         normalX = 1;
@@ -44,13 +44,13 @@ HX.PlanePrimitive._generate = function(target, definition)
         for (var xi = 0; xi <= numSegmentsW; ++xi) {
             var x = (xi*rcpNumSegmentsW - .5)*width;
 
-            if (alignment == HX.PlanePrimitive.ALIGN_XY) {
+            if (alignment === HX.PlanePrimitive.ALIGN_XY) {
                 posX = x;
                 posY = y;
                 uvU = 1.0 - xi*rcpNumSegmentsW;
                 uvV = yi*rcpNumSegmentsH;
             }
-            else if (alignment == HX.PlanePrimitive.ALIGN_XZ) {
+            else if (alignment === HX.PlanePrimitive.ALIGN_XZ) {
                 posX = x;
                 posZ = y;
                 uvU = 1.0 - xi*rcpNumSegmentsW;
@@ -82,7 +82,7 @@ HX.PlanePrimitive._generate = function(target, definition)
                     uvs.push(1.0 - uvU, uvV);
             }
 
-            if (xi != numSegmentsW && yi != numSegmentsH) {
+            if (xi !== numSegmentsW && yi !== numSegmentsH) {
                 var w = numSegmentsW + 1;
                 var base = xi + yi*w;
                 var mult = doubleSided ? 1 : 0;

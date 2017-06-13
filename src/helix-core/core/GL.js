@@ -101,15 +101,17 @@ HX.setRenderTarget = function(frameBuffer)
 HX.enableAttributes = function(count)
 {
     var numActiveAttribs = HX._numActiveAttributes;
+    var i;
+
     if (numActiveAttribs < count) {
-        for (var i = numActiveAttribs; i < count; ++i)
+        for (i = numActiveAttribs; i < count; ++i)
             HX_GL.enableVertexAttribArray(i);
     }
     else if (numActiveAttribs > count) {
         // bug in WebGL/ANGLE? When rendering to a render target, disabling vertex attrib array 1 causes errors when using only up to the index below o_O
         // so for now + 1
         count += 1;
-        for (var i = count; i < numActiveAttribs; ++i) {
+        for (i = count; i < numActiveAttribs; ++i) {
             HX_GL.disableVertexAttribArray(i);
         }
     }
@@ -215,14 +217,14 @@ HX._updateRenderState = function()
     }
 
     if (HX._blendStateInvalid) {
-        var state = HX._blendState;
-        if (state === null || state === undefined || state.enabled === false)
+        var blendState = HX._blendState;
+        if (blendState === null || blendState === undefined || blendState.enabled === false)
             HX_GL.disable(HX_GL.BLEND);
         else {
             HX_GL.enable(HX_GL.BLEND);
-            HX_GL.blendFunc(state.srcFactor, state.dstFactor);
-            HX_GL.blendEquation(state.operator);
-            var color = state.color;
+            HX_GL.blendFunc(blendState.srcFactor, blendState.dstFactor);
+            HX_GL.blendEquation(blendState.operator);
+            var color = blendState.color;
             if (color)
                 HX_GL.blendColor(color.r, color.g, color.b, color.a);
         }
@@ -230,17 +232,17 @@ HX._updateRenderState = function()
     }
 
     if (HX._stencilStateInvalid) {
-        var state = HX._stencilState;
-        if (state == null || state.enabled === false) {
+        var stencilState = HX._stencilState;
+        if (stencilState === null || stencilState.enabled === false) {
             HX_GL.disable(HX_GL.STENCIL_TEST);
             HX_GL.stencilFunc(HX.Comparison.ALWAYS, 0, 0xff);
             HX_GL.stencilOp(HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
         }
         else {
             HX_GL.enable(HX_GL.STENCIL_TEST);
-            HX_GL.stencilFunc(state.comparison, state.reference, state.readMask);
-            HX_GL.stencilOp(state.onStencilFail, state.onDepthFail, state.onPass);
-            HX_GL.stencilMask(state.writeMask);
+            HX_GL.stencilFunc(stencilState.comparison, stencilState.reference, stencilState.readMask);
+            HX_GL.stencilOp(stencilState.onStencilFail, stencilState.onDepthFail, stencilState.onPass);
+            HX_GL.stencilMask(stencilState.writeMask);
         }
         HX._stencilStateInvalid = false;
     }

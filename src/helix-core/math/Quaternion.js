@@ -59,10 +59,11 @@ HX.Quaternion.prototype =
         var m11 = m._m[5];
         var m22 = m._m[10];
         var trace = m00 + m11 + m22;
+        var s;
 
         if (trace > 0.0) {
             trace += 1.0;
-            var s = 1.0/Math.sqrt(trace)*.5;
+            s = 1.0/Math.sqrt(trace)*.5;
             this.x = s*(m._m[6] - m._m[9]);
             this.y = s*(m._m[8] - m._m[2]);
             this.z = s*(m._m[1] - m._m[4]);
@@ -70,7 +71,7 @@ HX.Quaternion.prototype =
         }
         else if (m00 > m11 && m00 > m22) {
             trace = m00 - m11 - m22 + 1.0;
-            var s = 1.0/Math.sqrt(trace)*.5;
+            s = 1.0/Math.sqrt(trace)*.5;
 
             this.x = s*trace;
             this.y = s*(m._m[1] + m._m[4]);
@@ -79,7 +80,7 @@ HX.Quaternion.prototype =
         }
         else if (m11 > m22) {
             trace = m11 - m00 - m22 + 1.0;
-            var s = 1.0/Math.sqrt(trace)*.5;
+            s = 1.0/Math.sqrt(trace)*.5;
 
             this.x = s*(m._m[1] + m._m[4]);
             this.y = s*trace;
@@ -88,7 +89,7 @@ HX.Quaternion.prototype =
         }
         else {
             trace = m22 - m00 - m11 + 1.0;
-            var s = 1.0/Math.sqrt(trace)*.5;
+            s = 1.0/Math.sqrt(trace)*.5;
 
             this.x = s*(m._m[8] + m._m[2]);
             this.y = s*(m._m[6] + m._m[9]);

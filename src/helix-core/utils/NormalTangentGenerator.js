@@ -40,8 +40,8 @@ HX.NormalTangentGenerator.prototype =
     {
         var numIndices = this._meshData._indexData.length;
 
-        if ((this._mode & HX.NormalTangentGenerator.MODE_NORMALS) != 0) this._faceNormals = new Array(numIndices);
-        if ((this._mode & HX.NormalTangentGenerator.MODE_TANGENTS) != 0) {
+        if ((this._mode & HX.NormalTangentGenerator.MODE_NORMALS) !== 0) this._faceNormals = new Array(numIndices);
+        if ((this._mode & HX.NormalTangentGenerator.MODE_TANGENTS) !== 0) {
             this._faceTangents = new Array(numIndices);
             this._faceBitangents = new Array(numIndices);
         }

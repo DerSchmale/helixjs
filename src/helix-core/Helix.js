@@ -27,7 +27,7 @@ HX.InitOptions = function()
     this.maxDirLightsPerPass = 1;
 
     // debug-related
-    this.debug = false;   // requires webgl-debug.js:
+    // this.debug = false;   // requires webgl-debug.js:
     this.ignoreAllExtensions = false;           // ignores all non-default extensions
     this.ignoreDrawBuffersExtension = false;     // forces multiple passes for the GBuffer
     this.ignoreDepthTexturesExtension = false;     // forces storing depth info explicitly
@@ -60,10 +60,10 @@ HX.init = function(canvas, options)
     };
 
     var glContext = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
-    if (options && options.debug) {
+    /*if (options && options.debug) {
         // ugly, but prevents having to include the webgl-debug.js file
         eval("glContext = WebGLDebugUtils.makeDebugContext(glContext)");
-    }
+    }*/
 
     HX.OPTIONS = options || new HX.InitOptions();
     HX_GL = glContext;
@@ -225,15 +225,16 @@ HX._init2DDitherTexture = function(width, height)
     var minValue = 1.0 / len;
     var data = [];
     var k = 0;
-    var values = [];
+    var values = []
+    var i;
 
-    for (var i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         values.push(i / len);
     }
 
     HX.shuffle(values);
 
-    for (var i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         var angle = values[i] * Math.PI * 2.0;
         var cos = Math.cos(angle);
         var sin = Math.sin(angle);

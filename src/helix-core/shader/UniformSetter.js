@@ -16,7 +16,7 @@ HX.UniformSetter._findSetters = function(shader)
     var setters = [];
     for (var uniformName in HX.UniformSetter._table) {
         var location = HX_GL.getUniformLocation(shader._program, uniformName);
-        if (location == null) continue;
+        if (location === null) continue;
         var setter = new HX.UniformSetter._table[uniformName]();
         setters.push(setter);
         setter.location = location;

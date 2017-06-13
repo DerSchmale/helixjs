@@ -181,7 +181,7 @@ HX.Float4.prototype = {
      */
     homogeneousProject: function()
     {
-        var rcpW = 1.0/w;
+        var rcpW = 1.0/this.w;
         this.x *= rcpW;
         this.y *= rcpW;
         this.z *= rcpW;

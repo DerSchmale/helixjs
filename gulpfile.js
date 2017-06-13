@@ -6,8 +6,9 @@ var insert = require('gulp-insert');
 var concatCallback = require('gulp-concat-callback');
 var del = require('del');
 
+// TODO: Find a way to add pako code without modules
 var libs = [
-    "libs/pako/pako_inflate.js"
+    // "libs/pako/pako_inflate.js"
 ];
 
 var coreGLSLFiles = [

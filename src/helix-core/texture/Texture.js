@@ -358,7 +358,7 @@ HX.TextureCube.prototype =
         this._format = format = format || HX_GL.RGBA;
         this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
 
-        if (mipLevel == 0)
+        if (mipLevel === 0)
             this._size = images[0].naturalWidth;
 
         this.bind();

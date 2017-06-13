@@ -2,7 +2,7 @@ var project = new DemoProject();
 
 project.onInit = function()
 {
-    this.camera.addComponent(new OrbitController());
+    this.camera.addComponent(new HX.OrbitController());
 
     initScene(this.scene);
 };

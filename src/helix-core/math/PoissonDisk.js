@@ -76,7 +76,7 @@ HX.PoissonDisk.prototype =
         for (;;) {
             var x = Math.random() * 2.0 - 1.0;
             var y = Math.random() * 2.0 - 1.0;
-            if (this._mode == HX.PoissonDisk.SQUARE || (x * x + y * y <= 1))
+            if (this._mode === HX.PoissonDisk.SQUARE || (x * x + y * y <= 1))
                 return new HX.Float2(x, y);
         }
     },

@@ -1,4 +1,4 @@
-FloatController = function()
+HX.FloatController = function()
 {
     HX.Component.call(this);
     this._speed = 1.0;
@@ -22,7 +22,7 @@ FloatController = function()
     this._onKeyUp = null;
 };
 
-FloatController.prototype = Object.create(HX.Component.prototype, {
+HX.FloatController.prototype = Object.create(HX.Component.prototype, {
     speed: {
         get: function()
         {
@@ -110,7 +110,7 @@ FloatController.prototype = Object.create(HX.Component.prototype, {
     }
 });
 
-FloatController.prototype.onAdded = function(dt)
+HX.FloatController.prototype.onAdded = function(dt)
 {
     var self = this;
     this._onKeyDown = function(event) {
@@ -133,6 +133,8 @@ FloatController.prototype.onAdded = function(dt)
             case 68:
                 self._setStrideForce(1.0);
                 break;
+            default:
+                // nothing
         }
     };
 
@@ -152,6 +154,8 @@ FloatController.prototype.onAdded = function(dt)
             case 68:
                 self._setStrideForce(0.0);
                 break;
+            default:
+            // nothing
         }
     };
 
@@ -184,7 +188,7 @@ FloatController.prototype.onAdded = function(dt)
     HX.TARGET_CANVAS.addEventListener("mouseup", this._onMouseUp);
 };
 
-FloatController.prototype.onRemoved = function(dt)
+HX.FloatController.prototype.onRemoved = function(dt)
 {
     document.removeEventListener("keydown", this._onKeyDown);
     document.removeEventListener("keyup", this._onKeyUp);
@@ -193,7 +197,7 @@ FloatController.prototype.onRemoved = function(dt)
     HX.TARGET_CANVAS.removeEventListener("mouseup", this._onMouseUp);
 };
 
-FloatController.prototype.onUpdate = function(dt)
+HX.FloatController.prototype.onUpdate = function(dt)
 {
     var seconds = dt * .001;
 
@@ -226,32 +230,32 @@ FloatController.prototype.onUpdate = function(dt)
 };
 
 // ratio is "how far the controller is pushed", from -1 to 1
-FloatController.prototype._setForwardForce = function(ratio)
+HX.FloatController.prototype._setForwardForce = function(ratio)
 {
     this._localAcceleration.z = ratio * this._maxAcceleration;
 };
 
-FloatController.prototype._setStrideForce = function(ratio)
+HX.FloatController.prototype._setStrideForce = function(ratio)
 {
     this._localAcceleration.x = ratio * this._maxAcceleration;
 };
 
-FloatController.prototype._setTorquePitch = function(ratio)
+HX.FloatController.prototype._setTorquePitch = function(ratio)
 {
     this._torquePitch = ratio * this._torque;
 };
 
-FloatController.prototype._setTorqueYaw = function(ratio)
+HX.FloatController.prototype._setTorqueYaw = function(ratio)
 {
     this._torqueYaw = ratio * this._torque;
 };
 
-FloatController.prototype._addPitch = function(value)
+HX.FloatController.prototype._addPitch = function(value)
 {
     this._pitch += value;
 };
 
-FloatController.prototype._addYaw = function(value)
+HX.FloatController.prototype._addYaw = function(value)
 {
     this._yaw += value;
 };

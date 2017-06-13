@@ -54,8 +54,11 @@ HX.TorusPrimitive._generate = function(target, definition)
 
                     if (normals)
                         normals.push(py, -tx * px, tz * px);
-
                     break;
+
+                default:
+                    // nothing
+
             }
 
             if (uvs)

@@ -52,7 +52,7 @@ HX.MultiRenderer.prototype =
             var w = Math.floor(screenWidth * view.widthRatio);
             var h = Math.floor(screenHeight * view.heightRatio);
 
-            if (view._texture.width != w || view._texture.height != h) {
+            if (view._texture.width !== w || view._texture.height !== h) {
                 view._texture.initEmpty(w, h);
                 view._fbo.init();
             }
@@ -65,8 +65,8 @@ HX.MultiRenderer.prototype =
 
         var viewport = new HX.Rect();
 
-        for (var i = 0; i < numViews; ++i) {
-            var view = this._views[i];
+        for (i = 0; i < numViews; ++i) {
+            view = this._views[i];
             viewport.x = Math.floor(view.xRatio * screenWidth);
             viewport.y = Math.floor((1.0 - view.yRatio - view.heightRatio) * screenHeight);
             viewport.width = view._texture.width;

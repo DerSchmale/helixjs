@@ -13,7 +13,7 @@ window.onload = function ()
 
 function initCamera(camera)
 {
-    var orbitController = new OrbitController();
+    var orbitController = new HX.OrbitController();
     orbitController.speed = 10.0;
     orbitController.radius = 2.0;
     orbitController.maxRadius = 100.0;

@@ -108,14 +108,14 @@ HX.MaterialPass.prototype =
     updatePassRenderState: function (renderer)
     {
         var len = this._textureSettersPass.length;
-
-        for (var i = 0; i < len; ++i) {
+        var i;
+        for (i = 0; i < len; ++i) {
             this._textureSettersPass[i].execute(renderer);
         }
 
         len = this._textureSlots.length;
 
-        for (var i = 0; i < len; ++i) {
+        for (i = 0; i < len; ++i) {
             var slot = this._textureSlots[i];
             var texture = slot.texture;
 
@@ -241,7 +241,7 @@ HX.MaterialPass.prototype =
 
     setUniformArray: function(name, value)
     {
-        name = name + "[0]";
+        name += "[0]";
 
         if (!this._uniforms.hasOwnProperty(name))
             return;

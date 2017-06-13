@@ -91,7 +91,7 @@ HX.BoundingSphere.prototype.growToIncludeBound = function(bounds)
         this._center.x = bounds._center.x;
         this._center.y = bounds._center.y;
         this._center.z = bounds._center.z;
-        if (bounds._type == this._type) {
+        if (bounds._type === this._type) {
             this._halfExtentX = bounds._halfExtentX;
             this._halfExtentY = bounds._halfExtentY;
             this._halfExtentZ = bounds._halfExtentZ;
@@ -148,7 +148,7 @@ HX.BoundingSphere.prototype.getRadius = function()
 
 HX.BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
 {
-    if (sourceBound._expanse == HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+    if (sourceBound._expanse === HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
         this.clear(sourceBound._expanse);
     else {
         var arr = matrix._m;
@@ -192,9 +192,9 @@ HX.BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
 
 HX.BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
-    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
         return true;
-    else if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
         return false;
 
     var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
@@ -213,10 +213,10 @@ HX.BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlan
 
 HX.BoundingSphere.prototype.intersectsBound = function(bound)
 {
-    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
         return false;
 
-    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
         return true;
 
     // both Spheres

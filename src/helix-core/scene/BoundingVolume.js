@@ -37,32 +37,32 @@ HX.BoundingVolume._testAABBToSphere = function(aabb, sphere)
     var centerX = this._center.x;
     var centerY = this._center.y;
     var centerZ = this._center.z;
-    var dot = 0;
+    var dot = 0, diff;
 
     if (minX > centerX) {
-        var diff = centerX - minX;
+        diff = centerX - minX;
         dot += diff * diff;
     }
     else if (maxX < centerX) {
-        var diff = centerX - maxX;
+        diff = centerX - maxX;
         dot += diff * diff;
     }
 
     if (minY > centerY) {
-        var diff = centerY - minY;
+        diff = centerY - minY;
         dot += diff * diff;
     }
     else if (maxY < centerY) {
-        var diff = centerY - maxY;
+        diff = centerY - maxY;
         dot += diff * diff;
     }
 
     if (minZ > centerZ) {
-        var diff = centerZ - minZ;
+        diff = centerZ - minZ;
         dot += diff * diff;
     }
     else if (maxZ < centerZ) {
-        var diff = centerZ - maxZ;
+        diff = centerZ - maxZ;
         dot += diff * diff;
     }
 

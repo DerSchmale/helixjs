@@ -50,8 +50,8 @@ HX.SpherePrimitive._generate = function(target, definition)
 
     var indices = target.indices;
 
-    for (var polarSegment = 0; polarSegment < numSegmentsH; ++polarSegment) {
-        for (var azimuthSegment = 0; azimuthSegment < numSegmentsW; ++azimuthSegment) {
+    for (polarSegment = 0; polarSegment < numSegmentsH; ++polarSegment) {
+        for (azimuthSegment = 0; azimuthSegment < numSegmentsW; ++azimuthSegment) {
             var w = numSegmentsW + 1;
             var base = azimuthSegment + polarSegment*w;
 

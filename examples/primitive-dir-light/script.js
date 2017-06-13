@@ -2,7 +2,7 @@ var project = new DemoProject();
 
 project.onInit = function()
 {
-    this.camera.addComponent(new OrbitController());
+    this.camera.addComponent(new HX.OrbitController());
     this.camera.nearDistance = .1;
     this.camera.farDistance = 1.0;
 

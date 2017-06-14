@@ -154,7 +154,7 @@ HX.MD5Anim.prototype._translateFrame = function()
     }
 
     var time = this._target.numKeyFrames / this._frameRate * 1000.0;
-    this._target.addKeyFrame(new KeyFrame(time, skeletonPose));
+    this._target.addKeyFrame(new HX.KeyFrame(time, skeletonPose));
 };
 
 HX.MD5Anim._HierachyData = function()

@@ -31,6 +31,16 @@ HX.SkeletonClip.prototype =
         if (frame.time > this._duration) this._duration = frame.time;
     },
 
+    /**
+     * Only call this if for some reason the keyframes were added out of order.
+     */
+    sortKeyFrames: function()
+    {
+        this._keyFrames.sort(function(a, b) {
+            return a.time - b.time;
+        });
+    },
+
     get numKeyFrames()
     {
         return this._keyFrames.length;

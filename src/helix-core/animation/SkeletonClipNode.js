@@ -43,7 +43,7 @@ HX.SkeletonClipNode.prototype.stop = function()
     this._isPlaying = false;
 };
 
-HX.SkeletonClipNode.prototype.update = function(dt)
+HX.SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
 {
     if ((!this._isPlaying || dt === 0.0) && !this._timeChanged)
         return false;
@@ -110,23 +110,23 @@ HX.SkeletonClipNode.prototype.update = function(dt)
 
     this._pose.interpolate(frameA.value, frameB.value, fraction);
 
-    if (clip._transferRootJoint)
-        this._transferRootJointTransform(wraps);
+    if (transferRootJoint)
+        this._transferRootJointTransform(wraps, dt);
 
     return true;
 };
 
-HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps)
+HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
     var clip = this._clip;
-    var lastFramePos = clip.getFrame(clip.numFrames - 1).jointPoses[0].position;
-    var firstFramePos = clip.getFrame(0).jointPoses[0].position;
+    var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
+    var firstFramePos = clip.getKeyFrame(0).value.jointPoses[0].position;
 
     var currentPos = this._pose.jointPoses[0].position;
     var rootPos = this._rootPosition;
     var rootDelta = this._rootJointDeltaPosition;
 
-    if (this._timeScale > 0 && numWraps > 0) {
+    if (dt > 0 && numWraps > 0) {
         rootDelta.x = lastFramePos.x - rootPos.x + currentPos.x - firstFramePos.x + (lastFramePos.x - firstFramePos.x) * (numWraps - 1);
         rootDelta.y = lastFramePos.y - rootPos.y + currentPos.y - firstFramePos.y + (lastFramePos.y - firstFramePos.y) * (numWraps - 1);
         rootDelta.z = lastFramePos.z - rootPos.z + currentPos.z - firstFramePos.z + (lastFramePos.z - firstFramePos.z) * (numWraps - 1);

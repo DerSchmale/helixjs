@@ -12,6 +12,17 @@ HX.SkeletonAnimation = function(rootNode)
 
 HX.SkeletonAnimation.prototype = Object.create(HX.Component.prototype,
     {
+        transferRootJoint: {
+            get: function()
+            {
+                return this._blendTree.transferRootJoint;
+            },
+
+            set: function(value)
+            {
+                this._blendTree.transferRootJoint = value;
+            }
+        },
         animationNode: {
             get: function ()
             {

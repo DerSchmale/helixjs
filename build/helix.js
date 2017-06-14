@@ -365,10 +365,6 @@ HX.ShaderLibrary = {
     }
 };
 
-HX.ShaderLibrary['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    // schlick-smith\n    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));\n    float nDotV = max(dot(normal, reflection), 0.0);\n    float denom = nDotV * (1.0 - k) + k;\n    return nDotV * nDotV / (denom * denom);   // since l == v*/\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-HX.ShaderLibrary['lighting_ggx.glsl'] = '// TODO: Implement this: https://learnopengl.com/#!PBR/Theory\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif\n}';
-
 HX.ShaderLibrary['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
 
 HX.ShaderLibrary['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
@@ -378,6 +374,10 @@ HX.ShaderLibrary['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n   
 HX.ShaderLibrary['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
 
 HX.ShaderLibrary['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position; // in view space?\n    float radius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
+
+HX.ShaderLibrary['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    // schlick-smith\n    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));\n    float nDotV = max(dot(normal, reflection), 0.0);\n    float denom = nDotV * (1.0 - k) + k;\n    return nDotV * nDotV / (denom * denom);   // since l == v*/\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
+
+HX.ShaderLibrary['lighting_ggx.glsl'] = '// TODO: Implement this: https://learnopengl.com/#!PBR/Theory\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif\n}';
 
 HX.ShaderLibrary['default_geometry_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut -= roughnessRange * (specSample.x - .5);\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    HX_GeometryData data;\n    data.color = hx_gammaToLinear(outputColor);\n    data.normal = normalize(fragNormal);\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n    data.emission = vec3(0.0);\n    return data;\n}';
 
@@ -5778,7 +5778,7 @@ HX.SkeletonBlendNode = function()
 HX.SkeletonBlendNode.prototype =
 {
     // child nodes should ALWAYS be requested to update first
-    update: function(dt)
+    update: function(dt, transferRootJoint)
     {
     },
 
@@ -6632,6 +6632,17 @@ HX.SkeletonAnimation = function(rootNode)
 
 HX.SkeletonAnimation.prototype = Object.create(HX.Component.prototype,
     {
+        transferRootJoint: {
+            get: function()
+            {
+                return this._blendTree.transferRootJoint;
+            },
+
+            set: function(value)
+            {
+                this._blendTree.transferRootJoint = value;
+            }
+        },
         animationNode: {
             get: function ()
             {
@@ -6755,10 +6766,10 @@ HX.SkeletonBinaryLerpNode.prototype = Object.create(HX.SkeletonBlendNode.prototy
     }
 });
 
-HX.SkeletonBinaryLerpNode.prototype.update = function(dt)
+HX.SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
 {
-    var updated = this._child1.update(dt);
-    updated = this._child2.update(dt) || updated;
+    var updated = this._child1.update(dt, transferRootJoint);
+    updated = this._child2.update(dt, transferRootJoint) || updated;
 
     var t = this._t;
     if (updated || this._valueChanged) {
@@ -6792,6 +6803,7 @@ HX.SkeletonBlendTree = function(rootNode, skeleton)
 {
     this._skeleton = skeleton;
     this._rootNode = rootNode;
+    this._transferRootJoint = false;
     this._matrices = null;
     this._globalPose = new HX.SkeletonPose();
     if (skeleton) this.skeleton = skeleton;
@@ -6799,6 +6811,9 @@ HX.SkeletonBlendTree = function(rootNode, skeleton)
 
 HX.SkeletonBlendTree.prototype =
 {
+    get transferRootJoint() { return this._transferRootJoint; },
+    set transferRootJoint(value) { this._transferRootJoint = value; },
+
     get skeleton() { return this._skeleton; },
     set skeleton(value)
     {
@@ -6825,7 +6840,7 @@ HX.SkeletonBlendTree.prototype =
 
     update: function(dt)
     {
-        if (this._rootNode.update(dt)) {
+        if (this._rootNode.update(dt, this._transferRootJoint)) {
             this._updateGlobalPose();
             this._updateMatrices();
             return true;
@@ -6907,14 +6922,12 @@ HX.SkeletonBlendTree.prototype =
 
 /**
  * An animation clip for skeletal animation
- * TODO: Reform this to use keyframes
  * @constructor
  */
 HX.SkeletonClip = function()
 {
     this._name = null;
     this._keyFrames = [];
-    this._transferRootJoint = false;
     this._duration = 0;
 };
 
@@ -6958,21 +6971,6 @@ HX.SkeletonClip.prototype =
     get duration()
     {
         return this._duration;
-    },
-
-    /**
-     * If true, the last frame of the clip should be a duplicate of the first, but with the final position offset
-     *
-     * TODO: This should probably become a property of the animation itself
-     */
-    get transferRootJoint()
-    {
-        return this._transferRootJoint;
-    },
-
-    set transferRootJoint(value)
-    {
-        this._transferRootJoint = value;
     },
 
     toString: function()
@@ -7025,7 +7023,7 @@ HX.SkeletonClipNode.prototype.stop = function()
     this._isPlaying = false;
 };
 
-HX.SkeletonClipNode.prototype.update = function(dt)
+HX.SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
 {
     if ((!this._isPlaying || dt === 0.0) && !this._timeChanged)
         return false;
@@ -7092,23 +7090,23 @@ HX.SkeletonClipNode.prototype.update = function(dt)
 
     this._pose.interpolate(frameA.value, frameB.value, fraction);
 
-    if (clip._transferRootJoint)
-        this._transferRootJointTransform(wraps);
+    if (transferRootJoint)
+        this._transferRootJointTransform(wraps, dt);
 
     return true;
 };
 
-HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps)
+HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
     var clip = this._clip;
-    var lastFramePos = clip.getFrame(clip.numFrames - 1).jointPoses[0].position;
-    var firstFramePos = clip.getFrame(0).jointPoses[0].position;
+    var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
+    var firstFramePos = clip.getKeyFrame(0).value.jointPoses[0].position;
 
     var currentPos = this._pose.jointPoses[0].position;
     var rootPos = this._rootPosition;
     var rootDelta = this._rootJointDeltaPosition;
 
-    if (this._timeScale > 0 && numWraps > 0) {
+    if (dt > 0 && numWraps > 0) {
         rootDelta.x = lastFramePos.x - rootPos.x + currentPos.x - firstFramePos.x + (lastFramePos.x - firstFramePos.x) * (numWraps - 1);
         rootDelta.y = lastFramePos.y - rootPos.y + currentPos.y - firstFramePos.y + (lastFramePos.y - firstFramePos.y) * (numWraps - 1);
         rootDelta.z = lastFramePos.z - rootPos.z + currentPos.z - firstFramePos.z + (lastFramePos.z - firstFramePos.z) * (numWraps - 1);
@@ -16280,4 +16278,4 @@ HX.TorusPrimitive._generate = function(target, definition)
             }
         }
     }
-};HX.BUILD_HASH = 0xe721;
+};HX.BUILD_HASH = 0x1cbe;

@@ -6,6 +6,7 @@ HX.SkeletonBlendTree = function(rootNode, skeleton)
 {
     this._skeleton = skeleton;
     this._rootNode = rootNode;
+    this._transferRootJoint = false;
     this._matrices = null;
     this._globalPose = new HX.SkeletonPose();
     if (skeleton) this.skeleton = skeleton;
@@ -13,6 +14,9 @@ HX.SkeletonBlendTree = function(rootNode, skeleton)
 
 HX.SkeletonBlendTree.prototype =
 {
+    get transferRootJoint() { return this._transferRootJoint; },
+    set transferRootJoint(value) { this._transferRootJoint = value; },
+
     get skeleton() { return this._skeleton; },
     set skeleton(value)
     {
@@ -39,7 +43,7 @@ HX.SkeletonBlendTree.prototype =
 
     update: function(dt)
     {
-        if (this._rootNode.update(dt)) {
+        if (this._rootNode.update(dt, this._transferRootJoint)) {
             this._updateGlobalPose();
             this._updateMatrices();
             return true;

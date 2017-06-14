@@ -1,13 +1,11 @@
 /**
  * An animation clip for skeletal animation
- * TODO: Reform this to use keyframes
  * @constructor
  */
 HX.SkeletonClip = function()
 {
     this._name = null;
     this._keyFrames = [];
-    this._transferRootJoint = false;
     this._duration = 0;
 };
 
@@ -51,21 +49,6 @@ HX.SkeletonClip.prototype =
     get duration()
     {
         return this._duration;
-    },
-
-    /**
-     * If true, the last frame of the clip should be a duplicate of the first, but with the final position offset
-     *
-     * TODO: This should probably become a property of the animation itself
-     */
-    get transferRootJoint()
-    {
-        return this._transferRootJoint;
-    },
-
-    set transferRootJoint(value)
-    {
-        this._transferRootJoint = value;
     },
 
     toString: function()

@@ -5,6 +5,7 @@ HX.MD5Anim = function()
     this._baseFrame = null;
     this._activeFrame = null;
     this._numJoints = 0;
+    this._frameRate = 0;
 
     this._correctionQuad = new HX.Quaternion();
     this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
@@ -45,7 +46,7 @@ HX.MD5Anim.prototype.parse = function(data, target)
                 this._numJoints = parseInt(tokens[1]);
                 break;
             case "frameRate":
-                target.frameRate = parseInt(tokens[1]);
+                this._frameRate = parseInt(tokens[1]);
                 break;
             case "hierarchy":
                 lineFunction = this._parseHierarchy;
@@ -152,7 +153,8 @@ HX.MD5Anim.prototype._translateFrame = function()
         skeletonPose.jointPoses.push(pose);
     }
 
-    this._target.addFrame(skeletonPose);
+    var time = this._target.numKeyFrames / this._frameRate * 1000.0;
+    this._target.addKeyFrame(new KeyFrame(time, skeletonPose));
 };
 
 HX.MD5Anim._HierachyData = function()

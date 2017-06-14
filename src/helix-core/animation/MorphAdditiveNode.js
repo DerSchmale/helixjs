@@ -101,7 +101,7 @@ HX.MorphAdditiveNode.prototype.update = function(dt)
     HX.setBlendState(HX.BlendState.ADD);
 
     var len = this._additiveNodes.length;
-    for (var i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         var node = this._additiveNodes[i];
         var weight = node._weight;
         if (weight > 0.0) {

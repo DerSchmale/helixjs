@@ -90,7 +90,7 @@ HX.BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
 {
     if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
 
-    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY) {
+    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
         this._minimumX = min.x;
         this._minimumY = min.y;
         this._minimumZ = min.z;
@@ -209,7 +209,7 @@ HX.BoundingAABB.prototype.intersectsBound = function(bound)
 
 HX.BoundingAABB.prototype.classifyAgainstPlane = function(plane)
 {
-    var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = planeW;
+    var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
 
     var centerDist = planeX * this._center.x + planeY * this._center.y + planeZ * this._center.z + planeW;
 

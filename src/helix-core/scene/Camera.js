@@ -10,7 +10,7 @@ HX.Frustum = function()
     for (var i = 0; i < 6; ++i)
         this._planes[i] = new HX.Float4();
 
-    for (var i = 0; i < 8; ++i)
+    for (i = 0; i < 8; ++i)
         this._corners[i] = new HX.Float4();
 
     this._r1 = new HX.Float4();
@@ -276,7 +276,7 @@ Object.defineProperties(HX.PerspectiveCamera.prototype, {
 
 HX.PerspectiveCamera.prototype._setAspectRatio = function(value)
 {
-    if (this._aspectRatio == value) return;
+    if (this._aspectRatio === value) return;
 
     this._aspectRatio = value;
     this._invalidateProjectionMatrix();

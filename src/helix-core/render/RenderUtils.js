@@ -30,7 +30,7 @@ HX.RenderUtils =
                 lastMesh = null;    // need to reset mesh data too
             }
 
-            if (lastMesh != meshInstance._mesh) {
+            if (lastMesh !== meshInstance._mesh) {
                 meshInstance.updateRenderState(passType);
                 lastMesh = meshInstance._mesh;
             }

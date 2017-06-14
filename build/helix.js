@@ -1,3074 +1,3 @@
-/* pako 0.2.8 nodeca/pako */(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.pako = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-    'use strict';
-
-
-    var TYPED_OK =  (typeof Uint8Array !== 'undefined') &&
-        (typeof Uint16Array !== 'undefined') &&
-        (typeof Int32Array !== 'undefined');
-
-
-    exports.assign = function (obj /*from1, from2, from3, ...*/) {
-        var sources = Array.prototype.slice.call(arguments, 1);
-        while (sources.length) {
-            var source = sources.shift();
-            if (!source) { continue; }
-
-            if (typeof source !== 'object') {
-                throw new TypeError(source + 'must be non-object');
-            }
-
-            for (var p in source) {
-                if (source.hasOwnProperty(p)) {
-                    obj[p] = source[p];
-                }
-            }
-        }
-
-        return obj;
-    };
-
-
-// reduce buffer size, avoiding mem copy
-    exports.shrinkBuf = function (buf, size) {
-        if (buf.length === size) { return buf; }
-        if (buf.subarray) { return buf.subarray(0, size); }
-        buf.length = size;
-        return buf;
-    };
-
-
-    var fnTyped = {
-        arraySet: function (dest, src, src_offs, len, dest_offs) {
-            if (src.subarray && dest.subarray) {
-                dest.set(src.subarray(src_offs, src_offs+len), dest_offs);
-                return;
-            }
-            // Fallback to ordinary array
-            for (var i=0; i<len; i++) {
-                dest[dest_offs + i] = src[src_offs + i];
-            }
-        },
-        // Join array of chunks to single array.
-        flattenChunks: function(chunks) {
-            var i, l, len, pos, chunk, result;
-
-            // calculate data length
-            len = 0;
-            for (i=0, l=chunks.length; i<l; i++) {
-                len += chunks[i].length;
-            }
-
-            // join chunks
-            result = new Uint8Array(len);
-            pos = 0;
-            for (i=0, l=chunks.length; i<l; i++) {
-                chunk = chunks[i];
-                result.set(chunk, pos);
-                pos += chunk.length;
-            }
-
-            return result;
-        }
-    };
-
-    var fnUntyped = {
-        arraySet: function (dest, src, src_offs, len, dest_offs) {
-            for (var i=0; i<len; i++) {
-                dest[dest_offs + i] = src[src_offs + i];
-            }
-        },
-        // Join array of chunks to single array.
-        flattenChunks: function(chunks) {
-            return [].concat.apply([], chunks);
-        }
-    };
-
-
-// Enable/Disable typed arrays use, for testing
-//
-    exports.setTyped = function (on) {
-        if (on) {
-            exports.Buf8  = Uint8Array;
-            exports.Buf16 = Uint16Array;
-            exports.Buf32 = Int32Array;
-            exports.assign(exports, fnTyped);
-        } else {
-            exports.Buf8  = Array;
-            exports.Buf16 = Array;
-            exports.Buf32 = Array;
-            exports.assign(exports, fnUntyped);
-        }
-    };
-
-    exports.setTyped(TYPED_OK);
-
-},{}],2:[function(require,module,exports){
-// String encode/decode helpers
-    'use strict';
-
-
-    var utils = require('./common');
-
-
-// Quick check if we can use fast array to bin string conversion
-//
-// - apply(Array) can fail on Android 2.2
-// - apply(Uint8Array) can fail on iOS 5.1 Safary
-//
-    var STR_APPLY_OK = true;
-    var STR_APPLY_UIA_OK = true;
-
-    try { String.fromCharCode.apply(null, [0]); } catch(__) { STR_APPLY_OK = false; }
-    try { String.fromCharCode.apply(null, new Uint8Array(1)); } catch(__) { STR_APPLY_UIA_OK = false; }
-
-
-// Table with utf8 lengths (calculated by first byte of sequence)
-// Note, that 5 & 6-byte values and some 4-byte values can not be represented in JS,
-// because max possible codepoint is 0x10ffff
-    var _utf8len = new utils.Buf8(256);
-    for (var q=0; q<256; q++) {
-        _utf8len[q] = (q >= 252 ? 6 : q >= 248 ? 5 : q >= 240 ? 4 : q >= 224 ? 3 : q >= 192 ? 2 : 1);
-    }
-    _utf8len[254]=_utf8len[254]=1; // Invalid sequence start
-
-
-// convert string to array (typed, when possible)
-    exports.string2buf = function (str) {
-        var buf, c, c2, m_pos, i, str_len = str.length, buf_len = 0;
-
-        // count binary size
-        for (m_pos = 0; m_pos < str_len; m_pos++) {
-            c = str.charCodeAt(m_pos);
-            if ((c & 0xfc00) === 0xd800 && (m_pos+1 < str_len)) {
-                c2 = str.charCodeAt(m_pos+1);
-                if ((c2 & 0xfc00) === 0xdc00) {
-                    c = 0x10000 + ((c - 0xd800) << 10) + (c2 - 0xdc00);
-                    m_pos++;
-                }
-            }
-            buf_len += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
-        }
-
-        // allocate buffer
-        buf = new utils.Buf8(buf_len);
-
-        // convert
-        for (i=0, m_pos = 0; i < buf_len; m_pos++) {
-            c = str.charCodeAt(m_pos);
-            if ((c & 0xfc00) === 0xd800 && (m_pos+1 < str_len)) {
-                c2 = str.charCodeAt(m_pos+1);
-                if ((c2 & 0xfc00) === 0xdc00) {
-                    c = 0x10000 + ((c - 0xd800) << 10) + (c2 - 0xdc00);
-                    m_pos++;
-                }
-            }
-            if (c < 0x80) {
-                /* one byte */
-                buf[i++] = c;
-            } else if (c < 0x800) {
-                /* two bytes */
-                buf[i++] = 0xC0 | (c >>> 6);
-                buf[i++] = 0x80 | (c & 0x3f);
-            } else if (c < 0x10000) {
-                /* three bytes */
-                buf[i++] = 0xE0 | (c >>> 12);
-                buf[i++] = 0x80 | (c >>> 6 & 0x3f);
-                buf[i++] = 0x80 | (c & 0x3f);
-            } else {
-                /* four bytes */
-                buf[i++] = 0xf0 | (c >>> 18);
-                buf[i++] = 0x80 | (c >>> 12 & 0x3f);
-                buf[i++] = 0x80 | (c >>> 6 & 0x3f);
-                buf[i++] = 0x80 | (c & 0x3f);
-            }
-        }
-
-        return buf;
-    };
-
-// Helper (used in 2 places)
-    function buf2binstring(buf, len) {
-        // use fallback for big arrays to avoid stack overflow
-        if (len < 65537) {
-            if ((buf.subarray && STR_APPLY_UIA_OK) || (!buf.subarray && STR_APPLY_OK)) {
-                return String.fromCharCode.apply(null, utils.shrinkBuf(buf, len));
-            }
-        }
-
-        var result = '';
-        for (var i=0; i < len; i++) {
-            result += String.fromCharCode(buf[i]);
-        }
-        return result;
-    }
-
-
-// Convert byte array to binary string
-    exports.buf2binstring = function(buf) {
-        return buf2binstring(buf, buf.length);
-    };
-
-
-// Convert binary string (typed, when possible)
-    exports.binstring2buf = function(str) {
-        var buf = new utils.Buf8(str.length);
-        for (var i=0, len=buf.length; i < len; i++) {
-            buf[i] = str.charCodeAt(i);
-        }
-        return buf;
-    };
-
-
-// convert array to string
-    exports.buf2string = function (buf, max) {
-        var i, out, c, c_len;
-        var len = max || buf.length;
-
-        // Reserve max possible length (2 words per char)
-        // NB: by unknown reasons, Array is significantly faster for
-        //     String.fromCharCode.apply than Uint16Array.
-        var utf16buf = new Array(len*2);
-
-        for (out=0, i=0; i<len;) {
-            c = buf[i++];
-            // quick process ascii
-            if (c < 0x80) { utf16buf[out++] = c; continue; }
-
-            c_len = _utf8len[c];
-            // skip 5 & 6 byte codes
-            if (c_len > 4) { utf16buf[out++] = 0xfffd; i += c_len-1; continue; }
-
-            // apply mask on first byte
-            c &= c_len === 2 ? 0x1f : c_len === 3 ? 0x0f : 0x07;
-            // join the rest
-            while (c_len > 1 && i < len) {
-                c = (c << 6) | (buf[i++] & 0x3f);
-                c_len--;
-            }
-
-            // terminated by end of string?
-            if (c_len > 1) { utf16buf[out++] = 0xfffd; continue; }
-
-            if (c < 0x10000) {
-                utf16buf[out++] = c;
-            } else {
-                c -= 0x10000;
-                utf16buf[out++] = 0xd800 | ((c >> 10) & 0x3ff);
-                utf16buf[out++] = 0xdc00 | (c & 0x3ff);
-            }
-        }
-
-        return buf2binstring(utf16buf, out);
-    };
-
-
-// Calculate max possible position in utf8 buffer,
-// that will not break sequence. If that's not possible
-// - (very small limits) return max size as is.
-//
-// buf[] - utf8 bytes array
-// max   - length limit (mandatory);
-    exports.utf8border = function(buf, max) {
-        var pos;
-
-        max = max || buf.length;
-        if (max > buf.length) { max = buf.length; }
-
-        // go back from last position, until start of sequence found
-        pos = max-1;
-        while (pos >= 0 && (buf[pos] & 0xC0) === 0x80) { pos--; }
-
-        // Fuckup - very small and broken sequence,
-        // return max, because we should return something anyway.
-        if (pos < 0) { return max; }
-
-        // If we came to start of buffer - that means vuffer is too small,
-        // return max too.
-        if (pos === 0) { return max; }
-
-        return (pos + _utf8len[buf[pos]] > max) ? pos : max;
-    };
-
-},{"./common":1}],3:[function(require,module,exports){
-    'use strict';
-
-// Note: adler32 takes 12% for level 0 and 2% for level 6.
-// It doesn't worth to make additional optimizationa as in original.
-// Small size is preferable.
-
-    function adler32(adler, buf, len, pos) {
-        var s1 = (adler & 0xffff) |0,
-            s2 = ((adler >>> 16) & 0xffff) |0,
-            n = 0;
-
-        while (len !== 0) {
-            // Set limit ~ twice less than 5552, to keep
-            // s2 in 31-bits, because we force signed ints.
-            // in other case %= will fail.
-            n = len > 2000 ? 2000 : len;
-            len -= n;
-
-            do {
-                s1 = (s1 + buf[pos++]) |0;
-                s2 = (s2 + s1) |0;
-            } while (--n);
-
-            s1 %= 65521;
-            s2 %= 65521;
-        }
-
-        return (s1 | (s2 << 16)) |0;
-    }
-
-
-    module.exports = adler32;
-
-},{}],4:[function(require,module,exports){
-    module.exports = {
-
-        /* Allowed flush values; see deflate() and inflate() below for details */
-        Z_NO_FLUSH:         0,
-        Z_PARTIAL_FLUSH:    1,
-        Z_SYNC_FLUSH:       2,
-        Z_FULL_FLUSH:       3,
-        Z_FINISH:           4,
-        Z_BLOCK:            5,
-        Z_TREES:            6,
-
-        /* Return codes for the compression/decompression functions. Negative values
-         * are errors, positive values are used for special but normal events.
-         */
-        Z_OK:               0,
-        Z_STREAM_END:       1,
-        Z_NEED_DICT:        2,
-        Z_ERRNO:           -1,
-        Z_STREAM_ERROR:    -2,
-        Z_DATA_ERROR:      -3,
-        //Z_MEM_ERROR:     -4,
-        Z_BUF_ERROR:       -5,
-        //Z_VERSION_ERROR: -6,
-
-        /* compression levels */
-        Z_NO_COMPRESSION:         0,
-        Z_BEST_SPEED:             1,
-        Z_BEST_COMPRESSION:       9,
-        Z_DEFAULT_COMPRESSION:   -1,
-
-
-        Z_FILTERED:               1,
-        Z_HUFFMAN_ONLY:           2,
-        Z_RLE:                    3,
-        Z_FIXED:                  4,
-        Z_DEFAULT_STRATEGY:       0,
-
-        /* Possible values of the data_type field (though see inflate()) */
-        Z_BINARY:                 0,
-        Z_TEXT:                   1,
-        //Z_ASCII:                1, // = Z_TEXT (deprecated)
-        Z_UNKNOWN:                2,
-
-        /* The deflate compression method */
-        Z_DEFLATED:               8
-        //Z_NULL:                 null // Use -1 or null inline, depending on var type
-    };
-
-},{}],5:[function(require,module,exports){
-    'use strict';
-
-// Note: we can't get significant speed boost here.
-// So write code to minimize size - no pregenerated tables
-// and array tools dependencies.
-
-
-// Use ordinary array, since untyped makes no boost here
-    function makeTable() {
-        var c, table = [];
-
-        for (var n =0; n < 256; n++) {
-            c = n;
-            for (var k =0; k < 8; k++) {
-                c = ((c&1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
-            }
-            table[n] = c;
-        }
-
-        return table;
-    }
-
-// Create table on load. Just 255 signed longs. Not a problem.
-    var crcTable = makeTable();
-
-
-    function crc32(crc, buf, len, pos) {
-        var t = crcTable,
-            end = pos + len;
-
-        crc = crc ^ (-1);
-
-        for (var i = pos; i < end; i++) {
-            crc = (crc >>> 8) ^ t[(crc ^ buf[i]) & 0xFF];
-        }
-
-        return (crc ^ (-1)); // >>> 0;
-    }
-
-
-    module.exports = crc32;
-
-},{}],6:[function(require,module,exports){
-    'use strict';
-
-
-    function GZheader() {
-        /* true if compressed data believed to be text */
-        this.text       = 0;
-        /* modification time */
-        this.time       = 0;
-        /* extra flags (not used when writing a gzip file) */
-        this.xflags     = 0;
-        /* operating system */
-        this.os         = 0;
-        /* pointer to extra field or Z_NULL if none */
-        this.extra      = null;
-        /* extra field length (valid if extra != Z_NULL) */
-        this.extra_len  = 0; // Actually, we don't need it in JS,
-                             // but leave for few code modifications
-
-        //
-        // Setup limits is not necessary because in js we should not preallocate memory
-        // for inflate use constant limit in 65536 bytes
-        //
-
-        /* space at extra (only when reading header) */
-        // this.extra_max  = 0;
-        /* pointer to zero-terminated file name or Z_NULL */
-        this.name       = '';
-        /* space at name (only when reading header) */
-        // this.name_max   = 0;
-        /* pointer to zero-terminated comment or Z_NULL */
-        this.comment    = '';
-        /* space at comment (only when reading header) */
-        // this.comm_max   = 0;
-        /* true if there was or will be a header crc */
-        this.hcrc       = 0;
-        /* true when done reading gzip header (not used when writing a gzip file) */
-        this.done       = false;
-    }
-
-    module.exports = GZheader;
-
-},{}],7:[function(require,module,exports){
-    'use strict';
-
-// See state defs from inflate.js
-    var BAD = 30;       /* got a data error -- remain here until reset */
-    var TYPE = 12;      /* i: waiting for type bits, including last-flag bit */
-
-    /*
-     Decode literal, length, and distance codes and write out the resulting
-     literal and match bytes until either not enough input or output is
-     available, an end-of-block is encountered, or a data error is encountered.
-     When large enough input and output buffers are supplied to inflate(), for
-     example, a 16K input buffer and a 64K output buffer, more than 95% of the
-     inflate execution time is spent in this routine.
-
-     Entry assumptions:
-
-     state.mode === LEN
-     strm.avail_in >= 6
-     strm.avail_out >= 258
-     start >= strm.avail_out
-     state.bits < 8
-
-     On return, state.mode is one of:
-
-     LEN -- ran out of enough output space or enough available input
-     TYPE -- reached end of block code, inflate() to interpret next block
-     BAD -- error in block data
-
-     Notes:
-
-     - The maximum input bits used by a length/distance pair is 15 bits for the
-     length code, 5 bits for the length extra, 15 bits for the distance code,
-     and 13 bits for the distance extra.  This totals 48 bits, or six bytes.
-     Therefore if strm.avail_in >= 6, then there is enough input to avoid
-     checking for available input while decoding.
-
-     - The maximum bytes that a single length/distance pair can output is 258
-     bytes, which is the maximum length that can be coded.  inflate_fast()
-     requires strm.avail_out >= 258 for each loop to avoid checking for
-     output space.
-     */
-    module.exports = function inflate_fast(strm, start) {
-        var state;
-        var _in;                    /* local strm.input */
-        var last;                   /* have enough input while in < last */
-        var _out;                   /* local strm.output */
-        var beg;                    /* inflate()'s initial strm.output */
-        var end;                    /* while out < end, enough space available */
-//#ifdef INFLATE_STRICT
-        var dmax;                   /* maximum distance from zlib header */
-//#endif
-        var wsize;                  /* window size or zero if not using window */
-        var whave;                  /* valid bytes in the window */
-        var wnext;                  /* window write index */
-        // Use `s_window` instead `window`, avoid conflict with instrumentation tools
-        var s_window;               /* allocated sliding window, if wsize != 0 */
-        var hold;                   /* local strm.hold */
-        var bits;                   /* local strm.bits */
-        var lcode;                  /* local strm.lencode */
-        var dcode;                  /* local strm.distcode */
-        var lmask;                  /* mask for first level of length codes */
-        var dmask;                  /* mask for first level of distance codes */
-        var here;                   /* retrieved table entry */
-        var op;                     /* code bits, operation, extra bits, or */
-        /*  window position, window bytes to copy */
-        var len;                    /* match length, unused bytes */
-        var dist;                   /* match distance */
-        var from;                   /* where to copy match from */
-        var from_source;
-
-
-        var input, output; // JS specific, because we have no pointers
-
-        /* copy state to local variables */
-        state = strm.state;
-        //here = state.here;
-        _in = strm.next_in;
-        input = strm.input;
-        last = _in + (strm.avail_in - 5);
-        _out = strm.next_out;
-        output = strm.output;
-        beg = _out - (start - strm.avail_out);
-        end = _out + (strm.avail_out - 257);
-//#ifdef INFLATE_STRICT
-        dmax = state.dmax;
-//#endif
-        wsize = state.wsize;
-        whave = state.whave;
-        wnext = state.wnext;
-        s_window = state.window;
-        hold = state.hold;
-        bits = state.bits;
-        lcode = state.lencode;
-        dcode = state.distcode;
-        lmask = (1 << state.lenbits) - 1;
-        dmask = (1 << state.distbits) - 1;
-
-
-        /* decode literals and length/distances until end-of-block or not enough
-         input data or output space */
-
-        top:
-            do {
-                if (bits < 15) {
-                    hold += input[_in++] << bits;
-                    bits += 8;
-                    hold += input[_in++] << bits;
-                    bits += 8;
-                }
-
-                here = lcode[hold & lmask];
-
-                dolen:
-                    for (;;) { // Goto emulation
-                        op = here >>> 24/*here.bits*/;
-                        hold >>>= op;
-                        bits -= op;
-                        op = (here >>> 16) & 0xff/*here.op*/;
-                        if (op === 0) {                          /* literal */
-                            //Tracevv((stderr, here.val >= 0x20 && here.val < 0x7f ?
-                            //        "inflate:         literal '%c'\n" :
-                            //        "inflate:         literal 0x%02x\n", here.val));
-                            output[_out++] = here & 0xffff/*here.val*/;
-                        }
-                        else if (op & 16) {                     /* length base */
-                            len = here & 0xffff/*here.val*/;
-                            op &= 15;                           /* number of extra bits */
-                            if (op) {
-                                if (bits < op) {
-                                    hold += input[_in++] << bits;
-                                    bits += 8;
-                                }
-                                len += hold & ((1 << op) - 1);
-                                hold >>>= op;
-                                bits -= op;
-                            }
-                            //Tracevv((stderr, "inflate:         length %u\n", len));
-                            if (bits < 15) {
-                                hold += input[_in++] << bits;
-                                bits += 8;
-                                hold += input[_in++] << bits;
-                                bits += 8;
-                            }
-                            here = dcode[hold & dmask];
-
-                            dodist:
-                                for (;;) { // goto emulation
-                                    op = here >>> 24/*here.bits*/;
-                                    hold >>>= op;
-                                    bits -= op;
-                                    op = (here >>> 16) & 0xff/*here.op*/;
-
-                                    if (op & 16) {                      /* distance base */
-                                        dist = here & 0xffff/*here.val*/;
-                                        op &= 15;                       /* number of extra bits */
-                                        if (bits < op) {
-                                            hold += input[_in++] << bits;
-                                            bits += 8;
-                                            if (bits < op) {
-                                                hold += input[_in++] << bits;
-                                                bits += 8;
-                                            }
-                                        }
-                                        dist += hold & ((1 << op) - 1);
-//#ifdef INFLATE_STRICT
-                                        if (dist > dmax) {
-                                            strm.msg = 'invalid distance too far back';
-                                            state.mode = BAD;
-                                            break top;
-                                        }
-//#endif
-                                        hold >>>= op;
-                                        bits -= op;
-                                        //Tracevv((stderr, "inflate:         distance %u\n", dist));
-                                        op = _out - beg;                /* max distance in output */
-                                        if (dist > op) {                /* see if copy from window */
-                                            op = dist - op;               /* distance back in window */
-                                            if (op > whave) {
-                                                if (state.sane) {
-                                                    strm.msg = 'invalid distance too far back';
-                                                    state.mode = BAD;
-                                                    break top;
-                                                }
-
-// (!) This block is disabled in zlib defailts,
-// don't enable it for binary compatibility
-//#ifdef INFLATE_ALLOW_INVALID_DISTANCE_TOOFAR_ARRR
-//                if (len <= op - whave) {
-//                  do {
-//                    output[_out++] = 0;
-//                  } while (--len);
-//                  continue top;
-//                }
-//                len -= op - whave;
-//                do {
-//                  output[_out++] = 0;
-//                } while (--op > whave);
-//                if (op === 0) {
-//                  from = _out - dist;
-//                  do {
-//                    output[_out++] = output[from++];
-//                  } while (--len);
-//                  continue top;
-//                }
-//#endif
-                                            }
-                                            from = 0; // window index
-                                            from_source = s_window;
-                                            if (wnext === 0) {           /* very common case */
-                                                from += wsize - op;
-                                                if (op < len) {         /* some from window */
-                                                    len -= op;
-                                                    do {
-                                                        output[_out++] = s_window[from++];
-                                                    } while (--op);
-                                                    from = _out - dist;  /* rest from output */
-                                                    from_source = output;
-                                                }
-                                            }
-                                            else if (wnext < op) {      /* wrap around window */
-                                                from += wsize + wnext - op;
-                                                op -= wnext;
-                                                if (op < len) {         /* some from end of window */
-                                                    len -= op;
-                                                    do {
-                                                        output[_out++] = s_window[from++];
-                                                    } while (--op);
-                                                    from = 0;
-                                                    if (wnext < len) {  /* some from start of window */
-                                                        op = wnext;
-                                                        len -= op;
-                                                        do {
-                                                            output[_out++] = s_window[from++];
-                                                        } while (--op);
-                                                        from = _out - dist;      /* rest from output */
-                                                        from_source = output;
-                                                    }
-                                                }
-                                            }
-                                            else {                      /* contiguous in window */
-                                                from += wnext - op;
-                                                if (op < len) {         /* some from window */
-                                                    len -= op;
-                                                    do {
-                                                        output[_out++] = s_window[from++];
-                                                    } while (--op);
-                                                    from = _out - dist;  /* rest from output */
-                                                    from_source = output;
-                                                }
-                                            }
-                                            while (len > 2) {
-                                                output[_out++] = from_source[from++];
-                                                output[_out++] = from_source[from++];
-                                                output[_out++] = from_source[from++];
-                                                len -= 3;
-                                            }
-                                            if (len) {
-                                                output[_out++] = from_source[from++];
-                                                if (len > 1) {
-                                                    output[_out++] = from_source[from++];
-                                                }
-                                            }
-                                        }
-                                        else {
-                                            from = _out - dist;          /* copy direct from output */
-                                            do {                        /* minimum length is three */
-                                                output[_out++] = output[from++];
-                                                output[_out++] = output[from++];
-                                                output[_out++] = output[from++];
-                                                len -= 3;
-                                            } while (len > 2);
-                                            if (len) {
-                                                output[_out++] = output[from++];
-                                                if (len > 1) {
-                                                    output[_out++] = output[from++];
-                                                }
-                                            }
-                                        }
-                                    }
-                                    else if ((op & 64) === 0) {          /* 2nd level distance code */
-                                        here = dcode[(here & 0xffff)/*here.val*/ + (hold & ((1 << op) - 1))];
-                                        continue dodist;
-                                    }
-                                    else {
-                                        strm.msg = 'invalid distance code';
-                                        state.mode = BAD;
-                                        break top;
-                                    }
-
-                                    break; // need to emulate goto via "continue"
-                                }
-                        }
-                        else if ((op & 64) === 0) {              /* 2nd level length code */
-                            here = lcode[(here & 0xffff)/*here.val*/ + (hold & ((1 << op) - 1))];
-                            continue dolen;
-                        }
-                        else if (op & 32) {                     /* end-of-block */
-                            //Tracevv((stderr, "inflate:         end of block\n"));
-                            state.mode = TYPE;
-                            break top;
-                        }
-                        else {
-                            strm.msg = 'invalid literal/length code';
-                            state.mode = BAD;
-                            break top;
-                        }
-
-                        break; // need to emulate goto via "continue"
-                    }
-            } while (_in < last && _out < end);
-
-        /* return unused bytes (on entry, bits < 8, so in won't go too far back) */
-        len = bits >> 3;
-        _in -= len;
-        bits -= len << 3;
-        hold &= (1 << bits) - 1;
-
-        /* update state and return */
-        strm.next_in = _in;
-        strm.next_out = _out;
-        strm.avail_in = (_in < last ? 5 + (last - _in) : 5 - (_in - last));
-        strm.avail_out = (_out < end ? 257 + (end - _out) : 257 - (_out - end));
-        state.hold = hold;
-        state.bits = bits;
-        return;
-    };
-
-},{}],8:[function(require,module,exports){
-    'use strict';
-
-
-    var utils = require('../utils/common');
-    var adler32 = require('./adler32');
-    var crc32   = require('./crc32');
-    var inflate_fast = require('./inffast');
-    var inflate_table = require('./inftrees');
-
-    var CODES = 0;
-    var LENS = 1;
-    var DISTS = 2;
-
-    /* Public constants ==========================================================*/
-    /* ===========================================================================*/
-
-
-    /* Allowed flush values; see deflate() and inflate() below for details */
-//var Z_NO_FLUSH      = 0;
-//var Z_PARTIAL_FLUSH = 1;
-//var Z_SYNC_FLUSH    = 2;
-//var Z_FULL_FLUSH    = 3;
-    var Z_FINISH        = 4;
-    var Z_BLOCK         = 5;
-    var Z_TREES         = 6;
-
-
-    /* Return codes for the compression/decompression functions. Negative values
-     * are errors, positive values are used for special but normal events.
-     */
-    var Z_OK            = 0;
-    var Z_STREAM_END    = 1;
-    var Z_NEED_DICT     = 2;
-//var Z_ERRNO         = -1;
-    var Z_STREAM_ERROR  = -2;
-    var Z_DATA_ERROR    = -3;
-    var Z_MEM_ERROR     = -4;
-    var Z_BUF_ERROR     = -5;
-//var Z_VERSION_ERROR = -6;
-
-    /* The deflate compression method */
-    var Z_DEFLATED  = 8;
-
-
-    /* STATES ====================================================================*/
-    /* ===========================================================================*/
-
-
-    var    HEAD = 1;       /* i: waiting for magic header */
-    var    FLAGS = 2;      /* i: waiting for method and flags (gzip) */
-    var    TIME = 3;       /* i: waiting for modification time (gzip) */
-    var    OS = 4;         /* i: waiting for extra flags and operating system (gzip) */
-    var    EXLEN = 5;      /* i: waiting for extra length (gzip) */
-    var    EXTRA = 6;      /* i: waiting for extra bytes (gzip) */
-    var    NAME = 7;       /* i: waiting for end of file name (gzip) */
-    var    COMMENT = 8;    /* i: waiting for end of comment (gzip) */
-    var    HCRC = 9;       /* i: waiting for header crc (gzip) */
-    var    DICTID = 10;    /* i: waiting for dictionary check value */
-    var    DICT = 11;      /* waiting for inflateSetDictionary() call */
-    var        TYPE = 12;      /* i: waiting for type bits, including last-flag bit */
-    var        TYPEDO = 13;    /* i: same, but skip check to exit inflate on new block */
-    var        STORED = 14;    /* i: waiting for stored size (length and complement) */
-    var        COPY_ = 15;     /* i/o: same as COPY below, but only first time in */
-    var        COPY = 16;      /* i/o: waiting for input or output to copy stored block */
-    var        TABLE = 17;     /* i: waiting for dynamic block table lengths */
-    var        LENLENS = 18;   /* i: waiting for code length code lengths */
-    var        CODELENS = 19;  /* i: waiting for length/lit and distance code lengths */
-    var            LEN_ = 20;      /* i: same as LEN below, but only first time in */
-    var            LEN = 21;       /* i: waiting for length/lit/eob code */
-    var            LENEXT = 22;    /* i: waiting for length extra bits */
-    var            DIST = 23;      /* i: waiting for distance code */
-    var            DISTEXT = 24;   /* i: waiting for distance extra bits */
-    var            MATCH = 25;     /* o: waiting for output space to copy string */
-    var            LIT = 26;       /* o: waiting for output space to write literal */
-    var    CHECK = 27;     /* i: waiting for 32-bit check value */
-    var    LENGTH = 28;    /* i: waiting for 32-bit length (gzip) */
-    var    DONE = 29;      /* finished check, done -- remain here until reset */
-    var    BAD = 30;       /* got a data error -- remain here until reset */
-    var    MEM = 31;       /* got an inflate() memory error -- remain here until reset */
-    var    SYNC = 32;      /* looking for synchronization bytes to restart inflate() */
-
-    /* ===========================================================================*/
-
-
-
-    var ENOUGH_LENS = 852;
-    var ENOUGH_DISTS = 592;
-//var ENOUGH =  (ENOUGH_LENS+ENOUGH_DISTS);
-
-    var MAX_WBITS = 15;
-    /* 32K LZ77 window */
-    var DEF_WBITS = MAX_WBITS;
-
-
-    function ZSWAP32(q) {
-        return  (((q >>> 24) & 0xff) +
-        ((q >>> 8) & 0xff00) +
-        ((q & 0xff00) << 8) +
-        ((q & 0xff) << 24));
-    }
-
-
-    function InflateState() {
-        this.mode = 0;             /* current inflate mode */
-        this.last = false;          /* true if processing last block */
-        this.wrap = 0;              /* bit 0 true for zlib, bit 1 true for gzip */
-        this.havedict = false;      /* true if dictionary provided */
-        this.flags = 0;             /* gzip header method and flags (0 if zlib) */
-        this.dmax = 0;              /* zlib header max distance (INFLATE_STRICT) */
-        this.check = 0;             /* protected copy of check value */
-        this.total = 0;             /* protected copy of output count */
-        // TODO: may be {}
-        this.head = null;           /* where to save gzip header information */
-
-        /* sliding window */
-        this.wbits = 0;             /* log base 2 of requested window size */
-        this.wsize = 0;             /* window size or zero if not using window */
-        this.whave = 0;             /* valid bytes in the window */
-        this.wnext = 0;             /* window write index */
-        this.window = null;         /* allocated sliding window, if needed */
-
-        /* bit accumulator */
-        this.hold = 0;              /* input bit accumulator */
-        this.bits = 0;              /* number of bits in "in" */
-
-        /* for string and stored block copying */
-        this.length = 0;            /* literal or length of data to copy */
-        this.offset = 0;            /* distance back to copy string from */
-
-        /* for table and code decoding */
-        this.extra = 0;             /* extra bits needed */
-
-        /* fixed and dynamic code tables */
-        this.lencode = null;          /* starting table for length/literal codes */
-        this.distcode = null;         /* starting table for distance codes */
-        this.lenbits = 0;           /* index bits for lencode */
-        this.distbits = 0;          /* index bits for distcode */
-
-        /* dynamic table building */
-        this.ncode = 0;             /* number of code length code lengths */
-        this.nlen = 0;              /* number of length code lengths */
-        this.ndist = 0;             /* number of distance code lengths */
-        this.have = 0;              /* number of code lengths in lens[] */
-        this.next = null;              /* next available space in codes[] */
-
-        this.lens = new utils.Buf16(320); /* temporary storage for code lengths */
-        this.work = new utils.Buf16(288); /* work area for code table building */
-
-        /*
-         because we don't have pointers in js, we use lencode and distcode directly
-         as buffers so we don't need codes
-         */
-        //this.codes = new utils.Buf32(ENOUGH);       /* space for code tables */
-        this.lendyn = null;              /* dynamic table for length/literal codes (JS specific) */
-        this.distdyn = null;             /* dynamic table for distance codes (JS specific) */
-        this.sane = 0;                   /* if false, allow invalid distance too far */
-        this.back = 0;                   /* bits back of last unprocessed length/lit */
-        this.was = 0;                    /* initial length of match */
-    }
-
-    function inflateResetKeep(strm) {
-        var state;
-
-        if (!strm || !strm.state) { return Z_STREAM_ERROR; }
-        state = strm.state;
-        strm.total_in = strm.total_out = state.total = 0;
-        strm.msg = ''; /*Z_NULL*/
-        if (state.wrap) {       /* to support ill-conceived Java test suite */
-            strm.adler = state.wrap & 1;
-        }
-        state.mode = HEAD;
-        state.last = 0;
-        state.havedict = 0;
-        state.dmax = 32768;
-        state.head = null/*Z_NULL*/;
-        state.hold = 0;
-        state.bits = 0;
-        //state.lencode = state.distcode = state.next = state.codes;
-        state.lencode = state.lendyn = new utils.Buf32(ENOUGH_LENS);
-        state.distcode = state.distdyn = new utils.Buf32(ENOUGH_DISTS);
-
-        state.sane = 1;
-        state.back = -1;
-        //Tracev((stderr, "inflate: reset\n"));
-        return Z_OK;
-    }
-
-    function inflateReset(strm) {
-        var state;
-
-        if (!strm || !strm.state) { return Z_STREAM_ERROR; }
-        state = strm.state;
-        state.wsize = 0;
-        state.whave = 0;
-        state.wnext = 0;
-        return inflateResetKeep(strm);
-
-    }
-
-    function inflateReset2(strm, windowBits) {
-        var wrap;
-        var state;
-
-        /* get the state */
-        if (!strm || !strm.state) { return Z_STREAM_ERROR; }
-        state = strm.state;
-
-        /* extract wrap request from windowBits parameter */
-        if (windowBits < 0) {
-            wrap = 0;
-            windowBits = -windowBits;
-        }
-        else {
-            wrap = (windowBits >> 4) + 1;
-            if (windowBits < 48) {
-                windowBits &= 15;
-            }
-        }
-
-        /* set number of window bits, free window if different */
-        if (windowBits && (windowBits < 8 || windowBits > 15)) {
-            return Z_STREAM_ERROR;
-        }
-        if (state.window !== null && state.wbits !== windowBits) {
-            state.window = null;
-        }
-
-        /* update state and reset the rest of it */
-        state.wrap = wrap;
-        state.wbits = windowBits;
-        return inflateReset(strm);
-    }
-
-    function inflateInit2(strm, windowBits) {
-        var ret;
-        var state;
-
-        if (!strm) { return Z_STREAM_ERROR; }
-        //strm.msg = Z_NULL;                 /* in case we return an error */
-
-        state = new InflateState();
-
-        //if (state === Z_NULL) return Z_MEM_ERROR;
-        //Tracev((stderr, "inflate: allocated\n"));
-        strm.state = state;
-        state.window = null/*Z_NULL*/;
-        ret = inflateReset2(strm, windowBits);
-        if (ret !== Z_OK) {
-            strm.state = null/*Z_NULL*/;
-        }
-        return ret;
-    }
-
-    function inflateInit(strm) {
-        return inflateInit2(strm, DEF_WBITS);
-    }
-
-
-    /*
-     Return state with length and distance decoding tables and index sizes set to
-     fixed code decoding.  Normally this returns fixed tables from inffixed.h.
-     If BUILDFIXED is defined, then instead this routine builds the tables the
-     first time it's called, and returns those tables the first time and
-     thereafter.  This reduces the size of the code by about 2K bytes, in
-     exchange for a little execution time.  However, BUILDFIXED should not be
-     used for threaded applications, since the rewriting of the tables and virgin
-     may not be thread-safe.
-     */
-    var virgin = true;
-
-    var lenfix, distfix; // We have no pointers in JS, so keep tables separate
-
-    function fixedtables(state) {
-        /* build fixed huffman tables if first call (may not be thread safe) */
-        if (virgin) {
-            var sym;
-
-            lenfix = new utils.Buf32(512);
-            distfix = new utils.Buf32(32);
-
-            /* literal/length table */
-            sym = 0;
-            while (sym < 144) { state.lens[sym++] = 8; }
-            while (sym < 256) { state.lens[sym++] = 9; }
-            while (sym < 280) { state.lens[sym++] = 7; }
-            while (sym < 288) { state.lens[sym++] = 8; }
-
-            inflate_table(LENS,  state.lens, 0, 288, lenfix,   0, state.work, {bits: 9});
-
-            /* distance table */
-            sym = 0;
-            while (sym < 32) { state.lens[sym++] = 5; }
-
-            inflate_table(DISTS, state.lens, 0, 32,   distfix, 0, state.work, {bits: 5});
-
-            /* do this just once */
-            virgin = false;
-        }
-
-        state.lencode = lenfix;
-        state.lenbits = 9;
-        state.distcode = distfix;
-        state.distbits = 5;
-    }
-
-
-    /*
-     Update the window with the last wsize (normally 32K) bytes written before
-     returning.  If window does not exist yet, create it.  This is only called
-     when a window is already in use, or when output has been written during this
-     inflate call, but the end of the deflate stream has not been reached yet.
-     It is also called to create a window for dictionary data when a dictionary
-     is loaded.
-
-     Providing output buffers larger than 32K to inflate() should provide a speed
-     advantage, since only the last 32K of output is copied to the sliding window
-     upon return from inflate(), and since all distances after the first 32K of
-     output will fall in the output data, making match copies simpler and faster.
-     The advantage may be dependent on the size of the processor's data caches.
-     */
-    function updatewindow(strm, src, end, copy) {
-        var dist;
-        var state = strm.state;
-
-        /* if it hasn't been done already, allocate space for the window */
-        if (state.window === null) {
-            state.wsize = 1 << state.wbits;
-            state.wnext = 0;
-            state.whave = 0;
-
-            state.window = new utils.Buf8(state.wsize);
-        }
-
-        /* copy state->wsize or less output bytes into the circular window */
-        if (copy >= state.wsize) {
-            utils.arraySet(state.window,src, end - state.wsize, state.wsize, 0);
-            state.wnext = 0;
-            state.whave = state.wsize;
-        }
-        else {
-            dist = state.wsize - state.wnext;
-            if (dist > copy) {
-                dist = copy;
-            }
-            //zmemcpy(state->window + state->wnext, end - copy, dist);
-            utils.arraySet(state.window,src, end - copy, dist, state.wnext);
-            copy -= dist;
-            if (copy) {
-                //zmemcpy(state->window, end - copy, copy);
-                utils.arraySet(state.window,src, end - copy, copy, 0);
-                state.wnext = copy;
-                state.whave = state.wsize;
-            }
-            else {
-                state.wnext += dist;
-                if (state.wnext === state.wsize) { state.wnext = 0; }
-                if (state.whave < state.wsize) { state.whave += dist; }
-            }
-        }
-        return 0;
-    }
-
-    function inflate(strm, flush) {
-        var state;
-        var input, output;          // input/output buffers
-        var next;                   /* next input INDEX */
-        var put;                    /* next output INDEX */
-        var have, left;             /* available input and output */
-        var hold;                   /* bit buffer */
-        var bits;                   /* bits in bit buffer */
-        var _in, _out;              /* save starting available input and output */
-        var copy;                   /* number of stored or match bytes to copy */
-        var from;                   /* where to copy match bytes from */
-        var from_source;
-        var here = 0;               /* current decoding table entry */
-        var here_bits, here_op, here_val; // paked "here" denormalized (JS specific)
-        //var last;                   /* parent table entry */
-        var last_bits, last_op, last_val; // paked "last" denormalized (JS specific)
-        var len;                    /* length to copy for repeats, bits to drop */
-        var ret;                    /* return code */
-        var hbuf = new utils.Buf8(4);    /* buffer for gzip header crc calculation */
-        var opts;
-
-        var n; // temporary var for NEED_BITS
-
-        var order = /* permutation of code lengths */
-            [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
-
-
-        if (!strm || !strm.state || !strm.output ||
-            (!strm.input && strm.avail_in !== 0)) {
-            return Z_STREAM_ERROR;
-        }
-
-        state = strm.state;
-        if (state.mode === TYPE) { state.mode = TYPEDO; }    /* skip check */
-
-
-        //--- LOAD() ---
-        put = strm.next_out;
-        output = strm.output;
-        left = strm.avail_out;
-        next = strm.next_in;
-        input = strm.input;
-        have = strm.avail_in;
-        hold = state.hold;
-        bits = state.bits;
-        //---
-
-        _in = have;
-        _out = left;
-        ret = Z_OK;
-
-        inf_leave: // goto emulation
-            for (;;) {
-                switch (state.mode) {
-                    case HEAD:
-                        if (state.wrap === 0) {
-                            state.mode = TYPEDO;
-                            break;
-                        }
-                        //=== NEEDBITS(16);
-                        while (bits < 16) {
-                            if (have === 0) { break inf_leave; }
-                            have--;
-                            hold += input[next++] << bits;
-                            bits += 8;
-                        }
-                        //===//
-                        if ((state.wrap & 2) && hold === 0x8b1f) {  /* gzip header */
-                            state.check = 0/*crc32(0L, Z_NULL, 0)*/;
-                            //=== CRC2(state.check, hold);
-                            hbuf[0] = hold & 0xff;
-                            hbuf[1] = (hold >>> 8) & 0xff;
-                            state.check = crc32(state.check, hbuf, 2, 0);
-                            //===//
-
-                            //=== INITBITS();
-                            hold = 0;
-                            bits = 0;
-                            //===//
-                            state.mode = FLAGS;
-                            break;
-                        }
-                        state.flags = 0;           /* expect zlib header */
-                        if (state.head) {
-                            state.head.done = false;
-                        }
-                        if (!(state.wrap & 1) ||   /* check if zlib header allowed */
-                            (((hold & 0xff)/*BITS(8)*/ << 8) + (hold >> 8)) % 31) {
-                            strm.msg = 'incorrect header check';
-                            state.mode = BAD;
-                            break;
-                        }
-                        if ((hold & 0x0f)/*BITS(4)*/ !== Z_DEFLATED) {
-                            strm.msg = 'unknown compression method';
-                            state.mode = BAD;
-                            break;
-                        }
-                        //--- DROPBITS(4) ---//
-                        hold >>>= 4;
-                        bits -= 4;
-                        //---//
-                        len = (hold & 0x0f)/*BITS(4)*/ + 8;
-                        if (state.wbits === 0) {
-                            state.wbits = len;
-                        }
-                        else if (len > state.wbits) {
-                            strm.msg = 'invalid window size';
-                            state.mode = BAD;
-                            break;
-                        }
-                        state.dmax = 1 << len;
-                        //Tracev((stderr, "inflate:   zlib header ok\n"));
-                        strm.adler = state.check = 1/*adler32(0L, Z_NULL, 0)*/;
-                        state.mode = hold & 0x200 ? DICTID : TYPE;
-                        //=== INITBITS();
-                        hold = 0;
-                        bits = 0;
-                        //===//
-                        break;
-                    case FLAGS:
-                        //=== NEEDBITS(16); */
-                        while (bits < 16) {
-                            if (have === 0) { break inf_leave; }
-                            have--;
-                            hold += input[next++] << bits;
-                            bits += 8;
-                        }
-                        //===//
-                        state.flags = hold;
-                        if ((state.flags & 0xff) !== Z_DEFLATED) {
-                            strm.msg = 'unknown compression method';
-                            state.mode = BAD;
-                            break;
-                        }
-                        if (state.flags & 0xe000) {
-                            strm.msg = 'unknown header flags set';
-                            state.mode = BAD;
-                            break;
-                        }
-                        if (state.head) {
-                            state.head.text = ((hold >> 8) & 1);
-                        }
-                        if (state.flags & 0x0200) {
-                            //=== CRC2(state.check, hold);
-                            hbuf[0] = hold & 0xff;
-                            hbuf[1] = (hold >>> 8) & 0xff;
-                            state.check = crc32(state.check, hbuf, 2, 0);
-                            //===//
-                        }
-                        //=== INITBITS();
-                        hold = 0;
-                        bits = 0;
-                        //===//
-                        state.mode = TIME;
-                    /* falls through */
-                    case TIME:
-                        //=== NEEDBITS(32); */
-                        while (bits < 32) {
-                            if (have === 0) { break inf_leave; }
-                            have--;
-                            hold += input[next++] << bits;
-                            bits += 8;
-                        }
-                        //===//
-                        if (state.head) {
-                            state.head.time = hold;
-                        }
-                        if (state.flags & 0x0200) {
-                            //=== CRC4(state.check, hold)
-                            hbuf[0] = hold & 0xff;
-                            hbuf[1] = (hold >>> 8) & 0xff;
-                            hbuf[2] = (hold >>> 16) & 0xff;
-                            hbuf[3] = (hold >>> 24) & 0xff;
-                            state.check = crc32(state.check, hbuf, 4, 0);
-                            //===
-                        }
-                        //=== INITBITS();
-                        hold = 0;
-                        bits = 0;
-                        //===//
-                        state.mode = OS;
-                    /* falls through */
-                    case OS:
-                        //=== NEEDBITS(16); */
-                        while (bits < 16) {
-                            if (have === 0) { break inf_leave; }
-                            have--;
-                            hold += input[next++] << bits;
-                            bits += 8;
-                        }
-                        //===//
-                        if (state.head) {
-                            state.head.xflags = (hold & 0xff);
-                            state.head.os = (hold >> 8);
-                        }
-                        if (state.flags & 0x0200) {
-                            //=== CRC2(state.check, hold);
-                            hbuf[0] = hold & 0xff;
-                            hbuf[1] = (hold >>> 8) & 0xff;
-                            state.check = crc32(state.check, hbuf, 2, 0);
-                            //===//
-                        }
-                        //=== INITBITS();
-                        hold = 0;
-                        bits = 0;
-                        //===//
-                        state.mode = EXLEN;
-                    /* falls through */
-                    case EXLEN:
-                        if (state.flags & 0x0400) {
-                            //=== NEEDBITS(16); */
-                            while (bits < 16) {
-                                if (have === 0) { break inf_leave; }
-                                have--;
-                                hold += input[next++] << bits;
-                                bits += 8;
-                            }
-                            //===//
-                            state.length = hold;
-                            if (state.head) {
-                                state.head.extra_len = hold;
-                            }
-                            if (state.flags & 0x0200) {
-                                //=== CRC2(state.check, hold);
-                                hbuf[0] = hold & 0xff;
-                                hbuf[1] = (hold >>> 8) & 0xff;
-                                state.check = crc32(state.check, hbuf, 2, 0);
-                                //===//
-                            }
-                            //=== INITBITS();
-                            hold = 0;
-                            bits = 0;
-                            //===//
-                        }
-                        else if (state.head) {
-                            state.head.extra = null/*Z_NULL*/;
-                        }
-                        state.mode = EXTRA;
-                    /* falls through */
-                    case EXTRA:
-                        if (state.flags & 0x0400) {
-                            copy = state.length;
-                            if (copy > have) { copy = have; }
-                            if (copy) {
-                                if (state.head) {
-                                    len = state.head.extra_len - state.length;
-                                    if (!state.head.extra) {
-                                        // Use untyped array for more conveniend processing later
-                                        state.head.extra = new Array(state.head.extra_len);
-                                    }
-                                    utils.arraySet(
-                                        state.head.extra,
-                                        input,
-                                        next,
-                                        // extra field is limited to 65536 bytes
-                                        // - no need for additional size check
-                                        copy,
-                                        /*len + copy > state.head.extra_max - len ? state.head.extra_max : copy,*/
-                                        len
-                                    );
-                                    //zmemcpy(state.head.extra + len, next,
-                                    //        len + copy > state.head.extra_max ?
-                                    //        state.head.extra_max - len : copy);
-                                }
-                                if (state.flags & 0x0200) {
-                                    state.check = crc32(state.check, input, copy, next);
-                                }
-                                have -= copy;
-                                next += copy;
-                                state.length -= copy;
-                            }
-                            if (state.length) { break inf_leave; }
-                        }
-                        state.length = 0;
-                        state.mode = NAME;
-                    /* falls through */
-                    case NAME:
-                        if (state.flags & 0x0800) {
-                            if (have === 0) { break inf_leave; }
-                            copy = 0;
-                            do {
-                                // TODO: 2 or 1 bytes?
-                                len = input[next + copy++];
-                                /* use constant limit because in js we should not preallocate memory */
-                                if (state.head && len &&
-                                    (state.length < 65536 /*state.head.name_max*/)) {
-                                    state.head.name += String.fromCharCode(len);
-                                }
-                            } while (len && copy < have);
-
-                            if (state.flags & 0x0200) {
-                                state.check = crc32(state.check, input, copy, next);
-                            }
-                            have -= copy;
-                            next += copy;
-                            if (len) { break inf_leave; }
-                        }
-                        else if (state.head) {
-                            state.head.name = null;
-                        }
-                        state.length = 0;
-                        state.mode = COMMENT;
-                    /* falls through */
-                    case COMMENT:
-                        if (state.flags & 0x1000) {
-                            if (have === 0) { break inf_leave; }
-                            copy = 0;
-                            do {
-                                len = input[next + copy++];
-                                /* use constant limit because in js we should not preallocate memory */
-                                if (state.head && len &&
-                                    (state.length < 65536 /*state.head.comm_max*/)) {
-                                    state.head.comment += String.fromCharCode(len);
-                                }
-                            } while (len && copy < have);
-                            if (state.flags & 0x0200) {
-                                state.check = crc32(state.check, input, copy, next);
-                            }
-                            have -= copy;
-                            next += copy;
-                            if (len) { break inf_leave; }
-                        }
-                        else if (state.head) {
-                            state.head.comment = null;
-                        }
-                        state.mode = HCRC;
-                    /* falls through */
-                    case HCRC:
-                        if (state.flags & 0x0200) {
-                            //=== NEEDBITS(16); */
-                            while (bits < 16) {
-                                if (have === 0) { break inf_leave; }
-                                have--;
-                                hold += input[next++] << bits;
-                                bits += 8;
-                            }
-                            //===//
-                            if (hold !== (state.check & 0xffff)) {
-                                strm.msg = 'header crc mismatch';
-                                state.mode = BAD;
-                                break;
-                            }
-                            //=== INITBITS();
-                            hold = 0;
-                            bits = 0;
-                            //===//
-                        }
-                        if (state.head) {
-                            state.head.hcrc = ((state.flags >> 9) & 1);
-                            state.head.done = true;
-                        }
-                        strm.adler = state.check = 0 /*crc32(0L, Z_NULL, 0)*/;
-                        state.mode = TYPE;
-                        break;
-                    case DICTID:
-                        //=== NEEDBITS(32); */
-                        while (bits < 32) {
-                            if (have === 0) { break inf_leave; }
-                            have--;
-                            hold += input[next++] << bits;
-                            bits += 8;
-                        }
-                        //===//
-                        strm.adler = state.check = ZSWAP32(hold);
-                        //=== INITBITS();
-                        hold = 0;
-                        bits = 0;
-                        //===//
-                        state.mode = DICT;
-                    /* falls through */
-                    case DICT:
-                        if (state.havedict === 0) {
-                            //--- RESTORE() ---
-                            strm.next_out = put;
-                            strm.avail_out = left;
-                            strm.next_in = next;
-                            strm.avail_in = have;
-                            state.hold = hold;
-                            state.bits = bits;
-                            //---
-                            return Z_NEED_DICT;
-                        }
-                        strm.adler = state.check = 1/*adler32(0L, Z_NULL, 0)*/;
-                        state.mode = TYPE;
-                    /* falls through */
-                    case TYPE:
-                        if (flush === Z_BLOCK || flush === Z_TREES) { break inf_leave; }
-                    /* falls through */
-                    case TYPEDO:
-                        if (state.last) {
-                            //--- BYTEBITS() ---//
-                            hold >>>= bits & 7;
-                            bits -= bits & 7;
-                            //---//
-                            state.mode = CHECK;
-                            break;
-                        }
-                        //=== NEEDBITS(3); */
-                        while (bits < 3) {
-                            if (have === 0) { break inf_leave; }
-                            have--;
-                            hold += input[next++] << bits;
-                            bits += 8;
-                        }
-                        //===//
-                        state.last = (hold & 0x01)/*BITS(1)*/;
-                        //--- DROPBITS(1) ---//
-                        hold >>>= 1;
-                        bits -= 1;
-                        //---//
-
-                        switch ((hold & 0x03)/*BITS(2)*/) {
-                            case 0:                             /* stored block */
-                                //Tracev((stderr, "inflate:     stored block%s\n",
-                                //        state.last ? " (last)" : ""));
-                                state.mode = STORED;
-                                break;
-                            case 1:                             /* fixed block */
-                                fixedtables(state);
-                                //Tracev((stderr, "inflate:     fixed codes block%s\n",
-                                //        state.last ? " (last)" : ""));
-                                state.mode = LEN_;             /* decode codes */
-                                if (flush === Z_TREES) {
-                                    //--- DROPBITS(2) ---//
-                                    hold >>>= 2;
-                                    bits -= 2;
-                                    //---//
-                                    break inf_leave;
-                                }
-                                break;
-                            case 2:                             /* dynamic block */
-                                //Tracev((stderr, "inflate:     dynamic codes block%s\n",
-                                //        state.last ? " (last)" : ""));
-                                state.mode = TABLE;
-                                break;
-                            case 3:
-                                strm.msg = 'invalid block type';
-                                state.mode = BAD;
-                        }
-                        //--- DROPBITS(2) ---//
-                        hold >>>= 2;
-                        bits -= 2;
-                        //---//
-                        break;
-                    case STORED:
-                        //--- BYTEBITS() ---// /* go to byte boundary */
-                        hold >>>= bits & 7;
-                        bits -= bits & 7;
-                        //---//
-                        //=== NEEDBITS(32); */
-                        while (bits < 32) {
-                            if (have === 0) { break inf_leave; }
-                            have--;
-                            hold += input[next++] << bits;
-                            bits += 8;
-                        }
-                        //===//
-                        if ((hold & 0xffff) !== ((hold >>> 16) ^ 0xffff)) {
-                            strm.msg = 'invalid stored block lengths';
-                            state.mode = BAD;
-                            break;
-                        }
-                        state.length = hold & 0xffff;
-                        //Tracev((stderr, "inflate:       stored length %u\n",
-                        //        state.length));
-                        //=== INITBITS();
-                        hold = 0;
-                        bits = 0;
-                        //===//
-                        state.mode = COPY_;
-                        if (flush === Z_TREES) { break inf_leave; }
-                    /* falls through */
-                    case COPY_:
-                        state.mode = COPY;
-                    /* falls through */
-                    case COPY:
-                        copy = state.length;
-                        if (copy) {
-                            if (copy > have) { copy = have; }
-                            if (copy > left) { copy = left; }
-                            if (copy === 0) { break inf_leave; }
-                            //--- zmemcpy(put, next, copy); ---
-                            utils.arraySet(output, input, next, copy, put);
-                            //---//
-                            have -= copy;
-                            next += copy;
-                            left -= copy;
-                            put += copy;
-                            state.length -= copy;
-                            break;
-                        }
-                        //Tracev((stderr, "inflate:       stored end\n"));
-                        state.mode = TYPE;
-                        break;
-                    case TABLE:
-                        //=== NEEDBITS(14); */
-                        while (bits < 14) {
-                            if (have === 0) { break inf_leave; }
-                            have--;
-                            hold += input[next++] << bits;
-                            bits += 8;
-                        }
-                        //===//
-                        state.nlen = (hold & 0x1f)/*BITS(5)*/ + 257;
-                        //--- DROPBITS(5) ---//
-                        hold >>>= 5;
-                        bits -= 5;
-                        //---//
-                        state.ndist = (hold & 0x1f)/*BITS(5)*/ + 1;
-                        //--- DROPBITS(5) ---//
-                        hold >>>= 5;
-                        bits -= 5;
-                        //---//
-                        state.ncode = (hold & 0x0f)/*BITS(4)*/ + 4;
-                        //--- DROPBITS(4) ---//
-                        hold >>>= 4;
-                        bits -= 4;
-                        //---//
-//#ifndef PKZIP_BUG_WORKAROUND
-                        if (state.nlen > 286 || state.ndist > 30) {
-                            strm.msg = 'too many length or distance symbols';
-                            state.mode = BAD;
-                            break;
-                        }
-//#endif
-                        //Tracev((stderr, "inflate:       table sizes ok\n"));
-                        state.have = 0;
-                        state.mode = LENLENS;
-                    /* falls through */
-                    case LENLENS:
-                        while (state.have < state.ncode) {
-                            //=== NEEDBITS(3);
-                            while (bits < 3) {
-                                if (have === 0) { break inf_leave; }
-                                have--;
-                                hold += input[next++] << bits;
-                                bits += 8;
-                            }
-                            //===//
-                            state.lens[order[state.have++]] = (hold & 0x07);//BITS(3);
-                            //--- DROPBITS(3) ---//
-                            hold >>>= 3;
-                            bits -= 3;
-                            //---//
-                        }
-                        while (state.have < 19) {
-                            state.lens[order[state.have++]] = 0;
-                        }
-                        // We have separate tables & no pointers. 2 commented lines below not needed.
-                        //state.next = state.codes;
-                        //state.lencode = state.next;
-                        // Switch to use dynamic table
-                        state.lencode = state.lendyn;
-                        state.lenbits = 7;
-
-                        opts = {bits: state.lenbits};
-                        ret = inflate_table(CODES, state.lens, 0, 19, state.lencode, 0, state.work, opts);
-                        state.lenbits = opts.bits;
-
-                        if (ret) {
-                            strm.msg = 'invalid code lengths set';
-                            state.mode = BAD;
-                            break;
-                        }
-                        //Tracev((stderr, "inflate:       code lengths ok\n"));
-                        state.have = 0;
-                        state.mode = CODELENS;
-                    /* falls through */
-                    case CODELENS:
-                        while (state.have < state.nlen + state.ndist) {
-                            for (;;) {
-                                here = state.lencode[hold & ((1 << state.lenbits) - 1)];/*BITS(state.lenbits)*/
-                                here_bits = here >>> 24;
-                                here_op = (here >>> 16) & 0xff;
-                                here_val = here & 0xffff;
-
-                                if ((here_bits) <= bits) { break; }
-                                //--- PULLBYTE() ---//
-                                if (have === 0) { break inf_leave; }
-                                have--;
-                                hold += input[next++] << bits;
-                                bits += 8;
-                                //---//
-                            }
-                            if (here_val < 16) {
-                                //--- DROPBITS(here.bits) ---//
-                                hold >>>= here_bits;
-                                bits -= here_bits;
-                                //---//
-                                state.lens[state.have++] = here_val;
-                            }
-                            else {
-                                if (here_val === 16) {
-                                    //=== NEEDBITS(here.bits + 2);
-                                    n = here_bits + 2;
-                                    while (bits < n) {
-                                        if (have === 0) { break inf_leave; }
-                                        have--;
-                                        hold += input[next++] << bits;
-                                        bits += 8;
-                                    }
-                                    //===//
-                                    //--- DROPBITS(here.bits) ---//
-                                    hold >>>= here_bits;
-                                    bits -= here_bits;
-                                    //---//
-                                    if (state.have === 0) {
-                                        strm.msg = 'invalid bit length repeat';
-                                        state.mode = BAD;
-                                        break;
-                                    }
-                                    len = state.lens[state.have - 1];
-                                    copy = 3 + (hold & 0x03);//BITS(2);
-                                    //--- DROPBITS(2) ---//
-                                    hold >>>= 2;
-                                    bits -= 2;
-                                    //---//
-                                }
-                                else if (here_val === 17) {
-                                    //=== NEEDBITS(here.bits + 3);
-                                    n = here_bits + 3;
-                                    while (bits < n) {
-                                        if (have === 0) { break inf_leave; }
-                                        have--;
-                                        hold += input[next++] << bits;
-                                        bits += 8;
-                                    }
-                                    //===//
-                                    //--- DROPBITS(here.bits) ---//
-                                    hold >>>= here_bits;
-                                    bits -= here_bits;
-                                    //---//
-                                    len = 0;
-                                    copy = 3 + (hold & 0x07);//BITS(3);
-                                    //--- DROPBITS(3) ---//
-                                    hold >>>= 3;
-                                    bits -= 3;
-                                    //---//
-                                }
-                                else {
-                                    //=== NEEDBITS(here.bits + 7);
-                                    n = here_bits + 7;
-                                    while (bits < n) {
-                                        if (have === 0) { break inf_leave; }
-                                        have--;
-                                        hold += input[next++] << bits;
-                                        bits += 8;
-                                    }
-                                    //===//
-                                    //--- DROPBITS(here.bits) ---//
-                                    hold >>>= here_bits;
-                                    bits -= here_bits;
-                                    //---//
-                                    len = 0;
-                                    copy = 11 + (hold & 0x7f);//BITS(7);
-                                    //--- DROPBITS(7) ---//
-                                    hold >>>= 7;
-                                    bits -= 7;
-                                    //---//
-                                }
-                                if (state.have + copy > state.nlen + state.ndist) {
-                                    strm.msg = 'invalid bit length repeat';
-                                    state.mode = BAD;
-                                    break;
-                                }
-                                while (copy--) {
-                                    state.lens[state.have++] = len;
-                                }
-                            }
-                        }
-
-                        /* handle error breaks in while */
-                        if (state.mode === BAD) { break; }
-
-                        /* check for end-of-block code (better have one) */
-                        if (state.lens[256] === 0) {
-                            strm.msg = 'invalid code -- missing end-of-block';
-                            state.mode = BAD;
-                            break;
-                        }
-
-                        /* build code tables -- note: do not change the lenbits or distbits
-                         values here (9 and 6) without reading the comments in inftrees.h
-                         concerning the ENOUGH constants, which depend on those values */
-                        state.lenbits = 9;
-
-                        opts = {bits: state.lenbits};
-                        ret = inflate_table(LENS, state.lens, 0, state.nlen, state.lencode, 0, state.work, opts);
-                        // We have separate tables & no pointers. 2 commented lines below not needed.
-                        // state.next_index = opts.table_index;
-                        state.lenbits = opts.bits;
-                        // state.lencode = state.next;
-
-                        if (ret) {
-                            strm.msg = 'invalid literal/lengths set';
-                            state.mode = BAD;
-                            break;
-                        }
-
-                        state.distbits = 6;
-                        //state.distcode.copy(state.codes);
-                        // Switch to use dynamic table
-                        state.distcode = state.distdyn;
-                        opts = {bits: state.distbits};
-                        ret = inflate_table(DISTS, state.lens, state.nlen, state.ndist, state.distcode, 0, state.work, opts);
-                        // We have separate tables & no pointers. 2 commented lines below not needed.
-                        // state.next_index = opts.table_index;
-                        state.distbits = opts.bits;
-                        // state.distcode = state.next;
-
-                        if (ret) {
-                            strm.msg = 'invalid distances set';
-                            state.mode = BAD;
-                            break;
-                        }
-                        //Tracev((stderr, 'inflate:       codes ok\n'));
-                        state.mode = LEN_;
-                        if (flush === Z_TREES) { break inf_leave; }
-                    /* falls through */
-                    case LEN_:
-                        state.mode = LEN;
-                    /* falls through */
-                    case LEN:
-                        if (have >= 6 && left >= 258) {
-                            //--- RESTORE() ---
-                            strm.next_out = put;
-                            strm.avail_out = left;
-                            strm.next_in = next;
-                            strm.avail_in = have;
-                            state.hold = hold;
-                            state.bits = bits;
-                            //---
-                            inflate_fast(strm, _out);
-                            //--- LOAD() ---
-                            put = strm.next_out;
-                            output = strm.output;
-                            left = strm.avail_out;
-                            next = strm.next_in;
-                            input = strm.input;
-                            have = strm.avail_in;
-                            hold = state.hold;
-                            bits = state.bits;
-                            //---
-
-                            if (state.mode === TYPE) {
-                                state.back = -1;
-                            }
-                            break;
-                        }
-                        state.back = 0;
-                        for (;;) {
-                            here = state.lencode[hold & ((1 << state.lenbits) -1)];  /*BITS(state.lenbits)*/
-                            here_bits = here >>> 24;
-                            here_op = (here >>> 16) & 0xff;
-                            here_val = here & 0xffff;
-
-                            if (here_bits <= bits) { break; }
-                            //--- PULLBYTE() ---//
-                            if (have === 0) { break inf_leave; }
-                            have--;
-                            hold += input[next++] << bits;
-                            bits += 8;
-                            //---//
-                        }
-                        if (here_op && (here_op & 0xf0) === 0) {
-                            last_bits = here_bits;
-                            last_op = here_op;
-                            last_val = here_val;
-                            for (;;) {
-                                here = state.lencode[last_val +
-                                ((hold & ((1 << (last_bits + last_op)) -1))/*BITS(last.bits + last.op)*/ >> last_bits)];
-                                here_bits = here >>> 24;
-                                here_op = (here >>> 16) & 0xff;
-                                here_val = here & 0xffff;
-
-                                if ((last_bits + here_bits) <= bits) { break; }
-                                //--- PULLBYTE() ---//
-                                if (have === 0) { break inf_leave; }
-                                have--;
-                                hold += input[next++] << bits;
-                                bits += 8;
-                                //---//
-                            }
-                            //--- DROPBITS(last.bits) ---//
-                            hold >>>= last_bits;
-                            bits -= last_bits;
-                            //---//
-                            state.back += last_bits;
-                        }
-                        //--- DROPBITS(here.bits) ---//
-                        hold >>>= here_bits;
-                        bits -= here_bits;
-                        //---//
-                        state.back += here_bits;
-                        state.length = here_val;
-                        if (here_op === 0) {
-                            //Tracevv((stderr, here.val >= 0x20 && here.val < 0x7f ?
-                            //        "inflate:         literal '%c'\n" :
-                            //        "inflate:         literal 0x%02x\n", here.val));
-                            state.mode = LIT;
-                            break;
-                        }
-                        if (here_op & 32) {
-                            //Tracevv((stderr, "inflate:         end of block\n"));
-                            state.back = -1;
-                            state.mode = TYPE;
-                            break;
-                        }
-                        if (here_op & 64) {
-                            strm.msg = 'invalid literal/length code';
-                            state.mode = BAD;
-                            break;
-                        }
-                        state.extra = here_op & 15;
-                        state.mode = LENEXT;
-                    /* falls through */
-                    case LENEXT:
-                        if (state.extra) {
-                            //=== NEEDBITS(state.extra);
-                            n = state.extra;
-                            while (bits < n) {
-                                if (have === 0) { break inf_leave; }
-                                have--;
-                                hold += input[next++] << bits;
-                                bits += 8;
-                            }
-                            //===//
-                            state.length += hold & ((1 << state.extra) -1)/*BITS(state.extra)*/;
-                            //--- DROPBITS(state.extra) ---//
-                            hold >>>= state.extra;
-                            bits -= state.extra;
-                            //---//
-                            state.back += state.extra;
-                        }
-                        //Tracevv((stderr, "inflate:         length %u\n", state.length));
-                        state.was = state.length;
-                        state.mode = DIST;
-                    /* falls through */
-                    case DIST:
-                        for (;;) {
-                            here = state.distcode[hold & ((1 << state.distbits) -1)];/*BITS(state.distbits)*/
-                            here_bits = here >>> 24;
-                            here_op = (here >>> 16) & 0xff;
-                            here_val = here & 0xffff;
-
-                            if ((here_bits) <= bits) { break; }
-                            //--- PULLBYTE() ---//
-                            if (have === 0) { break inf_leave; }
-                            have--;
-                            hold += input[next++] << bits;
-                            bits += 8;
-                            //---//
-                        }
-                        if ((here_op & 0xf0) === 0) {
-                            last_bits = here_bits;
-                            last_op = here_op;
-                            last_val = here_val;
-                            for (;;) {
-                                here = state.distcode[last_val +
-                                ((hold & ((1 << (last_bits + last_op)) -1))/*BITS(last.bits + last.op)*/ >> last_bits)];
-                                here_bits = here >>> 24;
-                                here_op = (here >>> 16) & 0xff;
-                                here_val = here & 0xffff;
-
-                                if ((last_bits + here_bits) <= bits) { break; }
-                                //--- PULLBYTE() ---//
-                                if (have === 0) { break inf_leave; }
-                                have--;
-                                hold += input[next++] << bits;
-                                bits += 8;
-                                //---//
-                            }
-                            //--- DROPBITS(last.bits) ---//
-                            hold >>>= last_bits;
-                            bits -= last_bits;
-                            //---//
-                            state.back += last_bits;
-                        }
-                        //--- DROPBITS(here.bits) ---//
-                        hold >>>= here_bits;
-                        bits -= here_bits;
-                        //---//
-                        state.back += here_bits;
-                        if (here_op & 64) {
-                            strm.msg = 'invalid distance code';
-                            state.mode = BAD;
-                            break;
-                        }
-                        state.offset = here_val;
-                        state.extra = (here_op) & 15;
-                        state.mode = DISTEXT;
-                    /* falls through */
-                    case DISTEXT:
-                        if (state.extra) {
-                            //=== NEEDBITS(state.extra);
-                            n = state.extra;
-                            while (bits < n) {
-                                if (have === 0) { break inf_leave; }
-                                have--;
-                                hold += input[next++] << bits;
-                                bits += 8;
-                            }
-                            //===//
-                            state.offset += hold & ((1 << state.extra) -1)/*BITS(state.extra)*/;
-                            //--- DROPBITS(state.extra) ---//
-                            hold >>>= state.extra;
-                            bits -= state.extra;
-                            //---//
-                            state.back += state.extra;
-                        }
-//#ifdef INFLATE_STRICT
-                        if (state.offset > state.dmax) {
-                            strm.msg = 'invalid distance too far back';
-                            state.mode = BAD;
-                            break;
-                        }
-//#endif
-                        //Tracevv((stderr, "inflate:         distance %u\n", state.offset));
-                        state.mode = MATCH;
-                    /* falls through */
-                    case MATCH:
-                        if (left === 0) { break inf_leave; }
-                        copy = _out - left;
-                        if (state.offset > copy) {         /* copy from window */
-                            copy = state.offset - copy;
-                            if (copy > state.whave) {
-                                if (state.sane) {
-                                    strm.msg = 'invalid distance too far back';
-                                    state.mode = BAD;
-                                    break;
-                                }
-// (!) This block is disabled in zlib defailts,
-// don't enable it for binary compatibility
-//#ifdef INFLATE_ALLOW_INVALID_DISTANCE_TOOFAR_ARRR
-//          Trace((stderr, "inflate.c too far\n"));
-//          copy -= state.whave;
-//          if (copy > state.length) { copy = state.length; }
-//          if (copy > left) { copy = left; }
-//          left -= copy;
-//          state.length -= copy;
-//          do {
-//            output[put++] = 0;
-//          } while (--copy);
-//          if (state.length === 0) { state.mode = LEN; }
-//          break;
-//#endif
-                            }
-                            if (copy > state.wnext) {
-                                copy -= state.wnext;
-                                from = state.wsize - copy;
-                            }
-                            else {
-                                from = state.wnext - copy;
-                            }
-                            if (copy > state.length) { copy = state.length; }
-                            from_source = state.window;
-                        }
-                        else {                              /* copy from output */
-                            from_source = output;
-                            from = put - state.offset;
-                            copy = state.length;
-                        }
-                        if (copy > left) { copy = left; }
-                        left -= copy;
-                        state.length -= copy;
-                        do {
-                            output[put++] = from_source[from++];
-                        } while (--copy);
-                        if (state.length === 0) { state.mode = LEN; }
-                        break;
-                    case LIT:
-                        if (left === 0) { break inf_leave; }
-                        output[put++] = state.length;
-                        left--;
-                        state.mode = LEN;
-                        break;
-                    case CHECK:
-                        if (state.wrap) {
-                            //=== NEEDBITS(32);
-                            while (bits < 32) {
-                                if (have === 0) { break inf_leave; }
-                                have--;
-                                // Use '|' insdead of '+' to make sure that result is signed
-                                hold |= input[next++] << bits;
-                                bits += 8;
-                            }
-                            //===//
-                            _out -= left;
-                            strm.total_out += _out;
-                            state.total += _out;
-                            if (_out) {
-                                strm.adler = state.check =
-                                    /*UPDATE(state.check, put - _out, _out);*/
-                                    (state.flags ? crc32(state.check, output, _out, put - _out) : adler32(state.check, output, _out, put - _out));
-
-                            }
-                            _out = left;
-                            // NB: crc32 stored as signed 32-bit int, ZSWAP32 returns signed too
-                            if ((state.flags ? hold : ZSWAP32(hold)) !== state.check) {
-                                strm.msg = 'incorrect data check';
-                                state.mode = BAD;
-                                break;
-                            }
-                            //=== INITBITS();
-                            hold = 0;
-                            bits = 0;
-                            //===//
-                            //Tracev((stderr, "inflate:   check matches trailer\n"));
-                        }
-                        state.mode = LENGTH;
-                    /* falls through */
-                    case LENGTH:
-                        if (state.wrap && state.flags) {
-                            //=== NEEDBITS(32);
-                            while (bits < 32) {
-                                if (have === 0) { break inf_leave; }
-                                have--;
-                                hold += input[next++] << bits;
-                                bits += 8;
-                            }
-                            //===//
-                            if (hold !== (state.total & 0xffffffff)) {
-                                strm.msg = 'incorrect length check';
-                                state.mode = BAD;
-                                break;
-                            }
-                            //=== INITBITS();
-                            hold = 0;
-                            bits = 0;
-                            //===//
-                            //Tracev((stderr, "inflate:   length matches trailer\n"));
-                        }
-                        state.mode = DONE;
-                    /* falls through */
-                    case DONE:
-                        ret = Z_STREAM_END;
-                        break inf_leave;
-                    case BAD:
-                        ret = Z_DATA_ERROR;
-                        break inf_leave;
-                    case MEM:
-                        return Z_MEM_ERROR;
-                    case SYNC:
-                    /* falls through */
-                    default:
-                        return Z_STREAM_ERROR;
-                }
-            }
-
-        // inf_leave <- here is real place for "goto inf_leave", emulated via "break inf_leave"
-
-        /*
-         Return from inflate(), updating the total counts and the check value.
-         If there was no progress during the inflate() call, return a buffer
-         error.  Call updatewindow() to create and/or update the window state.
-         Note: a memory error from inflate() is non-recoverable.
-         */
-
-        //--- RESTORE() ---
-        strm.next_out = put;
-        strm.avail_out = left;
-        strm.next_in = next;
-        strm.avail_in = have;
-        state.hold = hold;
-        state.bits = bits;
-        //---
-
-        if (state.wsize || (_out !== strm.avail_out && state.mode < BAD &&
-            (state.mode < CHECK || flush !== Z_FINISH))) {
-            if (updatewindow(strm, strm.output, strm.next_out, _out - strm.avail_out)) {
-                state.mode = MEM;
-                return Z_MEM_ERROR;
-            }
-        }
-        _in -= strm.avail_in;
-        _out -= strm.avail_out;
-        strm.total_in += _in;
-        strm.total_out += _out;
-        state.total += _out;
-        if (state.wrap && _out) {
-            strm.adler = state.check = /*UPDATE(state.check, strm.next_out - _out, _out);*/
-                (state.flags ? crc32(state.check, output, _out, strm.next_out - _out) : adler32(state.check, output, _out, strm.next_out - _out));
-        }
-        strm.data_type = state.bits + (state.last ? 64 : 0) +
-            (state.mode === TYPE ? 128 : 0) +
-            (state.mode === LEN_ || state.mode === COPY_ ? 256 : 0);
-        if (((_in === 0 && _out === 0) || flush === Z_FINISH) && ret === Z_OK) {
-            ret = Z_BUF_ERROR;
-        }
-        return ret;
-    }
-
-    function inflateEnd(strm) {
-
-        if (!strm || !strm.state /*|| strm->zfree == (free_func)0*/) {
-            return Z_STREAM_ERROR;
-        }
-
-        var state = strm.state;
-        if (state.window) {
-            state.window = null;
-        }
-        strm.state = null;
-        return Z_OK;
-    }
-
-    function inflateGetHeader(strm, head) {
-        var state;
-
-        /* check state */
-        if (!strm || !strm.state) { return Z_STREAM_ERROR; }
-        state = strm.state;
-        if ((state.wrap & 2) === 0) { return Z_STREAM_ERROR; }
-
-        /* save header structure */
-        state.head = head;
-        head.done = false;
-        return Z_OK;
-    }
-
-
-    exports.inflateReset = inflateReset;
-    exports.inflateReset2 = inflateReset2;
-    exports.inflateResetKeep = inflateResetKeep;
-    exports.inflateInit = inflateInit;
-    exports.inflateInit2 = inflateInit2;
-    exports.inflate = inflate;
-    exports.inflateEnd = inflateEnd;
-    exports.inflateGetHeader = inflateGetHeader;
-    exports.inflateInfo = 'pako inflate (from Nodeca project)';
-
-    /* Not implemented
-     exports.inflateCopy = inflateCopy;
-     exports.inflateGetDictionary = inflateGetDictionary;
-     exports.inflateMark = inflateMark;
-     exports.inflatePrime = inflatePrime;
-     exports.inflateSetDictionary = inflateSetDictionary;
-     exports.inflateSync = inflateSync;
-     exports.inflateSyncPoint = inflateSyncPoint;
-     exports.inflateUndermine = inflateUndermine;
-     */
-
-},{"../utils/common":1,"./adler32":3,"./crc32":5,"./inffast":7,"./inftrees":9}],9:[function(require,module,exports){
-    'use strict';
-
-
-    var utils = require('../utils/common');
-
-    var MAXBITS = 15;
-    var ENOUGH_LENS = 852;
-    var ENOUGH_DISTS = 592;
-//var ENOUGH = (ENOUGH_LENS+ENOUGH_DISTS);
-
-    var CODES = 0;
-    var LENS = 1;
-    var DISTS = 2;
-
-    var lbase = [ /* Length codes 257..285 base */
-        3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
-        35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0
-    ];
-
-    var lext = [ /* Length codes 257..285 extra */
-        16, 16, 16, 16, 16, 16, 16, 16, 17, 17, 17, 17, 18, 18, 18, 18,
-        19, 19, 19, 19, 20, 20, 20, 20, 21, 21, 21, 21, 16, 72, 78
-    ];
-
-    var dbase = [ /* Distance codes 0..29 base */
-        1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193,
-        257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145,
-        8193, 12289, 16385, 24577, 0, 0
-    ];
-
-    var dext = [ /* Distance codes 0..29 extra */
-        16, 16, 16, 16, 17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22,
-        23, 23, 24, 24, 25, 25, 26, 26, 27, 27,
-        28, 28, 29, 29, 64, 64
-    ];
-
-    module.exports = function inflate_table(type, lens, lens_index, codes, table, table_index, work, opts)
-    {
-        var bits = opts.bits;
-        //here = opts.here; /* table entry for duplication */
-
-        var len = 0;               /* a code's length in bits */
-        var sym = 0;               /* index of code symbols */
-        var min = 0, max = 0;          /* minimum and maximum code lengths */
-        var root = 0;              /* number of index bits for root table */
-        var curr = 0;              /* number of index bits for current table */
-        var drop = 0;              /* code bits to drop for sub-table */
-        var left = 0;                   /* number of prefix codes available */
-        var used = 0;              /* code entries in table used */
-        var huff = 0;              /* Huffman code */
-        var incr;              /* for incrementing code, index */
-        var fill;              /* index for replicating entries */
-        var low;               /* low bits for current root entry */
-        var mask;              /* mask for low root bits */
-        var next;             /* next available space in table */
-        var base = null;     /* base value table to use */
-        var base_index = 0;
-//  var shoextra;    /* extra bits table to use */
-        var end;                    /* use base and extra for symbol > end */
-        var count = new utils.Buf16(MAXBITS+1); //[MAXBITS+1];    /* number of codes of each length */
-        var offs = new utils.Buf16(MAXBITS+1); //[MAXBITS+1];     /* offsets in table for each length */
-        var extra = null;
-        var extra_index = 0;
-
-        var here_bits, here_op, here_val;
-
-        /*
-         Process a set of code lengths to create a canonical Huffman code.  The
-         code lengths are lens[0..codes-1].  Each length corresponds to the
-         symbols 0..codes-1.  The Huffman code is generated by first sorting the
-         symbols by length from short to long, and retaining the symbol order
-         for codes with equal lengths.  Then the code starts with all zero bits
-         for the first code of the shortest length, and the codes are integer
-         increments for the same length, and zeros are appended as the length
-         increases.  For the deflate format, these bits are stored backwards
-         from their more natural integer increment ordering, and so when the
-         decoding tables are built in the large loop below, the integer codes
-         are incremented backwards.
-
-         This routine assumes, but does not check, that all of the entries in
-         lens[] are in the range 0..MAXBITS.  The caller must assure this.
-         1..MAXBITS is interpreted as that code length.  zero means that that
-         symbol does not occur in this code.
-
-         The codes are sorted by computing a count of codes for each length,
-         creating from that a table of starting indices for each length in the
-         sorted table, and then entering the symbols in order in the sorted
-         table.  The sorted table is work[], with that space being provided by
-         the caller.
-
-         The length counts are used for other purposes as well, i.e. finding
-         the minimum and maximum length codes, determining if there are any
-         codes at all, checking for a valid set of lengths, and looking ahead
-         at length counts to determine sub-table sizes when building the
-         decoding tables.
-         */
-
-        /* accumulate lengths for codes (assumes lens[] all in 0..MAXBITS) */
-        for (len = 0; len <= MAXBITS; len++) {
-            count[len] = 0;
-        }
-        for (sym = 0; sym < codes; sym++) {
-            count[lens[lens_index + sym]]++;
-        }
-
-        /* bound code lengths, force root to be within code lengths */
-        root = bits;
-        for (max = MAXBITS; max >= 1; max--) {
-            if (count[max] !== 0) { break; }
-        }
-        if (root > max) {
-            root = max;
-        }
-        if (max === 0) {                     /* no symbols to code at all */
-            //table.op[opts.table_index] = 64;  //here.op = (var char)64;    /* invalid code marker */
-            //table.bits[opts.table_index] = 1;   //here.bits = (var char)1;
-            //table.val[opts.table_index++] = 0;   //here.val = (var short)0;
-            table[table_index++] = (1 << 24) | (64 << 16) | 0;
-
-
-            //table.op[opts.table_index] = 64;
-            //table.bits[opts.table_index] = 1;
-            //table.val[opts.table_index++] = 0;
-            table[table_index++] = (1 << 24) | (64 << 16) | 0;
-
-            opts.bits = 1;
-            return 0;     /* no symbols, but wait for decoding to report error */
-        }
-        for (min = 1; min < max; min++) {
-            if (count[min] !== 0) { break; }
-        }
-        if (root < min) {
-            root = min;
-        }
-
-        /* check for an over-subscribed or incomplete set of lengths */
-        left = 1;
-        for (len = 1; len <= MAXBITS; len++) {
-            left <<= 1;
-            left -= count[len];
-            if (left < 0) {
-                return -1;
-            }        /* over-subscribed */
-        }
-        if (left > 0 && (type === CODES || max !== 1)) {
-            return -1;                      /* incomplete set */
-        }
-
-        /* generate offsets into symbol table for each length for sorting */
-        offs[1] = 0;
-        for (len = 1; len < MAXBITS; len++) {
-            offs[len + 1] = offs[len] + count[len];
-        }
-
-        /* sort symbols by length, by symbol order within each length */
-        for (sym = 0; sym < codes; sym++) {
-            if (lens[lens_index + sym] !== 0) {
-                work[offs[lens[lens_index + sym]]++] = sym;
-            }
-        }
-
-        /*
-         Create and fill in decoding tables.  In this loop, the table being
-         filled is at next and has curr index bits.  The code being used is huff
-         with length len.  That code is converted to an index by dropping drop
-         bits off of the bottom.  For codes where len is less than drop + curr,
-         those top drop + curr - len bits are incremented through all values to
-         fill the table with replicated entries.
-
-         root is the number of index bits for the root table.  When len exceeds
-         root, sub-tables are created pointed to by the root entry with an index
-         of the low root bits of huff.  This is saved in low to check for when a
-         new sub-table should be started.  drop is zero when the root table is
-         being filled, and drop is root when sub-tables are being filled.
-
-         When a new sub-table is needed, it is necessary to look ahead in the
-         code lengths to determine what size sub-table is needed.  The length
-         counts are used for this, and so count[] is decremented as codes are
-         entered in the tables.
-
-         used keeps track of how many table entries have been allocated from the
-         provided *table space.  It is checked for LENS and DIST tables against
-         the constants ENOUGH_LENS and ENOUGH_DISTS to guard against changes in
-         the initial root table size constants.  See the comments in inftrees.h
-         for more information.
-
-         sym increments through all symbols, and the loop terminates when
-         all codes of length max, i.e. all codes, have been processed.  This
-         routine permits incomplete codes, so another loop after this one fills
-         in the rest of the decoding tables with invalid code markers.
-         */
-
-        /* set up for code type */
-        // poor man optimization - use if-else instead of switch,
-        // to avoid deopts in old v8
-        if (type === CODES) {
-            base = extra = work;    /* dummy value--not used */
-            end = 19;
-
-        } else if (type === LENS) {
-            base = lbase;
-            base_index -= 257;
-            extra = lext;
-            extra_index -= 257;
-            end = 256;
-
-        } else {                    /* DISTS */
-            base = dbase;
-            extra = dext;
-            end = -1;
-        }
-
-        /* initialize opts for loop */
-        huff = 0;                   /* starting code */
-        sym = 0;                    /* starting code symbol */
-        len = min;                  /* starting code length */
-        next = table_index;              /* current table to fill in */
-        curr = root;                /* current table index bits */
-        drop = 0;                   /* current bits to drop from code for index */
-        low = -1;                   /* trigger new sub-table when len > root */
-        used = 1 << root;          /* use root table entries */
-        mask = used - 1;            /* mask for comparing low */
-
-        /* check available table space */
-        if ((type === LENS && used > ENOUGH_LENS) ||
-            (type === DISTS && used > ENOUGH_DISTS)) {
-            return 1;
-        }
-
-        var i=0;
-        /* process all codes and make table entries */
-        for (;;) {
-            i++;
-            /* create table entry */
-            here_bits = len - drop;
-            if (work[sym] < end) {
-                here_op = 0;
-                here_val = work[sym];
-            }
-            else if (work[sym] > end) {
-                here_op = extra[extra_index + work[sym]];
-                here_val = base[base_index + work[sym]];
-            }
-            else {
-                here_op = 32 + 64;         /* end of block */
-                here_val = 0;
-            }
-
-            /* replicate for those indices with low len bits equal to huff */
-            incr = 1 << (len - drop);
-            fill = 1 << curr;
-            min = fill;                 /* save offset to next table */
-            do {
-                fill -= incr;
-                table[next + (huff >> drop) + fill] = (here_bits << 24) | (here_op << 16) | here_val |0;
-            } while (fill !== 0);
-
-            /* backwards increment the len-bit code huff */
-            incr = 1 << (len - 1);
-            while (huff & incr) {
-                incr >>= 1;
-            }
-            if (incr !== 0) {
-                huff &= incr - 1;
-                huff += incr;
-            } else {
-                huff = 0;
-            }
-
-            /* go to next symbol, update count, len */
-            sym++;
-            if (--count[len] === 0) {
-                if (len === max) { break; }
-                len = lens[lens_index + work[sym]];
-            }
-
-            /* create new sub-table if needed */
-            if (len > root && (huff & mask) !== low) {
-                /* if first time, transition to sub-tables */
-                if (drop === 0) {
-                    drop = root;
-                }
-
-                /* increment past last table */
-                next += min;            /* here min is 1 << curr */
-
-                /* determine length of next table */
-                curr = len - drop;
-                left = 1 << curr;
-                while (curr + drop < max) {
-                    left -= count[curr + drop];
-                    if (left <= 0) { break; }
-                    curr++;
-                    left <<= 1;
-                }
-
-                /* check for enough space */
-                used += 1 << curr;
-                if ((type === LENS && used > ENOUGH_LENS) ||
-                    (type === DISTS && used > ENOUGH_DISTS)) {
-                    return 1;
-                }
-
-                /* point entry in root table to sub-table */
-                low = huff & mask;
-                /*table.op[low] = curr;
-                 table.bits[low] = root;
-                 table.val[low] = next - opts.table_index;*/
-                table[low] = (root << 24) | (curr << 16) | (next - table_index) |0;
-            }
-        }
-
-        /* fill in remaining table entry if code is incomplete (guaranteed to have
-         at most one remaining entry, since if the code is incomplete, the
-         maximum code length that was allowed to get this far is one bit) */
-        if (huff !== 0) {
-            //table.op[next + huff] = 64;            /* invalid code marker */
-            //table.bits[next + huff] = len - drop;
-            //table.val[next + huff] = 0;
-            table[next + huff] = ((len - drop) << 24) | (64 << 16) |0;
-        }
-
-        /* set return parameters */
-        //opts.table_index += used;
-        opts.bits = root;
-        return 0;
-    };
-
-},{"../utils/common":1}],10:[function(require,module,exports){
-    'use strict';
-
-    module.exports = {
-        '2':    'need dictionary',     /* Z_NEED_DICT       2  */
-        '1':    'stream end',          /* Z_STREAM_END      1  */
-        '0':    '',                    /* Z_OK              0  */
-        '-1':   'file error',          /* Z_ERRNO         (-1) */
-        '-2':   'stream error',        /* Z_STREAM_ERROR  (-2) */
-        '-3':   'data error',          /* Z_DATA_ERROR    (-3) */
-        '-4':   'insufficient memory', /* Z_MEM_ERROR     (-4) */
-        '-5':   'buffer error',        /* Z_BUF_ERROR     (-5) */
-        '-6':   'incompatible version' /* Z_VERSION_ERROR (-6) */
-    };
-
-},{}],11:[function(require,module,exports){
-    'use strict';
-
-
-    function ZStream() {
-        /* next input byte */
-        this.input = null; // JS specific, because we have no pointers
-        this.next_in = 0;
-        /* number of bytes available at input */
-        this.avail_in = 0;
-        /* total number of input bytes read so far */
-        this.total_in = 0;
-        /* next output byte should be put there */
-        this.output = null; // JS specific, because we have no pointers
-        this.next_out = 0;
-        /* remaining free space at output */
-        this.avail_out = 0;
-        /* total number of bytes output so far */
-        this.total_out = 0;
-        /* last error message, NULL if no error */
-        this.msg = ''/*Z_NULL*/;
-        /* not visible by applications */
-        this.state = null;
-        /* best guess about the data type: binary or text */
-        this.data_type = 2/*Z_UNKNOWN*/;
-        /* adler32 value of the uncompressed data */
-        this.adler = 0;
-    }
-
-    module.exports = ZStream;
-
-},{}],"/lib/inflate.js":[function(require,module,exports){
-    'use strict';
-
-
-    var zlib_inflate = require('./zlib/inflate.js');
-    var utils = require('./utils/common');
-    var strings = require('./utils/strings');
-    var c = require('./zlib/constants');
-    var msg = require('./zlib/messages');
-    var zstream = require('./zlib/zstream');
-    var gzheader = require('./zlib/gzheader');
-
-    var toString = Object.prototype.toString;
-
-    /**
-     * class Inflate
-     *
-     * Generic JS-style wrapper for zlib calls. If you don't need
-     * streaming behaviour - use more simple functions: [[inflate]]
-     * and [[inflateRaw]].
-     **/
-
-    /* internal
-     * inflate.chunks -> Array
-     *
-     * Chunks of output data, if [[Inflate#onData]] not overriden.
-     **/
-
-    /**
-     * Inflate.result -> Uint8Array|Array|String
-     *
-     * Uncompressed result, generated by default [[Inflate#onData]]
-     * and [[Inflate#onEnd]] handlers. Filled after you push last chunk
-     * (call [[Inflate#push]] with `Z_FINISH` / `true` param) or if you
-     * push a chunk with explicit flush (call [[Inflate#push]] with
-     * `Z_SYNC_FLUSH` param).
-     **/
-
-    /**
-     * Inflate.err -> Number
-     *
-     * Error code after inflate finished. 0 (Z_OK) on success.
-     * Should be checked if broken data possible.
-     **/
-
-    /**
-     * Inflate.msg -> String
-     *
-     * Error message, if [[Inflate.err]] != 0
-     **/
-
-
-    /**
-     * new Inflate(options)
-     * - options (Object): zlib inflate options.
-     *
-     * Creates new inflator instance with specified params. Throws exception
-     * on bad params. Supported options:
-     *
-     * - `windowBits`
-     *
-     * [http://zlib.net/manual.html#Advanced](http://zlib.net/manual.html#Advanced)
-     * for more information on these.
-     *
-     * Additional options, for internal needs:
-     *
-     * - `chunkSize` - size of generated data chunks (16K by default)
-     * - `raw` (Boolean) - do raw inflate
-     * - `to` (String) - if equal to 'string', then result will be converted
-     *   from utf8 to utf16 (javascript) string. When string output requested,
-     *   chunk length can differ from `chunkSize`, depending on content.
-     *
-     * By default, when no options set, autodetect deflate/gzip data format via
-     * wrapper header.
-     *
-     * ##### Example:
-     *
-     * ```javascript
-     * var pako = require('pako')
-     *   , chunk1 = Uint8Array([1,2,3,4,5,6,7,8,9])
-     *   , chunk2 = Uint8Array([10,11,12,13,14,15,16,17,18,19]);
-     *
-     * var inflate = new pako.Inflate({ level: 3});
-     *
-     * inflate.push(chunk1, false);
-     * inflate.push(chunk2, true);  // true -> last chunk
-     *
-     * if (inflate.err) { throw new Error(inflate.err); }
-     *
-     * console.log(inflate.result);
-     * ```
-     **/
-    var Inflate = function(options) {
-
-        this.options = utils.assign({
-            chunkSize: 16384,
-            windowBits: 0,
-            to: ''
-        }, options || {});
-
-        var opt = this.options;
-
-        // Force window size for `raw` data, if not set directly,
-        // because we have no header for autodetect.
-        if (opt.raw && (opt.windowBits >= 0) && (opt.windowBits < 16)) {
-            opt.windowBits = -opt.windowBits;
-            if (opt.windowBits === 0) { opt.windowBits = -15; }
-        }
-
-        // If `windowBits` not defined (and mode not raw) - set autodetect flag for gzip/deflate
-        if ((opt.windowBits >= 0) && (opt.windowBits < 16) &&
-            !(options && options.windowBits)) {
-            opt.windowBits += 32;
-        }
-
-        // Gzip header has no info about windows size, we can do autodetect only
-        // for deflate. So, if window size not set, force it to max when gzip possible
-        if ((opt.windowBits > 15) && (opt.windowBits < 48)) {
-            // bit 3 (16) -> gzipped data
-            // bit 4 (32) -> autodetect gzip/deflate
-            if ((opt.windowBits & 15) === 0) {
-                opt.windowBits |= 15;
-            }
-        }
-
-        this.err    = 0;      // error code, if happens (0 = Z_OK)
-        this.msg    = '';     // error message
-        this.ended  = false;  // used to avoid multiple onEnd() calls
-        this.chunks = [];     // chunks of compressed data
-
-        this.strm   = new zstream();
-        this.strm.avail_out = 0;
-
-        var status  = zlib_inflate.inflateInit2(
-            this.strm,
-            opt.windowBits
-        );
-
-        if (status !== c.Z_OK) {
-            throw new Error(msg[status]);
-        }
-
-        this.header = new gzheader();
-
-        zlib_inflate.inflateGetHeader(this.strm, this.header);
-    };
-
-    /**
-     * Inflate#push(data[, mode]) -> Boolean
-     * - data (Uint8Array|Array|ArrayBuffer|String): input data
-     * - mode (Number|Boolean): 0..6 for corresponding Z_NO_FLUSH..Z_TREE modes.
-     *   See constants. Skipped or `false` means Z_NO_FLUSH, `true` meansh Z_FINISH.
-     *
-     * Sends input data to inflate pipe, generating [[Inflate#onData]] calls with
-     * new output chunks. Returns `true` on success. The last data block must have
-     * mode Z_FINISH (or `true`). That will flush internal pending buffers and call
-     * [[Inflate#onEnd]]. For interim explicit flushes (without ending the stream) you
-     * can use mode Z_SYNC_FLUSH, keeping the decompression context.
-     *
-     * On fail call [[Inflate#onEnd]] with error code and return false.
-     *
-     * We strongly recommend to use `Uint8Array` on input for best speed (output
-     * format is detected automatically). Also, don't skip last param and always
-     * use the same type in your code (boolean or number). That will improve JS speed.
-     *
-     * For regular `Array`-s make sure all elements are [0..255].
-     *
-     * ##### Example
-     *
-     * ```javascript
-     * push(chunk, false); // push one of data chunks
-     * ...
-     * push(chunk, true);  // push last chunk
-     * ```
-     **/
-    Inflate.prototype.push = function(data, mode) {
-        var strm = this.strm;
-        var chunkSize = this.options.chunkSize;
-        var status, _mode;
-        var next_out_utf8, tail, utf8str;
-
-        // Flag to properly process Z_BUF_ERROR on testing inflate call
-        // when we check that all output data was flushed.
-        var allowBufError = false;
-
-        if (this.ended) { return false; }
-        _mode = (mode === ~~mode) ? mode : ((mode === true) ? c.Z_FINISH : c.Z_NO_FLUSH);
-
-        // Convert data if needed
-        if (typeof data === 'string') {
-            // Only binary strings can be decompressed on practice
-            strm.input = strings.binstring2buf(data);
-        } else if (toString.call(data) === '[object ArrayBuffer]') {
-            strm.input = new Uint8Array(data);
-        } else {
-            strm.input = data;
-        }
-
-        strm.next_in = 0;
-        strm.avail_in = strm.input.length;
-
-        do {
-            if (strm.avail_out === 0) {
-                strm.output = new utils.Buf8(chunkSize);
-                strm.next_out = 0;
-                strm.avail_out = chunkSize;
-            }
-
-            status = zlib_inflate.inflate(strm, c.Z_NO_FLUSH);    /* no bad return value */
-
-            if (status === c.Z_BUF_ERROR && allowBufError === true) {
-                status = c.Z_OK;
-                allowBufError = false;
-            }
-
-            if (status !== c.Z_STREAM_END && status !== c.Z_OK) {
-                this.onEnd(status);
-                this.ended = true;
-                return false;
-            }
-
-            if (strm.next_out) {
-                if (strm.avail_out === 0 || status === c.Z_STREAM_END || (strm.avail_in === 0 && (_mode === c.Z_FINISH || _mode === c.Z_SYNC_FLUSH))) {
-
-                    if (this.options.to === 'string') {
-
-                        next_out_utf8 = strings.utf8border(strm.output, strm.next_out);
-
-                        tail = strm.next_out - next_out_utf8;
-                        utf8str = strings.buf2string(strm.output, next_out_utf8);
-
-                        // move tail
-                        strm.next_out = tail;
-                        strm.avail_out = chunkSize - tail;
-                        if (tail) { utils.arraySet(strm.output, strm.output, next_out_utf8, tail, 0); }
-
-                        this.onData(utf8str);
-
-                    } else {
-                        this.onData(utils.shrinkBuf(strm.output, strm.next_out));
-                    }
-                }
-            }
-
-            // When no more input data, we should check that internal inflate buffers
-            // are flushed. The only way to do it when avail_out = 0 - run one more
-            // inflate pass. But if output data not exists, inflate return Z_BUF_ERROR.
-            // Here we set flag to process this error properly.
-            //
-            // NOTE. Deflate does not return error in this case and does not needs such
-            // logic.
-            if (strm.avail_in === 0 && strm.avail_out === 0) {
-                allowBufError = true;
-            }
-
-        } while ((strm.avail_in > 0 || strm.avail_out === 0) && status !== c.Z_STREAM_END);
-
-        if (status === c.Z_STREAM_END) {
-            _mode = c.Z_FINISH;
-        }
-
-        // Finalize on the last chunk.
-        if (_mode === c.Z_FINISH) {
-            status = zlib_inflate.inflateEnd(this.strm);
-            this.onEnd(status);
-            this.ended = true;
-            return status === c.Z_OK;
-        }
-
-        // callback interim results if Z_SYNC_FLUSH.
-        if (_mode === c.Z_SYNC_FLUSH) {
-            this.onEnd(c.Z_OK);
-            strm.avail_out = 0;
-            return true;
-        }
-
-        return true;
-    };
-
-
-    /**
-     * Inflate#onData(chunk) -> Void
-     * - chunk (Uint8Array|Array|String): ouput data. Type of array depends
-     *   on js engine support. When string output requested, each chunk
-     *   will be string.
-     *
-     * By default, stores data blocks in `chunks[]` property and glue
-     * those in `onEnd`. Override this handler, if you need another behaviour.
-     **/
-    Inflate.prototype.onData = function(chunk) {
-        this.chunks.push(chunk);
-    };
-
-
-    /**
-     * Inflate#onEnd(status) -> Void
-     * - status (Number): inflate status. 0 (Z_OK) on success,
-     *   other if not.
-     *
-     * Called either after you tell inflate that the input stream is
-     * complete (Z_FINISH) or should be flushed (Z_SYNC_FLUSH)
-     * or if an error happened. By default - join collected chunks,
-     * free memory and fill `results` / `err` properties.
-     **/
-    Inflate.prototype.onEnd = function(status) {
-        // On success - join
-        if (status === c.Z_OK) {
-            if (this.options.to === 'string') {
-                // Glue & convert here, until we teach pako to send
-                // utf8 alligned strings to onData
-                this.result = this.chunks.join('');
-            } else {
-                this.result = utils.flattenChunks(this.chunks);
-            }
-        }
-        this.chunks = [];
-        this.err = status;
-        this.msg = this.strm.msg;
-    };
-
-
-    /**
-     * inflate(data[, options]) -> Uint8Array|Array|String
-     * - data (Uint8Array|Array|String): input data to decompress.
-     * - options (Object): zlib inflate options.
-     *
-     * Decompress `data` with inflate/ungzip and `options`. Autodetect
-     * format via wrapper header by default. That's why we don't provide
-     * separate `ungzip` method.
-     *
-     * Supported options are:
-     *
-     * - windowBits
-     *
-     * [http://zlib.net/manual.html#Advanced](http://zlib.net/manual.html#Advanced)
-     * for more information.
-     *
-     * Sugar (options):
-     *
-     * - `raw` (Boolean) - say that we work with raw stream, if you don't wish to specify
-     *   negative windowBits implicitly.
-     * - `to` (String) - if equal to 'string', then result will be converted
-     *   from utf8 to utf16 (javascript) string. When string output requested,
-     *   chunk length can differ from `chunkSize`, depending on content.
-     *
-     *
-     * ##### Example:
-     *
-     * ```javascript
-     * var pako = require('pako')
-     *   , input = pako.deflate([1,2,3,4,5,6,7,8,9])
-     *   , output;
-     *
-     * try {
- *   output = pako.inflate(input);
- * } catch (err)
-     *   console.log(err);
-     * }
-     * ```
-     **/
-    function inflate(input, options) {
-        var inflator = new Inflate(options);
-
-        inflator.push(input, true);
-
-        // That will never happens, if you don't cheat with options :)
-        if (inflator.err) { throw inflator.msg; }
-
-        return inflator.result;
-    }
-
-
-    /**
-     * inflateRaw(data[, options]) -> Uint8Array|Array|String
-     * - data (Uint8Array|Array|String): input data to decompress.
-     * - options (Object): zlib inflate options.
-     *
-     * The same as [[inflate]], but creates raw data, without wrapper
-     * (header and adler32 crc).
-     **/
-    function inflateRaw(input, options) {
-        options = options || {};
-        options.raw = true;
-        return inflate(input, options);
-    }
-
-
-    /**
-     * ungzip(data[, options]) -> Uint8Array|Array|String
-     * - data (Uint8Array|Array|String): input data to decompress.
-     * - options (Object): zlib inflate options.
-     *
-     * Just shortcut to [[inflate]], because it autodetects format
-     * by header.content. Done for convenience.
-     **/
-
-
-    exports.Inflate = Inflate;
-    exports.inflate = inflate;
-    exports.inflateRaw = inflateRaw;
-    exports.ungzip  = inflate;
-
-},{"./utils/common":1,"./utils/strings":2,"./zlib/constants":4,"./zlib/gzheader":6,"./zlib/inflate.js":8,"./zlib/messages":10,"./zlib/zstream":11}]},{},[])("/lib/inflate.js")
-});
 "use strict";
 
 var HX = {
@@ -3098,7 +27,7 @@ HX.InitOptions = function()
     this.maxDirLightsPerPass = 1;
 
     // debug-related
-    this.debug = false;   // requires webgl-debug.js:
+    // this.debug = false;   // requires webgl-debug.js:
     this.ignoreAllExtensions = false;           // ignores all non-default extensions
     this.ignoreDrawBuffersExtension = false;     // forces multiple passes for the GBuffer
     this.ignoreDepthTexturesExtension = false;     // forces storing depth info explicitly
@@ -3131,10 +60,10 @@ HX.init = function(canvas, options)
     };
 
     var glContext = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
-    if (options && options.debug) {
+    /*if (options && options.debug) {
         // ugly, but prevents having to include the webgl-debug.js file
         eval("glContext = WebGLDebugUtils.makeDebugContext(glContext)");
-    }
+    }*/
 
     HX.OPTIONS = options || new HX.InitOptions();
     HX_GL = glContext;
@@ -3296,15 +225,16 @@ HX._init2DDitherTexture = function(width, height)
     var minValue = 1.0 / len;
     var data = [];
     var k = 0;
-    var values = [];
+    var values = []
+    var i;
 
-    for (var i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         values.push(i / len);
     }
 
     HX.shuffle(values);
 
-    for (var i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         var angle = values[i] * Math.PI * 2.0;
         var cos = Math.cos(angle);
         var sin = Math.sin(angle);
@@ -3435,6 +365,10 @@ HX.ShaderLibrary = {
     }
 };
 
+HX.ShaderLibrary['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    // schlick-smith\n    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));\n    float nDotV = max(dot(normal, reflection), 0.0);\n    float denom = nDotV * (1.0 - k) + k;\n    return nDotV * nDotV / (denom * denom);   // since l == v*/\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
+
+HX.ShaderLibrary['lighting_ggx.glsl'] = '// TODO: Implement this: https://learnopengl.com/#!PBR/Theory\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif\n}';
+
 HX.ShaderLibrary['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
 
 HX.ShaderLibrary['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
@@ -3444,10 +378,6 @@ HX.ShaderLibrary['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n   
 HX.ShaderLibrary['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
 
 HX.ShaderLibrary['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position; // in view space?\n    float radius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
-
-HX.ShaderLibrary['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    // schlick-smith\n    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));\n    float nDotV = max(dot(normal, reflection), 0.0);\n    float denom = nDotV * (1.0 - k) + k;\n    return nDotV * nDotV / (denom * denom);   // since l == v*/\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-HX.ShaderLibrary['lighting_ggx.glsl'] = '// TODO: Implement this: https://learnopengl.com/#!PBR/Theory\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif\n}';
 
 HX.ShaderLibrary['default_geometry_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut -= roughnessRange * (specSample.x - .5);\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    HX_GeometryData data;\n    data.color = hx_gammaToLinear(outputColor);\n    data.normal = normalize(fragNormal);\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n    data.emission = vec3(0.0);\n    return data;\n}';
 
@@ -3896,7 +826,7 @@ HX.Float4.prototype = {
      */
     homogeneousProject: function()
     {
-        var rcpW = 1.0/w;
+        var rcpW = 1.0/this.w;
         this.x *= rcpW;
         this.y *= rcpW;
         this.z *= rcpW;
@@ -4504,26 +1434,29 @@ HX.Matrix4x4.prototype =
 
     fromOrthographicProjection: function (width, height, nearDistance, farDistance)
     {
-        var yMax = Math.tan(vFOV * .5);
-        var xMax = yMax * aspectRatio;
-        var rcpFrustumDepth = 1.0 / (nearDistance - farDistance);
+        var rcpWidth = 1.0 / width;
+        var rcpHeight = 1.0 / height;
+        var rcpDepth = 1.0 / (nearDistance - farDistance);
 
         var m = this._m;
-        m[0] = 1 / xMax;
+        m[0] = 2.0 * rcpWidth;
         m[1] = 0;
         m[2] = 0;
         m[3] = 0;
+
         m[4] = 0;
-        m[5] = 1 / yMax;
+        m[5] = 2.0 * rcpHeight;
         m[6] = 0;
         m[7] = 0;
+
         m[8] = 0;
         m[9] = 0;
-        m[10] = 2 * rcpFrustumDepth;
+        m[10] = 2.0 * rcpDepth;
         m[11] = 0;
-        m[12] = 0;
-        m[13] = 0;
-        m[14] = (farDistance + nearDistance) * rcpFrustumDepth;
+
+        m[12] = 0.0;
+        m[13] = 0.0;
+        m[14] = (farDistance + nearDistance) * rcpDepth;
         m[15] = 1;
     },
 
@@ -4567,12 +1500,12 @@ HX.Matrix4x4.prototype =
     {
         // todo: can this be faster?
         // columns are the indices * 4 (to form index for row 0)
-        var c1 = col == 0 ? 4 : 0;
+        var c1 = col === 0 ? 4 : 0;
         var c2 = col < 2 ? 8 : 4;
-        var c3 = col == 3 ? 8 : 12;
-        var r1 = row == 0 ? 1 : 0;
+        var c3 = col === 3 ? 8 : 12;
+        var r1 = row === 0 ? 1 : 0;
         var r2 = row < 2 ? 2 : 1;
-        var r3 = row == 3 ? 2 : 3;
+        var r3 = row === 3 ? 2 : 3;
 
         var m = this._m;
         var m21 = m[c1 | r2], m22 = m[r2 | c2], m23 = m[c3 | r2];
@@ -4618,28 +1551,28 @@ HX.Matrix4x4.prototype =
         return m[0] * this.determinant3x3(0, 0) - m[4] * this.determinant3x3(0, 1) + m[8] * this.determinant3x3(0, 2) - m[12] * this.determinant3x3(0, 3);
     },
 
-    inverseOf: function (m)
+    inverseOf: function (matrix)
     {
         // this can be much more efficient, but I'd like to keep it readable for now. The full inverse is not required often anyway.
-        var rcpDet = 1.0 / m.determinant();
+        var rcpDet = 1.0 / matrix.determinant();
 
         // needs to be self-assignment-proof
-        var m0 = rcpDet * m.cofactor(0, 0);
-        var m1 = rcpDet * m.cofactor(0, 1);
-        var m2 = rcpDet * m.cofactor(0, 2);
-        var m3 = rcpDet * m.cofactor(0, 3);
-        var m4 = rcpDet * m.cofactor(1, 0);
-        var m5 = rcpDet * m.cofactor(1, 1);
-        var m6 = rcpDet * m.cofactor(1, 2);
-        var m7 = rcpDet * m.cofactor(1, 3);
-        var m8 = rcpDet * m.cofactor(2, 0);
-        var m9 = rcpDet * m.cofactor(2, 1);
-        var m10 = rcpDet * m.cofactor(2, 2);
-        var m11 = rcpDet * m.cofactor(2, 3);
-        var m12 = rcpDet * m.cofactor(3, 0);
-        var m13 = rcpDet * m.cofactor(3, 1);
-        var m14 = rcpDet * m.cofactor(3, 2);
-        var m15 = rcpDet * m.cofactor(3, 3);
+        var m0 = rcpDet * matrix.cofactor(0, 0);
+        var m1 = rcpDet * matrix.cofactor(0, 1);
+        var m2 = rcpDet * matrix.cofactor(0, 2);
+        var m3 = rcpDet * matrix.cofactor(0, 3);
+        var m4 = rcpDet * matrix.cofactor(1, 0);
+        var m5 = rcpDet * matrix.cofactor(1, 1);
+        var m6 = rcpDet * matrix.cofactor(1, 2);
+        var m7 = rcpDet * matrix.cofactor(1, 3);
+        var m8 = rcpDet * matrix.cofactor(2, 0);
+        var m9 = rcpDet * matrix.cofactor(2, 1);
+        var m10 = rcpDet * matrix.cofactor(2, 2);
+        var m11 = rcpDet * matrix.cofactor(2, 3);
+        var m12 = rcpDet * matrix.cofactor(3, 0);
+        var m13 = rcpDet * matrix.cofactor(3, 1);
+        var m14 = rcpDet * matrix.cofactor(3, 2);
+        var m15 = rcpDet * matrix.cofactor(3, 3);
 
         var m = this._m;
         m[0] = m0;
@@ -5308,7 +2241,7 @@ HX.PoissonDisk.prototype =
         for (;;) {
             var x = Math.random() * 2.0 - 1.0;
             var y = Math.random() * 2.0 - 1.0;
-            if (this._mode == HX.PoissonDisk.SQUARE || (x * x + y * y <= 1))
+            if (this._mode === HX.PoissonDisk.SQUARE || (x * x + y * y <= 1))
                 return new HX.Float2(x, y);
         }
     },
@@ -5407,7 +2340,7 @@ HX.PoissonSphere.prototype =
             var x = Math.random() * 2.0 - 1.0;
             var y = Math.random() * 2.0 - 1.0;
             var z = Math.random() * 2.0 - 1.0;
-            if (this._mode == HX.PoissonSphere.BOX || (x * x + y * y + z * z <= 1))
+            if (this._mode === HX.PoissonSphere.BOX || (x * x + y * y + z * z <= 1))
                 return new HX.Float4(x, y, z, 0.0);
         }
     },
@@ -5488,10 +2421,11 @@ HX.Quaternion.prototype =
         var m11 = m._m[5];
         var m22 = m._m[10];
         var trace = m00 + m11 + m22;
+        var s;
 
         if (trace > 0.0) {
             trace += 1.0;
-            var s = 1.0/Math.sqrt(trace)*.5;
+            s = 1.0/Math.sqrt(trace)*.5;
             this.x = s*(m._m[6] - m._m[9]);
             this.y = s*(m._m[8] - m._m[2]);
             this.z = s*(m._m[1] - m._m[4]);
@@ -5499,7 +2433,7 @@ HX.Quaternion.prototype =
         }
         else if (m00 > m11 && m00 > m22) {
             trace = m00 - m11 - m22 + 1.0;
-            var s = 1.0/Math.sqrt(trace)*.5;
+            s = 1.0/Math.sqrt(trace)*.5;
 
             this.x = s*trace;
             this.y = s*(m._m[1] + m._m[4]);
@@ -5508,7 +2442,7 @@ HX.Quaternion.prototype =
         }
         else if (m11 > m22) {
             trace = m11 - m00 - m22 + 1.0;
-            var s = 1.0/Math.sqrt(trace)*.5;
+            s = 1.0/Math.sqrt(trace)*.5;
 
             this.x = s*(m._m[1] + m._m[4]);
             this.y = s*trace;
@@ -5517,7 +2451,7 @@ HX.Quaternion.prototype =
         }
         else {
             trace = m22 - m00 - m11 + 1.0;
-            var s = 1.0/Math.sqrt(trace)*.5;
+            s = 1.0/Math.sqrt(trace)*.5;
 
             this.x = s*(m._m[8] + m._m[2]);
             this.y = s*(m._m[6] + m._m[9]);
@@ -6101,10 +3035,24 @@ HX.DataStream.prototype =
 
     getString: function(len)
     {
+        if (!len) return this._get0String();
+
         var str = "";
 
         for (var i = 0; i < len; ++i)
-            str = str + this.getChar();
+            str += this.getChar();
+
+        return str;
+    },
+
+    _get0String: function()
+    {
+        var str = "";
+
+        do {
+            var ch = this.getUint8();
+            if (ch) str += String.fromCharCode(ch);
+        } while (ch !== 0);
 
         return str;
     },
@@ -6222,15 +3170,17 @@ HX.setRenderTarget = function(frameBuffer)
 HX.enableAttributes = function(count)
 {
     var numActiveAttribs = HX._numActiveAttributes;
+    var i;
+
     if (numActiveAttribs < count) {
-        for (var i = numActiveAttribs; i < count; ++i)
+        for (i = numActiveAttribs; i < count; ++i)
             HX_GL.enableVertexAttribArray(i);
     }
     else if (numActiveAttribs > count) {
         // bug in WebGL/ANGLE? When rendering to a render target, disabling vertex attrib array 1 causes errors when using only up to the index below o_O
         // so for now + 1
         count += 1;
-        for (var i = count; i < numActiveAttribs; ++i) {
+        for (i = count; i < numActiveAttribs; ++i) {
             HX_GL.disableVertexAttribArray(i);
         }
     }
@@ -6336,14 +3286,14 @@ HX._updateRenderState = function()
     }
 
     if (HX._blendStateInvalid) {
-        var state = HX._blendState;
-        if (state === null || state === undefined || state.enabled === false)
+        var blendState = HX._blendState;
+        if (blendState === null || blendState === undefined || blendState.enabled === false)
             HX_GL.disable(HX_GL.BLEND);
         else {
             HX_GL.enable(HX_GL.BLEND);
-            HX_GL.blendFunc(state.srcFactor, state.dstFactor);
-            HX_GL.blendEquation(state.operator);
-            var color = state.color;
+            HX_GL.blendFunc(blendState.srcFactor, blendState.dstFactor);
+            HX_GL.blendEquation(blendState.operator);
+            var color = blendState.color;
             if (color)
                 HX_GL.blendColor(color.r, color.g, color.b, color.a);
         }
@@ -6351,17 +3301,17 @@ HX._updateRenderState = function()
     }
 
     if (HX._stencilStateInvalid) {
-        var state = HX._stencilState;
-        if (state == null || state.enabled === false) {
+        var stencilState = HX._stencilState;
+        if (stencilState === null || stencilState.enabled === false) {
             HX_GL.disable(HX_GL.STENCIL_TEST);
             HX_GL.stencilFunc(HX.Comparison.ALWAYS, 0, 0xff);
             HX_GL.stencilOp(HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
         }
         else {
             HX_GL.enable(HX_GL.STENCIL_TEST);
-            HX_GL.stencilFunc(state.comparison, state.reference, state.readMask);
-            HX_GL.stencilOp(state.onStencilFail, state.onDepthFail, state.onPass);
-            HX_GL.stencilMask(state.writeMask);
+            HX_GL.stencilFunc(stencilState.comparison, stencilState.reference, stencilState.readMask);
+            HX_GL.stencilOp(stencilState.onStencilFail, stencilState.onDepthFail, stencilState.onPass);
+            HX_GL.stencilMask(stencilState.writeMask);
         }
         HX._stencilStateInvalid = false;
     }
@@ -7095,14 +4045,14 @@ HX.MaterialPass.prototype =
     updatePassRenderState: function (renderer)
     {
         var len = this._textureSettersPass.length;
-
-        for (var i = 0; i < len; ++i) {
+        var i;
+        for (i = 0; i < len; ++i) {
             this._textureSettersPass[i].execute(renderer);
         }
 
         len = this._textureSlots.length;
 
-        for (var i = 0; i < len; ++i) {
+        for (i = 0; i < len; ++i) {
             var slot = this._textureSlots[i];
             var texture = slot.texture;
 
@@ -7228,7 +4178,7 @@ HX.MaterialPass.prototype =
 
     setUniformArray: function(name, value)
     {
-        name = name + "[0]";
+        name += "[0]";
 
         if (!this._uniforms.hasOwnProperty(name))
             return;
@@ -7717,7 +4667,7 @@ HX.AssetLoader.prototype =
 
             image.onError = function() {
                 console.warn("Failed loading texture '" + filename + "'");
-                if (onError) onError();
+                fail();
             };
             image.src = filename;
         }
@@ -8069,6 +5019,59 @@ HX.Component.prototype =
         return this._entity;
     }
 };
+// usually subclassed
+HX.CompositeComponent = function()
+{
+    HX.Component.call(this);
+    this._subs = [];
+};
+
+HX.CompositeComponent.prototype = Object.create(HX.Component.prototype);
+
+HX.CompositeComponent.prototype.addComponent = function(comp)
+{
+    if (comp._entity)
+        throw new Error("Component already added to an entity!");
+
+    this._subs.push(comp);
+};
+
+HX.CompositeComponent.prototype.removeComponent = function(comp)
+{
+    var index = this._subs.indexOf(comp);
+    if (index >= 0)
+        this._subs.splice(index, 1);
+};
+
+HX.CompositeComponent.prototype.onAdded = function()
+{
+    for (var i = 0; i < this._subs.length; ++i) {
+        var comp = this._subs[i];
+        comp._entity = this._entity;
+        comp.onAdded();
+    }
+};
+
+HX.CompositeComponent.prototype.onRemoved = function()
+{
+    for (var i = 0; i < this._subs.length; ++i) {
+        var comp = this._subs[i];
+        comp.onRemoved();
+        comp._entity = null;
+    }
+};
+
+// by default, onUpdate is not implemented at all
+//onUpdate: function(dt) {},
+HX.CompositeComponent.prototype.onUpdate = function(dt)
+{
+    var len = this._subs.length;
+    for (var i = 0; i < len; ++i) {
+        var comp = this._subs[i];
+        comp.onUpdate(dt);
+        comp._entity = null;
+    }
+};
 HX.Entity = function()
 {
     HX.SceneNode.call(this);
@@ -8286,7 +5289,7 @@ HX.EffectPass = function(vertexShader, fragmentShader)
     vertexShader = vertexShader || HX.ShaderLibrary.get("default_post_vertex.glsl");
     var shader = new HX.Shader(vertexShader, fragmentShader);
     HX.MaterialPass.call(this, shader);
-    this._uniformSetters = HX.UniformSetter.getSettersForPass(this._shader);
+    this._uniformSetters = HX.UniformSetter.getSetters(this._shader);
     this._vertexLayout = null;
     this._cullMode = HX.CullMode.NONE;
     this._depthTest = HX.Comparison.DISABLED;
@@ -8309,7 +5312,7 @@ HX.EffectPass.prototype.updateRenderState = function(renderer)
 {
     this._shader.updateRenderState(renderer._camera);
 
-    HX.MaterialPass.prototype.updateRenderState.call(this, renderer);
+    HX.MaterialPass.prototype.updatePassRenderState.call(this, renderer);
 
     this._mesh._vertexBuffers[0].bind();
     this._mesh._indexBuffer.bind();
@@ -8570,17 +5573,19 @@ HX.RenderItemPool = function()
 
     this.getItem = function()
     {
+        var item;
+
         if (head) {
-            var item = head;
+            item = head;
             head = head.next;
-            return item;
         }
         else {
-            var item = new HX.RenderItemPool();
+            item = new HX.RenderItemPool();
             item.next = pool;
             pool = item;
-            return item;
         }
+
+        return item;
     };
 
     this.reset = function()
@@ -8647,32 +5652,32 @@ HX.BoundingVolume._testAABBToSphere = function(aabb, sphere)
     var centerX = this._center.x;
     var centerY = this._center.y;
     var centerZ = this._center.z;
-    var dot = 0;
+    var dot = 0, diff;
 
     if (minX > centerX) {
-        var diff = centerX - minX;
+        diff = centerX - minX;
         dot += diff * diff;
     }
     else if (maxX < centerX) {
-        var diff = centerX - maxX;
+        diff = centerX - maxX;
         dot += diff * diff;
     }
 
     if (minY > centerY) {
-        var diff = centerY - minY;
+        diff = centerY - minY;
         dot += diff * diff;
     }
     else if (maxY < centerY) {
-        var diff = centerY - maxY;
+        diff = centerY - maxY;
         dot += diff * diff;
     }
 
     if (minZ > centerZ) {
-        var diff = centerZ - minZ;
+        diff = centerZ - minZ;
         dot += diff * diff;
     }
     else if (maxZ < centerZ) {
-        var diff = centerZ - maxZ;
+        diff = centerZ - maxZ;
         dot += diff * diff;
     }
 
@@ -9044,6 +6049,11 @@ HX.Primitive =
         return type;
     }
 };
+function KeyFrame(time, value)
+{
+    this.time = time || 0.0;
+    this.value = value;
+}
 /**
  * This just contains a static pose.
  * @param positionOrMesh A flat list of floats (3 per coord), or a mesh (that would use the basic pose)
@@ -9147,7 +6157,7 @@ HX.MorphAdditiveNode.prototype.update = function(dt)
     HX.setBlendState(HX.BlendState.ADD);
 
     var len = this._additiveNodes.length;
-    for (var i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         var node = this._additiveNodes[i];
         var weight = node._weight;
         if (weight > 0.0) {
@@ -9358,7 +6368,7 @@ HX.MorphPose.prototype =
         }
 
         var len = dim.x * dim.y * 4;
-        for (var i = texData.length; i < len; ++i)
+        for (i = texData.length; i < len; ++i)
             texData[i] = 0.0;
 
         this._positionTexture.uploadData(new Float32Array(texData), dim.x, dim.y, false, HX_GL.RGBA, HX_GL.FLOAT);
@@ -9530,7 +6540,7 @@ HX.SkeletonPose.prototype =
         }
 
         var target = this.jointPoses;
-        for (var i = 0; i < len; ++i) {
+        for (i = 0; i < len; ++i) {
             target[i].rotation.slerp(a[i].rotation, b[i].rotation, factor);
             target[i].position.lerp(a[i].position, b[i].position, factor);
             target[i].scale.lerp(a[i].scale, b[i].scale, factor);
@@ -9897,14 +6907,15 @@ HX.SkeletonBlendTree.prototype =
 
 /**
  * An animation clip for skeletal animation
+ * TODO: Reform this to use keyframes
  * @constructor
  */
 HX.SkeletonClip = function()
 {
     this._name = null;
-    this._frameRate = 24;
-    this._frames = [];
+    this._keyFrames = [];
     this._transferRootJoint = false;
+    this._duration = 0;
 };
 
 HX.SkeletonClip.prototype =
@@ -9919,47 +6930,40 @@ HX.SkeletonClip.prototype =
         this._name = value;
     },
 
-    get frameRate()
-    {
-        return this._frameRate;
-    },
-
-    set frameRate(value)
-    {
-        this._frameRate = value;
-    },
-
     /**
-     *
-     * @param frame A SkeletonPose
+     * Adds a keyframe. Last keyframe is usually the same pose as the first and serves as an "end marker"
+     * @param frame A KeyFrame containing a SkeletonPose
      */
-    addFrame: function(frame)
+    addKeyFrame: function(frame)
     {
-        this._frames.push(frame);
+        this._keyFrames.push(frame);
+        if (frame.time > this._duration) this._duration = frame.time;
     },
 
-    get numFrames()
+    get numKeyFrames()
     {
-        return this._frames.length;
+        return this._keyFrames.length;
     },
 
-    getFrame: function(index)
+    getKeyFrame: function(index)
     {
-        return this._frames[index];
+        return this._keyFrames[index];
     },
 
     get numJoints()
     {
-        return this._frames[0].jointPoses.length;
+        return this._keyFrames[0].jointPoses.length;
     },
 
     get duration()
     {
-        return this._frames.length / this._frameRate;
+        return this._duration;
     },
 
     /**
      * If true, the last frame of the clip should be a duplicate of the first, but with the final position offset
+     *
+     * TODO: This should probably become a property of the animation itself
      */
     get transferRootJoint()
     {
@@ -9986,20 +6990,16 @@ HX.SkeletonClipNode = function(clip)
 {
     HX.SkeletonBlendNode.call(this);
     this._clip = clip;
-    this._interpolate = true;
     this._timeScale = 1.0;
     this._isPlaying = true;
     this._time = 0;
+    this._currentFrameIndex = 0;
 };
 
 HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
     {
         numJoints: {
             get: function() { return this._clip.numJoints; }
-        },
-        interpolate: {
-            get: function() { return this._interpolate; },
-            set: function(value) { this._interpolate = value; }
         },
         timeScale: {
             get: function() { return this._timeScale; },
@@ -10034,36 +7034,63 @@ HX.SkeletonClipNode.prototype.update = function(dt)
 
     if (this._isPlaying) {
         dt *= this._timeScale;
-        this._time += dt/1000.0;
+        this._time += dt;
     }
 
     var clip = this._clip;
-    var numBaseFrames = clip._transferRootJoint? clip.numFrames - 1 : clip.numFrames;
-    var duration = numBaseFrames / clip.frameRate;
+    // the last keyframe is just an "end marker" to interpolate with, it has no duration
+    var numKeyFrames = clip.numKeyFrames;
+    var numBaseFrames = numKeyFrames - 1;
+    var duration = clip.duration;
     var wraps = 0;
 
-    while (this._time >= duration) {
-        this._time -= duration;
-        ++wraps;
-    }
-    while (this._time < 0) {
-        this._time += duration;
-        ++wraps;
-    }
 
-    var frameFactor = this._time * clip.frameRate;
+    var frameA, frameB;
 
-    var firstIndex = Math.floor(frameFactor);
-    var poseA = clip.getFrame(firstIndex);
+    if (dt > 0) {
+        // todo: should be able to simply do this by division
+        while (this._time >= duration) {
+            // reset playhead to make sure progressive update logic works
+            this._currentFrameIndex = 0;
+            this._time -= duration;
+            ++wraps;
+        }
+        //  old     A            B
+        //  new                  A           B
+        //  frames: 0           10          20          30
+        //  time:         x   ----->   x
+        do {
+            // advance play head
+            if (++this._currentFrameIndex === numKeyFrames) this._currentFrameIndex = 0;
+            frameB = clip.getKeyFrame(this._currentFrameIndex);
+        } while (frameB.time < this._time);
 
-    if (this._interpolate) {
-        var secondIndex = firstIndex === clip.numFrames - 1? 0 : firstIndex + 1;
-        var poseB = clip.getFrame(secondIndex);
-        this._pose.interpolate(poseA, poseB, frameFactor - firstIndex);
+        --this._currentFrameIndex;
+        frameA = clip.getKeyFrame(this._currentFrameIndex);
     }
     else {
-        this._pose.copyFrom(poseA);
+        while (this._time < 0) {
+            // reset playhead to make sure progressive update logic works
+            this._currentFrameIndex = numBaseFrames;
+            this._time += duration;
+            ++wraps;
+        }
+
+        //  old     A            B
+        //  new                  A           B
+        //  frames: 0           10          20          30
+        //  time:         x   <-----   x
+        // advance play head
+        ++this._currentFrameIndex;
+        do {
+            if (--this._currentFrameIndex < 0) this._currentFrameIndex = numKeyFrames;
+            frameA = clip.getKeyFrame(this._currentFrameIndex);
+        } while (frameA.time > this._time);
     }
+
+    var fraction = (this._time - frameA.time) / (frameB.time - frameA.time);
+
+    this._pose.interpolate(frameA.value, frameB.value, fraction);
 
     if (clip._transferRootJoint)
         this._transferRootJointTransform(wraps);
@@ -10155,7 +7182,7 @@ HX.SkeletonFreePoseNode.prototype.setJointTranslation = function(indexOrName, va
 HX.SkeletonFreePoseNode.prototype.setJointScale = function(indexOrName, value)
 {
     var p = this._getJointPose(indexOrName);
-    p.scale.copyFrom(scale);
+    p.scale.copyFrom(value);
     this._poseInvalid = true;
 };
 
@@ -10166,7 +7193,7 @@ HX.SkeletonFreePoseNode.prototype._getJointPose = function(indexOrName)
     else
         return this._pose.jointPoses[indexOrName];
 };
-FloatController = function()
+HX.FloatController = function()
 {
     HX.Component.call(this);
     this._speed = 1.0;
@@ -10190,7 +7217,7 @@ FloatController = function()
     this._onKeyUp = null;
 };
 
-FloatController.prototype = Object.create(HX.Component.prototype, {
+HX.FloatController.prototype = Object.create(HX.Component.prototype, {
     speed: {
         get: function()
         {
@@ -10278,7 +7305,7 @@ FloatController.prototype = Object.create(HX.Component.prototype, {
     }
 });
 
-FloatController.prototype.onAdded = function(dt)
+HX.FloatController.prototype.onAdded = function(dt)
 {
     var self = this;
     this._onKeyDown = function(event) {
@@ -10301,6 +7328,8 @@ FloatController.prototype.onAdded = function(dt)
             case 68:
                 self._setStrideForce(1.0);
                 break;
+            default:
+                // nothing
         }
     };
 
@@ -10320,6 +7349,8 @@ FloatController.prototype.onAdded = function(dt)
             case 68:
                 self._setStrideForce(0.0);
                 break;
+            default:
+            // nothing
         }
     };
 
@@ -10352,7 +7383,7 @@ FloatController.prototype.onAdded = function(dt)
     HX.TARGET_CANVAS.addEventListener("mouseup", this._onMouseUp);
 };
 
-FloatController.prototype.onRemoved = function(dt)
+HX.FloatController.prototype.onRemoved = function(dt)
 {
     document.removeEventListener("keydown", this._onKeyDown);
     document.removeEventListener("keyup", this._onKeyUp);
@@ -10361,7 +7392,7 @@ FloatController.prototype.onRemoved = function(dt)
     HX.TARGET_CANVAS.removeEventListener("mouseup", this._onMouseUp);
 };
 
-FloatController.prototype.onUpdate = function(dt)
+HX.FloatController.prototype.onUpdate = function(dt)
 {
     var seconds = dt * .001;
 
@@ -10394,32 +7425,32 @@ FloatController.prototype.onUpdate = function(dt)
 };
 
 // ratio is "how far the controller is pushed", from -1 to 1
-FloatController.prototype._setForwardForce = function(ratio)
+HX.FloatController.prototype._setForwardForce = function(ratio)
 {
     this._localAcceleration.z = ratio * this._maxAcceleration;
 };
 
-FloatController.prototype._setStrideForce = function(ratio)
+HX.FloatController.prototype._setStrideForce = function(ratio)
 {
     this._localAcceleration.x = ratio * this._maxAcceleration;
 };
 
-FloatController.prototype._setTorquePitch = function(ratio)
+HX.FloatController.prototype._setTorquePitch = function(ratio)
 {
     this._torquePitch = ratio * this._torque;
 };
 
-FloatController.prototype._setTorqueYaw = function(ratio)
+HX.FloatController.prototype._setTorqueYaw = function(ratio)
 {
     this._torqueYaw = ratio * this._torque;
 };
 
-FloatController.prototype._addPitch = function(value)
+HX.FloatController.prototype._addPitch = function(value)
 {
     this._pitch += value;
 };
 
-FloatController.prototype._addYaw = function(value)
+HX.FloatController.prototype._addYaw = function(value)
 {
     this._yaw += value;
 };
@@ -10428,7 +7459,7 @@ FloatController.prototype._addYaw = function(value)
  * @param target
  * @constructor
  */
-OrbitController = function(lookAtTarget)
+HX.OrbitController = function(lookAtTarget)
 {
     HX.Component.call(this);
     this._coords = new HX.Float4(Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
@@ -10446,7 +7477,7 @@ OrbitController = function(lookAtTarget)
     this._isDown = false;
 };
 
-OrbitController.prototype = Object.create(HX.Component.prototype,
+HX.OrbitController.prototype = Object.create(HX.Component.prototype,
     {
         radius: {
             get: function() { return this._coords.z; },
@@ -10464,7 +7495,7 @@ OrbitController.prototype = Object.create(HX.Component.prototype,
         }
     });
 
-OrbitController.prototype.onAdded = function()
+HX.OrbitController.prototype.onAdded = function()
 {
     var self = this;
 
@@ -10539,7 +7570,7 @@ OrbitController.prototype.onAdded = function()
     HX.TARGET_CANVAS.addEventListener("touchend", this._onUp);
 };
 
-OrbitController.prototype.onRemoved = function()
+HX.OrbitController.prototype.onRemoved = function()
 {
     var mousewheelevt = (/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel";
     HX.TARGET_CANVAS.removeEventListener(mousewheelevt, this._onMouseWheel);
@@ -10551,7 +7582,7 @@ OrbitController.prototype.onRemoved = function()
     HX.TARGET_CANVAS.removeEventListener("touchend", this._onUp);
 };
 
-OrbitController.prototype.onUpdate = function(dt)
+HX.OrbitController.prototype.onUpdate = function(dt)
 {
     this._localVelocity.x *= this.dampen;
     this._localVelocity.y *= this.dampen;
@@ -10576,22 +7607,22 @@ OrbitController.prototype.onUpdate = function(dt)
 };
 
     // ratio is "how far the controller is pushed", from -1 to 1
-OrbitController.prototype.setAzimuthImpulse  = function(value)
+HX.OrbitController.prototype.setAzimuthImpulse  = function(value)
 {
     this._localAcceleration.x = value;
 };
 
-OrbitController.prototype.setPolarImpulse = function(value)
+HX.OrbitController.prototype.setPolarImpulse = function(value)
 {
     this._localAcceleration.y = value;
 };
 
-OrbitController.prototype.setZoomImpulse = function(value)
+HX.OrbitController.prototype.setZoomImpulse = function(value)
 {
     this._localAcceleration.z = value;
 };
 
-OrbitController.prototype._updateMove = function(x, y)
+HX.OrbitController.prototype._updateMove = function(x, y)
 {
     if (this._oldMouseX !== undefined) {
         var dx = x - this._oldMouseX;
@@ -10626,6 +7657,11 @@ HX.Debug = {
             str += "\t" + name + "\n";
         }
         console.log(str);
+    },
+
+    assert: function(bool, message)
+    {
+        if (!bool) throw new Error(message);
     }
 };
 
@@ -10701,7 +7737,7 @@ HX.Bloom.prototype._initTextures = function()
 
 HX.Bloom.prototype.draw = function(dt)
 {
-    if (this._renderer._width != this._targetWidth || this._renderer._height != this._targetHeight) {
+    if (this._renderer._width !== this._targetWidth || this._renderer._height !== this._targetHeight) {
         this._targetWidth = this._renderer._width;
         this._targetHeight = this._renderer._height;
         this._initTextures();
@@ -10957,7 +7993,7 @@ HX.GaussianBlurPass.prototype._initWeights = function(radius)
 
     total = 1.0 / total;
 
-    for (var j = 0; j <= radius; ++j) {
+    for (j = 0; j <= radius; ++j) {
         this._weights[j] *= total;
     }
 };
@@ -11039,7 +8075,7 @@ Object.defineProperties(HX.HBAO.prototype, {
     fallOffDistance: {
         get: function ()
         {
-            this._fallOffDistance = value;
+            return this._fallOffDistance;
         },
         set: function (value)
         {
@@ -11237,7 +8273,7 @@ Object.defineProperties(HX.SSAO.prototype, {
     fallOffDistance: {
         get: function ()
         {
-            this._fallOffDistance = value;
+            return this._fallOffDistance;
         },
         set: function (value)
         {
@@ -11635,760 +8671,6 @@ HX.FilmicToneMapEffect.prototype._createToneMapPass = function()
         extensions + HX.ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" + HX.ShaderLibrary.get("tonemap_filmic_fragment.glsl")
     );
 };
-HX.BulkAssetLoader = function ()
-{
-    this._assets = null;
-    this._files = null;
-    this._abortOnFail = false;
-    this.onComplete = new HX.Signal();
-    this.onFail = new HX.Signal();
-};
-
-HX.BulkAssetLoader.prototype =
-{
-    get abortOnFail()
-    {
-        return this._abortOnFail;
-    },
-
-    set abortOnFail(value)
-    {
-        this._abortOnFail = value;
-    },
-
-    getAsset: function(filename)
-    {
-        return this._assets[filename];
-    },
-
-    /**
-     *
-     * @param files An array of files or { file: "", importer: Importer } objects
-     * @param importer If files is an array of filenames, the importer to use for all
-     */
-    load: function(files, importer)
-    {
-        this._files = files;
-        this._assets = {};
-        this._index = 0;
-
-        if (importer) {
-            for (var i = 0; i < this._files.length; ++i) {
-                this._files[i] = {
-                    file: this._files[i],
-                    importer: importer,
-                    target: null
-                };
-            }
-        }
-
-        this._loadQueued();
-    },
-
-    _loadQueued: function()
-    {
-        if (this._index === this._files.length) {
-            this._notifyComplete();
-            return;
-        }
-
-        var file = this._files[this._index];
-        var loader = new HX.AssetLoader(file.importer);
-
-        var self = this;
-        loader.onComplete = function(asset)
-        {
-            var filename = file.file;
-            self._assets[filename] = asset;
-            ++self._index;
-            self._loadQueued();
-        };
-
-        loader.onFail = function(error) {
-            self._notifyFailure(error);
-
-            if (self._abortOnFail)
-                return;
-            else
-                // continue loading
-                loader.onComplete();
-        };
-
-        loader.load(file.file, file.target);
-    },
-
-    _notifyComplete: function()
-    {
-        if (!this.onComplete) return;
-
-        if (this.onComplete instanceof HX.Signal)
-            this.onComplete.dispatch();
-        else
-            this.onComplete();
-    },
-
-    _notifyFailure: function(message)
-    {
-        if (!this.onFail) {
-            console.warn("Importer error: " + message);
-            return;
-        }
-
-        if (this.onFail instanceof HX.Signal)
-            this.onFail.dispatch(message);
-        else
-            this.onFail(message);
-    }
-};
-/**
- *
- * @constructor
- */
-HX.HCM = function()
-{
-    HX.Importer.call(this, HX.TextureCube);
-};
-
-HX.HCM.prototype = Object.create(HX.Importer.prototype);
-
-HX.HCM.prototype.parse = function(data, target)
-{
-    var data = JSON.parse(data);
-
-    var urls = [
-        data.files.posX,
-        data.files.negX,
-        data.files.posY,
-        data.files.negY,
-        data.files.posZ,
-        data.files.negZ
-    ];
-
-    if (data.loadMips)
-        this._loadMipChain(urls, target);
-    else
-        this._loadFaces(urls, target);
-};
-
-HX.HCM.prototype._loadFaces = function(urls, target)
-{
-    var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
-    var images = [];
-    var self = this;
-
-    for (var i = 0; i < 6; ++i) {
-        var image = new Image();
-        image.nextID = i + 1;
-        if (i < 5) {
-            image.onload = function()
-            {
-                images[this.nextID].src = self.path + urls[this.nextID];
-            }
-        }
-        // last image to load
-        else {
-            image.onload = function() {
-                target.uploadImages(images, generateMipmaps);
-                self._notifyComplete(target);
-            };
-        }
-
-        image.onError = function() {
-            self._notifyFailure("Failed loading texture '" + url + "'");
-        };
-
-        images[i] = image;
-    }
-
-    images[0].src = self.path + urls[0];
-};
-
-HX.HCM.prototype._loadMipChain = function(urls, target)
-{
-    var images = [];
-
-    var numMips;
-
-    var self = this;
-    var firstImage = new Image();
-    var realURLs = [];
-
-    for (var i = 0; i < 6; ++i) {
-        realURLs[i] = urls[i].replace("%m", "0");
-    }
-
-    firstImage.onload = function()
-    {
-        if (firstImage.naturalWidth != firstImage.naturalHeight || !HX.isPowerOfTwo(firstImage.naturalWidth)) {
-            self._notifyFailure("Failed loading mipchain: incorrect dimensions");
-        }
-        else {
-            numMips = HX.log2(firstImage.naturalWidth) + 1;
-            loadTheRest();
-            images[0] = firstImage;
-        }
-    };
-
-    firstImage.onerror = function()
-    {
-        self._notifyFailure("Failed loading texture");
-    };
-
-    firstImage.src = self.path + realURLs[0];
-
-    function loadTheRest()
-    {
-        var len = numMips * 6;
-        for (var i = 1; i < numMips; ++i) {
-            for (var j = 0; j < 6; ++j) {
-                realURLs.push(urls[j].replace("%m", i.toString()));
-            }
-        }
-
-        for (var i = 1; i < len; ++i) {
-            var image = new Image();
-            image.nextID = i + 1;
-            if (i < len - 1) {
-                image.onload = function ()
-                {
-                    images[this.nextID].src = self.path + realURLs[this.nextID];
-                }
-            }
-            // last image to load
-            else {
-                image.onload = function ()
-                {
-                    for (var m = 0; m < numMips; ++m)
-                        target.uploadImagesToMipLevel(images.slice(m * 6, m * 6 + 6), m);
-
-                    target._isReady = true;
-                    self._notifyComplete(target);
-                };
-            }
-
-            image.onError = function ()
-            {
-                self._notifyFailure("Failed loading texture");
-            };
-
-            images[i] = image;
-        }
-
-        images[1].src = self.path + realURLs[1];
-    }
-};
-/**
- * The HMT file format is for file-based materials (JSON)
- * @constructor
- */
-HX.HMT = function()
-{
-    HX.Importer.call(this, HX.Material);
-    HX.HMT._initPropertyMap();
-};
-
-HX.HMT.prototype = Object.create(HX.Importer.prototype);
-
-HX.HMT.prototype.parse = function(data, target)
-{
-    data = JSON.parse(data);
-    this._loadShaders(data, target);
-};
-
-HX.HMT.prototype._gatherShaderFiles = function(data)
-{
-    var files = [];
-    var geometry = data.geometry;
-
-    var vertex = geometry.vertexShader;
-    var fragment = geometry.fragmentShader;
-    var lighting = data.lightingModel;
-    if (files.indexOf(vertex) < 0) files.push(this._correctURL(vertex));
-    if (files.indexOf(fragment) < 0) files.push(this._correctURL(fragment));
-    if (lighting && files.indexOf(lighting) < 0) files.push(this._correctURL(lighting));
-
-    return files;
-};
-
-HX.HMT.prototype._loadShaders = function(data, material)
-{
-    var shaders = {};
-    var shaderFiles = this._gatherShaderFiles(data);
-    var bulkLoader = new HX.BulkURLLoader();
-    var self = this;
-
-    bulkLoader.onComplete = function() {
-        for (var i = 0; i < shaderFiles.length; ++i) {
-            shaders[shaderFiles[i]] = bulkLoader.getData(shaderFiles[i]);
-        }
-
-        self._processMaterial(data, shaders, material);
-        self._loadTextures(data, material);
-    };
-    bulkLoader.onFail = function(code)
-    {
-        self._notifyFailure("Error loading shaders: " + code);
-    };
-    bulkLoader.load(shaderFiles);
-};
-
-
-HX.HMT.prototype._processMaterial = function(data, shaders, material)
-{
-    var defines = "";
-    if (this.options.defines) {
-        for (var key in this.options.defines) {
-            if (this.options.defines.hasOwnProperty(key)) {
-                defines += "#define " + key + " " + this.options.defines[key] + "\n";
-            }
-        }
-    }
-
-    var geometryVertex = shaders[this._correctURL(data.geometry.vertexShader)];
-    var geometryFragment = shaders[this._correctURL(data.geometry.fragmentShader)];
-
-    material._geometryVertexShader = geometryVertex;
-    material._geometryFragmentShader = geometryFragment;
-    material.init();
-
-    if (data.lightingModel)
-        material.lightingModel = shaders[this._correctURL(data.lightingModel)];
-
-    this._applyUniforms(data, material);
-
-    // default pre-defined texture
-    material.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
-
-    if (data.hasOwnProperty("elementType"))
-        material.elementType = HX.HMT._PROPERTY_MAP[data.elementType];
-
-    if (data.hasOwnProperty("cullMode"))
-        material.cullMode = HX.HMT._PROPERTY_MAP[data.cullMode];
-
-    if (data.hasOwnProperty("writeDepth"))
-        material.writeDepth = data.writeDepth;
-
-    if (data.hasOwnProperty("blend")) {
-        var blendState = new HX.BlendState();
-        var blend = data.blend;
-
-        if (blend.hasOwnProperty("source"))
-            blendState.srcFactor = HX.HMT._PROPERTY_MAP[blend.source];
-
-        if (blend.hasOwnProperty("destination"))
-            blendState.dstFactor = HX.HMT._PROPERTY_MAP[blend.destination];
-
-        if (blend.hasOwnProperty("operator"))
-            blendState.operator = HX.HMT._PROPERTY_MAP[blend.operator];
-
-        material.blendState = blendState;
-    }
-};
-
-HX.HMT.prototype._applyUniforms = function(data, material)
-{
-    if (!data.uniforms) return;
-
-    for (var key in data.uniforms) {
-        if (!data.uniforms.hasOwnProperty(key)) continue;
-
-        var value = data.uniforms[key];
-        if (isNaN(value))
-            material.setUniform(key, {
-                x: value[0],
-                y: value[1],
-                z: value[2],
-                w: value[3]
-            }, false);
-        else
-            material.setUniform(key, value, false);
-    }
-};
-
-HX.HMT.prototype._loadTextures = function(data, material)
-{
-    var files = [];
-
-    for (var key in data.textures) {
-        if (data.textures.hasOwnProperty(key)) {
-            files.push(this._correctURL(data.textures[key]));
-            material.setTexture(key, HX.Texture2D.DEFAULT);
-        }
-    }
-
-    var bulkLoader = new HX.BulkAssetLoader();
-    var self = this;
-    bulkLoader.onComplete = function()
-    {
-        for (var key in data.textures) {
-            if (data.textures.hasOwnProperty(key)) {
-                material.setTexture(key, bulkLoader.getAsset(self._correctURL(data.textures[key])));
-            }
-        }
-        self._notifyComplete(material);
-    };
-    bulkLoader.onFail = function(message)
-    {
-        self._notifyFailure(message);
-    };
-
-    bulkLoader.load(files, HX.JPG);
-};
-
-
-HX.HMT._PROPERTY_MAP = null;
-
-HX.HMT._initPropertyMap = function() {
-    HX.HMT._PROPERTY_MAP = HX.HMT._PROPERTY_MAP || {
-        back: HX.CullMode.BACK,
-        front: HX.CullMode.FRONT,
-        both: HX.CullMode.ALL,
-        none: null,
-        lines: HX.ElementType.LINES,
-        points: HX.ElementType.POINTS,
-        triangles: HX.ElementType.TRIANGLES,
-        one: HX.BlendFactor.ONE,
-        zero: HX.BlendFactor.ZERO,
-        sourceColor: HX.BlendFactor.SOURCE_COLOR,
-        oneMinusSourceColor: HX.BlendFactor.ONE_MINUS_SOURCE_COLOR,
-        sourceAlpha: HX.BlendFactor.SOURCE_ALPHA,
-        oneMinusSourceAlpha: HX.BlendFactor.ONE_MINUS_SOURCE_ALPHA,
-        destinationAlpha: HX.BlendFactor.DST_ALPHA,
-        oneMinusDestinationAlpha: HX.BlendFactor.ONE_MINUS_DESTINATION_ALPHA,
-        destinationColor: HX.BlendFactor.DESTINATION_COLOR,
-        sourceAlphaSaturate: HX.BlendFactor.SOURCE_ALPHA_SATURATE,
-        add: HX.BlendOperation.ADD,
-        subtract: HX.BlendOperation.SUBTRACT,
-        reverseSubtract: HX.BlendOperation.REVERSE_SUBTRACT,
-
-        // depth tests
-        always: HX.Comparison.ALWAYS,
-        disabled: HX.Comparison.DISABLED,
-        equal: HX.Comparison.EQUAL,
-        greater: HX.Comparison.GREATER,
-        greaterEqual: HX.Comparison.GREATER_EQUAL,
-        less: HX.Comparison.LESS,
-        lessEqual: HX.Comparison.LESS_EQUAL,
-        never: HX.Comparison.NEVER,
-        notEqual: HX.Comparison.NOT_EQUAL
-    };
-};
-/**
- * Helix Scene files
- * @constructor
- */
-HX.HSC = function()
-{
-    HX.Importer.call(this, HX.Scene);
-};
-
-HX.HSC.prototype = Object.create(HX.Importer.prototype);
-
-HX.HSC.prototype.parse = function(data, target)
-{
-    var data = JSON.parse(data);
-    if (data.version !== "0.1") throw "Incompatible file format version!";
-
-    var objects = this._processObjects(data.objects, target);
-    this._processConnections(data.connections, objects);
-
-    this._notifyComplete(target);
-};
-
-HX.HSC.prototype._processObjects = function(definitions, scene)
-{
-    var objects = [];
-    var len = definitions.length;
-
-    for (var i = 0; i < len; ++i) {
-        var object;
-        var def = definitions[i];
-
-        switch (def.type) {
-            case "scene":
-                // use existing scene instead of creating a new one
-                object = scene;
-                break;
-            case "mesh":
-                object = this._processMesh(def);
-                break;
-            case "model":
-                object = new HX.ModelData();
-                break;
-            case "modelinstance":
-                object = this._processModelInstance(def);
-                break;
-            case "material":
-                object = this._processMaterial(def);
-                break;
-            case "dirlight":
-                object = this._processDirLight(def);
-                break;
-            case "ptlight":
-                object = this._processPointLight(def);
-                break;
-            case "amblight":
-                object = this._processAmbientLight(def);
-                break;
-            default:
-                console.warn("Unsupported object of type " + def.type);
-                object = null;
-        }
-
-        if (object) {
-            object.name = def.name;
-            objects[def.id] = object;
-        }
-
-        objects.push(object);
-    }
-
-    return objects;
-};
-
-HX.HSC.prototype._processMesh = function(def)
-{
-    var meshData = new HX.MeshData();
-    var numVertices = def.numVertices;
-    var vertexData = def.vertexData;
-    var data = [];
-
-    for (var attribName in vertexData) {
-        if (vertexData.hasOwnProperty(attribName)) {
-            var array = vertexData[attribName];
-            meshData.addVertexAttribute(attribName, array.length / numVertices, 0);
-            data.push(array);
-        }
-    }
-
-    var mode = 0;
-    var appendNormals = !vertexData.hasOwnProperty("hx_normal");
-    var appendTangents = !vertexData.hasOwnProperty("hx_tangent");
-
-    if (appendNormals) {
-        meshData.addVertexAttribute("hx_normal", 3);
-        mode |= HX.NormalTangentGenerator.MODE_NORMALS;
-    }
-
-    if (appendTangents) {
-        meshData.addVertexAttribute("hx_tangent", 4);
-        mode |= HX.NormalTangentGenerator.MODE_TANGENTS;
-    }
-
-    var vertices = [];
-    var v = 0;
-
-    for (var i = 0; i < numVertices; ++i) {
-        for (var j = 0; j < data.length; ++j) {
-            var arr = data[j];
-            var numComponents = arr.length / numVertices;
-            for (var k = 0; k < numComponents; ++k)
-            {
-                vertices[v++] = arr[i * numComponents + k];
-            }
-        }
-
-        var len = appendNormals? 3 : 0;
-        len += appendTangents? 4 : 0;
-        for (var j = 0; j < len; ++j) {
-            vertices[v++] = 0;
-        }
-    }
-
-    meshData.setIndexData(def.indexData);
-    meshData.setVertexData(vertices, 0);
-
-    if (mode) {
-        var generator = new HX.NormalTangentGenerator();
-        generator.generate(meshData, mode);
-    }
-
-    return meshData;
-};
-
-HX.HSC.prototype._processMaterial = function(def)
-{
-    var material = new HX.BasicMaterial();
-    if (def.hasOwnProperty("color")) material.color = new HX.Color(def.color[0], def.color[1], def.color[2]);
-    if (def.hasOwnProperty("metallicness")) material.metallicness = def.metallicness;
-    if (def.hasOwnProperty("normalSpecularReflectance")) material.normalSpecularReflectance = def.normalSpecularReflectance;
-    if (def.hasOwnProperty("refractiveRatio")) {
-        material.refractiveRatio = def.refractiveRatio;
-        material.refract = def.refractiveRatio !== 1;
-    }
-    if (def.hasOwnProperty("transparent")) material.transparent = def.transparent;
-    if (def.hasOwnProperty("alpha")) material.alpha = def.alpha;
-    if (def.hasOwnProperty("alphaThreshold")) material.alphaThreshold = def.alphaThreshold;
-    if (def.hasOwnProperty("roughness")) material.roughness = def.roughness;
-    if (def.hasOwnProperty("roughnessRange")) material.roughnessRange = def.roughnessRange;
-    if (def.hasOwnProperty("specularMapMode")) material.specularMapMode = def.specularMapMode;  // 1: SPECULAR_MAP_ROUGHNESS_ONLY, 2: SPECULAR_MAP_ALL, 3: SPECULAR_MAP_SHARE_NORMAL_MAP
-
-    return material;
-};
-
-HX.HSC.prototype._processDirLight = function(def)
-{
-    var light = new HX.DirectionalLight();
-    this._processLight(def, light);
-    if (def.hasOwnProperty("direction")) light.direction = new HX.Float4(def.direction[0], def.direction[1], def.direction[2]);
-    if (def.hasOwnProperty("shadows")) light.castShadows = def.shadows;
-    return light;
-};
-
-HX.HSC.prototype._processPointLight = function(def)
-{
-    var light = new HX.PointLight();
-    this._processLight(def, light);
-    if (def.hasOwnProperty("radius")) light.radius = def.radius;
-    return light;
-};
-
-HX.HSC.prototype._processAmbientLight = function(def)
-{
-    var light = new HX.AmbientLight();
-    this._processLight(def, light);
-    return light;
-};
-
-HX.HSC.prototype._processLight = function(def, light)
-{
-    this._processSceneNode(def, light);
-    if (def.hasOwnProperty("color")) light.color = new HX.Color(def.color[0], def.color[1], def.color[2]);
-    if (def.hasOwnProperty("intensity")) light.intensity = def.intensity;
-};
-
-HX.HSC.prototype._processModelInstance = function(def)
-{
-    var instance = new HX.ModelInstance();
-    this._processSceneNode(def, instance);
-    return instance;
-};
-
-HX.HSC.prototype._processSceneNode = function(def, target)
-{
-    if (def.hasOwnProperty("matrix")) {
-        target.transform = new HX.Matrix4x4(def.matrix);
-    }
-    else {
-        if (def.hasOwnProperty("position")) {
-            target.position.x = def.position[0];
-            target.position.y = def.position[1];
-            target.position.z = def.position[2];
-        }
-        if (def.hasOwnProperty("rotation")) {
-            target.rotation.x = def.rotation[0];
-            target.rotation.y = def.rotation[1];
-            target.rotation.z = def.rotation[2];
-            target.rotation.w = def.rotation[3];
-        }
-        if (def.hasOwnProperty("scale")) {
-            target.scale.x = def.scale[0];
-            target.scale.y = def.scale[1];
-            target.scale.z = def.scale[2];
-        }
-    }
-};
-
-HX.HSC.prototype._processConnections = function(connections, objects)
-{
-    var modelLinks = [];
-    var materialLinks = [];
-    var len = connections.length;
-
-    for (var i = 0; i < len; ++i) {
-        var parentID = connections[i].p;
-        var childID = connections[i].c;
-        var parent = objects[parentID];
-        var child = objects[childID];
-
-        if (child instanceof HX.MeshData) {
-            parent.addMeshData(child);
-        }
-        else if (child instanceof HX.ModelData) {
-            // deferred until all meshdata is assigned:
-            modelLinks.push({c: childID, p: connections[i].p})
-        }
-        else if (child instanceof HX.SceneNode) {
-            parent.attach(child);
-        }
-        else if (child instanceof HX.Material) {
-            materialLinks[parentID] = materialLinks[parentID] || [];
-            materialLinks[parentID].push(child);
-        }
-    }
-
-    // now all ModelDatas are complete, can assign to instances
-    len = modelLinks.length;
-    for (var i = 0; i < len; ++i) {
-        var instance = objects[modelLinks[i].p];
-        var modelData = objects[modelLinks[i].c];
-        var model = new HX.Model(modelData);
-        instance.init(model, materialLinks[modelLinks[i].p]);
-    }
-};
-/**
- * Loads a jpg or png equirectangular as a cubemap
- * @constructor
- */
-HX.JPG_EQUIRECTANGULAR = function()
-{
-    HX.Importer.call(this, HX.TextureCube, HX.Importer.TYPE_IMAGE);
-};
-
-HX.JPG_EQUIRECTANGULAR.prototype = Object.create(HX.Importer.prototype);
-
-HX.JPG_EQUIRECTANGULAR.prototype.parse = function(data, target)
-{
-    var texture2D = new HX.Texture2D();
-    texture2D.wrapMode = HX.TextureWrapMode.REPEAT;
-    texture2D.uploadImage(data, data.naturalWidth, data.naturalHeight, true);
-
-    var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
-    HX.EquirectangularTexture.toCube(texture2D, this.options.size, generateMipmaps, target);
-    texture2D.dispose();
-    this._notifyComplete(target);
-};
-
-HX.PNG_EQUIRECTANGULAR = HX.JPG_EQUIRECTANGULAR;
-/**
- * Loads a jpg or png equirectangular as a cubemap
- * @constructor
- */
-HX.JPG_HEIGHTMAP = function()
-{
-    HX.Importer.call(this, HX.Texture2D, HX.Importer.TYPE_IMAGE);
-};
-
-HX.JPG_HEIGHTMAP.prototype = Object.create(HX.Importer.prototype);
-
-HX.JPG_HEIGHTMAP.prototype.parse = function(data, target)
-{
-    var texture2D = new HX.Texture2D();
-    texture2D.wrapMode = HX.TextureWrapMode.REPEAT;
-    texture2D.uploadImage(data, data.naturalWidth, data.naturalHeight, true);
-
-    var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
-    HX.HeightMap.from8BitTexture(texture2D, generateMipmaps, target);
-    texture2D.dispose();
-    this._notifyComplete(target);
-};
-
-HX.PNG_HEIGHTMAP = HX.JPG_HEIGHTMAP;
-HX.JPG = function()
-{
-    HX.Importer.call(this, HX.Texture2D, HX.Importer.TYPE_IMAGE);
-};
-
-HX.JPG.prototype = Object.create(HX.Importer.prototype);
-
-HX.JPG.prototype.parse = function(data, target)
-{
-    var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
-    target.uploadImage(data, data.naturalWidth, data.naturalHeight, generateMipmaps);
-    this._notifyComplete(target);
-};
-
-HX.PNG = HX.JPG;
 /**
  *
  * @constructor
@@ -12960,6 +9242,772 @@ HX.VSMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
 
     HX.drawElements(HX_GL.TRIANGLES, 6, 0);
 };
+HX.BulkAssetLoader = function ()
+{
+    this._assets = null;
+    this._files = null;
+    this._abortOnFail = false;
+    this.onComplete = new HX.Signal();
+    this.onFail = new HX.Signal();
+};
+
+HX.BulkAssetLoader.prototype =
+{
+    get abortOnFail()
+    {
+        return this._abortOnFail;
+    },
+
+    set abortOnFail(value)
+    {
+        this._abortOnFail = value;
+    },
+
+    getAsset: function(filename)
+    {
+        return this._assets[filename];
+    },
+
+    /**
+     *
+     * @param files An array of files or { file: "", importer: Importer } objects
+     * @param importer If files is an array of filenames, the importer to use for all
+     */
+    load: function(files, importer)
+    {
+        this._files = files;
+        this._assets = {};
+        this._index = 0;
+
+        if (importer) {
+            for (var i = 0; i < this._files.length; ++i) {
+                this._files[i] = {
+                    file: this._files[i],
+                    importer: importer,
+                    target: null
+                };
+            }
+        }
+
+        this._loadQueued();
+    },
+
+    _loadQueued: function()
+    {
+        if (this._index === this._files.length) {
+            this._notifyComplete();
+            return;
+        }
+
+        var file = this._files[this._index];
+        var loader = new HX.AssetLoader(file.importer);
+
+        var self = this;
+        loader.onComplete = function(asset)
+        {
+            var filename = file.file;
+            self._assets[filename] = asset;
+            ++self._index;
+            self._loadQueued();
+        };
+
+        loader.onFail = function(error) {
+            self._notifyFailure(error);
+
+            if (self._abortOnFail)
+                return;
+            else
+                // continue loading
+                loader.onComplete();
+        };
+
+        loader.load(file.file, file.target);
+    },
+
+    _notifyComplete: function()
+    {
+        if (!this.onComplete) return;
+
+        if (this.onComplete instanceof HX.Signal)
+            this.onComplete.dispatch();
+        else
+            this.onComplete();
+    },
+
+    _notifyFailure: function(message)
+    {
+        if (!this.onFail) {
+            console.warn("Importer error: " + message);
+            return;
+        }
+
+        if (this.onFail instanceof HX.Signal)
+            this.onFail.dispatch(message);
+        else
+            this.onFail(message);
+    }
+};
+/**
+ *
+ * @constructor
+ */
+HX.HCM = function()
+{
+    HX.Importer.call(this, HX.TextureCube);
+};
+
+HX.HCM.prototype = Object.create(HX.Importer.prototype);
+
+HX.HCM.prototype.parse = function(file, target)
+{
+    var data = JSON.parse(file);
+
+    var urls = [
+        data.files.posX,
+        data.files.negX,
+        data.files.posY,
+        data.files.negY,
+        data.files.posZ,
+        data.files.negZ
+    ];
+
+    if (data.loadMips)
+        this._loadMipChain(urls, target);
+    else
+        this._loadFaces(urls, target);
+};
+
+HX.HCM.prototype._loadFaces = function(urls, target)
+{
+    var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
+    var images = [];
+    var self = this;
+
+    var onError = function() {
+        self._notifyFailure("Failed loading texture '" + urls[0] + "'");
+    };
+
+    var onLoad = function()
+    {
+        images[this.nextID].src = self.path + urls[this.nextID];
+    };
+
+    var onLoadLast = function() {
+        target.uploadImages(images, generateMipmaps);
+        self._notifyComplete(target);
+    };
+
+    for (var i = 0; i < 6; ++i) {
+        var image = new Image();
+        image.nextID = i + 1;
+        if (i < 5) {
+            image.onload = onLoad;
+        }
+        // last image to load
+        else {
+            image.onload = onLoadLast;
+        }
+
+        image.onError = onError;
+
+        images[i] = image;
+    }
+
+    images[0].src = self.path + urls[0];
+};
+
+HX.HCM.prototype._loadMipChain = function(urls, target)
+{
+    var images = [];
+
+    var numMips;
+
+    var self = this;
+    var firstImage = new Image();
+    var realURLs = [];
+
+    for (var i = 0; i < 6; ++i) {
+        realURLs[i] = urls[i].replace("%m", "0");
+    }
+
+    firstImage.onload = function()
+    {
+        if (firstImage.naturalWidth !== firstImage.naturalHeight || !HX.isPowerOfTwo(firstImage.naturalWidth)) {
+            self._notifyFailure("Failed loading mipchain: incorrect dimensions");
+        }
+        else {
+            numMips = HX.log2(firstImage.naturalWidth) + 1;
+            loadTheRest();
+            images[0] = firstImage;
+        }
+    };
+
+    firstImage.onerror = function()
+    {
+        self._notifyFailure("Failed loading texture");
+    };
+
+    firstImage.src = self.path + realURLs[0];
+
+    function loadTheRest()
+    {
+        var len = numMips * 6;
+        for (var i = 1; i < numMips; ++i) {
+            for (var j = 0; j < 6; ++j) {
+                realURLs.push(urls[j].replace("%m", i.toString()));
+            }
+        }
+
+        var onError = function ()
+        {
+            self._notifyFailure("Failed loading texture");
+        };
+
+        var onLoad = function ()
+        {
+            images[this.nextID].src = self.path + realURLs[this.nextID];
+        };
+
+        var onLoadLast = function ()
+        {
+            for (var m = 0; m < numMips; ++m)
+                target.uploadImagesToMipLevel(images.slice(m * 6, m * 6 + 6), m);
+
+            target._isReady = true;
+            self._notifyComplete(target);
+        };
+
+        for (i = 1; i < len; ++i) {
+            var image = new Image();
+            image.nextID = i + 1;
+            if (i < len - 1) {
+                image.onload = onLoad;
+            }
+            // last image to load
+            else {
+                image.onload = onLoadLast;
+            }
+
+            image.onError = onError;
+
+            images[i] = image;
+        }
+
+        images[1].src = self.path + realURLs[1];
+    }
+};
+/**
+ * The HMT file format is for file-based materials (JSON)
+ * @constructor
+ */
+HX.HMT = function()
+{
+    HX.Importer.call(this, HX.Material);
+    HX.HMT._initPropertyMap();
+};
+
+HX.HMT.prototype = Object.create(HX.Importer.prototype);
+
+HX.HMT.prototype.parse = function(data, target)
+{
+    data = JSON.parse(data);
+    this._loadShaders(data, target);
+};
+
+HX.HMT.prototype._gatherShaderFiles = function(data)
+{
+    var files = [];
+    var geometry = data.geometry;
+
+    var vertex = geometry.vertexShader;
+    var fragment = geometry.fragmentShader;
+    var lighting = data.lightingModel;
+    if (files.indexOf(vertex) < 0) files.push(this._correctURL(vertex));
+    if (files.indexOf(fragment) < 0) files.push(this._correctURL(fragment));
+    if (lighting && files.indexOf(lighting) < 0) files.push(this._correctURL(lighting));
+
+    return files;
+};
+
+HX.HMT.prototype._loadShaders = function(data, material)
+{
+    var shaders = {};
+    var shaderFiles = this._gatherShaderFiles(data);
+    var bulkLoader = new HX.BulkURLLoader();
+    var self = this;
+
+    bulkLoader.onComplete = function() {
+        for (var i = 0; i < shaderFiles.length; ++i) {
+            shaders[shaderFiles[i]] = bulkLoader.getData(shaderFiles[i]);
+        }
+
+        self._processMaterial(data, shaders, material);
+        self._loadTextures(data, material);
+    };
+    bulkLoader.onFail = function(code)
+    {
+        self._notifyFailure("Error loading shaders: " + code);
+    };
+    bulkLoader.load(shaderFiles);
+};
+
+
+HX.HMT.prototype._processMaterial = function(data, shaders, material)
+{
+    var defines = "";
+    if (this.options.defines) {
+        for (var key in this.options.defines) {
+            if (this.options.defines.hasOwnProperty(key)) {
+                defines += "#define " + key + " " + this.options.defines[key] + "\n";
+            }
+        }
+    }
+
+    var geometryVertex = defines + shaders[this._correctURL(data.geometry.vertexShader)];
+    var geometryFragment = defines + shaders[this._correctURL(data.geometry.fragmentShader)];
+
+    material._geometryVertexShader = geometryVertex;
+    material._geometryFragmentShader = geometryFragment;
+    material.init();
+
+    if (data.lightingModel)
+        material.lightingModel = shaders[this._correctURL(data.lightingModel)];
+
+    this._applyUniforms(data, material);
+
+    // default pre-defined texture
+    material.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
+
+    if (data.hasOwnProperty("elementType"))
+        material.elementType = HX.HMT._PROPERTY_MAP[data.elementType];
+
+    if (data.hasOwnProperty("cullMode"))
+        material.cullMode = HX.HMT._PROPERTY_MAP[data.cullMode];
+
+    if (data.hasOwnProperty("writeDepth"))
+        material.writeDepth = data.writeDepth;
+
+    if (data.hasOwnProperty("blend")) {
+        var blendState = new HX.BlendState();
+        var blend = data.blend;
+
+        if (blend.hasOwnProperty("source"))
+            blendState.srcFactor = HX.HMT._PROPERTY_MAP[blend.source];
+
+        if (blend.hasOwnProperty("destination"))
+            blendState.dstFactor = HX.HMT._PROPERTY_MAP[blend.destination];
+
+        if (blend.hasOwnProperty("operator"))
+            blendState.operator = HX.HMT._PROPERTY_MAP[blend.operator];
+
+        material.blendState = blendState;
+    }
+};
+
+HX.HMT.prototype._applyUniforms = function(data, material)
+{
+    if (!data.uniforms) return;
+
+    for (var key in data.uniforms) {
+        if (!data.uniforms.hasOwnProperty(key)) continue;
+
+        var value = data.uniforms[key];
+        if (isNaN(value))
+            material.setUniform(key, {
+                x: value[0],
+                y: value[1],
+                z: value[2],
+                w: value[3]
+            }, false);
+        else
+            material.setUniform(key, value, false);
+    }
+};
+
+HX.HMT.prototype._loadTextures = function(data, material)
+{
+    var files = [];
+
+    for (var key in data.textures) {
+        if (data.textures.hasOwnProperty(key)) {
+            files.push(this._correctURL(data.textures[key]));
+            material.setTexture(key, HX.Texture2D.DEFAULT);
+        }
+    }
+
+    var bulkLoader = new HX.BulkAssetLoader();
+    var self = this;
+    bulkLoader.onComplete = function()
+    {
+        for (var key in data.textures) {
+            if (data.textures.hasOwnProperty(key)) {
+                material.setTexture(key, bulkLoader.getAsset(self._correctURL(data.textures[key])));
+            }
+        }
+        self._notifyComplete(material);
+    };
+    bulkLoader.onFail = function(message)
+    {
+        self._notifyFailure(message);
+    };
+
+    bulkLoader.load(files, HX.JPG);
+};
+
+
+HX.HMT._PROPERTY_MAP = null;
+
+HX.HMT._initPropertyMap = function() {
+    HX.HMT._PROPERTY_MAP = HX.HMT._PROPERTY_MAP || {
+        back: HX.CullMode.BACK,
+        front: HX.CullMode.FRONT,
+        both: HX.CullMode.ALL,
+        none: null,
+        lines: HX.ElementType.LINES,
+        points: HX.ElementType.POINTS,
+        triangles: HX.ElementType.TRIANGLES,
+        one: HX.BlendFactor.ONE,
+        zero: HX.BlendFactor.ZERO,
+        sourceColor: HX.BlendFactor.SOURCE_COLOR,
+        oneMinusSourceColor: HX.BlendFactor.ONE_MINUS_SOURCE_COLOR,
+        sourceAlpha: HX.BlendFactor.SOURCE_ALPHA,
+        oneMinusSourceAlpha: HX.BlendFactor.ONE_MINUS_SOURCE_ALPHA,
+        destinationAlpha: HX.BlendFactor.DST_ALPHA,
+        oneMinusDestinationAlpha: HX.BlendFactor.ONE_MINUS_DESTINATION_ALPHA,
+        destinationColor: HX.BlendFactor.DESTINATION_COLOR,
+        sourceAlphaSaturate: HX.BlendFactor.SOURCE_ALPHA_SATURATE,
+        add: HX.BlendOperation.ADD,
+        subtract: HX.BlendOperation.SUBTRACT,
+        reverseSubtract: HX.BlendOperation.REVERSE_SUBTRACT,
+
+        // depth tests
+        always: HX.Comparison.ALWAYS,
+        disabled: HX.Comparison.DISABLED,
+        equal: HX.Comparison.EQUAL,
+        greater: HX.Comparison.GREATER,
+        greaterEqual: HX.Comparison.GREATER_EQUAL,
+        less: HX.Comparison.LESS,
+        lessEqual: HX.Comparison.LESS_EQUAL,
+        never: HX.Comparison.NEVER,
+        notEqual: HX.Comparison.NOT_EQUAL
+    };
+};
+/**
+ * Helix Scene files
+ * @constructor
+ */
+HX.HSC = function()
+{
+    HX.Importer.call(this, HX.Scene);
+};
+
+HX.HSC.prototype = Object.create(HX.Importer.prototype);
+
+HX.HSC.prototype.parse = function(file, target)
+{
+    var data = JSON.parse(file);
+    if (data.version !== "0.1") throw new Error("Incompatible file format version!");
+
+    var objects = this._processObjects(data.objects, target);
+    this._processConnections(data.connections, objects);
+
+    this._notifyComplete(target);
+};
+
+HX.HSC.prototype._processObjects = function(definitions, scene)
+{
+    var objects = [];
+    var len = definitions.length;
+
+    for (var i = 0; i < len; ++i) {
+        var object;
+        var def = definitions[i];
+
+        switch (def.type) {
+            case "scene":
+                // use existing scene instead of creating a new one
+                object = scene;
+                break;
+            case "mesh":
+                object = this._processMesh(def);
+                break;
+            case "model":
+                object = new HX.ModelData();
+                break;
+            case "modelinstance":
+                object = this._processModelInstance(def);
+                break;
+            case "material":
+                object = this._processMaterial(def);
+                break;
+            case "dirlight":
+                object = this._processDirLight(def);
+                break;
+            case "ptlight":
+                object = this._processPointLight(def);
+                break;
+            case "amblight":
+                object = this._processAmbientLight(def);
+                break;
+            default:
+                console.warn("Unsupported object of type " + def.type);
+                object = null;
+        }
+
+        if (object) {
+            object.name = def.name;
+            objects[def.id] = object;
+        }
+
+        objects.push(object);
+    }
+
+    return objects;
+};
+
+HX.HSC.prototype._processMesh = function(def)
+{
+    var meshData = new HX.MeshData();
+    var numVertices = def.numVertices;
+    var vertexData = def.vertexData;
+    var data = [];
+
+    for (var attribName in vertexData) {
+        if (vertexData.hasOwnProperty(attribName)) {
+            var array = vertexData[attribName];
+            meshData.addVertexAttribute(attribName, array.length / numVertices, 0);
+            data.push(array);
+        }
+    }
+
+    var mode = 0;
+    var appendNormals = !vertexData.hasOwnProperty("hx_normal");
+    var appendTangents = !vertexData.hasOwnProperty("hx_tangent");
+
+    if (appendNormals) {
+        meshData.addVertexAttribute("hx_normal", 3);
+        mode |= HX.NormalTangentGenerator.MODE_NORMALS;
+    }
+
+    if (appendTangents) {
+        meshData.addVertexAttribute("hx_tangent", 4);
+        mode |= HX.NormalTangentGenerator.MODE_TANGENTS;
+    }
+
+    var vertices = [];
+    var v = 0;
+
+    for (var i = 0; i < numVertices; ++i) {
+        for (var j = 0; j < data.length; ++j) {
+            var arr = data[j];
+            var numComponents = arr.length / numVertices;
+            for (var k = 0; k < numComponents; ++k)
+            {
+                vertices[v++] = arr[i * numComponents + k];
+            }
+        }
+
+        var len = appendNormals? 3 : 0;
+        len += appendTangents? 4 : 0;
+        for (j = 0; j < len; ++j) {
+            vertices[v++] = 0;
+        }
+    }
+
+    meshData.setIndexData(def.indexData);
+    meshData.setVertexData(vertices, 0);
+
+    if (mode) {
+        var generator = new HX.NormalTangentGenerator();
+        generator.generate(meshData, mode);
+    }
+
+    return meshData;
+};
+
+HX.HSC.prototype._processMaterial = function(def)
+{
+    var material = new HX.BasicMaterial();
+    if (def.hasOwnProperty("color")) material.color = new HX.Color(def.color[0], def.color[1], def.color[2]);
+    if (def.hasOwnProperty("metallicness")) material.metallicness = def.metallicness;
+    if (def.hasOwnProperty("normalSpecularReflectance")) material.normalSpecularReflectance = def.normalSpecularReflectance;
+    if (def.hasOwnProperty("refractiveRatio")) {
+        material.refractiveRatio = def.refractiveRatio;
+        material.refract = def.refractiveRatio !== 1;
+    }
+    if (def.hasOwnProperty("transparent")) material.transparent = def.transparent;
+    if (def.hasOwnProperty("alpha")) material.alpha = def.alpha;
+    if (def.hasOwnProperty("alphaThreshold")) material.alphaThreshold = def.alphaThreshold;
+    if (def.hasOwnProperty("roughness")) material.roughness = def.roughness;
+    if (def.hasOwnProperty("roughnessRange")) material.roughnessRange = def.roughnessRange;
+    if (def.hasOwnProperty("specularMapMode")) material.specularMapMode = def.specularMapMode;  // 1: SPECULAR_MAP_ROUGHNESS_ONLY, 2: SPECULAR_MAP_ALL, 3: SPECULAR_MAP_SHARE_NORMAL_MAP
+
+    return material;
+};
+
+HX.HSC.prototype._processDirLight = function(def)
+{
+    var light = new HX.DirectionalLight();
+    this._processLight(def, light);
+    if (def.hasOwnProperty("direction")) light.direction = new HX.Float4(def.direction[0], def.direction[1], def.direction[2]);
+    if (def.hasOwnProperty("shadows")) light.castShadows = def.shadows;
+    return light;
+};
+
+HX.HSC.prototype._processPointLight = function(def)
+{
+    var light = new HX.PointLight();
+    this._processLight(def, light);
+    if (def.hasOwnProperty("radius")) light.radius = def.radius;
+    return light;
+};
+
+HX.HSC.prototype._processAmbientLight = function(def)
+{
+    var light = new HX.AmbientLight();
+    this._processLight(def, light);
+    return light;
+};
+
+HX.HSC.prototype._processLight = function(def, light)
+{
+    this._processSceneNode(def, light);
+    if (def.hasOwnProperty("color")) light.color = new HX.Color(def.color[0], def.color[1], def.color[2]);
+    if (def.hasOwnProperty("intensity")) light.intensity = def.intensity;
+};
+
+HX.HSC.prototype._processModelInstance = function(def)
+{
+    var instance = new HX.ModelInstance();
+    this._processSceneNode(def, instance);
+    return instance;
+};
+
+HX.HSC.prototype._processSceneNode = function(def, target)
+{
+    if (def.hasOwnProperty("matrix")) {
+        target.transform = new HX.Matrix4x4(def.matrix);
+    }
+    else {
+        if (def.hasOwnProperty("position")) {
+            target.position.x = def.position[0];
+            target.position.y = def.position[1];
+            target.position.z = def.position[2];
+        }
+        if (def.hasOwnProperty("rotation")) {
+            target.rotation.x = def.rotation[0];
+            target.rotation.y = def.rotation[1];
+            target.rotation.z = def.rotation[2];
+            target.rotation.w = def.rotation[3];
+        }
+        if (def.hasOwnProperty("scale")) {
+            target.scale.x = def.scale[0];
+            target.scale.y = def.scale[1];
+            target.scale.z = def.scale[2];
+        }
+    }
+};
+
+HX.HSC.prototype._processConnections = function(connections, objects)
+{
+    var modelLinks = [];
+    var materialLinks = [];
+    var len = connections.length;
+
+    for (var i = 0; i < len; ++i) {
+        var parentID = connections[i].p;
+        var childID = connections[i].c;
+        var parent = objects[parentID];
+        var child = objects[childID];
+
+        if (child instanceof HX.MeshData) {
+            parent.addMeshData(child);
+        }
+        else if (child instanceof HX.ModelData) {
+            // deferred until all meshdata is assigned:
+            modelLinks.push({c: childID, p: connections[i].p})
+        }
+        else if (child instanceof HX.SceneNode) {
+            parent.attach(child);
+        }
+        else if (child instanceof HX.Material) {
+            materialLinks[parentID] = materialLinks[parentID] || [];
+            materialLinks[parentID].push(child);
+        }
+    }
+
+    // now all ModelDatas are complete, can assign to instances
+    len = modelLinks.length;
+    for (i = 0; i < len; ++i) {
+        var instance = objects[modelLinks[i].p];
+        var modelData = objects[modelLinks[i].c];
+        var model = new HX.Model(modelData);
+        instance.init(model, materialLinks[modelLinks[i].p]);
+    }
+};
+/**
+ * Loads a jpg or png equirectangular as a cubemap
+ * @constructor
+ */
+HX.JPG_EQUIRECTANGULAR = function()
+{
+    HX.Importer.call(this, HX.TextureCube, HX.Importer.TYPE_IMAGE);
+};
+
+HX.JPG_EQUIRECTANGULAR.prototype = Object.create(HX.Importer.prototype);
+
+HX.JPG_EQUIRECTANGULAR.prototype.parse = function(data, target)
+{
+    var texture2D = new HX.Texture2D();
+    texture2D.wrapMode = HX.TextureWrapMode.REPEAT;
+    texture2D.uploadImage(data, data.naturalWidth, data.naturalHeight, true);
+
+    var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
+    HX.EquirectangularTexture.toCube(texture2D, this.options.size, generateMipmaps, target);
+    texture2D.dispose();
+    this._notifyComplete(target);
+};
+
+HX.PNG_EQUIRECTANGULAR = HX.JPG_EQUIRECTANGULAR;
+/**
+ * Loads a jpg or png equirectangular as a cubemap
+ * @constructor
+ */
+HX.JPG_HEIGHTMAP = function()
+{
+    HX.Importer.call(this, HX.Texture2D, HX.Importer.TYPE_IMAGE);
+};
+
+HX.JPG_HEIGHTMAP.prototype = Object.create(HX.Importer.prototype);
+
+HX.JPG_HEIGHTMAP.prototype.parse = function(data, target)
+{
+    var texture2D = new HX.Texture2D();
+    texture2D.wrapMode = HX.TextureWrapMode.REPEAT;
+    texture2D.uploadImage(data, data.naturalWidth, data.naturalHeight, true);
+
+    var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
+    HX.HeightMap.from8BitTexture(texture2D, generateMipmaps, target);
+    texture2D.dispose();
+    this._notifyComplete(target);
+};
+
+HX.PNG_HEIGHTMAP = HX.JPG_HEIGHTMAP;
+HX.JPG = function()
+{
+    HX.Importer.call(this, HX.Texture2D, HX.Importer.TYPE_IMAGE);
+};
+
+HX.JPG.prototype = Object.create(HX.Importer.prototype);
+
+HX.JPG.prototype.parse = function(data, target)
+{
+    var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
+    target.uploadImage(data, data.naturalWidth, data.naturalHeight, generateMipmaps);
+    this._notifyComplete(target);
+};
+
+HX.PNG = HX.JPG;
 /**
  * BasicMaterial is the default physically plausible rendering material.
  * @constructor
@@ -13217,7 +10265,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
                 get: function() { return this._alphaThreshold; },
                 set: function(value) {
                     value = HX.saturate(value);
-                    if ((this._alphaThreshold === 1.0) != (value === 1.0))
+                    if ((this._alphaThreshold === 1.0) !== (value === 1.0))
                         this._invalidate();
 
                     this._alphaThreshold = value;
@@ -13254,6 +10302,7 @@ HX.BasicMaterial.prototype._generateDefines = function()
             break;
         case HX.BasicMaterial.SPECULAR_MAP_ALL:
             if (this._specularMap) defines.SPECULAR_MAP = 1;
+            break;
         default:
             defines.NORMAL_ROUGHNESS_MAP = 1;
     }
@@ -13615,7 +10664,7 @@ HX.Mesh.prototype = {
             this._vertexStrides.length = numStreams;
         }
 
-        for (var i = 0; i < numStreams; ++i) {
+        for (i = 0; i < numStreams; ++i) {
             this._vertexBuffers[i].uploadData(meshData.getVertexData(i), meshData.vertexUsage);
             this._vertexStrides[i] = meshData.getVertexStride(i);
         }
@@ -13874,12 +10923,23 @@ HX.MeshInstance = function(mesh, material)
     this._meshMaterialLinkInvalid = false;
     this._vertexLayouts = null;
     this._morphPose = null;
+    this._visible = true;
 
     this.material = material;
 };
 
 HX.MeshInstance.prototype = {
     constructor: HX.MeshInstance,
+
+    get visible()
+    {
+        return this._visible;
+    },
+
+    set visible(value)
+    {
+        this._visible = value;
+    },
 
     get morphPose()
     {
@@ -15140,7 +12200,7 @@ HX.MultiRenderer.prototype =
             var w = Math.floor(screenWidth * view.widthRatio);
             var h = Math.floor(screenHeight * view.heightRatio);
 
-            if (view._texture.width != w || view._texture.height != h) {
+            if (view._texture.width !== w || view._texture.height !== h) {
                 view._texture.initEmpty(w, h);
                 view._fbo.init();
             }
@@ -15153,8 +12213,8 @@ HX.MultiRenderer.prototype =
 
         var viewport = new HX.Rect();
 
-        for (var i = 0; i < numViews; ++i) {
-            var view = this._views[i];
+        for (i = 0; i < numViews; ++i) {
+            view = this._views[i];
             viewport.x = Math.floor(view.xRatio * screenWidth);
             viewport.y = Math.floor((1.0 - view.yRatio - view.heightRatio) * screenHeight);
             viewport.width = view._texture.width;
@@ -15277,6 +12337,8 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
 
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
+        if (!meshInstance.visible) continue;
+
         var material = meshInstance.material;
 
         if (!material._initialized) continue;
@@ -15392,7 +12454,7 @@ HX.RenderUtils =
                 lastMesh = null;    // need to reset mesh data too
             }
 
-            if (lastMesh != meshInstance._mesh) {
+            if (lastMesh !== meshInstance._mesh) {
                 meshInstance.updateRenderState(passType);
                 lastMesh = meshInstance._mesh;
             }
@@ -15600,7 +12662,7 @@ HX.BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
 {
     if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
 
-    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY) {
+    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
         this._minimumX = min.x;
         this._minimumY = min.y;
         this._minimumZ = min.z;
@@ -15719,7 +12781,7 @@ HX.BoundingAABB.prototype.intersectsBound = function(bound)
 
 HX.BoundingAABB.prototype.classifyAgainstPlane = function(plane)
 {
-    var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = planeW;
+    var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
 
     var centerDist = planeX * this._center.x + planeY * this._center.y + planeZ * this._center.z + planeW;
 
@@ -15864,7 +12926,7 @@ HX.BoundingSphere.prototype.growToIncludeBound = function(bounds)
         this._center.x = bounds._center.x;
         this._center.y = bounds._center.y;
         this._center.z = bounds._center.z;
-        if (bounds._type == this._type) {
+        if (bounds._type === this._type) {
             this._halfExtentX = bounds._halfExtentX;
             this._halfExtentY = bounds._halfExtentY;
             this._halfExtentZ = bounds._halfExtentZ;
@@ -15921,7 +12983,7 @@ HX.BoundingSphere.prototype.getRadius = function()
 
 HX.BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
 {
-    if (sourceBound._expanse == HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+    if (sourceBound._expanse === HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
         this.clear(sourceBound._expanse);
     else {
         var arr = matrix._m;
@@ -15965,9 +13027,9 @@ HX.BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
 
 HX.BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
-    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
         return true;
-    else if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
         return false;
 
     var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
@@ -15986,10 +13048,10 @@ HX.BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlan
 
 HX.BoundingSphere.prototype.intersectsBound = function(bound)
 {
-    if (this._expanse == HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse == HX.BoundingVolume.EXPANSE_EMPTY)
+    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
         return false;
 
-    if (this._expanse == HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse == HX.BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
         return true;
 
     // both Spheres
@@ -16041,7 +13103,7 @@ HX.Frustum = function()
     for (var i = 0; i < 6; ++i)
         this._planes[i] = new HX.Float4();
 
-    for (var i = 0; i < 8; ++i)
+    for (i = 0; i < 8; ++i)
         this._corners[i] = new HX.Float4();
 
     this._r1 = new HX.Float4();
@@ -16307,7 +13369,7 @@ Object.defineProperties(HX.PerspectiveCamera.prototype, {
 
 HX.PerspectiveCamera.prototype._setAspectRatio = function(value)
 {
-    if (this._aspectRatio == value) return;
+    if (this._aspectRatio === value) return;
 
     this._aspectRatio = value;
     this._invalidateProjectionMatrix();
@@ -16559,14 +13621,14 @@ HX.Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLeve
     var highIndexX = vertices.length / 7;
 
     if (subDiv) {
-        var z = (numSegments * rcpNumSegments - .5) * size;
-        for (var xi = 0; xi <= numSegments; ++xi) {
-            var x = (xi*rcpNumSegments - .5) * size;
+        z = (numSegments * rcpNumSegments - .5) * size;
+        for (xi = 0; xi <= numSegments; ++xi) {
+            x = (xi*rcpNumSegments - .5) * size;
             vertices.push(x, 0, z, 0, 1, 0);
             vertices.push(halfCellSize);
 
             if (xi !== numSegments) {
-                var base = xi + numZ * w;
+                base = xi + numZ * w;
                 vertices.push(x + halfCellSize, 0, z, 0, 1, 0, halfCellSize);
                 indices.push(base, highIndexX + xi * 2, highIndexX + xi * 2 + 1);
                 indices.push(base, highIndexX + xi * 2 + 1, base + 1);
@@ -16875,7 +13937,7 @@ HX.UniformSetter._findSetters = function(shader)
     var setters = [];
     for (var uniformName in HX.UniformSetter._table) {
         var location = HX_GL.getUniformLocation(shader._program, uniformName);
-        if (location == null) continue;
+        if (location === null) continue;
         var setter = new HX.UniformSetter._table[uniformName]();
         setters.push(setter);
         setter.location = location;
@@ -17285,6 +14347,8 @@ HX.FrameBuffer.prototype = {
             case HX_GL.FRAMEBUFFER_UNSUPPORTED:
                 console.warn("Failed to initialize FBO: FRAMEBUFFER_UNSUPPORTED");
                 break;
+            default:
+                // nothing
         }
     },
 
@@ -17653,7 +14717,7 @@ HX.TextureCube.prototype =
         this._format = format = format || HX_GL.RGBA;
         this._dataType = dataType = dataType || HX_GL.UNSIGNED_BYTE;
 
-        if (mipLevel == 0)
+        if (mipLevel === 0)
             this._size = images[0].naturalWidth;
 
         this.bind();
@@ -17904,7 +14968,7 @@ HX.FPSCounter.prototype =
         this._averageFPS = this._runningSum / this._numFrames;
         this._frames[this._index++] = this._currentFPS;
 
-        if (this._index == this._numFrames) this._index = 0;
+        if (this._index === this._numFrames) this._index = 0;
 
         if (this._maxFPS === undefined || this._currentFPS > this._maxFPS)
             this._maxFPS = this._currentFPS;
@@ -18037,7 +15101,7 @@ HX.FrameTicker.prototype = {
      * @private
      */
     _getTime: function() {
-        if (self.performance === undefined || self.performance.now == undefined)
+        if (self.performance === undefined || self.performance.now === undefined)
             return Date.now();
         else
             return self.performance.now();
@@ -18231,8 +15295,8 @@ HX.NormalTangentGenerator.prototype =
     {
         var numIndices = this._meshData._indexData.length;
 
-        if ((this._mode & HX.NormalTangentGenerator.MODE_NORMALS) != 0) this._faceNormals = new Array(numIndices);
-        if ((this._mode & HX.NormalTangentGenerator.MODE_TANGENTS) != 0) {
+        if ((this._mode & HX.NormalTangentGenerator.MODE_NORMALS) !== 0) this._faceNormals = new Array(numIndices);
+        if ((this._mode & HX.NormalTangentGenerator.MODE_TANGENTS) !== 0) {
             this._faceTangents = new Array(numIndices);
             this._faceBitangents = new Array(numIndices);
         }
@@ -18611,17 +15675,20 @@ HX.BoxPrimitive._generate = function(target, definition)
     var uvs = target.uvs;
     var normals = target.normals;
     var indices = target.indices;
+    var x, y, z;
+    var ratioU, ratioV;
+    var wSegment, hSegment, dSegment;
 
 
     // front and back
-    for (var hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
-        var ratioV = hSegment * rcpNumSegmentsH;
-        var y = height * ratioV - halfH;
+    for (hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
+        ratioV = hSegment * rcpNumSegmentsH;
+        y = height * ratioV - halfH;
         if (flipSign < 0) ratioV = 1.0 - ratioV;
 
-        for (var wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
-            var ratioU = wSegment * rcpNumSegmentsW;
-            var x = width * ratioU - halfW;
+        for (wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
+            ratioU = wSegment * rcpNumSegmentsW;
+            x = width * ratioU - halfW;
 
             if (flipSign < 0) ratioU = 1.0 - ratioU;
 
@@ -18641,13 +15708,13 @@ HX.BoxPrimitive._generate = function(target, definition)
         }
     }
 
-    for (var hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
-        var ratioV = hSegment * rcpNumSegmentsH;
-        var y = height * ratioV - halfH;
+    for (hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
+        ratioV = hSegment * rcpNumSegmentsH;
+        y = height * ratioV - halfH;
 
-        for (var dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
-            var ratioU = dSegment * rcpNumSegmentsD;
-            var z = depth * ratioU - halfD;
+        for (dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
+            ratioU = dSegment * rcpNumSegmentsD;
+            z = depth * ratioU - halfD;
 
             // left and right
             positions.push(-halfW, y, z*flipSign);
@@ -18665,13 +15732,13 @@ HX.BoxPrimitive._generate = function(target, definition)
         }
     }
 
-    for (var dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
-        var ratioV = dSegment * rcpNumSegmentsD;
-        var z = depth * ratioV - halfD;
+    for (dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
+        ratioV = dSegment * rcpNumSegmentsD;
+        z = depth * ratioV - halfD;
 
-        for (var wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
-            var ratioU = wSegment * rcpNumSegmentsW;
-            var x = width * ratioU - halfW;
+        for (wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
+            ratioU = wSegment * rcpNumSegmentsW;
+            x = width * ratioU - halfW;
 
             // top and bottom
             positions.push(x, halfH, -z*flipSign);
@@ -18750,20 +15817,23 @@ HX.ConePrimitive._generate = function(target, definition)
     var uvs = target.uvs;
     var normals = target.normals;
     var indices = target.indices;
+    var hi, ci;
+    var cx, cy;
+    var angle;
 
     var rcpNumSegmentsW = 1/numSegmentsW;
     var rcpNumSegmentsH = 1/numSegmentsH;
 
     // sides
-    for (var hi = 0; hi <= numSegmentsH; ++hi) {
+    for (hi = 0; hi <= numSegmentsH; ++hi) {
         var rad = (1.0 - hi * rcpNumSegmentsH) * radius;
         var h = (hi*rcpNumSegmentsH - .5)*height;
-        for (var ci = 0; ci <= numSegmentsW; ++ci) {
-            var angle = ci * rcpNumSegmentsW * Math.PI * 2;
+        for (ci = 0; ci <= numSegmentsW; ++ci) {
+            angle = ci * rcpNumSegmentsW * Math.PI * 2;
             var nx = Math.sin(angle);
             var ny = Math.cos(angle);
-            var cx = nx * rad;
-            var cy = ny * rad;
+            cx = nx * rad;
+            cy = ny * rad;
 
             positions.push(cx, h, -cy);
             if (normals) normals.push(nx, 0, -ny);
@@ -18772,11 +15842,11 @@ HX.ConePrimitive._generate = function(target, definition)
         }
     }
 
-    for (var ci = 0; ci < numSegmentsW; ++ci) {
-        for (var hi = 0; hi < numSegmentsH - 1; ++hi) {
-            var w = numSegmentsW + 1;
-            var base = ci + hi*w;
-
+    var w = numSegmentsW + 1;
+    var base;
+    for (ci = 0; ci < numSegmentsW; ++ci) {
+        for (hi = 0; hi < numSegmentsH - 1; ++hi) {
+            base = ci + hi*w;
             indices.push(base, base + w, base + w + 1);
             indices.push(base, base + w + 1, base + 1);
 
@@ -18787,20 +15857,19 @@ HX.ConePrimitive._generate = function(target, definition)
         }
 
         // tip only needs 1 tri
-        var w = numSegmentsW + 1;
-        var base = ci + (numSegmentsH - 1)*w;
+        base = ci + (numSegmentsH - 1)*w;
         indices.push(base, base + w + 1, base + 1);
     }
 
     // top & bottom
     var indexOffset = positions.length / 3;
     var halfH = height * .5;
-    for (var ci = 0; ci < numSegmentsW; ++ci) {
-        var angle = ci * rcpNumSegmentsW * Math.PI * 2;
+    for (ci = 0; ci < numSegmentsW; ++ci) {
+        angle = ci * rcpNumSegmentsW * Math.PI * 2;
         var u = Math.sin(angle);
         var v = Math.cos(angle);
-        var cx = u * radius;
-        var cy = v * radius;
+        cx = u * radius;
+        cy = v * radius;
 
         u = -u * .5 + .5;
         v = v * .5 + .5;
@@ -18810,7 +15879,7 @@ HX.ConePrimitive._generate = function(target, definition)
         if (uvs) uvs.push(u, v);
     }
 
-    for (var ci = 1; ci < numSegmentsW - 1; ++ci)
+    for (ci = 1; ci < numSegmentsW - 1; ++ci)
         indices.push(indexOffset, indexOffset + ci, indexOffset + ci + 1);
 };
 HX.CylinderPrimitive = HX.Primitive.define();
@@ -18840,16 +15909,19 @@ HX.CylinderPrimitive._generate = function(target, definition)
 
     var rcpNumSegmentsW = 1/numSegmentsW;
     var rcpNumSegmentsH = 1/numSegmentsH;
+    var hi, ci;
+    var cx, cy;
+    var angle;
 
     // sides
-    for (var hi = 0; hi <= numSegmentsH; ++hi) {
+    for (hi = 0; hi <= numSegmentsH; ++hi) {
         var h = (hi*rcpNumSegmentsH - .5)*height;
-        for (var ci = 0; ci <= numSegmentsW; ++ci) {
-            var angle = ci * rcpNumSegmentsW * Math.PI * 2;
+        for (ci = 0; ci <= numSegmentsW; ++ci) {
+            angle = ci * rcpNumSegmentsW * Math.PI * 2;
             var nx = Math.sin(angle);
             var ny = Math.cos(angle);
-            var cx = nx * radius;
-            var cy = ny * radius;
+            cx = nx * radius;
+            cy = ny * radius;
 
             switch (alignment) {
                 case HX.CylinderPrimitive.ALIGN_X:
@@ -18864,14 +15936,16 @@ HX.CylinderPrimitive._generate = function(target, definition)
                     positions.push(cx, cy, h);
                     if (normals) normals.push(nx, ny, 0);
                     break;
+                default:
+                // nothing
             }
 
             if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, hi*rcpNumSegmentsH);
         }
     }
 
-    for (var hi = 0; hi < numSegmentsH; ++hi) {
-        for (var ci = 0; ci < numSegmentsW; ++ci) {
+    for (hi = 0; hi < numSegmentsH; ++hi) {
+        for (ci = 0; ci < numSegmentsW; ++ci) {
             var w = numSegmentsW + 1;
             var base = ci + hi*w;
 
@@ -18889,12 +15963,12 @@ HX.CylinderPrimitive._generate = function(target, definition)
     // top & bottom
     var indexOffset = positions.length / 3;
     var halfH = height * .5;
-    for (var ci = 0; ci < numSegmentsW; ++ci) {
-        var angle = ci * rcpNumSegmentsW * Math.PI * 2;
+    for (ci = 0; ci < numSegmentsW; ++ci) {
+        angle = ci * rcpNumSegmentsW * Math.PI * 2;
         var u = Math.sin(angle);
         var v = Math.cos(angle);
-        var cx = u * radius;
-        var cy = v * radius;
+        cx = u * radius;
+        cy = v * radius;
 
         u = -u * .5 + .5;
         v = v * .5 + .5;
@@ -18944,10 +16018,12 @@ HX.CylinderPrimitive._generate = function(target, definition)
                     uvs.push(1.0 - u, v);
                 }
                 break;
+            default:
+                // nothing
         }
     }
 
-    for (var ci = 1; ci < numSegmentsW - 1; ++ci) {
+    for (ci = 1; ci < numSegmentsW - 1; ++ci) {
         var offset = ci << 1;
         indices.push(indexOffset, indexOffset + offset, indexOffset + offset + 2);
         indices.push(indexOffset + 1, indexOffset + offset + 3, indexOffset + offset + 1);
@@ -18986,9 +16062,9 @@ HX.PlanePrimitive._generate = function(target, definition)
     var normalX = 0, normalY = 0, normalZ = 0;
     var uvU = 0, uvV = 0;
 
-    if (alignment == HX.PlanePrimitive.ALIGN_XY)
+    if (alignment === HX.PlanePrimitive.ALIGN_XY)
         normalZ = -1;
-    else if (alignment == HX.PlanePrimitive.ALIGN_XZ)
+    else if (alignment === HX.PlanePrimitive.ALIGN_XZ)
         normalY = 1;
     else
         normalX = 1;
@@ -18999,13 +16075,13 @@ HX.PlanePrimitive._generate = function(target, definition)
         for (var xi = 0; xi <= numSegmentsW; ++xi) {
             var x = (xi*rcpNumSegmentsW - .5)*width;
 
-            if (alignment == HX.PlanePrimitive.ALIGN_XY) {
+            if (alignment === HX.PlanePrimitive.ALIGN_XY) {
                 posX = x;
                 posY = y;
                 uvU = 1.0 - xi*rcpNumSegmentsW;
                 uvV = yi*rcpNumSegmentsH;
             }
-            else if (alignment == HX.PlanePrimitive.ALIGN_XZ) {
+            else if (alignment === HX.PlanePrimitive.ALIGN_XZ) {
                 posX = x;
                 posZ = y;
                 uvU = 1.0 - xi*rcpNumSegmentsW;
@@ -19037,7 +16113,7 @@ HX.PlanePrimitive._generate = function(target, definition)
                     uvs.push(1.0 - uvU, uvV);
             }
 
-            if (xi != numSegmentsW && yi != numSegmentsH) {
+            if (xi !== numSegmentsW && yi !== numSegmentsH) {
                 var w = numSegmentsW + 1;
                 var base = xi + yi*w;
                 var mult = doubleSided ? 1 : 0;
@@ -19105,8 +16181,8 @@ HX.SpherePrimitive._generate = function(target, definition)
 
     var indices = target.indices;
 
-    for (var polarSegment = 0; polarSegment < numSegmentsH; ++polarSegment) {
-        for (var azimuthSegment = 0; azimuthSegment < numSegmentsW; ++azimuthSegment) {
+    for (polarSegment = 0; polarSegment < numSegmentsH; ++polarSegment) {
+        for (azimuthSegment = 0; azimuthSegment < numSegmentsW; ++azimuthSegment) {
             var w = numSegmentsW + 1;
             var base = azimuthSegment + polarSegment*w;
 
@@ -19176,8 +16252,11 @@ HX.TorusPrimitive._generate = function(target, definition)
 
                     if (normals)
                         normals.push(py, -tx * px, tz * px);
-
                     break;
+
+                default:
+                    // nothing
+
             }
 
             if (uvs)
@@ -19201,4 +16280,4 @@ HX.TorusPrimitive._generate = function(target, definition)
             }
         }
     }
-};HX.BUILD_HASH = 0x2e01;
+};HX.BUILD_HASH = 0xe721;

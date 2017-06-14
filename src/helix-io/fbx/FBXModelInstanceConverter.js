@@ -405,13 +405,13 @@ HX.FBXModelInstanceConverter._Vertex.prototype =
             var str = this.ctrlPointIndex + "/" + this.materialIndex + "/" + this.pos.x + "/" + this.pos.y + "/" + this.pos.z;
 
             if (this.normal)
-                str = str + "/" + this.normal.x + "/" + this.normal.y + "/" + this.normal.z;
+                str += "/" + this.normal.x + "/" + this.normal.y + "/" + this.normal.z;
 
             if (this.uv)
-                str = str + "/" + this.uv.x + "/" + this.uv.y;
+                str += "/" + this.uv.x + "/" + this.uv.y;
 
             if (this.color)
-                str = str + "/" + this.color.x + "/" + this.color.y + "/" + this.color.z;
+                str += "/" + this.color.x + "/" + this.color.y + "/" + this.color.z;
 
             this._hash = str;
         }

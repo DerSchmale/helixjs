@@ -36,7 +36,7 @@ HX.GaussianBlurPass.prototype._initWeights = function(radius)
 
     total = 1.0 / total;
 
-    for (var j = 0; j <= radius; ++j) {
+    for (j = 0; j <= radius; ++j) {
         this._weights[j] *= total;
     }
 };

@@ -25,16 +25,19 @@ HX.CylinderPrimitive._generate = function(target, definition)
 
     var rcpNumSegmentsW = 1/numSegmentsW;
     var rcpNumSegmentsH = 1/numSegmentsH;
+    var hi, ci;
+    var cx, cy;
+    var angle;
 
     // sides
-    for (var hi = 0; hi <= numSegmentsH; ++hi) {
+    for (hi = 0; hi <= numSegmentsH; ++hi) {
         var h = (hi*rcpNumSegmentsH - .5)*height;
-        for (var ci = 0; ci <= numSegmentsW; ++ci) {
-            var angle = ci * rcpNumSegmentsW * Math.PI * 2;
+        for (ci = 0; ci <= numSegmentsW; ++ci) {
+            angle = ci * rcpNumSegmentsW * Math.PI * 2;
             var nx = Math.sin(angle);
             var ny = Math.cos(angle);
-            var cx = nx * radius;
-            var cy = ny * radius;
+            cx = nx * radius;
+            cy = ny * radius;
 
             switch (alignment) {
                 case HX.CylinderPrimitive.ALIGN_X:
@@ -49,14 +52,16 @@ HX.CylinderPrimitive._generate = function(target, definition)
                     positions.push(cx, cy, h);
                     if (normals) normals.push(nx, ny, 0);
                     break;
+                default:
+                // nothing
             }
 
             if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, hi*rcpNumSegmentsH);
         }
     }
 
-    for (var hi = 0; hi < numSegmentsH; ++hi) {
-        for (var ci = 0; ci < numSegmentsW; ++ci) {
+    for (hi = 0; hi < numSegmentsH; ++hi) {
+        for (ci = 0; ci < numSegmentsW; ++ci) {
             var w = numSegmentsW + 1;
             var base = ci + hi*w;
 
@@ -74,12 +79,12 @@ HX.CylinderPrimitive._generate = function(target, definition)
     // top & bottom
     var indexOffset = positions.length / 3;
     var halfH = height * .5;
-    for (var ci = 0; ci < numSegmentsW; ++ci) {
-        var angle = ci * rcpNumSegmentsW * Math.PI * 2;
+    for (ci = 0; ci < numSegmentsW; ++ci) {
+        angle = ci * rcpNumSegmentsW * Math.PI * 2;
         var u = Math.sin(angle);
         var v = Math.cos(angle);
-        var cx = u * radius;
-        var cy = v * radius;
+        cx = u * radius;
+        cy = v * radius;
 
         u = -u * .5 + .5;
         v = v * .5 + .5;
@@ -129,10 +134,12 @@ HX.CylinderPrimitive._generate = function(target, definition)
                     uvs.push(1.0 - u, v);
                 }
                 break;
+            default:
+                // nothing
         }
     }
 
-    for (var ci = 1; ci < numSegmentsW - 1; ++ci) {
+    for (ci = 1; ci < numSegmentsW - 1; ++ci) {
         var offset = ci << 1;
         indices.push(indexOffset, indexOffset + offset, indexOffset + offset + 2);
         indices.push(indexOffset + 1, indexOffset + offset + 3, indexOffset + offset + 1);

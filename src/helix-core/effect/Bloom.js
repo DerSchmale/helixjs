@@ -70,7 +70,7 @@ HX.Bloom.prototype._initTextures = function()
 
 HX.Bloom.prototype.draw = function(dt)
 {
-    if (this._renderer._width != this._targetWidth || this._renderer._height != this._targetHeight) {
+    if (this._renderer._width !== this._targetWidth || this._renderer._height !== this._targetHeight) {
         this._targetWidth = this._renderer._width;
         this._targetHeight = this._renderer._height;
         this._initTextures();

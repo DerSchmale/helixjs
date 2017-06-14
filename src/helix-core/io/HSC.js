@@ -9,10 +9,10 @@ HX.HSC = function()
 
 HX.HSC.prototype = Object.create(HX.Importer.prototype);
 
-HX.HSC.prototype.parse = function(data, target)
+HX.HSC.prototype.parse = function(file, target)
 {
-    var data = JSON.parse(data);
-    if (data.version !== "0.1") throw "Incompatible file format version!";
+    var data = JSON.parse(file);
+    if (data.version !== "0.1") throw new Error("Incompatible file format version!");
 
     var objects = this._processObjects(data.objects, target);
     this._processConnections(data.connections, objects);
@@ -115,7 +115,7 @@ HX.HSC.prototype._processMesh = function(def)
 
         var len = appendNormals? 3 : 0;
         len += appendTangents? 4 : 0;
-        for (var j = 0; j < len; ++j) {
+        for (j = 0; j < len; ++j) {
             vertices[v++] = 0;
         }
     }
@@ -244,7 +244,7 @@ HX.HSC.prototype._processConnections = function(connections, objects)
 
     // now all ModelDatas are complete, can assign to instances
     len = modelLinks.length;
-    for (var i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         var instance = objects[modelLinks[i].p];
         var modelData = objects[modelLinks[i].c];
         var model = new HX.Model(modelData);

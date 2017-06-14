@@ -49,7 +49,7 @@ HX.Mesh.prototype = {
             this._vertexStrides.length = numStreams;
         }
 
-        for (var i = 0; i < numStreams; ++i) {
+        for (i = 0; i < numStreams; ++i) {
             this._vertexBuffers[i].uploadData(meshData.getVertexData(i), meshData.vertexUsage);
             this._vertexStrides[i] = meshData.getVertexStride(i);
         }

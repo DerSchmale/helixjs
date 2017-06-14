@@ -76,7 +76,7 @@ Object.defineProperties(HX.HBAO.prototype, {
     fallOffDistance: {
         get: function ()
         {
-            this._fallOffDistance = value;
+            return this._fallOffDistance;
         },
         set: function (value)
         {

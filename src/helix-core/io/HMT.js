@@ -65,8 +65,8 @@ HX.HMT.prototype._processMaterial = function(data, shaders, material)
         }
     }
 
-    var geometryVertex = shaders[this._correctURL(data.geometry.vertexShader)];
-    var geometryFragment = shaders[this._correctURL(data.geometry.fragmentShader)];
+    var geometryVertex = defines + shaders[this._correctURL(data.geometry.vertexShader)];
+    var geometryFragment = defines + shaders[this._correctURL(data.geometry.fragmentShader)];
 
     material._geometryVertexShader = geometryVertex;
     material._geometryFragmentShader = geometryFragment;

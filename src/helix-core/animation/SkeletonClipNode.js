@@ -8,20 +8,16 @@ HX.SkeletonClipNode = function(clip)
 {
     HX.SkeletonBlendNode.call(this);
     this._clip = clip;
-    this._interpolate = true;
     this._timeScale = 1.0;
     this._isPlaying = true;
     this._time = 0;
+    this._currentFrameIndex = 0;
 };
 
 HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
     {
         numJoints: {
             get: function() { return this._clip.numJoints; }
-        },
-        interpolate: {
-            get: function() { return this._interpolate; },
-            set: function(value) { this._interpolate = value; }
         },
         timeScale: {
             get: function() { return this._timeScale; },
@@ -56,36 +52,63 @@ HX.SkeletonClipNode.prototype.update = function(dt)
 
     if (this._isPlaying) {
         dt *= this._timeScale;
-        this._time += dt/1000.0;
+        this._time += dt;
     }
 
     var clip = this._clip;
-    var numBaseFrames = clip._transferRootJoint? clip.numFrames - 1 : clip.numFrames;
-    var duration = numBaseFrames / clip.frameRate;
+    // the last keyframe is just an "end marker" to interpolate with, it has no duration
+    var numKeyFrames = clip.numKeyFrames;
+    var numBaseFrames = numKeyFrames - 1;
+    var duration = clip.duration;
     var wraps = 0;
 
-    while (this._time >= duration) {
-        this._time -= duration;
-        ++wraps;
-    }
-    while (this._time < 0) {
-        this._time += duration;
-        ++wraps;
-    }
 
-    var frameFactor = this._time * clip.frameRate;
+    var frameA, frameB;
 
-    var firstIndex = Math.floor(frameFactor);
-    var poseA = clip.getFrame(firstIndex);
+    if (dt > 0) {
+        // todo: should be able to simply do this by division
+        while (this._time >= duration) {
+            // reset playhead to make sure progressive update logic works
+            this._currentFrameIndex = 0;
+            this._time -= duration;
+            ++wraps;
+        }
+        //  old     A            B
+        //  new                  A           B
+        //  frames: 0           10          20          30
+        //  time:         x   ----->   x
+        do {
+            // advance play head
+            if (++this._currentFrameIndex === numKeyFrames) this._currentFrameIndex = 0;
+            frameB = clip.getKeyFrame(this._currentFrameIndex);
+        } while (frameB.time < this._time);
 
-    if (this._interpolate) {
-        var secondIndex = firstIndex === clip.numFrames - 1? 0 : firstIndex + 1;
-        var poseB = clip.getFrame(secondIndex);
-        this._pose.interpolate(poseA, poseB, frameFactor - firstIndex);
+        --this._currentFrameIndex;
+        frameA = clip.getKeyFrame(this._currentFrameIndex);
     }
     else {
-        this._pose.copyFrom(poseA);
+        while (this._time < 0) {
+            // reset playhead to make sure progressive update logic works
+            this._currentFrameIndex = numBaseFrames;
+            this._time += duration;
+            ++wraps;
+        }
+
+        //  old     A            B
+        //  new                  A           B
+        //  frames: 0           10          20          30
+        //  time:         x   <-----   x
+        // advance play head
+        ++this._currentFrameIndex;
+        do {
+            if (--this._currentFrameIndex < 0) this._currentFrameIndex = numKeyFrames;
+            frameA = clip.getKeyFrame(this._currentFrameIndex);
+        } while (frameA.time > this._time);
     }
+
+    var fraction = (this._time - frameA.time) / (frameB.time - frameA.time);
+
+    this._pose.interpolate(frameA.value, frameB.value, fraction);
 
     if (clip._transferRootJoint)
         this._transferRootJointTransform(wraps);

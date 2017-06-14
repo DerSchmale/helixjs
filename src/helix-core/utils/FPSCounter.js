@@ -34,7 +34,7 @@ HX.FPSCounter.prototype =
         this._averageFPS = this._runningSum / this._numFrames;
         this._frames[this._index++] = this._currentFPS;
 
-        if (this._index == this._numFrames) this._index = 0;
+        if (this._index === this._numFrames) this._index = 0;
 
         if (this._maxFPS === undefined || this._currentFPS > this._maxFPS)
             this._maxFPS = this._currentFPS;

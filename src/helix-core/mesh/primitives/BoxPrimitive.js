@@ -25,17 +25,20 @@ HX.BoxPrimitive._generate = function(target, definition)
     var uvs = target.uvs;
     var normals = target.normals;
     var indices = target.indices;
+    var x, y, z;
+    var ratioU, ratioV;
+    var wSegment, hSegment, dSegment;
 
 
     // front and back
-    for (var hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
-        var ratioV = hSegment * rcpNumSegmentsH;
-        var y = height * ratioV - halfH;
+    for (hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
+        ratioV = hSegment * rcpNumSegmentsH;
+        y = height * ratioV - halfH;
         if (flipSign < 0) ratioV = 1.0 - ratioV;
 
-        for (var wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
-            var ratioU = wSegment * rcpNumSegmentsW;
-            var x = width * ratioU - halfW;
+        for (wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
+            ratioU = wSegment * rcpNumSegmentsW;
+            x = width * ratioU - halfW;
 
             if (flipSign < 0) ratioU = 1.0 - ratioU;
 
@@ -55,13 +58,13 @@ HX.BoxPrimitive._generate = function(target, definition)
         }
     }
 
-    for (var hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
-        var ratioV = hSegment * rcpNumSegmentsH;
-        var y = height * ratioV - halfH;
+    for (hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
+        ratioV = hSegment * rcpNumSegmentsH;
+        y = height * ratioV - halfH;
 
-        for (var dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
-            var ratioU = dSegment * rcpNumSegmentsD;
-            var z = depth * ratioU - halfD;
+        for (dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
+            ratioU = dSegment * rcpNumSegmentsD;
+            z = depth * ratioU - halfD;
 
             // left and right
             positions.push(-halfW, y, z*flipSign);
@@ -79,13 +82,13 @@ HX.BoxPrimitive._generate = function(target, definition)
         }
     }
 
-    for (var dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
-        var ratioV = dSegment * rcpNumSegmentsD;
-        var z = depth * ratioV - halfD;
+    for (dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
+        ratioV = dSegment * rcpNumSegmentsD;
+        z = depth * ratioV - halfD;
 
-        for (var wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
-            var ratioU = wSegment * rcpNumSegmentsW;
-            var x = width * ratioU - halfW;
+        for (wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
+            ratioU = wSegment * rcpNumSegmentsW;
+            x = width * ratioU - halfW;
 
             // top and bottom
             positions.push(x, halfH, -z*flipSign);

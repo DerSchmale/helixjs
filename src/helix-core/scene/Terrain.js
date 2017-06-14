@@ -79,14 +79,14 @@ HX.Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLeve
     var highIndexX = vertices.length / 7;
 
     if (subDiv) {
-        var z = (numSegments * rcpNumSegments - .5) * size;
-        for (var xi = 0; xi <= numSegments; ++xi) {
-            var x = (xi*rcpNumSegments - .5) * size;
+        z = (numSegments * rcpNumSegments - .5) * size;
+        for (xi = 0; xi <= numSegments; ++xi) {
+            x = (xi*rcpNumSegments - .5) * size;
             vertices.push(x, 0, z, 0, 1, 0);
             vertices.push(halfCellSize);
 
             if (xi !== numSegments) {
-                var base = xi + numZ * w;
+                base = xi + numZ * w;
                 vertices.push(x + halfCellSize, 0, z, 0, 1, 0, halfCellSize);
                 indices.push(base, highIndexX + xi * 2, highIndexX + xi * 2 + 1);
                 indices.push(base, highIndexX + xi * 2 + 1, base + 1);

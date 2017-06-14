@@ -22,5 +22,10 @@ HX.Debug = {
             str += "\t" + name + "\n";
         }
         console.log(str);
+    },
+
+    assert: function(bool, message)
+    {
+        if (!bool) throw new Error(message);
     }
 };

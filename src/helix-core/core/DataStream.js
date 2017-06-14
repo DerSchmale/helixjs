@@ -143,10 +143,24 @@ HX.DataStream.prototype =
 
     getString: function(len)
     {
+        if (!len) return this._get0String();
+
         var str = "";
 
         for (var i = 0; i < len; ++i)
-            str = str + this.getChar();
+            str += this.getChar();
+
+        return str;
+    },
+
+    _get0String: function()
+    {
+        var str = "";
+
+        do {
+            var ch = this.getUint8();
+            if (ch) str += String.fromCharCode(ch);
+        } while (ch !== 0);
 
         return str;
     },

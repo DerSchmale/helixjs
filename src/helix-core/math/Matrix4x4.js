@@ -425,26 +425,29 @@ HX.Matrix4x4.prototype =
 
     fromOrthographicProjection: function (width, height, nearDistance, farDistance)
     {
-        var yMax = Math.tan(vFOV * .5);
-        var xMax = yMax * aspectRatio;
-        var rcpFrustumDepth = 1.0 / (nearDistance - farDistance);
+        var rcpWidth = 1.0 / width;
+        var rcpHeight = 1.0 / height;
+        var rcpDepth = 1.0 / (nearDistance - farDistance);
 
         var m = this._m;
-        m[0] = 1 / xMax;
+        m[0] = 2.0 * rcpWidth;
         m[1] = 0;
         m[2] = 0;
         m[3] = 0;
+
         m[4] = 0;
-        m[5] = 1 / yMax;
+        m[5] = 2.0 * rcpHeight;
         m[6] = 0;
         m[7] = 0;
+
         m[8] = 0;
         m[9] = 0;
-        m[10] = 2 * rcpFrustumDepth;
+        m[10] = 2.0 * rcpDepth;
         m[11] = 0;
-        m[12] = 0;
-        m[13] = 0;
-        m[14] = (farDistance + nearDistance) * rcpFrustumDepth;
+
+        m[12] = 0.0;
+        m[13] = 0.0;
+        m[14] = (farDistance + nearDistance) * rcpDepth;
         m[15] = 1;
     },
 
@@ -488,12 +491,12 @@ HX.Matrix4x4.prototype =
     {
         // todo: can this be faster?
         // columns are the indices * 4 (to form index for row 0)
-        var c1 = col == 0 ? 4 : 0;
+        var c1 = col === 0 ? 4 : 0;
         var c2 = col < 2 ? 8 : 4;
-        var c3 = col == 3 ? 8 : 12;
-        var r1 = row == 0 ? 1 : 0;
+        var c3 = col === 3 ? 8 : 12;
+        var r1 = row === 0 ? 1 : 0;
         var r2 = row < 2 ? 2 : 1;
-        var r3 = row == 3 ? 2 : 3;
+        var r3 = row === 3 ? 2 : 3;
 
         var m = this._m;
         var m21 = m[c1 | r2], m22 = m[r2 | c2], m23 = m[c3 | r2];
@@ -539,28 +542,28 @@ HX.Matrix4x4.prototype =
         return m[0] * this.determinant3x3(0, 0) - m[4] * this.determinant3x3(0, 1) + m[8] * this.determinant3x3(0, 2) - m[12] * this.determinant3x3(0, 3);
     },
 
-    inverseOf: function (m)
+    inverseOf: function (matrix)
     {
         // this can be much more efficient, but I'd like to keep it readable for now. The full inverse is not required often anyway.
-        var rcpDet = 1.0 / m.determinant();
+        var rcpDet = 1.0 / matrix.determinant();
 
         // needs to be self-assignment-proof
-        var m0 = rcpDet * m.cofactor(0, 0);
-        var m1 = rcpDet * m.cofactor(0, 1);
-        var m2 = rcpDet * m.cofactor(0, 2);
-        var m3 = rcpDet * m.cofactor(0, 3);
-        var m4 = rcpDet * m.cofactor(1, 0);
-        var m5 = rcpDet * m.cofactor(1, 1);
-        var m6 = rcpDet * m.cofactor(1, 2);
-        var m7 = rcpDet * m.cofactor(1, 3);
-        var m8 = rcpDet * m.cofactor(2, 0);
-        var m9 = rcpDet * m.cofactor(2, 1);
-        var m10 = rcpDet * m.cofactor(2, 2);
-        var m11 = rcpDet * m.cofactor(2, 3);
-        var m12 = rcpDet * m.cofactor(3, 0);
-        var m13 = rcpDet * m.cofactor(3, 1);
-        var m14 = rcpDet * m.cofactor(3, 2);
-        var m15 = rcpDet * m.cofactor(3, 3);
+        var m0 = rcpDet * matrix.cofactor(0, 0);
+        var m1 = rcpDet * matrix.cofactor(0, 1);
+        var m2 = rcpDet * matrix.cofactor(0, 2);
+        var m3 = rcpDet * matrix.cofactor(0, 3);
+        var m4 = rcpDet * matrix.cofactor(1, 0);
+        var m5 = rcpDet * matrix.cofactor(1, 1);
+        var m6 = rcpDet * matrix.cofactor(1, 2);
+        var m7 = rcpDet * matrix.cofactor(1, 3);
+        var m8 = rcpDet * matrix.cofactor(2, 0);
+        var m9 = rcpDet * matrix.cofactor(2, 1);
+        var m10 = rcpDet * matrix.cofactor(2, 2);
+        var m11 = rcpDet * matrix.cofactor(2, 3);
+        var m12 = rcpDet * matrix.cofactor(3, 0);
+        var m13 = rcpDet * matrix.cofactor(3, 1);
+        var m14 = rcpDet * matrix.cofactor(3, 2);
+        var m15 = rcpDet * matrix.cofactor(3, 3);
 
         var m = this._m;
         m[0] = m0;

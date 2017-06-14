@@ -1,13 +1,14 @@
 /**
  * An animation clip for skeletal animation
+ * TODO: Reform this to use keyframes
  * @constructor
  */
 HX.SkeletonClip = function()
 {
     this._name = null;
-    this._frameRate = 24;
-    this._frames = [];
+    this._keyFrames = [];
     this._transferRootJoint = false;
+    this._duration = 0;
 };
 
 HX.SkeletonClip.prototype =
@@ -22,47 +23,40 @@ HX.SkeletonClip.prototype =
         this._name = value;
     },
 
-    get frameRate()
-    {
-        return this._frameRate;
-    },
-
-    set frameRate(value)
-    {
-        this._frameRate = value;
-    },
-
     /**
-     *
-     * @param frame A SkeletonPose
+     * Adds a keyframe. Last keyframe is usually the same pose as the first and serves as an "end marker"
+     * @param frame A KeyFrame containing a SkeletonPose
      */
-    addFrame: function(frame)
+    addKeyFrame: function(frame)
     {
-        this._frames.push(frame);
+        this._keyFrames.push(frame);
+        if (frame.time > this._duration) this._duration = frame.time;
     },
 
-    get numFrames()
+    get numKeyFrames()
     {
-        return this._frames.length;
+        return this._keyFrames.length;
     },
 
-    getFrame: function(index)
+    getKeyFrame: function(index)
     {
-        return this._frames[index];
+        return this._keyFrames[index];
     },
 
     get numJoints()
     {
-        return this._frames[0].jointPoses.length;
+        return this._keyFrames[0].jointPoses.length;
     },
 
     get duration()
     {
-        return this._frames.length / this._frameRate;
+        return this._duration;
     },
 
     /**
      * If true, the last frame of the clip should be a duplicate of the first, but with the final position offset
+     *
+     * TODO: This should probably become a property of the animation itself
      */
     get transferRootJoint()
     {

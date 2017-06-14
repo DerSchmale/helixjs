@@ -9,9 +9,9 @@ HX.HCM = function()
 
 HX.HCM.prototype = Object.create(HX.Importer.prototype);
 
-HX.HCM.prototype.parse = function(data, target)
+HX.HCM.prototype.parse = function(file, target)
 {
-    var data = JSON.parse(data);
+    var data = JSON.parse(file);
 
     var urls = [
         data.files.posX,
@@ -34,26 +34,32 @@ HX.HCM.prototype._loadFaces = function(urls, target)
     var images = [];
     var self = this;
 
+    var onError = function() {
+        self._notifyFailure("Failed loading texture '" + urls[0] + "'");
+    };
+
+    var onLoad = function()
+    {
+        images[this.nextID].src = self.path + urls[this.nextID];
+    };
+
+    var onLoadLast = function() {
+        target.uploadImages(images, generateMipmaps);
+        self._notifyComplete(target);
+    };
+
     for (var i = 0; i < 6; ++i) {
         var image = new Image();
         image.nextID = i + 1;
         if (i < 5) {
-            image.onload = function()
-            {
-                images[this.nextID].src = self.path + urls[this.nextID];
-            }
+            image.onload = onLoad;
         }
         // last image to load
         else {
-            image.onload = function() {
-                target.uploadImages(images, generateMipmaps);
-                self._notifyComplete(target);
-            };
+            image.onload = onLoadLast;
         }
 
-        image.onError = function() {
-            self._notifyFailure("Failed loading texture '" + url + "'");
-        };
+        image.onError = onError;
 
         images[i] = image;
     }
@@ -77,7 +83,7 @@ HX.HCM.prototype._loadMipChain = function(urls, target)
 
     firstImage.onload = function()
     {
-        if (firstImage.naturalWidth != firstImage.naturalHeight || !HX.isPowerOfTwo(firstImage.naturalWidth)) {
+        if (firstImage.naturalWidth !== firstImage.naturalHeight || !HX.isPowerOfTwo(firstImage.naturalWidth)) {
             self._notifyFailure("Failed loading mipchain: incorrect dimensions");
         }
         else {
@@ -103,31 +109,37 @@ HX.HCM.prototype._loadMipChain = function(urls, target)
             }
         }
 
-        for (var i = 1; i < len; ++i) {
+        var onError = function ()
+        {
+            self._notifyFailure("Failed loading texture");
+        };
+
+        var onLoad = function ()
+        {
+            images[this.nextID].src = self.path + realURLs[this.nextID];
+        };
+
+        var onLoadLast = function ()
+        {
+            for (var m = 0; m < numMips; ++m)
+                target.uploadImagesToMipLevel(images.slice(m * 6, m * 6 + 6), m);
+
+            target._isReady = true;
+            self._notifyComplete(target);
+        };
+
+        for (i = 1; i < len; ++i) {
             var image = new Image();
             image.nextID = i + 1;
             if (i < len - 1) {
-                image.onload = function ()
-                {
-                    images[this.nextID].src = self.path + realURLs[this.nextID];
-                }
+                image.onload = onLoad;
             }
             // last image to load
             else {
-                image.onload = function ()
-                {
-                    for (var m = 0; m < numMips; ++m)
-                        target.uploadImagesToMipLevel(images.slice(m * 6, m * 6 + 6), m);
-
-                    target._isReady = true;
-                    self._notifyComplete(target);
-                };
+                image.onload = onLoadLast;
             }
 
-            image.onError = function ()
-            {
-                self._notifyFailure("Failed loading texture");
-            };
+            image.onError = onError;
 
             images[i] = image;
         }

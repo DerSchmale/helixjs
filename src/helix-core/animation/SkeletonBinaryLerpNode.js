@@ -11,6 +11,8 @@ HX.SkeletonBinaryLerpNode = function()
     this._minValue = 0;
     this._maxValue = 1;
     this._numJoints = 0;
+    this._t = 0;
+    this._valueChanged = false;
 };
 
 HX.SkeletonBinaryLerpNode.prototype = Object.create(HX.SkeletonBlendNode.prototype, {
@@ -90,18 +92,21 @@ HX.SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
 {
     var updated = this._child1.update(dt, transferRootJoint);
     updated = this._child2.update(dt, transferRootJoint) || updated;
+    updated = updated || this._valueChanged;
 
     var t = this._t;
-    if (updated || this._valueChanged) {
+    if (updated) {
         if (t > .999)
             this._pose.copyFrom(this._child1._pose);
         else if (t < .001)
             this._pose.copyFrom(this._child2._pose);
         else
-            this._pose.interpolate(this._child1, this._child2, this._t);
+            this._pose.interpolate(this._child1._pose, this._child2._pose, this._t);
 
         this._valueChanged = false;
     }
+
+    return updated;
 };
 
 HX.SkeletonBinaryLerpNode.prototype._applyValue = function(value)

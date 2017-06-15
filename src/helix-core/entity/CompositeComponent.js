@@ -48,6 +48,5 @@ HX.CompositeComponent.prototype.onUpdate = function(dt)
     for (var i = 0; i < len; ++i) {
         var comp = this._subs[i];
         comp.onUpdate(dt);
-        comp._entity = null;
     }
 };

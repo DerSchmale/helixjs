@@ -51,11 +51,6 @@ HX.SkeletonClip.prototype =
         return this._keyFrames[index];
     },
 
-    get numJoints()
-    {
-        return this._keyFrames[0].jointPoses.length;
-    },
-
     get duration()
     {
         return this._duration;

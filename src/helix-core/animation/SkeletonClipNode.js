@@ -17,7 +17,7 @@ HX.SkeletonClipNode = function(clip)
 HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
     {
         numJoints: {
-            get: function() { return this._clip.numJoints; }
+            get: function() { return this._clip.getKeyFrame(0).value.jointPoses.length; }
         },
         timeScale: {
             get: function() { return this._timeScale; },

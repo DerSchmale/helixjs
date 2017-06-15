@@ -365,10 +365,6 @@ HX.ShaderLibrary = {
     }
 };
 
-HX.ShaderLibrary['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
-
-HX.ShaderLibrary['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
-
 HX.ShaderLibrary['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    // schlick-smith\n    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));\n    float nDotV = max(dot(normal, reflection), 0.0);\n    float denom = nDotV * (1.0 - k) + k;\n    return nDotV * nDotV / (denom * denom);   // since l == v*/\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
 
 HX.ShaderLibrary['lighting_ggx.glsl'] = '// TODO: Implement this: https://learnopengl.com/#!PBR/Theory\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif\n}';
@@ -476,6 +472,10 @@ HX.ShaderLibrary['hbao_fragment.glsl'] = 'uniform float hx_cameraFrustumRange;\n
 HX.ShaderLibrary['hbao_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 frustumCorner;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    frustumCorner = hx_getLinearDepthViewVector(vec2(1.0, 1.0), hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
 
 HX.ShaderLibrary['ssao_fragment.glsl'] = 'uniform mat4 hx_projectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nuniform vec2 ditherScale;\nuniform float strengthPerSample;\nuniform float rcpFallOffDistance;\nuniform float sampleRadius;\nuniform vec3 samples[NUM_SAMPLES]; // w contains bias\n\nuniform sampler2D ditherTexture;\nuniform sampler2D hx_normalDepth;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepth, uv);\n    vec3 centerNormal = hx_decodeNormal(normalDepth);\n    float centerDepth = hx_decodeLinearDepth(normalDepth);\n    float totalOcclusion = 0.0;\n    vec3 dither = texture2D(ditherTexture, uv * ditherScale).xyz;\n    vec3 randomPlaneNormal = normalize(dither - .5);\n    float w = centerDepth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n    vec3 sampleRadii;\n    sampleRadii.xy = sampleRadius * .5 / w * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1]);\n    sampleRadii.z = sampleRadius;\n\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        vec3 sampleOffset = reflect(samples[i], randomPlaneNormal);\n        vec3 normOffset = normalize(sampleOffset);\n        float cosFactor = dot(normOffset, centerNormal);\n        float sign = sign(cosFactor);\n        sampleOffset *= sign;\n        cosFactor *= sign;\n\n        vec3 scaledOffset = sampleOffset * sampleRadii;\n\n        vec2 samplePos = uv + scaledOffset.xy;\n        normalDepth = texture2D(hx_normalDepth, samplePos);\n        float occluderDepth = hx_decodeLinearDepth(normalDepth);\n        float diffZ = (centerDepth - occluderDepth) * hx_cameraFrustumRange;\n\n        // distanceFactor: from 1 to 0, near to far\n        float distanceFactor = clamp(diffZ * rcpFallOffDistance, 0.0, 1.0);\n        distanceFactor = 1.0 - distanceFactor;\n\n        // sampleOcclusion: 1 if occluding, 0 otherwise\n        float sampleOcclusion = float(diffZ > scaledOffset.z);\n        totalOcclusion += sampleOcclusion * distanceFactor * cosFactor;\n    }\n    gl_FragColor = vec4(vec3(1.0 - totalOcclusion * strengthPerSample), 1.0);\n}';
+
+HX.ShaderLibrary['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
+
+HX.ShaderLibrary['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
 /**
  * Creates a new Float2 object
@@ -2909,6 +2909,7 @@ HX.DataStream.prototype =
     set endian(value) { this._endian = value; },
 
     get byteLength () { return this._dataView.byteLength; },
+    get bytesAvailable() { return this._dataView.byteLength - this._offset; },
 
     getChar: function()
     {
@@ -5069,7 +5070,6 @@ HX.CompositeComponent.prototype.onUpdate = function(dt)
     for (var i = 0; i < len; ++i) {
         var comp = this._subs[i];
         comp.onUpdate(dt);
-        comp._entity = null;
     }
 };
 HX.Entity = function()
@@ -6053,7 +6053,7 @@ HX.KeyFrame = function(time, value)
 {
     this.time = time || 0.0;
     this.value = value;
-}
+};
 /**
  * This just contains a static pose.
  * @param positionOrMesh A flat list of floats (3 per coord), or a mesh (that would use the basic pose)
@@ -6531,16 +6531,11 @@ HX.SkeletonPose.prototype =
         b = b.jointPoses;
         var len = a.length;
 
-        if (this.jointPoses.length !== len) {
-            this._numJoints = len;
-            this.jointPoses = [];
-            for (var i = 0; i < len; ++i) {
-                this.jointPoses[i] = new HX.SkeletonJointPose();
-            }
-        }
+        if (this.jointPoses.length !== len)
+            this._initJointPoses(len);
 
         var target = this.jointPoses;
-        for (i = 0; i < len; ++i) {
+        for (var i = 0; i < len; ++i) {
             target[i].rotation.slerp(a[i].rotation, b[i].rotation, factor);
             target[i].position.lerp(a[i].position, b[i].position, factor);
             target[i].scale.lerp(a[i].scale, b[i].scale, factor);
@@ -6568,11 +6563,21 @@ HX.SkeletonPose.prototype =
     {
         a = a.jointPoses;
         var target = this.jointPoses;
-        var len = target.length;
-        for (var i = 0; i < len; ++i) {
-            target[i].copyFrom(a[i]);
-        }
+        var len = a.length;
 
+        if (this.jointPoses.length !== len)
+            this._initJointPoses(len);
+
+        for (var i = 0; i < len; ++i)
+            target[i].copyFrom(a[i]);
+    },
+
+    _initJointPoses: function(numJointPoses)
+    {
+        this._numJoints = numJointPoses;
+        this.jointPoses.length = numJointPoses;
+        for (var i = 0; i < numJointPoses; ++i)
+            this.jointPoses[i] = new HX.SkeletonJointPose();
     }
 };
 
@@ -6691,6 +6696,8 @@ HX.SkeletonBinaryLerpNode = function()
     this._minValue = 0;
     this._maxValue = 1;
     this._numJoints = 0;
+    this._t = 0;
+    this._valueChanged = false;
 };
 
 HX.SkeletonBinaryLerpNode.prototype = Object.create(HX.SkeletonBlendNode.prototype, {
@@ -6770,18 +6777,21 @@ HX.SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
 {
     var updated = this._child1.update(dt, transferRootJoint);
     updated = this._child2.update(dt, transferRootJoint) || updated;
+    updated = updated || this._valueChanged;
 
     var t = this._t;
-    if (updated || this._valueChanged) {
+    if (updated) {
         if (t > .999)
             this._pose.copyFrom(this._child1._pose);
         else if (t < .001)
             this._pose.copyFrom(this._child2._pose);
         else
-            this._pose.interpolate(this._child1, this._child2, this._t);
+            this._pose.interpolate(this._child1._pose, this._child2._pose, this._t);
 
         this._valueChanged = false;
     }
+
+    return updated;
 };
 
 HX.SkeletonBinaryLerpNode.prototype._applyValue = function(value)
@@ -6806,6 +6816,7 @@ HX.SkeletonBlendTree = function(rootNode, skeleton)
     this._transferRootJoint = false;
     this._matrices = null;
     this._globalPose = new HX.SkeletonPose();
+    this._applyInverseBindPose = true;
     if (skeleton) this.skeleton = skeleton;
 };
 
@@ -6813,6 +6824,9 @@ HX.SkeletonBlendTree.prototype =
 {
     get transferRootJoint() { return this._transferRootJoint; },
     set transferRootJoint(value) { this._transferRootJoint = value; },
+
+    get applyInverseBindPose() { return this._applyInverseBindPose; },
+    set applyInverseBindPose(value) { this._applyInverseBindPose = value; },
 
     get skeleton() { return this._skeleton; },
     set skeleton(value)
@@ -6910,7 +6924,10 @@ HX.SkeletonBlendTree.prototype =
         for (var i = 0; i < len; ++i) {
             var pose = poses[i];
             var mtx = matrices[i];
-            mtx.copyFrom(skeleton.getJoint(i).inverseBindPose);
+            if (this._applyInverseBindPose)
+                mtx.copyFrom(skeleton.getJoint(i).inverseBindPose);
+            else
+                mtx.copyFrom(HX.Matrix4x4.IDENTITY);
 
             var sc = pose.scale;
             mtx.appendScale(sc.x, sc.y, sc.z);
@@ -6953,6 +6970,16 @@ HX.SkeletonClip.prototype =
         if (frame.time > this._duration) this._duration = frame.time;
     },
 
+    /**
+     * Only call this if for some reason the keyframes were added out of order.
+     */
+    sortKeyFrames: function()
+    {
+        this._keyFrames.sort(function(a, b) {
+            return a.time - b.time;
+        });
+    },
+
     get numKeyFrames()
     {
         return this._keyFrames.length;
@@ -6961,11 +6988,6 @@ HX.SkeletonClip.prototype =
     getKeyFrame: function(index)
     {
         return this._keyFrames[index];
-    },
-
-    get numJoints()
-    {
-        return this._keyFrames[0].jointPoses.length;
     },
 
     get duration()
@@ -6997,7 +7019,7 @@ HX.SkeletonClipNode = function(clip)
 HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
     {
         numJoints: {
-            get: function() { return this._clip.numJoints; }
+            get: function() { return this._clip.getKeyFrame(0).value.jointPoses.length; }
         },
         timeScale: {
             get: function() { return this._timeScale; },
@@ -16278,4 +16300,4 @@ HX.TorusPrimitive._generate = function(target, definition)
             }
         }
     }
-};HX.BUILD_HASH = 0x9f7a;
+};HX.BUILD_HASH = 0x6677;

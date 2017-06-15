@@ -11,11 +11,12 @@ HX.Quaternion.prototype =
 {
     fromAxisAngle: function (axis, radians)
     {
-        var factor = Math.sin(radians * .5) / axis.length;
+        var halfAngle = radians * .5;
+        var factor = Math.sin(halfAngle) / axis.length;
         this.x = axis.x * factor;
         this.y = axis.y * factor;
         this.z = axis.z * factor;
-        this.w = Math.cos(radians * .5);
+        this.w = Math.cos(halfAngle);
     },
 
     // Tait-Bryan angles, not classic Euler, radians
@@ -104,6 +105,7 @@ HX.Quaternion.prototype =
     rotate: function(v, target)
     {
         target = target || new HX.Float4();
+
         var vx = v.x, vy = v.y, vz = v.z;
         var x = this.x, y = this.y, z = this.z, w = this.w;
 

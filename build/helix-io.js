@@ -2664,6 +2664,41 @@ HX.OBJ._ObjectData = function()
     this.groups = [];
     this._activeGroup = null;
 };
+HX.FbxAnimationCurve = function()
+{
+    HX.FbxObject.call(this);
+    this.Default = undefined;
+    this.KeyVer = 0.0;
+    this.KeyTime = 0.0;
+    this.KeyValueFloat = null;
+    this.KeyAttrFlags = 0.0;
+    this.KeyAttrDataFloat = null;
+    this.KeyAttrRefCount = 0.0;
+};
+
+HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
+HX.FbxAnimationCurveNode = function()
+{
+    HX.FbxObject.call(this);
+    this.curves = null;
+    // are these weights?
+    this["d|X"] = 0.0;
+    this["d|Y"] = 0.0;
+    this["d|Z"] = 0.0;
+    this.propertyName = null;
+};
+
+HX.FbxAnimationCurveNode.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimationCurveNode.prototype.toString = function() { return "[FbxAnimationCurveNode(name="+this.name+")]"; };
+
+HX.FbxAnimationCurveNode.prototype.connectProperty = function(obj, propertyName)
+{
+    if (obj instanceof HX.FbxAnimationCurve) {
+        this.curves = this.curves || {};
+        this.curves[propertyName] = obj;
+    }
+};
 HX.FbxAnimLayer = function()
 {
     HX.FbxObject.call(this);
@@ -2708,41 +2743,6 @@ HX.FbxAnimStack.prototype.connectObject = function(obj)
 };
 
 HX.FbxAnimStack.prototype.toString = function() { return "[FbxAnimStack(name="+this.name+")]"; };
-HX.FbxAnimationCurve = function()
-{
-    HX.FbxObject.call(this);
-    this.Default = undefined;
-    this.KeyVer = 0.0;
-    this.KeyTime = 0.0;
-    this.KeyValueFloat = null;
-    this.KeyAttrFlags = 0.0;
-    this.KeyAttrDataFloat = null;
-    this.KeyAttrRefCount = 0.0;
-};
-
-HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
-HX.FbxAnimationCurveNode = function()
-{
-    HX.FbxObject.call(this);
-    this.curves = null;
-    // are these weights?
-    this["d|X"] = 0.0;
-    this["d|Y"] = 0.0;
-    this["d|Z"] = 0.0;
-    this.propertyName = null;
-};
-
-HX.FbxAnimationCurveNode.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimationCurveNode.prototype.toString = function() { return "[FbxAnimationCurveNode(name="+this.name+")]"; };
-
-HX.FbxAnimationCurveNode.prototype.connectProperty = function(obj, propertyName)
-{
-    if (obj instanceof HX.FbxAnimationCurve) {
-        this.curves = this.curves || {};
-        this.curves[propertyName] = obj;
-    }
-};
 HX.FbxCluster = function()
 {
     HX.FbxObject.call(this);

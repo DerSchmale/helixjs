@@ -6,13 +6,21 @@ HX.SkeletonBlendTree = function(rootNode, skeleton)
 {
     this._skeleton = skeleton;
     this._rootNode = rootNode;
+    this._transferRootJoint = false;
     this._matrices = null;
     this._globalPose = new HX.SkeletonPose();
+    this._applyInverseBindPose = true;
     if (skeleton) this.skeleton = skeleton;
 };
 
 HX.SkeletonBlendTree.prototype =
 {
+    get transferRootJoint() { return this._transferRootJoint; },
+    set transferRootJoint(value) { this._transferRootJoint = value; },
+
+    get applyInverseBindPose() { return this._applyInverseBindPose; },
+    set applyInverseBindPose(value) { this._applyInverseBindPose = value; },
+
     get skeleton() { return this._skeleton; },
     set skeleton(value)
     {
@@ -39,7 +47,7 @@ HX.SkeletonBlendTree.prototype =
 
     update: function(dt)
     {
-        if (this._rootNode.update(dt)) {
+        if (this._rootNode.update(dt, this._transferRootJoint)) {
             this._updateGlobalPose();
             this._updateMatrices();
             return true;
@@ -109,7 +117,10 @@ HX.SkeletonBlendTree.prototype =
         for (var i = 0; i < len; ++i) {
             var pose = poses[i];
             var mtx = matrices[i];
-            mtx.copyFrom(skeleton.getJoint(i).inverseBindPose);
+            if (this._applyInverseBindPose)
+                mtx.copyFrom(skeleton.getJoint(i).inverseBindPose);
+            else
+                mtx.copyFrom(HX.Matrix4x4.IDENTITY);
 
             var sc = pose.scale;
             mtx.appendScale(sc.x, sc.y, sc.z);

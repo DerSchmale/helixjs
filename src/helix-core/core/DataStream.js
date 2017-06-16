@@ -17,6 +17,7 @@ HX.DataStream.prototype =
     set endian(value) { this._endian = value; },
 
     get byteLength () { return this._dataView.byteLength; },
+    get bytesAvailable() { return this._dataView.byteLength - this._offset; },
 
     getChar: function()
     {

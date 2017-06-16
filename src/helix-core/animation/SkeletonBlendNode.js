@@ -13,7 +13,7 @@ HX.SkeletonBlendNode = function()
 HX.SkeletonBlendNode.prototype =
 {
     // child nodes should ALWAYS be requested to update first
-    update: function(dt)
+    update: function(dt, transferRootJoint)
     {
     },
 

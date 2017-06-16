@@ -8,20 +8,16 @@ HX.SkeletonClipNode = function(clip)
 {
     HX.SkeletonBlendNode.call(this);
     this._clip = clip;
-    this._interpolate = true;
     this._timeScale = 1.0;
     this._isPlaying = true;
     this._time = 0;
+    this._currentFrameIndex = 0;
 };
 
 HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
     {
         numJoints: {
-            get: function() { return this._clip.numJoints; }
-        },
-        interpolate: {
-            get: function() { return this._interpolate; },
-            set: function(value) { this._interpolate = value; }
+            get: function() { return this._clip.getKeyFrame(0).value.jointPoses.length; }
         },
         timeScale: {
             get: function() { return this._timeScale; },
@@ -47,7 +43,7 @@ HX.SkeletonClipNode.prototype.stop = function()
     this._isPlaying = false;
 };
 
-HX.SkeletonClipNode.prototype.update = function(dt)
+HX.SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
 {
     if ((!this._isPlaying || dt === 0.0) && !this._timeChanged)
         return false;
@@ -56,54 +52,81 @@ HX.SkeletonClipNode.prototype.update = function(dt)
 
     if (this._isPlaying) {
         dt *= this._timeScale;
-        this._time += dt/1000.0;
+        this._time += dt;
     }
 
     var clip = this._clip;
-    var numBaseFrames = clip._transferRootJoint? clip.numFrames - 1 : clip.numFrames;
-    var duration = numBaseFrames / clip.frameRate;
+    // the last keyframe is just an "end marker" to interpolate with, it has no duration
+    var numKeyFrames = clip.numKeyFrames;
+    var numBaseFrames = numKeyFrames - 1;
+    var duration = clip.duration;
     var wraps = 0;
 
-    while (this._time >= duration) {
-        this._time -= duration;
-        ++wraps;
-    }
-    while (this._time < 0) {
-        this._time += duration;
-        ++wraps;
-    }
 
-    var frameFactor = this._time * clip.frameRate;
+    var frameA, frameB;
 
-    var firstIndex = Math.floor(frameFactor);
-    var poseA = clip.getFrame(firstIndex);
+    if (dt > 0) {
+        // todo: should be able to simply do this by division
+        while (this._time >= duration) {
+            // reset playhead to make sure progressive update logic works
+            this._currentFrameIndex = 0;
+            this._time -= duration;
+            ++wraps;
+        }
+        //  old     A            B
+        //  new                  A           B
+        //  frames: 0           10          20          30
+        //  time:         x   ----->   x
+        do {
+            // advance play head
+            if (++this._currentFrameIndex === numKeyFrames) this._currentFrameIndex = 0;
+            frameB = clip.getKeyFrame(this._currentFrameIndex);
+        } while (frameB.time < this._time);
 
-    if (this._interpolate) {
-        var secondIndex = firstIndex === clip.numFrames - 1? 0 : firstIndex + 1;
-        var poseB = clip.getFrame(secondIndex);
-        this._pose.interpolate(poseA, poseB, frameFactor - firstIndex);
+        --this._currentFrameIndex;
+        frameA = clip.getKeyFrame(this._currentFrameIndex);
     }
     else {
-        this._pose.copyFrom(poseA);
+        while (this._time < 0) {
+            // reset playhead to make sure progressive update logic works
+            this._currentFrameIndex = numBaseFrames;
+            this._time += duration;
+            ++wraps;
+        }
+
+        //  old     A            B
+        //  new                  A           B
+        //  frames: 0           10          20          30
+        //  time:         x   <-----   x
+        // advance play head
+        ++this._currentFrameIndex;
+        do {
+            if (--this._currentFrameIndex < 0) this._currentFrameIndex = numKeyFrames;
+            frameA = clip.getKeyFrame(this._currentFrameIndex);
+        } while (frameA.time > this._time);
     }
 
-    if (clip._transferRootJoint)
-        this._transferRootJointTransform(wraps);
+    var fraction = (this._time - frameA.time) / (frameB.time - frameA.time);
+
+    this._pose.interpolate(frameA.value, frameB.value, fraction);
+
+    if (transferRootJoint)
+        this._transferRootJointTransform(wraps, dt);
 
     return true;
 };
 
-HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps)
+HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
     var clip = this._clip;
-    var lastFramePos = clip.getFrame(clip.numFrames - 1).jointPoses[0].position;
-    var firstFramePos = clip.getFrame(0).jointPoses[0].position;
+    var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
+    var firstFramePos = clip.getKeyFrame(0).value.jointPoses[0].position;
 
     var currentPos = this._pose.jointPoses[0].position;
     var rootPos = this._rootPosition;
     var rootDelta = this._rootJointDeltaPosition;
 
-    if (this._timeScale > 0 && numWraps > 0) {
+    if (dt > 0 && numWraps > 0) {
         rootDelta.x = lastFramePos.x - rootPos.x + currentPos.x - firstFramePos.x + (lastFramePos.x - firstFramePos.x) * (numWraps - 1);
         rootDelta.y = lastFramePos.y - rootPos.y + currentPos.y - firstFramePos.y + (lastFramePos.y - firstFramePos.y) * (numWraps - 1);
         rootDelta.z = lastFramePos.z - rootPos.z + currentPos.z - firstFramePos.z + (lastFramePos.z - firstFramePos.z) * (numWraps - 1);

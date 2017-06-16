@@ -5,9 +5,8 @@
 HX.SkeletonClip = function()
 {
     this._name = null;
-    this._frameRate = 24;
-    this._frames = [];
-    this._transferRootJoint = false;
+    this._keyFrames = [];
+    this._duration = 0;
 };
 
 HX.SkeletonClip.prototype =
@@ -22,56 +21,39 @@ HX.SkeletonClip.prototype =
         this._name = value;
     },
 
-    get frameRate()
+    /**
+     * Adds a keyframe. Last keyframe is usually the same pose as the first and serves as an "end marker"
+     * @param frame A KeyFrame containing a SkeletonPose
+     */
+    addKeyFrame: function(frame)
     {
-        return this._frameRate;
-    },
-
-    set frameRate(value)
-    {
-        this._frameRate = value;
+        this._keyFrames.push(frame);
+        if (frame.time > this._duration) this._duration = frame.time;
     },
 
     /**
-     *
-     * @param frame A SkeletonPose
+     * Only call this if for some reason the keyframes were added out of order.
      */
-    addFrame: function(frame)
+    sortKeyFrames: function()
     {
-        this._frames.push(frame);
+        this._keyFrames.sort(function(a, b) {
+            return a.time - b.time;
+        });
     },
 
-    get numFrames()
+    get numKeyFrames()
     {
-        return this._frames.length;
+        return this._keyFrames.length;
     },
 
-    getFrame: function(index)
+    getKeyFrame: function(index)
     {
-        return this._frames[index];
-    },
-
-    get numJoints()
-    {
-        return this._frames[0].jointPoses.length;
+        return this._keyFrames[index];
     },
 
     get duration()
     {
-        return this._frames.length / this._frameRate;
-    },
-
-    /**
-     * If true, the last frame of the clip should be a duplicate of the first, but with the final position offset
-     */
-    get transferRootJoint()
-    {
-        return this._transferRootJoint;
-    },
-
-    set transferRootJoint(value)
-    {
-        this._transferRootJoint = value;
+        return this._duration;
     },
 
     toString: function()

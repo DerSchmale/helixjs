@@ -97,7 +97,9 @@ function initScene(scene)
         loader = new HX.AssetLoader(HX.MD5Anim);
         loader.onComplete = function(clip)
         {
-            modelInstance.addComponent(new HX.SkeletonAnimation(clip));
+            var animation = new HX.SkeletonAnimation(clip);
+            animation.transferRootJoint = true;
+            modelInstance.addComponent(animation);
         };
         loader.load("model/bob_lamp_update.md5anim");
     };

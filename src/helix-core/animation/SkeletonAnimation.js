@@ -12,6 +12,28 @@ HX.SkeletonAnimation = function(rootNode)
 
 HX.SkeletonAnimation.prototype = Object.create(HX.Component.prototype,
     {
+        transferRootJoint: {
+            get: function()
+            {
+                return this._blendTree.transferRootJoint;
+            },
+
+            set: function(value)
+            {
+                this._blendTree.transferRootJoint = value;
+            }
+        },
+        applyInverseBindPose: {
+            get: function()
+            {
+                return this._blendTree.applyInverseBindPose;
+            },
+
+            set: function(value)
+            {
+                this._blendTree.applyInverseBindPose = value;
+            }
+        },
         animationNode: {
             get: function ()
             {

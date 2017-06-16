@@ -60,13 +60,8 @@ HX.SkeletonPose.prototype =
         b = b.jointPoses;
         var len = a.length;
 
-        if (this.jointPoses.length !== len) {
-            this._numJoints = len;
-            this.jointPoses = [];
-            for (var i = 0; i < len; ++i) {
-                this.jointPoses[i] = new HX.SkeletonJointPose();
-            }
-        }
+        if (this.jointPoses.length !== len)
+            this._initJointPoses(len);
 
         var target = this.jointPoses;
         for (i = 0; i < len; ++i) {
@@ -97,11 +92,21 @@ HX.SkeletonPose.prototype =
     {
         a = a.jointPoses;
         var target = this.jointPoses;
-        var len = target.length;
-        for (var i = 0; i < len; ++i) {
-            target[i].copyFrom(a[i]);
-        }
+        var len = a.length;
 
+        if (this.jointPoses.length !== len)
+            this._initJointPoses(len);
+
+        for (var i = 0; i < len; ++i)
+            target[i].copyFrom(a[i]);
+    },
+
+    _initJointPoses: function(numJointPoses)
+    {
+        this._numJoints = numJointPoses;
+        this.jointPoses.length = numJointPoses;
+        for (var i = 0; i < numJointPoses; ++i)
+            this.jointPoses[i] = new HX.SkeletonJointPose();
     }
 };
 

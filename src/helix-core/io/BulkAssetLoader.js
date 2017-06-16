@@ -1,3 +1,7 @@
+/**
+ * TODO: Remove in favour of AssetLibrary
+ * @constructor
+ */
 HX.BulkAssetLoader = function ()
 {
     this._assets = null;

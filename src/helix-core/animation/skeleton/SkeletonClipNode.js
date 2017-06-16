@@ -1,6 +1,5 @@
-
 /**
- *
+ * A node to contain a single clip
  * @param clip
  * @constructor
  */

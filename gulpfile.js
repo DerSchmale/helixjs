@@ -39,8 +39,8 @@ var coreFiles = [
     "src/helix-core/light/ShadowFilter.js",
     "src/helix-core/scene/SceneVisitor.js",
     "src/helix-core/scene/BoundingVolume.js",
-    "src/helix-core/animation/SkeletonBlendNode.js",
-    "src/helix-core/animation/MorphBlendNode.js",
+    "src/helix-core/animation/skeleton/SkeletonBlendNode.js",
+    "src/helix-core/animation/morph/MorphBlendNode.js",
     "src/helix-core/mesh/Model.js",
     "src/helix-core/mesh/primitives/Primitive.js",
 

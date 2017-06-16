@@ -1,5 +1,5 @@
 /**
- *
+ * Blends between two states based on a lerp value.
  * @constructor
  */
 HX.SkeletonBinaryLerpNode = function()

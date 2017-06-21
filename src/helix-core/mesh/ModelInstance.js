@@ -74,10 +74,7 @@ HX.ModelInstance.prototype.init = function(model, materials)
 
     if (model) {
         if (model.skeleton) {
-            this._skeletonPose = [];
-            for (var i = 0; i < model.skeleton.numJoints; ++i) {
-                this._skeletonPose[i] = new HX.Matrix4x4();
-            }
+            this._generateDefaultSkeletonPose();
         }
         model.onChange.bind(this._onModelChange, this);
         this._onModelChange();
@@ -89,6 +86,19 @@ HX.ModelInstance.prototype.init = function(model, materials)
 HX.ModelInstance.prototype.getMeshInstance = function(index)
 {
     return this._meshInstances[index];
+};
+
+HX.ModelInstance.prototype._generateDefaultSkeletonPose = function()
+{
+    if (HX.OPTIONS.useSkinningTexture) {
+        this._skeletonPose = HX.DEFAULT_SKINNING_TEXTURE;
+        return;
+    }
+
+    this._skeletonPose = [];
+    for (var i = 0; i < this._model.skeleton.numJoints; ++i) {
+        this._skeletonPose[i] = new HX.Matrix4x4();
+    }
 };
 
 

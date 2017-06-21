@@ -193,4 +193,23 @@ float hx_linearStep(float lower, float upper, float x)
 }
 
 // sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.
-#define hx_getSkinningMatrix(v) (hx_boneWeights.x * hx_skinningMatrices[int(hx_boneIndices.x)] + hx_boneWeights.y * hx_skinningMatrices[int(hx_boneIndices.y)] + hx_boneWeights.z * hx_skinningMatrices[int(hx_boneIndices.z)] + hx_boneWeights.w * hx_skinningMatrices[int(hx_boneIndices.w)]);
+#ifdef HX_USE_SKINNING_TEXTURE
+#define HX_RCP_MAX_BONES 1.0 / float(HX_MAX_BONES)
+mat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)
+{
+    mat4 m;
+    for (int i = 0; i < 4; ++i) {
+        mat4 t;
+        float index = indices[i] * HX_RCP_MAX_BONES;
+        t[0] = texture2D(tex, vec2(index, 0.0));
+        t[1] = texture2D(tex, vec2(index, 0.5));
+        t[2] = texture2D(tex, vec2(index, 1.0));
+        t[3] = vec4(0.0, 0.0, 0.0, 1.0);
+        m += weights[i] * t;
+    }
+    return m;
+}
+#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_boneWeights, hx_boneIndices, hx_skinningTexture)
+#else
+#define hx_getSkinningMatrix(v) ( hx_boneWeights.x * mat4(hx_skinningMatrices[int(hx_boneIndices.x) * 3], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.y * mat4(hx_skinningMatrices[int(hx_boneIndices.y) * 3], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.z * mat4(hx_skinningMatrices[int(hx_boneIndices.z) * 3], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.w * mat4(hx_skinningMatrices[int(hx_boneIndices.w) * 3], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )
+#endif

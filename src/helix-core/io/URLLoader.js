@@ -2,7 +2,7 @@ HX.URLLoader = function ()
 {
     this._params = undefined;
     this._data = null;
-    this._timeout = 5000;
+    this._timeout = 0;
     this._method = 'GET';
     this._type = HX.URLLoader.DATA_TEXT;
 };
@@ -65,9 +65,14 @@ HX.URLLoader.prototype =
     {
         var request = new XMLHttpRequest();
         request.open(this._method, url, true);
-        request.timeout = this._timeout;
+
+        if (this._timeout)
+            request.timeout = this._timeout;
+
         if (this._type === HX.URLLoader.DATA_BINARY)
             request.responseType = "arraybuffer";
+        else
+            request.overrideMimeType("application/json");
 
         var self = this;
 

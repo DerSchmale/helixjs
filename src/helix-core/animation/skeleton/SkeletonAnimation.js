@@ -67,5 +67,5 @@ HX.SkeletonAnimation.prototype.onUpdate = function(dt)
         matrix.prependTranslation(d);
         this._entity.matrix = matrix;
     }
-    this._entity.skeletonMatrices = this._blendTree.matrices;
+    this._entity.skeletonMatrices = HX.OPTIONS.useSkinningTexture? this._blendTree.texture : this._blendTree.matrices;
 };

@@ -660,6 +660,24 @@ HX.Matrix4x4.prototype =
             array[index + i] = m[i];
     },
 
+    writeData4x3: function(array, index)
+    {
+        var m = this._m;
+        index = index || 0;
+        array[index] = m[0];
+        array[index + 1] = m[4];
+        array[index + 2] = m[8];
+        array[index + 3] = m[12];
+        array[index + 4] = m[1];
+        array[index + 5] = m[5];
+        array[index + 6] = m[9];
+        array[index + 7] = m[13];
+        array[index + 8] = m[2];
+        array[index + 9] = m[6];
+        array[index + 10] = m[10];
+        array[index + 11] = m[14];
+    },
+
     invert: function ()
     {
         this.inverseOf(this);

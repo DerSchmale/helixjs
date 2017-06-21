@@ -10,6 +10,15 @@ HX.SkeletonBlendTree = function(rootNode, skeleton)
     this._matrices = null;
     this._globalPose = new HX.SkeletonPose();
     this._applyInverseBindPose = true;
+
+    // TODO: Should we hide this stuff in SkeletonPose along with matrices?
+    // (only used for the global pose)
+    if (HX.OPTIONS.useSkinningTexture) {
+        this._texture = new HX.Texture2D();
+        this._texture.filter = HX.TextureFilter.NEAREST_NOMIP;
+        this._texture.wrapMode = HX.TextureWrapMode.CLAMP;
+    }
+
     if (skeleton) this.skeleton = skeleton;
 };
 
@@ -40,6 +49,9 @@ HX.SkeletonBlendTree.prototype =
 
     get matrices() { return this._matrices; },
 
+    // only available if HX.OPTIONS.useSkinningTexture is true
+    get texture() { return this._texture; },
+
     setValue: function(id, value)
     {
         this._rootNode.setValue(id, value);
@@ -50,6 +62,9 @@ HX.SkeletonBlendTree.prototype =
         if (this._rootNode.update(dt, this._transferRootJoint)) {
             this._updateGlobalPose();
             this._updateMatrices();
+            if (HX.OPTIONS.useSkinningTexture) {
+                this._updateTexture();
+            }
             return true;
         }
         return false;
@@ -127,5 +142,26 @@ HX.SkeletonBlendTree.prototype =
             mtx.appendQuaternion(pose.rotation);
             mtx.appendTranslation(pose.position);
         }
+    },
+
+    _updateTexture: function()
+    {
+        var len = this._skeleton.numJoints;
+        var data = [];
+
+        // texture coordinates are upside down
+        for (var r = 2; r >= 0; --r) {
+            for (var i = 0; i < len; ++i) {
+                var m = this._matrices[i]._m;
+
+                data.push(m[r], m[r + 4], m[r + 8], m[r + 12]);
+            }
+
+            for (i = len; i < HX.OPTIONS.maxBones; ++i) {
+                data.push(0, 0, 0, 0);
+            }
+        }
+
+        this._texture.uploadData(new Float32Array(data), HX.OPTIONS.maxBones, 3, false, HX_GL.RGBA, HX_GL.FLOAT);
     }
 };

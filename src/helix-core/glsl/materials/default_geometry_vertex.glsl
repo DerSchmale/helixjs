@@ -18,7 +18,11 @@ attribute vec4 hx_boneIndices;
 attribute vec4 hx_boneWeights;
 
 // WebGL doesn't support mat4x3 and I don't want to split the uniform either
-uniform mat4 hx_skinningMatrices[HX_MAX_BONES];
+#ifdef HX_USE_SKINNING_TEXTURE
+uniform sampler2D hx_skinningTexture;
+#else
+uniform vec4 hx_skinningMatrices[HX_MAX_BONES * 3];
+#endif
 #endif
 
 uniform mat4 hx_wvpMatrix;
@@ -58,11 +62,11 @@ void hx_geometry()
 #ifdef USE_SKINNING
     mat4 skinningMatrix = hx_getSkinningMatrix(0);
 
-    vec4 animPosition = skinningMatrix * morphedPosition;
-    vec3 animNormal = mat3(skinningMatrix) * morphedNormal;
+    vec4 animPosition = morphedPosition * skinningMatrix;
+    vec3 animNormal = morphedNormal * mat3(skinningMatrix);
 
     #ifdef NORMAL_MAP
-    vec3 animTangent = mat3(skinningMatrix) * hx_tangent.xyz;
+    vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);
     #endif
 #else
     vec4 animPosition = morphedPosition;

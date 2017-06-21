@@ -16,6 +16,7 @@ var HX_GL = null;
 HX.InitOptions = function()
 {
     this.maxBones = 64;
+    this.useSkinningTexture = true;
 
     // rendering pipeline options
     this.hdr = false;   // only if available
@@ -104,7 +105,10 @@ HX.init = function(canvas, options)
         defines += "#extension GL_EXT_draw_buffers : require\n";
 
     HX.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
-    if (!HX.EXT_FLOAT_TEXTURES) console.warn('OES_texture_float extension not supported!');
+    if (!HX.EXT_FLOAT_TEXTURES) {
+        console.warn('OES_texture_float extension not supported!');
+        HX.OPTIONS.useSkinningTexture = false;
+    }
 
     if (!HX.OPTIONS.ignoreHalfFloatTextureExtension)
         HX.EXT_HALF_FLOAT_TEXTURES = _getExtension('OES_texture_half_float');
@@ -160,6 +164,12 @@ HX.init = function(canvas, options)
     if (HX.OPTIONS.useGammaCorrection && !HX.OPTIONS.hdr) {
         HX.GAMMA_CORRECT_LIGHTS = true;
         defines += "#define HX_GAMMA_CORRECT_LIGHTS\n";
+    }
+
+    if (HX.OPTIONS.useSkinningTexture) {
+        defines += "#define HX_USE_SKINNING_TEXTURE\n";
+
+        this._initDefaultSkinningTexture();
     }
 
     HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
@@ -218,6 +228,19 @@ HX._initLights = function()
     HX.DirectionalLight.SHADOW_FILTER = HX.OPTIONS.directionalShadowFilter;
 };
 
+HX._initDefaultSkinningTexture = function()
+{
+    HX.DEFAULT_SKINNING_TEXTURE = new HX.Texture2D();
+
+    var data = [];
+    for (var i = 0; i < HX.OPTIONS.maxBones; ++i)
+        data.push(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
+
+    HX.DEFAULT_SKINNING_TEXTURE.uploadData(new Float32Array(data), HX.OPTIONS.maxBones, 3, false, HX_GL.RGBA, HX_GL.FLOAT);
+    HX.DEFAULT_SKINNING_TEXTURE.filter = HX.TextureFilter.NEAREST_NOMIP;
+    HX.DEFAULT_SKINNING_TEXTURE.wrapMode = HX.TextureWrapMode.CLAMP;
+};
+
 HX._init2DDitherTexture = function(width, height)
 {
     HX.DEFAULT_2D_DITHER_TEXTURE = new HX.Texture2D();
@@ -225,7 +248,7 @@ HX._init2DDitherTexture = function(width, height)
     var minValue = 1.0 / len;
     var data = [];
     var k = 0;
-    var values = []
+    var values = [];
     var i;
 
     for (i = 0; i < len; ++i) {

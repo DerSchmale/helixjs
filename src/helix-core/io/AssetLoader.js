@@ -45,7 +45,7 @@ HX.AssetLoader.prototype =
 
             image.onError = function() {
                 console.warn("Failed loading texture '" + filename + "'");
-                fail();
+                fail.call(this);
             };
             image.src = filename;
         }

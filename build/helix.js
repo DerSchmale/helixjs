@@ -389,13 +389,13 @@ HX.ShaderLibrary = {
     }
 };
 
-HX.ShaderLibrary['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
-
-HX.ShaderLibrary['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
-
 HX.ShaderLibrary['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    // schlick-smith\n    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));\n    float nDotV = max(dot(normal, reflection), 0.0);\n    float denom = nDotV * (1.0 - k) + k;\n    return nDotV * nDotV / (denom * denom);   // since l == v*/\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
 
 HX.ShaderLibrary['lighting_ggx.glsl'] = '// TODO: Implement this: https://learnopengl.com/#!PBR/Theory\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif\n}';
+
+HX.ShaderLibrary['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
+
+HX.ShaderLibrary['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
 HX.ShaderLibrary['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n// HX_MAX_CASCADES is the maximum amount of all cascades for the lights used in this shader\n    #if HX_MAX_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_MAX_CASCADES - 1; ++i) {\n            // remember, negative Z!\n            if (viewPos.z > light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_MAX_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    float shadow = hx_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);\n    return max(shadow, float(viewPos.z < light.maxShadowDistance));\n}';
 
@@ -455,18 +455,6 @@ HX.ShaderLibrary['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nunifo
 
 HX.ShaderLibrary['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	gl_FragColor = color / (1.0 + lum);\n}';
 
-HX.ShaderLibrary['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
-
-HX.ShaderLibrary['dir_shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
-
-HX.ShaderLibrary['dir_shadow_pcf.glsl'] = '#ifdef HX_PCF_DITHER_SHADOWS\n    uniform sampler2D hx_dither2D;\n    uniform vec2 hx_dither2DTextureScale;\n#endif\n\nuniform vec2 hx_poissonDisk[HX_PCF_NUM_SHADOW_SAMPLES];\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec2 radii = vec2(shadowMapMatrix[0][0], shadowMapMatrix[1][1]) * float(HX_PCF_SOFTNESS);\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowTest = 0.0;\n\n    #ifdef HX_PCF_DITHER_SHADOWS\n        vec4 dither = texture2D(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);\n        dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale\n    #else\n        vec4 dither = radii.xxyy;\n    #endif\n\n    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {\n        vec2 offset;\n        offset.x = dot(dither.xy, hx_poissonDisk[i]);\n        offset.y = dot(dither.zw, hx_poissonDisk[i]);\n        float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy + offset));\n        float diff = shadowMapCoord.z - shadowSample - depthBias;\n        shadowTest += float(diff < 0.0);\n    }\n\n    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;\n}';
-
-HX.ShaderLibrary['dir_shadow_vsm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // TODO: add dFdx, dFdy stuff\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(depth * depth));\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) / HX_VSM_LIGHT_BLEED_REDUCTION_RANGE);\n}';
-
-HX.ShaderLibrary['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	gl_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
-
-HX.ShaderLibrary['vsm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n	gl_FragColor.xy = hx_floatToRG8(total.x);\n	gl_FragColor.zw = hx_floatToRG8(total.y);\n}';
-
 HX.ShaderLibrary['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
 
 HX.ShaderLibrary['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
@@ -479,6 +467,24 @@ HX.ShaderLibrary['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4
 
 HX.ShaderLibrary['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
+HX.ShaderLibrary['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
+
+HX.ShaderLibrary['dir_shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
+
+HX.ShaderLibrary['dir_shadow_pcf.glsl'] = '#ifdef HX_PCF_DITHER_SHADOWS\n    uniform sampler2D hx_dither2D;\n    uniform vec2 hx_dither2DTextureScale;\n#endif\n\nuniform vec2 hx_poissonDisk[HX_PCF_NUM_SHADOW_SAMPLES];\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec2 radii = vec2(shadowMapMatrix[0][0], shadowMapMatrix[1][1]) * float(HX_PCF_SOFTNESS);\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowTest = 0.0;\n\n    #ifdef HX_PCF_DITHER_SHADOWS\n        vec4 dither = texture2D(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);\n        dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale\n    #else\n        vec4 dither = radii.xxyy;\n    #endif\n\n    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {\n        vec2 offset;\n        offset.x = dot(dither.xy, hx_poissonDisk[i]);\n        offset.y = dot(dither.zw, hx_poissonDisk[i]);\n        float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy + offset));\n        float diff = shadowMapCoord.z - shadowSample - depthBias;\n        shadowTest += float(diff < 0.0);\n    }\n\n    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;\n}';
+
+HX.ShaderLibrary['dir_shadow_vsm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // TODO: add dFdx, dFdy stuff\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(depth * depth));\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) / HX_VSM_LIGHT_BLEED_REDUCTION_RANGE);\n}';
+
+HX.ShaderLibrary['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	gl_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
+
+HX.ShaderLibrary['vsm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n	gl_FragColor.xy = hx_floatToRG8(total.x);\n	gl_FragColor.zw = hx_floatToRG8(total.y);\n}';
+
+HX.ShaderLibrary['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(normal.z*8.0 + 8.0);\n    data = normal.xy / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xy = data.xy * g;\n    normal.z = 1.0 - f * .5;\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_BONES 1.0 / float(HX_MAX_BONES - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_BONES;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_boneWeights, hx_boneIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_boneWeights.x * mat4(hx_skinningMatrices[int(hx_boneIndices.x) * 3], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.y * mat4(hx_skinningMatrices[int(hx_boneIndices.y) * 3], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.z * mat4(hx_skinningMatrices[int(hx_boneIndices.z) * 3], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.w * mat4(hx_skinningMatrices[int(hx_boneIndices.w) * 3], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
+
+HX.ShaderLibrary['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires\n};';
+
+HX.ShaderLibrary['snippets_tonemap.glsl'] = 'varying vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
+
 HX.ShaderLibrary['2d_to_cube_vertex.glsl'] = '// position to write to\nattribute vec4 hx_position;\n\n// the corner of the cube map\nattribute vec3 corner;\n\nvarying vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
 
 HX.ShaderLibrary['equirectangular_to_cube_fragment.glsl'] = '#define RECIPROCAL_PI2 0.15915494\n\nvarying vec3 direction;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    vec3 dir = normalize(direction);\n    vec2 uv;\n    uv.x = atan( dir.z, dir.x ) * RECIPROCAL_PI2 + 0.5;\n	uv.y = dir.y * 0.5 + 0.5;\n    gl_FragColor = texture2D(source, uv);\n}\n';
@@ -486,12 +492,6 @@ HX.ShaderLibrary['equirectangular_to_cube_fragment.glsl'] = '#define RECIPROCAL_
 HX.ShaderLibrary['greyscale_to_rgba8.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    gl_FragColor = hx_floatToRGBA8(texture2D(source, uv).x);\n}\n';
 
 HX.ShaderLibrary['smooth_heightmap_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D reference;    // the source (8 bit) texture\nuniform sampler2D source;\n\nuniform vec2 stepSize;\n\nvoid main()\n{\n    float gauss[4];\n    gauss[0] = 0.201788613113303;\n    gauss[1] = 0.17755834971394;\n    gauss[2] = 0.120969095455128;\n    gauss[3] = 0.063811162332456;\n    float refHeight = texture2D(reference, uv).x;\n    float total = hx_RGBA8ToFloat(texture2D(source, uv)) * gauss[0];\n    float totalWeight = gauss[0];\n    float currentWeightL = 1.0;\n    float currentWeightR = 1.0;\n    vec2 offset = vec2(0.0);\n\n\n    for (int i = 0; i < 3; ++i) {\n        offset += stepSize;\n        float refLeft = texture2D(reference, uv - offset).x;\n        float refRight = texture2D(reference, uv + offset).x;\n        float heightLeft = hx_RGBA8ToFloat(texture2D(source, uv - offset));\n        float heightRight = hx_RGBA8ToFloat(texture2D(source, uv + offset));\n        // smooth out over N pixels that have the same reference height in the source image\n        currentWeightL = max(currentWeightL - abs(refLeft - refHeight) * 5.0, 0.0);\n        currentWeightR = max(currentWeightR - abs(refRight - refHeight) * 5.0, 0.0);\n        totalWeight += (currentWeightL + currentWeightR) * gauss[i + 1];\n        total += (heightLeft * currentWeightL + heightRight * currentWeightR) *  gauss[i + 1];\n    }\n\n    gl_FragColor = hx_floatToRGBA8(total / totalWeight);\n//    gl_FragColor = hx_floatToRGBA8(refHeight);\n}\n';
-
-HX.ShaderLibrary['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(normal.z*8.0 + 8.0);\n    data = normal.xy / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xy = data.xy * g;\n    normal.z = 1.0 - f * .5;\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_BONES 1.0 / float(HX_MAX_BONES - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m;\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_BONES;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_boneWeights, hx_boneIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_boneWeights.x * mat4(hx_skinningMatrices[int(hx_boneIndices.x) * 3], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.y * mat4(hx_skinningMatrices[int(hx_boneIndices.y) * 3], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.z * mat4(hx_skinningMatrices[int(hx_boneIndices.z) * 3], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.w * mat4(hx_skinningMatrices[int(hx_boneIndices.w) * 3], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
-
-HX.ShaderLibrary['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires\n};';
-
-HX.ShaderLibrary['snippets_tonemap.glsl'] = 'varying vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    float referenceLuminance = exp(texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
 
 HX.ShaderLibrary['ao_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 halfTexelOffset;\n\nvoid main()\n{\n    vec4 total = texture2D(source, uv - halfTexelOffset * 3.0);\n    total += texture2D(source, uv + halfTexelOffset);\n	gl_FragColor = total * .5;\n}';
 
@@ -14855,6 +14855,424 @@ HX.StatsDisplay.prototype =
     }
 };
 /**
+ * This just contains a static pose.
+ * @param positionOrMesh A flat list of floats (3 per coord), or a mesh (that would use the basic pose)
+ * @constructor
+ */
+HX.MorphAdditiveNode = function()
+{
+    HX.MorphBlendNode.call(this, false);
+    if (!HX.MorphAdditiveNode.COPY_SHADER) {
+        HX.MorphAdditiveNode.COPY_SHADER = new HX.BlendColorCopyShader();
+    }
+    this._baseNode = null;
+    this._additiveNodes = [];
+    this._hasChanged = true;
+};
+
+HX.MorphAdditiveNode.prototype = Object.create(HX.MorphBlendNode.prototype,
+{
+    baseNode: {
+        get: function()
+        {
+            return this._baseNode;
+        },
+
+        set: function(value)
+        {
+            this._baseNode = value;
+            if (this._mesh)
+                this._baseNode.setMesh(this._mesh);
+
+            this._hasChanged = true;
+        }
+    }
+});
+
+HX.MorphAdditiveNode.prototype.addAdditiveNode = function(value)
+{
+    this._additiveNodes.push(value);
+    if (this._mesh)
+        value.setMesh(this._mesh);
+
+    this._hasChanged = true;
+};
+
+HX.MorphAdditiveNode.prototype.setValue = function(id, value)
+{
+    HX.MorphBlendNode.prototype.setValue.call(this, id, value);
+
+    if (this._baseNode)
+        this._baseNode.setValue(id, value);
+
+    for (var i = 0; i < this._additiveNodes.length; ++i)
+        this._additiveNodes[i].setValue(id, value);
+};
+
+HX.MorphAdditiveNode.prototype.getValueIDs = function(target)
+{
+    HX.MorphBlendNode.prototype.getValueIDs.call(this, target);
+
+    if (this._baseNode)
+        this._baseNode.getValueIDs(target);
+
+    for (var i = 0; i < this._additiveNodes.length; ++i)
+        this._additiveNodes[i].getValueIDs(target);
+
+    this._hasChanged = true;
+};
+
+HX.MorphAdditiveNode.prototype.setMesh = function(mesh)
+{
+    HX.MorphBlendNode.prototype.setMesh.call(this, mesh);
+
+    // use base pose if only additive poses were provided
+    if (!this._baseNode) this._baseNode = new HX.MorphStaticNode(mesh.baseMorphPose);
+
+    this._baseNode.setMesh(mesh);
+
+    for (var i = 0; i < this._additiveNodes.length; ++i) {
+        this._additiveNodes[i].setMesh(mesh);
+    }
+
+    this._hasChanged = true;
+};
+
+HX.MorphAdditiveNode.prototype.update = function(dt)
+{
+    var updated = this._baseNode.update(dt) || this._hasChanged;
+
+    for (var i = 0; i < this._additiveNodes.length; ++i)
+        updated = this._additiveNodes[i].update(dt) || updated;
+
+    if (!updated) return;
+
+    this._hasChanged = false;
+
+    HX.setRenderTarget(this._pose.positionFBO);
+    HX.clear();
+
+    HX.COPY_SHADER.execute(HX.RectMesh.DEFAULT, this._baseNode.pose.positionTexture);
+
+    HX.setBlendState(HX.BlendState.ADD);
+
+    var len = this._additiveNodes.length;
+    for (i = 0; i < len; ++i) {
+        var node = this._additiveNodes[i];
+        var weight = node._weight;
+        if (weight > 0.0) {
+            HX.MorphAdditiveNode.COPY_SHADER.setBlendColor(weight, weight, weight, weight);
+            HX.MorphAdditiveNode.COPY_SHADER.execute(HX.RectMesh.DEFAULT, this._additiveNodes[i].pose.positionTexture);
+        }
+    }
+
+    HX.setBlendState(null);
+};
+/**
+ *
+ * @constructor
+ */
+HX.MorphAnimation = function()
+{
+    HX.Component.call(this);
+
+    this._blendTree = new HX.MorphBlendTree();
+};
+
+HX.MorphAnimation.prototype = Object.create(HX.Component.prototype,
+    {
+
+    }
+);
+
+HX.MorphAnimation.prototype.setValue = function(id, value)
+{
+    this._blendTree.setValue(id, value);
+};
+
+HX.MorphAnimation.prototype.getValueIDs = function()
+{
+    return this._blendTree.getValueIDs();
+};
+
+HX.MorphAnimation.prototype.getAnimationNode = function(meshIndex)
+{
+    return this._blendTree.getRootNode(meshIndex);
+};
+
+HX.MorphAnimation.prototype.setAnimationNode = function(meshIndex, value)
+{
+    this._blendTree.setRootNode(meshIndex, value);
+};
+
+HX.MorphAnimation.prototype.onAdded = function()
+{
+    this._blendTree.setModel(this.entity.model);
+
+    for (var i = 0; i < this.entity.numMeshInstances; ++i) {
+        var meshInstance = this.entity.getMeshInstance(i);
+        var pose = this._blendTree.getPose(i);
+        if (pose)
+            meshInstance.morphPose = pose;
+    }
+};
+
+HX.MorphAnimation.prototype.onRemoved = function()
+{
+    // reset base morph positions
+    for (var i = 0; i < this.entity.numMeshInstances; ++i) {
+        var meshInstance = this.entity.getMeshInstance(i);
+        meshInstance.morphPose = meshInstance.mesh.baseMorphPose;
+    }
+};
+
+HX.MorphAnimation.prototype.onUpdate = function(dt)
+{
+    this._blendTree.update(dt);
+
+    for (var i = 0; i < this.entity.numMeshInstances; ++i) {
+        var meshInstance = this.entity.getMeshInstance(i);
+        var pose = this._blendTree.getPose(i);
+        if (pose)
+            meshInstance.morphPose = pose;
+    }
+};
+HX.MorphBlendTree = function()
+{
+    // there's a root node per mesh instance
+    this._rootNodes = [];
+};
+
+HX.MorphBlendTree.prototype =
+{
+    setModel: function(value)
+    {
+        this._model = value;
+        for (var i = 0; i < this._rootNodes.length; ++i) {
+            if (this._rootNodes[i])
+                this._rootNodes[i].setMesh(value.getMesh(i));
+        }
+    },
+
+    getValueIDs: function()
+    {
+        var target = [];
+        for (var i = 0; i < this._rootNodes.length; ++i) {
+            if (this._rootNodes[i])
+                this._rootNodes[i].getValueIDs(target);
+        }
+        return target;
+    },
+
+    getPose: function(meshIndex)
+    {
+        var node = this._rootNodes[meshIndex];
+        return node? node.pose : null;
+    },
+
+    getRootNode: function(meshIndex)
+    {
+        return this._rootNodes[meshIndex]
+    },
+
+    setRootNode: function(meshIndex, rootNode)
+    {
+        this._rootNodes[meshIndex] = rootNode;
+
+        if (rootNode && this._model) {
+            var mesh = this._model.getMeshInstance(meshIndex).mesh;
+            rootNode.setMesh(mesh);
+        }
+    },
+
+    setValue: function(id, value)
+    {
+        for (var i = 0; i < this._rootNodes.length; ++i)
+        {
+            if (this._rootNodes[i])
+                this._rootNodes[i].setValue(id, value);
+        }
+    },
+
+    update: function(dt)
+    {
+        // TODO: get an invalidation routine going, returning update() boolean like in the skeleton tree
+        for (var i = 0; i < this._rootNodes.length; ++i) {
+            if (this._rootNodes[i])
+                this._rootNodes[i].update(dt);
+        }
+    }
+};
+
+HX.MorphData = function()
+{
+    this.positions = [];
+    this.masks = [];
+    this._numVertices = 0;
+};
+
+HX.MorphPose = function()
+{
+    this._positionTexture = new HX.Texture2D();
+    this._positionTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
+    this._positionTexture.wrapMode = HX.TextureWrapMode.CLAMP;
+    this._positionFBO = new HX.FrameBuffer(this._positionTexture);
+};
+
+HX.MorphPose.getTextureDimensions = function(numVertices)
+{
+    var f = new HX.Float2();
+    f.x = Math.ceil(Math.sqrt(numVertices));
+    f.y = Math.ceil(numVertices / f.x);
+    return f;
+};
+
+
+HX.MorphPose.prototype =
+{
+    get numVertices()
+    {
+        return this._numVertices;
+    },
+
+    get positionTexture()
+    {
+        return this._positionTexture;
+    },
+
+    get positionFBO()
+    {
+        return this._positionFBO;
+    },
+
+    /**
+     *
+     * @param positions An Array of 3 floats per vertex
+     * @param masks An Array of 1 float per vertex
+     */
+    initFromMorphData: function(data)
+    {
+        var positions = data.positions;
+        var masks = data.masks;
+        this._numVertices = positions.length / 3;
+        var dim = HX.MorphPose.getTextureDimensions(this._numVertices);
+        var texData = [];
+        var type = HX.EXT_HALF_FLOAT_TEXTURES? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.FLOAT;
+
+        var t = 0;
+        var p = 0;
+        for (var i = 0; i < this._numVertices; ++i) {
+            texData[t++] = positions[p++];
+            texData[t++] = positions[p++];
+            texData[t++] = positions[p++];
+            texData[t++] = masks[i];
+        }
+
+        var len = dim.x * dim.y * 4;
+        for (i = texData.length; i < len; ++i)
+            texData[i] = 0.0;
+
+        this._positionTexture.uploadData(new Float32Array(texData), dim.x, dim.y, false, HX_GL.RGBA, type);
+        this._positionFBO.init();
+    },
+
+    initFromMeshData: function(meshData)
+    {
+        this._numVertices = meshData.numVertices;
+        var dim = HX.MorphPose.getTextureDimensions(meshData.numVertices);
+        var posAttrib = meshData.getVertexAttribute("hx_position");
+        var stride = meshData.getVertexStride(posAttrib.streamIndex);
+        var data = meshData.getVertexData(posAttrib.streamIndex);
+        var texData = [];
+        var type = HX.EXT_HALF_FLOAT_TEXTURES? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.FLOAT;
+
+        var t = 0;
+        for (var i = posAttrib.offset; i < data.length; i += stride) {
+            texData[t++] = data[i];
+            texData[t++] = data[i + 1];
+            texData[t++] = data[i + 2];
+            texData[t++] = 1.0;
+        }
+
+        // fill up texture
+        var len = dim.x * dim.y * 4;
+        while (t < len)
+            texData[t++] = 0.0;
+
+        this._positionTexture.uploadData(new Float32Array(texData), dim.x, dim.y, false, HX_GL.RGBA, type);
+        this._positionFBO.init();
+    },
+
+    clone: function()
+    {
+        var copy = new HX.MorphPose();
+        copy.copyFrom(this);
+        return copy;
+    },
+
+    copyFrom: function(pose)
+    {
+        if (pose.positionTexture.width !== this._positionTexture.width || pose.positionTexture.height !== this._positionTexture.height) {
+            var type = HX.EXT_HALF_FLOAT_TEXTURES? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.FLOAT;
+            this._positionTexture.initEmpty(pose.positionTexture.width, pose.positionTexture.height, HX_GL.RGBA, type);
+            this._positionFBO.init();
+        }
+        HX.TextureUtils.copy(pose.positionTexture, this._positionFBO);
+    }
+};
+/**
+ * This just contains a static pose.
+ * @param positionOrMesh A flat list of floats (3 per coord + 1 mask value), or a mesh (that would use the basic pose)
+ * @constructor
+ */
+HX.MorphStaticNode = function(pose)
+{
+    HX.MorphBlendNode.call(this, pose);
+
+    // the weight is only used if this node is additive. It's placed here to be able to link the weight with the node value ID
+    // TODO: Consider changing this, by setting the weights in the parent and allowing multiple values to be registered per node
+    this._weight = 0.0;
+    this._hasChanged = true;
+
+    this._pose = pose;
+};
+
+HX.MorphStaticNode.prototype = Object.create(HX.MorphBlendNode.prototype, {
+    weight: {
+        get: function()
+        {
+            return this._weight;
+        },
+
+        set: function(value)
+        {
+            if (value !== this._weight)
+                this._hasChanged = true;
+            this._weight = value;
+        }
+    }
+});
+
+HX.MorphStaticNode.prototype.update = function(dt)
+{
+    // notify parent using the weight that it has changed
+    var hasChanged = this._hasChanged;
+    this._hasChanged = false;
+    return hasChanged;
+};
+
+HX.MorphStaticNode.prototype.setMesh = function(mesh)
+{
+    if (this._pose.numVertices !== mesh.numVertices)
+        throw new Error("Incompatible morph targets (pose vertex count mismatch).");
+};
+
+HX.MorphStaticNode.prototype._applyValue = function(value)
+{
+    this.weight = value;
+};
+
+/**
  *
  * @constructor
  */
@@ -15724,424 +16142,6 @@ HX.SkeletonXFadeNode.prototype.fadeTo = function(node, time)
     });
 };
 /**
- * This just contains a static pose.
- * @param positionOrMesh A flat list of floats (3 per coord), or a mesh (that would use the basic pose)
- * @constructor
- */
-HX.MorphAdditiveNode = function()
-{
-    HX.MorphBlendNode.call(this, false);
-    if (!HX.MorphAdditiveNode.COPY_SHADER) {
-        HX.MorphAdditiveNode.COPY_SHADER = new HX.BlendColorCopyShader();
-    }
-    this._baseNode = null;
-    this._additiveNodes = [];
-    this._hasChanged = true;
-};
-
-HX.MorphAdditiveNode.prototype = Object.create(HX.MorphBlendNode.prototype,
-{
-    baseNode: {
-        get: function()
-        {
-            return this._baseNode;
-        },
-
-        set: function(value)
-        {
-            this._baseNode = value;
-            if (this._mesh)
-                this._baseNode.setMesh(this._mesh);
-
-            this._hasChanged = true;
-        }
-    }
-});
-
-HX.MorphAdditiveNode.prototype.addAdditiveNode = function(value)
-{
-    this._additiveNodes.push(value);
-    if (this._mesh)
-        value.setMesh(this._mesh);
-
-    this._hasChanged = true;
-};
-
-HX.MorphAdditiveNode.prototype.setValue = function(id, value)
-{
-    HX.MorphBlendNode.prototype.setValue.call(this, id, value);
-
-    if (this._baseNode)
-        this._baseNode.setValue(id, value);
-
-    for (var i = 0; i < this._additiveNodes.length; ++i)
-        this._additiveNodes[i].setValue(id, value);
-};
-
-HX.MorphAdditiveNode.prototype.getValueIDs = function(target)
-{
-    HX.MorphBlendNode.prototype.getValueIDs.call(this, target);
-
-    if (this._baseNode)
-        this._baseNode.getValueIDs(target);
-
-    for (var i = 0; i < this._additiveNodes.length; ++i)
-        this._additiveNodes[i].getValueIDs(target);
-
-    this._hasChanged = true;
-};
-
-HX.MorphAdditiveNode.prototype.setMesh = function(mesh)
-{
-    HX.MorphBlendNode.prototype.setMesh.call(this, mesh);
-
-    // use base pose if only additive poses were provided
-    if (!this._baseNode) this._baseNode = new HX.MorphStaticNode(mesh.baseMorphPose);
-
-    this._baseNode.setMesh(mesh);
-
-    for (var i = 0; i < this._additiveNodes.length; ++i) {
-        this._additiveNodes[i].setMesh(mesh);
-    }
-
-    this._hasChanged = true;
-};
-
-HX.MorphAdditiveNode.prototype.update = function(dt)
-{
-    var updated = this._baseNode.update(dt) || this._hasChanged;
-
-    for (var i = 0; i < this._additiveNodes.length; ++i)
-        updated = this._additiveNodes[i].update(dt) || updated;
-
-    if (!updated) return;
-
-    this._hasChanged = false;
-
-    HX.setRenderTarget(this._pose.positionFBO);
-    HX.clear();
-
-    HX.COPY_SHADER.execute(HX.RectMesh.DEFAULT, this._baseNode.pose.positionTexture);
-
-    HX.setBlendState(HX.BlendState.ADD);
-
-    var len = this._additiveNodes.length;
-    for (i = 0; i < len; ++i) {
-        var node = this._additiveNodes[i];
-        var weight = node._weight;
-        if (weight > 0.0) {
-            HX.MorphAdditiveNode.COPY_SHADER.setBlendColor(weight, weight, weight, weight);
-            HX.MorphAdditiveNode.COPY_SHADER.execute(HX.RectMesh.DEFAULT, this._additiveNodes[i].pose.positionTexture);
-        }
-    }
-
-    HX.setBlendState(null);
-};
-/**
- *
- * @constructor
- */
-HX.MorphAnimation = function()
-{
-    HX.Component.call(this);
-
-    this._blendTree = new HX.MorphBlendTree();
-};
-
-HX.MorphAnimation.prototype = Object.create(HX.Component.prototype,
-    {
-
-    }
-);
-
-HX.MorphAnimation.prototype.setValue = function(id, value)
-{
-    this._blendTree.setValue(id, value);
-};
-
-HX.MorphAnimation.prototype.getValueIDs = function()
-{
-    return this._blendTree.getValueIDs();
-};
-
-HX.MorphAnimation.prototype.getAnimationNode = function(meshIndex)
-{
-    return this._blendTree.getRootNode(meshIndex);
-};
-
-HX.MorphAnimation.prototype.setAnimationNode = function(meshIndex, value)
-{
-    this._blendTree.setRootNode(meshIndex, value);
-};
-
-HX.MorphAnimation.prototype.onAdded = function()
-{
-    this._blendTree.setModel(this.entity.model);
-
-    for (var i = 0; i < this.entity.numMeshInstances; ++i) {
-        var meshInstance = this.entity.getMeshInstance(i);
-        var pose = this._blendTree.getPose(i);
-        if (pose)
-            meshInstance.morphPose = pose;
-    }
-};
-
-HX.MorphAnimation.prototype.onRemoved = function()
-{
-    // reset base morph positions
-    for (var i = 0; i < this.entity.numMeshInstances; ++i) {
-        var meshInstance = this.entity.getMeshInstance(i);
-        meshInstance.morphPose = meshInstance.mesh.baseMorphPose;
-    }
-};
-
-HX.MorphAnimation.prototype.onUpdate = function(dt)
-{
-    this._blendTree.update(dt);
-
-    for (var i = 0; i < this.entity.numMeshInstances; ++i) {
-        var meshInstance = this.entity.getMeshInstance(i);
-        var pose = this._blendTree.getPose(i);
-        if (pose)
-            meshInstance.morphPose = pose;
-    }
-};
-HX.MorphBlendTree = function()
-{
-    // there's a root node per mesh instance
-    this._rootNodes = [];
-};
-
-HX.MorphBlendTree.prototype =
-{
-    setModel: function(value)
-    {
-        this._model = value;
-        for (var i = 0; i < this._rootNodes.length; ++i) {
-            if (this._rootNodes[i])
-                this._rootNodes[i].setMesh(value.getMesh(i));
-        }
-    },
-
-    getValueIDs: function()
-    {
-        var target = [];
-        for (var i = 0; i < this._rootNodes.length; ++i) {
-            if (this._rootNodes[i])
-                this._rootNodes[i].getValueIDs(target);
-        }
-        return target;
-    },
-
-    getPose: function(meshIndex)
-    {
-        var node = this._rootNodes[meshIndex];
-        return node? node.pose : null;
-    },
-
-    getRootNode: function(meshIndex)
-    {
-        return this._rootNodes[meshIndex]
-    },
-
-    setRootNode: function(meshIndex, rootNode)
-    {
-        this._rootNodes[meshIndex] = rootNode;
-
-        if (rootNode && this._model) {
-            var mesh = this._model.getMeshInstance(meshIndex).mesh;
-            rootNode.setMesh(mesh);
-        }
-    },
-
-    setValue: function(id, value)
-    {
-        for (var i = 0; i < this._rootNodes.length; ++i)
-        {
-            if (this._rootNodes[i])
-                this._rootNodes[i].setValue(id, value);
-        }
-    },
-
-    update: function(dt)
-    {
-        // TODO: get an invalidation routine going, returning update() boolean like in the skeleton tree
-        for (var i = 0; i < this._rootNodes.length; ++i) {
-            if (this._rootNodes[i])
-                this._rootNodes[i].update(dt);
-        }
-    }
-};
-
-HX.MorphData = function()
-{
-    this.positions = [];
-    this.masks = [];
-    this._numVertices = 0;
-};
-
-HX.MorphPose = function()
-{
-    this._positionTexture = new HX.Texture2D();
-    this._positionTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
-    this._positionTexture.wrapMode = HX.TextureWrapMode.CLAMP;
-    this._positionFBO = new HX.FrameBuffer(this._positionTexture);
-};
-
-HX.MorphPose.getTextureDimensions = function(numVertices)
-{
-    var f = new HX.Float2();
-    f.x = Math.ceil(Math.sqrt(numVertices));
-    f.y = Math.ceil(numVertices / f.x);
-    return f;
-};
-
-
-HX.MorphPose.prototype =
-{
-    get numVertices()
-    {
-        return this._numVertices;
-    },
-
-    get positionTexture()
-    {
-        return this._positionTexture;
-    },
-
-    get positionFBO()
-    {
-        return this._positionFBO;
-    },
-
-    /**
-     *
-     * @param positions An Array of 3 floats per vertex
-     * @param masks An Array of 1 float per vertex
-     */
-    initFromMorphData: function(data)
-    {
-        var positions = data.positions;
-        var masks = data.masks;
-        this._numVertices = positions.length / 3;
-        var dim = HX.MorphPose.getTextureDimensions(this._numVertices);
-        var texData = [];
-        var type = HX.EXT_HALF_FLOAT_TEXTURES? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.FLOAT;
-
-        var t = 0;
-        var p = 0;
-        for (var i = 0; i < this._numVertices; ++i) {
-            texData[t++] = positions[p++];
-            texData[t++] = positions[p++];
-            texData[t++] = positions[p++];
-            texData[t++] = masks[i];
-        }
-
-        var len = dim.x * dim.y * 4;
-        for (i = texData.length; i < len; ++i)
-            texData[i] = 0.0;
-
-        this._positionTexture.uploadData(new Float32Array(texData), dim.x, dim.y, false, HX_GL.RGBA, type);
-        this._positionFBO.init();
-    },
-
-    initFromMeshData: function(meshData)
-    {
-        this._numVertices = meshData.numVertices;
-        var dim = HX.MorphPose.getTextureDimensions(meshData.numVertices);
-        var posAttrib = meshData.getVertexAttribute("hx_position");
-        var stride = meshData.getVertexStride(posAttrib.streamIndex);
-        var data = meshData.getVertexData(posAttrib.streamIndex);
-        var texData = [];
-        var type = HX.EXT_HALF_FLOAT_TEXTURES? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.FLOAT;
-
-        var t = 0;
-        for (var i = posAttrib.offset; i < data.length; i += stride) {
-            texData[t++] = data[i];
-            texData[t++] = data[i + 1];
-            texData[t++] = data[i + 2];
-            texData[t++] = 1.0;
-        }
-
-        // fill up texture
-        var len = dim.x * dim.y * 4;
-        while (t < len)
-            texData[t++] = 0.0;
-
-        this._positionTexture.uploadData(new Float32Array(texData), dim.x, dim.y, false, HX_GL.RGBA, type);
-        this._positionFBO.init();
-    },
-
-    clone: function()
-    {
-        var copy = new HX.MorphPose();
-        copy.copyFrom(this);
-        return copy;
-    },
-
-    copyFrom: function(pose)
-    {
-        if (pose.positionTexture.width !== this._positionTexture.width || pose.positionTexture.height !== this._positionTexture.height) {
-            var type = HX.EXT_HALF_FLOAT_TEXTURES? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.FLOAT;
-            this._positionTexture.initEmpty(pose.positionTexture.width, pose.positionTexture.height, HX_GL.RGBA, type);
-            this._positionFBO.init();
-        }
-        HX.TextureUtils.copy(pose.positionTexture, this._positionFBO);
-    }
-};
-/**
- * This just contains a static pose.
- * @param positionOrMesh A flat list of floats (3 per coord + 1 mask value), or a mesh (that would use the basic pose)
- * @constructor
- */
-HX.MorphStaticNode = function(pose)
-{
-    HX.MorphBlendNode.call(this, pose);
-
-    // the weight is only used if this node is additive. It's placed here to be able to link the weight with the node value ID
-    // TODO: Consider changing this, by setting the weights in the parent and allowing multiple values to be registered per node
-    this._weight = 0.0;
-    this._hasChanged = true;
-
-    this._pose = pose;
-};
-
-HX.MorphStaticNode.prototype = Object.create(HX.MorphBlendNode.prototype, {
-    weight: {
-        get: function()
-        {
-            return this._weight;
-        },
-
-        set: function(value)
-        {
-            if (value !== this._weight)
-                this._hasChanged = true;
-            this._weight = value;
-        }
-    }
-});
-
-HX.MorphStaticNode.prototype.update = function(dt)
-{
-    // notify parent using the weight that it has changed
-    var hasChanged = this._hasChanged;
-    this._hasChanged = false;
-    return hasChanged;
-};
-
-HX.MorphStaticNode.prototype.setMesh = function(mesh)
-{
-    if (this._pose.numVertices !== mesh.numVertices)
-        throw new Error("Incompatible morph targets (pose vertex count mismatch).");
-};
-
-HX.MorphStaticNode.prototype._applyValue = function(value)
-{
-    this.weight = value;
-};
-
-/**
  * @constructor
  */
 HX.BoxPrimitive = HX.Primitive.define();
@@ -16773,4 +16773,4 @@ HX.TorusPrimitive._generate = function(target, definition)
             }
         }
     }
-};HX.BUILD_HASH = 0xcac6;
+};HX.BUILD_HASH = 0xc0c6;

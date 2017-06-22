@@ -197,7 +197,7 @@ float hx_linearStep(float lower, float upper, float x)
 #define HX_RCP_MAX_BONES 1.0 / float(HX_MAX_BONES - 1)
 mat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)
 {
-    mat4 m;
+    mat4 m = mat4(0.0);
     for (int i = 0; i < 4; ++i) {
         mat4 t;
         float index = indices[i] * HX_RCP_MAX_BONES;

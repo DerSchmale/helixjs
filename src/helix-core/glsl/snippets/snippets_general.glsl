@@ -194,7 +194,7 @@ float hx_linearStep(float lower, float upper, float x)
 
 // sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.
 #ifdef HX_USE_SKINNING_TEXTURE
-#define HX_RCP_MAX_BONES 1.0 / float(HX_MAX_BONES)
+#define HX_RCP_MAX_BONES 1.0 / float(HX_MAX_BONES - 1)
 mat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)
 {
     mat4 m;

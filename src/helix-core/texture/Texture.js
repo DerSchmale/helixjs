@@ -130,6 +130,9 @@ HX.Texture2D.prototype =
 
     uploadData: function(data, width, height, generateMips, format, dataType)
     {
+        if (HX.EXT_HALF_FLOAT_TEXTURES && dataType === HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES)
+            data = HX.TextureUtils.encodeToFloat16Array(data);
+
         this._width = width;
         this._height = height;
 
@@ -139,7 +142,7 @@ HX.Texture2D.prototype =
 
         this.bind();
 
-        HX_GL.pixelStorei(HX_GL.UNPACK_FLIP_Y_WEBGL, 1);
+        HX_GL.pixelStorei(HX_GL.UNPACK_FLIP_Y_WEBGL, 0);
 
         HX_GL.texImage2D(HX_GL.TEXTURE_2D, 0, format, width, height, 0, format, dataType, data);
 

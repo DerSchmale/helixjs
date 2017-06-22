@@ -121,7 +121,7 @@ HX.MeshData.prototype = {
         var data = [];
         for (var i = 0; i < num; ++i) {
             var u = (i % dim.x) / (dim.x - 1);
-            var v = 1.0 - Math.floor(i / dim.x) / (dim.y - 1);
+            var v = Math.floor(i / dim.x) / (dim.y - 1);
             data.push(u, v);
         }
 

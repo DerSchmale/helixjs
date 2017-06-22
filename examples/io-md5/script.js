@@ -8,7 +8,10 @@ project.onInit = function()
 
 window.onload = function ()
 {
-    project.init(document.getElementById('webglContainer'));
+    var options = new HX.InitOptions();
+    options.maxBones = 39;
+    options.useSkinningTexture = true;
+    project.init(document.getElementById('webglContainer'), options);
 };
 
 function initCamera(camera)

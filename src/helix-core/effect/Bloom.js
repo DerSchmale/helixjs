@@ -35,7 +35,7 @@ HX.Bloom = function(radius, strength, downScale, anisotropy)
     this._strength = strength === undefined? 1.0 : strength;
 
     if (HX.EXT_HALF_FLOAT_TEXTURES_LINEAR && HX.EXT_HALF_FLOAT_TEXTURES)
-        this.thresholdLuminance = 1.0;
+        this.thresholdLuminance = HX.OPTIONS.hdr;
     else
         this.thresholdLuminance = .9;
 

@@ -112,6 +112,7 @@ HX.init = function(canvas, options)
 
     if (!HX.OPTIONS.ignoreHalfFloatTextureExtension)
         HX.EXT_HALF_FLOAT_TEXTURES = _getExtension('OES_texture_half_float');
+
     if (!HX.EXT_HALF_FLOAT_TEXTURES) console.warn('OES_texture_half_float extension not supported!');
 
     HX.EXT_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_float_linear');

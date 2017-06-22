@@ -149,8 +149,7 @@ HX.SkeletonBlendTree.prototype =
         var len = this._skeleton.numJoints;
         var data = [];
 
-        // texture coordinates are upside down
-        for (var r = 2; r >= 0; --r) {
+        for (var r = 0; r < 3; ++r) {
             for (var i = 0; i < len; ++i) {
                 var m = this._matrices[i]._m;
 

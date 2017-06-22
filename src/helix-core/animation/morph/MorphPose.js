@@ -51,6 +51,7 @@ HX.MorphPose.prototype =
         this._numVertices = positions.length / 3;
         var dim = HX.MorphPose.getTextureDimensions(this._numVertices);
         var texData = [];
+        var type = HX.EXT_HALF_FLOAT_TEXTURES? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.FLOAT;
 
         var t = 0;
         var p = 0;
@@ -65,7 +66,7 @@ HX.MorphPose.prototype =
         for (i = texData.length; i < len; ++i)
             texData[i] = 0.0;
 
-        this._positionTexture.uploadData(new Float32Array(texData), dim.x, dim.y, false, HX_GL.RGBA, HX_GL.FLOAT);
+        this._positionTexture.uploadData(new Float32Array(texData), dim.x, dim.y, false, HX_GL.RGBA, type);
         this._positionFBO.init();
     },
 
@@ -77,6 +78,7 @@ HX.MorphPose.prototype =
         var stride = meshData.getVertexStride(posAttrib.streamIndex);
         var data = meshData.getVertexData(posAttrib.streamIndex);
         var texData = [];
+        var type = HX.EXT_HALF_FLOAT_TEXTURES? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.FLOAT;
 
         var t = 0;
         for (var i = posAttrib.offset; i < data.length; i += stride) {
@@ -91,7 +93,7 @@ HX.MorphPose.prototype =
         while (t < len)
             texData[t++] = 0.0;
 
-        this._positionTexture.uploadData(new Float32Array(texData), dim.x, dim.y, false, HX_GL.RGBA, HX_GL.FLOAT);
+        this._positionTexture.uploadData(new Float32Array(texData), dim.x, dim.y, false, HX_GL.RGBA, type);
         this._positionFBO.init();
     },
 
@@ -105,7 +107,8 @@ HX.MorphPose.prototype =
     copyFrom: function(pose)
     {
         if (pose.positionTexture.width !== this._positionTexture.width || pose.positionTexture.height !== this._positionTexture.height) {
-            this._positionTexture.initEmpty(pose.positionTexture.width, pose.positionTexture.height, HX_GL.RGBA, HX_GL.FLOAT);
+            var type = HX.EXT_HALF_FLOAT_TEXTURES? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.FLOAT;
+            this._positionTexture.initEmpty(pose.positionTexture.width, pose.positionTexture.height, HX_GL.RGBA, type);
             this._positionFBO.init();
         }
         HX.TextureUtils.copy(pose.positionTexture, this._positionFBO);

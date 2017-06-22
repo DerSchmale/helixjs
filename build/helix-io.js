@@ -1831,719 +1831,6 @@ HX.FBXSettings.prototype =
         this._matrix.invert();
     }
 };
-HX.FbxAnimationCurve = function()
-{
-    HX.FbxObject.call(this);
-    this.Default = undefined;
-    this.KeyVer = 0.0;
-    this.KeyTime = 0.0;
-    this.KeyValueFloat = null;
-    this.KeyAttrFlags = 0.0;
-    this.KeyAttrDataFloat = null;
-    this.KeyAttrRefCount = 0.0;
-};
-
-HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
-HX.FbxAnimationCurveNode = function()
-{
-    HX.FbxObject.call(this);
-    this.curves = null;
-    // are these weights?
-    this["d|X"] = 0.0;
-    this["d|Y"] = 0.0;
-    this["d|Z"] = 0.0;
-    this.propertyName = null;
-};
-
-HX.FbxAnimationCurveNode.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimationCurveNode.prototype.toString = function() { return "[FbxAnimationCurveNode(name="+this.name+")]"; };
-
-HX.FbxAnimationCurveNode.prototype.connectProperty = function(obj, propertyName)
-{
-    if (obj instanceof HX.FbxAnimationCurve) {
-        this.curves = this.curves || {};
-        this.curves[propertyName] = obj;
-    }
-};
-HX.FbxAnimLayer = function()
-{
-    HX.FbxObject.call(this);
-    this.curveNodes = null;
-};
-
-HX.FbxAnimLayer.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimLayer.prototype.toString = function() { return "[FbxAnimLayer(name="+this.name+")]"; };
-
-HX.FbxAnimLayer.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxAnimationCurveNode) {
-        this.curveNodes = this.curveNodes || [];
-        this.curveNodes.push(obj);
-    }
-    else
-        throw new Error("Incompatible child object " + obj.toString());
-};
-
-HX.FbxAnimStack = function()
-{
-    HX.FbxObject.call(this);
-
-    this.LocalStart = 0;
-    this.LocalStop = 0;
-    this.ReferenceStart = 0;
-    this.ReferenceStop = 0;
-
-    this.layers = null;
-};
-
-HX.FbxAnimStack.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxAnimStack.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxAnimLayer) {
-        this.layers = this.layers || [];
-        this.layers.push(obj);
-    }
-    else
-        throw new Error("Incompatible child object " + obj.toString());
-};
-
-HX.FbxAnimStack.prototype.toString = function() { return "[FbxAnimStack(name="+this.name+")]"; };
-HX.FbxCluster = function()
-{
-    HX.FbxObject.call(this);
-    this.limbNode = null;
-    this.transform = null;
-    this.transformLink = null;
-    this.indices = null;
-    this.weights = null;
-};
-
-HX.FbxCluster.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxCluster.prototype.toString = function() { return "[FbxCluster(name="+this.name+")]"; };
-
-HX.FbxCluster.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxNode) {
-        this.limbNode = obj;
-    }
-    else
-        throw new Error("Unhandled object connection " + obj.toString());
-};
-HX.FbxFileTexture = function()
-{
-    HX.FbxObject.call(this);
-    this.WrapModeU = 0;
-    this.WrapModeV = 0;
-    //this.UVSet = null;    // we only support a single uv set
-
-    this.relativeFilename = null;
-    this.video = null;
-};
-
-HX.FbxFileTexture.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxFileTexture.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxVideo)
-        this.video = obj;
-    else
-        throw new Error("Incompatible child object!");
-};
-
-HX.FbxFileTexture.prototype.toString = function() { return "[FbxFileTexture(name="+this.name+")]"; };
-HX.FbxLayerElement = function()
-{
-    HX.FbxObject.call(this);
-    this.directData = null;
-    this.indexData = null;
-    this.type = null;   // can be normal, uv, etc ...
-    this.mappingInformationType = 0;
-    this.referenceInformationType = 0;
-};
-
-HX.FbxLayerElement.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxLayerElement.MAPPING_TYPE = {
-    NONE: 0,
-    BY_POLYGON_VERTEX: 1,
-    BY_CONTROL_POINT: 2,
-    BY_POLYGON: 3,
-    ALL_SAME: 4
-};
-
-HX.FbxLayerElement.REFERENCE_TYPE = {
-    DIRECT: 1,
-    INDEX_TO_DIRECT: 2
-};
-
-HX.FbxLayerElement.prototype.toString = function() { return "[FbxLayerElement(name="+this.name+")]"; };
-HX.FbxMaterial = function()
-{
-    HX.FbxObject.call(this);
-    // actual video not supported
-    this.EmissiveColor = null;
-    this.EmissiveFactor = 1;
-    this.DiffuseColor = null;
-    this.DiffuseFactor = 1;
-    //this.NormalMap = null;
-    this.ShininessExponent = undefined;
-    this.Shininess = undefined;
-
-    this.textures = null;
-};
-
-HX.FbxMaterial.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxMaterial.prototype.connectProperty = function(obj, propertyName)
-{
-    if (obj instanceof HX.FbxFileTexture) {
-        this.textures = this.textures || {};
-        this.textures[propertyName] = obj;
-    }
-    else
-        throw new Error("Unknown object property!");
-};
-
-HX.FbxMaterial.prototype.toString = function() { return "[FbxMaterial(name="+this.name+")]"; };
-/**
- *
- * @constructor
- */
-HX.FbxMesh = function()
-{
-    HX.FbxObject.call(this);
-    this.Color = null;
-    this["Casts Shadows"] = true;
-
-    this.vertices = null;
-    this.layerElements = null;
-    this.deformers = null;
-};
-
-HX.FbxMesh.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxMesh.prototype.toString = function() { return "[FbxMesh(name="+this.name+")]"; };
-
-HX.FbxMesh.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxSkin) {
-        this.deformers = this.deformers || [];
-        this.deformers.push(obj);
-    }
-    else {
-        throw new Error("Unhandled object connection " + obj.toString());
-    }
-};
-// probably needs to be subclasses for Light, Camera, etc
-HX.FbxNodeAttribute = function()
-{
-    HX.FbxObject.call(this);
-    // actual video not supported
-    this.type = null;
-};
-
-HX.FbxNodeAttribute.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxNodeAttribute.prototype.toString = function() { return "[FbxNodeAttribute(name="+this.name+", type="+this.type+")]"; };
-HX.FbxPose = function()
-{
-    HX.FbxObject.call(this);
-    this.type = null;
-    this.poseNodes = [];
-};
-
-HX.FbxPose.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxPose.prototype.toString = function() { return "[FbxPose(name="+this.name+")]"; };
-
-HX.FbxPoseNode = function()
-{
-    this.targetUID = null;
-    this.matrix = null;
-}
-HX.FbxSkin = function()
-{
-    HX.FbxObject.call(this);
-    this.clusters = null;
-
-    // data will contain the converter
-};
-
-HX.FbxSkin.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxSkin.prototype.toString = function() { return "[FbxSkin(name="+this.name+")]"; };
-
-HX.FbxSkin.prototype.connectObject = function(obj)
-{
-    if (obj instanceof HX.FbxCluster) {
-        this.clusters = this.clusters || [];
-        this.clusters.push(obj);
-    }
-    else
-        throw new Error("Unhandled object connection " + obj.toString());
-};
-HX.FbxTime = function(value)
-{
-    this._value = value;
-};
-
-HX.FbxTime.getSpan = function(start, stop)
-{
-    return new HX.FbxTime(stop._value - start._value);
-};
-
-HX.FbxTime.TC_MILLISECOND = 46186158;
-
-HX.FbxTime.prototype =
-{
-    get milliseconds()
-    {
-        return this._value / HX.FbxTime.TC_MILLISECOND;
-    },
-
-    set milliseconds(value)
-    {
-        this._value = value * HX.FbxTime.TC_MILLISECOND;
-    },
-
-    getFrameCount: function(frameRate)
-    {
-        return Math.floor(this.milliseconds / 1000.0 * frameRate);
-    },
-
-    toString: function()
-    {
-        return "[FbxTime(name="+this._value+")]";
-    }
-};
-HX.FbxTrashNode = function()
-{
-    HX.FbxObject.call(this);
-};
-
-HX.FbxTrashNode.prototype = Object.create(HX.FbxObject.prototype);
-
-HX.FbxTrashNode.prototype.toString = function() { return "[FbxTrashNode(name="+this.name+")]"; };
-
-// ignore
-HX.FbxTrashNode.prototype.connectObject = function(obj) {}
-HX.FbxVideo = function()
-{
-    HX.FbxObject.call(this);
-    // actual video not supported
-    this.relativeFilename = null;
-};
-
-HX.FbxVideo.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxVideo.prototype.toString = function() { return "[FbxVideo(name="+this.name+")]"; };
-HX.MD5Anim = function()
-{
-    HX.Importer.call(this, HX.SkeletonClip);
-    this._hierarchy = null;
-    this._baseFrame = null;
-    this._activeFrame = null;
-    this._numJoints = 0;
-    this._frameRate = 0;
-
-    this._correctionQuad = new HX.Quaternion();
-    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
-};
-
-HX.MD5Anim.prototype = Object.create(HX.Importer.prototype);
-
-HX.MD5Anim.prototype.parse = function(data, target)
-{
-    this._hierarchy = [];
-    this._baseFrame = [];
-    this._target = target;
-
-    // assuming a valid file, validation isn't our job
-    var lines = data.split("\n");
-    var len = lines.length;
-    var lineFunction = null;
-
-    for (var i = 0; i < len; ++i) {
-        // remove leading & trailing whitespace
-        var line = lines[i].replace(/^\s+|\s+$/g, "");
-        var tokens = line.split(/\s+/);
-
-        if (tokens[0] === "//" || tokens[0] === "")
-            continue;
-
-        if (lineFunction) {
-            lineFunction.call(this, tokens);
-            if (tokens[0] === "}") lineFunction = null;
-        }
-        else switch (tokens[0]) {
-            case "commandline":
-            case "numFrames":
-            case "MD5Version":
-            case "numAnimatedComponents":
-                break;
-            case "numJoints":
-                this._numJoints = parseInt(tokens[1]);
-                break;
-            case "frameRate":
-                this._frameRate = parseInt(tokens[1]);
-                break;
-            case "hierarchy":
-                lineFunction = this._parseHierarchy;
-                break;
-            case "bounds":
-                lineFunction = this._parseBounds;
-                break;
-            case "baseframe":
-                lineFunction = this._parseBaseFrame;
-                break;
-            case "frame":
-                this._activeFrame = new HX.MD5Anim._FrameData();
-                lineFunction = this._parseFrame;
-                break;
-
-        }
-    }
-
-    this._notifyComplete(target);
-};
-
-HX.MD5Anim.prototype._parseHierarchy = function(tokens)
-{
-    if (tokens[0] === "}") return;
-    var data = new HX.MD5Anim._HierachyData();
-    data.name = tokens[0].substring(1, tokens[0].length - 1);
-    data.parent = parseInt(tokens[1]);
-    data.flags = parseInt(tokens[2]);
-    data.startIndex = parseInt(tokens[3]);
-    this._hierarchy.push(data);
-};
-
-HX.MD5Anim.prototype._parseBounds = function(tokens)
-{
-    // don't do anything with bounds for now
-};
-
-HX.MD5Anim.prototype._parseBaseFrame = function(tokens)
-{
-    if (tokens[0] === "}") return;
-    var baseFrame = new HX.MD5Anim._BaseFrameData();
-    var pos = baseFrame.pos;
-    pos.x = parseFloat(tokens[1]);
-    pos.y = parseFloat(tokens[2]);
-    pos.z = parseFloat(tokens[3]);
-    var quat = baseFrame.quat;
-    quat.x = parseFloat(tokens[6]);
-    quat.y = parseFloat(tokens[7]);
-    quat.z = parseFloat(tokens[8]);
-    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
-    if (quat.w < 0.0) quat.w = 0.0;
-    else quat.w = -Math.sqrt(quat.w);
-    this._baseFrame.push(baseFrame);
-};
-
-HX.MD5Anim.prototype._parseFrame = function(tokens)
-{
-    if (tokens[0] === "}") {
-        this._translateFrame();
-        return;
-    }
-
-    var len = tokens.length;
-    for (var i = 0; i < len; ++i) {
-        this._activeFrame.components.push(parseFloat(tokens[i]));
-    }
-};
-
-HX.MD5Anim.prototype._translateFrame = function()
-{
-    var skeletonPose = new HX.SkeletonPose();
-
-    for (var i = 0; i < this._numJoints; ++i) {
-        var pose = new HX.SkeletonJointPose();
-        var hierarchy = this._hierarchy[i];
-        var base = this._baseFrame[i];
-        var flags = hierarchy.flags;
-        var pos = base.pos;
-        var quat = base.quat;
-        var comps = this._activeFrame.components;
-
-        var j = hierarchy.startIndex;
-
-        if (flags & 1) pos.x = comps[j];
-        if (flags & 2) pos.y = comps[j+1];
-        if (flags & 4) pos.z = comps[j+2];
-        if (flags & 8) quat.x = comps[j+3];
-        if (flags & 16) quat.y = comps[j+4];
-        if (flags & 32) quat.z = comps[j+5];
-
-        var w = 1.0 - quat.x * quat.x - quat.y * quat.y - quat.z * quat.z;
-        quat.w = w < 0.0 ? 0.0 : -Math.sqrt(w);
-
-        // transform root joints only
-        if (hierarchy.parent < 0) {
-            pose.rotation.multiply(this._correctionQuad, quat);
-            pose.position = this._correctionQuad.rotate(pos);
-        }
-        else {
-            pose.rotation.copyFrom(quat);
-            pose.position.copyFrom(pos);
-        }
-
-        skeletonPose.jointPoses.push(pose);
-    }
-
-    var time = this._target.numKeyFrames / this._frameRate * 1000.0;
-    this._target.addKeyFrame(new HX.KeyFrame(time, skeletonPose));
-};
-
-HX.MD5Anim._HierachyData = function()
-{
-    this.name = null;
-    this.parent = -1;
-    this.flags = 0;
-    this.startIndex = 0;
-};
-
-HX.MD5Anim._BaseFrameData = function()
-{
-    this.pos = new HX.Float4();
-    this.quat = new HX.Quaternion();
-};
-
-HX.MD5Anim._FrameData = function()
-{
-    this.components = [];
-}
-/**
- * Warning, MD5 as supported by Helix does not contain any materials nor scene graph information, so it only loads Models, not instances!
- * @constructor
- */
-HX.MD5Mesh = function()
-{
-    HX.Importer.call(this, HX.Model);
-    this._target = null;
-    this._meshData = null;
-    this._jointData = null;
-    this._skeleton = null;
-
-    this._correctionQuad = new HX.Quaternion();
-    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
-};
-
-HX.MD5Mesh.prototype = Object.create(HX.Importer.prototype);
-
-HX.MD5Mesh.prototype.parse = function(data, target)
-{
-    this._modelData = new HX.ModelData();
-    this._skeleton = new HX.Skeleton();
-    this._jointData = [];
-
-    // assuming a valid file, validation isn't our job
-    var lines = data.split("\n");
-    var len = lines.length;
-    var lineFunction = null;
-
-    for (var i = 0; i < len; ++i) {
-        // remove leading & trailing whitespace
-        var line = lines[i].replace(/^\s+|\s+$/g, "");
-        var tokens = line.split(/\s+/);
-
-        if (tokens[0] === "//" || tokens[0] === "")
-            continue;
-
-        if (lineFunction) {
-            lineFunction.call(this, tokens);
-            if (tokens[0] === "}") lineFunction = null;
-        }
-        else switch (tokens[0]) {
-            case "commandline":
-            case "numMeshes":
-            case "numJoints":
-            case "MD5Version":
-                break;
-            case "joints":
-                lineFunction = this._parseJoint;
-                break;
-            case "mesh":
-                this._meshData = new HX.MD5Mesh._MeshData();
-                lineFunction = this._parseMesh;
-                break;
-        }
-    }
-
-    target._setModelData(this._modelData);
-    target.skeleton = this._skeleton;
-    this._notifyComplete(target);
-};
-
-HX.MD5Mesh.prototype._parseJoint = function(tokens)
-{
-    if (tokens[0] === "}") return;
-
-    var jointData = new HX.MD5Mesh._Joint();
-    var pos = jointData.pos;
-    var quat = jointData.quat;
-    jointData.name = tokens[0].substring(1, tokens[0].length - 1);
-
-    jointData.parentIndex = parseInt(tokens[1]);
-
-    pos.x = parseFloat(tokens[3]);
-    pos.y = parseFloat(tokens[4]);
-    pos.z = parseFloat(tokens[5]);
-    this._correctionQuad.rotate(jointData.pos, jointData.pos);
-    quat.x = parseFloat(tokens[8]);
-    quat.y = parseFloat(tokens[9]);
-    quat.z = parseFloat(tokens[10]);
-    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
-    if (quat.w < 0.0) quat.w = 0.0;
-    else quat.w = -Math.sqrt(quat.w);
-
-    quat.multiply(this._correctionQuad, quat);
-    this._jointData.push(jointData);
-
-    var joint = new HX.SkeletonJoint();
-    joint.inverseBindPose.fromQuaternion(quat);
-    var pos = jointData.pos;
-    joint.inverseBindPose.appendTranslation(pos);
-    joint.inverseBindPose.invertAffine();
-    joint.parentIndex = jointData.parentIndex;
-    this._skeleton.addJoint(joint);
-};
-
-HX.MD5Mesh.prototype._parseMesh = function(tokens)
-{
-    switch (tokens[0]) {
-        case "shader":
-        case "numVerts":
-        case "numWeights":
-            break;
-        case "tri":
-            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[4]), parseInt(tokens[3]));
-            break;
-        case "vert":
-            this._parseVert(tokens);
-            break;
-        case "weight":
-            this._parseWeight(tokens);
-            break;
-        case "}":
-            this._translateMesh();
-            break;
-    }
-};
-
-HX.MD5Mesh.prototype._parseVert = function(tokens)
-{
-    var vert = new HX.MD5Mesh._VertexData();
-    vert.u = parseFloat(tokens[3]);
-    vert.v = parseFloat(tokens[4]);
-    vert.startWeight = parseInt(tokens[6]);
-    vert.countWeight = parseInt(tokens[7]);
-    this._meshData.vertexData.push(vert);
-};
-
-HX.MD5Mesh.prototype._parseWeight = function(tokens)
-{
-    var weight = new HX.MD5Mesh._WeightData();
-    weight.joint = parseInt(tokens[2]);
-    weight.bias = parseFloat(tokens[3]);
-    weight.pos.x = parseFloat(tokens[5]);
-    weight.pos.y = parseFloat(tokens[6]);
-    weight.pos.z = parseFloat(tokens[7]);
-    this._meshData.weightData.push(weight);
-};
-
-HX.MD5Mesh.prototype._translateMesh = function()
-{
-    var meshData = new HX.MeshData.createDefaultEmpty();
-    meshData.addVertexAttribute("hx_boneIndices", 4, 1);
-    meshData.addVertexAttribute("hx_boneWeights", 4, 1);
-    var vertices = [];
-    var anims = [];
-
-    var vertexData = this._meshData.vertexData;
-    var len = vertexData.length;
-    var v = 0, a = 0;
-    var x, y, z;
-
-    for (var i = 0; i < len; ++i) {
-        var vertData = vertexData[i];
-        x = y = z = 0;
-
-        if (vertData.countWeight > 4)
-            console.warn("Warning: more than 4 weights assigned. Mesh will not animate correctly");
-
-        for (var w = 0; w < vertData.countWeight; ++w) {
-            var weightData = this._meshData.weightData[vertData.startWeight + w];
-            var joint = this._jointData[weightData.joint];
-            var vec = joint.quat.rotate(weightData.pos);
-            var pos = joint.pos;
-            var bias = weightData.bias;
-            x += (vec.x + pos.x) * bias;
-            y += (vec.y + pos.y) * bias;
-            z += (vec.z + pos.z) * bias;
-            // cap at 4 and hope nothing blows up
-            if (w < 4) {
-                anims[a + w] = weightData.joint;
-                anims[a + 4 + w] = weightData.bias;
-            }
-        }
-
-        vertices[v] = x;
-        vertices[v + 1] = y;
-        vertices[v + 2] = z;
-        vertices[v + 10] = vertData.u;
-        vertices[v + 11] = 1.0 - vertData.v;
-
-        for (var w = vertData.countWeight; w < 4; ++w) {
-            anims[a + w] = 0;
-            anims[a + 4 + w] = 0;
-        }
-
-        a += 8;
-        v += 12;
-    }
-
-    meshData.setVertexData(vertices, 0);
-    meshData.setVertexData(anims, 1);
-    meshData.setIndexData(this._meshData.indices);
-
-    var generator = new HX.NormalTangentGenerator();
-    generator.generate(meshData);
-    this._modelData.addMeshData(meshData);
-};
-
-HX.MD5Mesh._Joint = function()
-{
-    this.name = null;
-    this.parentIndex = -1;
-    this.quat = new HX.Quaternion();
-    this.pos = new HX.Float4();
-};
-
-HX.MD5Mesh._MeshData = function()
-{
-    this.vertexData = [];
-    this.weightData = [];
-    this.indices = [];
-};
-
-HX.MD5Mesh._VertexData = function()
-{
-    this.u = 0;
-    this.v = 0;
-    this.startWeight = 0;
-    this.countWeight = 0;
-};
-
-HX.MD5Mesh._WeightData = function()
-{
-    this.joint = 0;
-    this.bias = 0;
-    this.pos = new HX.Float4();
-};
 
 /**
  *
@@ -2972,3 +2259,716 @@ HX.OBJ._ObjectData = function()
     this.groups = [];
     this._activeGroup = null;
 };
+HX.MD5Anim = function()
+{
+    HX.Importer.call(this, HX.SkeletonClip);
+    this._hierarchy = null;
+    this._baseFrame = null;
+    this._activeFrame = null;
+    this._numJoints = 0;
+    this._frameRate = 0;
+
+    this._correctionQuad = new HX.Quaternion();
+    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
+};
+
+HX.MD5Anim.prototype = Object.create(HX.Importer.prototype);
+
+HX.MD5Anim.prototype.parse = function(data, target)
+{
+    this._hierarchy = [];
+    this._baseFrame = [];
+    this._target = target;
+
+    // assuming a valid file, validation isn't our job
+    var lines = data.split("\n");
+    var len = lines.length;
+    var lineFunction = null;
+
+    for (var i = 0; i < len; ++i) {
+        // remove leading & trailing whitespace
+        var line = lines[i].replace(/^\s+|\s+$/g, "");
+        var tokens = line.split(/\s+/);
+
+        if (tokens[0] === "//" || tokens[0] === "")
+            continue;
+
+        if (lineFunction) {
+            lineFunction.call(this, tokens);
+            if (tokens[0] === "}") lineFunction = null;
+        }
+        else switch (tokens[0]) {
+            case "commandline":
+            case "numFrames":
+            case "MD5Version":
+            case "numAnimatedComponents":
+                break;
+            case "numJoints":
+                this._numJoints = parseInt(tokens[1]);
+                break;
+            case "frameRate":
+                this._frameRate = parseInt(tokens[1]);
+                break;
+            case "hierarchy":
+                lineFunction = this._parseHierarchy;
+                break;
+            case "bounds":
+                lineFunction = this._parseBounds;
+                break;
+            case "baseframe":
+                lineFunction = this._parseBaseFrame;
+                break;
+            case "frame":
+                this._activeFrame = new HX.MD5Anim._FrameData();
+                lineFunction = this._parseFrame;
+                break;
+
+        }
+    }
+
+    this._notifyComplete(target);
+};
+
+HX.MD5Anim.prototype._parseHierarchy = function(tokens)
+{
+    if (tokens[0] === "}") return;
+    var data = new HX.MD5Anim._HierachyData();
+    data.name = tokens[0].substring(1, tokens[0].length - 1);
+    data.parent = parseInt(tokens[1]);
+    data.flags = parseInt(tokens[2]);
+    data.startIndex = parseInt(tokens[3]);
+    this._hierarchy.push(data);
+};
+
+HX.MD5Anim.prototype._parseBounds = function(tokens)
+{
+    // don't do anything with bounds for now
+};
+
+HX.MD5Anim.prototype._parseBaseFrame = function(tokens)
+{
+    if (tokens[0] === "}") return;
+    var baseFrame = new HX.MD5Anim._BaseFrameData();
+    var pos = baseFrame.pos;
+    pos.x = parseFloat(tokens[1]);
+    pos.y = parseFloat(tokens[2]);
+    pos.z = parseFloat(tokens[3]);
+    var quat = baseFrame.quat;
+    quat.x = parseFloat(tokens[6]);
+    quat.y = parseFloat(tokens[7]);
+    quat.z = parseFloat(tokens[8]);
+    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
+    if (quat.w < 0.0) quat.w = 0.0;
+    else quat.w = -Math.sqrt(quat.w);
+    this._baseFrame.push(baseFrame);
+};
+
+HX.MD5Anim.prototype._parseFrame = function(tokens)
+{
+    if (tokens[0] === "}") {
+        this._translateFrame();
+        return;
+    }
+
+    var len = tokens.length;
+    for (var i = 0; i < len; ++i) {
+        this._activeFrame.components.push(parseFloat(tokens[i]));
+    }
+};
+
+HX.MD5Anim.prototype._translateFrame = function()
+{
+    var skeletonPose = new HX.SkeletonPose();
+
+    for (var i = 0; i < this._numJoints; ++i) {
+        var pose = new HX.SkeletonJointPose();
+        var hierarchy = this._hierarchy[i];
+        var base = this._baseFrame[i];
+        var flags = hierarchy.flags;
+        var pos = base.pos;
+        var quat = base.quat;
+        var comps = this._activeFrame.components;
+
+        var j = hierarchy.startIndex;
+
+        if (flags & 1) pos.x = comps[j];
+        if (flags & 2) pos.y = comps[j+1];
+        if (flags & 4) pos.z = comps[j+2];
+        if (flags & 8) quat.x = comps[j+3];
+        if (flags & 16) quat.y = comps[j+4];
+        if (flags & 32) quat.z = comps[j+5];
+
+        var w = 1.0 - quat.x * quat.x - quat.y * quat.y - quat.z * quat.z;
+        quat.w = w < 0.0 ? 0.0 : -Math.sqrt(w);
+
+        // transform root joints only
+        if (hierarchy.parent < 0) {
+            pose.rotation.multiply(this._correctionQuad, quat);
+            pose.position = this._correctionQuad.rotate(pos);
+        }
+        else {
+            pose.rotation.copyFrom(quat);
+            pose.position.copyFrom(pos);
+        }
+
+        skeletonPose.jointPoses.push(pose);
+    }
+
+    var time = this._target.numKeyFrames / this._frameRate * 1000.0;
+    this._target.addKeyFrame(new HX.KeyFrame(time, skeletonPose));
+};
+
+HX.MD5Anim._HierachyData = function()
+{
+    this.name = null;
+    this.parent = -1;
+    this.flags = 0;
+    this.startIndex = 0;
+};
+
+HX.MD5Anim._BaseFrameData = function()
+{
+    this.pos = new HX.Float4();
+    this.quat = new HX.Quaternion();
+};
+
+HX.MD5Anim._FrameData = function()
+{
+    this.components = [];
+}
+/**
+ * Warning, MD5 as supported by Helix does not contain any materials nor scene graph information, so it only loads Models, not instances!
+ * @constructor
+ */
+HX.MD5Mesh = function()
+{
+    HX.Importer.call(this, HX.Model);
+    this._target = null;
+    this._meshData = null;
+    this._jointData = null;
+    this._skeleton = null;
+
+    this._correctionQuad = new HX.Quaternion();
+    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
+};
+
+HX.MD5Mesh.prototype = Object.create(HX.Importer.prototype);
+
+HX.MD5Mesh.prototype.parse = function(data, target)
+{
+    this._modelData = new HX.ModelData();
+    this._skeleton = new HX.Skeleton();
+    this._jointData = [];
+
+    // assuming a valid file, validation isn't our job
+    var lines = data.split("\n");
+    var len = lines.length;
+    var lineFunction = null;
+
+    for (var i = 0; i < len; ++i) {
+        // remove leading & trailing whitespace
+        var line = lines[i].replace(/^\s+|\s+$/g, "");
+        var tokens = line.split(/\s+/);
+
+        if (tokens[0] === "//" || tokens[0] === "")
+            continue;
+
+        if (lineFunction) {
+            lineFunction.call(this, tokens);
+            if (tokens[0] === "}") lineFunction = null;
+        }
+        else switch (tokens[0]) {
+            case "commandline":
+            case "numMeshes":
+            case "numJoints":
+            case "MD5Version":
+                break;
+            case "joints":
+                lineFunction = this._parseJoint;
+                break;
+            case "mesh":
+                this._meshData = new HX.MD5Mesh._MeshData();
+                lineFunction = this._parseMesh;
+                break;
+        }
+    }
+
+    target._setModelData(this._modelData);
+    target.skeleton = this._skeleton;
+    this._notifyComplete(target);
+};
+
+HX.MD5Mesh.prototype._parseJoint = function(tokens)
+{
+    if (tokens[0] === "}") return;
+
+    var jointData = new HX.MD5Mesh._Joint();
+    var pos = jointData.pos;
+    var quat = jointData.quat;
+    jointData.name = tokens[0].substring(1, tokens[0].length - 1);
+
+    jointData.parentIndex = parseInt(tokens[1]);
+
+    pos.x = parseFloat(tokens[3]);
+    pos.y = parseFloat(tokens[4]);
+    pos.z = parseFloat(tokens[5]);
+    this._correctionQuad.rotate(jointData.pos, jointData.pos);
+    quat.x = parseFloat(tokens[8]);
+    quat.y = parseFloat(tokens[9]);
+    quat.z = parseFloat(tokens[10]);
+    quat.w = 1.0 - quat.x*quat.x - quat.y*quat.y - quat.z*quat.z;
+    if (quat.w < 0.0) quat.w = 0.0;
+    else quat.w = -Math.sqrt(quat.w);
+
+    quat.multiply(this._correctionQuad, quat);
+    this._jointData.push(jointData);
+
+    var joint = new HX.SkeletonJoint();
+    joint.inverseBindPose.fromQuaternion(quat);
+    var pos = jointData.pos;
+    joint.inverseBindPose.appendTranslation(pos);
+    joint.inverseBindPose.invertAffine();
+    joint.parentIndex = jointData.parentIndex;
+    this._skeleton.addJoint(joint);
+};
+
+HX.MD5Mesh.prototype._parseMesh = function(tokens)
+{
+    switch (tokens[0]) {
+        case "shader":
+        case "numVerts":
+        case "numWeights":
+            break;
+        case "tri":
+            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[4]), parseInt(tokens[3]));
+            break;
+        case "vert":
+            this._parseVert(tokens);
+            break;
+        case "weight":
+            this._parseWeight(tokens);
+            break;
+        case "}":
+            this._translateMesh();
+            break;
+    }
+};
+
+HX.MD5Mesh.prototype._parseVert = function(tokens)
+{
+    var vert = new HX.MD5Mesh._VertexData();
+    vert.u = parseFloat(tokens[3]);
+    vert.v = parseFloat(tokens[4]);
+    vert.startWeight = parseInt(tokens[6]);
+    vert.countWeight = parseInt(tokens[7]);
+    this._meshData.vertexData.push(vert);
+};
+
+HX.MD5Mesh.prototype._parseWeight = function(tokens)
+{
+    var weight = new HX.MD5Mesh._WeightData();
+    weight.joint = parseInt(tokens[2]);
+    weight.bias = parseFloat(tokens[3]);
+    weight.pos.x = parseFloat(tokens[5]);
+    weight.pos.y = parseFloat(tokens[6]);
+    weight.pos.z = parseFloat(tokens[7]);
+    this._meshData.weightData.push(weight);
+};
+
+HX.MD5Mesh.prototype._translateMesh = function()
+{
+    var meshData = new HX.MeshData.createDefaultEmpty();
+    meshData.addVertexAttribute("hx_boneIndices", 4, 1);
+    meshData.addVertexAttribute("hx_boneWeights", 4, 1);
+    var vertices = [];
+    var anims = [];
+
+    var vertexData = this._meshData.vertexData;
+    var len = vertexData.length;
+    var v = 0, a = 0;
+    var x, y, z;
+
+    for (var i = 0; i < len; ++i) {
+        var vertData = vertexData[i];
+        x = y = z = 0;
+
+        if (vertData.countWeight > 4)
+            console.warn("Warning: more than 4 weights assigned. Mesh will not animate correctly");
+
+        for (var w = 0; w < vertData.countWeight; ++w) {
+            var weightData = this._meshData.weightData[vertData.startWeight + w];
+            var joint = this._jointData[weightData.joint];
+            var vec = joint.quat.rotate(weightData.pos);
+            var pos = joint.pos;
+            var bias = weightData.bias;
+            x += (vec.x + pos.x) * bias;
+            y += (vec.y + pos.y) * bias;
+            z += (vec.z + pos.z) * bias;
+            // cap at 4 and hope nothing blows up
+            if (w < 4) {
+                anims[a + w] = weightData.joint;
+                anims[a + 4 + w] = weightData.bias;
+            }
+        }
+
+        vertices[v] = x;
+        vertices[v + 1] = y;
+        vertices[v + 2] = z;
+        vertices[v + 10] = vertData.u;
+        vertices[v + 11] = 1.0 - vertData.v;
+
+        for (var w = vertData.countWeight; w < 4; ++w) {
+            anims[a + w] = 0;
+            anims[a + 4 + w] = 0;
+        }
+
+        a += 8;
+        v += 12;
+    }
+
+    meshData.setVertexData(vertices, 0);
+    meshData.setVertexData(anims, 1);
+    meshData.setIndexData(this._meshData.indices);
+
+    var generator = new HX.NormalTangentGenerator();
+    generator.generate(meshData);
+    this._modelData.addMeshData(meshData);
+};
+
+HX.MD5Mesh._Joint = function()
+{
+    this.name = null;
+    this.parentIndex = -1;
+    this.quat = new HX.Quaternion();
+    this.pos = new HX.Float4();
+};
+
+HX.MD5Mesh._MeshData = function()
+{
+    this.vertexData = [];
+    this.weightData = [];
+    this.indices = [];
+};
+
+HX.MD5Mesh._VertexData = function()
+{
+    this.u = 0;
+    this.v = 0;
+    this.startWeight = 0;
+    this.countWeight = 0;
+};
+
+HX.MD5Mesh._WeightData = function()
+{
+    this.joint = 0;
+    this.bias = 0;
+    this.pos = new HX.Float4();
+};
+HX.FbxAnimationCurve = function()
+{
+    HX.FbxObject.call(this);
+    this.Default = undefined;
+    this.KeyVer = 0.0;
+    this.KeyTime = 0.0;
+    this.KeyValueFloat = null;
+    this.KeyAttrFlags = 0.0;
+    this.KeyAttrDataFloat = null;
+    this.KeyAttrRefCount = 0.0;
+};
+
+HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
+HX.FbxAnimationCurveNode = function()
+{
+    HX.FbxObject.call(this);
+    this.curves = null;
+    // are these weights?
+    this["d|X"] = 0.0;
+    this["d|Y"] = 0.0;
+    this["d|Z"] = 0.0;
+    this.propertyName = null;
+};
+
+HX.FbxAnimationCurveNode.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimationCurveNode.prototype.toString = function() { return "[FbxAnimationCurveNode(name="+this.name+")]"; };
+
+HX.FbxAnimationCurveNode.prototype.connectProperty = function(obj, propertyName)
+{
+    if (obj instanceof HX.FbxAnimationCurve) {
+        this.curves = this.curves || {};
+        this.curves[propertyName] = obj;
+    }
+};
+HX.FbxAnimLayer = function()
+{
+    HX.FbxObject.call(this);
+    this.curveNodes = null;
+};
+
+HX.FbxAnimLayer.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxAnimLayer.prototype.toString = function() { return "[FbxAnimLayer(name="+this.name+")]"; };
+
+HX.FbxAnimLayer.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxAnimationCurveNode) {
+        this.curveNodes = this.curveNodes || [];
+        this.curveNodes.push(obj);
+    }
+    else
+        throw new Error("Incompatible child object " + obj.toString());
+};
+
+HX.FbxAnimStack = function()
+{
+    HX.FbxObject.call(this);
+
+    this.LocalStart = 0;
+    this.LocalStop = 0;
+    this.ReferenceStart = 0;
+    this.ReferenceStop = 0;
+
+    this.layers = null;
+};
+
+HX.FbxAnimStack.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxAnimStack.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxAnimLayer) {
+        this.layers = this.layers || [];
+        this.layers.push(obj);
+    }
+    else
+        throw new Error("Incompatible child object " + obj.toString());
+};
+
+HX.FbxAnimStack.prototype.toString = function() { return "[FbxAnimStack(name="+this.name+")]"; };
+HX.FbxCluster = function()
+{
+    HX.FbxObject.call(this);
+    this.limbNode = null;
+    this.transform = null;
+    this.transformLink = null;
+    this.indices = null;
+    this.weights = null;
+};
+
+HX.FbxCluster.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxCluster.prototype.toString = function() { return "[FbxCluster(name="+this.name+")]"; };
+
+HX.FbxCluster.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxNode) {
+        this.limbNode = obj;
+    }
+    else
+        throw new Error("Unhandled object connection " + obj.toString());
+};
+HX.FbxFileTexture = function()
+{
+    HX.FbxObject.call(this);
+    this.WrapModeU = 0;
+    this.WrapModeV = 0;
+    //this.UVSet = null;    // we only support a single uv set
+
+    this.relativeFilename = null;
+    this.video = null;
+};
+
+HX.FbxFileTexture.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxFileTexture.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxVideo)
+        this.video = obj;
+    else
+        throw new Error("Incompatible child object!");
+};
+
+HX.FbxFileTexture.prototype.toString = function() { return "[FbxFileTexture(name="+this.name+")]"; };
+HX.FbxLayerElement = function()
+{
+    HX.FbxObject.call(this);
+    this.directData = null;
+    this.indexData = null;
+    this.type = null;   // can be normal, uv, etc ...
+    this.mappingInformationType = 0;
+    this.referenceInformationType = 0;
+};
+
+HX.FbxLayerElement.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxLayerElement.MAPPING_TYPE = {
+    NONE: 0,
+    BY_POLYGON_VERTEX: 1,
+    BY_CONTROL_POINT: 2,
+    BY_POLYGON: 3,
+    ALL_SAME: 4
+};
+
+HX.FbxLayerElement.REFERENCE_TYPE = {
+    DIRECT: 1,
+    INDEX_TO_DIRECT: 2
+};
+
+HX.FbxLayerElement.prototype.toString = function() { return "[FbxLayerElement(name="+this.name+")]"; };
+HX.FbxMaterial = function()
+{
+    HX.FbxObject.call(this);
+    // actual video not supported
+    this.EmissiveColor = null;
+    this.EmissiveFactor = 1;
+    this.DiffuseColor = null;
+    this.DiffuseFactor = 1;
+    //this.NormalMap = null;
+    this.ShininessExponent = undefined;
+    this.Shininess = undefined;
+
+    this.textures = null;
+};
+
+HX.FbxMaterial.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxMaterial.prototype.connectProperty = function(obj, propertyName)
+{
+    if (obj instanceof HX.FbxFileTexture) {
+        this.textures = this.textures || {};
+        this.textures[propertyName] = obj;
+    }
+    else
+        throw new Error("Unknown object property!");
+};
+
+HX.FbxMaterial.prototype.toString = function() { return "[FbxMaterial(name="+this.name+")]"; };
+/**
+ *
+ * @constructor
+ */
+HX.FbxMesh = function()
+{
+    HX.FbxObject.call(this);
+    this.Color = null;
+    this["Casts Shadows"] = true;
+
+    this.vertices = null;
+    this.layerElements = null;
+    this.deformers = null;
+};
+
+HX.FbxMesh.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxMesh.prototype.toString = function() { return "[FbxMesh(name="+this.name+")]"; };
+
+HX.FbxMesh.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxSkin) {
+        this.deformers = this.deformers || [];
+        this.deformers.push(obj);
+    }
+    else {
+        throw new Error("Unhandled object connection " + obj.toString());
+    }
+};
+// probably needs to be subclasses for Light, Camera, etc
+HX.FbxNodeAttribute = function()
+{
+    HX.FbxObject.call(this);
+    // actual video not supported
+    this.type = null;
+};
+
+HX.FbxNodeAttribute.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxNodeAttribute.prototype.toString = function() { return "[FbxNodeAttribute(name="+this.name+", type="+this.type+")]"; };
+HX.FbxPose = function()
+{
+    HX.FbxObject.call(this);
+    this.type = null;
+    this.poseNodes = [];
+};
+
+HX.FbxPose.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxPose.prototype.toString = function() { return "[FbxPose(name="+this.name+")]"; };
+
+HX.FbxPoseNode = function()
+{
+    this.targetUID = null;
+    this.matrix = null;
+}
+HX.FbxSkin = function()
+{
+    HX.FbxObject.call(this);
+    this.clusters = null;
+
+    // data will contain the converter
+};
+
+HX.FbxSkin.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxSkin.prototype.toString = function() { return "[FbxSkin(name="+this.name+")]"; };
+
+HX.FbxSkin.prototype.connectObject = function(obj)
+{
+    if (obj instanceof HX.FbxCluster) {
+        this.clusters = this.clusters || [];
+        this.clusters.push(obj);
+    }
+    else
+        throw new Error("Unhandled object connection " + obj.toString());
+};
+HX.FbxTime = function(value)
+{
+    this._value = value;
+};
+
+HX.FbxTime.getSpan = function(start, stop)
+{
+    return new HX.FbxTime(stop._value - start._value);
+};
+
+HX.FbxTime.TC_MILLISECOND = 46186158;
+
+HX.FbxTime.prototype =
+{
+    get milliseconds()
+    {
+        return this._value / HX.FbxTime.TC_MILLISECOND;
+    },
+
+    set milliseconds(value)
+    {
+        this._value = value * HX.FbxTime.TC_MILLISECOND;
+    },
+
+    getFrameCount: function(frameRate)
+    {
+        return Math.floor(this.milliseconds / 1000.0 * frameRate);
+    },
+
+    toString: function()
+    {
+        return "[FbxTime(name="+this._value+")]";
+    }
+};
+HX.FbxTrashNode = function()
+{
+    HX.FbxObject.call(this);
+};
+
+HX.FbxTrashNode.prototype = Object.create(HX.FbxObject.prototype);
+
+HX.FbxTrashNode.prototype.toString = function() { return "[FbxTrashNode(name="+this.name+")]"; };
+
+// ignore
+HX.FbxTrashNode.prototype.connectObject = function(obj) {}
+HX.FbxVideo = function()
+{
+    HX.FbxObject.call(this);
+    // actual video not supported
+    this.relativeFilename = null;
+};
+
+HX.FbxVideo.prototype = Object.create(HX.FbxObject.prototype);
+HX.FbxVideo.prototype.toString = function() { return "[FbxVideo(name="+this.name+")]"; };

@@ -96,6 +96,14 @@ Object.defineProperties(HX.SceneNode.prototype, {
 
 HX.SceneNode.prototype.attach = function(child)
 {
+    if (child instanceof Array) {
+        var len = child.length;
+        for (var i = 0; i < len; ++i) {
+            this.attach(child[i]);
+        }
+        return;
+    }
+
     if (child._parent)
         throw new Error("Child is already parented!");
 

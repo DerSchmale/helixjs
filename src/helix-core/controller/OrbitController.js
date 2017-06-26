@@ -45,7 +45,8 @@ HX.OrbitController.prototype.onAdded = function()
 
     this._onMouseWheel = function(event)
     {
-        self.setZoomImpulse(-event.wheelDelta * self.zoomSpeed * .0001);
+        var delta = event.detail? -120 * event.detail : event.wheelDelta;
+        self.setZoomImpulse(-delta * self.zoomSpeed * .0001);
     };
 
     this._onMouseDown = function (event)

@@ -24,7 +24,7 @@ HX.StaticLitPass = function(geometryVertex, geometryFragment, lightingModel, lig
 
 HX.StaticLitPass.prototype = Object.create(HX.MaterialPass.prototype);
 
-HX.StaticLitPass.prototype.updateRenderState = function(renderer)
+HX.StaticLitPass.prototype.updatePassRenderState = function(renderer)
 {
     this.setUniform("hx_ambientColor", renderer._renderCollector.ambientColor);
     this._assignDirLights(renderer._camera);
@@ -32,7 +32,7 @@ HX.StaticLitPass.prototype.updateRenderState = function(renderer)
     this._assignPointLights(renderer._camera);
     this._assignLightProbes(renderer._camera);
 
-    HX.MaterialPass.prototype.updateRenderState.call(this, renderer);
+    HX.MaterialPass.prototype.updatePassRenderState.call(this, renderer);
 };
 
 HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, lights, ssao)

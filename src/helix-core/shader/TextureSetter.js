@@ -46,7 +46,6 @@ HX.TextureSetter._init = function()
     HX.TextureSetter._passTable.hx_frontbuffer = HX.FrontbufferSetter;
     HX.TextureSetter._passTable.hx_ssao = HX.SSAOSetter;
 
-    HX.TextureSetter._instanceTable.hx_morphPositionsTexture = HX.MorphPositionsTextureSetter;
     HX.TextureSetter._instanceTable.hx_skinningTexture = HX.SkinningTextureSetter;
 };
 
@@ -92,16 +91,6 @@ HX.SSAOSetter = function()
 HX.SSAOSetter.prototype.execute = function (renderer)
 {
     this.slot.texture = renderer._ssaoTexture;
-};
-
-
-HX.MorphPositionsTextureSetter = function()
-{
-};
-
-HX.MorphPositionsTextureSetter.prototype.execute = function (renderItem)
-{
-    this.slot.texture = renderItem.meshInstance.morphPose.positionTexture;
 };
 
 HX.SkinningTextureSetter = function()

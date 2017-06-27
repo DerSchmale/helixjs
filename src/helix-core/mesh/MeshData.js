@@ -10,10 +10,8 @@ HX.MeshData = function ()
     this.vertexUsage = HX_GL.STATIC_DRAW;
     this.indexUsage = HX_GL.STATIC_DRAW;
     this._vertexAttributes = [];
+    this._defaultMorphTarget = null;
     this._numStreams = 0;
-    this._hasMorphUVs = false;
-    this._morphBufferWidth = 0;
-    this._morphBufferHeight = 0;
 };
 
 HX.MeshData.DEFAULT_VERTEX_SIZE = 12;
@@ -35,9 +33,10 @@ HX.MeshData.createDefaultEmpty = function()
 HX.MeshData.prototype = {
     constructor: HX.MeshData,
 
-    get hasMorphUVs()
+    // this should only be the case for morph targets
+    hasVertexData: function (streamIndex)
     {
-        return this._hasMorphUVs;
+        return !!this._vertexData[streamIndex];
     },
 
     getVertexData: function (streamIndex)
@@ -111,20 +110,36 @@ HX.MeshData.prototype = {
         return this._vertexData[0].length / this._vertexStrides[0];
     },
 
+    extractAttributeData: function(name)
+    {
+        var attrib = this.getVertexAttribute(name);
+        var stride = this.getVertexStride(attrib);
+        var data = this.getVertexData(attrib.streamIndex);
+        var numComps = attrib.numComponents;
+        var vertData = [];
+        var t = 0;
+        for (var i = attrib.offset; i < data.length; i += stride) {
+            for (var j = 0; j < numComps; ++j) {
+                vertData[t++] = data[i + j];
+            }
+        }
+        return vertData;
+    },
+
     generateMorphData: function()
     {
-        var num = this.numVertices;
-        var dim = HX.MorphPose.getTextureDimensions(num);
-        var stream = this.numStreams;
-        this.addVertexAttribute("hx_morphUV", 2, stream);
-
+        this._morphAttributes = [];
         var data = [];
-        for (var i = 0; i < num; ++i) {
-            var u = (i % dim.x) / (dim.x - 1);
-            var v = Math.floor(i / dim.x) / (dim.y - 1);
-            data.push(u, v);
+
+        for (var i = 0; i < this.numVertices; ++i) {
+            data.push(0, 0, 0);
         }
 
-        this.setVertexData(data, stream);
+        this._defaultMorphTarget = new Float32Array(data);
+
+        for (i = 0; i < HX.NUM_MORPH_TARGETS; ++i) {
+            this.addVertexAttribute("hx_morphPosition" + i, 3, this.numStreams);
+            this._morphAttributes[i] = this._vertexAttributes[this._vertexAttributes.length - 1];
+        }
     }
 };

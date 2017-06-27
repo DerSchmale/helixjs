@@ -12,6 +12,7 @@ HX.ModelInstance = function(model, materials)
     this._meshInstances = [];
     this._castShadows = true;
     this._skeletonPose = null;
+    this._morphPose = null;
 
     this.init(model, materials);
 };
@@ -53,6 +54,26 @@ HX.ModelInstance.prototype = Object.create(HX.Entity.prototype, {
         },
         set: function(value) {
             this._skeletonPose = value;
+        }
+    },
+
+    morphPose: {
+        get: function() {
+            return this._morphPose;
+        },
+
+        set: function(value) {
+            if (this._morphPose)
+                this._morphPose.onChange.unbind(this._onMorphChanged);
+
+            this._morphPose = value;
+
+            if (this._morphPose) {
+                this._morphPose.onChange.bind(this._onMorphChanged, this);
+                this._onMorphChanged();
+            }
+            else
+                this._clearMorph();
         }
     }
 });
@@ -115,6 +136,40 @@ HX.ModelInstance.prototype._onModelChange = function()
     }
 
     this._invalidateWorldBounds();
+};
+
+HX.ModelInstance.prototype._clearMorph = function()
+{
+    var numTargets = HX.NUM_MORPH_TARGETS;
+    var numMeshes = this._meshInstances.length;
+
+    for (var t = 0; t < numTargets; ++t) {
+        for (var i = 0; i < numMeshes; ++i) {
+            this._meshInstances[i].setMorphTarget(t, null, 0);
+        }
+    }
+};
+
+HX.ModelInstance.prototype._onMorphChanged = function()
+{
+    var numTargets = HX.NUM_MORPH_TARGETS;
+    var numMeshes = this._meshInstances.length;
+
+    for (var t = 0; t < numTargets; ++t) {
+        var target = this._morphPose.getMorphTarget(t);
+        if (target) {
+            var weight = this._morphPose.getWeight(target.name);
+            for (var i = 0; i < numMeshes; ++i) {
+                var meshInstance = this._meshInstances[i];
+                meshInstance.setMorphTarget(t, target.getVertexBuffer(i), weight);
+            }
+        }
+        else {
+            for (var i = 0; i < numMeshes; ++i) {
+                this._meshInstances[i].setMorphTarget(t, null, 0.0);
+            }
+        }
+    }
 };
 
 // override for better matches

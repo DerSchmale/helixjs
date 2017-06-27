@@ -2,68 +2,46 @@
  *
  * @constructor
  */
-HX.MorphAnimation = function()
+HX.MorphAnimation = function(targets)
 {
     HX.Component.call(this);
 
-    this._blendTree = new HX.MorphBlendTree();
+    // some day, morph pose could also become a tree using and generating poses?
+    this._morphPose = new HX.MorphPose();
+    for (var i = 0; i < targets.length; ++i) {
+        this._morphPose.addMorphTarget(targets[i]);
+    }
 };
 
 HX.MorphAnimation.prototype = Object.create(HX.Component.prototype,
     {
-
+        numMorphTargets: {
+            get: function() { return this._morphPose.numMorphTargets; }
+        }
     }
 );
 
-HX.MorphAnimation.prototype.setValue = function(id, value)
+HX.MorphAnimation.prototype.getMorphTarget = function(index)
 {
-    this._blendTree.setValue(id, value);
+    return this._morphPose.getMorphTarget(index);
 };
 
-HX.MorphAnimation.prototype.getValueIDs = function()
+HX.MorphAnimation.prototype.setWeight = function(id, value)
 {
-    return this._blendTree.getValueIDs();
-};
-
-HX.MorphAnimation.prototype.getAnimationNode = function(meshIndex)
-{
-    return this._blendTree.getRootNode(meshIndex);
-};
-
-HX.MorphAnimation.prototype.setAnimationNode = function(meshIndex, value)
-{
-    this._blendTree.setRootNode(meshIndex, value);
+    this._morphPose.setWeight(id, value);
 };
 
 HX.MorphAnimation.prototype.onAdded = function()
 {
-    this._blendTree.setModel(this.entity.model);
-
-    for (var i = 0; i < this.entity.numMeshInstances; ++i) {
-        var meshInstance = this.entity.getMeshInstance(i);
-        var pose = this._blendTree.getPose(i);
-        if (pose)
-            meshInstance.morphPose = pose;
-    }
+    this.entity.morphPose = this._morphPose;
 };
 
 HX.MorphAnimation.prototype.onRemoved = function()
 {
-    // reset base morph positions
-    for (var i = 0; i < this.entity.numMeshInstances; ++i) {
-        var meshInstance = this.entity.getMeshInstance(i);
-        meshInstance.morphPose = meshInstance.mesh.baseMorphPose;
-    }
+    this.entity.morphPose = null;
 };
 
 HX.MorphAnimation.prototype.onUpdate = function(dt)
 {
-    this._blendTree.update(dt);
-
-    for (var i = 0; i < this.entity.numMeshInstances; ++i) {
-        var meshInstance = this.entity.getMeshInstance(i);
-        var pose = this._blendTree.getPose(i);
-        if (pose)
-            meshInstance.morphPose = pose;
-    }
+    this._morphPose.update(dt);
 };

@@ -52,6 +52,7 @@ HX.UniformSetter._init = function()
     HX.UniformSetter._table.hx_dither2DTextureScale = HX.Dither2DTextureScaleSetter;
     HX.UniformSetter._table["hx_skinningMatrices[0]"] = HX.SkinningMatricesSetter;
     HX.UniformSetter._table["hx_poissonDisk[0]"] = HX.PoissonDiskSetter;
+    HX.UniformSetter._table["hx_morphWeights[0]"] = HX.MorphWeightsSetter;
 };
 
 
@@ -328,4 +329,13 @@ HX.SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
         }
         HX_GL.uniform4fv(this.location, this._data);
     }
+};
+
+HX.MorphWeightsSetter = function()
+{
+};
+
+HX.MorphWeightsSetter.prototype.execute = function (camera, renderItem)
+{
+    HX_GL.uniform1fv(this.location, renderItem.meshInstance._morphWeights);
 };

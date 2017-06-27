@@ -9,9 +9,10 @@ HX.Mesh = function (meshData, model)
     this._model = model;
     this._vertexBuffers = [];
     this._vertexStrides = [];
+    this._vertexAttributes = null;
+    this._morphAttributes = null;
     this._indexBuffer = new HX.IndexBuffer();
-    this._hasMorphData = false;
-    this._baseMorphPose = null;
+    this._defaultMorphTarget = null;
 
     this._renderOrderHint = ++HX.Mesh.ID_COUNTER;
 
@@ -20,18 +21,12 @@ HX.Mesh = function (meshData, model)
 
 HX.Mesh.ID_COUNTER = 0;
 
-
 HX.Mesh.prototype = {
     constructor: HX.Mesh,
 
     get hasMorphData()
     {
-        return this._hasMorphData;
-    },
-
-    get baseMorphPose()
-    {
-        return this._baseMorphPose;
+        return !!this._morphAttributes;
     },
 
     updateMeshData: function(meshData)
@@ -41,7 +36,8 @@ HX.Mesh.prototype = {
 
         if (numStreams > numVertexBuffers) {
             for (var i = numVertexBuffers; i < numStreams; ++i) {
-                this._vertexBuffers[i] = new HX.VertexBuffer();
+                if (meshData.hasVertexData(i))
+                    this._vertexBuffers[i] = new HX.VertexBuffer();
             }
         }
         else if (numStreams < numVertexBuffers) {
@@ -50,7 +46,9 @@ HX.Mesh.prototype = {
         }
 
         for (i = 0; i < numStreams; ++i) {
-            this._vertexBuffers[i].uploadData(meshData.getVertexData(i), meshData.vertexUsage);
+            if (meshData.hasVertexData(i))
+                this._vertexBuffers[i].uploadData(meshData.getVertexData(i), meshData.vertexUsage);
+
             this._vertexStrides[i] = meshData.getVertexStride(i);
         }
 
@@ -59,10 +57,11 @@ HX.Mesh.prototype = {
 
         this._indexBuffer.uploadData(meshData._indexData, meshData.indexUsage);
         this._vertexAttributes = meshData._vertexAttributes;
-        this._hasMorphData = meshData.hasMorphUVs;
-        if (this._hasMorphData) {
-            this._baseMorphPose = new HX.MorphPose();
-            this._baseMorphPose.initFromMeshData(meshData);
+        this._morphAttributes = meshData._morphAttributes;
+
+        if (this._morphAttributes) {
+            this._defaultMorphTarget = new HX.VertexBuffer();
+            this._defaultMorphTarget.uploadData(meshData._defaultMorphTarget);
         }
     },
 

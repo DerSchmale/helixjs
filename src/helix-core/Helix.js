@@ -16,6 +16,7 @@ var HX_GL = null;
 HX.InitOptions = function()
 {
     this.maxBones = 64;
+
     this.useSkinningTexture = true;
 
     // rendering pipeline options
@@ -172,6 +173,9 @@ HX.init = function(canvas, options)
 
         this._initDefaultSkinningTexture();
     }
+
+    // this cannot be defined by the user
+    HX.NUM_MORPH_TARGETS = 8;
 
     HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
 

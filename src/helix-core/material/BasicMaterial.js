@@ -283,8 +283,11 @@ HX.BasicMaterial.prototype._generateDefines = function()
     if (this._normalMap) defines.NORMAL_MAP = 1;
     if (this._maskMap) defines.MASK_MAP = 1;
     if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
-    if (this._useSkinning) defines.USE_SKINNING = 1;
-    if (this._useMorphing) defines.USE_MORPHING = 1;
+    if (this._useSkinning) defines.HX_USE_SKINNING = 1;
+    if (this._useMorphing) {
+        defines.HX_USE_MORPHING = 1;
+        defines.HX_NUM_MORPH_TARGETS = HX.NUM_MORPH_TARGETS;
+    }
 
     switch (this._specularMapMode) {
         case HX.BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:

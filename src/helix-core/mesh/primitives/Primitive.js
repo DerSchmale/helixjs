@@ -96,8 +96,8 @@ HX.Primitive =
             return data;
         };
 
-        type.createMesh = function definition(definition) {
-            var data = type.createMeshData(definition);
+        type.createMesh = function definition(def) {
+            var data = type.createMeshData(def);
             return new HX.Mesh(data);
         };
 

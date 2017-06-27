@@ -60,7 +60,7 @@ HX.MeshInstance.prototype = {
                 this._morphPose = this._mesh.baseMorphPose;
         }
 
-        this._linkMeshWithMaterial();
+        this._meshMaterialLinkInvalid = true;
     },
 
     /**

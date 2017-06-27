@@ -115,7 +115,7 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
 
         var material = meshInstance.material;
 
-        if (!material._initialized) continue;
+        // if (!material._initialized) continue;
 
         this._needsNormalDepth = this._needsNormalDepth || material._needsNormalDepth;
         this._needsBackbuffer = this._needsBackbuffer || material._needsBackbuffer;

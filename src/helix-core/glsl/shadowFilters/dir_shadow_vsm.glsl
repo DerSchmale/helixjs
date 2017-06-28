@@ -1,3 +1,5 @@
+#derivatives
+
 vec4 hx_getShadowMapValue(float depth)
 {
     float dx = dFdx(depth);

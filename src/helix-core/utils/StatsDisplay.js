@@ -41,7 +41,6 @@ HX.StatsDisplay.prototype =
 
             "<div style='font-size:x-small; width:100%; text-align:right;'>"+
             "Helix " + HX.VERSION + "<br/>" +
-            "Hash 0x" + HX.BUILD_HASH.toString(16) + "<br/>" +
             "</div>";
     }
 };

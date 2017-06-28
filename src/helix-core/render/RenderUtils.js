@@ -25,6 +25,7 @@ HX.RenderUtils =
 
             if (pass !== activePass) {
                 pass.updatePassRenderState(renderer);
+                // pass.updatePassRenderState(renderer);
                 activePass = pass;
 
                 lastMesh = null;    // need to reset mesh data too

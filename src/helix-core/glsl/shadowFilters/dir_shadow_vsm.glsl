@@ -1,7 +1,9 @@
 vec4 hx_getShadowMapValue(float depth)
 {
-    // TODO: add dFdx, dFdy stuff
-    return vec4(hx_floatToRG8(depth), hx_floatToRG8(depth * depth));
+    float dx = dFdx(depth);
+    float dy = dFdy(depth);
+    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);
+    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));
 }
 
 float hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)

@@ -49,7 +49,7 @@ HX.VarianceDirectionalShadowFilter.prototype._getDefines = function()
 {
     var range = 1.0 - this._lightBleedReduction;
     return {
-        HX_VSM_MIN_VARIANCE: .00001,
+        HX_VSM_MIN_VARIANCE: -0.0001,
         HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + this._lightBleedReduction + ")",
         HX_VSM_LIGHT_BLEED_REDUCTION_RANGE: "float(" + range + ")"
     };

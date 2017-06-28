@@ -7,7 +7,6 @@ HX.SkeletonBlendNode = function()
     this._rootJointDeltaPosition = new HX.Float4();
     this._valueID = null;
     this._pose = new HX.SkeletonPose();
-    this._rootPosition = new HX.Float4();
 };
 
 HX.SkeletonBlendNode.prototype =

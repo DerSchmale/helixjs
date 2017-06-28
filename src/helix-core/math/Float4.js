@@ -144,6 +144,14 @@ HX.Float4.prototype = {
         this.w += v.w;
     },
 
+    addScaled: function(v, s)
+    {
+        this.x += v.x * s;
+        this.y += v.y * s;
+        this.z += v.z * s;
+        this.w += v.w * s;
+    },
+
     subtract: function(v)
     {
         this.x -= v.x;

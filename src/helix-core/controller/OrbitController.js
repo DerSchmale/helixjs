@@ -10,6 +10,7 @@ HX.OrbitController = function(lookAtTarget)
     this._localAcceleration = new HX.Float4(0.0, 0.0, 0.0, 0.0);
     this._localVelocity = new HX.Float4(0.0, 0.0, 0.0, 0.0);
 
+    this.touchZoomSpeed = .01;
     this.zoomSpeed = 1.0;
     this.maxRadius = 4.0;
     this.minRadius = 0.1;
@@ -99,7 +100,7 @@ HX.OrbitController.prototype.onAdded = function()
             var dy = touch1.screenY - touch2.screenY;
             var dist = Math.sqrt(dx*dx + dy*dy);
             var diff = self._startPitchDistance - dist;
-            self.radius = self._startZoom + diff * .01;
+            self.radius = self._startZoom + diff * this.touchZoomSpeed;
         }
     };
 

@@ -11,6 +11,11 @@ HX.SkeletonClipNode = function(clip)
     this._isPlaying = true;
     this._time = 0;
     this._currentFrameIndex = 0;
+    this._rootPosition = new HX.Float4();
+
+    var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
+    var firstFramePos = clip.getKeyFrame(0).value.jointPoses[0].position;
+    this._clipRootDelta = HX.Float4.subtract(lastFramePos, firstFramePos);
 };
 
 HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
@@ -117,32 +122,23 @@ HX.SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
 
 HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
-    var clip = this._clip;
-    var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
-    var firstFramePos = clip.getKeyFrame(0).value.jointPoses[0].position;
-
-    var currentPos = this._pose.jointPoses[0].position;
+    var rootBonePos = this._pose.jointPoses[0].position;
     var rootPos = this._rootPosition;
     var rootDelta = this._rootJointDeltaPosition;
 
+    HX.Float4.subtract(rootBonePos, rootPos, rootDelta);
+
     if (dt > 0 && numWraps > 0) {
-        rootDelta.x = lastFramePos.x - rootPos.x + currentPos.x - firstFramePos.x + (lastFramePos.x - firstFramePos.x) * (numWraps - 1);
-        rootDelta.y = lastFramePos.y - rootPos.y + currentPos.y - firstFramePos.y + (lastFramePos.y - firstFramePos.y) * (numWraps - 1);
-        rootDelta.z = lastFramePos.z - rootPos.z + currentPos.z - firstFramePos.z + (lastFramePos.z - firstFramePos.z) * (numWraps - 1);
+        // apply the entire displacement for the amount of times it wrapped
+        rootDelta.addScaled(this._clipRootDelta, numWraps);
     }
-    else if (numWraps > 0) {
-        rootDelta.x = firstFramePos.x - rootPos.x + currentPos.x - lastFramePos.x + (firstFramePos.x - lastFramePos.x) * (numWraps - 1);
-        rootDelta.y = firstFramePos.y - rootPos.y + currentPos.y - lastFramePos.y + (firstFramePos.y - lastFramePos.y) * (numWraps - 1);
-        rootDelta.z = firstFramePos.z - rootPos.z + currentPos.z - lastFramePos.z + (firstFramePos.z - lastFramePos.z) * (numWraps - 1);
-    }
-    else { // no wraps
-        rootDelta.x = currentPos.x - rootPos.x;
-        rootDelta.y = currentPos.y - rootPos.y;
-        rootDelta.z = currentPos.z - rootPos.z;
+    else if (dt < 0 && numWraps > 0) {
+        // apply the entire displacement for the amount of times it wrapped, in the other direction
+        rootDelta.addScaled(this._clipRootDelta, -numWraps);
     }
 
-    this._rootPosition.copyFrom(currentPos);
-    currentPos.set(0.0, 0.0, 0.0);
+    this._rootPosition.copyFrom(rootBonePos);
+    rootBonePos.set(0.0, 0.0, 0.0);
 };
 
 HX.SkeletonClipNode.prototype._applyValue = function(value)

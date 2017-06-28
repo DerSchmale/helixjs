@@ -32,7 +32,7 @@ HX.SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
     for (var i = 0; i < len; ++i) {
         var child = this._children[i];
 
-        updated = child.node.update(dt) || updated;
+        updated = child.node.update(dt, transferRootJoint) || updated;
 
         var w = child.weight + dt * child.fadeSpeed;
 
@@ -52,11 +52,22 @@ HX.SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
     var last = this._children.length - 1;
 
     // work backwards, so we can just override each old state progressively
-    this._pose.copyFrom(this._children[last].node._pose);
+    var childNode = this._children[last].node;
+    var delta = this._rootJointDeltaPosition;
+    var pose = this._pose;
+    pose.copyFrom(childNode._pose);
 
+    if (transferRootJoint)
+        delta.copyFrom(childNode._rootJointDeltaPosition);
+    
     for (i = last - 1; i >= 0; --i) {
         child = this._children[i];
-        this._pose.interpolate(this._pose, child.node._pose, child.weight);
+        childNode = child.node;
+
+        if (transferRootJoint)
+            delta.lerp(delta, childNode._rootJointDeltaPosition, child.weight);
+
+        pose.interpolate(pose, childNode._pose, child.weight);
     }
 
     return true;

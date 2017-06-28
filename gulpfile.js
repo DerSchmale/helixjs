@@ -16,6 +16,7 @@ var coreGLSLFiles = [
 ];
 
 var coreFiles = [
+    "meta/module-pre.js",
     "src/helix-core/Helix.js",
     "src/helix-core/shader/ShaderLibrary.js",
     "./build/tmp/*.js",
@@ -43,7 +44,8 @@ var coreFiles = [
     "src/helix-core/mesh/Model.js",
     "src/helix-core/mesh/primitives/Primitive.js",
 
-    "src/helix-core/**/*.js"
+    "src/helix-core/**/*.js",
+    "meta/module-post.js"
 ];
 
 var ioFiles = [
@@ -62,7 +64,6 @@ gulp.task('core', ['glsl'], function ()
     var sources = libs.concat(coreFiles);
     return gulp.src(sources, {base: './'})
         .pipe(concat('helix.js'))
-        .pipe(insert.append(appendHash()))
         .pipe(gulp.dest('./build/'));
 });
 
@@ -96,12 +97,6 @@ gulp.task('clean', ['main', 'glsl'], function ()
 {
     del('./build/tmp');
 });
-
-function appendHash()
-{
-    var hash = Math.round(Math.random() * 0xffff).toString(16);
-    return "HX.BUILD_HASH = 0x" + hash + ";\n";
-}
 
 function appendGLSL(contents, file)
 {

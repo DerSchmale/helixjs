@@ -26,11 +26,12 @@ HX.StaticLitPass.prototype = Object.create(HX.MaterialPass.prototype);
 
 HX.StaticLitPass.prototype.updatePassRenderState = function(renderer)
 {
+    var camera = renderer._camera;
     this.setUniform("hx_ambientColor", renderer._renderCollector.ambientColor);
-    this._assignDirLights(renderer._camera);
-    this._assignDirLightCasters(renderer._camera);
-    this._assignPointLights(renderer._camera);
-    this._assignLightProbes(renderer._camera);
+    this._assignDirLights(camera);
+    this._assignDirLightCasters(camera);
+    this._assignPointLights(camera);
+    this._assignLightProbes(camera);
 
     HX.MaterialPass.prototype.updatePassRenderState.call(this, renderer);
 };
@@ -133,6 +134,7 @@ HX.StaticLitPass.prototype._assignDirLightCasters = function(camera)
         var light = lights[i];
         camera.viewMatrix.transformVector(light.direction, dir);
 
+        // TODO: Optimize these calls to direct GL calls
         this.setUniform("hx_directionalLightCasters[" + i + "].color", light._scaledIrradiance);
         this.setUniform("hx_directionalLightCasters[" + i + "].direction", dir);
 

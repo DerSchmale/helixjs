@@ -90,6 +90,7 @@ HX.MaterialPass.prototype =
 
     /**
      * Called per render item.
+     * TODO: Could separate UniformSetters per pass / instance as well
      */
     updateInstanceRenderState: function(camera, renderItem)
     {

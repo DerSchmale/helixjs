@@ -20,16 +20,14 @@ HX.RenderUtils =
             if (!pass) continue;
             var meshInstance = renderItem.meshInstance;
 
-            // make sure renderstate is propagated
-            pass.updateInstanceRenderState(renderItem.camera, renderItem);
-
             if (pass !== activePass) {
                 pass.updatePassRenderState(renderer);
-                // pass.updatePassRenderState(renderer);
                 activePass = pass;
-
                 lastMesh = null;    // need to reset mesh data too
             }
+
+            // make sure renderstate is propagated
+            pass.updateInstanceRenderState(renderItem.camera, renderItem);
 
             if (lastMesh !== meshInstance._mesh) {
                 meshInstance.updateRenderState(passType);

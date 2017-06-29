@@ -68,8 +68,16 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
 
     //if (!worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes)) return;
 
+    // figure out in which cascade(s) the object is included
+    // every cascade is bounded at the far end by a plane parallel to the view plane, the normal pointing into the screen
+    // if an object is completely in front of this plane, it's not in the cascade.
+
+    // TODO: This method doesn't actually work, since an object contained entirely in cascade 1 can still cast into
+    // cascade 2 and vice versa. We need to find a way to figure out where the shadows will fall, but this may mean
+    // 4-plane frustum tests for each mesh
+
     var lastCascade = numCascades - 1;
-    for (var cascade = 0; cascade <= lastCascade; ++cascade) {
+    for (var cascade = 0; cascade < numCascades; ++cascade) {
 
         var renderList = this._renderLists[cascade];
         var renderCamera = this._renderCameras[cascade];
@@ -77,12 +85,13 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
         var planeSide;
 
         // always contained in lastCascade if we made it this far
-        if (cascade === lastCascade)
+        /*if (cascade === lastCascade)
             planeSide = HX.PlaneSide.BACK;
         else
-            planeSide = worldBounds.classifyAgainstPlane(this._splitPlanes[cascade]);
+            planeSide = worldBounds.classifyAgainstPlane(this._splitPlanes[cascade]);*/
 
-        if (planeSide !== HX.PlaneSide.FRONT) {
+        // front means it's not intersecting this partition
+        // if (planeSide !== HX.PlaneSide.FRONT) {
             for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
                 var meshInstance = modelInstance.getMeshInstance(meshIndex);
                 var material = meshInstance.material;
@@ -101,10 +110,11 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
                 }
             }
 
-            // completely contained in the cascade, so it won't be in more distant slices
-            if (planeSide === HX.PlaneSide.BACK)
-                return;
-        }
+            // completely contained in the partition, so it won't be in more distant slices
+            // We can't do this, because an object completely in cascade A might still cast into cascade 2!
+            // if (planeSide === HX.PlaneSide.BACK)
+            //     return;
+        // }
     }
 
     // no need to test the last split plane, if we got this far, it's bound to be in it

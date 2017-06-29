@@ -207,6 +207,8 @@ HX.SceneNode.prototype._updateWorldBounds = function ()
 {
     var len = this._children.length;
 
+    this._worldBounds.clear();
+
     for (var i = 0; i < len; ++i) {
         this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
     }

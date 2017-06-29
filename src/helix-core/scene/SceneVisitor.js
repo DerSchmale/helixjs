@@ -30,7 +30,7 @@ HX.RenderItemPool = function()
             head = head.next;
         }
         else {
-            item = new HX.RenderItemPool();
+            item = new HX.RenderItem();
             item.next = pool;
             pool = item;
         }

@@ -218,10 +218,12 @@ HX.BoundingAABB.prototype.classifyAgainstPlane = function(plane)
     if (planeZ < 0) planeZ = -planeZ;
 
     var intersectionDist = planeX * this._halfExtentX + planeY * this._halfExtentY + planeZ * this._halfExtentZ;
+    // intersectionDist is the distance to the far point
+    // -intersectionDist is the distance to the closest point
 
     if (centerDist > intersectionDist)
         return HX.PlaneSide.FRONT;
-    else if (centerDist < -intersectionDist)
+    if (centerDist < -intersectionDist)
         return HX.PlaneSide.BACK;
     else
         return HX.PlaneSide.INTERSECTING;

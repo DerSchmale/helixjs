@@ -218,7 +218,7 @@ HX._updateRenderState = function()
 
     if (HX._blendStateInvalid) {
         var blendState = HX._blendState;
-        if (blendState === null || blendState === undefined || blendState.enabled === false)
+        if (!blendState || blendState.enabled === false)
             HX_GL.disable(HX_GL.BLEND);
         else {
             HX_GL.enable(HX_GL.BLEND);
@@ -233,7 +233,7 @@ HX._updateRenderState = function()
 
     if (HX._stencilStateInvalid) {
         var stencilState = HX._stencilState;
-        if (stencilState === null || stencilState.enabled === false) {
+        if (!stencilState || stencilState.enabled === false) {
             HX_GL.disable(HX_GL.STENCIL_TEST);
             HX_GL.stencilFunc(HX.Comparison.ALWAYS, 0, 0xff);
             HX_GL.stencilOp(HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);

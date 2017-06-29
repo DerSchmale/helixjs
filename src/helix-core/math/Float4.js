@@ -271,6 +271,15 @@ HX.Float4.prototype = {
         if (b.z < this.z) this.z = b.z;
     },
 
+    planeFromNormalAndPoint: function(normal, point)
+    {
+        var nx = normal.x, ny = normal.y, nz = normal.z;
+        this.x = nx;
+        this.y = ny;
+        this.z = nz;
+        this.w = -(point.x * nx + point.y * ny + point.z * nz);
+    },
+
     toString: function()
     {
         return "Float4(" + this.x + ", " + this.y + ", " + this.z + ", " + this.w + ")";

@@ -26,5 +26,4 @@ HX.LightProbe.prototype = Object.create(HX.Entity.prototype,
 HX.LightProbe.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
-    HX.Light.prototype._updateWorldBounds.call(this);
 };

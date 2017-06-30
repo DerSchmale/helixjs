@@ -25,10 +25,9 @@ function initRenderer(renderer)
 {
     //renderer.localReflections = new HX.ScreenSpaceReflections(32);
 
-    //var ssao = new HX.SSAO(16);
-    var ssao = new HX.HBAO(5, 6);
-    ssao.strength = 5.0;
-    ssao.sampleRadius = 2.0;
+    var ssao = new HX.SSAO(16);
+    ssao.strength = 2.0;
+    ssao.sampleRadius = .5;
     ssao.fallOffDistance = 2.0;
     renderer.ambientOcclusion = ssao;
 }

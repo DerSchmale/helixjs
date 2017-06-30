@@ -67,13 +67,11 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
     var skeletonMatrices = modelInstance.skeletonMatrices;
 
     for (var cascade = 0; cascade < numCascades; ++cascade) {
-
         var renderList = this._renderLists[cascade];
         var renderCamera = this._renderCameras[cascade];
 
         var contained = worldBounds.intersectsConvexSolid(renderCamera.frustum.planes, 4);
 
-        // front means it's not intersecting this partition
         if (contained) {
             for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
                 var meshInstance = modelInstance.getMeshInstance(meshIndex);

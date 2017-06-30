@@ -1,3 +1,8 @@
+HX.DebugRenderMode = {
+    NONE: 0,
+    SSAO: 1
+};
+
 HX.ForwardRenderer = function ()
 {
     this._width = 0;
@@ -24,6 +29,7 @@ HX.ForwardRenderer = function ()
     this._backgroundColor = HX.Color.BLACK.clone();
     //this._previousViewProjection = new HX.Matrix4x4();
     this._depthPrepass = true;
+    this._debugMode = HX.DebugRenderMode.NONE;
 };
 
 HX.ForwardRenderer.HDRBuffers = function(depthBuffer)
@@ -54,6 +60,16 @@ HX.ForwardRenderer.HDRBuffers.prototype =
 
 HX.ForwardRenderer.prototype =
 {
+    get debugMode()
+    {
+        return this._debugMode;
+    },
+
+    set debugMode(value)
+    {
+        this._debugMode = value;
+    },
+
     get backgroundColor()
     {
         return this._backgroundColor;
@@ -149,7 +165,7 @@ HX.ForwardRenderer.prototype =
         this._renderStatics(opaqueStaticLit);
         // TODO: Render dynamic lit opaques here
 
-        // THIS IS EXTREMELY INEFFICIENT ON SOME PLATFORMS
+        // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
         if (this._renderCollector.needsBackbuffer)
             this._copyToBackBuffer();
 
@@ -225,6 +241,11 @@ HX.ForwardRenderer.prototype =
     {
         HX.setRenderTarget(renderTarget);
         HX.clear();
+
+        if (this._debugMode === HX.DebugRenderMode.SSAO) {
+            this._copyTextureShader.execute(HX.RectMesh.DEFAULT, this._ssaoTexture);
+            return;
+        }
 
         // TODO: render directly to screen if last post process effect?
         if (this._gammaApplied)

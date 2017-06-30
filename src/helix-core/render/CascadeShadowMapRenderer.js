@@ -122,34 +122,13 @@ HX.CascadeShadowMapRenderer.prototype =
 
     _updateSplits: function(viewCamera)
     {
-        var normal = new HX.Float4(0.0, 0.0, 0.0, 0.0);
-        var pos = new HX.Float4(0.0, 0.0, 0.0, 1.0);
-        var field = new HX.Float4(0.0, 0.0, 0.0, 1.0);
-
         return function(viewCamera) {
             var nearDist = viewCamera.nearDistance;
             var frustumRange = viewCamera.farDistance - nearDist;
-            var matrix = viewCamera.worldMatrix;
-            matrix.getColumn(2, normal);
-            matrix.getColumn(3, pos);
-            normal.negate();
-
-            // <normal, baseW> would be the view plane through the camera position
-            var baseW = -HX.dot4(pos, normal);
 
             for (var i = 0; i < this._numCascades; ++i) {
                 var z = nearDist + this._splitRatios[i] * frustumRange;
                 this._splitDistances[i] = -z;
-                var target = this._splitPlanes[i];
-
-                // field.copyFrom(pos);
-                // field.addScaled(normal, z);
-                // target.planeFromNormalAndPoint(normal, field);
-
-                // TODO: should be possible to replace to above with the following:
-                // enough just offsetting the view plane by z, because it's parallel to the normal
-                target.copyFrom(normal);
-                target.w = baseW - z;
             }
         }
     }(),
@@ -280,7 +259,7 @@ HX.CascadeShadowMapRenderer.prototype =
 
     _collectShadowCasters: function(scene)
     {
-        this._casterCollector.setSplitPlanes(this._splitPlanes);
+        // this._casterCollector.setSplitPlanes(this._splitPlanes);
         this._casterCollector.setCullPlanes(this._cullPlanes, this._numCullPlanes);
         this._casterCollector.setRenderCameras(this._shadowMapCameras);
         this._casterCollector.collect(this._collectorCamera, scene);

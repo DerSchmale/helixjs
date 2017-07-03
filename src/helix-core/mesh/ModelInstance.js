@@ -165,7 +165,7 @@ HX.ModelInstance.prototype._onMorphChanged = function()
             }
         }
         else {
-            for (var i = 0; i < numMeshes; ++i) {
+            for (i = 0; i < numMeshes; ++i) {
                 this._meshInstances[i].setMorphTarget(t, null, 0.0);
             }
         }

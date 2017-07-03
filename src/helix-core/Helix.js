@@ -1,4 +1,4 @@
-HX.VERSION = '0.1',
+HX.VERSION = '0.1';
 HX.INITIALIZED = false;
 
 var HX_GL = null;

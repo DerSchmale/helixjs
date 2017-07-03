@@ -83,7 +83,7 @@ HX.MeshInstance.prototype = {
         var attribute;
 
         for (var i = 0; i < len; ++i) {
-            var attribute = morphAttributes[i];
+            attribute = morphAttributes[i];
             var buffer = this._morphTargets[i] || this._mesh._defaultMorphTarget;
             buffer.bind();
             HX_GL.vertexAttribPointer(attribute.index, attribute.numComponents, HX_GL.FLOAT, false, attribute.stride, attribute.offset);

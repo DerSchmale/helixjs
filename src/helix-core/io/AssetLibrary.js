@@ -21,7 +21,7 @@ HX.AssetLibrary = function(basePath)
     this._numLoaded = 0;
     this._queue = [];
     this._assets = {};
-    if (basePath && basePath.charAt(basePath.length - 1) != "/") basePath = basePath + "/";
+    if (basePath && basePath.charAt(basePath.length - 1) !== "/") basePath += "/";
     this._basePath = basePath || "";
     this._onComplete = new HX.Signal(/* void */);
     this._onProgress = new HX.Signal(/* number */)
@@ -118,6 +118,8 @@ HX.AssetLibrary.prototype =
             case HX.AssetLibrary.Type.ASSET:
                 this._model(asset.filename, asset.id, asset.parser);
                 break;
+            default:
+                throw new Error("Unknown asset type!");
         }
     },
 

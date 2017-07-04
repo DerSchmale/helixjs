@@ -15,7 +15,7 @@ var settings = {
 
 project.onInit = function()
 {
-    if (HX.OPTIONS.hdr)
+    if (HX.META.OPTIONS.hdr)
         initHDRSettings();
     else
         initLDRSettings();
@@ -55,7 +55,7 @@ function initHDRSettings()
 
     // TODO: Implement pseudo lens flare
 
-    var tonemap = new HX.FilmicToneMapEffect(true);
+    var tonemap = new HX.FilmicToneMapping(true);
     tonemap.exposure = -2;
 
     settings.effects = [bloom1, bloom2, bloom3, tonemap];

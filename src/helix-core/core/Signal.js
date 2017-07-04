@@ -1,13 +1,13 @@
-HX.Signal = function()
+function Signal()
 {
     this._listeners = [];
     this._lookUp = {};
-};
+}
 
 /**
  * Signals keep "this" of the caller, because having this refer to the signal itself would be silly
  */
-HX.Signal.prototype =
+Signal.prototype =
 {
     bind: function(listener, thisRef)
     {
@@ -35,3 +35,5 @@ HX.Signal.prototype =
         return this._listeners.length > 0;
     }
 };
+
+export { Signal };

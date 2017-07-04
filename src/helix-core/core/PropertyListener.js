@@ -1,16 +1,18 @@
+import {Signal} from "./Signal";
+
 /**
  * PropertyListener allows listening to changes to other objects' properties. When a change occurs, the onChange signal will be dispatched.
  * It's a bit hackish, but it prevents having to dispatch signals in performance-critical classes such as Float4.
  * @constructor
  */
-HX.PropertyListener = function()
+function PropertyListener()
 {
     this._enabled = true;
-    this.onChange = new HX.Signal();
+    this.onChange = new Signal();
     this._targets = [];
-};
+}
 
-HX.PropertyListener.prototype =
+PropertyListener.prototype =
 {
     /**
      * If false, prevents the PropertyListener from dispatching change events.
@@ -74,3 +76,5 @@ HX.PropertyListener.prototype =
         }
     }
 };
+
+export {PropertyListener };

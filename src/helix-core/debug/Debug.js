@@ -1,4 +1,4 @@
-HX.Debug = {
+export var Debug = {
     printShaderCode: function(code)
     {
         var arr = code.split("\n");

@@ -1,19 +1,22 @@
+import {BoundingVolume} from "../scene/BoundingVolume";
+import {Entity} from "../entity/Entity";
+
 /**
  * Can be used directly, or have SkyBox manage this for you (generally the best approach). Acts as an infinite environment map.
  */
-HX.LightProbe = function(diffuseTexture, specularTexture)
+function LightProbe(diffuseTexture, specularTexture)
 {
-    HX.Entity.call(this);
+    Entity.call(this);
     this._specularTexture = specularTexture;
     this._diffuseTexture = diffuseTexture;
     this._size = undefined;
 };
 
 // conversion range for spec power to mip
-HX.LightProbe.powerRange0 = .00098;
-HX.LightProbe.powerRange1 = .9921;
+LightProbe.powerRange0 = .00098;
+LightProbe.powerRange1 = .9921;
 
-HX.LightProbe.prototype = Object.create(HX.Entity.prototype,
+LightProbe.prototype = Object.create(Entity.prototype,
     {
         specularTexture: {
             get: function() { return this._specularTexture; }
@@ -23,7 +26,9 @@ HX.LightProbe.prototype = Object.create(HX.Entity.prototype,
         }
     });
 
-HX.LightProbe.prototype._updateWorldBounds = function()
+LightProbe.prototype._updateWorldBounds = function()
 {
-    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+    this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
+
+export { LightProbe };

@@ -1,3 +1,5 @@
+import {Float2} from "./Float2";
+
 /**
  *
  * @param mode
@@ -6,36 +8,36 @@
  * @param maxTests
  * @constructor
  */
-HX.PoissonDisk = function(mode, initialDistance, decayFactor, maxTests)
+function PoissonDisk(mode, initialDistance, decayFactor, maxTests)
 {
-    this._mode = mode === undefined? HX.PoissonDisk.CIRCULAR : mode;
+    this._mode = mode === undefined? PoissonDisk.CIRCULAR : mode;
     this._initialDistance = initialDistance || 1.0;
     this._decayFactor = decayFactor || .99;
     this._maxTests = maxTests || 20000;
     this._currentDistance = 0;
     this._points = null;
     this.reset();
-};
+}
 
-HX.PoissonDisk.SQUARE = 0;
-HX.PoissonDisk.CIRCULAR = 1;
+PoissonDisk.SQUARE = 0;
+PoissonDisk.CIRCULAR = 1;
 
-HX.PoissonDisk._initDefault = function()
+PoissonDisk._initDefault = function()
 {
-    HX.PoissonDisk.DEFAULT = new HX.PoissonDisk();
-    HX.PoissonDisk.DEFAULT.generatePoints(64);
-    HX.PoissonDisk.DEFAULT_FLOAT32 = new Float32Array(64 * 2);
+    PoissonDisk.DEFAULT = new PoissonDisk();
+    PoissonDisk.DEFAULT.generatePoints(64);
+    PoissonDisk.DEFAULT_FLOAT32 = new Float32Array(64 * 2);
 
-    var diskPoints = HX.PoissonDisk.DEFAULT.getPoints();
+    var diskPoints = PoissonDisk.DEFAULT.getPoints();
 
     for (var i = 0; i < 64; ++i) {
         var p = diskPoints[i];
-        HX.PoissonDisk.DEFAULT_FLOAT32[i * 2] = p.x;
-        HX.PoissonDisk.DEFAULT_FLOAT32[i * 2 + 1] = p.y;
+        PoissonDisk.DEFAULT_FLOAT32[i * 2] = p.x;
+        PoissonDisk.DEFAULT_FLOAT32[i * 2 + 1] = p.y;
     }
 };
 
-HX.PoissonDisk.prototype =
+PoissonDisk.prototype =
 {
     getPoints: function()
     {
@@ -76,8 +78,8 @@ HX.PoissonDisk.prototype =
         for (;;) {
             var x = Math.random() * 2.0 - 1.0;
             var y = Math.random() * 2.0 - 1.0;
-            if (this._mode === HX.PoissonDisk.SQUARE || (x * x + y * y <= 1))
-                return new HX.Float2(x, y);
+            if (this._mode === PoissonDisk.SQUARE || (x * x + y * y <= 1))
+                return new Float2(x, y);
         }
     },
 
@@ -95,3 +97,5 @@ HX.PoissonDisk.prototype =
             return true;
     }
 };
+
+export { PoissonDisk };

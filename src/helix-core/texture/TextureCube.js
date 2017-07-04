@@ -1,0 +1,213 @@
+import {GL} from "../core/GL";
+import {DataType, TextureFormat, TextureFilter, TextureWrapMode, capabilities} from "../Helix";
+import {TextureUtils} from "./TextureUtils";
+
+
+/**
+ *
+ * @constructor
+ */
+function TextureCube()
+{
+    this._name = null;
+    this._default = TextureCube.DEFAULT;
+    this._texture = GL.gl.createTexture();
+    this._size = 0;
+    this._format = null;
+    this._dataType = null;
+
+    this.bind();
+    this.filter = TextureFilter.DEFAULT;
+    this.maxAnisotropy = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
+
+    this._isReady = false;
+};
+
+TextureCube._initDefault = function()
+{
+    var gl = GL.gl;
+    var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
+    TextureCube.DEFAULT = new TextureCube();
+    TextureCube.DEFAULT.uploadData([data, data, data, data, data, data], 1, true);
+    TextureCube.DEFAULT.filter = TextureFilter.NEAREST_NOMIP;
+    gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+};
+
+TextureCube.prototype =
+{
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
+
+    dispose: function()
+    {
+        GL.gl.deleteTexture(this._texture);
+        this._isReady = false;
+    },
+
+    generateMipmap: function()
+    {
+        this.bind();
+        var gl = GL.gl;
+        gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+    },
+
+    get filter()
+    {
+        return this._filter;
+    },
+
+    set filter(filter)
+    {
+        this._filter = filter;
+        this.bind();
+        var gl = GL.gl;
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, filter.min);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, filter.mag);
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+    },
+
+    get maxAnisotropy()
+    {
+        return this._maxAnisotropy;
+    },
+
+    set maxAnisotropy(value)
+    {
+        if (value > capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY)
+            value = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
+
+        this._maxAnisotropy = value;
+
+        this.bind();
+
+        var gl = GL.gl;
+        if (capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC)
+            gl.texParameteri(gl.TEXTURE_CUBE_MAP, capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+    },
+
+    get size() { return this._size; },
+    get format() { return this._format; },
+    get dataType() { return this._dataType; },
+
+    initEmpty: function(size, format, dataType)
+    {
+        this._format = format = format || TextureFormat.RGBA;
+        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+
+        this._size = size;
+
+        this.bind();
+
+        var gl = GL.gl;
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, format, size, size, 0, format, dataType, null);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, format, size, size, 0, format, dataType, null);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, format, size, size, 0, format, dataType, null);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, format, size, size, 0, format, dataType, null);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, format, size, size, 0, format, dataType, null);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, format, size, size, 0, format, dataType, null);
+
+        this._isReady = true;
+
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    },
+
+    uploadData: function(data, size, generateMips, format, dataType)
+    {
+        this._size = size;
+
+        this._format = format = format || TextureFormat.RGBA;
+        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+        generateMips = generateMips === undefined? true: generateMips;
+
+        this.bind();
+
+        var gl = GL.gl;
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, format, size, size, 0, format, dataType, data[0]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, format, size, size, 0, format, dataType, data[1]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, format, size, size, 0, format, dataType, data[2]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, format, size, size, 0, format, dataType, data[3]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, format, size, size, 0, format, dataType, data[4]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, format, size, size, 0, format, dataType, data[5]);
+
+        if (generateMips)
+            gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+
+        this._isReady = true;
+
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+    },
+
+    uploadImages: function(images, generateMips, format, dataType)
+    {
+        generateMips = generateMips === undefined? true: generateMips;
+
+        this._format = format;
+        this._dataType = dataType;
+
+        this.uploadImagesToMipLevel(images, 0, format, dataType);
+
+        var gl = GL.gl;
+        if (generateMips) {
+            this.bind();
+            gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+        }
+
+        this._isReady = true;
+
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+    },
+
+    uploadImagesToMipLevel: function(images, mipLevel, format, dataType)
+    {
+        var gl = GL.gl;
+        this._format = format = format || TextureFormat.RGBA;
+        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+
+        if (mipLevel === 0)
+            this._size = images[0].naturalWidth;
+
+        this.bind();
+
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X, mipLevel, format, format, dataType, images[0]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_X, mipLevel, format, format, dataType, images[1]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Y, mipLevel, format, format, dataType, images[2]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, mipLevel, format, format, dataType, images[3]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, mipLevel, format, format, dataType, images[4]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, mipLevel, format, format, dataType, images[5]);
+
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+    },
+
+    isReady: function() { return this._isReady; },
+
+    // binds a texture to a given texture unit
+    bind: function(unitIndex)
+    {
+        var gl = GL.gl;
+
+        if (unitIndex !== undefined)
+            gl.activeTexture(gl.TEXTURE0 + unitIndex);
+
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, this._texture);
+    },
+
+    toString: function()
+    {
+        return "[TextureCube(name=" + this._name + ")]";
+    }
+};
+
+export { TextureCube };

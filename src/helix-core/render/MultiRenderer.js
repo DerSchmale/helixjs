@@ -1,8 +1,21 @@
-HX.View = function(scene, camera, xRatio, yRatio, widthRatio, heightRatio)
+/**
+ * MultiRenderer is a renderer for multiple viewports
+ * @constructor
+ */
+import {ForwardRenderer} from "./ForwardRenderer";
+import {Texture2D} from "../texture/Texture2D";
+import {FrameBuffer} from "../texture/FrameBuffer";
+import {DEFAULTS, META, TextureFilter, TextureWrapMode} from "../Helix";
+import {Rect} from "../core/Rect";
+import {GL} from "../core/GL";
+import {RectMesh} from "../mesh/RectMesh";
+
+
+function View(scene, camera, xRatio, yRatio, widthRatio, heightRatio)
 {
     this.scene = scene;
     this.camera = camera;
-    this.viewport = new HX.Rect();
+    this.viewport = new Rect();
     this._renderer = null;
     this._texture = null;
     this._fbo = null;
@@ -10,26 +23,22 @@ HX.View = function(scene, camera, xRatio, yRatio, widthRatio, heightRatio)
     this.yRatio = yRatio || 0;
     this.widthRatio = widthRatio || 1;
     this.heightRatio = heightRatio || 1;
-};
+}
 
-/**
- * MultiRenderer is a renderer for multiple viewports
- * @constructor
- */
-HX.MultiRenderer = function()
+function MultiRenderer()
 {
     this._views = [];
-};
+}
 
-HX.MultiRenderer.prototype =
+MultiRenderer.prototype =
 {
     addView: function (view)
     {
-        view._renderer = new HX.ForwardRenderer();
-        view._texture = new HX.Texture2D();
-        view._texture.filter = HX.TextureFilter.BILINEAR_NOMIP;
-        view._texture.wrapMode = HX.TextureWrapMode.CLAMP;
-        view._fbo = new HX.FrameBuffer(view._texture);
+        view._renderer = new ForwardRenderer();
+        view._texture = new Texture2D();
+        view._texture.filter = TextureFilter.BILINEAR_NOMIP;
+        view._texture.wrapMode = TextureWrapMode.CLAMP;
+        view._fbo = new FrameBuffer(view._texture);
         this._views.push(view);
     },
 
@@ -44,8 +53,8 @@ HX.MultiRenderer.prototype =
 
     render: function (dt, renderTarget)
     {
-        var screenWidth = HX.TARGET_CANVAS.clientWidth;
-        var screenHeight = HX.TARGET_CANVAS.clientHeight;
+        var screenWidth = META.TARGET_CANVAS.clientWidth;
+        var screenHeight = META.TARGET_CANVAS.clientHeight;
         var numViews = this._views.length;
         for (var i = 0; i < numViews; ++i) {
             var view = this._views[i];
@@ -60,10 +69,10 @@ HX.MultiRenderer.prototype =
             view._renderer.render(view.camera, view.scene, dt, view._fbo);
         }
 
-        HX.setRenderTarget(renderTarget);
-        HX.clear();
+        GL.setRenderTarget(renderTarget);
+        GL.clear();
 
-        var viewport = new HX.Rect();
+        var viewport = new Rect();
 
         for (i = 0; i < numViews; ++i) {
             view = this._views[i];
@@ -71,8 +80,10 @@ HX.MultiRenderer.prototype =
             viewport.y = Math.floor((1.0 - view.yRatio - view.heightRatio) * screenHeight);
             viewport.width = view._texture.width;
             viewport.height = view._texture.height;
-            HX.setViewport(viewport);
-            HX.COPY_SHADER.execute(HX.RectMesh.DEFAULT, view._texture);
+            GL.setViewport(viewport);
+            DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, view._texture);
         }
     }
 };
+
+export { View, MultiRenderer };

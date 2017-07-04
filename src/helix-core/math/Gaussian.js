@@ -1,4 +1,4 @@
-HX.Gaussian =
+var Gaussian =
 {
     estimateGaussianRadius: function (variance, epsilon)
     {
@@ -6,13 +6,13 @@ HX.Gaussian =
     }
 };
 
-HX.CenteredGaussianCurve = function(variance)
+function CenteredGaussianCurve(variance)
 {
     this._amplitude = 1.0 / Math.sqrt(2.0 * variance * Math.PI);
     this._expScale = -1.0 / (2.0 * variance);
-};
+}
 
-HX.CenteredGaussianCurve.prototype =
+CenteredGaussianCurve.prototype =
 {
     getValueAt: function(x)
     {
@@ -20,9 +20,11 @@ HX.CenteredGaussianCurve.prototype =
     }
 };
 
-HX.CenteredGaussianCurve.fromRadius = function(radius, epsilon)
+CenteredGaussianCurve.fromRadius = function(radius, epsilon)
 {
     epsilon = epsilon || .01;
     var standardDeviation = radius / Math.sqrt(-2.0 * Math.log(epsilon));
-    return new HX.CenteredGaussianCurve(standardDeviation*standardDeviation);
+    return new CenteredGaussianCurve(standardDeviation*standardDeviation);
 };
+
+export { Gaussian, CenteredGaussianCurve };

@@ -1,25 +1,30 @@
+import {Light} from "./Light";
+import {Float4} from "../math/Float4";
+import {Matrix4x4} from "../math/Matrix4x4";
+import {BoundingVolume} from "../scene/BoundingVolume";
+
 /**
  *
  * @constructor
  */
-HX.DirectionalLight = function()
+function DirectionalLight()
 {
-    HX.Light.call(this);
+    Light.call(this);
 
     this.depthBias = .0;
     this._numCascades = 1;
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;
-    this.direction = new HX.Float4(-1.0, -1.0, -1.0, 0.0);
+    this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
 
     // TODO: Should shadowMapRenderer always exist?
     // if this castShadows = false, just destroy shadow texture
 };
 
 // set on init
-HX.DirectionalLight.SHADOW_FILTER = null;
+DirectionalLight.SHADOW_FILTER = null;
 
-HX.DirectionalLight.prototype = Object.create(HX.Light.prototype,
+DirectionalLight.prototype = Object.create(Light.prototype,
     {
         castShadows: {
             get: function()
@@ -34,7 +39,7 @@ HX.DirectionalLight.prototype = Object.create(HX.Light.prototype,
                 this._castShadows = value;
 
                 if (value) {
-                    this._shadowMapRenderer = new HX.CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
+                    this._shadowMapRenderer = new CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
                 }
                 else {
                     this._shadowMapRenderer.dispose();
@@ -86,10 +91,10 @@ HX.DirectionalLight.prototype = Object.create(HX.Light.prototype,
 
             set: function(value)
             {
-                var matrix = new HX.Matrix4x4();
+                var matrix = new Matrix4x4();
                 var position = this.worldMatrix.getColumn(3);
-                var target = HX.Float4.add(value, position);
-                matrix.lookAt(target, position, HX.Float4.Y_AXIS);
+                var target = Float4.add(value, position);
+                matrix.lookAt(target, position, Float4.Y_AXIS);
                 this.matrix = matrix;
             }
         }
@@ -102,12 +107,14 @@ HX.DirectionalLight.prototype = Object.create(HX.Light.prototype,
  * @param r3
  * @param r4
  */
-HX.DirectionalLight.prototype.setCascadeRatios = function(r1, r2, r3, r4)
+DirectionalLight.prototype.setCascadeRatios = function(r1, r2, r3, r4)
 {
     this._shadowMapRenderer.setSplitRatios(r1, r2, r3, r4);
 };
 
-HX.DirectionalLight.prototype._updateWorldBounds = function()
+DirectionalLight.prototype._updateWorldBounds = function()
 {
-    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+    this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
+
+export { DirectionalLight };

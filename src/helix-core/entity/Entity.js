@@ -1,19 +1,22 @@
-HX.Entity = function()
+import {SceneNode} from "../scene/SceneNode";
+import {Signal} from "../core/Signal";
+
+function Entity()
 {
-    HX.SceneNode.call(this);
+    SceneNode.call(this);
 
     // components
     this._components = null;
     this._requiresUpdates = false;
-    this._onRequireUpdatesChange = new HX.Signal();
+    this._onRequireUpdatesChange = new Signal();
 
     // are managed by effect components, but need to be collectable unlike others
     this._effects = null;
-};
+}
 
-HX.Entity.create = function(components)
+/*Entity.create = function(components)
 {
-    var entity = new HX.Entity();
+    var entity = new Entity();
 
     if (components) {
         var len = components.length;
@@ -22,25 +25,24 @@ HX.Entity.create = function(components)
     }
 
     return entity;
-};
+};*/
 
-HX.Entity.prototype = Object.create(HX.SceneNode.prototype);
+Entity.prototype = Object.create(SceneNode.prototype);
 
-
-HX.Entity.prototype.addComponents = function(components)
+Entity.prototype.addComponents = function(components)
 {
     for (var i = 0; i < components.length; ++i)
         this.addComponent(components[i]);
 };
 
-HX.Entity.prototype.removeComponents = function(components)
+Entity.prototype.removeComponents = function(components)
 {
     for (var i = 0; i < components.length; ++i) {
         this.removeComponent(components[i]);
     }
 };
 
-HX.Entity.prototype.hasComponentType = function(type)
+Entity.prototype.hasComponentType = function(type)
 {
     if (!this._components) return false;
     for (var i = 0; i < this._components.length; ++i) {
@@ -48,7 +50,7 @@ HX.Entity.prototype.hasComponentType = function(type)
     }
 };
 
-HX.Entity.prototype.getComponentsByType = function(type)
+Entity.prototype.getComponentsByType = function(type)
 {
     var collection = [];
     if (!this._components) return collection;
@@ -59,7 +61,7 @@ HX.Entity.prototype.getComponentsByType = function(type)
     return collection;
 };
 
-HX.Entity.prototype.addComponent = function(component)
+Entity.prototype.addComponent = function(component)
 {
     if (component._entity)
         throw new Error("Component already added to an entity!");
@@ -74,7 +76,7 @@ HX.Entity.prototype.addComponent = function(component)
     component.onAdded();
 };
 
-HX.Entity.prototype._updateRequiresUpdates = function(value)
+Entity.prototype._updateRequiresUpdates = function(value)
 {
     if (value !== this._requiresUpdates) {
         this._requiresUpdates = value;
@@ -82,7 +84,7 @@ HX.Entity.prototype._updateRequiresUpdates = function(value)
     }
 };
 
-HX.Entity.prototype.removeComponent = function(component)
+Entity.prototype.removeComponent = function(component)
 {
     component.onRemoved();
 
@@ -105,9 +107,9 @@ HX.Entity.prototype.removeComponent = function(component)
     this._updateRequiresUpdates(requiresUpdates);
 };
 
-HX.Entity.prototype.acceptVisitor = function(visitor)
+Entity.prototype.acceptVisitor = function(visitor)
 {
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+    SceneNode.prototype.acceptVisitor.call(this, visitor);
 
     // TODO: visit components
 
@@ -115,7 +117,7 @@ HX.Entity.prototype.acceptVisitor = function(visitor)
         visitor.visitEffects(this._effects, this);
 };
 
-HX.Entity.prototype.update = function(dt)
+Entity.prototype.update = function(dt)
 {
     var components = this._components;
     if (components) {
@@ -129,13 +131,13 @@ HX.Entity.prototype.update = function(dt)
     }
 };
 
-HX.Entity.prototype._registerEffect = function(effect)
+Entity.prototype._registerEffect = function(effect)
 {
     this._effects = this._effects || [];
     this._effects.push(effect);
 };
 
-HX.Entity.prototype._unregisterEffect = function(effect)
+Entity.prototype._unregisterEffect = function(effect)
 {
     var index = this._effects.indexOf(effect);
     this._effects.splice(index, 1);
@@ -143,7 +145,7 @@ HX.Entity.prototype._unregisterEffect = function(effect)
         this._effects = null;
 };
 
-HX.Entity.prototype._setScene = function(scene)
+Entity.prototype._setScene = function(scene)
 {
     if (this._scene)
         this._scene.entityEngine.unregisterEntity(this);
@@ -151,5 +153,8 @@ HX.Entity.prototype._setScene = function(scene)
     if (scene)
         scene.entityEngine.registerEntity(this);
 
-    HX.SceneNode.prototype._setScene.call(this, scene);
+    SceneNode.prototype._setScene.call(this, scene);
 };
+
+
+export { Entity };

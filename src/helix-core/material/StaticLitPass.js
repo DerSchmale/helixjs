@@ -1,3 +1,14 @@
+import {MaterialPass} from "./MaterialPass";
+import {DirectionalLight} from "../light/DirectionalLight";
+import {PointLight} from "../light/PointLight";
+import {LightProbe} from "../light/LightProbe";
+import {capabilities} from "../Helix";
+import {ShaderLibrary} from "../shader/ShaderLibrary";
+import {Shader} from "../shader/Shader";
+import {Float4} from "../math/Float4";
+import {Matrix4x4} from "../math/Matrix4x4";
+import {MathX} from "../math/MathX";
+
 /**
  * This material pass renders all lighting in one fragment shader.
  * @param geometryVertex
@@ -6,7 +17,7 @@
  * @param lights
  * @constructor
  */
-HX.StaticLitPass = function(geometryVertex, geometryFragment, lightingModel, lights, ssao)
+function StaticLitPass(geometryVertex, geometryFragment, lightingModel, lights, ssao)
 {
     this._dirLights = null;
     this._dirLightCasters = null;
@@ -15,16 +26,16 @@ HX.StaticLitPass = function(geometryVertex, geometryFragment, lightingModel, lig
     this._specularLightProbes = null;
     this._maxCascades = 0;
 
-    HX.MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights, ssao));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights, ssao));
     this._ssaoSlot = this.getTextureSlot("hx_ssao");
 
     this._assignShadowMaps();
     this._assignLightProbes();
 };
 
-HX.StaticLitPass.prototype = Object.create(HX.MaterialPass.prototype);
+StaticLitPass.prototype = Object.create(MaterialPass.prototype);
 
-HX.StaticLitPass.prototype.updatePassRenderState = function(renderer)
+StaticLitPass.prototype.updatePassRenderState = function(renderer)
 {
     var camera = renderer._camera;
     this.setUniform("hx_ambientColor", renderer._renderCollector.ambientColor);
@@ -33,10 +44,10 @@ HX.StaticLitPass.prototype.updatePassRenderState = function(renderer)
     this._assignPointLights(camera);
     this._assignLightProbes(camera);
 
-    HX.MaterialPass.prototype.updatePassRenderState.call(this, renderer);
+    MaterialPass.prototype.updatePassRenderState.call(this, renderer);
 };
 
-HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, lights, ssao)
+StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, lights, ssao)
 {
     this._dirLights = [];
     this._dirLightCasters = [];
@@ -50,7 +61,7 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
         var light = lights[i];
 
         // I don't like typechecking, but do we have a choice? :(
-        if (light instanceof HX.DirectionalLight) {
+        if (light instanceof DirectionalLight) {
             if (light.castShadows) {
                 this._dirLightCasters.push(light);
                 if (light.numCascades > this._maxCascades)
@@ -59,10 +70,10 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
             else
                 this._dirLights.push(light);
         }
-        else if (light instanceof HX.PointLight) {
+        else if (light instanceof PointLight) {
             this._pointLights.push(light);
         }
-        else if (light instanceof HX.LightProbe) {
+        else if (light instanceof LightProbe) {
             if (light.diffuseTexture)
                 this._diffuseLightProbes.push(light);
             if (light.specularTexture)
@@ -83,32 +94,32 @@ HX.StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFr
     };
 
     // TODO: Allow material to define whether or not to use LODs
-    if (HX.EXT_SHADER_TEXTURE_LOD && defines.HX_NUM_SPECULAR_PROBES > 0) {
+    if (capabilities.EXT_SHADER_TEXTURE_LOD && defines.HX_NUM_SPECULAR_PROBES > 0) {
         defines.HX_TEXTURE_LOD = 1;
         extensions += "#texturelod\n";
     }
 
     var fragmentShader =
         extensions +
-        HX.ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
+        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
         lightingModel + "\n\n\n" +
-        HX.DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
-        HX.ShaderLibrary.get("directional_light.glsl", defines) + "\n" +
-        HX.ShaderLibrary.get("point_light.glsl") + "\n" +
-        HX.ShaderLibrary.get("light_probe.glsl") + "\n" +
+        DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
+        ShaderLibrary.get("directional_light.glsl", defines) + "\n" +
+        ShaderLibrary.get("point_light.glsl") + "\n" +
+        ShaderLibrary.get("light_probe.glsl") + "\n" +
         geometryFragment + "\n" +
-        HX.ShaderLibrary.get("material_lit_static_fragment.glsl");
-    var vertexShader = geometryVertex + "\n" + HX.ShaderLibrary.get("material_lit_static_vertex.glsl", defines);
+        ShaderLibrary.get("material_lit_static_fragment.glsl");
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_static_vertex.glsl", defines);
 
-    return new HX.Shader(vertexShader, fragmentShader);
+    return new Shader(vertexShader, fragmentShader);
 };
 
-HX.StaticLitPass.prototype._assignDirLights = function(camera)
+StaticLitPass.prototype._assignDirLights = function(camera)
 {
     var lights = this._dirLights;
     if (!lights) return;
 
-    var dir = new HX.Float4();
+    var dir = new Float4();
     var len = lights.length;
 
     for (var i = 0; i < len; ++i) {
@@ -120,14 +131,14 @@ HX.StaticLitPass.prototype._assignDirLights = function(camera)
     }
 };
 
-HX.StaticLitPass.prototype._assignDirLightCasters = function(camera)
+StaticLitPass.prototype._assignDirLightCasters = function(camera)
 {
     var lights = this._dirLightCasters;
     if (!lights) return;
 
-    var dir = new HX.Float4();
+    var dir = new Float4();
     var len = lights.length;
-    var matrix = new HX.Matrix4x4();
+    var matrix = new Matrix4x4();
     var matrixData = new Float32Array(64);
 
     for (var i = 0; i < len; ++i) {
@@ -157,12 +168,12 @@ HX.StaticLitPass.prototype._assignDirLightCasters = function(camera)
     }
 };
 
-HX.StaticLitPass.prototype._assignPointLights = function(camera)
+StaticLitPass.prototype._assignPointLights = function(camera)
 {
     var lights = this._pointLights;
     if(!lights) return;
 
-    var pos = new HX.Float4();
+    var pos = new Float4();
     var len = lights.length;
 
     for (var i = 0; i < len; ++i) {
@@ -177,7 +188,7 @@ HX.StaticLitPass.prototype._assignPointLights = function(camera)
     }
 };
 
-HX.StaticLitPass.prototype._assignShadowMaps = function()
+StaticLitPass.prototype._assignShadowMaps = function()
 {
     var lights = this._dirLightCasters;
     var len = lights.length;
@@ -194,7 +205,7 @@ HX.StaticLitPass.prototype._assignShadowMaps = function()
     }
 };
 
-HX.StaticLitPass.prototype._assignLightProbes = function()
+StaticLitPass.prototype._assignLightProbes = function()
 {
     var diffuseMaps = [];
     var specularMaps = [];
@@ -209,7 +220,7 @@ HX.StaticLitPass.prototype._assignLightProbes = function()
     var mips = [];
     for (i = 0; i < len; ++i) {
         specularMaps[i] = probes[i].specularTexture;
-        mips[i] =  Math.floor(HX.log2(specularMaps[i].size));
+        mips[i] =  Math.floor(MathX.log2(specularMaps[i].size));
     }
 
     if (diffuseMaps.length > 0) this.setTextureArray("hx_diffuseProbeMaps", diffuseMaps);
@@ -219,7 +230,10 @@ HX.StaticLitPass.prototype._assignLightProbes = function()
     }
 };
 
-HX.StaticLitPass.prototype._setSSAOTexture = function(texture)
+StaticLitPass.prototype._setSSAOTexture = function(texture)
 {
     this._ssaoSlot.texture = texture;
 };
+
+
+export { StaticLitPass };

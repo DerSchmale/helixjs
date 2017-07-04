@@ -1,15 +1,33 @@
 /**
  * Helix Scene files
+ * TODO: Under construction
  * @constructor
  */
-HX.HSC = function()
+import {Scene} from "../scene/Scene";
+import {BasicMaterial} from "../material/BasicMaterial";
+import {ModelData} from "../mesh/ModelData";
+import {MeshData} from "../mesh/MeshData";
+import {ModelInstance} from "../mesh/ModelInstance";
+import {Model} from "../mesh/Model";
+import {NormalTangentGenerator} from "../utils/NormalTangentGenerator";
+import {Importer} from "./Importer";
+import {Color} from "../core/Color";
+import {DirectionalLight} from "../light/DirectionalLight";
+import {PointLight} from "../light/PointLight";
+import {AmbientLight} from "../light/AmbientLight";
+import {Float4} from "../math/Float4";
+import {Matrix4x4} from "../math/Matrix4x4";
+import {SceneNode} from "../scene/SceneNode";
+import {Material} from "../material/Material";
+
+function HSC()
 {
-    HX.Importer.call(this, HX.Scene);
+    Importer.call(this, Scene);
 };
 
-HX.HSC.prototype = Object.create(HX.Importer.prototype);
+HSC.prototype = Object.create(Importer.prototype);
 
-HX.HSC.prototype.parse = function(file, target)
+HSC.prototype.parse = function(file, target)
 {
     var data = JSON.parse(file);
     if (data.version !== "0.1") throw new Error("Incompatible file format version!");
@@ -20,7 +38,7 @@ HX.HSC.prototype.parse = function(file, target)
     this._notifyComplete(target);
 };
 
-HX.HSC.prototype._processObjects = function(definitions, scene)
+HSC.prototype._processObjects = function(definitions, scene)
 {
     var objects = [];
     var len = definitions.length;
@@ -38,7 +56,7 @@ HX.HSC.prototype._processObjects = function(definitions, scene)
                 object = this._processMesh(def);
                 break;
             case "model":
-                object = new HX.ModelData();
+                object = new ModelData();
                 break;
             case "modelinstance":
                 object = this._processModelInstance(def);
@@ -71,9 +89,9 @@ HX.HSC.prototype._processObjects = function(definitions, scene)
     return objects;
 };
 
-HX.HSC.prototype._processMesh = function(def)
+HSC.prototype._processMesh = function(def)
 {
-    var meshData = new HX.MeshData();
+    var meshData = new MeshData();
     var numVertices = def.numVertices;
     var vertexData = def.vertexData;
     var data = [];
@@ -92,12 +110,12 @@ HX.HSC.prototype._processMesh = function(def)
 
     if (appendNormals) {
         meshData.addVertexAttribute("hx_normal", 3);
-        mode |= HX.NormalTangentGenerator.MODE_NORMALS;
+        mode |= NormalTangentGenerator.MODE_NORMALS;
     }
 
     if (appendTangents) {
         meshData.addVertexAttribute("hx_tangent", 4);
-        mode |= HX.NormalTangentGenerator.MODE_TANGENTS;
+        mode |= NormalTangentGenerator.MODE_TANGENTS;
     }
 
     var vertices = [];
@@ -124,17 +142,17 @@ HX.HSC.prototype._processMesh = function(def)
     meshData.setVertexData(vertices, 0);
 
     if (mode) {
-        var generator = new HX.NormalTangentGenerator();
+        var generator = new NormalTangentGenerator();
         generator.generate(meshData, mode);
     }
 
     return meshData;
 };
 
-HX.HSC.prototype._processMaterial = function(def)
+HSC.prototype._processMaterial = function(def)
 {
-    var material = new HX.BasicMaterial();
-    if (def.hasOwnProperty("color")) material.color = new HX.Color(def.color[0], def.color[1], def.color[2]);
+    var material = new BasicMaterial();
+    if (def.hasOwnProperty("color")) material.color = new Color(def.color[0], def.color[1], def.color[2]);
     if (def.hasOwnProperty("metallicness")) material.metallicness = def.metallicness;
     if (def.hasOwnProperty("normalSpecularReflectance")) material.normalSpecularReflectance = def.normalSpecularReflectance;
     if (def.hasOwnProperty("refractiveRatio")) {
@@ -151,48 +169,48 @@ HX.HSC.prototype._processMaterial = function(def)
     return material;
 };
 
-HX.HSC.prototype._processDirLight = function(def)
+HSC.prototype._processDirLight = function(def)
 {
-    var light = new HX.DirectionalLight();
+    var light = new DirectionalLight();
     this._processLight(def, light);
-    if (def.hasOwnProperty("direction")) light.direction = new HX.Float4(def.direction[0], def.direction[1], def.direction[2]);
+    if (def.hasOwnProperty("direction")) light.direction = new Float4(def.direction[0], def.direction[1], def.direction[2]);
     if (def.hasOwnProperty("shadows")) light.castShadows = def.shadows;
     return light;
 };
 
-HX.HSC.prototype._processPointLight = function(def)
+HSC.prototype._processPointLight = function(def)
 {
-    var light = new HX.PointLight();
+    var light = new PointLight();
     this._processLight(def, light);
     if (def.hasOwnProperty("radius")) light.radius = def.radius;
     return light;
 };
 
-HX.HSC.prototype._processAmbientLight = function(def)
+HSC.prototype._processAmbientLight = function(def)
 {
-    var light = new HX.AmbientLight();
+    var light = new AmbientLight();
     this._processLight(def, light);
     return light;
 };
 
-HX.HSC.prototype._processLight = function(def, light)
+HSC.prototype._processLight = function(def, light)
 {
     this._processSceneNode(def, light);
-    if (def.hasOwnProperty("color")) light.color = new HX.Color(def.color[0], def.color[1], def.color[2]);
+    if (def.hasOwnProperty("color")) light.color = new Color(def.color[0], def.color[1], def.color[2]);
     if (def.hasOwnProperty("intensity")) light.intensity = def.intensity;
 };
 
-HX.HSC.prototype._processModelInstance = function(def)
+HSC.prototype._processModelInstance = function(def)
 {
-    var instance = new HX.ModelInstance();
+    var instance = new ModelInstance();
     this._processSceneNode(def, instance);
     return instance;
 };
 
-HX.HSC.prototype._processSceneNode = function(def, target)
+HSC.prototype._processSceneNode = function(def, target)
 {
     if (def.hasOwnProperty("matrix")) {
-        target.transform = new HX.Matrix4x4(def.matrix);
+        target.transform = new Matrix4x4(def.matrix);
     }
     else {
         if (def.hasOwnProperty("position")) {
@@ -214,7 +232,7 @@ HX.HSC.prototype._processSceneNode = function(def, target)
     }
 };
 
-HX.HSC.prototype._processConnections = function(connections, objects)
+HSC.prototype._processConnections = function(connections, objects)
 {
     var modelLinks = [];
     var materialLinks = [];
@@ -226,17 +244,17 @@ HX.HSC.prototype._processConnections = function(connections, objects)
         var parent = objects[parentID];
         var child = objects[childID];
 
-        if (child instanceof HX.MeshData) {
+        if (child instanceof MeshData) {
             parent.addMeshData(child);
         }
-        else if (child instanceof HX.ModelData) {
+        else if (child instanceof ModelData) {
             // deferred until all meshdata is assigned:
             modelLinks.push({c: childID, p: connections[i].p})
         }
-        else if (child instanceof HX.SceneNode) {
+        else if (child instanceof SceneNode) {
             parent.attach(child);
         }
-        else if (child instanceof HX.Material) {
+        else if (child instanceof Material) {
             materialLinks[parentID] = materialLinks[parentID] || [];
             materialLinks[parentID].push(child);
         }
@@ -247,7 +265,9 @@ HX.HSC.prototype._processConnections = function(connections, objects)
     for (i = 0; i < len; ++i) {
         var instance = objects[modelLinks[i].p];
         var modelData = objects[modelLinks[i].c];
-        var model = new HX.Model(modelData);
+        var model = new Model(modelData);
         instance.init(model, materialLinks[modelLinks[i].p]);
     }
 };
+
+export { HSC };

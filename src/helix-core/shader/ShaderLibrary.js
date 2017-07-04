@@ -2,7 +2,8 @@
  * ShaderLibrary is an object that will store shader code processed by the build process: contents of glsl files stored
  * in the glsl folder will be stored here and can be retrieved using their original filename.
  */
-HX.ShaderLibrary = {
+export var ShaderLibrary = {
+    _files: {},
     /**
      * Retrieves the shader code for a given filename.
      * @param filename The filename of the glsl code to retrieve
@@ -21,6 +22,6 @@ HX.ShaderLibrary = {
             }
         }
 
-        return defineString + HX.ShaderLibrary[filename];
+        return defineString + ShaderLibrary._files[filename];
     }
 };

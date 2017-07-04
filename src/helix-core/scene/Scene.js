@@ -3,19 +3,20 @@
  * @param rootNode (optional) A rootnode to be used, allowing different partition types to be used as the root.
  * @constructor
  */
-HX.Scene = function(rootNode)
+import {EntityEngine} from "../entity/EntityEngine";
+import {SceneNode} from "./SceneNode";
+
+function Scene(rootNode)
 {
     // the default partition is a BVH node
     //  -> or this may need to become an infinite bound node?
-    this._rootNode = rootNode || new HX.SceneNode();
+    this._rootNode = rootNode || new SceneNode();
     this._rootNode._setScene(this);
     this._skybox = null;
-    this._entityEngine = new HX.EntityEngine();
+    this._entityEngine = new EntityEngine();
 };
 
-HX.Scene.prototype = {
-    constructor: HX.Scene,
-
+Scene.prototype = {
     get skybox() { return this._skybox; },
     set skybox(value) { this._skybox = value; },
 
@@ -73,3 +74,5 @@ HX.Scene.prototype = {
         return this._rootNode.worldBounds;
     }
 };
+
+export { Scene };

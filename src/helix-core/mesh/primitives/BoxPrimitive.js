@@ -1,9 +1,13 @@
-/**
- * @constructor
- */
-HX.BoxPrimitive = HX.Primitive.define();
+import {Primitive} from "./Primitive";
 
-HX.BoxPrimitive._generate = function(target, definition)
+function BoxPrimitive(definition)
+{
+    Primitive.call(this, definition);
+}
+
+BoxPrimitive.prototype = Object.create(Primitive.prototype);
+
+BoxPrimitive.prototype._generate = function(target, definition)
 {
     var numSegmentsW = definition.numSegmentsW || 1;
     var numSegmentsH = definition.numSegmentsH || definition.numSegmentsW || 1;
@@ -144,3 +148,5 @@ HX.BoxPrimitive._generate = function(target, definition)
         }
     }
 };
+
+export { BoxPrimitive };

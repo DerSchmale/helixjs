@@ -1,9 +1,14 @@
-HX.BulkURLLoader = function ()
+/**
+ * TODO: Remove in favour of AssetLibrary
+ * @constructor
+ */
+import {URLLoader} from "./URLLoader";
+function BulkURLLoader()
 {
     this._params = undefined;
     this._timeout = 5000;
     this._method = 'GET';
-    this._type = HX.URLLoader.DATA_TEXT;
+    this._type = URLLoader.DATA_TEXT;
     this._abortOnFail = false;
 
     this._files = null;
@@ -11,7 +16,7 @@ HX.BulkURLLoader = function ()
     this._data = null;
 };
 
-HX.BulkURLLoader.prototype =
+BulkURLLoader.prototype =
 {
     getData: function(filename)
     {
@@ -84,7 +89,7 @@ HX.BulkURLLoader.prototype =
             return;
         }
 
-        var urlLoader = new HX.URLLoader();
+        var urlLoader = new URLLoader();
         urlLoader.parameters = this._params;
         urlLoader.timeoutDuration = this._timeout;
         urlLoader.method = this._method;
@@ -119,3 +124,5 @@ HX.BulkURLLoader.prototype =
     {
     }
 };
+
+export { BulkURLLoader };

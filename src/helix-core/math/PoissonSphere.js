@@ -1,3 +1,5 @@
+import {Float4} from "./Float4";
+
 /**
  *
  * @param mode
@@ -6,9 +8,9 @@
  * @param maxTests
  * @constructor
  */
-HX.PoissonSphere = function(mode, initialDistance, decayFactor, maxTests)
+function PoissonSphere(mode, initialDistance, decayFactor, maxTests)
 {
-    this._mode = mode === undefined? HX.PoissonSphere.CIRCULAR : mode;
+    this._mode = mode === undefined? PoissonSphere.CIRCULAR : mode;
     this._initialDistance = initialDistance || 1.0;
     this._decayFactor = decayFactor || .99;
     this._maxTests = maxTests || 20000;
@@ -17,26 +19,26 @@ HX.PoissonSphere = function(mode, initialDistance, decayFactor, maxTests)
     this.reset();
 };
 
-HX.PoissonSphere.BOX = 0;
-HX.PoissonSphere.CIRCULAR = 1;
+PoissonSphere.BOX = 0;
+PoissonSphere.CIRCULAR = 1;
 
-HX.PoissonSphere._initDefault = function()
+PoissonSphere._initDefault = function()
 {
-    HX.PoissonSphere.DEFAULT = new HX.PoissonSphere();
-    HX.PoissonSphere.DEFAULT.generatePoints(64);
-    HX.PoissonSphere.DEFAULT_FLOAT32 = new Float32Array(64 * 3);
+    PoissonSphere.DEFAULT = new PoissonSphere();
+    PoissonSphere.DEFAULT.generatePoints(64);
+    PoissonSphere.DEFAULT_FLOAT32 = new Float32Array(64 * 3);
 
-    var spherePoints = HX.PoissonSphere.DEFAULT.getPoints();
+    var spherePoints = PoissonSphere.DEFAULT.getPoints();
 
     for (var i = 0; i < 64; ++i) {
         var p = spherePoints[i];
-        HX.PoissonSphere.DEFAULT_FLOAT32[i * 3] = p.x;
-        HX.PoissonSphere.DEFAULT_FLOAT32[i * 3 + 1] = p.y;
-        HX.PoissonSphere.DEFAULT_FLOAT32[i * 3 + 2] = p.z;
+        PoissonSphere.DEFAULT_FLOAT32[i * 3] = p.x;
+        PoissonSphere.DEFAULT_FLOAT32[i * 3 + 1] = p.y;
+        PoissonSphere.DEFAULT_FLOAT32[i * 3 + 2] = p.z;
     }
 };
 
-HX.PoissonSphere.prototype =
+PoissonSphere.prototype =
 {
     getPoints: function()
     {
@@ -78,8 +80,8 @@ HX.PoissonSphere.prototype =
             var x = Math.random() * 2.0 - 1.0;
             var y = Math.random() * 2.0 - 1.0;
             var z = Math.random() * 2.0 - 1.0;
-            if (this._mode === HX.PoissonSphere.BOX || (x * x + y * y + z * z <= 1))
-                return new HX.Float4(x, y, z, 0.0);
+            if (this._mode === PoissonSphere.BOX || (x * x + y * y + z * z <= 1))
+                return new Float4(x, y, z, 0.0);
         }
     },
 
@@ -98,3 +100,5 @@ HX.PoissonSphere.prototype =
         return true;
     }
 };
+
+export { PoissonSphere };

@@ -4,7 +4,12 @@
  * @param fragmentShaderCode
  * @constructor
  */
-HX.Shader = function(vertexShaderCode, fragmentShaderCode)
+import { GLSLIncludes } from './GLSLIncludes';
+import { GL } from '../core/GL';
+import { META } from '../Helix';
+import {UniformSetter} from "./UniformSetter";
+
+function Shader(vertexShaderCode, fragmentShaderCode)
 {
     this._ready = false;
     this._vertexShader = null;
@@ -16,25 +21,26 @@ HX.Shader = function(vertexShaderCode, fragmentShaderCode)
         this.init(vertexShaderCode, fragmentShaderCode);
 };
 
-HX.Shader.ID_COUNTER = 0;
+Shader.ID_COUNTER = 0;
 
-HX.Shader.prototype = {
-    constructor: HX.Shader,
+Shader.prototype = {
+    constructor: Shader,
 
     isReady: function() { return this._ready; },
 
     init: function(vertexShaderCode, fragmentShaderCode)
     {
-        vertexShaderCode = HX.GLSLIncludeGeneral + vertexShaderCode;
-        fragmentShaderCode = HX.GLSLIncludeGeneral + fragmentShaderCode;
+        var gl = GL.gl;
+        vertexShaderCode = GLSLIncludes.GENERAL + vertexShaderCode;
+        fragmentShaderCode = GLSLIncludes.GENERAL + fragmentShaderCode;
 
         vertexShaderCode = this._processShaderCode(vertexShaderCode);
         fragmentShaderCode = this._processShaderCode(fragmentShaderCode);
 
-        this._vertexShader = HX_GL.createShader(HX_GL.VERTEX_SHADER);
+        this._vertexShader = gl.createShader(gl.VERTEX_SHADER);
         if (!this._initShader(this._vertexShader, vertexShaderCode)) {
             this.dispose();
-            if (HX.OPTIONS.throwOnShaderError) {
+            if (META.OPTIONS.throwOnShaderError) {
                 throw new Error("Failed generating vertex shader: \n" + vertexShaderCode);
             }
             else {
@@ -44,31 +50,31 @@ HX.Shader.prototype = {
             return;
         }
 
-        this._fragmentShader = HX_GL.createShader(HX_GL.FRAGMENT_SHADER);
+        this._fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
         if (!this._initShader(this._fragmentShader, fragmentShaderCode)) {
             this.dispose();
-            if (HX.OPTIONS.throwOnShaderError)
+            if (META.OPTIONS.throwOnShaderError)
                 throw new Error("Failed generating fragment shader: \n" + fragmentShaderCode);
             console.warn("Failed generating fragment shader:");
             return;
         }
 
-        this._program = HX_GL.createProgram();
+        this._program = gl.createProgram();
 
-        HX_GL.attachShader(this._program, this._vertexShader);
-        HX_GL.attachShader(this._program, this._fragmentShader);
-        HX_GL.linkProgram(this._program);
+        gl.attachShader(this._program, this._vertexShader);
+        gl.attachShader(this._program, this._fragmentShader);
+        gl.linkProgram(this._program);
 
-        if (!HX_GL.getProgramParameter(this._program, HX_GL.LINK_STATUS)) {
-            var log = HX_GL.getProgramInfoLog(this._program);
+        if (!gl.getProgramParameter(this._program, gl.LINK_STATUS)) {
+            var log = gl.getProgramInfoLog(this._program);
             this.dispose();
 
             console.log("**********");
-            HX.Debug.printShaderCode(vertexShaderCode);
+            Debug.printShaderCode(vertexShaderCode);
             console.log("**********");
-            HX.Debug.printShaderCode(fragmentShaderCode);
+            Debug.printShaderCode(fragmentShaderCode);
 
-            if (HX.OPTIONS.throwOnShaderError)
+            if (META.OPTIONS.throwOnShaderError)
                 throw new Error("Error in program linking:" + log);
 
             console.warn("Error in program linking:" + log);
@@ -78,12 +84,12 @@ HX.Shader.prototype = {
 
         this._ready = true;
 
-        this._uniformSetters = HX.UniformSetter.getSetters(this);
+        this._uniformSetters = UniformSetter.getSetters(this);
     },
 
     updateRenderState: function(camera, renderItem)
     {
-        HX_GL.useProgram(this._program);
+        GL.gl.useProgram(this._program);
 
         var len = this._uniformSetters.length;
         for (var i = 0; i < len; ++i) {
@@ -93,13 +99,14 @@ HX.Shader.prototype = {
 
     _initShader: function(shader, code)
     {
-        HX_GL.shaderSource(shader, code);
-        HX_GL.compileShader(shader);
+        var gl = GL.gl;
+        gl.shaderSource(shader, code);
+        gl.compileShader(shader);
 
         // Check the compile status, return an error if failed
-        if (!HX_GL.getShaderParameter(shader, HX_GL.COMPILE_STATUS)) {
-            console.warn(HX_GL.getShaderInfoLog(shader));
-            HX.Debug.printShaderCode(code);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            console.warn(gl.getShaderInfoLog(shader));
+            Debug.printShaderCode(code);
             return false;
         }
 
@@ -108,9 +115,10 @@ HX.Shader.prototype = {
 
     dispose: function()
     {
-        HX_GL.deleteShader(this._vertexShader);
-        HX_GL.deleteShader(this._fragmentShader);
-        HX_GL.deleteProgram(this._program);
+        var gl = GL.gl;
+        gl.deleteShader(this._vertexShader);
+        gl.deleteShader(this._fragmentShader);
+        gl.deleteProgram(this._program);
 
         this._ready = false;
     },
@@ -119,12 +127,12 @@ HX.Shader.prototype = {
 
     getUniformLocation: function(name)
     {
-        return HX_GL.getUniformLocation(this._program, name);
+        return GL.gl.getUniformLocation(this._program, name);
     },
 
     getAttributeLocation: function(name)
     {
-        return HX_GL.getAttribLocation(this._program, name);
+        return GL.gl.getAttribLocation(this._program, name);
     },
 
     _processShaderCode: function(code)
@@ -170,3 +178,5 @@ HX.Shader.prototype = {
         return code;
     }
 };
+
+export { Shader };

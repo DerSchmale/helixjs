@@ -1,17 +1,24 @@
-HX.CylinderPrimitive = HX.Primitive.define();
+import {Primitive} from "./Primitive";
+
+function CylinderPrimitive(definition)
+{
+    Primitive.call(this, definition);
+}
+
+CylinderPrimitive.prototype = Object.create(Primitive.prototype);
 
 /**
  * The alignment dictates which access should be parallel to the sides of the cylinder
  * @type {number}
  */
-HX.CylinderPrimitive.ALIGN_X = 1;
-HX.CylinderPrimitive.ALIGN_Y = 2;
-HX.CylinderPrimitive.ALIGN_Z = 3;
+CylinderPrimitive.ALIGN_X = 1;
+CylinderPrimitive.ALIGN_Y = 2;
+CylinderPrimitive.ALIGN_Z = 3;
 
-HX.CylinderPrimitive._generate = function(target, definition)
+CylinderPrimitive.prototype._generate = function(target, definition)
 {
     definition = definition || {};
-    var alignment = definition.alignment || HX.CylinderPrimitive.ALIGN_Y;
+    var alignment = definition.alignment || CylinderPrimitive.ALIGN_Y;
     var numSegmentsH = definition.numSegmentsH || 1;
     var numSegmentsW = definition.numSegmentsW || 1;
     var radius = definition.radius || 1;
@@ -40,15 +47,15 @@ HX.CylinderPrimitive._generate = function(target, definition)
             cy = ny * radius;
 
             switch (alignment) {
-                case HX.CylinderPrimitive.ALIGN_X:
+                case CylinderPrimitive.ALIGN_X:
                     positions.push(-h, cx, -cy);
                     if (normals) normals.push(0, nx, -ny);
                     break;
-                case HX.CylinderPrimitive.ALIGN_Y:
+                case CylinderPrimitive.ALIGN_Y:
                     positions.push(cx, h, -cy);
                     if (normals) normals.push(nx, 0, -ny);
                     break;
-                case HX.CylinderPrimitive.ALIGN_Z:
+                case CylinderPrimitive.ALIGN_Z:
                     positions.push(cx, cy, h);
                     if (normals) normals.push(nx, ny, 0);
                     break;
@@ -90,7 +97,7 @@ HX.CylinderPrimitive._generate = function(target, definition)
         v = v * .5 + .5;
 
         switch (alignment) {
-            case HX.CylinderPrimitive.ALIGN_X:
+            case CylinderPrimitive.ALIGN_X:
                 positions.push(halfH, cx, -cy);
                 positions.push(-halfH, cx, -cy);
 
@@ -105,7 +112,7 @@ HX.CylinderPrimitive._generate = function(target, definition)
                 }
                 break;
 
-            case HX.CylinderPrimitive.ALIGN_Y:
+            case CylinderPrimitive.ALIGN_Y:
                 positions.push(cx, -halfH, -cy);
                 positions.push(cx, halfH, -cy);
 
@@ -120,7 +127,7 @@ HX.CylinderPrimitive._generate = function(target, definition)
                 }
                 break;
 
-            case HX.CylinderPrimitive.ALIGN_Z:
+            case CylinderPrimitive.ALIGN_Z:
                 positions.push(cx, cy, -halfH);
                 positions.push(cx, cy, halfH);
 
@@ -145,3 +152,5 @@ HX.CylinderPrimitive._generate = function(target, definition)
         indices.push(indexOffset + 1, indexOffset + offset + 3, indexOffset + offset + 1);
     }
 };
+
+export { CylinderPrimitive };

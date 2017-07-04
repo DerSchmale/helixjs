@@ -2,14 +2,14 @@
  * An animation clip for skeletal animation
  * @constructor
  */
-HX.SkeletonClip = function()
+function SkeletonClip()
 {
     this._name = null;
     this._keyFrames = [];
     this._duration = 0;
-};
+}
 
-HX.SkeletonClip.prototype =
+SkeletonClip.prototype =
 {
     get name()
     {
@@ -61,3 +61,5 @@ HX.SkeletonClip.prototype =
         return "[SkeletonClip(name=" + this.name + ")";
     }
 };
+
+export { SkeletonClip };

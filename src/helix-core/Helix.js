@@ -1,13 +1,82 @@
-HX.VERSION = '0.1';
-HX.INITIALIZED = false;
+import {ArrayUtils} from './utils/ArrayUtils';
+import {DirectionalLight} from './light/DirectionalLight';
+import {FrameTicker} from './utils/FrameTicker';
+import {_clearGLStats, GL} from './core/GL';
+import {HardDirectionalShadowFilter} from './light/HardDirectionalShadowFilter';
+import {LightingModel} from './render/LightingModel';
+import {Signal} from './core/Signal';
+import {GLSLIncludes} from "./shader/GLSLIncludes";
+import {CopyChannelsShader} from "./render/UtilShaders";
+import {RectMesh} from "./mesh/RectMesh";
+import {Texture2D} from "./texture/Texture2D";
+import {TextureCube} from "./texture/TextureCube";
+import {BlendState} from "./render/BlendState";
+import {PoissonDisk} from "./math/PoissonDisk";
+import {MaterialPass} from "./material/MaterialPass";
+import {PoissonSphere} from "./math/PoissonSphere";
+import {Color} from "./core/Color";
 
-var HX_GL = null;
+export var META =
+    {
+        VERSION: "0.1",
+        INITIALIZED: false,
+        OPTIONS: null,
+        TARGET_CANVAS: null
+    };
+
+export var onPreFrame = new Signal();
+export var onFrame = new Signal();
+export var frameTicker = new FrameTicker();
+
+export var DEFAULTS =
+    {
+        COPY_SHADER: null,
+        DEFAULT_2D_DITHER_TEXTURE: null,
+        DEFAULT_SKINNING_TEXTURE: null
+    };
+
+export var capabilities =
+    {
+        // extensions:
+        EXT_DRAW_BUFFERS: null,
+        EXT_FLOAT_TEXTURES: null,
+        EXT_HALF_FLOAT_TEXTURES: null,
+        EXT_FLOAT_TEXTURES_LINEAR: null,
+        EXT_HALF_FLOAT_TEXTURES_LINEAR: null,
+        EXT_DEPTH_TEXTURE: null,
+        EXT_STANDARD_DERIVATIVES: null,
+        EXT_SHADER_TEXTURE_LOD: null,
+        EXT_TEXTURE_FILTER_ANISOTROPIC: null,
+
+        DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
+        NUM_MORPH_TARGETS: 0
+    };
+
+// internal options
+export var _HX_ = {
+    GAMMA_CORRECT_LIGHTS: false,
+    HDR_FORMAT: 0
+};
+
+// TODO: hardcode values?
+export var TextureFilter = {};
+export var TextureWrapMode = {};
+export var CullMode = {};
+export var StencilOp = {};
+export var Comparison = {};
+export var ElementType = {};
+export var BlendFactor = {};
+export var BlendOperation = {};
+export var ClearMask = {};
+export var TextureFormat = {};
+export var DataType = {};
+export var BufferUsage = {};
 
 /**
  * Provides a set of options to configure Helix
  * @constructor
  */
-HX.InitOptions = function()
+export function InitOptions()
 {
     this.maxBones = 64;
 
@@ -17,7 +86,7 @@ HX.InitOptions = function()
     this.hdr = false;   // only if available
     this.useGammaCorrection = true;
     this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
-    this.defaultLightingModel = HX.LightingModel.Unlit;
+    this.defaultLightingModel = LightingModel.Unlit;
 
     this.maxPointLightsPerPass = 3;
     this.maxDirLightsPerPass = 1;
@@ -32,217 +101,214 @@ HX.InitOptions = function()
     this.throwOnShaderError = false;
 
     // will be assigned to HX.DirectionalLight.SHADOW_FILTER
-    this.directionalShadowFilter = new HX.HardDirectionalShadowFilter();
+    this.directionalShadowFilter = new HardDirectionalShadowFilter();
 };
 
 /**
  * Initializes Helix and creates a WebGL context from a given canvas
  * @param canvas The canvas to create the gl context from.
  */
-HX.init = function(canvas, options)
+export function init(canvas, options)
 {
-    if (HX.INITIALIZED) throw new Error("Can only initialize Helix once!");
+    if (META.INITIALIZED) throw new Error("Can only initialize Helix once!");
 
 
-    HX.TARGET_CANVAS = canvas;
+    META.TARGET_CANVAS = canvas;
 
     var webglFlags = {
-        antialias:false,
-        alpha:false,
-        depth:false,
-        stencil:false,
+        antialias: false,
+        alpha: false,
+        depth: false,
+        stencil: false,
         premultipliedAlpha: false,
         preserveDrawingBuffer: false
     };
 
-    var glContext = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
-    /*if (options && options.debug) {
-        // ugly, but prevents having to include the webgl-debug.js file
-        eval("glContext = WebGLDebugUtils.makeDebugContext(glContext)");
-    }*/
+    var gl = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
+    if (!gl) throw new Error("WebGL not supported");
+    GL._setGL(gl);
 
-    HX.OPTIONS = options || new HX.InitOptions();
-    HX.GL = HX_GL = glContext;
+    META.OPTIONS = options || new InitOptions();
 
-    if (!HX_GL) throw new Error("WebGL not supported");
+    META.INITIALIZED = true;
 
-    HX.INITIALIZED = true;
-
-    var extensions  = HX_GL.getSupportedExtensions();
+    var glExtensions = gl.getSupportedExtensions();
 
     function _getExtension(name)
     {
-        return extensions.indexOf(name) >= 0 ? HX_GL.getExtension(name) : null;
+        return glExtensions.indexOf(name) >= 0 ? gl.getExtension(name) : null;
     }
 
     // shortcuts
-    HX._initGLProperties();
+    _initGLProperties();
 
-    HX._initLights();
+    _initLights();
 
-    HX.GLSLIncludeGeometryPass = "\n" + HX.DirectionalLight.SHADOW_FILTER.getGLSL() + HX.GLSLIncludeGeometryPass;
-
+    var options = META.OPTIONS;
     var defines = "";
-    if (HX.OPTIONS.useGammaCorrection !== false)
-        defines += HX.OPTIONS.usePreciseGammaCorrection? "#define HX_GAMMA_CORRECTION_PRECISE\n" : "#define HX_GAMMA_CORRECTION_FAST\n";
+    if (options.useGammaCorrection !== false)
+        defines += META.OPTIONS.usePreciseGammaCorrection ? "#define HX_GAMMA_CORRECTION_PRECISE\n" : "#define HX_GAMMA_CORRECTION_FAST\n";
 
-    defines += "#define HX_MAX_BONES " + HX.OPTIONS.maxBones + "\n";
+    defines += "#define HX_MAX_BONES " + META.OPTIONS.maxBones + "\n";
 
-    HX.OPTIONS.ignoreDrawBuffersExtension = HX.OPTIONS.ignoreDrawBuffersExtension || HX.OPTIONS.ignoreAllExtensions;
-    HX.OPTIONS.ignoreDepthTexturesExtension = HX.OPTIONS.ignoreDepthTexturesExtension || HX.OPTIONS.ignoreAllExtensions;
-    HX.OPTIONS.ignoreTextureLODExtension = HX.OPTIONS.ignoreTextureLODExtension || HX.OPTIONS.ignoreAllExtensions;
-    HX.OPTIONS.ignoreHalfFloatTextureExtension = HX.OPTIONS.ignoreHalfFloatTextureExtension || HX.OPTIONS.ignoreAllExtensions;
+    options.ignoreDrawBuffersExtension = options.ignoreDrawBuffersExtension || options.ignoreAllExtensions;
+    options.ignoreDepthTexturesExtension = options.ignoreDepthTexturesExtension || options.ignoreAllExtensions;
+    options.ignoreTextureLODExtension = options.ignoreTextureLODExtension || options.ignoreAllExtensions;
+    options.ignoreHalfFloatTextureExtension = options.ignoreHalfFloatTextureExtension || options.ignoreAllExtensions;
 
-    if (!HX.OPTIONS.ignoreDrawBuffersExtension)
-        HX.EXT_DRAW_BUFFERS = _getExtension('WEBGL_draw_buffers');
+    if (!options.ignoreDrawBuffersExtension)
+        capabilities.EXT_DRAW_BUFFERS = _getExtension('WEBGL_draw_buffers');
 
-    if (HX.EXT_DRAW_BUFFERS && HX.EXT_DRAW_BUFFERS.MAX_DRAW_BUFFERS_WEBGL >= 3)
+    if (capabilities.EXT_DRAW_BUFFERS && capabilities.EXT_DRAW_BUFFERS.MAX_DRAW_BUFFERS_WEBGL >= 3)
         defines += "#extension GL_EXT_draw_buffers : require\n";
 
-    HX.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
-    if (!HX.EXT_FLOAT_TEXTURES) {
+    capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
+    if (!capabilities.EXT_FLOAT_TEXTURES) {
         console.warn('OES_texture_float extension not supported!');
-        HX.OPTIONS.useSkinningTexture = false;
+        options.useSkinningTexture = false;
     }
 
-    if (!HX.OPTIONS.ignoreHalfFloatTextureExtension)
-        HX.EXT_HALF_FLOAT_TEXTURES = _getExtension('OES_texture_half_float');
+    if (!options.ignoreHalfFloatTextureExtension)
+        capabilities.EXT_HALF_FLOAT_TEXTURES = _getExtension('OES_texture_half_float');
 
-    if (!HX.EXT_HALF_FLOAT_TEXTURES) console.warn('OES_texture_half_float extension not supported!');
+    if (!capabilities.EXT_HALF_FLOAT_TEXTURES) console.warn('OES_texture_half_float extension not supported!');
 
-    HX.EXT_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_float_linear');
-    if (!HX.EXT_FLOAT_TEXTURES_LINEAR) console.warn('OES_texture_float_linear extension not supported!');
+    capabilities.EXT_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_float_linear');
+    if (!capabilities.EXT_FLOAT_TEXTURES_LINEAR) console.warn('OES_texture_float_linear extension not supported!');
 
-    HX.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_half_float_linear');
-    if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR) console.warn('OES_texture_half_float_linear extension not supported!');
+    capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_half_float_linear');
+    if (!capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR) console.warn('OES_texture_half_float_linear extension not supported!');
 
     // these SHOULD be implemented, but are not by Chrome
-    //HX.EXT_COLOR_BUFFER_FLOAT = _getExtension('WEBGL_color_buffer_float');
-    //if (!HX.EXT_COLOR_BUFFER_FLOAT) console.warn('WEBGL_color_buffer_float extension not supported!');
+    //EXT_COLOR_BUFFER_FLOAT = _getExtension('WEBGL_color_buffer_float');
+    //if (!EXT_COLOR_BUFFER_FLOAT) console.warn('WEBGL_color_buffer_float extension not supported!');
 
-    //HX.EXT_COLOR_BUFFER_HALF_FLOAT = _getExtension('EXT_color_buffer_half_float');
-    //if (!HX.EXT_COLOR_BUFFER_HALF_FLOAT) console.warn('EXT_color_buffer_half_float extension not supported!');
+    //EXT_COLOR_BUFFER_HALF_FLOAT = _getExtension('EXT_color_buffer_half_float');
+    //if (!EXT_COLOR_BUFFER_HALF_FLOAT) console.warn('EXT_color_buffer_half_float extension not supported!');
 
-    if (!HX.OPTIONS.ignoreDepthTexturesExtension)
-        HX.EXT_DEPTH_TEXTURE = _getExtension('WEBGL_depth_texture');
+    if (!options.ignoreDepthTexturesExtension)
+        capabilities.EXT_DEPTH_TEXTURE = _getExtension('WEBGL_depth_texture');
 
-    if (!HX.EXT_DEPTH_TEXTURE) {
+    if (!capabilities.EXT_DEPTH_TEXTURE) {
         console.warn('WEBGL_depth_texture extension not supported!');
         defines += "#define HX_NO_DEPTH_TEXTURES\n";
     }
 
-    HX.EXT_STANDARD_DERIVATIVES = _getExtension('OES_standard_derivatives');
-    if (!HX.EXT_STANDARD_DERIVATIVES) console.warn('OES_standard_derivatives extension not supported!');
+    capabilities.EXT_STANDARD_DERIVATIVES = _getExtension('OES_standard_derivatives');
+    if (!capabilities.EXT_STANDARD_DERIVATIVES) console.warn('OES_standard_derivatives extension not supported!');
 
-    if (!HX.OPTIONS.ignoreTextureLODExtension)
-        HX.EXT_SHADER_TEXTURE_LOD = _getExtension('EXT_shader_texture_lod');
+    if (!options.ignoreTextureLODExtension)
+        capabilities.EXT_SHADER_TEXTURE_LOD = _getExtension('EXT_shader_texture_lod');
 
-    if (!HX.EXT_SHADER_TEXTURE_LOD)
+    if (!capabilities.EXT_SHADER_TEXTURE_LOD)
         console.warn('EXT_shader_texture_lod extension not supported!');
 
-    HX.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension('EXT_texture_filter_anisotropic');
-    if (!HX.EXT_TEXTURE_FILTER_ANISOTROPIC) console.warn('EXT_texture_filter_anisotropic extension not supported!');
+    capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension('EXT_texture_filter_anisotropic');
+    if (!capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC) console.warn('EXT_texture_filter_anisotropic extension not supported!');
 
-    //HX.EXT_SRGB = _getExtension('EXT_sRGB');
-    //if (!HX.EXT_SRGB) console.warn('EXT_sRGB extension not supported!');
+    //EXT_SRGB = _getExtension('EXT_sRGB');
+    //if (!EXT_SRGB) console.warn('EXT_sRGB extension not supported!');
 
-    HX.DEFAULT_TEXTURE_MAX_ANISOTROPY = HX.EXT_TEXTURE_FILTER_ANISOTROPIC? HX_GL.getParameter(HX.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
+    capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY = capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC ? gl.getParameter(capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
 
-    if (!HX.EXT_HALF_FLOAT_TEXTURES_LINEAR || !HX.EXT_HALF_FLOAT_TEXTURES)
-        HX.OPTIONS.hdr = false;
+    if (!capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR || !capabilities.EXT_HALF_FLOAT_TEXTURES)
+        options.hdr = false;
 
-    HX.HDR_FORMAT = HX.OPTIONS.hdr? HX.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : HX_GL.UNSIGNED_BYTE;
-
-    HX.GAMMA_CORRECTION_IN_LIGHTS = false;
+    capabilities.HDR_FORMAT = options.hdr ? capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;
 
     // this causes lighting accumulation to happen in gamma space (only accumulation of lights within the same pass is linear)
     // This yields an incorrect gamma correction to be applied, but looks much better due to encoding limitation (otherwise there would be banding)
-    if (HX.OPTIONS.useGammaCorrection && !HX.OPTIONS.hdr) {
-        HX.GAMMA_CORRECT_LIGHTS = true;
+    if (options.useGammaCorrection && !options.hdr) {
+        _HX_.GAMMA_CORRECT_LIGHTS = true;
         defines += "#define HX_GAMMA_CORRECT_LIGHTS\n";
     }
 
-    if (HX.OPTIONS.useSkinningTexture) {
+    if (options.useSkinningTexture) {
         defines += "#define HX_USE_SKINNING_TEXTURE\n";
 
-        this._initDefaultSkinningTexture();
+        _initDefaultSkinningTexture();
     }
 
     // this cannot be defined by the user
-    HX.NUM_MORPH_TARGETS = 8;
+    capabilities.NUM_MORPH_TARGETS = 8;
 
-    HX.GLSLIncludeGeneral = defines + HX.GLSLIncludeGeneral;
+    GLSLIncludes.GENERAL = defines + GLSLIncludes.GENERAL;
 
     // default copy shader
-    HX.COPY_SHADER = new HX.CopyChannelsShader();
+    DEFAULTS.COPY_SHADER = new CopyChannelsShader();
 
-    HX._initMaterialPasses();
+    _initMaterialPasses();
 
-    HX.Texture2D._initDefault();
-    HX.TextureCube._initDefault();
-    HX.BlendState._initDefaults();
-    HX.RectMesh._initDefault();
-    HX.PoissonDisk._initDefault();
-    HX.PoissonSphere._initDefault();
+    Texture2D._initDefault();
+    TextureCube._initDefault();
+    BlendState._initDefaults();
+    RectMesh._initDefault();
+    PoissonDisk._initDefault();
+    PoissonSphere._initDefault();
 
-    HX._init2DDitherTexture(32, 32);
+    _init2DDitherTexture(32, 32);
 
-    HX.setClearColor(HX.Color.BLACK);
+    GL.setClearColor(Color.BLACK);
 
-    HX.onPreFrame = new HX.Signal();  // for engine-specific stuff (entity updates etc), stats updates, etc
-    HX.onFrame = new HX.Signal();   // for user-implemented behaviour and rendering
+    start();
 
-    HX.FRAME_TICKER = new HX.FrameTicker();
-    HX.start();
-};
+    onPreFrame.bind(function ()
+    {
+        _clearGLStats();
+    })
+}
 
-HX.start = function()
+export function start()
 {
-    HX.FRAME_TICKER.start(function(dt) {
-        HX.onPreFrame.dispatch(dt);
-        HX.onFrame.dispatch(dt);
+    frameTicker.start(function (dt)
+    {
+        onPreFrame.dispatch(dt);
+        onFrame.dispatch(dt);
     });
 };
 
-HX.stop = function()
+export function stop()
 {
-    HX.FRAME_TICKER.stop();
-};
+    frameTicker.stop();
+}
 
-HX._initMaterialPasses = function()
+function _initMaterialPasses()
 {
-    var options = HX.OPTIONS;
-    HX.MaterialPass.BASE_PASS = 0;
-    HX.MaterialPass.NORMAL_DEPTH_PASS = 1;
-    HX.MaterialPass.DIR_LIGHT_PASS = 2;
+    var options = META.OPTIONS;
+    MaterialPass.BASE_PASS = 0;
+    MaterialPass.NORMAL_DEPTH_PASS = 1;
+    MaterialPass.DIR_LIGHT_PASS = 2;
     // assume only one dir light with shadow per pass, since it's normally only the sun
-    HX.MaterialPass.DIR_LIGHT_SHADOW_PASS = HX.MaterialPass.DIR_LIGHT_PASS + options.maxDirLightsPerPass;
-    HX.MaterialPass.POINT_LIGHT_PASS = HX.MaterialPass.DIR_LIGHT_SHADOW_PASS + 1;
-    HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = HX.MaterialPass.POINT_LIGHT_PASS + options.maxPointLightsPerPass;
-    HX.MaterialPass.NUM_PASS_TYPES = HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS + 1;
-};
+    MaterialPass.DIR_LIGHT_SHADOW_PASS = MaterialPass.DIR_LIGHT_PASS + options.maxDirLightsPerPass;
+    MaterialPass.POINT_LIGHT_PASS = MaterialPass.DIR_LIGHT_SHADOW_PASS + 1;
+    MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = MaterialPass.POINT_LIGHT_PASS + options.maxPointLightsPerPass;
+    MaterialPass.NUM_PASS_TYPES = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS + 1;
+}
 
-HX._initLights = function()
+function _initLights()
 {
-    HX.DirectionalLight.SHADOW_FILTER = HX.OPTIONS.directionalShadowFilter;
-};
+    DirectionalLight.SHADOW_FILTER = META.OPTIONS.directionalShadowFilter;
+}
 
-HX._initDefaultSkinningTexture = function()
+function _initDefaultSkinningTexture()
 {
-    HX.DEFAULT_SKINNING_TEXTURE = new HX.Texture2D();
+    var gl = GL.gl;
+    DEFAULTS.DEFAULT_SKINNING_TEXTURE = new Texture2D();
 
     var data = [];
-    for (var i = 0; i < HX.OPTIONS.maxBones; ++i)
+    for (var i = 0; i < META.OPTIONS.maxBones; ++i)
         data.push(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
 
-    HX.DEFAULT_SKINNING_TEXTURE.uploadData(new Float32Array(data), HX.OPTIONS.maxBones, 3, false, HX_GL.RGBA, HX_GL.FLOAT);
-    HX.DEFAULT_SKINNING_TEXTURE.filter = HX.TextureFilter.NEAREST_NOMIP;
-    HX.DEFAULT_SKINNING_TEXTURE.wrapMode = HX.TextureWrapMode.CLAMP;
-};
+    // TODO: Provide a proper texture format enum
+    DEFAULTS.DEFAULT_SKINNING_TEXTURE.uploadData(new Float32Array(data), META.OPTIONS.maxBones, 3, false, gl.RGBA, gl.FLOAT);
+    DEFAULTS.DEFAULT_SKINNING_TEXTURE.filter = TextureFilter.NEAREST_NOMIP;
+    DEFAULTS.DEFAULT_SKINNING_TEXTURE.wrapMode = TextureWrapMode.CLAMP;
+}
 
-HX._init2DDitherTexture = function(width, height)
+function _init2DDitherTexture(width, height)
 {
-    HX.DEFAULT_2D_DITHER_TEXTURE = new HX.Texture2D();
+    var gl = GL.gl;
+    DEFAULTS.DEFAULT_2D_DITHER_TEXTURE = new Texture2D();
     var len = width * height;
     var minValue = 1.0 / len;
     var data = [];
@@ -254,7 +320,7 @@ HX._init2DDitherTexture = function(width, height)
         values.push(i / len);
     }
 
-    HX.shuffle(values);
+    ArrayUtils.shuffle(values);
 
     for (i = 0; i < len; ++i) {
         var angle = values[i] * Math.PI * 2.0;
@@ -268,95 +334,93 @@ HX._init2DDitherTexture = function(width, height)
         data[k++] = 1.0;
     }
 
-    HX.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, HX_GL.RGBA, HX_GL.FLOAT);
-    HX.DEFAULT_2D_DITHER_TEXTURE.filter = HX.TextureFilter.NEAREST_NOMIP;
-    HX.DEFAULT_2D_DITHER_TEXTURE.wrapMode = HX.TextureWrapMode.REPEAT;
-};
+    DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, gl.RGBA, gl.FLOAT);
+    DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.filter = TextureFilter.NEAREST_NOMIP;
+    DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.wrapMode = TextureWrapMode.REPEAT;
+}
 
 
-HX._initGLProperties = function()
+function _initGLProperties()
 {
-    HX.TextureFilter = {};
-    HX.TextureFilter.NEAREST = {min: HX_GL.NEAREST_MIPMAP_NEAREST, mag: HX_GL.NEAREST};
-    HX.TextureFilter.BILINEAR = {min: HX_GL.LINEAR_MIPMAP_NEAREST, mag: HX_GL.LINEAR};
-    HX.TextureFilter.TRILINEAR = {min: HX_GL.LINEAR_MIPMAP_LINEAR, mag: HX_GL.LINEAR};
+    var gl = GL.gl;
+    TextureFilter.NEAREST = {min: gl.NEAREST_MIPMAP_NEAREST, mag: gl.NEAREST};
+    TextureFilter.BILINEAR = {min: gl.LINEAR_MIPMAP_NEAREST, mag: gl.LINEAR};
+    TextureFilter.TRILINEAR = {min: gl.LINEAR_MIPMAP_LINEAR, mag: gl.LINEAR};
 
-    if (HX.EXT_TEXTURE_FILTER_ANISOTROPIC)
-        HX.TextureFilter.TRILINEAR_ANISOTROPIC = {min: HX_GL.LINEAR_MIPMAP_LINEAR, mag: HX_GL.LINEAR};
+    if (capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC)
+        TextureFilter.TRILINEAR_ANISOTROPIC = {min: gl.LINEAR_MIPMAP_LINEAR, mag: gl.LINEAR};
 
 
-    HX.TextureFilter.NEAREST_NOMIP = { min: HX_GL.NEAREST, mag: HX_GL.NEAREST };
-    HX.TextureFilter.BILINEAR_NOMIP = { min: HX_GL.LINEAR, mag: HX_GL.LINEAR };
+    TextureFilter.NEAREST_NOMIP = {min: gl.NEAREST, mag: gl.NEAREST};
+    TextureFilter.BILINEAR_NOMIP = {min: gl.LINEAR, mag: gl.LINEAR};
 
-    HX.TextureWrapMode = {};
-    HX.TextureWrapMode.REPEAT = { s: HX_GL.REPEAT, t: HX_GL.REPEAT };
-    HX.TextureWrapMode.CLAMP = { s: HX_GL.CLAMP_TO_EDGE, t: HX_GL.CLAMP_TO_EDGE };
+    TextureWrapMode.REPEAT = {s: gl.REPEAT, t: gl.REPEAT};
+    TextureWrapMode.CLAMP = {s: gl.CLAMP_TO_EDGE, t: gl.CLAMP_TO_EDGE};
 
     // default settings:
-    HX.TextureWrapMode.DEFAULT = HX.TextureWrapMode.REPEAT;
-    HX.TextureFilter.DEFAULT = HX.TextureFilter.TRILINEAR;
+    TextureWrapMode.DEFAULT = TextureWrapMode.REPEAT;
+    TextureFilter.DEFAULT = TextureFilter.TRILINEAR;
 
-    HX.CullMode = {
-        NONE: null,
-        BACK: HX_GL.BACK,
-        FRONT: HX_GL.FRONT,
-        ALL: HX_GL.FRONT_AND_BACK
-    };
+    CullMode.NONE = null;
+    CullMode.BACK = gl.BACK;
+    CullMode.FRONT = gl.FRONT;
+    CullMode.ALL = gl.FRONT_AND_BACK;
 
-    HX.StencilOp = {
-        KEEP: HX_GL.KEEP,
-        ZERO: HX_GL.ZERO,
-        REPLACE: HX_GL.REPLACE,
-        INCREMENT: HX_GL.INCR,
-        INCREMENT_WRAP: HX_GL.INCR_WRAP,
-        DECREMENT: HX_GL.DECR,
-        DECREMENT_WRAP: HX_GL.DECR_WRAP,
-        INVERT: HX_GL.INVERT
-    };
+    StencilOp.KEEP = gl.KEEP;
+    StencilOp.ZERO = gl.ZERO;
+    StencilOp.REPLACE = gl.REPLACE;
+    StencilOp.INCREMENT = gl.INCR;
+    StencilOp.INCREMENT_WRAP = gl.INCR_WRAP;
+    StencilOp.DECREMENT = gl.DECR;
+    StencilOp.DECREMENT_WRAP = gl.DECR_WRAP;
+    StencilOp.INVERT = gl.INVERT;
 
-    HX.Comparison = {
-        DISABLED: null,
-        ALWAYS: HX_GL.ALWAYS,
-        NEVER: HX_GL.NEVER,
-        LESS: HX_GL.LESS,
-        EQUAL: HX_GL.EQUAL,
-        LESS_EQUAL: HX_GL.LEQUAL,
-        GREATER: HX_GL.GREATER,
-        NOT_EQUAL: HX_GL.NOTEQUAL,
-        GREATER_EQUAL: HX_GL.GEQUAL
-    };
+    Comparison.DISABLED = null;
+    Comparison.ALWAYS = gl.ALWAYS;
+    Comparison.NEVER = gl.NEVER;
+    Comparison.LESS = gl.LESS;
+    Comparison.EQUAL = gl.EQUAL;
+    Comparison.LESS_EQUAL = gl.LEQUAL;
+    Comparison.GREATER = gl.GREATER;
+    Comparison.NOT_EQUAL = gl.NOTEQUAL;
+    Comparison.GREATER_EQUAL = gl.GEQUAL;
 
-    HX.ElementType = {
-        POINTS: HX_GL.POINTS,
-        LINES: HX_GL.LINES,
-        LINE_STRIP: HX_GL.LINE_STRIP,
-        LINE_LOOP: HX_GL.LINE_LOOP,
-        TRIANGLES: HX_GL.TRIANGLES,
-        TRIANGLE_STRIP: HX_GL.TRIANGLE_STRIP,
-        TRIANGLE_FAN: HX_GL.TRIANGLE_FAN
-    };
+    ElementType.POINTS = gl.POINTS;
+    ElementType.LINES = gl.LINES;
+    ElementType.LINE_STRIP = gl.LINE_STRIP;
+    ElementType.LINE_LOOP = gl.LINE_LOOP;
+    ElementType.TRIANGLES = gl.TRIANGLES;
+    ElementType.TRIANGLE_STRIP = gl.TRIANGLE_STRIP;
+    ElementType.TRIANGLE_FAN = gl.TRIANGLE_FAN;
 
-    HX.BlendFactor = {
-        ZERO: HX_GL.ZERO,
-        ONE: HX_GL.ONE,
-        SOURCE_COLOR: HX_GL.SRC_COLOR,
-        ONE_MINUS_SOURCE_COLOR: HX_GL.ONE_MINUS_SRC_COLOR,
-        DESTINATION_COLOR: HX_GL.DST_COLOR,
-        ONE_MINUS_DESTINATION_COLOR: HX_GL.ONE_MINUS_DST_COLOR,
-        SOURCE_ALPHA: HX_GL.SRC_ALPHA,
-        ONE_MINUS_SOURCE_ALPHA: HX_GL.ONE_MINUS_SRC_ALPHA,
-        DESTINATION_ALPHA: HX_GL.DST_ALPHA,
-        ONE_MINUS_DESTINATION_ALPHA: HX_GL.ONE_MINUS_DST_ALPHA,
-        SOURCE_ALPHA_SATURATE: HX_GL.SRC_ALPHA_SATURATE,
-        CONSTANT_ALPHA: HX_GL.CONSTANT_ALPHA,
-        ONE_MINUS_CONSTANT_ALPHA: HX_GL.ONE_MINUS_CONSTANT_ALPHA
-    };
+    BlendFactor.ZERO = gl.ZERO;
+    BlendFactor.ONE = gl.ONE;
+    BlendFactor.SOURCE_COLOR = gl.SRC_COLOR;
+    BlendFactor.ONE_MINUS_SOURCE_COLOR = gl.ONE_MINUS_SRC_COLOR;
+    BlendFactor.DESTINATION_COLOR = gl.DST_COLOR;
+    BlendFactor.ONE_MINUS_DESTINATION_COLOR = gl.ONE_MINUS_DST_COLOR;
+    BlendFactor.SOURCE_ALPHA = gl.SRC_ALPHA;
+    BlendFactor.ONE_MINUS_SOURCE_ALPHA = gl.ONE_MINUS_SRC_ALPHA;
+    BlendFactor.DESTINATION_ALPHA = gl.DST_ALPHA;
+    BlendFactor.ONE_MINUS_DESTINATION_ALPHA = gl.ONE_MINUS_DST_ALPHA;
+    BlendFactor.SOURCE_ALPHA_SATURATE = gl.SRC_ALPHA_SATURATE;
+    BlendFactor.CONSTANT_ALPHA = gl.CONSTANT_ALPHA;
+    BlendFactor.ONE_MINUS_CONSTANT_ALPHA = gl.ONE_MINUS_CONSTANT_ALPHA;
 
-    HX.BlendOperation = {
-        ADD: HX_GL.FUNC_ADD,
-        SUBTRACT: HX_GL.FUNC_SUBTRACT,
-        REVERSE_SUBTRACT: HX_GL.FUNC_REVERSE_SUBTRACT
-    };
+    BlendOperation.ADD = gl.FUNC_ADD;
+    BlendOperation.SUBTRACT = gl.FUNC_SUBTRACT;
+    BlendOperation.REVERSE_SUBTRACT = gl.FUNC_REVERSE_SUBTRACT;
 
-    HX.COMPLETE_CLEAR_MASK = HX_GL.COLOR_BUFFER_BIT | HX_GL.DEPTH_BUFFER_BIT | HX_GL.STENCIL_BUFFER_BIT;
-};
+    ClearMask.COLOR = gl.COLOR_BUFFER_BIT;
+    ClearMask.STENCIL = gl.STENCIL_BUFFER_BIT;
+    ClearMask.BUFFER = gl.DEPTH_BUFFER_BIT;
+    ClearMask.COMPLETE = gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT;
+
+    TextureFormat.RGBA = gl.RGBA;
+    TextureFormat.RGB = gl.RGB;
+
+    DataType.UNSIGNED_BYTE = gl.UNSIGNED_BYTE;
+    DataType.FLOAT = gl.FLOAT;
+
+    BufferUsage.STATIC_DRAW = gl.STATIC_DRAW;
+}

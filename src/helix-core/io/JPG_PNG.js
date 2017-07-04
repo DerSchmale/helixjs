@@ -1,15 +1,20 @@
-HX.JPG = function()
+import {Texture2D} from "../texture/Texture2D";
+import {Importer} from "./Importer";
+
+function JPG()
 {
-    HX.Importer.call(this, HX.Texture2D, HX.Importer.TYPE_IMAGE);
+    Importer.call(this, Texture2D, Importer.TYPE_IMAGE);
 };
 
-HX.JPG.prototype = Object.create(HX.Importer.prototype);
+JPG.prototype = Object.create(Importer.prototype);
 
-HX.JPG.prototype.parse = function(data, target)
+JPG.prototype.parse = function(data, target)
 {
     var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
     target.uploadImage(data, data.naturalWidth, data.naturalHeight, generateMipmaps);
     this._notifyComplete(target);
 };
 
-HX.PNG = HX.JPG;
+var PNG = JPG;
+
+export { JPG, PNG };

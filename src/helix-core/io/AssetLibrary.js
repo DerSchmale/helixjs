@@ -1,3 +1,10 @@
+import {Signal} from "../core/Signal";
+import {AssetLoader} from "./AssetLoader";
+import {HCM} from "./HCM";
+import {HMT} from "./HMT";
+import {HSC} from "./HSC";
+import {JPG} from "./JPG_PNG";
+
 /**
  * Creates a new AssetLibrary object.
  * @param {string} basePath The base path or url to load the assets from. All filenames will have this value prepended.
@@ -16,22 +23,23 @@
  * assetLibrary.onProgress.bind(onAssetsProgress);
  * assetLibrary.load();
  */
-HX.AssetLibrary = function(basePath)
+
+function AssetLibrary(basePath)
 {
     this._numLoaded = 0;
     this._queue = [];
     this._assets = {};
     if (basePath && basePath.charAt(basePath.length - 1) !== "/") basePath += "/";
     this._basePath = basePath || "";
-    this._onComplete = new HX.Signal(/* void */);
-    this._onProgress = new HX.Signal(/* number */)
+    this._onComplete = new Signal(/* void */);
+    this._onProgress = new Signal(/* number */)
 };
 
 /**
  * The type of asset to load. For example: <code>AssetLibrary.Type.JSON</code> for a JSON object.
  * @enum
  */
-HX.AssetLibrary.Type = {
+AssetLibrary.Type = {
     /**
      * A JSON data object.
      */
@@ -48,7 +56,7 @@ HX.AssetLibrary.Type = {
     PLAIN_TEXT: 2
 };
 
-HX.AssetLibrary.prototype =
+AssetLibrary.prototype =
 {
     /**
      * The {@linkcode Signal} dispatched when all assets have completed loading. Its payload object is a reference to
@@ -109,13 +117,13 @@ HX.AssetLibrary.prototype =
 
         var asset = this._queue[this._numLoaded];
         switch (asset.type) {
-            case HX.AssetLibrary.Type.JSON:
+            case AssetLibrary.Type.JSON:
                 this._json(asset.filename, asset.id);
                 break;
-            case HX.AssetLibrary.Type.PLAIN_TEXT:
+            case AssetLibrary.Type.PLAIN_TEXT:
                 this._plainText(asset.filename, asset.id);
                 break;
-            case HX.AssetLibrary.Type.ASSET:
+            case AssetLibrary.Type.ASSET:
                 this._model(asset.filename, asset.id, asset.parser);
                 break;
             default:
@@ -166,7 +174,7 @@ HX.AssetLibrary.prototype =
     _textureCube: function(file, id)
     {
         var self = this;
-        var loader = new HX.AssetLoader(HX.HCM);
+        var loader = new AssetLoader(HCM);
         loader.bind(function() {
             self._onAssetLoaded();
         });
@@ -176,7 +184,7 @@ HX.AssetLibrary.prototype =
     _texture2D: function(file, id)
     {
         var self = this;
-        var loader = new HX.AssetLoader(HX.JPG);
+        var loader = new AssetLoader(JPG);
 
         loader.onComplete.bind(function() {
             self._onAssetLoaded();
@@ -188,7 +196,7 @@ HX.AssetLibrary.prototype =
     _model: function(file, id, parser)
     {
         var self = this;
-        var loader = new HX.AssetLoader(parser);
+        var loader = new AssetLoader(parser);
         // loader.options = loader.options || {};
         // loader.options.convertUpAxis = true;
         loader.onComplete.bind(function()
@@ -209,3 +217,5 @@ HX.AssetLibrary.prototype =
             this.load();
     }
 };
+
+export { AssetLibrary };

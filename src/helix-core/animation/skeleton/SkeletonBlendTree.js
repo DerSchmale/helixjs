@@ -2,27 +2,33 @@
  *
  * @constructor
  */
-HX.SkeletonBlendTree = function(rootNode, skeleton)
+import {SkeletonPose} from "./SkeletonPose";
+import {Texture2D} from "../../texture/Texture2D";
+import {META, DataType, TextureWrapMode, TextureFilter, TextureFormat} from "../../Helix";
+import {Matrix4x4} from "../../math/Matrix4x4";
+import {SkeletonJointPose} from "./SkeletonJointPose";
+
+function SkeletonBlendTree(rootNode, skeleton)
 {
     this._skeleton = skeleton;
     this._rootNode = rootNode;
     this._transferRootJoint = false;
     this._matrices = null;
-    this._globalPose = new HX.SkeletonPose();
+    this._globalPose = new SkeletonPose();
     this._applyInverseBindPose = true;
 
     // TODO: Should we hide this stuff in SkeletonPose along with matrices?
     // (only used for the global pose)
-    if (HX.OPTIONS.useSkinningTexture) {
-        this._texture = new HX.Texture2D();
-        this._texture.filter = HX.TextureFilter.NEAREST_NOMIP;
-        this._texture.wrapMode = HX.TextureWrapMode.CLAMP;
+    if (META.OPTIONS.useSkinningTexture) {
+        this._texture = new Texture2D();
+        this._texture.filter = TextureFilter.NEAREST_NOMIP;
+        this._texture.wrapMode = TextureWrapMode.CLAMP;
     }
 
     if (skeleton) this.skeleton = skeleton;
-};
+}
 
-HX.SkeletonBlendTree.prototype =
+SkeletonBlendTree.prototype =
 {
     get transferRootJoint() { return this._transferRootJoint; },
     set transferRootJoint(value) { this._transferRootJoint = value; },
@@ -36,8 +42,8 @@ HX.SkeletonBlendTree.prototype =
         this._skeleton = value;
         this._matrices = [];
         for (var i = 0; i < value.numJoints; ++i) {
-            this._matrices[i] = new HX.Matrix4x4();
-            this._globalPose.jointPoses[i] = new HX.SkeletonJointPose();
+            this._matrices[i] = new Matrix4x4();
+            this._globalPose.jointPoses[i] = new SkeletonJointPose();
         }
 
     },
@@ -62,9 +68,10 @@ HX.SkeletonBlendTree.prototype =
         if (this._rootNode.update(dt, this._transferRootJoint)) {
             this._updateGlobalPose();
             this._updateMatrices();
-            if (HX.OPTIONS.useSkinningTexture) {
+
+            if (META.OPTIONS.useSkinningTexture)
                 this._updateTexture();
-            }
+
             return true;
         }
         return false;
@@ -135,7 +142,7 @@ HX.SkeletonBlendTree.prototype =
             if (this._applyInverseBindPose)
                 mtx.copyFrom(skeleton.getJoint(i).inverseBindPose);
             else
-                mtx.copyFrom(HX.Matrix4x4.IDENTITY);
+                mtx.copyFrom(Matrix4x4.IDENTITY);
 
             var sc = pose.scale;
             mtx.appendScale(sc.x, sc.y, sc.z);
@@ -156,11 +163,14 @@ HX.SkeletonBlendTree.prototype =
                 data.push(m[r], m[r + 4], m[r + 8], m[r + 12]);
             }
 
-            for (i = len; i < HX.OPTIONS.maxBones; ++i) {
+            for (i = len; i < META.OPTIONS.maxBones; ++i) {
                 data.push(0, 0, 0, 0);
             }
         }
 
-        this._texture.uploadData(new Float32Array(data), HX.OPTIONS.maxBones, 3, false, HX_GL.RGBA, HX_GL.FLOAT);
+        this._texture.uploadData(new Float32Array(data), META.OPTIONS.maxBones, 3, false, TextureFormat.RGBA, DataType.FLOAT);
     }
 };
+
+
+export { SkeletonBlendTree };

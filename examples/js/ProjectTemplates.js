@@ -1,0 +1,203 @@
+/**
+ * SimpleProject is a project template for the most common 1-scene, 1-camera projects
+ * @constructor
+ */
+function SimpleProject()
+{
+    this._initialized = false;
+}
+
+SimpleProject.prototype =
+    {
+        //override or assign these
+        onInit: function() {},
+        onUpdate: function(dt) {},
+
+        // automatically starts as well
+        init: function(canvas, initOptions)
+        {
+            if (this._initialized) throw new Error("Already initialized project!");
+
+            HX.init(canvas, initOptions);
+
+            this._canvas = canvas;
+            this._resizeCanvas();
+
+            this._scene = new HX.Scene();
+            this._camera = new HX.PerspectiveCamera();
+            this._scene.attach(this._camera);
+            this._renderer = new HX.ForwardRenderer();
+
+            var self = this;
+
+            window.addEventListener('resize', function()
+            {
+                self._resizeCanvas();
+            });
+
+            this.onInit();
+            this._initialized = true;
+            this.start();
+        },
+
+        start: function()
+        {
+            HX.onFrame.bind(this._update, this);
+        },
+
+        stop: function()
+        {
+            HX.onFrame.unbind(this._update);
+        },
+
+        get renderer()
+        {
+            return this._renderer;
+        },
+
+        get scene()
+        {
+            return this._scene;
+        },
+
+        set scene(value)
+        {
+            this._scene.detach(this._camera);
+            this._scene = value;
+            this._scene.attach(this._camera);
+        },
+
+        get camera()
+        {
+            return this._camera;
+        },
+
+        set camera(value)
+        {
+            this._scene.detach(this._camera);
+            this._camera = value;
+
+            if (!this._camera._parent)
+                this._scene.attach(this._camera);
+            else if (this._camera._scene !== this._scene)
+                throw new Error("Camera attached to a different scene!");
+        },
+
+        _update: function(dt)
+        {
+            this.onUpdate(dt);
+
+            this._renderer.render(this._camera, this._scene, dt);
+        },
+
+        _resizeCanvas: function()
+        {
+            var pixelRatio = /*window.devicePixelRatio || */1.0;
+            this._canvas.width = this._canvas.clientWidth * pixelRatio;
+            this._canvas.height = this._canvas.clientHeight * pixelRatio;
+        }
+    };
+
+/**
+ * Just a slight extension to SimpleProject, to add debug mode number keys and an fps counter
+ * @constructor
+ */
+DemoProject = function()
+{
+    SimpleProject.call(this);
+    this._stats = null;
+};
+
+DemoProject.prototype = Object.create(SimpleProject.prototype);
+
+DemoProject.prototype.init = function(canvas, initOptions)
+{
+    SimpleProject.prototype.init.call(this, canvas, initOptions);
+
+    this._stats = new HX.StatsDisplay();
+    var debugInfoField = this._stats._div.cloneNode(false);
+    debugInfoField.style.removeProperty("width");
+    debugInfoField.style.removeProperty("left");
+    debugInfoField.style.right = "10px";
+    debugInfoField.style.top = "10px";
+    debugInfoField.style.display = "none";
+
+    document.body.appendChild(debugInfoField);
+};
+
+/**
+ * MultiViewProject is a project template for the simple multi-view set-ups
+ * @constructor
+ */
+function MultiViewProject()
+{
+    this._initialized = false;
+}
+
+MultiViewProject.prototype =
+    {
+        //override or assign these
+        onInit: function() {},
+        onUpdate: function(dt) {},
+
+        // automatically starts as well
+        init: function(canvas, initOptions)
+        {
+            if (this._initialized) throw new Error("Already initialized project!");
+
+            HX.init(canvas, initOptions);
+            this._resizeCanvas();
+
+            this._renderer = new HX.MultiRenderer();
+
+            var self = this;
+
+            window.addEventListener('resize', function()
+            {
+                self._resizeCanvas.call(self);
+            });
+
+            this.onInit();
+            this._initialized = true;
+            this.start();
+        },
+
+        addView: function(view)
+        {
+            this._renderer.addView(view);
+        },
+
+        removeView: function(view)
+        {
+            this._renderer.removeView(view);
+        },
+
+        start: function()
+        {
+            HX.onFrame.bind(this._update, this);
+        },
+
+        stop: function()
+        {
+            HX.onFrame.unbind(this._update);
+        },
+
+        get renderer()
+        {
+            return this._renderer;
+        },
+
+        _update: function(dt)
+        {
+            this.onUpdate(dt);
+
+            this._renderer.render(dt);
+        },
+
+        _resizeCanvas: function()
+        {
+            this._canvas = document.getElementById('webglContainer');
+            this._canvas.width = this._canvas.clientWidth;
+            this._canvas.height = this._canvas.clientHeight;
+        }
+    };

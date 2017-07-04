@@ -1,12 +1,21 @@
-HX.FloatController = function()
+import {Float4} from "../math/Float4";
+import {Component} from "../entity/Component";
+import {META} from "../Helix";
+
+
+/**
+ *
+ * @constructor
+ */
+function FloatController()
 {
-    HX.Component.call(this);
+    Component.call(this);
     this._speed = 1.0;
     this._speedMultiplier = 2.0;
     this._torquePitch = 0.0;
     this._torqueYaw = 0.0;
-    this._localVelocity = new HX.Float4(0, 0, 0, 0);
-    this._localAcceleration = new HX.Float4(0, 0, 0, 0);
+    this._localVelocity = new Float4(0, 0, 0, 0);
+    this._localAcceleration = new Float4(0, 0, 0, 0);
     this._pitch = 0.0;
     this._yaw = 0.0;
     this._mouseX = 0;
@@ -20,9 +29,9 @@ HX.FloatController = function()
 
     this._onKeyDown = null;
     this._onKeyUp = null;
-};
+}
 
-HX.FloatController.prototype = Object.create(HX.Component.prototype, {
+FloatController.prototype = Object.create(Component.prototype, {
     speed: {
         get: function()
         {
@@ -110,7 +119,7 @@ HX.FloatController.prototype = Object.create(HX.Component.prototype, {
     }
 });
 
-HX.FloatController.prototype.onAdded = function(dt)
+FloatController.prototype.onAdded = function(dt)
 {
     var self = this;
     this._onKeyDown = function(event) {
@@ -174,37 +183,37 @@ HX.FloatController.prototype.onAdded = function(dt)
     {
         self._mouseX = event.clientX;
         self._mouseY = event.clientY;
-        HX.TARGET_CANVAS.addEventListener("mousemove", self._onMouseMove);
+        META.TARGET_CANVAS.addEventListener("mousemove", self._onMouseMove);
     };
 
     this._onMouseUp = function(event)
     {
-        HX.TARGET_CANVAS.removeEventListener("mousemove", self._onMouseMove);
+        META.TARGET_CANVAS.removeEventListener("mousemove", self._onMouseMove);
     };
 
     document.addEventListener("keydown", this._onKeyDown);
     document.addEventListener("keyup", this._onKeyUp);
-    HX.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
-    HX.TARGET_CANVAS.addEventListener("mouseup", this._onMouseUp);
+    META.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
+    META.TARGET_CANVAS.addEventListener("mouseup", this._onMouseUp);
 };
 
-HX.FloatController.prototype.onRemoved = function(dt)
+FloatController.prototype.onRemoved = function(dt)
 {
     document.removeEventListener("keydown", this._onKeyDown);
     document.removeEventListener("keyup", this._onKeyUp);
-    HX.TARGET_CANVAS.removeEventListener("mousemove", this._onMouseMove);
-    HX.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
-    HX.TARGET_CANVAS.removeEventListener("mouseup", this._onMouseUp);
+    META.TARGET_CANVAS.removeEventListener("mousemove", this._onMouseMove);
+    META.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
+    META.TARGET_CANVAS.removeEventListener("mouseup", this._onMouseUp);
 };
 
-HX.FloatController.prototype.onUpdate = function(dt)
+FloatController.prototype.onUpdate = function(dt)
 {
     var seconds = dt * .001;
 
-    var frictionForce = HX.Float4.scale(this._localVelocity, this._friction*seconds);
+    var frictionForce = Float4.scale(this._localVelocity, this._friction*seconds);
     this._localVelocity.subtract(frictionForce);
 
-    var acceleration = HX.Float4.scale(this._localAcceleration, this._maxAcceleration*seconds);
+    var acceleration = Float4.scale(this._localAcceleration, this._maxAcceleration*seconds);
     this._localVelocity.add(acceleration);
 
     var absVelocity = this._localVelocity.length;
@@ -220,7 +229,7 @@ HX.FloatController.prototype.onUpdate = function(dt)
     var matrix = this.entity.matrix;
     // the original position
     var position = matrix.getColumn(3);
-    var distance = HX.Float4.scale(this._localVelocity, seconds);
+    var distance = Float4.scale(this._localVelocity, seconds);
 
     matrix.fromRotationPitchYawRoll(this._pitch, this._yaw, 0.0);
     matrix.prependTranslation(distance);
@@ -230,32 +239,34 @@ HX.FloatController.prototype.onUpdate = function(dt)
 };
 
 // ratio is "how far the controller is pushed", from -1 to 1
-HX.FloatController.prototype._setForwardForce = function(ratio)
+FloatController.prototype._setForwardForce = function(ratio)
 {
     this._localAcceleration.z = ratio * this._maxAcceleration;
 };
 
-HX.FloatController.prototype._setStrideForce = function(ratio)
+FloatController.prototype._setStrideForce = function(ratio)
 {
     this._localAcceleration.x = ratio * this._maxAcceleration;
 };
 
-HX.FloatController.prototype._setTorquePitch = function(ratio)
+FloatController.prototype._setTorquePitch = function(ratio)
 {
     this._torquePitch = ratio * this._torque;
 };
 
-HX.FloatController.prototype._setTorqueYaw = function(ratio)
+FloatController.prototype._setTorqueYaw = function(ratio)
 {
     this._torqueYaw = ratio * this._torque;
 };
 
-HX.FloatController.prototype._addPitch = function(value)
+FloatController.prototype._addPitch = function(value)
 {
     this._pitch += value;
 };
 
-HX.FloatController.prototype._addYaw = function(value)
+FloatController.prototype._addYaw = function(value)
 {
     this._yaw += value;
 };
+
+export {FloatController };

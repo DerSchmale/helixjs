@@ -2,16 +2,19 @@
  * TODO: Remove in favour of AssetLibrary
  * @constructor
  */
-HX.BulkAssetLoader = function ()
+import {Signal} from "../core/Signal";
+import {AssetLoader} from "./AssetLoader";
+
+function BulkAssetLoader()
 {
     this._assets = null;
     this._files = null;
     this._abortOnFail = false;
-    this.onComplete = new HX.Signal();
-    this.onFail = new HX.Signal();
+    this.onComplete = new Signal();
+    this.onFail = new Signal();
 };
 
-HX.BulkAssetLoader.prototype =
+BulkAssetLoader.prototype =
 {
     get abortOnFail()
     {
@@ -60,7 +63,7 @@ HX.BulkAssetLoader.prototype =
         }
 
         var file = this._files[this._index];
-        var loader = new HX.AssetLoader(file.importer);
+        var loader = new AssetLoader(file.importer);
 
         var self = this;
         loader.onComplete = function(asset)
@@ -88,7 +91,7 @@ HX.BulkAssetLoader.prototype =
     {
         if (!this.onComplete) return;
 
-        if (this.onComplete instanceof HX.Signal)
+        if (this.onComplete instanceof Signal)
             this.onComplete.dispatch();
         else
             this.onComplete();
@@ -101,9 +104,11 @@ HX.BulkAssetLoader.prototype =
             return;
         }
 
-        if (this.onFail instanceof HX.Signal)
+        if (this.onFail instanceof Signal)
             this.onFail.dispatch(message);
         else
             this.onFail(message);
     }
 };
+
+export { BulkAssetLoader };

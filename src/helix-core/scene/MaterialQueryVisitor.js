@@ -1,10 +1,17 @@
-HX.MaterialQueryVisitor = function(materialName)
-{
-    HX.SceneVisitor.call(this);
-    this._materialName = materialName;
-};
+import {SceneVisitor} from "./SceneVisitor";
 
-HX.MaterialQueryVisitor.prototype = Object.create(HX.SceneVisitor.prototype,
+/**
+ * This goes through a scene to find a material with a given name
+ * @param materialName
+ * @constructor
+ */
+function MaterialQueryVisitor(materialName)
+{
+    SceneVisitor.call(this);
+    this._materialName = materialName;
+}
+
+MaterialQueryVisitor.prototype = Object.create(SceneVisitor.prototype,
     {
         foundMaterial: {
             get: function()
@@ -14,13 +21,13 @@ HX.MaterialQueryVisitor.prototype = Object.create(HX.SceneVisitor.prototype,
         }
     });
 
-HX.MaterialQueryVisitor.prototype.qualifies = function(object)
+MaterialQueryVisitor.prototype.qualifies = function(object)
 {
     // if a material was found, ignore
     return !this._foundMaterial;
 };
 
-HX.MaterialQueryVisitor.prototype.visitModelInstance = function (modelInstance, worldMatrix)
+MaterialQueryVisitor.prototype.visitModelInstance = function (modelInstance, worldMatrix)
 {
     var materials = modelInstance._materials;
     var len = materials.length;
@@ -30,3 +37,5 @@ HX.MaterialQueryVisitor.prototype.visitModelInstance = function (modelInstance, 
             this._foundMaterial = material;
     }
 };
+
+export { MaterialQueryVisitor };

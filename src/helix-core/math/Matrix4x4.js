@@ -1,10 +1,14 @@
+import {Float4} from './Float4';
+import {MathX} from './MathX';
+import {Transform} from './Transform';
+
 /**
  * Creates a new Matrix4x4 object.
  * Column-major storage. Vector multiplication is in column format (ie v' = M x v)
  * @class
  * @constructor
  */
-HX.Matrix4x4 = function (m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
+function Matrix4x4(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 {
     if (m00 !== undefined && isNaN(m00)) {
         this._m = new Float32Array(m00);
@@ -31,16 +35,14 @@ HX.Matrix4x4 = function (m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, 
     }
 };
 
-HX.Matrix4x4.prototype =
+Matrix4x4.prototype =
 {
-    constructor: HX.Matrix4x4,
-
     /**
      * Transforms a Float4 object (use for homogeneous general case of Float4, perspective or when "type" (w) of Float4 is unknown)
      */
     transform: function (v, target)
     {
-        target = target || new HX.Float4();
+        target = target || new Float4();
         var x = v.x, y = v.y, z = v.z, w = v.w;
         var m = this._m;
 
@@ -57,7 +59,7 @@ HX.Matrix4x4.prototype =
      */
     transformPoint: function (v, target)
     {
-        target = target || new HX.Float4();
+        target = target || new Float4();
         var x = v.x, y = v.y, z = v.z;
         var m = this._m;
 
@@ -74,7 +76,7 @@ HX.Matrix4x4.prototype =
      */
     transformVector: function (v, target)
     {
-        target = target || new HX.Float4();
+        target = target || new Float4();
         var x = v.x, y = v.y, z = v.z;
 
         var m = this._m;
@@ -91,7 +93,7 @@ HX.Matrix4x4.prototype =
      */
     transformExtent: function (v, target)
     {
-        target = target || new HX.Float4();
+        target = target || new Float4();
         var x = v.x, y = v.y, z = v.z;
 
         var m = this._m;
@@ -453,7 +455,7 @@ HX.Matrix4x4.prototype =
 
     clone: function ()
     {
-        return new HX.Matrix4x4(this._m);
+        return new Matrix4x4(this._m);
     },
 
     transpose: function ()
@@ -516,7 +518,7 @@ HX.Matrix4x4.prototype =
 
     getCofactorMatrix: function (row, col, target)
     {
-        target = target || new HX.Matrix4x4();
+        target = target || new Matrix4x4();
 
         var tm = target._m;
         for (var i = 0; i < 16; ++i)
@@ -527,7 +529,7 @@ HX.Matrix4x4.prototype =
 
     getAdjugate: function (row, col, target)
     {
-        target = target || new HX.Matrix4x4();
+        target = target || new Matrix4x4();
 
         var tm = target._m;
         for (var i = 0; i < 16; ++i)
@@ -965,7 +967,7 @@ HX.Matrix4x4.prototype =
     getRow: function (index, target)
     {
         var m = this._m;
-        target = target || new HX.Float4();
+        target = target || new Float4();
         target.x = m[index];
         target.y = m[index | 4];
         target.z = m[index | 8];
@@ -995,7 +997,7 @@ HX.Matrix4x4.prototype =
     getColumn: function (index, target)
     {
         var m = this._m;
-        target = target || new HX.Float4();
+        target = target || new Float4();
         index <<= 2;
         target.x = m[index];
         target.y = m[index | 1];
@@ -1021,27 +1023,25 @@ HX.Matrix4x4.prototype =
      */
     lookAt: function (target, eye, up)
     {
-        var zAxis = HX.Float4.subtract(eye, target);
+        var zAxis = Float4.subtract(eye, target);
         zAxis.normalize();
 
-        var xAxis = new HX.Float4();
-        xAxis.cross(up, zAxis);
+        var xAxis = Float4.cross(up, zAxis);
 
         if (Math.abs(xAxis.lengthSqr) > .0001) {
             xAxis.normalize();
         }
         else {
-            var altUp = new HX.Float4(up.x, up.z, up.y, 0.0);
-            xAxis.cross(altUp, zAxis);
+            var altUp = new Float4(up.x, up.z, up.y, 0.0);
+            Float4.cross(altUp, zAxis, xAxis);
             if (Math.abs(xAxis.lengthSqr) <= .0001) {
                 altUp.set(up.z, up.y, up.z, 0.0);
-                xAxis.cross(altUp, zAxis);
+                Float4.cross(altUp, zAxis, xAxis);
             }
             xAxis.normalize();
         }
 
-        var yAxis = new HX.Float4();
-        yAxis.cross(zAxis, xAxis);	// should already be unit length
+        var yAxis = Float4.cross(zAxis, xAxis);
 
         var m = this._m;
         m[0] = xAxis.x;
@@ -1081,7 +1081,7 @@ HX.Matrix4x4.prototype =
      */
     decompose: function (targetOrPos, quat, scale)
     {
-        targetOrPos = targetOrPos || new HX.Transform();
+        targetOrPos = targetOrPos || new Transform();
 
         var pos;
         if (quat === undefined) {
@@ -1102,7 +1102,7 @@ HX.Matrix4x4.prototype =
         var cz = m0*m5 - m1*m4;
 
         // dot cross product X x Y with Z < 0? Lefthanded flip.
-        var flipSign = HX.sign(cx * m8 + cy * m9 + cz * m10);
+        var flipSign = MathX.sign(cx * m8 + cy * m9 + cz * m10);
 
         // we assign the flipSign to all three instead of just 1, so that if a uniform negative scale was used, this will
         // be preserved
@@ -1170,5 +1170,7 @@ HX.Matrix4x4.prototype =
     }
 };
 
-HX.Matrix4x4.IDENTITY = new HX.Matrix4x4();
-HX.Matrix4x4.ZERO = new HX.Matrix4x4(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+Matrix4x4.IDENTITY = new Matrix4x4();
+Matrix4x4.ZERO = new Matrix4x4(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+export { Matrix4x4 };

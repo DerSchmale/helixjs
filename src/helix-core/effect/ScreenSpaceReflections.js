@@ -1,12 +1,24 @@
 /**
- *
+ * TODO: This is currently pointless. Code remains for reference
  * @param numSamples
  * @param range
  * @constructor
  */
-HX.ScreenSpaceReflections = function(numSamples)
+import {
+    capabilities, Comparison, TextureFilter, TextureFormat, TextureWrapMode, StencilOp, _HX_,
+    DEFAULTS
+} from "../Helix";
+import {StencilState} from "../render/StencilState";
+import {EffectPass} from "./EffectPass";
+import {ShaderLibrary} from "../shader/ShaderLibrary";
+import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
+import {Texture2D} from "../texture/Texture2D";
+import {FrameBuffer} from "../texture/FrameBuffer";
+import {Effect} from "./Effect";
+import {TextureUtils} from "../texture/TextureUtils";
+function ScreenSpaceReflections(numSamples)
 {
-    HX.Effect.call(this);
+    Effect.call(this);
     numSamples = numSamples || 5;
     this._numSamples = numSamples;
 
@@ -14,31 +26,31 @@ HX.ScreenSpaceReflections = function(numSamples)
         NUM_SAMPLES: numSamples
     };
 
-    this._isSupported = !!HX.EXT_STANDARD_DERIVATIVES;
-    this._stencilWriteState = new HX.StencilState(1, HX.Comparison.ALWAYS, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE, HX.StencilOp.REPLACE);
-    this._stencilReadState = new HX.StencilState(1, HX.Comparison.EQUAL, HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
-    this._stencilPass = new HX.EffectPass(null, HX.ShaderLibrary.get("ssr_stencil_fragment.glsl"));
-    this._pass = new HX.EffectPass(HX.ShaderLibrary.get("post_viewpos_vertex.glsl", defines), HX.ShaderLibrary.get("ssr_fragment.glsl", defines));
+    this._isSupported = !!capabilities.EXT_STANDARD_DERIVATIVES;
+    this._stencilWriteState = new StencilState(1, Comparison.ALWAYS, StencilOp.REPLACE, StencilOp.REPLACE, StencilOp.REPLACE);
+    this._stencilReadState = new StencilState(1, Comparison.EQUAL, StencilOp.KEEP, StencilOp.KEEP, StencilOp.KEEP);
+    this._stencilPass = new EffectPass(null, ShaderLibrary.get("ssr_stencil_fragment.glsl"));
+    this._pass = new EffectPass(ShaderLibrary.get("post_viewpos_vertex.glsl", defines), ShaderLibrary.get("ssr_fragment.glsl", defines));
     this._scale = .5;
     this.stepSize = Math.max(500.0 / numSamples, 1.0);
     this.maxDistance = 500.0;
     this.maxRoughness = .4;
 
-    this._depthBuffer = new HX.WriteOnlyDepthBuffer();
+    this._depthBuffer = new WriteOnlyDepthBuffer();
 
-    this._ssrTexture = new HX.Texture2D();
-    this._ssrTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
-    this._ssrTexture.wrapMode = HX.TextureWrapMode.CLAMP;
-    this._fbo = new HX.FrameBuffer(this._ssrTexture, this._depthBuffer);
+    this._ssrTexture = new Texture2D();
+    this._ssrTexture.filter = TextureFilter.BILINEAR_NOMIP;
+    this._ssrTexture.wrapMode = TextureWrapMode.CLAMP;
+    this._fbo = new FrameBuffer(this._ssrTexture, this._depthBuffer);
 };
 
-HX.ScreenSpaceReflections.prototype = Object.create(HX.Effect.prototype);
+ScreenSpaceReflections.prototype = Object.create(Effect.prototype);
 
 
 /**
  * Amount of pixels to skip per sample
  */
-Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
+Object.defineProperties(ScreenSpaceReflections.prototype, {
     stepSize: {
         get: function () {
             return this._stepSize;
@@ -95,23 +107,23 @@ Object.defineProperties(HX.ScreenSpaceReflections.prototype, {
 });
 
 // every SSAO type should implement this
-HX.ScreenSpaceReflections.prototype.getSSRTexture = function()
+ScreenSpaceReflections.prototype.getSSRTexture = function()
 {
     return this._ssrTexture;
 };
 
-HX.ScreenSpaceReflections.prototype.draw = function(dt)
+ScreenSpaceReflections.prototype.draw = function(dt)
 {
     var w = this._renderer._width * this._scale;
     var h = this._renderer._height * this._scale;
-    if (HX.TextureUtils.assureSize(w, h, this._ssrTexture, null, HX_GL.RGBA, HX.HDR_FORMAT)) {
+    if (TextureUtils.assureSize(w, h, this._ssrTexture, null, TextureFormat.RGBA, _HX_.HDR_FORMAT)) {
         this._depthBuffer.init(w, h);
         this._fbo.init();
-        this._pass.setUniform("ditherTextureScale", {x: w / HX.DEFAULT_2D_DITHER_TEXTURE.width, y: h / HX.DEFAULT_2D_DITHER_TEXTURE.height});
+        this._pass.setUniform("ditherTextureScale", {x: w / DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.width, y: h / DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.height});
     }
 
     // TODO: Fix all of this up
-    HX.pushRenderTarget(this._fbo);
+    /*GL.pushRenderTarget(this._fbo);
         HX.setClearColor(HX.Color.ZERO);
         HX.clear();
         HX_GL.colorMask(false, false, false, false);
@@ -123,5 +135,5 @@ HX.ScreenSpaceReflections.prototype.draw = function(dt)
         HX.setStencilState(this._stencilReadState);
         this._drawPass(this._pass);
         HX.setStencilState();
-    HX.popRenderTarget();
+    HX.popRenderTarget();*/
 };

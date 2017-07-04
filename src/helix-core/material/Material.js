@@ -1,19 +1,31 @@
+import {CullMode, ElementType, META} from "../Helix";
+import {DirectionalLight} from "../light/DirectionalLight";
+import {Signal} from "../core/Signal";
+import {MaterialPass} from "./MaterialPass";
+import {UnlitPass} from "./UnlitPass";
+import {StaticLitPass} from "./StaticLitPass";
+import {DirectionalShadowPass} from "./DirectionalShadowPass";
+import {LightingModel} from "../render/LightingModel";
+import {NormalDepthPass} from "./NormalDepthPass";
+
 /**
  *
  * @constructor
  */
-HX.Material = function(geometryVertexShader, geometryFragmentShader, lightingModel)
+var MATERIAL_ID_COUNTER = 0;
+
+function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
 {
-    this._elementType = HX.ElementType.TRIANGLES;
-    this._cullMode = HX.CullMode.BACK;
+    this._elementType = ElementType.TRIANGLES;
+    this._cullMode = CullMode.BACK;
     this._writeDepth = true;
     // TODO: should this be passed to the material as a uniform to figure out how to interlace in hx_processGeometry (= overhead for opaque), or should this be a #define and compilation issue?
     // could by default do a test, and if #define FORCE_TRANSPARENCY_MODE <mode> is set, do not. This can be used by BasicMaterial or custom materials to trigger recompilations and optimize.
-    this._passes = new Array(HX.Material.NUM_PASS_TYPES);
-    this._renderOrderHint = ++HX.Material.ID_COUNTER;
+    this._passes = new Array(Material.NUM_PASS_TYPES);
+    this._renderOrderHint = ++MATERIAL_ID_COUNTER;
     // forced render order by user:
     this._renderOrder = 0;
-    this.onChange = new HX.Signal();
+    this.onChange = new Signal();
     this._textures = {};
     this._uniforms = {};
     this._useMorphing = false;
@@ -24,7 +36,7 @@ HX.Material = function(geometryVertexShader, geometryFragmentShader, lightingMod
     this._ssao = false;
     this._geometryVertexShader = geometryVertexShader;
     this._geometryFragmentShader = geometryFragmentShader;
-    this._lightingModel = lightingModel || HX.OPTIONS.defaultLightingModel;
+    this._lightingModel = lightingModel || META.OPTIONS.defaultLightingModel;
 
     this._initialized = false;
     this._blendState = null;
@@ -32,9 +44,9 @@ HX.Material = function(geometryVertexShader, geometryFragmentShader, lightingMod
     this._needsBackbuffer = false;
 };
 
-HX.Material.ID_COUNTER = 0;
+Material.ID_COUNTER = 0;
 
-HX.Material.prototype =
+Material.prototype =
 {
     init: function()
     {
@@ -48,16 +60,16 @@ HX.Material.prototype =
         this._pointLights = null;
 
         if (!this._lightingModel)
-            this.setPass(HX.MaterialPass.BASE_PASS, new HX.UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
+            this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
         else if (this._lights)
-            this.setPass(HX.MaterialPass.BASE_PASS, new HX.StaticLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._lights, this._ssao));
+            this.setPass(MaterialPass.BASE_PASS, new StaticLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._lights, this._ssao));
         //else
         //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
 
-        this.setPass(HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new HX.DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
+        this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 
         if (!this._needsNormalDepth && this._writeDepth)
-            this.setPass(HX.MaterialPass.NORMAL_DEPTH_PASS, new HX.NormalDepthPass(this._geometryVertexShader, this._geometryFragmentShader));
+            this.setPass(MaterialPass.NORMAL_DEPTH_PASS, new NormalDepthPass(this._geometryVertexShader, this._geometryFragmentShader));
 
         this._initialized = true;
         // TODO: init dynamic light passes
@@ -82,8 +94,8 @@ HX.Material.prototype =
     {
         this._blendState = value;
 
-        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
-            if (i !== HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && i !== HX.MaterialPass.NORMAL_DEPTH_PASS && this._passes[i])
+        for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
+            if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && i !== MaterialPass.NORMAL_DEPTH_PASS && this._passes[i])
                 this._passes[i].blendState = value;
         }
     },
@@ -106,7 +118,7 @@ HX.Material.prototype =
     set lights(value)
     {
         this._lights = value;
-        if (!this._lightingModel && value) this._lightingModel = HX.LightingModel.GGX;
+        if (!this._lightingModel && value) this._lightingModel = LightingModel.GGX;
         this._invalidate();
     },
 
@@ -139,7 +151,7 @@ HX.Material.prototype =
     set elementType(value)
     {
         this._elementType = value;
-        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+        for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
             if (this._passes[i])
                 this._passes[i].elementType = value;
         }
@@ -154,13 +166,13 @@ HX.Material.prototype =
     {
         this._writeDepth = value;
 
-        if (!value && this._passes[HX.MaterialPass.NORMAL_DEPTH_PASS]) {
-            this._passes[HX.MaterialPass.NORMAL_DEPTH_PASS] = null;
+        if (!value && this._passes[MaterialPass.NORMAL_DEPTH_PASS]) {
+            this._passes[MaterialPass.NORMAL_DEPTH_PASS] = null;
         }
-        else if (value && !this._passes[HX.MaterialPass.NORMAL_DEPTH_PASS])
+        else if (value && !this._passes[MaterialPass.NORMAL_DEPTH_PASS])
             this._invalidate();
 
-        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+        for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
             if (this._passes[i])
                 this._passes[i].writeDepth = value;
 
@@ -175,8 +187,8 @@ HX.Material.prototype =
     set cullMode(value)
     {
         this._cullMode = value;
-        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
-            if (i !== HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && this._passes[i])
+        for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
+            if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && this._passes[i])
                 this._passes[i].cullMode = value;
         }
     },
@@ -192,15 +204,15 @@ HX.Material.prototype =
         this._passes[type] = pass;
 
         if (pass) {
-            if(type === HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS)
-                pass.cullMode = HX.DirectionalLight.SHADOW_FILTER.getCullMode();
+            if(type === MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS)
+                pass.cullMode = DirectionalLight.SHADOW_FILTER.getCullMode();
             else
                 pass.cullMode = this._cullMode;
 
             pass.elementType = this._elementType;
             pass.writeDepth = this._writeDepth; // TODO: this should probably only be true on base pass
 
-            if (type !== HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && type !== HX.MaterialPass.NORMAL_DEPTH_PASS)
+            if (type !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && type !== MaterialPass.NORMAL_DEPTH_PASS)
                 pass.blendState = this._blendState;
 
             if (pass.getTextureSlot("hx_normalDepth"))
@@ -245,7 +257,7 @@ HX.Material.prototype =
         else
             delete this._textures[slotName];
 
-        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
+        for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i)
             if (this.hasPass(i)) this._passes[i].setTexture(slotName, texture);
     },
 
@@ -256,7 +268,7 @@ HX.Material.prototype =
         else
             delete this._textures[slotName];
 
-        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i)
+        for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i)
             if (this.hasPass(i)) this._passes[i].setTextureArray(slotName, textures);
     },
 
@@ -275,7 +287,7 @@ HX.Material.prototype =
 
         this._uniforms[name] = value;
 
-        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+        for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
             if (this._passes[i])
                 this._passes[i].setUniform(name, value);
         }
@@ -296,7 +308,7 @@ HX.Material.prototype =
 
         this._uniforms[name + '[0]'] = value;
 
-        for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+        for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
             if (this._passes[i])
                 this._passes[i].setUniformArray(name, value);
         }
@@ -315,14 +327,14 @@ HX.Material.prototype =
     _invalidate: function()
     {
         this._initialized = false;
-        this._passes = new Array(HX.Material.NUM_PASS_TYPES);
+        this._passes = new Array(Material.NUM_PASS_TYPES);
         this.onChange.dispatch();
     },
 
     _setSSAOTexture: function(texture)
     {
         if (this._lights && this._lightingModel)
-            this.getPass(HX.MaterialPass.BASE_PASS)._setSSAOTexture(texture);
+            this.getPass(MaterialPass.BASE_PASS)._setSSAOTexture(texture);
     },
 
     toString: function()
@@ -330,3 +342,5 @@ HX.Material.prototype =
         return "[Material(name=" + this._name + ")]";
     }
 };
+
+export { Material };

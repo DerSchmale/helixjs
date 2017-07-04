@@ -1,24 +1,27 @@
+import {Float4} from "../../math/Float4";
+import {SkeletonBlendNode} from "./SkeletonBlendNode";
+
 /**
  * A node to contain a single clip
  * @param clip
  * @constructor
  */
-HX.SkeletonClipNode = function(clip)
+function SkeletonClipNode(clip)
 {
-    HX.SkeletonBlendNode.call(this);
+    SkeletonBlendNode.call(this);
     this._clip = clip;
     this._timeScale = 1.0;
     this._isPlaying = true;
     this._time = 0;
     this._currentFrameIndex = 0;
-    this._rootPosition = new HX.Float4();
+    this._rootPosition = new Float4();
 
     var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
     var firstFramePos = clip.getKeyFrame(0).value.jointPoses[0].position;
-    this._clipRootDelta = HX.Float4.subtract(lastFramePos, firstFramePos);
-};
+    this._clipRootDelta = Float4.subtract(lastFramePos, firstFramePos);
+}
 
-HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
+SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
     {
         numJoints: {
             get: function() { return this._clip.getKeyFrame(0).value.jointPoses.length; }
@@ -37,17 +40,17 @@ HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
         }
     });
 
-HX.SkeletonClipNode.prototype.play = function()
+SkeletonClipNode.prototype.play = function()
 {
     this._isPlaying = true;
 };
 
-HX.SkeletonClipNode.prototype.stop = function()
+SkeletonClipNode.prototype.stop = function()
 {
     this._isPlaying = false;
 };
 
-HX.SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
+SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
 {
     if ((!this._isPlaying || dt === 0.0) && !this._timeChanged)
         return false;
@@ -120,13 +123,13 @@ HX.SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
     return true;
 };
 
-HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
+SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
     var rootBonePos = this._pose.jointPoses[0].position;
     var rootPos = this._rootPosition;
     var rootDelta = this._rootJointDeltaPosition;
 
-    HX.Float4.subtract(rootBonePos, rootPos, rootDelta);
+    Float4.subtract(rootBonePos, rootPos, rootDelta);
 
     if (dt > 0 && numWraps > 0) {
         // apply the entire displacement for the amount of times it wrapped
@@ -141,7 +144,9 @@ HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, d
     rootBonePos.set(0.0, 0.0, 0.0);
 };
 
-HX.SkeletonClipNode.prototype._applyValue = function(value)
+SkeletonClipNode.prototype._applyValue = function(value)
 {
     this.time = value * this._clip.duration;
 };
+
+export { SkeletonClipNode };

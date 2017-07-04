@@ -4,7 +4,7 @@
  * @param pass
  * @constructor
  */
-HX.VertexLayout = function(mesh, pass)
+function VertexLayout(mesh, pass)
 {
     var shader = pass.getShader();
     this.attributes = [];
@@ -36,9 +36,7 @@ HX.VertexLayout = function(mesh, pass)
 
 
     }
-};
+}
 
-HX.VertexLayout.prototype =
-{
-    constructor: HX.VertexLayout
-};
+
+export { VertexLayout };

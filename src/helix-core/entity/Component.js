@@ -1,10 +1,10 @@
-HX.Component = function()
+function Component()
 {
     // this allows notifying entities about bound changes (useful for sized components)
     this._entity = null;
-};
+}
 
-HX.Component.prototype =
+Component.prototype =
 {
     // to be overridden:
     onAdded: function() {},
@@ -19,3 +19,5 @@ HX.Component.prototype =
         return this._entity;
     }
 };
+
+export { Component };

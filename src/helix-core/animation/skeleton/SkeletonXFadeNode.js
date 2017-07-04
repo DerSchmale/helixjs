@@ -2,9 +2,14 @@
  * This is generally the node you probably want to be using for simple crossfading between animations.
  * @constructor
  */
-HX.SkeletonXFadeNode = function()
+import {SkeletonClip} from "./SkeletonClip";
+import {SkeletonClipNode} from "./SkeletonClipNode";
+import {SkeletonBlendNode} from "./SkeletonBlendNode";
+import {MathX as Float4} from "../../math/MathX";
+
+function SkeletonXFadeNode()
 {
-    HX.SkeletonBlendNode.call(this);
+    SkeletonBlendNode.call(this);
     this._children = [];
     this._numJoints = 0;
 
@@ -12,13 +17,13 @@ HX.SkeletonXFadeNode = function()
     // in this case, the clips should have their timesteps recalculated
 };
 
-HX.SkeletonXFadeNode.prototype = Object.create(HX.SkeletonBlendNode.prototype, {
+SkeletonXFadeNode.prototype = Object.create(SkeletonBlendNode.prototype, {
     numJoints: {
         get: function() {return this._numJoints; }
     }
 });
 
-HX.SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
+SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
 {
     // TODO: Also updates when the time changes the crossfade factor
 
@@ -65,7 +70,7 @@ HX.SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
         childNode = child.node;
 
         if (transferRootJoint)
-            delta.lerp(delta, childNode._rootJointDeltaPosition, child.weight);
+            Float4.lerp(delta, childNode._rootJointDeltaPosition, child.weight, delta);
 
         pose.interpolate(pose, childNode._pose, child.weight);
     }
@@ -77,9 +82,9 @@ HX.SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
  * @param node A SkeletonBlendTreeNode or a clip.
  * @param time In milliseconds
  */
-HX.SkeletonXFadeNode.prototype.fadeTo = function(node, time)
+SkeletonXFadeNode.prototype.fadeTo = function(node, time)
 {
-    if (node instanceof HX.SkeletonClip) node = new HX.SkeletonClipNode(node);
+    if (node instanceof SkeletonClip) node = new SkeletonClipNode(node);
 
     this._numJoints = node.numJoints;
     // put the new one in front, it makes the update loop more efficient
@@ -89,3 +94,5 @@ HX.SkeletonXFadeNode.prototype.fadeTo = function(node, time)
         fadeSpeed: 1 / time
     });
 };
+
+export { SkeletonXFadeNode };

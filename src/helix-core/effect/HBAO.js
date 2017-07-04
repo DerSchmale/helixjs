@@ -1,10 +1,18 @@
 /**
- * TODO: allow scaling down of textures
- *
  * @param numSamples
  * @constructor
  */
-HX.HBAO = function(numRays, numSamplesPerRay)
+import {ShaderLibrary} from "../shader/ShaderLibrary";
+import {EffectPass} from "./EffectPass";
+import {Texture2D} from "../texture/Texture2D";
+import {TextureFilter, TextureWrapMode} from "../Helix";
+import {FrameBuffer} from "../texture/FrameBuffer";
+import {Effect} from "./Effect";
+import {TextureUtils} from "../texture/TextureUtils";
+import {GL} from "../core/GL";
+import {ArrayUtils} from "../utils/ArrayUtils";
+
+function HBAO(numRays, numSamplesPerRay)
 {
     numRays = numRays || 4;
     numSamplesPerRay = numSamplesPerRay || 4;
@@ -20,16 +28,16 @@ HX.HBAO = function(numRays, numSamplesPerRay)
     this._sampleDirTexture = null;
     this._ditherTexture = null;
 
-    HX.Effect.call(this);
-    this._aoPass = new HX.EffectPass(
-        HX.ShaderLibrary.get("hbao_vertex.glsl"),
-        HX.ShaderLibrary.get("hbao_fragment.glsl", {
+    Effect.call(this);
+    this._aoPass = new EffectPass(
+        ShaderLibrary.get("hbao_vertex.glsl"),
+        ShaderLibrary.get("hbao_fragment.glsl", {
             NUM_RAYS: numRays,
             NUM_SAMPLES_PER_RAY: numSamplesPerRay
         })
     );
     // TODO: Can probably perform this in single pass by linear interpolation (only 4 samples needed) -> can then still blur twice if needed
-    this._blurPass = new HX.EffectPass(null, HX.ShaderLibrary.get("ao_blur_fragment.glsl"));
+    this._blurPass = new EffectPass(null, ShaderLibrary.get("ao_blur_fragment.glsl"));
 
     this._initSampleDirTexture();
     this._initDitherTexture();
@@ -41,25 +49,25 @@ HX.HBAO = function(numRays, numSamplesPerRay)
     this._aoPass.setTexture("sampleDirTexture", this._sampleDirTexture);
     this._sourceTextureSlot = this._blurPass.getTextureSlot("source");
 
-    this._aoTexture = new HX.Texture2D();
-    this._aoTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
-    this._aoTexture.wrapMode = HX.TextureWrapMode.CLAMP;
-    this._backTexture = new HX.Texture2D();
-    this._backTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
-    this._backTexture.wrapMode = HX.TextureWrapMode.CLAMP;
-    this._fbo1 = new HX.FrameBuffer(this._aoTexture);
-    this._fbo2 = new HX.FrameBuffer(this._backTexture);
+    this._aoTexture = new Texture2D();
+    this._aoTexture.filter = TextureFilter.BILINEAR_NOMIP;
+    this._aoTexture.wrapMode = TextureWrapMode.CLAMP;
+    this._backTexture = new Texture2D();
+    this._backTexture.filter = TextureFilter.BILINEAR_NOMIP;
+    this._backTexture.wrapMode = TextureWrapMode.CLAMP;
+    this._fbo1 = new FrameBuffer(this._aoTexture);
+    this._fbo2 = new FrameBuffer(this._backTexture);
 };
 
-HX.HBAO.prototype = Object.create(HX.Effect.prototype);
+HBAO.prototype = Object.create(Effect.prototype);
 
 // every AO type should implement this
-HX.HBAO.prototype.getAOTexture = function()
+HBAO.prototype.getAOTexture = function()
 {
     return this._aoTexture;
 };
 
-Object.defineProperties(HX.HBAO.prototype, {
+Object.defineProperties(HBAO.prototype, {
     sampleRadius: {
         get: function ()
         {
@@ -115,36 +123,36 @@ Object.defineProperties(HX.HBAO.prototype, {
     }
 });
 
-HX.HBAO.prototype.draw = function(dt)
+HBAO.prototype.draw = function(dt)
 {
     var w = this._renderer._width * this._scale;
     var h = this._renderer._height * this._scale;
 
-    if (HX.TextureUtils.assureSize(w, h, this._aoTexture, this._fbo1)) {
-        HX.TextureUtils.assureSize(w, h, this._backTexture, this._fbo2);
+    if (TextureUtils.assureSize(w, h, this._aoTexture, this._fbo1)) {
+        TextureUtils.assureSize(w, h, this._backTexture, this._fbo2);
         this._aoPass.setUniform("ditherScale", {x: w * .25, y: h * .25});
     }
 
-    HX.setRenderTarget(this._fbo1);
-    HX.clear();
+    GL.setRenderTarget(this._fbo1);
+    GL.clear();
     this._drawPass(this._aoPass);
 
-    HX.setRenderTarget(this._fbo2);
-    HX.clear();
+    GL.setRenderTarget(this._fbo2);
+    GL.clear();
     this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
     this._sourceTextureSlot.texture = this._aoTexture;
     this._drawPass(this._blurPass);
 
-    HX.setRenderTarget(this._fbo1);
-    HX.clear();
+    GL.setRenderTarget(this._fbo1);
+    GL.clear();
     this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
     this._sourceTextureSlot.texture = this._backTexture;
     this._drawPass(this._blurPass);
 };
 
-HX.HBAO.prototype._initSampleDirTexture = function()
+HBAO.prototype._initSampleDirTexture = function()
 {
-    this._sampleDirTexture = new HX.Texture2D();
+    this._sampleDirTexture = new Texture2D();
     var data = [];
     var j = 0;
 
@@ -161,13 +169,13 @@ HX.HBAO.prototype._initSampleDirTexture = function()
     }
 
     this._sampleDirTexture.uploadData(new Uint8Array(data), 256, 1, false);
-    this._sampleDirTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
-    this._sampleDirTexture.wrapMode = HX.TextureWrapMode.REPEAT;
+    this._sampleDirTexture.filter = TextureFilter.NEAREST_NOMIP;
+    this._sampleDirTexture.wrapMode = TextureWrapMode.REPEAT;
 };
 
-HX.HBAO.prototype._initDitherTexture = function()
+HBAO.prototype._initDitherTexture = function()
 {
-    this._ditherTexture = new HX.Texture2D();
+    this._ditherTexture = new Texture2D();
     var data = [];
 
     var i;
@@ -180,8 +188,8 @@ HX.HBAO.prototype._initDitherTexture = function()
         offsets2.push(i / 15.0);
     }
 
-    HX.shuffle(offsets1);
-    HX.shuffle(offsets2);
+    ArrayUtils.shuffle(offsets1);
+    ArrayUtils.shuffle(offsets2);
 
     i = 0;
 
@@ -202,6 +210,8 @@ HX.HBAO.prototype._initDitherTexture = function()
     }
 
     this._ditherTexture.uploadData(new Uint8Array(data), 4, 4, false);
-    this._ditherTexture.filter = HX.TextureFilter.NEAREST_NOMIP;
-    this._ditherTexture.wrapMode = HX.TextureWrapMode.REPEAT;
+    this._ditherTexture.filter = TextureFilter.NEAREST_NOMIP;
+    this._ditherTexture.wrapMode = TextureWrapMode.REPEAT;
 };
+
+export { HBAO };

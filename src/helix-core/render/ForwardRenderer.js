@@ -1,17 +1,24 @@
-HX.DebugRenderMode = {
-    NONE: 0,
-    SSAO: 1
-};
+import {Color} from "../core/Color";
+import {RenderCollector} from "./RenderCollector";
+import {ApplyGammaShader, CopyChannelsShader} from "./UtilShaders";
+import {Texture2D} from "../texture/Texture2D";
+import {MaterialPass} from "../material/MaterialPass";
+import {RectMesh} from "../mesh/RectMesh";
+import {_HX_, TextureFormat, TextureFilter, TextureWrapMode, META} from "../Helix";
+import {FrameBuffer} from "../texture/FrameBuffer";
+import {GL} from "../core/GL";
+import {RenderUtils} from "./RenderUtils";
+import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
 
-HX.ForwardRenderer = function ()
+function ForwardRenderer()
 {
     this._width = 0;
     this._height = 0;
 
     this._gammaApplied = false;
 
-    this._copyTextureShader = new HX.CopyChannelsShader("xyzw", true);
-    this._applyGamma = new HX.ApplyGammaShader();
+    this._copyTextureShader = new CopyChannelsShader("xyzw", true);
+    this._applyGamma = new ApplyGammaShader();
 
     // devices with high resolution (retina etc)
     this._scale = 1.0; // > 1.0? .5 : 1.0;
@@ -19,29 +26,34 @@ HX.ForwardRenderer = function ()
     this._camera = null;
     this._scene = null;
     this._depthBuffer = this._createDepthBuffer();
-    this._hdrBack = new HX.ForwardRenderer.HDRBuffers(this._depthBuffer);
-    this._hdrFront = new HX.ForwardRenderer.HDRBuffers(this._depthBuffer);
-    this._renderCollector = new HX.RenderCollector();
+    this._hdrBack = new ForwardRenderer.HDRBuffers(this._depthBuffer);
+    this._hdrFront = new ForwardRenderer.HDRBuffers(this._depthBuffer);
+    this._renderCollector = new RenderCollector();
     this._normalDepthTexture = null;
     this._normalDepthFBO = null;
     this._ssaoTexture = this._createDummySSAOTexture();
     this._aoEffect = null;
-    this._backgroundColor = HX.Color.BLACK.clone();
-    //this._previousViewProjection = new HX.Matrix4x4();
+    this._backgroundColor = Color.BLACK.clone();
+    //this._previousViewProjection = new Matrix4x4();
     this._depthPrepass = true;
-    this._debugMode = HX.DebugRenderMode.NONE;
+    this._debugMode = ForwardRenderer.DebugRenderMode.NONE;
+}
+
+ForwardRenderer.DebugRenderMode = {
+    NONE: 0,
+    SSAO: 1
 };
 
-HX.ForwardRenderer.HDRBuffers = function(depthBuffer)
+ForwardRenderer.HDRBuffers = function(depthBuffer)
 {
-    this.texture = new HX.Texture2D();
-    this.texture.filter = HX.TextureFilter.BILINEAR_NOMIP;
-    this.texture.wrapMode = HX.TextureWrapMode.CLAMP;
-    this.fbo = new HX.FrameBuffer(this.texture);
-    this.fboDepth = new HX.FrameBuffer(this.texture, depthBuffer);
+    this.texture = new Texture2D();
+    this.texture.filter = TextureFilter.BILINEAR_NOMIP;
+    this.texture.wrapMode = TextureWrapMode.CLAMP;
+    this.fbo = new FrameBuffer(this.texture);
+    this.fboDepth = new FrameBuffer(this.texture, depthBuffer);
 };
 
-HX.ForwardRenderer.HDRBuffers.prototype =
+ForwardRenderer.HDRBuffers.prototype =
 {
     dispose: function()
     {
@@ -52,13 +64,13 @@ HX.ForwardRenderer.HDRBuffers.prototype =
 
     resize: function(width, height)
     {
-        this.texture.initEmpty(width, height, HX_GL.RGBA, HX.HDR_FORMAT);
+        this.texture.initEmpty(width, height, TextureFormat.RGBA, _HX_.HDR_FORMAT);
         this.fbo.init();
         this.fboDepth.init();
     }
 };
 
-HX.ForwardRenderer.prototype =
+ForwardRenderer.prototype =
 {
     get debugMode()
     {
@@ -78,7 +90,7 @@ HX.ForwardRenderer.prototype =
 
     set backgroundColor(value)
     {
-        this._backgroundColor = new HX.Color(value);
+        this._backgroundColor = new Color(value);
     },
 
     get depthPrepass()
@@ -137,7 +149,7 @@ HX.ForwardRenderer.prototype =
      */
     render: function (camera, scene, dt, renderTarget)
     {
-        this._gammaApplied = HX.GAMMA_CORRECT_LIGHTS;
+        this._gammaApplied = _HX_.GAMMA_CORRECT_LIGHTS;
         this._camera = camera;
         this._scene = scene;
 
@@ -152,15 +164,15 @@ HX.ForwardRenderer.prototype =
         var opaqueStaticLit = this._renderCollector.getOpaqueStaticRenderList();
         var transparentStaticLit = this._renderCollector.getTransparentStaticRenderList();
 
-        HX.setClearColor(HX.Color.BLACK);
+        GL.setClearColor(Color.BLACK);
 
-        HX.setDepthMask(true);
+        GL.setDepthMask(true);
         this._renderNormalDepth(opaqueStaticLit);
         this._renderAO();
 
-        HX.setRenderTarget(this._hdrFront.fboDepth);
-        HX.setClearColor(this._backgroundColor);
-        HX.clear();
+        GL.setRenderTarget(this._hdrFront.fboDepth);
+        GL.setClearColor(this._backgroundColor);
+        GL.clear();
         this._renderDepthPrepass(opaqueStaticLit);
 
         this._renderStatics(opaqueStaticLit);
@@ -180,34 +192,35 @@ HX.ForwardRenderer.prototype =
 
         //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
 
-        HX.setBlendState();
-        HX.setDepthMask(true);
+        GL.setBlendState();
+        GL.setDepthMask(true);
     },
 
     _renderDepthPrepass: function(list)
     {
         if (!this._depthPrepass) return;
-        HX_GL.colorMask(false, false, false, false);
-        this._renderPass(HX.MaterialPass.NORMAL_DEPTH_PASS, list);
-        HX_GL.colorMask(true, true, true, true);
+        var gl = GL.gl;
+        gl.colorMask(false, false, false, false);
+        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list);
+        gl.colorMask(true, true, true, true);
     },
 
     _renderStatics: function(list)
     {
-        HX.setClearColor(this._backgroundColor);
-        this._renderPass(HX.MaterialPass.BASE_PASS, list);
+        GL.setClearColor(this._backgroundColor);
+        this._renderPass(MaterialPass.BASE_PASS, list);
     },
 
     _renderNormalDepth: function(list)
     {
         if (!this._renderCollector.needsNormalDepth && !this._aoEffect) return;
         if (!this._normalDepthTexture) this._initNormalDepth();
-        HX.setRenderTarget(this._normalDepthFBO);
+        GL.setRenderTarget(this._normalDepthFBO);
         // furthest depth and alpha must be 1, the rest 0
-        HX.setClearColor(HX.Color.BLUE);
-        HX.clear();
-        this._renderPass(HX.MaterialPass.NORMAL_DEPTH_PASS, list);
-        HX.setClearColor(HX.Color.BLACK);
+        GL.setClearColor(Color.BLUE);
+        GL.clear();
+        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list);
+        GL.setClearColor(Color.BLACK);
     },
 
     _renderAO: function()
@@ -235,24 +248,24 @@ HX.ForwardRenderer.prototype =
 
     _renderPass: function (passType, renderItems)
     {
-        HX.RenderUtils.renderPass(this, passType, renderItems);
+        RenderUtils.renderPass(this, passType, renderItems);
     },
 
     _renderToScreen: function (renderTarget)
     {
-        HX.setRenderTarget(renderTarget);
-        HX.clear();
+        GL.setRenderTarget(renderTarget);
+        GL.clear();
 
-        if (this._debugMode === HX.DebugRenderMode.SSAO) {
-            this._copyTextureShader.execute(HX.RectMesh.DEFAULT, this._ssaoTexture);
+        if (this._debugMode === ForwardRenderer.DebugRenderMode.SSAO) {
+            this._copyTextureShader.execute(RectMesh.DEFAULT, this._ssaoTexture);
             return;
         }
 
         // TODO: render directly to screen if last post process effect?
         if (this._gammaApplied)
-            this._copyTextureShader.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture);
+            this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrBack.texture);
         else
-            this._applyGamma.execute(HX.RectMesh.DEFAULT, this._hdrBack.texture);
+            this._applyGamma.execute(RectMesh.DEFAULT, this._hdrBack.texture);
     },
 
     _renderEffects: function (dt)
@@ -279,8 +292,8 @@ HX.ForwardRenderer.prototype =
             height = renderTarget.height;
         }
         else {
-            width = Math.floor(HX.TARGET_CANVAS.width * this._scale);
-            height = Math.floor(HX.TARGET_CANVAS.height * this._scale);
+            width = Math.floor(META.TARGET_CANVAS.width * this._scale);
+            height = Math.floor(META.TARGET_CANVAS.height * this._scale);
         }
         if (this._width !== width || this._height !== height) {
             this._width = width;
@@ -311,34 +324,36 @@ HX.ForwardRenderer.prototype =
             this._depthBuffer.wrapMode = HX.TextureWrapMode.CLAMP;
         }
         else {*/
-            return new HX.WriteOnlyDepthBuffer();
+            return new WriteOnlyDepthBuffer();
     },
 
     _initNormalDepth: function()
     {
-        this._normalDepthTexture = new HX.Texture2D();
-        this._normalDepthTexture.filter = HX.TextureFilter.BILINEAR_NOMIP;
-        this._normalDepthTexture.wrapMode = HX.TextureWrapMode.CLAMP;
+        this._normalDepthTexture = new Texture2D();
+        this._normalDepthTexture.filter = TextureFilter.BILINEAR_NOMIP;
+        this._normalDepthTexture.wrapMode = TextureWrapMode.CLAMP;
         this._normalDepthTexture.initEmpty(this._width, this._height);
 
-        this._normalDepthFBO = new HX.FrameBuffer(this._normalDepthTexture, this._depthBuffer);
+        this._normalDepthFBO = new FrameBuffer(this._normalDepthTexture, this._depthBuffer);
         this._normalDepthFBO.init();
     },
 
     _createDummySSAOTexture: function()
     {
         var data = new Uint8Array([0xff, 0xff, 0xff, 0xff]);
-        var tex = new HX.Texture2D();
+        var tex = new Texture2D();
+        tex.filter = TextureFilter.NEAREST_NOMIP;
         tex.uploadData(data, 1, 1, true);
-        HX.Texture2D.DEFAULT.filter = HX.TextureFilter.NEAREST_NOMIP;
     },
 
     _copyToBackBuffer: function()
     {
-        HX.setRenderTarget(this._hdrBack.fbo);
-        HX.clear();
-        this._copyTextureShader.execute(HX.RectMesh.DEFAULT, this._hdrFront.texture);
-        HX.setRenderTarget(this._hdrFront.fboDepth);
+        GL.setRenderTarget(this._hdrBack.fbo);
+        GL.clear();
+        this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrFront.texture);
+        GL.setRenderTarget(this._hdrFront.fboDepth);
         // DO NOT CLEAR. This can be very slow on tiled gpu architectures such as PowerVR
     }
 };
+
+export { ForwardRenderer };

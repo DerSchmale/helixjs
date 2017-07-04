@@ -2,16 +2,14 @@
  *
  * @constructor
  */
-HX.ModelData = function ()
+function ModelData()
 {
     this._meshDataList = [];
     this._joints = [];
     this.skeleton = null;
-};
+}
 
-HX.ModelData.prototype = {
-    constructor: HX.ModelData,
-
+ModelData.prototype = {
     get numMeshes()
     {
         return this._meshDataList.length;
@@ -37,3 +35,6 @@ HX.ModelData.prototype = {
         return this._joints.length > 0;
     }
 };
+
+
+export { ModelData };

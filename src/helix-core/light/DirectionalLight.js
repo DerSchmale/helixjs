@@ -1,12 +1,13 @@
-import {Light} from "./Light";
-import {Float4} from "../math/Float4";
-import {Matrix4x4} from "../math/Matrix4x4";
-import {BoundingVolume} from "../scene/BoundingVolume";
-
 /**
  *
  * @constructor
  */
+import {Light} from "./Light";
+import {Float4} from "../math/Float4";
+import {Matrix4x4} from "../math/Matrix4x4";
+import {BoundingVolume} from "../scene/BoundingVolume";
+import {CascadeShadowMapRenderer} from "../render/CascadeShadowMapRenderer";
+
 function DirectionalLight()
 {
     Light.call(this);

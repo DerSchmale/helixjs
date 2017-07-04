@@ -10,7 +10,7 @@ function LightProbe(diffuseTexture, specularTexture)
     this._specularTexture = specularTexture;
     this._diffuseTexture = diffuseTexture;
     this._size = undefined;
-};
+}
 
 // conversion range for spec power to mip
 LightProbe.powerRange0 = .00098;

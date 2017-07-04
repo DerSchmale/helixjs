@@ -54,7 +54,7 @@ VSMBlurShader.prototype.execute = function (rect, texture, dirX, dirY)
 
     gl.uniform2f(this._directionLocation, dirX, dirY);
 
-    drawElements(gl.TRIANGLES, 6, 0);
+    GL.drawElements(gl.TRIANGLES, 6, 0);
 };
 
 

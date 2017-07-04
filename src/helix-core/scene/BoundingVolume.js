@@ -4,12 +4,8 @@
  * @constructor
  */
 import {Float4} from "../math/Float4";
-import {ShaderLibrary} from "../shader/ShaderLibrary";
-import {Shader} from "../shader/Shader";
 import {ElementType, CullMode} from "../Helix";
-import {MaterialPass} from "../material/MaterialPass";
-import {Material} from "../material/Material";
-import {BasicMaterial} from "../material/BasicMaterial";
+// import {BasicMaterial} from "../material/BasicMaterial";
 import {LightingModel} from "../render/LightingModel";
 import {Color} from "../core/Color";
 
@@ -132,7 +128,7 @@ BoundingVolume.prototype =
 
     getDebugMaterial: function()
     {
-        if (BoundingVolume._debugMaterial === undefined) {
+        /*if (BoundingVolume._debugMaterial === undefined) {
             var material = new BasicMaterial();
             material.elementType = ElementType.LINES;
             material.cullMode = CullMode.NONE;
@@ -141,7 +137,7 @@ BoundingVolume.prototype =
             BoundingVolume._debugMaterial = material;
         }
 
-        return BoundingVolume._debugMaterial;
+        return BoundingVolume._debugMaterial;*/
     },
 
     toString: function()

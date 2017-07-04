@@ -17,6 +17,7 @@ import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
 import {FrameBuffer} from "../texture/FrameBuffer";
 import {Rect} from "../core/Rect";
 import {Texture2D} from "../texture/Texture2D";
+import {RenderUtils} from "./RenderUtils";
 
 function CascadeShadowMapRenderer(light, numCascades, shadowMapSize)
 {
@@ -102,7 +103,7 @@ CascadeShadowMapRenderer.prototype =
         for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex) {
             var viewport = this._viewports[cascadeIndex];
             gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-            GL.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
+            RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
         }
 
         if (DirectionalLight.SHADOW_FILTER.blurShader)

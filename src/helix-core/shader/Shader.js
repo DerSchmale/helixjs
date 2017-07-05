@@ -8,6 +8,7 @@ import { GLSLIncludes } from './GLSLIncludes';
 import { GL } from '../core/GL';
 import { META } from '../Helix';
 import {UniformSetter} from "./UniformSetter";
+import {Debug} from "../debug/Debug";
 
 function Shader(vertexShaderCode, fragmentShaderCode)
 {
@@ -109,6 +110,8 @@ Shader.prototype = {
             Debug.printShaderCode(code);
             return false;
         }
+
+        Debug.printShaderCode(code);
 
         return true;
     },

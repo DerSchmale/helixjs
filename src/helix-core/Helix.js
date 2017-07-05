@@ -116,7 +116,7 @@ export function init(canvas, options)
     META.TARGET_CANVAS = canvas;
 
     var webglFlags = {
-        antialias: false,
+        antialias: false,   // we're rendering to texture by default, so native AA has no effect
         alpha: false,
         depth: false,
         stencil: false,
@@ -214,7 +214,7 @@ export function init(canvas, options)
     if (!capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR || !capabilities.EXT_HALF_FLOAT_TEXTURES)
         options.hdr = false;
 
-    capabilities.HDR_FORMAT = options.hdr ? capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;
+    _HX_.HDR_FORMAT = options.hdr ? capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;
 
     // this causes lighting accumulation to happen in gamma space (only accumulation of lights within the same pass is linear)
     // This yields an incorrect gamma correction to be applied, but looks much better due to encoding limitation (otherwise there would be banding)

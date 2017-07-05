@@ -6,7 +6,6 @@ import {Material} from "../material/Material";
 import {Comparison, CullMode, ElementType, BlendFactor, BlendOperation, DEFAULTS} from "../Helix";
 import {BlendState} from "../render/BlendState";
 import {Texture2D} from "../texture/Texture2D";
-import {BulkAssetLoader} from "./BulkAssetLoader";
 import {JPG} from "./JPG_PNG";
 import {Importer} from "./Importer";
 import {AssetLibrary} from "./AssetLibrary";
@@ -147,23 +146,27 @@ HMT.prototype._loadTextures = function(data, material)
         }
     }
 
-    var bulkLoader = new BulkAssetLoader();
-    var self = this;
-    bulkLoader.onComplete = function()
+    this._textureLibrary = new AssetLibrary();
+
+    for (var i = 0; i < files.length; ++i) {
+        this._textureLibrary.queueAsset(files[i], files[i], AssetLibrary.Type.ASSET, JPG);
+    }
+
+    this._textureLibrary.onComplete.bind(function()
     {
         for (var key in data.textures) {
             if (data.textures.hasOwnProperty(key)) {
-                material.setTexture(key, bulkLoader.getAsset(self._correctURL(data.textures[key])));
+                material.setTexture(key, this._textureLibrary.get(this._correctURL(data.textures[key])));
             }
         }
-        self._notifyComplete(material);
-    };
-    bulkLoader.onFail = function(message)
-    {
-        self._notifyFailure(message);
-    };
+        this._notifyComplete(material);
+    }, this);
+    // bulkLoader.onFail = function(message)
+    // {
+    //     self._notifyFailure(message);
+    // };
 
-    bulkLoader.load(files, JPG);
+    this._textureLibrary.load();
 };
 
 

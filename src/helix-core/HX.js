@@ -79,7 +79,6 @@ export {ReinhardToneMapping} from './effect/ReinhardToneMapping';
 
 export {AssetLibrary} from './io/AssetLibrary';
 export {AssetLoader} from './io/AssetLoader';
-export {BulkAssetLoader} from './io/BulkAssetLoader';
 export {URLLoader} from './io/URLLoader';
 export {HCM} from './io/HCM';
 export {HMT} from './io/HMT';

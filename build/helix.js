@@ -46,28 +46,6 @@ ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define 
 
 ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position; // in view space?\n    float radius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
 
-ShaderLibrary._files['default_geometry_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut -= roughnessRange * (specSample.x - .5);\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    HX_GeometryData data;\n    data.color = hx_gammaToLinear(outputColor);\n    data.normal = normalize(fragNormal);\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n    data.emission = vec3(0.0);\n    return data;\n}';
-
-ShaderLibrary._files['default_geometry_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nattribute vec3 hx_morphPosition0;\nattribute vec3 hx_morphPosition1;\nattribute vec3 hx_morphPosition2;\nattribute vec3 hx_morphPosition3;\n#if HX_NUM_MORPH_TARGETS > 4\nattribute vec3 hx_morphPosition4;\nattribute vec3 hx_morphPosition5;\nattribute vec3 hx_morphPosition6;\nattribute vec3 hx_morphPosition7;\n#endif\n\nuniform float hx_morphWeights[HX_NUM_MORPH_TARGETS];\n#endif\n\n#ifdef HX_USE_SKINNING\nattribute vec4 hx_boneIndices;\nattribute vec4 hx_boneWeights;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_BONES * 3];\n#endif\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\nuniform mat4 hx_worldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nattribute vec3 hx_vertexColor;\nvarying vec3 vertexColor;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n    vec3 morphedNormal = hx_normal;\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #if HX_NUM_MORPH_TARGETS > 4\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    vec4 animPosition = morphedPosition * skinningMatrix;\n    vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n    vec3 animNormal = morphedNormal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz;\n    #endif\n#endif\n\n    gl_Position = hx_wvpMatrix * animPosition;\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * animTangent;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
-
-ShaderLibrary._files['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = textureCube(hx_skybox, viewWorldDir);\n    data.emission = vec3(0.0);\n    data.color = hx_gammaToLinear(data.color);\n    return data;\n}';
-
-ShaderLibrary._files['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform vec3 hx_cameraWorldPosition;\nuniform float hx_cameraFarPlaneDistance;\nuniform mat4 hx_viewProjectionMatrix;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube causes jittering of the skybox\nvoid hx_geometry()\n{\n    viewWorldDir = hx_position.xyz;\n    vec4 pos = hx_position;\n    // use a decent portion of the frustum to prevent FP issues\n    pos.xyz = pos.xyz * hx_cameraFarPlaneDistance + hx_cameraWorldPosition;\n    pos = hx_viewProjectionMatrix * pos;\n    // make sure it\'s drawn behind everything else, so z = 1.0\n    pos.z = pos.w;\n    gl_Position = pos;\n}\n\n';
-
-ShaderLibrary._files['material_dir_shadow_fragment.glsl'] = 'void main()\n{\n    // geometry is really only used for kil instructions if necessary\n    // hopefully the compiler optimizes the rest out for us\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z);\n}';
-
-ShaderLibrary._files['material_lit_static_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\n\n#if HX_NUM_DIR_LIGHTS > 0\nuniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_DIR_LIGHT_CASTERS > 0\nuniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];\n\nuniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];\nuniform float test[HX_NUM_DIR_LIGHT_CASTERS];\n#endif\n\n#if HX_NUM_POINT_LIGHTS > 0\nuniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\nuniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\nuniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#if HX_APPLY_SSAO\nuniform sampler2D hx_ssao;\n\nuniform vec2 hx_rcpRenderTargetResolution;\n#endif\n\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // TODO: Provide support for proper AO so it\'s not a bad post-process effect?\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ssao = 1.0;\n\n    #if HX_APPLY_SSAO\n        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n        ssao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIR_LIGHT_CASTERS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);\n        diffuseAccum += diffuse * shadow;\n        specularAccum += specular * shadow;\n    }\n    #endif\n\n\n    #if HX_NUM_POINT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {\n        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;\n    }\n    #endif\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n    for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ssao;\n    }\n    #endif\n\n    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
-
-ShaderLibrary._files['material_lit_static_vertex.glsl'] = 'uniform mat4 hx_worldViewMatrix;\n\nvarying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    // we need to do an unprojection here to be sure to have skinning - or anything like that - support\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
-
-ShaderLibrary._files['material_normal_depth_fragment.glsl'] = 'varying float hx_linearDepth;\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor.xy = hx_encodeNormal(data.normal);\n    gl_FragColor.zw = hx_floatToRG8(hx_linearDepth);\n//    gl_FragColor.zw = hx_floatToRG8(gl_FragCoord.z);\n}';
-
-ShaderLibrary._files['material_normal_depth_vertex.glsl'] = 'varying float hx_linearDepth;\n\nuniform mat4 hx_worldViewMatrix;\nuniform float hx_rcpCameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nvoid main()\n{\n    hx_geometry();\n\n    hx_linearDepth = (gl_Position.w - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n}';
-
-ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = data.color;\n    gl_FragColor.xyz += data.emission;\n\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
-
-ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
-
 ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -97,6 +75,28 @@ ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec4 co
 ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
 
 ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	gl_FragColor = color / (1.0 + lum);\n}';
+
+ShaderLibrary._files['default_geometry_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut -= roughnessRange * (specSample.x - .5);\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    HX_GeometryData data;\n    data.color = hx_gammaToLinear(outputColor);\n    data.normal = normalize(fragNormal);\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n    data.emission = vec3(0.0);\n    return data;\n}';
+
+ShaderLibrary._files['default_geometry_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nattribute vec3 hx_morphPosition0;\nattribute vec3 hx_morphPosition1;\nattribute vec3 hx_morphPosition2;\nattribute vec3 hx_morphPosition3;\n#if HX_NUM_MORPH_TARGETS > 4\nattribute vec3 hx_morphPosition4;\nattribute vec3 hx_morphPosition5;\nattribute vec3 hx_morphPosition6;\nattribute vec3 hx_morphPosition7;\n#endif\n\nuniform float hx_morphWeights[HX_NUM_MORPH_TARGETS];\n#endif\n\n#ifdef HX_USE_SKINNING\nattribute vec4 hx_boneIndices;\nattribute vec4 hx_boneWeights;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_BONES * 3];\n#endif\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\nuniform mat4 hx_worldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nattribute vec3 hx_vertexColor;\nvarying vec3 vertexColor;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n    vec3 morphedNormal = hx_normal;\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #if HX_NUM_MORPH_TARGETS > 4\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    vec4 animPosition = morphedPosition * skinningMatrix;\n    vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n    vec3 animNormal = morphedNormal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz;\n    #endif\n#endif\n\n    gl_Position = hx_wvpMatrix * animPosition;\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * animTangent;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
+
+ShaderLibrary._files['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = textureCube(hx_skybox, viewWorldDir);\n    data.emission = vec3(0.0);\n    data.color = hx_gammaToLinear(data.color);\n    return data;\n}';
+
+ShaderLibrary._files['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform vec3 hx_cameraWorldPosition;\nuniform float hx_cameraFarPlaneDistance;\nuniform mat4 hx_viewProjectionMatrix;\n\nvarying vec3 viewWorldDir;\n\n// using 2D quad for rendering skyboxes rather than 3D cube causes jittering of the skybox\nvoid hx_geometry()\n{\n    viewWorldDir = hx_position.xyz;\n    vec4 pos = hx_position;\n    // use a decent portion of the frustum to prevent FP issues\n    pos.xyz = pos.xyz * hx_cameraFarPlaneDistance + hx_cameraWorldPosition;\n    pos = hx_viewProjectionMatrix * pos;\n    // make sure it\'s drawn behind everything else, so z = 1.0\n    pos.z = pos.w;\n    gl_Position = pos;\n}\n\n';
+
+ShaderLibrary._files['material_dir_shadow_fragment.glsl'] = 'void main()\n{\n    // geometry is really only used for kil instructions if necessary\n    // hopefully the compiler optimizes the rest out for us\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z);\n}';
+
+ShaderLibrary._files['material_lit_static_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\n\n#if HX_NUM_DIR_LIGHTS > 0\nuniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_DIR_LIGHT_CASTERS > 0\nuniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];\n\nuniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];\nuniform float test[HX_NUM_DIR_LIGHT_CASTERS];\n#endif\n\n#if HX_NUM_POINT_LIGHTS > 0\nuniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\nuniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\nuniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#if HX_APPLY_SSAO\nuniform sampler2D hx_ssao;\n\nuniform vec2 hx_rcpRenderTargetResolution;\n#endif\n\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // TODO: Provide support for proper AO so it\'s not a bad post-process effect?\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ssao = 1.0;\n\n    #if HX_APPLY_SSAO\n        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n        ssao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIR_LIGHT_CASTERS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);\n        diffuseAccum += diffuse * shadow;\n        specularAccum += specular * shadow;\n    }\n    #endif\n\n\n    #if HX_NUM_POINT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {\n        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;\n    }\n    #endif\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n    for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ssao;\n    }\n    #endif\n\n    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+ShaderLibrary._files['material_lit_static_vertex.glsl'] = 'uniform mat4 hx_worldViewMatrix;\n\nvarying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    // we need to do an unprojection here to be sure to have skinning - or anything like that - support\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
+
+ShaderLibrary._files['material_normal_depth_fragment.glsl'] = 'varying float hx_linearDepth;\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor.xy = hx_encodeNormal(data.normal);\n    gl_FragColor.zw = hx_floatToRG8(hx_linearDepth);\n//    gl_FragColor.zw = hx_floatToRG8(gl_FragCoord.z);\n}';
+
+ShaderLibrary._files['material_normal_depth_vertex.glsl'] = 'varying float hx_linearDepth;\n\nuniform mat4 hx_worldViewMatrix;\nuniform float hx_rcpCameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nvoid main()\n{\n    hx_geometry();\n\n    hx_linearDepth = (gl_Position.w - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n}';
+
+ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = data.color;\n    gl_FragColor.xyz += data.emission;\n\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
 ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
 
@@ -13827,116 +13827,6 @@ HCM.prototype._loadMipChain = function(urls, target)
     }
 };
 
-/**
- * TODO: Remove in favour of AssetLibrary
- * @constructor
- */
-function BulkAssetLoader()
-{
-    this._assets = null;
-    this._files = null;
-    this._abortOnFail = false;
-    this.onComplete = new Signal();
-    this.onFail = new Signal();
-}
-
-BulkAssetLoader.prototype =
-{
-    get abortOnFail()
-    {
-        return this._abortOnFail;
-    },
-
-    set abortOnFail(value)
-    {
-        this._abortOnFail = value;
-    },
-
-    getAsset: function(filename)
-    {
-        return this._assets[filename];
-    },
-
-    /**
-     *
-     * @param files An array of files or { file: "", importer: Importer } objects
-     * @param importer If files is an array of filenames, the importer to use for all
-     */
-    load: function(files, importer)
-    {
-        this._files = files;
-        this._assets = {};
-        this._index = 0;
-
-        if (importer) {
-            for (var i = 0; i < this._files.length; ++i) {
-                this._files[i] = {
-                    file: this._files[i],
-                    importer: importer,
-                    target: null
-                };
-            }
-        }
-
-        this._loadQueued();
-    },
-
-    _loadQueued: function()
-    {
-        if (this._index === this._files.length) {
-            this._notifyComplete();
-            return;
-        }
-
-        var file = this._files[this._index];
-        var loader = new AssetLoader(file.importer);
-
-        var self = this;
-        loader.onComplete = function(asset)
-        {
-            var filename = file.file;
-            self._assets[filename] = asset;
-            ++self._index;
-            self._loadQueued();
-        };
-
-        loader.onFail = function(error) {
-            self._notifyFailure(error);
-
-            if (self._abortOnFail)
-                return;
-            else
-                // continue loading
-                loader.onComplete();
-        };
-
-        loader.load(file.file, file.target);
-    },
-
-    _notifyComplete: function()
-    {
-        if (!this.onComplete) return;
-
-        if (this.onComplete instanceof Signal)
-            this.onComplete.dispatch();
-        else
-            this.onComplete();
-    },
-
-    _notifyFailure: function(message)
-    {
-        if (!this.onFail) {
-            console.warn("Importer error: " + message);
-            return;
-        }
-
-        if (this.onFail instanceof Signal)
-            this.onFail.dispatch(message);
-        else
-            this.onFail(message);
-    }
-};
-
 function JPG()
 {
     Importer.call(this, Texture2D, Importer.TYPE_IMAGE);
@@ -14093,23 +13983,27 @@ HMT.prototype._loadTextures = function(data, material)
         }
     }
 
-    var bulkLoader = new BulkAssetLoader();
-    var self = this;
-    bulkLoader.onComplete = function()
+    this._textureLibrary = new AssetLibrary();
+
+    for (var i = 0; i < files.length; ++i) {
+        this._textureLibrary.queueAsset(files[i], files[i], AssetLibrary.Type.ASSET, JPG);
+    }
+
+    this._textureLibrary.onComplete.bind(function()
     {
         for (var key in data.textures) {
             if (data.textures.hasOwnProperty(key)) {
-                material.setTexture(key, bulkLoader.getAsset(self._correctURL(data.textures[key])));
+                material.setTexture(key, this._textureLibrary.get(this._correctURL(data.textures[key])));
             }
         }
-        self._notifyComplete(material);
-    };
-    bulkLoader.onFail = function(message)
-    {
-        self._notifyFailure(message);
-    };
+        this._notifyComplete(material);
+    }, this);
+    // bulkLoader.onFail = function(message)
+    // {
+    //     self._notifyFailure(message);
+    // };
 
-    bulkLoader.load(files, JPG);
+    this._textureLibrary.load();
 };
 
 
@@ -14553,16 +14447,18 @@ AssetLibrary.prototype =
      * @param {string} id The ID that will be used to retrieve the asset when loaded.
      * @param {string} filename The filename relative to the base path provided in the constructor.
      * @param {AssetLibrary.Type} type The type of asset to be loaded.
-     * @param [parser] The parser used to parse the loaded data.
+     * @param {parser} The parser used to parse the loaded data.
+     * @param {target} An optional target to contain the data. Allows lazy loading.
      * @see {@linkcode AssetLibrary.Type}
      */
-    queueAsset: function(id, filename, type, parser)
+    queueAsset: function(id, filename, type, parser, target)
     {
         this._queue.push({
             id: id,
             filename: this._basePath + filename,
             type: type,
-            parser: parser
+            parser: parser,
+            target: target
         });
     },
 
@@ -14585,12 +14481,12 @@ AssetLibrary.prototype =
                 break;
             case AssetLibrary.Type.PLAIN_TEXT:
                 this._plainText(asset.filename, asset.id);
-                break;
+                break
             case AssetLibrary.Type.ASSET:
-                this._model(asset.filename, asset.id, asset.parser);
+                this._asset(asset.filename, asset.id, asset.parser, asset.target);
                 break;
             default:
-                throw new Error("Unknown asset type!");
+                throw new Error("Unknown asset type " + asset.type + "!");
         }
     },
 
@@ -14658,18 +14554,17 @@ AssetLibrary.prototype =
         this._assets[id] = loader.load(file);
     },
 
-    _model: function(file, id, parser)
+    _asset: function(file, id, parser, target)
     {
-        var self = this;
         var loader = new AssetLoader(parser);
         // loader.options = loader.options || {};
         // loader.options.convertUpAxis = true;
         loader.onComplete.bind(function()
         {
-            self._onAssetLoaded();
-        });
+            this._onAssetLoaded();
+        }, this);
 
-        this._assets[id] = loader.load(file);
+        this._assets[id] = loader.load(file, target);
     },
 
     _onAssetLoaded: function()
@@ -14680,6 +14575,116 @@ AssetLibrary.prototype =
             this._onComplete.dispatch(this);
         else
             this.load();
+    }
+};
+
+/**
+ * TODO: Remove in favour of AssetLibrary
+ * @constructor
+ */
+function BulkAssetLoader()
+{
+    this._assets = null;
+    this._files = null;
+    this._abortOnFail = false;
+    this.onComplete = new Signal();
+    this.onFail = new Signal();
+}
+
+BulkAssetLoader.prototype =
+{
+    get abortOnFail()
+    {
+        return this._abortOnFail;
+    },
+
+    set abortOnFail(value)
+    {
+        this._abortOnFail = value;
+    },
+
+    getAsset: function(filename)
+    {
+        return this._assets[filename];
+    },
+
+    /**
+     *
+     * @param files An array of files or { file: "", importer: Importer } objects
+     * @param importer If files is an array of filenames, the importer to use for all
+     */
+    load: function(files, importer)
+    {
+        this._files = files;
+        this._assets = {};
+        this._index = 0;
+
+        if (importer) {
+            for (var i = 0; i < this._files.length; ++i) {
+                this._files[i] = {
+                    file: this._files[i],
+                    importer: importer,
+                    target: null
+                };
+            }
+        }
+
+        this._loadQueued();
+    },
+
+    _loadQueued: function()
+    {
+        if (this._index === this._files.length) {
+            this._notifyComplete();
+            return;
+        }
+
+        var file = this._files[this._index];
+        var loader = new AssetLoader(file.importer);
+
+        var self = this;
+        loader.onComplete = function(asset)
+        {
+            var filename = file.file;
+            self._assets[filename] = asset;
+            ++self._index;
+            self._loadQueued();
+        };
+
+        loader.onFail = function(error) {
+            self._notifyFailure(error);
+
+            if (self._abortOnFail)
+                return;
+            else
+                // continue loading
+                loader.onComplete();
+        };
+
+        loader.load(file.file, file.target);
+    },
+
+    _notifyComplete: function()
+    {
+        if (!this.onComplete) return;
+
+        if (this.onComplete instanceof Signal)
+            this.onComplete.dispatch();
+        else
+            this.onComplete();
+    },
+
+    _notifyFailure: function(message)
+    {
+        if (!this.onFail) {
+            console.warn("Importer error: " + message);
+            return;
+        }
+
+        if (this.onFail instanceof Signal)
+            this.onFail.dispatch(message);
+        else
+            this.onFail(message);
     }
 };
 

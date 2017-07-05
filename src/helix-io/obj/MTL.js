@@ -1,4 +1,3 @@
-
 /**
  *
  * @constructor
@@ -24,8 +23,6 @@ HX.MTL.prototype.parse = function(data, target)
     }
 
     this._loadTextures(target);
-
-    return target;
 };
 
 HX.MTL.prototype._parseLine = function(line, target)
@@ -69,11 +66,11 @@ HX.MTL.prototype._parseLine = function(line, target)
 HX.MTL.prototype._getTexture = function(url)
 {
     if (!this._textures[url]) {
-        this._textures[url] = new HX.Texture2D();
+        this._textures[url] = new Texture2D();
 
         this._texturesToLoad.push({
             file: this._correctURL(url),
-            importer: HX.JPG,
+            importer: JPG,
             target: this._textures[url]
         });
     }
@@ -82,6 +79,7 @@ HX.MTL.prototype._getTexture = function(url)
 
 HX.MTL.prototype._loadTextures = function(lib)
 {
+    var library = new HX.AssetLibrary();
     var files = this._texturesToLoad;
     var len = files.length;
     if (len === 0) {
@@ -89,16 +87,18 @@ HX.MTL.prototype._loadTextures = function(lib)
         return;
     }
 
-    var self = this;
-    var bulkLoader = new HX.BulkAssetLoader();
+    for (var i = 0; i < files.length; ++i) {
+        library.queueAsset(files[i], files[i], AssetLibrary.Type.ASSET, files[i].importer, files[i].target)
+    }
 
-    bulkLoader.onComplete = function() {
-        self._notifyComplete(lib);
-    };
 
-    bulkLoader.onFail = function(message) {
-        self._notifyFailure(message);
-    };
+    library.onComplete.bind(function() {
+        this._notifyComplete(lib);
+    }, this);
+
+    // bulkLoader.onFail = function(message) {
+    //     self._notifyFailure(message);
+    // };
 
     bulkLoader.load(files);
 };

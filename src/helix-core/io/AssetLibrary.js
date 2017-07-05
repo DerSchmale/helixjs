@@ -91,16 +91,18 @@ AssetLibrary.prototype =
      * @param {string} id The ID that will be used to retrieve the asset when loaded.
      * @param {string} filename The filename relative to the base path provided in the constructor.
      * @param {AssetLibrary.Type} type The type of asset to be loaded.
-     * @param [parser] The parser used to parse the loaded data.
+     * @param {parser} The parser used to parse the loaded data.
+     * @param {target} An optional target to contain the data. Allows lazy loading.
      * @see {@linkcode AssetLibrary.Type}
      */
-    queueAsset: function(id, filename, type, parser)
+    queueAsset: function(id, filename, type, parser, target)
     {
         this._queue.push({
             id: id,
             filename: this._basePath + filename,
             type: type,
-            parser: parser
+            parser: parser,
+            target: target
         });
     },
 
@@ -123,12 +125,12 @@ AssetLibrary.prototype =
                 break;
             case AssetLibrary.Type.PLAIN_TEXT:
                 this._plainText(asset.filename, asset.id);
-                break;
+                break
             case AssetLibrary.Type.ASSET:
-                this._model(asset.filename, asset.id, asset.parser);
+                this._asset(asset.filename, asset.id, asset.parser, asset.target);
                 break;
             default:
-                throw new Error("Unknown asset type!");
+                throw new Error("Unknown asset type " + asset.type + "!");
         }
     },
 
@@ -196,18 +198,17 @@ AssetLibrary.prototype =
         this._assets[id] = loader.load(file);
     },
 
-    _model: function(file, id, parser)
+    _asset: function(file, id, parser, target)
     {
-        var self = this;
         var loader = new AssetLoader(parser);
         // loader.options = loader.options || {};
         // loader.options.convertUpAxis = true;
         loader.onComplete.bind(function()
         {
-            self._onAssetLoaded();
-        });
+            this._onAssetLoaded();
+        }, this);
 
-        this._assets[id] = loader.load(file);
+        this._assets[id] = loader.load(file, target);
     },
 
     _onAssetLoaded: function()

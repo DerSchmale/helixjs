@@ -1,3 +1,5 @@
+import {AssetLibrary} from "../../helix-core/io/AssetLibrary";
+import {JPG} from "../../helix-core/io/JPG_PNG";
 /**
  *
  * @constructor
@@ -57,28 +59,28 @@ HX.FBX.prototype.parse = function(data, target)
 
 HX.FBX.prototype._loadTextures = function(tokens, map, target)
 {
-    var files = [];
     var numTextures = tokens.length;
+
+    this._textureLibrary = new AssetLibrary();
 
     for (var i = 0; i < numTextures; ++i) {
         var token = tokens[i];
-        token.filename = files[i] = this._correctURL(token.filename);
+        token.filename = this._correctURL(token.filename);
+        this._textureLibrary.queueAsset(token.filename, token.filename, AssetLibrary.Type.ASSET, JPG)
     }
 
-    var self = this;
-    var bulkLoader = new HX.BulkAssetLoader();
-    bulkLoader.onFail = function(message)
-    {
-        self._notifyFailure(message);
-    };
+    // bulkLoader.onFail = function(message)
+    // {
+    //     self._notifyFailure(message);
+    // };
 
-    bulkLoader.onComplete = function()
+    this._textureLibrary.onComplete.bind(function()
     {
         var numMappings = map.length;
         for (var i = 0; i < numMappings; ++i) {
             var mapping = map[i];
             var token = mapping.token;
-            var texture = bulkLoader.getAsset(token.filename);
+            var texture = this._textureLibrary.get(token.filename);
             texture.name = token.name;
 
             switch (mapping.mapType) {
@@ -93,8 +95,8 @@ HX.FBX.prototype._loadTextures = function(tokens, map, target)
                     break;
             }
         }
-        self._notifyComplete(target);
-    };
+        this._notifyComplete(target);
+    }, this);
 
-    bulkLoader.load(files, HX.JPG);
+    this._textureLibrary.load();
 };

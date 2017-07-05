@@ -67,6 +67,7 @@ HX.ForwardRenderer.prototype =
 
     set debugMode(value)
     {
+        console.log(value);
         this._debugMode = value;
     },
 

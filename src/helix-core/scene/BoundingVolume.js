@@ -5,9 +5,6 @@
  */
 import {Float4} from "../math/Float4";
 import {ElementType, CullMode} from "../Helix";
-// import {BasicMaterial} from "../material/BasicMaterial";
-import {LightingModel} from "../render/LightingModel";
-import {Color} from "../core/Color";
 
 function BoundingVolume(type)
 {
@@ -116,28 +113,14 @@ BoundingVolume.prototype =
     intersectsBound: function(bound) { throw new Error("Abstract method!"); },
     classifyAgainstPlane: function(plane) { throw new Error("Abstract method!"); },
 
-    createDebugModelInstance: function() { throw new Error("Abstract method!"); },
+    createDebugModel: function() { throw new Error("Abstract method!"); },
 
-    getDebugModelInstance: function()
+    getDebugModel: function()
     {
         if (this._type._debugModel === undefined)
-            this._type._debugModel = this.createDebugModelInstance();
+            this._type._debugModel = this.createDebugModel();
 
         return this._type._debugModel;
-    },
-
-    getDebugMaterial: function()
-    {
-        /*if (BoundingVolume._debugMaterial === undefined) {
-            var material = new BasicMaterial();
-            material.elementType = ElementType.LINES;
-            material.cullMode = CullMode.NONE;
-            material.lightingModel = LightingModel.Unlit;
-            material.setUniform("color", new Color(1.0, 0.0, 1.0));
-            BoundingVolume._debugMaterial = material;
-        }
-
-        return BoundingVolume._debugMaterial;*/
     },
 
     toString: function()

@@ -45,7 +45,7 @@ function initCamera(camera)
     // bloom.thresholdLuminance = 1.0;
     // camera.addComponent(bloom);
 
-    var tonemap = new HX.FilmicToneMapEffect(true);
+    var tonemap = new HX.FilmicToneMapping(true);
     tonemap.exposure = 2;
     camera.addComponent(tonemap);
 

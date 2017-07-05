@@ -75,18 +75,18 @@ Quaternion.slerp = function(a, b, factor, target)
         var angle = Math.acos(dot);
         var interpolatedAngle = factor*angle;
 
-        this.x = x2 - x1*dot;
-        this.y = y2 - y1*dot;
-        this.z = z2 - z1*dot;
-        this.w = w2 - w1*dot;
-        this.normalize();
+        target.x = x2 - x1*dot;
+        target.y = y2 - y1*dot;
+        target.z = z2 - z1*dot;
+        target.w = w2 - w1*dot;
+        target.normalize();
 
         var cos = Math.cos(interpolatedAngle);
         var sin = Math.sin(interpolatedAngle);
-        target.x = x1 * cos + this.x * sin;
-        target.y = y1 * cos + this.y * sin;
-        target.z = z1 * cos + this.z * sin;
-        target.w = w1 * cos + this.w * sin;
+        target.x = x1 * cos + target.x * sin;
+        target.y = y1 * cos + target.y * sin;
+        target.z = z1 * cos + target.z * sin;
+        target.w = w1 * cos + target.w * sin;
     }
     else {
         // nearly identical angle, interpolate linearly
@@ -94,7 +94,7 @@ Quaternion.slerp = function(a, b, factor, target)
         target.y = y1 + factor * (y2 - y1);
         target.z = z1 + factor * (z2 - z1);
         target.w = w1 + factor * (w2 - w1);
-        this.normalize();
+        target.normalize();
     }
 
     return target;

@@ -5,7 +5,6 @@
 import {BoundingVolume} from "./BoundingVolume";
 import {BoundingAABB} from "./BoundingAABB";
 import {PlaneSide} from "../math/PlaneSide";
-// import {ModelInstance} from "../mesh/ModelInstance";
 import {SpherePrimitive} from "../mesh/primitives/SpherePrimitive";
 
 function BoundingSphere()
@@ -258,10 +257,9 @@ BoundingSphere.prototype._updateMinAndMax = function()
     this._maximumZ = centerZ + radius;
 };
 
-BoundingSphere.prototype.createDebugModelInstance = function()
+BoundingSphere.prototype.createDebugModel = function()
 {
-    throw "Currently unavailable due to cyclic dependency bug in rollup";
-    // return new ModelInstance(new SpherePrimitive({doubleSided:true}), [this.getDebugMaterial()]);
+    return new SpherePrimitive({doubleSided:true});
 };
 
 export {BoundingSphere };

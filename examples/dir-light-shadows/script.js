@@ -40,7 +40,7 @@ function initCamera(camera)
 
     var bloom = new HX.Bloom(200, 1);
     bloom.thresholdLuminance = .25;
-    var tonemap = new HX.FilmicToneMapEffect(true);
+    var tonemap = new HX.FilmicToneMapping(true);
     tonemap.exposure = 1.0;
 
     var orbitController = new HX.OrbitController();

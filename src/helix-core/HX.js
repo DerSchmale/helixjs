@@ -79,6 +79,8 @@ export {ReinhardToneMapping} from './effect/ReinhardToneMapping';
 
 export {AssetLibrary} from './io/AssetLibrary';
 export {AssetLoader} from './io/AssetLoader';
+export {BulkAssetLoader} from './io/BulkAssetLoader';
+export {URLLoader} from './io/URLLoader';
 export {HCM} from './io/HCM';
 export {HMT} from './io/HMT';
 export {HSC} from './io/HSC';
@@ -122,7 +124,7 @@ export {TorusPrimitive} from './mesh/primitives/TorusPrimitive';
 export {BlendState} from './render/BlendState';
 export {ForwardRenderer} from './render/ForwardRenderer';
 export {LightingModel} from './render/LightingModel';
-export {MultiRenderer} from './render/MultiRenderer';
+export {View, MultiRenderer} from './render/MultiRenderer';
 export {StencilState} from './render/StencilState';
 
 export {Texture2D} from './texture/Texture2D';

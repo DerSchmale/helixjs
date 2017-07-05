@@ -4,8 +4,7 @@
  */
 import {BoundingVolume} from "./BoundingVolume";
 import {PlaneSide} from "../math/PlaneSide";
-// import {ModelInstance} from "../mesh/ModelInstance";
-// import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
+import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
 
 function BoundingAABB()
 {
@@ -264,10 +263,9 @@ BoundingAABB.prototype.getRadius = function()
     return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
 };
 
-BoundingAABB.prototype.createDebugModelInstance = function()
+BoundingAABB.prototype.createDebugModel = function()
 {
-    throw "Currently unavailable due to cyclic dependency bug in rollup";
-    // return new ModelInstance(new BoxPrimitive(), [this.getDebugMaterial()]);
+    return new BoxPrimitive();
 };
 
 export { BoundingAABB };

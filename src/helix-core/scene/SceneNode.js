@@ -75,24 +75,6 @@ SceneNode.prototype = Object.create(Transform.prototype, {
 
             return this._worldMatrix;
         }
-    },
-
-    showDebugBounds: {
-        get: function ()
-        {
-            return this._debugBounds !== null
-        },
-        set: function(value)
-        {
-            if (!!this._debugBounds === value) return;
-
-            if (value) {
-                this._debugBounds = this._worldBounds.getDebugModelInstance();
-                this._updateDebugBounds();
-            }
-            else
-                this._debugBounds = null;
-        }
     }
 });
 

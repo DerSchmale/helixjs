@@ -68,6 +68,18 @@ ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define 
 
 ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position; // in view space?\n    float radius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
 
+ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
+
+ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
+
+ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
+
+ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
 ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -97,18 +109,6 @@ ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec4 co
 ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
 
 ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	gl_FragColor = color / (1.0 + lum);\n}';
-
-ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
-
-ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
-
-ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
-
-ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 ShaderLibrary._files['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
 
@@ -702,18 +702,18 @@ Quaternion.slerp = function(a, b, factor, target)
         var angle = Math.acos(dot);
         var interpolatedAngle = factor*angle;
 
-        this.x = x2 - x1*dot;
-        this.y = y2 - y1*dot;
-        this.z = z2 - z1*dot;
-        this.w = w2 - w1*dot;
-        this.normalize();
+        target.x = x2 - x1*dot;
+        target.y = y2 - y1*dot;
+        target.z = z2 - z1*dot;
+        target.w = w2 - w1*dot;
+        target.normalize();
 
         var cos = Math.cos(interpolatedAngle);
         var sin = Math.sin(interpolatedAngle);
-        target.x = x1 * cos + this.x * sin;
-        target.y = y1 * cos + this.y * sin;
-        target.z = z1 * cos + this.z * sin;
-        target.w = w1 * cos + this.w * sin;
+        target.x = x1 * cos + target.x * sin;
+        target.y = y1 * cos + target.y * sin;
+        target.z = z1 * cos + target.z * sin;
+        target.w = w1 * cos + target.w * sin;
     }
     else {
         // nearly identical angle, interpolate linearly
@@ -721,7 +721,7 @@ Quaternion.slerp = function(a, b, factor, target)
         target.y = y1 + factor * (y2 - y1);
         target.z = z1 + factor * (z2 - z1);
         target.w = w1 + factor * (w2 - w1);
-        this.normalize();
+        target.normalize();
     }
 
     return target;
@@ -2373,22 +2373,10 @@ MaterialQueryVisitor.prototype.visitModelInstance = function (modelInstance, wor
 };
 
 /**
- * You can add your own, as long as the glsl code contains a function
- * void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)
- */
-var LightingModel =
-{
-    Unlit: null,
-    BlinnPhong: ShaderLibrary.get("lighting_blinn_phong.glsl"),
-    GGX: ShaderLibrary.get("lighting_ggx.glsl")
-};
-
-/**
  *
  * @param type
  * @constructor
  */
-// import {BasicMaterial} from "../material/BasicMaterial";
 function BoundingVolume(type)
 {
     this._type = type;
@@ -2496,28 +2484,14 @@ BoundingVolume.prototype =
     intersectsBound: function(bound) { throw new Error("Abstract method!"); },
     classifyAgainstPlane: function(plane) { throw new Error("Abstract method!"); },
 
-    createDebugModelInstance: function() { throw new Error("Abstract method!"); },
+    createDebugModel: function() { throw new Error("Abstract method!"); },
 
-    getDebugModelInstance: function()
+    getDebugModel: function()
     {
         if (this._type._debugModel === undefined)
-            this._type._debugModel = this.createDebugModelInstance();
+            this._type._debugModel = this.createDebugModel();
 
         return this._type._debugModel;
-    },
-
-    getDebugMaterial: function()
-    {
-        /*if (BoundingVolume._debugMaterial === undefined) {
-            var material = new BasicMaterial();
-            material.elementType = ElementType.LINES;
-            material.cullMode = CullMode.NONE;
-            material.lightingModel = LightingModel.Unlit;
-            material.setUniform("color", new Color(1.0, 0.0, 1.0));
-            BoundingVolume._debugMaterial = material;
-        }
-
-        return BoundingVolume._debugMaterial;*/
     },
 
     toString: function()
@@ -2539,13 +2513,1389 @@ var PlaneSide = {
     INTERSECTING: 0
 };
 
+// Just contains some convenience methods and GL management stuff that shouldn't be called directly
+// Will become an abstraction layer
+// properties to keep track of render state
+var _numActiveAttributes = 0;
+
+var _renderTarget = null;
+var _renderTargetInvalid = true;
+
+var _viewport = {x: 0, y: 0, width: 0, height: 0};
+var _viewportInvalid = true;
+
+var _depthMask = true;
+var _depthMaskInvalid = true;
+
+var _cullMode = null;
+var _cullModeInvalid = true;
+
+var _depthTest = null;
+var _depthTestInvalid = true;
+
+var _blendState = null;
+var _blendStateInvalid = false;
+
+// this is so that effects can push states on the stack
+// the renderer at the root just pushes one single state and invalidates that constantly
+var _stencilState = null;
+var _stencilStateInvalid = false;
+
+var _glStats =
+    {
+        numDrawCalls: 0,
+        numTriangles: 0,
+        numClears: 0
+    };
+
+var _clearGLStats = function ()
+{
+    _glStats.numDrawCalls = 0;
+    _glStats.numTriangles = 0;
+    _glStats.numClears = 0;
+};
+
+var gl = null;
+
+function _updateRenderState()
+{
+    if (_renderTargetInvalid) {
+        var target = _renderTarget;
+
+        if (target) {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, target._fbo);
+
+            if (target._numColorTextures > 1)
+                capabilities.EXT_DRAW_BUFFERS.drawBuffersWEBGL(target._drawBuffers);
+        }
+        else
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        _renderTargetInvalid = false;
+    }
+
+    if (_viewportInvalid) {
+        gl.viewport(_viewport.x, _viewport.y, _viewport.width, _viewport.height);
+        _viewportInvalid = false;
+    }
+
+    if (_depthMaskInvalid) {
+        gl.depthMask(_depthMask);
+        _depthMaskInvalid = false;
+    }
+
+    if (_cullModeInvalid) {
+        if (_cullMode === CullMode.NONE)
+            gl.disable(gl.CULL_FACE);
+        else {
+            gl.enable(gl.CULL_FACE);
+            gl.cullFace(_cullMode);
+        }
+    }
+
+    if (_depthTestInvalid) {
+        if (_depthTest === Comparison.DISABLED)
+            gl.disable(gl.DEPTH_TEST);
+        else {
+            gl.enable(gl.DEPTH_TEST);
+            gl.depthFunc(_depthTest);
+        }
+    }
+
+    if (_blendStateInvalid) {
+        var blendState = _blendState;
+        if (!blendState || blendState.enabled === false)
+            gl.disable(gl.BLEND);
+        else {
+            gl.enable(gl.BLEND);
+            gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
+            gl.blendEquation(blendState.operator);
+            var color = blendState.color;
+            if (color)
+                gl.blendColor(color.r, color.g, color.b, color.a);
+        }
+        _blendStateInvalid = false;
+    }
+
+    if (_stencilStateInvalid) {
+        var stencilState = _stencilState;
+        if (!stencilState || stencilState.enabled === false) {
+            gl.disable(gl.STENCIL_TEST);
+            gl.stencilFunc(Comparison.ALWAYS, 0, 0xff);
+            gl.stencilOp(StencilOp.KEEP, StencilOp.KEEP, StencilOp.KEEP);
+        }
+        else {
+            gl.enable(gl.STENCIL_TEST);
+            gl.stencilFunc(stencilState.comparison, stencilState.reference, stencilState.readMask);
+            gl.stencilOp(stencilState.onStencilFail, stencilState.onDepthFail, stencilState.onPass);
+            gl.stencilMask(stencilState.writeMask);
+        }
+        _stencilStateInvalid = false;
+    }
+}
+
+var GL = {
+    gl: null,
+
+    _setGL: function (value)
+    {
+        GL.gl = gl = value;
+    },
+
+    /**
+     * Default clearing function. Can be called if no special clearing functionality is needed (or in case another api is used that clears)
+     * Otherwise, you can manually clear using GL context.
+     */
+    clear: function (clearMask)
+    {
+        if (clearMask === undefined)
+            clearMask = ClearMask.COMPLETE;
+
+        _updateRenderState();
+        gl.clear(clearMask);
+        ++_glStats.numClears;
+    },
+
+    drawElements: function (elementType, numIndices, offset)
+    {
+        ++_glStats.numDrawCalls;
+        _glStats.numTriangles += numIndices / 3;
+        _updateRenderState();
+        gl.drawElements(elementType, numIndices, gl.UNSIGNED_SHORT, offset * 2);
+    },
+
+
+    /**
+     *
+     * @param rect Any object with a width and height property, so it can be a Rect or even an FBO. If x and y are present, it will use these too.
+     */
+    setViewport: function (rect)
+    {
+        _viewportInvalid = true;
+        if (rect) {
+            _viewport.x = rect.x || 0;
+            _viewport.y = rect.y || 0;
+            _viewport.width = rect.width || 0;
+            _viewport.height = rect.height || 0;
+        }
+        else {
+            _viewport.x = 0;
+            _viewport.y = 0;
+            _viewport.width = META.TARGET_CANVAS.width;
+            _viewport.height = META.TARGET_CANVAS.height;
+        }
+    },
+
+    getCurrentRenderTarget: function ()
+    {
+        return _renderTarget;
+    },
+
+    setRenderTarget: function (frameBuffer)
+    {
+        _renderTarget = frameBuffer;
+        _renderTargetInvalid = true;
+        GL.setViewport(frameBuffer);
+    },
+
+    enableAttributes: function (count)
+    {
+        var numActiveAttribs = _numActiveAttributes;
+        var i;
+
+        if (numActiveAttribs < count) {
+            for (i = numActiveAttribs; i < count; ++i)
+                gl.enableVertexAttribArray(i);
+        }
+        else if (numActiveAttribs > count) {
+            // bug in WebGL/ANGLE? When rendering to a render target, disabling vertex attrib array 1 causes errors when using only up to the index below o_O
+            // so for now + 1
+            count += 1;
+            for (i = count; i < numActiveAttribs; ++i) {
+                gl.disableVertexAttribArray(i);
+            }
+        }
+
+        _numActiveAttributes = count;
+    },
+
+    setClearColor: function (color)
+    {
+        color = isNaN(color) ? color : new Color(color);
+        gl.clearColor(color.r, color.g, color.b, color.a);
+    },
+
+    setCullMode: function (value)
+    {
+        if (_cullMode === value) return;
+        _cullMode = value;
+        _cullModeInvalid = true;
+    },
+
+    setDepthMask: function (value)
+    {
+        if (_depthMask === value) return;
+        _depthMask = value;
+        _depthMaskInvalid = true;
+    },
+
+    setDepthTest: function (value)
+    {
+        if (_depthTest === value) return;
+        _depthTest = value;
+        _depthTestInvalid = true;
+    },
+
+    setBlendState: function (value)
+    {
+        if (_blendState === value) return;
+        _blendState = value;
+        _blendStateInvalid = true;
+    },
+
+    updateStencilReferenceValue: function (value)
+    {
+        var currentState = _stencilState;
+
+        if (!currentState || currentState.reference === value) return;
+
+        currentState.reference = value;
+
+        if (!_stencilStateInvalid && currentState.enabled)
+            gl.stencilFunc(currentState.comparison, value, currentState.readMask);
+    },
+
+    setStencilState: function (value)
+    {
+        _stencilState = value;
+        _stencilStateInvalid = true;
+    }
+};
+
 /**
  *
  * @constructor
  */
-// import {ModelInstance} from "../mesh/ModelInstance";
-// import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
+function IndexBuffer()
+{
+    this._buffer = GL.gl.createBuffer();
+}
 
+IndexBuffer.prototype = {
+    /**
+     * Uploads data for the buffer.
+     * @param data The data to upload, must be a Int16Array object.
+     * @param usageHint An optional usage hint for the buffer.
+     */
+    uploadData: function(data, usageHint)
+    {
+        if (usageHint === undefined)
+            usageHint = BufferUsage.STATIC_DRAW;
+
+        this.bind();
+        GL.gl.bufferData(GL.gl.ELEMENT_ARRAY_BUFFER, data, usageHint);
+    },
+
+    dispose: function()
+    {
+        if (this._buffer) {
+            GL.gl.deleteBuffer(this._buffer);
+            this._buffer = 0;
+        }
+    },
+
+    /**
+     * @private
+     */
+    bind: function()
+    {
+        GL.gl.bindBuffer(GL.gl.ELEMENT_ARRAY_BUFFER, this._buffer);
+    }
+};
+
+/**
+ *
+ * @constructor
+ */
+function VertexBuffer()
+{
+    this._buffer = GL.gl.createBuffer();
+}
+
+VertexBuffer.prototype = {
+
+    /**
+     * Uploads data for the buffer.
+     * @param data The data to upload, must be a Float32Array object.
+     * @param usageHint An optional usage hint for the buffer.
+     */
+    uploadData: function(data, usageHint)
+    {
+        if (usageHint === undefined)
+            usageHint = GL.gl.STATIC_DRAW;
+
+        this.bind();
+        GL.gl.bufferData(GL.gl.ARRAY_BUFFER, data, usageHint);
+    },
+
+    dispose: function()
+    {
+        if (this._buffer) {
+            GL.gl.deleteBuffer(this._buffer);
+            this._buffer = 0;
+        }
+    },
+
+    /**
+     * @private
+     */
+    bind: function()
+    {
+        GL.gl.bindBuffer(GL.gl.ARRAY_BUFFER, this._buffer);
+    }
+};
+
+/**
+ *
+ * @param meshData
+ * @param model
+ * @constructor
+ */
+var Mesh_ID_COUNTER = 0;
+
+function Mesh(meshData, model)
+{
+    this._model = model;
+    this._vertexBuffers = [];
+    this._vertexStrides = [];
+    this._vertexAttributes = null;
+    this._morphAttributes = null;
+    this._indexBuffer = new IndexBuffer();
+    this._defaultMorphTarget = null;
+
+    this._renderOrderHint = ++Mesh_ID_COUNTER;
+
+    this.updateMeshData(meshData);
+}
+
+Mesh.ID_COUNTER = 0;
+
+Mesh.prototype = {
+    get hasMorphData()
+    {
+        return !!this._morphAttributes;
+    },
+
+    updateMeshData: function(meshData)
+    {
+        var numStreams = meshData.numStreams;
+        var numVertexBuffers = this._vertexBuffers.length;
+
+        if (numStreams > numVertexBuffers) {
+            for (var i = numVertexBuffers; i < numStreams; ++i) {
+                if (meshData.hasVertexData(i))
+                    this._vertexBuffers[i] = new VertexBuffer();
+            }
+        }
+        else if (numStreams < numVertexBuffers) {
+            this._vertexBuffers.length = numStreams;
+            this._vertexStrides.length = numStreams;
+        }
+
+        for (i = 0; i < numStreams; ++i) {
+            if (meshData.hasVertexData(i))
+                this._vertexBuffers[i].uploadData(meshData.getVertexData(i), meshData.vertexUsage);
+
+            this._vertexStrides[i] = meshData.getVertexStride(i);
+        }
+
+        this._numIndices = meshData._indexData.length;
+        this._numVertices = meshData.numVertices;
+
+        this._indexBuffer.uploadData(meshData._indexData, meshData.indexUsage);
+        this._vertexAttributes = meshData._vertexAttributes;
+        this._morphAttributes = meshData._morphAttributes;
+
+        if (this._morphAttributes) {
+            this._defaultMorphTarget = new VertexBuffer();
+            this._defaultMorphTarget.uploadData(meshData._defaultMorphTarget);
+        }
+    },
+
+    dispose: function ()
+    {
+        for (var i = 0; i < this._vertexBuffers.length; ++i)
+            this._vertexBuffers[i].dispose();
+        this._indexBuffer.dispose();
+    },
+
+    get numVertices()
+    {
+        return this._numVertices;
+    },
+
+    get numIndices()
+    {
+        return this._numIndices;
+    },
+
+    get numVertexAttributes()
+    {
+        return this._vertexAttributes.length;
+    },
+
+    getVertexStride: function(streamIndex)
+    {
+        return this._vertexStrides[streamIndex];
+    },
+
+    getVertexAttribute: function (index)
+    {
+        return this._vertexAttributes[index];
+    }
+};
+
+/**
+ * A Model combines a list of Meshes
+ * @param modelData
+ * @constructor
+ */
+function Model(modelData)
+{
+    this._name = null;
+    this._localBounds = new BoundingAABB();
+    this._skeleton = null;
+    this.onChange = new Signal();
+
+    if (modelData) {
+        this._meshes = null;
+        this._setModelData(modelData);
+    }
+    else
+        this._meshes = [];
+}
+
+Model.prototype =
+{
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
+
+    get numMeshes()
+    {
+        return this._meshes.length;
+    },
+
+    getMesh: function (index)
+    {
+        return this._meshes[index];
+    },
+
+    dispose: function()
+    {
+        if (this._meshes)
+            for (var i = 0; i < this._meshes.length; ++i)
+                this._meshes[i].dispose();
+    },
+
+    get localBounds()
+    {
+        return this._localBounds;
+    },
+
+
+    get skeleton()
+    {
+        return this._skeleton;
+    },
+
+    set skeleton(value)
+    {
+        this._skeleton = value;
+    },
+
+    _setModelData: function (modelData)
+    {
+        this.dispose();
+
+        this._localBounds.clear();
+        this._meshes = [];
+
+        for (var i = 0; i < modelData.numMeshes; ++i) {
+            var meshData = modelData.getMeshData(i);
+            this._localBounds.growToIncludeMesh(meshData);
+            this._meshes.push(new Mesh(meshData, this));
+        }
+
+        this.skeleton = modelData.skeleton;
+
+        this.onChange.dispatch();
+    },
+
+    toString: function()
+    {
+        return "[Model(name=" + this._name + ")]";
+    }
+};
+
+/**
+ *
+ * @constructor
+ */
+function ModelData()
+{
+    this._meshDataList = [];
+    this._joints = [];
+    this.skeleton = null;
+}
+
+ModelData.prototype = {
+    get numMeshes()
+    {
+        return this._meshDataList.length;
+    },
+
+    getMeshData: function (index)
+    {
+        return this._meshDataList[index];
+    },
+
+    addMeshData: function (meshData)
+    {
+        this._meshDataList.push(meshData);
+    },
+
+    addJoint: function(joint)
+    {
+        this._joints.push(joint);
+    },
+
+    get hasSkeleton()
+    {
+        return this._joints.length > 0;
+    }
+};
+
+/**
+ * MeshData contains the cpu-side definition data for a Mesh.
+ * @constructor
+ */
+function MeshData()
+{
+    this._vertexStrides = [];
+    this._vertexData = [];
+    this._indexData = undefined;
+    this.vertexUsage = BufferUsage.STATIC_DRAW;
+    this.indexUsage = BufferUsage.STATIC_DRAW;
+    this._vertexAttributes = [];
+    this._defaultMorphTarget = null;
+    this._numStreams = 0;
+}
+
+MeshData.DEFAULT_VERTEX_SIZE = 12;
+
+// other possible indices:
+// hx_instanceID (used by MeshBatch)
+// hx_boneIndices (4)
+// hx_boneWeights (4)
+MeshData.createDefaultEmpty = function()
+{
+    var data = new MeshData();
+    data.addVertexAttribute('hx_position', 3);
+    data.addVertexAttribute('hx_normal', 3);
+    data.addVertexAttribute('hx_tangent', 4);
+    data.addVertexAttribute('hx_texCoord', 2);
+    return data;
+};
+
+MeshData.prototype = {
+
+    // this should only be the case for morph targets
+    hasVertexData: function (streamIndex)
+    {
+        return !!this._vertexData[streamIndex];
+    },
+
+    getVertexData: function (streamIndex)
+    {
+        return this._vertexData[streamIndex];
+    },
+
+    /**
+     * Sets data from Array
+     */
+    setVertexData: function (data, streamIndex)
+    {
+        this._vertexData[streamIndex || 0] = new Float32Array(data);
+    },
+
+    /**
+     * Sets data from Array
+     */
+    setIndexData: function (data)
+    {
+        this._indexData = new Uint16Array(data);
+    },
+
+    /**
+     * Adds a named vertex attribute. All properties are given manually to make it easier to support multiple streams in the future.
+     * @param name The name of the attribute, matching the attribute name used in the vertex shaders.
+     * @param numComponents The amount of components used by the attribute value.
+     * @param streamIndex [Optional] The stream index indicating which vertex buffer is used, defaults to 0
+     */
+    addVertexAttribute: function (name, numComponents, streamIndex)
+    {
+        if (name === "hx_morphUV") this._hasMorphUVs = true;
+
+        streamIndex = streamIndex || 0;
+        this._numStreams = Math.max(this._numStreams, streamIndex + 1);
+        this._vertexStrides[streamIndex] = this._vertexStrides[streamIndex] || 0;
+        this._vertexAttributes.push({
+            name: name,
+            offset: this._vertexStrides[streamIndex],
+            numComponents: numComponents,
+            streamIndex: streamIndex
+        });
+
+        this._vertexStrides[streamIndex] += numComponents;
+    },
+
+    getVertexAttribute: function (name)
+    {
+        var len = this._vertexAttributes.length;
+        for (var i = 0; i < len; ++i) {
+            if (this._vertexAttributes[i].name === name)
+                return this._vertexAttributes[i];
+        }
+    },
+
+    /**
+     * Returns the stride of each vertex for the given stream index. This matches the total amount of elements used by all vertex attributes combined.
+     */
+    getVertexStride: function (streamIndex)
+    {
+        return this._vertexStrides[streamIndex];
+    },
+
+    get numStreams()
+    {
+        return this._numStreams;
+    },
+
+    get numVertices()
+    {
+        return this._vertexData[0].length / this._vertexStrides[0];
+    },
+
+    extractAttributeData: function(name)
+    {
+        var attrib = this.getVertexAttribute(name);
+        var stride = this.getVertexStride(attrib);
+        var data = this.getVertexData(attrib.streamIndex);
+        var numComps = attrib.numComponents;
+        var vertData = [];
+        var t = 0;
+        for (var i = attrib.offset; i < data.length; i += stride) {
+            for (var j = 0; j < numComps; ++j) {
+                vertData[t++] = data[i + j];
+            }
+        }
+        return vertData;
+    },
+
+    generateMorphData: function()
+    {
+        this._morphAttributes = [];
+        var data = [];
+
+        for (var i = 0; i < this.numVertices; ++i) {
+            data.push(0, 0, 0);
+        }
+
+        this._defaultMorphTarget = new Float32Array(data);
+
+        for (i = 0; i < capabilities.NUM_MORPH_TARGETS; ++i) {
+            this.addVertexAttribute("hx_morphPosition" + i, 3, this.numStreams);
+            this._morphAttributes[i] = this._vertexAttributes[this._vertexAttributes.length - 1];
+        }
+    }
+};
+
+/**
+ * Returns the angle between two vectors
+ */
+Float2.angle = function(a, b)
+{
+    return Math.acos(Float2.dot(a, b) / (a.length * b.length));
+};
+
+
+/**
+ * Creates a new Float2 object
+ * @class
+ * @constructor
+ */
+function Float2(x, y)
+{
+    // x, y, z, w allowed to be accessed publicly for simplicity, changing this does not violate invariant. Ever.
+    this.x = x || 0;
+    this.y = y || 0;
+}
+
+Float2.distance = function(a, b)
+{
+    var dx = a.x - b.x;
+    var dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+};
+
+Float2.dot = function(a, b)
+{
+    return a.x * b.x + a.y * b.y;
+};
+
+/**
+ * Returns the angle between two vectors, assuming they are normalized
+ */
+Float2.angleNormalized = function(a, b)
+{
+    return Math.acos(Float2.dot(a, b));
+};
+
+Float2.add = function(a, b, target)
+{
+    target = target || new Float2();
+    target.x = a.x + b.x;
+    target.y = a.y + b.y;
+    return target;
+};
+
+Float2.subtract = function(a, b, target)
+{
+    target = target || new Float2();
+    target.x = a.x - b.x;
+    target.y = a.y - b.y;
+    return target;
+};
+
+Float2.scale = function(a, s, target)
+{
+    target = target || new Float2();
+    target.x = a.x * s;
+    target.y = a.y * s;
+    return target;
+};
+
+Float2.negate = function(a, b, target)
+{
+    target = target || new Float2();
+    target.x = -target.x;
+    target.y = -target.y;
+    return target;
+};
+
+Float2.prototype =
+{
+    set: function(x, y)
+    {
+        this.x = x;
+        this.y = y;
+    },
+
+    get lengthSqr()
+    {
+        return this.x * this.x + this.y * this.y;
+    },
+
+    get length()
+    {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
+    },
+
+    normalize: function()
+    {
+        var rcpLength = 1.0/this.length;
+        this.x *= rcpLength;
+        this.y *= rcpLength;
+    },
+
+    clone: function()
+    {
+        return new Float2(this.x, this.y);
+    },
+
+    add: function(v)
+    {
+        this.x += v.x;
+        this.y += v.y;
+    },
+
+    subtract: function(v)
+    {
+        this.x -= v.x;
+        this.y -= v.y;
+    },
+
+    scale: function(s)
+    {
+        this.x *= s;
+        this.y *= s;
+    },
+
+    negate: function()
+    {
+        this.x = -this.x;
+        this.y = -this.y;
+    },
+
+    abs: function()
+    {
+        this.x = Math.abs(this.x);
+        this.y = Math.abs(this.y);
+    },
+
+    lerp: function(a, b, factor)
+    {
+        var ax = a.x, ay = a.y;
+
+        this.x = ax + (b.x - ax) * factor;
+        this.y = ay + (b.y - ay) * factor;
+    },
+
+    fromPolarCoordinates: function(radius, angle)
+    {
+        this.x = radius*Math.cos(angle);
+        this.y = radius*Math.sin(angle);
+    },
+
+    copyFrom: function(b)
+    {
+        this.x = b.x;
+        this.y = b.y;
+    },
+
+    maximize: function(b)
+    {
+        if (b.x > this.x) this.x = b.x;
+        if (b.y > this.y) this.y = b.y;
+    },
+
+    minimize: function(b)
+    {
+        if (b.x < this.x) this.x = b.x;
+        if (b.y < this.y) this.y = b.y;
+    }
+};
+
+Float2.ZERO = new Float2(0, 0);
+Float2.X_AXIS = new Float2(1, 0);
+Float2.Y_AXIS = new Float2(0, 1);
+
+/**
+ *
+ * @constructor
+ */
+function NormalTangentGenerator()
+{
+    this._meshData = null;
+    this._mode = 0;
+    this._faceNormals = null;
+    this._faceTangents = null;
+    this._faceBitangents = null;
+}
+
+NormalTangentGenerator.MODE_NORMALS = 1;
+NormalTangentGenerator.MODE_TANGENTS = 2;
+
+NormalTangentGenerator.prototype =
+{
+    generate: function(meshData, mode, useFaceWeights)
+    {
+        if (useFaceWeights === undefined) useFaceWeights = true;
+        this._mode = mode === undefined? NormalTangentGenerator.MODE_NORMALS | NormalTangentGenerator.MODE_TANGENTS : mode;
+
+        this._meshData = meshData;
+
+        this._positionAttrib = meshData.getVertexAttribute("hx_position");
+        this._normalAttrib = meshData.getVertexAttribute("hx_normal");
+        this._tangentAttrib = meshData.getVertexAttribute("hx_tangent");
+        this._uvAttrib = meshData.getVertexAttribute("hx_texCoord");
+        this._positionStride = meshData.getVertexStride(this._positionAttrib.streamIndex);
+        this._normalStride = meshData.getVertexStride(this._normalAttrib.streamIndex);
+        this._tangentStride = meshData.getVertexStride(this._tangentAttrib.streamIndex);
+        this._uvStride = meshData.getVertexStride(this._uvAttrib.streamIndex);
+
+        this._calculateFaceVectors(useFaceWeights);
+        this._calculateVertexVectors();
+    },
+
+    _calculateFaceVectors: function(useFaceWeights)
+    {
+        var numIndices = this._meshData._indexData.length;
+
+        if ((this._mode & NormalTangentGenerator.MODE_NORMALS) !== 0) this._faceNormals = new Array(numIndices);
+        if ((this._mode & NormalTangentGenerator.MODE_TANGENTS) !== 0) {
+            this._faceTangents = new Array(numIndices);
+            this._faceBitangents = new Array(numIndices);
+        }
+
+        var temp = new Float4();
+        var temp1 = new Float4();
+        var temp2 = new Float4();
+        var v0 = new Float4();
+        var v1 = new Float4();
+        var v2 = new Float4();
+        var uv0 = new Float2();
+        var uv1 = new Float2();
+        var uv2 = new Float2();
+        var st1 = new Float2();
+        var st2 = new Float2();
+
+        var posOffset = this._positionAttrib.offset;
+        var uvOffset = this._uvAttrib.offset;
+        var posData = this._meshData.getVertexData(this._positionAttrib.streamIndex);
+        var uvData = this._meshData.getVertexData(this._uvAttrib.streamIndex);
+
+        for (var i = 0; i < numIndices; i += 3) {
+            this._getFloat3At(i, posOffset, this._positionStride, v0, posData);
+            this._getFloat3At(i + 1, posOffset, this._positionStride, v1, posData);
+            this._getFloat3At(i + 2, posOffset, this._positionStride, v2, posData);
+            this._getFloat2At(i, uvOffset, this._uvStride, uv0, uvData);
+            this._getFloat2At(i + 1, uvOffset, this._uvStride, uv1, uvData);
+            this._getFloat2At(i + 2, uvOffset, this._uvStride, uv2, uvData);
+
+            v1.subtract(v0);
+            v2.subtract(v0);
+
+            if (this._faceNormals) {
+                Float4.cross(v1, v2, temp);
+
+                if (!useFaceWeights) temp.normalize();
+
+                this._faceNormals[i] = temp.x;
+                this._faceNormals[i + 1] = temp.y;
+                this._faceNormals[i + 2] = temp.z;
+            }
+
+            if (this._faceTangents) {
+                //var div = ((uv1.x - uv0.x)*(uv2.y - uv0.y) - (uv1.y - uv0.y)*(uv2.x - uv0.x));
+                Float2.subtract(uv1, uv0, st1);
+                Float2.subtract(uv2, uv0, st2);
+
+                Float4.scale(v1, st2.y, temp1);
+                Float4.scale(v2, st1.y, temp2);
+                Float4.subtract(temp1, temp2, temp);
+
+                if (temp.lengthSqr > .001)
+                    temp.normalize();
+
+                this._faceTangents[i] = temp.x;
+                this._faceTangents[i + 1] = temp.y;
+                this._faceTangents[i + 2] = temp.z;
+
+                Float4.scale(v1, st2.x, temp1);
+                Float4.scale(v2, st1.x, temp1);
+                Float4.subtract(temp2, temp1, temp);
+                // no need to normalize bitangent, just need it for orientation
+
+                this._faceBitangents[i] = temp.x;
+                this._faceBitangents[i + 1] = temp.y;
+                this._faceBitangents[i + 2] = temp.z;
+            }
+        }
+    },
+
+    _calculateVertexVectors: function()
+    {
+        this._zeroVectors();
+
+        var bitangents = this._faceTangents ? [] : null;
+        var indexData = this._meshData._indexData;
+        var normalOffset = this._normalAttrib.offset;
+        var tangentOffset = this._tangentAttrib.offset;
+        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
+        var numIndices = indexData.length;
+
+        for (var i = 0; i < numIndices; ++i) {
+            var index = indexData[i];
+            var normalIndex = normalOffset + index * this._normalStride;
+            var tangentIndex = tangentOffset + index * this._tangentStride;
+            var bitangentIndex = index * 3;
+            var faceIndex = Math.floor(i / 3) * 3;
+
+            if (this._faceNormals) {
+                normalData[normalIndex] += this._faceNormals[faceIndex];
+                normalData[normalIndex + 1] += this._faceNormals[faceIndex + 1];
+                normalData[normalIndex + 2] += this._faceNormals[faceIndex + 2];
+            }
+
+            if (this._faceTangents) {
+                tangentData[tangentIndex] += this._faceTangents[faceIndex];
+                tangentData[tangentIndex + 1] += this._faceTangents[faceIndex + 1];
+                tangentData[tangentIndex + 2] += this._faceTangents[faceIndex + 2];
+
+                bitangents[bitangentIndex] += this._faceBitangents[faceIndex];
+                bitangents[bitangentIndex + 1] += this._faceBitangents[faceIndex + 1];
+                bitangents[bitangentIndex + 2] += this._faceBitangents[faceIndex + 2];
+            }
+        }
+
+        this._normalize(bitangents);
+    },
+
+    _zeroVectors: function()
+    {
+        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
+        var normalStride = this._meshData.getVertexStride(this._normalAttrib.streamIndex);
+        var tangentStride = this._meshData.getVertexStride(this._tangentAttrib.streamIndex);
+        var numVertices = normalData.length / normalStride;
+        var normalIndex = this._normalAttrib.offset;
+        var tangentIndex = this._tangentAttrib.offset;
+
+        for (var i = 0; i < numVertices; ++i) {
+            if (this._mode & NormalTangentGenerator.MODE_NORMALS) {
+                normalData[normalIndex] = 0.0;
+                normalData[normalIndex + 1] = 0.0;
+                normalData[normalIndex + 2] = 0.0;
+            }
+            if (this._mode & NormalTangentGenerator.MODE_TANGENTS) {
+                tangentData[tangentIndex] = 0.0;
+                tangentData[tangentIndex + 1] = 0.0;
+                tangentData[tangentIndex + 2] = 0.0;
+            }
+            normalIndex += normalStride;
+            tangentIndex += tangentStride;
+        }
+    },
+
+    _normalize: function(bitangents)
+    {
+        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
+        var numVertices = normalData.length / this._normalStride;
+        var normalIndex = this._normalAttrib.offset;
+        var tangentIndex = this._tangentAttrib.offset;
+        var bitangentIndex = 0;
+        var normal = new Float4();
+        var tangent = new Float4();
+        var bitangent = new Float4();
+        var cross = new Float4();
+
+        for (var i = 0; i < numVertices; ++i) {
+            normal.x = normalData[normalIndex];
+            normal.y = normalData[normalIndex + 1];
+            normal.z = normalData[normalIndex + 2];
+
+            if (this._mode & NormalTangentGenerator.MODE_NORMALS) {
+                normal.normalize();
+                normalData[normalIndex] = normal.x;
+                normalData[normalIndex + 1] = normal.y;
+                normalData[normalIndex + 2] = normal.z;
+            }
+            if (this._mode & NormalTangentGenerator.MODE_TANGENTS) {
+                tangent.x = tangentData[tangentIndex];
+                tangent.y = tangentData[tangentIndex + 1];
+                tangent.z = tangentData[tangentIndex + 2];
+
+                // can happen in singularities
+                if (tangent.lengthSqr < 0.0001)
+                    tangent.set(1.0, 1.0, 1.0, 1.0);
+                else
+                    tangent.normalize();
+
+                bitangent.x = bitangents[bitangentIndex];
+                bitangent.y = bitangents[bitangentIndex + 1];
+                bitangent.z = bitangents[bitangentIndex + 2];
+                Float4.cross(tangent, normal, cross);
+
+                tangentData[tangentIndex] = tangent.x;
+                tangentData[tangentIndex + 1] = tangent.y;
+                tangentData[tangentIndex + 2] = tangent.z;
+                tangentData[tangentIndex + 3] = Float4.dot3(bitangent, cross) > 0.0? 1.0 : -1.0;
+            }
+
+            normalIndex += this._normalStride;
+            tangentIndex += this._tangentStride;
+        }
+    },
+
+    _getFloat3At: function(i, offset, stride, target, data)
+    {
+        var indices = this._meshData._indexData;
+        var posIndex = offset + indices[i] * stride;
+        target.x = data[posIndex];
+        target.y = data[posIndex + 1];
+        target.z = data[posIndex + 2];
+    },
+
+    _getFloat2At: function(i, offset, stride, target, data)
+    {
+        var indices = this._meshData._indexData;
+        var posIndex = offset + indices[i] * stride;
+        target.x = data[posIndex];
+        target.y = data[posIndex + 1];
+    }
+};
+
+function Primitive(definition)
+{
+    definition = definition || {};
+    var data = this._createMeshData(definition);
+    var modelData = new ModelData();
+    modelData.addMeshData(data);
+    Model.call(this, modelData);
+}
+
+Primitive._ATTRIBS = function()
+{
+    this.positions = [];
+    this.uvs = null;
+    this.normals = null;
+    this.indices = [];
+};
+
+Primitive.prototype = Object.create(Model.prototype);
+
+Primitive.prototype._generate = function(target, definition)
+{
+    throw new Error("Abstract method called!");
+};
+
+Primitive.prototype._createMeshData = function(definition)
+{
+    var attribs = new Primitive._ATTRIBS();
+    var uvs = definition.uvs === undefined? true : definition.uvs;
+    var normals = definition.normals === undefined? true : definition.normals;
+    var tangents = definition.tangents === undefined? true : definition.tangents;
+
+    var data = new MeshData();
+    data.addVertexAttribute('hx_position', 3);
+
+    if (normals) {
+        data.addVertexAttribute('hx_normal', 3);
+        attribs.normals = [];
+    }
+
+    if (tangents)
+        data.addVertexAttribute('hx_tangent', 4);
+
+    if (uvs) {
+        data.addVertexAttribute('hx_texCoord', 2);
+        attribs.uvs = [];
+    }
+
+    this._generate(attribs, definition);
+
+    var scaleU = definition.scaleU || 1;
+    var scaleV = definition.scaleV || 1;
+
+    var len = attribs.positions.length / 3;
+    var v = 0, v2 = 0, v3 = 0;
+    var vertices = [];
+
+    for (var i = 0; i < len; ++i) {
+        vertices[v++] = attribs.positions[v3];
+        vertices[v++] = attribs.positions[v3 + 1];
+        vertices[v++] = attribs.positions[v3 + 2];
+
+        if (normals) {
+            vertices[v++] = attribs.normals[v3];
+            vertices[v++] = attribs.normals[v3 + 1];
+            vertices[v++] = attribs.normals[v3 + 2];
+        }
+
+        if (tangents)
+            v += 4;
+
+        if (uvs) {
+            vertices[v++] = attribs.uvs[v2++] * scaleU;
+            vertices[v++] = attribs.uvs[v2++] * scaleV;
+        }
+
+        v3 += 3;
+    }
+
+    data.setVertexData(vertices, 0);
+    data.setIndexData(attribs.indices);
+
+    var mode = 0;
+
+    // if data isn't provided, generate it manually
+    if (normals && attribs.normals.length === 0)
+        mode |= NormalTangentGenerator.MODE_NORMALS;
+
+    if (tangents)
+        mode |= NormalTangentGenerator.MODE_TANGENTS;
+
+    if (mode) {
+        var generator = new NormalTangentGenerator();
+        generator.generate(data, mode);
+    }
+
+    return data;
+};
+
+function BoxPrimitive(definition)
+{
+    Primitive.call(this, definition);
+}
+
+BoxPrimitive.prototype = Object.create(Primitive.prototype);
+
+BoxPrimitive.prototype._generate = function(target, definition)
+{
+    var numSegmentsW = definition.numSegmentsW || 1;
+    var numSegmentsH = definition.numSegmentsH || definition.numSegmentsW || 1;
+    var numSegmentsD = definition.numSegmentsD || definition.numSegmentsW || 1;
+    var width = definition.width || 1;
+    var height = definition.height || width;
+    var depth = definition.depth || width;
+    var flipSign = definition.invert? -1 : 1;
+    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
+
+    var rcpNumSegmentsW = 1/numSegmentsW;
+    var rcpNumSegmentsH = 1/numSegmentsH;
+    var rcpNumSegmentsD = 1/numSegmentsD;
+    var halfW = width * .5;
+    var halfH = height * .5;
+    var halfD = depth * .5;
+
+    var positions = target.positions;
+    var uvs = target.uvs;
+    var normals = target.normals;
+    var indices = target.indices;
+    var x, y, z;
+    var ratioU, ratioV;
+    var wSegment, hSegment, dSegment;
+
+
+    // front and back
+    for (hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
+        ratioV = hSegment * rcpNumSegmentsH;
+        y = height * ratioV - halfH;
+        if (flipSign < 0) ratioV = 1.0 - ratioV;
+
+        for (wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
+            ratioU = wSegment * rcpNumSegmentsW;
+            x = width * ratioU - halfW;
+
+            if (flipSign < 0) ratioU = 1.0 - ratioU;
+
+            // front and back
+            positions.push(x*flipSign, y*flipSign, halfD*flipSign);
+            positions.push(-x*flipSign, y*flipSign, -halfD*flipSign);
+
+            if (normals) {
+                normals.push(0, 0, 1);
+                normals.push(0, 0, -1);
+            }
+
+            if (uvs) {
+                uvs.push(ratioU, ratioV);
+                uvs.push(ratioU, ratioV);
+            }
+        }
+    }
+
+    for (hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
+        ratioV = hSegment * rcpNumSegmentsH;
+        y = height * ratioV - halfH;
+
+        for (dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
+            ratioU = dSegment * rcpNumSegmentsD;
+            z = depth * ratioU - halfD;
+
+            // left and right
+            positions.push(-halfW, y, z*flipSign);
+            positions.push(halfW, y, -z*flipSign);
+
+            if (normals) {
+                normals.push(-flipSign, 0, 0);
+                normals.push(flipSign, 0, 0);
+            }
+
+            if (uvs) {
+                uvs.push(ratioU, ratioV);
+                uvs.push(ratioU, ratioV);
+            }
+        }
+    }
+
+    for (dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
+        ratioV = dSegment * rcpNumSegmentsD;
+        z = depth * ratioV - halfD;
+
+        for (wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
+            ratioU = wSegment * rcpNumSegmentsW;
+            x = width * ratioU - halfW;
+
+            // top and bottom
+            positions.push(x, halfH, -z*flipSign);
+            positions.push(x, -halfH, z*flipSign);
+
+            if (normals) {
+                normals.push(0, flipSign, 0);
+                normals.push(0, -flipSign, 0);
+            }
+
+            if (uvs) {
+                uvs.push(1.0 - ratioU, 1.0 - ratioV);
+                uvs.push(1.0 - ratioU, 1.0 - ratioV);
+            }
+        }
+    }
+
+    var offset = 0;
+
+    for (var face = 0; face < 3; ++face) {
+        // order:
+        // front, back, left, right, bottom, top
+        var numSegmentsU = face === 1? numSegmentsD : numSegmentsW;
+        var numSegmentsV = face === 2? numSegmentsD : numSegmentsH;
+
+        for (var yi = 0; yi < numSegmentsV; ++yi) {
+            for (var xi = 0; xi < numSegmentsU; ++xi) {
+                var w = numSegmentsU + 1;
+                var base = offset + xi + yi*w;
+                var i0 = base << 1;
+                var i1 = (base + w + 1) << 1;
+                var i2 = (base + w) << 1;
+                var i3 = (base + 1) << 1;
+
+                indices.push(i0, i1, i2);
+                indices.push(i0, i3, i1);
+
+                indices.push(i0 | 1, i1 | 1, i2 | 1);
+                indices.push(i0 | 1, i3 | 1, i1 | 1);
+            }
+        }
+        offset += (numSegmentsU + 1) * (numSegmentsV + 1);
+    }
+
+    var indexIndex = 0;
+    if (doubleSided) {
+        var i = 0;
+
+        while (i < indexIndex) {
+            indices.push(indices[i], indices[i + 2], indices[i + 1]);
+            indices.push(indices[i + 3], indices[i + 5], indices[i + 4]);
+            indexIndex += 6;
+        }
+    }
+};
+
+/**
+ *
+ * @constructor
+ */
 function BoundingAABB()
 {
     BoundingVolume.call(this, BoundingAABB);
@@ -2803,10 +4153,9 @@ BoundingAABB.prototype.getRadius = function()
     return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
 };
 
-BoundingAABB.prototype.createDebugModelInstance = function()
+BoundingAABB.prototype.createDebugModel = function()
 {
-    throw "Currently unavailable due to cyclic dependency bug in rollup";
-    // return new ModelInstance(new BoxPrimitive(), [this.getDebugMaterial()]);
+    return new BoxPrimitive();
 };
 
 // basic version is non-hierarchical, for use with lights etc
@@ -2881,24 +4230,6 @@ SceneNode.prototype = Object.create(Transform.prototype, {
                 this._updateWorldMatrix();
 
             return this._worldMatrix;
-        }
-    },
-
-    showDebugBounds: {
-        get: function ()
-        {
-            return this._debugBounds !== null
-        },
-        set: function(value)
-        {
-            if (!!this._debugBounds === value) return;
-
-            if (value) {
-                this._debugBounds = this._worldBounds.getDebugModelInstance();
-                this._updateDebugBounds();
-            }
-            else
-                this._debugBounds = null;
         }
     }
 });
@@ -3416,265 +4747,6 @@ SkinningTextureSetter.prototype.execute = function (renderItem)
     this.slot.texture = renderItem.skeletonMatrices;
 };
 
-// Just contains some convenience methods and GL management stuff that shouldn't be called directly
-// Will become an abstraction layer
-// properties to keep track of render state
-var _numActiveAttributes = 0;
-
-var _renderTarget = null;
-var _renderTargetInvalid = true;
-
-var _viewport = {x: 0, y: 0, width: 0, height: 0};
-var _viewportInvalid = true;
-
-var _depthMask = true;
-var _depthMaskInvalid = true;
-
-var _cullMode = null;
-var _cullModeInvalid = true;
-
-var _depthTest = null;
-var _depthTestInvalid = true;
-
-var _blendState = null;
-var _blendStateInvalid = false;
-
-// this is so that effects can push states on the stack
-// the renderer at the root just pushes one single state and invalidates that constantly
-var _stencilState = null;
-var _stencilStateInvalid = false;
-
-var _glStats =
-    {
-        numDrawCalls: 0,
-        numTriangles: 0,
-        numClears: 0
-    };
-
-var _clearGLStats = function ()
-{
-    _glStats.numDrawCalls = 0;
-    _glStats.numTriangles = 0;
-    _glStats.numClears = 0;
-};
-
-var gl = null;
-
-function _updateRenderState()
-{
-    if (_renderTargetInvalid) {
-        var target = _renderTarget;
-
-        if (target) {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, target._fbo);
-
-            if (target._numColorTextures > 1)
-                capabilities.EXT_DRAW_BUFFERS.drawBuffersWEBGL(target._drawBuffers);
-        }
-        else
-            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-        _renderTargetInvalid = false;
-    }
-
-    if (_viewportInvalid) {
-        gl.viewport(_viewport.x, _viewport.y, _viewport.width, _viewport.height);
-        _viewportInvalid = false;
-    }
-
-    if (_depthMaskInvalid) {
-        gl.depthMask(_depthMask);
-        _depthMaskInvalid = false;
-    }
-
-    if (_cullModeInvalid) {
-        if (_cullMode === CullMode.NONE)
-            gl.disable(gl.CULL_FACE);
-        else {
-            gl.enable(gl.CULL_FACE);
-            gl.cullFace(_cullMode);
-        }
-    }
-
-    if (_depthTestInvalid) {
-        if (_depthTest === Comparison.DISABLED)
-            gl.disable(gl.DEPTH_TEST);
-        else {
-            gl.enable(gl.DEPTH_TEST);
-            gl.depthFunc(_depthTest);
-        }
-    }
-
-    if (_blendStateInvalid) {
-        var blendState = _blendState;
-        if (!blendState || blendState.enabled === false)
-            gl.disable(gl.BLEND);
-        else {
-            gl.enable(gl.BLEND);
-            gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
-            gl.blendEquation(blendState.operator);
-            var color = blendState.color;
-            if (color)
-                gl.blendColor(color.r, color.g, color.b, color.a);
-        }
-        _blendStateInvalid = false;
-    }
-
-    if (_stencilStateInvalid) {
-        var stencilState = _stencilState;
-        if (!stencilState || stencilState.enabled === false) {
-            gl.disable(gl.STENCIL_TEST);
-            gl.stencilFunc(Comparison.ALWAYS, 0, 0xff);
-            gl.stencilOp(StencilOp.KEEP, StencilOp.KEEP, StencilOp.KEEP);
-        }
-        else {
-            gl.enable(gl.STENCIL_TEST);
-            gl.stencilFunc(stencilState.comparison, stencilState.reference, stencilState.readMask);
-            gl.stencilOp(stencilState.onStencilFail, stencilState.onDepthFail, stencilState.onPass);
-            gl.stencilMask(stencilState.writeMask);
-        }
-        _stencilStateInvalid = false;
-    }
-}
-
-var GL = {
-    gl: null,
-
-    _setGL: function (value)
-    {
-        GL.gl = gl = value;
-    },
-
-    /**
-     * Default clearing function. Can be called if no special clearing functionality is needed (or in case another api is used that clears)
-     * Otherwise, you can manually clear using GL context.
-     */
-    clear: function (clearMask)
-    {
-        if (clearMask === undefined)
-            clearMask = ClearMask.COMPLETE;
-
-        _updateRenderState();
-        gl.clear(clearMask);
-        ++_glStats.numClears;
-    },
-
-    drawElements: function (elementType, numIndices, offset)
-    {
-        ++_glStats.numDrawCalls;
-        _glStats.numTriangles += numIndices / 3;
-        _updateRenderState();
-        gl.drawElements(elementType, numIndices, gl.UNSIGNED_SHORT, offset * 2);
-    },
-
-
-    /**
-     *
-     * @param rect Any object with a width and height property, so it can be a Rect or even an FBO. If x and y are present, it will use these too.
-     */
-    setViewport: function (rect)
-    {
-        _viewportInvalid = true;
-        if (rect) {
-            _viewport.x = rect.x || 0;
-            _viewport.y = rect.y || 0;
-            _viewport.width = rect.width || 0;
-            _viewport.height = rect.height || 0;
-        }
-        else {
-            _viewport.x = 0;
-            _viewport.y = 0;
-            _viewport.width = META.TARGET_CANVAS.width;
-            _viewport.height = META.TARGET_CANVAS.height;
-        }
-    },
-
-    getCurrentRenderTarget: function ()
-    {
-        return _renderTarget;
-    },
-
-    setRenderTarget: function (frameBuffer)
-    {
-        _renderTarget = frameBuffer;
-        _renderTargetInvalid = true;
-        GL.setViewport(frameBuffer);
-    },
-
-    enableAttributes: function (count)
-    {
-        var numActiveAttribs = _numActiveAttributes;
-        var i;
-
-        if (numActiveAttribs < count) {
-            for (i = numActiveAttribs; i < count; ++i)
-                gl.enableVertexAttribArray(i);
-        }
-        else if (numActiveAttribs > count) {
-            // bug in WebGL/ANGLE? When rendering to a render target, disabling vertex attrib array 1 causes errors when using only up to the index below o_O
-            // so for now + 1
-            count += 1;
-            for (i = count; i < numActiveAttribs; ++i) {
-                gl.disableVertexAttribArray(i);
-            }
-        }
-
-        _numActiveAttributes = count;
-    },
-
-    setClearColor: function (color)
-    {
-        color = isNaN(color) ? color : new Color(color);
-        gl.clearColor(color.r, color.g, color.b, color.a);
-    },
-
-    setCullMode: function (value)
-    {
-        if (_cullMode === value) return;
-        _cullMode = value;
-        _cullModeInvalid = true;
-    },
-
-    setDepthMask: function (value)
-    {
-        if (_depthMask === value) return;
-        _depthMask = value;
-        _depthMaskInvalid = true;
-    },
-
-    setDepthTest: function (value)
-    {
-        if (_depthTest === value) return;
-        _depthTest = value;
-        _depthTestInvalid = true;
-    },
-
-    setBlendState: function (value)
-    {
-        if (_blendState === value) return;
-        _blendState = value;
-        _blendStateInvalid = true;
-    },
-
-    updateStencilReferenceValue: function (value)
-    {
-        var currentState = _stencilState;
-
-        if (!currentState || currentState.reference === value) return;
-
-        currentState.reference = value;
-
-        if (!_stencilStateInvalid && currentState.enabled)
-            gl.stencilFunc(currentState.comparison, value, currentState.readMask);
-    },
-
-    setStencilState: function (value)
-    {
-        _stencilState = value;
-        _stencilStateInvalid = true;
-    }
-};
-
 /**
  *
  * @constructor
@@ -3685,334 +4757,6 @@ function TextureSlot() {
     this.name = null;   // for debugging
     this.index = -1;
 }
-
-/**
- *
- * @constructor
- */
-function IndexBuffer()
-{
-    this._buffer = GL.gl.createBuffer();
-}
-
-IndexBuffer.prototype = {
-    /**
-     * Uploads data for the buffer.
-     * @param data The data to upload, must be a Int16Array object.
-     * @param usageHint An optional usage hint for the buffer.
-     */
-    uploadData: function(data, usageHint)
-    {
-        if (usageHint === undefined)
-            usageHint = BufferUsage.STATIC_DRAW;
-
-        this.bind();
-        GL.gl.bufferData(GL.gl.ELEMENT_ARRAY_BUFFER, data, usageHint);
-    },
-
-    dispose: function()
-    {
-        if (this._buffer) {
-            GL.gl.deleteBuffer(this._buffer);
-            this._buffer = 0;
-        }
-    },
-
-    /**
-     * @private
-     */
-    bind: function()
-    {
-        GL.gl.bindBuffer(GL.gl.ELEMENT_ARRAY_BUFFER, this._buffer);
-    }
-};
-
-/**
- *
- * @constructor
- */
-function VertexBuffer()
-{
-    this._buffer = GL.gl.createBuffer();
-}
-
-VertexBuffer.prototype = {
-
-    /**
-     * Uploads data for the buffer.
-     * @param data The data to upload, must be a Float32Array object.
-     * @param usageHint An optional usage hint for the buffer.
-     */
-    uploadData: function(data, usageHint)
-    {
-        if (usageHint === undefined)
-            usageHint = GL.gl.STATIC_DRAW;
-
-        this.bind();
-        GL.gl.bufferData(GL.gl.ARRAY_BUFFER, data, usageHint);
-    },
-
-    dispose: function()
-    {
-        if (this._buffer) {
-            GL.gl.deleteBuffer(this._buffer);
-            this._buffer = 0;
-        }
-    },
-
-    /**
-     * @private
-     */
-    bind: function()
-    {
-        GL.gl.bindBuffer(GL.gl.ARRAY_BUFFER, this._buffer);
-    }
-};
-
-/**
- *
- * @param meshData
- * @param model
- * @constructor
- */
-var Mesh_ID_COUNTER = 0;
-
-function Mesh(meshData, model)
-{
-    this._model = model;
-    this._vertexBuffers = [];
-    this._vertexStrides = [];
-    this._vertexAttributes = null;
-    this._morphAttributes = null;
-    this._indexBuffer = new IndexBuffer();
-    this._defaultMorphTarget = null;
-
-    this._renderOrderHint = ++Mesh_ID_COUNTER;
-
-    this.updateMeshData(meshData);
-}
-
-Mesh.ID_COUNTER = 0;
-
-Mesh.prototype = {
-    get hasMorphData()
-    {
-        return !!this._morphAttributes;
-    },
-
-    updateMeshData: function(meshData)
-    {
-        var numStreams = meshData.numStreams;
-        var numVertexBuffers = this._vertexBuffers.length;
-
-        if (numStreams > numVertexBuffers) {
-            for (var i = numVertexBuffers; i < numStreams; ++i) {
-                if (meshData.hasVertexData(i))
-                    this._vertexBuffers[i] = new VertexBuffer();
-            }
-        }
-        else if (numStreams < numVertexBuffers) {
-            this._vertexBuffers.length = numStreams;
-            this._vertexStrides.length = numStreams;
-        }
-
-        for (i = 0; i < numStreams; ++i) {
-            if (meshData.hasVertexData(i))
-                this._vertexBuffers[i].uploadData(meshData.getVertexData(i), meshData.vertexUsage);
-
-            this._vertexStrides[i] = meshData.getVertexStride(i);
-        }
-
-        this._numIndices = meshData._indexData.length;
-        this._numVertices = meshData.numVertices;
-
-        this._indexBuffer.uploadData(meshData._indexData, meshData.indexUsage);
-        this._vertexAttributes = meshData._vertexAttributes;
-        this._morphAttributes = meshData._morphAttributes;
-
-        if (this._morphAttributes) {
-            this._defaultMorphTarget = new VertexBuffer();
-            this._defaultMorphTarget.uploadData(meshData._defaultMorphTarget);
-        }
-    },
-
-    dispose: function ()
-    {
-        for (var i = 0; i < this._vertexBuffers.length; ++i)
-            this._vertexBuffers[i].dispose();
-        this._indexBuffer.dispose();
-    },
-
-    get numVertices()
-    {
-        return this._numVertices;
-    },
-
-    get numIndices()
-    {
-        return this._numIndices;
-    },
-
-    get numVertexAttributes()
-    {
-        return this._vertexAttributes.length;
-    },
-
-    getVertexStride: function(streamIndex)
-    {
-        return this._vertexStrides[streamIndex];
-    },
-
-    getVertexAttribute: function (index)
-    {
-        return this._vertexAttributes[index];
-    }
-};
-
-/**
- * MeshData contains the cpu-side definition data for a Mesh.
- * @constructor
- */
-function MeshData()
-{
-    this._vertexStrides = [];
-    this._vertexData = [];
-    this._indexData = undefined;
-    this.vertexUsage = BufferUsage.STATIC_DRAW;
-    this.indexUsage = BufferUsage.STATIC_DRAW;
-    this._vertexAttributes = [];
-    this._defaultMorphTarget = null;
-    this._numStreams = 0;
-}
-
-MeshData.DEFAULT_VERTEX_SIZE = 12;
-
-// other possible indices:
-// hx_instanceID (used by MeshBatch)
-// hx_boneIndices (4)
-// hx_boneWeights (4)
-MeshData.createDefaultEmpty = function()
-{
-    var data = new MeshData();
-    data.addVertexAttribute('hx_position', 3);
-    data.addVertexAttribute('hx_normal', 3);
-    data.addVertexAttribute('hx_tangent', 4);
-    data.addVertexAttribute('hx_texCoord', 2);
-    return data;
-};
-
-MeshData.prototype = {
-
-    // this should only be the case for morph targets
-    hasVertexData: function (streamIndex)
-    {
-        return !!this._vertexData[streamIndex];
-    },
-
-    getVertexData: function (streamIndex)
-    {
-        return this._vertexData[streamIndex];
-    },
-
-    /**
-     * Sets data from Array
-     */
-    setVertexData: function (data, streamIndex)
-    {
-        this._vertexData[streamIndex || 0] = new Float32Array(data);
-    },
-
-    /**
-     * Sets data from Array
-     */
-    setIndexData: function (data)
-    {
-        this._indexData = new Uint16Array(data);
-    },
-
-    /**
-     * Adds a named vertex attribute. All properties are given manually to make it easier to support multiple streams in the future.
-     * @param name The name of the attribute, matching the attribute name used in the vertex shaders.
-     * @param numComponents The amount of components used by the attribute value.
-     * @param streamIndex [Optional] The stream index indicating which vertex buffer is used, defaults to 0
-     */
-    addVertexAttribute: function (name, numComponents, streamIndex)
-    {
-        if (name === "hx_morphUV") this._hasMorphUVs = true;
-
-        streamIndex = streamIndex || 0;
-        this._numStreams = Math.max(this._numStreams, streamIndex + 1);
-        this._vertexStrides[streamIndex] = this._vertexStrides[streamIndex] || 0;
-        this._vertexAttributes.push({
-            name: name,
-            offset: this._vertexStrides[streamIndex],
-            numComponents: numComponents,
-            streamIndex: streamIndex
-        });
-
-        this._vertexStrides[streamIndex] += numComponents;
-    },
-
-    getVertexAttribute: function (name)
-    {
-        var len = this._vertexAttributes.length;
-        for (var i = 0; i < len; ++i) {
-            if (this._vertexAttributes[i].name === name)
-                return this._vertexAttributes[i];
-        }
-    },
-
-    /**
-     * Returns the stride of each vertex for the given stream index. This matches the total amount of elements used by all vertex attributes combined.
-     */
-    getVertexStride: function (streamIndex)
-    {
-        return this._vertexStrides[streamIndex];
-    },
-
-    get numStreams()
-    {
-        return this._numStreams;
-    },
-
-    get numVertices()
-    {
-        return this._vertexData[0].length / this._vertexStrides[0];
-    },
-
-    extractAttributeData: function(name)
-    {
-        var attrib = this.getVertexAttribute(name);
-        var stride = this.getVertexStride(attrib);
-        var data = this.getVertexData(attrib.streamIndex);
-        var numComps = attrib.numComponents;
-        var vertData = [];
-        var t = 0;
-        for (var i = attrib.offset; i < data.length; i += stride) {
-            for (var j = 0; j < numComps; ++j) {
-                vertData[t++] = data[i + j];
-            }
-        }
-        return vertData;
-    },
-
-    generateMorphData: function()
-    {
-        this._morphAttributes = [];
-        var data = [];
-
-        for (var i = 0; i < this.numVertices; ++i) {
-            data.push(0, 0, 0);
-        }
-
-        this._defaultMorphTarget = new Float32Array(data);
-
-        for (i = 0; i < capabilities.NUM_MORPH_TARGETS; ++i) {
-            this.addVertexAttribute("hx_morphPosition" + i, 3, this.numStreams);
-            this._morphAttributes[i] = this._vertexAttributes[this._vertexAttributes.length - 1];
-        }
-    }
-};
 
 var RectMesh = {
     create: function()
@@ -6001,182 +6745,23 @@ HardDirectionalShadowFilter.prototype.getCullMode = function()
     return CullMode.FRONT;
 };
 
+/**
+ * You can add your own, as long as the glsl code contains a function
+ * void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)
+ */
+var LightingModel =
+{
+    Unlit: null,
+    BlinnPhong: ShaderLibrary.get("lighting_blinn_phong.glsl"),
+    GGX: ShaderLibrary.get("lighting_ggx.glsl")
+};
+
 var GLSLIncludes = {
 
     GENERAL:
         "precision highp float;\n\n" +
         ShaderLibrary.get("snippets_general.glsl") + "\n\n"
 };
-
-/**
- * Returns the angle between two vectors
- */
-Float2.angle = function(a, b)
-{
-    return Math.acos(Float2.dot(a, b) / (a.length * b.length));
-};
-
-
-/**
- * Creates a new Float2 object
- * @class
- * @constructor
- */
-function Float2(x, y)
-{
-    // x, y, z, w allowed to be accessed publicly for simplicity, changing this does not violate invariant. Ever.
-    this.x = x || 0;
-    this.y = y || 0;
-}
-
-Float2.distance = function(a, b)
-{
-    var dx = a.x - b.x;
-    var dy = a.y - b.y;
-    return Math.sqrt(dx * dx + dy * dy);
-};
-
-Float2.dot = function(a, b)
-{
-    return a.x * b.x + a.y * b.y;
-};
-
-/**
- * Returns the angle between two vectors, assuming they are normalized
- */
-Float2.angleNormalized = function(a, b)
-{
-    return Math.acos(Float2.dot(a, b));
-};
-
-Float2.add = function(a, b, target)
-{
-    target = target || new Float2();
-    target.x = a.x + b.x;
-    target.y = a.y + b.y;
-    return target;
-};
-
-Float2.subtract = function(a, b, target)
-{
-    target = target || new Float2();
-    target.x = a.x - b.x;
-    target.y = a.y - b.y;
-    return target;
-};
-
-Float2.scale = function(a, s, target)
-{
-    target = target || new Float2();
-    target.x = a.x * s;
-    target.y = a.y * s;
-    return target;
-};
-
-Float2.negate = function(a, b, target)
-{
-    target = target || new Float2();
-    target.x = -target.x;
-    target.y = -target.y;
-    return target;
-};
-
-Float2.prototype =
-{
-    set: function(x, y)
-    {
-        this.x = x;
-        this.y = y;
-    },
-
-    get lengthSqr()
-    {
-        return this.x * this.x + this.y * this.y;
-    },
-
-    get length()
-    {
-        return Math.sqrt(this.x * this.x + this.y * this.y);
-    },
-
-    normalize: function()
-    {
-        var rcpLength = 1.0/this.length;
-        this.x *= rcpLength;
-        this.y *= rcpLength;
-    },
-
-    clone: function()
-    {
-        return new Float2(this.x, this.y);
-    },
-
-    add: function(v)
-    {
-        this.x += v.x;
-        this.y += v.y;
-    },
-
-    subtract: function(v)
-    {
-        this.x -= v.x;
-        this.y -= v.y;
-    },
-
-    scale: function(s)
-    {
-        this.x *= s;
-        this.y *= s;
-    },
-
-    negate: function()
-    {
-        this.x = -this.x;
-        this.y = -this.y;
-    },
-
-    abs: function()
-    {
-        this.x = Math.abs(this.x);
-        this.y = Math.abs(this.y);
-    },
-
-    lerp: function(a, b, factor)
-    {
-        var ax = a.x, ay = a.y;
-
-        this.x = ax + (b.x - ax) * factor;
-        this.y = ay + (b.y - ay) * factor;
-    },
-
-    fromPolarCoordinates: function(radius, angle)
-    {
-        this.x = radius*Math.cos(angle);
-        this.y = radius*Math.sin(angle);
-    },
-
-    copyFrom: function(b)
-    {
-        this.x = b.x;
-        this.y = b.y;
-    },
-
-    maximize: function(b)
-    {
-        if (b.x > this.x) this.x = b.x;
-        if (b.y > this.y) this.y = b.y;
-    },
-
-    minimize: function(b)
-    {
-        if (b.x < this.x) this.x = b.x;
-        if (b.y < this.y) this.y = b.y;
-    }
-};
-
-Float2.ZERO = new Float2(0, 0);
-Float2.X_AXIS = new Float2(1, 0);
-Float2.Y_AXIS = new Float2(0, 1);
 
 /**
  *
@@ -7636,479 +8221,6 @@ CenteredGaussianCurve.fromRadius = function(radius, epsilon)
     return new CenteredGaussianCurve(standardDeviation*standardDeviation);
 };
 
-/**
- * A Model combines a list of Meshes
- * @param modelData
- * @constructor
- */
-function Model(modelData)
-{
-    this._name = null;
-    this._localBounds = new BoundingAABB();
-    this._skeleton = null;
-    this.onChange = new Signal();
-
-    if (modelData) {
-        this._meshes = null;
-        this._setModelData(modelData);
-    }
-    else
-        this._meshes = [];
-}
-
-Model.prototype =
-{
-    get name()
-    {
-        return this._name;
-    },
-
-    set name(value)
-    {
-        this._name = value;
-    },
-
-    get numMeshes()
-    {
-        return this._meshes.length;
-    },
-
-    getMesh: function (index)
-    {
-        return this._meshes[index];
-    },
-
-    dispose: function()
-    {
-        if (this._meshes)
-            for (var i = 0; i < this._meshes.length; ++i)
-                this._meshes[i].dispose();
-    },
-
-    get localBounds()
-    {
-        return this._localBounds;
-    },
-
-
-    get skeleton()
-    {
-        return this._skeleton;
-    },
-
-    set skeleton(value)
-    {
-        this._skeleton = value;
-    },
-
-    _setModelData: function (modelData)
-    {
-        this.dispose();
-
-        this._localBounds.clear();
-        this._meshes = [];
-
-        for (var i = 0; i < modelData.numMeshes; ++i) {
-            var meshData = modelData.getMeshData(i);
-            this._localBounds.growToIncludeMesh(meshData);
-            this._meshes.push(new Mesh(meshData, this));
-        }
-
-        this.skeleton = modelData.skeleton;
-
-        this.onChange.dispatch();
-    },
-
-    toString: function()
-    {
-        return "[Model(name=" + this._name + ")]";
-    }
-};
-
-/**
- *
- * @constructor
- */
-function ModelData()
-{
-    this._meshDataList = [];
-    this._joints = [];
-    this.skeleton = null;
-}
-
-ModelData.prototype = {
-    get numMeshes()
-    {
-        return this._meshDataList.length;
-    },
-
-    getMeshData: function (index)
-    {
-        return this._meshDataList[index];
-    },
-
-    addMeshData: function (meshData)
-    {
-        this._meshDataList.push(meshData);
-    },
-
-    addJoint: function(joint)
-    {
-        this._joints.push(joint);
-    },
-
-    get hasSkeleton()
-    {
-        return this._joints.length > 0;
-    }
-};
-
-/**
- *
- * @constructor
- */
-function NormalTangentGenerator()
-{
-    this._meshData = null;
-    this._mode = 0;
-    this._faceNormals = null;
-    this._faceTangents = null;
-    this._faceBitangents = null;
-}
-
-NormalTangentGenerator.MODE_NORMALS = 1;
-NormalTangentGenerator.MODE_TANGENTS = 2;
-
-NormalTangentGenerator.prototype =
-{
-    generate: function(meshData, mode, useFaceWeights)
-    {
-        if (useFaceWeights === undefined) useFaceWeights = true;
-        this._mode = mode === undefined? NormalTangentGenerator.MODE_NORMALS | NormalTangentGenerator.MODE_TANGENTS : mode;
-
-        this._meshData = meshData;
-
-        this._positionAttrib = meshData.getVertexAttribute("hx_position");
-        this._normalAttrib = meshData.getVertexAttribute("hx_normal");
-        this._tangentAttrib = meshData.getVertexAttribute("hx_tangent");
-        this._uvAttrib = meshData.getVertexAttribute("hx_texCoord");
-        this._positionStride = meshData.getVertexStride(this._positionAttrib.streamIndex);
-        this._normalStride = meshData.getVertexStride(this._normalAttrib.streamIndex);
-        this._tangentStride = meshData.getVertexStride(this._tangentAttrib.streamIndex);
-        this._uvStride = meshData.getVertexStride(this._uvAttrib.streamIndex);
-
-        this._calculateFaceVectors(useFaceWeights);
-        this._calculateVertexVectors();
-    },
-
-    _calculateFaceVectors: function(useFaceWeights)
-    {
-        var numIndices = this._meshData._indexData.length;
-
-        if ((this._mode & NormalTangentGenerator.MODE_NORMALS) !== 0) this._faceNormals = new Array(numIndices);
-        if ((this._mode & NormalTangentGenerator.MODE_TANGENTS) !== 0) {
-            this._faceTangents = new Array(numIndices);
-            this._faceBitangents = new Array(numIndices);
-        }
-
-        var temp = new Float4();
-        var temp1 = new Float4();
-        var temp2 = new Float4();
-        var v0 = new Float4();
-        var v1 = new Float4();
-        var v2 = new Float4();
-        var uv0 = new Float2();
-        var uv1 = new Float2();
-        var uv2 = new Float2();
-        var st1 = new Float2();
-        var st2 = new Float2();
-
-        var posOffset = this._positionAttrib.offset;
-        var uvOffset = this._uvAttrib.offset;
-        var posData = this._meshData.getVertexData(this._positionAttrib.streamIndex);
-        var uvData = this._meshData.getVertexData(this._uvAttrib.streamIndex);
-
-        for (var i = 0; i < numIndices; i += 3) {
-            this._getFloat3At(i, posOffset, this._positionStride, v0, posData);
-            this._getFloat3At(i + 1, posOffset, this._positionStride, v1, posData);
-            this._getFloat3At(i + 2, posOffset, this._positionStride, v2, posData);
-            this._getFloat2At(i, uvOffset, this._uvStride, uv0, uvData);
-            this._getFloat2At(i + 1, uvOffset, this._uvStride, uv1, uvData);
-            this._getFloat2At(i + 2, uvOffset, this._uvStride, uv2, uvData);
-
-            v1.subtract(v0);
-            v2.subtract(v0);
-
-            if (this._faceNormals) {
-                temp.cross(v1, v2);
-
-                if (!useFaceWeights) temp.normalize();
-
-                this._faceNormals[i] = temp.x;
-                this._faceNormals[i + 1] = temp.y;
-                this._faceNormals[i + 2] = temp.z;
-            }
-
-            if (this._faceTangents) {
-                //var div = ((uv1.x - uv0.x)*(uv2.y - uv0.y) - (uv1.y - uv0.y)*(uv2.x - uv0.x));
-                Float2.subtract(uv1, uv0, st1);
-                Float2.subtract(uv2, uv0, st2);
-
-                Float4.scale(v1, st2.y, temp1);
-                Float4.scale(v2, st1.y, temp2);
-                Float4.subtract(temp1, temp2, temp);
-
-                if (temp.lengthSqr > .001)
-                    temp.normalize();
-
-                this._faceTangents[i] = temp.x;
-                this._faceTangents[i + 1] = temp.y;
-                this._faceTangents[i + 2] = temp.z;
-
-                Float4.scale(v1, st2.x, temp1);
-                Float4.scale(v2, st1.x, temp1);
-                Float4.subtract(temp2, temp1, temp);
-                // no need to normalize bitangent, just need it for orientation
-
-                this._faceBitangents[i] = temp.x;
-                this._faceBitangents[i + 1] = temp.y;
-                this._faceBitangents[i + 2] = temp.z;
-            }
-        }
-    },
-
-    _calculateVertexVectors: function()
-    {
-        this._zeroVectors();
-
-        var bitangents = this._faceTangents ? [] : null;
-        var indexData = this._meshData._indexData;
-        var normalOffset = this._normalAttrib.offset;
-        var tangentOffset = this._tangentAttrib.offset;
-        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
-        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
-        var numIndices = indexData.length;
-
-        for (var i = 0; i < numIndices; ++i) {
-            var index = indexData[i];
-            var normalIndex = normalOffset + index * this._normalStride;
-            var tangentIndex = tangentOffset + index * this._tangentStride;
-            var bitangentIndex = index * 3;
-            var faceIndex = Math.floor(i / 3) * 3;
-
-            if (this._faceNormals) {
-                normalData[normalIndex] += this._faceNormals[faceIndex];
-                normalData[normalIndex + 1] += this._faceNormals[faceIndex + 1];
-                normalData[normalIndex + 2] += this._faceNormals[faceIndex + 2];
-            }
-
-            if (this._faceTangents) {
-                tangentData[tangentIndex] += this._faceTangents[faceIndex];
-                tangentData[tangentIndex + 1] += this._faceTangents[faceIndex + 1];
-                tangentData[tangentIndex + 2] += this._faceTangents[faceIndex + 2];
-
-                bitangents[bitangentIndex] += this._faceBitangents[faceIndex];
-                bitangents[bitangentIndex + 1] += this._faceBitangents[faceIndex + 1];
-                bitangents[bitangentIndex + 2] += this._faceBitangents[faceIndex + 2];
-            }
-        }
-
-        this._normalize(bitangents);
-    },
-
-    _zeroVectors: function()
-    {
-        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
-        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
-        var normalStride = this._meshData.getVertexStride(this._normalAttrib.streamIndex);
-        var tangentStride = this._meshData.getVertexStride(this._tangentAttrib.streamIndex);
-        var numVertices = normalData.length / normalStride;
-        var normalIndex = this._normalAttrib.offset;
-        var tangentIndex = this._tangentAttrib.offset;
-
-        for (var i = 0; i < numVertices; ++i) {
-            if (this._mode & NormalTangentGenerator.MODE_NORMALS) {
-                normalData[normalIndex] = 0.0;
-                normalData[normalIndex + 1] = 0.0;
-                normalData[normalIndex + 2] = 0.0;
-            }
-            if (this._mode & NormalTangentGenerator.MODE_TANGENTS) {
-                tangentData[tangentIndex] = 0.0;
-                tangentData[tangentIndex + 1] = 0.0;
-                tangentData[tangentIndex + 2] = 0.0;
-            }
-            normalIndex += normalStride;
-            tangentIndex += tangentStride;
-        }
-    },
-
-    _normalize: function(bitangents)
-    {
-        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
-        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
-        var numVertices = normalData.length / this._normalStride;
-        var normalIndex = this._normalAttrib.offset;
-        var tangentIndex = this._tangentAttrib.offset;
-        var bitangentIndex = 0;
-        var normal = new Float4();
-        var tangent = new Float4();
-        var bitangent = new Float4();
-        var cross = new Float4();
-
-        for (var i = 0; i < numVertices; ++i) {
-            normal.x = normalData[normalIndex];
-            normal.y = normalData[normalIndex + 1];
-            normal.z = normalData[normalIndex + 2];
-
-            if (this._mode & NormalTangentGenerator.MODE_NORMALS) {
-                normal.normalize();
-                normalData[normalIndex] = normal.x;
-                normalData[normalIndex + 1] = normal.y;
-                normalData[normalIndex + 2] = normal.z;
-            }
-            if (this._mode & NormalTangentGenerator.MODE_TANGENTS) {
-                tangent.x = tangentData[tangentIndex];
-                tangent.y = tangentData[tangentIndex + 1];
-                tangent.z = tangentData[tangentIndex + 2];
-
-                // can happen in singularities
-                if (tangent.lengthSqr < 0.0001)
-                    tangent.set(1.0, 1.0, 1.0, 1.0);
-                else
-                    tangent.normalize();
-
-                bitangent.x = bitangents[bitangentIndex];
-                bitangent.y = bitangents[bitangentIndex + 1];
-                bitangent.z = bitangents[bitangentIndex + 2];
-                Float4.cross(tangent, normal, cross);
-
-                tangentData[tangentIndex] = tangent.x;
-                tangentData[tangentIndex + 1] = tangent.y;
-                tangentData[tangentIndex + 2] = tangent.z;
-                tangentData[tangentIndex + 3] = Float4.dot3(bitangent, cross) > 0.0? 1.0 : -1.0;
-            }
-
-            normalIndex += this._normalStride;
-            tangentIndex += this._tangentStride;
-        }
-    },
-
-    _getFloat3At: function(i, offset, stride, target, data)
-    {
-        var indices = this._meshData._indexData;
-        var posIndex = offset + indices[i] * stride;
-        target.x = data[posIndex];
-        target.y = data[posIndex + 1];
-        target.z = data[posIndex + 2];
-    },
-
-    _getFloat2At: function(i, offset, stride, target, data)
-    {
-        var indices = this._meshData._indexData;
-        var posIndex = offset + indices[i] * stride;
-        target.x = data[posIndex];
-        target.y = data[posIndex + 1];
-    }
-};
-
-function Primitive(definition)
-{
-    definition = definition || {};
-    var data = this._createMeshData(definition);
-    var modelData = new ModelData();
-    modelData.addMeshData(data);
-    Model.call(this, modelData);
-}
-
-Primitive._ATTRIBS = function()
-{
-    this.positions = [];
-    this.uvs = null;
-    this.normals = null;
-    this.indices = [];
-};
-
-Primitive.prototype = Object.create(Model.prototype);
-
-Primitive.prototype._generate = function(target, definition)
-{
-    throw new Error("Abstract method called!");
-};
-
-Primitive.prototype._createMeshData = function(definition)
-{
-    var attribs = new Primitive._ATTRIBS();
-    var uvs = definition.uvs === undefined? true : definition.uvs;
-    var normals = definition.normals === undefined? true : definition.normals;
-    var tangents = definition.tangents === undefined? true : definition.tangents;
-
-    var data = new MeshData();
-    data.addVertexAttribute('hx_position', 3);
-
-    if (normals) {
-        data.addVertexAttribute('hx_normal', 3);
-        attribs.normals = [];
-    }
-
-    if (tangents)
-        data.addVertexAttribute('hx_tangent', 4);
-
-    if (uvs) {
-        data.addVertexAttribute('hx_texCoord', 2);
-        attribs.uvs = [];
-    }
-
-    this._generate(attribs, definition);
-
-    var scaleU = definition.scaleU || 1;
-    var scaleV = definition.scaleV || 1;
-
-    var len = attribs.positions.length / 3;
-    var v = 0, v2 = 0, v3 = 0;
-    var vertices = [];
-
-    for (var i = 0; i < len; ++i) {
-        vertices[v++] = attribs.positions[v3];
-        vertices[v++] = attribs.positions[v3 + 1];
-        vertices[v++] = attribs.positions[v3 + 2];
-
-        if (normals) {
-            vertices[v++] = attribs.normals[v3];
-            vertices[v++] = attribs.normals[v3 + 1];
-            vertices[v++] = attribs.normals[v3 + 2];
-        }
-
-        if (tangents)
-            v += 4;
-
-        if (uvs) {
-            vertices[v++] = attribs.uvs[v2++] * scaleU;
-            vertices[v++] = attribs.uvs[v2++] * scaleV;
-        }
-
-        v3 += 3;
-    }
-
-    data.setVertexData(vertices, 0);
-    data.setIndexData(attribs.indices);
-
-    var mode = 0;
-
-    // if data isn't provided, generate it manually
-    if (normals && attribs.normals.length === 0)
-        mode |= NormalTangentGenerator.MODE_NORMALS;
-
-    if (tangents)
-        mode |= NormalTangentGenerator.MODE_TANGENTS;
-
-    if (mode) {
-        var generator = new NormalTangentGenerator();
-        generator.generate(data, mode);
-    }
-
-    return data;
-};
-
 function SpherePrimitive(definition)
 {
     Primitive.call(this, definition);
@@ -8186,7 +8298,6 @@ SpherePrimitive.prototype._generate = function(target, definition)
  *
  * @constructor
  */
-// import {ModelInstance} from "../mesh/ModelInstance";
 function BoundingSphere()
 {
     BoundingVolume.call(this, BoundingSphere);
@@ -8437,10 +8548,9 @@ BoundingSphere.prototype._updateMinAndMax = function()
     this._maximumZ = centerZ + radius;
 };
 
-BoundingSphere.prototype.createDebugModelInstance = function()
+BoundingSphere.prototype.createDebugModel = function()
 {
-    throw "Currently unavailable due to cyclic dependency bug in rollup";
-    // return new ModelInstance(new SpherePrimitive({doubleSided:true}), [this.getDebugMaterial()]);
+    return new SpherePrimitive({doubleSided:true});
 };
 
 /**
@@ -9271,155 +9381,6 @@ function SkyboxMaterial(texture)
 
 SkyboxMaterial.prototype = Object.create(Material.prototype);
 
-function BoxPrimitive(definition)
-{
-    Primitive.call(this, definition);
-}
-
-BoxPrimitive.prototype = Object.create(Primitive.prototype);
-
-BoxPrimitive.prototype._generate = function(target, definition)
-{
-    var numSegmentsW = definition.numSegmentsW || 1;
-    var numSegmentsH = definition.numSegmentsH || definition.numSegmentsW || 1;
-    var numSegmentsD = definition.numSegmentsD || definition.numSegmentsW || 1;
-    var width = definition.width || 1;
-    var height = definition.height || width;
-    var depth = definition.depth || width;
-    var flipSign = definition.invert? -1 : 1;
-    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
-
-    var rcpNumSegmentsW = 1/numSegmentsW;
-    var rcpNumSegmentsH = 1/numSegmentsH;
-    var rcpNumSegmentsD = 1/numSegmentsD;
-    var halfW = width * .5;
-    var halfH = height * .5;
-    var halfD = depth * .5;
-
-    var positions = target.positions;
-    var uvs = target.uvs;
-    var normals = target.normals;
-    var indices = target.indices;
-    var x, y, z;
-    var ratioU, ratioV;
-    var wSegment, hSegment, dSegment;
-
-
-    // front and back
-    for (hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
-        ratioV = hSegment * rcpNumSegmentsH;
-        y = height * ratioV - halfH;
-        if (flipSign < 0) ratioV = 1.0 - ratioV;
-
-        for (wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
-            ratioU = wSegment * rcpNumSegmentsW;
-            x = width * ratioU - halfW;
-
-            if (flipSign < 0) ratioU = 1.0 - ratioU;
-
-            // front and back
-            positions.push(x*flipSign, y*flipSign, halfD*flipSign);
-            positions.push(-x*flipSign, y*flipSign, -halfD*flipSign);
-
-            if (normals) {
-                normals.push(0, 0, 1);
-                normals.push(0, 0, -1);
-            }
-
-            if (uvs) {
-                uvs.push(ratioU, ratioV);
-                uvs.push(ratioU, ratioV);
-            }
-        }
-    }
-
-    for (hSegment = 0; hSegment <= numSegmentsH; ++hSegment) {
-        ratioV = hSegment * rcpNumSegmentsH;
-        y = height * ratioV - halfH;
-
-        for (dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
-            ratioU = dSegment * rcpNumSegmentsD;
-            z = depth * ratioU - halfD;
-
-            // left and right
-            positions.push(-halfW, y, z*flipSign);
-            positions.push(halfW, y, -z*flipSign);
-
-            if (normals) {
-                normals.push(-flipSign, 0, 0);
-                normals.push(flipSign, 0, 0);
-            }
-
-            if (uvs) {
-                uvs.push(ratioU, ratioV);
-                uvs.push(ratioU, ratioV);
-            }
-        }
-    }
-
-    for (dSegment = 0; dSegment <= numSegmentsD; ++dSegment) {
-        ratioV = dSegment * rcpNumSegmentsD;
-        z = depth * ratioV - halfD;
-
-        for (wSegment = 0; wSegment <= numSegmentsW; ++wSegment) {
-            ratioU = wSegment * rcpNumSegmentsW;
-            x = width * ratioU - halfW;
-
-            // top and bottom
-            positions.push(x, halfH, -z*flipSign);
-            positions.push(x, -halfH, z*flipSign);
-
-            if (normals) {
-                normals.push(0, flipSign, 0);
-                normals.push(0, -flipSign, 0);
-            }
-
-            if (uvs) {
-                uvs.push(1.0 - ratioU, 1.0 - ratioV);
-                uvs.push(1.0 - ratioU, 1.0 - ratioV);
-            }
-        }
-    }
-
-    var offset = 0;
-
-    for (var face = 0; face < 3; ++face) {
-        // order:
-        // front, back, left, right, bottom, top
-        var numSegmentsU = face === 1? numSegmentsD : numSegmentsW;
-        var numSegmentsV = face === 2? numSegmentsD : numSegmentsH;
-
-        for (var yi = 0; yi < numSegmentsV; ++yi) {
-            for (var xi = 0; xi < numSegmentsU; ++xi) {
-                var w = numSegmentsU + 1;
-                var base = offset + xi + yi*w;
-                var i0 = base << 1;
-                var i1 = (base + w + 1) << 1;
-                var i2 = (base + w) << 1;
-                var i3 = (base + 1) << 1;
-
-                indices.push(i0, i1, i2);
-                indices.push(i0, i3, i1);
-
-                indices.push(i0 | 1, i1 | 1, i2 | 1);
-                indices.push(i0 | 1, i3 | 1, i1 | 1);
-            }
-        }
-        offset += (numSegmentsU + 1) * (numSegmentsV + 1);
-    }
-
-    var indexIndex = 0;
-    if (doubleSided) {
-        var i = 0;
-
-        while (i < indexIndex) {
-            indices.push(indices[i], indices[i + 2], indices[i + 1]);
-            indices.push(indices[i + 3], indices[i + 5], indices[i + 4]);
-            indexIndex += 6;
-        }
-    }
-};
-
 /**
  * VertexLayout links the mesh's vertex attributes to a shader's attributes
  * @param mesh
@@ -9583,6 +9544,318 @@ MeshInstance.prototype = {
     {
         this._meshMaterialLinkInvalid = true;
     }
+};
+
+/**
+ * BasicMaterial is the default physically plausible rendering material.
+ * @constructor
+ */
+function BasicMaterial(options)
+{
+    Material.call(this);
+
+    options = options || {};
+
+    this._color = options.color || new Color(1, 1, 1, 1);
+    this._colorMap = options.colorMap || null;
+    this._doubleSided = !!options.doubleSided;
+    this._normalMap = options.normalMap || null;
+    this._specularMap = options.specularMap || null;
+    this._maskMap = options.maskMap || null;
+    this._specularMapMode = options.specularMapMode || BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
+    this._metallicness = options.metallicness === undefined? 0.0 : options.metallicness;
+    this._alpha = options.alpha === undefined? 1.0 : options.alpha;
+    this._roughness = options.roughness === undefined ? 0.5 : options.roughness;
+    this._roughnessRange = options.roughnessRange === undefined? .5 : options.roughnessRange;
+    this._normalSpecularReflectance = options.normalSpecularReflectance === undefined? 0.027 : options.normalSpecularReflectance;
+    this._alphaThreshold = options.alphaThreshold === undefined? 1.0 : options.alphaThreshold;
+    this._useVertexColors = !!options.useVertexColors;
+
+    // trigger assignments
+    this.color = this._color;
+    this.alpha = this._alpha;
+    this.metallicness = this._metallicness;
+    this.roughness = this._roughness;
+    this.normalSpecularReflectance = this._normalSpecularReflectance;
+
+    if (options.lightingModel !== undefined)
+        this.lightingModel = options.lightingModel;
+}
+
+BasicMaterial.roughnessFromShininess = function(specularPower)
+{
+    return Math.sqrt(2.0/(specularPower + 2.0));
+};
+
+/**
+ * used for specularMapMode to specify the specular map only uses roughness data
+ */
+BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
+/**
+ * used for specularMapMode to specify the specular map has rgb channels containing roughness, normal reflectance and metallicness, respectively
+ */
+BasicMaterial.SPECULAR_MAP_ALL = 2;
+/**
+ * used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
+ */
+BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
+
+
+BasicMaterial.prototype = Object.create(Material.prototype,
+    {
+        doubleSided: {
+            get: function()
+            {
+                return this._doubleSided;
+            },
+
+            set: function(value)
+            {
+                this._doubleSided = value;
+
+                for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
+                    if (this._passes[i])
+                        this._passes[i].cullMode = value ? CullMode.NONE : CullMode.BACK;
+                }
+            }
+        },
+
+        alpha: {
+            get: function ()
+            {
+                return this._alpha;
+            },
+            set: function (value)
+            {
+                this._alpha = MathX.saturate(value);
+                this.setUniform("alpha", this._alpha);
+            }
+        },
+
+        // this can ONLY be used if the MeshData was created with a hx_vertexColor attribute!
+        useVertexColors: {
+            get: function ()
+            {
+                return this._useVertexColors;
+            },
+            set: function (value)
+            {
+                if (this._useVertexColors !== value)
+                    this._invalidate();
+
+                this._useVertexColors = value;
+            }
+        },
+
+        color: {
+            get: function ()
+            {
+                return this._color;
+            },
+            set: function (value)
+            {
+                this._color = isNaN(value) ? value : new Color(value);
+                this.setUniform("color", this._color);
+            }
+        },
+
+        colorMap: {
+            get: function ()
+            {
+                return this._colorMap;
+            },
+
+            set: function (value)
+            {
+                if (!!this._colorMap !== !!value) {
+                    this._invalidate();
+                }
+
+                this._colorMap = value;
+
+                this.setTexture("colorMap", value);
+            }
+        },
+
+        normalMap: {
+            get: function ()
+            {
+                return this._normalMap;
+            },
+            set: function (value)
+            {
+                if (!!this._normalMap !== !!value)
+                    this._invalidate();
+
+                this.setTexture("normalMap", value);
+
+                this._normalMap = value;
+            }
+        },
+
+        /**
+         * The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
+         */
+        specularMap: {
+            get: function ()
+            {
+                return this._specularMap;
+            },
+            set: function (value)
+            {
+                if (!!this._specularMap !== !!value)
+                    this._invalidate();
+
+                this.setTexture("specularMap", value);
+
+                this._specularMap = value;
+            }
+        },
+
+        maskMap: {
+            get: function ()
+            {
+                return this._maskMap;
+            },
+            set: function (value)
+            {
+                if (!!this._maskMap !== !!value)
+                    this._invalidate();
+
+                this.setTexture("maskMap", value);
+
+                this._maskMap = value;
+            }
+        },
+
+        specularMapMode: {
+            get: function ()
+            {
+                return this._specularMapMode;
+            },
+            set: function (value)
+            {
+                if (this._specularMapMode !== value)
+                    this._invalidate();
+
+                this._specularMapMode = value;
+            }
+        },
+
+        metallicness: {
+            get: function ()
+            {
+                return this._metallicness;
+            },
+            set: function (value)
+            {
+                this._metallicness = MathX.saturate(value);
+                this.setUniform("metallicness", this._metallicness);
+            }
+        },
+
+        normalSpecularReflectance: {
+            get: function ()
+            {
+                return this._normalSpecularReflectance;
+            },
+            set: function (value)
+            {
+                this._normalSpecularReflectance = MathX.saturate(value);
+                this.setUniform("normalSpecularReflectance", this._normalSpecularReflectance);
+            }
+        },
+
+        roughness:
+            {
+                get: function ()
+                {
+                    return this._roughness;
+                },
+
+                set: function(value)
+                {
+                    this._roughness = value;
+                    this.setUniform("roughness", this._roughness);
+                }
+            },
+
+        /**
+         * When using a roughness texture, roughness represents the middle roughness, range the deviation from there.
+         * So textured roughness ranges from [roughness - roughnessRange, roughness + roughnessRange]
+         */
+        roughnessRange:
+            {
+                get: function ()
+                {
+                    return this._roughnessRange;
+                },
+
+                set: function(value)
+                {
+                    this._roughnessRange = value;
+                    this.setUniform("roughnessRange", this._roughnessRange * 2.0);
+                }
+            },
+
+        alphaThreshold:
+            {
+                get: function() { return this._alphaThreshold; },
+                set: function(value) {
+                    value = MathX.saturate(value);
+                    if ((this._alphaThreshold === 1.0) !== (value === 1.0))
+                        this._invalidate();
+
+                    this._alphaThreshold = value;
+                    this.setUniform("alphaThreshold", value);
+                }
+            }
+    }
+);
+
+BasicMaterial.prototype.init = function()
+{
+    var defines = this._generateDefines();
+
+    this._geometryVertexShader = ShaderLibrary.get("default_geometry_vertex.glsl", defines);
+    this._geometryFragmentShader = ShaderLibrary.get("default_geometry_fragment.glsl", defines);
+
+    Material.prototype.init.call(this);
+};
+
+BasicMaterial.prototype._generateDefines = function()
+{
+    var defines = {};
+    if (this._colorMap) defines.COLOR_MAP = 1;
+    if (this._useVertexColors) defines.VERTEX_COLORS = 1;
+    if (this._normalMap) defines.NORMAL_MAP = 1;
+    if (this._maskMap) defines.MASK_MAP = 1;
+    if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
+    if (this._useSkinning) defines.HX_USE_SKINNING = 1;
+    if (this._useMorphing) {
+        defines.HX_USE_MORPHING = 1;
+        defines.HX_NUM_MORPH_TARGETS = capabilities.NUM_MORPH_TARGETS;
+    }
+
+    switch (this._specularMapMode) {
+        case BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:
+            if (this._specularMap) defines.ROUGHNESS_MAP = 1;
+            break;
+        case BasicMaterial.SPECULAR_MAP_ALL:
+            if (this._specularMap) defines.SPECULAR_MAP = 1;
+            break;
+        default:
+            defines.NORMAL_ROUGHNESS_MAP = 1;
+    }
+    return defines;
+};
+
+BasicMaterial.prototype._setUseSkinning = function(value)
+{
+    if (this._useSkinning !== value)
+        this._invalidate();
+
+    this._useSkinning = value;
 };
 
 /**
@@ -13971,318 +14244,6 @@ HMT._initPropertyMap = function() {
 };
 
 /**
- * BasicMaterial is the default physically plausible rendering material.
- * @constructor
- */
-function BasicMaterial(options)
-{
-    Material.call(this);
-
-    options = options || {};
-
-    this._color = options.color || new Color(1, 1, 1, 1);
-    this._colorMap = options.colorMap || null;
-    this._doubleSided = !!options.doubleSided;
-    this._normalMap = options.normalMap || null;
-    this._specularMap = options.specularMap || null;
-    this._maskMap = options.maskMap || null;
-    this._specularMapMode = options.specularMapMode || BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
-    this._metallicness = options.metallicness === undefined? 0.0 : options.metallicness;
-    this._alpha = options.alpha === undefined? 1.0 : options.alpha;
-    this._roughness = options.roughness === undefined ? 0.5 : options.roughness;
-    this._roughnessRange = options.roughnessRange === undefined? .5 : options.roughnessRange;
-    this._normalSpecularReflectance = options.normalSpecularReflectance === undefined? 0.027 : options.normalSpecularReflectance;
-    this._alphaThreshold = options.alphaThreshold === undefined? 1.0 : options.alphaThreshold;
-    this._useVertexColors = !!options.useVertexColors;
-
-    // trigger assignments
-    this.color = this._color;
-    this.alpha = this._alpha;
-    this.metallicness = this._metallicness;
-    this.roughness = this._roughness;
-    this.normalSpecularReflectance = this._normalSpecularReflectance;
-
-    if (options.lightingModel !== undefined)
-        this.lightingModel = options.lightingModel;
-}
-
-BasicMaterial.roughnessFromShininess = function(specularPower)
-{
-    return Math.sqrt(2.0/(specularPower + 2.0));
-};
-
-/**
- * used for specularMapMode to specify the specular map only uses roughness data
- */
-BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
-/**
- * used for specularMapMode to specify the specular map has rgb channels containing roughness, normal reflectance and metallicness, respectively
- */
-BasicMaterial.SPECULAR_MAP_ALL = 2;
-/**
- * used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
- */
-BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
-
-
-BasicMaterial.prototype = Object.create(Material.prototype,
-    {
-        doubleSided: {
-            get: function()
-            {
-                return this._doubleSided;
-            },
-
-            set: function(value)
-            {
-                this._doubleSided = value;
-
-                for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
-                    if (this._passes[i])
-                        this._passes[i].cullMode = value ? CullMode.NONE : CullMode.BACK;
-                }
-            }
-        },
-
-        alpha: {
-            get: function ()
-            {
-                return this._alpha;
-            },
-            set: function (value)
-            {
-                this._alpha = MathX.saturate(value);
-                this.setUniform("alpha", this._alpha);
-            }
-        },
-
-        // this can ONLY be used if the MeshData was created with a hx_vertexColor attribute!
-        useVertexColors: {
-            get: function ()
-            {
-                return this._useVertexColors;
-            },
-            set: function (value)
-            {
-                if (this._useVertexColors !== value)
-                    this._invalidate();
-
-                this._useVertexColors = value;
-            }
-        },
-
-        color: {
-            get: function ()
-            {
-                return this._color;
-            },
-            set: function (value)
-            {
-                this._color = isNaN(value) ? value : new Color(value);
-                this.setUniform("color", this._color);
-            }
-        },
-
-        colorMap: {
-            get: function ()
-            {
-                return this._colorMap;
-            },
-
-            set: function (value)
-            {
-                if (!!this._colorMap !== !!value) {
-                    this._invalidate();
-                }
-
-                this._colorMap = value;
-
-                this.setTexture("colorMap", value);
-            }
-        },
-
-        normalMap: {
-            get: function ()
-            {
-                return this._normalMap;
-            },
-            set: function (value)
-            {
-                if (!!this._normalMap !== !!value)
-                    this._invalidate();
-
-                this.setTexture("normalMap", value);
-
-                this._normalMap = value;
-            }
-        },
-
-        /**
-         * The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
-         */
-        specularMap: {
-            get: function ()
-            {
-                return this._specularMap;
-            },
-            set: function (value)
-            {
-                if (!!this._specularMap !== !!value)
-                    this._invalidate();
-
-                this.setTexture("specularMap", value);
-
-                this._specularMap = value;
-            }
-        },
-
-        maskMap: {
-            get: function ()
-            {
-                return this._maskMap;
-            },
-            set: function (value)
-            {
-                if (!!this._maskMap !== !!value)
-                    this._invalidate();
-
-                this.setTexture("maskMap", value);
-
-                this._maskMap = value;
-            }
-        },
-
-        specularMapMode: {
-            get: function ()
-            {
-                return this._specularMapMode;
-            },
-            set: function (value)
-            {
-                if (this._specularMapMode !== value)
-                    this._invalidate();
-
-                this._specularMapMode = value;
-            }
-        },
-
-        metallicness: {
-            get: function ()
-            {
-                return this._metallicness;
-            },
-            set: function (value)
-            {
-                this._metallicness = MathX.saturate(value);
-                this.setUniform("metallicness", this._metallicness);
-            }
-        },
-
-        normalSpecularReflectance: {
-            get: function ()
-            {
-                return this._normalSpecularReflectance;
-            },
-            set: function (value)
-            {
-                this._normalSpecularReflectance = MathX.saturate(value);
-                this.setUniform("normalSpecularReflectance", this._normalSpecularReflectance);
-            }
-        },
-
-        roughness:
-            {
-                get: function ()
-                {
-                    return this._roughness;
-                },
-
-                set: function(value)
-                {
-                    this._roughness = value;
-                    this.setUniform("roughness", this._roughness);
-                }
-            },
-
-        /**
-         * When using a roughness texture, roughness represents the middle roughness, range the deviation from there.
-         * So textured roughness ranges from [roughness - roughnessRange, roughness + roughnessRange]
-         */
-        roughnessRange:
-            {
-                get: function ()
-                {
-                    return this._roughnessRange;
-                },
-
-                set: function(value)
-                {
-                    this._roughnessRange = value;
-                    this.setUniform("roughnessRange", this._roughnessRange * 2.0);
-                }
-            },
-
-        alphaThreshold:
-            {
-                get: function() { return this._alphaThreshold; },
-                set: function(value) {
-                    value = MathX.saturate(value);
-                    if ((this._alphaThreshold === 1.0) !== (value === 1.0))
-                        this._invalidate();
-
-                    this._alphaThreshold = value;
-                    this.setUniform("alphaThreshold", value);
-                }
-            }
-    }
-);
-
-BasicMaterial.prototype.init = function()
-{
-    var defines = this._generateDefines();
-
-    this._geometryVertexShader = ShaderLibrary.get("default_geometry_vertex.glsl", defines);
-    this._geometryFragmentShader = ShaderLibrary.get("default_geometry_fragment.glsl", defines);
-
-    Material.prototype.init.call(this);
-};
-
-BasicMaterial.prototype._generateDefines = function()
-{
-    var defines = {};
-    if (this._colorMap) defines.COLOR_MAP = 1;
-    if (this._useVertexColors) defines.VERTEX_COLORS = 1;
-    if (this._normalMap) defines.NORMAL_MAP = 1;
-    if (this._maskMap) defines.MASK_MAP = 1;
-    if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
-    if (this._useSkinning) defines.HX_USE_SKINNING = 1;
-    if (this._useMorphing) {
-        defines.HX_USE_MORPHING = 1;
-        defines.HX_NUM_MORPH_TARGETS = capabilities.NUM_MORPH_TARGETS;
-    }
-
-    switch (this._specularMapMode) {
-        case BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:
-            if (this._specularMap) defines.ROUGHNESS_MAP = 1;
-            break;
-        case BasicMaterial.SPECULAR_MAP_ALL:
-            if (this._specularMap) defines.SPECULAR_MAP = 1;
-            break;
-        default:
-            defines.NORMAL_ROUGHNESS_MAP = 1;
-    }
-    return defines;
-};
-
-BasicMaterial.prototype._setUseSkinning = function(value)
-{
-    if (this._useSkinning !== value)
-        this._invalidate();
-
-    this._useSkinning = value;
-};
-
-/**
  *
  * @constructor
  */
@@ -16205,6 +16166,20 @@ ForwardRenderer.prototype =
  * MultiRenderer is a renderer for multiple viewports
  * @constructor
  */
+function View(scene, camera, xRatio, yRatio, widthRatio, heightRatio)
+{
+    this.scene = scene;
+    this.camera = camera;
+    this.viewport = new Rect();
+    this._renderer = null;
+    this._texture = null;
+    this._fbo = null;
+    this.xRatio = xRatio || 0;
+    this.yRatio = yRatio || 0;
+    this.widthRatio = widthRatio || 1;
+    this.heightRatio = heightRatio || 1;
+}
+
 function MultiRenderer()
 {
     this._views = [];
@@ -16495,6 +16470,8 @@ exports.SSAO = SSAO;
 exports.ReinhardToneMapping = ReinhardToneMapping;
 exports.AssetLibrary = AssetLibrary;
 exports.AssetLoader = AssetLoader;
+exports.BulkAssetLoader = BulkAssetLoader;
+exports.URLLoader = URLLoader;
 exports.HCM = HCM;
 exports.HMT = HMT;
 exports.HSC = HSC;
@@ -16536,6 +16513,7 @@ exports.TorusPrimitive = TorusPrimitive;
 exports.BlendState = BlendState;
 exports.ForwardRenderer = ForwardRenderer;
 exports.LightingModel = LightingModel;
+exports.View = View;
 exports.MultiRenderer = MultiRenderer;
 exports.StencilState = StencilState;
 exports.Texture2D = Texture2D;

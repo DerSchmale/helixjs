@@ -79,7 +79,7 @@ NormalTangentGenerator.prototype =
             v2.subtract(v0);
 
             if (this._faceNormals) {
-                temp.cross(v1, v2);
+                Float4.cross(v1, v2, temp);
 
                 if (!useFaceWeights) temp.normalize();
 

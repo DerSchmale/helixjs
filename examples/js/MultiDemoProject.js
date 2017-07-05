@@ -1,18 +1,17 @@
 /**
- * Just a slight extension to HX.SimpleProject, to add debug mode number keys and an fps counter
  * @constructor
  */
 MultiDemoProject = function()
 {
-    HX.MultiViewProject.call(this);
+    MultiViewProject.call(this);
     this._stats = null;
 };
 
-MultiDemoProject.prototype = Object.create(HX.MultiViewProject.prototype);
+MultiDemoProject.prototype = Object.create(MultiViewProject.prototype);
 
 MultiDemoProject.prototype.init = function(canvas, initOptions)
 {
-    HX.MultiViewProject.prototype.init.call(this, canvas, initOptions);
+    MultiViewProject.prototype.init.call(this, canvas, initOptions);
 
     this._stats = new HX.StatsDisplay();
 };

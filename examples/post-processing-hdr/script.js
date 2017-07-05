@@ -25,7 +25,7 @@ function initCamera(camera)
     bloom.thresholdLuminance = .5;
     camera.addComponent(bloom);
 
-    camera.addComponent(new HX.FilmicToneMapEffect());
+    camera.addComponent(new HX.FilmicToneMapping());
 }
 
 function initScene(scene)

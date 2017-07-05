@@ -9,6 +9,9 @@ import {capabilities, DEFAULTS, META} from "../Helix";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {MeshInstance} from "./MeshInstance";
 import {Entity} from "../entity/Entity";
+import {LightingModel} from "../render/LightingModel";
+import {Color} from "../core/Color";
+import {BasicMaterial} from "../material/BasicMaterial";
 
 function ModelInstance(model, materials)
 {

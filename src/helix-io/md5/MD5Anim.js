@@ -174,4 +174,4 @@ HX.MD5Anim._BaseFrameData = function()
 HX.MD5Anim._FrameData = function()
 {
     this.components = [];
-}
+};

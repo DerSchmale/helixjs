@@ -1,5 +1,3 @@
-import {AssetLibrary} from "../../helix-core/io/AssetLibrary";
-import {JPG} from "../../helix-core/io/JPG_PNG";
 /**
  *
  * @constructor
@@ -61,12 +59,12 @@ HX.FBX.prototype._loadTextures = function(tokens, map, target)
 {
     var numTextures = tokens.length;
 
-    this._textureLibrary = new AssetLibrary();
+    this._textureLibrary = new HX.AssetLibrary();
 
     for (var i = 0; i < numTextures; ++i) {
         var token = tokens[i];
         token.filename = this._correctURL(token.filename);
-        this._textureLibrary.queueAsset(token.filename, token.filename, AssetLibrary.Type.ASSET, JPG)
+        this._textureLibrary.queueAsset(token.filename, token.filename, HX.AssetLibrary.Type.ASSET, HX.JPG)
     }
 
     // bulkLoader.onFail = function(message)

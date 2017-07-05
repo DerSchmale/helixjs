@@ -247,28 +247,28 @@ HX.FBX.prototype.parse = function(data, target)
 
 HX.FBX.prototype._loadTextures = function(tokens, map, target)
 {
-    var files = [];
     var numTextures = tokens.length;
+
+    this._textureLibrary = new HX.AssetLibrary();
 
     for (var i = 0; i < numTextures; ++i) {
         var token = tokens[i];
-        token.filename = files[i] = this._correctURL(token.filename);
+        token.filename = this._correctURL(token.filename);
+        this._textureLibrary.queueAsset(token.filename, token.filename, HX.AssetLibrary.Type.ASSET, HX.JPG)
     }
 
-    var self = this;
-    var bulkLoader = new HX.BulkAssetLoader();
-    bulkLoader.onFail = function(message)
-    {
-        self._notifyFailure(message);
-    };
+    // bulkLoader.onFail = function(message)
+    // {
+    //     self._notifyFailure(message);
+    // };
 
-    bulkLoader.onComplete = function()
+    this._textureLibrary.onComplete.bind(function()
     {
         var numMappings = map.length;
         for (var i = 0; i < numMappings; ++i) {
             var mapping = map[i];
             var token = mapping.token;
-            var texture = bulkLoader.getAsset(token.filename);
+            var texture = this._textureLibrary.get(token.filename);
             texture.name = token.name;
 
             switch (mapping.mapType) {
@@ -283,10 +283,10 @@ HX.FBX.prototype._loadTextures = function(tokens, map, target)
                     break;
             }
         }
-        self._notifyComplete(target);
-    };
+        this._notifyComplete(target);
+    }, this);
 
-    bulkLoader.load(files, HX.JPG);
+    this._textureLibrary.load();
 };
 // Could also create an ASCII deserializer
 HX.FBXAnimationConverter = function()
@@ -1831,7 +1831,6 @@ HX.FBXSettings.prototype =
         this._matrix.invert();
     }
 };
-
 /**
  *
  * @constructor
@@ -1857,8 +1856,6 @@ HX.MTL.prototype.parse = function(data, target)
     }
 
     this._loadTextures(target);
-
-    return target;
 };
 
 HX.MTL.prototype._parseLine = function(line, target)
@@ -1902,12 +1899,13 @@ HX.MTL.prototype._parseLine = function(line, target)
 HX.MTL.prototype._getTexture = function(url)
 {
     if (!this._textures[url]) {
-        this._textures[url] = new HX.Texture2D();
+        var tex = new HX.Texture2D();
+        this._textures[url] = tex;
 
         this._texturesToLoad.push({
             file: this._correctURL(url),
             importer: HX.JPG,
-            target: this._textures[url]
+            target: tex
         });
     }
     return this._textures[url];
@@ -1915,6 +1913,7 @@ HX.MTL.prototype._getTexture = function(url)
 
 HX.MTL.prototype._loadTextures = function(lib)
 {
+    var library = new HX.AssetLibrary();
     var files = this._texturesToLoad;
     var len = files.length;
     if (len === 0) {
@@ -1922,18 +1921,20 @@ HX.MTL.prototype._loadTextures = function(lib)
         return;
     }
 
-    var self = this;
-    var bulkLoader = new HX.BulkAssetLoader();
+    for (var i = 0; i < files.length; ++i) {
+        library.queueAsset(files[i].file, files[i].file, HX.AssetLibrary.Type.ASSET, files[i].importer, files[i].target)
+    }
 
-    bulkLoader.onComplete = function() {
-        self._notifyComplete(lib);
-    };
 
-    bulkLoader.onFail = function(message) {
-        self._notifyFailure(message);
-    };
+    library.onComplete.bind(function() {
+        this._notifyComplete(lib);
+    }, this);
 
-    bulkLoader.load(files);
+    // bulkLoader.onFail = function(message) {
+    //     self._notifyFailure(message);
+    // };
+
+    library.load(files);
 };
 
 /**
@@ -2435,7 +2436,7 @@ HX.MD5Anim._BaseFrameData = function()
 HX.MD5Anim._FrameData = function()
 {
     this.components = [];
-}
+};
 /**
  * Warning, MD5 as supported by Helix does not contain any materials nor scene graph information, so it only loads Models, not instances!
  * @constructor

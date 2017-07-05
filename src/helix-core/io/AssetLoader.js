@@ -1,5 +1,5 @@
 /**
- * AssetLoader allows loading of any sort of asset. It can be used to load several assets, but onComplete and onFail will be called for each. Use BulkAssetLoader if onComplete should only be called once.
+ * AssetLoader allows loading of any sort of asset. It can be used to load several assets, but onComplete and onFail will be called for each.
  * @param ImporterType The type of importer to use for the asset. For example: JPG, HCM (material), OBJ, ... Must be am Importer subtype.
  * @constructor
  */

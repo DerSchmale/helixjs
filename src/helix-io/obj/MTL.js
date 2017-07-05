@@ -66,12 +66,13 @@ HX.MTL.prototype._parseLine = function(line, target)
 HX.MTL.prototype._getTexture = function(url)
 {
     if (!this._textures[url]) {
-        this._textures[url] = new Texture2D();
+        var tex = new HX.Texture2D();
+        this._textures[url] = tex;
 
         this._texturesToLoad.push({
             file: this._correctURL(url),
-            importer: JPG,
-            target: this._textures[url]
+            importer: HX.JPG,
+            target: tex
         });
     }
     return this._textures[url];
@@ -88,7 +89,7 @@ HX.MTL.prototype._loadTextures = function(lib)
     }
 
     for (var i = 0; i < files.length; ++i) {
-        library.queueAsset(files[i], files[i], AssetLibrary.Type.ASSET, files[i].importer, files[i].target)
+        library.queueAsset(files[i].file, files[i].file, HX.AssetLibrary.Type.ASSET, files[i].importer, files[i].target)
     }
 
 
@@ -100,5 +101,5 @@ HX.MTL.prototype._loadTextures = function(lib)
     //     self._notifyFailure(message);
     // };
 
-    bulkLoader.load(files);
+    library.load(files);
 };

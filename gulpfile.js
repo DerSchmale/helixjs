@@ -28,15 +28,15 @@ gulp.task('core', ['glsl'], function ()
         .pipe(gulp.dest('./build/'));
 });
 
-/*gulp.task('io', [], function ()
+gulp.task('io', [], function ()
 {
     return gulp.src(ioFiles, {base: './'})
         .pipe(concat('helix-io.js'))
         .pipe(gulp.dest('./build/'));
-});*/
+});
 
 // main compiles everything, including optionals
-gulp.task('main', ['core'/*, 'io'*/]);
+gulp.task('main', ['core', 'io']);
 
 gulp.task('minimize', ['main'], function ()
 {

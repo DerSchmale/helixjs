@@ -111,8 +111,6 @@ Shader.prototype = {
             return false;
         }
 
-        Debug.printShaderCode(code);
-
         return true;
     },
 

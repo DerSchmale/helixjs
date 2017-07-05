@@ -3,13 +3,13 @@
  * @constructor
  */
 import {Material} from "../material/Material";
-import {BulkURLLoader} from "./BulkURLLoader";
 import {Comparison, CullMode, ElementType, BlendFactor, BlendOperation, DEFAULTS} from "../Helix";
 import {BlendState} from "../render/BlendState";
 import {Texture2D} from "../texture/Texture2D";
 import {BulkAssetLoader} from "./BulkAssetLoader";
 import {JPG} from "./JPG_PNG";
 import {Importer} from "./Importer";
+import {AssetLibrary} from "./AssetLibrary";
 
 function HMT()
 {
@@ -42,28 +42,29 @@ HMT.prototype._gatherShaderFiles = function(data)
 
 HMT.prototype._loadShaders = function(data, material)
 {
-    var shaders = {};
+    // urls will already be correctURL'ed
     var shaderFiles = this._gatherShaderFiles(data);
-    var bulkLoader = new BulkURLLoader();
-    var self = this;
+    this._shaderLibrary = new AssetLibrary();
 
-    bulkLoader.onComplete = function() {
-        for (var i = 0; i < shaderFiles.length; ++i) {
-            shaders[shaderFiles[i]] = bulkLoader.getData(shaderFiles[i]);
-        }
+    for (var i = 0; i < shaderFiles.length; ++i) {
+        this._shaderLibrary.queueAsset(shaderFiles[i], shaderFiles[i], AssetLibrary.Type.PLAIN_TEXT);
+    }
 
-        self._processMaterial(data, shaders, material);
-        self._loadTextures(data, material);
-    };
-    bulkLoader.onFail = function(code)
+    this._shaderLibrary.onComplete.bind(function()
     {
-        self._notifyFailure("Error loading shaders: " + code);
-    };
-    bulkLoader.load(shaderFiles);
+        this._processMaterial(data, material);
+        this._loadTextures(data, material);
+    }, this);
+
+    // this._shaderLibrary.onFail.bind(function(code)
+    // {
+    //     this._notifyFailure("Error loading shaders: " + code);
+    // }, this);
+    this._shaderLibrary.load();
 };
 
 
-HMT.prototype._processMaterial = function(data, shaders, material)
+HMT.prototype._processMaterial = function(data, material)
 {
     var defines = "";
     if (this.options.defines) {
@@ -74,15 +75,15 @@ HMT.prototype._processMaterial = function(data, shaders, material)
         }
     }
 
-    var geometryVertex = defines + shaders[this._correctURL(data.geometry.vertexShader)];
-    var geometryFragment = defines + shaders[this._correctURL(data.geometry.fragmentShader)];
+    var geometryVertex = defines + this._shaderLibrary.get(this._correctURL(data.geometry.vertexShader));
+    var geometryFragment = defines + this._shaderLibrary.get(this._correctURL(data.geometry.fragmentShader));
 
     material._geometryVertexShader = geometryVertex;
     material._geometryFragmentShader = geometryFragment;
     material.init();
 
     if (data.lightingModel)
-        material.lightingModel = shaders[this._correctURL(data.lightingModel)];
+        material.lightingModel = this._shaderLibrary.get(this._correctURL(data.lightingModel));
 
     this._applyUniforms(data, material);
 

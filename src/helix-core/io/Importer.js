@@ -43,6 +43,7 @@ Importer.prototype =
                 this.onFail(message);
         },
 
+        // expresses a url in the file relative to the original file being loaded
         _correctURL: function(url)
         {
             return this.path + (this.fileMap.hasOwnProperty(url)? this.fileMap[url] : url).replace("\\", "/");

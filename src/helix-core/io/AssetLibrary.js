@@ -116,6 +116,7 @@ AssetLibrary.prototype =
         }
 
         var asset = this._queue[this._numLoaded];
+
         switch (asset.type) {
             case AssetLibrary.Type.JSON:
                 this._json(asset.filename, asset.id);
@@ -163,11 +164,13 @@ AssetLibrary.prototype =
         loader.open('GET', file, true);
         loader.onreadystatechange = function()
         {
-            if (loader.readyState === 4 && loader.status === "200") {
+            if (loader.readyState === 4 && loader.status === 200) {
                 self._assets[id] = loader.responseText;
                 self._onAssetLoaded();
             }
         };
+
+        // TODO Add breaking change
         loader.send(null);
     },
 

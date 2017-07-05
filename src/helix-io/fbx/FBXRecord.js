@@ -1,12 +1,12 @@
 // this is used to represent the file contents itself, not translated to connected nodes yet
-HX.FBXRecord = function()
+function FBXRecord()
 {
     this.name = "";
     this.data = [];
     this.children = [];
-};
+}
 
-HX.FBXRecord.prototype =
+FBXRecord.prototype =
 {
     getChildByName: function(name)
     {
@@ -40,3 +40,5 @@ HX.FBXRecord.prototype =
             this.children[i].printDebug(printData, lvl + 1);
     }
 };
+
+export { FBXRecord };

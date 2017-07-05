@@ -1,4 +1,6 @@
-HX.MD5Anim = function()
+import * as HX from 'helix';
+
+function MD5Anim()
 {
     HX.Importer.call(this, HX.SkeletonClip);
     this._hierarchy = null;
@@ -9,11 +11,11 @@ HX.MD5Anim = function()
 
     this._correctionQuad = new HX.Quaternion();
     this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
-};
+}
 
-HX.MD5Anim.prototype = Object.create(HX.Importer.prototype);
+MD5Anim.prototype = Object.create(HX.Importer.prototype);
 
-HX.MD5Anim.prototype.parse = function(data, target)
+MD5Anim.prototype.parse = function(data, target)
 {
     this._hierarchy = [];
     this._baseFrame = [];
@@ -58,7 +60,7 @@ HX.MD5Anim.prototype.parse = function(data, target)
                 lineFunction = this._parseBaseFrame;
                 break;
             case "frame":
-                this._activeFrame = new HX.MD5Anim._FrameData();
+                this._activeFrame = new MD5Anim._FrameData();
                 lineFunction = this._parseFrame;
                 break;
 
@@ -68,10 +70,10 @@ HX.MD5Anim.prototype.parse = function(data, target)
     this._notifyComplete(target);
 };
 
-HX.MD5Anim.prototype._parseHierarchy = function(tokens)
+MD5Anim.prototype._parseHierarchy = function(tokens)
 {
     if (tokens[0] === "}") return;
-    var data = new HX.MD5Anim._HierachyData();
+    var data = new MD5Anim._HierachyData();
     data.name = tokens[0].substring(1, tokens[0].length - 1);
     data.parent = parseInt(tokens[1]);
     data.flags = parseInt(tokens[2]);
@@ -79,15 +81,15 @@ HX.MD5Anim.prototype._parseHierarchy = function(tokens)
     this._hierarchy.push(data);
 };
 
-HX.MD5Anim.prototype._parseBounds = function(tokens)
+MD5Anim.prototype._parseBounds = function(tokens)
 {
     // don't do anything with bounds for now
 };
 
-HX.MD5Anim.prototype._parseBaseFrame = function(tokens)
+MD5Anim.prototype._parseBaseFrame = function(tokens)
 {
     if (tokens[0] === "}") return;
-    var baseFrame = new HX.MD5Anim._BaseFrameData();
+    var baseFrame = new MD5Anim._BaseFrameData();
     var pos = baseFrame.pos;
     pos.x = parseFloat(tokens[1]);
     pos.y = parseFloat(tokens[2]);
@@ -102,7 +104,7 @@ HX.MD5Anim.prototype._parseBaseFrame = function(tokens)
     this._baseFrame.push(baseFrame);
 };
 
-HX.MD5Anim.prototype._parseFrame = function(tokens)
+MD5Anim.prototype._parseFrame = function(tokens)
 {
     if (tokens[0] === "}") {
         this._translateFrame();
@@ -115,7 +117,7 @@ HX.MD5Anim.prototype._parseFrame = function(tokens)
     }
 };
 
-HX.MD5Anim.prototype._translateFrame = function()
+MD5Anim.prototype._translateFrame = function()
 {
     var skeletonPose = new HX.SkeletonPose();
 
@@ -157,7 +159,7 @@ HX.MD5Anim.prototype._translateFrame = function()
     this._target.addKeyFrame(new HX.KeyFrame(time, skeletonPose));
 };
 
-HX.MD5Anim._HierachyData = function()
+MD5Anim._HierachyData = function()
 {
     this.name = null;
     this.parent = -1;
@@ -165,13 +167,15 @@ HX.MD5Anim._HierachyData = function()
     this.startIndex = 0;
 };
 
-HX.MD5Anim._BaseFrameData = function()
+MD5Anim._BaseFrameData = function()
 {
     this.pos = new HX.Float4();
     this.quat = new HX.Quaternion();
 };
 
-HX.MD5Anim._FrameData = function()
+MD5Anim._FrameData = function()
 {
     this.components = [];
 };
+
+export { MD5Anim };

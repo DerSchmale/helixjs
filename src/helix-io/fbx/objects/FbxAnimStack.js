@@ -1,20 +1,24 @@
-HX.FbxAnimStack = function()
-{
-    HX.FbxObject.call(this);
+import {FbxObject} from "./FbxObject";
+import {FbxAnimLayer} from "./FbxAnimLayer";
+import {FbxTime} from "./FbxTime";
 
-    this.LocalStart = 0;
-    this.LocalStop = 0;
-    this.ReferenceStart = 0;
-    this.ReferenceStop = 0;
+function FbxAnimStack()
+{
+    FbxObject.call(this);
+
+    this.LocalStart = new FbxTime();
+    this.LocalStop = new FbxTime();
+    this.ReferenceStart = new FbxTime();
+    this.ReferenceStop = new FbxTime();
 
     this.layers = null;
-};
+}
 
-HX.FbxAnimStack.prototype = Object.create(HX.FbxObject.prototype);
+FbxAnimStack.prototype = Object.create(FbxObject.prototype);
 
-HX.FbxAnimStack.prototype.connectObject = function(obj)
+FbxAnimStack.prototype.connectObject = function(obj)
 {
-    if (obj instanceof HX.FbxAnimLayer) {
+    if (obj instanceof FbxAnimLayer) {
         this.layers = this.layers || [];
         this.layers.push(obj);
     }
@@ -22,4 +26,6 @@ HX.FbxAnimStack.prototype.connectObject = function(obj)
         throw new Error("Incompatible child object " + obj.toString());
 };
 
-HX.FbxAnimStack.prototype.toString = function() { return "[FbxAnimStack(name="+this.name+")]"; };
+FbxAnimStack.prototype.toString = function() { return "[FbxAnimStack(name="+this.name+")]"; };
+
+export {FbxAnimStack};

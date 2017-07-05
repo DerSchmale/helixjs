@@ -1,11 +1,14 @@
+import {FbxObject} from "./FbxObject";
 // probably needs to be subclasses for Light, Camera, etc
-HX.FbxNodeAttribute = function()
+function FbxNodeAttribute()
 {
-    HX.FbxObject.call(this);
+    FbxObject.call(this);
     // actual video not supported
     this.type = null;
-};
+}
 
-HX.FbxNodeAttribute.prototype = Object.create(HX.FbxObject.prototype);
+FbxNodeAttribute.prototype = Object.create(FbxObject.prototype);
 
-HX.FbxNodeAttribute.prototype.toString = function() { return "[FbxNodeAttribute(name="+this.name+", type="+this.type+")]"; };
+FbxNodeAttribute.prototype.toString = function() { return "[FbxNodeAttribute(name="+this.name+", type="+this.type+")]"; };
+
+export {FbxNodeAttribute}

@@ -1,5 +1,6 @@
+import {FBXModelInstanceConverter} from "./FBXModelInstanceConverter";
 // Could also create an ASCII deserializer
-HX.FBXAnimationConverter = function()
+function FBXAnimationConverter()
 {
     this._skinningData = null;
     this._jointUIDLookUp = null;
@@ -7,9 +8,9 @@ HX.FBXAnimationConverter = function()
     this._fakeJointIndex = -1;
     this._animationClips = null;
     this._frameRate = 24;
-};
+}
 
-HX.FBXAnimationConverter.prototype =
+FBXAnimationConverter.prototype =
 {
     get skeleton()
     {
@@ -127,7 +128,7 @@ HX.FBXAnimationConverter.prototype =
             if (cluster.weights[i] > 0) {
                 var ctrlPointIndex = cluster.indices[i];
                 var skinningData = this._skinningData[ctrlPointIndex] = this._skinningData[ctrlPointIndex] || [];
-                var binding = new HX.FBXModelInstanceConverter._JointBinding();
+                var binding = new FBXModelInstanceConverter._JointBinding();
                 binding.jointIndex = jointIndex;
                 binding.jointWeight = cluster.weights[i];
                 skinningData.push(binding);
@@ -258,7 +259,7 @@ HX.FBXAnimationConverter.prototype =
                 localBind.appendAffine(parentInverse);
             }
 
-            var pose = new HX.FBXAnimationConverter._JointPose();
+            var pose = new FBXAnimationConverter._JointPose();
             var transform = new HX.Transform();
 
             localBind.decompose(transform);
@@ -318,9 +319,11 @@ HX.FBXAnimationConverter.prototype =
     }
 };
 
-HX.FBXAnimationConverter._JointPose = function()
+FBXAnimationConverter._JointPose = function()
 {
     this["Lcl Translation"] = new HX.Float4(0.0, 0.0, 0.0);
     this["Lcl Rotation"] = new HX.Float4(0.0, 0.0, 0.0);
     this["Lcl Scaling"] = new HX.Float4(1.0, 1.0, 1.0);
 };
+
+export { FBXAnimationConverter };

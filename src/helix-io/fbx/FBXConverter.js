@@ -1,14 +1,15 @@
+import {FBXModelInstanceConverter} from "./FBXModelInstanceConverter";
 // Could also create an ASCII deserializer
-HX.FBXConverter = function()
+function FBXConverter()
 {
     this._settings = null;
     this._objects = null;
     this._textureTokens = null;
     this._textureMaterialMap = null;
     this._rootNode = null;
-};
+}
 
-HX.FBXConverter.prototype =
+FBXConverter.prototype =
 {
     get textureTokens() { return this._textureTokens; },
     get textureMaterialMap() { return this._textureMaterialMap; },
@@ -83,7 +84,7 @@ HX.FBXConverter.prototype =
     {
         if (this._objects[node.UID]) return this._objects[node.UID];
 
-        var converter = new HX.FBXModelInstanceConverter();
+        var converter = new FBXModelInstanceConverter();
         converter.convertToModel(node, this._animationStack, geometryMatrix, this._settings);
 
         this._objects[node.UID] = converter;
@@ -102,14 +103,14 @@ HX.FBXConverter.prototype =
 
         if (fbxMaterial.textures) {
             if (fbxMaterial.textures["NormalMap"])
-                this._convertTexture(fbxMaterial.textures["NormalMap"], hxMaterial, HX.FBXConverter._TextureToken.NORMAL_MAP);
+                this._convertTexture(fbxMaterial.textures["NormalMap"], hxMaterial, FBXConverter._TextureToken.NORMAL_MAP);
 
             // We don't support specular color, instead hijack as roughness
             if (fbxMaterial.textures["SpecularColor"])
-                this._convertTexture(fbxMaterial.textures["SpecularColor"], hxMaterial, HX.FBXConverter._TextureToken.SPECULAR_MAP);
+                this._convertTexture(fbxMaterial.textures["SpecularColor"], hxMaterial, FBXConverter._TextureToken.SPECULAR_MAP);
 
             if (fbxMaterial.textures["DiffuseColor"])
-                this._convertTexture(fbxMaterial.textures["DiffuseColor"], hxMaterial, HX.FBXConverter._TextureToken.DIFFUSE_MAP);
+                this._convertTexture(fbxMaterial.textures["DiffuseColor"], hxMaterial, FBXConverter._TextureToken.DIFFUSE_MAP);
         }
 
         this._objects[fbxMaterial.UID] = hxMaterial;
@@ -123,7 +124,7 @@ HX.FBXConverter.prototype =
             token = this._objects[fbxTexture.UID];
         }
         else {
-            token = new HX.FBXConverter._TextureToken();
+            token = new FBXConverter._TextureToken();
             token.name = fbxTexture.name;
             token.mapType = mapType;
             token.filename = fbxTexture.relativeFilename ? fbxTexture.relativeFilename : fbxTexture.video.relativeFilename;
@@ -131,25 +132,27 @@ HX.FBXConverter.prototype =
             this._objects[fbxTexture.UID] = token;
         }
 
-        var mapping = new HX.FBXConverter._TextureMaterialMapping(hxMaterial, token, mapType);
+        var mapping = new FBXConverter._TextureMaterialMapping(hxMaterial, token, mapType);
         this._textureMaterialMap.push(mapping);
     }
 };
 
-HX.FBXConverter._TextureMaterialMapping = function(material, token, mapType)
+FBXConverter._TextureMaterialMapping = function(material, token, mapType)
 {
     this.material = material;
     this.token = token;
     this.mapType = mapType;
 };
 
-HX.FBXConverter._TextureToken = function()
+FBXConverter._TextureToken = function()
 {
     this.filename = null;
     this.name = null;
     this.UID = null;
 };
 
-HX.FBXConverter._TextureToken.NORMAL_MAP = 0;
-HX.FBXConverter._TextureToken.SPECULAR_MAP = 1;
-HX.FBXConverter._TextureToken.DIFFUSE_MAP = 2;
+FBXConverter._TextureToken.NORMAL_MAP = 0;
+FBXConverter._TextureToken.SPECULAR_MAP = 1;
+FBXConverter._TextureToken.DIFFUSE_MAP = 2;
+
+export {FBXConverter};

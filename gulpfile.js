@@ -7,12 +7,6 @@ var concatCallback = require('gulp-concat-callback');
 var del = require('del');
 var rollup = require('gulp-better-rollup');
 
-var ioFiles = [
-    "src/helix-io/fbx/objects/FbxObject.js",
-    "src/helix-io/fbx/objects/FbxNode.js",
-    "src/helix-io/**/*.js"
-];
-
 gulp.task('package', ['glsl', 'main', 'clean']);
 
 gulp.task('default', ['glsl', 'minimize', 'clean']);
@@ -30,7 +24,15 @@ gulp.task('core', ['glsl'], function ()
 
 gulp.task('io', [], function ()
 {
-    return gulp.src(ioFiles, {base: './'})
+    return gulp.src(['./src/helix-io/HX_IO.js'])
+        .pipe(rollup({
+            moduleName: 'HX',
+            globals: {
+                'helix': 'HX',
+                'pako': 'pako'
+            },
+            external: [ 'helix', 'pako' ]
+        }, 'umd'))
         .pipe(concat('helix-io.js'))
         .pipe(gulp.dest('./build/'));
 });

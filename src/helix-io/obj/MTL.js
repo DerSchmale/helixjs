@@ -1,18 +1,20 @@
+import * as HX from 'helix';
+
 /**
  *
  * @constructor
  */
-HX.MTL = function()
+function MTL()
 {
     HX.Importer.call(this, Object, HX.URLLoader.DATA_TEXT);
     this._textures = [];
     this._texturesToLoad = [];
     this._activeMaterial = null;
-};
+}
 
-HX.MTL.prototype = Object.create(HX.Importer.prototype);
+MTL.prototype = Object.create(HX.Importer.prototype);
 
-HX.MTL.prototype.parse = function(data, target)
+MTL.prototype.parse = function(data, target)
 {
     var lines = data.split("\n");
     var numLines = lines.length;
@@ -25,7 +27,7 @@ HX.MTL.prototype.parse = function(data, target)
     this._loadTextures(target);
 };
 
-HX.MTL.prototype._parseLine = function(line, target)
+MTL.prototype._parseLine = function(line, target)
 {
     // skip line
     if (line.length === 0 || line.charAt(0) === "#") return;
@@ -63,7 +65,7 @@ HX.MTL.prototype._parseLine = function(line, target)
     }
 };
 
-HX.MTL.prototype._getTexture = function(url)
+MTL.prototype._getTexture = function(url)
 {
     if (!this._textures[url]) {
         var tex = new HX.Texture2D();
@@ -78,7 +80,7 @@ HX.MTL.prototype._getTexture = function(url)
     return this._textures[url];
 };
 
-HX.MTL.prototype._loadTextures = function(lib)
+MTL.prototype._loadTextures = function(lib)
 {
     var library = new HX.AssetLibrary();
     var files = this._texturesToLoad;
@@ -103,3 +105,6 @@ HX.MTL.prototype._loadTextures = function(lib)
 
     library.load(files);
 };
+
+
+export { MTL };

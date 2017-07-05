@@ -1,23 +1,29 @@
+import * as HX from 'helix';
+import {FBXBinaryDeserializer} from "./FBXBinaryDeserializer";
+import {FBXGraphBuilder} from "./FBXGraphBuilder";
+import {FBXConverter} from "./FBXConverter";
+import {FBXSettings} from "./FBXSettings";
+
 /**
  *
  * @constructor
  */
-HX.FBX = function()
+function FBX()
 {
     HX.Importer.call(this, HX.SceneNode, HX.Importer.TYPE_BINARY);
     this._rootNode = null;
-};
+}
 
-HX.FBX.prototype = Object.create(HX.Importer.prototype);
+FBX.prototype = Object.create(HX.Importer.prototype);
 
-HX.FBX.prototype.parse = function(data, target)
+FBX.prototype.parse = function(data, target)
 {
     var stream = new HX.DataStream(data);
 
-    var deserializer = new HX.FBXBinaryDeserializer();
-    var fbxGraphBuilder = new HX.FBXGraphBuilder();
-    var fbxSceneConverter = new HX.FBXConverter();
-    var settings = new HX.FBXSettings();
+    var deserializer = new FBXBinaryDeserializer();
+    var fbxGraphBuilder = new FBXGraphBuilder();
+    var fbxSceneConverter = new FBXConverter();
+    var settings = new FBXSettings();
 
     try {
         var newTime, time = Date.now();
@@ -55,7 +61,7 @@ HX.FBX.prototype.parse = function(data, target)
         this._notifyComplete(target);
 };
 
-HX.FBX.prototype._loadTextures = function(tokens, map, target)
+FBX.prototype._loadTextures = function(tokens, map, target)
 {
     var numTextures = tokens.length;
 
@@ -82,13 +88,13 @@ HX.FBX.prototype._loadTextures = function(tokens, map, target)
             texture.name = token.name;
 
             switch (mapping.mapType) {
-                case HX.FBXConverter._TextureToken.NORMAL_MAP:
+                case FBXConverter._TextureToken.NORMAL_MAP:
                     mapping.material.normalMap = texture;
                     break;
-                case HX.FBXConverter._TextureToken.SPECULAR_MAP:
+                case FBXConverter._TextureToken.SPECULAR_MAP:
                     mapping.material.specularMap = texture;
                     break;
-                case HX.FBXConverter._TextureToken.DIFFUSE_MAP:
+                case FBXConverter._TextureToken.DIFFUSE_MAP:
                     mapping.material.colorMap = texture;
                     break;
             }
@@ -98,3 +104,5 @@ HX.FBX.prototype._loadTextures = function(tokens, map, target)
 
     this._textureLibrary.load();
 };
+
+export { FBX };

@@ -265,7 +265,7 @@ export function start()
         onPreFrame.dispatch(dt);
         onFrame.dispatch(dt);
     });
-};
+}
 
 export function stop()
 {

@@ -1,9 +1,12 @@
-HX.FbxVideo = function()
+import {FbxObject} from "./FbxObject";
+function FbxVideo()
 {
-    HX.FbxObject.call(this);
+    FbxObject.call(this);
     // actual video not supported
     this.relativeFilename = null;
-};
+}
 
-HX.FbxVideo.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxVideo.prototype.toString = function() { return "[FbxVideo(name="+this.name+")]"; };
+FbxVideo.prototype = Object.create(FbxObject.prototype);
+FbxVideo.prototype.toString = function() { return "[FbxVideo(name="+this.name+")]"; };
+
+export {FbxVideo};

@@ -1,6 +1,8 @@
-HX.FbxMaterial = function()
+import {FbxObject} from "./FbxObject";
+import {FbxFileTexture} from "./FbxFileTexture";
+function FbxMaterial()
 {
-    HX.FbxObject.call(this);
+    FbxObject.call(this);
     // actual video not supported
     this.EmissiveColor = null;
     this.EmissiveFactor = 1;
@@ -11,13 +13,13 @@ HX.FbxMaterial = function()
     this.Shininess = undefined;
 
     this.textures = null;
-};
+}
 
-HX.FbxMaterial.prototype = Object.create(HX.FbxObject.prototype);
+FbxMaterial.prototype = Object.create(FbxObject.prototype);
 
-HX.FbxMaterial.prototype.connectProperty = function(obj, propertyName)
+FbxMaterial.prototype.connectProperty = function(obj, propertyName)
 {
-    if (obj instanceof HX.FbxFileTexture) {
+    if (obj instanceof FbxFileTexture) {
         this.textures = this.textures || {};
         this.textures[propertyName] = obj;
     }
@@ -25,4 +27,6 @@ HX.FbxMaterial.prototype.connectProperty = function(obj, propertyName)
         throw new Error("Unknown object property!");
 };
 
-HX.FbxMaterial.prototype.toString = function() { return "[FbxMaterial(name="+this.name+")]"; };
+FbxMaterial.prototype.toString = function() { return "[FbxMaterial(name="+this.name+")]"; };
+
+export {FbxMaterial};

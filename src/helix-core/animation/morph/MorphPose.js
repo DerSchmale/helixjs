@@ -3,7 +3,6 @@ import {Signal} from "../../core/Signal";
 
 /**
  * MorphPose defines a certain configuration for blending several morph targets.
- * TODO: If we'd ever have a morphing blend tree, these poses could be used to blend between different poses
  * (even if they have different targets, they could be considered to have weight 0 if absent from eachother)
  * @constructor
  */

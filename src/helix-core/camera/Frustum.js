@@ -14,11 +14,6 @@ function Frustum()
 
     for (i = 0; i < 8; ++i)
         this._corners[i] = new Float4();
-
-    this._r1 = new Float4();
-    this._r2 = new Float4();
-    this._r3 = new Float4();
-    this._r4 = new Float4();
 }
 
 Frustum.PLANE_LEFT = 0;
@@ -59,23 +54,55 @@ Frustum.prototype =
 
         _updatePlanes: function(projection)
         {
-            // todo: this can all be inlined, but not the highest priority (only once per frame)
-            var r1 = projection.getRow(0, this._r1);
-            var r2 = projection.getRow(1, this._r2);
-            var r3 = projection.getRow(2, this._r3);
-            var r4 = projection.getRow(3, this._r4);
+            var m = projection._m;
 
-            Float4.add(r4, r1, this._planes[Frustum.PLANE_LEFT]);
-            Float4.subtract(r4, r1, this._planes[Frustum.PLANE_RIGHT]);
-            Float4.add(r4, r2, this._planes[Frustum.PLANE_BOTTOM]);
-            Float4.subtract(r4, r2, this._planes[Frustum.PLANE_TOP]);
-            Float4.add(r4, r3, this._planes[Frustum.PLANE_NEAR]);
-            Float4.subtract(r4, r3, this._planes[Frustum.PLANE_FAR]);
+            var left = this._planes[Frustum.PLANE_LEFT];
+            var right = this._planes[Frustum.PLANE_RIGHT];
+            var top = this._planes[Frustum.PLANE_TOP];
+            var bottom = this._planes[Frustum.PLANE_BOTTOM];
+            var near = this._planes[Frustum.PLANE_NEAR];
+            var far = this._planes[Frustum.PLANE_FAR];
 
-            for (var i = 0; i < 6; ++i) {
-                this._planes[i].negate();
-                this._planes[i].normalizeAsPlane();
-            }
+            var r1x = m[0], r1y = m[4], r1z = m[8], r1w = m[12];
+            var r2x = m[1], r2y = m[5], r2z = m[9], r2w = m[13];
+            var r3x = m[2], r3y = m[6], r3z = m[10], r3w = m[14];
+            var r4x = m[3], r4y = m[7], r4z = m[11], r4w = m[15];
+
+            left.x = -(r4x + r1x);
+            left.y = -(r4y + r1y);
+            left.z = -(r4z + r1z);
+            left.w = -(r4w + r1w);
+            left.normalizeAsPlane();
+
+            right.x = r1x - r4x;
+            right.y = r1y - r4y;
+            right.z = r1z - r4z;
+            right.w = r1w - r4w;
+            right.normalizeAsPlane();
+
+            bottom.x = -(r4x + r2x);
+            bottom.y = -(r4y + r2y);
+            bottom.z = -(r4z + r2z);
+            bottom.w = -(r4w + r2w);
+            bottom.normalizeAsPlane();
+
+            top.x = r2x - r4x;
+            top.y = r2y - r4y;
+            top.z = r2z - r4z;
+            top.w = r2w - r4w;
+            top.normalizeAsPlane();
+
+            near.x = -(r4x + r3x);
+            near.y = -(r4y + r3y);
+            near.z = -(r4z + r3z);
+            near.w = -(r4w + r3w);
+            near.normalizeAsPlane();
+
+            far.x = r3x - r4x;
+            far.y = r3y - r4y;
+            far.z = r3z - r4z;
+            far.w = r3w - r4w;
+            far.normalizeAsPlane();
         },
 
         _updateCorners: function(inverseProjection)

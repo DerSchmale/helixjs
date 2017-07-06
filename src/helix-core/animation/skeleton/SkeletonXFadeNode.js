@@ -13,7 +13,7 @@ function SkeletonXFadeNode()
     this._children = [];
     this._numJoints = 0;
 
-    // TODO: Add the possibility to sync times!
+    // TODO: Add the possibility to sync times, useful for syncing walk -> run!
     // in this case, the clips should have their timesteps recalculated
 };
 
@@ -25,8 +25,6 @@ SkeletonXFadeNode.prototype = Object.create(SkeletonBlendNode.prototype, {
 
 SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
 {
-    // TODO: Also updates when the time changes the crossfade factor
-
     var len = this._children.length;
 
     // still fading if len > 1

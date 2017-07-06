@@ -71,17 +71,16 @@ AnimationPlayhead.prototype =
         var frameA, frameB;
 
         if (dt > 0) {
-            // todo: should be able to simply do this by division
+            wraps = Math.ceil(this._time / duration);
+            // could replace the while loop with an if loop and calculate wrap with division, but it's usually not more
+            // than 1 anyway
             while (this._time >= duration) {
                 // reset playhead to make sure progressive update logic works
                 this._currentFrameIndex = 0;
                 this._time -= duration;
                 ++wraps;
             }
-            //  old     A            B
-            //  new                  A           B
-            //  frames: 0           10          20          30
-            //  time:         x   ----->   x
+
             do {
                 // advance play head
                 if (++this._currentFrameIndex === numKeyFrames) this._currentFrameIndex = 0;
@@ -99,11 +98,6 @@ AnimationPlayhead.prototype =
                 ++wraps;
             }
 
-            //  old     A            B
-            //  new                  A           B
-            //  frames: 0           10          20          30
-            //  time:         x   <-----   x
-            // advance play head
             ++this._currentFrameIndex;
             do {
                 if (--this._currentFrameIndex < 0) this._currentFrameIndex = numKeyFrames;

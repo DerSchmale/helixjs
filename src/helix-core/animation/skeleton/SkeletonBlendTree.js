@@ -114,7 +114,6 @@ SkeletonBlendTree.prototype =
 
                 c.decompose(globalJointPose.position, globalJointPose.rotation, globalJointPose.scale);*/
 
-                // TODO: Check if non-uniform scaling is correct
                 var gTr = globalJointPose.position;
                 var ptr = parentPose.position;
                 var pQuad = parentPose.rotation;

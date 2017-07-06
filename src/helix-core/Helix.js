@@ -58,7 +58,6 @@ export var _HX_ = {
     HDR_FORMAT: 0
 };
 
-// TODO: hardcode values?
 export var TextureFilter = {};
 export var TextureWrapMode = {};
 export var CullMode = {};
@@ -299,7 +298,6 @@ function _initDefaultSkinningTexture()
     for (var i = 0; i < META.OPTIONS.maxBones; ++i)
         data.push(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
 
-    // TODO: Provide a proper texture format enum
     DEFAULTS.DEFAULT_SKINNING_TEXTURE.uploadData(new Float32Array(data), META.OPTIONS.maxBones, 3, false, gl.RGBA, gl.FLOAT);
     DEFAULTS.DEFAULT_SKINNING_TEXTURE.filter = TextureFilter.NEAREST_NOMIP;
     DEFAULTS.DEFAULT_SKINNING_TEXTURE.wrapMode = TextureWrapMode.CLAMP;
@@ -420,6 +418,8 @@ function _initGLProperties()
     TextureFormat.RGB = gl.RGB;
 
     DataType.UNSIGNED_BYTE = gl.UNSIGNED_BYTE;
+    DataType.UNSIGNED_SHORT = gl.UNSIGNED_SHORT;
+    DataType.UNSIGNED_INT = gl.UNSIGNED_INT;
     DataType.FLOAT = gl.FLOAT;
 
     BufferUsage.STATIC_DRAW = gl.STATIC_DRAW;

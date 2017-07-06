@@ -1,16 +1,19 @@
-HX.FbxPose = function()
+import {FbxObject} from "./FbxObject";
+function FbxPose()
 {
-    HX.FbxObject.call(this);
+    FbxObject.call(this);
     this.type = null;
     this.poseNodes = [];
-};
+}
 
-HX.FbxPose.prototype = Object.create(HX.FbxObject.prototype);
+FbxPose.prototype = Object.create(FbxObject.prototype);
 
-HX.FbxPose.prototype.toString = function() { return "[FbxPose(name="+this.name+")]"; };
+FbxPose.prototype.toString = function() { return "[FbxPose(name="+this.name+")]"; };
 
-HX.FbxPoseNode = function()
+function FbxPoseNode()
 {
     this.targetUID = null;
     this.matrix = null;
 }
+
+export {FbxPose, FbxPoseNode};

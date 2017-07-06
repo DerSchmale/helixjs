@@ -1,11 +1,14 @@
-HX.FbxTrashNode = function()
+import {FbxObject} from "./FbxObject";
+function FbxTrashNode()
 {
-    HX.FbxObject.call(this);
-};
+    FbxObject.call(this);
+}
 
-HX.FbxTrashNode.prototype = Object.create(HX.FbxObject.prototype);
+FbxTrashNode.prototype = Object.create(FbxObject.prototype);
 
-HX.FbxTrashNode.prototype.toString = function() { return "[FbxTrashNode(name="+this.name+")]"; };
+FbxTrashNode.prototype.toString = function() { return "[FbxTrashNode(name="+this.name+")]"; };
 
 // ignore
-HX.FbxTrashNode.prototype.connectObject = function(obj) {}
+FbxTrashNode.prototype.connectObject = function(obj) {};
+
+export {FbxTrashNode};

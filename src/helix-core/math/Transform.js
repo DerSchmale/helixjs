@@ -1,16 +1,21 @@
+import {Float4} from "./Float4";
+import {Quaternion} from "./Quaternion";
+import {Matrix4x4} from "./Matrix4x4";
+import {PropertyListener} from "../core/PropertyListener";
+
 /**
  * An object using position, rotation quaternion and scale to describe an object's transformation.
  *
  * @constructor
  */
-HX.Transform = function()
+function Transform()
 {
-    this._position = new HX.Float4(0.0, 0.0, 0.0, 1.0);
-    this._rotation = new HX.Quaternion();
-    this._scale = new HX.Float4(1.0, 1.0, 1.0, 1.0);
-    this._matrix = new HX.Matrix4x4();
+    this._position = new Float4(0.0, 0.0, 0.0, 1.0);
+    this._rotation = new Quaternion();
+    this._scale = new Float4(1.0, 1.0, 1.0, 1.0);
+    this._matrix = new Matrix4x4();
 
-    this._changeListener = new HX.PropertyListener();
+    this._changeListener = new PropertyListener();
     this._changeListener.add(this._position, "x");
     this._changeListener.add(this._position, "y");
     this._changeListener.add(this._position, "z");
@@ -22,9 +27,9 @@ HX.Transform = function()
     this._changeListener.add(this._scale, "y");
     this._changeListener.add(this._scale, "z");
     this._changeListener.onChange.bind(this._invalidateMatrix, this);
-};
+}
 
-HX.Transform.prototype =
+Transform.prototype =
 {
     get position() {
         return this._position;
@@ -55,7 +60,7 @@ HX.Transform.prototype =
 
     lookAt: function(target)
     {
-        this._matrix.lookAt(target, this._position, HX.Float4.Y_AXIS);
+        this._matrix.lookAt(target, this._position, Float4.Y_AXIS);
         this._applyMatrix();
     },
 
@@ -102,3 +107,5 @@ HX.Transform.prototype =
         this._changeListener.enabled = true;
     }
 };
+
+export { Transform };

@@ -1,13 +1,17 @@
 // basic version is non-hierarchical, for use with lights etc
+import {Matrix4x4} from "../math/Matrix4x4";
+import {MaterialQueryVisitor} from "./MaterialQueryVisitor";
+import {Transform} from "../math/Transform";
+import {BoundingAABB} from "./BoundingAABB";
 /**
  *
  * @constructor
  */
-HX.SceneNode = function()
+function SceneNode()
 {
-    HX.Transform.call(this);
+    Transform.call(this);
     this._name = null;
-    this._worldMatrix = new HX.Matrix4x4();
+    this._worldMatrix = new Matrix4x4();
     this._worldBoundsInvalid = true;
     this._matrixInvalid = true;
     this._worldMatrixInvalid = true;
@@ -22,11 +26,9 @@ HX.SceneNode = function()
     // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
     // intersection with near plane, etc
     this._renderOrderHint = 0.0;
-};
+}
 
-HX.SceneNode.prototype = Object.create(HX.Transform.prototype);
-
-Object.defineProperties(HX.SceneNode.prototype, {
+SceneNode.prototype = Object.create(Transform.prototype, {
     name: {
         get: function()
         {
@@ -73,28 +75,10 @@ Object.defineProperties(HX.SceneNode.prototype, {
 
             return this._worldMatrix;
         }
-    },
-
-    showDebugBounds: {
-        get: function ()
-        {
-            return this._debugBounds !== null
-        },
-        set: function(value)
-        {
-            if (!!this._debugBounds === value) return;
-
-            if (value) {
-                this._debugBounds = this._worldBounds.getDebugModelInstance();
-                this._updateDebugBounds();
-            }
-            else
-                this._debugBounds = null;
-        }
     }
 });
 
-HX.SceneNode.prototype.attach = function(child)
+SceneNode.prototype.attach = function(child)
 {
     if (child instanceof Array) {
         var len = child.length;
@@ -114,7 +98,7 @@ HX.SceneNode.prototype.attach = function(child)
     this._invalidateWorldBounds();
 };
 
-HX.SceneNode.prototype.detach = function(child)
+SceneNode.prototype.detach = function(child)
 {
     var index = this._children.indexOf(child);
 
@@ -127,22 +111,22 @@ HX.SceneNode.prototype.detach = function(child)
     this._invalidateWorldBounds();
 };
 
-HX.SceneNode.prototype.getChild = function(index) { return this._children[index]; };
+SceneNode.prototype.getChild = function(index) { return this._children[index]; };
 
-HX.SceneNode.prototype._applyMatrix = function()
+SceneNode.prototype._applyMatrix = function()
 {
-    HX.Transform.prototype._applyMatrix.call(this);
+    Transform.prototype._applyMatrix.call(this);
     this._invalidateWorldMatrix();
 };
 
-HX.SceneNode.prototype.findMaterialByName = function(name)
+SceneNode.prototype.findMaterialByName = function(name)
 {
-    var visitor = new HX.MaterialQueryVisitor(name);
+    var visitor = new MaterialQueryVisitor(name);
     this.acceptVisitor(visitor);
     return visitor.foundMaterial;
 };
 
-HX.SceneNode.prototype.findNodeByName = function(name)
+SceneNode.prototype.findNodeByName = function(name)
 {
     if (this._name === name) return this;
 
@@ -153,7 +137,7 @@ HX.SceneNode.prototype.findNodeByName = function(name)
     }
 };
 
-HX.SceneNode.prototype._setScene = function(scene)
+SceneNode.prototype._setScene = function(scene)
 {
     this._scene = scene;
 
@@ -163,7 +147,7 @@ HX.SceneNode.prototype._setScene = function(scene)
         this._children[i]._setScene(scene);
 };
 
-HX.SceneNode.prototype.acceptVisitor = function(visitor)
+SceneNode.prototype.acceptVisitor = function(visitor)
 {
     if (this._debugBounds)
         this._debugBounds.acceptVisitor(visitor);
@@ -177,13 +161,13 @@ HX.SceneNode.prototype.acceptVisitor = function(visitor)
     }
 };
 
-HX.SceneNode.prototype._invalidateMatrix = function ()
+SceneNode.prototype._invalidateMatrix = function ()
 {
-    HX.Transform.prototype._invalidateMatrix.call(this);
+    Transform.prototype._invalidateMatrix.call(this);
     this._invalidateWorldMatrix();
 };
 
-HX.SceneNode.prototype._invalidateWorldMatrix = function ()
+SceneNode.prototype._invalidateWorldMatrix = function ()
 {
     this._worldMatrixInvalid = true;
     this._invalidateWorldBounds();
@@ -193,7 +177,7 @@ HX.SceneNode.prototype._invalidateWorldMatrix = function ()
         this._children[i]._invalidateWorldMatrix();
 };
 
-HX.SceneNode.prototype._invalidateWorldBounds = function ()
+SceneNode.prototype._invalidateWorldBounds = function ()
 {
     if (this._worldBoundsInvalid) return;
 
@@ -203,7 +187,7 @@ HX.SceneNode.prototype._invalidateWorldBounds = function ()
         this._parent._invalidateWorldBounds();
 };
 
-HX.SceneNode.prototype._updateWorldBounds = function ()
+SceneNode.prototype._updateWorldBounds = function ()
 {
     var len = this._children.length;
 
@@ -217,7 +201,7 @@ HX.SceneNode.prototype._updateWorldBounds = function ()
         this._updateDebugBounds();
 };
 
-HX.SceneNode.prototype._updateDebugBounds = function()
+SceneNode.prototype._updateDebugBounds = function()
 {
     var matrix = this._debugBounds.matrix;
     var bounds = this._worldBounds;
@@ -227,13 +211,13 @@ HX.SceneNode.prototype._updateDebugBounds = function()
     this._debugBounds.matrix = matrix;
 };
 
-HX.SceneNode.prototype._updateMatrix = function()
+SceneNode.prototype._updateMatrix = function()
 {
-    HX.Transform.prototype._updateMatrix.call(this);
+    Transform.prototype._updateMatrix.call(this);
     this._invalidateWorldBounds();
 };
 
-HX.SceneNode.prototype._updateWorldMatrix = function()
+SceneNode.prototype._updateWorldMatrix = function()
 {
     if (this._parent)
         this._worldMatrix.multiply(this._parent.worldMatrix, this.matrix);
@@ -244,17 +228,17 @@ HX.SceneNode.prototype._updateWorldMatrix = function()
 };
 
 // override for better matches
-HX.SceneNode.prototype._createBoundingVolume = function()
+SceneNode.prototype._createBoundingVolume = function()
 {
-    return new HX.BoundingAABB();
+    return new BoundingAABB();
 };
 
-HX.SceneNode.prototype.toString = function()
+SceneNode.prototype.toString = function()
 {
     return "[SceneNode(name=" + this._name + ")]";
 };
 
-HX.SceneNode.prototype.applyFunction = function(func)
+SceneNode.prototype.applyFunction = function(func)
 {
     // Heehee, this line amuses me:
     func(this);
@@ -263,3 +247,5 @@ HX.SceneNode.prototype.applyFunction = function(func)
     for (var i = 0; i < len; ++i)
         this._children[i].applyFunction(func);
 };
+
+export { SceneNode };

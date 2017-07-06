@@ -4,26 +4,30 @@
  * prototype.prepareBatch
  * @constructor
  */
-HX.Light = function ()
+import {Color} from "../core/Color";
+import {Entity} from "../entity/Entity";
+import {META} from "../Helix";
+
+function Light()
 {
-    HX.Entity.call(this);
+    Entity.call(this);
     //this._type = this.getTypeID();
     this._intensity = 3.1415;
-    this._color = new HX.Color(1.0, 1.0, 1.0);
-    this._scaledIrradiance = new HX.Color();
+    this._color = new Color(1.0, 1.0, 1.0);
+    this._scaledIrradiance = new Color();
     this._castShadows = false;
     this._updateScaledIrradiance();
-};
+}
 
-HX.Light.prototype = Object.create(HX.Entity.prototype);
+Light.prototype = Object.create(Entity.prototype);
 
-HX.Light.prototype.acceptVisitor = function (visitor)
+Light.prototype.acceptVisitor = function (visitor)
 {
-    HX.Entity.prototype.acceptVisitor.call(this, visitor);
+    Entity.prototype.acceptVisitor.call(this, visitor);
     visitor.visitLight(this);
 };
 
-Object.defineProperties(HX.Light.prototype, {
+Object.defineProperties(Light.prototype, {
     intensity: {
         get: function ()
         {
@@ -49,29 +53,29 @@ Object.defineProperties(HX.Light.prototype, {
          */
         set: function (value)
         {
-            this._color = isNaN(value) ? value : new HX.Color(value);
+            this._color = isNaN(value) ? value : new Color(value);
             this._updateScaledIrradiance();
         }
     }
 });
 
 // returns the index of the FIRST UNRENDERED light
-HX.Light.prototype.renderBatch = function(lightCollection, startIndex, renderer)
+Light.prototype.renderBatch = function(lightCollection, startIndex, renderer)
 {
     throw new Error("Abstract method!");
 };
 
-HX.Light.prototype.luminance = function ()
+Light.prototype.luminance = function ()
 {
     return this._color.luminance() * this._intensity;
 };
 
-HX.Light.prototype._updateScaledIrradiance = function ()
+Light.prototype._updateScaledIrradiance = function ()
 {
     // this includes 1/PI radiance->irradiance factor
     var scale = this._intensity / Math.PI;
 
-    if (HX.OPTIONS.useGammaCorrection)
+    if (META.OPTIONS.useGammaCorrection)
         this._color.gammaToLinear(this._scaledIrradiance);
     else
         this._scaledIrradiance.copyFrom(this._color);
@@ -81,3 +85,5 @@ HX.Light.prototype._updateScaledIrradiance = function ()
     this._scaledIrradiance.b *= scale;
     this._invalidateWorldBounds();
 };
+
+export { Light };

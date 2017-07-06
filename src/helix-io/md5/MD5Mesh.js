@@ -1,8 +1,10 @@
+import * as HX from 'helix';
+
 /**
  * Warning, MD5 as supported by Helix does not contain any materials nor scene graph information, so it only loads Models, not instances!
  * @constructor
  */
-HX.MD5Mesh = function()
+function MD5Mesh()
 {
     HX.Importer.call(this, HX.Model);
     this._target = null;
@@ -12,11 +14,11 @@ HX.MD5Mesh = function()
 
     this._correctionQuad = new HX.Quaternion();
     this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
-};
+}
 
-HX.MD5Mesh.prototype = Object.create(HX.Importer.prototype);
+MD5Mesh.prototype = Object.create(HX.Importer.prototype);
 
-HX.MD5Mesh.prototype.parse = function(data, target)
+MD5Mesh.prototype.parse = function(data, target)
 {
     this._modelData = new HX.ModelData();
     this._skeleton = new HX.Skeleton();
@@ -49,7 +51,7 @@ HX.MD5Mesh.prototype.parse = function(data, target)
                 lineFunction = this._parseJoint;
                 break;
             case "mesh":
-                this._meshData = new HX.MD5Mesh._MeshData();
+                this._meshData = new MD5Mesh._MeshData();
                 lineFunction = this._parseMesh;
                 break;
         }
@@ -60,11 +62,11 @@ HX.MD5Mesh.prototype.parse = function(data, target)
     this._notifyComplete(target);
 };
 
-HX.MD5Mesh.prototype._parseJoint = function(tokens)
+MD5Mesh.prototype._parseJoint = function(tokens)
 {
     if (tokens[0] === "}") return;
 
-    var jointData = new HX.MD5Mesh._Joint();
+    var jointData = new MD5Mesh._Joint();
     var pos = jointData.pos;
     var quat = jointData.quat;
     jointData.name = tokens[0].substring(1, tokens[0].length - 1);
@@ -94,7 +96,7 @@ HX.MD5Mesh.prototype._parseJoint = function(tokens)
     this._skeleton.addJoint(joint);
 };
 
-HX.MD5Mesh.prototype._parseMesh = function(tokens)
+MD5Mesh.prototype._parseMesh = function(tokens)
 {
     switch (tokens[0]) {
         case "shader":
@@ -116,9 +118,9 @@ HX.MD5Mesh.prototype._parseMesh = function(tokens)
     }
 };
 
-HX.MD5Mesh.prototype._parseVert = function(tokens)
+MD5Mesh.prototype._parseVert = function(tokens)
 {
-    var vert = new HX.MD5Mesh._VertexData();
+    var vert = new MD5Mesh._VertexData();
     vert.u = parseFloat(tokens[3]);
     vert.v = parseFloat(tokens[4]);
     vert.startWeight = parseInt(tokens[6]);
@@ -126,9 +128,9 @@ HX.MD5Mesh.prototype._parseVert = function(tokens)
     this._meshData.vertexData.push(vert);
 };
 
-HX.MD5Mesh.prototype._parseWeight = function(tokens)
+MD5Mesh.prototype._parseWeight = function(tokens)
 {
-    var weight = new HX.MD5Mesh._WeightData();
+    var weight = new MD5Mesh._WeightData();
     weight.joint = parseInt(tokens[2]);
     weight.bias = parseFloat(tokens[3]);
     weight.pos.x = parseFloat(tokens[5]);
@@ -137,7 +139,7 @@ HX.MD5Mesh.prototype._parseWeight = function(tokens)
     this._meshData.weightData.push(weight);
 };
 
-HX.MD5Mesh.prototype._translateMesh = function()
+MD5Mesh.prototype._translateMesh = function()
 {
     var meshData = new HX.MeshData.createDefaultEmpty();
     meshData.addVertexAttribute("hx_boneIndices", 4, 1);
@@ -197,7 +199,7 @@ HX.MD5Mesh.prototype._translateMesh = function()
     this._modelData.addMeshData(meshData);
 };
 
-HX.MD5Mesh._Joint = function()
+MD5Mesh._Joint = function()
 {
     this.name = null;
     this.parentIndex = -1;
@@ -205,14 +207,14 @@ HX.MD5Mesh._Joint = function()
     this.pos = new HX.Float4();
 };
 
-HX.MD5Mesh._MeshData = function()
+MD5Mesh._MeshData = function()
 {
     this.vertexData = [];
     this.weightData = [];
     this.indices = [];
 };
 
-HX.MD5Mesh._VertexData = function()
+MD5Mesh._VertexData = function()
 {
     this.u = 0;
     this.v = 0;
@@ -220,9 +222,11 @@ HX.MD5Mesh._VertexData = function()
     this.countWeight = 0;
 };
 
-HX.MD5Mesh._WeightData = function()
+MD5Mesh._WeightData = function()
 {
     this.joint = 0;
     this.bias = 0;
     this.pos = new HX.Float4();
 };
+
+export {MD5Mesh};

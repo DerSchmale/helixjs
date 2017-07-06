@@ -1,9 +1,13 @@
 /**
  * @constructor
  */
-HX.StatsDisplay = function(container)
+import {FPSCounter} from "./FPSCounter";
+import {META, onPreFrame} from "../Helix";
+import {_glStats} from "../core/GL";
+
+function StatsDisplay(container)
 {
-    this._fpsCounter = new HX.FPSCounter(30);
+    this._fpsCounter = new FPSCounter(30);
 
     this._div = document.createElement("div");
     this._div.style.position = "absolute";
@@ -20,10 +24,10 @@ HX.StatsDisplay = function(container)
     container = container || document.getElementsByTagName("body")[0];
     container.appendChild(this._div);
 
-    HX.onPreFrame.bind(this._update, this);
-};
+    onPreFrame.bind(this._update, this);
+}
 
-HX.StatsDisplay.prototype =
+StatsDisplay.prototype =
 {
     remove: function()
     {
@@ -35,12 +39,14 @@ HX.StatsDisplay.prototype =
         this._fpsCounter.update(dt);
         this._div.innerHTML =
             "FPS: " + this._fpsCounter.averageFPS + "<br/>" +
-            "Draws: " + HX._glStats.numDrawCalls + "<br/>" +
-            "Tris: " + HX._glStats.numTriangles + "<br/>" +
-            "Clears: " + HX._glStats.numClears + "<br/><br/>" +
+            "Draws: " + _glStats.numDrawCalls + "<br/>" +
+            "Tris: " + _glStats.numTriangles + "<br/>" +
+            "Clears: " + _glStats.numClears + "<br/><br/>" +
 
             "<div style='font-size:x-small; width:100%; text-align:right;'>"+
-            "Helix " + HX.VERSION + "<br/>" +
+            "Helix " + META.VERSION + "<br/>" +
             "</div>";
     }
 };
+
+export { StatsDisplay };

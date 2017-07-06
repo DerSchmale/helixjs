@@ -4,26 +4,29 @@
  * @param model
  * @constructor
  */
-HX.Mesh = function (meshData, model)
+import {IndexBuffer} from "../core/IndexBuffer";
+import {VertexBuffer} from "../core/VertexBuffer";
+
+var Mesh_ID_COUNTER = 0;
+
+function Mesh(meshData, model)
 {
     this._model = model;
     this._vertexBuffers = [];
     this._vertexStrides = [];
     this._vertexAttributes = null;
     this._morphAttributes = null;
-    this._indexBuffer = new HX.IndexBuffer();
+    this._indexBuffer = new IndexBuffer();
     this._defaultMorphTarget = null;
 
-    this._renderOrderHint = ++HX.Mesh.ID_COUNTER;
+    this._renderOrderHint = ++Mesh_ID_COUNTER;
 
     this.updateMeshData(meshData);
-};
+}
 
-HX.Mesh.ID_COUNTER = 0;
+Mesh.ID_COUNTER = 0;
 
-HX.Mesh.prototype = {
-    constructor: HX.Mesh,
-
+Mesh.prototype = {
     get hasMorphData()
     {
         return !!this._morphAttributes;
@@ -37,7 +40,7 @@ HX.Mesh.prototype = {
         if (numStreams > numVertexBuffers) {
             for (var i = numVertexBuffers; i < numStreams; ++i) {
                 if (meshData.hasVertexData(i))
-                    this._vertexBuffers[i] = new HX.VertexBuffer();
+                    this._vertexBuffers[i] = new VertexBuffer();
             }
         }
         else if (numStreams < numVertexBuffers) {
@@ -60,7 +63,7 @@ HX.Mesh.prototype = {
         this._morphAttributes = meshData._morphAttributes;
 
         if (this._morphAttributes) {
-            this._defaultMorphTarget = new HX.VertexBuffer();
+            this._defaultMorphTarget = new VertexBuffer();
             this._defaultMorphTarget.uploadData(meshData._defaultMorphTarget);
         }
     },
@@ -97,3 +100,5 @@ HX.Mesh.prototype = {
         return this._vertexAttributes[index];
     }
 };
+
+export { Mesh };

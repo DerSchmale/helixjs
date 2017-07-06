@@ -1,25 +1,29 @@
+import {Float2} from "../math/Float2";
+import {Float4} from "../math/Float4";
+
+
 /**
  *
  * @constructor
  */
-HX.NormalTangentGenerator = function()
+function NormalTangentGenerator()
 {
     this._meshData = null;
     this._mode = 0;
     this._faceNormals = null;
     this._faceTangents = null;
     this._faceBitangents = null;
-};
+}
 
-HX.NormalTangentGenerator.MODE_NORMALS = 1;
-HX.NormalTangentGenerator.MODE_TANGENTS = 2;
+NormalTangentGenerator.MODE_NORMALS = 1;
+NormalTangentGenerator.MODE_TANGENTS = 2;
 
-HX.NormalTangentGenerator.prototype =
+NormalTangentGenerator.prototype =
 {
     generate: function(meshData, mode, useFaceWeights)
     {
         if (useFaceWeights === undefined) useFaceWeights = true;
-        this._mode = mode === undefined? HX.NormalTangentGenerator.MODE_NORMALS | HX.NormalTangentGenerator.MODE_TANGENTS : mode;
+        this._mode = mode === undefined? NormalTangentGenerator.MODE_NORMALS | NormalTangentGenerator.MODE_TANGENTS : mode;
 
         this._meshData = meshData;
 
@@ -40,23 +44,23 @@ HX.NormalTangentGenerator.prototype =
     {
         var numIndices = this._meshData._indexData.length;
 
-        if ((this._mode & HX.NormalTangentGenerator.MODE_NORMALS) !== 0) this._faceNormals = new Array(numIndices);
-        if ((this._mode & HX.NormalTangentGenerator.MODE_TANGENTS) !== 0) {
+        if ((this._mode & NormalTangentGenerator.MODE_NORMALS) !== 0) this._faceNormals = new Array(numIndices);
+        if ((this._mode & NormalTangentGenerator.MODE_TANGENTS) !== 0) {
             this._faceTangents = new Array(numIndices);
             this._faceBitangents = new Array(numIndices);
         }
 
-        var temp = new HX.Float4();
-        var temp1 = new HX.Float4();
-        var temp2 = new HX.Float4();
-        var v0 = new HX.Float4();
-        var v1 = new HX.Float4();
-        var v2 = new HX.Float4();
-        var uv0 = new HX.Float2();
-        var uv1 = new HX.Float2();
-        var uv2 = new HX.Float2();
-        var st1 = new HX.Float2();
-        var st2 = new HX.Float2();
+        var temp = new Float4();
+        var temp1 = new Float4();
+        var temp2 = new Float4();
+        var v0 = new Float4();
+        var v1 = new Float4();
+        var v2 = new Float4();
+        var uv0 = new Float2();
+        var uv1 = new Float2();
+        var uv2 = new Float2();
+        var st1 = new Float2();
+        var st2 = new Float2();
 
         var posOffset = this._positionAttrib.offset;
         var uvOffset = this._uvAttrib.offset;
@@ -75,7 +79,7 @@ HX.NormalTangentGenerator.prototype =
             v2.subtract(v0);
 
             if (this._faceNormals) {
-                temp.cross(v1, v2);
+                Float4.cross(v1, v2, temp);
 
                 if (!useFaceWeights) temp.normalize();
 
@@ -86,12 +90,12 @@ HX.NormalTangentGenerator.prototype =
 
             if (this._faceTangents) {
                 //var div = ((uv1.x - uv0.x)*(uv2.y - uv0.y) - (uv1.y - uv0.y)*(uv2.x - uv0.x));
-                HX.Float2.subtract(uv1, uv0, st1);
-                HX.Float2.subtract(uv2, uv0, st2);
+                Float2.subtract(uv1, uv0, st1);
+                Float2.subtract(uv2, uv0, st2);
 
-                HX.Float4.scale(v1, st2.y, temp1);
-                HX.Float4.scale(v2, st1.y, temp2);
-                HX.Float4.subtract(temp1, temp2, temp);
+                Float4.scale(v1, st2.y, temp1);
+                Float4.scale(v2, st1.y, temp2);
+                Float4.subtract(temp1, temp2, temp);
 
                 if (temp.lengthSqr > .001)
                     temp.normalize();
@@ -100,9 +104,9 @@ HX.NormalTangentGenerator.prototype =
                 this._faceTangents[i + 1] = temp.y;
                 this._faceTangents[i + 2] = temp.z;
 
-                HX.Float4.scale(v1, st2.x, temp1);
-                HX.Float4.scale(v2, st1.x, temp1);
-                HX.Float4.subtract(temp2, temp1, temp);
+                Float4.scale(v1, st2.x, temp1);
+                Float4.scale(v2, st1.x, temp1);
+                Float4.subtract(temp2, temp1, temp);
                 // no need to normalize bitangent, just need it for orientation
 
                 this._faceBitangents[i] = temp.x;
@@ -162,12 +166,12 @@ HX.NormalTangentGenerator.prototype =
         var tangentIndex = this._tangentAttrib.offset;
 
         for (var i = 0; i < numVertices; ++i) {
-            if (this._mode & HX.NormalTangentGenerator.MODE_NORMALS) {
+            if (this._mode & NormalTangentGenerator.MODE_NORMALS) {
                 normalData[normalIndex] = 0.0;
                 normalData[normalIndex + 1] = 0.0;
                 normalData[normalIndex + 2] = 0.0;
             }
-            if (this._mode & HX.NormalTangentGenerator.MODE_TANGENTS) {
+            if (this._mode & NormalTangentGenerator.MODE_TANGENTS) {
                 tangentData[tangentIndex] = 0.0;
                 tangentData[tangentIndex + 1] = 0.0;
                 tangentData[tangentIndex + 2] = 0.0;
@@ -185,23 +189,23 @@ HX.NormalTangentGenerator.prototype =
         var normalIndex = this._normalAttrib.offset;
         var tangentIndex = this._tangentAttrib.offset;
         var bitangentIndex = 0;
-        var normal = new HX.Float4();
-        var tangent = new HX.Float4();
-        var bitangent = new HX.Float4();
-        var cross = new HX.Float4();
+        var normal = new Float4();
+        var tangent = new Float4();
+        var bitangent = new Float4();
+        var cross = new Float4();
 
         for (var i = 0; i < numVertices; ++i) {
             normal.x = normalData[normalIndex];
             normal.y = normalData[normalIndex + 1];
             normal.z = normalData[normalIndex + 2];
 
-            if (this._mode & HX.NormalTangentGenerator.MODE_NORMALS) {
+            if (this._mode & NormalTangentGenerator.MODE_NORMALS) {
                 normal.normalize();
                 normalData[normalIndex] = normal.x;
                 normalData[normalIndex + 1] = normal.y;
                 normalData[normalIndex + 2] = normal.z;
             }
-            if (this._mode & HX.NormalTangentGenerator.MODE_TANGENTS) {
+            if (this._mode & NormalTangentGenerator.MODE_TANGENTS) {
                 tangent.x = tangentData[tangentIndex];
                 tangent.y = tangentData[tangentIndex + 1];
                 tangent.z = tangentData[tangentIndex + 2];
@@ -215,12 +219,12 @@ HX.NormalTangentGenerator.prototype =
                 bitangent.x = bitangents[bitangentIndex];
                 bitangent.y = bitangents[bitangentIndex + 1];
                 bitangent.z = bitangents[bitangentIndex + 2];
-                cross.cross(tangent, normal);
+                Float4.cross(tangent, normal, cross);
 
                 tangentData[tangentIndex] = tangent.x;
                 tangentData[tangentIndex + 1] = tangent.y;
                 tangentData[tangentIndex + 2] = tangent.z;
-                tangentData[tangentIndex + 3] = HX.dot3(bitangent, cross) > 0.0? 1.0 : -1.0;
+                tangentData[tangentIndex + 3] = Float4.dot3(bitangent, cross) > 0.0? 1.0 : -1.0;
             }
 
             normalIndex += this._normalStride;
@@ -245,3 +249,5 @@ HX.NormalTangentGenerator.prototype =
         target.y = data[posIndex + 1];
     }
 };
+
+export { NormalTangentGenerator };

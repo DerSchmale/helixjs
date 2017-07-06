@@ -1,19 +1,20 @@
+import * as HX from 'helix';
 
 /**
  *
  * @constructor
  */
-HX.MTL = function()
+function MTL()
 {
     HX.Importer.call(this, Object, HX.URLLoader.DATA_TEXT);
     this._textures = [];
     this._texturesToLoad = [];
     this._activeMaterial = null;
-};
+}
 
-HX.MTL.prototype = Object.create(HX.Importer.prototype);
+MTL.prototype = Object.create(HX.Importer.prototype);
 
-HX.MTL.prototype.parse = function(data, target)
+MTL.prototype.parse = function(data, target)
 {
     var lines = data.split("\n");
     var numLines = lines.length;
@@ -24,11 +25,9 @@ HX.MTL.prototype.parse = function(data, target)
     }
 
     this._loadTextures(target);
-
-    return target;
 };
 
-HX.MTL.prototype._parseLine = function(line, target)
+MTL.prototype._parseLine = function(line, target)
 {
     // skip line
     if (line.length === 0 || line.charAt(0) === "#") return;
@@ -66,22 +65,24 @@ HX.MTL.prototype._parseLine = function(line, target)
     }
 };
 
-HX.MTL.prototype._getTexture = function(url)
+MTL.prototype._getTexture = function(url)
 {
     if (!this._textures[url]) {
-        this._textures[url] = new HX.Texture2D();
+        var tex = new HX.Texture2D();
+        this._textures[url] = tex;
 
         this._texturesToLoad.push({
             file: this._correctURL(url),
             importer: HX.JPG,
-            target: this._textures[url]
+            target: tex
         });
     }
     return this._textures[url];
 };
 
-HX.MTL.prototype._loadTextures = function(lib)
+MTL.prototype._loadTextures = function(lib)
 {
+    var library = new HX.AssetLibrary();
     var files = this._texturesToLoad;
     var len = files.length;
     if (len === 0) {
@@ -89,16 +90,21 @@ HX.MTL.prototype._loadTextures = function(lib)
         return;
     }
 
-    var self = this;
-    var bulkLoader = new HX.BulkAssetLoader();
+    for (var i = 0; i < files.length; ++i) {
+        library.queueAsset(files[i].file, files[i].file, HX.AssetLibrary.Type.ASSET, files[i].importer, files[i].target)
+    }
 
-    bulkLoader.onComplete = function() {
-        self._notifyComplete(lib);
-    };
 
-    bulkLoader.onFail = function(message) {
-        self._notifyFailure(message);
-    };
+    library.onComplete.bind(function() {
+        this._notifyComplete(lib);
+    }, this);
 
-    bulkLoader.load(files);
+    // bulkLoader.onFail = function(message) {
+    //     self._notifyFailure(message);
+    // };
+
+    library.load(files);
 };
+
+
+export { MTL };

@@ -1,18 +1,20 @@
+import {Signal} from "../../core/Signal";
+
+
 /**
  * MorphPose defines a certain configuration for blending several morph targets.
- * TODO: If we'd ever have a morphing blend tree, these poses could be used to blend between different poses
  * (even if they have different targets, they could be considered to have weight 0 if absent from eachother)
  * @constructor
  */
-HX.MorphPose = function()
+function MorphPose()
 {
     this._targets = [];
     this._weights = {};
     this._stateInvalid = true;
-    this.onChange = new HX.Signal();
-};
+    this.onChange = new Signal();
+}
 
-HX.MorphPose.prototype =
+MorphPose.prototype =
 {
     /**
      * Gets the morph targets as sorted by weight in update()
@@ -64,3 +66,5 @@ HX.MorphPose.prototype =
         this.onChange.dispatch();
     }
 };
+
+export  { MorphPose };

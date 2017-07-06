@@ -1,20 +1,23 @@
-HX.ShadowFilter = function()
+import { CullMode, DataType, TextureFormat } from '../Helix';
+import { Signal } from '../core/Signal';
+
+function ShadowFilter()
 {
     this._blurShader = null;
     this._numBlurPasses = 1;
-    this.onShaderInvalid = new HX.Signal();
-};
+    this.onShaderInvalid = new Signal();
+}
 
-HX.ShadowFilter.prototype =
+ShadowFilter.prototype =
 {
     getShadowMapFormat: function()
     {
-        return HX_GL.RGBA;
+        return TextureFormat.RGBA;
     },
 
     getShadowMapDataType: function()
     {
-        return HX_GL.UNSIGNED_BYTE;
+        return DataType.UNSIGNED_BYTE;
     },
 
     getGLSL: function()
@@ -24,7 +27,7 @@ HX.ShadowFilter.prototype =
 
     getCullMode: function()
     {
-        return HX.CullMode.BACK;
+        return CullMode.BACK;
     },
 
     get blurShader()
@@ -64,3 +67,5 @@ HX.ShadowFilter.prototype =
         }
     }
 };
+
+export { ShadowFilter };

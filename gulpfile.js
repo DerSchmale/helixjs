@@ -5,54 +5,7 @@ var uglify = require('gulp-uglify');
 var insert = require('gulp-insert');
 var concatCallback = require('gulp-concat-callback');
 var del = require('del');
-
-// TODO: Find a way to add pako code without modules
-var libs = [
-    // "libs/pako/pako_inflate.js"
-];
-
-var coreGLSLFiles = [
-    './src/helix-core/glsl/**/*.glsl'
-];
-
-var coreFiles = [
-    "meta/module-pre.js",
-    "src/helix-core/Helix.js",
-    "src/helix-core/shader/ShaderLibrary.js",
-    "./build/tmp/*.js",
-    "src/helix-core/shader/glslinclude.js",
-
-    "src/helix-core/math/*.js",
-    "src/helix-core/core/*.js",
-    "src/helix-core/io/FileUtils.js",
-    "src/helix-core/io/URLLoader.js",
-    "src/helix-core/io/BulkURLLoader.js",
-
-    // base classes first
-    "src/helix-core/shader/Shader.js",
-    "src/helix-core/material/MaterialPass.js",
-    "src/helix-core/material/Material.js",
-    "src/helix-core/io/AssetLoader.js",
-    "src/helix-core/scene/SceneNode.js",
-    "src/helix-core/entity/*.js",
-    "src/helix-core/shader/Effect.js",
-    "src/helix-core/light/Light.js",
-    "src/helix-core/light/ShadowFilter.js",
-    "src/helix-core/scene/SceneVisitor.js",
-    "src/helix-core/scene/BoundingVolume.js",
-    "src/helix-core/animation/skeleton/SkeletonBlendNode.js",
-    "src/helix-core/mesh/Model.js",
-    "src/helix-core/mesh/primitives/Primitive.js",
-
-    "src/helix-core/**/*.js",
-    "meta/module-post.js"
-];
-
-var ioFiles = [
-    "src/helix-io/fbx/objects/FbxObject.js",
-    "src/helix-io/fbx/objects/FbxNode.js",
-    "src/helix-io/**/*.js"
-];
+var rollup = require('gulp-better-rollup');
 
 gulp.task('package', ['glsl', 'main', 'clean']);
 
@@ -61,16 +14,25 @@ gulp.task('default', ['glsl', 'minimize', 'clean']);
 // core only compiles the core game engine
 gulp.task('core', ['glsl'], function ()
 {
-    var sources = libs.concat(coreFiles);
-    return gulp.src(sources, {base: './'})
+    return gulp.src(['./src/helix-core/HX.js'])
+        .pipe(rollup({
+            moduleName: 'HX',
+        }, 'umd'))
         .pipe(concat('helix.js'))
         .pipe(gulp.dest('./build/'));
 });
 
 gulp.task('io', [], function ()
 {
-    var sources = libs.concat(ioFiles);
-    return gulp.src(sources, {base: './'})
+    return gulp.src(['./src/helix-io/HX_IO.js'])
+        .pipe(rollup({
+            moduleName: 'HX',
+            globals: {
+                'helix': 'HX',
+                'pako': 'pako'
+            },
+            external: [ 'helix', 'pako' ]
+        }, 'umd'))
         .pipe(concat('helix-io.js'))
         .pipe(gulp.dest('./build/'));
 });
@@ -88,8 +50,9 @@ gulp.task('minimize', ['main'], function ()
 
 gulp.task('glsl', function ()
 {
-    return gulp.src(coreGLSLFiles)
+    return gulp.src('./src/helix-core/glsl/**/*.glsl')
         .pipe(concatCallback('shaderlib.js', appendGLSL))
+        .pipe(insert.prepend("import { ShaderLibrary } from '../../src/helix-core/shader/ShaderLibrary';\n"))
         .pipe(gulp.dest('./build/tmp/'));
 });
 
@@ -104,7 +67,7 @@ function appendGLSL(contents, file)
     contents = contents.replace(/\r/g, "");
     contents = contents.replace(/\'/g, "\\'");
     contents = contents.replace(/\"/g, "\\\"");
-    return "HX.ShaderLibrary['" + getFileName(file) + "'] = '" + contents + "';\n";
+    return "ShaderLibrary._files['" + getFileName(file) + "'] = '" + contents + "';\n";
 }
 
 function getFileName(file)

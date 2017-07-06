@@ -2,38 +2,44 @@
  *
  * @constructor
  */
-HX.RenderCollector = function()
-{
-    HX.SceneVisitor.call(this);
+import {RenderItemPool} from "./RenderItemPool";
+import {Float4} from "../math/Float4";
+import {Color} from "../core/Color";
+import {SceneVisitor} from "../scene/SceneVisitor";
+import {MaterialPass} from "../material/MaterialPass";
 
-    this._renderItemPool = new HX.RenderItemPool();
+function RenderCollector()
+{
+    SceneVisitor.call(this);
+
+    this._renderItemPool = new RenderItemPool();
 
     this._opaquesStatic = [];
     this._opaquesDynamic = [];
     this._transparentsDynamic = []; // add in individual pass types
     this._transparentsStatic = []; // add in individual pass types
     this._camera = null;
-    this._cameraZAxis = new HX.Float4();
+    this._cameraZAxis = new Float4();
     this._frustum = null;
     this._lights = null;
-    this._ambientColor = new HX.Color();
+    this._ambientColor = new Color();
     this._shadowCasters = null;
     this._effects = null;
     this._needsNormalDepth = false;
     this._needsBackbuffer = false;
 };
 
-HX.RenderCollector.prototype = Object.create(HX.SceneVisitor.prototype);
+RenderCollector.prototype = Object.create(SceneVisitor.prototype);
 
-HX.RenderCollector.prototype.getOpaqueDynamicRenderList = function() { return this._opaquesDynamic; };
-HX.RenderCollector.prototype.getTransparentDynamicRenderList = function() { return this._transparentsDynamic; };
-HX.RenderCollector.prototype.getOpaqueStaticRenderList  = function() { return this._opaquesStatic; };
-HX.RenderCollector.prototype.getTransparentStaticRenderList = function() { return this._transparentsStatic; };
-HX.RenderCollector.prototype.getLights = function() { return this._lights; };
-HX.RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
-HX.RenderCollector.prototype.getEffects = function() { return this._effects; };
+RenderCollector.prototype.getOpaqueDynamicRenderList = function() { return this._opaquesDynamic; };
+RenderCollector.prototype.getTransparentDynamicRenderList = function() { return this._transparentsDynamic; };
+RenderCollector.prototype.getOpaqueStaticRenderList  = function() { return this._opaquesStatic; };
+RenderCollector.prototype.getTransparentStaticRenderList = function() { return this._transparentsStatic; };
+RenderCollector.prototype.getLights = function() { return this._lights; };
+RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
+RenderCollector.prototype.getEffects = function() { return this._effects; };
 
-Object.defineProperties(HX.RenderCollector.prototype, {
+Object.defineProperties(RenderCollector.prototype, {
     ambientColor: {
         get: function() { return this._ambientColor; }
     },
@@ -47,7 +53,7 @@ Object.defineProperties(HX.RenderCollector.prototype, {
     }
 });
 
-HX.RenderCollector.prototype.collect = function(camera, scene)
+RenderCollector.prototype.collect = function(camera, scene)
 {
     this._camera = camera;
     camera.worldMatrix.getColumn(2, this._cameraZAxis);
@@ -76,19 +82,19 @@ HX.RenderCollector.prototype.collect = function(camera, scene)
     }
 };
 
-HX.RenderCollector.prototype.qualifies = function(object)
+RenderCollector.prototype.qualifies = function(object)
 {
     return object.visible && object.worldBounds.intersectsConvexSolid(this._frustum._planes, 6);
 };
 
-HX.RenderCollector.prototype.visitScene = function (scene)
+RenderCollector.prototype.visitScene = function (scene)
 {
     var skybox = scene._skybox;
     if (skybox)
         this.visitModelInstance(skybox._modelInstance, scene._rootNode.worldMatrix, scene._rootNode.worldBounds);
 };
 
-HX.RenderCollector.prototype.visitEffects = function(effects)
+RenderCollector.prototype.visitEffects = function(effects)
 {
     // camera does not pass effects
     //if (ownerNode === this._camera) return;
@@ -99,7 +105,7 @@ HX.RenderCollector.prototype.visitEffects = function(effects)
     }
 };
 
-HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
+RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
 {
     var numMeshes = modelInstance.numMeshInstances;
     var cameraZAxis = this._cameraZAxis;
@@ -132,7 +138,7 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
         renderItem.worldMatrix = worldMatrix;
         renderItem.camera = camera;
 
-        if (material.hasPass(HX.MaterialPass.BASE_PASS)) {
+        if (material.hasPass(MaterialPass.BASE_PASS)) {
             var list = material.blendState || material._needsBackbuffer? this._transparentsStatic : this._opaquesStatic;
             list.push(renderItem);
         }
@@ -141,7 +147,7 @@ HX.RenderCollector.prototype.visitModelInstance = function (modelInstance, world
     }
 };
 
-HX.RenderCollector.prototype.visitAmbientLight = function(light)
+RenderCollector.prototype.visitAmbientLight = function(light)
 {
     var color = light._scaledIrradiance;
     this._ambientColor.r += color.r;
@@ -149,13 +155,13 @@ HX.RenderCollector.prototype.visitAmbientLight = function(light)
     this._ambientColor.b += color.b;
 };
 
-HX.RenderCollector.prototype.visitLight = function(light)
+RenderCollector.prototype.visitLight = function(light)
 {
     this._lights.push(light);
     if (light._castShadows) this._shadowCasters.push(light._shadowMapRenderer);
 };
 
-HX.RenderCollector.prototype._reset = function()
+RenderCollector.prototype._reset = function()
 {
     this._renderItemPool.reset();
 
@@ -170,14 +176,14 @@ HX.RenderCollector.prototype._reset = function()
     this._ambientColor.set(0, 0, 0, 1);
 };
 
-HX.RenderCollector.prototype._sortTransparents = function(a, b)
+RenderCollector.prototype._sortTransparents = function(a, b)
 {
     var diff = a.material._renderOrder - b.material._renderOrder;
     if (diff !== 0) return diff;
     return b.renderOrderHint - a.renderOrderHint;
 };
 
-HX.RenderCollector.prototype._sortOpaques = function(a, b)
+RenderCollector.prototype._sortOpaques = function(a, b)
 {
     var diff;
 
@@ -190,9 +196,11 @@ HX.RenderCollector.prototype._sortOpaques = function(a, b)
     return a.renderOrderHint - b.renderOrderHint;
 };
 
-HX.RenderCollector.prototype._sortLights = function(a, b)
+RenderCollector.prototype._sortLights = function(a, b)
 {
     return  a._type === b._type?
             a._castShadows? 1 : -1 :
             a._type - b._type;
 };
+
+export { RenderCollector };

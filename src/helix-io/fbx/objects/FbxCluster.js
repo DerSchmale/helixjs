@@ -1,22 +1,26 @@
-HX.FbxCluster = function()
+import {FbxObject} from "./FbxObject";
+import {FbxNode} from "./FbxNode";
+function FbxCluster()
 {
-    HX.FbxObject.call(this);
+    FbxObject.call(this);
     this.limbNode = null;
     this.transform = null;
     this.transformLink = null;
     this.indices = null;
     this.weights = null;
-};
+}
 
-HX.FbxCluster.prototype = Object.create(HX.FbxObject.prototype);
+FbxCluster.prototype = Object.create(FbxObject.prototype);
 
-HX.FbxCluster.prototype.toString = function() { return "[FbxCluster(name="+this.name+")]"; };
+FbxCluster.prototype.toString = function() { return "[FbxCluster(name="+this.name+")]"; };
 
-HX.FbxCluster.prototype.connectObject = function(obj)
+FbxCluster.prototype.connectObject = function(obj)
 {
-    if (obj instanceof HX.FbxNode) {
+    if (obj instanceof FbxNode) {
         this.limbNode = obj;
     }
     else
         throw new Error("Unhandled object connection " + obj.toString());
 };
+
+export {FbxCluster};

@@ -2,27 +2,29 @@
  * MeshData contains the cpu-side definition data for a Mesh.
  * @constructor
  */
-HX.MeshData = function ()
+import {capabilities as capabilties, BufferUsage} from "../Helix";
+
+function MeshData()
 {
     this._vertexStrides = [];
     this._vertexData = [];
     this._indexData = undefined;
-    this.vertexUsage = HX_GL.STATIC_DRAW;
-    this.indexUsage = HX_GL.STATIC_DRAW;
+    this.vertexUsage = BufferUsage.STATIC_DRAW;
+    this.indexUsage = BufferUsage.STATIC_DRAW;
     this._vertexAttributes = [];
     this._defaultMorphTarget = null;
     this._numStreams = 0;
-};
+}
 
-HX.MeshData.DEFAULT_VERTEX_SIZE = 12;
+MeshData.DEFAULT_VERTEX_SIZE = 12;
 
 // other possible indices:
 // hx_instanceID (used by MeshBatch)
 // hx_boneIndices (4)
 // hx_boneWeights (4)
-HX.MeshData.createDefaultEmpty = function()
+MeshData.createDefaultEmpty = function()
 {
-    var data = new HX.MeshData();
+    var data = new MeshData();
     data.addVertexAttribute('hx_position', 3);
     data.addVertexAttribute('hx_normal', 3);
     data.addVertexAttribute('hx_tangent', 4);
@@ -30,8 +32,7 @@ HX.MeshData.createDefaultEmpty = function()
     return data;
 };
 
-HX.MeshData.prototype = {
-    constructor: HX.MeshData,
+MeshData.prototype = {
 
     // this should only be the case for morph targets
     hasVertexData: function (streamIndex)
@@ -137,9 +138,12 @@ HX.MeshData.prototype = {
 
         this._defaultMorphTarget = new Float32Array(data);
 
-        for (i = 0; i < HX.NUM_MORPH_TARGETS; ++i) {
+        for (i = 0; i < capabilties.NUM_MORPH_TARGETS; ++i) {
             this.addVertexAttribute("hx_morphPosition" + i, 3, this.numStreams);
             this._morphAttributes[i] = this._vertexAttributes[this._vertexAttributes.length - 1];
         }
     }
 };
+
+
+export { MeshData };

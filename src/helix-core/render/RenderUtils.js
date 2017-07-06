@@ -1,4 +1,6 @@
-HX.RenderUtils =
+import {GL} from "../core/GL";
+
+export var RenderUtils =
 {
     /**
      * @param renderer The actual renderer doing the rendering.
@@ -34,10 +36,10 @@ HX.RenderUtils =
                 lastMesh = meshInstance._mesh;
             }
 
-            HX.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
+            GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
         }
 
-        HX.setBlendState(null);
+        GL.setBlendState(null);
         return len;
     }
 };

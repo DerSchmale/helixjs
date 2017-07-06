@@ -1,14 +1,15 @@
+import { GL } from './GL.js';
+
 /**
  *
  * @constructor
  */
-HX.VertexBuffer = function()
+function VertexBuffer()
 {
-    this._buffer = HX_GL.createBuffer();
-};
+    this._buffer = GL.gl.createBuffer();
+}
 
-HX.VertexBuffer.prototype = {
-    constructor: HX.VertexBuffer,
+VertexBuffer.prototype = {
 
     /**
      * Uploads data for the buffer.
@@ -18,16 +19,16 @@ HX.VertexBuffer.prototype = {
     uploadData: function(data, usageHint)
     {
         if (usageHint === undefined)
-            usageHint = HX_GL.STATIC_DRAW;
+            usageHint = GL.gl.STATIC_DRAW;
 
         this.bind();
-        HX_GL.bufferData(HX_GL.ARRAY_BUFFER, data, usageHint);
+        GL.gl.bufferData(GL.gl.ARRAY_BUFFER, data, usageHint);
     },
 
     dispose: function()
     {
         if (this._buffer) {
-            HX_GL.deleteBuffer(this._buffer);
+            GL.gl.deleteBuffer(this._buffer);
             this._buffer = 0;
         }
     },
@@ -37,6 +38,8 @@ HX.VertexBuffer.prototype = {
      */
     bind: function()
     {
-        HX_GL.bindBuffer(HX_GL.ARRAY_BUFFER, this._buffer);
+        GL.gl.bindBuffer(GL.gl.ARRAY_BUFFER, this._buffer);
     }
 };
+
+export { VertexBuffer };

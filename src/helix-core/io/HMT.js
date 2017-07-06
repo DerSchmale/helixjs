@@ -2,21 +2,29 @@
  * The HMT file format is for file-based materials (JSON)
  * @constructor
  */
-HX.HMT = function()
+import {Material} from "../material/Material";
+import {Comparison, CullMode, ElementType, BlendFactor, BlendOperation, DEFAULTS} from "../Helix";
+import {BlendState} from "../render/BlendState";
+import {Texture2D} from "../texture/Texture2D";
+import {JPG} from "./JPG_PNG";
+import {Importer} from "./Importer";
+import {AssetLibrary} from "./AssetLibrary";
+
+function HMT()
 {
-    HX.Importer.call(this, HX.Material);
-    HX.HMT._initPropertyMap();
+    Importer.call(this, Material);
+    HMT._initPropertyMap();
 };
 
-HX.HMT.prototype = Object.create(HX.Importer.prototype);
+HMT.prototype = Object.create(Importer.prototype);
 
-HX.HMT.prototype.parse = function(data, target)
+HMT.prototype.parse = function(data, target)
 {
     data = JSON.parse(data);
     this._loadShaders(data, target);
 };
 
-HX.HMT.prototype._gatherShaderFiles = function(data)
+HMT.prototype._gatherShaderFiles = function(data)
 {
     var files = [];
     var geometry = data.geometry;
@@ -31,30 +39,31 @@ HX.HMT.prototype._gatherShaderFiles = function(data)
     return files;
 };
 
-HX.HMT.prototype._loadShaders = function(data, material)
+HMT.prototype._loadShaders = function(data, material)
 {
-    var shaders = {};
+    // urls will already be correctURL'ed
     var shaderFiles = this._gatherShaderFiles(data);
-    var bulkLoader = new HX.BulkURLLoader();
-    var self = this;
+    this._shaderLibrary = new AssetLibrary();
 
-    bulkLoader.onComplete = function() {
-        for (var i = 0; i < shaderFiles.length; ++i) {
-            shaders[shaderFiles[i]] = bulkLoader.getData(shaderFiles[i]);
-        }
+    for (var i = 0; i < shaderFiles.length; ++i) {
+        this._shaderLibrary.queueAsset(shaderFiles[i], shaderFiles[i], AssetLibrary.Type.PLAIN_TEXT);
+    }
 
-        self._processMaterial(data, shaders, material);
-        self._loadTextures(data, material);
-    };
-    bulkLoader.onFail = function(code)
+    this._shaderLibrary.onComplete.bind(function()
     {
-        self._notifyFailure("Error loading shaders: " + code);
-    };
-    bulkLoader.load(shaderFiles);
+        this._processMaterial(data, material);
+        this._loadTextures(data, material);
+    }, this);
+
+    // this._shaderLibrary.onFail.bind(function(code)
+    // {
+    //     this._notifyFailure("Error loading shaders: " + code);
+    // }, this);
+    this._shaderLibrary.load();
 };
 
 
-HX.HMT.prototype._processMaterial = function(data, shaders, material)
+HMT.prototype._processMaterial = function(data, material)
 {
     var defines = "";
     if (this.options.defines) {
@@ -65,48 +74,48 @@ HX.HMT.prototype._processMaterial = function(data, shaders, material)
         }
     }
 
-    var geometryVertex = defines + shaders[this._correctURL(data.geometry.vertexShader)];
-    var geometryFragment = defines + shaders[this._correctURL(data.geometry.fragmentShader)];
+    var geometryVertex = defines + this._shaderLibrary.get(this._correctURL(data.geometry.vertexShader));
+    var geometryFragment = defines + this._shaderLibrary.get(this._correctURL(data.geometry.fragmentShader));
 
     material._geometryVertexShader = geometryVertex;
     material._geometryFragmentShader = geometryFragment;
     material.init();
 
     if (data.lightingModel)
-        material.lightingModel = shaders[this._correctURL(data.lightingModel)];
+        material.lightingModel = this._shaderLibrary.get(this._correctURL(data.lightingModel));
 
     this._applyUniforms(data, material);
 
     // default pre-defined texture
-    material.setTexture("hx_dither2D", HX.DEFAULT_2D_DITHER_TEXTURE);
+    material.setTexture("hx_dither2D", DEFAULTS.DEFAULT_2D_DITHER_TEXTURE);
 
     if (data.hasOwnProperty("elementType"))
-        material.elementType = HX.HMT._PROPERTY_MAP[data.elementType];
+        material.elementType = HMT._PROPERTY_MAP[data.elementType];
 
     if (data.hasOwnProperty("cullMode"))
-        material.cullMode = HX.HMT._PROPERTY_MAP[data.cullMode];
+        material.cullMode = HMT._PROPERTY_MAP[data.cullMode];
 
     if (data.hasOwnProperty("writeDepth"))
         material.writeDepth = data.writeDepth;
 
     if (data.hasOwnProperty("blend")) {
-        var blendState = new HX.BlendState();
+        var blendState = new BlendState();
         var blend = data.blend;
 
         if (blend.hasOwnProperty("source"))
-            blendState.srcFactor = HX.HMT._PROPERTY_MAP[blend.source];
+            blendState.srcFactor = HMT._PROPERTY_MAP[blend.source];
 
         if (blend.hasOwnProperty("destination"))
-            blendState.dstFactor = HX.HMT._PROPERTY_MAP[blend.destination];
+            blendState.dstFactor = HMT._PROPERTY_MAP[blend.destination];
 
         if (blend.hasOwnProperty("operator"))
-            blendState.operator = HX.HMT._PROPERTY_MAP[blend.operator];
+            blendState.operator = HMT._PROPERTY_MAP[blend.operator];
 
         material.blendState = blendState;
     }
 };
 
-HX.HMT.prototype._applyUniforms = function(data, material)
+HMT.prototype._applyUniforms = function(data, material)
 {
     if (!data.uniforms) return;
 
@@ -126,71 +135,77 @@ HX.HMT.prototype._applyUniforms = function(data, material)
     }
 };
 
-HX.HMT.prototype._loadTextures = function(data, material)
+HMT.prototype._loadTextures = function(data, material)
 {
     var files = [];
 
     for (var key in data.textures) {
         if (data.textures.hasOwnProperty(key)) {
             files.push(this._correctURL(data.textures[key]));
-            material.setTexture(key, HX.Texture2D.DEFAULT);
+            material.setTexture(key, Texture2D.DEFAULT);
         }
     }
 
-    var bulkLoader = new HX.BulkAssetLoader();
-    var self = this;
-    bulkLoader.onComplete = function()
+    this._textureLibrary = new AssetLibrary();
+
+    for (var i = 0; i < files.length; ++i) {
+        this._textureLibrary.queueAsset(files[i], files[i], AssetLibrary.Type.ASSET, JPG);
+    }
+
+    this._textureLibrary.onComplete.bind(function()
     {
         for (var key in data.textures) {
             if (data.textures.hasOwnProperty(key)) {
-                material.setTexture(key, bulkLoader.getAsset(self._correctURL(data.textures[key])));
+                material.setTexture(key, this._textureLibrary.get(this._correctURL(data.textures[key])));
             }
         }
-        self._notifyComplete(material);
-    };
-    bulkLoader.onFail = function(message)
-    {
-        self._notifyFailure(message);
-    };
+        this._notifyComplete(material);
+    }, this);
+    // bulkLoader.onFail = function(message)
+    // {
+    //     self._notifyFailure(message);
+    // };
 
-    bulkLoader.load(files, HX.JPG);
+    this._textureLibrary.load();
 };
 
 
-HX.HMT._PROPERTY_MAP = null;
+HMT._PROPERTY_MAP = null;
 
-HX.HMT._initPropertyMap = function() {
-    HX.HMT._PROPERTY_MAP = HX.HMT._PROPERTY_MAP || {
-        back: HX.CullMode.BACK,
-        front: HX.CullMode.FRONT,
-        both: HX.CullMode.ALL,
+HMT._initPropertyMap = function() {
+    HMT._PROPERTY_MAP = HMT._PROPERTY_MAP || {
+        back: CullMode.BACK,
+        front: CullMode.FRONT,
+        both: CullMode.ALL,
         none: null,
-        lines: HX.ElementType.LINES,
-        points: HX.ElementType.POINTS,
-        triangles: HX.ElementType.TRIANGLES,
-        one: HX.BlendFactor.ONE,
-        zero: HX.BlendFactor.ZERO,
-        sourceColor: HX.BlendFactor.SOURCE_COLOR,
-        oneMinusSourceColor: HX.BlendFactor.ONE_MINUS_SOURCE_COLOR,
-        sourceAlpha: HX.BlendFactor.SOURCE_ALPHA,
-        oneMinusSourceAlpha: HX.BlendFactor.ONE_MINUS_SOURCE_ALPHA,
-        destinationAlpha: HX.BlendFactor.DST_ALPHA,
-        oneMinusDestinationAlpha: HX.BlendFactor.ONE_MINUS_DESTINATION_ALPHA,
-        destinationColor: HX.BlendFactor.DESTINATION_COLOR,
-        sourceAlphaSaturate: HX.BlendFactor.SOURCE_ALPHA_SATURATE,
-        add: HX.BlendOperation.ADD,
-        subtract: HX.BlendOperation.SUBTRACT,
-        reverseSubtract: HX.BlendOperation.REVERSE_SUBTRACT,
+        lines: ElementType.LINES,
+        points: ElementType.POINTS,
+        triangles: ElementType.TRIANGLES,
+        one: BlendFactor.ONE,
+        zero: BlendFactor.ZERO,
+        sourceColor: BlendFactor.SOURCE_COLOR,
+        oneMinusSourceColor: BlendFactor.ONE_MINUS_SOURCE_COLOR,
+        sourceAlpha: BlendFactor.SOURCE_ALPHA,
+        oneMinusSourceAlpha: BlendFactor.ONE_MINUS_SOURCE_ALPHA,
+        destinationAlpha: BlendFactor.DST_ALPHA,
+        oneMinusDestinationAlpha: BlendFactor.ONE_MINUS_DESTINATION_ALPHA,
+        destinationColor: BlendFactor.DESTINATION_COLOR,
+        sourceAlphaSaturate: BlendFactor.SOURCE_ALPHA_SATURATE,
+        add: BlendOperation.ADD,
+        subtract: BlendOperation.SUBTRACT,
+        reverseSubtract: BlendOperation.REVERSE_SUBTRACT,
 
         // depth tests
-        always: HX.Comparison.ALWAYS,
-        disabled: HX.Comparison.DISABLED,
-        equal: HX.Comparison.EQUAL,
-        greater: HX.Comparison.GREATER,
-        greaterEqual: HX.Comparison.GREATER_EQUAL,
-        less: HX.Comparison.LESS,
-        lessEqual: HX.Comparison.LESS_EQUAL,
-        never: HX.Comparison.NEVER,
-        notEqual: HX.Comparison.NOT_EQUAL
+        always: Comparison.ALWAYS,
+        disabled: Comparison.DISABLED,
+        equal: Comparison.EQUAL,
+        greater: Comparison.GREATER,
+        greaterEqual: Comparison.GREATER_EQUAL,
+        less: Comparison.LESS,
+        lessEqual: Comparison.LESS_EQUAL,
+        never: Comparison.NEVER,
+        notEqual: Comparison.NOT_EQUAL
     };
 };
+
+export { HMT };

@@ -20,7 +20,7 @@ function initCamera(camera)
     controller.polar = Math.PI * .5;
     controller.radius = 1.6;
 
-    var tonemap = new HX.ReinhardToneMapEffect(false);
+    var tonemap = new HX.ReinhardToneMapping(false);
     tonemap.exposure = 1.0;
 
     camera.addComponents([ controller, tonemap ]);

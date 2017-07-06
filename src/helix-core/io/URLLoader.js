@@ -1,20 +1,21 @@
-HX.URLLoader = function ()
+function URLLoader(headers)
 {
     this._params = undefined;
     this._data = null;
     this._timeout = 0;
     this._method = 'GET';
-    this._type = HX.URLLoader.DATA_TEXT;
-};
+    this._type = URLLoader.DATA_TEXT;
+    this._headers = headers || {};
+}
 
-HX.URLLoader.ERROR_TIME_OUT = 408;
-HX.URLLoader.METHOD_GET = 'get';
-HX.URLLoader.METHOD_POST = 'post';
+URLLoader.ERROR_TIME_OUT = 408;
+URLLoader.METHOD_GET = 'get';
+URLLoader.METHOD_POST = 'post';
 
-HX.URLLoader.DATA_TEXT = 0;
-HX.URLLoader.DATA_BINARY = 1;
+URLLoader.DATA_TEXT = 0;
+URLLoader.DATA_BINARY = 1;
 
-HX.URLLoader.prototype =
+URLLoader.prototype =
 {
     get type()
     {
@@ -61,15 +62,25 @@ HX.URLLoader.prototype =
         return this._data;
     },
 
+    setRequestHeader: function(name, value)
+    {
+        this._headers[name] = value;
+    },
+
     load: function (url)
     {
         var request = new XMLHttpRequest();
         request.open(this._method, url, true);
 
+        for (var key in this._headers) {
+            if (this._headers.hasOwnProperty(key))
+                request.setRequestHeader(key, this._headers[key]);
+        }
+
         if (this._timeout)
             request.timeout = this._timeout;
 
-        if (this._type === HX.URLLoader.DATA_BINARY)
+        if (this._type === URLLoader.DATA_BINARY)
             request.responseType = "arraybuffer";
         else
             request.overrideMimeType("application/json");
@@ -78,7 +89,7 @@ HX.URLLoader.prototype =
 
         request.ontimeout = function ()
         {
-            self.onError(HX.URLLoader.ERROR_TIME_OUT);
+            self.onError(URLLoader.ERROR_TIME_OUT);
         };
 
         request.onreadystatechange = function ()
@@ -86,7 +97,7 @@ HX.URLLoader.prototype =
             var DONE = this.DONE || 4;
             if (this.readyState === DONE) {
                 if (this.status === 200) {
-                    this._data = self._type === HX.URLLoader.DATA_TEXT? request.responseText : new DataView(request.response);
+                    this._data = self._type === URLLoader.DATA_TEXT? request.responseText : new DataView(request.response);
                     if (self.onComplete) self.onComplete(this._data);
                 }
                 else if (self.onError)
@@ -106,3 +117,5 @@ HX.URLLoader.prototype =
     {
     }
 };
+
+export { URLLoader };

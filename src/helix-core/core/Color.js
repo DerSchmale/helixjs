@@ -1,3 +1,5 @@
+import { META } from '../Helix';
+
 /**
  * Hexadecimal representations are always 0xAARRGGBB
  * @param rOrHex
@@ -6,12 +8,12 @@
  * @param a
  * @constructor
  */
-HX.Color = function(rOrHex, g, b, a)
+function Color(rOrHex, g, b, a)
 {
     this.set(rOrHex, g, b, a);
-};
+}
 
-HX.Color.prototype =
+Color.prototype =
 {
     set: function (rOrHex, g, b, a)
     {
@@ -51,9 +53,9 @@ HX.Color.prototype =
 
     gammaToLinear: function (target)
     {
-        target = target || new HX.Color();
+        target = target || new Color();
 
-        if (HX.OPTIONS.usePreciseGammaCorrection) {
+        if (META.OPTIONS.usePreciseGammaCorrection) {
             target.r = Math.pow(this.r, 2.2);
             target.g = Math.pow(this.g, 2.2);
             target.b = Math.pow(this.b, 2.2);
@@ -70,9 +72,9 @@ HX.Color.prototype =
 
     linearToGamma: function (target)
     {
-        target = target || new HX.Color();
+        target = target || new Color();
 
-        if (HX.OPTIONS.usePreciseGammaCorrection) {
+        if (META.OPTIONS.usePreciseGammaCorrection) {
             target.r = Math.pow(this.r, .454545);
             target.g = Math.pow(this.g, .454545);
             target.b = Math.pow(this.b, .454545);
@@ -102,7 +104,7 @@ HX.Color.prototype =
 
     clone: function ()
     {
-        var color = new HX.Color();
+        var color = new Color();
         color.r = this.r;
         color.g = this.g;
         color.b = this.b;
@@ -111,12 +113,14 @@ HX.Color.prototype =
     }
 };
 
-HX.Color.BLACK = new HX.Color(0, 0, 0, 1);
-HX.Color.ZERO = new HX.Color(0, 0, 0, 0);
-HX.Color.RED = new HX.Color(1, 0, 0, 1);
-HX.Color.GREEN = new HX.Color(0, 1, 0, 1);
-HX.Color.BLUE = new HX.Color(0, 0, 1, 1);
-HX.Color.YELLOW = new HX.Color(1, 1, 0, 1);
-HX.Color.MAGENTA = new HX.Color(1, 0, 1, 1);
-HX.Color.CYAN = new HX.Color(0, 1, 1, 1);
-HX.Color.WHITE = new HX.Color(1, 1, 1, 1);
+Color.BLACK = new Color(0, 0, 0, 1);
+Color.ZERO = new Color(0, 0, 0, 0);
+Color.RED = new Color(1, 0, 0, 1);
+Color.GREEN = new Color(0, 1, 0, 1);
+Color.BLUE = new Color(0, 0, 1, 1);
+Color.YELLOW = new Color(1, 1, 0, 1);
+Color.MAGENTA = new Color(1, 0, 1, 1);
+Color.CYAN = new Color(0, 1, 1, 1);
+Color.WHITE = new Color(1, 1, 1, 1);
+
+export { Color };

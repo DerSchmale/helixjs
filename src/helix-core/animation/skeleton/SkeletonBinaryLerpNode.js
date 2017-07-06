@@ -2,9 +2,12 @@
  * Blends between two states based on a lerp value.
  * @constructor
  */
-HX.SkeletonBinaryLerpNode = function()
+import { SkeletonBlendNode } from './SkeletonBlendNode';
+import { MathX } from "../../math/MathX";
+
+function SkeletonBinaryLerpNode()
 {
-    HX.SkeletonBlendNode.call(this);
+    SkeletonBlendNode.call(this);
     this._value = 0;
     this._child1 = null;
     this._child2 = null;
@@ -13,9 +16,9 @@ HX.SkeletonBinaryLerpNode = function()
     this._numJoints = 0;
     this._t = 0;
     this._valueChanged = false;
-};
+}
 
-HX.SkeletonBinaryLerpNode.prototype = Object.create(HX.SkeletonBlendNode.prototype, {
+SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
     numJoints: {
         get: function() {return this._numJoints; }
     },
@@ -52,7 +55,7 @@ HX.SkeletonBinaryLerpNode.prototype = Object.create(HX.SkeletonBlendNode.prototy
 
         set: function (v)
         {
-            v = HX.clamp(v, this._minValue, this._maxValue)
+            v = MathX.clamp(v, this._minValue, this._maxValue)
             if (this._value !== v)
                 this._valueChanged = true;
             this._value = v;
@@ -88,7 +91,7 @@ HX.SkeletonBinaryLerpNode.prototype = Object.create(HX.SkeletonBlendNode.prototy
     }
 });
 
-HX.SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
+SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
 {
     var updated = this._child1.update(dt, transferRootJoint);
     updated = this._child2.update(dt, transferRootJoint) || updated;
@@ -109,14 +112,16 @@ HX.SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
     return updated;
 };
 
-HX.SkeletonBinaryLerpNode.prototype._applyValue = function(value)
+SkeletonBinaryLerpNode.prototype._applyValue = function(value)
 {
     this.value = value;
 };
 
-HX.SkeletonBinaryLerpNode.prototype.setValue = function(id, value)
+SkeletonBinaryLerpNode.prototype.setValue = function(id, value)
 {
-    HX.SkeletonBlendNode.prototype.setValue.call(this, id, value);
+    SkeletonBlendNode.prototype.setValue.call(this, id, value);
     this._child1.setValue(id, value);
     this._child2.setValue(id, value);
 };
+
+export { SkeletonBinaryLerpNode };

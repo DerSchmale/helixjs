@@ -2,14 +2,17 @@
  *
  * @constructor
  */
-HX.HCM = function()
+import {TextureCube} from "../texture/TextureCube";
+import {Importer} from "./Importer";
+import {MathX} from "../math/MathX";
+function HCM()
 {
-    HX.Importer.call(this, HX.TextureCube);
+    Importer.call(this, TextureCube);
 };
 
-HX.HCM.prototype = Object.create(HX.Importer.prototype);
+HCM.prototype = Object.create(Importer.prototype);
 
-HX.HCM.prototype.parse = function(file, target)
+HCM.prototype.parse = function(file, target)
 {
     var data = JSON.parse(file);
 
@@ -28,7 +31,7 @@ HX.HCM.prototype.parse = function(file, target)
         this._loadFaces(urls, target);
 };
 
-HX.HCM.prototype._loadFaces = function(urls, target)
+HCM.prototype._loadFaces = function(urls, target)
 {
     var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
     var images = [];
@@ -67,7 +70,7 @@ HX.HCM.prototype._loadFaces = function(urls, target)
     images[0].src = self.path + urls[0];
 };
 
-HX.HCM.prototype._loadMipChain = function(urls, target)
+HCM.prototype._loadMipChain = function(urls, target)
 {
     var images = [];
 
@@ -83,11 +86,11 @@ HX.HCM.prototype._loadMipChain = function(urls, target)
 
     firstImage.onload = function()
     {
-        if (firstImage.naturalWidth !== firstImage.naturalHeight || !HX.isPowerOfTwo(firstImage.naturalWidth)) {
+        if (firstImage.naturalWidth !== firstImage.naturalHeight || !MathX.isPowerOfTwo(firstImage.naturalWidth)) {
             self._notifyFailure("Failed loading mipchain: incorrect dimensions");
         }
         else {
-            numMips = HX.log2(firstImage.naturalWidth) + 1;
+            numMips = MathX.log2(firstImage.naturalWidth) + 1;
             loadTheRest();
             images[0] = firstImage;
         }
@@ -147,3 +150,5 @@ HX.HCM.prototype._loadMipChain = function(urls, target)
         images[1].src = self.path + realURLs[1];
     }
 };
+
+export {HCM};

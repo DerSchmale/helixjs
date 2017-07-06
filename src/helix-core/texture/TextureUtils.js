@@ -1,4 +1,8 @@
-HX.TextureUtils =
+import {GL} from "../core/GL";
+import {DEFAULTS} from "../Helix";
+import {RectMesh} from "../mesh/RectMesh";
+
+export var TextureUtils =
 {
     /**
      * Resizes a texture (empty) if its size doesn't match. Returns true if the size has changed.
@@ -25,10 +29,10 @@ HX.TextureUtils =
      */
     copy: function(sourceTexture, destFBO)
     {
-        HX.setRenderTarget(destFBO);
-        HX.clear();
-        HX.COPY_SHADER.execute(HX.RectMesh.DEFAULT, sourceTexture);
-        HX.setRenderTarget(null);
+        GL.setRenderTarget(destFBO);
+        GL.clear();
+        DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, sourceTexture);
+        GL.setRenderTarget(null);
     },
 
     // ref: http://stackoverflow.com/questions/32633585/how-do-you-convert-to-half-floats-in-javascript
@@ -60,7 +64,7 @@ HX.TextureUtils =
                 bits |= 0x7c00;
                 /* If exponent was 0xff and one mantissa bit was set, it means NaN,
                  * not Inf, so make sure we set one mantissa bit too. */
-                bits |= ((e == 255) ? 0 : 1) && (x & 0x007fffff);
+                bits |= ((e === 255) ? 0 : 1) && (x & 0x007fffff);
                 return bits;
             }
 
@@ -83,7 +87,7 @@ HX.TextureUtils =
 
     encodeToFloat16Array: function(float32Array)
     {
-        var encFun = HX.TextureUtils.encodeHalfFloat;
+        var encFun = TextureUtils.encodeHalfFloat;
         var arr = [];
         for (var i = 0; i < float32Array.length; ++i) {
             arr[i] = encFun(float32Array[i]);

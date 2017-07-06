@@ -1,14 +1,14 @@
-HX.DataStream = function(dataView)
+function DataStream(dataView)
 {
     this._dataView = dataView;
     this._offset = 0;
-    this._endian = HX.DataStream.LITTLE_ENDIAN;
+    this._endian = DataStream.LITTLE_ENDIAN;
 };
 
-HX.DataStream.LITTLE_ENDIAN = true;
-HX.DataStream.BIG_ENDIAN = false;
+DataStream.LITTLE_ENDIAN = true;
+DataStream.BIG_ENDIAN = false;
 
-HX.DataStream.prototype =
+DataStream.prototype =
 {
     get offset() { return this._offset; },
     set offset(value) { this._offset = value; },
@@ -66,7 +66,7 @@ HX.DataStream.prototype =
     getInt64AsFloat64: function()
     {
         var L, B;
-        if (this._endian === HX.DataStream.LITTLE_ENDIAN) {
+        if (this._endian === DataStream.LITTLE_ENDIAN) {
             L = this._dataView.getUint32(this._offset, this._endian);
             B = this._dataView.getInt32(this._offset + 4, this._endian);
         }
@@ -176,3 +176,5 @@ HX.DataStream.prototype =
         return arr;
     }
 };
+
+export { DataStream };

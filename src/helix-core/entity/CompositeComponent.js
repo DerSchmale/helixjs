@@ -1,13 +1,15 @@
+import {Component} from "./Component";
+
 // usually subclassed
-HX.CompositeComponent = function()
+function CompositeComponent()
 {
-    HX.Component.call(this);
+    Component.call(this);
     this._subs = [];
-};
+}
 
-HX.CompositeComponent.prototype = Object.create(HX.Component.prototype);
+CompositeComponent.prototype = Object.create(Component.prototype);
 
-HX.CompositeComponent.prototype.addComponent = function(comp)
+CompositeComponent.prototype.addComponent = function(comp)
 {
     if (comp._entity)
         throw new Error("Component already added to an entity!");
@@ -15,14 +17,14 @@ HX.CompositeComponent.prototype.addComponent = function(comp)
     this._subs.push(comp);
 };
 
-HX.CompositeComponent.prototype.removeComponent = function(comp)
+CompositeComponent.prototype.removeComponent = function(comp)
 {
     var index = this._subs.indexOf(comp);
     if (index >= 0)
         this._subs.splice(index, 1);
 };
 
-HX.CompositeComponent.prototype.onAdded = function()
+CompositeComponent.prototype.onAdded = function()
 {
     for (var i = 0; i < this._subs.length; ++i) {
         var comp = this._subs[i];
@@ -31,7 +33,7 @@ HX.CompositeComponent.prototype.onAdded = function()
     }
 };
 
-HX.CompositeComponent.prototype.onRemoved = function()
+CompositeComponent.prototype.onRemoved = function()
 {
     for (var i = 0; i < this._subs.length; ++i) {
         var comp = this._subs[i];
@@ -42,7 +44,7 @@ HX.CompositeComponent.prototype.onRemoved = function()
 
 // by default, onUpdate is not implemented at all
 //onUpdate: function(dt) {},
-HX.CompositeComponent.prototype.onUpdate = function(dt)
+CompositeComponent.prototype.onUpdate = function(dt)
 {
     var len = this._subs.length;
     for (var i = 0; i < len; ++i) {
@@ -50,3 +52,5 @@ HX.CompositeComponent.prototype.onUpdate = function(dt)
         comp.onUpdate(dt);
     }
 };
+
+export { CompositeComponent };

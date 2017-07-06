@@ -1,16 +1,17 @@
-HX.FbxLayerElement = function()
+import {FbxObject} from "./FbxObject";
+function FbxLayerElement()
 {
-    HX.FbxObject.call(this);
+    FbxObject.call(this);
     this.directData = null;
     this.indexData = null;
     this.type = null;   // can be normal, uv, etc ...
     this.mappingInformationType = 0;
     this.referenceInformationType = 0;
-};
+}
 
-HX.FbxLayerElement.prototype = Object.create(HX.FbxObject.prototype);
+FbxLayerElement.prototype = Object.create(FbxObject.prototype);
 
-HX.FbxLayerElement.MAPPING_TYPE = {
+FbxLayerElement.MAPPING_TYPE = {
     NONE: 0,
     BY_POLYGON_VERTEX: 1,
     BY_CONTROL_POINT: 2,
@@ -18,9 +19,11 @@ HX.FbxLayerElement.MAPPING_TYPE = {
     ALL_SAME: 4
 };
 
-HX.FbxLayerElement.REFERENCE_TYPE = {
+FbxLayerElement.REFERENCE_TYPE = {
     DIRECT: 1,
     INDEX_TO_DIRECT: 2
 };
 
-HX.FbxLayerElement.prototype.toString = function() { return "[FbxLayerElement(name="+this.name+")]"; };
+FbxLayerElement.prototype.toString = function() { return "[FbxLayerElement(name="+this.name+")]"; };
+
+export {FbxLayerElement};

@@ -1,5 +1,6 @@
+import {FBXModelInstanceConverter} from "./FBXModelInstanceConverter";
 // Could also create an ASCII deserializer
-HX.FBXAnimationConverter = function()
+function FBXAnimationConverter()
 {
     this._skinningData = null;
     this._jointUIDLookUp = null;
@@ -7,9 +8,9 @@ HX.FBXAnimationConverter = function()
     this._fakeJointIndex = -1;
     this._animationClips = null;
     this._frameRate = 24;
-};
+}
 
-HX.FBXAnimationConverter.prototype =
+FBXAnimationConverter.prototype =
 {
     get skeleton()
     {
@@ -76,10 +77,9 @@ HX.FBXAnimationConverter.prototype =
 
         // TODO: If multiple takes are supported, these would need to be separate clips as well
         for (var i = 0; i < fbxAnimationStack.layers.length; ++i) {
-            var numFrames = fbxAnimationStack.LocalStop.getFrameCount(this._frameRate) - fbxAnimationStack.LocalStart.getFrameCount(this._frameRate) + 1;
             var layers = fbxAnimationStack.layers;
             for (var j = 0; j < layers.length; ++j) {
-                var clip = this._convertLayer(layers[j], numFrames);
+                var clip = this._convertLayer(layers[j]);
                 this._animationClips.push(clip);
             }
         }
@@ -127,7 +127,7 @@ HX.FBXAnimationConverter.prototype =
             if (cluster.weights[i] > 0) {
                 var ctrlPointIndex = cluster.indices[i];
                 var skinningData = this._skinningData[ctrlPointIndex] = this._skinningData[ctrlPointIndex] || [];
-                var binding = new HX.FBXModelInstanceConverter._JointBinding();
+                var binding = new FBXModelInstanceConverter._JointBinding();
                 binding.jointIndex = jointIndex;
                 binding.jointWeight = cluster.weights[i];
                 skinningData.push(binding);
@@ -174,77 +174,98 @@ HX.FBXAnimationConverter.prototype =
         throw new Error("No Root node found!");
     },
 
-    _convertLayer: function (layer, numFrames)
+    _convertLayer: function (layer)
     {
-        // TODO: make framerate an overridable option
-
-        var clip = new HX.SkeletonClip();
-        clip.frameRate = this._frameRate;
-
-        // convert key frames to sized frames
-        this._convertToFrames(layer, numFrames);
-
-        for (var i = 0; i < numFrames; ++i)
-            clip.addFrame(this._convertFrame(layer, i));
-
-        return clip;
+        var keyFrames = this._convertToFrames(layer);
+        // this._completeKeyFrames(keyFrames);
+        return this._convertToClip(keyFrames);
     },
 
-    _convertToFrames: function(layer, numFrames)
+    _convertToFrames: function(layer)
     {
+        var curves = [];
         var numCurveNodes = layer.curveNodes.length;
+
         for (var i = 0; i < numCurveNodes; ++i) {
             var node = layer.curveNodes[i];
-            // the order of parsing is inefficient
-            // need to break up curves first into keyframes, then assign them
             for (var key in node.curves) {
                 if (!node.curves.hasOwnProperty(key)) continue;
                 var curve = node.curves[key];
-                this._convertCurveToFrames(curve, numFrames);
+                curves.push({frames: this._addCurveToKeyFrame(curve), node: node});
             }
         }
+
+        return curves;
     },
 
-    _convertCurveToFrames: function(curve, numFrames)
+    _addCurveToKeyFrame: function(curve)
     {
-        var time = 0.0;
-        var j = 0;
         // ms per frame
-        var frameDuration = 1000.0 / this._frameRate;
         var numKeyFrames = curve.KeyTime.length;
-        var frameData = [];
+        var keyFrames = [];
 
-        for (var i = 0; i < numFrames; ++i) {
-            time += frameDuration;
-            while (j < numKeyFrames && curve.KeyTime[j].milliseconds < time) {
-                ++j;
-            }
-
-            // clamp to extremes (shouldn't happen, I think?)
-            if (j === 0)
-                frameData.push(curve.KeyValueFloat[j]);
-            else if (j === numKeyFrames)
-                frameData.push(curve.KeyValueFloat[j - 1]);
-            else {
-                // this should take into account tangents, if present
-                var keyTime = curve.KeyTime[j].milliseconds;
-                var prevTime = curve.KeyTime[j - 1].milliseconds;
-                var t = (time - prevTime) / (keyTime - prevTime);
-                var next = curve.KeyValueFloat[j];
-                var prev = curve.KeyValueFloat[j - 1];
-                frameData.push(prev + (next - prev) * t);
-            }
+        for (var i = 0; i < numKeyFrames; ++i) {
+            var time = curve.KeyTime[i].milliseconds;
+            var value = curve.KeyValueFloat[i];
+            var keyFrame = new HX.KeyFrame(time, value);
+            keyFrames.push(keyFrame);
         }
-        curve.data = frameData;
+
+        return keyFrames;
     },
 
-    _convertFrame: function(layer, frame)
-    {
-        var skeletonPose = new HX.SkeletonPose();
-        var numJoints = this._skeleton.numJoints;
+    _completeKeyFrames: function(curves) {
+        var indices = [];
 
-        var numCurveNodes = layer.curveNodes.length;
+        var numCurves = curves.length;
+        for (var i = 0; i < numCurves; ++i) {
+            indices[i] = 0;
+        }
+
+        var finished = false;
+        while (!finished) {
+            var time = Number.POSITIVE_INFINITY;
+
+            var activeCurve = i;
+            for (i = 0; i < numCurves; ++i) {
+                var frames = curves[i].frames;
+                if (frames[indices[i]].time < time) {
+                    time = frames[indices[i]].time;
+                    activeCurve = i;
+                }
+            }
+
+            // Interpolate given the current time
+            for (i = 0; i < numCurves; ++i) {
+                frames = curves[i].frames;
+                // already have the data for this frame
+                var index2 = indices[i];
+                if (frames[index2].time === time) continue;
+                var index1 = Math.max(indices[i] - 1, 0);
+                var ratio = HX.MathX.linearStep(frames[index1].time, frames[index2].time, time);
+                var value = HX.MathX.lerp(frames[index1].value, frames[index2].value, ratio);
+                var frame = new HX.KeyFrame(time, value);
+                // insert new frame
+                frames.splice(index2, 0, frame);
+            }
+
+            // move each playhead to the next
+            finished = true;
+            for (i = 0; i < numCurves; ++i) {
+                frames = curves[i].frames;
+                if (frames[indices[i]].time <= time)
+                    ++indices[i];
+
+                // still some frames left
+                if (indices[i] < frames.length)
+                    finished = false;
+            }
+        }
+    },
+
+    _createTempJointPoses: function() {
         var tempJointPoses = [];
+        var numJoints = this._skeleton.numJoints;
 
         // use local bind pose as default
         for (var i = 0; i < numJoints; ++i) {
@@ -258,7 +279,7 @@ HX.FBXAnimationConverter.prototype =
                 localBind.appendAffine(parentInverse);
             }
 
-            var pose = new HX.FBXAnimationConverter._JointPose();
+            var pose = new FBXAnimationConverter._JointPose();
             var transform = new HX.Transform();
 
             localBind.decompose(transform);
@@ -274,8 +295,16 @@ HX.FBXAnimationConverter.prototype =
             tempJointPoses[i] = pose;
         }
 
+        return tempJointPoses;
+    },
+
+    _applyCurvesForFrame: function(tempJointPoses, curves, frameIndex)
+    {
+        var numCurveNodes = curves.length;
         for (var i = 0; i < numCurveNodes; ++i) {
-            var node = layer.curveNodes[i];
+            var curve = curves[i];
+            var frames = curve.frames;
+            var node = curve.node;
             var jointIndex = node.data;
 
             // not a skeleton target?
@@ -285,7 +314,8 @@ HX.FBXAnimationConverter.prototype =
 
             for (var key in node.curves) {
                 if (!node.curves.hasOwnProperty(key)) continue;
-                var value = node.curves[key].data[frame];
+                var value = frames[frameIndex].value;
+
                 switch (key) {
                     case "d|X":
                         target.x = value;
@@ -299,7 +329,12 @@ HX.FBXAnimationConverter.prototype =
                 }
             }
         }
+    },
 
+    _convertSkeletonPose: function(tempJointPoses)
+    {
+        var skeletonPose = new HX.SkeletonPose();
+        var numJoints = this._skeleton.numJoints;
         for (var i = 0; i < numJoints; ++i) {
             var jointPose = new HX.SkeletonJointPose();
 
@@ -311,16 +346,35 @@ HX.FBXAnimationConverter.prototype =
             jointPose.rotation.fromEuler(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
             skeletonPose.jointPoses[i] = jointPose;
         }
-
-        skeletonPose.jointPoses[this._fakeJointIndex] = new HX.SkeletonJointPose();
-
         return skeletonPose;
+    },
+
+    _convertToClip: function(curves) {
+        var clip = new HX.AnimationClip();
+        var numFrames = curves[0].frames.length;
+
+        for (var f = 0; f < numFrames; ++f) {
+            var time = curves[0].frames[f].time;
+
+            var tempJointPoses = this._createTempJointPoses();
+            this._applyCurvesForFrame(tempJointPoses, curves, f);
+
+            var skeletonPose = this._convertSkeletonPose(tempJointPoses);
+
+            skeletonPose.jointPoses[this._fakeJointIndex] = new HX.SkeletonJointPose();
+
+            clip.addKeyFrame(new HX.KeyFrame(time, skeletonPose));
+        }
+
+        return clip;
     }
 };
 
-HX.FBXAnimationConverter._JointPose = function()
+FBXAnimationConverter._JointPose = function()
 {
     this["Lcl Translation"] = new HX.Float4(0.0, 0.0, 0.0);
     this["Lcl Rotation"] = new HX.Float4(0.0, 0.0, 0.0);
     this["Lcl Scaling"] = new HX.Float4(1.0, 1.0, 1.0);
 };
+
+export { FBXAnimationConverter };

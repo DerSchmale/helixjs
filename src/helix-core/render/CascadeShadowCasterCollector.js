@@ -2,24 +2,29 @@
  *
  * @constructor
  */
-HX.CascadeShadowCasterCollector = function(numCascades)
+import {BoundingAABB} from "../scene/BoundingAABB";
+import {RenderItemPool} from "./RenderItemPool";
+import {SceneVisitor} from "../scene/SceneVisitor";
+import {MaterialPass} from "../material/MaterialPass";
+
+function CascadeShadowCasterCollector(numCascades)
 {
-    HX.SceneVisitor.call(this);
+    SceneVisitor.call(this);
     this._renderCameras = null;
-    this._bounds = new HX.BoundingAABB();
+    this._bounds = new BoundingAABB();
     this._numCascades = numCascades;
     this._cullPlanes = null;
     // this._splitPlanes = null;
     this._numCullPlanes = 0;
     this._renderLists = [];
-    this._renderItemPool = new HX.RenderItemPool();
+    this._renderItemPool = new RenderItemPool();
 };
 
-HX.CascadeShadowCasterCollector.prototype = Object.create(HX.SceneVisitor.prototype);
+CascadeShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
 
-HX.CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return this._renderLists[index]; };
+CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return this._renderLists[index]; };
 
-HX.CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
+CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 {
     this._collectorCamera = camera;
     this._bounds.clear();
@@ -32,34 +37,34 @@ HX.CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
     scene.acceptVisitor(this);
 };
 
-HX.CascadeShadowCasterCollector.prototype.getBounds = function()
+CascadeShadowCasterCollector.prototype.getBounds = function()
 {
     return this._bounds;
 };
 
-HX.CascadeShadowCasterCollector.prototype.setRenderCameras = function(cameras)
+CascadeShadowCasterCollector.prototype.setRenderCameras = function(cameras)
 {
     this._renderCameras = cameras;
 };
 
-HX.CascadeShadowCasterCollector.prototype.setCullPlanes = function(cullPlanes, numPlanes)
+CascadeShadowCasterCollector.prototype.setCullPlanes = function(cullPlanes, numPlanes)
 {
     this._cullPlanes = cullPlanes;
     this._numCullPlanes = numPlanes;
 };
 
-// HX.CascadeShadowCasterCollector.prototype.setSplitPlanes = function(splitPlanes)
+// CascadeShadowCasterCollector.prototype.setSplitPlanes = function(splitPlanes)
 // {
 //     this._splitPlanes = splitPlanes;
 // };
 
-HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
+CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
 {
     if (modelInstance._castShadows === false) return;
 
     this._bounds.growToIncludeBound(worldBounds);
 
-    var passIndex = HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
+    var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
 
     var numCascades = this._numCascades;
     var numMeshes = modelInstance.numMeshInstances;
@@ -94,7 +99,9 @@ HX.CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelIn
     }
 };
 
-HX.CascadeShadowCasterCollector.prototype.qualifies = function(object)
+CascadeShadowCasterCollector.prototype.qualifies = function(object)
 {
     return object.visible && object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
 };
+
+export { CascadeShadowCasterCollector };

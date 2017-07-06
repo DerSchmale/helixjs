@@ -3,12 +3,15 @@
  * @param modelData
  * @constructor
  */
-HX.Model = function (modelData)
+import {BoundingAABB} from "../scene/BoundingAABB";
+import {Signal} from "../core/Signal";
+import {Mesh} from "./Mesh";
+function Model(modelData)
 {
     this._name = null;
-    this._localBounds = new HX.BoundingAABB();
+    this._localBounds = new BoundingAABB();
     this._skeleton = null;
-    this.onChange = new HX.Signal();
+    this.onChange = new Signal();
 
     if (modelData) {
         this._meshes = null;
@@ -18,10 +21,8 @@ HX.Model = function (modelData)
         this._meshes = [];
 };
 
-HX.Model.prototype =
+Model.prototype =
 {
-    constructor: HX.Model,
-
     get name()
     {
         return this._name;
@@ -75,7 +76,7 @@ HX.Model.prototype =
         for (var i = 0; i < modelData.numMeshes; ++i) {
             var meshData = modelData.getMeshData(i);
             this._localBounds.growToIncludeMesh(meshData);
-            this._meshes.push(new HX.Mesh(meshData, this));
+            this._meshes.push(new Mesh(meshData, this));
         }
 
         this.skeleton = modelData.skeleton;
@@ -88,3 +89,5 @@ HX.Model.prototype =
         return "[Model(name=" + this._name + ")]";
     }
 };
+
+export { Model };

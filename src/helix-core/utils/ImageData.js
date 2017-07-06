@@ -1,4 +1,4 @@
-HX.ImageData =
+export var ImageData =
 {
     getFromImage: function(image)
     {

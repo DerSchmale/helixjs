@@ -1,13 +1,19 @@
-HX.UnlitPass = function(geometryVertex, geometryFragment)
+import {MaterialPass} from "./MaterialPass";
+import {ShaderLibrary} from "../shader/ShaderLibrary";
+import {Shader} from "../shader/Shader";
+
+function UnlitPass(geometryVertex, geometryFragment)
 {
-    HX.MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+}
+
+UnlitPass.prototype = Object.create(MaterialPass.prototype);
+
+UnlitPass.prototype._generateShader = function(geometryVertex, geometryFragment)
+{
+    var fragmentShader = ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_unlit_fragment.glsl");
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_unlit_vertex.glsl");
+    return new Shader(vertexShader, fragmentShader);
 };
 
-HX.UnlitPass.prototype = Object.create(HX.MaterialPass.prototype);
-
-HX.UnlitPass.prototype._generateShader = function(geometryVertex, geometryFragment)
-{
-    var fragmentShader = HX.ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + HX.ShaderLibrary.get("material_unlit_fragment.glsl");
-    var vertexShader = geometryVertex + "\n" + HX.ShaderLibrary.get("material_unlit_vertex.glsl");
-    return new HX.Shader(vertexShader, fragmentShader);
-};
+export { UnlitPass };

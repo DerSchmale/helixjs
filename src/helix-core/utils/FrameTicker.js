@@ -1,3 +1,5 @@
+import { Signal } from '../core/Signal';
+
 // http://paulirish.com/2011/requestanimationframe-for-smart-animating/
 // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
 // requestAnimationFrame polyfill by Erik Möller. fixes from Paul Irish and Tino Zijdel
@@ -32,17 +34,16 @@
  * @constructor
  */
 
-HX.FrameTicker = function()
+function FrameTicker()
 {
     this._isRunning = false;
     this._callback = undefined;
     this._dt = 0;
     this._currentTime = 0;
-    this.onTick = new HX.Signal();
-};
+    this.onTick = new Signal();
+}
 
-HX.FrameTicker.prototype = {
-    constructor: HX.FrameTicker,
+FrameTicker.prototype = {
 
     /**
      * Starts automatically calling a callback function every animation frame.
@@ -100,3 +101,5 @@ HX.FrameTicker.prototype = {
             return self.performance.now();
     }
 };
+
+export { FrameTicker };

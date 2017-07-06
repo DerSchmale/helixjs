@@ -1,75 +1,78 @@
 /**
- * Creates a new Float2 object
- * @class
- * @constructor
+ * Returns the angle between two vectors
  */
-HX.Float2 = function(x, y)
+Float2.angle = function(a, b)
 {
-    // x, y, z, w allowed to be accessed publicly for simplicity, changing this does not violate invariant. Ever.
-    this.x = x || 0;
-    this.y = y || 0;
+    return Math.acos(Float2.dot(a, b) / (a.length * b.length));
 };
 
 
 /**
- * Returns the angle between two vectors
+ * Creates a new Float2 object
+ * @class
+ * @constructor
  */
-HX.Float2.angle = function(a, b)
+function Float2(x, y)
 {
-    return Math.acos(HX.dot2(a, b) / (a.length * b.length));
-};
+    // x, y, z, w allowed to be accessed publicly for simplicity, changing this does not violate invariant. Ever.
+    this.x = x || 0;
+    this.y = y || 0;
+}
 
-HX.Float2.distance = function(a, b)
+Float2.distance = function(a, b)
 {
     var dx = a.x - b.x;
     var dy = a.y - b.y;
     return Math.sqrt(dx * dx + dy * dy);
 };
 
+Float2.dot = function(a, b)
+{
+    return a.x * b.x + a.y * b.y;
+};
+
 /**
  * Returns the angle between two vectors, assuming they are normalized
  */
-HX.Float2.angleNormalized = function(a, b)
+Float2.angleNormalized = function(a, b)
 {
-    return Math.acos(HX.dot2(a, b));
+    return Math.acos(Float2.dot(a, b));
 };
 
-HX.Float2.add = function(a, b, target)
+Float2.add = function(a, b, target)
 {
-    target = target || new HX.Float2();
+    target = target || new Float2();
     target.x = a.x + b.x;
     target.y = a.y + b.y;
     return target;
 };
 
-HX.Float2.subtract = function(a, b, target)
+Float2.subtract = function(a, b, target)
 {
-    target = target || new HX.Float2();
+    target = target || new Float2();
     target.x = a.x - b.x;
     target.y = a.y - b.y;
     return target;
 };
 
-HX.Float2.scale = function(a, s, target)
+Float2.scale = function(a, s, target)
 {
-    target = target || new HX.Float2();
+    target = target || new Float2();
     target.x = a.x * s;
     target.y = a.y * s;
     return target;
 };
 
-HX.Float2.negate = function(a, b, target)
+Float2.negate = function(a, b, target)
 {
-    target = target || new HX.Float2();
+    target = target || new Float2();
     target.x = -target.x;
     target.y = -target.y;
     return target;
 };
 
-HX.Float2.prototype =
+Float2.prototype =
 {
-    constructor: HX.Float2,
-
     set: function(x, y)
     {
         this.x = x;
@@ -95,7 +98,7 @@ HX.Float2.prototype =
 
     clone: function()
     {
-        return new HX.Float2(this.x, this.y);
+        return new Float2(this.x, this.y);
     },
 
     add: function(v)
@@ -161,6 +164,8 @@ HX.Float2.prototype =
     }
 };
 
-HX.Float2.ZERO = new HX.Float2(0, 0);
-HX.Float2.X_AXIS = new HX.Float2(1, 0);
-HX.Float2.Y_AXIS = new HX.Float2(0, 1);
+Float2.ZERO = new Float2(0, 0);
+Float2.X_AXIS = new Float2(1, 0);
+Float2.Y_AXIS = new Float2(0, 1);
+
+export { Float2 };

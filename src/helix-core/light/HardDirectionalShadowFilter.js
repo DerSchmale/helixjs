@@ -1,16 +1,22 @@
-HX.HardDirectionalShadowFilter = function()
+import { CullMode } from '../Helix';
+import { ShaderLibrary } from '../shader/ShaderLibrary';
+import { ShadowFilter } from './ShadowFilter';
+
+function HardDirectionalShadowFilter()
 {
-    HX.ShadowFilter.call(this);
+    ShadowFilter.call(this);
+}
+
+HardDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype);
+
+HardDirectionalShadowFilter.prototype.getGLSL = function()
+{
+    return ShaderLibrary.get("dir_shadow_hard.glsl");
 };
 
-HX.HardDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.prototype);
-
-HX.HardDirectionalShadowFilter.prototype.getGLSL = function()
+HardDirectionalShadowFilter.prototype.getCullMode = function()
 {
-    return HX.ShaderLibrary.get("dir_shadow_hard.glsl");
+    return CullMode.FRONT;
 };
 
-HX.HardDirectionalShadowFilter.prototype.getCullMode = function()
-{
-    return HX.CullMode.FRONT;
-};
+export { HardDirectionalShadowFilter };

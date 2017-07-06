@@ -31,10 +31,10 @@ FBXModelInstanceConverter.prototype =
         var modelInstance = new HX.ModelInstance(this._model, expandedMaterials);
         var clips = this._animationConverter.animationClips;
         if (clips) {
-            if (clips.length === 1)
-                modelInstance.addComponent(new HX.SkeletonAnimation(clips[0]));
-            else
-                throw new Error("TODO! Implement blend node");
+            // if (clips.length === 1)
+            //     modelInstance.addComponent(new HX.SkeletonAnimation(clips[0]));
+            // else
+            //     throw new Error("TODO! Implement blend node");
         }
 
         return modelInstance;

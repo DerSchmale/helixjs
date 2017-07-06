@@ -35,6 +35,11 @@ var MathX = {
     lerp: function(a, b, factor)
     {
         return a + (b - a) * factor;
+    },
+
+    linearStep: function(lower, upper, x)
+    {
+        return MathX.saturate((x - lower) / (upper - lower));
     }
 };
 

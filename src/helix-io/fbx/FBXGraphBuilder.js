@@ -27,7 +27,7 @@ function FBXGraphBuilder()
     this._rootNode = null;
     this._animationStack = null;
     this._bindPoses = null;
-};
+}
 
 FBXGraphBuilder.prototype =
 {

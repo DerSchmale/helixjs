@@ -61,8 +61,6 @@ FBXBinaryDeserializer.prototype =
         var record = new FBXRecord();
         record.name = data.getString(nameLen);
 
-        console.log(record.name);
-
         for (var i = 0; i < numProperties; ++i) {
             var dataElm = this._parseDataElement();
             record.data.push(dataElm);
@@ -141,7 +139,6 @@ FBXBinaryDeserializer.prototype =
         }
         else if (encoding === 1) {
             var data = this._data.getUint8Array(compressedLength);
-
             data = pako.inflate(data).buffer;
 
             switch (type) {

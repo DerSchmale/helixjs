@@ -120,6 +120,7 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         if (!meshInstance.visible) continue;
 
         var material = meshInstance.material;
+        material._firstPass = true;
 
         // if (!material._initialized) continue;
 
@@ -138,12 +139,18 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         renderItem.worldMatrix = worldMatrix;
         renderItem.camera = camera;
 
-        if (material.hasPass(MaterialPass.BASE_PASS)) {
-            var list = material.blendState || material._needsBackbuffer? this._transparentsStatic : this._opaquesStatic;
-            list.push(renderItem);
+        var opaques, transparents;
+        if (material._dynamicLighting) {
+            opaques = this._opaquesDynamic;
+            transparents = this._transparentsDynamic;
+        }
+        else {
+            opaques = this._opaquesStatic;
+            transparents = this._transparentsStatic;
         }
 
-        // TODO: Support dynamic lighting
+        var list = material.blendState || material._needsBackbuffer? transparents : opaques;
+        list.push(renderItem);
     }
 };
 

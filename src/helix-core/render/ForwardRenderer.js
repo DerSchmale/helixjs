@@ -162,20 +162,27 @@ ForwardRenderer.prototype =
         this._renderShadowCasters();
 
         var opaqueStaticLit = this._renderCollector.getOpaqueStaticRenderList();
+        var opaqueDynamicLit = this._renderCollector.getOpaqueDynamicRenderList();
         var transparentStaticLit = this._renderCollector.getTransparentStaticRenderList();
+        var transparentDynamicLit = this._renderCollector.getTransparentDynamicRenderList();
 
         GL.setClearColor(Color.BLACK);
 
         GL.setDepthMask(true);
         this._renderNormalDepth(opaqueStaticLit);
+        this._renderNormalDepth(opaqueDynamicLit);
         this._renderAO();
 
         GL.setRenderTarget(this._hdrFront.fboDepth);
         GL.setClearColor(this._backgroundColor);
         GL.clear();
+
         this._renderDepthPrepass(opaqueStaticLit);
+        this._renderDepthPrepass(opaqueDynamicLit);
 
         this._renderStatics(opaqueStaticLit);
+        this._renderDynamics(opaqueDynamicLit);
+
         // TODO: Render dynamic lit opaques here
 
         // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
@@ -207,8 +214,17 @@ ForwardRenderer.prototype =
 
     _renderStatics: function(list)
     {
-        GL.setClearColor(this._backgroundColor);
         this._renderPass(MaterialPass.BASE_PASS, list);
+    },
+
+    _renderDynamics: function(list)
+    {
+        // cannot use renderPass here, since we can't just barrel through all passes
+        // we need to test intersection (in case of Point lights) and update the light settings before rendering
+        // dir lights are always a hit, so we should only need to update this data once
+        // oh I wish we had uniform buffer objects so we could just assign the buffer object every time...
+
+        // before we do this, should we split up uniform setters into per pass and per instance?
     },
 
     _renderNormalDepth: function(list)

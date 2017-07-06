@@ -3,6 +3,7 @@ import {DirectionalLight} from "../light/DirectionalLight";
 import {Signal} from "../core/Signal";
 import {MaterialPass} from "./MaterialPass";
 import {UnlitPass} from "./UnlitPass";
+import {DynamicLitBasePass} from "./DynamicLitBasePass";
 import {StaticLitPass} from "./StaticLitPass";
 import {DirectionalShadowPass} from "./DirectionalShadowPass";
 import {LightingModel} from "../render/LightingModel";
@@ -40,7 +41,13 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._blendState = null;
     this._needsNormalDepth = false;
     this._needsBackbuffer = false;
-};
+    this._dynamicLighting = false;
+
+    // this is an internal property used in rendering dynamic lights
+    // set to true when collected (ie: before any rendering is done)
+    // set to false whenever a dynamic lighting pass is rendered, so the following passes can work additively
+    this._firstPass = false;
+}
 
 Material.ID_COUNTER = 0;
 
@@ -56,13 +63,20 @@ Material.prototype =
         this._dirLights = null;
         this._dirLightCasters = null;
         this._pointLights = null;
+        this._dynamicLighting = false;
 
         if (!this._lightingModel)
             this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
         else if (this._lights)
             this.setPass(MaterialPass.BASE_PASS, new StaticLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._lights, this._ssao));
-        //else
-        //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
+        else {
+            this._dynamicLighting = true;
+            this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
+
+            // TODO: base pass should only be included if there's emission, and probably rendered AFTER the lights (additively)
+            //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
+            // how to know if this pass has been rendered already? renderMark check?
+        }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 

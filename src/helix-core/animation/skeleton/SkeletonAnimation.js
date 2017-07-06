@@ -1,5 +1,5 @@
 import {Component} from "../../entity/Component";
-import {SkeletonClip} from "./SkeletonClip";
+import {AnimationClip} from "./../AnimationClip";
 import {SkeletonClipNode} from "./SkeletonClipNode";
 import {SkeletonBlendTree} from "./SkeletonBlendTree";
 import {META} from "../../Helix";
@@ -12,7 +12,7 @@ import {META} from "../../Helix";
 function SkeletonAnimation(rootNode)
 {
     Component.call(this);
-    if (rootNode instanceof SkeletonClip)
+    if (rootNode instanceof AnimationClip)
         rootNode = new SkeletonClipNode(rootNode);
     this._blendTree = new SkeletonBlendTree(rootNode);
 };

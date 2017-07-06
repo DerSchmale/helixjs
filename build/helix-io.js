@@ -235,7 +235,7 @@ MD5Mesh._WeightData = function()
 
 function MD5Anim()
 {
-    HX$1.Importer.call(this, HX$1.SkeletonClip);
+    HX$1.Importer.call(this, HX$1.AnimationClip);
     this._hierarchy = null;
     this._baseFrame = null;
     this._activeFrame = null;
@@ -2114,7 +2114,7 @@ FBXAnimationConverter.prototype =
     {
         // TODO: make framerate an overridable option
 
-        var clip = new HX.SkeletonClip();
+        var clip = new HX.AnimationClip();
         clip.frameRate = this._frameRate;
 
         // convert key frames to sized frames

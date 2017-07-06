@@ -2,7 +2,7 @@ import * as HX from 'helix';
 
 function MD5Anim()
 {
-    HX.Importer.call(this, HX.SkeletonClip);
+    HX.Importer.call(this, HX.AnimationClip);
     this._hierarchy = null;
     this._baseFrame = null;
     this._activeFrame = null;

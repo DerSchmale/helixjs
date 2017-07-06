@@ -1,19 +1,16 @@
-import {Float4} from "../../math/Float4";
-import {SkeletonBlendNode} from "./SkeletonBlendNode";
-
 /**
  * A node to contain a single clip
  * @param clip
  * @constructor
  */
+import {Float4} from "../../math/Float4";
+import {SkeletonBlendNode} from "./SkeletonBlendNode";
+import {AnimationClipPlayer} from "../AnimationClipPlayer";
+
 function SkeletonClipNode(clip)
 {
     SkeletonBlendNode.call(this);
-    this._clip = clip;
-    this._timeScale = 1.0;
-    this._isPlaying = true;
-    this._time = 0;
-    this._currentFrameIndex = 0;
+    this._animationClipPlayer = new AnimationClipPlayer(clip);
     this._rootPosition = new Float4();
 
     var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
@@ -27,14 +24,14 @@ SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
             get: function() { return this._clip.getKeyFrame(0).value.jointPoses.length; }
         },
         timeScale: {
-            get: function() { return this._timeScale; },
-            set: function(value) { this._timeScale = value; }
+            get: function() { return this._animationClipPlayer.timeScale; },
+            set: function(value) { this._animationClipPlayer.timeScale = value; }
         },
         time: {
-            get: function() { return this._time; },
+            get: function() { return this._animationClipPlayer; },
             set: function(value)
             {
-                this._time = value;
+                this._animationClipPlayer.time = value;
                 this._timeChanged = true;
             }
         }
@@ -42,83 +39,27 @@ SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
 
 SkeletonClipNode.prototype.play = function()
 {
-    this._isPlaying = true;
+    this._animationClipPlayer.play();
 };
 
 SkeletonClipNode.prototype.stop = function()
 {
-    this._isPlaying = false;
+    this._animationClipPlayer.stop();
 };
 
 SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
 {
-    if ((!this._isPlaying || dt === 0.0) && !this._timeChanged)
+    if (!this._animationClipPlayer.update(dt))
         return false;
 
-    this._timeChanged = false;
-
-    if (this._isPlaying) {
-        dt *= this._timeScale;
-        this._time += dt;
-    }
-
-    var clip = this._clip;
-    // the last keyframe is just an "end marker" to interpolate with, it has no duration
-    var numKeyFrames = clip.numKeyFrames;
-    var numBaseFrames = numKeyFrames - 1;
-    var duration = clip.duration;
-    var wraps = 0;
-
-
-    var frameA, frameB;
-
-    if (dt > 0) {
-        // todo: should be able to simply do this by division
-        while (this._time >= duration) {
-            // reset playhead to make sure progressive update logic works
-            this._currentFrameIndex = 0;
-            this._time -= duration;
-            ++wraps;
-        }
-        //  old     A            B
-        //  new                  A           B
-        //  frames: 0           10          20          30
-        //  time:         x   ----->   x
-        do {
-            // advance play head
-            if (++this._currentFrameIndex === numKeyFrames) this._currentFrameIndex = 0;
-            frameB = clip.getKeyFrame(this._currentFrameIndex);
-        } while (frameB.time < this._time);
-
-        --this._currentFrameIndex;
-        frameA = clip.getKeyFrame(this._currentFrameIndex);
-    }
-    else {
-        while (this._time < 0) {
-            // reset playhead to make sure progressive update logic works
-            this._currentFrameIndex = numBaseFrames;
-            this._time += duration;
-            ++wraps;
-        }
-
-        //  old     A            B
-        //  new                  A           B
-        //  frames: 0           10          20          30
-        //  time:         x   <-----   x
-        // advance play head
-        ++this._currentFrameIndex;
-        do {
-            if (--this._currentFrameIndex < 0) this._currentFrameIndex = numKeyFrames;
-            frameA = clip.getKeyFrame(this._currentFrameIndex);
-        } while (frameA.time > this._time);
-    }
-
-    var fraction = (this._time - frameA.time) / (frameB.time - frameA.time);
+    var frameA = this._animationClipPlayer.frame1;
+    var frameB = this._animationClipPlayer.frame2;
+    var fraction = this._animationClipPlayer.ratio;
 
     this._pose.interpolate(frameA.value, frameB.value, fraction);
 
     if (transferRootJoint)
-        this._transferRootJointTransform(wraps, dt);
+        this._transferRootJointTransform(this._animationClipPlayer.wraps, dt);
 
     return true;
 };

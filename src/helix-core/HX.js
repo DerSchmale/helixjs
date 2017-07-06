@@ -33,6 +33,8 @@ export {Component} from './entity/Component';
 export {CompositeComponent} from './entity/CompositeComponent';
 
 export {KeyFrame} from './animation/KeyFrame';
+export {AnimationClip} from './animation/AnimationClip';
+export {AnimationPlayhead} from './animation/AnimationPlayhead';
 export {MorphAnimation} from './animation/morph/MorphAnimation';
 export {MorphData} from './animation/morph/MorphData';
 export {MorphPose} from './animation/morph/MorphPose';
@@ -43,7 +45,6 @@ export {SkeletonAnimation} from './animation/skeleton/SkeletonAnimation';
 export {SkeletonBinaryLerpNode} from './animation/skeleton/SkeletonBinaryLerpNode';
 export {SkeletonBlendNode} from './animation/skeleton/SkeletonBlendNode';
 export {SkeletonBlendTree} from './animation/skeleton/SkeletonBlendTree';
-export {SkeletonClip} from './animation/skeleton/SkeletonClip';
 export {SkeletonClipNode} from './animation/skeleton/SkeletonClipNode';
 export {SkeletonFreePoseNode} from './animation/skeleton/SkeletonFreePoseNode';
 export {SkeletonJoint} from './animation/skeleton/SkeletonJoint';

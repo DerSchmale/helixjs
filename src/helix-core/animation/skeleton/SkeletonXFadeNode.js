@@ -2,7 +2,7 @@
  * This is generally the node you probably want to be using for simple crossfading between animations.
  * @constructor
  */
-import {SkeletonClip} from "./SkeletonClip";
+import {AnimationClip} from "./../AnimationClip";
 import {SkeletonClipNode} from "./SkeletonClipNode";
 import {SkeletonBlendNode} from "./SkeletonBlendNode";
 import {MathX as Float4} from "../../math/MathX";
@@ -84,7 +84,7 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
  */
 SkeletonXFadeNode.prototype.fadeTo = function(node, time)
 {
-    if (node instanceof SkeletonClip) node = new SkeletonClipNode(node);
+    if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
 
     this._numJoints = node.numJoints;
     // put the new one in front, it makes the update loop more efficient

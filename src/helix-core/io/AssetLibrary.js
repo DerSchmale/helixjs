@@ -1,8 +1,6 @@
 import {Signal} from "../core/Signal";
 import {AssetLoader} from "./AssetLoader";
 import {HCM} from "./HCM";
-import {HMT} from "./HMT";
-import {HSC} from "./HSC";
 import {JPG} from "./JPG_PNG";
 
 /**
@@ -150,7 +148,7 @@ AssetLibrary.prototype =
         loader.open('GET', file, true);
         loader.onreadystatechange = function()
         {
-            if (loader.readyState === 4 && loader.status === "200") {
+            if (loader.readyState === 4 && loader.status === 200) {
                 self._assets[id] = JSON.parse(loader.responseText);
                 self._onAssetLoaded();
             }

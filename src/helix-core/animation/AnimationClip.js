@@ -1,15 +1,11 @@
-/**
- * An animation clip for skeletal animation
- * @constructor
- */
-function SkeletonClip()
+function AnimationClip()
 {
     this._name = null;
     this._keyFrames = [];
     this._duration = 0;
 }
 
-SkeletonClip.prototype =
+AnimationClip.prototype =
 {
     get name()
     {
@@ -19,6 +15,16 @@ SkeletonClip.prototype =
     set name(value)
     {
         this._name = value;
+    },
+
+    get numKeyFrames()
+    {
+        return this._keyFrames.length;
+    },
+
+    get duration()
+    {
+        return this._duration;
     },
 
     /**
@@ -41,25 +47,15 @@ SkeletonClip.prototype =
         });
     },
 
-    get numKeyFrames()
-    {
-        return this._keyFrames.length;
-    },
-
     getKeyFrame: function(index)
     {
         return this._keyFrames[index];
     },
 
-    get duration()
-    {
-        return this._duration;
-    },
-
     toString: function()
     {
-        return "[SkeletonClip(name=" + this.name + ")";
+        return "[AnimationClip(name=" + this.name + ")";
     }
 };
 
-export { SkeletonClip };
+export { AnimationClip };

@@ -179,7 +179,7 @@ FBXAnimationConverter.prototype =
     {
         // TODO: make framerate an overridable option
 
-        var clip = new HX.SkeletonClip();
+        var clip = new HX.AnimationClip();
         clip.frameRate = this._frameRate;
 
         // convert key frames to sized frames

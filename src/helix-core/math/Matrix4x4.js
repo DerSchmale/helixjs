@@ -491,7 +491,6 @@ Matrix4x4.prototype =
      */
     determinant3x3: function (row, col)
     {
-        // todo: can this be faster?
         // columns are the indices * 4 (to form index for row 0)
         var c1 = col === 0 ? 4 : 0;
         var c2 = col < 2 ? 8 : 4;

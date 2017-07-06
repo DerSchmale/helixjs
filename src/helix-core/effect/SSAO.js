@@ -43,7 +43,6 @@ function SSAO(numSamples)
     this._ssaoPass.setTexture("ditherTexture", this._ditherTexture);
     this._sourceTextureSlot = this._blurPass.getTextureSlot("source");
 
-    // TODO: We could reproject
     this._ssaoTexture = new Texture2D();
     this._ssaoTexture.filter = TextureFilter.BILINEAR_NOMIP;
     this._ssaoTexture.wrapMode = TextureWrapMode.CLAMP;

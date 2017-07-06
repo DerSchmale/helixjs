@@ -35,7 +35,6 @@ export var UniformSetter = {
     {
         UniformSetter._table = {};
 
-        // TODO: We can probably just use functions for these
         UniformSetter._table.hx_worldMatrix = WorldMatrixSetter;
         UniformSetter._table.hx_worldViewMatrix = WorldViewMatrixSetter;
         UniformSetter._table.hx_wvpMatrix = WorldViewProjectionSetter;
@@ -329,6 +328,7 @@ SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
         var matrices = renderItem.skeletonMatrices;
         var numJoints = skeleton.numJoints;
         var j = 0;
+
         // TODO: This rewrites the data every time, should only happen once a frame
         for (var i = 0; i < numJoints; ++i) {
             matrices[i].writeData4x3(this._data, j);

@@ -93,7 +93,6 @@ StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragm
         HX_APPLY_SSAO: ssao? 1 : 0
     };
 
-    // TODO: Allow material to define whether or not to use LODs
     if (capabilities.EXT_SHADER_TEXTURE_LOD && defines.HX_NUM_SPECULAR_PROBES > 0) {
         defines.HX_TEXTURE_LOD = 1;
         extensions += "#texturelod\n";

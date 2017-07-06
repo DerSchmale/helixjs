@@ -19,8 +19,6 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._elementType = ElementType.TRIANGLES;
     this._cullMode = CullMode.BACK;
     this._writeDepth = true;
-    // TODO: should this be passed to the material as a uniform to figure out how to interlace in hx_processGeometry (= overhead for opaque), or should this be a #define and compilation issue?
-    // could by default do a test, and if #define FORCE_TRANSPARENCY_MODE <mode> is set, do not. This can be used by BasicMaterial or custom materials to trigger recompilations and optimize.
     this._passes = new Array(Material.NUM_PASS_TYPES);
     this._renderOrderHint = ++MATERIAL_ID_COUNTER;
     // forced render order by user:

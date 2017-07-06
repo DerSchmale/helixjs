@@ -17,9 +17,6 @@ function DirectionalLight()
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;
     this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
-
-    // TODO: Should shadowMapRenderer always exist?
-    // if this castShadows = false, just destroy shadow texture
 };
 
 // set on init

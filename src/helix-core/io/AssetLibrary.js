@@ -170,7 +170,6 @@ AssetLibrary.prototype =
             }
         };
 
-        // TODO Add breaking change
         loader.send(null);
     },
 

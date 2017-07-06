@@ -41,8 +41,6 @@ void main()
 {
     HX_GeometryData data = hx_geometry();
 
-    // TODO: Provide support for proper AO so it's not a bad post-process effect?
-
     // update the colours
     vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);
     data.color.xyz *= 1.0 - data.metallicness;

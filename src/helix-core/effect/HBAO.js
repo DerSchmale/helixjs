@@ -36,7 +36,7 @@ function HBAO(numRays, numSamplesPerRay)
             NUM_SAMPLES_PER_RAY: numSamplesPerRay
         })
     );
-    // TODO: Can probably perform this in single pass by linear interpolation (only 4 samples needed) -> can then still blur twice if needed
+
     this._blurPass = new EffectPass(null, ShaderLibrary.get("ao_blur_fragment.glsl"));
 
     this._initSampleDirTexture();

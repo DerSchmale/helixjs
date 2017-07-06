@@ -17,8 +17,7 @@ function SkeletonBlendTree(rootNode, skeleton)
     this._globalPose = new SkeletonPose();
     this._applyInverseBindPose = true;
 
-    // TODO: Should we hide this stuff in SkeletonPose along with matrices?
-    // (only used for the global pose)
+    // TODO: Should we hide this stuff in SkeletonPose along with matrices (only used for the global pose), so we can assign a SkeletonPose object to skinned objects
     if (META.OPTIONS.useSkinningTexture) {
         this._texture = new Texture2D();
         this._texture.filter = TextureFilter.NEAREST_NOMIP;

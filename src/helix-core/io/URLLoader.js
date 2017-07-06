@@ -1,10 +1,11 @@
-function URLLoader()
+function URLLoader(headers)
 {
     this._params = undefined;
     this._data = null;
     this._timeout = 0;
     this._method = 'GET';
     this._type = URLLoader.DATA_TEXT;
+    this._headers = headers || {};
 }
 
 URLLoader.ERROR_TIME_OUT = 408;
@@ -61,10 +62,20 @@ URLLoader.prototype =
         return this._data;
     },
 
+    setRequestHeader: function(name, value)
+    {
+        this._headers[name] = value;
+    },
+
     load: function (url)
     {
         var request = new XMLHttpRequest();
         request.open(this._method, url, true);
+
+        for (var key in this._headers) {
+            if (this._headers.hasOwnProperty(key))
+                request.setRequestHeader(key, this._headers[key]);
+        }
 
         if (this._timeout)
             request.timeout = this._timeout;

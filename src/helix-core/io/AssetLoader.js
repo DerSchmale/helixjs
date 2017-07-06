@@ -15,11 +15,17 @@ function AssetLoader(ImporterType)
     this.onFail = new Signal();
     this.fileMap = {};
     this.options = {};
+    this._headers = {};
     this._importerType = ImporterType;
 }
 
 AssetLoader.prototype =
 {
+    setRequestHeader: function(name, value)
+    {
+        this._headers[name] = value;
+    },
+
     load: function (filename, target)
     {
         function fail(code) {
@@ -56,7 +62,7 @@ AssetLoader.prototype =
         }
         else {
             var self = this;
-            var urlLoader = new URLLoader();
+            var urlLoader = new URLLoader(this._headers);
             urlLoader.type = importer.dataType;
 
             urlLoader.onComplete = function (data)

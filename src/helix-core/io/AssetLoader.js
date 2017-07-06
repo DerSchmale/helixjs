@@ -55,6 +55,7 @@ AssetLoader.prototype =
             image.src = filename;
         }
         else {
+            var self = this;
             var urlLoader = new URLLoader();
             urlLoader.type = importer.dataType;
 
@@ -65,7 +66,7 @@ AssetLoader.prototype =
 
             urlLoader.onError = function (code)
             {
-                fail(code);
+                fail.call(self, code);
             };
 
             urlLoader.load(filename);

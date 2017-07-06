@@ -5,12 +5,12 @@
  */
 import {Float4} from "../../math/Float4";
 import {SkeletonBlendNode} from "./SkeletonBlendNode";
-import {AnimationClipPlayer} from "../AnimationClipPlayer";
+import {AnimationPlayhead} from "../AnimationPlayhead";
 
 function SkeletonClipNode(clip)
 {
     SkeletonBlendNode.call(this);
-    this._animationClipPlayer = new AnimationClipPlayer(clip);
+    this._playhead = new AnimationPlayhead(clip);
     this._rootPosition = new Float4();
 
     var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
@@ -24,14 +24,14 @@ SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
             get: function() { return this._clip.getKeyFrame(0).value.jointPoses.length; }
         },
         timeScale: {
-            get: function() { return this._animationClipPlayer.timeScale; },
-            set: function(value) { this._animationClipPlayer.timeScale = value; }
+            get: function() { return this._playhead.timeScale; },
+            set: function(value) { this._playhead.timeScale = value; }
         },
         time: {
-            get: function() { return this._animationClipPlayer; },
+            get: function() { return this._playhead; },
             set: function(value)
             {
-                this._animationClipPlayer.time = value;
+                this._playhead.time = value;
                 this._timeChanged = true;
             }
         }
@@ -49,17 +49,15 @@ SkeletonClipNode.prototype.stop = function()
 
 SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
 {
-    if (!this._animationClipPlayer.update(dt))
+    if (!this._playhead.update(dt))
         return false;
 
-    var frameA = this._animationClipPlayer.frame1;
-    var frameB = this._animationClipPlayer.frame2;
-    var fraction = this._animationClipPlayer.ratio;
+    var playhead = this._playhead;
 
-    this._pose.interpolate(frameA.value, frameB.value, fraction);
+    this._pose.interpolate(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
 
     if (transferRootJoint)
-        this._transferRootJointTransform(this._animationClipPlayer.wraps, dt);
+        this._transferRootJointTransform(playhead.wraps, dt);
 
     return true;
 };

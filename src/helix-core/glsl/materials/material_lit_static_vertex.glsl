@@ -1,5 +1,3 @@
-uniform mat4 hx_worldViewMatrix;
-
 varying vec3 hx_viewPosition;
 uniform mat4 hx_inverseProjectionMatrix;
 

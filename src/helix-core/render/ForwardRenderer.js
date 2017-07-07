@@ -223,13 +223,13 @@ ForwardRenderer.prototype =
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
 
-        for (var i = 0; i < lights; ++i) {
+        for (var i = 0; i < numLights; ++i) {
             var light = lights[i];
 
             // I don't like type checking, but lighting support is such a core thing...
             // maybe we can work in a more plug-in like light system
             if (light instanceof DirectionalLight) {
-                var passType = light.castShadows? MaterialPass.DIR_LIGHT_PASS : MaterialPass.DIR_LIGHT_SHADOW_PASS;
+                var passType = light.castShadows? MaterialPass.DIR_LIGHT_SHADOW_PASS : MaterialPass.DIR_LIGHT_PASS;
 
                 // PASS IN LIGHT AS DATA, so the material can update it
                 this._renderPass(passType, list, light);
@@ -272,9 +272,9 @@ ForwardRenderer.prototype =
         effect.render(this, dt);
     },
 
-    _renderPass: function (passType, renderItems)
+    _renderPass: function (passType, renderItems, data)
     {
-        RenderUtils.renderPass(this, passType, renderItems);
+        RenderUtils.renderPass(this, passType, renderItems, data);
     },
 
     _renderToScreen: function (renderTarget)

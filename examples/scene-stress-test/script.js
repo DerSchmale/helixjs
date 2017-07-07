@@ -47,6 +47,14 @@ function initScene(scene)
         lights.push(light);
     }
 
+    // TODO: Should num cascades be initialized as a Helix option?
+    // that way, things can be optimized in the shader
+    var dirLight = new HX.DirectionalLight();
+    dirLight.intensity = 1.0;
+    lights.push(dirLight);
+
+    scene.attach(dirLight);
+
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
     var staticMaterial = new HX.BasicMaterial();

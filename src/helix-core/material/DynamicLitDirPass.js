@@ -1,10 +1,30 @@
 import {MaterialPass} from "./MaterialPass";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {Shader} from "../shader/Shader";
+import {DirectionalLight} from "../light/DirectionalLight";
+import {GL} from "../core/GL";
+import {Float4} from "../math/Float4";
+import {Matrix4x4} from "../math/Matrix4x4";
 
-function DynamicLitDirPass(geometryVertex, geometryFragment, shadows)
+function DynamicLitDirPass(geometryVertex, geometryFragment, lightingModel, shadows)
 {
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, shadows));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
+
+    this._colorLocation = this.getUniformLocation("hx_directionalLight.color");
+    this._dirLocation = this.getUniformLocation("hx_directionalLight.direction");
+
+    if (shadows) {
+        this._shadowMatricesLocation = this.getUniformLocation("hx_directionalLight.shadowMapMatrices[0]");
+        this._shadowSplitsLocation = this.getUniformLocation("hx_directionalLight.splitDistances");
+        this._depthBiasLocation = this.getUniformLocation("hx_directionalLight.depthBias");
+        this._maxShadowDistanceLocation = this.getUniformLocation("hx_directionalLight.maxShadowDistance");
+        this._shadowMapSlot = this.getTextureSlot("hx_shadowMap");
+
+        console.log(this._shadowMatricesLocation);
+        console.log(this._shadowSplitsLocation);
+        console.log(this._depthBiasLocation);
+        console.log(this._maxShadowDistanceLocation);
+    }
 }
 
 DynamicLitDirPass.prototype = Object.create(MaterialPass.prototype);
@@ -12,21 +32,67 @@ DynamicLitDirPass.prototype = Object.create(MaterialPass.prototype);
 // the light is passed in as data
 DynamicLitDirPass.prototype.updatePassRenderState = function(renderer, light)
 {
-    MaterialPass.prototype.updatePassRenderState.call(this, renderer);
+    var dir = new Float4();
+    var matrix = new Matrix4x4();
+    var matrixData = new Float32Array(64);
 
-    // SO, START FROM HERE: Update light data
-    // if ! first pass (how do we know?), update blend state to be additive
-};
+    return function(renderer, light) {
+        var camera = renderer._camera;
+        var gl = GL.gl;
+        var col = light._scaledIrradiance;
 
-DynamicLitDirPass.prototype._generateShader = function(geometryVertex, geometryFragment, shadows)
+        gl.useProgram(this._shader._program);
+
+        camera.viewMatrix.transformVector(light.direction, dir);
+        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
+        gl.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
+
+
+        if (light.castShadows) {
+            var shadowRenderer = light._shadowMapRenderer;
+            var numCascades = shadowRenderer._numCascades;
+            var splits = shadowRenderer._splitDistances;
+            var k = 0;
+
+            this._shadowMapSlot.texture = shadowRenderer._shadowMap;
+
+            for (var j = 0; j < numCascades; ++j) {
+                matrix.multiply(shadowRenderer.getShadowMatrix(j), camera.worldMatrix);
+                var m = matrix._m;
+                for (var l = 0; l < 16; ++l) {
+                    matrixData[k++] = m[l];
+                }
+            }
+
+            gl.uniformMatrix4fv(this._shadowMatricesLocation, false, matrixData);
+            gl.uniform4f(this._shadowSplitsLocation, splits[0], splits[1], splits[2], splits[3]);
+            gl.uniform1f(this._depthBiasLocation, light.depthBias);
+            gl.uniform1f(this._maxShadowDistanceLocation, splits[numCascades - 1]);
+        }
+
+        MaterialPass.prototype.updatePassRenderState.call(this, renderer);
+    }
+}();
+
+DynamicLitDirPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
 {
     var defines = {};
 
-    if (shadows)
+    if (shadows) {
         defines.HX_SHADOW_MAP = 1;
+        defines.HX_MAX_CASCADES = 4;
+    }
+    else defines.HX_MAX_CASCADES = 0;
 
-    var fragmentShader = ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_lit_dynamic_dir_fragment.glsl", defines);
     var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_dynamic_dir_vertex.glsl", defines);
+
+    var fragmentShader =
+        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+        lightingModel + "\n\n\n" +
+        DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
+        ShaderLibrary.get("directional_light.glsl") + "\n" +
+        geometryFragment + "\n" +
+        ShaderLibrary.get("material_lit_dynamic_dir_fragment.glsl");
     return new Shader(vertexShader, fragmentShader);
 };
 

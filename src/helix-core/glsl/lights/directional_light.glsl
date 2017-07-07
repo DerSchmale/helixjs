@@ -34,5 +34,6 @@ float hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 v
 {
     mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);
     float shadow = hx_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);
+    // this makes sure that anything beyond the last cascade is unshadowed
     return max(shadow, float(viewPos.z < light.maxShadowDistance));
 }

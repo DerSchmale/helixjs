@@ -98,6 +98,8 @@ StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragm
         extensions += "#texturelod\n";
     }
 
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_static_vertex.glsl", defines);
+
     var fragmentShader =
         extensions +
         ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
@@ -108,7 +110,6 @@ StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragm
         ShaderLibrary.get("light_probe.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_lit_static_fragment.glsl");
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_static_vertex.glsl", defines);
 
     return new Shader(vertexShader, fragmentShader);
 };

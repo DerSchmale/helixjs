@@ -56,10 +56,6 @@ ShaderLibrary._files['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position
 
 ShaderLibrary._files['material_dir_shadow_fragment.glsl'] = 'void main()\n{\n    // geometry is really only used for kil instructions if necessary\n    // hopefully the compiler optimizes the rest out for us\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z);\n}';
 
-ShaderLibrary._files['material_lit_dynamic_base_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    // simply override with emission\n    gl_FragColor = data.color;\n    gl_FragColor.xyz = data.emission;\n\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
-
-ShaderLibrary._files['material_lit_dynamic_base_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
-
 ShaderLibrary._files['material_lit_static_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\n\n#if HX_NUM_DIR_LIGHTS > 0\nuniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_DIR_LIGHT_CASTERS > 0\nuniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];\n\nuniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];\nuniform float test[HX_NUM_DIR_LIGHT_CASTERS];\n#endif\n\n#if HX_NUM_POINT_LIGHTS > 0\nuniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\nuniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\nuniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#if HX_APPLY_SSAO\nuniform sampler2D hx_ssao;\n\nuniform vec2 hx_rcpRenderTargetResolution;\n#endif\n\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ssao = 1.0;\n\n    #if HX_APPLY_SSAO\n        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n        ssao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIR_LIGHT_CASTERS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);\n        diffuseAccum += diffuse * shadow;\n        specularAccum += specular * shadow;\n    }\n    #endif\n\n\n    #if HX_NUM_POINT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {\n        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;\n    }\n    #endif\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n    for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ssao;\n    }\n    #endif\n\n    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['material_lit_static_vertex.glsl'] = 'uniform mat4 hx_worldViewMatrix;\n\nvarying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    // we need to do an unprojection here to be sure to have skinning - or anything like that - support\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
@@ -5112,22 +5108,19 @@ function MaterialPass(shader)
 
     // if material supports animations, this would need to be handled properly
     this._useSkinning = false;
+    this.setTexture("hx_dither2D", DEFAULTS.DEFAULT_2D_DITHER_TEXTURE);
 }
 
 // these will be set upon initialization
 // if a shader supports multiple lights per pass, they will take up 3 type slots (fe: 3 point lights: POINT_LIGHT_PASS, POINT_LIGHT_PASS + 1, POINT_LIGHT_PASS + 2)
 MaterialPass.BASE_PASS = 0;  // used for unlit or for predefined lights
 MaterialPass.NORMAL_DEPTH_PASS = 1;  // used for unlit or for predefined lights
-
-// dynamic lighting passes
 MaterialPass.DIR_LIGHT_PASS = 2;
-MaterialPass.DIR_LIGHT_SHADOW_PASS = 3;
-MaterialPass.POINT_LIGHT_PASS = 4;
+MaterialPass.DIR_LIGHT_SHADOW_PASS = -1;
+MaterialPass.POINT_LIGHT_PASS = -1;
+MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = -1;
 
-// shadow map generation
-MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 5;
-
-MaterialPass.NUM_PASS_TYPES = 6;
+MaterialPass.NUM_PASS_TYPES = -1;
 
 MaterialPass.prototype =
 {
@@ -7920,8 +7913,8 @@ function InitOptions()
     this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
     this.defaultLightingModel = LightingModel.Unlit;
 
-    // this.maxPointLightsPerPass = 3;
-    // this.maxDirLightsPerPass = 1;
+    this.maxPointLightsPerPass = 3;
+    this.maxDirLightsPerPass = 1;
 
     // debug-related
     // this.debug = false;   // requires webgl-debug.js:
@@ -8069,6 +8062,8 @@ function init(canvas, options)
     // default copy shader
     DEFAULTS.COPY_SHADER = new CopyChannelsShader();
 
+    _initMaterialPasses();
+
     Texture2D._initDefault();
     TextureCube._initDefault();
     BlendState._initDefaults();
@@ -8102,6 +8097,19 @@ function stop()
     frameTicker.stop();
 }
 
+function _initMaterialPasses()
+{
+    var options = META.OPTIONS;
+    MaterialPass.BASE_PASS = 0;
+    MaterialPass.NORMAL_DEPTH_PASS = 1;
+    MaterialPass.DIR_LIGHT_PASS = 2;
+    // assume only one dir light with shadow per pass, since it's normally only the sun
+    MaterialPass.DIR_LIGHT_SHADOW_PASS = MaterialPass.DIR_LIGHT_PASS + options.maxDirLightsPerPass;
+    MaterialPass.POINT_LIGHT_PASS = MaterialPass.DIR_LIGHT_SHADOW_PASS + 1;
+    MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = MaterialPass.POINT_LIGHT_PASS + options.maxPointLightsPerPass;
+    MaterialPass.NUM_PASS_TYPES = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS + 1;
+}
+
 function _initLights()
 {
     DirectionalLight.SHADOW_FILTER = META.OPTIONS.directionalShadowFilter;
@@ -8124,7 +8132,6 @@ function _initDefaultSkinningTexture()
 function _init2DDitherTexture(width, height)
 {
     var gl = GL.gl;
-    DEFAULTS.DEFAULT_2D_DITHER_TEXTURE = new Texture2D();
     var len = width * height;
     var minValue = 1.0 / len;
     var data = [];
@@ -8150,6 +8157,7 @@ function _init2DDitherTexture(width, height)
         data[k++] = 1.0;
     }
 
+    DEFAULTS.DEFAULT_2D_DITHER_TEXTURE = new Texture2D();
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, gl.RGBA, gl.FLOAT);
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.filter = TextureFilter.NEAREST_NOMIP;
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.wrapMode = TextureWrapMode.REPEAT;
@@ -8746,20 +8754,6 @@ UnlitPass.prototype._generateShader = function(geometryVertex, geometryFragment)
     return new Shader(vertexShader, fragmentShader);
 };
 
-function DynamicLitBasePass(geometryVertex, geometryFragment)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
-}
-
-DynamicLitBasePass.prototype = Object.create(MaterialPass.prototype);
-
-DynamicLitBasePass.prototype._generateShader = function(geometryVertex, geometryFragment)
-{
-    var fragmentShader = ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_lit_dynamic_base_fragment.glsl");
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_dynamic_base_vertex.glsl");
-    return new Shader(vertexShader, fragmentShader);
-};
-
 /**
  *
  * @constructor
@@ -9133,19 +9127,13 @@ Material.prototype =
         this._dirLights = null;
         this._dirLightCasters = null;
         this._pointLights = null;
-        this._dynamicLighting = false;
 
         if (!this._lightingModel)
             this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
         else if (this._lights)
             this.setPass(MaterialPass.BASE_PASS, new StaticLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._lights, this._ssao));
-        else {
-            this._dynamicLighting = true;
-            this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
-            // TODO: base pass should only be included if there's emission, and probably rendered AFTER the lights (additively)
-            //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
-            // how to know if this pass has been rendered already? renderMark check?
-        }
+        //else
+        //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 
@@ -10273,18 +10261,12 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         renderItem.worldMatrix = worldMatrix;
         renderItem.camera = camera;
 
-        var opaques, transparents;
-        if (material._dynamicLighting) {
-            opaques = this._opaquesDynamic;
-            transparents = this._transparentsDynamic;
-        }
-        else {
-            opaques = this._opaquesStatic;
-            transparents = this._transparentsStatic;
+        if (material.hasPass(MaterialPass.BASE_PASS)) {
+            var list = material.blendState || material._needsBackbuffer? this._transparentsStatic : this._opaquesStatic;
+            list.push(renderItem);
         }
 
-        var list = material.blendState || material._needsBackbuffer? transparents : opaques;
-        list.push(renderItem);
+        // TODO: Support dynamic lighting
     }
 };
 
@@ -10698,15 +10680,30 @@ function KeyFrame(time, value)
     this.value = value;
 }
 
+/**
+ *
+ * @constructor
+ */
 function AnimationClip()
 {
     this._name = null;
     this._keyFrames = [];
     this._duration = 0;
+    this._looping = true;
 }
 
 AnimationClip.prototype =
 {
+    get looping()
+    {
+        return this._looping;
+    },
+
+    set looping(value)
+    {
+        this._looping = value;
+    },
+
     get name()
     {
         return this._name;
@@ -10772,6 +10769,8 @@ function AnimationPlayhead(clip)
     this._currentFrameIndex = 0;
     this._timeChanged = true;
 
+    this._looping = clip.looping;
+
     // the number of times the playhead has wrapped during the last update. Useful when moving skeleton root bone, fe.
     this.wraps = 0;
 
@@ -10784,95 +10783,114 @@ function AnimationPlayhead(clip)
 }
 
 AnimationPlayhead.prototype =
-{
-    timeScale: {
-        get: function() { return this._timeScale; },
-        set: function(value) { this._timeScale = value; }
-    },
+    {
+        get timeScale() { return this._timeScale; },
+        set timeScale(value) { this._timeScale = value; },
 
-    time: {
-        get: function() { return this._animationClipPlayer; },
-        set: function(value)
+        get looping() { return this._looping; },
+        set looping(value) { this._looping = value;},
+
+        get time() { return this._time; },
+        set time(value)
         {
+            if (!this._looping)
+                value = MathX.clamp(value, 0, this._clip.duration);
+
+            if (this._time === value) return;
             this._time = value;
             this._timeChanged = true;
-        }
-    },
+        },
 
-    play: function()
-    {
-        this._isPlaying = true;
-    },
+        play: function()
+        {
+            this._isPlaying = true;
+        },
 
-    stop: function()
-    {
-        this._isPlaying = false;
-    },
+        stop: function()
+        {
+            this._isPlaying = false;
+        },
 
-    update: function(dt)
-    {
-        if ((!this._isPlaying || dt === 0.0) && !this._timeChanged)
-            return false;
+        update: function(dt)
+        {
+            var playheadUpdated = (this._isPlaying && dt !== 0.0);
+            if (!playheadUpdated && !this._timeChanged)
+                return false;
 
-        this._timeChanged = false;
+            this._timeChanged = false;
 
-        if (this._isPlaying) {
-            dt *= this._timeScale;
-            this._time += dt;
-        }
-
-        var clip = this._clip;
-        // the last keyframe is just an "end marker" to interpolate with, it has no duration
-        var numKeyFrames = clip.numKeyFrames;
-        var numBaseFrames = numKeyFrames - 1;
-        var duration = clip.duration;
-        var wraps = 0;
-
-        var frameA, frameB;
-
-        if (dt > 0) {
-            wraps = Math.ceil(this._time / duration);
-            // could replace the while loop with an if loop and calculate wrap with division, but it's usually not more
-            // than 1 anyway
-            while (this._time >= duration) {
-                // reset playhead to make sure progressive update logic works
-                this._currentFrameIndex = 0;
-                this._time -= duration;
-                ++wraps;
+            if (this._isPlaying) {
+                dt *= this._timeScale;
+                this._time += dt;
             }
 
-            do {
-                // advance play head
-                if (++this._currentFrameIndex === numKeyFrames) this._currentFrameIndex = 0;
-                frameB = clip.getKeyFrame(this._currentFrameIndex);
-            } while (frameB.time < this._time);
+            var clip = this._clip;
+            // the last keyframe is just an "end marker" to interpolate with, it has no duration
+            var numKeyFrames = clip.numKeyFrames;
+            var numBaseFrames = numKeyFrames - 1;
+            var duration = clip.duration;
+            var wraps = 0;
 
-            --this._currentFrameIndex;
-            frameA = clip.getKeyFrame(this._currentFrameIndex);
-        }
-        else {
-            while (this._time < 0) {
-                // reset playhead to make sure progressive update logic works
-                this._currentFrameIndex = numBaseFrames;
-                this._time += duration;
-                ++wraps;
+            if (!this._looping) {
+                if (this._time > duration) {
+                    this._time = duration;
+                    this._isPlaying = false;
+                }
+                else if (this._time < 0) {
+                    this._time = 0;
+                    this._isPlaying = false;
+                }
             }
 
-            ++this._currentFrameIndex;
-            do {
-                if (--this._currentFrameIndex < 0) this._currentFrameIndex = numKeyFrames;
+            var frameA, frameB;
+
+            if (dt > 0) {
+                // could replace the while loop with an if loop and calculate wrap with division, but it's usually not more
+                // than 1 anyway
+                while (this._looping && this._time >= duration) {
+                    // reset playhead to make sure progressive update logic works
+                    this._currentFrameIndex = 0;
+                    this._time -= duration;
+                    ++wraps;
+                }
+
+                do {
+                    // advance play head
+                    if (++this._currentFrameIndex === numKeyFrames) this._currentFrameIndex = 0;
+                    frameB = clip.getKeyFrame(this._currentFrameIndex);
+                } while (frameB.time < this._time);
+
+                --this._currentFrameIndex;
                 frameA = clip.getKeyFrame(this._currentFrameIndex);
-            } while (frameA.time > this._time);
+            }
+            else if (dt < 0) {
+                while (this._looping && this._time < 0) {
+                    // reset playhead to make sure progressive update logic works
+                    this._currentFrameIndex = numBaseFrames;
+                    this._time += duration;
+                    ++wraps;
+                }
+
+                ++this._currentFrameIndex;
+                do {
+                    if (--this._currentFrameIndex < 0) this._currentFrameIndex = numKeyFrames;
+                    frameA = clip.getKeyFrame(this._currentFrameIndex);
+                } while (frameA.time > this._time);
+            }
+            // === 0
+            else {
+                frameA = clip.getKeyFrame(this._currentFrameIndex);
+                frameB = clip.getKeyFrame((this._currentFrameIndex + 1) % numKeyFrames);
+            }
+
+            this.wraps = wraps;
+            this.frame1 = frameA;
+            this.frame2 = frameB;
+            this.ratio = (this._time - frameA.time) / (frameB.time - frameA.time);
+
+            return true;
         }
-
-        this.wraps = wraps;
-        this.frame1 = frameA;
-        this.frame2 = frameB;
-        this.ratio = (this._time - frameA.time) / (frameB.time - frameA.time);
-
-        return true;
-    }
-};
+    };
 
 /**
  * MorphPose defines a certain configuration for blending several morph targets.
@@ -11216,6 +11234,8 @@ function SkeletonClipNode(clip)
     this._playhead = new AnimationPlayhead(clip);
     this._rootPosition = new Float4();
 
+    this._numJoints = clip.getKeyFrame(0).value.jointPoses.length;
+
     var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
     var firstFramePos = clip.getKeyFrame(0).value.jointPoses[0].position;
     this._clipRootDelta = Float4.subtract(lastFramePos, firstFramePos);
@@ -11224,7 +11244,7 @@ function SkeletonClipNode(clip)
 SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
     {
         numJoints: {
-            get: function() { return this._clip.getKeyFrame(0).value.jointPoses.length; }
+            get: function() { return this._numJoints; }
         },
         timeScale: {
             get: function() { return this._playhead.timeScale; },
@@ -14240,9 +14260,6 @@ HMT.prototype._processMaterial = function(data, material)
         material.lightingModel = this._shaderLibrary.get(this._correctURL(data.lightingModel));
 
     this._applyUniforms(data, material);
-
-    // default pre-defined texture
-    material.setTexture("hx_dither2D", DEFAULTS.DEFAULT_2D_DITHER_TEXTURE);
 
     if (data.hasOwnProperty("elementType"))
         material.elementType = HMT._PROPERTY_MAP[data.elementType];

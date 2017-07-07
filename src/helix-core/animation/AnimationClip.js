@@ -1,12 +1,27 @@
+/**
+ *
+ * @constructor
+ */
 function AnimationClip()
 {
     this._name = null;
     this._keyFrames = [];
     this._duration = 0;
+    this._looping = true;
 }
 
 AnimationClip.prototype =
 {
+    get looping()
+    {
+        return this._looping;
+    },
+
+    set looping(value)
+    {
+        this._looping = value;
+    },
+
     get name()
     {
         return this._name;

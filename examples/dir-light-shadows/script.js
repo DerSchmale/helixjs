@@ -14,9 +14,10 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
-    //options.directionalShadowFilter.dither = true;
-    options.directionalShadowFilter.blurRadius = 1;
+    // options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+    options.directionalShadowFilter = new HX.PCFDirectionalShadowFilter();
+    options.directionalShadowFilter.dither = true;
+    // options.directionalShadowFilter.blurRadius = 1;
     options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
 };

@@ -3,7 +3,7 @@
  * @constructor
  */
 import {Material} from "../material/Material";
-import {Comparison, CullMode, ElementType, BlendFactor, BlendOperation, DEFAULTS} from "../Helix";
+import {Comparison, CullMode, ElementType, BlendFactor, BlendOperation} from "../Helix";
 import {BlendState} from "../render/BlendState";
 import {Texture2D} from "../texture/Texture2D";
 import {JPG} from "./JPG_PNG";
@@ -85,9 +85,6 @@ HMT.prototype._processMaterial = function(data, material)
         material.lightingModel = this._shaderLibrary.get(this._correctURL(data.lightingModel));
 
     this._applyUniforms(data, material);
-
-    // default pre-defined texture
-    material.setTexture("hx_dither2D", DEFAULTS.DEFAULT_2D_DITHER_TEXTURE);
 
     if (data.hasOwnProperty("elementType"))
         material.elementType = HMT._PROPERTY_MAP[data.elementType];

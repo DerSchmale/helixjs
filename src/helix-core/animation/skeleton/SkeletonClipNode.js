@@ -13,6 +13,8 @@ function SkeletonClipNode(clip)
     this._playhead = new AnimationPlayhead(clip);
     this._rootPosition = new Float4();
 
+    this._numJoints = clip.getKeyFrame(0).value.jointPoses.length;
+
     var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
     var firstFramePos = clip.getKeyFrame(0).value.jointPoses[0].position;
     this._clipRootDelta = Float4.subtract(lastFramePos, firstFramePos);
@@ -21,7 +23,7 @@ function SkeletonClipNode(clip)
 SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
     {
         numJoints: {
-            get: function() { return this._clip.getKeyFrame(0).value.jointPoses.length; }
+            get: function() { return this._numJoints; }
         },
         timeScale: {
             get: function() { return this._playhead.timeScale; },

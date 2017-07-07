@@ -291,7 +291,6 @@ function _initDefaultSkinningTexture()
 function _init2DDitherTexture(width, height)
 {
     var gl = GL.gl;
-    DEFAULTS.DEFAULT_2D_DITHER_TEXTURE = new Texture2D();
     var len = width * height;
     var minValue = 1.0 / len;
     var data = [];
@@ -317,6 +316,7 @@ function _init2DDitherTexture(width, height)
         data[k++] = 1.0;
     }
 
+    DEFAULTS.DEFAULT_2D_DITHER_TEXTURE = new Texture2D();
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, gl.RGBA, gl.FLOAT);
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.filter = TextureFilter.NEAREST_NOMIP;
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.wrapMode = TextureWrapMode.REPEAT;

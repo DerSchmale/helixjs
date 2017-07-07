@@ -39,11 +39,12 @@ MaterialPass.NORMAL_DEPTH_PASS = 1;  // used for unlit or for predefined lights
 MaterialPass.DIR_LIGHT_PASS = 2;
 MaterialPass.DIR_LIGHT_SHADOW_PASS = 3;
 MaterialPass.POINT_LIGHT_PASS = 4;
+MaterialPass.LIGHT_PROBE_PASS = 5;
 
 // shadow map generation
-MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 5;
+MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 6;
 
-MaterialPass.NUM_PASS_TYPES = 6;
+MaterialPass.NUM_PASS_TYPES = 7;
 
 MaterialPass.prototype =
 {

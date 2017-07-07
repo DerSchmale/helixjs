@@ -7,9 +7,9 @@ import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {META} from "../Helix";
 
-function DynamicLitPointPass(geometryVertex, geometryFragment, lightingModel, shadows)
+function DynamicLitPointPass(geometryVertex, geometryFragment, lightingModel)
 {
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
 
     this._colorLocation = this.getUniformLocation("hx_pointLight.color");
     this._posLocation = this.getUniformLocation("hx_pointLight.position");
@@ -39,13 +39,9 @@ DynamicLitPointPass.prototype.updatePassRenderState = function(renderer, light)
     }
 }();
 
-DynamicLitPointPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
+DynamicLitPointPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
 {
     var defines = {};
-
-    if (shadows) {
-        defines.HX_SHADOW_MAP = 1;
-    }
 
     var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_dynamic_point_vertex.glsl", defines);
 

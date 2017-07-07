@@ -31,4 +31,10 @@ LightProbe.prototype._updateWorldBounds = function()
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
+LightProbe.prototype.acceptVisitor = function (visitor)
+{
+    Entity.prototype.acceptVisitor.call(this, visitor);
+    visitor.visitLight(this);
+};
+
 export { LightProbe };

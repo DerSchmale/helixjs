@@ -131,7 +131,6 @@ SSAO.prototype.draw = function(dt)
     if (TextureUtils.assureSize(w, h, this._ssaoTexture, this._fbo2)) {
         TextureUtils.assureSize(w, h, this._backTexture, this._fbo1);
         this._ssaoPass.setUniform("ditherScale", {x: w *.25, y: h *.25});
-        console.log(w, h);
     }
 
     GL.setClearColor(Color.WHITE);

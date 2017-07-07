@@ -11,6 +11,7 @@ import {RenderUtils} from "./RenderUtils";
 import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
 import {DirectionalLight} from "../light/DirectionalLight";
 import {PointLight} from "../light/PointLight";
+import {LightProbe} from "../light/LightProbe";
 
 function Renderer()
 {
@@ -229,6 +230,9 @@ Renderer.prototype =
 
             // I don't like type checking, but lighting support is such a core thing...
             // maybe we can work in a more plug-in like light system
+            if (light instanceof LightProbe) {
+                this._renderPass(MaterialPass.LIGHT_PROBE_PASS, list, light);
+            }
             if (light instanceof DirectionalLight) {
                 var passType = light.castShadows? MaterialPass.DIR_LIGHT_SHADOW_PASS : MaterialPass.DIR_LIGHT_PASS;
 

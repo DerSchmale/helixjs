@@ -26,9 +26,6 @@ window.onload = function ()
 
 function initRenderer(renderer)
 {
-    //renderer.localReflections = new HX.ScreenSpaceReflections(32);
-
-    // var ssao = new HX.HBAO(5, 6);
     var ssao = new HX.SSAO(16);
     ssao.strength = 2.0;
     ssao.sampleRadius = 1.0;

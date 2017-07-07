@@ -3,7 +3,7 @@
  * @param shader
  * @constructor
  */
-import {Comparison, CullMode, ElementType} from "../Helix";
+import {Comparison, CullMode, DEFAULTS, ElementType} from "../Helix";
 import {TextureSetter} from "../shader/TextureSetter";
 import {GL} from "../core/GL";
 import {TextureSlot} from "./TextureSlot";
@@ -27,7 +27,8 @@ function MaterialPass(shader)
 
     // if material supports animations, this would need to be handled properly
     this._useSkinning = false;
-};
+    this.setTexture("hx_dither2D", DEFAULTS.DEFAULT_2D_DITHER_TEXTURE);
+}
 
 // these will be set upon initialization
 // if a shader supports multiple lights per pass, they will take up 3 type slots (fe: 3 point lights: POINT_LIGHT_PASS, POINT_LIGHT_PASS + 1, POINT_LIGHT_PASS + 2)

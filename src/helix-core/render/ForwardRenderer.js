@@ -80,7 +80,6 @@ ForwardRenderer.prototype =
 
     set debugMode(value)
     {
-        console.log(value);
         this._debugMode = value;
     },
 
@@ -170,8 +169,7 @@ ForwardRenderer.prototype =
         GL.setClearColor(Color.BLACK);
 
         GL.setDepthMask(true);
-        this._renderNormalDepth(opaqueStaticLit);
-        this._renderNormalDepth(opaqueDynamicLit);
+        this._renderNormalDepth(opaqueStaticLit, opaqueDynamicLit);
         this._renderAO();
 
         GL.setRenderTarget(this._hdrFront.fboDepth);
@@ -237,7 +235,7 @@ ForwardRenderer.prototype =
         }
     },
 
-    _renderNormalDepth: function(list)
+    _renderNormalDepth: function(list1, list2)
     {
         if (!this._renderCollector.needsNormalDepth && !this._aoEffect) return;
         if (!this._normalDepthTexture) this._initNormalDepth();
@@ -245,7 +243,8 @@ ForwardRenderer.prototype =
         // furthest depth and alpha must be 1, the rest 0
         GL.setClearColor(Color.BLUE);
         GL.clear();
-        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list);
+        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list1);
+        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list2);
         GL.setClearColor(Color.BLACK);
     },
 
@@ -370,6 +369,7 @@ ForwardRenderer.prototype =
         var tex = new Texture2D();
         tex.filter = TextureFilter.NEAREST_NOMIP;
         tex.uploadData(data, 1, 1, true);
+        return tex;
     },
 
     _copyToBackBuffer: function()

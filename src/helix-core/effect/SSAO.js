@@ -33,7 +33,7 @@ function SSAO(numSamples)
                 NUM_SAMPLES: numSamples
             }
         ));
-    this._blurPass = new EffectPass(null, ShaderLibrary.get("ao_blur_fragment.glsl"));
+    this._blurPass = new EffectPass(ShaderLibrary.get("ao_blur_vertex.glsl"), ShaderLibrary.get("ao_blur_fragment.glsl"));
 
     this._initSamples();
     this._initDitherTexture();
@@ -49,9 +49,9 @@ function SSAO(numSamples)
     this._backTexture = new Texture2D();
     this._backTexture.filter = TextureFilter.BILINEAR_NOMIP;
     this._backTexture.wrapMode = TextureWrapMode.CLAMP;
-    this._fbo1 = new FrameBuffer(this._ssaoTexture);
-    this._fbo2 = new FrameBuffer(this._backTexture);
-};
+    this._fbo1 = new FrameBuffer(this._backTexture);
+    this._fbo2 = new FrameBuffer(this._ssaoTexture);
+}
 
 SSAO.prototype = Object.create(Effect.prototype);
 
@@ -128,9 +128,10 @@ SSAO.prototype.draw = function(dt)
     var w = this._renderer._width * this._scale;
     var h = this._renderer._height * this._scale;
 
-    if (TextureUtils.assureSize(w, h, this._ssaoTexture, this._fbo1)) {
-        TextureUtils.assureSize(w, h, this._backTexture, this._fbo2);
+    if (TextureUtils.assureSize(w, h, this._ssaoTexture, this._fbo2)) {
+        TextureUtils.assureSize(w, h, this._backTexture, this._fbo1);
         this._ssaoPass.setUniform("ditherScale", {x: w *.25, y: h *.25});
+        console.log(w, h);
     }
 
     GL.setClearColor(Color.WHITE);
@@ -141,13 +142,7 @@ SSAO.prototype.draw = function(dt)
 
     GL.setRenderTarget(this._fbo2);
     GL.clear();
-    this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
-    this._sourceTextureSlot.texture = this._ssaoTexture;
-    this._drawPass(this._blurPass);
-
-    GL.setRenderTarget(this._fbo1);
-    GL.clear();
-    this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
+    this._blurPass.setUniform("pixelSize", {x: 1.0 / w, y: 1.0 / h});
     this._sourceTextureSlot.texture = this._backTexture;
     this._drawPass(this._blurPass);
 

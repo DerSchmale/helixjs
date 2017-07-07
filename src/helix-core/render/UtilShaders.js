@@ -8,6 +8,11 @@ import {Shader} from "../shader/Shader";
 import {GL} from "../core/GL";
 import {Comparison, CullMode, ElementType} from "../Helix";
 
+/**
+ *
+ * @param fragmentShader
+ * @constructor
+ */
 function CustomCopyShader(fragmentShader)
 {
     Shader.call(this);

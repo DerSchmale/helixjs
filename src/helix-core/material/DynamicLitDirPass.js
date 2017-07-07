@@ -20,11 +20,6 @@ function DynamicLitDirPass(geometryVertex, geometryFragment, lightingModel, shad
         this._depthBiasLocation = this.getUniformLocation("hx_directionalLight.depthBias");
         this._maxShadowDistanceLocation = this.getUniformLocation("hx_directionalLight.maxShadowDistance");
         this._shadowMapSlot = this.getTextureSlot("hx_shadowMap");
-
-        console.log(this._shadowMatricesLocation);
-        console.log(this._shadowSplitsLocation);
-        console.log(this._depthBiasLocation);
-        console.log(this._maxShadowDistanceLocation);
     }
 }
 

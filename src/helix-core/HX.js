@@ -121,7 +121,7 @@ export {PlanePrimitive} from './mesh/primitives/PlanePrimitive';
 export {TorusPrimitive} from './mesh/primitives/TorusPrimitive';
 
 export {BlendState} from './render/BlendState';
-export {ForwardRenderer} from './render/ForwardRenderer';
+export {Renderer} from './render/Renderer';
 export {LightingModel} from './render/LightingModel';
 export {View, MultiRenderer} from './render/MultiRenderer';
 export {StencilState} from './render/StencilState';

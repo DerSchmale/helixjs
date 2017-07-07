@@ -2,7 +2,7 @@
  * MultiRenderer is a renderer for multiple viewports
  * @constructor
  */
-import {ForwardRenderer} from "./ForwardRenderer";
+import {Renderer} from "./Renderer";
 import {Texture2D} from "../texture/Texture2D";
 import {FrameBuffer} from "../texture/FrameBuffer";
 import {DEFAULTS, META, TextureFilter, TextureWrapMode} from "../Helix";
@@ -34,7 +34,7 @@ MultiRenderer.prototype =
 {
     addView: function (view)
     {
-        view._renderer = new ForwardRenderer();
+        view._renderer = new Renderer();
         view._texture = new Texture2D();
         view._texture.filter = TextureFilter.BILINEAR_NOMIP;
         view._texture.wrapMode = TextureWrapMode.CLAMP;

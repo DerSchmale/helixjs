@@ -11,7 +11,7 @@ import {RenderUtils} from "./RenderUtils";
 import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
 import {DirectionalLight} from "../light/DirectionalLight";
 
-function ForwardRenderer()
+function Renderer()
 {
     this._width = 0;
     this._height = 0;
@@ -27,8 +27,8 @@ function ForwardRenderer()
     this._camera = null;
     this._scene = null;
     this._depthBuffer = this._createDepthBuffer();
-    this._hdrBack = new ForwardRenderer.HDRBuffers(this._depthBuffer);
-    this._hdrFront = new ForwardRenderer.HDRBuffers(this._depthBuffer);
+    this._hdrBack = new Renderer.HDRBuffers(this._depthBuffer);
+    this._hdrFront = new Renderer.HDRBuffers(this._depthBuffer);
     this._renderCollector = new RenderCollector();
     this._normalDepthTexture = null;
     this._normalDepthFBO = null;
@@ -37,15 +37,15 @@ function ForwardRenderer()
     this._backgroundColor = Color.BLACK.clone();
     //this._previousViewProjection = new Matrix4x4();
     this._depthPrepass = true;
-    this._debugMode = ForwardRenderer.DebugRenderMode.NONE;
+    this._debugMode = Renderer.DebugRenderMode.NONE;
 }
 
-ForwardRenderer.DebugRenderMode = {
+Renderer.DebugRenderMode = {
     NONE: 0,
     SSAO: 1
 };
 
-ForwardRenderer.HDRBuffers = function(depthBuffer)
+Renderer.HDRBuffers = function(depthBuffer)
 {
     this.texture = new Texture2D();
     this.texture.filter = TextureFilter.BILINEAR_NOMIP;
@@ -54,7 +54,7 @@ ForwardRenderer.HDRBuffers = function(depthBuffer)
     this.fboDepth = new FrameBuffer(this.texture, depthBuffer);
 };
 
-ForwardRenderer.HDRBuffers.prototype =
+Renderer.HDRBuffers.prototype =
 {
     dispose: function()
     {
@@ -71,7 +71,7 @@ ForwardRenderer.HDRBuffers.prototype =
     }
 };
 
-ForwardRenderer.prototype =
+Renderer.prototype =
 {
     get debugMode()
     {
@@ -281,7 +281,7 @@ ForwardRenderer.prototype =
         GL.setRenderTarget(renderTarget);
         GL.clear();
 
-        if (this._debugMode === ForwardRenderer.DebugRenderMode.SSAO) {
+        if (this._debugMode === Renderer.DebugRenderMode.SSAO) {
             this._copyTextureShader.execute(RectMesh.DEFAULT, this._ssaoTexture);
             return;
         }
@@ -382,4 +382,4 @@ ForwardRenderer.prototype =
     }
 };
 
-export { ForwardRenderer };
+export { Renderer };

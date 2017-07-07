@@ -1,4 +1,4 @@
-import {CullMode, ElementType, META} from "../Helix";
+import {CullMode, ElementType, META, BlendFactor} from "../Helix";
 import {DirectionalLight} from "../light/DirectionalLight";
 import {Signal} from "../core/Signal";
 import {MaterialPass} from "./MaterialPass";
@@ -9,6 +9,7 @@ import {DirectionalShadowPass} from "./DirectionalShadowPass";
 import {LightingModel} from "../render/LightingModel";
 import {NormalDepthPass} from "./NormalDepthPass";
 import {DynamicLitDirPass} from "./DynamicLitDirPass";
+import {BlendState} from "../render/BlendState";
 
 /**
  *
@@ -40,14 +41,10 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
 
     this._initialized = false;
     this._blendState = null;
+    this._additiveBlendState = BlendState.ADD;    // additive blend state is used for dynamic lighting
     this._needsNormalDepth = false;
     this._needsBackbuffer = false;
     this._dynamicLighting = false;
-
-    // this is an internal property used in rendering dynamic lights
-    // set to true when collected (ie: before any rendering is done)
-    // set to false whenever a dynamic lighting pass is rendered, so the following passes can work additively
-    this._firstPass = false;
 }
 
 Material.ID_COUNTER = 0;
@@ -71,7 +68,9 @@ Material.prototype =
         else if (this._lights)
             this.setPass(MaterialPass.BASE_PASS, new StaticLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._lights, this._ssao));
         else {
+            // if a lighting model is assigned
             this._dynamicLighting = true;
+
             this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
 
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new DynamicLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
@@ -109,8 +108,17 @@ Material.prototype =
     set blendState(value)
     {
         this._blendState = value;
+        if (value) {
+            this._additiveBlendState = value.clone();
+            this._additiveBlendState.dstFactor = BlendFactor.ONE;
+        }
+        else {
+            this._additiveBlendState = BlendState.ADD;
+        }
 
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
+            if (i === MaterialPass.DIR_LIGHT_PASS || i === MaterialPass.DIR_LIGHT_SHADOW_PASS)
+                this._passes[i].blendState = this._additiveBlendState;
             if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && i !== MaterialPass.NORMAL_DEPTH_PASS && this._passes[i])
                 this._passes[i].blendState = value;
         }
@@ -228,7 +236,9 @@ Material.prototype =
             pass.elementType = this._elementType;
             pass.writeDepth = this._writeDepth; // TODO: this should probably only be true on base pass
 
-            if (type !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && type !== MaterialPass.NORMAL_DEPTH_PASS)
+            if (type === MaterialPass.DIR_LIGHT_PASS || type === MaterialPass.DIR_LIGHT_SHADOW_PASS)
+                pass.blendState = this._additiveBlendState;
+            else if (type !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && type !== MaterialPass.NORMAL_DEPTH_PASS)
                 pass.blendState = this._blendState;
 
             if (pass.getTextureSlot("hx_normalDepth"))

@@ -25,7 +25,6 @@ export var RenderUtils =
             var meshInstance = renderItem.meshInstance;
 
             if (pass !== activePass) {
-                material._firstPass = false;
                 pass.updatePassRenderState(renderer, data);
                 activePass = pass;
                 lastMesh = null;    // need to reset mesh data too
@@ -41,9 +40,6 @@ export var RenderUtils =
 
             GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
         }
-
-        if (material)
-            material._firstPass = false;
 
         GL.setBlendState(null);
         return len;

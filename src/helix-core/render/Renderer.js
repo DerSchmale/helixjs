@@ -36,7 +36,7 @@ function Renderer()
     this._aoEffect = null;
     this._backgroundColor = Color.BLACK.clone();
     //this._previousViewProjection = new Matrix4x4();
-    this._depthPrepass = true;
+    this._depthPrepass = false;
     this._debugMode = Renderer.DebugRenderMode.NONE;
 }
 
@@ -220,6 +220,8 @@ Renderer.prototype =
     {
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
+
+        this._renderPass(MaterialPass.BASE_PASS, list);
 
         for (var i = 0; i < numLights; ++i) {
             var light = lights[i];

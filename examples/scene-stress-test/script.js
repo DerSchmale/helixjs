@@ -51,6 +51,8 @@ function initScene(scene)
     // that way, things can be optimized in the shader
     var dirLight = new HX.DirectionalLight();
     dirLight.intensity = 1.0;
+    dirLight.direction = new HX.Float4(-1.0, -1.0, -1.0);
+    dirLight.color = new HX.Color(0.0, 0.0, 1.0);
     lights.push(dirLight);
 
     scene.attach(dirLight);

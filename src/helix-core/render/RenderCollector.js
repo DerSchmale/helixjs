@@ -120,7 +120,6 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         if (!meshInstance.visible) continue;
 
         var material = meshInstance.material;
-        material._firstPass = true;
 
         // if (!material._initialized) continue;
 

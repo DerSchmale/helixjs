@@ -16,7 +16,7 @@ function DirectionalLight()
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;
     this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
-};
+}
 
 // set on init
 DirectionalLight.SHADOW_FILTER = null;

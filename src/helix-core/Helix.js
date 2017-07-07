@@ -87,6 +87,7 @@ export function InitOptions()
     this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
     this.defaultLightingModel = LightingModel.Unlit;
 
+    this.numShadowCascades = 1;
     // this.maxPointLightsPerPass = 3;
     // this.maxDirLightsPerPass = 1;
 
@@ -148,6 +149,7 @@ export function init(canvas, options)
     if (options.useGammaCorrection !== false)
         defines += META.OPTIONS.usePreciseGammaCorrection ? "#define HX_GAMMA_CORRECTION_PRECISE\n" : "#define HX_GAMMA_CORRECTION_FAST\n";
 
+    defines += "#define HX_NUM_SHADOW_CASCADES " + META.OPTIONS.numShadowCascades + "\n";
     defines += "#define HX_MAX_BONES " + META.OPTIONS.maxBones + "\n";
 
     options.ignoreDrawBuffersExtension = options.ignoreDrawBuffersExtension || options.ignoreAllExtensions;

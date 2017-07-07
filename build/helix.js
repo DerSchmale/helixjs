@@ -40,7 +40,7 @@ ShaderLibrary._files['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShad
 
 ShaderLibrary._files['lighting_ggx.glsl'] = '// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif\n}';
 
-ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n// HX_MAX_CASCADES is the maximum amount of all cascades for the lights used in this shader\n    #if HX_MAX_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_MAX_CASCADES - 1; ++i) {\n            // remember, negative Z!\n            if (viewPos.z > light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_MAX_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    float shadow = hx_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.z < light.maxShadowDistance));\n}';
+ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            // remember, negative Z!\n            if (viewPos.z > light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    float shadow = hx_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.z < light.maxShadowDistance));\n}';
 
 ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
 
@@ -5509,12 +5509,11 @@ function RenderItemPool()
  *
  * @constructor
  */
-function CascadeShadowCasterCollector(numCascades)
+function CascadeShadowCasterCollector()
 {
     SceneVisitor.call(this);
     this._renderCameras = null;
     this._bounds = new BoundingAABB();
-    this._numCascades = numCascades;
     this._cullPlanes = null;
     // this._splitPlanes = null;
     this._numCullPlanes = 0;
@@ -5532,7 +5531,8 @@ CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
     this._bounds.clear();
     this._renderItemPool.reset();
 
-    for (var i = 0; i < this._numCascades; ++i) {
+    var numCascades = META.OPTIONS.numShadowCascades;
+    for (var i = 0; i < numCascades; ++i) {
         this._renderLists[i] = [];
     }
 
@@ -5568,7 +5568,7 @@ CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInsta
 
     var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
 
-    var numCascades = this._numCascades;
+    var numCascades = META.OPTIONS.numShadowCascades;
     var numMeshes = modelInstance.numMeshInstances;
     var skeleton = modelInstance.skeleton;
     var skeletonMatrices = modelInstance.skeletonMatrices;
@@ -6102,11 +6102,9 @@ var RenderUtils =
  *
  * @constructor
  */
-function CascadeShadowMapRenderer(light, numCascades, shadowMapSize)
+function CascadeShadowMapRenderer(light, shadowMapSize)
 {
     this._light = light;
-    this._numCascades = numCascades || 3;
-    if (this._numCascades > 4) this._numCascades = 4;
     this._shadowMapSize = shadowMapSize || 1024;
     this._shadowMapInvalid = true;
     this._fboFront = null;
@@ -6127,7 +6125,7 @@ function CascadeShadowMapRenderer(light, numCascades, shadowMapSize)
     this._numCullPlanes = 0;
     this._cullPlanes = [];
     this._localBounds = new BoundingAABB();
-    this._casterCollector = new CascadeShadowCasterCollector(this._numCascades);
+    this._casterCollector = new CascadeShadowCasterCollector();
 
     this._initSplitProperties();
     this._initCameras();
@@ -6137,21 +6135,6 @@ function CascadeShadowMapRenderer(light, numCascades, shadowMapSize)
 
 CascadeShadowMapRenderer.prototype =
 {
-    get numCascades()
-    {
-        return this._numCascades;
-    },
-
-    set numCascades(value)
-    {
-        if (this._numCascades === value) return;
-        this._numCascades = value;
-        this._invalidateShadowMap();
-        this._initSplitProperties();
-        this._initCameras();
-        this._casterCollector = new CascadeShadowCasterCollector(value);
-    },
-
     get shadowMapSize()
     {
         return this._shadowMapSize;
@@ -6183,7 +6166,9 @@ CascadeShadowMapRenderer.prototype =
         GL.setClearColor(Color.WHITE);
         GL.clear();
 
-        for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex) {
+        var numCascades = META.OPTIONS.numShadowCascades;
+
+        for (var cascadeIndex = 0; cascadeIndex < numCascades; ++cascadeIndex) {
             var viewport = this._viewports[cascadeIndex];
             gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
             RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
@@ -6226,8 +6211,9 @@ CascadeShadowMapRenderer.prototype =
         return function(viewCamera) {
             var nearDist = viewCamera.nearDistance;
             var frustumRange = viewCamera.farDistance - nearDist;
+            var numCascades = META.OPTIONS.numShadowCascades;
 
-            for (var i = 0; i < this._numCascades; ++i) {
+            for (var i = 0; i < numCascades; ++i) {
                 var z = nearDist + this._splitRatios[i] * frustumRange;
                 this._splitDistances[i] = -z;
             }
@@ -6253,7 +6239,8 @@ CascadeShadowMapRenderer.prototype =
         // camera distances are suboptimal? need to constrain to local near too?
 
         var nearRatio = 0;
-        for (var cascade = 0; cascade < this._numCascades; ++cascade) {
+        var numCascades = META.OPTIONS.numShadowCascades;
+        for (var cascade = 0; cascade < numCascades; ++cascade) {
             var farRatio = this._splitRatios[cascade];
             var camera = this._shadowMapCameras[cascade];
 
@@ -6398,8 +6385,9 @@ CascadeShadowMapRenderer.prototype =
 
     _initShadowMap: function()
     {
-        var numMapsW = this._numCascades > 1? 2 : 1;
-        var numMapsH = Math.ceil(this._numCascades / 2);
+        var numCascades = META.OPTIONS.numShadowCascades;
+        var numMapsW = numCascades > 1? 2 : 1;
+        var numMapsH = Math.ceil(numCascades / 2);
 
         var texWidth = this._shadowMapSize * numMapsW;
         var texHeight = this._shadowMapSize * numMapsH;
@@ -6431,9 +6419,9 @@ CascadeShadowMapRenderer.prototype =
     {
         var ratio = 1.0;
         this._splitRatios = [];
-        this._splitDistances = [0, 0, 0, 0];
+        this._splitDistances = [];
         this._splitPlanes = [];
-        for (var i = this._numCascades - 1; i >= 0; --i)
+        for (var i = META.OPTIONS.numShadowCascades; i >= 0; --i)
         {
             this._splitRatios[i] = ratio;
             this._splitPlanes[i] = new Float4();
@@ -6445,7 +6433,7 @@ CascadeShadowMapRenderer.prototype =
     _initCameras: function()
     {
         this._shadowMapCameras = [];
-        for (var i = this._numCascades - 1; i >= 0; --i)
+        for (var i = 0; i < META.OPTIONS.numShadowCascades; ++i)
         {
             this._shadowMapCameras[i] = new OrthographicOffCenterCamera();
         }
@@ -6504,7 +6492,6 @@ function DirectionalLight()
     Light.call(this);
 
     this.depthBias = .0;
-    this._numCascades = 1;
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;
     this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
@@ -6528,30 +6515,12 @@ DirectionalLight.prototype = Object.create(Light.prototype,
                 this._castShadows = value;
 
                 if (value) {
-                    this._shadowMapRenderer = new CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
+                    this._shadowMapRenderer = new CascadeShadowMapRenderer(this, this._shadowMapSize);
                 }
                 else {
                     this._shadowMapRenderer.dispose();
                     this._shadowMapRenderer = null;
                 }
-            }
-        },
-
-        numCascades: {
-            get: function()
-            {
-                return this._numCascades;
-            },
-
-            set: function(value)
-            {
-                if (value > 4) {
-                    console.warn("set numCascades called with value greater than 4. Real value will be set to 4.");
-                    value = 4;
-                }
-
-                this._numCascades = value;
-                if (this._shadowMapRenderer) this._shadowMapRenderer.numCascades = value;
             }
         },
 
@@ -7951,6 +7920,7 @@ function InitOptions()
     this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
     this.defaultLightingModel = LightingModel.Unlit;
 
+    this.numShadowCascades = 1;
     // this.maxPointLightsPerPass = 3;
     // this.maxDirLightsPerPass = 1;
 
@@ -8012,6 +7982,7 @@ function init(canvas, options)
     if (options.useGammaCorrection !== false)
         defines += META.OPTIONS.usePreciseGammaCorrection ? "#define HX_GAMMA_CORRECTION_PRECISE\n" : "#define HX_GAMMA_CORRECTION_FAST\n";
 
+    defines += "#define HX_NUM_SHADOW_CASCADES " + META.OPTIONS.numShadowCascades + "\n";
     defines += "#define HX_MAX_BONES " + META.OPTIONS.maxBones + "\n";
 
     options.ignoreDrawBuffersExtension = options.ignoreDrawBuffersExtension || options.ignoreAllExtensions;
@@ -8909,18 +8880,14 @@ StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragm
     this._diffuseLightProbes = [];
     this._specularLightProbes = [];
 
-    this._maxCascades = 0;
 
     for (var i = 0; i < lights.length; ++i) {
         var light = lights[i];
 
         // I don't like typechecking, but do we have a choice? :(
         if (light instanceof DirectionalLight) {
-            if (light.castShadows) {
+            if (light.castShadows)
                 this._dirLightCasters.push(light);
-                if (light.numCascades > this._maxCascades)
-                    this._maxCascades = light.numCascades;
-            }
             else
                 this._dirLights.push(light);
         }
@@ -8943,7 +8910,6 @@ StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragm
         HX_NUM_POINT_LIGHTS: this._pointLights.length,
         HX_NUM_DIFFUSE_PROBES: this._diffuseLightProbes.length,
         HX_NUM_SPECULAR_PROBES: this._specularLightProbes.length,
-        HX_MAX_CASCADES: this._maxCascades,
         HX_APPLY_SSAO: ssao? 1 : 0
     };
 
@@ -9004,7 +8970,7 @@ StaticLitPass.prototype._assignDirLightCasters = function(camera)
         this.setUniform("hx_directionalLightCasters[" + i + "].direction", dir);
 
         var shadowRenderer = light._shadowMapRenderer;
-        var numCascades = shadowRenderer._numCascades;
+        var numCascades = META.OPTIONS.numShadowCascades;
         var splits = shadowRenderer._splitDistances;
         var k = 0;
         for (var j = 0; j < numCascades; ++j) {
@@ -9161,7 +9127,7 @@ DynamicLitDirPass.prototype.updatePassRenderState = function(renderer, light)
 
         if (light.castShadows) {
             var shadowRenderer = light._shadowMapRenderer;
-            var numCascades = shadowRenderer._numCascades;
+            var numCascades = META.OPTIONS.numShadowCascades;
             var splits = shadowRenderer._splitDistances;
             var k = 0;
 
@@ -9191,9 +9157,7 @@ DynamicLitDirPass.prototype._generateShader = function(geometryVertex, geometryF
 
     if (shadows) {
         defines.HX_SHADOW_MAP = 1;
-        defines.HX_MAX_CASCADES = 4;
     }
-    else defines.HX_MAX_CASCADES = 0;
 
     var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_dynamic_dir_vertex.glsl", defines);
 

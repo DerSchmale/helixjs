@@ -16,15 +16,14 @@ void hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3
 
 mat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)
 {
-// HX_MAX_CASCADES is the maximum amount of all cascades for the lights used in this shader
-    #if HX_MAX_CASCADES > 1
+    #if HX_NUM_SHADOW_CASCADES > 1
         // not very efficient :(
-        for (int i = 0; i < HX_MAX_CASCADES - 1; ++i) {
+        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {
             // remember, negative Z!
             if (viewPos.z > light.splitDistances[i])
                 return light.shadowMapMatrices[i];
         }
-        return light.shadowMapMatrices[HX_MAX_CASCADES - 1];
+        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];
     #else
         return light.shadowMapMatrices[0];
     #endif

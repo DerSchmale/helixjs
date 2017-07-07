@@ -33,6 +33,7 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
+    options.numShadowCascades = 3;
     options.hdr = true;
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
     options.directionalShadowFilter.blurRadius = 1;
@@ -69,7 +70,6 @@ function initScene(scene)
     // sun.depthBias = 10.0;
     sun.intensity = 3;
     sun.castShadows = true;
-    sun.numCascades = 3;
     // sun.shadowMapSize = 1024;
     // sun.setCascadeRatios(.01,.07,.15, .3);
     scene.attach(sun);

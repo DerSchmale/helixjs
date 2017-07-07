@@ -14,6 +14,7 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
+    options.numShadowCascades = 2;
     // options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
     options.directionalShadowFilter = new HX.PCFDirectionalShadowFilter();
     options.directionalShadowFilter.dither = true;
@@ -59,19 +60,16 @@ function initScene(scene)
     light.color = new HX.Color(0.0, 1.0, 1.0);
     light.direction = new HX.Float4(0.0, -0.8, -1.0, 0.0);
     light.castShadows = true;
-    light.numCascades = 4;
     light.intensity = 2.0;
-    // add 1 for show (numCascades === 3, so cutoff is after 3)
-    light.setCascadeRatios(.12,.25,.5, 1);
+    light.setCascadeRatios(.25,.5);
     scene.attach(light);
 
     var light2 = new HX.DirectionalLight();
     light2.color = new HX.Color(1.0, 0.0, 0.0);
     light2.direction = new HX.Float4(0.5, -0.8, 1.0, 0.0);
     light2.castShadows = true;
-    light2.numCascades = 1;
     light2.intensity = 2.0;
-    light2.setCascadeRatios(1.0);
+    light2.setCascadeRatios(.5, 1.0);
     scene.attach(light2);
 
     var cubeLoader = new HX.AssetLoader(HX.HCM);

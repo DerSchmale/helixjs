@@ -6,13 +6,13 @@ import {BoundingAABB} from "../scene/BoundingAABB";
 import {RenderItemPool} from "./RenderItemPool";
 import {SceneVisitor} from "../scene/SceneVisitor";
 import {MaterialPass} from "../material/MaterialPass";
+import {META} from "../Helix";
 
-function CascadeShadowCasterCollector(numCascades)
+function CascadeShadowCasterCollector()
 {
     SceneVisitor.call(this);
     this._renderCameras = null;
     this._bounds = new BoundingAABB();
-    this._numCascades = numCascades;
     this._cullPlanes = null;
     // this._splitPlanes = null;
     this._numCullPlanes = 0;
@@ -30,7 +30,8 @@ CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
     this._bounds.clear();
     this._renderItemPool.reset();
 
-    for (var i = 0; i < this._numCascades; ++i) {
+    var numCascades = META.OPTIONS.numShadowCascades;
+    for (var i = 0; i < numCascades; ++i) {
         this._renderLists[i] = [];
     }
 
@@ -66,7 +67,7 @@ CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInsta
 
     var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
 
-    var numCascades = this._numCascades;
+    var numCascades = META.OPTIONS.numShadowCascades;
     var numMeshes = modelInstance.numMeshInstances;
     var skeleton = modelInstance.skeleton;
     var skeletonMatrices = modelInstance.skeletonMatrices;

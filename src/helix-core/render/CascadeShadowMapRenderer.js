@@ -3,7 +3,7 @@
  * @constructor
  */
 import {DirectionalLight} from "../light/DirectionalLight";
-import {TextureFilter, TextureWrapMode} from "../Helix";
+import {TextureFilter, TextureWrapMode, META} from "../Helix";
 import {Color} from "../core/Color";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {BoundingAABB} from "../scene/BoundingAABB";
@@ -19,11 +19,9 @@ import {Rect} from "../core/Rect";
 import {Texture2D} from "../texture/Texture2D";
 import {RenderUtils} from "./RenderUtils";
 
-function CascadeShadowMapRenderer(light, numCascades, shadowMapSize)
+function CascadeShadowMapRenderer(light, shadowMapSize)
 {
     this._light = light;
-    this._numCascades = numCascades || 3;
-    if (this._numCascades > 4) this._numCascades = 4;
     this._shadowMapSize = shadowMapSize || 1024;
     this._shadowMapInvalid = true;
     this._fboFront = null;
@@ -44,7 +42,7 @@ function CascadeShadowMapRenderer(light, numCascades, shadowMapSize)
     this._numCullPlanes = 0;
     this._cullPlanes = [];
     this._localBounds = new BoundingAABB();
-    this._casterCollector = new CascadeShadowCasterCollector(this._numCascades);
+    this._casterCollector = new CascadeShadowCasterCollector();
 
     this._initSplitProperties();
     this._initCameras();
@@ -54,21 +52,6 @@ function CascadeShadowMapRenderer(light, numCascades, shadowMapSize)
 
 CascadeShadowMapRenderer.prototype =
 {
-    get numCascades()
-    {
-        return this._numCascades;
-    },
-
-    set numCascades(value)
-    {
-        if (this._numCascades === value) return;
-        this._numCascades = value;
-        this._invalidateShadowMap();
-        this._initSplitProperties();
-        this._initCameras();
-        this._casterCollector = new CascadeShadowCasterCollector(value);
-    },
-
     get shadowMapSize()
     {
         return this._shadowMapSize;
@@ -100,7 +83,9 @@ CascadeShadowMapRenderer.prototype =
         GL.setClearColor(Color.WHITE);
         GL.clear();
 
-        for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex) {
+        var numCascades = META.OPTIONS.numShadowCascades;
+
+        for (var cascadeIndex = 0; cascadeIndex < numCascades; ++cascadeIndex) {
             var viewport = this._viewports[cascadeIndex];
             gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
             RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
@@ -143,8 +128,9 @@ CascadeShadowMapRenderer.prototype =
         return function(viewCamera) {
             var nearDist = viewCamera.nearDistance;
             var frustumRange = viewCamera.farDistance - nearDist;
+            var numCascades = META.OPTIONS.numShadowCascades;
 
-            for (var i = 0; i < this._numCascades; ++i) {
+            for (var i = 0; i < numCascades; ++i) {
                 var z = nearDist + this._splitRatios[i] * frustumRange;
                 this._splitDistances[i] = -z;
             }
@@ -170,7 +156,8 @@ CascadeShadowMapRenderer.prototype =
         // camera distances are suboptimal? need to constrain to local near too?
 
         var nearRatio = 0;
-        for (var cascade = 0; cascade < this._numCascades; ++cascade) {
+        var numCascades = META.OPTIONS.numShadowCascades
+        for (var cascade = 0; cascade < numCascades; ++cascade) {
             var farRatio = this._splitRatios[cascade];
             var camera = this._shadowMapCameras[cascade];
 
@@ -315,8 +302,9 @@ CascadeShadowMapRenderer.prototype =
 
     _initShadowMap: function()
     {
-        var numMapsW = this._numCascades > 1? 2 : 1;
-        var numMapsH = Math.ceil(this._numCascades / 2);
+        var numCascades = META.OPTIONS.numShadowCascades;
+        var numMapsW = numCascades > 1? 2 : 1;
+        var numMapsH = Math.ceil(numCascades / 2);
 
         var texWidth = this._shadowMapSize * numMapsW;
         var texHeight = this._shadowMapSize * numMapsH;
@@ -348,9 +336,9 @@ CascadeShadowMapRenderer.prototype =
     {
         var ratio = 1.0;
         this._splitRatios = [];
-        this._splitDistances = [0, 0, 0, 0];
+        this._splitDistances = [];
         this._splitPlanes = [];
-        for (var i = this._numCascades - 1; i >= 0; --i)
+        for (var i = META.OPTIONS.numShadowCascades; i >= 0; --i)
         {
             this._splitRatios[i] = ratio;
             this._splitPlanes[i] = new Float4();
@@ -362,7 +350,7 @@ CascadeShadowMapRenderer.prototype =
     _initCameras: function()
     {
         this._shadowMapCameras = [];
-        for (var i = this._numCascades - 1; i >= 0; --i)
+        for (var i = 0; i < META.OPTIONS.numShadowCascades; ++i)
         {
             this._shadowMapCameras[i] = new OrthographicOffCenterCamera();
         }

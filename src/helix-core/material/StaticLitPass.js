@@ -2,7 +2,7 @@ import {MaterialPass} from "./MaterialPass";
 import {DirectionalLight} from "../light/DirectionalLight";
 import {PointLight} from "../light/PointLight";
 import {LightProbe} from "../light/LightProbe";
-import {capabilities} from "../Helix";
+import {capabilities, META} from "../Helix";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {Shader} from "../shader/Shader";
 import {Float4} from "../math/Float4";
@@ -55,18 +55,14 @@ StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragm
     this._diffuseLightProbes = [];
     this._specularLightProbes = [];
 
-    this._maxCascades = 0;
 
     for (var i = 0; i < lights.length; ++i) {
         var light = lights[i];
 
         // I don't like typechecking, but do we have a choice? :(
         if (light instanceof DirectionalLight) {
-            if (light.castShadows) {
+            if (light.castShadows)
                 this._dirLightCasters.push(light);
-                if (light.numCascades > this._maxCascades)
-                    this._maxCascades = light.numCascades;
-            }
             else
                 this._dirLights.push(light);
         }
@@ -89,7 +85,6 @@ StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragm
         HX_NUM_POINT_LIGHTS: this._pointLights.length,
         HX_NUM_DIFFUSE_PROBES: this._diffuseLightProbes.length,
         HX_NUM_SPECULAR_PROBES: this._specularLightProbes.length,
-        HX_MAX_CASCADES: this._maxCascades,
         HX_APPLY_SSAO: ssao? 1 : 0
     };
 
@@ -150,7 +145,7 @@ StaticLitPass.prototype._assignDirLightCasters = function(camera)
         this.setUniform("hx_directionalLightCasters[" + i + "].direction", dir);
 
         var shadowRenderer = light._shadowMapRenderer;
-        var numCascades = shadowRenderer._numCascades;
+        var numCascades = META.OPTIONS.numShadowCascades;
         var splits = shadowRenderer._splitDistances;
         var k = 0;
         for (var j = 0; j < numCascades; ++j) {

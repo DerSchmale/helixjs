@@ -5,6 +5,7 @@ import {DirectionalLight} from "../light/DirectionalLight";
 import {GL} from "../core/GL";
 import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
+import {META} from "../Helix";
 
 function DynamicLitDirPass(geometryVertex, geometryFragment, lightingModel, shadows)
 {
@@ -50,7 +51,7 @@ DynamicLitDirPass.prototype.updatePassRenderState = function(renderer, light)
 
         if (light.castShadows) {
             var shadowRenderer = light._shadowMapRenderer;
-            var numCascades = shadowRenderer._numCascades;
+            var numCascades = META.OPTIONS.numShadowCascades;
             var splits = shadowRenderer._splitDistances;
             var k = 0;
 
@@ -80,9 +81,7 @@ DynamicLitDirPass.prototype._generateShader = function(geometryVertex, geometryF
 
     if (shadows) {
         defines.HX_SHADOW_MAP = 1;
-        defines.HX_MAX_CASCADES = 4;
     }
-    else defines.HX_MAX_CASCADES = 0;
 
     var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_dynamic_dir_vertex.glsl", defines);
 

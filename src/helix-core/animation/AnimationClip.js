@@ -1,3 +1,7 @@
+/**
+ *
+ * @constructor
+ */
 function AnimationClip()
 {
     this._name = null;

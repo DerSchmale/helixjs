@@ -89,7 +89,7 @@ AnimationPlayhead.prototype =
             --this._currentFrameIndex;
             frameA = clip.getKeyFrame(this._currentFrameIndex);
         }
-        else {
+        else if (dt < 0) {
             while (this._time < 0) {
                 // reset playhead to make sure progressive update logic works
                 this._currentFrameIndex = numBaseFrames;
@@ -102,6 +102,11 @@ AnimationPlayhead.prototype =
                 if (--this._currentFrameIndex < 0) this._currentFrameIndex = numKeyFrames;
                 frameA = clip.getKeyFrame(this._currentFrameIndex);
             } while (frameA.time > this._time);
+        }
+        // === 0
+        else {
+            frameA = clip.getKeyFrame(this._currentFrameIndex);
+            frameB = clip.getKeyFrame((this._currentFrameIndex + 1) % numKeyFrames);
         }
 
         this.wraps = wraps;

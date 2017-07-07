@@ -88,8 +88,7 @@ function initScene(scene)
     opaqueMaterial.specularMap = specularMap;
     opaqueMaterial.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     opaqueMaterial.metallicness = 1.0;
-    // opaqueMaterial.lights = lights;
-    opaqueMaterial.lightingModel = HX.LightingModel.GGX;
+    opaqueMaterial.lights = lights;
     opaqueMaterial.ssao = true;
     opaqueMaterial.roughness = 0.5;
     opaqueMaterial.roughnessRange = 0.4;
@@ -123,8 +122,7 @@ function initScene(scene)
     material.colorMap = colorMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
-    // material.lights = lights;
-    material.lightingModel = HX.LightingModel.GGX;
+    material.lights = lights;
     material.ssao = true;
     material.roughness = .3;
 

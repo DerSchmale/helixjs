@@ -234,6 +234,7 @@ Renderer.prototype =
                 this._renderPass(MaterialPass.LIGHT_PROBE_PASS, list, light);
             }
             if (light instanceof DirectionalLight) {
+                // if non-global, do intersection tests
                 var passType = light.castShadows? MaterialPass.DIR_LIGHT_SHADOW_PASS : MaterialPass.DIR_LIGHT_PASS;
 
                 // PASS IN LIGHT AS DATA, so the material can update it

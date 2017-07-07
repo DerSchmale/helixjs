@@ -71,7 +71,6 @@ AnimationPlayhead.prototype =
         var frameA, frameB;
 
         if (dt > 0) {
-            wraps = Math.ceil(this._time / duration);
             // could replace the while loop with an if loop and calculate wrap with division, but it's usually not more
             // than 1 anyway
             while (this._time >= duration) {

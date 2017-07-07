@@ -36,15 +36,15 @@ ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoi
 
 ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
+ShaderLibrary._files['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    // schlick-smith\n    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));\n    float nDotV = max(dot(normal, reflection), 0.0);\n    float denom = nDotV * (1.0 - k) + k;\n    return nDotV * nDotV / (denom * denom);   // since l == v*/\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
+
+ShaderLibrary._files['lighting_ggx.glsl'] = '// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif\n}';
+
 ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            // remember, negative Z!\n            if (viewPos.z > light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    float shadow = hx_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.z < light.maxShadowDistance));\n}';
 
 ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
 
-ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position; // in view space?\n    float radius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
-
-ShaderLibrary._files['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    // schlick-smith\n    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));\n    float nDotV = max(dot(normal, reflection), 0.0);\n    float denom = nDotV * (1.0 - k) + k;\n    return nDotV * nDotV / (denom * denom);   // since l == v*/\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-ShaderLibrary._files['lighting_ggx.glsl'] = '// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif\n}';
+ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
 
 ShaderLibrary._files['default_geometry_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut -= roughnessRange * (specSample.x - .5);\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    HX_GeometryData data;\n    data.color = hx_gammaToLinear(outputColor);\n    data.normal = normalize(fragNormal);\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n    data.emission = vec3(0.0);\n    return data;\n}';
 
@@ -63,6 +63,10 @@ ShaderLibrary._files['material_lit_dynamic_base_vertex.glsl'] = 'void main()\n{\
 ShaderLibrary._files['material_lit_dynamic_dir_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform HX_DirectionalLight hx_directionalLight;\n\n#ifdef HX_SHADOW_MAP\nuniform sampler2D hx_shadowMap;\n#endif\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    vec3 viewVector = normalize(hx_viewPosition);\n    vec3 diffuse, specular;\n\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    hx_calculateLight(hx_directionalLight, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n\n    gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);\n\n    #ifdef HX_SHADOW_MAP\n        gl_FragColor.xyz *= hx_calculateShadows(hx_directionalLight, hx_shadowMap, hx_viewPosition);\n    #endif\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['material_lit_dynamic_dir_vertex.glsl'] = 'varying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
+
+ShaderLibrary._files['material_lit_dynamic_point_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform HX_PointLight hx_pointLight;\n\n#ifdef HX_SHADOW_MAP\nuniform sampler2D hx_shadowMap;\n#endif\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    vec3 viewVector = normalize(hx_viewPosition);\n    vec3 diffuse, specular;\n\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    hx_calculateLight(hx_pointLight, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n\n    gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);\n\n    #ifdef HX_SHADOW_MAP\n        gl_FragColor.xyz *= hx_calculateShadows(hx_directionalLight, hx_shadowMap, hx_viewPosition);\n    #endif\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+ShaderLibrary._files['material_lit_dynamic_point_vertex.glsl'] = 'varying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
 
 ShaderLibrary._files['material_lit_static_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\n\n#if HX_NUM_DIR_LIGHTS > 0\nuniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_DIR_LIGHT_CASTERS > 0\nuniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];\n\nuniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];\n#endif\n\n#if HX_NUM_POINT_LIGHTS > 0\nuniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\nuniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\nuniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#if HX_APPLY_SSAO\nuniform sampler2D hx_ssao;\n\nuniform vec2 hx_rcpRenderTargetResolution;\n#endif\n\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ssao = 1.0;\n\n    #if HX_APPLY_SSAO\n        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n        ssao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIR_LIGHT_CASTERS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);\n        diffuseAccum += diffuse * shadow;\n        specularAccum += specular * shadow;\n    }\n    #endif\n\n\n    #if HX_NUM_POINT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {\n        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;\n    }\n    #endif\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n    for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ssao;\n    }\n    #endif\n\n    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
@@ -2422,9 +2426,9 @@ BoundingVolume._testAABBToSphere = function(aabb, sphere)
     var minY = aabb._minimumY;
     var minZ = aabb._minimumZ;
     var radius = sphere._halfExtentX;
-    var centerX = this._center.x;
-    var centerY = this._center.y;
-    var centerZ = this._center.z;
+    var centerX = sphere._center.x;
+    var centerY = sphere._center.y;
+    var centerZ = sphere._center.z;
     var dot = 0, diff;
 
     if (minX > centerX) {
@@ -5474,6 +5478,7 @@ function RenderItem()
     this.material = null;
     this.camera = null;
     this.renderOrderHint = 0;
+    this.worldBounds = null;
 
     // to store this in a linked list for pooling
     this.next = null;
@@ -9175,6 +9180,57 @@ DynamicLitDirPass.prototype._generateShader = function(geometryVertex, geometryF
     return new Shader(vertexShader, fragmentShader);
 };
 
+function DynamicLitPointPass(geometryVertex, geometryFragment, lightingModel, shadows)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
+
+    this._colorLocation = this.getUniformLocation("hx_pointLight.color");
+    this._posLocation = this.getUniformLocation("hx_pointLight.position");
+    this._radiusLocation = this.getUniformLocation("hx_pointLight.radius");
+}
+
+DynamicLitPointPass.prototype = Object.create(MaterialPass.prototype);
+
+// the light is passed in as data
+DynamicLitPointPass.prototype.updatePassRenderState = function(renderer, light)
+{
+    var pos = new Float4();
+
+    return function(renderer, light) {
+        var camera = renderer._camera;
+        var gl = GL.gl;
+        var col = light._scaledIrradiance;
+
+        gl.useProgram(this._shader._program);
+
+        camera.viewMatrix.transformPoint(light.position, pos);
+        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
+        gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
+        gl.uniform1f(this._radiusLocation, light.radius);
+
+        MaterialPass.prototype.updatePassRenderState.call(this, renderer);
+    }
+}();
+
+DynamicLitPointPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
+{
+    var defines = {};
+
+    if (shadows) {
+        defines.HX_SHADOW_MAP = 1;
+    }
+
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_dynamic_point_vertex.glsl", defines);
+
+    var fragmentShader =
+        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+        lightingModel + "\n\n\n" +
+        ShaderLibrary.get("point_light.glsl") + "\n" +
+        geometryFragment + "\n" +
+        ShaderLibrary.get("material_lit_dynamic_point_fragment.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
 /**
  *
  * @constructor
@@ -9239,6 +9295,7 @@ Material.prototype =
 
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new DynamicLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
             this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new DynamicLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
+            this.setPass(MaterialPass.POINT_LIGHT_PASS, new DynamicLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
 
             // TODO: base pass should only be included if there's emission, and probably rendered AFTER the lights (additively)
             //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
@@ -9281,7 +9338,7 @@ Material.prototype =
         }
 
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
-            if (i === MaterialPass.DIR_LIGHT_PASS || i === MaterialPass.DIR_LIGHT_SHADOW_PASS)
+            if (i === MaterialPass.DIR_LIGHT_PASS || i === MaterialPass.DIR_LIGHT_SHADOW_PASS || i === MaterialPass.POINT_LIGHT_PASS)
                 this._passes[i].blendState = this._additiveBlendState;
             if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && i !== MaterialPass.NORMAL_DEPTH_PASS && this._passes[i])
                 this._passes[i].blendState = value;
@@ -9400,7 +9457,7 @@ Material.prototype =
             pass.elementType = this._elementType;
             pass.writeDepth = this._writeDepth; // TODO: this should probably only be true on base pass
 
-            if (type === MaterialPass.DIR_LIGHT_PASS || type === MaterialPass.DIR_LIGHT_SHADOW_PASS)
+            if (type === MaterialPass.DIR_LIGHT_PASS || type === MaterialPass.DIR_LIGHT_SHADOW_PASS || type === MaterialPass.POINT_LIGHT_PASS)
                 pass.blendState = this._additiveBlendState;
             else if (type !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && type !== MaterialPass.NORMAL_DEPTH_PASS)
                 pass.blendState = this._blendState;
@@ -10381,6 +10438,7 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
         renderItem.worldMatrix = worldMatrix;
         renderItem.camera = camera;
+        renderItem.worldBounds = worldBounds;
 
         var opaques, transparents;
         if (material._dynamicLighting) {
@@ -15822,6 +15880,24 @@ Renderer.prototype =
 
                 // PASS IN LIGHT AS DATA, so the material can update it
                 this._renderPass(passType, list, light);
+            }
+            else if (light instanceof PointLight) {
+                // cannot just use renderPass, need to do intersection tests
+                var lightBound = light.worldBounds;
+                var len = list.length;
+                for (var r = 0; r < len; ++r) {
+                    var renderItem = list[r];
+                    if (lightBound.intersectsBound(renderItem.worldBounds)) {
+                        var passType = MaterialPass.POINT_LIGHT_PASS;
+                        var material = renderItem.material;
+                        var pass = material.getPass(passType);
+                        var meshInstance = renderItem.meshInstance;
+                        pass.updatePassRenderState(this, light);
+                        pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
+                        meshInstance.updateRenderState(passType);
+                        GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
+                    }
+                }
             }
         }
     },

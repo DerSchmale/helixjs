@@ -137,6 +137,7 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
         renderItem.worldMatrix = worldMatrix;
         renderItem.camera = camera;
+        renderItem.worldBounds = worldBounds;
 
         var opaques, transparents;
         if (material._dynamicLighting) {

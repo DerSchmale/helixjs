@@ -10,6 +10,7 @@ import {GL} from "../core/GL";
 import {RenderUtils} from "./RenderUtils";
 import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
 import {DirectionalLight} from "../light/DirectionalLight";
+import {PointLight} from "../light/PointLight";
 
 function Renderer()
 {
@@ -233,6 +234,24 @@ Renderer.prototype =
 
                 // PASS IN LIGHT AS DATA, so the material can update it
                 this._renderPass(passType, list, light);
+            }
+            else if (light instanceof PointLight) {
+                // cannot just use renderPass, need to do intersection tests
+                var lightBound = light.worldBounds;
+                var len = list.length;
+                for (var r = 0; r < len; ++r) {
+                    var renderItem = list[r];
+                    if (lightBound.intersectsBound(renderItem.worldBounds)) {
+                        var passType = MaterialPass.POINT_LIGHT_PASS;
+                        var material = renderItem.material;
+                        var pass = material.getPass(passType);
+                        var meshInstance = renderItem.meshInstance;
+                        pass.updatePassRenderState(this, light);
+                        pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
+                        meshInstance.updateRenderState(passType);
+                        GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
+                    }
+                }
             }
         }
     },

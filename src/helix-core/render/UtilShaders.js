@@ -34,7 +34,7 @@ CustomCopyShader.prototype.execute = function(rect, texture)
     rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
-    this.updateRenderState();
+    this.updatePassRenderState();
 
     texture.bind(0);
 

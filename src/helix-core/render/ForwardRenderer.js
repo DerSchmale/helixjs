@@ -9,6 +9,7 @@ import {FrameBuffer} from "../texture/FrameBuffer";
 import {GL} from "../core/GL";
 import {RenderUtils} from "./RenderUtils";
 import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
+import {DirectionalLight} from "../light/DirectionalLight";
 
 function ForwardRenderer()
 {
@@ -219,12 +220,21 @@ ForwardRenderer.prototype =
 
     _renderDynamics: function(list)
     {
-        // cannot use renderPass here, since we can't just barrel through all passes
-        // we need to test intersection (in case of Point lights) and update the light settings before rendering
-        // dir lights are always a hit, so we should only need to update this data once
-        // oh I wish we had uniform buffer objects so we could just assign the buffer object every time...
+        var lights = this._renderCollector.getLights();
+        var numLights = lights.length;
 
-        // before we do this, should we split up uniform setters into per pass and per instance?
+        for (var i = 0; i < lights; ++i) {
+            var light = lights[i];
+
+            // I don't like type checking, but lighting support is such a core thing...
+            // maybe we can work in a more plug-in like light system
+            if (light instanceof DirectionalLight) {
+                var passType = light.castShadows? MaterialPass.DIR_LIGHT_PASS : MaterialPass.DIR_LIGHT_SHADOW_PASS;
+
+                // PASS IN LIGHT AS DATA, so the material can update it
+                this._renderPass(passType, list, light);
+            }
+        }
     },
 
     _renderNormalDepth: function(list)

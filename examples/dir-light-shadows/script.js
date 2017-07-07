@@ -15,8 +15,8 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.numShadowCascades = 2;
-    // options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
-    options.directionalShadowFilter = new HX.PCFDirectionalShadowFilter();
+    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+    // options.directionalShadowFilter = new HX.PCFDirectionalShadowFilter();
     options.directionalShadowFilter.dither = true;
     // options.directionalShadowFilter.blurRadius = 1;
     options.hdr = true;

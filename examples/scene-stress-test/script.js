@@ -4,7 +4,6 @@ project.onInit = function()
 {
     initCamera(this.camera);
     initScene(this.scene);
-    project.renderer.debugMode = HX.Renderer.DebugRenderMode.GBUFFER_ALBEDO;
 };
 
 window.onload = function ()
@@ -66,6 +65,12 @@ function initScene(scene)
     material.colorMap = texture;
     material.roughness = 0.05;
 
+    var material2 = new HX.BasicMaterial();
+    material2.colorMap = texture;
+    material2.roughness = 0.2;
+    // use non-default lighting model to cause forward lighting
+    material2.lightingModel = HX.LightingModel.BlinnPhong;
+
     var primitive = new HX.SpherePrimitive(
         {
             radius:.24,
@@ -93,6 +98,6 @@ function initScene(scene)
             scaleU: 20,
             scaleV: 20
         });
-    var instance = new HX.ModelInstance(primitive, material);
+    var instance = new HX.ModelInstance(primitive, material2);
     scene.attach(instance);
 }

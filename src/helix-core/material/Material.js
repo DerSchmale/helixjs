@@ -13,6 +13,7 @@ import {DynamicLitProbePass} from "./DynamicLitProbePass";
 import {GBufferSpecularPass} from "./GBufferSpecularPass";
 import {GBufferAlbedoPass} from "./GBufferAlbedoPass";
 import {GBufferFullPass} from "./GBufferFullPass";
+import {ApplyGBufferPass} from "./ApplyGBufferPass";
 
 /**
  *
@@ -70,6 +71,10 @@ Material.prototype =
             this.setPass(MaterialPass.POINT_LIGHT_PASS, new DynamicLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
             this.setPass(MaterialPass.LIGHT_PROBE_PASS, new DynamicLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._ssao));
         }
+        else {
+            // deferred lighting forward pass
+            this.setPass(MaterialPass.BASE_PASS, new ApplyGBufferPass(this._geometryVertexShader, this._geometryFragmentShader));
+        }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 
@@ -112,14 +117,8 @@ Material.prototype =
             this._additiveBlendState = BlendState.ADD;
         }
 
-        for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
-            var pass = this._passes[i];
-            if (!pass) continue;
-            if (i === MaterialPass.DIR_LIGHT_PASS || i === MaterialPass.DIR_LIGHT_SHADOW_PASS || i === MaterialPass.POINT_LIGHT_PASS || i === MaterialPass.LIGHT_PROBE_PASS)
-                pass.blendState = this._additiveBlendState;
-            if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && i !== MaterialPass.GBUFFER_NORMAL_DEPTH_PASS)
-                pass.blendState = value;
-        }
+        // blend state can require different render path, so shaders need to adapt
+        this._invalidate();
     },
 
     get name()

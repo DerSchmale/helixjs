@@ -121,10 +121,12 @@ Material.prototype =
         }
 
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
+            var pass = this._passes[i];
+            if (!pass) continue;
             if (i === MaterialPass.DIR_LIGHT_PASS || i === MaterialPass.DIR_LIGHT_SHADOW_PASS || i === MaterialPass.POINT_LIGHT_PASS || i === MaterialPass.LIGHT_PROBE_PASS)
-                this._passes[i].blendState = this._additiveBlendState;
-            if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && i !== MaterialPass.NORMAL_DEPTH_PASS && this._passes[i])
-                this._passes[i].blendState = value;
+                pass.blendState = this._additiveBlendState;
+            if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && i !== MaterialPass.NORMAL_DEPTH_PASS)
+                pass.blendState = value;
         }
     },
 

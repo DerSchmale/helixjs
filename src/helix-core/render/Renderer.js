@@ -184,14 +184,12 @@ Renderer.prototype =
         this._renderStatics(opaqueStaticLit);
         this._renderDynamics(opaqueDynamicLit);
 
-        // TODO: Render dynamic lit opaques here
-
         // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
         if (this._renderCollector.needsBackbuffer)
             this._copyToBackBuffer();
 
         this._renderStatics(transparentStaticLit);
-        // TODO: Render dynamic lit transparents here
+        this._renderDynamics(transparentDynamicLit);
 
         this._swapHDRFrontAndBack();
         this._renderEffects(dt);
@@ -242,21 +240,25 @@ Renderer.prototype =
             }
             else if (light instanceof PointLight) {
                 // cannot just use renderPass, need to do intersection tests
-                var lightBound = light.worldBounds;
-                var len = list.length;
-                for (var r = 0; r < len; ++r) {
-                    var renderItem = list[r];
-                    if (lightBound.intersectsBound(renderItem.worldBounds)) {
-                        var passType = MaterialPass.POINT_LIGHT_PASS;
-                        var material = renderItem.material;
-                        var pass = material.getPass(passType);
-                        var meshInstance = renderItem.meshInstance;
-                        pass.updatePassRenderState(this, light);
-                        pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
-                        meshInstance.updateRenderState(passType);
-                        GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
-                    }
-                }
+                this._renderLightPassIfIntersects(light, MaterialPass.POINT_LIGHT_PASS, list);
+            }
+        }
+    },
+
+    _renderLightPassIfIntersects: function(light, passType, renderList)
+    {
+        var lightBound = light.worldBounds;
+        var len = renderList.length;
+        for (var r = 0; r < len; ++r) {
+            var renderItem = renderList[r];
+            if (lightBound.intersectsBound(renderItem.worldBounds)) {
+                var material = renderItem.material;
+                var pass = material.getPass(passType);
+                var meshInstance = renderItem.meshInstance;
+                pass.updatePassRenderState(this, light);
+                pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
+                meshInstance.updateRenderState(passType);
+                GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
             }
         }
     },

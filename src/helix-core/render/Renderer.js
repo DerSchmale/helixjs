@@ -13,6 +13,7 @@ import {DirectionalLight} from "../light/DirectionalLight";
 import {PointLight} from "../light/PointLight";
 import {LightProbe} from "../light/LightProbe";
 import {GBuffer} from "./GBuffer";
+import {BlendState} from "./BlendState";
 
 function Renderer()
 {
@@ -48,6 +49,7 @@ Renderer.DebugRenderMode = {
     // TODO: Put back normal, depth, roughness, metallicness, normalSpecular back in
     GBUFFER_NORMAL_DEPTH: 3,
     GBUFFER_SPECULAR: 4,
+    LIGHT_ACCUMULATION: 5
 };
 
 Renderer.HDRBuffers = function(depthBuffer)
@@ -164,25 +166,27 @@ Renderer.prototype =
         GL.setDepthMask(true);
         this._renderGBuffer(opaqueList);
         this._renderAO();
+        this._renderDeferredLighting(opaqueList);
 
-        GL.setRenderTarget(this._hdrFront.fboDepth);
-        GL.setClearColor(this._backgroundColor);
-        GL.clear();
+        if (this._debugMode !== Renderer.DebugRenderMode.LIGHT_ACCUMULATION) {
+            GL.setRenderTarget(this._hdrFront.fboDepth);
+            GL.setClearColor(this._backgroundColor);
+            GL.clear();
 
-        this._renderForwardLit(opaqueList);
+            this._renderForwardLit(opaqueList);
 
-        // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
-        if (this._renderCollector.needsBackbuffer)
-            this._copyToBackBuffer();
+            // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
+            if (this._renderCollector.needsBackbuffer)
+                this._copyToBackBuffer();
 
-        this._renderForwardLit(transparentList);
+            this._renderForwardLit(transparentList);
 
-        this._swapHDRFrontAndBack();
-        this._renderEffects(dt);
+            this._swapHDRFrontAndBack();
+            this._renderEffects(dt);
+            //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
+        }
 
         this._renderToScreen(renderTarget);
-
-        //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
 
         GL.setBlendState();
         GL.setDepthMask(true);
@@ -195,6 +199,7 @@ Renderer.prototype =
 
         this._renderPass(MaterialPass.BASE_PASS, list);
 
+
         for (var i = 0; i < numLights; ++i) {
             var light = lights[i];
 
@@ -203,7 +208,7 @@ Renderer.prototype =
             if (light instanceof LightProbe) {
                 this._renderPass(MaterialPass.LIGHT_PROBE_PASS, list, light);
             }
-            if (light instanceof DirectionalLight) {
+            else if (light instanceof DirectionalLight) {
                 // if non-global, do intersection tests
                 var passType = light.castShadows? MaterialPass.DIR_LIGHT_SHADOW_PASS : MaterialPass.DIR_LIGHT_PASS;
 
@@ -270,6 +275,26 @@ Renderer.prototype =
         this._renderPass(passType, list);
     },
 
+    _renderDeferredLighting: function()
+    {
+
+        if (!this._renderCollector._needsGBuffer) return;
+        var lights = this._renderCollector.getLights();
+        var numLights = lights.length;
+
+        // for some reason, this doesn't get cleared?
+        GL.setRenderTarget(this._hdrFront.fbo);
+        GL.clear();
+        GL.setBlendState(BlendState.ADD);
+
+        for (var i = 0; i < numLights; ++i) {
+            lights[i].renderDeferredLighting(this);
+        }
+
+        this._swapHDRFrontAndBack();
+        GL.setBlendState();
+    },
+
     _renderAO: function()
     {
         if (this._aoEffect) {
@@ -317,6 +342,9 @@ Renderer.prototype =
                     break;
                 case Renderer.DebugRenderMode.SSAO:
                     tex = this._ssaoTexture;
+                    break;
+                case Renderer.DebugRenderMode.LIGHT_ACCUMULATION:
+                    tex = this._hdrBack.texture;
                     break;
                 default:
                     // nothing

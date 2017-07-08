@@ -45,6 +45,7 @@ export var TextureSetter = {
         TextureSetter._passTable.hx_gbufferSpecular = GBufferSpecularSetter;
         TextureSetter._passTable.hx_backbuffer = BackbufferSetter;
         TextureSetter._passTable.hx_frontbuffer = FrontbufferSetter;
+        TextureSetter._passTable.hx_lightAccumulation = LightAccumulationSetter;
         TextureSetter._passTable.hx_ssao = SSAOSetter;
 
         TextureSetter._instanceTable.hx_skinningTexture = SkinningTextureSetter;
@@ -103,6 +104,15 @@ BackbufferSetter.prototype.execute = function (renderer)
 {
     if (renderer._hdrBack)
         this.slot.texture = renderer._hdrBack.texture;
+};
+
+function LightAccumulationSetter()
+{
+}
+
+LightAccumulationSetter.prototype.execute = function (renderer)
+{
+    this.slot.texture = renderer._hdrBack.texture;
 };
 
 

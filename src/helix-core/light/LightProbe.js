@@ -37,4 +37,9 @@ LightProbe.prototype.acceptVisitor = function (visitor)
     visitor.visitLight(this);
 };
 
+LightProbe.prototype.renderDeferredLighting = function(renderer)
+{
+    // To implement by concrete subclasses
+};
+
 export { LightProbe };

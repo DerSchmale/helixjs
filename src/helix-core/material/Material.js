@@ -1,17 +1,17 @@
-import {CullMode, ElementType, META, BlendFactor, capabilities} from "../Helix";
+import {CullMode, ElementType, META, BlendFactor, capabilities, Comparison} from "../Helix";
 import {DirectionalLight} from "../light/DirectionalLight";
 import {Signal} from "../core/Signal";
 import {MaterialPass} from "./MaterialPass";
 import {UnlitPass} from "./UnlitPass";
 import {DynamicLitBasePass} from "./DynamicLitBasePass";
 import {DirectionalShadowPass} from "./DirectionalShadowPass";
-import {GBufferNormalDepthPass} from "./GBufferNormalDepthPass";
 import {DynamicLitDirPass} from "./DynamicLitDirPass";
 import {BlendState} from "../render/BlendState";
 import {DynamicLitPointPass} from "./DynamicLitPointPass";
 import {DynamicLitProbePass} from "./DynamicLitProbePass";
-import {GBufferSpecularPass} from "./GBufferSpecularPass";
 import {GBufferAlbedoPass} from "./GBufferAlbedoPass";
+import {GBufferNormalDepthPass} from "./GBufferNormalDepthPass";
+import {GBufferSpecularPass} from "./GBufferSpecularPass";
 import {GBufferFullPass} from "./GBufferFullPass";
 import {ApplyGBufferPass} from "./ApplyGBufferPass";
 
@@ -184,7 +184,6 @@ Material.prototype =
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
             if (this._passes[i])
                 this._passes[i].writeDepth = value;
-
         }
     },
 
@@ -219,11 +218,15 @@ Material.prototype =
                 pass.cullMode = this._cullMode;
 
             pass.elementType = this._elementType;
-            pass.writeDepth = this._writeDepth; // TODO: this should probably only be true on base pass
+            pass.writeDepth = this._writeDepth;
 
-            if (type === MaterialPass.DIR_LIGHT_PASS || type === MaterialPass.DIR_LIGHT_SHADOW_PASS || type === MaterialPass.POINT_LIGHT_PASS || type === MaterialPass.LIGHT_PROBE_PASS)
+            if (type === MaterialPass.DIR_LIGHT_PASS ||
+                type === MaterialPass.DIR_LIGHT_SHADOW_PASS ||
+                type === MaterialPass.POINT_LIGHT_PASS ||
+                type === MaterialPass.LIGHT_PROBE_PASS)
                 pass.blendState = this._additiveBlendState;
-            else if (type !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && type !== MaterialPass.GBUFFER_NORMAL_DEPTH_PASS)
+
+            if (type === MaterialPass.BASE_PASS)
                 pass.blendState = this._blendState;
 
             if (pass.getTextureSlot("hx_gbufferNormalDepth"))

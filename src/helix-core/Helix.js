@@ -12,9 +12,9 @@ import {Texture2D} from "./texture/Texture2D";
 import {TextureCube} from "./texture/TextureCube";
 import {BlendState} from "./render/BlendState";
 import {PoissonDisk} from "./math/PoissonDisk";
-import {MaterialPass} from "./material/MaterialPass";
 import {PoissonSphere} from "./math/PoissonSphere";
 import {Color} from "./core/Color";
+import {MaterialPass} from "./material/MaterialPass";
 
 export var META =
     {
@@ -49,7 +49,8 @@ export var capabilities =
         EXT_TEXTURE_FILTER_ANISOTROPIC: null,
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
-        NUM_MORPH_TARGETS: 0
+        NUM_MORPH_TARGETS: 0,
+        GBUFFER_MRT: false
     };
 
 // internal options
@@ -160,8 +161,11 @@ export function init(canvas, options)
     if (!options.ignoreDrawBuffersExtension)
         capabilities.EXT_DRAW_BUFFERS = _getExtension('WEBGL_draw_buffers');
 
-    if (capabilities.EXT_DRAW_BUFFERS && capabilities.EXT_DRAW_BUFFERS.MAX_DRAW_BUFFERS_WEBGL >= 3)
-        defines += "#extension GL_EXT_draw_buffers : require\n";
+    if (capabilities.EXT_DRAW_BUFFERS && capabilities.EXT_DRAW_BUFFERS.MAX_DRAW_BUFFERS_WEBGL >= 3) {
+        capabilities.GBUFFER_MRT = true;
+        // remove the last two (individual) gbuffer passes
+        MaterialPass.NUM_PASS_TYPES = 7;
+    }
 
     capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
     if (!capabilities.EXT_FLOAT_TEXTURES) {

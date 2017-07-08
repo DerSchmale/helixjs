@@ -147,6 +147,7 @@ Shader.prototype = {
     {
         code = this._processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
         code = this._processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
+        code = this._processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
         code = this._guard(code, /^uniform\s+\w+\s+hx_\w+\s*;/gm);
         code = this._guard(code, /^attribute\s+\w+\s+hx_\w+\s*;/gm);
         return code;

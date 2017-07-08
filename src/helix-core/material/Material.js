@@ -1,15 +1,18 @@
-import {CullMode, ElementType, META, BlendFactor} from "../Helix";
+import {CullMode, ElementType, META, BlendFactor, capabilities} from "../Helix";
 import {DirectionalLight} from "../light/DirectionalLight";
 import {Signal} from "../core/Signal";
 import {MaterialPass} from "./MaterialPass";
 import {UnlitPass} from "./UnlitPass";
 import {DynamicLitBasePass} from "./DynamicLitBasePass";
 import {DirectionalShadowPass} from "./DirectionalShadowPass";
-import {NormalDepthPass} from "./NormalDepthPass";
+import {GBufferNormalDepthPass} from "./GBufferNormalDepthPass";
 import {DynamicLitDirPass} from "./DynamicLitDirPass";
 import {BlendState} from "../render/BlendState";
 import {DynamicLitPointPass} from "./DynamicLitPointPass";
 import {DynamicLitProbePass} from "./DynamicLitProbePass";
+import {GBufferSpecularPass} from "./GBufferSpecularPass";
+import {GBufferAlbedoPass} from "./GBufferAlbedoPass";
+import {GBufferFullPass} from "./GBufferFullPass";
 
 /**
  *
@@ -59,11 +62,7 @@ Material.prototype =
 
         if (!this._lightingModel)
             this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
-        else if (this._lightingModel === META.OPTIONS.defaultLightingModel) {
-            // TODO: Init gbuffer passes
-            // add BASE_PASS to sample hdrBack and add emission
-        }
-        else {
+        else if (this._lightingModel !== META.OPTIONS.defaultLightingModel || this._blendState) {
             this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
 
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new DynamicLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
@@ -74,8 +73,14 @@ Material.prototype =
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 
-        if (!this._needsNormalDepth && this._writeDepth)
-            this.setPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, new NormalDepthPass(this._geometryVertexShader, this._geometryFragmentShader));
+        if (capabilities.GBUFFER_MRT) {
+            this.setPass(MaterialPass.GBUFFER_PASS, new GBufferFullPass(this._geometryVertexShader, this._geometryFragmentShader));
+        }
+        else {
+            this.setPass(MaterialPass.GBUFFER_ALBEDO_PASS, new GBufferAlbedoPass(this._geometryVertexShader, this._geometryFragmentShader));
+            this.setPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, new GBufferNormalDepthPass(this._geometryVertexShader, this._geometryFragmentShader));
+            this.setPass(MaterialPass.GBUFFER_SPECULAR_PASS, new GBufferSpecularPass(this._geometryVertexShader, this._geometryFragmentShader));
+        }
 
         this._initialized = true;
         // TODO: init dynamic light passes

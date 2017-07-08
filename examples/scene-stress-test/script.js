@@ -4,13 +4,15 @@ project.onInit = function()
 {
     initCamera(this.camera);
     initScene(this.scene);
+    project.renderer.debugMode = HX.Renderer.DebugRenderMode.GBUFFER_ALBEDO;
 };
 
 window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
-    // options.defaultLightingModel = HX.LightingModel.GGX;
+    // this will make sure the GGX model is calculated deferredly
+    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -61,7 +63,6 @@ function initScene(scene)
     var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
     var material = new HX.BasicMaterial();
     // the difference is, we don't assign lights, but we do assign a lighting model
-    material.lightingModel = HX.LightingModel.GGX;
     material.colorMap = texture;
     material.roughness = 0.05;
 

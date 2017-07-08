@@ -156,6 +156,13 @@ vec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSp
     return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);
 }
 
+void hx_decodeGBufferSpecular(in vec4 albedoSample, in vec4 specularSample, out vec3 normalSpecularReflectance, out float roughness)
+{
+    normalSpecularReflectance = hx_getNormalSpecularReflectance(specularSample.x, specularSample.y * .2, albedoSample.xyz);
+    //prevent from being 0
+    roughness = max(specularSample.z, .01);
+}
+
 vec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)
 {
     float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);

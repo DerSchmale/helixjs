@@ -4,7 +4,7 @@ import {ApplyGammaShader, CopyChannelsShader} from "./UtilShaders";
 import {Texture2D} from "../texture/Texture2D";
 import {MaterialPass} from "../material/MaterialPass";
 import {RectMesh} from "../mesh/RectMesh";
-import {_HX_, TextureFormat, TextureFilter, TextureWrapMode, META} from "../Helix";
+import {_HX_, TextureFormat, TextureFilter, TextureWrapMode, META, capabilities} from "../Helix";
 import {FrameBuffer} from "../texture/FrameBuffer";
 import {GL} from "../core/GL";
 import {RenderUtils} from "./RenderUtils";
@@ -38,13 +38,16 @@ function Renderer()
     this._aoEffect = null;
     this._backgroundColor = Color.BLACK.clone();
     //this._previousViewProjection = new Matrix4x4();
-    this._depthPrepass = false;
     this._debugMode = Renderer.DebugRenderMode.NONE;
 }
 
 Renderer.DebugRenderMode = {
     NONE: 0,
-    SSAO: 1
+    SSAO: 1,
+    GBUFFER_ALBEDO: 2,
+    // TODO: Put back normal, depth, roughness, metallicness, normalSpecular back in
+    GBUFFER_NORMAL_DEPTH: 3,
+    GBUFFER_SPECULAR: 4,
 };
 
 Renderer.HDRBuffers = function(depthBuffer)
@@ -93,16 +96,6 @@ Renderer.prototype =
     set backgroundColor(value)
     {
         this._backgroundColor = new Color(value);
-    },
-
-    get depthPrepass()
-    {
-        return this._depthPrepass;
-    },
-
-    set depthPrepass(value)
-    {
-        this._depthPrepass = value;
     },
 
     get scale()
@@ -176,9 +169,6 @@ Renderer.prototype =
         GL.setClearColor(this._backgroundColor);
         GL.clear();
 
-        // TODO: is this still useful
-        this._renderDepthPrepass(opaqueList);
-
         this._renderForwardLit(opaqueList);
 
         // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
@@ -196,15 +186,6 @@ Renderer.prototype =
 
         GL.setBlendState();
         GL.setDepthMask(true);
-    },
-
-    _renderDepthPrepass: function(list)
-    {
-        if (!this._depthPrepass) return;
-        var gl = GL.gl;
-        gl.colorMask(false, false, false, false);
-        this._renderPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, list);
-        gl.colorMask(true, true, true, true);
     },
 
     _renderForwardLit: function(list)
@@ -256,25 +237,37 @@ Renderer.prototype =
         }
     },
 
-    _renderGBuffer: function(list1, list2)
+    _renderGBuffer: function(list)
     {
         if (this._renderCollector.needsGBuffer) {
-            // if we need the whole gbuffer
+            if (capabilities.GBUFFER_MRT) {
+                GL.setRenderTarget(this._gbuffer.mrt);
+                // this is just so the linear depth value will be correct
+                GL.setClearColor(Color.BLUE);
+                GL.clear();
+                this._renderPass(MaterialPass.GBUFFER_PASS, list);
+            }
+            else {
+                this._renderGBufferPlane(list, GBuffer.ALBEDO, MaterialPass.GBUFFER_ALBEDO_PASS, Color.BLACK);
+                this._renderGBufferPlane(list, GBuffer.NORMAL_DEPTH, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, Color.BLUE);
+                this._renderGBufferPlane(list, GBuffer.SPECULAR, MaterialPass.GBUFFER_SPECULAR_PASS, Color.BLACK);
+            }
         }
         else if (this._renderCollector.needsNormalDepth || this._aoEffect) {
             // otherwise, we might just need normalDepth
-            this._renderNormalDepth(list1, list2);
+            this._renderGBufferPlane(list, GBuffer.NORMAL_DEPTH, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, Color.BLUE);
         }
+
+        GL.setClearColor(Color.BLACK);
     },
 
-    _renderNormalDepth: function(list)
+    _renderGBufferPlane: function(list, plane, passType, clearColor)
     {
-        GL.setRenderTarget(this._gbuffer.fbos[GBuffer.NORMAL_DEPTH]);
+        GL.setRenderTarget(this._gbuffer.fbos[plane]);
         // furthest depth and alpha must be 1, the rest 0
-        GL.setClearColor(Color.BLUE);
+        GL.setClearColor(clearColor);
         GL.clear();
-        this._renderPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, list);
-        GL.setClearColor(Color.BLACK);
+        this._renderPass(passType, list);
     },
 
     _renderAO: function()
@@ -310,8 +303,25 @@ Renderer.prototype =
         GL.setRenderTarget(renderTarget);
         GL.clear();
 
-        if (this._debugMode === Renderer.DebugRenderMode.SSAO) {
-            this._copyTextureShader.execute(RectMesh.DEFAULT, this._ssaoTexture);
+        if (this._debugMode) {
+            var tex;
+            switch (this._debugMode) {
+                case Renderer.DebugRenderMode.GBUFFER_ALBEDO:
+                    tex = this._gbuffer.textures[0];
+                    break;
+                case Renderer.DebugRenderMode.GBUFFER_NORMAL_DEPTH:
+                    tex = this._gbuffer.textures[1];
+                    break;
+                case Renderer.DebugRenderMode.GBUFFER_SPECULAR:
+                    tex = this._gbuffer.textures[2];
+                    break;
+                case Renderer.DebugRenderMode.SSAO:
+                    tex = this._ssaoTexture;
+                    break;
+                default:
+                    // nothing
+            }
+            this._copyTextureShader.execute(RectMesh.DEFAULT, tex);
             return;
         }
 

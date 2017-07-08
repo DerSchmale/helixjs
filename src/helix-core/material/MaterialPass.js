@@ -33,18 +33,26 @@ function MaterialPass(shader)
 // these will be set upon initialization
 // if a shader supports multiple lights per pass, they will take up 3 type slots (fe: 3 point lights: POINT_LIGHT_PASS, POINT_LIGHT_PASS + 1, POINT_LIGHT_PASS + 2)
 MaterialPass.BASE_PASS = 0;  // used for unlit or for predefined lights
-MaterialPass.NORMAL_DEPTH_PASS = 1;  // used for unlit or for predefined lights
 
 // dynamic lighting passes
-MaterialPass.DIR_LIGHT_PASS = 2;
-MaterialPass.DIR_LIGHT_SHADOW_PASS = 3;
-MaterialPass.POINT_LIGHT_PASS = 4;
-MaterialPass.LIGHT_PROBE_PASS = 5;
+MaterialPass.DIR_LIGHT_PASS = 1;
+MaterialPass.DIR_LIGHT_SHADOW_PASS = 2;
+MaterialPass.POINT_LIGHT_PASS = 3;
+MaterialPass.LIGHT_PROBE_PASS = 4;
 
 // shadow map generation
-MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 6;
+MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 5;
 
-MaterialPass.NUM_PASS_TYPES = 7;
+// used if MRT is supported:
+MaterialPass.GBUFFER_PASS = 6;
+
+// used if MRT is not supported
+MaterialPass.GBUFFER_NORMAL_DEPTH_PASS = 6;
+MaterialPass.GBUFFER_NORMAL_DEPTH_PASS = 7;
+MaterialPass.GBUFFER_SPECULAR_PASS = 8;
+
+// will be reduced to 7 if MRT is available
+MaterialPass.NUM_PASS_TYPES = 9;
 
 MaterialPass.prototype =
 {

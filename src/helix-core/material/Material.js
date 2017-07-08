@@ -4,9 +4,7 @@ import {Signal} from "../core/Signal";
 import {MaterialPass} from "./MaterialPass";
 import {UnlitPass} from "./UnlitPass";
 import {DynamicLitBasePass} from "./DynamicLitBasePass";
-import {StaticLitPass} from "./StaticLitPass";
 import {DirectionalShadowPass} from "./DirectionalShadowPass";
-import {LightingModel} from "../render/LightingModel";
 import {NormalDepthPass} from "./NormalDepthPass";
 import {DynamicLitDirPass} from "./DynamicLitDirPass";
 import {BlendState} from "../render/BlendState";
@@ -34,7 +32,6 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._useMorphing = false;
     this._useSkinning = false;
 
-    this._lights = null;
     this._name = null;
     this._ssao = false;
     this._geometryVertexShader = geometryVertexShader;
@@ -46,7 +43,6 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._additiveBlendState = BlendState.ADD;    // additive blend state is used for dynamic lighting
     this._needsNormalDepth = false;
     this._needsBackbuffer = false;
-    this._dynamicLighting = false;
 }
 
 Material.ID_COUNTER = 0;
@@ -60,35 +56,26 @@ Material.prototype =
 
         this._needsNormalDepth = false;
         this._needsBackbuffer = false;
-        this._dirLights = null;
-        this._dirLightCasters = null;
-        this._pointLights = null;
-        this._dynamicLighting = false;
 
         if (!this._lightingModel)
             this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
-        else if (this._lights)
-            this.setPass(MaterialPass.BASE_PASS, new StaticLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._lights, this._ssao));
+        else if (this._lightingModel === META.OPTIONS.defaultLightingModel) {
+            // TODO: Init gbuffer passes
+            // add BASE_PASS to sample hdrBack and add emission
+        }
         else {
-            // if a lighting model is assigned
-            this._dynamicLighting = true;
-
             this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
 
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new DynamicLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
             this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new DynamicLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
             this.setPass(MaterialPass.POINT_LIGHT_PASS, new DynamicLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
             this.setPass(MaterialPass.LIGHT_PROBE_PASS, new DynamicLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._ssao));
-
-            // TODO: base pass should only be included if there's emission, and probably rendered AFTER the lights (additively)
-            //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
-            // how to know if this pass has been rendered already? renderMark check?
         }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 
         if (!this._needsNormalDepth && this._writeDepth)
-            this.setPass(MaterialPass.NORMAL_DEPTH_PASS, new NormalDepthPass(this._geometryVertexShader, this._geometryFragmentShader));
+            this.setPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, new NormalDepthPass(this._geometryVertexShader, this._geometryFragmentShader));
 
         this._initialized = true;
         // TODO: init dynamic light passes
@@ -125,7 +112,7 @@ Material.prototype =
             if (!pass) continue;
             if (i === MaterialPass.DIR_LIGHT_PASS || i === MaterialPass.DIR_LIGHT_SHADOW_PASS || i === MaterialPass.POINT_LIGHT_PASS || i === MaterialPass.LIGHT_PROBE_PASS)
                 pass.blendState = this._additiveBlendState;
-            if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && i !== MaterialPass.NORMAL_DEPTH_PASS)
+            if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && i !== MaterialPass.GBUFFER_NORMAL_DEPTH_PASS)
                 pass.blendState = value;
         }
     },
@@ -138,18 +125,6 @@ Material.prototype =
     set name(value)
     {
         this._name = value;
-    },
-
-    get lights()
-    {
-        return this._lights;
-    },
-
-    set lights(value)
-    {
-        this._lights = value;
-        if (!this._lightingModel && value) this._lightingModel = LightingModel.GGX;
-        this._invalidate();
     },
 
     get lightingModel()
@@ -196,10 +171,10 @@ Material.prototype =
     {
         this._writeDepth = value;
 
-        if (!value && this._passes[MaterialPass.NORMAL_DEPTH_PASS]) {
-            this._passes[MaterialPass.NORMAL_DEPTH_PASS] = null;
+        if (!value && this._passes[MaterialPass.GBUFFER_NORMAL_DEPTH_PASS]) {
+            this._passes[MaterialPass.GBUFFER_NORMAL_DEPTH_PASS] = null;
         }
-        else if (value && !this._passes[MaterialPass.NORMAL_DEPTH_PASS])
+        else if (value && !this._passes[MaterialPass.GBUFFER_NORMAL_DEPTH_PASS])
             this._invalidate();
 
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
@@ -244,10 +219,10 @@ Material.prototype =
 
             if (type === MaterialPass.DIR_LIGHT_PASS || type === MaterialPass.DIR_LIGHT_SHADOW_PASS || type === MaterialPass.POINT_LIGHT_PASS || type === MaterialPass.LIGHT_PROBE_PASS)
                 pass.blendState = this._additiveBlendState;
-            else if (type !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && type !== MaterialPass.NORMAL_DEPTH_PASS)
+            else if (type !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && type !== MaterialPass.GBUFFER_NORMAL_DEPTH_PASS)
                 pass.blendState = this._blendState;
 
-            if (pass.getTextureSlot("hx_normalDepth"))
+            if (pass.getTextureSlot("hx_gbufferNormalDepth"))
                 this._needsNormalDepth = true;
 
             if (pass.getTextureSlot("hx_backbuffer"))
@@ -365,14 +340,10 @@ Material.prototype =
 
     _setSSAOTexture: function(texture)
     {
-        if (this._lights && this._lightingModel)
-            this.getPass(MaterialPass.BASE_PASS)._setSSAOTexture(texture);
-        else {
-            var probePass = this.getPass(MaterialPass.BASE_PASS);
-            if (probePass)
-                probePass._setSSAOTexture(texture);
-        }
-
+        var pass = this.getPass(MaterialPass.BASE_PASS);
+        if (pass) pass._setSSAOTexture(texture)
+        pass = this.getPass(MaterialPass.BASE_PASS);
+        if (pass) pass._setSSAOTexture(texture)
     },
 
     toString: function()

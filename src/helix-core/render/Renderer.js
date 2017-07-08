@@ -12,6 +12,7 @@ import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
 import {DirectionalLight} from "../light/DirectionalLight";
 import {PointLight} from "../light/PointLight";
 import {LightProbe} from "../light/LightProbe";
+import {GBuffer} from "./GBuffer";
 
 function Renderer()
 {
@@ -32,8 +33,7 @@ function Renderer()
     this._hdrBack = new Renderer.HDRBuffers(this._depthBuffer);
     this._hdrFront = new Renderer.HDRBuffers(this._depthBuffer);
     this._renderCollector = new RenderCollector();
-    this._normalDepthTexture = null;
-    this._normalDepthFBO = null;
+    this._gbuffer = new GBuffer(this._depthBuffer);
     this._ssaoTexture = this._createDummySSAOTexture();
     this._aoEffect = null;
     this._backgroundColor = Color.BLACK.clone();
@@ -163,33 +163,29 @@ Renderer.prototype =
 
         this._renderShadowCasters();
 
-        var opaqueStaticLit = this._renderCollector.getOpaqueStaticRenderList();
-        var opaqueDynamicLit = this._renderCollector.getOpaqueDynamicRenderList();
-        var transparentStaticLit = this._renderCollector.getTransparentStaticRenderList();
-        var transparentDynamicLit = this._renderCollector.getTransparentDynamicRenderList();
+        var opaqueList = this._renderCollector.getOpaqueRenderList();
+        var transparentList = this._renderCollector.getTransparentRenderList();
 
         GL.setClearColor(Color.BLACK);
 
         GL.setDepthMask(true);
-        this._renderNormalDepth(opaqueStaticLit, opaqueDynamicLit);
+        this._renderGBuffer(opaqueList);
         this._renderAO();
 
         GL.setRenderTarget(this._hdrFront.fboDepth);
         GL.setClearColor(this._backgroundColor);
         GL.clear();
 
-        this._renderDepthPrepass(opaqueStaticLit);
-        this._renderDepthPrepass(opaqueDynamicLit);
+        // TODO: is this still useful
+        this._renderDepthPrepass(opaqueList);
 
-        this._renderStatics(opaqueStaticLit);
-        this._renderDynamics(opaqueDynamicLit);
+        this._renderForwardLit(opaqueList);
 
         // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
         if (this._renderCollector.needsBackbuffer)
             this._copyToBackBuffer();
 
-        this._renderStatics(transparentStaticLit);
-        this._renderDynamics(transparentDynamicLit);
+        this._renderForwardLit(transparentList);
 
         this._swapHDRFrontAndBack();
         this._renderEffects(dt);
@@ -207,16 +203,11 @@ Renderer.prototype =
         if (!this._depthPrepass) return;
         var gl = GL.gl;
         gl.colorMask(false, false, false, false);
-        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list);
+        this._renderPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, list);
         gl.colorMask(true, true, true, true);
     },
 
-    _renderStatics: function(list)
-    {
-        this._renderPass(MaterialPass.BASE_PASS, list);
-    },
-
-    _renderDynamics: function(list)
+    _renderForwardLit: function(list)
     {
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
@@ -251,9 +242,11 @@ Renderer.prototype =
         var len = renderList.length;
         for (var r = 0; r < len; ++r) {
             var renderItem = renderList[r];
+            var material = renderItem.material;
+            var pass = material.getPass(passType);
+            if (!pass) continue;
+
             if (lightBound.intersectsBound(renderItem.worldBounds)) {
-                var material = renderItem.material;
-                var pass = material.getPass(passType);
                 var meshInstance = renderItem.meshInstance;
                 pass.updatePassRenderState(this, light);
                 pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
@@ -263,16 +256,24 @@ Renderer.prototype =
         }
     },
 
-    _renderNormalDepth: function(list1, list2)
+    _renderGBuffer: function(list1, list2)
     {
-        if (!this._renderCollector.needsNormalDepth && !this._aoEffect) return;
-        if (!this._normalDepthTexture) this._initNormalDepth();
-        GL.setRenderTarget(this._normalDepthFBO);
+        if (this._renderCollector.needsGBuffer) {
+            // if we need the whole gbuffer
+        }
+        else if (this._renderCollector.needsNormalDepth || this._aoEffect) {
+            // otherwise, we might just need normalDepth
+            this._renderNormalDepth(list1, list2);
+        }
+    },
+
+    _renderNormalDepth: function(list)
+    {
+        GL.setRenderTarget(this._gbuffer.fbos[GBuffer.NORMAL_DEPTH]);
         // furthest depth and alpha must be 1, the rest 0
         GL.setClearColor(Color.BLUE);
         GL.clear();
-        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list1);
-        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list2);
+        this._renderPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, list);
         GL.setClearColor(Color.BLACK);
     },
 
@@ -354,10 +355,7 @@ Renderer.prototype =
             this._depthBuffer.init(this._width, this._height, true);
             this._hdrBack.resize(this._width, this._height);
             this._hdrFront.resize(this._width, this._height);
-            if (this._normalDepthTexture) {
-                this._normalDepthTexture.initEmpty(width, height);
-                this._normalDepthFBO.init();
-            }
+            this._gbuffer.resize(this._width, this._height);
         }
     },
 
@@ -378,17 +376,6 @@ Renderer.prototype =
         }
         else {*/
             return new WriteOnlyDepthBuffer();
-    },
-
-    _initNormalDepth: function()
-    {
-        this._normalDepthTexture = new Texture2D();
-        this._normalDepthTexture.filter = TextureFilter.BILINEAR_NOMIP;
-        this._normalDepthTexture.wrapMode = TextureWrapMode.CLAMP;
-        this._normalDepthTexture.initEmpty(this._width, this._height);
-
-        this._normalDepthFBO = new FrameBuffer(this._normalDepthTexture, this._depthBuffer);
-        this._normalDepthFBO.init();
     },
 
     _createDummySSAOTexture: function()

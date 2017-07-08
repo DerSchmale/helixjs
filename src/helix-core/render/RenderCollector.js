@@ -6,7 +6,7 @@ import {RenderItemPool} from "./RenderItemPool";
 import {Float4} from "../math/Float4";
 import {Color} from "../core/Color";
 import {SceneVisitor} from "../scene/SceneVisitor";
-import {MaterialPass} from "../material/MaterialPass";
+import {META} from "../Helix";
 
 function RenderCollector()
 {
@@ -14,10 +14,8 @@ function RenderCollector()
 
     this._renderItemPool = new RenderItemPool();
 
-    this._opaquesStatic = [];
-    this._opaquesDynamic = [];
-    this._transparentsDynamic = []; // add in individual pass types
-    this._transparentsStatic = []; // add in individual pass types
+    this._opaques = [];
+    this._transparents = []; // add in individual pass types
     this._camera = null;
     this._cameraZAxis = new Float4();
     this._frustum = null;
@@ -26,15 +24,14 @@ function RenderCollector()
     this._shadowCasters = null;
     this._effects = null;
     this._needsNormalDepth = false;
+    this._needsGBuffer = false;
     this._needsBackbuffer = false;
 };
 
 RenderCollector.prototype = Object.create(SceneVisitor.prototype);
 
-RenderCollector.prototype.getOpaqueDynamicRenderList = function() { return this._opaquesDynamic; };
-RenderCollector.prototype.getTransparentDynamicRenderList = function() { return this._transparentsDynamic; };
-RenderCollector.prototype.getOpaqueStaticRenderList  = function() { return this._opaquesStatic; };
-RenderCollector.prototype.getTransparentStaticRenderList = function() { return this._transparentsStatic; };
+RenderCollector.prototype.getOpaqueRenderList = function() { return this._opaques; };
+RenderCollector.prototype.getTransparentRenderList = function() { return this._transparents; };
 RenderCollector.prototype.getLights = function() { return this._lights; };
 RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
 RenderCollector.prototype.getEffects = function() { return this._effects; };
@@ -46,6 +43,10 @@ Object.defineProperties(RenderCollector.prototype, {
 
     needsNormalDepth: {
         get: function() { return this._needsNormalDepth; }
+    },
+
+    needsGBuffer: {
+        get: function() { return this._needsGBuffer; }
     },
 
     needsBackbuffer: {
@@ -62,10 +63,8 @@ RenderCollector.prototype.collect = function(camera, scene)
 
     scene.acceptVisitor(this);
 
-    this._opaquesStatic.sort(this._sortOpaques);
-    this._opaquesDynamic.sort(this._sortOpaques);
-    this._transparentsStatic.sort(this._sortTransparents);
-    this._transparentsDynamic.sort(this._sortTransparents);
+    this._opaques.sort(this._sortOpaques);
+    this._transparents.sort(this._sortTransparents);
 
     this._lights.sort(this._sortLights);
 
@@ -114,6 +113,9 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
     var skeletonMatrices = modelInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
     var camera = this._camera;
+    var defaultLightingModel = META.OPTIONS.defaultLightingModel;
+    var opaques = this._opaques;
+    var transparents = this._transparents;
 
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
@@ -123,6 +125,10 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
 
         // if (!material._initialized) continue;
 
+        var lightingModel = material._lightingModel;
+
+        // only required for the default lighting model (if not unlit)
+        this._needsGBuffer = this._needsGBuffer || (lightingModel && lightingModel === defaultLightingModel);
         this._needsNormalDepth = this._needsNormalDepth || material._needsNormalDepth;
         this._needsBackbuffer = this._needsBackbuffer || material._needsBackbuffer;
 
@@ -139,15 +145,6 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         renderItem.camera = camera;
         renderItem.worldBounds = worldBounds;
 
-        var opaques, transparents;
-        if (material._dynamicLighting) {
-            opaques = this._opaquesDynamic;
-            transparents = this._transparentsDynamic;
-        }
-        else {
-            opaques = this._opaquesStatic;
-            transparents = this._transparentsStatic;
-        }
 
         var list = material.blendState || material._needsBackbuffer? transparents : opaques;
         list.push(renderItem);
@@ -172,10 +169,8 @@ RenderCollector.prototype._reset = function()
 {
     this._renderItemPool.reset();
 
-    this._opaquesDynamic = [];
-    this._opaquesStatic = [];
-    this._transparentsDynamic = [];
-    this._transparentsStatic = [];
+    this._opaques = [];
+    this._transparents = [];
     this._lights = [];
     this._shadowCasters = [];
     this._effects = [];

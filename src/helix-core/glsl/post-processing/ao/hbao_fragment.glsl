@@ -9,7 +9,7 @@ uniform float bias;
 uniform float rcpFallOffDistance;
 uniform vec2 ditherScale;
 
-uniform sampler2D hx_normalDepth;
+uniform sampler2D hx_gbufferNormalDepth;
 uniform sampler2D sampleDirTexture;
 uniform sampler2D ditherTexture;
 
@@ -19,7 +19,7 @@ varying vec3 frustumCorner;
 
 vec3 getViewPos(vec2 sampleUV)
 {
-    vec4 smp = texture2D(hx_normalDepth, sampleUV);
+    vec4 smp = texture2D(hx_gbufferNormalDepth, sampleUV);
     float depth = hx_decodeLinearDepth(smp);
     float viewZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;
     vec3 viewPos = frustumCorner * vec3(sampleUV * 2.0 - 1.0, 1.0);
@@ -88,7 +88,7 @@ float getRayOcclusion(vec2 direction, float jitter, vec2 projectedRadii, vec3 ce
 
 void main()
 {
-    vec4 normalDepth = texture2D(hx_normalDepth, uv);
+    vec4 normalDepth = texture2D(hx_gbufferNormalDepth, uv);
     vec3 centerNormal = hx_decodeNormal(normalDepth);
     float centerDepth = hx_decodeLinearDepth(normalDepth);
     float viewZ = hx_cameraNearPlaneDistance + centerDepth * hx_cameraFrustumRange;

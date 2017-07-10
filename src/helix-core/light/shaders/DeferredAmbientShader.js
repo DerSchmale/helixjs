@@ -1,11 +1,8 @@
-import {Comparison, CullMode, ElementType, META} from "../../Helix";
+import {CullMode, ElementType} from "../../Helix";
 import {GL} from "../../core/GL";
 import {Shader} from "../../shader/Shader";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {RectMesh} from "../../mesh/RectMesh";
-import {Matrix4x4} from "../../math/Matrix4x4";
-import {Float4} from "../../math/Float4";
-import {DirectionalLight} from "../DirectionalLight";
 
 function DeferredAmbientShader()
 {
@@ -52,6 +49,8 @@ DeferredAmbientShader.prototype.execute = function(renderer)
     renderer._ssaoTexture.bind(3);
 
     this.updatePassRenderState(renderer);
+
+    GL.setCullMode(CullMode.NONE);
 
     var rect = RectMesh.DEFAULT;
     rect._vertexBuffers[0].bind();

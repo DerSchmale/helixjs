@@ -13,7 +13,7 @@ function DirectionalLight()
 {
     Light.call(this);
 
-    DirectionalLight._initDeferredShaders();
+    if (!DirectionalLight._deferredShader) DirectionalLight._initDeferredShaders();
     this.depthBias = .0;
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;

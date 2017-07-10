@@ -1,15 +1,16 @@
+//#ifdef HX_SPHERE_MESH
+//uniform mat4 hx_inverseProjectionMatrix;
+//uniform vec2 hx_rcpRenderTargetResolution;
+//#else
 varying vec2 uv;
 varying vec3 viewDir;
+//#endif
 
-uniform HX_DirectionalLight hx_directionalLight;
+uniform HX_PointLight hx_pointLight;
 
 uniform sampler2D hx_gbufferAlbedo;
 uniform sampler2D hx_gbufferNormalDepth;
 uniform sampler2D hx_gbufferSpecular;
-
-#ifdef HX_SHADOW_MAP
-uniform sampler2D hx_shadowMap;
-#endif
 
 uniform float hx_cameraNearPlaneDistance;
 uniform float hx_cameraFrustumRange;
@@ -17,22 +18,24 @@ uniform float hx_cameraFrustumRange;
 
 void main()
 {
-// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method
+//    #ifdef HX_SPHERE_MESH
+//    vec2 uv = gl_FragCoord.xy * hx_rcpRenderTargetResolution;
+//    vec3 viewDir = hx_getLinearDepthViewVector(uv * 2.0 - 1.0, hx_inverseProjectionMatrix);
+//    #endif
+
     HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);
 
     float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;
+
+
 	vec3 viewPosition = viewDir * absViewZ;
     vec3 viewVector = normalize(viewPosition);
     vec3 diffuse, specular;
 
-    hx_calculateLight(hx_directionalLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);
+    hx_calculateLight(hx_pointLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);
 
     gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;
     gl_FragColor.w = 1.0;
-
-    #ifdef HX_SHADOW_MAP
-        gl_FragColor.xyz *= hx_calculateShadows(hx_directionalLight, hx_shadowMap, viewPosition);
-    #endif
 
     #ifdef HX_GAMMA_CORRECT_LIGHTS
         gl_FragColor = hx_linearToGamma(gl_FragColor);

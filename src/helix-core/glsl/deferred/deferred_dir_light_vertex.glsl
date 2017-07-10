@@ -5,7 +5,6 @@ varying vec2 uv;
 varying vec3 viewDir;
 
 uniform mat4 hx_inverseProjectionMatrix;
-uniform mat4 hx_cameraWorldMatrix;
 
 void main()
 {

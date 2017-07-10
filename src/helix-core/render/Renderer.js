@@ -290,7 +290,6 @@ Renderer.prototype =
         GL.clear();
         GL.setBlendState(BlendState.ADD);
         GL.setDepthTest(Comparison.DISABLED);
-        GL.setCullMode(CullMode.NONE);
 
         var ambient =  this._ambientColor;
         if (ambient.r !== 0 || ambient.g !== 0 || ambient.b !== 0) {

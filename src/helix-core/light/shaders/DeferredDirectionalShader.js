@@ -101,6 +101,7 @@ DeferredDirectionalShader.prototype.execute = function(renderer, light)
             gl.uniform1f(this._maxShadowDistanceLocation, splits[numCascades - 1]);
         }
 
+        GL.setCullMode(CullMode.NONE);
 
         this.updatePassRenderState(renderer);
 

@@ -1,16 +1,24 @@
+import {Light} from "./Light";
+import {BoundingSphere} from "../scene/BoundingSphere";
+import {DeferredPointShader} from "./shaders/DeferredPointShader";
+import {Float4} from "../math/Float4";
+
 /**
  *
  * @constructor
  */
-import {Light} from "./Light";
-import {BoundingSphere} from "../scene/BoundingSphere";
 function PointLight()
 {
     Light.call(this);
 
+    if (!PointLight._deferredShaderSphere) {
+        PointLight._deferredShaderSphere = new DeferredPointShader(true);
+        PointLight._deferredShaderRect = new DeferredPointShader(false);
+    }
+
     this._radius = 100.0;
     this.intensity = 3.1415;
-};
+}
 
 PointLight.LIGHTS_PER_BATCH = 20;
 PointLight.SPHERE_SEGMENTS_W = 16;
@@ -41,5 +49,24 @@ PointLight.prototype._updateWorldBounds = function()
 {
     this._worldBounds.setExplicit(this.worldMatrix.getColumn(3), this._radius);
 };
+
+PointLight.prototype.renderDeferredLighting = function(renderer)
+{
+    var camPos = new Float4();
+    var thisPos = new Float4();
+    return function(renderer) {
+
+        // distance camera vs light to estimate projected size
+        renderer._camera.worldMatrix.getColumn(3, camPos);
+        this.worldMatrix.getColumn(3, thisPos);
+        var distSqr = Float4.distanceSqr(camPos, thisPos);
+        var rad = this._radius * 1.1;
+
+        if (distSqr > rad * rad)
+            PointLight._deferredShaderSphere.execute(renderer, this);
+        else
+            PointLight._deferredShaderRect.execute(renderer, this);
+    }
+}();
 
 export { PointLight };

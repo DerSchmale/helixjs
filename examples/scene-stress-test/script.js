@@ -98,6 +98,6 @@ function initScene(scene)
             scaleU: 20,
             scaleV: 20
         });
-    var instance = new HX.ModelInstance(primitive, material2);
+    var instance = new HX.ModelInstance(primitive, material);
     scene.attach(instance);
 }

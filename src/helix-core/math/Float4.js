@@ -50,6 +50,14 @@ Float4.distance = function(a, b)
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
 };
 
+Float4.distanceSqr = function(a, b)
+{
+    var dx = a.x - b.x;
+    var dy = a.y - b.y;
+    var dz = a.z - b.z;
+    return dx * dx + dy * dy + dz * dz;
+};
+
 Float4.negate = function(a, target)
 {
     target = target || new Float4();

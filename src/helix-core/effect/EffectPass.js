@@ -36,8 +36,9 @@ EffectPass.prototype.setMesh = function(mesh)
 
 EffectPass.prototype.updateRenderState = function(renderer)
 {
-    this.updateInstanceRenderState(renderer._camera);
-    this.updatePassRenderState(renderer);
+    var cam = renderer._camera;
+    this.updateInstanceRenderState(cam);
+    this.updatePassRenderState(cam, renderer);
 
     // TODO: Could we implement this by GL.setMesh(mesh, layout), also in renderer?
     this._mesh._vertexBuffers[0].bind();

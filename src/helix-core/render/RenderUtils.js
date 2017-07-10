@@ -25,7 +25,7 @@ export var RenderUtils =
             var meshInstance = renderItem.meshInstance;
 
             if (pass !== activePass) {
-                pass.updatePassRenderState(renderer, data);
+                pass.updatePassRenderState(renderItem.camera, renderer, data);
                 activePass = pass;
                 lastMesh = null;    // need to reset mesh data too
             }

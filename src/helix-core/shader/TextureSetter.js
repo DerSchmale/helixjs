@@ -62,7 +62,8 @@ function GBufferAlbedoSetter()
 
 GBufferAlbedoSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._gbuffer.textures[GBuffer.ALBEDO];
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer.textures[GBuffer.ALBEDO];
 };
 
 
@@ -72,7 +73,8 @@ function GBufferNormalDepthSetter()
 
 GBufferNormalDepthSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._gbuffer.textures[GBuffer.NORMAL_DEPTH];
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer.textures[GBuffer.NORMAL_DEPTH];
 };
 
 
@@ -82,7 +84,8 @@ function GBufferSpecularSetter()
 
 GBufferSpecularSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._gbuffer.textures[GBuffer.SPECULAR];
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer.textures[GBuffer.SPECULAR];
 };
 
 
@@ -112,7 +115,8 @@ function LightAccumulationSetter()
 
 LightAccumulationSetter.prototype.execute = function (renderer)
 {
-    this.slot.texture = renderer._hdrBack.texture;
+    if (renderer._hdrBack)
+        this.slot.texture = renderer._hdrBack.texture;
 };
 
 

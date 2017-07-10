@@ -39,6 +39,7 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
+    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -55,11 +56,11 @@ function initHDRSettings()
 
     // TODO: Implement pseudo lens flare
 
-    var tonemap = new HX.FilmicToneMapping(true);
-    tonemap.exposure = -1;
+    var tonemap = new HX.FilmicToneMapping(false);
+    tonemap.exposure = 1;
 
     settings.effects = [bloom1, bloom2, bloom3, tonemap];
-    settings.sunIntensity = 20.0;
+    settings.sunIntensity = 5.0;
     settings.cloudColor = new HX.Color(0.8, 0.78, 0.75);
 
     settings.scatterIntensityBoost = .25;
@@ -101,7 +102,7 @@ function initCamera(camera)
 
 function initSun(container)
 {
-    var distanceToSun = 150 / 2.5;    // same as with moon, we're bringing it 5x closer than it is
+    var distanceToSun = 150;    // same as with moon, we're bringing it 5x closer than it is
     var sunPosX = 0;
     var sunPosY = 8;
     var sunPosZ = 15;
@@ -121,6 +122,7 @@ function initSun(container)
 // TODO: Could replace with local light probes?
     var loader = new HX.AssetLoader(HX.HMT);
     var sunMaterial = loader.load("materials/sunMaterial.hmt");
+    sunMaterial.lightingModel = HX.LightingModel.Unlit;
 
     var sun = new HX.ModelInstance(sunSpherePrimitive, sunMaterial);
     // not heliocentric, apparently ;)
@@ -158,7 +160,6 @@ function initEarth(container)
     earthMaterial.setUniform("rcpAtmosThickness", 1.0 / atmosphereTickness);
     earthMaterial.setUniform("rcpThicknessOverScaleDepth", 1.0 / atmosphereTickness / avgDensityHeight);
     earthMaterial.setUniform("expThicknessOverScaleDepth", Math.exp((earthRadius - atmosphereRadius) / avgDensityHeight));
-    earthMaterial.lights = [ sunLight ];
 
     var globe = new HX.ModelInstance(earthSpherePrimitive, earthMaterial);
     earth.attach(globe);
@@ -174,6 +175,7 @@ function initEarth(container)
     atmosMaterial.setUniform("rcpThicknessOverScaleDepth", 1.0 / atmosphereTickness / avgDensityHeight);
     atmosMaterial.setUniform("boost", settings.sunIntensity * settings.scatterIntensityBoost);
     atmosMaterial.setUniform("lightDir", lightDir);
+    atmosMaterial.lightingModel = HX.LightingModel.Unlit;
 
     earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, 1.0, 0.0);
 
@@ -201,7 +203,6 @@ function initMoon(container)
     moonMaterial.colorMap = colorMap;
     moonMaterial.normalMap = normalMap;
     moonMaterial.roughness = .99;
-    moonMaterial.lights = [ sunLight ];
 
     var moon = new HX.ModelInstance(moonSpherePrimitive, moonMaterial);
 

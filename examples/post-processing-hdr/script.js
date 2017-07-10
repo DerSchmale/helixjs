@@ -11,6 +11,7 @@ window.onload = function ()
     // INIT WITH OPTIONS TO USE HDR
     var options = new HX.InitOptions();
     options.hdr = true;
+    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -74,7 +75,6 @@ function initScene(scene)
     material.colorMap = albedoMap;
     material.normalMap = normalMap;
     material.roughness = .3;
-    material.lights = [ light1, light2, light3 ];
 
     var primitive = new HX.SpherePrimitive(
         {

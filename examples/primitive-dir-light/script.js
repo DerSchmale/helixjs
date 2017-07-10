@@ -14,6 +14,7 @@ window.onload = function ()
     var options = new HX.InitOptions();
     //options.ignoreAllExtensions = true;
     //options.debug = true;
+    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -32,9 +33,6 @@ function initScene(scene)
     var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
     var material = new HX.BasicMaterial();
     material.colorMap = texture;
-    // do not collect lights dynamically
-    material.lightingModel = HX.LightingModel.GGX;
-    material.lights = [ light ];
 
     var primitive = new HX.SpherePrimitive(
         {

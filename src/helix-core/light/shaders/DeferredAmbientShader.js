@@ -48,7 +48,7 @@ DeferredAmbientShader.prototype.execute = function(renderer)
     texs[2].bind(2);
     renderer._ssaoTexture.bind(3);
 
-    this.updatePassRenderState(renderer);
+    this.updatePassRenderState(renderer._camera, renderer);
 
     GL.setCullMode(CullMode.NONE);
 

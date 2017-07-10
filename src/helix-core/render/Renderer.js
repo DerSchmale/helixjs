@@ -238,7 +238,7 @@ Renderer.prototype =
 
             if (lightBound.intersectsBound(renderItem.worldBounds)) {
                 var meshInstance = renderItem.meshInstance;
-                pass.updatePassRenderState(this, light);
+                pass.updatePassRenderState(renderItem.camera, this, light);
                 pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
                 meshInstance.updateRenderState(passType);
                 GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);

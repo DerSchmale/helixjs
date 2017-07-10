@@ -24,7 +24,7 @@ function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel, ss
 ForwardLitProbePass.prototype = Object.create(MaterialPass.prototype);
 
 // the light is passed in as data
-ForwardLitProbePass.prototype.updatePassRenderState = function(renderer, probe)
+ForwardLitProbePass.prototype.updatePassRenderState = function(camera, renderer, probe)
 {
     var gl = GL.gl;
     gl.useProgram(this._shader._program);
@@ -35,7 +35,7 @@ ForwardLitProbePass.prototype.updatePassRenderState = function(renderer, probe)
 
     this._specularSlot.texture = specularTex;
     gl.uniform1f(this._numMipsLocation, Math.floor(MathX.log2(specularTex.size)));
-    MaterialPass.prototype.updatePassRenderState.call(this, renderer);
+    MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
 };
 
 ForwardLitProbePass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, ssao)

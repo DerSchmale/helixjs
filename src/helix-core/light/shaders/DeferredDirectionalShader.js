@@ -107,7 +107,7 @@ DeferredDirectionalShader.prototype.execute = function(renderer, light)
 
         GL.setCullMode(CullMode.NONE);
 
-        this.updatePassRenderState(renderer);
+        this.updatePassRenderState(camera, renderer);
 
         var rect = RectMesh.DEFAULT;
         rect._vertexBuffers[0].bind();

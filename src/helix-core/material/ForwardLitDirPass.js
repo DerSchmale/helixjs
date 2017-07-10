@@ -26,14 +26,13 @@ function ForwardLitDirPass(geometryVertex, geometryFragment, lightingModel, shad
 ForwardLitDirPass.prototype = Object.create(MaterialPass.prototype);
 
 // the light is passed in as data
-ForwardLitDirPass.prototype.updatePassRenderState = function(renderer, light)
+ForwardLitDirPass.prototype.updatePassRenderState = function(camera, renderer, light)
 {
     var dir = new Float4();
     var matrix = new Matrix4x4();
     var matrixData = new Float32Array(64);
 
-    return function(renderer, light) {
-        var camera = renderer._camera;
+    return function(camera, renderer, light) {
         var gl = GL.gl;
         var col = light._scaledIrradiance;
 
@@ -66,7 +65,7 @@ ForwardLitDirPass.prototype.updatePassRenderState = function(renderer, light)
             gl.uniform1f(this._maxShadowDistanceLocation, splits[numCascades - 1]);
         }
 
-        MaterialPass.prototype.updatePassRenderState.call(this, renderer);
+        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
     }
 }();
 

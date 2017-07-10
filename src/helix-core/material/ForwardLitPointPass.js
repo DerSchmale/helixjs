@@ -16,12 +16,11 @@ function ForwardLitPointPass(geometryVertex, geometryFragment, lightingModel)
 ForwardLitPointPass.prototype = Object.create(MaterialPass.prototype);
 
 // the light is passed in as data
-ForwardLitPointPass.prototype.updatePassRenderState = function(renderer, light)
+ForwardLitPointPass.prototype.updatePassRenderState = function(camera, renderer, light)
 {
     var pos = new Float4();
 
-    return function(renderer, light) {
-        var camera = renderer._camera;
+    return function(camera, renderer, light) {
         var gl = GL.gl;
         var col = light._scaledIrradiance;
 
@@ -33,7 +32,7 @@ ForwardLitPointPass.prototype.updatePassRenderState = function(renderer, light)
         gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
         gl.uniform1f(this._radiusLocation, light.radius);
 
-        MaterialPass.prototype.updatePassRenderState.call(this, renderer);
+        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
     }
 }();
 

@@ -126,7 +126,7 @@ MaterialPass.prototype =
     /**
      * Only called upon activation, not per render item.
      */
-    updatePassRenderState: function (renderer)
+    updatePassRenderState: function (camera, renderer)
     {
         var len = this._textureSettersPass.length;
         var i;
@@ -156,7 +156,7 @@ MaterialPass.prototype =
         GL.setDepthMask(this._writeDepth);
         GL.setBlendState(this._blendState);
 
-        this._shader.updatePassRenderState(renderer);
+        this._shader.updatePassRenderState(camera, renderer);
     },
 
     _storeUniforms: function()

@@ -35,6 +35,7 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.numShadowCascades = 3;
     options.hdr = true;
+    options.defaultLightingModel = HX.LightingModel.GGX;
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
     options.directionalShadowFilter.blurRadius = 1;
     project.init(document.getElementById('webglContainer'), options);
@@ -83,7 +84,7 @@ function initScene(scene)
     scene.skybox = skybox;
 
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
-    // scene.attach(lightProbe);
+    scene.attach(lightProbe);
 
     var heightMapLoader = new HX.AssetLoader(HX.JPG_HEIGHTMAP);
     var heightMap = heightMapLoader.load("textures/heightMap.png");
@@ -103,10 +104,7 @@ function initScene(scene)
     terrainMaterial.setUniform("worldSize", worldSize);
     // terrainMaterial.ssao = true;
 
-    terrainMaterial.lights = [ sun, lightProbe ];
-
     waterMaterial = materialLoader.load("material/waterMaterial.hmt");
-    waterMaterial.lights = [ sun, lightProbe ];
 
     var terrain = new HX.Terrain(4000, -100, 200, 5, terrainMaterial, 64);
 

@@ -80,7 +80,7 @@ DeferredPointShader.prototype.execute = function(renderer, light)
         gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
         gl.uniform1f(this._radiusLocation, light._radius);
 
-        this.updatePassRenderState(renderer);
+        this.updatePassRenderState(camera, renderer);
 
         if (this._useSphere) {
             GL.setCullMode(CullMode.FRONT);

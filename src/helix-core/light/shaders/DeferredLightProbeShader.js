@@ -76,7 +76,8 @@ DeferredLightProbeShader.prototype.execute = function(renderer)
     var specularProbe = this._probe.specularTexture;
     var diffuseProbe = this._probe.diffuseTexture;
 
-    if (specularProbe.size === 0 || diffuseProbe.size === 0) return;
+    if ((specularProbe && specularProbe.size === 0) ||
+        (diffuseProbe && diffuseProbe.size === 0)) return;
 
     renderer._ssaoTexture.bind(3);
 
@@ -90,7 +91,7 @@ DeferredLightProbeShader.prototype.execute = function(renderer)
 
     GL.setCullMode(CullMode.NONE);
 
-    this.updatePassRenderState(renderer);
+    this.updatePassRenderState(renderer._camera, renderer);
 
     var rect = RectMesh.DEFAULT;
     rect._vertexBuffers[0].bind();

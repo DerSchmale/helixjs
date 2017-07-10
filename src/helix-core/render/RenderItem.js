@@ -11,6 +11,7 @@ export function RenderItem()
     this.material = null;
     this.camera = null;
     this.renderOrderHint = 0;
+    this.worldBounds = null;
 
     // to store this in a linked list for pooling
     this.next = null;

@@ -85,17 +85,24 @@ Shader.prototype = {
 
         this._ready = true;
 
-        this._uniformSetters = UniformSetter.getSetters(this);
+        this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
+        this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
     },
 
-    updateRenderState: function(camera, renderItem)
+    updatePassRenderState: function(camera)
     {
         GL.gl.useProgram(this._program);
 
-        var len = this._uniformSetters.length;
-        for (var i = 0; i < len; ++i) {
-            this._uniformSetters[i].execute(camera, renderItem);
-        }
+        var len = this._uniformSettersPass.length;
+        for (var i = 0; i < len; ++i)
+            this._uniformSettersPass[i].execute(camera);
+    },
+
+    updateInstanceRenderState: function(camera, renderItem)
+    {
+        var len = this._uniformSettersInstance.length;
+        for (var i = 0; i < len; ++i)
+            this._uniformSettersInstance[i].execute(camera, renderItem);
     },
 
     _initShader: function(shader, code)

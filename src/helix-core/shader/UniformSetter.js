@@ -9,21 +9,29 @@ import {Matrix4x4} from "../math/Matrix4x4";
 
 export var UniformSetter = {
 
-    getSetters: function (shader)
+    getSettersPerInstance: function (shader)
     {
-        if (UniformSetter._table === undefined)
+        if (UniformSetter._instanceTable === undefined)
             UniformSetter._init();
 
-        return UniformSetter._findSetters(shader);
+        return UniformSetter._findSetters(shader, UniformSetter._instanceTable);
     },
 
-    _findSetters: function (shader)
+    getSettersPerPass: function (shader)
+    {
+        if (UniformSetter._passTable === undefined)
+            UniformSetter._init();
+
+        return UniformSetter._findSetters(shader, UniformSetter._passTable);
+    },
+
+    _findSetters: function (shader, table)
     {
         var setters = [];
-        for (var uniformName in UniformSetter._table) {
+        for (var uniformName in table) {
             var location = GL.gl.getUniformLocation(shader._program, uniformName);
             if (!location) continue;
-            var setter = new UniformSetter._table[uniformName]();
+            var setter = new table[uniformName]();
             setters.push(setter);
             setter.location = location;
         }
@@ -33,31 +41,33 @@ export var UniformSetter = {
 
     _init: function ()
     {
-        UniformSetter._table = {};
+        UniformSetter._instanceTable = {};
+        UniformSetter._passTable = {};
 
-        UniformSetter._table.hx_worldMatrix = WorldMatrixSetter;
-        UniformSetter._table.hx_worldViewMatrix = WorldViewMatrixSetter;
-        UniformSetter._table.hx_wvpMatrix = WorldViewProjectionSetter;
-        UniformSetter._table.hx_viewMatrix = ViewMatrixSetter;
-        UniformSetter._table.hx_projectionMatrix = ProjectionSetter;
-        UniformSetter._table.hx_inverseProjectionMatrix = InverseProjectionSetter;
-        UniformSetter._table.hx_inverseWVPMatrix = InverseWVPSetter;
-        UniformSetter._table.hx_viewProjectionMatrix = ViewProjectionSetter;
-        UniformSetter._table.hx_inverseViewProjectionMatrix = InverseViewProjectionSetter;
-        UniformSetter._table.hx_normalWorldMatrix = NormalWorldMatrixSetter;
-        UniformSetter._table.hx_normalWorldViewMatrix = NormalWorldViewMatrixSetter;
-        UniformSetter._table.hx_cameraWorldPosition = CameraWorldPosSetter;
-        UniformSetter._table.hx_cameraWorldMatrix = CameraWorldMatrixSetter;
-        UniformSetter._table.hx_cameraFrustumRange = CameraFrustumRangeSetter;
-        UniformSetter._table.hx_rcpCameraFrustumRange = RCPCameraFrustumRangeSetter;
-        UniformSetter._table.hx_cameraNearPlaneDistance = CameraNearPlaneDistanceSetter;
-        UniformSetter._table.hx_cameraFarPlaneDistance = CameraFarPlaneDistanceSetter;
-        UniformSetter._table.hx_renderTargetResolution = RenderTargetResolutionSetter;
-        UniformSetter._table.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
-        UniformSetter._table.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
-        UniformSetter._table["hx_skinningMatrices[0]"] = SkinningMatricesSetter;
-        UniformSetter._table["hx_poissonDisk[0]"] = PoissonDiskSetter;
-        UniformSetter._table["hx_morphWeights[0]"] = MorphWeightsSetter;
+        UniformSetter._instanceTable.hx_worldMatrix = WorldMatrixSetter;
+        UniformSetter._instanceTable.hx_worldViewMatrix = WorldViewMatrixSetter;
+        UniformSetter._instanceTable.hx_wvpMatrix = WorldViewProjectionSetter;
+        UniformSetter._instanceTable.hx_inverseWVPMatrix = InverseWVPSetter;
+        UniformSetter._instanceTable.hx_normalWorldMatrix = NormalWorldMatrixSetter;
+        UniformSetter._instanceTable.hx_normalWorldViewMatrix = NormalWorldViewMatrixSetter;
+        UniformSetter._instanceTable["hx_skinningMatrices[0]"] = SkinningMatricesSetter;
+        UniformSetter._instanceTable["hx_morphWeights[0]"] = MorphWeightsSetter;
+
+        UniformSetter._passTable.hx_viewMatrix = ViewMatrixSetter;
+        UniformSetter._passTable.hx_projectionMatrix = ProjectionSetter;
+        UniformSetter._passTable.hx_inverseProjectionMatrix = InverseProjectionSetter;
+        UniformSetter._passTable.hx_viewProjectionMatrix = ViewProjectionSetter;
+        UniformSetter._passTable.hx_inverseViewProjectionMatrix = InverseViewProjectionSetter;
+        UniformSetter._passTable.hx_cameraWorldPosition = CameraWorldPosSetter;
+        UniformSetter._passTable.hx_cameraWorldMatrix = CameraWorldMatrixSetter;
+        UniformSetter._passTable.hx_cameraFrustumRange = CameraFrustumRangeSetter;
+        UniformSetter._passTable.hx_rcpCameraFrustumRange = RCPCameraFrustumRangeSetter;
+        UniformSetter._passTable.hx_cameraNearPlaneDistance = CameraNearPlaneDistanceSetter;
+        UniformSetter._passTable.hx_cameraFarPlaneDistance = CameraFarPlaneDistanceSetter;
+        UniformSetter._passTable.hx_renderTargetResolution = RenderTargetResolutionSetter;
+        UniformSetter._passTable.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
+        UniformSetter._passTable.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
+        UniformSetter._passTable["hx_poissonDisk[0]"] = PoissonDiskSetter;
     }
 };
 
@@ -245,7 +255,7 @@ CameraFrustumRangeSetter.prototype.execute = function (camera)
 
 function RCPCameraFrustumRangeSetter()
 {
-};
+}
 
 RCPCameraFrustumRangeSetter.prototype.execute = function (camera)
 {
@@ -318,18 +328,19 @@ PoissonDiskSetter.prototype.execute = function ()
 function SkinningMatricesSetter()
 {
     this._data = new Float32Array(OPTIONS.maxBones * 12);
-};
+}
 
 SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
 {
     var skeleton = renderItem.skeleton;
 
     if (skeleton) {
+        // TODO: Could we store the 4x3 format in renderItem.skeletonMatrices?
+        // no need to store actual matrices in this data
         var matrices = renderItem.skeletonMatrices;
         var numJoints = skeleton.numJoints;
         var j = 0;
 
-        // TODO: This rewrites the data every time, should only happen once a frame
         for (var i = 0; i < numJoints; ++i) {
             matrices[i].writeData4x3(this._data, j);
             j += 12;

@@ -34,12 +34,17 @@ function MaterialPass(shader)
 // if a shader supports multiple lights per pass, they will take up 3 type slots (fe: 3 point lights: POINT_LIGHT_PASS, POINT_LIGHT_PASS + 1, POINT_LIGHT_PASS + 2)
 MaterialPass.BASE_PASS = 0;  // used for unlit or for predefined lights
 MaterialPass.NORMAL_DEPTH_PASS = 1;  // used for unlit or for predefined lights
-MaterialPass.DIR_LIGHT_PASS = 2;
-MaterialPass.DIR_LIGHT_SHADOW_PASS = -1;
-MaterialPass.POINT_LIGHT_PASS = -1;
-MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = -1;
 
-MaterialPass.NUM_PASS_TYPES = -1;
+// dynamic lighting passes
+MaterialPass.DIR_LIGHT_PASS = 2;
+MaterialPass.DIR_LIGHT_SHADOW_PASS = 3;
+MaterialPass.POINT_LIGHT_PASS = 4;
+MaterialPass.LIGHT_PROBE_PASS = 5;
+
+// shadow map generation
+MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 6;
+
+MaterialPass.NUM_PASS_TYPES = 7;
 
 MaterialPass.prototype =
 {
@@ -108,7 +113,7 @@ MaterialPass.prototype =
             this._textureSettersInstance[i].execute(renderItem);
         }
 
-        this._shader.updateRenderState(camera, renderItem);
+        this._shader.updateInstanceRenderState(camera, renderItem);
     },
 
     /**
@@ -143,6 +148,8 @@ MaterialPass.prototype =
         GL.setDepthTest(this._depthTest);
         GL.setDepthMask(this._writeDepth);
         GL.setBlendState(this._blendState);
+
+        this._shader.updatePassRenderState(renderer._camera);
     },
 
     _storeUniforms: function()

@@ -24,7 +24,7 @@ export var EquirectangularTexture =
         target.initEmpty(size, source.format, source.dataType);
         var faces = [ gl.TEXTURE_CUBE_MAP_POSITIVE_X, gl.TEXTURE_CUBE_MAP_NEGATIVE_X, gl.TEXTURE_CUBE_MAP_POSITIVE_Y, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Z, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z ];
 
-        EquirectangularTexture._EQUI_TO_CUBE_SHADER.updateRenderState();
+        EquirectangularTexture._EQUI_TO_CUBE_SHADER.updatePassRenderState();
 
         var textureLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getUniformLocation("source");
         var posLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getAttributeLocation("hx_position");

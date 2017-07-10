@@ -13,11 +13,10 @@ function DirectionalLight()
     Light.call(this);
 
     this.depthBias = .0;
-    this._numCascades = 1;
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;
     this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
-};
+}
 
 // set on init
 DirectionalLight.SHADOW_FILTER = null;
@@ -37,30 +36,12 @@ DirectionalLight.prototype = Object.create(Light.prototype,
                 this._castShadows = value;
 
                 if (value) {
-                    this._shadowMapRenderer = new CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
+                    this._shadowMapRenderer = new CascadeShadowMapRenderer(this, this._shadowMapSize);
                 }
                 else {
                     this._shadowMapRenderer.dispose();
                     this._shadowMapRenderer = null;
                 }
-            }
-        },
-
-        numCascades: {
-            get: function()
-            {
-                return this._numCascades;
-            },
-
-            set: function(value)
-            {
-                if (value > 4) {
-                    console.warn("set numCascades called with value greater than 4. Real value will be set to 4.");
-                    value = 4;
-                }
-
-                this._numCascades = value;
-                if (this._shadowMapRenderer) this._shadowMapRenderer.numCascades = value;
             }
         },
 

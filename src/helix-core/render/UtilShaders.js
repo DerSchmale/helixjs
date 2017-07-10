@@ -8,6 +8,11 @@ import {Shader} from "../shader/Shader";
 import {GL} from "../core/GL";
 import {Comparison, CullMode, ElementType} from "../Helix";
 
+/**
+ *
+ * @param fragmentShader
+ * @constructor
+ */
 function CustomCopyShader(fragmentShader)
 {
     Shader.call(this);
@@ -34,7 +39,7 @@ CustomCopyShader.prototype.execute = function(rect, texture)
     rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
-    this.updateRenderState();
+    this.updatePassRenderState();
 
     texture.bind(0);
 

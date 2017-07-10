@@ -37,9 +37,9 @@ BoundingVolume._testAABBToSphere = function(aabb, sphere)
     var minY = aabb._minimumY;
     var minZ = aabb._minimumZ;
     var radius = sphere._halfExtentX;
-    var centerX = this._center.x;
-    var centerY = this._center.y;
-    var centerZ = this._center.z;
+    var centerX = sphere._center.x;
+    var centerY = sphere._center.y;
+    var centerZ = sphere._center.z;
     var dot = 0, diff;
 
     if (minX > centerX) {

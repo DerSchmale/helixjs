@@ -47,17 +47,15 @@ function initScene(scene)
     var material = new HX.BasicMaterial();
     material.blendState = HX.BlendState.MULTIPLY;
     material.color = new HX.Color(.5,.1,.1);
-    material.lightingModel = HX.LightingModel.Unlit
-    material.writeDepth = false;
+    material.lightingModel = HX.LightingModel.Unlit;
 
     scene.attach(new HX.ModelInstance(primitive, material));
 
-    // the second layer forms the
+    // the second layer forms the reflective layer
     material = new HX.BasicMaterial();
     material.blendState = HX.BlendState.ADD;
     material.color = HX.Color.BLACK;
     material.lights = [ lightProbe ];
-    material.writeDepth = false;
     material.renderOrder = 50;  // be sure the render after first layer
     material.roughness = .01;
     scene.attach(new HX.ModelInstance(primitive, material));

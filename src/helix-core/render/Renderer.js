@@ -9,8 +9,11 @@ import {FrameBuffer} from "../texture/FrameBuffer";
 import {GL} from "../core/GL";
 import {RenderUtils} from "./RenderUtils";
 import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
+import {DirectionalLight} from "../light/DirectionalLight";
+import {PointLight} from "../light/PointLight";
+import {LightProbe} from "../light/LightProbe";
 
-function ForwardRenderer()
+function Renderer()
 {
     this._width = 0;
     this._height = 0;
@@ -26,8 +29,8 @@ function ForwardRenderer()
     this._camera = null;
     this._scene = null;
     this._depthBuffer = this._createDepthBuffer();
-    this._hdrBack = new ForwardRenderer.HDRBuffers(this._depthBuffer);
-    this._hdrFront = new ForwardRenderer.HDRBuffers(this._depthBuffer);
+    this._hdrBack = new Renderer.HDRBuffers(this._depthBuffer);
+    this._hdrFront = new Renderer.HDRBuffers(this._depthBuffer);
     this._renderCollector = new RenderCollector();
     this._normalDepthTexture = null;
     this._normalDepthFBO = null;
@@ -35,16 +38,16 @@ function ForwardRenderer()
     this._aoEffect = null;
     this._backgroundColor = Color.BLACK.clone();
     //this._previousViewProjection = new Matrix4x4();
-    this._depthPrepass = true;
-    this._debugMode = ForwardRenderer.DebugRenderMode.NONE;
+    this._depthPrepass = false;
+    this._debugMode = Renderer.DebugRenderMode.NONE;
 }
 
-ForwardRenderer.DebugRenderMode = {
+Renderer.DebugRenderMode = {
     NONE: 0,
     SSAO: 1
 };
 
-ForwardRenderer.HDRBuffers = function(depthBuffer)
+Renderer.HDRBuffers = function(depthBuffer)
 {
     this.texture = new Texture2D();
     this.texture.filter = TextureFilter.BILINEAR_NOMIP;
@@ -53,7 +56,7 @@ ForwardRenderer.HDRBuffers = function(depthBuffer)
     this.fboDepth = new FrameBuffer(this.texture, depthBuffer);
 };
 
-ForwardRenderer.HDRBuffers.prototype =
+Renderer.HDRBuffers.prototype =
 {
     dispose: function()
     {
@@ -70,7 +73,7 @@ ForwardRenderer.HDRBuffers.prototype =
     }
 };
 
-ForwardRenderer.prototype =
+Renderer.prototype =
 {
     get debugMode()
     {
@@ -79,7 +82,6 @@ ForwardRenderer.prototype =
 
     set debugMode(value)
     {
-        console.log(value);
         this._debugMode = value;
     },
 
@@ -162,20 +164,26 @@ ForwardRenderer.prototype =
         this._renderShadowCasters();
 
         var opaqueStaticLit = this._renderCollector.getOpaqueStaticRenderList();
+        var opaqueDynamicLit = this._renderCollector.getOpaqueDynamicRenderList();
         var transparentStaticLit = this._renderCollector.getTransparentStaticRenderList();
+        var transparentDynamicLit = this._renderCollector.getTransparentDynamicRenderList();
 
         GL.setClearColor(Color.BLACK);
 
         GL.setDepthMask(true);
-        this._renderNormalDepth(opaqueStaticLit);
+        this._renderNormalDepth(opaqueStaticLit, opaqueDynamicLit);
         this._renderAO();
 
         GL.setRenderTarget(this._hdrFront.fboDepth);
         GL.setClearColor(this._backgroundColor);
         GL.clear();
+
         this._renderDepthPrepass(opaqueStaticLit);
+        this._renderDepthPrepass(opaqueDynamicLit);
 
         this._renderStatics(opaqueStaticLit);
+        this._renderDynamics(opaqueDynamicLit);
+
         // TODO: Render dynamic lit opaques here
 
         // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
@@ -207,11 +215,53 @@ ForwardRenderer.prototype =
 
     _renderStatics: function(list)
     {
-        GL.setClearColor(this._backgroundColor);
         this._renderPass(MaterialPass.BASE_PASS, list);
     },
 
-    _renderNormalDepth: function(list)
+    _renderDynamics: function(list)
+    {
+        var lights = this._renderCollector.getLights();
+        var numLights = lights.length;
+
+        this._renderPass(MaterialPass.BASE_PASS, list);
+
+        for (var i = 0; i < numLights; ++i) {
+            var light = lights[i];
+
+            // I don't like type checking, but lighting support is such a core thing...
+            // maybe we can work in a more plug-in like light system
+            if (light instanceof LightProbe) {
+                this._renderPass(MaterialPass.LIGHT_PROBE_PASS, list, light);
+            }
+            if (light instanceof DirectionalLight) {
+                // if non-global, do intersection tests
+                var passType = light.castShadows? MaterialPass.DIR_LIGHT_SHADOW_PASS : MaterialPass.DIR_LIGHT_PASS;
+
+                // PASS IN LIGHT AS DATA, so the material can update it
+                this._renderPass(passType, list, light);
+            }
+            else if (light instanceof PointLight) {
+                // cannot just use renderPass, need to do intersection tests
+                var lightBound = light.worldBounds;
+                var len = list.length;
+                for (var r = 0; r < len; ++r) {
+                    var renderItem = list[r];
+                    if (lightBound.intersectsBound(renderItem.worldBounds)) {
+                        var passType = MaterialPass.POINT_LIGHT_PASS;
+                        var material = renderItem.material;
+                        var pass = material.getPass(passType);
+                        var meshInstance = renderItem.meshInstance;
+                        pass.updatePassRenderState(this, light);
+                        pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
+                        meshInstance.updateRenderState(passType);
+                        GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
+                    }
+                }
+            }
+        }
+    },
+
+    _renderNormalDepth: function(list1, list2)
     {
         if (!this._renderCollector.needsNormalDepth && !this._aoEffect) return;
         if (!this._normalDepthTexture) this._initNormalDepth();
@@ -219,7 +269,8 @@ ForwardRenderer.prototype =
         // furthest depth and alpha must be 1, the rest 0
         GL.setClearColor(Color.BLUE);
         GL.clear();
-        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list);
+        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list1);
+        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list2);
         GL.setClearColor(Color.BLACK);
     },
 
@@ -246,9 +297,9 @@ ForwardRenderer.prototype =
         effect.render(this, dt);
     },
 
-    _renderPass: function (passType, renderItems)
+    _renderPass: function (passType, renderItems, data)
     {
-        RenderUtils.renderPass(this, passType, renderItems);
+        RenderUtils.renderPass(this, passType, renderItems, data);
     },
 
     _renderToScreen: function (renderTarget)
@@ -256,7 +307,7 @@ ForwardRenderer.prototype =
         GL.setRenderTarget(renderTarget);
         GL.clear();
 
-        if (this._debugMode === ForwardRenderer.DebugRenderMode.SSAO) {
+        if (this._debugMode === Renderer.DebugRenderMode.SSAO) {
             this._copyTextureShader.execute(RectMesh.DEFAULT, this._ssaoTexture);
             return;
         }
@@ -344,6 +395,7 @@ ForwardRenderer.prototype =
         var tex = new Texture2D();
         tex.filter = TextureFilter.NEAREST_NOMIP;
         tex.uploadData(data, 1, 1, true);
+        return tex;
     },
 
     _copyToBackBuffer: function()
@@ -356,4 +408,4 @@ ForwardRenderer.prototype =
     }
 };
 
-export { ForwardRenderer };
+export { Renderer };

@@ -13,6 +13,7 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
+    options.numShadowCascades = 3;
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
     project.init(document.getElementById('webglContainer'), options);
 };
@@ -58,7 +59,6 @@ function initScene(scene)
     dirLight.color = new HX.Color(1.0, .9, .7);
     dirLight.direction = new HX.Float4(3.0, -5.0, 1.0);
     dirLight.intensity = 5.0;
-    dirLight.numCascades = 3;
     dirLight.castShadows = true;
 
     scene.attach(dirLight);

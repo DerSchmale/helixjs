@@ -40,11 +40,11 @@ ShaderLibrary._files['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShad
 
 ShaderLibrary._files['lighting_ggx.glsl'] = '// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif\n}';
 
-ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n// HX_MAX_CASCADES is the maximum amount of all cascades for the lights used in this shader\n    #if HX_MAX_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_MAX_CASCADES - 1; ++i) {\n            // remember, negative Z!\n            if (viewPos.z > light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_MAX_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    float shadow = hx_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);\n    return max(shadow, float(viewPos.z < light.maxShadowDistance));\n}';
+ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            // remember, negative Z!\n            if (viewPos.z > light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    float shadow = hx_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.z < light.maxShadowDistance));\n}';
 
 ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
 
-ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position; // in view space?\n    float radius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
+ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
 
 ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
@@ -86,9 +86,25 @@ ShaderLibrary._files['default_skybox_vertex.glsl'] = 'attribute vec4 hx_position
 
 ShaderLibrary._files['material_dir_shadow_fragment.glsl'] = 'void main()\n{\n    // geometry is really only used for kil instructions if necessary\n    // hopefully the compiler optimizes the rest out for us\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z);\n}';
 
-ShaderLibrary._files['material_lit_static_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\n\n#if HX_NUM_DIR_LIGHTS > 0\nuniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_DIR_LIGHT_CASTERS > 0\nuniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];\n\nuniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];\nuniform float test[HX_NUM_DIR_LIGHT_CASTERS];\n#endif\n\n#if HX_NUM_POINT_LIGHTS > 0\nuniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\nuniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\nuniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#if HX_APPLY_SSAO\nuniform sampler2D hx_ssao;\n\nuniform vec2 hx_rcpRenderTargetResolution;\n#endif\n\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ssao = 1.0;\n\n    #if HX_APPLY_SSAO\n        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n        ssao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIR_LIGHT_CASTERS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);\n        diffuseAccum += diffuse * shadow;\n        specularAccum += specular * shadow;\n    }\n    #endif\n\n\n    #if HX_NUM_POINT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {\n        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;\n    }\n    #endif\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n    for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ssao;\n    }\n    #endif\n\n    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+ShaderLibrary._files['material_lit_dynamic_base_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    // simply override with emission\n    gl_FragColor = data.color;\n    gl_FragColor.xyz = data.emission;\n\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
-ShaderLibrary._files['material_lit_static_vertex.glsl'] = 'uniform mat4 hx_worldViewMatrix;\n\nvarying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    // we need to do an unprojection here to be sure to have skinning - or anything like that - support\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
+ShaderLibrary._files['material_lit_dynamic_base_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
+
+ShaderLibrary._files['material_lit_dynamic_dir_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform HX_DirectionalLight hx_directionalLight;\n\n#ifdef HX_SHADOW_MAP\nuniform sampler2D hx_shadowMap;\n#endif\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    vec3 viewVector = normalize(hx_viewPosition);\n    vec3 diffuse, specular;\n\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    hx_calculateLight(hx_directionalLight, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n\n    gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);\n\n    #ifdef HX_SHADOW_MAP\n        gl_FragColor.xyz *= hx_calculateShadows(hx_directionalLight, hx_shadowMap, hx_viewPosition);\n    #endif\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+ShaderLibrary._files['material_lit_dynamic_dir_vertex.glsl'] = 'varying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
+
+ShaderLibrary._files['material_lit_dynamic_point_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform HX_PointLight hx_pointLight;\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    vec3 viewVector = normalize(hx_viewPosition);\n    vec3 diffuse, specular;\n\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    hx_calculateLight(hx_pointLight, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n\n    gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+ShaderLibrary._files['material_lit_dynamic_point_vertex.glsl'] = 'varying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
+
+ShaderLibrary._files['material_lit_dynamic_probe_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform samplerCube hx_diffuseProbeMap;\nuniform samplerCube hx_specularProbeMap;\nuniform float hx_specularProbeNumMips;\n\nuniform mat4 hx_cameraWorldMatrix;\n\n#if HX_APPLY_SSAO\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform sampler2D hx_ssao;\n#endif\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    // TODO: We should be able to change the base of TBN in vertex shader\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n    vec3 diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, data.normal);\n    vec3 specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, reflectedViewDir, fresnel, data.roughness);\n\n    gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);\n\n    #if HX_APPLY_SSAO\n    vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n    gl_FragColor.xyz *= texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+ShaderLibrary._files['material_lit_dynamic_probe_vertex.glsl'] = 'varying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
+
+ShaderLibrary._files['material_lit_static_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\n\n#if HX_NUM_DIR_LIGHTS > 0\nuniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_DIR_LIGHT_CASTERS > 0\nuniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];\n\nuniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];\n#endif\n\n#if HX_NUM_POINT_LIGHTS > 0\nuniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\nuniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\nuniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#if HX_APPLY_SSAO\nuniform sampler2D hx_ssao;\n\nuniform vec2 hx_rcpRenderTargetResolution;\n#endif\n\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ssao = 1.0;\n\n    #if HX_APPLY_SSAO\n        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n        ssao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIR_LIGHT_CASTERS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);\n        diffuseAccum += diffuse * shadow;\n        specularAccum += specular * shadow;\n    }\n    #endif\n\n\n    #if HX_NUM_POINT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {\n        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;\n    }\n    #endif\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n    for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ssao;\n    }\n    #endif\n\n    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+ShaderLibrary._files['material_lit_static_vertex.glsl'] = 'varying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    // we need to do an unprojection here to be sure to have skinning - or anything like that - support\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
 
 ShaderLibrary._files['material_normal_depth_fragment.glsl'] = 'varying float hx_linearDepth;\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor.xy = hx_encodeNormal(data.normal);\n    gl_FragColor.zw = hx_floatToRG8(hx_linearDepth);\n//    gl_FragColor.zw = hx_floatToRG8(gl_FragCoord.z);\n}';
 
@@ -97,18 +113,6 @@ ShaderLibrary._files['material_normal_depth_vertex.glsl'] = 'varying float hx_li
 ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = data.color;\n    gl_FragColor.xyz += data.emission;\n\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
-
-ShaderLibrary._files['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
-
-ShaderLibrary._files['dir_shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
-
-ShaderLibrary._files['dir_shadow_pcf.glsl'] = '#ifdef HX_PCF_DITHER_SHADOWS\n    uniform sampler2D hx_dither2D;\n    uniform vec2 hx_dither2DTextureScale;\n#endif\n\nuniform vec2 hx_poissonDisk[HX_PCF_NUM_SHADOW_SAMPLES];\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec2 radii = vec2(shadowMapMatrix[0][0], shadowMapMatrix[1][1]) * float(HX_PCF_SOFTNESS);\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowTest = 0.0;\n\n    #ifdef HX_PCF_DITHER_SHADOWS\n        vec4 dither = texture2D(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);\n        dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale\n    #else\n        vec4 dither = radii.xxyy;\n    #endif\n\n    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {\n        vec2 offset;\n        offset.x = dot(dither.xy, hx_poissonDisk[i]);\n        offset.y = dot(dither.zw, hx_poissonDisk[i]);\n        float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy + offset));\n        float diff = shadowMapCoord.z - shadowSample - depthBias;\n        shadowTest += float(diff < 0.0);\n    }\n\n    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;\n}';
-
-ShaderLibrary._files['dir_shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) / HX_VSM_LIGHT_BLEED_REDUCTION_RANGE);\n}';
-
-ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	gl_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
-
-ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n	gl_FragColor.xy = hx_floatToRG8(total.x);\n	gl_FragColor.zw = hx_floatToRG8(total.y);\n}';
 
 ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
 
@@ -121,6 +125,18 @@ ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribu
 ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
 
 ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
+ShaderLibrary._files['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
+
+ShaderLibrary._files['dir_shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
+
+ShaderLibrary._files['dir_shadow_pcf.glsl'] = '#ifdef HX_PCF_DITHER_SHADOWS\n    uniform sampler2D hx_dither2D;\n    uniform vec2 hx_dither2DTextureScale;\n#endif\n\nuniform vec2 hx_poissonDisk[HX_PCF_NUM_SHADOW_SAMPLES];\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec2 radii = vec2(shadowMapMatrix[0][0], shadowMapMatrix[1][1]) * float(HX_PCF_SOFTNESS);\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowTest = 0.0;\n\n    #ifdef HX_PCF_DITHER_SHADOWS\n        vec4 dither = texture2D(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);\n        dither = vec4(dither.x, -dither.y, dither.y, dither.x) * radii.xxyy;  // add radius scale\n    #else\n        vec4 dither = radii.xxyy;\n    #endif\n\n    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {\n        vec2 offset;\n        offset.x = dot(dither.xy, hx_poissonDisk[i]);\n        offset.y = dot(dither.zw, hx_poissonDisk[i]);\n        float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy + offset));\n        float diff = shadowMapCoord.z - shadowSample - depthBias;\n        shadowTest += float(diff < 0.0);\n    }\n\n    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;\n}';
+
+ShaderLibrary._files['dir_shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) / HX_VSM_LIGHT_BLEED_REDUCTION_RANGE);\n}';
+
+ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	gl_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
+
+ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n	gl_FragColor.xy = hx_floatToRG8(total.x);\n	gl_FragColor.zw = hx_floatToRG8(total.y);\n}';
 
 ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(normal.z*8.0 + 8.0);\n    data = normal.xy / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xy = data.xy * g;\n    normal.z = 1.0 - f * .5;\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_BONES 1.0 / float(HX_MAX_BONES - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_BONES;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_boneWeights, hx_boneIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_boneWeights.x * mat4(hx_skinningMatrices[int(hx_boneIndices.x) * 3], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.y * mat4(hx_skinningMatrices[int(hx_boneIndices.y) * 3], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.z * mat4(hx_skinningMatrices[int(hx_boneIndices.z) * 3], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.w * mat4(hx_skinningMatrices[int(hx_boneIndices.w) * 3], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
 
@@ -136,7 +152,9 @@ ShaderLibrary._files['greyscale_to_rgba8.glsl'] = 'varying vec2 uv;\n\nuniform s
 
 ShaderLibrary._files['smooth_heightmap_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D reference;    // the source (8 bit) texture\nuniform sampler2D source;\n\nuniform vec2 stepSize;\n\nvoid main()\n{\n    float gauss[4];\n    gauss[0] = 0.201788613113303;\n    gauss[1] = 0.17755834971394;\n    gauss[2] = 0.120969095455128;\n    gauss[3] = 0.063811162332456;\n    float refHeight = texture2D(reference, uv).x;\n    float total = hx_RGBA8ToFloat(texture2D(source, uv)) * gauss[0];\n    float totalWeight = gauss[0];\n    float currentWeightL = 1.0;\n    float currentWeightR = 1.0;\n    vec2 offset = vec2(0.0);\n\n\n    for (int i = 0; i < 3; ++i) {\n        offset += stepSize;\n        float refLeft = texture2D(reference, uv - offset).x;\n        float refRight = texture2D(reference, uv + offset).x;\n        float heightLeft = hx_RGBA8ToFloat(texture2D(source, uv - offset));\n        float heightRight = hx_RGBA8ToFloat(texture2D(source, uv + offset));\n        // smooth out over N pixels that have the same reference height in the source image\n        currentWeightL = max(currentWeightL - abs(refLeft - refHeight) * 5.0, 0.0);\n        currentWeightR = max(currentWeightR - abs(refRight - refHeight) * 5.0, 0.0);\n        totalWeight += (currentWeightL + currentWeightR) * gauss[i + 1];\n        total += (heightLeft * currentWeightL + heightRight * currentWeightR) *  gauss[i + 1];\n    }\n\n    gl_FragColor = hx_floatToRGBA8(total / totalWeight);\n//    gl_FragColor = hx_floatToRGBA8(refHeight);\n}\n';
 
-ShaderLibrary._files['ao_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 halfTexelOffset;\n\nvoid main()\n{\n    vec4 total = texture2D(source, uv - halfTexelOffset * 3.0);\n    total += texture2D(source, uv + halfTexelOffset);\n	gl_FragColor = total * .5;\n}';
+ShaderLibrary._files['ao_blur_fragment.glsl'] = 'varying vec2 uv1;\nvarying vec2 uv2;\nvarying vec2 uv3;\nvarying vec2 uv4;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    vec4 total = texture2D(source, uv1) + texture2D(source, uv2) + texture2D(source, uv3) + texture2D(source, uv4);\n	gl_FragColor = total * .25;\n}';
+
+ShaderLibrary._files['ao_blur_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv1;\nvarying vec2 uv2;\nvarying vec2 uv3;\nvarying vec2 uv4;\n\nuniform vec2 pixelSize;\n\nvoid main()\n{\n	uv1 = hx_texCoord + vec2(-1.5, .5) * pixelSize;\n	uv2 = hx_texCoord + vec2(.5, .5) * pixelSize;\n	uv3 = hx_texCoord + vec2(.5, -1.5) * pixelSize;\n	uv4 = hx_texCoord + vec2(-1.5, -1.5) * pixelSize;\n	gl_Position = hx_position;\n}';
 
 ShaderLibrary._files['hbao_fragment.glsl'] = 'uniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform mat4 hx_projectionMatrix;\n\nuniform float strengthPerRay;\nuniform float halfSampleRadius;\nuniform float bias;\nuniform float rcpFallOffDistance;\nuniform vec2 ditherScale;\n\nuniform sampler2D hx_normalDepth;\nuniform sampler2D sampleDirTexture;\nuniform sampler2D ditherTexture;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\nvarying vec3 frustumCorner;\n\nvec3 getViewPos(vec2 sampleUV)\n{\n    vec4 smp = texture2D(hx_normalDepth, sampleUV);\n    float depth = hx_decodeLinearDepth(smp);\n    float viewZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n    vec3 viewPos = frustumCorner * vec3(sampleUV * 2.0 - 1.0, 1.0);\n    return viewPos * viewZ;\n}\n\n// Retrieves the occlusion factor for a particular sample\nfloat getSampleOcclusion(vec2 sampleUV, vec3 centerViewPos, vec3 centerNormal, vec3 tangent, inout float topOcclusion)\n{\n    vec3 sampleViewPos = getViewPos(sampleUV);\n\n    // get occlusion factor based on candidate horizon elevation\n    vec3 horizonVector = sampleViewPos - centerViewPos;\n    float horizonVectorLength = length(horizonVector);\n\n    float occlusion;\n\n    // If the horizon vector points away from the tangent, make an estimate\n    if (dot(tangent, horizonVector) < 0.0)\n        occlusion = .5;\n    else\n        occlusion = dot(centerNormal, horizonVector) / horizonVectorLength;\n\n    // this adds occlusion only if angle of the horizon vector is higher than the previous highest one without branching\n    float diff = max(occlusion - topOcclusion, 0.0);\n    topOcclusion = max(occlusion, topOcclusion);\n\n    // attenuate occlusion contribution using distance function 1 - (d/f)^2\n    float distanceFactor = clamp(horizonVectorLength * rcpFallOffDistance, 0.0, 1.0);\n    distanceFactor = 1.0 - distanceFactor * distanceFactor;\n    return diff * distanceFactor;\n}\n\n// Retrieves the occlusion for a given ray\nfloat getRayOcclusion(vec2 direction, float jitter, vec2 projectedRadii, vec3 centerViewPos, vec3 centerNormal)\n{\n    // calculate the nearest neighbour sample along the direction vector\n    vec2 texelSizedStep = direction * hx_rcpRenderTargetResolution;\n    direction *= projectedRadii;\n\n    // gets the tangent for the current ray, this will be used to handle opposing horizon vectors\n    // Tangent is corrected with respect to face normal by projecting it onto the tangent plane defined by the normal\n    vec3 tangent = getViewPos(uv + texelSizedStep) - centerViewPos;\n    tangent -= dot(centerNormal, tangent) * centerNormal;\n\n    vec2 stepUV = direction.xy / float(NUM_SAMPLES_PER_RAY - 1);\n\n    // jitter the starting position for ray marching between the nearest neighbour and the sample step size\n    vec2 jitteredOffset = mix(texelSizedStep, stepUV, jitter);\n    //stepUV *= 1.0 + jitter * .1;\n    vec2 sampleUV = uv + jitteredOffset;\n\n    // top occlusion keeps track of the occlusion contribution of the last found occluder.\n    // set to bias value to avoid near-occluders\n    float topOcclusion = bias;\n    float occlusion = 0.0;\n\n    // march!\n    for (int step = 0; step < NUM_SAMPLES_PER_RAY; ++step) {\n        occlusion += getSampleOcclusion(sampleUV, centerViewPos, centerNormal, tangent, topOcclusion);\n        sampleUV += stepUV;\n    }\n\n    return occlusion;\n}\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepth, uv);\n    vec3 centerNormal = hx_decodeNormal(normalDepth);\n    float centerDepth = hx_decodeLinearDepth(normalDepth);\n    float viewZ = hx_cameraNearPlaneDistance + centerDepth * hx_cameraFrustumRange;\n    vec3 centerViewPos = viewZ * viewDir;\n\n    // clamp z to a minimum, so the radius does not get excessively large in screen-space\n    float projRadius = halfSampleRadius / max(-centerViewPos.z, 7.0);\n    vec2 projectedRadii = projRadius * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1]);\n\n    // do not take more steps than there are pixels\n    float totalOcclusion = 0.0;\n\n    vec2 randomFactors = texture2D(ditherTexture, uv * ditherScale).xy;\n\n    vec2 rayUV = vec2(0.0);\n    for (int i = 0; i < NUM_RAYS; ++i) {\n        rayUV.x = (float(i) + randomFactors.x) / float(NUM_RAYS);\n        vec2 sampleDir = texture2D(sampleDirTexture, rayUV).xy * 2.0 - 1.0;\n        totalOcclusion += getRayOcclusion(sampleDir, randomFactors.y, projectedRadii, centerViewPos, centerNormal);\n    }\n\n    totalOcclusion = 1.0 - clamp(strengthPerRay * totalOcclusion, 0.0, 1.0);\n    gl_FragColor = vec4(vec3(totalOcclusion), 1.0);\n}';
 
@@ -2412,9 +2430,9 @@ BoundingVolume._testAABBToSphere = function(aabb, sphere)
     var minY = aabb._minimumY;
     var minZ = aabb._minimumZ;
     var radius = sphere._halfExtentX;
-    var centerX = this._center.x;
-    var centerY = this._center.y;
-    var centerZ = this._center.z;
+    var centerX = sphere._center.x;
+    var centerY = sphere._center.y;
+    var centerZ = sphere._center.z;
     var dot = 0, diff;
 
     if (minX > centerX) {
@@ -5115,12 +5133,17 @@ function MaterialPass(shader)
 // if a shader supports multiple lights per pass, they will take up 3 type slots (fe: 3 point lights: POINT_LIGHT_PASS, POINT_LIGHT_PASS + 1, POINT_LIGHT_PASS + 2)
 MaterialPass.BASE_PASS = 0;  // used for unlit or for predefined lights
 MaterialPass.NORMAL_DEPTH_PASS = 1;  // used for unlit or for predefined lights
-MaterialPass.DIR_LIGHT_PASS = 2;
-MaterialPass.DIR_LIGHT_SHADOW_PASS = -1;
-MaterialPass.POINT_LIGHT_PASS = -1;
-MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = -1;
 
-MaterialPass.NUM_PASS_TYPES = -1;
+// dynamic lighting passes
+MaterialPass.DIR_LIGHT_PASS = 2;
+MaterialPass.DIR_LIGHT_SHADOW_PASS = 3;
+MaterialPass.POINT_LIGHT_PASS = 4;
+MaterialPass.LIGHT_PROBE_PASS = 5;
+
+// shadow map generation
+MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 6;
+
+MaterialPass.NUM_PASS_TYPES = 7;
 
 MaterialPass.prototype =
 {
@@ -5189,7 +5212,7 @@ MaterialPass.prototype =
             this._textureSettersInstance[i].execute(renderItem);
         }
 
-        this._shader.updateRenderState(camera, renderItem);
+        this._shader.updateInstanceRenderState(camera, renderItem);
     },
 
     /**
@@ -5224,6 +5247,8 @@ MaterialPass.prototype =
         GL.setDepthTest(this._depthTest);
         GL.setDepthMask(this._writeDepth);
         GL.setBlendState(this._blendState);
+
+        this._shader.updatePassRenderState(renderer._camera);
     },
 
     _storeUniforms: function()
@@ -5458,6 +5483,7 @@ function RenderItem()
     this.material = null;
     this.camera = null;
     this.renderOrderHint = 0;
+    this.worldBounds = null;
 
     // to store this in a linked list for pooling
     this.next = null;
@@ -5495,12 +5521,11 @@ function RenderItemPool()
  *
  * @constructor
  */
-function CascadeShadowCasterCollector(numCascades)
+function CascadeShadowCasterCollector()
 {
     SceneVisitor.call(this);
     this._renderCameras = null;
     this._bounds = new BoundingAABB();
-    this._numCascades = numCascades;
     this._cullPlanes = null;
     // this._splitPlanes = null;
     this._numCullPlanes = 0;
@@ -5518,7 +5543,8 @@ CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
     this._bounds.clear();
     this._renderItemPool.reset();
 
-    for (var i = 0; i < this._numCascades; ++i) {
+    var numCascades = META.OPTIONS.numShadowCascades;
+    for (var i = 0; i < numCascades; ++i) {
         this._renderLists[i] = [];
     }
 
@@ -5554,7 +5580,7 @@ CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInsta
 
     var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
 
-    var numCascades = this._numCascades;
+    var numCascades = META.OPTIONS.numShadowCascades;
     var numMeshes = modelInstance.numMeshInstances;
     var skeleton = modelInstance.skeleton;
     var skeletonMatrices = modelInstance.skeletonMatrices;
@@ -6040,10 +6066,12 @@ var RenderUtils =
      * @param renderer The actual renderer doing the rendering.
      * @param passType
      * @param renderItems
+     * @param data (optional) depending on the type of pass being rendered, data could contain extra stuff to be injected
+     * For example. Dynamic dir lights will use this
      * @returns The index for the first unrendered renderItem in the list
      * @private
      */
-    renderPass: function (renderer, passType, renderItems)
+    renderPass: function (renderer, passType, renderItems, data)
     {
         var len = renderItems.length;
         var activePass = null;
@@ -6057,13 +6085,13 @@ var RenderUtils =
             var meshInstance = renderItem.meshInstance;
 
             if (pass !== activePass) {
-                pass.updatePassRenderState(renderer);
+                pass.updatePassRenderState(renderer, data);
                 activePass = pass;
                 lastMesh = null;    // need to reset mesh data too
             }
 
             // make sure renderstate is propagated
-            pass.updateInstanceRenderState(renderItem.camera, renderItem);
+            pass.updateInstanceRenderState(renderItem.camera, renderItem, data);
 
             if (lastMesh !== meshInstance._mesh) {
                 meshInstance.updateRenderState(passType);
@@ -6082,11 +6110,9 @@ var RenderUtils =
  *
  * @constructor
  */
-function CascadeShadowMapRenderer(light, numCascades, shadowMapSize)
+function CascadeShadowMapRenderer(light, shadowMapSize)
 {
     this._light = light;
-    this._numCascades = numCascades || 3;
-    if (this._numCascades > 4) this._numCascades = 4;
     this._shadowMapSize = shadowMapSize || 1024;
     this._shadowMapInvalid = true;
     this._fboFront = null;
@@ -6107,7 +6133,7 @@ function CascadeShadowMapRenderer(light, numCascades, shadowMapSize)
     this._numCullPlanes = 0;
     this._cullPlanes = [];
     this._localBounds = new BoundingAABB();
-    this._casterCollector = new CascadeShadowCasterCollector(this._numCascades);
+    this._casterCollector = new CascadeShadowCasterCollector();
 
     this._initSplitProperties();
     this._initCameras();
@@ -6117,21 +6143,6 @@ function CascadeShadowMapRenderer(light, numCascades, shadowMapSize)
 
 CascadeShadowMapRenderer.prototype =
 {
-    get numCascades()
-    {
-        return this._numCascades;
-    },
-
-    set numCascades(value)
-    {
-        if (this._numCascades === value) return;
-        this._numCascades = value;
-        this._invalidateShadowMap();
-        this._initSplitProperties();
-        this._initCameras();
-        this._casterCollector = new CascadeShadowCasterCollector(value);
-    },
-
     get shadowMapSize()
     {
         return this._shadowMapSize;
@@ -6163,7 +6174,9 @@ CascadeShadowMapRenderer.prototype =
         GL.setClearColor(Color.WHITE);
         GL.clear();
 
-        for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex) {
+        var numCascades = META.OPTIONS.numShadowCascades;
+
+        for (var cascadeIndex = 0; cascadeIndex < numCascades; ++cascadeIndex) {
             var viewport = this._viewports[cascadeIndex];
             gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
             RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
@@ -6206,8 +6219,9 @@ CascadeShadowMapRenderer.prototype =
         return function(viewCamera) {
             var nearDist = viewCamera.nearDistance;
             var frustumRange = viewCamera.farDistance - nearDist;
+            var numCascades = META.OPTIONS.numShadowCascades;
 
-            for (var i = 0; i < this._numCascades; ++i) {
+            for (var i = 0; i < numCascades; ++i) {
                 var z = nearDist + this._splitRatios[i] * frustumRange;
                 this._splitDistances[i] = -z;
             }
@@ -6233,7 +6247,8 @@ CascadeShadowMapRenderer.prototype =
         // camera distances are suboptimal? need to constrain to local near too?
 
         var nearRatio = 0;
-        for (var cascade = 0; cascade < this._numCascades; ++cascade) {
+        var numCascades = META.OPTIONS.numShadowCascades;
+        for (var cascade = 0; cascade < numCascades; ++cascade) {
             var farRatio = this._splitRatios[cascade];
             var camera = this._shadowMapCameras[cascade];
 
@@ -6378,8 +6393,9 @@ CascadeShadowMapRenderer.prototype =
 
     _initShadowMap: function()
     {
-        var numMapsW = this._numCascades > 1? 2 : 1;
-        var numMapsH = Math.ceil(this._numCascades / 2);
+        var numCascades = META.OPTIONS.numShadowCascades;
+        var numMapsW = numCascades > 1? 2 : 1;
+        var numMapsH = Math.ceil(numCascades / 2);
 
         var texWidth = this._shadowMapSize * numMapsW;
         var texHeight = this._shadowMapSize * numMapsH;
@@ -6411,9 +6427,9 @@ CascadeShadowMapRenderer.prototype =
     {
         var ratio = 1.0;
         this._splitRatios = [];
-        this._splitDistances = [0, 0, 0, 0];
+        this._splitDistances = [];
         this._splitPlanes = [];
-        for (var i = this._numCascades - 1; i >= 0; --i)
+        for (var i = META.OPTIONS.numShadowCascades; i >= 0; --i)
         {
             this._splitRatios[i] = ratio;
             this._splitPlanes[i] = new Float4();
@@ -6425,7 +6441,7 @@ CascadeShadowMapRenderer.prototype =
     _initCameras: function()
     {
         this._shadowMapCameras = [];
-        for (var i = this._numCascades - 1; i >= 0; --i)
+        for (var i = 0; i < META.OPTIONS.numShadowCascades; ++i)
         {
             this._shadowMapCameras[i] = new OrthographicOffCenterCamera();
         }
@@ -6484,7 +6500,6 @@ function DirectionalLight()
     Light.call(this);
 
     this.depthBias = .0;
-    this._numCascades = 1;
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;
     this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
@@ -6508,30 +6523,12 @@ DirectionalLight.prototype = Object.create(Light.prototype,
                 this._castShadows = value;
 
                 if (value) {
-                    this._shadowMapRenderer = new CascadeShadowMapRenderer(this, this._numCascades, this._shadowMapSize);
+                    this._shadowMapRenderer = new CascadeShadowMapRenderer(this, this._shadowMapSize);
                 }
                 else {
                     this._shadowMapRenderer.dispose();
                     this._shadowMapRenderer = null;
                 }
-            }
-        },
-
-        numCascades: {
-            get: function()
-            {
-                return this._numCascades;
-            },
-
-            set: function(value)
-            {
-                if (value > 4) {
-                    console.warn("set numCascades called with value greater than 4. Real value will be set to 4.");
-                    value = 4;
-                }
-
-                this._numCascades = value;
-                if (this._shadowMapRenderer) this._shadowMapRenderer.numCascades = value;
             }
         },
 
@@ -6894,21 +6891,29 @@ PoissonDisk.prototype =
  */
 var UniformSetter = {
 
-    getSetters: function (shader)
+    getSettersPerInstance: function (shader)
     {
-        if (UniformSetter._table === undefined)
+        if (UniformSetter._instanceTable === undefined)
             UniformSetter._init();
 
-        return UniformSetter._findSetters(shader);
+        return UniformSetter._findSetters(shader, UniformSetter._instanceTable);
     },
 
-    _findSetters: function (shader)
+    getSettersPerPass: function (shader)
+    {
+        if (UniformSetter._passTable === undefined)
+            UniformSetter._init();
+
+        return UniformSetter._findSetters(shader, UniformSetter._passTable);
+    },
+
+    _findSetters: function (shader, table)
     {
         var setters = [];
-        for (var uniformName in UniformSetter._table) {
+        for (var uniformName in table) {
             var location = GL.gl.getUniformLocation(shader._program, uniformName);
             if (!location) continue;
-            var setter = new UniformSetter._table[uniformName]();
+            var setter = new table[uniformName]();
             setters.push(setter);
             setter.location = location;
         }
@@ -6918,31 +6923,33 @@ var UniformSetter = {
 
     _init: function ()
     {
-        UniformSetter._table = {};
+        UniformSetter._instanceTable = {};
+        UniformSetter._passTable = {};
 
-        UniformSetter._table.hx_worldMatrix = WorldMatrixSetter;
-        UniformSetter._table.hx_worldViewMatrix = WorldViewMatrixSetter;
-        UniformSetter._table.hx_wvpMatrix = WorldViewProjectionSetter;
-        UniformSetter._table.hx_viewMatrix = ViewMatrixSetter;
-        UniformSetter._table.hx_projectionMatrix = ProjectionSetter;
-        UniformSetter._table.hx_inverseProjectionMatrix = InverseProjectionSetter;
-        UniformSetter._table.hx_inverseWVPMatrix = InverseWVPSetter;
-        UniformSetter._table.hx_viewProjectionMatrix = ViewProjectionSetter;
-        UniformSetter._table.hx_inverseViewProjectionMatrix = InverseViewProjectionSetter;
-        UniformSetter._table.hx_normalWorldMatrix = NormalWorldMatrixSetter;
-        UniformSetter._table.hx_normalWorldViewMatrix = NormalWorldViewMatrixSetter;
-        UniformSetter._table.hx_cameraWorldPosition = CameraWorldPosSetter;
-        UniformSetter._table.hx_cameraWorldMatrix = CameraWorldMatrixSetter;
-        UniformSetter._table.hx_cameraFrustumRange = CameraFrustumRangeSetter;
-        UniformSetter._table.hx_rcpCameraFrustumRange = RCPCameraFrustumRangeSetter;
-        UniformSetter._table.hx_cameraNearPlaneDistance = CameraNearPlaneDistanceSetter;
-        UniformSetter._table.hx_cameraFarPlaneDistance = CameraFarPlaneDistanceSetter;
-        UniformSetter._table.hx_renderTargetResolution = RenderTargetResolutionSetter;
-        UniformSetter._table.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
-        UniformSetter._table.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
-        UniformSetter._table["hx_skinningMatrices[0]"] = SkinningMatricesSetter;
-        UniformSetter._table["hx_poissonDisk[0]"] = PoissonDiskSetter;
-        UniformSetter._table["hx_morphWeights[0]"] = MorphWeightsSetter;
+        UniformSetter._instanceTable.hx_worldMatrix = WorldMatrixSetter;
+        UniformSetter._instanceTable.hx_worldViewMatrix = WorldViewMatrixSetter;
+        UniformSetter._instanceTable.hx_wvpMatrix = WorldViewProjectionSetter;
+        UniformSetter._instanceTable.hx_inverseWVPMatrix = InverseWVPSetter;
+        UniformSetter._instanceTable.hx_normalWorldMatrix = NormalWorldMatrixSetter;
+        UniformSetter._instanceTable.hx_normalWorldViewMatrix = NormalWorldViewMatrixSetter;
+        UniformSetter._instanceTable["hx_skinningMatrices[0]"] = SkinningMatricesSetter;
+        UniformSetter._instanceTable["hx_morphWeights[0]"] = MorphWeightsSetter;
+
+        UniformSetter._passTable.hx_viewMatrix = ViewMatrixSetter;
+        UniformSetter._passTable.hx_projectionMatrix = ProjectionSetter;
+        UniformSetter._passTable.hx_inverseProjectionMatrix = InverseProjectionSetter;
+        UniformSetter._passTable.hx_viewProjectionMatrix = ViewProjectionSetter;
+        UniformSetter._passTable.hx_inverseViewProjectionMatrix = InverseViewProjectionSetter;
+        UniformSetter._passTable.hx_cameraWorldPosition = CameraWorldPosSetter;
+        UniformSetter._passTable.hx_cameraWorldMatrix = CameraWorldMatrixSetter;
+        UniformSetter._passTable.hx_cameraFrustumRange = CameraFrustumRangeSetter;
+        UniformSetter._passTable.hx_rcpCameraFrustumRange = RCPCameraFrustumRangeSetter;
+        UniformSetter._passTable.hx_cameraNearPlaneDistance = CameraNearPlaneDistanceSetter;
+        UniformSetter._passTable.hx_cameraFarPlaneDistance = CameraFarPlaneDistanceSetter;
+        UniformSetter._passTable.hx_renderTargetResolution = RenderTargetResolutionSetter;
+        UniformSetter._passTable.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
+        UniformSetter._passTable.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
+        UniformSetter._passTable["hx_poissonDisk[0]"] = PoissonDiskSetter;
     }
 };
 
@@ -7210,11 +7217,12 @@ SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
     var skeleton = renderItem.skeleton;
 
     if (skeleton) {
+        // TODO: Could we store the 4x3 format in renderItem.skeletonMatrices?
+        // no need to store actual matrices in this data
         var matrices = renderItem.skeletonMatrices;
         var numJoints = skeleton.numJoints;
         var j = 0;
 
-        // TODO: This rewrites the data every time, should only happen once a frame
         for (var i = 0; i < numJoints; ++i) {
             matrices[i].writeData4x3(this._data, j);
             j += 12;
@@ -7345,17 +7353,24 @@ Shader.prototype = {
 
         this._ready = true;
 
-        this._uniformSetters = UniformSetter.getSetters(this);
+        this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
+        this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
     },
 
-    updateRenderState: function(camera, renderItem)
+    updatePassRenderState: function(camera)
     {
         GL.gl.useProgram(this._program);
 
-        var len = this._uniformSetters.length;
-        for (var i = 0; i < len; ++i) {
-            this._uniformSetters[i].execute(camera, renderItem);
-        }
+        var len = this._uniformSettersPass.length;
+        for (var i = 0; i < len; ++i)
+            this._uniformSettersPass[i].execute(camera);
+    },
+
+    updateInstanceRenderState: function(camera, renderItem)
+    {
+        var len = this._uniformSettersInstance.length;
+        for (var i = 0; i < len; ++i)
+            this._uniformSettersInstance[i].execute(camera, renderItem);
     },
 
     _initShader: function(shader, code)
@@ -7445,6 +7460,11 @@ Shader.prototype = {
  * @param fragmentShader The fragment shader to use while copying.
  * @constructor
  */
+/**
+ *
+ * @param fragmentShader
+ * @constructor
+ */
 function CustomCopyShader(fragmentShader)
 {
     Shader.call(this);
@@ -7471,7 +7491,7 @@ CustomCopyShader.prototype.execute = function(rect, texture)
     rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
-    this.updateRenderState();
+    this.updatePassRenderState();
 
     texture.bind(0);
 
@@ -7732,6 +7752,12 @@ function BlendState(srcFactor, dstFactor, operator, color)
     this.color = color || null;
 }
 
+BlendState.prototype = {
+    clone: function() {
+        return new BlendState(this.srcFactor, this.dstFactor, this.operator, this.color);
+    }
+};
+
 BlendState._initDefaults = function()
 {
     BlendState.ADD = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE);
@@ -7913,8 +7939,9 @@ function InitOptions()
     this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
     this.defaultLightingModel = LightingModel.Unlit;
 
-    this.maxPointLightsPerPass = 3;
-    this.maxDirLightsPerPass = 1;
+    this.numShadowCascades = 1;
+    // this.maxPointLightsPerPass = 3;
+    // this.maxDirLightsPerPass = 1;
 
     // debug-related
     // this.debug = false;   // requires webgl-debug.js:
@@ -7974,6 +8001,7 @@ function init(canvas, options)
     if (options.useGammaCorrection !== false)
         defines += META.OPTIONS.usePreciseGammaCorrection ? "#define HX_GAMMA_CORRECTION_PRECISE\n" : "#define HX_GAMMA_CORRECTION_FAST\n";
 
+    defines += "#define HX_NUM_SHADOW_CASCADES " + META.OPTIONS.numShadowCascades + "\n";
     defines += "#define HX_MAX_BONES " + META.OPTIONS.maxBones + "\n";
 
     options.ignoreDrawBuffersExtension = options.ignoreDrawBuffersExtension || options.ignoreAllExtensions;
@@ -8062,8 +8090,6 @@ function init(canvas, options)
     // default copy shader
     DEFAULTS.COPY_SHADER = new CopyChannelsShader();
 
-    _initMaterialPasses();
-
     Texture2D._initDefault();
     TextureCube._initDefault();
     BlendState._initDefaults();
@@ -8095,19 +8121,6 @@ function start()
 function stop()
 {
     frameTicker.stop();
-}
-
-function _initMaterialPasses()
-{
-    var options = META.OPTIONS;
-    MaterialPass.BASE_PASS = 0;
-    MaterialPass.NORMAL_DEPTH_PASS = 1;
-    MaterialPass.DIR_LIGHT_PASS = 2;
-    // assume only one dir light with shadow per pass, since it's normally only the sun
-    MaterialPass.DIR_LIGHT_SHADOW_PASS = MaterialPass.DIR_LIGHT_PASS + options.maxDirLightsPerPass;
-    MaterialPass.POINT_LIGHT_PASS = MaterialPass.DIR_LIGHT_SHADOW_PASS + 1;
-    MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = MaterialPass.POINT_LIGHT_PASS + options.maxPointLightsPerPass;
-    MaterialPass.NUM_PASS_TYPES = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS + 1;
 }
 
 function _initLights()
@@ -8754,6 +8767,20 @@ UnlitPass.prototype._generateShader = function(geometryVertex, geometryFragment)
     return new Shader(vertexShader, fragmentShader);
 };
 
+function DynamicLitBasePass(geometryVertex, geometryFragment)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+}
+
+DynamicLitBasePass.prototype = Object.create(MaterialPass.prototype);
+
+DynamicLitBasePass.prototype._generateShader = function(geometryVertex, geometryFragment)
+{
+    var fragmentShader = ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_lit_dynamic_base_fragment.glsl");
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_dynamic_base_vertex.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
 /**
  *
  * @constructor
@@ -8826,6 +8853,12 @@ LightProbe.prototype._updateWorldBounds = function()
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
+LightProbe.prototype.acceptVisitor = function (visitor)
+{
+    Entity.prototype.acceptVisitor.call(this, visitor);
+    visitor.visitLight(this);
+};
+
 /**
  * This material pass renders all lighting in one fragment shader.
  * @param geometryVertex
@@ -8872,18 +8905,14 @@ StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragm
     this._diffuseLightProbes = [];
     this._specularLightProbes = [];
 
-    this._maxCascades = 0;
 
     for (var i = 0; i < lights.length; ++i) {
         var light = lights[i];
 
         // I don't like typechecking, but do we have a choice? :(
         if (light instanceof DirectionalLight) {
-            if (light.castShadows) {
+            if (light.castShadows)
                 this._dirLightCasters.push(light);
-                if (light.numCascades > this._maxCascades)
-                    this._maxCascades = light.numCascades;
-            }
             else
                 this._dirLights.push(light);
         }
@@ -8906,7 +8935,6 @@ StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragm
         HX_NUM_POINT_LIGHTS: this._pointLights.length,
         HX_NUM_DIFFUSE_PROBES: this._diffuseLightProbes.length,
         HX_NUM_SPECULAR_PROBES: this._specularLightProbes.length,
-        HX_MAX_CASCADES: this._maxCascades,
         HX_APPLY_SSAO: ssao? 1 : 0
     };
 
@@ -8914,6 +8942,8 @@ StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragm
         defines.HX_TEXTURE_LOD = 1;
         extensions += "#texturelod\n";
     }
+
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_static_vertex.glsl", defines);
 
     var fragmentShader =
         extensions +
@@ -8925,7 +8955,6 @@ StaticLitPass.prototype._generateShader = function(geometryVertex, geometryFragm
         ShaderLibrary.get("light_probe.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_lit_static_fragment.glsl");
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_static_vertex.glsl", defines);
 
     return new Shader(vertexShader, fragmentShader);
 };
@@ -8966,7 +8995,7 @@ StaticLitPass.prototype._assignDirLightCasters = function(camera)
         this.setUniform("hx_directionalLightCasters[" + i + "].direction", dir);
 
         var shadowRenderer = light._shadowMapRenderer;
-        var numCascades = shadowRenderer._numCascades;
+        var numCascades = META.OPTIONS.numShadowCascades;
         var splits = shadowRenderer._splitDistances;
         var k = 0;
         for (var j = 0; j < numCascades; ++j) {
@@ -9079,6 +9108,184 @@ NormalDepthPass.prototype._generateShader = function(geometryVertex, geometryFra
     return new Shader(vertexShader, fragmentShader);
 };
 
+function DynamicLitDirPass(geometryVertex, geometryFragment, lightingModel, shadows)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
+
+    this._colorLocation = this.getUniformLocation("hx_directionalLight.color");
+    this._dirLocation = this.getUniformLocation("hx_directionalLight.direction");
+
+    if (shadows) {
+        this._shadowMatricesLocation = this.getUniformLocation("hx_directionalLight.shadowMapMatrices[0]");
+        this._shadowSplitsLocation = this.getUniformLocation("hx_directionalLight.splitDistances");
+        this._depthBiasLocation = this.getUniformLocation("hx_directionalLight.depthBias");
+        this._maxShadowDistanceLocation = this.getUniformLocation("hx_directionalLight.maxShadowDistance");
+        this._shadowMapSlot = this.getTextureSlot("hx_shadowMap");
+    }
+}
+
+DynamicLitDirPass.prototype = Object.create(MaterialPass.prototype);
+
+// the light is passed in as data
+DynamicLitDirPass.prototype.updatePassRenderState = function(renderer, light)
+{
+    var dir = new Float4();
+    var matrix = new Matrix4x4();
+    var matrixData = new Float32Array(64);
+
+    return function(renderer, light) {
+        var camera = renderer._camera;
+        var gl = GL.gl;
+        var col = light._scaledIrradiance;
+
+        gl.useProgram(this._shader._program);
+
+        camera.viewMatrix.transformVector(light.direction, dir);
+        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
+        gl.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
+
+
+        if (light.castShadows) {
+            var shadowRenderer = light._shadowMapRenderer;
+            var numCascades = META.OPTIONS.numShadowCascades;
+            var splits = shadowRenderer._splitDistances;
+            var k = 0;
+
+            this._shadowMapSlot.texture = shadowRenderer._shadowMap;
+
+            for (var j = 0; j < numCascades; ++j) {
+                matrix.multiply(shadowRenderer.getShadowMatrix(j), camera.worldMatrix);
+                var m = matrix._m;
+                for (var l = 0; l < 16; ++l) {
+                    matrixData[k++] = m[l];
+                }
+            }
+
+            gl.uniformMatrix4fv(this._shadowMatricesLocation, false, matrixData);
+            gl.uniform4f(this._shadowSplitsLocation, splits[0], splits[1], splits[2], splits[3]);
+            gl.uniform1f(this._depthBiasLocation, light.depthBias);
+            gl.uniform1f(this._maxShadowDistanceLocation, splits[numCascades - 1]);
+        }
+
+        MaterialPass.prototype.updatePassRenderState.call(this, renderer);
+    }
+}();
+
+DynamicLitDirPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
+{
+    var defines = {};
+
+    if (shadows) {
+        defines.HX_SHADOW_MAP = 1;
+    }
+
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_dynamic_dir_vertex.glsl", defines);
+
+    var fragmentShader =
+        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+        lightingModel + "\n\n\n" +
+        DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
+        ShaderLibrary.get("directional_light.glsl") + "\n" +
+        geometryFragment + "\n" +
+        ShaderLibrary.get("material_lit_dynamic_dir_fragment.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+function DynamicLitPointPass(geometryVertex, geometryFragment, lightingModel)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
+
+    this._colorLocation = this.getUniformLocation("hx_pointLight.color");
+    this._posLocation = this.getUniformLocation("hx_pointLight.position");
+    this._radiusLocation = this.getUniformLocation("hx_pointLight.radius");
+}
+
+DynamicLitPointPass.prototype = Object.create(MaterialPass.prototype);
+
+// the light is passed in as data
+DynamicLitPointPass.prototype.updatePassRenderState = function(renderer, light)
+{
+    var pos = new Float4();
+
+    return function(renderer, light) {
+        var camera = renderer._camera;
+        var gl = GL.gl;
+        var col = light._scaledIrradiance;
+
+        gl.useProgram(this._shader._program);
+
+        camera.viewMatrix.transformPoint(light.position, pos);
+        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
+        gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
+        gl.uniform1f(this._radiusLocation, light.radius);
+
+        MaterialPass.prototype.updatePassRenderState.call(this, renderer);
+    }
+}();
+
+DynamicLitPointPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
+{
+    var defines = {};
+
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_dynamic_point_vertex.glsl", defines);
+
+    var fragmentShader =
+        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+        lightingModel + "\n\n\n" +
+        ShaderLibrary.get("point_light.glsl") + "\n" +
+        geometryFragment + "\n" +
+        ShaderLibrary.get("material_lit_dynamic_point_fragment.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+function DynamicLitProbePass(geometryVertex, geometryFragment, lightingModel, ssao)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, ssao));
+    this._diffuseSlot = this.getTextureSlot("hx_diffuseProbeMap");
+    this._specularSlot = this.getTextureSlot("hx_specularProbeMap");
+    this._ssaoSlot = this.getTextureSlot("hx_ssao");
+    if (!DynamicLitProbePass.dummyTexture) {
+        var data = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
+        data = [ data, data, data, data, data, data ];
+        DynamicLitProbePass.dummyTexture = new TextureCube();
+        DynamicLitProbePass.dummyTexture.uploadData(data, 1, true);
+    }
+}
+
+DynamicLitProbePass.prototype = Object.create(MaterialPass.prototype);
+
+// the light is passed in as data
+DynamicLitProbePass.prototype.updatePassRenderState = function(renderer, probe)
+{
+    // TODO: if a texture is not supported, insert dummy black textures
+    // TODO: allow setting locality of probes
+    this._diffuseSlot.texture = probe.diffuseTexture;
+    this._specularSlot.texture = probe.specularTexture;
+    MaterialPass.prototype.updatePassRenderState.call(this, renderer);
+};
+
+DynamicLitProbePass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, ssao)
+{
+    var defines = {
+        HX_APPLY_SSAO: ssao? 1 : 0
+    };
+
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_dynamic_probe_vertex.glsl", defines);
+
+    var fragmentShader =
+        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+        lightingModel + "\n\n\n" +
+        ShaderLibrary.get("light_probe.glsl") + "\n" +
+        geometryFragment + "\n" +
+        ShaderLibrary.get("material_lit_dynamic_probe_fragment.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+DynamicLitProbePass.prototype._setSSAOTexture = function(texture)
+{
+    this._ssaoSlot.texture = texture;
+};
+
 /**
  *
  * @constructor
@@ -9109,8 +9316,10 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
 
     this._initialized = false;
     this._blendState = null;
+    this._additiveBlendState = BlendState.ADD;    // additive blend state is used for dynamic lighting
     this._needsNormalDepth = false;
     this._needsBackbuffer = false;
+    this._dynamicLighting = false;
 }
 
 Material.ID_COUNTER = 0;
@@ -9127,13 +9336,27 @@ Material.prototype =
         this._dirLights = null;
         this._dirLightCasters = null;
         this._pointLights = null;
+        this._dynamicLighting = false;
 
         if (!this._lightingModel)
             this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
         else if (this._lights)
             this.setPass(MaterialPass.BASE_PASS, new StaticLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._lights, this._ssao));
-        //else
-        //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
+        else {
+            // if a lighting model is assigned
+            this._dynamicLighting = true;
+
+            this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
+
+            this.setPass(MaterialPass.DIR_LIGHT_PASS, new DynamicLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
+            this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new DynamicLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
+            this.setPass(MaterialPass.POINT_LIGHT_PASS, new DynamicLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
+            this.setPass(MaterialPass.LIGHT_PROBE_PASS, new DynamicLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._ssao));
+
+            // TODO: base pass should only be included if there's emission, and probably rendered AFTER the lights (additively)
+            //    this._initDynamicLitPasses(geometryVertexShader, geometryFragment, lightingModel)
+            // how to know if this pass has been rendered already? renderMark check?
+        }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 
@@ -9162,8 +9385,17 @@ Material.prototype =
     set blendState(value)
     {
         this._blendState = value;
+        if (value) {
+            this._additiveBlendState = value.clone();
+            this._additiveBlendState.dstFactor = BlendFactor.ONE;
+        }
+        else {
+            this._additiveBlendState = BlendState.ADD;
+        }
 
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
+            if (i === MaterialPass.DIR_LIGHT_PASS || i === MaterialPass.DIR_LIGHT_SHADOW_PASS || i === MaterialPass.POINT_LIGHT_PASS || i === MaterialPass.LIGHT_PROBE_PASS)
+                this._passes[i].blendState = this._additiveBlendState;
             if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && i !== MaterialPass.NORMAL_DEPTH_PASS && this._passes[i])
                 this._passes[i].blendState = value;
         }
@@ -9281,7 +9513,9 @@ Material.prototype =
             pass.elementType = this._elementType;
             pass.writeDepth = this._writeDepth; // TODO: this should probably only be true on base pass
 
-            if (type !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && type !== MaterialPass.NORMAL_DEPTH_PASS)
+            if (type === MaterialPass.DIR_LIGHT_PASS || type === MaterialPass.DIR_LIGHT_SHADOW_PASS || type === MaterialPass.POINT_LIGHT_PASS || type === MaterialPass.LIGHT_PROBE_PASS)
+                pass.blendState = this._additiveBlendState;
+            else if (type !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && type !== MaterialPass.NORMAL_DEPTH_PASS)
                 pass.blendState = this._blendState;
 
             if (pass.getTextureSlot("hx_normalDepth"))
@@ -9404,6 +9638,12 @@ Material.prototype =
     {
         if (this._lights && this._lightingModel)
             this.getPass(MaterialPass.BASE_PASS)._setSSAOTexture(texture);
+        else {
+            var probePass = this.getPass(MaterialPass.BASE_PASS);
+            if (probePass)
+                probePass._setSSAOTexture(texture);
+        }
+
     },
 
     toString: function()
@@ -10260,13 +10500,20 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
         renderItem.worldMatrix = worldMatrix;
         renderItem.camera = camera;
+        renderItem.worldBounds = worldBounds;
 
-        if (material.hasPass(MaterialPass.BASE_PASS)) {
-            var list = material.blendState || material._needsBackbuffer? this._transparentsStatic : this._opaquesStatic;
-            list.push(renderItem);
+        var opaques, transparents;
+        if (material._dynamicLighting) {
+            opaques = this._opaquesDynamic;
+            transparents = this._transparentsDynamic;
+        }
+        else {
+            opaques = this._opaquesStatic;
+            transparents = this._transparentsStatic;
         }
 
-        // TODO: Support dynamic lighting
+        var list = material.blendState || material._needsBackbuffer? transparents : opaques;
+        list.push(renderItem);
     }
 };
 
@@ -13149,7 +13396,7 @@ function HBAO(numRays, numSamplesPerRay)
         })
     );
 
-    this._blurPass = new EffectPass(null, ShaderLibrary.get("ao_blur_fragment.glsl"));
+    this._blurPass = new EffectPass(ShaderLibrary.get("ao_blur_vertex.glsl"), ShaderLibrary.get("ao_blur_fragment.glsl"));
 
     this._initSampleDirTexture();
     this._initDitherTexture();
@@ -13167,8 +13414,8 @@ function HBAO(numRays, numSamplesPerRay)
     this._backTexture = new Texture2D();
     this._backTexture.filter = TextureFilter.BILINEAR_NOMIP;
     this._backTexture.wrapMode = TextureWrapMode.CLAMP;
-    this._fbo1 = new FrameBuffer(this._aoTexture);
-    this._fbo2 = new FrameBuffer(this._backTexture);
+    this._fbo1 = new FrameBuffer(this._backTexture);
+    this._fbo2 = new FrameBuffer(this._aoTexture);
 }
 
 HBAO.prototype = Object.create(Effect.prototype);
@@ -13240,10 +13487,12 @@ HBAO.prototype.draw = function(dt)
     var w = this._renderer._width * this._scale;
     var h = this._renderer._height * this._scale;
 
-    if (TextureUtils.assureSize(w, h, this._aoTexture, this._fbo1)) {
-        TextureUtils.assureSize(w, h, this._backTexture, this._fbo2);
+    if (TextureUtils.assureSize(w, h, this._aoTexture, this._fbo2)) {
+        TextureUtils.assureSize(w, h, this._backTexture, this._fbo1);
         this._aoPass.setUniform("ditherScale", {x: w * .25, y: h * .25});
     }
+
+    GL.setClearColor(Color.WHITE);
 
     GL.setRenderTarget(this._fbo1);
     GL.clear();
@@ -13251,15 +13500,11 @@ HBAO.prototype.draw = function(dt)
 
     GL.setRenderTarget(this._fbo2);
     GL.clear();
-    this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
-    this._sourceTextureSlot.texture = this._aoTexture;
-    this._drawPass(this._blurPass);
-
-    GL.setRenderTarget(this._fbo1);
-    GL.clear();
-    this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
+    this._blurPass.setUniform("pixelSize", {x: 1.0 / w, y: 1.0 / h});
     this._sourceTextureSlot.texture = this._backTexture;
     this._drawPass(this._blurPass);
+
+    GL.setClearColor(Color.BLACK);
 };
 
 HBAO.prototype._initSampleDirTexture = function()
@@ -13350,7 +13595,7 @@ function SSAO(numSamples)
                 NUM_SAMPLES: numSamples
             }
         ));
-    this._blurPass = new EffectPass(null, ShaderLibrary.get("ao_blur_fragment.glsl"));
+    this._blurPass = new EffectPass(ShaderLibrary.get("ao_blur_vertex.glsl"), ShaderLibrary.get("ao_blur_fragment.glsl"));
 
     this._initSamples();
     this._initDitherTexture();
@@ -13366,8 +13611,8 @@ function SSAO(numSamples)
     this._backTexture = new Texture2D();
     this._backTexture.filter = TextureFilter.BILINEAR_NOMIP;
     this._backTexture.wrapMode = TextureWrapMode.CLAMP;
-    this._fbo1 = new FrameBuffer(this._ssaoTexture);
-    this._fbo2 = new FrameBuffer(this._backTexture);
+    this._fbo1 = new FrameBuffer(this._backTexture);
+    this._fbo2 = new FrameBuffer(this._ssaoTexture);
 }
 
 SSAO.prototype = Object.create(Effect.prototype);
@@ -13445,8 +13690,8 @@ SSAO.prototype.draw = function(dt)
     var w = this._renderer._width * this._scale;
     var h = this._renderer._height * this._scale;
 
-    if (TextureUtils.assureSize(w, h, this._ssaoTexture, this._fbo1)) {
-        TextureUtils.assureSize(w, h, this._backTexture, this._fbo2);
+    if (TextureUtils.assureSize(w, h, this._ssaoTexture, this._fbo2)) {
+        TextureUtils.assureSize(w, h, this._backTexture, this._fbo1);
         this._ssaoPass.setUniform("ditherScale", {x: w *.25, y: h *.25});
     }
 
@@ -13458,13 +13703,7 @@ SSAO.prototype.draw = function(dt)
 
     GL.setRenderTarget(this._fbo2);
     GL.clear();
-    this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
-    this._sourceTextureSlot.texture = this._ssaoTexture;
-    this._drawPass(this._blurPass);
-
-    GL.setRenderTarget(this._fbo1);
-    GL.clear();
-    this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
+    this._blurPass.setUniform("pixelSize", {x: 1.0 / w, y: 1.0 / h});
     this._sourceTextureSlot.texture = this._backTexture;
     this._drawPass(this._blurPass);
 
@@ -13669,7 +13908,7 @@ function Importer(containerType, dataType)
     this.onComplete = null;
     this.onFail = null;
     this.fileMap = null;
-    // be able to pass importer specific settings. crossOrigin is used for images, fe.
+    // be able to pass importer specific settings
     this.options = {};
     this.path = "";
     this.filename = "";
@@ -13729,8 +13968,6 @@ function AssetLoader(ImporterType)
     this.options = {};
     this._headers = {};
     this._importerType = ImporterType;
-    // used for images
-    this.crossOrigin = undefined;
 }
 
 AssetLoader.prototype =
@@ -13764,7 +14001,6 @@ AssetLoader.prototype =
 
         if (importer.dataType === Importer.TYPE_IMAGE) {
             var image = new Image();
-            image.crossOrigin = this.options.crossOrigin;
             image.onload = function() {
                 importer.parse(image, target);
             };
@@ -13849,7 +14085,6 @@ HCM.prototype._loadFaces = function(urls, target)
 
     for (var i = 0; i < 6; ++i) {
         var image = new Image();
-        image.crossOrigin = this.options.crossOrigin;
         image.nextID = i + 1;
         if (i < 5) {
             image.onload = onLoad;
@@ -13930,7 +14165,6 @@ HCM.prototype._loadMipChain = function(urls, target)
 
         for (i = 1; i < len; ++i) {
             var image = new Image();
-            image.crossOrigin = self.options.crossOrigin;
             image.nextID = i + 1;
             if (i < len - 1) {
                 image.onload = onLoad;
@@ -13984,7 +14218,7 @@ var PNG = JPG;
  * assetLibrary.load();
  */
 
-function AssetLibrary(basePath, crossOrigin)
+function AssetLibrary(basePath)
 {
     this._numLoaded = 0;
     this._queue = [];
@@ -13993,7 +14227,6 @@ function AssetLibrary(basePath, crossOrigin)
     this._basePath = basePath || "";
     this._onComplete = new Signal(/* void */);
     this._onProgress = new Signal(/* number */);
-    this._crossOrigin = crossOrigin;
 }
 
 /**
@@ -14047,11 +14280,6 @@ AssetLibrary.prototype =
         return this._basePath;
     },
 
-    get crossOrigin()
-    {
-        return this._crossOrigin;
-    },
-
     /**
      * Adds an asset to the loading queue.
      * @param {string} id The ID that will be used to retrieve the asset when loaded.
@@ -14091,7 +14319,7 @@ AssetLibrary.prototype =
                 break;
             case AssetLibrary.Type.PLAIN_TEXT:
                 this._plainText(asset.filename, asset.id);
-                break;
+                break
             case AssetLibrary.Type.ASSET:
                 this._asset(asset.filename, asset.id, asset.parser, asset.target);
                 break;
@@ -14166,8 +14394,8 @@ AssetLibrary.prototype =
     _asset: function(file, id, parser, target)
     {
         var loader = new AssetLoader(parser);
-        loader.options = loader.options || {};
-        loader.options.crossOrigin = this._crossOrigin;
+        // loader.options = loader.options || {};
+        // loader.options.convertUpAxis = true;
         loader.onComplete.bind(function()
         {
             this._onAssetLoaded();
@@ -14403,7 +14631,7 @@ var EquirectangularTexture =
         target.initEmpty(size, source.format, source.dataType);
         var faces = [ gl.TEXTURE_CUBE_MAP_POSITIVE_X, gl.TEXTURE_CUBE_MAP_NEGATIVE_X, gl.TEXTURE_CUBE_MAP_POSITIVE_Y, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Z, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z ];
 
-        EquirectangularTexture._EQUI_TO_CUBE_SHADER.updateRenderState();
+        EquirectangularTexture._EQUI_TO_CUBE_SHADER.updatePassRenderState();
 
         var textureLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getUniformLocation("source");
         var posLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getAttributeLocation("hx_position");
@@ -14700,7 +14928,7 @@ ESMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
     rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
-    this.updateRenderState();
+    this.updatePassRenderState();
 
     texture.bind(0);
 
@@ -14912,7 +15140,7 @@ VSMBlurShader.prototype.execute = function (rect, texture, dirX, dirY)
     rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
-    this.updateRenderState();
+    this.updatePassRenderState();
 
     texture.bind(0);
 
@@ -15491,7 +15719,7 @@ TorusPrimitive.prototype._generate = function(target, definition)
     }
 };
 
-function ForwardRenderer()
+function Renderer()
 {
     this._width = 0;
     this._height = 0;
@@ -15507,8 +15735,8 @@ function ForwardRenderer()
     this._camera = null;
     this._scene = null;
     this._depthBuffer = this._createDepthBuffer();
-    this._hdrBack = new ForwardRenderer.HDRBuffers(this._depthBuffer);
-    this._hdrFront = new ForwardRenderer.HDRBuffers(this._depthBuffer);
+    this._hdrBack = new Renderer.HDRBuffers(this._depthBuffer);
+    this._hdrFront = new Renderer.HDRBuffers(this._depthBuffer);
     this._renderCollector = new RenderCollector();
     this._normalDepthTexture = null;
     this._normalDepthFBO = null;
@@ -15516,16 +15744,16 @@ function ForwardRenderer()
     this._aoEffect = null;
     this._backgroundColor = Color.BLACK.clone();
     //this._previousViewProjection = new Matrix4x4();
-    this._depthPrepass = true;
-    this._debugMode = ForwardRenderer.DebugRenderMode.NONE;
+    this._depthPrepass = false;
+    this._debugMode = Renderer.DebugRenderMode.NONE;
 }
 
-ForwardRenderer.DebugRenderMode = {
+Renderer.DebugRenderMode = {
     NONE: 0,
     SSAO: 1
 };
 
-ForwardRenderer.HDRBuffers = function(depthBuffer)
+Renderer.HDRBuffers = function(depthBuffer)
 {
     this.texture = new Texture2D();
     this.texture.filter = TextureFilter.BILINEAR_NOMIP;
@@ -15534,7 +15762,7 @@ ForwardRenderer.HDRBuffers = function(depthBuffer)
     this.fboDepth = new FrameBuffer(this.texture, depthBuffer);
 };
 
-ForwardRenderer.HDRBuffers.prototype =
+Renderer.HDRBuffers.prototype =
 {
     dispose: function()
     {
@@ -15551,7 +15779,7 @@ ForwardRenderer.HDRBuffers.prototype =
     }
 };
 
-ForwardRenderer.prototype =
+Renderer.prototype =
 {
     get debugMode()
     {
@@ -15560,7 +15788,6 @@ ForwardRenderer.prototype =
 
     set debugMode(value)
     {
-        console.log(value);
         this._debugMode = value;
     },
 
@@ -15643,20 +15870,26 @@ ForwardRenderer.prototype =
         this._renderShadowCasters();
 
         var opaqueStaticLit = this._renderCollector.getOpaqueStaticRenderList();
+        var opaqueDynamicLit = this._renderCollector.getOpaqueDynamicRenderList();
         var transparentStaticLit = this._renderCollector.getTransparentStaticRenderList();
+        var transparentDynamicLit = this._renderCollector.getTransparentDynamicRenderList();
 
         GL.setClearColor(Color.BLACK);
 
         GL.setDepthMask(true);
-        this._renderNormalDepth(opaqueStaticLit);
+        this._renderNormalDepth(opaqueStaticLit, opaqueDynamicLit);
         this._renderAO();
 
         GL.setRenderTarget(this._hdrFront.fboDepth);
         GL.setClearColor(this._backgroundColor);
         GL.clear();
+
         this._renderDepthPrepass(opaqueStaticLit);
+        this._renderDepthPrepass(opaqueDynamicLit);
 
         this._renderStatics(opaqueStaticLit);
+        this._renderDynamics(opaqueDynamicLit);
+
         // TODO: Render dynamic lit opaques here
 
         // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
@@ -15688,11 +15921,53 @@ ForwardRenderer.prototype =
 
     _renderStatics: function(list)
     {
-        GL.setClearColor(this._backgroundColor);
         this._renderPass(MaterialPass.BASE_PASS, list);
     },
 
-    _renderNormalDepth: function(list)
+    _renderDynamics: function(list)
+    {
+        var lights = this._renderCollector.getLights();
+        var numLights = lights.length;
+
+        this._renderPass(MaterialPass.BASE_PASS, list);
+
+        for (var i = 0; i < numLights; ++i) {
+            var light = lights[i];
+
+            // I don't like type checking, but lighting support is such a core thing...
+            // maybe we can work in a more plug-in like light system
+            if (light instanceof LightProbe) {
+                this._renderPass(MaterialPass.LIGHT_PROBE_PASS, list, light);
+            }
+            if (light instanceof DirectionalLight) {
+                // if non-global, do intersection tests
+                var passType = light.castShadows? MaterialPass.DIR_LIGHT_SHADOW_PASS : MaterialPass.DIR_LIGHT_PASS;
+
+                // PASS IN LIGHT AS DATA, so the material can update it
+                this._renderPass(passType, list, light);
+            }
+            else if (light instanceof PointLight) {
+                // cannot just use renderPass, need to do intersection tests
+                var lightBound = light.worldBounds;
+                var len = list.length;
+                for (var r = 0; r < len; ++r) {
+                    var renderItem = list[r];
+                    if (lightBound.intersectsBound(renderItem.worldBounds)) {
+                        var passType = MaterialPass.POINT_LIGHT_PASS;
+                        var material = renderItem.material;
+                        var pass = material.getPass(passType);
+                        var meshInstance = renderItem.meshInstance;
+                        pass.updatePassRenderState(this, light);
+                        pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
+                        meshInstance.updateRenderState(passType);
+                        GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
+                    }
+                }
+            }
+        }
+    },
+
+    _renderNormalDepth: function(list1, list2)
     {
         if (!this._renderCollector.needsNormalDepth && !this._aoEffect) return;
         if (!this._normalDepthTexture) this._initNormalDepth();
@@ -15700,7 +15975,8 @@ ForwardRenderer.prototype =
         // furthest depth and alpha must be 1, the rest 0
         GL.setClearColor(Color.BLUE);
         GL.clear();
-        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list);
+        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list1);
+        this._renderPass(MaterialPass.NORMAL_DEPTH_PASS, list2);
         GL.setClearColor(Color.BLACK);
     },
 
@@ -15727,9 +16003,9 @@ ForwardRenderer.prototype =
         effect.render(this, dt);
     },
 
-    _renderPass: function (passType, renderItems)
+    _renderPass: function (passType, renderItems, data)
     {
-        RenderUtils.renderPass(this, passType, renderItems);
+        RenderUtils.renderPass(this, passType, renderItems, data);
     },
 
     _renderToScreen: function (renderTarget)
@@ -15737,7 +16013,7 @@ ForwardRenderer.prototype =
         GL.setRenderTarget(renderTarget);
         GL.clear();
 
-        if (this._debugMode === ForwardRenderer.DebugRenderMode.SSAO) {
+        if (this._debugMode === Renderer.DebugRenderMode.SSAO) {
             this._copyTextureShader.execute(RectMesh.DEFAULT, this._ssaoTexture);
             return;
         }
@@ -15825,6 +16101,7 @@ ForwardRenderer.prototype =
         var tex = new Texture2D();
         tex.filter = TextureFilter.NEAREST_NOMIP;
         tex.uploadData(data, 1, 1, true);
+        return tex;
     },
 
     _copyToBackBuffer: function()
@@ -15864,7 +16141,7 @@ MultiRenderer.prototype =
 {
     addView: function (view)
     {
-        view._renderer = new ForwardRenderer();
+        view._renderer = new Renderer();
         view._texture = new Texture2D();
         view._texture.filter = TextureFilter.BILINEAR_NOMIP;
         view._texture.wrapMode = TextureWrapMode.CLAMP;
@@ -16185,7 +16462,7 @@ exports.CylinderPrimitive = CylinderPrimitive;
 exports.PlanePrimitive = PlanePrimitive;
 exports.TorusPrimitive = TorusPrimitive;
 exports.BlendState = BlendState;
-exports.ForwardRenderer = ForwardRenderer;
+exports.Renderer = Renderer;
 exports.LightingModel = LightingModel;
 exports.View = View;
 exports.MultiRenderer = MultiRenderer;

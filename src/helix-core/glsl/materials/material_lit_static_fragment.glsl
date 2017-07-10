@@ -10,7 +10,6 @@ uniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];
 uniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];
 
 uniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];
-uniform float test[HX_NUM_DIR_LIGHT_CASTERS];
 #endif
 
 #if HX_NUM_POINT_LIGHTS > 0

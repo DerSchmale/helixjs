@@ -87,8 +87,9 @@ export function InitOptions()
     this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
     this.defaultLightingModel = LightingModel.Unlit;
 
-    this.maxPointLightsPerPass = 3;
-    this.maxDirLightsPerPass = 1;
+    this.numShadowCascades = 1;
+    // this.maxPointLightsPerPass = 3;
+    // this.maxDirLightsPerPass = 1;
 
     // debug-related
     // this.debug = false;   // requires webgl-debug.js:
@@ -148,6 +149,7 @@ export function init(canvas, options)
     if (options.useGammaCorrection !== false)
         defines += META.OPTIONS.usePreciseGammaCorrection ? "#define HX_GAMMA_CORRECTION_PRECISE\n" : "#define HX_GAMMA_CORRECTION_FAST\n";
 
+    defines += "#define HX_NUM_SHADOW_CASCADES " + META.OPTIONS.numShadowCascades + "\n";
     defines += "#define HX_MAX_BONES " + META.OPTIONS.maxBones + "\n";
 
     options.ignoreDrawBuffersExtension = options.ignoreDrawBuffersExtension || options.ignoreAllExtensions;
@@ -236,8 +238,6 @@ export function init(canvas, options)
     // default copy shader
     DEFAULTS.COPY_SHADER = new CopyChannelsShader();
 
-    _initMaterialPasses();
-
     Texture2D._initDefault();
     TextureCube._initDefault();
     BlendState._initDefaults();
@@ -269,19 +269,6 @@ export function start()
 export function stop()
 {
     frameTicker.stop();
-}
-
-function _initMaterialPasses()
-{
-    var options = META.OPTIONS;
-    MaterialPass.BASE_PASS = 0;
-    MaterialPass.NORMAL_DEPTH_PASS = 1;
-    MaterialPass.DIR_LIGHT_PASS = 2;
-    // assume only one dir light with shadow per pass, since it's normally only the sun
-    MaterialPass.DIR_LIGHT_SHADOW_PASS = MaterialPass.DIR_LIGHT_PASS + options.maxDirLightsPerPass;
-    MaterialPass.POINT_LIGHT_PASS = MaterialPass.DIR_LIGHT_SHADOW_PASS + 1;
-    MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = MaterialPass.POINT_LIGHT_PASS + options.maxPointLightsPerPass;
-    MaterialPass.NUM_PASS_TYPES = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS + 1;
 }
 
 function _initLights()

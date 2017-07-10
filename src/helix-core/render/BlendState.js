@@ -9,6 +9,12 @@ function BlendState(srcFactor, dstFactor, operator, color)
     this.color = color || null;
 }
 
+BlendState.prototype = {
+    clone: function() {
+        return new BlendState(this.srcFactor, this.dstFactor, this.operator, this.color);
+    }
+};
+
 BlendState._initDefaults = function()
 {
     BlendState.ADD = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE);

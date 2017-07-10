@@ -11,6 +11,7 @@ import {Effect} from "./Effect";
 import {TextureUtils} from "../texture/TextureUtils";
 import {GL} from "../core/GL";
 import {ArrayUtils} from "../utils/ArrayUtils";
+import {Color} from "../core/Color";
 
 function HBAO(numRays, numSamplesPerRay)
 {
@@ -37,7 +38,7 @@ function HBAO(numRays, numSamplesPerRay)
         })
     );
 
-    this._blurPass = new EffectPass(null, ShaderLibrary.get("ao_blur_fragment.glsl"));
+    this._blurPass = new EffectPass(ShaderLibrary.get("ao_blur_vertex.glsl"), ShaderLibrary.get("ao_blur_fragment.glsl"));
 
     this._initSampleDirTexture();
     this._initDitherTexture();
@@ -55,8 +56,8 @@ function HBAO(numRays, numSamplesPerRay)
     this._backTexture = new Texture2D();
     this._backTexture.filter = TextureFilter.BILINEAR_NOMIP;
     this._backTexture.wrapMode = TextureWrapMode.CLAMP;
-    this._fbo1 = new FrameBuffer(this._aoTexture);
-    this._fbo2 = new FrameBuffer(this._backTexture);
+    this._fbo1 = new FrameBuffer(this._backTexture);
+    this._fbo2 = new FrameBuffer(this._aoTexture);
 };
 
 HBAO.prototype = Object.create(Effect.prototype);
@@ -128,10 +129,12 @@ HBAO.prototype.draw = function(dt)
     var w = this._renderer._width * this._scale;
     var h = this._renderer._height * this._scale;
 
-    if (TextureUtils.assureSize(w, h, this._aoTexture, this._fbo1)) {
-        TextureUtils.assureSize(w, h, this._backTexture, this._fbo2);
+    if (TextureUtils.assureSize(w, h, this._aoTexture, this._fbo2)) {
+        TextureUtils.assureSize(w, h, this._backTexture, this._fbo1);
         this._aoPass.setUniform("ditherScale", {x: w * .25, y: h * .25});
     }
+
+    GL.setClearColor(Color.WHITE);
 
     GL.setRenderTarget(this._fbo1);
     GL.clear();
@@ -139,15 +142,11 @@ HBAO.prototype.draw = function(dt)
 
     GL.setRenderTarget(this._fbo2);
     GL.clear();
-    this._blurPass.setUniform("halfTexelOffset", {x: .5 / w, y: 0.0});
-    this._sourceTextureSlot.texture = this._aoTexture;
-    this._drawPass(this._blurPass);
-
-    GL.setRenderTarget(this._fbo1);
-    GL.clear();
-    this._blurPass.setUniform("halfTexelOffset", {x: 0.0, y: .5 / h});
+    this._blurPass.setUniform("pixelSize", {x: 1.0 / w, y: 1.0 / h});
     this._sourceTextureSlot.texture = this._backTexture;
     this._drawPass(this._blurPass);
+
+    GL.setClearColor(Color.BLACK);
 };
 
 HBAO.prototype._initSampleDirTexture = function()

@@ -6,6 +6,7 @@ project.onInit = function()
     initCamera(project.camera);
     initScene(project.scene);
 };
+
 project.onUpdate = function(dt)
 {
     // no updates necessary, everything happens through components
@@ -14,8 +15,9 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    // options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
-    options.directionalShadowFilter = new HX.PCFDirectionalShadowFilter();
+    options.numShadowCascades = 2;
+    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+    // options.directionalShadowFilter = new HX.PCFDirectionalShadowFilter();
     options.directionalShadowFilter.dither = true;
     // options.directionalShadowFilter.blurRadius = 1;
     options.hdr = true;
@@ -24,11 +26,9 @@ window.onload = function ()
 
 function initRenderer(renderer)
 {
-    //renderer.localReflections = new HX.ScreenSpaceReflections(32);
-
     var ssao = new HX.SSAO(16);
     ssao.strength = 2.0;
-    ssao.sampleRadius = .5;
+    ssao.sampleRadius = 1.0;
     ssao.fallOffDistance = 2.0;
     renderer.ambientOcclusion = ssao;
 }
@@ -56,23 +56,13 @@ function initCamera(camera)
 function initScene(scene)
 {
     var light = new HX.DirectionalLight();
-    light.color = new HX.Color(0.0, 1.0, 1.0);
+    light.color = new HX.Color(1.0, .95, .9);
     light.direction = new HX.Float4(0.0, -0.8, -1.0, 0.0);
     light.castShadows = true;
-    light.numCascades = 4;
     light.intensity = 2.0;
-    // add 1 for show (numCascades === 3, so cutoff is after 3)
-    light.setCascadeRatios(.12,.25,.5, 1);
+    // no need for the cascades to reach all the way back
+    light.setCascadeRatios(.25,.5);
     scene.attach(light);
-
-    var light2 = new HX.DirectionalLight();
-    light2.color = new HX.Color(1.0, 0.0, 0.0);
-    light2.direction = new HX.Float4(0.5, -0.8, 1.0, 0.0);
-    light2.castShadows = true;
-    light2.numCascades = 1;
-    light2.intensity = 2.0;
-    light2.setCascadeRatios(1.0);
-    scene.attach(light2);
 
     var cubeLoader = new HX.AssetLoader(HX.HCM);
     var skyboxSpecularTexture = cubeLoader.load("textures/skybox/skybox_specular.hcm");
@@ -85,7 +75,7 @@ function initScene(scene)
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
     scene.attach(lightProbe);
 
-    var lights = [ light, light2, lightProbe ];
+    var lights = [ light, lightProbe ];
 
     // textures from http://kay-vriend.blogspot.be/2014/04/tarnished-metal-first-steps-in-pbr-and.html
     var textureLoader = new HX.AssetLoader(HX.JPG);

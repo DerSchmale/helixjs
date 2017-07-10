@@ -1,4 +1,4 @@
-import {Comparison, CullMode, ElementType, META} from "../../Helix";
+import {Comparison, CullMode, DEFAULTS, ElementType, META} from "../../Helix";
 import {GL} from "../../core/GL";
 import {Shader} from "../../shader/Shader";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
@@ -49,7 +49,9 @@ function DeferredDirectionalShader(shadows)
         this._depthBiasLocation = gl.getUniformLocation(p, "hx_directionalLight.depthBias");
         this._maxShadowDistanceLocation = gl.getUniformLocation(p, "hx_directionalLight.maxShadowDistance");
         var shadowMapSlot = gl.getUniformLocation(p, "hx_shadowMap");
+        var ditherSlot = gl.getUniformLocation(p, "hx_dither2D");
         gl.uniform1i(shadowMapSlot, 3);
+        gl.uniform1i(ditherSlot, 4);
     }
 }
 
@@ -99,6 +101,8 @@ DeferredDirectionalShader.prototype.execute = function(renderer, light)
             gl.uniform4f(this._shadowSplitsLocation, splits[0], splits[1], splits[2], splits[3]);
             gl.uniform1f(this._depthBiasLocation, light.depthBias);
             gl.uniform1f(this._maxShadowDistanceLocation, splits[numCascades - 1]);
+
+            DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.bind(4);
         }
 
         GL.setCullMode(CullMode.NONE);

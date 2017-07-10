@@ -338,7 +338,8 @@ CascadeShadowMapRenderer.prototype =
         this._splitRatios = [];
         this._splitDistances = [];
         this._splitPlanes = [];
-        for (var i = META.OPTIONS.numShadowCascades; i >= 0; --i)
+
+        for (var i = META.OPTIONS.numShadowCascades - 1; i >= 0; --i)
         {
             this._splitRatios[i] = ratio;
             this._splitPlanes[i] = new Float4();

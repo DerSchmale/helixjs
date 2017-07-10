@@ -89,13 +89,14 @@ Shader.prototype = {
         this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
     },
 
-    updatePassRenderState: function(camera)
+    updatePassRenderState: function(renderer)
     {
         GL.gl.useProgram(this._program);
 
+        var camera = renderer? renderer._camera : null;
         var len = this._uniformSettersPass.length;
         for (var i = 0; i < len; ++i)
-            this._uniformSettersPass[i].execute(camera);
+            this._uniformSettersPass[i].execute(camera, renderer);
     },
 
     updateInstanceRenderState: function(camera, renderItem)

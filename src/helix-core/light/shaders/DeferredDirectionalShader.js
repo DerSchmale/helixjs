@@ -102,7 +102,7 @@ DeferredDirectionalShader.prototype.execute = function(renderer, light)
         }
 
 
-        this.updatePassRenderState(camera);
+        this.updatePassRenderState(renderer);
 
         var rect = RectMesh.DEFAULT;
         rect._vertexBuffers[0].bind();

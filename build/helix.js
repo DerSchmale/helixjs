@@ -60,7 +60,7 @@ ShaderLibrary._files['material_apply_gbuffer_vertex.glsl'] = 'void main()\n{\n  
 
 ShaderLibrary._files['material_dir_shadow_fragment.glsl'] = 'void main()\n{\n    // geometry is really only used for kil instructions if necessary\n    // hopefully the compiler optimizes the rest out for us\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z);\n}';
 
-ShaderLibrary._files['material_fwd_base_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    // simply override with emission\n    gl_FragColor = data.color;\n    gl_FragColor.xyz = data.emission;\n\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+ShaderLibrary._files['material_fwd_base_fragment.glsl'] = 'uniform vec3 hx_ambientColor;\n\nuniform sampler2D hx_ssao;\nuniform vec2 hx_rcpRenderTargetResolution;\n\nvoid main()\n{\n    vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n\n    HX_GeometryData data = hx_geometry();\n    // simply override with emission\n    gl_FragColor = data.color;\n    float ssao = texture2D(hx_ssao, screenUV).x;\n    gl_FragColor.xyz = gl_FragColor.xyz * hx_ambientColor * ssao + data.emission;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['material_fwd_base_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
@@ -5445,7 +5445,7 @@ MaterialPass.prototype =
         GL.setDepthMask(this._writeDepth);
         GL.setBlendState(this._blendState);
 
-        this._shader.updatePassRenderState(renderer._camera);
+        this._shader.updatePassRenderState(renderer);
     },
 
     _storeUniforms: function()
@@ -6695,7 +6695,7 @@ PoissonDisk.prototype =
 };
 
 /**
- *
+ * per pass setters have a method execute(camera, renderer), per instance have execute(camera, renderItem)
  * @type {{}}
  */
 var UniformSetter = {
@@ -6758,6 +6758,7 @@ var UniformSetter = {
         UniformSetter._passTable.hx_renderTargetResolution = RenderTargetResolutionSetter;
         UniformSetter._passTable.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
         UniformSetter._passTable.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
+        UniformSetter._passTable.hx_ambientColor = AmbientColorSetter;
         UniformSetter._passTable["hx_poissonDisk[0]"] = PoissonDiskSetter;
     }
 };
@@ -6989,6 +6990,17 @@ RenderTargetResolutionSetter.prototype.execute = function (camera)
     GL.gl.uniform2f(this.location, camera._renderTargetWidth, camera._renderTargetHeight);
 };
 
+function AmbientColorSetter()
+{
+}
+
+AmbientColorSetter.prototype.execute = function (camera, renderer)
+{
+    var color = renderer._ambientColor;
+    console.log(color.toString());
+    GL.gl.uniform3f(this.location, color.r, color.g, color.b);
+};
+
 function RCPRenderTargetResolutionSetter()
 {
 }
@@ -7166,13 +7178,14 @@ Shader.prototype = {
         this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
     },
 
-    updatePassRenderState: function(camera)
+    updatePassRenderState: function(renderer)
     {
         GL.gl.useProgram(this._program);
 
+        var camera = renderer? renderer._camera : null;
         var len = this._uniformSettersPass.length;
         for (var i = 0; i < len; ++i)
-            this._uniformSettersPass[i].execute(camera);
+            this._uniformSettersPass[i].execute(camera, renderer);
     },
 
     updateInstanceRenderState: function(camera, renderItem)
@@ -7360,7 +7373,7 @@ DeferredDirectionalShader.prototype.execute = function(renderer, light)
         }
 
 
-        this.updatePassRenderState(camera);
+        this.updatePassRenderState(renderer);
 
         var rect = RectMesh.DEFAULT;
         rect._vertexBuffers[0].bind();
@@ -15776,8 +15789,6 @@ function DeferredAmbientShader()
     var p = this._program;
     gl.useProgram(p);
 
-    this._colorLocation = gl.getUniformLocation(p, "hx_ambientColor");
-
     this._positionAttributeLocation = gl.getAttribLocation(p, "hx_position");
     this._texCoordAttributeLocation = gl.getAttribLocation(p, "hx_texCoord");
 
@@ -15794,39 +15805,31 @@ function DeferredAmbientShader()
 
 DeferredAmbientShader.prototype = Object.create(Shader.prototype);
 
-DeferredAmbientShader.prototype.execute = function(renderer, color)
+DeferredAmbientShader.prototype.execute = function(renderer)
 {
-    var dir = new Float4();
-    var matrix = new Matrix4x4();
-    var matrixData = new Float32Array(64);
+    var gl = GL.gl;
 
-    return function(renderer, color) {
-        var gl = GL.gl;
+    gl.useProgram(this._program);
 
-        gl.useProgram(this._program);
+    var texs = renderer._gbuffer.textures;
+    texs[0].bind(0);
+    texs[1].bind(1);
+    texs[2].bind(2);
+    renderer._ssaoTexture.bind(3);
 
-        var texs = renderer._gbuffer.textures;
-        texs[0].bind(0);
-        texs[1].bind(1);
-        texs[2].bind(2);
-        renderer._ssaoTexture.bind(3);
+    this.updatePassRenderState(renderer);
 
-        gl.uniform3f(this._colorLocation, color.r, color.g, color.b);
+    var rect = RectMesh.DEFAULT;
+    rect._vertexBuffers[0].bind();
+    rect._indexBuffer.bind();
 
-        this.updatePassRenderState(renderer._camera);
+    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
+    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
 
-        var rect = RectMesh.DEFAULT;
-        rect._vertexBuffers[0].bind();
-        rect._indexBuffer.bind();
+    GL.enableAttributes(2);
 
-        gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
-        gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
-
-        GL.enableAttributes(2);
-
-        GL.drawElements(ElementType.TRIANGLES, 6, 0);
-    }
-}();
+    GL.drawElements(ElementType.TRIANGLES, 6, 0);
+};
 
 function Renderer()
 {
@@ -15970,6 +15973,8 @@ Renderer.prototype =
         camera._setRenderTargetResolution(this._width, this._height);
         this._renderCollector.collect(camera, scene);
 
+        this._ambientColor = this._renderCollector._ambientColor;
+
         this._renderShadowCasters();
 
         var opaqueList = this._renderCollector.getOpaqueRenderList();
@@ -16102,7 +16107,7 @@ Renderer.prototype =
         GL.setDepthTest(Comparison.DISABLED);
         GL.setCullMode(CullMode.NONE);
 
-        var ambient =  this._renderCollector._ambientColor;
+        var ambient =  this._ambientColor;
         if (ambient.r !== 0 || ambient.g !== 0 || ambient.b !== 0) {
             this._renderAmbientShader.execute(this, ambient);
         }

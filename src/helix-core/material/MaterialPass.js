@@ -156,7 +156,7 @@ MaterialPass.prototype =
         GL.setDepthMask(this._writeDepth);
         GL.setBlendState(this._blendState);
 
-        this._shader.updatePassRenderState(renderer._camera);
+        this._shader.updatePassRenderState(renderer);
     },
 
     _storeUniforms: function()

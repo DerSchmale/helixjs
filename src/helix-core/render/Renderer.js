@@ -4,7 +4,7 @@ import {ApplyGammaShader, CopyChannelsShader} from "./UtilShaders";
 import {Texture2D} from "../texture/Texture2D";
 import {MaterialPass} from "../material/MaterialPass";
 import {RectMesh} from "../mesh/RectMesh";
-import {_HX_, TextureFormat, TextureFilter, TextureWrapMode, META, capabilities} from "../Helix";
+import {_HX_, TextureFormat, TextureFilter, TextureWrapMode, META, capabilities, Comparison, CullMode} from "../Helix";
 import {FrameBuffer} from "../texture/FrameBuffer";
 import {GL} from "../core/GL";
 import {RenderUtils} from "./RenderUtils";
@@ -14,6 +14,7 @@ import {PointLight} from "../light/PointLight";
 import {LightProbe} from "../light/LightProbe";
 import {GBuffer} from "./GBuffer";
 import {BlendState} from "./BlendState";
+import {DeferredAmbientShader} from "../light/shaders/DeferredAmbientShader";
 
 function Renderer()
 {
@@ -40,6 +41,7 @@ function Renderer()
     this._backgroundColor = Color.BLACK.clone();
     //this._previousViewProjection = new Matrix4x4();
     this._debugMode = Renderer.DebugRenderMode.NONE;
+    this._renderAmbientShader = new DeferredAmbientShader();
 }
 
 Renderer.DebugRenderMode = {
@@ -155,6 +157,8 @@ Renderer.prototype =
 
         camera._setRenderTargetResolution(this._width, this._height);
         this._renderCollector.collect(camera, scene);
+
+        this._ambientColor = this._renderCollector._ambientColor;
 
         this._renderShadowCasters();
 
@@ -277,7 +281,6 @@ Renderer.prototype =
 
     _renderDeferredLighting: function()
     {
-        // TODO: Render ambient color with AO
         if (!this._renderCollector._needsGBuffer) return;
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
@@ -286,6 +289,13 @@ Renderer.prototype =
         GL.setRenderTarget(this._hdrFront.fbo);
         GL.clear();
         GL.setBlendState(BlendState.ADD);
+        GL.setDepthTest(Comparison.DISABLED);
+        GL.setCullMode(CullMode.NONE);
+
+        var ambient =  this._ambientColor;
+        if (ambient.r !== 0 || ambient.g !== 0 || ambient.b !== 0) {
+            this._renderAmbientShader.execute(this, ambient);
+        }
 
         for (var i = 0; i < numLights; ++i) {
             lights[i].renderDeferredLighting(this);

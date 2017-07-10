@@ -26,7 +26,7 @@ function RenderCollector()
     this._needsNormalDepth = false;
     this._needsGBuffer = false;
     this._needsBackbuffer = false;
-};
+}
 
 RenderCollector.prototype = Object.create(SceneVisitor.prototype);
 

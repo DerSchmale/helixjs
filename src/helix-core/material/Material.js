@@ -3,12 +3,12 @@ import {DirectionalLight} from "../light/DirectionalLight";
 import {Signal} from "../core/Signal";
 import {MaterialPass} from "./MaterialPass";
 import {UnlitPass} from "./UnlitPass";
-import {DynamicLitBasePass} from "./DynamicLitBasePass";
+import {ForwardLitBasePass} from "./ForwardLitBasePass";
 import {DirectionalShadowPass} from "./DirectionalShadowPass";
-import {DynamicLitDirPass} from "./DynamicLitDirPass";
+import {ForwardLitDirPass} from "./ForwardLitDirPass";
 import {BlendState} from "../render/BlendState";
-import {DynamicLitPointPass} from "./DynamicLitPointPass";
-import {DynamicLitProbePass} from "./DynamicLitProbePass";
+import {ForwardLitPointPass} from "./ForwardLitPointPass";
+import {ForwardLitProbePass} from "./ForwardLitProbePass";
 import {GBufferAlbedoPass} from "./GBufferAlbedoPass";
 import {GBufferNormalDepthPass} from "./GBufferNormalDepthPass";
 import {GBufferSpecularPass} from "./GBufferSpecularPass";
@@ -64,12 +64,12 @@ Material.prototype =
         if (!this._lightingModel)
             this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
         else if (this._lightingModel !== META.OPTIONS.defaultLightingModel || this._blendState) {
-            this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
+            this.setPass(MaterialPass.BASE_PASS, new ForwardLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
 
-            this.setPass(MaterialPass.DIR_LIGHT_PASS, new DynamicLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
-            this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new DynamicLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
-            this.setPass(MaterialPass.POINT_LIGHT_PASS, new DynamicLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
-            this.setPass(MaterialPass.LIGHT_PROBE_PASS, new DynamicLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._ssao));
+            this.setPass(MaterialPass.DIR_LIGHT_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
+            this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
+            this.setPass(MaterialPass.POINT_LIGHT_PASS, new ForwardLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
+            this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._ssao));
         }
         else {
             // deferred lighting forward pass

@@ -25,7 +25,7 @@ void main()
     vec3 reflectedViewDir = reflect(viewVector, data.normal);
     vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);
     reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
-    vec3 diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, data.normal);
+    vec3 diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, worldNormal);
     vec3 specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, reflectedViewDir, fresnel, data.roughness);
 
     gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);

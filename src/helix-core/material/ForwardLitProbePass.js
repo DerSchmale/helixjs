@@ -2,6 +2,8 @@ import {MaterialPass} from "./MaterialPass";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {Shader} from "../shader/Shader";
 import {TextureCube} from "../texture/TextureCube";
+import {GL} from "../core/GL";
+import {MathX} from "../math/MathX";
 
 function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel, ssao)
 {
@@ -9,6 +11,7 @@ function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel, ss
     this._diffuseSlot = this.getTextureSlot("hx_diffuseProbeMap");
     this._specularSlot = this.getTextureSlot("hx_specularProbeMap");
     this._ssaoSlot = this.getTextureSlot("hx_ssao");
+    this._numMipsLocation = this.getUniformLocation("hx_specularProbeNumMips");
     if (!ForwardLitProbePass.dummyTexture) {
         var data = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
         data = [ data, data, data, data, data, data ];
@@ -22,10 +25,15 @@ ForwardLitProbePass.prototype = Object.create(MaterialPass.prototype);
 // the light is passed in as data
 ForwardLitProbePass.prototype.updatePassRenderState = function(renderer, probe)
 {
-    // TODO: if a texture is not supported, insert dummy black textures
+    var gl = GL.gl;
+    gl.useProgram(this._shader._program);
+
     // TODO: allow setting locality of probes
     this._diffuseSlot.texture = probe.diffuseTexture || ForwardLitProbePass.dummyTexture;
-    this._specularSlot.texture = probe.specularTexture || ForwardLitProbePass.dummyTexture;
+    var specularTex = probe.specularTexture || ForwardLitProbePass.dummyTexture;
+
+    this._specularSlot.texture = specularTex;
+    gl.uniform1f(this._numMipsLocation, Math.floor(MathX.log2(specularTex.size)));
     MaterialPass.prototype.updatePassRenderState.call(this, renderer);
 };
 

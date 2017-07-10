@@ -56,9 +56,9 @@ function initCamera(camera)
 function initScene(scene)
 {
     var dirLight = new HX.DirectionalLight();
-    dirLight.color = new HX.Color(1.0, .9, .7);
+    dirLight.color = new HX.Color(1.0, .95, .9);
     dirLight.direction = new HX.Float4(3.0, -5.0, 1.0);
-    dirLight.intensity = 5.0;
+    dirLight.intensity = 1.0;
     dirLight.castShadows = true;
 
     scene.attach(dirLight);

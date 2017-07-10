@@ -24,8 +24,8 @@ ForwardLitProbePass.prototype.updatePassRenderState = function(renderer, probe)
 {
     // TODO: if a texture is not supported, insert dummy black textures
     // TODO: allow setting locality of probes
-    this._diffuseSlot.texture = probe.diffuseTexture;
-    this._specularSlot.texture = probe.specularTexture;
+    this._diffuseSlot.texture = probe.diffuseTexture || ForwardLitProbePass.dummyTexture;
+    this._specularSlot.texture = probe.specularTexture || ForwardLitProbePass.dummyTexture;
     MaterialPass.prototype.updatePassRenderState.call(this, renderer);
 };
 

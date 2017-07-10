@@ -8,12 +8,15 @@ import {Matrix4x4} from "../math/Matrix4x4";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {CascadeShadowMapRenderer} from "../render/CascadeShadowMapRenderer";
 import {DeferredDirectionalShader} from "./shaders/DeferredDirectionalShader";
+import {META} from "../Helix";
 
 function DirectionalLight()
 {
     Light.call(this);
 
-    if (!DirectionalLight._deferredShader) DirectionalLight._initDeferredShaders();
+    if (!DirectionalLight._deferredShader && META.OPTIONS.defaultLightingModel)
+        DirectionalLight._initDeferredShaders();
+
     this.depthBias = .0;
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;

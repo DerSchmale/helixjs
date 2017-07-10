@@ -2,6 +2,7 @@ import {Light} from "./Light";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {DeferredPointShader} from "./shaders/DeferredPointShader";
 import {Float4} from "../math/Float4";
+import {META} from "../Helix";
 
 /**
  *
@@ -11,7 +12,7 @@ function PointLight()
 {
     Light.call(this);
 
-    if (!PointLight._deferredShaderSphere) {
+    if (!PointLight._deferredShaderSphere && META.OPTIONS.defaultLightingModel) {
         PointLight._deferredShaderSphere = new DeferredPointShader(true);
         PointLight._deferredShaderRect = new DeferredPointShader(false);
     }

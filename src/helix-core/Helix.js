@@ -163,8 +163,8 @@ export function init(canvas, options)
 
     if (capabilities.EXT_DRAW_BUFFERS && capabilities.EXT_DRAW_BUFFERS.MAX_DRAW_BUFFERS_WEBGL >= 3) {
         capabilities.GBUFFER_MRT = true;
-        // remove the last two (individual) gbuffer passes
-        MaterialPass.NUM_PASS_TYPES = 7;
+        // remove the last (individual) gbuffer pass
+        MaterialPass.NUM_PASS_TYPES = 8;
     }
 
     capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
@@ -253,14 +253,7 @@ export function init(canvas, options)
 
     GL.setClearColor(Color.BLACK);
 
-    DirectionalLight._initDeferredShaders();
-
     start();
-
-    onPreFrame.bind(function ()
-    {
-        _clearGLStats();
-    })
 }
 
 export function start()
@@ -268,6 +261,7 @@ export function start()
     frameTicker.start(function (dt)
     {
         onPreFrame.dispatch(dt);
+        _clearGLStats();
         onFrame.dispatch(dt);
     });
 }

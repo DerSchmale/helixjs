@@ -7,11 +7,13 @@ import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {CascadeShadowMapRenderer} from "../render/CascadeShadowMapRenderer";
+import {DeferredDirectionalShader} from "./shaders/DeferredDirectionalShader";
 
 function DirectionalLight()
 {
     Light.call(this);
 
+    DirectionalLight._initDeferredShaders();
     this.depthBias = .0;
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;
@@ -20,6 +22,12 @@ function DirectionalLight()
 
 // set on init
 DirectionalLight.SHADOW_FILTER = null;
+
+DirectionalLight._initDeferredShaders = function()
+{
+    DirectionalLight._deferredShader = new DeferredDirectionalShader(false);
+    DirectionalLight._deferredShadowShader = new DeferredDirectionalShader(true);
+};
 
 DirectionalLight.prototype = Object.create(Light.prototype,
     {
@@ -94,6 +102,12 @@ DirectionalLight.prototype.setCascadeRatios = function(r1, r2, r3, r4)
 DirectionalLight.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
+};
+
+DirectionalLight.prototype.renderDeferredLighting = function(renderer)
+{
+    var shader = this._castShadows? DirectionalLight._deferredShadowShader : DirectionalLight._deferredShader;
+    shader.execute(renderer, this);
 };
 
 export { DirectionalLight };

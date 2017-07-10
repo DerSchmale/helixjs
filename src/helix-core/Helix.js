@@ -253,6 +253,8 @@ export function init(canvas, options)
 
     GL.setClearColor(Color.BLACK);
 
+    DirectionalLight._initDeferredShaders();
+
     start();
 
     onPreFrame.bind(function ()

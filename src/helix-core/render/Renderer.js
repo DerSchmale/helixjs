@@ -277,7 +277,7 @@ Renderer.prototype =
 
     _renderDeferredLighting: function()
     {
-
+        // TODO: Render ambient color with AO
         if (!this._renderCollector._needsGBuffer) return;
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;

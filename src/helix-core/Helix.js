@@ -205,7 +205,9 @@ export function init(canvas, options)
     if (!options.ignoreTextureLODExtension)
         capabilities.EXT_SHADER_TEXTURE_LOD = _getExtension('EXT_shader_texture_lod');
 
-    if (!capabilities.EXT_SHADER_TEXTURE_LOD)
+    if (capabilities.EXT_SHADER_TEXTURE_LOD)
+        defines += "#define HX_TEXTURE_LOD\n";
+    else
         console.warn('EXT_shader_texture_lod extension not supported!');
 
     capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension('EXT_texture_filter_anisotropic');

@@ -4,6 +4,7 @@ import {Shader} from "../shader/Shader";
 import {TextureCube} from "../texture/TextureCube";
 import {GL} from "../core/GL";
 import {MathX} from "../math/MathX";
+import {capabilities} from "../Helix";
 
 function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel, ssao)
 {
@@ -43,9 +44,15 @@ ForwardLitProbePass.prototype._generateShader = function(geometryVertex, geometr
         HX_APPLY_SSAO: ssao? 1 : 0
     };
 
+    var extensions = "";
+    if (capabilities.EXT_SHADER_TEXTURE_LOD) {
+        extensions += "#texturelod\n";
+    }
+
     var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_probe_vertex.glsl", defines);
 
     var fragmentShader =
+        extensions +
         ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
         lightingModel + "\n\n\n" +
         ShaderLibrary.get("light_probe.glsl") + "\n" +

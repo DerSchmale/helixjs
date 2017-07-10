@@ -1,17 +1,19 @@
-import {Comparison, CullMode, ElementType, META} from "../../Helix";
+import {capabilities, Comparison, CullMode, ElementType, META} from "../../Helix";
 import {GL} from "../../core/GL";
 import {Shader} from "../../shader/Shader";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {RectMesh} from "../../mesh/RectMesh";
-import {Matrix4x4} from "../../math/Matrix4x4";
-import {Float4} from "../../math/Float4";
-import {DirectionalLight} from "../DirectionalLight";
 import {MathX} from "../../math/MathX";
 
 function DeferredLightProbeShader(probe)
 {
     Shader.call(this);
     var defines = {};
+
+    var extensions = "";
+    if (capabilities.EXT_SHADER_TEXTURE_LOD) {
+        extensions += "#texturelod\n";
+    }
 
     this._probe = probe;
 
@@ -23,6 +25,7 @@ function DeferredLightProbeShader(probe)
 
     var vertex = ShaderLibrary.get("deferred_probe_vertex.glsl", defines);
     var fragment =
+        extensions +
         ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
         META.OPTIONS.defaultLightingModel + "\n\n\n" +
         ShaderLibrary.get("light_probe.glsl") + "\n" +

@@ -17,6 +17,8 @@ function AssetLoader(ImporterType)
     this.options = {};
     this._headers = {};
     this._importerType = ImporterType;
+    // used for images
+    this.crossOrigin = undefined;
 }
 
 AssetLoader.prototype =
@@ -50,6 +52,7 @@ AssetLoader.prototype =
 
         if (importer.dataType === Importer.TYPE_IMAGE) {
             var image = new Image();
+            image.crossOrigin = this.options.crossOrigin;
             image.onload = function() {
                 importer.parse(image, target);
             };

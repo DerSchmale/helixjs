@@ -68,6 +68,18 @@ ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_G
 
 ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
+ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
+
+ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
+
+ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
+
+ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
 ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -97,18 +109,6 @@ ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec4 co
 ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
 
 ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	gl_FragColor = color / (1.0 + lum);\n}';
-
-ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
-
-ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
-
-ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
-
-ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 ShaderLibrary._files['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
 
@@ -10844,7 +10844,7 @@ AnimationPlayhead.prototype =
 
             var frameA, frameB;
 
-            if (dt > 0) {
+            if (dt >= 0) {
                 // could replace the while loop with an if loop and calculate wrap with division, but it's usually not more
                 // than 1 anyway
                 while (this._looping && this._time >= duration) {
@@ -10876,11 +10876,6 @@ AnimationPlayhead.prototype =
                     if (--this._currentFrameIndex < 0) this._currentFrameIndex = numKeyFrames;
                     frameA = clip.getKeyFrame(this._currentFrameIndex);
                 } while (frameA.time > this._time);
-            }
-            // === 0
-            else {
-                frameA = clip.getKeyFrame(this._currentFrameIndex);
-                frameB = clip.getKeyFrame((this._currentFrameIndex + 1) % numKeyFrames);
             }
 
             this.wraps = wraps;
@@ -13674,7 +13669,7 @@ function Importer(containerType, dataType)
     this.onComplete = null;
     this.onFail = null;
     this.fileMap = null;
-    // be able to pass importer specific settings
+    // be able to pass importer specific settings. crossOrigin is used for images, fe.
     this.options = {};
     this.path = "";
     this.filename = "";
@@ -13734,6 +13729,8 @@ function AssetLoader(ImporterType)
     this.options = {};
     this._headers = {};
     this._importerType = ImporterType;
+    // used for images
+    this.crossOrigin = undefined;
 }
 
 AssetLoader.prototype =
@@ -13767,6 +13764,7 @@ AssetLoader.prototype =
 
         if (importer.dataType === Importer.TYPE_IMAGE) {
             var image = new Image();
+            image.crossOrigin = this.options.crossOrigin;
             image.onload = function() {
                 importer.parse(image, target);
             };
@@ -13851,6 +13849,7 @@ HCM.prototype._loadFaces = function(urls, target)
 
     for (var i = 0; i < 6; ++i) {
         var image = new Image();
+        image.crossOrigin = this.options.crossOrigin;
         image.nextID = i + 1;
         if (i < 5) {
             image.onload = onLoad;
@@ -13931,6 +13930,7 @@ HCM.prototype._loadMipChain = function(urls, target)
 
         for (i = 1; i < len; ++i) {
             var image = new Image();
+            image.crossOrigin = self.options.crossOrigin;
             image.nextID = i + 1;
             if (i < len - 1) {
                 image.onload = onLoad;
@@ -13984,7 +13984,7 @@ var PNG = JPG;
  * assetLibrary.load();
  */
 
-function AssetLibrary(basePath)
+function AssetLibrary(basePath, crossOrigin)
 {
     this._numLoaded = 0;
     this._queue = [];
@@ -13993,6 +13993,7 @@ function AssetLibrary(basePath)
     this._basePath = basePath || "";
     this._onComplete = new Signal(/* void */);
     this._onProgress = new Signal(/* number */);
+    this._crossOrigin = crossOrigin;
 }
 
 /**
@@ -14046,6 +14047,11 @@ AssetLibrary.prototype =
         return this._basePath;
     },
 
+    get crossOrigin()
+    {
+        return this._crossOrigin;
+    },
+
     /**
      * Adds an asset to the loading queue.
      * @param {string} id The ID that will be used to retrieve the asset when loaded.
@@ -14085,7 +14091,7 @@ AssetLibrary.prototype =
                 break;
             case AssetLibrary.Type.PLAIN_TEXT:
                 this._plainText(asset.filename, asset.id);
-                break
+                break;
             case AssetLibrary.Type.ASSET:
                 this._asset(asset.filename, asset.id, asset.parser, asset.target);
                 break;
@@ -14160,8 +14166,8 @@ AssetLibrary.prototype =
     _asset: function(file, id, parser, target)
     {
         var loader = new AssetLoader(parser);
-        // loader.options = loader.options || {};
-        // loader.options.convertUpAxis = true;
+        loader.options = loader.options || {};
+        loader.options.crossOrigin = this._crossOrigin;
         loader.onComplete.bind(function()
         {
             this._onAssetLoaded();

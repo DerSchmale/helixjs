@@ -8,7 +8,7 @@ function Importer(containerType, dataType)
     this.onComplete = null;
     this.onFail = null;
     this.fileMap = null;
-    // be able to pass importer specific settings
+    // be able to pass importer specific settings. crossOrigin is used for images, fe.
     this.options = {};
     this.path = "";
     this.filename = "";

@@ -22,7 +22,7 @@ import {JPG} from "./JPG_PNG";
  * assetLibrary.load();
  */
 
-function AssetLibrary(basePath)
+function AssetLibrary(basePath, crossOrigin)
 {
     this._numLoaded = 0;
     this._queue = [];
@@ -30,8 +30,9 @@ function AssetLibrary(basePath)
     if (basePath && basePath.charAt(basePath.length - 1) !== "/") basePath += "/";
     this._basePath = basePath || "";
     this._onComplete = new Signal(/* void */);
-    this._onProgress = new Signal(/* number */)
-};
+    this._onProgress = new Signal(/* number */);
+    this._crossOrigin = crossOrigin;
+}
 
 /**
  * The type of asset to load. For example: <code>AssetLibrary.Type.JSON</code> for a JSON object.
@@ -84,6 +85,11 @@ AssetLibrary.prototype =
         return this._basePath;
     },
 
+    get crossOrigin()
+    {
+        return this._crossOrigin;
+    },
+
     /**
      * Adds an asset to the loading queue.
      * @param {string} id The ID that will be used to retrieve the asset when loaded.
@@ -123,7 +129,7 @@ AssetLibrary.prototype =
                 break;
             case AssetLibrary.Type.PLAIN_TEXT:
                 this._plainText(asset.filename, asset.id);
-                break
+                break;
             case AssetLibrary.Type.ASSET:
                 this._asset(asset.filename, asset.id, asset.parser, asset.target);
                 break;
@@ -198,8 +204,8 @@ AssetLibrary.prototype =
     _asset: function(file, id, parser, target)
     {
         var loader = new AssetLoader(parser);
-        // loader.options = loader.options || {};
-        // loader.options.convertUpAxis = true;
+        loader.options = loader.options || {};
+        loader.options.crossOrigin = this._crossOrigin;
         loader.onComplete.bind(function()
         {
             this._onAssetLoaded();

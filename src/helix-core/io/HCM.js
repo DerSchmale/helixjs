@@ -8,7 +8,7 @@ import {MathX} from "../math/MathX";
 function HCM()
 {
     Importer.call(this, TextureCube);
-};
+}
 
 HCM.prototype = Object.create(Importer.prototype);
 
@@ -53,6 +53,7 @@ HCM.prototype._loadFaces = function(urls, target)
 
     for (var i = 0; i < 6; ++i) {
         var image = new Image();
+        image.crossOrigin = this.options.crossOrigin;
         image.nextID = i + 1;
         if (i < 5) {
             image.onload = onLoad;
@@ -133,6 +134,7 @@ HCM.prototype._loadMipChain = function(urls, target)
 
         for (i = 1; i < len; ++i) {
             var image = new Image();
+            image.crossOrigin = self.options.crossOrigin;
             image.nextID = i + 1;
             if (i < len - 1) {
                 image.onload = onLoad;

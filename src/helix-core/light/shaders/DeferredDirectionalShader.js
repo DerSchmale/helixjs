@@ -104,9 +104,6 @@ DeferredDirectionalShader.prototype.execute = function(renderer, light)
 
         this.updatePassRenderState(camera);
 
-        GL.setDepthTest(Comparison.DISABLED);
-        GL.setCullMode(CullMode.NONE);
-
         var rect = RectMesh.DEFAULT;
         rect._vertexBuffers[0].bind();
         rect._indexBuffer.bind();

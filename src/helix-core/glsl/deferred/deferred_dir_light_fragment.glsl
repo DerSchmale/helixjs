@@ -29,7 +29,6 @@ void main()
 
     hx_calculateLight(hx_directionalLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);
 
-// TODO: Pass on material ID in alpha:
     gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;
     gl_FragColor.w = 1.0;
 

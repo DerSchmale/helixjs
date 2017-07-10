@@ -179,28 +179,6 @@ AssetLibrary.prototype =
         loader.send(null);
     },
 
-    _textureCube: function(file, id)
-    {
-        var self = this;
-        var loader = new AssetLoader(HCM);
-        loader.bind(function() {
-            self._onAssetLoaded();
-        });
-        this._assets[id] = loader.load(file);
-    },
-
-    _texture2D: function(file, id)
-    {
-        var self = this;
-        var loader = new AssetLoader(JPG);
-
-        loader.onComplete.bind(function() {
-            self._onAssetLoaded();
-        });
-
-        this._assets[id] = loader.load(file);
-    },
-
     _asset: function(file, id, parser, target)
     {
         var loader = new AssetLoader(parser);

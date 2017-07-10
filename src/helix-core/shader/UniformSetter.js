@@ -1,5 +1,5 @@
 /**
- *
+ * per pass setters have a method execute(camera, renderer), per instance have execute(camera, renderItem)
  * @type {{}}
  */
 import {GL} from "../core/GL";
@@ -67,6 +67,7 @@ export var UniformSetter = {
         UniformSetter._passTable.hx_renderTargetResolution = RenderTargetResolutionSetter;
         UniformSetter._passTable.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
         UniformSetter._passTable.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
+        UniformSetter._passTable.hx_ambientColor = AmbientColorSetter;
         UniformSetter._passTable["hx_poissonDisk[0]"] = PoissonDiskSetter;
     }
 };
@@ -296,6 +297,16 @@ function RenderTargetResolutionSetter()
 RenderTargetResolutionSetter.prototype.execute = function (camera)
 {
     GL.gl.uniform2f(this.location, camera._renderTargetWidth, camera._renderTargetHeight);
+};
+
+function AmbientColorSetter()
+{
+}
+
+AmbientColorSetter.prototype.execute = function (camera, renderer)
+{
+    var color = renderer._ambientColor;
+    GL.gl.uniform3f(this.location, color.r, color.g, color.b);
 };
 
 function RCPRenderTargetResolutionSetter()

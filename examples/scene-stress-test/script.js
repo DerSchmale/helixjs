@@ -10,6 +10,8 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
+    // this will make sure the GGX model is calculated deferredly
+    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -58,16 +60,16 @@ function initScene(scene)
 
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
-    var staticMaterial = new HX.BasicMaterial();
-    staticMaterial.lights = lights;
-    staticMaterial.colorMap = texture;
-    staticMaterial.roughness = 0.05;
-
-    var dynamicMaterial = new HX.BasicMaterial();
+    var material = new HX.BasicMaterial();
     // the difference is, we don't assign lights, but we do assign a lighting model
-    dynamicMaterial.lightingModel = HX.LightingModel.GGX;
-    dynamicMaterial.colorMap = texture;
-    dynamicMaterial.roughness = 0.05;
+    material.colorMap = texture;
+    material.roughness = 0.05;
+
+    var material2 = new HX.BasicMaterial();
+    material2.colorMap = texture;
+    material2.roughness = 0.2;
+    // use non-default lighting model to cause forward lighting
+    material2.lightingModel = HX.LightingModel.BlinnPhong;
 
     var primitive = new HX.SpherePrimitive(
         {
@@ -80,7 +82,7 @@ function initScene(scene)
     for (var x = -5; x <= 5; ++x) {
         for (var y = -5; y <= 5; ++y) {
             for (var z = -5; z <= 5; ++z) {
-                var instance = new HX.ModelInstance(primitive, dynamicMaterial);
+                var instance = new HX.ModelInstance(primitive, material);
                 instance.position.set(x + Math.random() *.5 -.25, y + Math.random() *.5 -.25, z + Math.random() *.5 -.25);
                 instance.position.scale(spacing);
                 scene.attach(instance);
@@ -96,6 +98,6 @@ function initScene(scene)
             scaleU: 20,
             scaleV: 20
         });
-    var instance = new HX.ModelInstance(primitive, staticMaterial);
+    var instance = new HX.ModelInstance(primitive, material);
     scene.attach(instance);
 }

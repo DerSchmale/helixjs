@@ -89,13 +89,14 @@ Shader.prototype = {
         this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
     },
 
-    updatePassRenderState: function(camera)
+    updatePassRenderState: function(renderer)
     {
         GL.gl.useProgram(this._program);
 
+        var camera = renderer? renderer._camera : null;
         var len = this._uniformSettersPass.length;
         for (var i = 0; i < len; ++i)
-            this._uniformSettersPass[i].execute(camera);
+            this._uniformSettersPass[i].execute(camera, renderer);
     },
 
     updateInstanceRenderState: function(camera, renderItem)
@@ -147,6 +148,7 @@ Shader.prototype = {
     {
         code = this._processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
         code = this._processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
+        code = this._processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
         code = this._guard(code, /^uniform\s+\w+\s+hx_\w+\s*;/gm);
         code = this._guard(code, /^attribute\s+\w+\s+hx_\w+\s*;/gm);
         return code;

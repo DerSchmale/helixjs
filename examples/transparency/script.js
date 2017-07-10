@@ -55,7 +55,7 @@ function initScene(scene)
     material = new HX.BasicMaterial();
     material.blendState = HX.BlendState.ADD;
     material.color = HX.Color.BLACK;
-    material.lights = [ lightProbe ];
+    material.lightingModel = HX.LightingModel.GGX;
     material.renderOrder = 50;  // be sure the render after first layer
     material.roughness = .01;
     scene.attach(new HX.ModelInstance(primitive, material));

@@ -7,7 +7,7 @@ import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {META} from "../Helix";
 
-function DynamicLitDirPass(geometryVertex, geometryFragment, lightingModel, shadows)
+function ForwardLitDirPass(geometryVertex, geometryFragment, lightingModel, shadows)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
 
@@ -23,10 +23,10 @@ function DynamicLitDirPass(geometryVertex, geometryFragment, lightingModel, shad
     }
 }
 
-DynamicLitDirPass.prototype = Object.create(MaterialPass.prototype);
+ForwardLitDirPass.prototype = Object.create(MaterialPass.prototype);
 
 // the light is passed in as data
-DynamicLitDirPass.prototype.updatePassRenderState = function(renderer, light)
+ForwardLitDirPass.prototype.updatePassRenderState = function(renderer, light)
 {
     var dir = new Float4();
     var matrix = new Matrix4x4();
@@ -70,7 +70,7 @@ DynamicLitDirPass.prototype.updatePassRenderState = function(renderer, light)
     }
 }();
 
-DynamicLitDirPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
+ForwardLitDirPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
 {
     var defines = {};
 
@@ -78,7 +78,7 @@ DynamicLitDirPass.prototype._generateShader = function(geometryVertex, geometryF
         defines.HX_SHADOW_MAP = 1;
     }
 
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_lit_dynamic_dir_vertex.glsl", defines);
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_dir_vertex.glsl", defines);
 
     var fragmentShader =
         ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
@@ -86,8 +86,8 @@ DynamicLitDirPass.prototype._generateShader = function(geometryVertex, geometryF
         DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
         ShaderLibrary.get("directional_light.glsl") + "\n" +
         geometryFragment + "\n" +
-        ShaderLibrary.get("material_lit_dynamic_dir_fragment.glsl");
+        ShaderLibrary.get("material_fwd_dir_fragment.glsl");
     return new Shader(vertexShader, fragmentShader);
 };
 
-export { DynamicLitDirPass };
+export { ForwardLitDirPass };

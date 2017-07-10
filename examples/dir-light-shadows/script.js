@@ -19,6 +19,7 @@ window.onload = function ()
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
     // options.directionalShadowFilter = new HX.PCFDirectionalShadowFilter();
     options.directionalShadowFilter.dither = true;
+    options.defaultLightingModel = HX.LightingModel.GGX;
     // options.directionalShadowFilter.blurRadius = 1;
     options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
@@ -75,8 +76,6 @@ function initScene(scene)
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
     scene.attach(lightProbe);
 
-    var lights = [ light, lightProbe ];
-
     // textures from http://kay-vriend.blogspot.be/2014/04/tarnished-metal-first-steps-in-pbr-and.html
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var colorMap = textureLoader.load("textures/Tarnished_Metal_01_diffuse.jpg");
@@ -88,10 +87,10 @@ function initScene(scene)
     opaqueMaterial.specularMap = specularMap;
     opaqueMaterial.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     opaqueMaterial.metallicness = 1.0;
-    opaqueMaterial.lights = lights;
     opaqueMaterial.ssao = true;
     opaqueMaterial.roughness = 0.5;
     opaqueMaterial.roughnessRange = 0.4;
+    opaqueMaterial.lightingModel = HX.LightingModel.GGX;
 
     var primitive = new HX.SpherePrimitive(
         {
@@ -122,9 +121,9 @@ function initScene(scene)
     material.colorMap = colorMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
-    material.lights = lights;
     material.ssao = true;
     material.roughness = .3;
+    material.lightingModel = HX.LightingModel.GGX;;
 
     primitive = new HX.PlanePrimitive(
         {

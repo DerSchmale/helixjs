@@ -1,6 +1,5 @@
 varying float hx_linearDepth;
 
-uniform mat4 hx_worldViewMatrix;
 uniform float hx_rcpCameraFrustumRange;
 uniform float hx_cameraNearPlaneDistance;
 

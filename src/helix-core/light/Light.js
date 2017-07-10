@@ -59,12 +59,6 @@ Object.defineProperties(Light.prototype, {
     }
 });
 
-// returns the index of the FIRST UNRENDERED light
-Light.prototype.renderBatch = function(lightCollection, startIndex, renderer)
-{
-    throw new Error("Abstract method!");
-};
-
 Light.prototype.luminance = function ()
 {
     return this._color.luminance() * this._intensity;
@@ -84,6 +78,11 @@ Light.prototype._updateScaledIrradiance = function ()
     this._scaledIrradiance.g *= scale;
     this._scaledIrradiance.b *= scale;
     this._invalidateWorldBounds();
+};
+
+Light.prototype.renderDeferredLighting = function(renderer)
+{
+    // To implement by concrete subclasses
 };
 
 export { Light };

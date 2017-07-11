@@ -4,7 +4,6 @@
  * @constructor
  */
 import {Float4} from "../math/Float4";
-import {ElementType, CullMode} from "../Helix";
 
 function BoundingVolume(type)
 {

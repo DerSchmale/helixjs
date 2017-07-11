@@ -13,6 +13,9 @@ function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel, ss
     this._specularSlot = this.getTextureSlot("hx_specularProbeMap");
     this._ssaoSlot = this.getTextureSlot("hx_ssao");
     this._numMipsLocation = this.getUniformLocation("hx_specularProbeNumMips");
+    this._localLocation = this.getUniformLocation("hx_probeLocal");
+    this._sizeLocation = this.getUniformLocation("hx_probeSize");
+    this._positionLocation = this.getUniformLocation("hx_probePosition");
     if (!ForwardLitProbePass.dummyTexture) {
         var data = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
         data = [ data, data, data, data, data, data ];
@@ -35,6 +38,10 @@ ForwardLitProbePass.prototype.updatePassRenderState = function(camera, renderer,
 
     this._specularSlot.texture = specularTex;
     gl.uniform1f(this._numMipsLocation, Math.floor(MathX.log2(specularTex.size)));
+    gl.uniform1f(this._localLocation, probe._size? 1.0 : 0.0);
+    gl.uniform1f(this._sizeLocation, probe._size || 0.0);
+    var m = probe.worldMatrix._m;
+    gl.uniform3f(this._positionLocation, m[12], m[13], m[14]);
     MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
 };
 

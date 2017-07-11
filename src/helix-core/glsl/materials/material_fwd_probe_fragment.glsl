@@ -1,4 +1,5 @@
 varying vec3 hx_viewPosition;
+varying vec3 hx_worldPosition;
 
 uniform samplerCube hx_diffuseProbeMap;
 uniform samplerCube hx_specularProbeMap;
@@ -10,6 +11,10 @@ uniform mat4 hx_cameraWorldMatrix;
 uniform vec2 hx_rcpRenderTargetResolution;
 uniform sampler2D hx_ssao;
 #endif
+
+uniform float hx_probeSize;
+uniform vec3 hx_probePosition;
+uniform float hx_probeLocal;
 
 void main()
 {
@@ -25,8 +30,12 @@ void main()
     vec3 reflectedViewDir = reflect(viewVector, data.normal);
     vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);
     reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
-    vec3 diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, worldNormal);
-    vec3 specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, reflectedViewDir, fresnel, data.roughness);
+    vec3 diffRay = hx_intersectCubeMap(hx_worldPosition, hx_probePosition, worldNormal, hx_probeSize);
+    vec3 specRay = hx_intersectCubeMap(hx_worldPosition, hx_probePosition, reflectedViewDir, hx_probeSize);
+    diffRay = mix(worldNormal, diffRay, hx_probeLocal);
+    specRay = mix(reflectedViewDir, specRay, hx_probeLocal);
+    vec3 diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, diffRay);
+    vec3 specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, specRay, fresnel, data.roughness);
 
     gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);
 

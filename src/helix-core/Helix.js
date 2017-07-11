@@ -103,6 +103,8 @@ export function InitOptions()
 
     // will be assigned to HX.DirectionalLight.SHADOW_FILTER
     this.directionalShadowFilter = new HardDirectionalShadowFilter();
+
+    this.viewportScaling = 1.0;
 };
 
 /**

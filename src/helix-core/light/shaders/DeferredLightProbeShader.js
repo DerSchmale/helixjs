@@ -15,6 +15,9 @@ function DeferredLightProbeShader(probe)
         extensions += "#texturelod\n";
     }
 
+    if (probe.size)
+        defines.HX_LOCAL_PROBE = 1;
+
     this._probe = probe;
 
     if (probe.diffuseTexture)
@@ -39,6 +42,11 @@ function DeferredLightProbeShader(probe)
 
     this._colorLocation = gl.getUniformLocation(p, "hx_directionalLight.color");
     this._dirLocation = gl.getUniformLocation(p, "hx_directionalLight.direction");
+
+    if (probe.size) {
+        this._sizeLocation = gl.getUniformLocation(p, "hx_probeSize");
+        this._positionLocation = gl.getUniformLocation(p, "hx_probePosition");
+    }
 
     this._positionAttributeLocation = gl.getAttribLocation(p, "hx_position");
     this._texCoordAttributeLocation = gl.getAttribLocation(p, "hx_texCoord");
@@ -88,6 +96,12 @@ DeferredLightProbeShader.prototype.execute = function(renderer)
 
     if (diffuseProbe)
         diffuseProbe.bind(5);
+
+    if (this._sizeLocation) {
+        var m = this._probe.worldMatrix._m;
+        gl.uniform1f(this._sizeLocation, this._probe._size * .5);
+        gl.uniform3f(this._positionLocation, m[12], m[13], m[14]);
+    }
 
     GL.setCullMode(CullMode.NONE);
 

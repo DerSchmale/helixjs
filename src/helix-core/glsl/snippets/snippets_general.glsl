@@ -192,6 +192,13 @@ float hx_linearStep(float lower, float upper, float x)
     return clamp((x - lower) / (upper - lower), 0.0, 1.0);
 }
 
+vec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)
+{
+    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;
+    float minT = min(min(t.x, t.y), t.z);
+    return rayOrigin + minT * rayDir;
+}
+
 // sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.
 #ifdef HX_USE_SKINNING_TEXTURE
 #define HX_RCP_MAX_BONES 1.0 / float(HX_MAX_BONES - 1)

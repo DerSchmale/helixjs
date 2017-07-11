@@ -238,14 +238,17 @@ SceneNode.prototype.toString = function()
     return "[SceneNode(name=" + this._name + ")]";
 };
 
-SceneNode.prototype.applyFunction = function(func)
+SceneNode.prototype.applyFunction = function(func, thisRef)
 {
+    if (thisRef)
+        func.call(thisRef, this);
+    else
     // Heehee, this line amuses me:
-    func(this);
+        func(this);
 
     var len = this._children.length;
     for (var i = 0; i < len; ++i)
-        this._children[i].applyFunction(func);
+        this._children[i].applyFunction(func, thisRef);
 };
 
 export { SceneNode };

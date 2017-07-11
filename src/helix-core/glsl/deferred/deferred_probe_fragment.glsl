@@ -8,15 +8,19 @@ uniform sampler2D hx_ssao;
 uniform samplerCube hx_diffuseProbeMap;
 uniform samplerCube hx_specularProbeMap;
 
-uniform float hx_cameraNearPlaneDistance;
-uniform float hx_cameraFrustumRange;
 uniform float hx_specularProbeNumMips;
 uniform mat4 hx_cameraWorldMatrix;
 
+#ifdef HX_LOCAL_PROBE
+uniform float hx_cameraNearPlaneDistance;
+uniform float hx_cameraFrustumRange;
+
+uniform float hx_probeSize;
+uniform vec3 hx_probePosition;
+#endif
 
 void main()
 {
-// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method
     HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);
 
     vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.geometry.normal;
@@ -26,13 +30,28 @@ void main()
     vec3 fresnel = hx_fresnelProbe(data.normalSpecularReflectance, reflectedViewDir, data.geometry.normal, data.geometry.roughness);
     reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
 
+#ifdef HX_LOCAL_PROBE
+    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;
+    vec3 viewPosition = viewDir * absViewZ;
+    vec3 worldPosition = mat3(hx_cameraWorldMatrix) * viewPosition;
+#endif
+
     vec3 diffuse = vec3(0.0);
     vec3 specular = vec3(0.0);
+
 #ifdef HX_DIFFUSE_PROBE
+    vec3 diffRay = worldNormal;
+    #ifdef HX_LOCAL_PROBE
+        diffRay = hx_intersectCubeMap(worldPosition, hx_probePosition, diffRay, hx_probeSize);
+    #endif
     diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, worldNormal);
 #endif
 #ifdef HX_SPECULAR_PROBE
-    specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, reflectedViewDir, fresnel, data.geometry.roughness);
+    vec3 specRay = reflectedViewDir;
+    #ifdef HX_LOCAL_PROBE
+        specRay = hx_intersectCubeMap(worldPosition, hx_probePosition, specRay, hx_probeSize);
+    #endif
+    specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, specRay, fresnel, data.geometry.roughness);
 #endif
 
     float ssao = texture2D(hx_ssao, uv).x;

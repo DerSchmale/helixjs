@@ -15,6 +15,7 @@ import {PoissonDisk} from "./math/PoissonDisk";
 import {PoissonSphere} from "./math/PoissonSphere";
 import {Color} from "./core/Color";
 import {MaterialPass} from "./material/MaterialPass";
+import {FrameBuffer} from "./texture/FrameBuffer";
 
 export var META =
     {
@@ -223,6 +224,16 @@ export function init(canvas, options)
 
     if (!capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR || !capabilities.EXT_HALF_FLOAT_TEXTURES)
         options.hdr = false;
+
+    // try creating a HDR fbo
+    if (options.hdr) {
+        var tex = new Texture2D();
+        tex.initEmpty(8, 8, null, capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
+        var fbo = new FrameBuffer(tex);
+        var result = fbo.init(true);
+        if (!result)
+            options.hdr = false;
+    }
 
     capabilities.HDR_FORMAT = options.hdr ? capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;
 

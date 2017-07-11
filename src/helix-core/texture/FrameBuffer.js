@@ -32,7 +32,7 @@ FrameBuffer.prototype = {
     get width() { return this._width; },
     get height() { return this._height; },
 
-    init: function()
+    init: function(silent)
     {
         var gl = GL.gl;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
@@ -77,7 +77,7 @@ FrameBuffer.prototype = {
 
         var status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
 
-        switch (status) {
+        switch (status && !silent) {
             case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
                 console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
                 break;
@@ -93,6 +93,8 @@ FrameBuffer.prototype = {
             default:
                 // nothing
         }
+
+        return status === gl.FRAMEBUFFER_COMPLETE;
     },
 
     dispose: function()

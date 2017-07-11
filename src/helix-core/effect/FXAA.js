@@ -12,9 +12,9 @@ function FXAA()
     Effect.call(this);
 
     this._pass = new EffectPass(null, ShaderLibrary.get("fxaa_fragment.glsl"));
-    this._pass.setUniform("edgeThreshold", 1/8);
+    this._pass.setUniform("edgeThreshold", 1/4);
     this._pass.setUniform("edgeThresholdMin", 1/16);
-    this._pass.setUniform("edgeSharpness", 4.0);
+    this._pass.setUniform("edgeSharpness", 100.0);
 };
 
 FXAA.prototype = Object.create(Effect.prototype);

@@ -40,6 +40,7 @@ Float4.lerp = function(a, b, factor, target)
     target.y = ay + (b.y - ay) * factor;
     target.z = az + (b.z - az) * factor;
     target.w = aw + (b.w - aw) * factor;
+    return target;
 };
 
 Float4.distance = function(a, b)

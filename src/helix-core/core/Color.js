@@ -13,6 +13,18 @@ function Color(rOrHex, g, b, a)
     this.set(rOrHex, g, b, a);
 }
 
+Color.lerp = function(a, b, t, target)
+{
+    target = target || new Color();
+    var ar = a.r, ag = a.g, ab = a.b, aa = a.a;
+
+    target.r = ar + (b.r - ar) * t;
+    target.g = ag + (b.g - ag) * t;
+    target.b = ab + (b.b - ab) * t;
+    target.a = aa + (b.a - aa) * t;
+    return target;
+};
+
 Color.prototype =
 {
     set: function (rOrHex, g, b, a)
@@ -36,6 +48,14 @@ Color.prototype =
             this.a = a === undefined ? 1.0 : a;
         }
     },
+
+    scale: function(s)
+    {
+        this.r *= s;
+        this.g *= s;
+        this.b *= s;
+    },
+
 
     hex: function ()
     {

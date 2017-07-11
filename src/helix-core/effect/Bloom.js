@@ -88,7 +88,7 @@ Bloom.prototype._initTextures = function ()
     for (var i = 0; i < 2; ++i) {
         this._thresholdWidth = Math.ceil(this._targetWidth / this._downScale);
         this._thresholdHeight = Math.ceil(this._targetHeight / this._downScale);
-        this._thresholdMaps[i].initEmpty(this._thresholdWidth, this._thresholdHeight, TextureFormat.RGB, _HX_.HDR_FORMAT);
+        this._thresholdMaps[i].initEmpty(this._thresholdWidth, this._thresholdHeight, TextureFormat.RGB, capabilities.HDR_FORMAT);
         this._smallFBOs[i].init();
     }
 };

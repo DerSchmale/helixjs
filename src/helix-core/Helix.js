@@ -50,13 +50,13 @@ export var capabilities =
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
         NUM_MORPH_TARGETS: 0,
-        GBUFFER_MRT: false
+        GBUFFER_MRT: false,
+        HDR_FORMAT: 0
     };
 
 // internal options
 export var _HX_ = {
-    GAMMA_CORRECT_LIGHTS: false,
-    HDR_FORMAT: 0
+    GAMMA_CORRECT_LIGHTS: false
 };
 
 export var TextureFilter = {};
@@ -224,7 +224,7 @@ export function init(canvas, options)
     if (!capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR || !capabilities.EXT_HALF_FLOAT_TEXTURES)
         options.hdr = false;
 
-    _HX_.HDR_FORMAT = options.hdr ? capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;
+    capabilities.HDR_FORMAT = options.hdr ? capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;
 
     // this causes lighting accumulation to happen in gamma space (only accumulation of lights within the same pass is linear)
     // This yields an incorrect gamma correction to be applied, but looks much better due to encoding limitation (otherwise there would be banding)

@@ -114,6 +114,13 @@ ModelInstance.prototype.init = function(model, materials)
     this._invalidateWorldBounds();
 };
 
+ModelInstance.prototype.assignMaterial = function(material)
+{
+    for (var i = 0; i < this._meshInstances.length; ++i) {
+        this._meshInstances[i].material = material;
+    }
+};
+
 ModelInstance.prototype.getMeshInstance = function(index)
 {
     return this._meshInstances[index];

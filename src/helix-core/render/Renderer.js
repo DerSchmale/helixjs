@@ -74,7 +74,7 @@ Renderer.HDRBuffers.prototype =
 
     resize: function(width, height)
     {
-        this.texture.initEmpty(width, height, TextureFormat.RGBA, _HX_.HDR_FORMAT);
+        this.texture.initEmpty(width, height, TextureFormat.RGBA, capabilities.HDR_FORMAT);
         this.fbo.init();
         this.fboDepth.init();
     }

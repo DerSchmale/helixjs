@@ -17,6 +17,7 @@ Primitive._ATTRIBS = function()
     this.positions = [];
     this.uvs = null;
     this.normals = null;
+    this.vertexColors = null;
     this.indices = [];
 };
 
@@ -33,6 +34,7 @@ Primitive.prototype._createMeshData = function(definition)
     var uvs = definition.uvs === undefined? true : definition.uvs;
     var normals = definition.normals === undefined? true : definition.normals;
     var tangents = definition.tangents === undefined? true : definition.tangents;
+    // depends on the primitive type
 
     var data = new MeshData();
     data.addVertexAttribute('hx_position', 3);
@@ -51,6 +53,11 @@ Primitive.prototype._createMeshData = function(definition)
     }
 
     this._generate(attribs, definition);
+
+    var vertexColors = attribs.vertexColors;
+    if (vertexColors) {
+        data.addVertexAttribute('hx_vertexColor', 3);
+    }
 
     var scaleU = definition.scaleU || 1;
     var scaleV = definition.scaleV || 1;
@@ -76,6 +83,12 @@ Primitive.prototype._createMeshData = function(definition)
         if (uvs) {
             vertices[v++] = attribs.uvs[v2++] * scaleU;
             vertices[v++] = attribs.uvs[v2++] * scaleV;
+        }
+
+        if (vertexColors) {
+            vertices[v++] = attribs.vertexColors[v3];
+            vertices[v++] = attribs.vertexColors[v3 + 1];
+            vertices[v++] = attribs.vertexColors[v3 + 2];
         }
 
         v3 += 3;

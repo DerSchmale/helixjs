@@ -100,6 +100,13 @@ Quaternion.slerp = function(a, b, factor, target)
     return target;
 };
 
+Quaternion.fromAxisAngle = function(axis, radians)
+{
+    var quat = new Quaternion();
+    quat.fromAxisAngle(axis, radians);
+    return quat;
+};
+
 Quaternion.prototype =
 {
     fromAxisAngle: function (axis, radians)

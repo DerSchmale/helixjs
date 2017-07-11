@@ -6,7 +6,7 @@ export {
     init, start, stop,
     META, capabilities,
     onPreFrame, onFrame,
-    TextureFilter, CullMode, StencilOp, Comparison, ElementType, BlendFactor, BlendOperation, ClearMask, InitOptions, TextureFormat, DataType
+    TextureFilter, CullMode, StencilOp, Comparison, ElementType, BlendFactor, BlendOperation, ClearMask, InitOptions, TextureFormat, DataType, BufferUsage, CubeFace
 } from './Helix.js';
 
 export {Float2} from './math/Float2';
@@ -94,6 +94,7 @@ export {ExponentialDirectionalShadowFilter} from './light/ExponentialDirectional
 export {HardDirectionalShadowFilter} from './light/HardDirectionalShadowFilter';
 export {Light} from './light/Light';
 export {LightProbe} from './light/LightProbe';
+export {DynamicLightProbe} from './light/DynamicLightProbe';
 export {PCFDirectionalShadowFilter} from './light/PCFDirectionalShadowFilter';
 export {PointLight} from './light/PointLight';
 export {ShadowFilter} from './light/ShadowFilter';

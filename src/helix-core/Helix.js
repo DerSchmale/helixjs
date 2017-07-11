@@ -71,6 +71,7 @@ export var ClearMask = {};
 export var TextureFormat = {};
 export var DataType = {};
 export var BufferUsage = {};
+export var CubeFace = {};
 
 /**
  * Provides a set of options to configure Helix
@@ -414,4 +415,11 @@ function _initGLProperties()
     DataType.FLOAT = gl.FLOAT;
 
     BufferUsage.STATIC_DRAW = gl.STATIC_DRAW;
+
+    CubeFace.POSITIVE_X = gl.TEXTURE_CUBE_MAP_POSITIVE_X;
+    CubeFace.NEGATIVE_X = gl.TEXTURE_CUBE_MAP_NEGATIVE_X;
+    CubeFace.POSITIVE_Y = gl.TEXTURE_CUBE_MAP_POSITIVE_Y;
+    CubeFace.NEGATIVE_Y = gl.TEXTURE_CUBE_MAP_NEGATIVE_Y;
+    CubeFace.POSITIVE_Z = gl.TEXTURE_CUBE_MAP_POSITIVE_Z;
+    CubeFace.NEGATIVE_Z = gl.TEXTURE_CUBE_MAP_NEGATIVE_Z;
 }

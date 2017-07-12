@@ -10,6 +10,14 @@ import {VertexBuffer} from "../core/VertexBuffer";
 
 var Mesh_ID_COUNTER = 0;
 
+/**
+ * A Mesh should have its layout defined using addVertexAttribute, and initial data supplied using setVertexData,
+ * before passing it on to a Model. These values will be used to calculate its local bounding box.
+ * After this, setVertexData can be called to change data, but it will not change the model
+ * @param vertexUsage
+ * @param indexUsage
+ * @constructor
+ */
 function Mesh(vertexUsage, indexUsage)
 {
     this._model = null;
@@ -55,7 +63,7 @@ Mesh.prototype = {
         return !!this._defaultMorphTarget;
     },
 
-    // this should only be the case for morph targets
+    // this should only be null for morph targets!
     hasVertexData: function (streamIndex)
     {
         return !!this._vertexData[streamIndex];

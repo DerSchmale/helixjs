@@ -9,6 +9,7 @@ import {Mesh} from "./Mesh";
 
 function Model(meshes)
 {
+    this.onLocalBoundsChanged = new Signal();
     this._name = null;
     this._localBounds = new BoundingAABB();
     this._localBoundsInvalid = true;
@@ -74,7 +75,6 @@ Model.prototype =
             mesh._model = null;
 
             this._localBoundsInvalid = true;
-
             this.onChange.dispatch();
         },
 

@@ -100,6 +100,7 @@ ModelInstance.prototype.init = function(model, materials)
         throw new Error("ModelInstance already initialized");
 
     this._model = model;
+    this._model.onChange.bind(this._invalidateWorldBounds, this);
 
     if (materials)
         this._materials = materials instanceof Array? materials : [ materials ];

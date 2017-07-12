@@ -23,6 +23,7 @@ function ModelInstance(model, materials)
     this._castShadows = true;
     this._skeletonPose = null;
     this._morphPose = null;
+    this._meshInstancesInvalid = false;
 
     this.init(model, materials);
 }
@@ -112,10 +113,13 @@ ModelInstance.prototype.init = function(model, materials)
     }
 
     this._invalidateWorldBounds();
+    this._updateMeshInstances();
 };
 
 ModelInstance.prototype.assignMaterial = function(material)
 {
+    if (this._meshInstancesInvalid) this._updateMeshInstances();
+
     for (var i = 0; i < this._meshInstances.length; ++i) {
         this._meshInstances[i].material = material;
     }
@@ -139,19 +143,21 @@ ModelInstance.prototype._generateDefaultSkeletonPose = function()
     }
 };
 
-
-ModelInstance.prototype._addMeshInstance = function(mesh, material)
+ModelInstance.prototype._updateMeshInstances = function()
 {
-    this._meshInstances.push(new MeshInstance(mesh, material));
+    this._meshInstances = [];
+    var maxIndex = this._materials.length - 1;
+
+    for (var i = 0; i < this._model.numMeshes; ++i) {
+        this._meshInstances.push(new MeshInstance(this._model.getMesh(i), this._materials[Math.min(i, maxIndex)]));
+    }
+
+    this._meshInstancesInvalid = false;
 };
 
 ModelInstance.prototype._onModelChange = function()
 {
-    var maxIndex = this._materials.length - 1;
-    for (var i = 0; i < this._model.numMeshes; ++i) {
-        this._addMeshInstance(this._model.getMesh(i), this._materials[Math.min(i, maxIndex)]);
-    }
-
+    this._meshInstancesInvalid = true;
     this._invalidateWorldBounds();
 };
 
@@ -192,6 +198,7 @@ ModelInstance.prototype._onMorphChanged = function()
 // override for better matches
 ModelInstance.prototype._updateWorldBounds = function()
 {
+    if (this._meshInstancesInvalid) this._updateMeshInstances();
     Entity.prototype._updateWorldBounds.call(this);
     this._meshBounds.transformFrom(this._model.localBounds, this.worldMatrix);
     this._worldBounds.growToIncludeBound(this._meshBounds);
@@ -199,6 +206,7 @@ ModelInstance.prototype._updateWorldBounds = function()
 
 ModelInstance.prototype.acceptVisitor = function(visitor)
 {
+    if (this._meshInstancesInvalid) this._updateMeshInstances();
     visitor.visitModelInstance(this, this.worldMatrix, this.worldBounds);
     Entity.prototype.acceptVisitor.call(this, visitor);
 };

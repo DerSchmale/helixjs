@@ -109,9 +109,7 @@ export {ModelInstance} from './mesh/ModelInstance';
 export {Model} from './mesh/Model';
 export {Mesh} from './mesh/Mesh';
 export {MeshBatch} from './mesh/MeshBatch';
-export {MeshData} from './mesh/MeshData';
 export {MeshInstance} from './mesh/MeshInstance';
-export {ModelData} from './mesh/ModelData';
 
 export {SpherePrimitive} from './mesh/primitives/SpherePrimitive';
 export {BoxPrimitive} from './mesh/primitives/BoxPrimitive';

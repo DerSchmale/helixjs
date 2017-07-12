@@ -1,11 +1,10 @@
 import {SceneNode} from "./SceneNode";
-import {MeshData} from "../mesh/MeshData";
-import {ModelData} from "../mesh/ModelData";
 import {Model} from "../mesh/Model";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Float4} from "../math/Float4";
 import {ModelInstance} from "../mesh/ModelInstance";
 import {RenderCollector} from "../render/RenderCollector";
+import {Mesh} from "../mesh/Mesh";
 
 // TODO: there no way to figure out correct mip level for texture
 // TODO: Should we provide a snap size in the vertex data?
@@ -51,13 +50,13 @@ Terrain.prototype = Object.create(SceneNode.prototype, {
 Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
 {
     var rcpNumSegments = 1.0 / numSegments;
-    var meshData = new MeshData();
+    var mesh = new Mesh();
     var cellSize = size * rcpNumSegments;
     var halfCellSize = cellSize * .5;
 
-    meshData.addVertexAttribute("hx_position", 3);
-    meshData.addVertexAttribute("hx_normal", 3);
-    meshData.addVertexAttribute("hx_cellSize", 1);
+    mesh.addVertexAttribute("hx_position", 3);
+    mesh.addVertexAttribute("hx_normal", 3);
+    mesh.addVertexAttribute("hx_cellSize", 1);
 
     var vertices = [];
     var indices = [];
@@ -104,12 +103,10 @@ Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
         }
     }
 
-    meshData.setVertexData(vertices, 0);
-    meshData.setIndexData(indices);
+    mesh.setVertexData(vertices, 0);
+    mesh.setIndexData(indices);
 
-    var modelData = new ModelData();
-    modelData.addMeshData(meshData);
-    var model = new Model(modelData);
+    var model = new Model(mesh);
     model.localBounds.growToIncludeMinMax(new Float4(0, this._minElevation, 0), new Float4(0, this._maxElevation, 0));
     return model;
 };

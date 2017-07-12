@@ -57,10 +57,10 @@ function initHDRSettings()
     // TODO: Implement pseudo lens flare
 
     var tonemap = new HX.FilmicToneMapping(false);
-    tonemap.exposure = 1;
+    tonemap.exposure = 0;
 
     settings.effects = [bloom1, bloom2, bloom3, tonemap];
-    settings.sunIntensity = 5.0;
+    settings.sunIntensity = 10.0;
     settings.cloudColor = new HX.Color(0.8, 0.78, 0.75);
 
     settings.scatterIntensityBoost = .25;

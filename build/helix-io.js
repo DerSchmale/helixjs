@@ -24,8 +24,8 @@ MD5Mesh.prototype = Object.create(HX$1.Importer.prototype);
 
 MD5Mesh.prototype.parse = function(data, target)
 {
-    this._modelData = new HX$1.ModelData();
     this._skeleton = new HX$1.Skeleton();
+    this._model = target;
     this._jointData = [];
 
     // assuming a valid file, validation isn't our job
@@ -61,7 +61,6 @@ MD5Mesh.prototype.parse = function(data, target)
         }
     }
 
-    target._setModelData(this._modelData);
     target.skeleton = this._skeleton;
     this._notifyComplete(target);
 };
@@ -145,9 +144,9 @@ MD5Mesh.prototype._parseWeight = function(tokens)
 
 MD5Mesh.prototype._translateMesh = function()
 {
-    var meshData = new HX$1.MeshData.createDefaultEmpty();
-    meshData.addVertexAttribute("hx_boneIndices", 4, 1);
-    meshData.addVertexAttribute("hx_boneWeights", 4, 1);
+    var mesh = new HX$1.Mesh.createDefaultEmpty();
+    mesh.addVertexAttribute("hx_boneIndices", 4, 1);
+    mesh.addVertexAttribute("hx_boneWeights", 4, 1);
     var vertices = [];
     var anims = [];
 
@@ -194,13 +193,13 @@ MD5Mesh.prototype._translateMesh = function()
         v += 12;
     }
 
-    meshData.setVertexData(vertices, 0);
-    meshData.setVertexData(anims, 1);
-    meshData.setIndexData(this._meshData.indices);
+    mesh.setVertexData(vertices, 0);
+    mesh.setVertexData(anims, 1);
+    mesh.setIndexData(this._meshData.indices);
 
     var generator = new HX$1.NormalTangentGenerator();
-    generator.generate(meshData);
-    this._modelData.addMeshData(meshData);
+    generator.generate(mesh);
+    this._model.addMesh(mesh);
 };
 
 MD5Mesh._Joint = function()
@@ -589,7 +588,6 @@ OBJ.prototype._translateObject = function(object, mtlLib)
 {
     var numGroups = object.groups.length;
     if (numGroups === 0) return;
-    var modelData = new HX$1.ModelData();
     var materials = [];
     var model = new HX$1.Model();
 
@@ -601,7 +599,7 @@ OBJ.prototype._translateObject = function(object, mtlLib)
             if (group.subgroups.hasOwnProperty(key)) {
                 var subgroup = group.subgroups[key];
                 if (subgroup.numIndices === 0) continue;
-                modelData.addMeshData(this._translateMeshData(subgroup));
+                model.addMesh(this._translateMesh(subgroup));
 
                 var material = mtlLib? mtlLib[key] : null;
                 material = material || this._defaultMaterial;
@@ -610,16 +608,14 @@ OBJ.prototype._translateObject = function(object, mtlLib)
         }
     }
 
-    model._setModelData(modelData);
-
     var modelInstance = new HX$1.ModelInstance(model, materials);
     modelInstance.name = object.name;
     this._target.attach(modelInstance);
 };
 
-OBJ.prototype._translateMeshData = function(group)
+OBJ.prototype._translateMesh = function(group)
 {
-    var meshData = HX$1.MeshData.createDefaultEmpty();
+    var mesh = HX$1.Mesh.createDefaultEmpty();
     var realIndices = [];
     var indices = new Array(group.numIndices);
     var numVertices = 0;
@@ -653,13 +649,13 @@ OBJ.prototype._translateMeshData = function(group)
         }
     }
 
-    var vertices = new Array(numVertices * HX$1.MeshData.DEFAULT_VERTEX_SIZE);
+    var vertices = new Array(numVertices * HX$1.Mesh.DEFAULT_VERTEX_SIZE);
 
     for (var hash in realIndices) {
         if (!realIndices.hasOwnProperty(hash)) continue;
         var data = realIndices[hash];
         var vertex = data.vertex;
-        var index = data.index * HX$1.MeshData.DEFAULT_VERTEX_SIZE;
+        var index = data.index * HX$1.Mesh.DEFAULT_VERTEX_SIZE;
 
         vertices[index] = vertex.posX;
         vertices[index+1] = vertex.posY;
@@ -675,14 +671,14 @@ OBJ.prototype._translateMeshData = function(group)
         vertices[index+11] = vertex.uvV;
     }
 
-    meshData.setVertexData(vertices, 0);
-    meshData.setIndexData(indices);
+    mesh.setVertexData(vertices, 0);
+    mesh.setIndexData(indices);
 
     var mode = HX$1.NormalTangentGenerator.MODE_TANGENTS;
     if (!this._hasNormals) mode |= HX$1.NormalTangentGenerator.MODE_NORMALS;
     var generator = new HX$1.NormalTangentGenerator();
-    generator.generate(meshData, mode, true);
-    return meshData;
+    generator.generate(mesh, mode, true);
+    return mesh;
 };
 
 OBJ._FaceVertexData = function()
@@ -2356,14 +2352,14 @@ FBXModelInstanceConverter.prototype =
         this._modelMaterialIDs = [];
         this._useSkinning = false;
 
-        this._modelData = new HX.ModelData();
+        this._model = new HX.Model();
         this._animationConverter = new FBXAnimationConverter();
 
         if (fbxMesh.deformers)
             this._generateSkinningData(fbxMesh, geometryMatrix);
         this._generateExpandedMeshData(fbxMesh, geometryMatrix);
 
-        this._vertexStride = HX.MeshData.DEFAULT_VERTEX_SIZE;
+        this._vertexStride = HX.Mesh.DEFAULT_VERTEX_SIZE;
         if (this._expandedMesh.hasColor)
             this._vertexStride += 3;
 
@@ -2414,7 +2410,7 @@ FBXModelInstanceConverter.prototype =
             if (matrix)
                 matrix.transformPoint(v.pos, v.pos);
 
-            if (this._modelData.skeleton)
+            if (this._model.skeleton)
                 v.jointBindings = this._animationConverter.getJointBinding(ctrlPointIndex);
 
             v.ctrlPointIndex = ctrlPointIndex;   // if these indices are different, they are probably triggered differerently in animations
@@ -2634,16 +2630,16 @@ FBXModelInstanceConverter.prototype =
 
             var stackSize = data.indexStack.length;
             for (var j = 0; j < stackSize; ++j) {
-                var meshData = HX.MeshData.createDefaultEmpty();
-                if (this._expandedMesh.hasColor) meshData.addVertexAttribute("hx_vertexColor", 3);
+                var mesh = HX.Mesh.createDefaultEmpty();
+                if (this._expandedMesh.hasColor) mesh.addVertexAttribute("hx_vertexColor", 3);
 
-                meshData.setVertexData(data.vertexStack[j], 0);
-                meshData.setIndexData(data.indexStack[j]);
+                mesh.setVertexData(data.vertexStack[j], 0);
+                mesh.setIndexData(data.indexStack[j]);
 
                 if (this._useSkinning) {
-                    meshData.addVertexAttribute("hx_boneIndices", 4, 1);
-                    meshData.addVertexAttribute("hx_boneWeights", 4, 1);
-                    meshData.setVertexData(data.skinningStack[j], 1);
+                    mesh.addVertexAttribute("hx_boneIndices", 4, 1);
+                    mesh.addVertexAttribute("hx_boneWeights", 4, 1);
+                    mesh.setVertexData(data.skinningStack[j], 1);
                 }
 
                 var ctrlPoints = data.ctrlPointStack[j];
@@ -2659,12 +2655,10 @@ FBXModelInstanceConverter.prototype =
                 var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
                 if (!this._expandedMesh.hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
                 var generator = new HX.NormalTangentGenerator();
-                generator.generate(meshData, mode);
-                this._modelData.addMeshData(meshData);
+                generator.generate(mesh, mode);
+                this._model.addMesh(mesh);
             }
         }
-
-        this._model = new HX.Model(this._modelData);
     },
 
     _generateSkinningData: function(fbxMesh, geometryMatrix)
@@ -2674,7 +2668,7 @@ FBXModelInstanceConverter.prototype =
         if (len > 1) throw new Error("Multiple skins not supported");
 
         this._animationConverter.convertSkin(fbxMesh.deformers[0], geometryMatrix);
-        this._modelData.skeleton = this._animationConverter.skeleton;
+        this._model.skeleton = this._animationConverter.skeleton;
         this._useSkinning = true;
     }
 };

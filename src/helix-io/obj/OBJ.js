@@ -178,7 +178,6 @@ OBJ.prototype._translateObject = function(object, mtlLib)
 {
     var numGroups = object.groups.length;
     if (numGroups === 0) return;
-    var modelData = new HX.ModelData();
     var materials = [];
     var model = new HX.Model();
 
@@ -190,7 +189,7 @@ OBJ.prototype._translateObject = function(object, mtlLib)
             if (group.subgroups.hasOwnProperty(key)) {
                 var subgroup = group.subgroups[key];
                 if (subgroup.numIndices === 0) continue;
-                modelData.addMeshData(this._translateMeshData(subgroup));
+                model.addMesh(this._translateMesh(subgroup));
 
                 var material = mtlLib? mtlLib[key] : null;
                 material = material || this._defaultMaterial;
@@ -199,16 +198,14 @@ OBJ.prototype._translateObject = function(object, mtlLib)
         }
     }
 
-    model._setModelData(modelData);
-
     var modelInstance = new HX.ModelInstance(model, materials);
     modelInstance.name = object.name;
     this._target.attach(modelInstance);
 };
 
-OBJ.prototype._translateMeshData = function(group)
+OBJ.prototype._translateMesh = function(group)
 {
-    var meshData = HX.MeshData.createDefaultEmpty();
+    var mesh = HX.Mesh.createDefaultEmpty();
     var realIndices = [];
     var indices = new Array(group.numIndices);
     var numVertices = 0;
@@ -242,13 +239,13 @@ OBJ.prototype._translateMeshData = function(group)
         }
     }
 
-    var vertices = new Array(numVertices * HX.MeshData.DEFAULT_VERTEX_SIZE);
+    var vertices = new Array(numVertices * HX.Mesh.DEFAULT_VERTEX_SIZE);
 
     for (var hash in realIndices) {
         if (!realIndices.hasOwnProperty(hash)) continue;
         var data = realIndices[hash];
         var vertex = data.vertex;
-        var index = data.index * HX.MeshData.DEFAULT_VERTEX_SIZE;
+        var index = data.index * HX.Mesh.DEFAULT_VERTEX_SIZE;
 
         vertices[index] = vertex.posX;
         vertices[index+1] = vertex.posY;
@@ -264,14 +261,14 @@ OBJ.prototype._translateMeshData = function(group)
         vertices[index+11] = vertex.uvV;
     }
 
-    meshData.setVertexData(vertices, 0);
-    meshData.setIndexData(indices);
+    mesh.setVertexData(vertices, 0);
+    mesh.setIndexData(indices);
 
     var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
     if (!this._hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
     var generator = new HX.NormalTangentGenerator();
-    generator.generate(meshData, mode, true);
-    return meshData;
+    generator.generate(mesh, mode, true);
+    return mesh;
 };
 
 OBJ._FaceVertexData = function()

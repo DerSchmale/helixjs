@@ -76,7 +76,7 @@ BoundingVolume.prototype =
     get expanse() { return this._expanse; },
     get type() { return this._type; },
 
-    growToIncludeMesh: function(meshData) { throw new Error("Abstract method!"); },
+    growToIncludeMesh: function(mesh) { throw new Error("Abstract method!"); },
     growToIncludeBound: function(bounds) { throw new Error("Abstract method!"); },
     growToIncludeMinMax: function(min, max) { throw new Error("Abstract method!"); },
 

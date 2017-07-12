@@ -20,8 +20,8 @@ MD5Mesh.prototype = Object.create(HX.Importer.prototype);
 
 MD5Mesh.prototype.parse = function(data, target)
 {
-    this._modelData = new HX.ModelData();
     this._skeleton = new HX.Skeleton();
+    this._model = target;
     this._jointData = [];
 
     // assuming a valid file, validation isn't our job
@@ -57,7 +57,6 @@ MD5Mesh.prototype.parse = function(data, target)
         }
     }
 
-    target._setModelData(this._modelData);
     target.skeleton = this._skeleton;
     this._notifyComplete(target);
 };
@@ -141,9 +140,9 @@ MD5Mesh.prototype._parseWeight = function(tokens)
 
 MD5Mesh.prototype._translateMesh = function()
 {
-    var meshData = new HX.MeshData.createDefaultEmpty();
-    meshData.addVertexAttribute("hx_boneIndices", 4, 1);
-    meshData.addVertexAttribute("hx_boneWeights", 4, 1);
+    var mesh = new HX.Mesh.createDefaultEmpty();
+    mesh.addVertexAttribute("hx_boneIndices", 4, 1);
+    mesh.addVertexAttribute("hx_boneWeights", 4, 1);
     var vertices = [];
     var anims = [];
 
@@ -190,13 +189,13 @@ MD5Mesh.prototype._translateMesh = function()
         v += 12;
     }
 
-    meshData.setVertexData(vertices, 0);
-    meshData.setVertexData(anims, 1);
-    meshData.setIndexData(this._meshData.indices);
+    mesh.setVertexData(vertices, 0);
+    mesh.setVertexData(anims, 1);
+    mesh.setIndexData(this._meshData.indices);
 
     var generator = new HX.NormalTangentGenerator();
-    generator.generate(meshData);
-    this._modelData.addMeshData(meshData);
+    generator.generate(mesh);
+    this._model.addMesh(mesh);
 };
 
 MD5Mesh._Joint = function()

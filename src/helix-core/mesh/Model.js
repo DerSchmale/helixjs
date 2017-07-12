@@ -6,88 +6,102 @@
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {Signal} from "../core/Signal";
 import {Mesh} from "./Mesh";
-function Model(modelData)
+
+function Model(meshes)
 {
     this._name = null;
     this._localBounds = new BoundingAABB();
+    this._localBoundsInvalid = true;
     this._skeleton = null;
     this.onChange = new Signal();
+    this._meshes = [];
 
-    if (modelData) {
-        this._meshes = null;
-        this._setModelData(modelData);
+    if (meshes) {
+        if (meshes instanceof Array) {
+            for (var i = 0; i < meshes.length; ++i)
+                this.addMesh(meshes[i]);
+        }
+        else if (meshes instanceof Mesh) {
+            this.addMesh(meshes);
+        }
     }
-    else
-        this._meshes = [];
 };
 
 Model.prototype =
-{
-    get name()
     {
-        return this._name;
-    },
+        get name()
+        {
+            return this._name;
+        },
 
-    set name(value)
-    {
-        this._name = value;
-    },
+        set name(value)
+        {
+            this._name = value;
+        },
 
-    get numMeshes()
-    {
-        return this._meshes.length;
-    },
+        get numMeshes()
+        {
+            return this._meshes.length;
+        },
 
-    getMesh: function (index)
-    {
-        return this._meshes[index];
-    },
+        getMesh: function (index)
+        {
+            return this._meshes[index];
+        },
 
-    dispose: function()
-    {
-        if (this._meshes)
+        get localBounds()
+        {
+            if (this._localBoundsInvalid) this._updateLocalBounds();
+            return this._localBounds;
+        },
+
+
+        get skeleton()
+        {
+            return this._skeleton;
+        },
+
+        set skeleton(value)
+        {
+            this._skeleton = value;
+        },
+
+        removeMesh: function (mesh)
+        {
+            var index = this._meshes.indexOf(mesh);
+            if (index < 0) return;
+
+            mesh._model = null;
+
+            this._localBoundsInvalid = true;
+
+            this.onChange.dispatch();
+        },
+
+        addMesh: function (mesh)
+        {
+            if (mesh._model) throw new Error("Mesh cannot be shared across Models");
+
+            mesh._model = this;
+            this._meshes.push(mesh);
+            this._localBoundsInvalid = true;
+            this.onChange.dispatch();
+        },
+
+        toString: function()
+        {
+            return "[Model(name=" + this._name + ")]";
+        },
+
+        _updateLocalBounds: function()
+        {
+            this._localBounds.clear();
+
             for (var i = 0; i < this._meshes.length; ++i)
-                this._meshes[i].dispose();
-    },
+                this._localBounds.growToIncludeMesh(this._meshes[i]);
 
-    get localBounds()
-    {
-        return this._localBounds;
-    },
-
-
-    get skeleton()
-    {
-        return this._skeleton;
-    },
-
-    set skeleton(value)
-    {
-        this._skeleton = value;
-    },
-
-    _setModelData: function (modelData)
-    {
-        this.dispose();
-
-        this._localBounds.clear();
-        this._meshes = [];
-
-        for (var i = 0; i < modelData.numMeshes; ++i) {
-            var meshData = modelData.getMeshData(i);
-            this._localBounds.growToIncludeMesh(meshData);
-            this._meshes.push(new Mesh(meshData, this));
+            this._localBoundsInvalid = false;
         }
-
-        this.skeleton = modelData.skeleton;
-
-        this.onChange.dispatch();
-    },
-
-    toString: function()
-    {
-        return "[Model(name=" + this._name + ")]";
-    }
-};
+    };
 
 export { Model };

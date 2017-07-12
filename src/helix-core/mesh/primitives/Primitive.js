@@ -1,15 +1,11 @@
 import {Model} from "../Model";
-import {ModelData} from "../ModelData";
-import {MeshData} from "../MeshData";
 import {NormalTangentGenerator} from "../../utils/NormalTangentGenerator";
+import {Mesh} from "../Mesh";
 
 function Primitive(definition)
 {
     definition = definition || {};
-    var data = this._createMeshData(definition);
-    var modelData = new ModelData();
-    modelData.addMeshData(data);
-    Model.call(this, modelData);
+    Model.call(this, this._createMesh(definition));
 }
 
 Primitive._ATTRIBS = function()
@@ -28,7 +24,7 @@ Primitive.prototype._generate = function(target, definition)
     throw new Error("Abstract method called!");
 };
 
-Primitive.prototype._createMeshData = function(definition)
+Primitive.prototype._createMesh = function(definition)
 {
     var attribs = new Primitive._ATTRIBS();
     var uvs = definition.uvs === undefined? true : definition.uvs;
@@ -36,19 +32,19 @@ Primitive.prototype._createMeshData = function(definition)
     var tangents = definition.tangents === undefined? true : definition.tangents;
     // depends on the primitive type
 
-    var data = new MeshData();
-    data.addVertexAttribute('hx_position', 3);
+    var mesh = new Mesh();
+    mesh.addVertexAttribute('hx_position', 3);
 
     if (normals) {
-        data.addVertexAttribute('hx_normal', 3);
+        mesh.addVertexAttribute('hx_normal', 3);
         attribs.normals = [];
     }
 
     if (tangents)
-        data.addVertexAttribute('hx_tangent', 4);
+        mesh.addVertexAttribute('hx_tangent', 4);
 
     if (uvs) {
-        data.addVertexAttribute('hx_texCoord', 2);
+        mesh.addVertexAttribute('hx_texCoord', 2);
         attribs.uvs = [];
     }
 
@@ -56,7 +52,7 @@ Primitive.prototype._createMeshData = function(definition)
 
     var vertexColors = attribs.vertexColors;
     if (vertexColors) {
-        data.addVertexAttribute('hx_vertexColor', 3);
+        mesh.addVertexAttribute('hx_vertexColor', 3);
     }
 
     var scaleU = definition.scaleU || 1;
@@ -94,8 +90,8 @@ Primitive.prototype._createMeshData = function(definition)
         v3 += 3;
     }
 
-    data.setVertexData(vertices, 0);
-    data.setIndexData(attribs.indices);
+    mesh.setVertexData(vertices, 0);
+    mesh.setIndexData(attribs.indices);
 
     var mode = 0;
 
@@ -108,10 +104,10 @@ Primitive.prototype._createMeshData = function(definition)
 
     if (mode) {
         var generator = new NormalTangentGenerator();
-        generator.generate(data, mode);
+        generator.generate(mesh, mode);
     }
 
-    return data;
+    return mesh;
 };
 
 export {Primitive };

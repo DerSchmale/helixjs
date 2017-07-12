@@ -8,7 +8,7 @@ import {Float4} from "../math/Float4";
  */
 function NormalTangentGenerator()
 {
-    this._meshData = null;
+    this._mesh = null;
     this._mode = 0;
     this._faceNormals = null;
     this._faceTangents = null;
@@ -20,21 +20,21 @@ NormalTangentGenerator.MODE_TANGENTS = 2;
 
 NormalTangentGenerator.prototype =
 {
-    generate: function(meshData, mode, useFaceWeights)
+    generate: function(mesh, mode, useFaceWeights)
     {
         if (useFaceWeights === undefined) useFaceWeights = true;
         this._mode = mode === undefined? NormalTangentGenerator.MODE_NORMALS | NormalTangentGenerator.MODE_TANGENTS : mode;
 
-        this._meshData = meshData;
+        this._mesh = mesh;
 
-        this._positionAttrib = meshData.getVertexAttribute("hx_position");
-        this._normalAttrib = meshData.getVertexAttribute("hx_normal");
-        this._tangentAttrib = meshData.getVertexAttribute("hx_tangent");
-        this._uvAttrib = meshData.getVertexAttribute("hx_texCoord");
-        this._positionStride = meshData.getVertexStride(this._positionAttrib.streamIndex);
-        this._normalStride = meshData.getVertexStride(this._normalAttrib.streamIndex);
-        this._tangentStride = meshData.getVertexStride(this._tangentAttrib.streamIndex);
-        this._uvStride = meshData.getVertexStride(this._uvAttrib.streamIndex);
+        this._positionAttrib = mesh.getVertexAttributeByName("hx_position");
+        this._normalAttrib = mesh.getVertexAttributeByName("hx_normal");
+        this._tangentAttrib = mesh.getVertexAttributeByName("hx_tangent");
+        this._uvAttrib = mesh.getVertexAttributeByName("hx_texCoord");
+        this._positionStride = mesh.getVertexStride(this._positionAttrib.streamIndex);
+        this._normalStride = mesh.getVertexStride(this._normalAttrib.streamIndex);
+        this._tangentStride = mesh.getVertexStride(this._tangentAttrib.streamIndex);
+        this._uvStride = mesh.getVertexStride(this._uvAttrib.streamIndex);
 
         this._calculateFaceVectors(useFaceWeights);
         this._calculateVertexVectors();
@@ -42,7 +42,7 @@ NormalTangentGenerator.prototype =
 
     _calculateFaceVectors: function(useFaceWeights)
     {
-        var numIndices = this._meshData._indexData.length;
+        var numIndices = this._mesh._indexData.length;
 
         if ((this._mode & NormalTangentGenerator.MODE_NORMALS) !== 0) this._faceNormals = new Array(numIndices);
         if ((this._mode & NormalTangentGenerator.MODE_TANGENTS) !== 0) {
@@ -64,8 +64,8 @@ NormalTangentGenerator.prototype =
 
         var posOffset = this._positionAttrib.offset;
         var uvOffset = this._uvAttrib.offset;
-        var posData = this._meshData.getVertexData(this._positionAttrib.streamIndex);
-        var uvData = this._meshData.getVertexData(this._uvAttrib.streamIndex);
+        var posData = this._mesh.getVertexData(this._positionAttrib.streamIndex);
+        var uvData = this._mesh.getVertexData(this._uvAttrib.streamIndex);
 
         for (var i = 0; i < numIndices; i += 3) {
             this._getFloat3At(i, posOffset, this._positionStride, v0, posData);
@@ -121,11 +121,11 @@ NormalTangentGenerator.prototype =
         this._zeroVectors();
 
         var bitangents = this._faceTangents ? [] : null;
-        var indexData = this._meshData._indexData;
+        var indexData = this._mesh._indexData;
         var normalOffset = this._normalAttrib.offset;
         var tangentOffset = this._tangentAttrib.offset;
-        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
-        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
+        var normalData = this._mesh.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._mesh.getVertexData(this._tangentAttrib.streamIndex);
         var numIndices = indexData.length;
 
         for (var i = 0; i < numIndices; ++i) {
@@ -157,10 +157,10 @@ NormalTangentGenerator.prototype =
 
     _zeroVectors: function()
     {
-        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
-        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
-        var normalStride = this._meshData.getVertexStride(this._normalAttrib.streamIndex);
-        var tangentStride = this._meshData.getVertexStride(this._tangentAttrib.streamIndex);
+        var normalData = this._mesh.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._mesh.getVertexData(this._tangentAttrib.streamIndex);
+        var normalStride = this._mesh.getVertexStride(this._normalAttrib.streamIndex);
+        var tangentStride = this._mesh.getVertexStride(this._tangentAttrib.streamIndex);
         var numVertices = normalData.length / normalStride;
         var normalIndex = this._normalAttrib.offset;
         var tangentIndex = this._tangentAttrib.offset;
@@ -183,8 +183,8 @@ NormalTangentGenerator.prototype =
 
     _normalize: function(bitangents)
     {
-        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
-        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
+        var normalData = this._mesh.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._mesh.getVertexData(this._tangentAttrib.streamIndex);
         var numVertices = normalData.length / this._normalStride;
         var normalIndex = this._normalAttrib.offset;
         var tangentIndex = this._tangentAttrib.offset;
@@ -230,11 +230,15 @@ NormalTangentGenerator.prototype =
             normalIndex += this._normalStride;
             tangentIndex += this._tangentStride;
         }
+
+        this._mesh.setVertexData(normalData, this._normalAttrib.streamIndex);
+        if (this._normalAttrib.streamIndex !== this._tangentAttrib.streamIndex)
+            this._mesh.setVertexData(tangentData, this._tangentAttrib.streamIndex);
     },
 
     _getFloat3At: function(i, offset, stride, target, data)
     {
-        var indices = this._meshData._indexData;
+        var indices = this._mesh._indexData;
         var posIndex = offset + indices[i] * stride;
         target.x = data[posIndex];
         target.y = data[posIndex + 1];
@@ -243,7 +247,7 @@ NormalTangentGenerator.prototype =
 
     _getFloat2At: function(i, offset, stride, target, data)
     {
-        var indices = this._meshData._indexData;
+        var indices = this._mesh._indexData;
         var posIndex = offset + indices[i] * stride;
         target.x = data[posIndex];
         target.y = data[posIndex + 1];

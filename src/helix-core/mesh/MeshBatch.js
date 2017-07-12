@@ -1,21 +1,21 @@
-import {MeshData} from "./MeshData";
+import {Mesh} from "./Mesh";
 
 /**
  * Creates a number copies of the same mesh with hx_instanceID being the instance number of the copy.
  */
 var MeshBatch =
     {
-        create: function (sourceMeshData, numInstances)
+        create: function (sourceMesh, numInstances)
         {
             var len, i, j;
-            var target = new MeshData();
-            var sourceIndices = sourceMeshData._indexData;
+            var target = new Mesh();
+            var sourceIndices = sourceMesh._indexData;
 
-            target.vertexUsage = sourceMeshData.vertexUsage;
-            target.indexUsage = sourceMeshData.indexUsage;
+            target._vertexUsage = sourceMesh._vertexUsage;
+            target._indexUsage = sourceMesh._indexUsage;
 
-            var attribs = sourceMeshData._vertexAttributes;
-            var instanceStream = sourceMeshData.numStreams;
+            var attribs = sourceMesh._vertexAttributes;
+            var instanceStream = sourceMesh.numStreams;
 
             for (i = 0; i < attribs.length; ++i) {
                 var attribute = attribs[i];
@@ -26,7 +26,7 @@ var MeshBatch =
 
             var targetIndices = [];
             var index = 0;
-            var numVertices = sourceMeshData.numVertices;
+            var numVertices = sourceMesh.numVertices;
 
             len = sourceIndices.length;
 
@@ -38,9 +38,9 @@ var MeshBatch =
 
             target.setIndexData(targetIndices);
 
-            for (i = 0; i < sourceMeshData.numStreams; ++i) {
+            for (i = 0; i < sourceMesh.numStreams; ++i) {
                 var targetVertices = [];
-                var sourceVertices = sourceMeshData.getVertexData(i);
+                var sourceVertices = sourceMesh.getVertexData(i);
 
                 len = sourceVertices.length;
                 index = 0;

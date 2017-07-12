@@ -13,14 +13,14 @@ function BoundingAABB()
 
 BoundingAABB.prototype = Object.create(BoundingVolume.prototype);
 
-BoundingAABB.prototype.growToIncludeMesh = function(meshData)
+BoundingAABB.prototype.growToIncludeMesh = function(mesh)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
 
-    var attribute = meshData.getVertexAttribute("hx_position");
+    var attribute = mesh.getVertexAttributeByName("hx_position");
     var index = attribute.offset;
-    var stride = meshData.getVertexStride(attribute.streamIndex);
-    var vertices = meshData.getVertexData(attribute.streamIndex);
+    var stride = mesh.getVertexStride(attribute.streamIndex);
+    var vertices = mesh.getVertexData(attribute.streamIndex);
     var len = vertices.length;
     var minX, minY, minZ;
     var maxX, maxY, maxZ;

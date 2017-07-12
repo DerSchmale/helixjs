@@ -13,7 +13,7 @@ function VertexLayout(mesh, pass)
     this._numAttributes = -1;
 
     for (var i = 0; i < mesh.numVertexAttributes; ++i) {
-        var attribute = mesh.getVertexAttribute(i);
+        var attribute = mesh.getVertexAttributeByIndex(i);
         var index = shader.getAttributeLocation(attribute.name);
         if (!(index >= 0)) continue;
 
@@ -37,6 +37,5 @@ function VertexLayout(mesh, pass)
 
     }
 }
-
 
 export { VertexLayout };

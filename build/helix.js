@@ -32,10 +32,6 @@ var ShaderLibrary = {
     }
 };
 
-ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
-
-ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
-
 ShaderLibrary._files['deferred_ambient_light_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_ssao;\n\nuniform vec3 hx_ambientColor;\n\n\nvoid main()\n{\n// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    float ssao = texture2D(hx_ssao, uv).x;\n\n    gl_FragColor.xyz = hx_ambientColor * ssao * data.geometry.color.xyz;\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['deferred_dir_light_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform HX_DirectionalLight hx_directionalLight;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef HX_SHADOW_MAP\nuniform sampler2D hx_shadowMap;\n#endif\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\n\nvoid main()\n{\n// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;\n	vec3 viewPosition = viewDir * absViewZ;\n    vec3 viewVector = normalize(viewPosition);\n    vec3 diffuse, specular;\n\n    hx_calculateLight(hx_directionalLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);\n\n    gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_SHADOW_MAP\n        gl_FragColor.xyz *= hx_calculateShadows(hx_directionalLight, hx_shadowMap, viewPosition);\n    #endif\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
@@ -59,6 +55,10 @@ ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\
 ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
 
 ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance / light.radius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
+
+ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
+
+ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
 ShaderLibrary._files['default_geometry_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut -= roughnessRange * (specSample.x - .5);\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    HX_GeometryData data;\n    data.color = hx_gammaToLinear(outputColor);\n    data.normal = normalize(fragNormal);\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n    data.emission = vec3(0.0);\n    return data;\n}';
 
@@ -2532,7 +2532,7 @@ BoundingVolume.prototype =
     get expanse() { return this._expanse; },
     get type() { return this._type; },
 
-    growToIncludeMesh: function(meshData) { throw new Error("Abstract method!"); },
+    growToIncludeMesh: function(mesh) { throw new Error("Abstract method!"); },
     growToIncludeBound: function(bounds) { throw new Error("Abstract method!"); },
     growToIncludeMinMax: function(min, max) { throw new Error("Abstract method!"); },
 
@@ -2947,70 +2947,147 @@ VertexBuffer.prototype = {
  */
 var Mesh_ID_COUNTER = 0;
 
-function Mesh(meshData, model)
+function Mesh(vertexUsage, indexUsage)
 {
-    this._model = model;
+    this._model = null;
     this._vertexBuffers = [];
     this._vertexStrides = [];
-    this._vertexAttributes = null;
-    this._morphAttributes = null;
+    this._vertexData = [];
+    this._indexData = undefined;
+    this._vertexUsage = vertexUsage || BufferUsage.STATIC_DRAW;
+    this._indexUsage = indexUsage || BufferUsage.STATIC_DRAW;
+    this._numStreams = 0;
+    this._numVertices = 0;
+
+    this._vertexAttributes = [];
+    this._vertexAttributesLookUp = {};
     this._indexBuffer = new IndexBuffer();
     this._defaultMorphTarget = null;
 
     this._renderOrderHint = ++Mesh_ID_COUNTER;
-
-    this.updateMeshData(meshData);
 }
 
+Mesh.DEFAULT_VERTEX_SIZE = 12;
+
 Mesh.ID_COUNTER = 0;
+
+// other possible indices:
+// hx_instanceID (used by MeshBatch)
+// hx_boneIndices (4)
+// hx_boneWeights (4)
+Mesh.createDefaultEmpty = function()
+{
+    var data = new Mesh();
+    data.addVertexAttribute('hx_position', 3);
+    data.addVertexAttribute('hx_normal', 3);
+    data.addVertexAttribute('hx_tangent', 4);
+    data.addVertexAttribute('hx_texCoord', 2);
+    return data;
+};
+
 
 Mesh.prototype = {
     get hasMorphData()
     {
-        return !!this._morphAttributes;
+        return !!this._defaultMorphTarget;
     },
 
-    updateMeshData: function(meshData)
+    // this should only be the case for morph targets
+    hasVertexData: function (streamIndex)
     {
-        var numStreams = meshData.numStreams;
-        var numVertexBuffers = this._vertexBuffers.length;
+        return !!this._vertexData[streamIndex];
+    },
 
-        if (numStreams > numVertexBuffers) {
-            for (var i = numVertexBuffers; i < numStreams; ++i) {
-                if (meshData.hasVertexData(i))
-                    this._vertexBuffers[i] = new VertexBuffer();
+    getVertexData: function (streamIndex)
+    {
+        return this._vertexData[streamIndex];
+    },
+
+    /**
+     * Sets data from Array. Must call this after addVertexAttribute defines where the data goes in the array.
+     */
+    setVertexData: function (data, streamIndex)
+    {
+        streamIndex = streamIndex || 0;
+
+        this._vertexData[streamIndex] = data instanceof Float32Array? data : new Float32Array(data);
+        this._vertexBuffers[streamIndex] = this._vertexBuffers[streamIndex] || new VertexBuffer();
+        this._vertexBuffers[streamIndex].uploadData(this._vertexData[streamIndex], this._vertexUsage);
+
+        if (streamIndex === 0)
+            this._numVertices = data.length / this._vertexStrides[0];
+    },
+
+    /**
+     * Sets data from Array
+     */
+    setIndexData: function (data)
+    {
+        this._indexData = new Uint16Array(data);
+        this._numIndices = this._indexData.length;
+        this._indexBuffer.uploadData(this._indexData, this._indexUsage);
+    },
+
+    /**
+     * Adds a named vertex attribute. All properties are given manually to make it easier to support multiple streams in the future.
+     * @param name The name of the attribute, matching the attribute name used in the vertex shaders.
+     * @param numComponents The amount of components used by the attribute value.
+     * @param streamIndex [Optional] The stream index indicating which vertex buffer is used, defaults to 0
+     */
+    addVertexAttribute: function (name, numComponents, streamIndex)
+    {
+        streamIndex = streamIndex || 0;
+        this._numStreams = Math.max(this._numStreams, streamIndex + 1);
+        var offset = this._vertexStrides[streamIndex] || 0;
+        var attrib = {
+            name: name,
+            offset: offset,
+            numComponents: numComponents,
+            streamIndex: streamIndex
+        };
+        this._vertexAttributes.push(attrib);
+        this._vertexAttributesLookUp[name] = attrib;
+
+        this._vertexStrides[streamIndex] = offset + numComponents;
+    },
+
+    get numStreams()
+    {
+        return this._numStreams;
+    },
+
+    extractAttributeData: function(name)
+    {
+        var attrib = this.getVertexAttributeByName(name);
+        var stride = this.getVertexStride(attrib);
+        var data = this.getVertexData(attrib.streamIndex);
+        var numComps = attrib.numComponents;
+        var vertData = [];
+        var t = 0;
+        for (var i = attrib.offset; i < data.length; i += stride) {
+            for (var j = 0; j < numComps; ++j) {
+                vertData[t++] = data[i + j];
             }
         }
-        else if (numStreams < numVertexBuffers) {
-            this._vertexBuffers.length = numStreams;
-            this._vertexStrides.length = numStreams;
-        }
-
-        for (i = 0; i < numStreams; ++i) {
-            if (meshData.hasVertexData(i))
-                this._vertexBuffers[i].uploadData(meshData.getVertexData(i), meshData.vertexUsage);
-
-            this._vertexStrides[i] = meshData.getVertexStride(i);
-        }
-
-        this._numIndices = meshData._indexData.length;
-        this._numVertices = meshData.numVertices;
-
-        this._indexBuffer.uploadData(meshData._indexData, meshData.indexUsage);
-        this._vertexAttributes = meshData._vertexAttributes;
-        this._morphAttributes = meshData._morphAttributes;
-
-        if (this._morphAttributes) {
-            this._defaultMorphTarget = new VertexBuffer();
-            this._defaultMorphTarget.uploadData(meshData._defaultMorphTarget);
-        }
+        return vertData;
     },
 
-    dispose: function ()
+    generateMorphData: function()
     {
-        for (var i = 0; i < this._vertexBuffers.length; ++i)
-            this._vertexBuffers[i].dispose();
-        this._indexBuffer.dispose();
+        for (i = 0; i < capabilities.NUM_MORPH_TARGETS; ++i) {
+            // these will never have data assigned to them!
+            // append these each as a different stream
+            this.addVertexAttribute("hx_morphPosition" + i, 3, this._numStreams);
+        }
+
+        var data = [];
+
+        for (var i = 0; i < this._numVertices; ++i) {
+            data.push(0, 0, 0);
+        }
+
+        this._defaultMorphTarget = new VertexBuffer();
+        this._defaultMorphTarget.uploadData(new Float32Array(data), BufferUsage.STATIC_DRAW);
     },
 
     get numVertices()
@@ -3033,7 +3110,12 @@ Mesh.prototype = {
         return this._vertexStrides[streamIndex];
     },
 
-    getVertexAttribute: function (index)
+    getVertexAttributeByName: function (name)
+    {
+        return this._vertexAttributesLookUp[name];
+    },
+
+    getVertexAttributeByIndex: function (index)
     {
         return this._vertexAttributes[index];
     }
@@ -3044,272 +3126,102 @@ Mesh.prototype = {
  * @param modelData
  * @constructor
  */
-function Model(modelData)
+function Model(meshes)
 {
     this._name = null;
     this._localBounds = new BoundingAABB();
+    this._localBoundsInvalid = true;
     this._skeleton = null;
     this.onChange = new Signal();
+    this._meshes = [];
 
-    if (modelData) {
-        this._meshes = null;
-        this._setModelData(modelData);
+    if (meshes) {
+        if (meshes instanceof Array) {
+            for (var i = 0; i < meshes.length; ++i)
+                this.addMesh(meshes[i]);
+        }
+        else if (meshes instanceof Mesh) {
+            this.addMesh(meshes);
+        }
     }
-    else
-        this._meshes = [];
 }
 
 Model.prototype =
-{
-    get name()
     {
-        return this._name;
-    },
+        get name()
+        {
+            return this._name;
+        },
 
-    set name(value)
-    {
-        this._name = value;
-    },
+        set name(value)
+        {
+            this._name = value;
+        },
 
-    get numMeshes()
-    {
-        return this._meshes.length;
-    },
+        get numMeshes()
+        {
+            return this._meshes.length;
+        },
 
-    getMesh: function (index)
-    {
-        return this._meshes[index];
-    },
+        getMesh: function (index)
+        {
+            return this._meshes[index];
+        },
 
-    dispose: function()
-    {
-        if (this._meshes)
+        get localBounds()
+        {
+            if (this._localBoundsInvalid) this._updateLocalBounds();
+            return this._localBounds;
+        },
+
+
+        get skeleton()
+        {
+            return this._skeleton;
+        },
+
+        set skeleton(value)
+        {
+            this._skeleton = value;
+        },
+
+        removeMesh: function (mesh)
+        {
+            var index = this._meshes.indexOf(mesh);
+            if (index < 0) return;
+
+            mesh._model = null;
+
+            this._localBoundsInvalid = true;
+
+            this.onChange.dispatch();
+        },
+
+        addMesh: function (mesh)
+        {
+            if (mesh._model) throw new Error("Mesh cannot be shared across Models");
+
+            mesh._model = this;
+            this._meshes.push(mesh);
+            this._localBoundsInvalid = true;
+            this.onChange.dispatch();
+        },
+
+        toString: function()
+        {
+            return "[Model(name=" + this._name + ")]";
+        },
+
+        _updateLocalBounds: function()
+        {
+            this._localBounds.clear();
+
             for (var i = 0; i < this._meshes.length; ++i)
-                this._meshes[i].dispose();
-    },
+                this._localBounds.growToIncludeMesh(this._meshes[i]);
 
-    get localBounds()
-    {
-        return this._localBounds;
-    },
-
-
-    get skeleton()
-    {
-        return this._skeleton;
-    },
-
-    set skeleton(value)
-    {
-        this._skeleton = value;
-    },
-
-    _setModelData: function (modelData)
-    {
-        this.dispose();
-
-        this._localBounds.clear();
-        this._meshes = [];
-
-        for (var i = 0; i < modelData.numMeshes; ++i) {
-            var meshData = modelData.getMeshData(i);
-            this._localBounds.growToIncludeMesh(meshData);
-            this._meshes.push(new Mesh(meshData, this));
+            this._localBoundsInvalid = false;
         }
-
-        this.skeleton = modelData.skeleton;
-
-        this.onChange.dispatch();
-    },
-
-    toString: function()
-    {
-        return "[Model(name=" + this._name + ")]";
-    }
-};
-
-/**
- *
- * @constructor
- */
-function ModelData()
-{
-    this._meshDataList = [];
-    this._joints = [];
-    this.skeleton = null;
-}
-
-ModelData.prototype = {
-    get numMeshes()
-    {
-        return this._meshDataList.length;
-    },
-
-    getMeshData: function (index)
-    {
-        return this._meshDataList[index];
-    },
-
-    addMeshData: function (meshData)
-    {
-        this._meshDataList.push(meshData);
-    },
-
-    addJoint: function(joint)
-    {
-        this._joints.push(joint);
-    },
-
-    get hasSkeleton()
-    {
-        return this._joints.length > 0;
-    }
-};
-
-/**
- * MeshData contains the cpu-side definition data for a Mesh.
- * @constructor
- */
-function MeshData()
-{
-    this._vertexStrides = [];
-    this._vertexData = [];
-    this._indexData = undefined;
-    this.vertexUsage = BufferUsage.STATIC_DRAW;
-    this.indexUsage = BufferUsage.STATIC_DRAW;
-    this._vertexAttributes = [];
-    this._defaultMorphTarget = null;
-    this._numStreams = 0;
-}
-
-MeshData.DEFAULT_VERTEX_SIZE = 12;
-
-// other possible indices:
-// hx_instanceID (used by MeshBatch)
-// hx_boneIndices (4)
-// hx_boneWeights (4)
-MeshData.createDefaultEmpty = function()
-{
-    var data = new MeshData();
-    data.addVertexAttribute('hx_position', 3);
-    data.addVertexAttribute('hx_normal', 3);
-    data.addVertexAttribute('hx_tangent', 4);
-    data.addVertexAttribute('hx_texCoord', 2);
-    return data;
-};
-
-MeshData.prototype = {
-
-    // this should only be the case for morph targets
-    hasVertexData: function (streamIndex)
-    {
-        return !!this._vertexData[streamIndex];
-    },
-
-    getVertexData: function (streamIndex)
-    {
-        return this._vertexData[streamIndex];
-    },
-
-    /**
-     * Sets data from Array
-     */
-    setVertexData: function (data, streamIndex)
-    {
-        this._vertexData[streamIndex || 0] = new Float32Array(data);
-    },
-
-    /**
-     * Sets data from Array
-     */
-    setIndexData: function (data)
-    {
-        this._indexData = new Uint16Array(data);
-    },
-
-    /**
-     * Adds a named vertex attribute. All properties are given manually to make it easier to support multiple streams in the future.
-     * @param name The name of the attribute, matching the attribute name used in the vertex shaders.
-     * @param numComponents The amount of components used by the attribute value.
-     * @param streamIndex [Optional] The stream index indicating which vertex buffer is used, defaults to 0
-     */
-    addVertexAttribute: function (name, numComponents, streamIndex)
-    {
-        if (name === "hx_morphUV") this._hasMorphUVs = true;
-
-        streamIndex = streamIndex || 0;
-        this._numStreams = Math.max(this._numStreams, streamIndex + 1);
-        this._vertexStrides[streamIndex] = this._vertexStrides[streamIndex] || 0;
-        this._vertexAttributes.push({
-            name: name,
-            offset: this._vertexStrides[streamIndex],
-            numComponents: numComponents,
-            streamIndex: streamIndex
-        });
-
-        this._vertexStrides[streamIndex] += numComponents;
-    },
-
-    getVertexAttribute: function (name)
-    {
-        var len = this._vertexAttributes.length;
-        for (var i = 0; i < len; ++i) {
-            if (this._vertexAttributes[i].name === name)
-                return this._vertexAttributes[i];
-        }
-    },
-
-    /**
-     * Returns the stride of each vertex for the given stream index. This matches the total amount of elements used by all vertex attributes combined.
-     */
-    getVertexStride: function (streamIndex)
-    {
-        return this._vertexStrides[streamIndex];
-    },
-
-    get numStreams()
-    {
-        return this._numStreams;
-    },
-
-    get numVertices()
-    {
-        return this._vertexData[0].length / this._vertexStrides[0];
-    },
-
-    extractAttributeData: function(name)
-    {
-        var attrib = this.getVertexAttribute(name);
-        var stride = this.getVertexStride(attrib);
-        var data = this.getVertexData(attrib.streamIndex);
-        var numComps = attrib.numComponents;
-        var vertData = [];
-        var t = 0;
-        for (var i = attrib.offset; i < data.length; i += stride) {
-            for (var j = 0; j < numComps; ++j) {
-                vertData[t++] = data[i + j];
-            }
-        }
-        return vertData;
-    },
-
-    generateMorphData: function()
-    {
-        this._morphAttributes = [];
-        var data = [];
-
-        for (var i = 0; i < this.numVertices; ++i) {
-            data.push(0, 0, 0);
-        }
-
-        this._defaultMorphTarget = new Float32Array(data);
-
-        for (i = 0; i < capabilities.NUM_MORPH_TARGETS; ++i) {
-            this.addVertexAttribute("hx_morphPosition" + i, 3, this.numStreams);
-            this._morphAttributes[i] = this._vertexAttributes[this._vertexAttributes.length - 1];
-        }
-    }
-};
+    };
 
 /**
  * Returns the angle between two vectors
@@ -3487,7 +3399,7 @@ Float2.Y_AXIS = new Float2(0, 1);
  */
 function NormalTangentGenerator()
 {
-    this._meshData = null;
+    this._mesh = null;
     this._mode = 0;
     this._faceNormals = null;
     this._faceTangents = null;
@@ -3499,21 +3411,21 @@ NormalTangentGenerator.MODE_TANGENTS = 2;
 
 NormalTangentGenerator.prototype =
 {
-    generate: function(meshData, mode, useFaceWeights)
+    generate: function(mesh, mode, useFaceWeights)
     {
         if (useFaceWeights === undefined) useFaceWeights = true;
         this._mode = mode === undefined? NormalTangentGenerator.MODE_NORMALS | NormalTangentGenerator.MODE_TANGENTS : mode;
 
-        this._meshData = meshData;
+        this._mesh = mesh;
 
-        this._positionAttrib = meshData.getVertexAttribute("hx_position");
-        this._normalAttrib = meshData.getVertexAttribute("hx_normal");
-        this._tangentAttrib = meshData.getVertexAttribute("hx_tangent");
-        this._uvAttrib = meshData.getVertexAttribute("hx_texCoord");
-        this._positionStride = meshData.getVertexStride(this._positionAttrib.streamIndex);
-        this._normalStride = meshData.getVertexStride(this._normalAttrib.streamIndex);
-        this._tangentStride = meshData.getVertexStride(this._tangentAttrib.streamIndex);
-        this._uvStride = meshData.getVertexStride(this._uvAttrib.streamIndex);
+        this._positionAttrib = mesh.getVertexAttributeByName("hx_position");
+        this._normalAttrib = mesh.getVertexAttributeByName("hx_normal");
+        this._tangentAttrib = mesh.getVertexAttributeByName("hx_tangent");
+        this._uvAttrib = mesh.getVertexAttributeByName("hx_texCoord");
+        this._positionStride = mesh.getVertexStride(this._positionAttrib.streamIndex);
+        this._normalStride = mesh.getVertexStride(this._normalAttrib.streamIndex);
+        this._tangentStride = mesh.getVertexStride(this._tangentAttrib.streamIndex);
+        this._uvStride = mesh.getVertexStride(this._uvAttrib.streamIndex);
 
         this._calculateFaceVectors(useFaceWeights);
         this._calculateVertexVectors();
@@ -3521,7 +3433,7 @@ NormalTangentGenerator.prototype =
 
     _calculateFaceVectors: function(useFaceWeights)
     {
-        var numIndices = this._meshData._indexData.length;
+        var numIndices = this._mesh._indexData.length;
 
         if ((this._mode & NormalTangentGenerator.MODE_NORMALS) !== 0) this._faceNormals = new Array(numIndices);
         if ((this._mode & NormalTangentGenerator.MODE_TANGENTS) !== 0) {
@@ -3543,8 +3455,8 @@ NormalTangentGenerator.prototype =
 
         var posOffset = this._positionAttrib.offset;
         var uvOffset = this._uvAttrib.offset;
-        var posData = this._meshData.getVertexData(this._positionAttrib.streamIndex);
-        var uvData = this._meshData.getVertexData(this._uvAttrib.streamIndex);
+        var posData = this._mesh.getVertexData(this._positionAttrib.streamIndex);
+        var uvData = this._mesh.getVertexData(this._uvAttrib.streamIndex);
 
         for (var i = 0; i < numIndices; i += 3) {
             this._getFloat3At(i, posOffset, this._positionStride, v0, posData);
@@ -3600,11 +3512,11 @@ NormalTangentGenerator.prototype =
         this._zeroVectors();
 
         var bitangents = this._faceTangents ? [] : null;
-        var indexData = this._meshData._indexData;
+        var indexData = this._mesh._indexData;
         var normalOffset = this._normalAttrib.offset;
         var tangentOffset = this._tangentAttrib.offset;
-        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
-        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
+        var normalData = this._mesh.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._mesh.getVertexData(this._tangentAttrib.streamIndex);
         var numIndices = indexData.length;
 
         for (var i = 0; i < numIndices; ++i) {
@@ -3636,10 +3548,10 @@ NormalTangentGenerator.prototype =
 
     _zeroVectors: function()
     {
-        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
-        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
-        var normalStride = this._meshData.getVertexStride(this._normalAttrib.streamIndex);
-        var tangentStride = this._meshData.getVertexStride(this._tangentAttrib.streamIndex);
+        var normalData = this._mesh.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._mesh.getVertexData(this._tangentAttrib.streamIndex);
+        var normalStride = this._mesh.getVertexStride(this._normalAttrib.streamIndex);
+        var tangentStride = this._mesh.getVertexStride(this._tangentAttrib.streamIndex);
         var numVertices = normalData.length / normalStride;
         var normalIndex = this._normalAttrib.offset;
         var tangentIndex = this._tangentAttrib.offset;
@@ -3662,8 +3574,8 @@ NormalTangentGenerator.prototype =
 
     _normalize: function(bitangents)
     {
-        var normalData = this._meshData.getVertexData(this._normalAttrib.streamIndex);
-        var tangentData = this._meshData.getVertexData(this._tangentAttrib.streamIndex);
+        var normalData = this._mesh.getVertexData(this._normalAttrib.streamIndex);
+        var tangentData = this._mesh.getVertexData(this._tangentAttrib.streamIndex);
         var numVertices = normalData.length / this._normalStride;
         var normalIndex = this._normalAttrib.offset;
         var tangentIndex = this._tangentAttrib.offset;
@@ -3709,11 +3621,15 @@ NormalTangentGenerator.prototype =
             normalIndex += this._normalStride;
             tangentIndex += this._tangentStride;
         }
+
+        this._mesh.setVertexData(normalData, this._normalAttrib.streamIndex);
+        if (this._normalAttrib.streamIndex !== this._tangentAttrib.streamIndex)
+            this._mesh.setVertexData(tangentData, this._tangentAttrib.streamIndex);
     },
 
     _getFloat3At: function(i, offset, stride, target, data)
     {
-        var indices = this._meshData._indexData;
+        var indices = this._mesh._indexData;
         var posIndex = offset + indices[i] * stride;
         target.x = data[posIndex];
         target.y = data[posIndex + 1];
@@ -3722,7 +3638,7 @@ NormalTangentGenerator.prototype =
 
     _getFloat2At: function(i, offset, stride, target, data)
     {
-        var indices = this._meshData._indexData;
+        var indices = this._mesh._indexData;
         var posIndex = offset + indices[i] * stride;
         target.x = data[posIndex];
         target.y = data[posIndex + 1];
@@ -3732,10 +3648,7 @@ NormalTangentGenerator.prototype =
 function Primitive(definition)
 {
     definition = definition || {};
-    var data = this._createMeshData(definition);
-    var modelData = new ModelData();
-    modelData.addMeshData(data);
-    Model.call(this, modelData);
+    Model.call(this, this._createMesh(definition));
 }
 
 Primitive._ATTRIBS = function()
@@ -3754,7 +3667,7 @@ Primitive.prototype._generate = function(target, definition)
     throw new Error("Abstract method called!");
 };
 
-Primitive.prototype._createMeshData = function(definition)
+Primitive.prototype._createMesh = function(definition)
 {
     var attribs = new Primitive._ATTRIBS();
     var uvs = definition.uvs === undefined? true : definition.uvs;
@@ -3762,19 +3675,19 @@ Primitive.prototype._createMeshData = function(definition)
     var tangents = definition.tangents === undefined? true : definition.tangents;
     // depends on the primitive type
 
-    var data = new MeshData();
-    data.addVertexAttribute('hx_position', 3);
+    var mesh = new Mesh();
+    mesh.addVertexAttribute('hx_position', 3);
 
     if (normals) {
-        data.addVertexAttribute('hx_normal', 3);
+        mesh.addVertexAttribute('hx_normal', 3);
         attribs.normals = [];
     }
 
     if (tangents)
-        data.addVertexAttribute('hx_tangent', 4);
+        mesh.addVertexAttribute('hx_tangent', 4);
 
     if (uvs) {
-        data.addVertexAttribute('hx_texCoord', 2);
+        mesh.addVertexAttribute('hx_texCoord', 2);
         attribs.uvs = [];
     }
 
@@ -3782,7 +3695,7 @@ Primitive.prototype._createMeshData = function(definition)
 
     var vertexColors = attribs.vertexColors;
     if (vertexColors) {
-        data.addVertexAttribute('hx_vertexColor', 3);
+        mesh.addVertexAttribute('hx_vertexColor', 3);
     }
 
     var scaleU = definition.scaleU || 1;
@@ -3820,8 +3733,8 @@ Primitive.prototype._createMeshData = function(definition)
         v3 += 3;
     }
 
-    data.setVertexData(vertices, 0);
-    data.setIndexData(attribs.indices);
+    mesh.setVertexData(vertices, 0);
+    mesh.setIndexData(attribs.indices);
 
     var mode = 0;
 
@@ -3834,10 +3747,10 @@ Primitive.prototype._createMeshData = function(definition)
 
     if (mode) {
         var generator = new NormalTangentGenerator();
-        generator.generate(data, mode);
+        generator.generate(mesh, mode);
     }
 
-    return data;
+    return mesh;
 };
 
 function BoxPrimitive(definition)
@@ -4000,14 +3913,14 @@ function BoundingAABB()
 
 BoundingAABB.prototype = Object.create(BoundingVolume.prototype);
 
-BoundingAABB.prototype.growToIncludeMesh = function(meshData)
+BoundingAABB.prototype.growToIncludeMesh = function(mesh)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
 
-    var attribute = meshData.getVertexAttribute("hx_position");
+    var attribute = mesh.getVertexAttributeByName("hx_position");
     var index = attribute.offset;
-    var stride = meshData.getVertexStride(attribute.streamIndex);
-    var vertices = meshData.getVertexData(attribute.streamIndex);
+    var stride = mesh.getVertexStride(attribute.streamIndex);
+    var vertices = mesh.getVertexData(attribute.streamIndex);
     var len = vertices.length;
     var minX, minY, minZ;
     var maxX, maxY, maxZ;
@@ -4743,15 +4656,15 @@ Light.prototype.renderDeferredLighting = function(renderer)
 var RectMesh = {
     create: function()
     {
-        var data = new MeshData();
-        data.addVertexAttribute("hx_position", 2);
-        data.addVertexAttribute("hx_texCoord", 2);
-        data.setVertexData([-1, 1, 0, 1,
+        var mesh = new Mesh();
+        mesh.addVertexAttribute("hx_position", 2);
+        mesh.addVertexAttribute("hx_texCoord", 2);
+        mesh.setVertexData([-1, 1, 0, 1,
             1, 1, 1, 1,
             1, -1, 1, 0,
             -1, -1, 0, 0], 0);
-        data.setIndexData([0, 1, 2, 0, 2, 3]);
-        return new Mesh(data);
+        mesh.setIndexData([0, 1, 2, 0, 2, 3]);
+        return mesh;
     },
 
     _initDefault: function()
@@ -8708,14 +8621,14 @@ BoundingSphere.prototype.setExplicit = function(center, radius)
     this._updateMinAndMax();
 };
 
-BoundingSphere.prototype.growToIncludeMesh = function(meshData)
+BoundingSphere.prototype.growToIncludeMesh = function(mesh)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
 
-    var attribute = meshData.getVertexAttribute("hx_position");
+    var attribute = mesh.getVertexAttributeByName("hx_position");
     var index = attribute.offset;
-    var stride = meshData.getVertexStride(attribute.streamIndex);
-    var vertices = attribute.getVertexData(attribute.streamIndex);
+    var stride = mesh.getVertexStride(attribute.streamIndex);
+    var vertices = mesh.getVertexData(attribute.streamIndex);
     var len = vertices.length;
     var minX, minY, minZ;
     var maxX, maxY, maxZ;
@@ -9770,7 +9683,7 @@ function VertexLayout(mesh, pass)
     this._numAttributes = -1;
 
     for (var i = 0; i < mesh.numVertexAttributes; ++i) {
-        var attribute = mesh.getVertexAttribute(i);
+        var attribute = mesh.getVertexAttributeByIndex(i);
         var index = shader.getAttributeLocation(attribute.name);
         if (!(index >= 0)) continue;
 
@@ -10248,6 +10161,7 @@ function ModelInstance(model, materials)
     this._castShadows = true;
     this._skeletonPose = null;
     this._morphPose = null;
+    this._meshInstancesInvalid = false;
 
     this.init(model, materials);
 }
@@ -10337,10 +10251,13 @@ ModelInstance.prototype.init = function(model, materials)
     }
 
     this._invalidateWorldBounds();
+    this._updateMeshInstances();
 };
 
 ModelInstance.prototype.assignMaterial = function(material)
 {
+    if (this._meshInstancesInvalid) this._updateMeshInstances();
+
     for (var i = 0; i < this._meshInstances.length; ++i) {
         this._meshInstances[i].material = material;
     }
@@ -10364,19 +10281,21 @@ ModelInstance.prototype._generateDefaultSkeletonPose = function()
     }
 };
 
-
-ModelInstance.prototype._addMeshInstance = function(mesh, material)
+ModelInstance.prototype._updateMeshInstances = function()
 {
-    this._meshInstances.push(new MeshInstance(mesh, material));
+    this._meshInstances = [];
+    var maxIndex = this._materials.length - 1;
+
+    for (var i = 0; i < this._model.numMeshes; ++i) {
+        this._meshInstances.push(new MeshInstance(this._model.getMesh(i), this._materials[Math.min(i, maxIndex)]));
+    }
+
+    this._meshInstancesInvalid = false;
 };
 
 ModelInstance.prototype._onModelChange = function()
 {
-    var maxIndex = this._materials.length - 1;
-    for (var i = 0; i < this._model.numMeshes; ++i) {
-        this._addMeshInstance(this._model.getMesh(i), this._materials[Math.min(i, maxIndex)]);
-    }
-
+    this._meshInstancesInvalid = true;
     this._invalidateWorldBounds();
 };
 
@@ -10417,6 +10336,7 @@ ModelInstance.prototype._onMorphChanged = function()
 // override for better matches
 ModelInstance.prototype._updateWorldBounds = function()
 {
+    if (this._meshInstancesInvalid) this._updateMeshInstances();
     Entity.prototype._updateWorldBounds.call(this);
     this._meshBounds.transformFrom(this._model.localBounds, this.worldMatrix);
     this._worldBounds.growToIncludeBound(this._meshBounds);
@@ -10424,6 +10344,7 @@ ModelInstance.prototype._updateWorldBounds = function()
 
 ModelInstance.prototype.acceptVisitor = function(visitor)
 {
+    if (this._meshInstancesInvalid) this._updateMeshInstances();
     visitor.visitModelInstance(this, this.worldMatrix, this.worldBounds);
     Entity.prototype.acceptVisitor.call(this, visitor);
 };
@@ -10697,13 +10618,13 @@ Terrain.prototype = Object.create(SceneNode.prototype, {
 Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
 {
     var rcpNumSegments = 1.0 / numSegments;
-    var meshData = new MeshData();
+    var mesh = new Mesh();
     var cellSize = size * rcpNumSegments;
     var halfCellSize = cellSize * .5;
 
-    meshData.addVertexAttribute("hx_position", 3);
-    meshData.addVertexAttribute("hx_normal", 3);
-    meshData.addVertexAttribute("hx_cellSize", 1);
+    mesh.addVertexAttribute("hx_position", 3);
+    mesh.addVertexAttribute("hx_normal", 3);
+    mesh.addVertexAttribute("hx_cellSize", 1);
 
     var vertices = [];
     var indices = [];
@@ -10750,12 +10671,10 @@ Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
         }
     }
 
-    meshData.setVertexData(vertices, 0);
-    meshData.setIndexData(indices);
+    mesh.setVertexData(vertices, 0);
+    mesh.setIndexData(indices);
 
-    var modelData = new ModelData();
-    modelData.addMeshData(meshData);
-    var model = new Model(modelData);
+    var model = new Model(mesh);
     model.localBounds.growToIncludeMinMax(new Float4(0, this._minElevation, 0), new Float4(0, this._maxElevation, 0));
     return model;
 };
@@ -13434,9 +13353,9 @@ function FXAA()
     Effect.call(this);
 
     this._pass = new EffectPass(null, ShaderLibrary.get("fxaa_fragment.glsl"));
-    this._pass.setUniform("edgeThreshold", 1/8);
+    this._pass.setUniform("edgeThreshold", 1/4);
     this._pass.setUniform("edgeThresholdMin", 1/16);
-    this._pass.setUniform("edgeSharpness", 4.0);
+    this._pass.setUniform("edgeSharpness", 100.0);
 }
 
 FXAA.prototype = Object.create(Effect.prototype);
@@ -16215,17 +16134,17 @@ VarianceDirectionalShadowFilter.prototype._getDefines = function()
  */
 var MeshBatch =
     {
-        create: function (sourceMeshData, numInstances)
+        create: function (sourceMesh, numInstances)
         {
             var len, i, j;
-            var target = new MeshData();
-            var sourceIndices = sourceMeshData._indexData;
+            var target = new Mesh();
+            var sourceIndices = sourceMesh._indexData;
 
-            target.vertexUsage = sourceMeshData.vertexUsage;
-            target.indexUsage = sourceMeshData.indexUsage;
+            target._vertexUsage = sourceMesh._vertexUsage;
+            target._indexUsage = sourceMesh._indexUsage;
 
-            var attribs = sourceMeshData._vertexAttributes;
-            var instanceStream = sourceMeshData.numStreams;
+            var attribs = sourceMesh._vertexAttributes;
+            var instanceStream = sourceMesh.numStreams;
 
             for (i = 0; i < attribs.length; ++i) {
                 var attribute = attribs[i];
@@ -16236,7 +16155,7 @@ var MeshBatch =
 
             var targetIndices = [];
             var index = 0;
-            var numVertices = sourceMeshData.numVertices;
+            var numVertices = sourceMesh.numVertices;
 
             len = sourceIndices.length;
 
@@ -16248,9 +16167,9 @@ var MeshBatch =
 
             target.setIndexData(targetIndices);
 
-            for (i = 0; i < sourceMeshData.numStreams; ++i) {
+            for (i = 0; i < sourceMesh.numStreams; ++i) {
                 var targetVertices = [];
-                var sourceVertices = sourceMeshData.getVertexData(i);
+                var sourceVertices = sourceMesh.getVertexData(i);
 
                 len = sourceVertices.length;
                 index = 0;
@@ -17058,9 +16977,7 @@ exports.ModelInstance = ModelInstance;
 exports.Model = Model;
 exports.Mesh = Mesh;
 exports.MeshBatch = MeshBatch;
-exports.MeshData = MeshData;
 exports.MeshInstance = MeshInstance;
-exports.ModelData = ModelData;
 exports.SpherePrimitive = SpherePrimitive;
 exports.BoxPrimitive = BoxPrimitive;
 exports.Primitive = Primitive;

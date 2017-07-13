@@ -34,12 +34,16 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
     flipY.fromAxisAngle(Float4.Z_AXIS, Math.PI);
 
     var rotations = [];
-    rotations[0] = Quaternion.fromAxisAngle(Float4.Y_AXIS, Math.PI * .5);
-    rotations[1] = Quaternion.fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
+    rotations[0] = Quaternion.fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
+    rotations[0].prepend(flipY);
+    rotations[1] = Quaternion.fromAxisAngle(Float4.Y_AXIS, Math.PI * .5);
+    rotations[1].prepend(flipY);
     rotations[2] = Quaternion.fromAxisAngle(Float4.X_AXIS, Math.PI * .5);
     rotations[3] = Quaternion.fromAxisAngle(Float4.X_AXIS, -Math.PI * .5);
     rotations[4] = Quaternion.fromAxisAngle(Float4.Y_AXIS, Math.PI);
+    rotations[4].prepend(flipY);
     rotations[5] = Quaternion.fromAxisAngle(Float4.Y_AXIS, 0);
+    rotations[5].prepend(flipY);
 
     this._diffuseScene = new Scene();
     this._diffuseScene.skybox = new Skybox(specular);
@@ -50,7 +54,7 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
         camera.nearDistance = near;
         camera.farDistance = far;
         camera.verticalFOV = Math.PI * .5;
-        camera.rotation.multiply(rotations[i], flipY);
+        camera.rotation.copyFrom(rotations[i]);
         this._cameras.push(camera);
 
         var fbo = new FrameBuffer(specular, depthBuffer, cubeFaces[i]);

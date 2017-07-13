@@ -52,7 +52,8 @@ export var capabilities =
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
         NUM_MORPH_TARGETS: 0,
         GBUFFER_MRT: false,
-        HDR_FORMAT: 0
+        HDR_FORMAT: 0,
+        HALF_FLOAT_FBO: false
     };
 
 // internal options
@@ -230,9 +231,13 @@ export function init(canvas, options)
         var tex = new Texture2D();
         tex.initEmpty(8, 8, null, capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
         var fbo = new FrameBuffer(tex);
-        var result = fbo.init(true);
-        if (!result)
+        if (fbo.init(true)) {
+            capabilities.HALF_FLOAT_FBO = true;
+        } else {
             options.hdr = false;
+            capabilities.HALF_FLOAT_FBO = false;
+            console.warn("Half float FBOs not supported");
+        }
     }
 
     capabilities.HDR_FORMAT = options.hdr ? capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;

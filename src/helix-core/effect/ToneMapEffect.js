@@ -14,7 +14,7 @@ function ToneMapEffect(adaptive)
 {
     this._adaptive = adaptive === undefined? false : adaptive;
 
-    if (this._adaptive && (!capabilities.EXT_SHADER_TEXTURE_LOD || !capabilities.EXT_HALF_FLOAT_TEXTURES)) {
+    if (this._adaptive && (!capabilities.EXT_SHADER_TEXTURE_LOD || !capabilities.HALF_FLOAT_FBO)) {
         console.log("Warning: adaptive tone mapping not supported, using non-adaptive");
         this._adaptive = false;
         return;
@@ -61,8 +61,6 @@ ToneMapEffect.prototype.dispose = function()
 ToneMapEffect.prototype.draw = function(dt)
 {
     if (this._adaptive) {
-        if (!this._isSupported) return;
-
         var amount = this._adaptationRate > 0 ? dt / this._adaptationRate : 1.0;
         if (amount > 1) amount = 1;
 

@@ -1,10 +1,16 @@
-/**
- * @constructor
- */
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {EffectPass} from "./EffectPass";
-import {CenteredGaussianCurve} from "../math/Gaussian";
+import {CenteredGaussianCurve} from "../math/CenteredGaussianCurve";
 
+/**
+ * @classdesc
+ * GaussianBlurPass is an {@linkcode EffectPass} that performs a separable gaussian blur pass (ie: in one direction).
+ *
+ * @constructor
+ * @param radius The radius of the blur.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function GaussianBlurPass(radius)
 {
     radius = Math.floor(radius);
@@ -22,10 +28,13 @@ function GaussianBlurPass(radius)
     EffectPass.call(this, vertex, fragment);
 
     this.setUniformArray("gaussianWeights", new Float32Array(this._weights));
-};
+}
 
 GaussianBlurPass.prototype = Object.create(EffectPass.prototype);
 
+/**
+ * @ignore
+ */
 GaussianBlurPass.prototype._initWeights = function(radius)
 {
     this._weights = [];

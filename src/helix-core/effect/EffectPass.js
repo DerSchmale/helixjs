@@ -1,6 +1,3 @@
-/**
- * @constructor
- */
 import {DEFAULTS, CullMode, Comparison} from "../Helix";
 import {MaterialPass} from '../material/MaterialPass'
 import {ShaderLibrary} from "../shader/ShaderLibrary";
@@ -9,6 +6,16 @@ import {VertexLayout} from "../mesh/VertexLayout";
 import {Shader} from "../shader/Shader";
 import {GL} from "../core/GL";
 
+/**
+ * @classdesc
+ * EffectPass is used by {@linkcode Effect} classes to perform individual render tasks.
+ *
+ * @constructor
+ * @param {string} vertexShader The vertex shader code for this pass's shader.
+ * @param {string} fragmentShader The fragment shader code for this pass's shader.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function EffectPass(vertexShader, fragmentShader)
 {
     vertexShader = vertexShader || ShaderLibrary.get("default_post_vertex.glsl");
@@ -27,6 +34,9 @@ function EffectPass(vertexShader, fragmentShader)
 
 EffectPass.prototype = Object.create(MaterialPass.prototype);
 
+/**
+ * @ignore
+ */
 EffectPass.prototype.setMesh = function(mesh)
 {
     if (this._mesh === mesh) return;
@@ -34,6 +44,9 @@ EffectPass.prototype.setMesh = function(mesh)
     this._vertexLayout = new VertexLayout(this._mesh, this);
 };
 
+/**
+ * @ignore
+ */
 EffectPass.prototype.updateRenderState = function(renderer)
 {
     var cam = renderer._camera;

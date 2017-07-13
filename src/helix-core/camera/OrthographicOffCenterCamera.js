@@ -1,7 +1,14 @@
-/**
- * @constructor
- */
 import {Camera} from "./Camera";
+
+/**
+ * @classdesc
+ * Only used for things like shadow map rendering.
+ *
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function OrthographicOffCenterCamera()
 {
     Camera.call(this);

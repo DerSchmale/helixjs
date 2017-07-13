@@ -1,7 +1,3 @@
-/**
- *
- * @constructor
- */
 import {DirectionalLight} from "../light/DirectionalLight";
 import {TextureFilter, TextureWrapMode, META} from "../Helix";
 import {Color} from "../core/Color";
@@ -19,6 +15,14 @@ import {Rect} from "../core/Rect";
 import {Texture2D} from "../texture/Texture2D";
 import {RenderUtils} from "./RenderUtils";
 
+/**
+ * @ignore
+ * @param light
+ * @param shadowMapSize
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function CascadeShadowMapRenderer(light, shadowMapSize)
 {
     this._light = light;

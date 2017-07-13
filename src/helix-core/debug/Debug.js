@@ -1,3 +1,8 @@
+/**
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var Debug = {
     printShaderCode: function(code)
     {

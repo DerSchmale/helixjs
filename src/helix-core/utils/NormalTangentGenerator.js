@@ -3,8 +3,12 @@ import {Float4} from "../math/Float4";
 
 
 /**
+ * @classdesc
+ * NormalTangentGenerator generates normal and/or tangent vectors for a {@codelink Mesh}.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function NormalTangentGenerator()
 {
@@ -15,11 +19,24 @@ function NormalTangentGenerator()
     this._faceBitangents = null;
 }
 
+/**
+ * A bit flag to generate normal vectors
+ */
 NormalTangentGenerator.MODE_NORMALS = 1;
+
+/**
+ * A bit flag to generate tangent vectors
+ */
 NormalTangentGenerator.MODE_TANGENTS = 2;
 
 NormalTangentGenerator.prototype =
 {
+    /**
+     * Generates normal and/or tangent vectors for a {@codelink Mesh}.
+     * @param mesh The target {@codelink Mesh}
+     * @param mode Defines which vectors to use. Use {@linkcode NormalTangentGenerator.MODE_NORMALS} | {@linkcode NormalTangentGenerator.MODE_TANGENTS}
+     * @param [useFaceWeights] Defines whether or not the face sizes should play a role in how much weight their contribute to the vertex normal.
+     */
     generate: function(mesh, mode, useFaceWeights)
     {
         if (useFaceWeights === undefined) useFaceWeights = true;

@@ -5,13 +5,17 @@ import {Matrix4x4} from "../../math/Matrix4x4";
 
 
 /**
+ * @classdesc
+ * SkeletonPose represents an entire pose a {@linkcode Skeleton} can have. Usually, several poses are interpolated to create animations.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonPose()
 {
     this.jointPoses = [];
-};
+}
 
 SkeletonPose.prototype =
     {

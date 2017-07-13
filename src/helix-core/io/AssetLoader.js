@@ -1,13 +1,16 @@
-/**
- * AssetLoader allows loading of any sort of asset. It can be used to load several assets, but onComplete and onFail will be called for each.
- * @param ImporterType The type of importer to use for the asset. For example: JPG, HCM (material), OBJ, ... Must be am Importer subtype.
- * @constructor
- */
 import {Signal} from "../core/Signal";
 import {FileUtils} from "./FileUtils";
 import {URLLoader} from "./URLLoader";
 import {Importer} from "./Importer";
 
+/**
+ * @classdesc
+ * AssetLoader allows loading of any sort of asset. It can be used to load several assets, but onComplete and onFail will be called for each.
+ * @param ImporterType ImporterType The type of importer to use for the asset. For example: JPG, HCM (material), OBJ, ... Do NOT pass in an instance, just the class name!
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function AssetLoader(ImporterType)
 {
     // this can either be listened to, or overwritten by a function
@@ -23,11 +26,22 @@ function AssetLoader(ImporterType)
 
 AssetLoader.prototype =
 {
+    /**
+     * Set custom http request headers.
+     * @param name The name of the header.
+     * @param value The value of the header.
+     */
     setRequestHeader: function(name, value)
     {
         this._headers[name] = value;
     },
 
+    /**
+     * Loads the asset.
+     * @param filename The filename/url to load.
+     * @param [target] An optional empty target asset. This allows lazy loading.
+     * @returns {*} Immediately returns an empty version of the assets that will be populated eventually during parsing.
+     */
     load: function (filename, target)
     {
         function fail(code) {

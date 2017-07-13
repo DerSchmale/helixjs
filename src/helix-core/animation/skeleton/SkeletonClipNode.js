@@ -1,12 +1,19 @@
-/**
- * A node to contain a single clip
- * @param clip
- * @constructor
- */
 import {Float4} from "../../math/Float4";
 import {SkeletonBlendNode} from "./SkeletonBlendNode";
 import {AnimationPlayhead} from "../AnimationPlayhead";
 
+/**
+ * @classdesc
+ * A node in a SkeletonBlendTree to contain a single animation clip. An AnimationClip on its own is simply a resource and
+ * does not contain playback state so it can be used across different animation instances. That relevant state is kept here.
+ *
+ * @param {AnimationClip} clip The animation clip to be played.
+ * @constructor
+ *
+ * @see {@linkcode AnimationClip}
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function SkeletonClipNode(clip)
 {
     SkeletonBlendNode.call(this);
@@ -22,13 +29,24 @@ function SkeletonClipNode(clip)
 
 SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
     {
+        /**
+         * @ignore
+         */
         numJoints: {
             get: function() { return this._numJoints; }
         },
+
+        /**
+         * A value to control the playback speed.
+         */
         timeScale: {
             get: function() { return this._playhead.timeScale; },
             set: function(value) { this._playhead.timeScale = value; }
         },
+
+        /**
+         * The current time in milliseconds of the play head.
+         */
         time: {
             get: function() { return this._playhead; },
             set: function(value)
@@ -39,16 +57,25 @@ SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
         }
     });
 
+/**
+ * Starts playback.
+ */
 SkeletonClipNode.prototype.play = function()
 {
     this._animationClipPlayer.play();
 };
 
+/**
+ * Pauzes playback.
+ */
 SkeletonClipNode.prototype.stop = function()
 {
     this._animationClipPlayer.stop();
 };
 
+/**
+ * @ignore
+ */
 SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
 {
     if (!this._playhead.update(dt))
@@ -64,6 +91,9 @@ SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
     return true;
 };
 
+/**
+ * @ignore
+ */
 SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
     var rootBonePos = this._pose.jointPoses[0].position;
@@ -85,6 +115,9 @@ SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
     rootBonePos.set(0.0, 0.0, 0.0);
 };
 
+/**
+ * @ignore
+ */
 SkeletonClipNode.prototype._applyValue = function(value)
 {
     this.time = value * this._clip.duration;

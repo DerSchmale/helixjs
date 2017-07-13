@@ -1,22 +1,30 @@
-/**
- *
- * @param meshData
- * @param model
- * @constructor
- */
 import {capabilities, BufferUsage} from "../Helix";
 import {IndexBuffer} from "../core/IndexBuffer";
 import {VertexBuffer} from "../core/VertexBuffer";
 
+/**
+ * @ignore
+ */
 var Mesh_ID_COUNTER = 0;
 
 /**
- * A Mesh should have its layout defined using addVertexAttribute, and initial data supplied using setVertexData,
+ * @classdesc
+ *
+ * <p>Mesh contains the actual geometry of a renderable object. A {@linkcode Model} can contain several Mesh objects. The
+ * {@linkcode Model} is used by {@linkcode ModelInstance}, which links materials to the meshes, and provides them a
+ * place in the scene graph.</p>
+ *
+ * <p>A Mesh can have vertex attributes spread out over several "streams". Every stream means a separate vertex buffer will be used.</p>
+ *
+ * <p>A Mesh should have its layout defined using addVertexAttribute, and initial data supplied using setVertexData,
  * before passing it on to a Model. These values will be used to calculate its local bounding box.
- * After this, setVertexData can be called to change data, but it will not change the model
- * @param vertexUsage
- * @param indexUsage
+ * After this, setVertexData can be called to change data, but it will not change the model</p>
+ *
+ * @param vertexUsage One of {@linkcode} BufferUsage
+ * @param indexUsage One of {@linkcode} BufferUsage
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Mesh(vertexUsage, indexUsage)
 {
@@ -38,14 +46,23 @@ function Mesh(vertexUsage, indexUsage)
     this._renderOrderHint = ++Mesh_ID_COUNTER;
 }
 
+/**
+ * The vertex stride for meshes created with {@linkcode Mesh.createDefaultEmpty}
+ */
 Mesh.DEFAULT_VERTEX_SIZE = 12;
 
+/**
+ * @ignore
+ */
 Mesh.ID_COUNTER = 0;
 
 // other possible indices:
 // hx_instanceID (used by MeshBatch)
 // hx_boneIndices (4)
 // hx_boneWeights (4)
+/**
+ * Creates an empty Mesh with a default layout.
+ */
 Mesh.createDefaultEmpty = function()
 {
     var data = new Mesh();
@@ -58,24 +75,35 @@ Mesh.createDefaultEmpty = function()
 
 
 Mesh.prototype = {
+    /**
+     * Whether or not this Mesh supports morph target animations. This is the case if {@linkcode Mesh.generateMorphData}
+     * was called.
+     */
     get hasMorphData()
     {
         return !!this._defaultMorphTarget;
     },
 
-    // this should only be null for morph targets!
+    /**
+     * Returns whether or not vertex data was uploaded to the given stream index.
+     */
     hasVertexData: function (streamIndex)
     {
         return !!this._vertexData[streamIndex];
     },
 
+    /**
+     * Gets the vertex data for a given stream.
+     */
     getVertexData: function (streamIndex)
     {
         return this._vertexData[streamIndex];
     },
 
     /**
-     * Sets data from Array. Must call this after addVertexAttribute defines where the data goes in the array.
+     * Uploads vertex data from an Array or a Float32Array. This method must be called after the layout for the stream
+     * has been finalized using setVertexAttribute calls. The data in the stream should be an interleaved array of
+     * floats, with each attribute data in the order specified with the setVertexAttribute calls.
      */
     setVertexData: function (data, streamIndex)
     {
@@ -90,11 +118,11 @@ Mesh.prototype = {
     },
 
     /**
-     * Sets data from Array
+     * Uploads index data from an Array or a Uint16Array
      */
     setIndexData: function (data)
     {
-        this._indexData = new Uint16Array(data);
+        this._indexData = data instanceof Uint16Array? data : new Uint16Array(data);
         this._numIndices = this._indexData.length;
         this._indexBuffer.uploadData(this._indexData, this._indexUsage);
     },
@@ -122,11 +150,17 @@ Mesh.prototype = {
         this._vertexStrides[streamIndex] = offset + numComponents;
     },
 
+    /**
+     * The amount of streams (vertex buffers) used for this Mesh/
+     */
     get numStreams()
     {
         return this._numStreams;
     },
 
+    /**
+     * Extracts the vertex attribute data for the given attribute name as a flat Array.
+     */
     extractAttributeData: function(name)
     {
         var attrib = this.getVertexAttributeByName(name);
@@ -143,6 +177,9 @@ Mesh.prototype = {
         return vertData;
     },
 
+    /**
+     * Generates the required data to support morph target animations.
+     */
     generateMorphData: function()
     {
         for (i = 0; i < capabilities.NUM_MORPH_TARGETS; ++i) {
@@ -161,31 +198,49 @@ Mesh.prototype = {
         this._defaultMorphTarget.uploadData(new Float32Array(data), BufferUsage.STATIC_DRAW);
     },
 
+    /**
+     * The amount of vertices contained in the Mesh.
+     */
     get numVertices()
     {
         return this._numVertices;
     },
 
+    /**
+     * The amount of face indices contained in the Mesh.
+     */
     get numIndices()
     {
         return this._numIndices;
     },
 
+    /**
+     * The amount of vertex attributes contained in the Mesh.
+     */
     get numVertexAttributes()
     {
         return this._vertexAttributes.length;
     },
 
+    /**
+     * Gets the vertex stride (number of components used per stream per vertex) for a given stream
+     */
     getVertexStride: function(streamIndex)
     {
         return this._vertexStrides[streamIndex];
     },
 
+    /**
+     * Gets the vertex attribute data according to the attribute name.
+     */
     getVertexAttributeByName: function (name)
     {
         return this._vertexAttributesLookUp[name];
     },
 
+    /**
+     * Gets the vertex attribute data according to the index.
+     */
     getVertexAttributeByIndex: function (index)
     {
         return this._vertexAttributes[index];

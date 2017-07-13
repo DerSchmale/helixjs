@@ -1,10 +1,16 @@
-import {capabilities, Comparison, CullMode, ElementType, META} from "../../Helix";
+import {capabilities, CullMode, ElementType, META} from "../../Helix";
 import {GL} from "../../core/GL";
 import {Shader} from "../../shader/Shader";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {RectMesh} from "../../mesh/RectMesh";
 import {MathX} from "../../math/MathX";
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DeferredLightProbeShader(probe)
 {
     Shader.call(this);

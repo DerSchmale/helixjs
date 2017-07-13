@@ -7,8 +7,21 @@ import {capabilities, TextureFilter} from "../Helix";
 import {VertexBuffer} from "../core/VertexBuffer";
 import {IndexBuffer} from "../core/IndexBuffer";
 
+/**
+ * EquirectangularTexture is a utility class that converts equirectangular environment {@linknode Texture2D} to a
+ * {@linkcode TextureCube}.
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var EquirectangularTexture =
 {
+    /**
+     * Convert an equirectangular environment {@linknode Texture2D} to a {@linkcode TextureCube}.
+     * @param source The source {@linknode Texture2D}
+     * @param [size] The size of the target cube map.
+     * @param [generateMipmaps] Whether or not a mip chain should be generated.
+     * @param [target] An optional target {@linkcode TextureCube} to contain the converted data.
+     * @returns {TextureCube} The environment map in a {@linkcode TextureCube}
+     */
     toCube: function(source, size, generateMipmaps, target)
     {
         generateMipmaps = generateMipmaps || true;
@@ -47,8 +60,6 @@ export var EquirectangularTexture =
 
             GL.setRenderTarget(fbo);
             GL.drawElements(gl.TRIANGLES, 6, i * 6);
-
-            fbo.dispose();
         }
 
         GL.setRenderTarget(old);
@@ -116,4 +127,4 @@ export var EquirectangularTexture =
         EquirectangularTexture._TO_CUBE_VERTICES.uploadData(new Float32Array(vertices));
         EquirectangularTexture._TO_CUBE_INDICES.uploadData(new Uint16Array(indices));
     }
-}
+};

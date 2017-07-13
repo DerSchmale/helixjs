@@ -1,13 +1,17 @@
-/**
- *
- * @param target
- * @constructor
- */
 import {Component} from "../entity/Component";
 import {Float4} from "../math/Float4";
 import {MathX} from "../math/MathX";
 import {META} from "../Helix";
 
+/**
+ * @classdesc
+ * FloatController is a {@linkcode Component} that allows moving an object (usually a camera) using mouse or touch around a central point.
+ * @param {Float4} target The position around which to orbit.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function OrbitController(lookAtTarget)
 {
     Component.call(this);
@@ -25,26 +29,38 @@ function OrbitController(lookAtTarget)
     this._oldMouseY = 0;
 
     this._isDown = false;
-};
+}
 
 OrbitController.prototype = Object.create(Component.prototype,
     {
+        /**
+         * The distance between the Entity and the lookAtTarget.
+         */
         radius: {
             get: function() { return this._coords.z; },
             set: function(value) { this._coords.z = value; }
         },
 
+        /**
+         * The azimuth coordinate of the object relative to the lookAtTarget.
+         */
         azimuth: {
             get: function() { return this._coords.x; },
             set: function(value) { this._coords.x = value; }
         },
 
+        /**
+         * The polar coordinate of the object relative to the lookAtTarget.
+         */
         polar: {
             get: function() { return this._coords.y; },
             set: function(value) { this._coords.y = value; }
         }
     });
 
+/**
+ * @ignore
+ */
 OrbitController.prototype.onAdded = function()
 {
     var self = this;
@@ -121,6 +137,9 @@ OrbitController.prototype.onAdded = function()
     META.TARGET_CANVAS.addEventListener("touchend", this._onUp);
 };
 
+/**
+ * @ignore
+ */
 OrbitController.prototype.onRemoved = function()
 {
     var mousewheelevt = (/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel";
@@ -133,6 +152,9 @@ OrbitController.prototype.onRemoved = function()
     META.TARGET_CANVAS.removeEventListener("touchend", this._onUp);
 };
 
+/**
+ * @ignore
+ */
 OrbitController.prototype.onUpdate = function(dt)
 {
     this._localVelocity.x *= this.dampen;
@@ -157,22 +179,33 @@ OrbitController.prototype.onUpdate = function(dt)
     this.entity.matrix = matrix;
 };
 
-    // ratio is "how far the controller is pushed", from -1 to 1
+/**
+ * @ignore
+ */
 OrbitController.prototype.setAzimuthImpulse  = function(value)
 {
     this._localAcceleration.x = value;
 };
 
+/**
+ * @ignore
+ */
 OrbitController.prototype.setPolarImpulse = function(value)
 {
     this._localAcceleration.y = value;
 };
 
+/**
+ * @ignore
+ */
 OrbitController.prototype.setZoomImpulse = function(value)
 {
     this._localAcceleration.z = value;
 };
 
+/**
+ * @ignore
+ */
 OrbitController.prototype._updateMove = function(x, y)
 {
     if (this._oldMouseX !== undefined) {

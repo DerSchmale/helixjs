@@ -1,5 +1,10 @@
 import {GL} from "../core/GL";
 
+/**
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var RenderUtils =
 {
     /**

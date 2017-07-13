@@ -2,6 +2,13 @@ import {Model} from "../Model";
 import {NormalTangentGenerator} from "../../utils/NormalTangentGenerator";
 import {Mesh} from "../Mesh";
 
+/**
+ * @ignore
+ * @param definition
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Primitive(definition)
 {
     definition = definition || {};

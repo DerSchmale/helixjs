@@ -1,11 +1,17 @@
-/**
- *
- * @constructor
- */
-
 import {Quaternion} from "../../math/Quaternion";
 import {Float4} from "../../math/Float4";
 
+/**
+ * @classdesc
+ * SkeletonJointPose represents the translation, rotation, and scale for a joint to have. Used by {@linkcode SkeletonPose}.
+ * Generally not of interest to casual users.
+ *
+ * @constructor
+ *
+ * @see {@linkcode SkeletonPose}
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function SkeletonJointPose()
 {
     this.rotation = new Quaternion();

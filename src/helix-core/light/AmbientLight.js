@@ -1,12 +1,16 @@
-/**
- *
- * @constructor
- */
 import {Color} from "../core/Color";
 import {Entity} from "../entity/Entity";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {META} from "../Helix";
 
+/**
+ * @classdesc
+ * AmbientLight can be added to the scene to provide a minimum (single-color) amount of light in the scene.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function AmbientLight()
 {
     // AMBIENT LIGHT IS NOT ACTUALLY A REAL LIGHT OBJECT
@@ -21,6 +25,9 @@ function AmbientLight()
 AmbientLight.prototype = Object.create(Entity.prototype);
 
 Object.defineProperties(AmbientLight.prototype, {
+    /**
+     * The color of the ambient light.
+     */
     color: {
         get: function() { return this._color; },
         set: function(value)
@@ -30,6 +37,9 @@ Object.defineProperties(AmbientLight.prototype, {
         }
     },
 
+    /**
+     * The intensity of the ambient light.
+     */
     intensity: {
         get: function() { return this._intensity; },
         set: function(value)
@@ -40,17 +50,26 @@ Object.defineProperties(AmbientLight.prototype, {
     }
 });
 
+/**
+ * @ignore
+ */
 AmbientLight.prototype.acceptVisitor = function (visitor)
 {
     Entity.prototype.acceptVisitor.call(this, visitor);
     visitor.visitAmbientLight(this);
 };
 
+/**
+ * @ignore
+ */
 AmbientLight.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
+/**
+ * @ignore
+ */
 AmbientLight.prototype._updateScaledIrradiance = function()
 {
     // do not scale by 1/PI. It feels weird to control.

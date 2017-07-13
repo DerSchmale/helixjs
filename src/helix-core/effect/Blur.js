@@ -3,8 +3,13 @@ import {Effect} from "./Effect";
 import {GL} from "../core/GL";
 
 /**
- *
+ * @classdesc
+ * Blur is an {@linkcode Effect} added to the Camera that simply applies a gaussian blur to the screen.
+ * @param numSamples The amount of samples used to calculate the blur in each direction.
+ * @param radius The radius of the blur.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Blur(numSamples, radius)
 {
@@ -19,6 +24,9 @@ function Blur(numSamples, radius)
 
 Blur.prototype = Object.create(Effect.prototype,
     {
+        /**
+         * The radius of the blur.
+         */
         radius: {
             get: function() {
                 return this._radius;
@@ -30,6 +38,9 @@ Blur.prototype = Object.create(Effect.prototype,
         }
     });
 
+/**
+ * @ignore
+ */
 Blur.prototype.draw = function(dt)
 {
     var ratio = this._radius / this._numSamples;
@@ -48,17 +59,6 @@ Blur.prototype.draw = function(dt)
     this._blurSourceSlot.texture = this.hdrSource;
     this._blurPass.setUniform("stepSize", {x: 0.0, y: ratio / this.hdrSource.height});
     this._drawPass(this._blurPass);
-};
-
-Blur.prototype.dispose = function()
-{
-    for (var i = 0; i < 2; ++i) {
-        this._smallFBOs[i].dispose();
-        this._thresholdMaps[i].dispose();
-    }
-
-    this._smallFBOs = null;
-    this._thresholdMaps = null;
 };
 
 export { Blur };

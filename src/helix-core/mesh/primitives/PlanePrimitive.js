@@ -1,11 +1,22 @@
-/**
- * Provide a definition with the property names to automatically build a primitive. Properties provided in the definition
- * are the same as the setter names (without get/set).
- * @param definition
- * @constructor
- */
 import {Primitive} from "./Primitive";
 
+/**
+ * @classdesc
+ * PlanePrimitive provides a primitive plane {@linkcode Model}.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of horizontal segments</li>
+ *     <li>numSegmentsH: The amount of vertical segments </li>
+ *     <li>width: The width of the plane</li>
+ *     <li>height: The height of the plane</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ *     <li>alignment: The axes along which to orient the plane. One of {@linkcode PlanePrimitive.ALIGN_XZ}, {@linkcode PlanePrimitive.ALIGN_XY}, {@linkcode PlanePrimitive.ALIGN_YZ}</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function PlanePrimitive(definition)
 {
     Primitive.call(this, definition);

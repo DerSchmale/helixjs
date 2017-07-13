@@ -1,13 +1,14 @@
-/**
- * Base function for basic copies
- * @param fragmentShader The fragment shader to use while copying.
- * @constructor
- */
 import {Comparison, CullMode, DataType} from "../../Helix";
 import {GL} from "../../core/GL";
 import {Shader} from '../../shader/Shader';
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function VSMBlurShader(blurRadius)
 {
     var gl = GL.gl;

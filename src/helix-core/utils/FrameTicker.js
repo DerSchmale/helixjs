@@ -32,8 +32,11 @@ import { Signal } from '../core/Signal';
 /**
  * Encapsulates behaviour to handle frames and time differences.
  * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
-
 function FrameTicker()
 {
     this._isRunning = false;

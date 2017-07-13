@@ -16,11 +16,22 @@ import {GBufferFullPass} from "./GBufferFullPass";
 import {ApplyGBufferPass} from "./ApplyGBufferPass";
 
 /**
- *
- * @constructor
+ * @ignore
  */
 var MATERIAL_ID_COUNTER = 0;
 
+/**
+ * @classdesc
+ * Material is a base class for materials. It splits up into two components: the geometry stage, and the lighting model.
+ *
+ * @constructor
+ *
+ * @param geometryVertexShader The vertex code for the geometry stage.
+ * @param geometryFragmentShader The fragment code for the geometry stage.
+ * @param [lightingModel] The {@linkcode LightingModel} to use. Defaults to what was passed in (if anything) with {@linkcode InitOptions.defaultLightingModel}.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
 {
     this._elementType = ElementType.TRIANGLES;
@@ -53,6 +64,9 @@ Material.ID_COUNTER = 0;
 
 Material.prototype =
 {
+    /**
+     * @ignore
+     */
     init: function()
     {
         if (this._initialized || !this._geometryVertexShader || !this._geometryFragmentShader)
@@ -93,8 +107,17 @@ Material.prototype =
         // TODO: init dynamic light passes
     },
 
+    /**
+     * Whether or not the Material was initialized and ready to use.
+     * @ignore
+     */
     get initialized() { return this._initialized; },
 
+    /**
+     * Whether or not SSAO should be applied to this material. This requires {@linkcode Renderer.ambientOcclusion} to be set.
+     * If this material is using the same lighting model as set to {@linkcode InitOptions.defaultLightingModel} and is not
+     * transparent, it uses the deferred render path and ssao is always applied if assigned to the renderer.
+     */
     get ssao() { return this._ssao; },
     set ssao(value)
     {
@@ -103,6 +126,11 @@ Material.prototype =
         this._invalidate();
     },
 
+    /**
+     * The blend state used for this material.
+     *
+     * @see {BlendState}
+     */
     get blendState()
     {
         return this._blendState;
@@ -123,6 +151,9 @@ Material.prototype =
         this._invalidate();
     },
 
+    /**
+     * The name of the material.
+     */
     get name()
     {
         return this._name;
@@ -133,6 +164,10 @@ Material.prototype =
         this._name = value;
     },
 
+    /**
+     * The {@options LightingModel} used to light this material. If this is set to {@linkcode InitOptions.defaultLightingModel} and
+     * no blendState is assigned, this material will be rendered using the deferred render path.
+     */
     get lightingModel()
     {
         return this._lightingModel;
@@ -144,6 +179,9 @@ Material.prototype =
         this._invalidate();
     },
 
+    /**
+     * A Number that can force the order in which the material is rendered. Higher values will be rendered later!
+     */
     get renderOrder()
     {
         return this._renderOrder;
@@ -154,6 +192,9 @@ Material.prototype =
         this._renderOrder = value;
     },
 
+    /**
+     * An {@linkcode ElementType} to describe the type of elements to render.
+     */
     get elementType()
     {
         return this._elementType;
@@ -168,6 +209,9 @@ Material.prototype =
         }
     },
 
+    /**
+     * Defines whether or not this material should write depth information.
+     */
     get writeDepth()
     {
         return this._writeDepth;
@@ -189,6 +233,9 @@ Material.prototype =
         }
     },
 
+    /**
+     * Defines how back-face culling is applied. One of {@linkcode CullMode}.
+     */
     get cullMode()
     {
         return this._cullMode;
@@ -203,12 +250,18 @@ Material.prototype =
         }
     },
 
+    /**
+     * @ignore
+     */
     getPass: function (type)
     {
         if (!this._initialized) this.init();
         return this._passes[type];
     },
 
+    /**
+     * @ignore
+     */
     setPass: function (type, pass)
     {
         this._passes[type] = pass;
@@ -260,12 +313,20 @@ Material.prototype =
         this.onChange.dispatch();
     },
 
+    /**
+     * @ignore
+     */
     hasPass: function (type)
     {
         if (!this._initialized) this.init();
         return !!this._passes[type];
     },
 
+    /**
+     * Assigns a texture to the shaders with a given name.
+     * @param {string} slotName The name of the texture as it appears in the shader code.
+     * @param {Texture2D} texture The texture to assign
+     */
     setTexture: function(slotName, texture)
     {
         if (texture)
@@ -277,6 +338,11 @@ Material.prototype =
             if (this.hasPass(i)) this._passes[i].setTexture(slotName, texture);
     },
 
+    /**
+     * Assigns a texture array to the shaders with a given name.
+     * @param {string} slotName The name of the texture array as it appears in the shader code.
+     * @param {Array} texture An Array of {@linkcode Texture2D} objects
+     */
     setTextureArray: function(slotName, textures)
     {
         if (textures)
@@ -289,9 +355,9 @@ Material.prototype =
     },
 
     /**
-     *
-     * @param name
-     * @param value
+     * Sets a uniform value to the shaders.
+     * @param name The uniform name as it appears in the shader code.
+     * @param value The uniform value. For vectors, this can be a {@linkcode Float2}, {@linkcode Float4}, or an Array
      * @param overwrite (Optional) If the value was already set, ignore the new value.
      */
     setUniform: function(name, value, overwrite)
@@ -310,9 +376,9 @@ Material.prototype =
     },
 
     /**
-     *
-     * @param name
-     * @param value
+     * Sets the value for a uniform array to the shaders.
+     * @param name The uniform array name as it appears in the shader code.
+     * @param value An array of values.
      * @param overwrite (Optional) If the value was already set, ignore the new value.
      */
     setUniformArray: function(name, value, overwrite)
@@ -330,16 +396,26 @@ Material.prototype =
         }
     },
 
+    /**
+     * @ignore
+     */
     _setUseSkinning: function(value)
     {
         this._useSkinning = value;
     },
 
+    /**
+     * @ignore
+     */
     _setUseMorphing: function(value)
     {
         this._useMorphing = value;
     },
 
+    /**
+     * Called by subclasses when their shaders are invalidated
+     * @ignore
+     */
     _invalidate: function()
     {
         this._initialized = false;
@@ -347,6 +423,9 @@ Material.prototype =
         this.onChange.dispatch();
     },
 
+    /**
+     * @ignore
+     */
     _setSSAOTexture: function(texture)
     {
         var pass = this.getPass(MaterialPass.BASE_PASS);
@@ -355,6 +434,9 @@ Material.prototype =
         if (pass) pass._setSSAOTexture(texture)
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "[Material(name=" + this._name + ")]";

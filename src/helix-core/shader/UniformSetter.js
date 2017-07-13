@@ -1,12 +1,12 @@
-/**
- * per pass setters have a method execute(camera, renderer), per instance have execute(camera, renderItem)
- * @type {{}}
- */
 import {GL} from "../core/GL";
 import {DEFAULTS} from "../Helix";
 import {PoissonDisk} from "../math/PoissonDisk";
 import {Matrix4x4} from "../math/Matrix4x4";
 
+/**
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var UniformSetter = {
 
     getSettersPerInstance: function (shader)

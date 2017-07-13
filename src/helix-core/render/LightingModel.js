@@ -1,8 +1,15 @@
 import { ShaderLibrary } from '../shader/ShaderLibrary';
 
 /**
- * You can add your own, as long as the glsl code contains a function
- * void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)
+ * <p>LightingModel defines a lighting model to be used by a {@Material}. A default lighting model can be assigned to
+ * {@linkcode InitOptions.defaultLightingModel}, which will mean any material will use it by default. In addition,
+ * any material using the default lighting model without a {@linkcode BlendState} will use the deferred rendering path,
+ * potentially increasing the performance for heavily lit scenes.</p>
+ *
+ * <p>You can add pass your own lighting models as a string into a material, as long as the glsl code contains the
+ * functions hx_brdf and hx_probeGeometricShadowing</p>
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 export var LightingModel =
 {

@@ -1,9 +1,14 @@
 import {SkeletonBlendNode} from "./SkeletonBlendNode";
 
 /**
- *
  * @param skeleton The original skeleton, needed to copy the bind pose.
+ *
+ * @classdesc
+ * <p>SkeletonFreePoseNode is a SkeletonBlendNode that allows freely setting any Skeleton joint's pose directly.</p>
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonFreePoseNode(skeleton)
 {
@@ -21,11 +26,17 @@ function SkeletonFreePoseNode(skeleton)
 }
 
 SkeletonFreePoseNode.prototype = Object.create(SkeletonBlendNode.prototype, {
+    /**
+     * @ignore
+     */
     numJoints: {
         get function() { return this._skeleton.numJoints; }
     }
 });
 
+/**
+ * @ignore
+ */
 SkeletonFreePoseNode.prototype.update = function(dt)
 {
     var updated = this._poseInvalid;
@@ -33,6 +44,11 @@ SkeletonFreePoseNode.prototype.update = function(dt)
     return updated
 };
 
+/**
+ * Sets a joint's rotation.
+ * @param {*} indexOrName If a Number, the index of the joint in the skeleton, if a String, its name.
+ * @param {Quaternion} quaternion The new rotation.
+ */
 SkeletonFreePoseNode.prototype.setJointRotation = function(indexOrName, quaternion)
 {
     var p = this._getJointPose(indexOrName);
@@ -40,6 +56,11 @@ SkeletonFreePoseNode.prototype.setJointRotation = function(indexOrName, quaterni
     this._poseInvalid = true;
 };
 
+/**
+ * Sets a joint's translation.
+ * @param {*} indexOrName If a Number, the index of the joint in the skeleton, if a String, its name.
+ * @param {Float4} value The new translation.
+ */
 SkeletonFreePoseNode.prototype.setJointTranslation = function(indexOrName, value)
 {
     var p = this._getJointPose(indexOrName);
@@ -47,6 +68,11 @@ SkeletonFreePoseNode.prototype.setJointTranslation = function(indexOrName, value
     this._poseInvalid = true;
 };
 
+/**
+ * Sets a joint's scale.
+ * @param {*} indexOrName If a Number, the index of the joint in the skeleton, if a String, its name.
+ * @param {Float4} value The new scale.
+ */
 SkeletonFreePoseNode.prototype.setJointScale = function(indexOrName, value)
 {
     var p = this._getJointPose(indexOrName);
@@ -54,6 +80,9 @@ SkeletonFreePoseNode.prototype.setJointScale = function(indexOrName, value)
     this._poseInvalid = true;
 };
 
+/**
+ * @ignore
+ */
 SkeletonFreePoseNode.prototype._getJointPose = function(indexOrName)
 {
     if (indexOrName instanceof String)

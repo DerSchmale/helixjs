@@ -1,12 +1,18 @@
-/**
- *
- * @constructor
- */
 import {Entity} from "../entity/Entity";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {Frustum} from "./Frustum";
 import {BoundingVolume} from "../scene/BoundingVolume";
 
+/**
+ * @classdesc
+ * Camera is an abstract base class for camera objects.
+ *
+ * @constructor
+ *
+ * @see {@linkcode PerspectiveCamera}
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Camera()
 {
     Entity.call(this);
@@ -28,6 +34,9 @@ function Camera()
 }
 
 Camera.prototype = Object.create(Entity.prototype, {
+    /**
+     * The minimum distance to be able to render. Anything closer gets cut off.
+     */
     nearDistance: {
         get: function() {
             return this._nearDistance;
@@ -38,6 +47,10 @@ Camera.prototype = Object.create(Entity.prototype, {
             this._invalidateProjectionMatrix();
         }
     },
+
+    /**
+     * The maximum distance to be able to render. Anything farther gets cut off.
+     */
     farDistance: {
         get: function() {
             return this._farDistance;
@@ -49,6 +62,9 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The matrix transforming coordinates from world space to the camera's homogeneous projective space.
+     */
     viewProjectionMatrix: {
         get: function() {
             if (this._viewProjectionMatrixInvalid)
@@ -58,6 +74,9 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The matrix transforming coordinates from world space to the camera's local coordinate system (eye space).
+     */
     viewMatrix: {
         get: function()
         {
@@ -68,6 +87,9 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The matrix transforming coordinates from eye space to the camera's homogeneous projective space.
+     */
     projectionMatrix: {
         get: function()
         {
@@ -78,6 +100,9 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The matrix that transforms from the homogeneous projective space to world space.
+     */
     inverseViewProjectionMatrix: {
         get: function()
         {
@@ -88,6 +113,9 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The matrix that transforms from the homogeneous projective space to view space.
+     */
     inverseProjectionMatrix: {
         get: function()
         {
@@ -98,6 +126,11 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /***
+     * The Camera's view frustum.
+     *
+     * @ignore
+     */
     frustum: {
         get: function()
         {
@@ -109,28 +142,38 @@ Camera.prototype = Object.create(Entity.prototype, {
     }
 });
 
-// Camera.prototype.acceptVisitor = function(visitor)
-// {
-//     Entity.prototype.acceptVisitor.call(this, visitor);
-// };
-
+/**
+ * @ignore
+ * @param width
+ * @param height
+ * @private
+ */
 Camera.prototype._setRenderTargetResolution = function(width, height)
 {
     this._renderTargetWidth = width;
     this._renderTargetHeight = height;
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._invalidateViewProjectionMatrix = function()
 {
     this._viewProjectionMatrixInvalid = true;
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._invalidateWorldMatrix = function()
 {
     Entity.prototype._invalidateWorldMatrix.call(this);
     this._invalidateViewProjectionMatrix();
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._updateViewProjectionMatrix = function()
 {
     this._viewMatrix.inverseAffineOf(this.worldMatrix);
@@ -141,22 +184,34 @@ Camera.prototype._updateViewProjectionMatrix = function()
     this._viewProjectionMatrixInvalid = false;
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._invalidateProjectionMatrix = function()
 {
     this._projectionMatrixDirty = true;
     this._invalidateViewProjectionMatrix();
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._updateProjectionMatrix = function()
 {
     throw new Error("Abstract method!");
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype.toString = function()
 {
     return "[Camera(name=" + this._name + ")]";

@@ -4,6 +4,15 @@ import {Shader} from "../shader/Shader";
 import {GL} from "../core/GL";
 import {Float4} from "../math/Float4";
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @param lightingModel
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ForwardLitPointPass(geometryVertex, geometryFragment, lightingModel)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));

@@ -1,13 +1,39 @@
-/**
- * BasicMaterial is the default physically plausible rendering material.
- * @constructor
- */
 import {Color} from "../core/Color";
 import {capabilities, CullMode} from "../Helix";
 import {Material} from "./Material";
 import {MaterialPass} from "./MaterialPass";
 import {MathX} from "../math/MathX";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
+
+/**
+ * @classdesc
+ * BasicMaterial is the default physically plausible rendering material.
+ *
+ * @constructor
+ * Creates a new BasicMaterial object.
+ *
+ * @param options An object with key/value pairs describing the initial values of the material.
+ *
+ * <ul>
+ * <li>color: {@linkcode Color} or hexcode Number</li>
+ * <li>colorMap: {@linkcode Texture2D}</li>
+ * <li>doubleSided: Boolean</li>
+ * <li>normalMap: {@linkcode Texture2D}</li>
+ * <li>specularMap: {@linkcode Texture2D}</li>
+ * <li>maskMap: {@linkcode Texture2D}</li>
+ * <li>specularMapMode: {@linkcode BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+ * <li>metallicness: Number</li>
+ * <li>alpha: Number</li>
+ * <li>roughness: Number</li>
+ * <li>roughnessRange: Number</li>
+ * <li>normalSpecularReflectance: Number</li>
+ * <li>alphaThreshold: Number</li>
+ * <li>useVertexColors: Boolean</li>
+ * <li>lightingModel: {@linkcode LightingModel}</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function BasicMaterial(options)
 {
     Material.call(this);
@@ -38,29 +64,36 @@ function BasicMaterial(options)
 
     if (options.lightingModel !== undefined)
         this.lightingModel = options.lightingModel;
-};
+}
 
+/**
+ * Converts to roughness from a "shininess" or "gloss" property, traditionally used in Phong lighting.
+ * @param specularPower The specular power used as the gloss parameter.
+ */
 BasicMaterial.roughnessFromShininess = function(specularPower)
 {
     return Math.sqrt(2.0/(specularPower + 2.0));
 };
 
 /**
- * used for specularMapMode to specify the specular map only uses roughness data
+ * Used for specularMapMode to specify the specular map only uses roughness data
  */
 BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
 /**
- * used for specularMapMode to specify the specular map has rgb channels containing roughness, normal reflectance and metallicness, respectively
+ * Used for specularMapMode to specify the specular map has rgb channels containing roughness, normal reflectance and metallicness, respectively
  */
 BasicMaterial.SPECULAR_MAP_ALL = 2;
 /**
- * used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
+ * Used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
  */
 BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 
 BasicMaterial.prototype = Object.create(Material.prototype,
     {
+        /**
+         * Defines whether the material is double sided (no back-face culling) or not.
+         */
         doubleSided: {
             get: function()
             {
@@ -78,6 +111,9 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
+        /**
+         * The overal transparency of the object. Has no effect without a matching blendState value.
+         */
         alpha: {
             get: function ()
             {
@@ -90,7 +126,9 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        // this can ONLY be used if the MeshData was created with a hx_vertexColor attribute!
+        /**
+         * Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
+         */
         useVertexColors: {
             get: function ()
             {
@@ -105,6 +143,9 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
+        /**
+         * The base color of the material. Multiplied with the colorMap if provided.
+         */
         color: {
             get: function ()
             {
@@ -117,6 +158,9 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
+        /**
+         * A {@linkcode Texture2D} object containing color data.
+         */
         colorMap: {
             get: function ()
             {
@@ -135,6 +179,9 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
+        /**
+         * A {@linkcode Texture2D} object containing surface normals.
+         */
         normalMap: {
             get: function ()
             {
@@ -152,6 +199,7 @@ BasicMaterial.prototype = Object.create(Material.prototype,
         },
 
         /**
+         * A {@linkcode Texture2D} object containing specular reflection data. The contents of the map depend on {@linkcode BasicMaterial#specularMapMode}.
          * The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
          */
         specularMap: {
@@ -170,6 +218,9 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
+        /**
+         * A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
+         */
         maskMap: {
             get: function ()
             {
@@ -186,6 +237,14 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
+        /**
+         * Defines the contents of the specular map. One of the following:
+         * <ul>
+         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_ALL}</li>
+         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
+         * </ul>
+         */
         specularMapMode: {
             get: function ()
             {
@@ -200,6 +259,10 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
+        /**
+         * A value describing the overall "metallicness" of an object. Normally 0 or 1, but it can be used for some
+         * hybrid materials.
+         */
         metallicness: {
             get: function ()
             {
@@ -212,6 +275,10 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
+        /**
+         * The amount of light reflecting off a surface at 90 degrees (ie: the minimum reflectance in the Fresnel
+         * equation according to Schlick's approximation). This is generally 0.027 for most materials.
+         */
         normalSpecularReflectance: {
             get: function ()
             {
@@ -224,6 +291,9 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
+        /**
+         * The microfacet roughness of the material. Higher values will result in dimmer but larger highlights.
+         */
         roughness:
             {
                 get: function ()
@@ -239,8 +309,9 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             },
 
         /**
-         * When using a roughness texture, roughness represents the middle roughness, range the deviation from there.
-         * So textured roughness ranges from [roughness - roughnessRange, roughness + roughnessRange]
+         * Represents the range at which the roughness map operates. When using a roughness texture, roughness represents
+         * the middle roughness, range the deviation from there. So textured roughness ranges from
+         * [roughness - roughnessRange, roughness + roughnessRange]
          */
         roughnessRange:
             {
@@ -256,6 +327,10 @@ BasicMaterial.prototype = Object.create(Material.prototype,
                 }
             },
 
+        /**
+         * The alpha threshold that prevents pixels with opacity below this from being rendered. This is not recommended
+         * on certain mobile platforms due to depth buffer hierarchy performance.
+         */
         alphaThreshold:
             {
                 get: function() { return this._alphaThreshold; },
@@ -271,6 +346,9 @@ BasicMaterial.prototype = Object.create(Material.prototype,
     }
 );
 
+/**
+ * @ignore
+ */
 BasicMaterial.prototype.init = function()
 {
     var defines = this._generateDefines();
@@ -281,6 +359,9 @@ BasicMaterial.prototype.init = function()
     Material.prototype.init.call(this);
 };
 
+/**
+ * @ignore
+ */
 BasicMaterial.prototype._generateDefines = function()
 {
     var defines = {};
@@ -308,6 +389,9 @@ BasicMaterial.prototype._generateDefines = function()
     return defines;
 };
 
+/**
+ * @ignore
+ */
 BasicMaterial.prototype._setUseSkinning = function(value)
 {
     if (this._useSkinning !== value)

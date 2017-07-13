@@ -1,7 +1,7 @@
 import {GBuffer} from "../render/GBuffer";
 /**
- *
- * @type {{}}
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
  */
 export var TextureSetter = {
     getSettersPerPass: function (materialPass)

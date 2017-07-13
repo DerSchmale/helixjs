@@ -1,11 +1,14 @@
 import {GL} from "../core/GL";
-import {DataType, TextureFormat, TextureFilter, TextureWrapMode, capabilities} from "../Helix";
-import {TextureUtils} from "./TextureUtils";
+import {DataType, TextureFormat, TextureFilter, capabilities} from "../Helix";
 
 
 /**
+ * @classdesc
+ * Texture2D represents a cube map texture.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function TextureCube()
 {
@@ -21,8 +24,11 @@ function TextureCube()
     this.maxAnisotropy = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
 
     this._isReady = false;
-};
+}
 
+/**
+ * @ignore
+ */
 TextureCube._initDefault = function()
 {
     var gl = GL.gl;
@@ -35,6 +41,9 @@ TextureCube._initDefault = function()
 
 TextureCube.prototype =
 {
+    /**
+     * The name of the texture.
+     */
     get name()
     {
         return this._name;
@@ -45,12 +54,9 @@ TextureCube.prototype =
         this._name = value;
     },
 
-    dispose: function()
-    {
-        GL.gl.deleteTexture(this._texture);
-        this._isReady = false;
-    },
-
+    /**
+     * Generates a mip map chain.
+     */
     generateMipmap: function()
     {
         this.bind();
@@ -59,6 +65,9 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
+     */
     get filter()
     {
         return this._filter;
@@ -74,6 +83,9 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY}
+     */
     get maxAnisotropy()
     {
         return this._maxAnisotropy;
@@ -94,10 +106,31 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * The cube texture's size
+     */
     get size() { return this._size; },
+
+    /**
+     * The texture's format
+     *
+     * @see {@linkcode TextureFormat}
+     */
     get format() { return this._format; },
+
+    /**
+     * The texture's data type
+     *
+     * @see {@linkcode DataType}
+     */
     get dataType() { return this._dataType; },
 
+    /**
+     * Inits an empty texture.
+     * @param size The size of the texture.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     initEmpty: function(size, format, dataType)
     {
         this._format = format = format || TextureFormat.RGBA;
@@ -120,6 +153,14 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * Initializes the texture with the given data.
+     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+     * @param size The size of the texture.
+     * @param generateMips Whether or not a mip chain should be generated.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     uploadData: function(data, size, generateMips, format, dataType)
     {
         this._size = size;
@@ -148,6 +189,13 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * Initializes the texture with the given Images.
+     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+     * @param generateMips Whether or not a mip chain should be generated.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     uploadImages: function(images, generateMips, format, dataType)
     {
         generateMips = generateMips === undefined? true: generateMips;
@@ -168,6 +216,13 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * Initializes a miplevel with the given Images.
+     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+     * @param mipLevel The mip-level to initialize.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     uploadImagesToMipLevel: function(images, mipLevel, format, dataType)
     {
         var gl = GL.gl;
@@ -191,9 +246,15 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * Defines whether data has been uploaded to the texture or not.
+     */
     isReady: function() { return this._isReady; },
 
-    // binds a texture to a given texture unit
+    /**
+     * Binds a texture to a given texture unit.
+     * @ignore
+     */
     bind: function(unitIndex)
     {
         var gl = GL.gl;
@@ -204,6 +265,9 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, this._texture);
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "[TextureCube(name=" + this._name + ")]";

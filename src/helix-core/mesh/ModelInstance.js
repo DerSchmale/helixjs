@@ -1,18 +1,23 @@
-/**
- * ModelInstance is a combination of a Model and a set of Materials (up to 1 per Mesh).
- * @param model
- * @param materials Either a single material or an array of materials for each mesh in model.
- * @constructor
- */
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {capabilities, DEFAULTS, META} from "../Helix";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {MeshInstance} from "./MeshInstance";
 import {Entity} from "../entity/Entity";
-import {LightingModel} from "../render/LightingModel";
-import {Color} from "../core/Color";
-import {BasicMaterial} from "../material/BasicMaterial";
 
+/**
+ * @classdesc
+ * <p>ModelInstance is a scene graph node that contains Model geometry and a Material to use for rendering. It allows
+ * reusing geometry multiple times in the scene.</p>
+ * <p>ModelInstance creates a matching {@linkcode MeshInstance} for each {@linkcode Mesh} in the {@linkcode Model}, in
+ * which the {@linkcode Mesh} is linked with its {@linkcode Material}.
+ *
+ * @constructor
+ * @param model The {@linkcode Model} to use as the geometry
+ * @param materials Either a single {@linkcode Material} to link to all Meshes in the Model, or an array of materials to link to the meshes in respective order.
+ *
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ModelInstance(model, materials)
 {
     Entity.call(this);
@@ -21,7 +26,7 @@ function ModelInstance(model, materials)
     this._model = null;
     this._meshInstances = [];
     this._castShadows = true;
-    this._skeletonPose = null;
+    this._skeletonMatrices = null;
     this._morphPose = null;
     this._meshInstancesInvalid = false;
 
@@ -29,11 +34,17 @@ function ModelInstance(model, materials)
 }
 
 ModelInstance.prototype = Object.create(Entity.prototype, {
+    /**
+     * The {@linkcode Model} to use as the geometry
+     */
     model:
         {
             get: function() { return this._model; }
         },
 
+    /**
+     * Defines whether or not this ModelInstance should cast shadows.
+     */
     castShadows: {
         get: function()
         {
@@ -46,6 +57,9 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The amount of MeshInstance objects.
+     */
     numMeshInstances: {
         get: function ()
         {
@@ -53,21 +67,34 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The skeleton used for skinning animations.
+     */
     skeleton: {
         get: function() {
             return this._model.skeleton;
         }
     },
 
+    /**
+     * The global matrices defining the skeleton pose. This could be a Float32Array with flat matrix data, or a texture
+     * containing the data (depending on the capabilities). This is usually set by {@linkcode SkeletonAnimation}, and
+     * should not be handled manually.
+     *
+     * @ignore
+     */
     skeletonMatrices: {
         get: function() {
-            return this._skeletonPose;
+            return this._skeletonMatrices;
         },
         set: function(value) {
-            this._skeletonPose = value;
+            this._skeletonMatrices = value;
         }
     },
 
+    /**
+     * The {@linkcode MorphPose} object defining the current morph target state.
+     */
     morphPose: {
         get: function() {
             return this._morphPose;
@@ -90,9 +117,9 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
 });
 
 /**
- * Used if we choose to deferredly initialize the model
- * @param model
- * @param materials
+ * Init allows us to leave the constructor empty and initialize the model lazily.
+ * @param model The {@linkcode Model} to use as the geometry
+ * @param materials Either a single {@linkcode Material} to link to all Meshes in the Model, or an array of materials to link to the meshes in respective order.
  */
 ModelInstance.prototype.init = function(model, materials)
 {
@@ -117,6 +144,9 @@ ModelInstance.prototype.init = function(model, materials)
     this._updateMeshInstances();
 };
 
+/**
+ * Forces all MeshInstances in the ModelInstance to use the material.
+ */
 ModelInstance.prototype.assignMaterial = function(material)
 {
     if (this._meshInstancesInvalid) this._updateMeshInstances();
@@ -126,24 +156,35 @@ ModelInstance.prototype.assignMaterial = function(material)
     }
 };
 
+/**
+ * Gets the {@linkcode MeshInstance} at the given index.
+ */
 ModelInstance.prototype.getMeshInstance = function(index)
 {
     return this._meshInstances[index];
 };
 
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._generateDefaultSkeletonPose = function()
 {
     if (META.OPTIONS.useSkinningTexture) {
-        this._skeletonPose = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
+        this._skeletonMatrices = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
         return;
     }
 
-    this._skeletonPose = [];
+    this._skeletonMatrices = [];
     for (var i = 0; i < this._model.skeleton.numJoints; ++i) {
-        this._skeletonPose[i] = new Matrix4x4();
+        this._skeletonMatrices[i] = new Matrix4x4();
     }
 };
 
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._updateMeshInstances = function()
 {
     this._meshInstances = [];
@@ -156,12 +197,20 @@ ModelInstance.prototype._updateMeshInstances = function()
     this._meshInstancesInvalid = false;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._onModelChange = function()
 {
     this._meshInstancesInvalid = true;
     this._invalidateWorldBounds();
 };
 
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._clearMorph = function()
 {
     var numTargets = capabilities.NUM_MORPH_TARGETS;
@@ -174,6 +223,10 @@ ModelInstance.prototype._clearMorph = function()
     }
 };
 
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._onMorphChanged = function()
 {
     var numTargets = capabilities.NUM_MORPH_TARGETS;
@@ -196,7 +249,10 @@ ModelInstance.prototype._onMorphChanged = function()
     }
 };
 
-// override for better matches
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._updateWorldBounds = function()
 {
     if (this._meshInstancesInvalid) this._updateMeshInstances();
@@ -205,6 +261,9 @@ ModelInstance.prototype._updateWorldBounds = function()
     this._worldBounds.growToIncludeBound(this._meshBounds);
 };
 
+/**
+ * @ignore
+ */
 ModelInstance.prototype.acceptVisitor = function(visitor)
 {
     if (this._meshInstancesInvalid) this._updateMeshInstances();
@@ -212,6 +271,9 @@ ModelInstance.prototype.acceptVisitor = function(visitor)
     Entity.prototype.acceptVisitor.call(this, visitor);
 };
 
+/**
+ * @ignore
+ */
 ModelInstance.prototype.toString = function()
 {
     return "[ModelInstance(name=" + this._name + ")]";

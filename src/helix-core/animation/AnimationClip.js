@@ -1,6 +1,15 @@
 /**
+ * @classdesc
+ * AnimationClip is a resource that contains key frames (time / value pairs). AnimationClip itself has no playback state,
+ * but is only used as a shareable data resource. It can be passed to {@linkcode AnimationPlayhead} or its wrappers
+ * (fe: (@linkcode SkeletonClipNode}) which will manage the play head position and allow animations.
  *
  * @constructor
+ *
+ * @see {@linkcode KeyFrame}
+ * @see {@linkcode AnimationPlayhead}
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function AnimationClip()
 {
@@ -12,6 +21,9 @@ function AnimationClip()
 
 AnimationClip.prototype =
 {
+    /**
+     * Defines whether this clip should repeat or not.
+     */
     get looping()
     {
         return this._looping;
@@ -22,6 +34,9 @@ AnimationClip.prototype =
         this._looping = value;
     },
 
+    /**
+     * The name of the animation clip.
+     */
     get name()
     {
         return this._name;
@@ -32,11 +47,17 @@ AnimationClip.prototype =
         this._name = value;
     },
 
+    /**
+     * The amount of key frames in this clip.
+     */
     get numKeyFrames()
     {
         return this._keyFrames.length;
     },
 
+    /**
+     * The total duration of the clip, in milliseconds.
+     */
     get duration()
     {
         return this._duration;
@@ -53,7 +74,7 @@ AnimationClip.prototype =
     },
 
     /**
-     * Only call this if for some reason the keyframes were added out of order.
+     * Sorts the key frames based on their time. Only call this if for some reason the keyframes were added out of order.
      */
     sortKeyFrames: function()
     {
@@ -62,11 +83,17 @@ AnimationClip.prototype =
         });
     },
 
+    /**
+     * Returns the key frame with the given index.
+     */
     getKeyFrame: function(index)
     {
         return this._keyFrames[index];
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "[AnimationClip(name=" + this.name + ")";

@@ -1,13 +1,15 @@
-/**
- *
- * @constructor
- */
 import {RenderItemPool} from "./RenderItemPool";
 import {Float4} from "../math/Float4";
 import {Color} from "../core/Color";
 import {SceneVisitor} from "../scene/SceneVisitor";
 import {META} from "../Helix";
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function RenderCollector()
 {
     SceneVisitor.call(this);

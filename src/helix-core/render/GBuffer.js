@@ -2,9 +2,17 @@ import {FrameBuffer} from "../texture/FrameBuffer";
 import {Texture2D} from "../texture/Texture2D";
 import {TextureFilter, TextureWrapMode, capabilities} from "../Helix";
 
-// 0) RGB: ALBEDO, (TODO, A: material ID, can be used by post-processing effects such as SSS to selectively apply if a match)
-// 1) XY: NORMAL, ZW: DEPTH
-// 2) X: METALLICNESS, Y: NORMAL REFLECTION, Z: ROUGHNESS, W: TBD
+/**
+ * 0) RGB: ALBEDO, (TODO, A: effectID, can be used by post-processing effects such as SSS to selectively apply if a match)
+ * 1) XY: NORMAL, ZW: DEPTH
+ * 2) X: METALLICNESS, Y: NORMAL REFLECTION, Z: ROUGHNESS, W: TBD
+ * @param depthBuffer
+ * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function GBuffer(depthBuffer)
 {
     this.textures = [];

@@ -1,20 +1,28 @@
-/**
- *
- * @constructor
- */
 import {ToneMapEffect} from "./ToneMapEffect";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {EffectPass} from "./EffectPass";
 
+/**
+ * @classdesc
+ * FilmicToneMapping is an {@linkcode Effect} added to the Camera that applies filmic tone mapping.
+ *
+ * @constructor
+ * @param adaptive Whether or not the brightness should adapt to the average brightness of the scene. If not supported, it will disable.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function FilmicToneMapping(adaptive)
 {
     ToneMapEffect.call(this, adaptive);
     this._outputsGamma = true;
 
-};
+}
 
 FilmicToneMapping.prototype = Object.create(ToneMapEffect.prototype);
 
+/**
+ * @ignore
+ */
 FilmicToneMapping.prototype._createToneMapPass = function()
 {
     var defines = {};

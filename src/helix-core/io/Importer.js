@@ -1,6 +1,17 @@
 import {URLLoader} from "./URLLoader";
 import {Signal} from "../core/Signal";
 
+/**
+ * @classdesc
+ * A base class for importers.
+ *
+ * @ignore
+ * @param containerType
+ * @param dataType
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Importer(containerType, dataType)
 {
     this._dataType = dataType === undefined? URLLoader.DATA_TEXT : dataType;

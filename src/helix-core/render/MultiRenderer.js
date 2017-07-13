@@ -1,7 +1,3 @@
-/**
- * MultiRenderer is a renderer for multiple viewports
- * @constructor
- */
 import {Renderer} from "./Renderer";
 import {Texture2D} from "../texture/Texture2D";
 import {FrameBuffer} from "../texture/FrameBuffer";
@@ -10,21 +6,65 @@ import {Rect} from "../core/Rect";
 import {GL} from "../core/GL";
 import {RectMesh} from "../mesh/RectMesh";
 
-
+/**
+ * @classdesc
+ * View represents a renderable area on screen with the data it should render.
+ *
+ * @param scene The {@linkcode Scene} to render to this view.
+ * @param camera The {@linkcode Camera} to use for this view.
+ * @param xRatio The ratio (0 - 1) of the top-left corner of the view's horizontal position relative to the screen width.
+ * @param yRatio The ratio (0 - 1) of the top-left corner of the view vertical position relative to the screen height.
+ * @param widthRatio The ratio (0 - 1) of the top-left corner of the view's width relative to the screen width.
+ * @param heightRatio The ratio (0 - 1) of the top-left corner of the view's height relative to the screen height.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function View(scene, camera, xRatio, yRatio, widthRatio, heightRatio)
 {
+    /**
+     * The {@linkcode Scene} to render to this view.
+     */
     this.scene = scene;
+
+    /**
+     * The {@linkcode Camera} to use for this view.
+     */
     this.camera = camera;
-    this.viewport = new Rect();
+
     this._renderer = null;
     this._texture = null;
     this._fbo = null;
+
+    /**
+     * The ratio (0 - 1) of the top-left corner of the view's horizontal position relative to the screen width.
+     */
     this.xRatio = xRatio || 0;
+
+    /**
+     * The ratio (0 - 1) of the top-left corner of the view's vertical position relative to the screen height.
+     */
     this.yRatio = yRatio || 0;
+
+    /**
+     * The ratio (0 - 1) of the top-left corner of the view's width relative to the screen width.
+     */
     this.widthRatio = widthRatio || 1;
+
+    /**
+     * The ratio (0 - 1) of the top-left corner of the view's height relative to the screen height.
+     */
     this.heightRatio = heightRatio || 1;
 }
 
+/**
+ * MultiRenderer is a renderer for multiple simultaneous viewports. Multiple scenes can be rendered, with multiple
+ * cameras.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function MultiRenderer()
 {
     this._views = [];
@@ -32,6 +72,9 @@ function MultiRenderer()
 
 MultiRenderer.prototype =
 {
+    /**
+     * Adds a {@linkcode View} to be rendered.
+     */
     addView: function (view)
     {
         view._renderer = new Renderer();
@@ -42,15 +85,23 @@ MultiRenderer.prototype =
         this._views.push(view);
     },
 
+    /**
+     * Removes a {@linkcode View}.
+     */
     removeView: function (view)
     {
-        view._fbo.dispose();
-        view._texture.dispose();
-        view._renderer.dispose();
+        view._fbo = null;
+        view._texture = null;
+        view._renderer = null;
         var index = this._views.indexOf(view);
         this._views.splice(index, 1);
     },
 
+    /**
+     * Renders all views.
+     * @param dt The milliseconds passed since last frame.
+     * @param [renderTarget] An optional {@linkcode FrameBuffer} object to render to.
+     */
     render: function (dt, renderTarget)
     {
         var screenWidth = META.TARGET_CANVAS.clientWidth;

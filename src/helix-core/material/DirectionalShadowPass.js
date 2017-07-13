@@ -3,6 +3,14 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {DirectionalLight} from "../light/DirectionalLight";
 import {Shader} from "../shader/Shader";
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DirectionalShadowPass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));

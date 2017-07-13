@@ -5,7 +5,10 @@ import {MaterialPass} from "./MaterialPass";
 import {Material} from "./Material";
 
 /**
- * Creates a default skybox rendering material.
+ * @classdesc
+ * SkyboxMaterial forms the default material to render skyboxes.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkyboxMaterial(texture)
 {

@@ -1,5 +1,21 @@
 import {Primitive} from "./Primitive";
 
+/**
+ * @classdesc
+ * ConePrimitive provides a primitive cone {@linkcode Model}.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of horizontal segments</li>
+ *     <li>numSegmentsH: The amount of vertical segments </li>
+ *     <li>radius: The radius of the cone base</li>
+ *     <li>height: The height of the cone</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ConePrimitive(definition)
 {
     Primitive.call(this, definition);

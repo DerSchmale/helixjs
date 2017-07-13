@@ -6,10 +6,12 @@ var insert = require('gulp-insert');
 var concatCallback = require('gulp-concat-callback');
 var del = require('del');
 var rollup = require('gulp-better-rollup');
+var jsdoc = require("gulp-jsdoc3");
 
 gulp.task('package', ['glsl', 'main', 'clean']);
 
 gulp.task('default', ['glsl', 'minimize', 'clean']);
+gulp.task('docs', ['docs-core', 'docs-io']);
 
 // core only compiles the core game engine
 gulp.task('core', ['glsl'], function ()
@@ -59,6 +61,18 @@ gulp.task('glsl', function ()
 gulp.task('clean', ['main', 'glsl'], function ()
 {
     del('./build/tmp');
+});
+
+gulp.task('docs-core', function (cb) {
+    var config = require('./jsdoc-core.json');
+    gulp.src(['README.md', './src/helix-core/**/*.js'], {read: false})
+        .pipe(jsdoc(config, cb));
+});
+
+gulp.task('docs-io', function(cb) {
+    var config = require('./jsdoc-io.json');
+    gulp.src(['README.md', './src/helix-io/*.js'], {read: false})
+        .pipe(jsdoc(config, cb));
 });
 
 function appendGLSL(contents, file)

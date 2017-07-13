@@ -1,6 +1,10 @@
 import { capabilities, ClearMask, Comparison, CullMode, StencilOp, META } from '../Helix.js';
 import { Color } from '../core/Color.js';
 
+/**
+ * @author derschmale <http://www.derschmale.com>
+ */
+
 // Just contains some convenience methods and GL management stuff that shouldn't be called directly
 // Will become an abstraction layer
 // properties to keep track of render state
@@ -120,8 +124,13 @@ function _updateRenderState()
         }
         _stencilStateInvalid = false;
     }
-};
+}
 
+/**
+ * GL forms a bridge to native WebGL. It's used to keep track of certain states. If the method is in here, use it instead of the raw gl calls.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var GL = {
     gl: null,
 
@@ -131,8 +140,9 @@ var GL = {
     },
 
     /**
-     * Default clearing function. Can be called if no special clearing functionality is needed (or in case another api is used that clears)
-     * Otherwise, you can manually clear using GL context.
+     * Clears the current render target.
+     *
+     * @param [clearMask] One of {@linkcode ClearMask}. If omitted, all planes will be cleared.
      */
     clear: function (clearMask)
     {
@@ -144,6 +154,12 @@ var GL = {
         ++_glStats.numClears;
     },
 
+    /**
+     * Draws elements for the current index buffer bound.
+     * @param elementType One of {@linkcode ElementType}.
+     * @param numIndices The amount of indices in the index buffer
+     * @param offset The first index to start drawing from.
+     */
     drawElements: function (elementType, numIndices, offset)
     {
         ++_glStats.numDrawCalls;
@@ -154,8 +170,8 @@ var GL = {
 
 
     /**
-     *
-     * @param rect Any object with a width and height property, so it can be a Rect or even an FBO. If x and y are present, it will use these too.
+     * Sets the viewport to render into.
+     * @param {*} rect Any object with a width and height property, so it can be a {@linkcode Rect} or even a {linkcode FrameBuffer}. If x and y are present, it will use these too.
      */
     setViewport: function (rect)
     {
@@ -174,11 +190,17 @@ var GL = {
         }
     },
 
+    /**
+     * Gets the current render target.
+     */
     getCurrentRenderTarget: function ()
     {
         return _renderTarget;
     },
 
+    /**
+     * Sets the current render target. It's recommended to clear afterwards for certain platforms.
+     */
     setRenderTarget: function (frameBuffer)
     {
         _renderTarget = frameBuffer;
@@ -186,6 +208,9 @@ var GL = {
         GL.setViewport(frameBuffer);
     },
 
+    /**
+     * Enables a given count of vertex attributes.
+     */
     enableAttributes: function (count)
     {
         var numActiveAttribs = _numActiveAttributes;
@@ -207,12 +232,18 @@ var GL = {
         _numActiveAttributes = count;
     },
 
+    /**
+     * Sets the clear color.
+     */
     setClearColor: function (color)
     {
         color = isNaN(color) ? color : new Color(color);
         gl.clearColor(color.r, color.g, color.b, color.a);
     },
 
+    /**
+     * Sets the cull mode.
+     */
     setCullMode: function (value)
     {
         if (_cullMode === value) return;
@@ -220,6 +251,9 @@ var GL = {
         _cullModeInvalid = true;
     },
 
+    /**
+     * Sets the depth mask.
+     */
     setDepthMask: function (value)
     {
         if (_depthMask === value) return;
@@ -227,6 +261,9 @@ var GL = {
         _depthMaskInvalid = true;
     },
 
+    /**
+     * Sets the depth test.
+     */
     setDepthTest: function (value)
     {
         if (_depthTest === value) return;
@@ -234,6 +271,11 @@ var GL = {
         _depthTestInvalid = true;
     },
 
+    /**
+     * Sets the blend state.
+     *
+     * @see {@linkcode BlendState}
+     */
     setBlendState: function (value)
     {
         if (_blendState === value) return;
@@ -241,6 +283,9 @@ var GL = {
         _blendStateInvalid = true;
     },
 
+    /**
+     * Sets a new stencil reference value for the current stencil state. This prevents resetting an entire state.
+     */
     updateStencilReferenceValue: function (value)
     {
         var currentState = _stencilState;
@@ -253,6 +298,11 @@ var GL = {
             gl.stencilFunc(currentState.comparison, value, currentState.readMask);
     },
 
+    /**
+     * Sets a new stencil state.
+     *
+     * @see {@linkcode StencilState}
+     */
     setStencilState: function (value)
     {
         _stencilState = value;

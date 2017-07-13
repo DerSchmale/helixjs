@@ -2,13 +2,15 @@ import { GL } from './GL.js';
 import { BufferUsage } from '../Helix.js';
 
 /**
- *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function IndexBuffer()
 {
     this._buffer = GL.gl.createBuffer();
-};
+}
 
 IndexBuffer.prototype = {
     /**
@@ -23,14 +25,6 @@ IndexBuffer.prototype = {
 
         this.bind();
         GL.gl.bufferData(GL.gl.ELEMENT_ARRAY_BUFFER, data, usageHint);
-    },
-
-    dispose: function()
-    {
-        if (this._buffer) {
-            GL.gl.deleteBuffer(this._buffer);
-            this._buffer = 0;
-        }
     },
 
     /**

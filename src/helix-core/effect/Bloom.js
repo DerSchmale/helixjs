@@ -1,16 +1,23 @@
-/**
- *
- * @constructor
- */
 import {EffectPass} from "./EffectPass";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {GaussianBlurPass} from "./GaussianBlurPass";
 import {Texture2D} from "../texture/Texture2D";
-import {_HX_, capabilities, META, TextureFormat, TextureFilter, TextureWrapMode} from "../Helix";
+import {capabilities, META, TextureFormat, TextureFilter, TextureWrapMode} from "../Helix";
 import {FrameBuffer} from "../texture/FrameBuffer";
 import {GL} from "../core/GL";
 import {Effect} from "./Effect";
 
+/**
+ * @classdesc
+ * Bloom is an {@linkcode Effect} added to the Camera that allows bright areas in the image to bleed into less bright areas.
+ * @param radius The radius of the bloom effect.
+ * @param strength The strength of the bloom effect.
+ * @param [downScale] How many times smaller the bloom should be calculated relative to the render target.
+ * @param [anisotropy] Defines the ratio between the horizontal and vertical bloom. For the JJ Abrams people among us.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Bloom(radius, strength, downScale, anisotropy)
 {
     Effect.call(this);
@@ -51,10 +58,13 @@ function Bloom(radius, strength, downScale, anisotropy)
     this._compositePass.setTexture("bloomTexture", this._thresholdMaps[0]);
 
     this.strength = this._strength;
-};
+}
 
 Bloom.prototype = Object.create(Effect.prototype,
     {
+        /**
+         * The strength of the bloom effect.
+         */
         strength: {
             get: function ()
             {
@@ -68,6 +78,9 @@ Bloom.prototype = Object.create(Effect.prototype,
             }
         },
 
+        /**
+         * The threshold luminance for pixels that are allowed to bleed.
+         */
         thresholdLuminance: {
             get: function ()
             {
@@ -83,6 +96,9 @@ Bloom.prototype = Object.create(Effect.prototype,
     }
 );
 
+/**
+ * @ignore
+ */
 Bloom.prototype._initTextures = function ()
 {
     for (var i = 0; i < 2; ++i) {
@@ -93,6 +109,9 @@ Bloom.prototype._initTextures = function ()
     }
 };
 
+/**
+ * @ignore
+ */
 Bloom.prototype.draw = function (dt)
 {
     if (this._renderer._width !== this._targetWidth || this._renderer._height !== this._targetHeight) {
@@ -120,17 +139,6 @@ Bloom.prototype.draw = function (dt)
     GL.setRenderTarget(this.hdrTarget);
     GL.clear();
     this._drawPass(this._compositePass);
-};
-
-Bloom.prototype.dispose = function ()
-{
-    for (var i = 0; i < 2; ++i) {
-        this._smallFBOs[i].dispose();
-        this._thresholdMaps[i].dispose();
-    }
-
-    this._smallFBOs = null;
-    this._thresholdMaps = null;
 };
 
 

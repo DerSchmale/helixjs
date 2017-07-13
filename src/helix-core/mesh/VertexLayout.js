@@ -1,8 +1,14 @@
 /**
+ * @classdesc
  * VertexLayout links the mesh's vertex attributes to a shader's attributes
+ *
  * @param mesh
  * @param pass
  * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function VertexLayout(mesh, pass)
 {

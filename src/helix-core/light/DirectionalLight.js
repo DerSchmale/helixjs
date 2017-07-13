@@ -1,7 +1,3 @@
-/**
- *
- * @constructor
- */
 import {Light} from "./Light";
 import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
@@ -10,6 +6,15 @@ import {CascadeShadowMapRenderer} from "../render/CascadeShadowMapRenderer";
 import {DeferredDirectionalShader} from "./shaders/DeferredDirectionalShader";
 import {META} from "../Helix";
 
+/**
+ * @classdesc
+ * DirectionalLight represents a light source that is "infinitely far away", used as an approximation for sun light where
+ * locally all sun rays appear to be parallel.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DirectionalLight()
 {
     Light.call(this);
@@ -23,9 +28,15 @@ function DirectionalLight()
     this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
 }
 
-// set on init
+/**
+ * @ignore
+ */
 DirectionalLight.SHADOW_FILTER = null;
 
+/**
+ * @ignore
+ * @private
+ */
 DirectionalLight._initDeferredShaders = function()
 {
     DirectionalLight._deferredShader = new DeferredDirectionalShader(false);
@@ -34,6 +45,9 @@ DirectionalLight._initDeferredShaders = function()
 
 DirectionalLight.prototype = Object.create(Light.prototype,
     {
+        /**
+         * Defines whether or not this light casts shadows.
+         */
         castShadows: {
             get: function()
             {
@@ -50,12 +64,14 @@ DirectionalLight.prototype = Object.create(Light.prototype,
                     this._shadowMapRenderer = new CascadeShadowMapRenderer(this, this._shadowMapSize);
                 }
                 else {
-                    this._shadowMapRenderer.dispose();
                     this._shadowMapRenderer = null;
                 }
             }
         },
 
+        /**
+         * The shadow map size used by this light.
+         */
         shadowMapSize: {
             get: function()
             {
@@ -69,6 +85,9 @@ DirectionalLight.prototype = Object.create(Light.prototype,
             }
         },
 
+        /**
+         * The direction of the light rays.
+         */
         direction: {
             get: function()
             {
@@ -91,22 +110,24 @@ DirectionalLight.prototype = Object.create(Light.prototype,
     });
 
 /**
- * The ratios that define every cascade's split distance. Reset when numCascades change. 1 is at the far plane, 0 is at the near plane. Passing more than numCascades has no effect.
- * @param r1
- * @param r2
- * @param r3
- * @param r4
+ * The ratios that define every shadow cascade's split distance. Reset when numCascades change. 1 is at the far plane, 0 is at the near plane. Passing more than InitOptions.numShadowCascades has no effect.
  */
 DirectionalLight.prototype.setCascadeRatios = function(r1, r2, r3, r4)
 {
     this._shadowMapRenderer.setSplitRatios(r1, r2, r3, r4);
 };
 
+/**
+ * @ignore
+ */
 DirectionalLight.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
+/**
+ * @ignore
+ */
 DirectionalLight.prototype.renderDeferredLighting = function(renderer)
 {
     var shader = this._castShadows? DirectionalLight._deferredShadowShader : DirectionalLight._deferredShader;

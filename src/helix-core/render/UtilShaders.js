@@ -1,17 +1,14 @@
-/**
- * Base function for basic copies
- * @param fragmentShader The fragment shader to use while copying.
- * @constructor
- */
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {Shader} from "../shader/Shader";
 import {GL} from "../core/GL";
 import {Comparison, CullMode, ElementType} from "../Helix";
 
 /**
- *
  * @param fragmentShader
  * @constructor
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function CustomCopyShader(fragmentShader)
 {
@@ -57,6 +54,9 @@ CustomCopyShader.prototype.execute = function(rect, texture)
  * Copies one texture's channels (in configurable ways) to another's.
  * @param channel Can be either x, y, z, w or any 4-component swizzle. default is xyzw, meaning a simple copy
  * @constructor
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function CopyChannelsShader(channel, copyAlpha)
 {
@@ -77,6 +77,8 @@ CopyChannelsShader.prototype = Object.create(CustomCopyShader.prototype);
 /**
  * Copies one texture's channels while applying the same logic as gl.blendColor. This because it is broken for float textures.
  * @constructor
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
  */
 function BlendColorCopyShader()
 {
@@ -97,6 +99,9 @@ BlendColorCopyShader.prototype.setBlendColor = function(r, g, b, a)
 
 /**
  * Copies the texture from linear space to gamma space.
+ *
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
  */
 function ApplyGammaShader()
 {

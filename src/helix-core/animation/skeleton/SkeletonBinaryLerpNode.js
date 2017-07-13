@@ -1,10 +1,14 @@
-/**
- * Blends between two states based on a lerp value.
- * @constructor
- */
 import { SkeletonBlendNode } from './SkeletonBlendNode';
 import { MathX } from "../../math/MathX";
 
+/**
+ * @classdesc
+ * SkeletonBinaryLerpNode allows simple blending between 2 child nodes.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function SkeletonBinaryLerpNode()
 {
     SkeletonBlendNode.call(this);
@@ -19,10 +23,16 @@ function SkeletonBinaryLerpNode()
 }
 
 SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
+    /**
+     * @ignore
+     */
     numJoints: {
         get: function() {return this._numJoints; }
     },
 
+    /**
+     * The minimum value of the input range.
+     */
     minValue: {
         get: function ()
         {
@@ -35,6 +45,9 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
+    /**
+     * The maximum value of the input range.
+     */
     maxValue: {
         get: function()
         {
@@ -47,6 +60,9 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
+    /**
+     * The value between minValue and maxValue that defines how to interpolate between the children.
+     */
     value: {
         get: function ()
         {
@@ -55,7 +71,7 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
 
         set: function (v)
         {
-            v = MathX.clamp(v, this._minValue, this._maxValue)
+            v = MathX.clamp(v, this._minValue, this._maxValue);
             if (this._value !== v)
                 this._valueChanged = true;
             this._value = v;
@@ -63,6 +79,9 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
+    /**
+     * The first child (matching minValue).
+     */
     child1: {
         get: function()
         {
@@ -77,6 +96,9 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
+    /**
+     * The second child (matching maxValue).
+     */
     child2: {
         get: function ()
         {
@@ -91,6 +113,9 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
     }
 });
 
+/**
+ * @ignore
+ */
 SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
 {
     var updated = this._child1.update(dt, transferRootJoint);
@@ -112,11 +137,17 @@ SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
     return updated;
 };
 
+/**
+ * @ignore
+ */
 SkeletonBinaryLerpNode.prototype._applyValue = function(value)
 {
     this.value = value;
 };
 
+/**
+ * @ignore
+ */
 SkeletonBinaryLerpNode.prototype.setValue = function(id, value)
 {
     SkeletonBlendNode.prototype.setValue.call(this, id, value);

@@ -1,7 +1,3 @@
-/**
- *
- * @param numSamples
- */
 import {EffectPass} from "./EffectPass";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {Texture2D} from "../texture/Texture2D";
@@ -13,6 +9,17 @@ import {GL} from "../core/GL";
 import {Color} from "../core/Color";
 import {Effect} from "./Effect";
 
+/**
+ * @classdesc
+ * SSAO adds Screen-Space Ambient Occlusion to the renderer.
+ *
+ * @constructor
+ * @param numSamples The amount of samples to take per pixel.
+ *
+ * @see {@linkcode Renderer#ambientOcclusion}
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function SSAO(numSamples)
 {
     numSamples = numSamples || 8;
@@ -55,13 +62,21 @@ function SSAO(numSamples)
 
 SSAO.prototype = Object.create(Effect.prototype);
 
-// every SSAO type should implement this
+/**
+ * Returns the texture containing the ambient occlusion values.
+ * @returns {Texture2D}
+ *
+ * @ignore
+ */
 SSAO.prototype.getAOTexture = function()
 {
     return this._ssaoTexture;
 };
 
 Object.defineProperties(SSAO.prototype, {
+    /**
+     * The sample radius in world space to search for occluders.
+     */
     sampleRadius: {
         get: function ()
         {
@@ -74,6 +89,9 @@ Object.defineProperties(SSAO.prototype, {
         }
     },
 
+    /**
+     * The maximum distance for occluders to still count.
+     */
     fallOffDistance: {
         get: function ()
         {
@@ -86,6 +104,9 @@ Object.defineProperties(SSAO.prototype, {
         }
     },
 
+    /**
+     * The strength of the ambient occlusion effect.
+     */
     strength: {
         get: function()
         {
@@ -98,6 +119,9 @@ Object.defineProperties(SSAO.prototype, {
         }
     },
 
+    /**
+     * The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
+     */
     scale: {
         get: function() { return this._scale; },
         set: function(value) { this._scale = value; }
@@ -105,6 +129,10 @@ Object.defineProperties(SSAO.prototype, {
 });
 
 
+/**
+ * @ignore
+ * @private
+ */
 SSAO.prototype._initSamples = function()
 {
     var samples = [];
@@ -123,6 +151,9 @@ SSAO.prototype._initSamples = function()
     this._ssaoPass.setUniformArray("samples", new Float32Array(samples));
 };
 
+/**
+ * @ignore
+ */
 SSAO.prototype.draw = function(dt)
 {
     var w = this._renderer._width * this._scale;
@@ -148,6 +179,10 @@ SSAO.prototype.draw = function(dt)
     GL.setClearColor(Color.BLACK);
 };
 
+/**
+ * @ignore
+ * @private
+ */
 SSAO.prototype._initDitherTexture = function()
 {
     var data = [ 126, 255, 126, 255, 135, 253, 105, 255, 116, 51, 26, 255, 137, 57, 233, 255, 139, 254, 121, 255, 56, 61, 210, 255, 227, 185, 73, 255, 191, 179, 30, 255, 107, 245, 173, 255, 205, 89, 34, 255, 191, 238, 138, 255, 56, 233, 125, 255, 198, 228, 161, 255, 85, 13, 164, 255, 140, 248, 168, 255, 147, 237, 65, 255 ];

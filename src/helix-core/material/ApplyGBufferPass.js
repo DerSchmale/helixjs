@@ -2,6 +2,12 @@ import {MaterialPass} from "./MaterialPass";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {Shader} from "../shader/Shader";
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ApplyGBufferPass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));

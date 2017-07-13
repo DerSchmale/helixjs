@@ -1,9 +1,16 @@
-/**
- * AnimationPlayhead is a 'helper' class that just updates a playhead. Returns the keyframes and the ratio between them
- * @param clip
- * @constructor
- */
 import {MathX} from "../math/MathX";
+
+/**
+ * @classdesc
+ * AnimationPlayhead is a 'helper' class that just updates a play head. Returns the keyframes and the ratio between them.
+ * This is for example used in {@linkcode SkeletonClipNode}.
+ *
+ * @param clip {AnimationClip} The clip to play.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function AnimationPlayhead(clip)
 {
     this._clip = clip;
@@ -15,25 +22,49 @@ function AnimationPlayhead(clip)
 
     this._looping = clip.looping;
 
-    // the number of times the playhead has wrapped during the last update. Useful when moving skeleton root bone, fe.
+    /**
+     * The number of times the playhead has wrapped during the last update. Useful when moving skeleton root bone, fe.
+     * @type {number}
+     */
     this.wraps = 0;
 
-    // the playhead is currently between these two frames:
+    /**
+     * The first before frame the playhead's current position.
+     * @type {number}
+     */
     this.frame1 = 0;
+
+    /**
+     * The frame right after the playhead's current position.
+     * @type {number}
+     */
     this.frame2 = 0;
 
-    // the ratio of the position of the playhead, used for lerping frame1 and frame2
+    /**
+     * The ratio of the play head's position between frame1 and frame2. This is used to interpolate between frame1 and frame2's keyframe values.
+     * @type {number}
+     */
     this.ratio = 0;
 }
 
 AnimationPlayhead.prototype =
     {
+        /**
+         * A value to control the playback speed.
+         */
         get timeScale() { return this._timeScale; },
         set timeScale(value) { this._timeScale = value; },
 
+        /**
+         * Determines whether the animation should loop or not. By default, it uses the value determined by the
+         * AnimationClip, but can be overridden.
+         */
         get looping() { return this._looping; },
         set looping(value) { this._looping = value},
 
+        /**
+         * The current time in milliseconds of the play head.
+         */
         get time() { return this._time; },
         set time(value)
         {
@@ -45,16 +76,27 @@ AnimationPlayhead.prototype =
             this._timeChanged = true;
         },
 
+        /**
+         * Starts updating the play head when update(dt) is called.
+         */
         play: function()
         {
             this._isPlaying = true;
         },
 
+        /**
+         * Stops updating the play head when update(dt) is called.
+         */
         stop: function()
         {
             this._isPlaying = false;
         },
 
+        /**
+         * This needs to be called every frame.
+         * @param dt The time passed since last frame in milliseconds.
+         * @returns {boolean} Whether or not the playhead moved. This can be used to spare further calculations if the old state is kept.
+         */
         update: function(dt)
         {
             var playheadUpdated = (this._isPlaying && dt !== 0.0);

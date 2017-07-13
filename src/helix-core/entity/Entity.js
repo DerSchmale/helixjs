@@ -1,6 +1,15 @@
 import {SceneNode} from "../scene/SceneNode";
 import {Signal} from "../core/Signal";
 
+/**
+ * @classdesc
+ * Entity represents a node in the Scene graph that can have {@linkcode Component} objects added to it, which can
+ * define its behavior in a modular way.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Entity()
 {
     SceneNode.call(this);
@@ -14,53 +23,12 @@ function Entity()
     this._effects = null;
 }
 
-/*Entity.create = function(components)
-{
-    var entity = new Entity();
-
-    if (components) {
-        var len = components.length;
-        for (var i = 0; i < len; ++i)
-            entity.addComponent(components[i]);
-    }
-
-    return entity;
-};*/
-
 Entity.prototype = Object.create(SceneNode.prototype);
 
-Entity.prototype.addComponents = function(components)
-{
-    for (var i = 0; i < components.length; ++i)
-        this.addComponent(components[i]);
-};
 
-Entity.prototype.removeComponents = function(components)
-{
-    for (var i = 0; i < components.length; ++i) {
-        this.removeComponent(components[i]);
-    }
-};
-
-Entity.prototype.hasComponentType = function(type)
-{
-    if (!this._components) return false;
-    for (var i = 0; i < this._components.length; ++i) {
-        if (this._components[i] instanceof type) return true;
-    }
-};
-
-Entity.prototype.getComponentsByType = function(type)
-{
-    var collection = [];
-    if (!this._components) return collection;
-    for (var i = 0; i < this._components.length; ++i) {
-        var comp = this._components[i];
-        if (comp instanceof type) collection.push(comp);
-    }
-    return collection;
-};
-
+/**
+ * Adds a single {@linkcode Component} object to the Entity.
+ */
 Entity.prototype.addComponent = function(component)
 {
     if (component._entity)
@@ -76,14 +44,9 @@ Entity.prototype.addComponent = function(component)
     component.onAdded();
 };
 
-Entity.prototype._updateRequiresUpdates = function(value)
-{
-    if (value !== this._requiresUpdates) {
-        this._requiresUpdates = value;
-        this._onRequireUpdatesChange.dispatch(this);
-    }
-};
-
+/**
+ * Removes a single Component from the Entity.
+ */
 Entity.prototype.removeComponent = function(component)
 {
     component.onRemoved();
@@ -107,6 +70,67 @@ Entity.prototype.removeComponent = function(component)
     this._updateRequiresUpdates(requiresUpdates);
 };
 
+/**
+ * Adds multiple {@linkcode Component} objects to the Entity.
+ * @param {Array} components An array of components to add.
+ */
+Entity.prototype.addComponents = function(components)
+{
+    for (var i = 0; i < components.length; ++i)
+        this.addComponent(components[i]);
+};
+
+/**
+ * Removes multiple {@linkcode Component} objects from the Entity.
+ * @param {Array} components A list of components to remove.
+ */
+Entity.prototype.removeComponents = function(components)
+{
+    for (var i = 0; i < components.length; ++i) {
+        this.removeComponent(components[i]);
+    }
+};
+
+/**
+ * Returns whether or not the Entity has a component of a given type assigned to it.
+ */
+Entity.prototype.hasComponentType = function(type)
+{
+    if (!this._components) return false;
+    for (var i = 0; i < this._components.length; ++i) {
+        if (this._components[i] instanceof type) return true;
+    }
+};
+
+/**
+ * Returns an array of all Components with a given type.
+ */
+Entity.prototype.getComponentsByType = function(type)
+{
+    var collection = [];
+    if (!this._components) return collection;
+    for (var i = 0; i < this._components.length; ++i) {
+        var comp = this._components[i];
+        if (comp instanceof type) collection.push(comp);
+    }
+    return collection;
+};
+
+/**
+ * @ignore
+ * @private
+ */
+Entity.prototype._updateRequiresUpdates = function(value)
+{
+    if (value !== this._requiresUpdates) {
+        this._requiresUpdates = value;
+        this._onRequireUpdatesChange.dispatch(this);
+    }
+};
+
+/**
+ * @ignore
+ */
 Entity.prototype.acceptVisitor = function(visitor)
 {
     SceneNode.prototype.acceptVisitor.call(this, visitor);
@@ -115,6 +139,9 @@ Entity.prototype.acceptVisitor = function(visitor)
         visitor.visitEffects(this._effects, this);
 };
 
+/**
+ * @ignore
+ */
 Entity.prototype.update = function(dt)
 {
     var components = this._components;
@@ -129,12 +156,18 @@ Entity.prototype.update = function(dt)
     }
 };
 
+/**
+ * @ignore
+ */
 Entity.prototype._registerEffect = function(effect)
 {
     this._effects = this._effects || [];
     this._effects.push(effect);
 };
 
+/**
+ * @ignore
+ */
 Entity.prototype._unregisterEffect = function(effect)
 {
     var index = this._effects.indexOf(effect);
@@ -143,6 +176,9 @@ Entity.prototype._unregisterEffect = function(effect)
         this._effects = null;
 };
 
+/**
+ * @ignore
+ */
 Entity.prototype._setScene = function(scene)
 {
     if (this._scene)

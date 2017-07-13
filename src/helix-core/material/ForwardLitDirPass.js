@@ -7,6 +7,16 @@ import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {META} from "../Helix";
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @param lightingModel
+ * @param shadows
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ForwardLitDirPass(geometryVertex, geometryFragment, lightingModel, shadows)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));

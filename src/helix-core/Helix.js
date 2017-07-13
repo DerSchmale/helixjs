@@ -17,18 +17,55 @@ import {Color} from "./core/Color";
 import {MaterialPass} from "./material/MaterialPass";
 import {FrameBuffer} from "./texture/FrameBuffer";
 
+/**
+ * META contains some data about the Helix engine, such as the options it was initialized with.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var META =
     {
-        VERSION: "0.1",
+        /**
+         * The current of the engine.
+         */
+        VERSION: "0.1.0",
+
+        /**
+         * Whether or not Helix has been initialized.
+         */
         INITIALIZED: false,
+
+        /**
+         * The options passed to Helix when initializing. These are possibly updated to reflect the device's capabilties,
+         * so it can be used to verify settings.
+         */
         OPTIONS: null,
+
+        /**
+         * The canvas used to contain the to-screen renders.
+         */
         TARGET_CANVAS: null
     };
 
+/**
+ * The {@linkcode Signal} that dispatched before a frame renders.
+ */
 export var onPreFrame = new Signal();
+
+/**
+ * The {@linkcode Signal} that triggers rendering. Listen to this to call {@linkcode Renderer.render}
+ */
 export var onFrame = new Signal();
+
+/**
+ * @ignore
+ * @type {FrameTicker}
+ */
 export var frameTicker = new FrameTicker();
 
+/**
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var DEFAULTS =
     {
         COPY_SHADER: null,
@@ -36,6 +73,11 @@ export var DEFAULTS =
         DEFAULT_SKINNING_TEXTURE: null
     };
 
+/**
+ * capabilities contains the device-specific properties and supported extensions.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var capabilities =
     {
         // extensions:
@@ -76,43 +118,102 @@ export var BufferUsage = {};
 export var CubeFace = {};
 
 /**
- * Provides a set of options to configure Helix
+ * @classdesc
+ * Provides a set of options to configure Helix at init. Once passed, the options get assigned to {@linkcode META.OPTIONS}
+ * but the values may have changed to reflect the capabilities of the device. For example: hdr may be set to false if
+ * floating point render targets aren't supported. It's important to check options like these through META.OPTIONS to
+ * handle them correctly. (lack of hdr may require a different lighting setup).
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 export function InitOptions()
 {
+    /**
+     * The maximum supported number of bones for skinning animations.
+     *
+     * TODO: rename to maxSkeletonJoints
+     */
     this.maxBones = 64;
 
+    /**
+     * Whether or not to use a texture to store skinning data. May be forced to "false" if floating point textures are not supported.
+     */
     this.useSkinningTexture = true;
 
-    // rendering pipeline options
+    /**
+     * Use high dynamic range for rendering. May be forced to "false" if floating point render targets are not supported.
+     */
     this.hdr = false;   // only if available
+
+    /**
+     * Apply gamma correction. This allows lighting to happen in linear space, as it should.
+     */
     this.useGammaCorrection = true;
-    this.usePreciseGammaCorrection = false;  // Uses pow 2.2 instead of 2 for gamma correction, only valid if useGammaCorrection is true
+
+    /**
+     * If true, uses a gamma of 2.2 instead of 2. The latter is faster and generally "good enough".
+     */
+    this.usePreciseGammaCorrection = false;
+
+    /**
+     * The default {@codelink LightingModel} to use. This will cause non-blended materials using this lighting model to
+     * use the deferred lighting path, which may improve lighting performance. If not, leave it set to Unlit and assign
+     * lighting models explicitly through {@linkcode Material.lightingModel}.
+     */
     this.defaultLightingModel = LightingModel.Unlit;
 
+    /**
+     * The amount of shadow cascades to use. Cascades split up the view frustum into areas with their own shadow maps,
+     * increasing quality at the cost of performance.
+     */
     this.numShadowCascades = 1;
-    // this.maxPointLightsPerPass = 3;
-    // this.maxDirLightsPerPass = 1;
 
-    // debug-related
-    // this.debug = false;   // requires webgl-debug.js:
-    this.ignoreAllExtensions = false;           // ignores all non-default extensions
-    this.ignoreDrawBuffersExtension = false;     // forces multiple passes for the GBuffer
-    this.ignoreDepthTexturesExtension = false;     // forces storing depth info explicitly
-    this.ignoreTextureLODExtension = false;     // forces storing depth info explicitly
+    // debug stuff
+    /**
+     * Ignore any supported extensions.
+     */
+    this.ignoreAllExtensions = false;
+
+    /**
+     * Ignore the draw buffer extension. Forces multiple passes for the deferred GBuffer rendering.
+     */
+    this.ignoreDrawBuffersExtension = false;
+
+    /**
+     * Ignore the depth textures extension.
+     */
+    this.ignoreDepthTexturesExtension = false;
+
+    /**
+     * Ignores the texture LOD extension
+     */
+    this.ignoreTextureLODExtension = false;
+
+    /**
+     * Ignores the half float texture format extension
+     */
     this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
+
+    /**
+     * Throws errors when shaders fail to compile.
+     */
     this.throwOnShaderError = false;
 
-    // will be assigned to HX.DirectionalLight.SHADOW_FILTER
+    /**
+     * The shadow filter to use when rendering directional light shadows.
+     */
     this.directionalShadowFilter = new HardDirectionalShadowFilter();
-
-    this.viewportScaling = 1.0;
-};
+}
 
 /**
- * Initializes Helix and creates a WebGL context from a given canvas
+ * Initializes Helix and creates a WebGL context for a given canvas
+ *
  * @param canvas The canvas to create the gl context from.
+ * @param [options] An optional {@linkcode InitOptions} object.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 export function init(canvas, options)
 {
@@ -120,6 +221,9 @@ export function init(canvas, options)
 
 
     META.TARGET_CANVAS = canvas;
+
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
 
     var webglFlags = {
         antialias: false,   // we're rendering to texture by default, so native AA has no effect
@@ -277,6 +381,9 @@ export function init(canvas, options)
     start();
 }
 
+/**
+ * Starts the Helix loop (happens automatically).
+ */
 export function start()
 {
     frameTicker.start(function (dt)
@@ -287,6 +394,9 @@ export function start()
     });
 }
 
+/**
+ * Stops the Helix loop.
+ */
 export function stop()
 {
     frameTicker.stop();

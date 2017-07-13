@@ -1,3 +1,14 @@
+/**
+ * @ignore
+ *
+ * @classdesc
+ * URLLoader loads any sort of file. It exists only to hide ugly XMLHttpRequest stuff.
+ *
+ * @param [headers] Optional headers (key/value pairs) to pass along to the request.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function URLLoader(headers)
 {
     this._params = undefined;

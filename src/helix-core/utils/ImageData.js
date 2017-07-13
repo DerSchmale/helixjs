@@ -1,5 +1,13 @@
+/**
+ * ImageData provides some utilities for images.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var ImageData =
 {
+    /**
+     * Gets image data from an Image.
+     */
     getFromImage: function(image)
     {
         var canvas = document.createElement("canvas");

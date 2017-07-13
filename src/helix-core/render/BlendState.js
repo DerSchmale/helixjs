@@ -1,15 +1,54 @@
 import { BlendFactor, BlendOperation } from "../Helix";
 
+/**
+ * @classdesc
+ * BlendState defines the blend mode the renderer should use. Default presets include BlendState.ALPHA, BlendState.ADD
+ * and BlendState.MULTIPLY.
+ *
+ * @param srcFactor The source blend factor.
+ * @param dstFactor The destination blend factor.
+ * @param operator The blend operator.
+ * @param color The blend color.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function BlendState(srcFactor, dstFactor, operator, color)
 {
+    /**
+     * Defines whether blending is enabled.
+     */
     this.enabled = true;
+
+    /**
+     * The source blend factor.
+     * @see {@linkcode BlendFactor}
+     */
     this.srcFactor = srcFactor || BlendFactor.ONE;
+
+    /**
+     * The destination blend factor.
+     * @see {@linkcode BlendFactor}
+     */
     this.dstFactor = dstFactor || BlendFactor.ZERO;
+
+    /**
+     * The blend operator.
+     * @see {@linkcode BlendOperation}
+     */
     this.operator = operator || BlendOperation.ADD;
+
+    /**
+     * The blend color.
+     * @see {@linkcode Color}
+     */
     this.color = color || null;
 }
 
 BlendState.prototype = {
+    /**
+     * Creates a copy of this BlendState.
+     */
     clone: function() {
         return new BlendState(this.srcFactor, this.dstFactor, this.operator, this.color);
     }

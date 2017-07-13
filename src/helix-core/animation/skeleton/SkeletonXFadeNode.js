@@ -1,12 +1,15 @@
-/**
- * This is generally the node you probably want to be using for simple crossfading between animations.
- * @constructor
- */
 import {AnimationClip} from "./../AnimationClip";
 import {SkeletonClipNode} from "./SkeletonClipNode";
 import {SkeletonBlendNode} from "./SkeletonBlendNode";
 import {MathX as Float4} from "../../math/MathX";
 
+/**
+ * SkeletonXFadeNode is a {@linkcode SkeletonBlendNode} for simple cross-fading between child animation clips.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function SkeletonXFadeNode()
 {
     SkeletonBlendNode.call(this);
@@ -15,14 +18,39 @@ function SkeletonXFadeNode()
 
     // TODO: Add the possibility to sync times, useful for syncing walk -> run!
     // in this case, the clips should have their timesteps recalculated
-};
+}
 
 SkeletonXFadeNode.prototype = Object.create(SkeletonBlendNode.prototype, {
+    /**
+     * @ignore
+     */
     numJoints: {
         get: function() {return this._numJoints; }
     }
 });
 
+/**
+ * @classdesc
+ * Cross-fades the animation to a new target animation.
+ * @param node A {@linkcode SkeletonBlendTreeNode} or an {@linkcode AnimationClip}.
+ * @param time The time the fade takes in milliseconds.
+ */
+SkeletonXFadeNode.prototype.fadeTo = function(node, time)
+{
+    if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
+
+    this._numJoints = node.numJoints;
+    // put the new one in front, it makes the update loop more efficient
+    this._children.unshift({
+        node: node,
+        weight: 0.0,
+        fadeSpeed: 1 / time
+    });
+};
+
+/**
+ * @ignore
+ */
 SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
 {
     var len = this._children.length;
@@ -74,23 +102,6 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
     }
 
     return true;
-};
-
-/**
- * @param node A SkeletonBlendTreeNode or a clip.
- * @param time In milliseconds
- */
-SkeletonXFadeNode.prototype.fadeTo = function(node, time)
-{
-    if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
-
-    this._numJoints = node.numJoints;
-    // put the new one in front, it makes the update loop more efficient
-    this._children.unshift({
-        node: node,
-        weight: 0.0,
-        fadeSpeed: 1 / time
-    });
 };
 
 export { SkeletonXFadeNode };

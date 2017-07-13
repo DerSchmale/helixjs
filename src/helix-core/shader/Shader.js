@@ -1,8 +1,10 @@
 /**
- *
+ * @ignore
  * @param vertexShaderCode
  * @param fragmentShaderCode
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 import { GLSLIncludes } from './GLSLIncludes';
 import { GL } from '../core/GL';

@@ -5,8 +5,13 @@ import {Float4} from "../math/Float4";
 import {META} from "../Helix";
 
 /**
+ * @classdesc
+ * PointLight represents an omnidirectional light source with a single point as origin. The light strength falls off
+ * according to the inverse square rule.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function PointLight()
 {
@@ -21,14 +26,12 @@ function PointLight()
     this.intensity = 3.1415;
 }
 
-PointLight.LIGHTS_PER_BATCH = 20;
-PointLight.SPHERE_SEGMENTS_W = 16;
-PointLight.SPHERE_SEGMENTS_H = 10;
-PointLight.NUM_SPHERE_INDICES = -1;  // will be set on creation instead of passing value that might get invalidated
-
 PointLight.prototype = Object.create(Light.prototype,
     {
-        // radius is not physically correct, but invaluable for performance
+        /**
+         * The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a
+         * given area for performance.
+         */
         radius: {
             get: function() {
                 return this._radius;
@@ -41,16 +44,25 @@ PointLight.prototype = Object.create(Light.prototype,
         }
     });
 
+/**
+ * @ignore
+ */
 PointLight.prototype._createBoundingVolume = function()
 {
     return new BoundingSphere();
 };
 
+/**
+ * @ignore
+ */
 PointLight.prototype._updateWorldBounds = function()
 {
     this._worldBounds.setExplicit(this.worldMatrix.getColumn(3), this._radius);
 };
 
+/**
+ * @ignore
+ */
 PointLight.prototype.renderDeferredLighting = function(renderer)
 {
     var camPos = new Float4();

@@ -1,11 +1,15 @@
-/**
- *
- * @constructor
- */
 import {BoundingVolume} from "./BoundingVolume";
 import {PlaneSide} from "../math/PlaneSide";
 import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
 
+/**
+ * @classdesc
+ * BoundingAABB represents an axis-aligned bounding box.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function BoundingAABB()
 {
     BoundingVolume.call(this, BoundingAABB);
@@ -13,6 +17,9 @@ function BoundingAABB()
 
 BoundingAABB.prototype = Object.create(BoundingVolume.prototype);
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.growToIncludeMesh = function(mesh)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
@@ -56,6 +63,9 @@ BoundingAABB.prototype.growToIncludeMesh = function(mesh)
     this._updateCenterAndExtent();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.growToIncludeBound = function(bounds)
 {
     if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
@@ -90,6 +100,9 @@ BoundingAABB.prototype.growToIncludeBound = function(bounds)
     this._updateCenterAndExtent();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
@@ -121,6 +134,9 @@ BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
     this._updateCenterAndExtent();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
 {
     if (sourceBound._expanse === BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === BoundingVolume.EXPANSE_EMPTY)
@@ -162,6 +178,9 @@ BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
 };
 
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE)
@@ -189,6 +208,9 @@ BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
     return true;
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.intersectsBound = function(bound)
 {
     if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
@@ -211,6 +233,9 @@ BoundingAABB.prototype.intersectsBound = function(bound)
     }
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.classifyAgainstPlane = function(plane)
 {
     var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
@@ -233,6 +258,9 @@ BoundingAABB.prototype.classifyAgainstPlane = function(plane)
         return PlaneSide.INTERSECTING;
 };
 
+/**
+ * Sets the minimum and maximum explicitly using {@linkcode Float4}
+ */
 BoundingAABB.prototype.setExplicit = function(min, max)
 {
     this._minimumX = min.x;
@@ -245,6 +273,10 @@ BoundingAABB.prototype.setExplicit = function(min, max)
     this._updateCenterAndExtent();
 };
 
+/**
+ * @ignore
+ * @private
+ */
 BoundingAABB.prototype._updateCenterAndExtent = function()
 {
     var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
@@ -257,12 +289,17 @@ BoundingAABB.prototype._updateCenterAndExtent = function()
     this._halfExtentZ = (maxZ - minZ) * .5;
 };
 
-// part of the
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.getRadius = function()
 {
     return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
 };
 
+/**
+ * @ignore
+ */
 BoundingAABB.prototype.createDebugModel = function()
 {
     return new BoxPrimitive();

@@ -1,8 +1,14 @@
 import { onPreFrame } from '../Helix';
 
 /**
+ * @classdesc
  * Keeps track and updates entities
+ *
  * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function EntityEngine()
 {

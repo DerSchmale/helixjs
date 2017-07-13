@@ -1,15 +1,20 @@
-/**
- * A Model combines a list of Meshes
- * @param modelData
- * @constructor
- */
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {Signal} from "../core/Signal";
 import {Mesh} from "./Mesh";
 
+/**
+ * @classdesc
+ * The Model class bundles several {@linkcode Mesh} objects into a single renderable object. This allows a single object
+ * (for example: a character) to use different Materials for different parts (fe: a skin material and a clothes material)
+ *
+ * @constructor
+ * @param [meshes] The {@linkcode Mesh} objects with which to initialize the Model.
+ *
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Model(meshes)
 {
-    this.onLocalBoundsChanged = new Signal();
     this._name = null;
     this._localBounds = new BoundingAABB();
     this._localBoundsInvalid = true;
@@ -26,10 +31,13 @@ function Model(meshes)
             this.addMesh(meshes);
         }
     }
-};
+}
 
 Model.prototype =
     {
+        /**
+         * The name of the Model.
+         */
         get name()
         {
             return this._name;
@@ -40,23 +48,34 @@ Model.prototype =
             this._name = value;
         },
 
+        /**
+         * The amount of {@linkcode Mesh} objects in this Model.
+         */
         get numMeshes()
         {
             return this._meshes.length;
         },
 
+        /**
+         * Retrieves the {@linkcode Mesh} at the given index.
+         */
         getMesh: function (index)
         {
             return this._meshes[index];
         },
 
+        /**
+         * The object-space bounding box.
+         */
         get localBounds()
         {
             if (this._localBoundsInvalid) this._updateLocalBounds();
             return this._localBounds;
         },
 
-
+        /**
+         * The {@linkcode Skeleton} used for skinning animations.
+         */
         get skeleton()
         {
             return this._skeleton;
@@ -67,6 +86,9 @@ Model.prototype =
             this._skeleton = value;
         },
 
+        /**
+         * Removes a Mesh from the Model.
+         */
         removeMesh: function (mesh)
         {
             var index = this._meshes.indexOf(mesh);
@@ -78,6 +100,9 @@ Model.prototype =
             this.onChange.dispatch();
         },
 
+        /**
+         * Adds a Mesh to the Model
+         */
         addMesh: function (mesh)
         {
             if (mesh._model) throw new Error("Mesh cannot be shared across Models");
@@ -88,11 +113,18 @@ Model.prototype =
             this.onChange.dispatch();
         },
 
+        /**
+         * @ignore
+         */
         toString: function()
         {
             return "[Model(name=" + this._name + ")]";
         },
 
+        /**
+         * @ignore
+         * @private
+         */
         _updateLocalBounds: function()
         {
             this._localBounds.clear();

@@ -1,6 +1,9 @@
 /**
  * ShaderLibrary is an object that will store shader code processed by the build process: contents of glsl files stored
  * in the glsl folder will be stored here and can be retrieved using their original filename.
+ *
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
  */
 export var ShaderLibrary = {
     _files: {},

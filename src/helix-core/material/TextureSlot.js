@@ -1,6 +1,8 @@
 /**
- *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 export function TextureSlot() {
     this.location = -1;

@@ -4,6 +4,12 @@ import {Shader} from "../../shader/Shader";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {RectMesh} from "../../mesh/RectMesh";
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DeferredAmbientShader()
 {
     Shader.call(this);

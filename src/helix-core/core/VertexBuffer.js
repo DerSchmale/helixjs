@@ -1,8 +1,10 @@
 import { GL } from './GL.js';
 
 /**
- *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function VertexBuffer()
 {
@@ -23,14 +25,6 @@ VertexBuffer.prototype = {
 
         this.bind();
         GL.gl.bufferData(GL.gl.ARRAY_BUFFER, data, usageHint);
-    },
-
-    dispose: function()
-    {
-        if (this._buffer) {
-            GL.gl.deleteBuffer(this._buffer);
-            this._buffer = 0;
-        }
     },
 
     /**

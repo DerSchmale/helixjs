@@ -1,14 +1,20 @@
-/**
- * MeshInstance represents a mesh/material combination as it appears on a scene
- * @param mesh
- * @param material
- * @constructor
- */
 import {capabilities} from "../Helix";
 import {MaterialPass} from "../material/MaterialPass";
 import {GL} from "../core/GL";
 import {VertexLayout} from "./VertexLayout";
 
+/**
+ * @classdesc
+ * MeshInstance allows bundling a {@linkcode Mesh} with a {@linkcode Material} for rendering, allowing both the geometry
+ * and materials to be shared regardless of the combination of both. MeshInstance is managed by {@linkcode ModelInstance}
+ * internally and should never be created manually.
+ *
+ * @constructor
+ * @param mesh The {@linkcode Mesh} to wrap.
+ * @param material The {@linkcode Material} to use to render the given Mesh.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function MeshInstance(mesh, material)
 {
     this._mesh = mesh;
@@ -26,9 +32,12 @@ function MeshInstance(mesh, material)
     }
 
     this.material = material;
-};
+}
 
 MeshInstance.prototype = {
+    /**
+     * Defines whether this MeshInstance should be rendered or not.
+     */
     get visible()
     {
         return this._visible;
@@ -39,12 +48,18 @@ MeshInstance.prototype = {
         this._visible = value;
     },
 
+    /**
+     * @ignore
+     */
     setMorphTarget: function(targetIndex, vertexBuffer, weight)
     {
         this._morphTargets[targetIndex] = vertexBuffer;
         this._morphWeights[targetIndex] = vertexBuffer? weight : 0.0;
     },
 
+    /**
+     * The {@linkcode Material} used to render the Mesh.
+     */
     get material()
     {
         return this._material;
@@ -70,6 +85,7 @@ MeshInstance.prototype = {
     /**
      * Sets state for this mesh/material combination.
      * @param passType
+     * @ignore
      */
     updateRenderState: function(passType)
     {
@@ -105,6 +121,10 @@ MeshInstance.prototype = {
         GL.enableAttributes(layout._numAttributes);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _initVertexLayouts: function()
     {
         this._vertexLayouts = new Array(MaterialPass.NUM_PASS_TYPES);
@@ -115,6 +135,10 @@ MeshInstance.prototype = {
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _linkMeshWithMaterial: function()
     {
         this._initVertexLayouts();
@@ -122,6 +146,10 @@ MeshInstance.prototype = {
         this._meshMaterialLinkInvalid = false;
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _onMaterialChange: function()
     {
         this._meshMaterialLinkInvalid = true;

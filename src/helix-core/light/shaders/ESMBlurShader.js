@@ -3,6 +3,12 @@ import {GL} from "../../core/GL";
 import {Shader} from "../../shader/Shader";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ESMBlurShader(blurRadius)
 {
     Shader.call(this);

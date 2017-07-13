@@ -1,19 +1,26 @@
-/**
- *
- * @constructor
- */
 import {BoundingVolume} from "./BoundingVolume";
 import {BoundingAABB} from "./BoundingAABB";
 import {PlaneSide} from "../math/PlaneSide";
 import {SpherePrimitive} from "../mesh/primitives/SpherePrimitive";
 
+/**
+ * @classdesc
+ * BoundingAABB represents a bounding sphere.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function BoundingSphere()
 {
     BoundingVolume.call(this, BoundingSphere);
-};
+}
 
 BoundingSphere.prototype = Object.create(BoundingVolume.prototype);
 
+/**
+ * Sets the center and radius explicitly.
+ */
 BoundingSphere.prototype.setExplicit = function(center, radius)
 {
     this._center.copyFrom(center);
@@ -22,6 +29,9 @@ BoundingSphere.prototype.setExplicit = function(center, radius)
     this._updateMinAndMax();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.growToIncludeMesh = function(mesh)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
@@ -85,6 +95,9 @@ BoundingSphere.prototype.growToIncludeMesh = function(mesh)
     this._updateMinAndMax();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.growToIncludeBound = function(bounds)
 {
     if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
@@ -138,6 +151,9 @@ BoundingSphere.prototype.growToIncludeBound = function(bounds)
     this._updateMinAndMax();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.growToIncludeMinMax = function(min, max)
 {
     // temp solution, not run-time perf critical
@@ -146,11 +162,17 @@ BoundingSphere.prototype.growToIncludeMinMax = function(min, max)
     this.growToIncludeBound(aabb);
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.getRadius = function()
 {
     return this._halfExtentX;
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
 {
     if (sourceBound._expanse === BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === BoundingVolume.EXPANSE_EMPTY)
@@ -195,6 +217,9 @@ BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
     }
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE)
@@ -216,6 +241,9 @@ BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
     return true;
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.intersectsBound = function(bound)
 {
     if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
@@ -236,6 +264,9 @@ BoundingSphere.prototype.intersectsBound = function(bound)
         return BoundingVolume._testAABBToSphere(bound, this);
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.classifyAgainstPlane = function(plane)
 {
     var dist = plane.x * this._center.x + plane.y * this._center.y + plane.z * this._center.z + plane.w;
@@ -245,6 +276,10 @@ BoundingSphere.prototype.classifyAgainstPlane = function(plane)
     else return PlaneSide.INTERSECTING;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 BoundingSphere.prototype._updateMinAndMax = function()
 {
     var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
@@ -257,6 +292,9 @@ BoundingSphere.prototype._updateMinAndMax = function()
     this._maximumZ = centerZ + radius;
 };
 
+/**
+ * @ignore
+ */
 BoundingSphere.prototype.createDebugModel = function()
 {
     return new SpherePrimitive({doubleSided:true});

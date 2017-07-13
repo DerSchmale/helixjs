@@ -1,5 +1,24 @@
 import {Primitive} from "./Primitive";
 
+/**
+ * @classdesc
+ * BoxPrimitive provides a primitive box {@linkcode Model}.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of segments along the X-axis</li>
+ *     <li>numSegmentsH: The amount of segments along the Y-axis</li>
+ *     <li>numSegmentsD: The amount of segments along the Z-axis</li>
+ *     <li>width: The width of the box</li>
+ *     <li>height: The height of the box</li>
+ *     <li>depth: The depth of the box</li>
+ *     <li>invert: Whether or not the faces should point inwards</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function BoxPrimitive(definition)
 {
     Primitive.call(this, definition);

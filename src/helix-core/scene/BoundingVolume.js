@@ -1,10 +1,12 @@
-/**
- *
- * @param type
- * @constructor
- */
 import {Float4} from "../math/Float4";
 
+/**
+ * @ignore
+ * @param type
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function BoundingVolume(type)
 {
     this._type = type;
@@ -20,7 +22,7 @@ function BoundingVolume(type)
     this._halfExtentY = 0.0;
     this._halfExtentZ = 0.0;
     this._center = new Float4();
-};
+}
 
 BoundingVolume.EXPANSE_EMPTY = 0;
 BoundingVolume.EXPANSE_INFINITE = 1;

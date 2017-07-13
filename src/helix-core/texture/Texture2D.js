@@ -1,11 +1,15 @@
-/**
- *
- * @constructor
- */
 import {GL} from "../core/GL";
 import {DataType, TextureFormat, TextureFilter, TextureWrapMode, capabilities} from "../Helix";
 import {TextureUtils} from "./TextureUtils";
 
+/**
+ * @classdesc
+ * Texture2D represents a 2D texture.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Texture2D()
 {
     this._name = null;
@@ -28,6 +32,9 @@ function Texture2D()
     GL.gl.bindTexture(GL.gl.TEXTURE_2D, null);
 }
 
+/**
+ * @ignore
+ */
 Texture2D._initDefault = function()
 {
     var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
@@ -38,6 +45,9 @@ Texture2D._initDefault = function()
 
 Texture2D.prototype =
 {
+    /**
+     * The name of the texture.
+     */
     get name()
     {
         return this._name;
@@ -48,12 +58,9 @@ Texture2D.prototype =
         this._name = value;
     },
 
-    dispose: function()
-    {
-        GL.gl.deleteTexture(this._texture);
-        this._isReady = false;
-    },
-
+    /**
+     * Generates a mip map chain.
+     */
     generateMipmap: function()
     {
         var gl = GL.gl;
@@ -64,6 +71,9 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
+     */
     get filter()
     {
         return this._filter;
@@ -83,6 +93,9 @@ Texture2D.prototype =
         }
     },
 
+    /**
+     * A {@linkcode TextureWrapMode} object defining how out-of-bounds sampling should be handled.
+     */
     get wrapMode()
     {
         return this._wrapMode;
@@ -98,6 +111,9 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY}
+     */
     get maxAnisotropy()
     {
         return this._maxAnisotropy;
@@ -118,11 +134,37 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * The texture's width
+     */
     get width() { return this._width; },
+
+    /**
+     * The texture's height
+     */
     get height() { return this._height; },
+
+    /**
+     * The texture's format
+     *
+     * @see {@linkcode TextureFormat}
+     */
     get format() { return this._format; },
+
+    /**
+     * The texture's data type
+     *
+     * @see {@linkcode DataType}
+     */
     get dataType() { return this._dataType; },
 
+    /**
+     * Inits an empty texture.
+     * @param width The width of the texture.
+     * @param height The height of the texture.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     initEmpty: function(width, height, format, dataType)
     {
         var gl = GL.gl;
@@ -140,6 +182,15 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * Initializes the texture with the given data.
+     * @param data An typed array containing the initial data.
+     * @param width The width of the texture.
+     * @param height The height of the texture.
+     * @param generateMips Whether or not a mip chain should be generated.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     uploadData: function(data, width, height, generateMips, format, dataType)
     {
         var gl = GL.gl;
@@ -168,6 +219,17 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * Initializes the texture with a given Image.
+     * @param image The Image to upload to the texture
+     * @param width The width of the texture.
+     * @param height The height of the texture.
+     * @param generateMips Whether or not a mip chain should be generated.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     *
+     * TODO: Just use image.naturalWidth / image.naturalHeight ?
+     */
     uploadImage: function(image, width, height, generateMips, format, dataType)
     {
         var gl = GL.gl;
@@ -194,9 +256,15 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * Defines whether data has been uploaded to the texture or not.
+     */
     isReady: function() { return this._isReady; },
 
-    // binds a texture to a given texture unit
+    /**
+     * Binds a texture to a given texture unit.
+     * @ignore
+     */
     bind: function(unitIndex)
     {
         var gl = GL.gl;
@@ -208,6 +276,9 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, this._texture);
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "[Texture2D(name=" + this._name + ")]";

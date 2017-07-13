@@ -3,8 +3,12 @@ import {SkeletonPose} from "./SkeletonPose";
 
 
 /**
+ * @classdesc
+ * An abstract base class for nodes in a {@linkcode SkeletonBlendTree}
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonBlendNode()
 {
@@ -15,11 +19,16 @@ function SkeletonBlendNode()
 
 SkeletonBlendNode.prototype =
 {
-    // child nodes should ALWAYS be requested to update first
+    /**
+     * @ignore
+     */
     update: function(dt, transferRootJoint)
     {
     },
 
+    /**
+     * @ignore
+     */
     setValue: function(id, value)
     {
         if (this._valueID === id) {
@@ -27,10 +36,21 @@ SkeletonBlendNode.prototype =
         }
     },   // a node can have a value associated with it, either time, interpolation value, directional value, ...
 
+    /**
+     * @ignore
+     */
     get rootJointDeltaPosition() { return this._rootJointDeltaPosition; },
+
+    /**
+     * @ignore
+     */
     get numJoints() { return -1; },
 
-    // the id used to set values
+    /**
+     * The value ID linked to this node. The meaning is context dependent.
+     *
+     * @deprecated
+     */
     get valueID() { return this._valueID; },
     set valueID(value) { this._valueID = value; },
 

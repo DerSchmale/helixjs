@@ -1,8 +1,14 @@
 import {Float4} from "../math/Float4";
 
 /**
+ * @classdesc
+ * Frustum (a truncated pyramid) describes the set of planes bounding the camera's visible area.
  *
  * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Frustum()
 {
@@ -16,13 +22,39 @@ function Frustum()
         this._corners[i] = new Float4();
 }
 
+/**
+ * The index for the left plane.
+ */
 Frustum.PLANE_LEFT = 0;
+
+/**
+ * The index for the right plane.
+ */
 Frustum.PLANE_RIGHT = 1;
+
+/**
+ * The index for the bottom plane.
+ */
 Frustum.PLANE_BOTTOM = 2;
+
+/**
+ * The index for the top plane.
+ */
 Frustum.PLANE_TOP = 3;
+
+/**
+ * The index for the near plane.
+ */
 Frustum.PLANE_NEAR = 4;
+
+/**
+ * The index for the far plane.
+ */
 Frustum.PLANE_FAR = 5;
 
+/**
+ * @ignore
+ */
 Frustum.CLIP_SPACE_CORNERS = [
     new Float4(-1.0, -1.0, -1.0, 1.0),
     new Float4(1.0, -1.0, -1.0, 1.0),
@@ -37,7 +69,7 @@ Frustum.CLIP_SPACE_CORNERS = [
 Frustum.prototype =
     {
         /**
-         * An Array of planes describing frustum. The planes are in world space and point outwards.
+         * An Array of planes describing the frustum. The planes are in world space and point outwards.
          */
         get planes() { return this._planes; },
 
@@ -46,6 +78,9 @@ Frustum.prototype =
          */
         get corners() { return this._corners; },
 
+        /**
+         * @ignore
+         */
         update: function(projection, inverseProjection)
         {
             this._updatePlanes(projection);

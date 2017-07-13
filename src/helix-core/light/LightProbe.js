@@ -1,12 +1,21 @@
-/**
- * Can be used directly, or have SkyBox manage this for you (generally the best approach). Acts as an infinite environment map.
- */
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Entity} from "../entity/Entity";
 import {DeferredLightProbeShader} from "./shaders/DeferredLightProbeShader";
 import {META} from "../Helix";
 import {Float4} from "../math/Float4";
 
+/**
+ * @classdesc
+ * LightProbe provides functionality to store global illumination information and apply it to the scene lighting.
+ * Only providing a simple specularTexture will behave like environment mapping, but diffuse convolution can be applied
+ * for global diffuse illumination.
+ *
+ * @see {@linkcode https://www.knaldtech.com/lys/} for an example tool to generate the required images.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function LightProbe(diffuseTexture, specularTexture)
 {
     Entity.call(this);
@@ -18,7 +27,7 @@ function LightProbe(diffuseTexture, specularTexture)
         this._deferredShader = new DeferredLightProbeShader(this);
 }
 
-// conversion range for spec power to mip
+// conversion range for spec power to mip. Lys style.
 LightProbe.powerRange0 = .00098;
 LightProbe.powerRange1 = .9921;
 
@@ -50,6 +59,9 @@ LightProbe.prototype = Object.create(Entity.prototype,
         }
     });
 
+/**
+ * @ignore
+ */
 LightProbe.prototype._updateWorldBounds = function()
 {
     var min = new Float4();
@@ -73,17 +85,18 @@ LightProbe.prototype._updateWorldBounds = function()
     }
 }();
 
+/**
+ * ignore
+ */
 LightProbe.prototype.acceptVisitor = function (visitor)
 {
     Entity.prototype.acceptVisitor.call(this, visitor);
     visitor.visitLight(this);
 };
 
-LightProbe.prototype.renderDeferredLighting = function(renderer)
-{
-    // To implement by concrete subclasses
-};
-
+/**
+ * ignore
+ */
 LightProbe.prototype.renderDeferredLighting = function(renderer)
 {
     this._deferredShader.execute(renderer);

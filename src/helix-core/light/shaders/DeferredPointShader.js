@@ -6,6 +6,12 @@ import {Float4} from "../../math/Float4";
 import {SpherePrimitive} from "../../mesh/primitives/SpherePrimitive";
 import {RectMesh} from "../../mesh/RectMesh";
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DeferredPointShader(useSphere)
 {
     Shader.call(this);

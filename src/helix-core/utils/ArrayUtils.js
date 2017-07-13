@@ -1,4 +1,12 @@
+/**
+ * Some utilities for Arrays.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var ArrayUtils = {
+    /**
+     * Randomizes the order of the elements in the array.
+     */
     shuffle: function(array)
     {
         var currentIndex = array.length, temporaryValue, randomIndex ;

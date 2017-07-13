@@ -1,6 +1,11 @@
 import { CullMode, DataType, TextureFormat } from '../Helix';
 import { Signal } from '../core/Signal';
 
+/**
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ShadowFilter()
 {
     this._blurShader = null;
@@ -61,10 +66,8 @@ ShadowFilter.prototype =
 
     _invalidateBlurShader: function()
     {
-        if (this._blurShader) {
-            this._blurShader.dispose();
+        if (this._blurShader)
             this._blurShader = null;
-        }
     }
 };
 

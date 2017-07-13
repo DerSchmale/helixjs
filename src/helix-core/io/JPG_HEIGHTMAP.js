@@ -1,16 +1,21 @@
-/**
- * Loads a jpg or png equirectangular as a cubemap
- * @constructor
- */
 import {Texture2D} from "../texture/Texture2D";
 import {Importer} from "./Importer";
 import {TextureWrapMode} from "../Helix";
 import {HeightMap} from "../utils/HeightMap";
 
+/**
+ * @classdesc
+ * JPG_HEIGHTMAP imports an 8-bit per channel image and smooths it out to serve as a height map. Otherwise, the limited
+ * 8 bit precision would result in a stair-case effect. Yields a {@linkcode Texture2D} object.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function JPG_HEIGHTMAP()
 {
     Importer.call(this, Texture2D, Importer.TYPE_IMAGE);
-};
+}
 
 JPG_HEIGHTMAP.prototype = Object.create(Importer.prototype);
 
@@ -22,7 +27,6 @@ JPG_HEIGHTMAP.prototype.parse = function(data, target)
 
     var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
     HeightMap.from8BitTexture(texture2D, generateMipmaps, target);
-    texture2D.dispose();
     this._notifyComplete(target);
 };
 

@@ -1,12 +1,11 @@
 import {Signal} from "../core/Signal";
 import {AssetLoader} from "./AssetLoader";
-import {HCM} from "./HCM";
-import {JPG} from "./JPG_PNG";
 
 /**
+ * @constructor
  * Creates a new AssetLibrary object.
  * @param {string} basePath The base path or url to load the assets from. All filenames will have this value prepended.
- * @constructor
+ * @param {string} [crossOrigin] An optional cross origin string. This is used when loading images from a different domain.
  *
  * @classdesc
  * AssetLibrary provides a way to load a collection of assets. These can be textures, models, plain text, json, ...
@@ -20,6 +19,18 @@ import {JPG} from "./JPG_PNG";
  * assetLibrary.onComplete.bind(onAssetsLoaded);
  * assetLibrary.onProgress.bind(onAssetsProgress);
  * assetLibrary.load();
+ *
+ * function onAssetsLoaded()
+ * {
+ * // do something
+ * }
+ *
+ * function onAssetsProgress(ratio)
+ * {
+ *      var percent = ratio * 100
+ * }
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 
 function AssetLibrary(basePath, crossOrigin)
@@ -85,6 +96,9 @@ AssetLibrary.prototype =
         return this._basePath;
     },
 
+    /**
+     * The cross origin string passed to the constructor.
+     */
     get crossOrigin()
     {
         return this._crossOrigin;
@@ -96,7 +110,7 @@ AssetLibrary.prototype =
      * @param {string} filename The filename relative to the base path provided in the constructor.
      * @param {AssetLibrary.Type} type The type of asset to be loaded.
      * @param {parser} The parser used to parse the loaded data.
-     * @param {target} An optional target to contain the data. Allows lazy loading.
+     * @param {target} An optional empty target to contain the parsed asset. This allows lazy loading.
      * @see {@linkcode AssetLibrary.Type}
      */
     queueAsset: function(id, filename, type, parser, target)

@@ -1,12 +1,17 @@
 import {Float2} from "./Float2";
 
 /**
+ * @classdesc
+ * PoissonDisk is a class that allows generating 2D points in a poisson distribution.
  *
- * @param mode
- * @param initialDistance
- * @param decayFactor
- * @param maxTests
  * @constructor
+ * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonDisk.SQUARE}) or a circle ({@linkcode PoissonDisk.CIRCULAR}). Defaults to circular.
+ * @param [initialDistance]
+ * @param [decayFactor]
+ * @param [maxTests]
+ *
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function PoissonDisk(mode, initialDistance, decayFactor, maxTests)
 {
@@ -19,9 +24,19 @@ function PoissonDisk(mode, initialDistance, decayFactor, maxTests)
     this.reset();
 }
 
+/**
+ * Generates points in a square.
+ */
 PoissonDisk.SQUARE = 0;
+
+/**
+ * Generates points in a circle.
+ */
 PoissonDisk.CIRCULAR = 1;
 
+/**
+ * @ignore
+ */
 PoissonDisk._initDefault = function()
 {
     PoissonDisk.DEFAULT = new PoissonDisk();
@@ -39,23 +54,36 @@ PoissonDisk._initDefault = function()
 
 PoissonDisk.prototype =
 {
+    /**
+     * Gets all points currently generated.
+     */
     getPoints: function()
     {
         return this._points;
     },
 
+    /**
+     * Clears all generated points.
+     */
     reset : function()
     {
         this._currentDistance = this._initialDistance;
         this._points = [];
     },
 
+    /**
+     * Generates new points and add them to the set. This does not return a set of points.
+     * @param numPoints The amount of points to generate.
+     */
     generatePoints: function(numPoints)
     {
         for (var i = 0; i < numPoints; ++i)
             this.generatePoint();
     },
 
+    /**
+     * Generates a single point and adds it to the set.
+     */
     generatePoint: function()
     {
         for (;;) {
@@ -73,6 +101,10 @@ PoissonDisk.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _getCandidate: function()
     {
         for (;;) {
@@ -83,6 +115,10 @@ PoissonDisk.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _isValid: function(candidate, sqrDistance)
     {
         var len = this._points.length;

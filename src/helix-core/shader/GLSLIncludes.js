@@ -1,5 +1,10 @@
 import {ShaderLibrary} from "./ShaderLibrary";
 
+/**
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var GLSLIncludes = {
 
     GENERAL:

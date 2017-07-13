@@ -4,6 +4,9 @@ import {SceneVisitor} from "./SceneVisitor";
  * This goes through a scene to find a material with a given name
  * @param materialName
  * @constructor
+ *
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
  */
 function MaterialQueryVisitor(materialName)
 {

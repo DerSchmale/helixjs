@@ -1,7 +1,9 @@
 import {Mesh} from "./Mesh";
 
 /**
- * Creates a number copies of the same mesh with hx_instanceID being the instance number of the copy.
+ * MeshBatch is a util that creates a number copies of the same mesh with hx_instanceID being the instance number of the copy.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 var MeshBatch =
     {

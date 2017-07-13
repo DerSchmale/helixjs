@@ -1,5 +1,22 @@
 import {Primitive} from "./Primitive";
 
+/**
+ * @classdesc
+ * CylinderPrimitive provides a primitive cylinder {@linkcode Model}.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of horizontal segments</li>
+ *     <li>numSegmentsH: The amount of vertical segments </li>
+ *     <li>radius: The radius of the cylinder</li>
+ *     <li>height: The height of the cylinder</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ *     <li>alignment: The axis along which to orient the cylinder. One of {@linkcode CylinderPrimitive.ALIGN_X}, {@linkcode CylinderPrimitive.ALIGN_Y}, {@linkcode CylinderPrimitive.ALIGN_Z}</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function CylinderPrimitive(definition)
 {
     Primitive.call(this, definition);

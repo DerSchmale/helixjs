@@ -1,7 +1,3 @@
-/**
- * The HMT file format is for file-based materials (JSON)
- * @constructor
- */
 import {Material} from "../material/Material";
 import {Comparison, CullMode, ElementType, BlendFactor, BlendOperation} from "../Helix";
 import {BlendState} from "../render/BlendState";
@@ -10,11 +6,19 @@ import {JPG} from "./JPG_PNG";
 import {Importer} from "./Importer";
 import {AssetLibrary} from "./AssetLibrary";
 
+/**
+ * @classdesc
+ * HCM is an Importer for Helix' json-based material formats. Yields a {@linkcode Material} object.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function HMT()
 {
     Importer.call(this, Material);
     HMT._initPropertyMap();
-};
+}
 
 HMT.prototype = Object.create(Importer.prototype);
 
@@ -43,7 +47,7 @@ HMT.prototype._loadShaders = function(data, material)
 {
     // urls will already be correctURL'ed
     var shaderFiles = this._gatherShaderFiles(data);
-    this._shaderLibrary = new AssetLibrary();
+    this._shaderLibrary = new AssetLibrary(null, this.options.crossOrigin);
 
     for (var i = 0; i < shaderFiles.length; ++i) {
         this._shaderLibrary.queueAsset(shaderFiles[i], shaderFiles[i], AssetLibrary.Type.PLAIN_TEXT);
@@ -143,7 +147,7 @@ HMT.prototype._loadTextures = function(data, material)
         }
     }
 
-    this._textureLibrary = new AssetLibrary();
+    this._textureLibrary = new AssetLibrary(null, this.options.crossOrigin);
 
     for (var i = 0; i < files.length; ++i) {
         this._textureLibrary.queueAsset(files[i], files[i], AssetLibrary.Type.ASSET, JPG);

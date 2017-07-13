@@ -7,6 +7,12 @@ import {Matrix4x4} from "../../math/Matrix4x4";
 import {Float4} from "../../math/Float4";
 import {DirectionalLight} from "../DirectionalLight";
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DeferredDirectionalShader(shadows)
 {
     Shader.call(this);

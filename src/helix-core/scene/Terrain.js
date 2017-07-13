@@ -6,8 +6,18 @@ import {ModelInstance} from "../mesh/ModelInstance";
 import {RenderCollector} from "../render/RenderCollector";
 import {Mesh} from "../mesh/Mesh";
 
-// TODO: there no way to figure out correct mip level for texture
-// TODO: Should we provide a snap size in the vertex data?
+/**
+ * Terrain provides a paged terrain engine with dynamic LOD. The heightmapping itself happens in the Material.
+ * @param terrainSize The world size for the entire terrain.
+ * @param minElevation The minimum elevation for the terrain (maps to heightmap value 0)
+ * @param maxElevation The maximum elevation for the terrain (maps to heightmap value 1)
+ * @param numLevels The amount of levels the page tree should contain. More levels means more(!) triangles.
+ * @param material The {@linkcode Material} to use when rendering the terrain.
+ * @param detail The grid size.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, detail)
 {
     SceneNode.call(this);
@@ -32,6 +42,9 @@ function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, d
 
 // TODO: Allow setting material
 Terrain.prototype = Object.create(SceneNode.prototype, {
+    /**
+     * The world size for the entire terrain.
+     */
     terrainSize: {
         get: function() {
             return this._terrainSize;
@@ -40,11 +53,7 @@ Terrain.prototype = Object.create(SceneNode.prototype, {
 });
 
 /**
- *
- * @param size
- * @param numSegments
- * @param subDiv Subdivide an edge
- * @returns {HX.Model}
+ * @ignore
  * @private
  */
 Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
@@ -111,6 +120,10 @@ Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
     return model;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Terrain.prototype._initModels = function(gridSize)
 {
     this._models = [];
@@ -137,6 +150,10 @@ Terrain.prototype._initModels = function(gridSize)
     }
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Terrain.prototype._initTree = function()
 {
     var level = 0;
@@ -184,6 +201,10 @@ Terrain.prototype._initTree = function()
     }
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Terrain.prototype._addModel = function(x, y, level, rotation, mode)
 {
     var modelInstance = new ModelInstance(this._models[level][mode], this._material);
@@ -192,6 +213,10 @@ Terrain.prototype._addModel = function(x, y, level, rotation, mode)
     this.attach(modelInstance);
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
 {
     size *= .5;
@@ -260,6 +285,9 @@ Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
         this._subDivide(x + size * subX, y + size * subY, subX, subY, level + 1, size);
 };
 
+/**
+ * @ignore
+ */
 Terrain.prototype.acceptVisitor = function(visitor)
 {
     // typechecking isn't nice, but it does what we want
@@ -272,6 +300,9 @@ Terrain.prototype.acceptVisitor = function(visitor)
     SceneNode.prototype.acceptVisitor.call(this, visitor);
 };
 
+/**
+ * @ignore
+ */
 Terrain.prototype._updateWorldBounds = function ()
 {
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);

@@ -1,12 +1,14 @@
-import * as HX from 'helix';
+import * as HX from "helix";
 import {FBXBinaryDeserializer} from "./FBXBinaryDeserializer";
 import {FBXGraphBuilder} from "./FBXGraphBuilder";
 import {FBXConverter} from "./FBXConverter";
 import {FBXSettings} from "./FBXSettings";
 
 /**
- *
+ * FBX is an importer for Autodesk FBX formats. Animations are currently broken.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FBX()
 {
@@ -65,7 +67,7 @@ FBX.prototype._loadTextures = function(tokens, map, target)
 {
     var numTextures = tokens.length;
 
-    this._textureLibrary = new HX.AssetLibrary();
+    this._textureLibrary = new HX.AssetLibrary(null, this.options.crossOrigin);
 
     for (var i = 0; i < numTextures; ++i) {
         var token = tokens[i];

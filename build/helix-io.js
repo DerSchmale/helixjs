@@ -732,7 +732,7 @@ OBJ._ObjectData = function()
 };
 
 /**
- *
+ * MTL is an importer for
  * @constructor
  */
 function MTL$1()
@@ -813,7 +813,7 @@ MTL$1.prototype._getTexture = function(url)
 
 MTL$1.prototype._loadTextures = function(lib)
 {
-    var library = new HX$1.AssetLibrary();
+    var library = new HX$1.AssetLibrary(null, this.options.crossOrigin);
     var files = this._texturesToLoad;
     var len = files.length;
     if (len === 0) {
@@ -2955,8 +2955,10 @@ FBXSettings.prototype =
 };
 
 /**
- *
+ * FBX is an importer for Autodesk FBX formats. Animations are currently broken.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FBX()
 {
@@ -3015,7 +3017,7 @@ FBX.prototype._loadTextures = function(tokens, map, target)
 {
     var numTextures = tokens.length;
 
-    this._textureLibrary = new HX$1.AssetLibrary();
+    this._textureLibrary = new HX$1.AssetLibrary(null, this.options.crossOrigin);
 
     for (var i = 0; i < numTextures; ++i) {
         var token = tokens[i];

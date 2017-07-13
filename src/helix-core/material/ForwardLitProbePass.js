@@ -6,6 +6,16 @@ import {GL} from "../core/GL";
 import {MathX} from "../math/MathX";
 import {capabilities} from "../Helix";
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @param lightingModel
+ * @param ssao
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel, ssao)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, ssao));

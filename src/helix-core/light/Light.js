@@ -1,13 +1,19 @@
-/**
- * Subclasses must implement:
- * prototype.activate
- * prototype.prepareBatch
- * @constructor
- */
 import {Color} from "../core/Color";
 import {Entity} from "../entity/Entity";
 import {META} from "../Helix";
 
+/**
+ * @classdesc
+ * Light forms a base class for lights.
+ *
+ * @abstract
+ *
+ * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Light()
 {
     Entity.call(this);

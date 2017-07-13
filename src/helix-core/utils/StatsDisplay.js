@@ -1,10 +1,16 @@
-/**
- * @constructor
- */
 import {FPSCounter} from "./FPSCounter";
 import {META, onPreFrame} from "../Helix";
 import {_glStats} from "../core/GL";
 
+/**
+ * @classdesc
+ * StatsDisplay is a simple display for render statistics.
+ *
+ * @param container The DOM element to add the stats to.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function StatsDisplay(container)
 {
     this._fpsCounter = new FPSCounter(30);
@@ -29,6 +35,9 @@ function StatsDisplay(container)
 
 StatsDisplay.prototype =
 {
+    /**
+     * Removes the stats display from the container.
+     */
     remove: function()
     {
         this._div.parentNode.removeChild(this._div);

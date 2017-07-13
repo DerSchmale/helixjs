@@ -1,10 +1,15 @@
-/**
- *
- * @constructor
- */
 import {TextureCube} from "../texture/TextureCube";
 import {Importer} from "./Importer";
 import {MathX} from "../math/MathX";
+
+/**
+ * @classdesc
+ * HCM is an Importer for Helix' json-based cube map formats. Yields a {@linkcode TextureCube} object.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function HCM()
 {
     Importer.call(this, TextureCube);

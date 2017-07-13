@@ -10,6 +10,17 @@ import {MathX} from "../math/MathX";
 import {Effect} from "./Effect";
 import {GL} from "../core/GL";
 
+/**
+ * @classdesc
+ * A base class for tone mapping effects.
+ *
+ * @constructor
+ * @param adaptive
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ToneMapEffect(adaptive)
 {
     this._adaptive = adaptive === undefined? false : adaptive;
@@ -50,13 +61,6 @@ ToneMapEffect.prototype._createToneMapPass = function()
     throw new Error("Abstract method called!");
 };
 
-
-ToneMapEffect.prototype.dispose = function()
-{
-    Effect.prototype.dispose.call(this);
-    this._luminanceFBO.dispose();
-    this._luminanceMap.dispose();
-};
 
 ToneMapEffect.prototype.draw = function(dt)
 {

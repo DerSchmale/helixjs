@@ -1,13 +1,15 @@
-/**
- *
- * @constructor
- */
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {RenderItemPool} from "./RenderItemPool";
 import {SceneVisitor} from "../scene/SceneVisitor";
 import {MaterialPass} from "../material/MaterialPass";
 import {META} from "../Helix";
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function CascadeShadowCasterCollector()
 {
     SceneVisitor.call(this);

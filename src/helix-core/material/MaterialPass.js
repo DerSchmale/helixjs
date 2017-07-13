@@ -1,15 +1,16 @@
-/**
- *
- * @param shader
- * @constructor
- */
 import {Comparison, CullMode, DEFAULTS, ElementType} from "../Helix";
 import {TextureSetter} from "../shader/TextureSetter";
 import {GL} from "../core/GL";
 import {TextureSlot} from "./TextureSlot";
 import {Texture2D} from "../texture/Texture2D";
 
-
+/**
+ * @ignore
+ * @param shader
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function MaterialPass(shader)
 {
     this._shader = shader;

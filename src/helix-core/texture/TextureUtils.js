@@ -2,6 +2,10 @@ import {GL} from "../core/GL";
 import {DEFAULTS} from "../Helix";
 import {RectMesh} from "../mesh/RectMesh";
 
+/**
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var TextureUtils =
 {
     /**

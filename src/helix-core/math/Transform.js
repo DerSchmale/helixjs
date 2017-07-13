@@ -4,9 +4,12 @@ import {Matrix4x4} from "./Matrix4x4";
 import {PropertyListener} from "../core/PropertyListener";
 
 /**
- * An object using position, rotation quaternion and scale to describe an object's transformation.
+ * @classdesc
+ * Transform is a class to describe an object's transformation through position, rotation (as a quaternion) and scale.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Transform()
 {
@@ -31,15 +34,22 @@ function Transform()
 
 Transform.prototype =
 {
+    /**
+     * The position of the object.
+     */
     get position() {
         return this._position;
     },
+
 
     set position(value) {
         // make sure position object never changes
         this._position.copyFrom(value);
     },
 
+    /**
+     * The rotation of the object.
+     */
     get rotation() {
         return this._rotation;
     },
@@ -49,6 +59,9 @@ Transform.prototype =
         this._rotation.copyFrom(value);
     },
 
+    /**
+     * The scale of the object.
+     */
     get scale() {
         return this._scale;
     },
@@ -58,12 +71,18 @@ Transform.prototype =
         this._scale.copyFrom(value);
     },
 
+    /**
+     * Orients the object in such a way as to face the target point.
+     */
     lookAt: function(target)
     {
         this._matrix.lookAt(target, this._position, Float4.Y_AXIS);
         this._applyMatrix();
     },
 
+    /**
+     * Copies the state of another Transform object
+     */
     copyFrom: function(transform)
     {
         this._changeListener.enabled = false;
@@ -73,6 +92,9 @@ Transform.prototype =
         this._changeListener.enabled = true;
     },
 
+    /**
+     * The matrix representing the transform.
+     */
     get matrix()
     {
         if (this._matrixInvalid)
@@ -87,17 +109,26 @@ Transform.prototype =
         this._applyMatrix();
     },
 
+    /**
+     * @ignore
+     */
     _invalidateMatrix: function ()
     {
         this._matrixInvalid = true;
     },
 
+    /**
+     * @ignore
+     */
     _updateMatrix: function()
     {
         this._matrix.compose(this);
         this._matrixInvalid = false;
     },
 
+    /**
+     * @ignore
+     */
     _applyMatrix: function()
     {
         this._matrixInvalid = false;

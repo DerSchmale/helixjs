@@ -1,6 +1,14 @@
 import {Component} from "./Component";
 
-// usually subclassed
+/**
+ * @classdesc
+ * CompositeComponent is a {@linkcode Component} that can be used to group together multiple Components. It's usually
+ * subclassed to provide easy building blocks for certain combinations of Components.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function CompositeComponent()
 {
     Component.call(this);
@@ -9,6 +17,9 @@ function CompositeComponent()
 
 CompositeComponent.prototype = Object.create(Component.prototype);
 
+/**
+ * Adds a {@linkcode Component} to the composite. Usually called in the constructor of the subclass.
+ */
 CompositeComponent.prototype.addComponent = function(comp)
 {
     if (comp._entity)
@@ -17,6 +28,9 @@ CompositeComponent.prototype.addComponent = function(comp)
     this._subs.push(comp);
 };
 
+/**
+ * Removes a {@linkcode Component} to the composite.
+ */
 CompositeComponent.prototype.removeComponent = function(comp)
 {
     var index = this._subs.indexOf(comp);
@@ -24,6 +38,9 @@ CompositeComponent.prototype.removeComponent = function(comp)
         this._subs.splice(index, 1);
 };
 
+/**
+ * @inheritDoc
+ */
 CompositeComponent.prototype.onAdded = function()
 {
     for (var i = 0; i < this._subs.length; ++i) {
@@ -33,6 +50,9 @@ CompositeComponent.prototype.onAdded = function()
     }
 };
 
+/**
+ * @inheritDoc
+ */
 CompositeComponent.prototype.onRemoved = function()
 {
     for (var i = 0; i < this._subs.length; ++i) {
@@ -42,8 +62,9 @@ CompositeComponent.prototype.onRemoved = function()
     }
 };
 
-// by default, onUpdate is not implemented at all
-//onUpdate: function(dt) {},
+/**
+ * @inheritDoc
+ */
 CompositeComponent.prototype.onUpdate = function(dt)
 {
     var len = this._subs.length;

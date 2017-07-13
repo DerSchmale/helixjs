@@ -4,8 +4,12 @@ import {Effect} from "./Effect";
 import {GL} from "../core/GL";
 
 /**
+ * @classdesc
+ * FXAA is an {@linkcode Effect} added to the Camera that applies "Fast approXimate Anti-Aliasing" on the render.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FXAA()
 {
@@ -15,10 +19,13 @@ function FXAA()
     this._pass.setUniform("edgeThreshold", 1/4);
     this._pass.setUniform("edgeThresholdMin", 1/16);
     this._pass.setUniform("edgeSharpness", 100.0);
-};
+}
 
 FXAA.prototype = Object.create(Effect.prototype);
 
+/**
+ * @ignore
+ */
 FXAA.prototype.draw = function(dt)
 {
     GL.setRenderTarget(this.hdrTarget);

@@ -1,3 +1,7 @@
+/**
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var FileUtils =
 {
     extractPathAndFilename: function(filename)

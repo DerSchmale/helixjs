@@ -1,6 +1,8 @@
 /**
- *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SceneVisitor()
 {

@@ -1,9 +1,15 @@
 import {Signal} from "./Signal";
 
 /**
+ *
  * PropertyListener allows listening to changes to other objects' properties. When a change occurs, the onChange signal will be dispatched.
  * It's a bit hackish, but it prevents having to dispatch signals in performance-critical classes such as Float4.
+ *
  * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function PropertyListener()
 {

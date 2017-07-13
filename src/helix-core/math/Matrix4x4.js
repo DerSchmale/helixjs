@@ -2,11 +2,21 @@ import {Float4} from './Float4';
 import {MathX} from './MathX';
 import {Transform} from './Transform';
 
+/*
+ * TODO: There is some API cleaning up to do here
+ * - move multiply(a, b) to static
+ * - fromScale should possibly accept a Float4
+ */
+
 /**
- * Creates a new Matrix4x4 object.
- * Column-major storage. Vector multiplication is in column format (ie v' = M x v)
- * @class
+ * @classdec
+ * Matrix4x4 object represents a 4D matrix (generally an affine transformation or a projection). The elements are stored
+ * in column-major order. Vector multiplication is in column format (ie v' = M x v)
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ *
  */
 function Matrix4x4(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 {
@@ -33,12 +43,15 @@ function Matrix4x4(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m
         m[14] = m23 || 0;
         m[15] = m33 === undefined ? 1 : 0;
     }
-};
+}
 
 Matrix4x4.prototype =
 {
     /**
      * Transforms a Float4 object (use for homogeneous general case of Float4, perspective or when "type" (w) of Float4 is unknown)
+     *
+     * @param v The Float4 object to transform.
+     * @param [target] An optional target. If not provided, a new object will be created and returned.
      */
     transform: function (v, target)
     {
@@ -56,6 +69,9 @@ Matrix4x4.prototype =
 
     /**
      * Transforms a Float4 object, treating it as a point. Slightly faster than transform for points.
+     *
+     * @param v The Float4 object to transform.
+     * @param [target] An optional target. If not provided, a new object will be created and returned.
      */
     transformPoint: function (v, target)
     {
@@ -73,6 +89,9 @@ Matrix4x4.prototype =
 
     /**
      * Transforms a Float4 object, treating it as a vector (ie: disregarding translation). Slightly faster than transform for vectors.
+     *
+     * @param v The Float4 object to transform.
+     * @param [target] An optional target. If not provided, a new object will be created and returned.
      */
     transformVector: function (v, target)
     {
@@ -90,6 +109,9 @@ Matrix4x4.prototype =
 
     /**
      * Transforms a Float4 object, treating it as a vector (ie: disregarding translation) containing a size (so always abs)! Slightly faster than transform for vectors.
+     *
+     * @param v The Float4 object to transform.
+     * @param [target] An optional target. If not provided, a new object will be created and returned.
      */
     transformExtent: function (v, target)
     {
@@ -113,6 +135,9 @@ Matrix4x4.prototype =
         return target;
     },
 
+    /**
+     * Copies its elements from another matrix.
+     */
     copyFrom: function(a)
     {
         var m = this._m;
@@ -135,6 +160,9 @@ Matrix4x4.prototype =
         m[15] = mm[15];
     },
 
+    /**
+     * Initializes the matrix as a rotation matrix based on a quaternion.
+     */
     fromQuaternion: function (q)
     {
         var x = q.x, y = q.y, z = q.z, w = q.w;
@@ -158,6 +186,14 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Multiplies two matrix objects and stores the result in this one
+     *
+     * @deprecated Should be moved to Matrix4x4.multiply(a, b, target)
+     *
+     * @param a
+     * @param b
+     */
     multiply: function (a, b)
     {
         var am = a._m, bm = b._m;
@@ -189,6 +225,14 @@ Matrix4x4.prototype =
         m[15] = a_m30 * b_m03 + a_m31 * b_m13 + a_m32 * b_m23 + a_m33 * b_m33;
     },
 
+    /**
+     * Multiplies two matrix objects, assuming they're affine transformations, and stores the result in this one
+     *
+     * @deprecated Should be moved to Matrix4x4.multiplyAffine(a, b, target)
+     *
+     * @param a
+     * @param b
+     */
     multiplyAffine: function (a, b)
     {
         var am = a._m, bm = b._m;
@@ -220,6 +264,12 @@ Matrix4x4.prototype =
 
     },
 
+    /**
+     * Initializes the matrix as a rotation matrix around a given axis
+     *
+     * @param axis The axis around which the rotation takes place.
+     * @param radians The angle of rotation
+     */
     fromRotationAxisAngle: function (axis, radians)
     {
         var cos = Math.cos(radians);
@@ -249,6 +299,10 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+
+    /**
+     * Initializes the matrix as a rotation matrix from 3 Euler angles
+     */
     // this actually doesn't use a vector, because they're three unrelated quantities. A vector just doesn't make sense here, mathematically.
     fromEuler: function (x, y, z)
     {
@@ -278,7 +332,9 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
-    // Tait-Bryan angles, not classic Euler
+    /**
+     * Initializes the matrix as a rotation matrix from Tait-Bryan angles (pitch, yaw, roll).
+     */
     fromRotationPitchYawRoll: function (pitch, yaw, roll)
     {
         var cosP = Math.cos(-pitch);
@@ -319,6 +375,12 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Initializes as a translation matrix.
+     * @param xOrV A Float4 or a Number as x-coordinate
+     * @param y The y-translation. Omitted if xOrV is a Float4.
+     * @param z The z-translation. Omitted if xOrV is a Float4.
+     */
     fromTranslation: function (xOrV, y, z)
     {
         if (y === undefined) {
@@ -345,6 +407,12 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Initializes as a scale matrix.
+     * @param x
+     * @param y
+     * @param z
+     */
     fromScale: function (x, y, z)
     {
         if (y === undefined)
@@ -369,6 +437,13 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Initializes as a perspective projection matrix.
+     * @param vFOV The vertical field of view in radians.
+     * @param aspectRatio The aspect ratio
+     * @param nearDistance The near plane distance
+     * @param farDistance The far plane distance
+     */
     fromPerspectiveProjection: function (vFOV, aspectRatio, nearDistance, farDistance)
     {
         var yMax = 1.0 / Math.tan(vFOV * .5);
@@ -397,6 +472,15 @@ Matrix4x4.prototype =
         m[15] = 0;
     },
 
+    /**
+     * Initializes as an off-center orthographic projection matrix.
+     * @param left The distance to the left plane
+     * @param right The distance to the right plane
+     * @param top The distance to the top plane
+     * @param bottom The distance to the bottom plane
+     * @param nearDistance The near plane distance
+     * @param farDistance The far plane distance
+     */
     fromOrthographicOffCenterProjection: function (left, right, top, bottom, nearDistance, farDistance)
     {
         var rcpWidth = 1.0 / (right - left);
@@ -425,6 +509,13 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Initializes as a symmetrical orthographic projection matrix.
+     * @param width The width of the projection
+     * @param top The height of the projection
+     * @param nearDistance The near plane distance
+     * @param farDistance The far plane distance
+     */
     fromOrthographicProjection: function (width, height, nearDistance, farDistance)
     {
         var rcpWidth = 1.0 / width;
@@ -453,11 +544,17 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Returns a copy of this object.
+     */
     clone: function ()
     {
         return new Matrix4x4(this._m);
     },
 
+    /**
+     * Transposes the matrix.
+     */
     transpose: function ()
     {
         var m = this._m;
@@ -488,6 +585,7 @@ Matrix4x4.prototype =
     /**
      * The determinant of a 3x3 minor matrix (matrix created by removing a given row and column)
      * @private
+     * @ignore
      */
     determinant3x3: function (row, col)
     {
@@ -508,6 +606,9 @@ Matrix4x4.prototype =
             + m[c3 | r1] * (m21 * m32 - m22 * m31);
     },
 
+    /**
+     * Calculates the cofactor for the given row and column
+     */
     cofactor: function (row, col)
     {
         // should be able to xor sign bit instead
@@ -515,6 +616,9 @@ Matrix4x4.prototype =
         return sign * this.determinant3x3(row, col);
     },
 
+    /**
+     * Creates a matrix containing all the cofactors.
+     */
     getCofactorMatrix: function (row, col, target)
     {
         target = target || new Matrix4x4();
@@ -526,6 +630,9 @@ Matrix4x4.prototype =
         return target;
     },
 
+    /**
+     * Calculates teh adjugate matrix.
+     */
     getAdjugate: function (row, col, target)
     {
         target = target || new Matrix4x4();
@@ -537,12 +644,18 @@ Matrix4x4.prototype =
         return target;
     },
 
+    /**
+     * Calculates the determinant of the matrix.
+     */
     determinant: function ()
     {
         var m = this._m;
         return m[0] * this.determinant3x3(0, 0) - m[4] * this.determinant3x3(0, 1) + m[8] * this.determinant3x3(0, 2) - m[12] * this.determinant3x3(0, 3);
     },
 
+    /**
+     * Initializes as the inverse of the given matrix.
+     */
     inverseOf: function (matrix)
     {
         // this can be much more efficient, but I'd like to keep it readable for now. The full inverse is not required often anyway.
@@ -586,8 +699,7 @@ Matrix4x4.prototype =
     },
 
     /**
-     * If you know it's an affine matrix (such as general transforms rather than perspective projection matrices), use this.
-     * @param m
+     * Initializes as the inverse of the given matrix, assuming it is affine. It's faster than regular inverse.
      */
     inverseAffineOf: function (a)
     {
@@ -653,6 +765,9 @@ Matrix4x4.prototype =
         array[index + 8] = (m0 * m5 - m4 * m1) * rcpDet;
     },
 
+    /**
+     * Writes the matrix into an array for upload
+     */
     writeData: function(array, index)
     {
         index = index || 0;
@@ -661,6 +776,9 @@ Matrix4x4.prototype =
             array[index + i] = m[i];
     },
 
+    /**
+     * Writes the matrix into an array for upload, ignoring the bottom row (for affine matrices)
+     */
     writeData4x3: function(array, index)
     {
         var m = this._m;
@@ -679,36 +797,57 @@ Matrix4x4.prototype =
         array[index + 11] = m[14];
     },
 
+    /**
+     * Inverts the matrix.
+     */
     invert: function ()
     {
         this.inverseOf(this);
     },
 
+    /**
+     * Inverts the matrix, assuming it's affine (faster than regular inverse)
+     */
     invertAffine: function ()
     {
         this.inverseAffineOf(this);
     },
 
+    /**
+     * Post-multiplication (M x this)
+     */
     append: function (m)
     {
         this.multiply(m, this);
     },
 
+    /**
+     * Pre-multiplication (this x M)
+     */
     prepend: function (m)
     {
         this.multiply(this, m);
     },
 
+    /**
+     * Post-multiplication (M x this) assuming affine matrices
+     */
     appendAffine: function (m)
     {
         this.multiplyAffine(m, this);
     },
 
+    /**
+     * Pre-multiplication (M x this) assuming affine matrices
+     */
     prependAffine: function (m)
     {
         this.multiplyAffine(this, m);
     },
 
+    /**
+     * Adds the elements of another matrix to this one.
+     */
     add: function (a)
     {
         var m = this._m;
@@ -731,6 +870,9 @@ Matrix4x4.prototype =
         m[15] += mm[15];
     },
 
+    /**
+     * Adds the elements of another matrix to this one, assuming both are affine.
+     */
     addAffine: function (a)
     {
         var m = this._m;
@@ -746,6 +888,9 @@ Matrix4x4.prototype =
         m[10] += mm[10];
     },
 
+    /**
+     * Subtracts the elements of another matrix from this one.
+     */
     subtract: function (a)
     {
         var m = this._m;
@@ -768,6 +913,9 @@ Matrix4x4.prototype =
         m[15] -= mm[15];
     },
 
+    /**
+     * Subtracts the elements of another matrix from this one, assuming both are affine.
+     */
     subtractAffine: function (a)
     {
         var m = this._m;
@@ -783,6 +931,9 @@ Matrix4x4.prototype =
         m[10] -= mm[10];
     },
 
+    /**
+     * Post-multiplies a scale
+     */
     appendScale: function (x, y, z)
     {
         if (y === undefined)
@@ -803,6 +954,9 @@ Matrix4x4.prototype =
         m[14] *= z;
     },
 
+    /**
+     * Pre-multiplies a scale
+     */
     prependScale: function (x, y, z)
     {
         if (y === undefined)
@@ -823,6 +977,9 @@ Matrix4x4.prototype =
         m[11] *= z;
     },
 
+    /**
+     * Post-multiplies a translation
+     */
     appendTranslation: function (v)
     {
         var m = this._m;
@@ -831,6 +988,9 @@ Matrix4x4.prototype =
         m[14] += v.z;
     },
 
+    /**
+     * Pre-multiplies a translation
+     */
     prependTranslation: function (v)
     {
         var m = this._m;
@@ -841,6 +1001,9 @@ Matrix4x4.prototype =
         m[15] += m[3] * x + m[7] * y + m[11] * z;
     },
 
+    /**
+     * Post-multiplies a quaternion rotation
+     */
     appendQuaternion: function (q)
     {
         var m = this._m;
@@ -871,6 +1034,9 @@ Matrix4x4.prototype =
         m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23;
     },
 
+    /**
+     * Pre-multiplies a quaternion rotation
+     */
     prependQuaternion: function (q)
     {
         var m = this._m;
@@ -896,6 +1062,9 @@ Matrix4x4.prototype =
         m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
     },
 
+    /**
+     * Post-multiplies an axis/angle rotation
+     */
     appendRotationAxisAngle: function (axis, radians)
     {
         var m = this._m;
@@ -932,6 +1101,9 @@ Matrix4x4.prototype =
         m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23;
     },
 
+    /**
+     * Pre-multiplies an axis/angle rotation
+     */
     prependRotationAxisAngle: function (axis, radians)
     {
         var m = this._m;
@@ -963,6 +1135,11 @@ Matrix4x4.prototype =
         m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
     },
 
+    /**
+     * Gets the given row from the matrix.
+     * @param {Number} index The index of the row
+     * @param {Float4} [target] An optional target. If omitted, a new object will be created.
+     */
     getRow: function (index, target)
     {
         var m = this._m;
@@ -974,6 +1151,11 @@ Matrix4x4.prototype =
         return target;
     },
 
+    /**
+     * Sets a row in the matrix.
+     * @param {Number} index The index of the row.
+     * @param {Float4} v The vector to assign to the row
+     */
     setRow: function (index, v)
     {
         var m = this._m;
@@ -983,16 +1165,32 @@ Matrix4x4.prototype =
         m[index | 12] = v.w;
     },
 
+    /**
+     * Gets the value of a single element.
+     * @param row The row index
+     * @param col The column index
+     */
     getElement: function(row, col)
     {
         return this._m[row | (col << 2)];
     },
 
+    /**
+     * Sets the value of a single element.
+     * @param row The row index
+     * @param col The column index
+     * @param value The value to assign to the element
+     */
     setElement: function(row, col, value)
     {
         this._m[row | (col << 2)] = value;
     },
 
+    /**
+     * Gets the given column from the matrix.
+     * @param {Number} index The index of the column
+     * @param {Float4} [target] An optional target. If omitted, a new object will be created.
+     */
     getColumn: function (index, target)
     {
         var m = this._m;
@@ -1005,6 +1203,11 @@ Matrix4x4.prototype =
         return target;
     },
 
+    /**
+     * Sets a column in the matrix.
+     * @param {Number} index The index of the column.
+     * @param {Float4} v The vector to assign to the column
+     */
     setColumn: function (index, v)
     {
         var m = this._m;
@@ -1016,9 +1219,10 @@ Matrix4x4.prototype =
     },
 
     /**
-     * @param target
-     * @param eye
-     * @param up Must be unit length
+     * Initializes as a "lookAt" matrix at the given eye position oriented toward a target
+     * @param {Float4} target The target position to look at.
+     * @param {Float4} eye The target position the matrix should "be" at
+     * @param {Float4} up The world-up vector. Must be unit length (usually Float4.Y_AXIS)
      */
     lookAt: function (target, eye, up)
     {
@@ -1062,7 +1266,7 @@ Matrix4x4.prototype =
     },
 
     /**
-     * Generates a matrix from a transform object
+     * Initializes as an affine transformation based on a transform object
      */
     compose: function(transform)
     {
@@ -1129,6 +1333,9 @@ Matrix4x4.prototype =
         return targetOrPos;
     },
 
+    /**
+     * Swaps two columns
+     */
     swapColums: function(i, j)
     {
         var m = this._m;
@@ -1149,6 +1356,9 @@ Matrix4x4.prototype =
         m[j | 3] = w;
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         var m = this._m;
@@ -1169,7 +1379,14 @@ Matrix4x4.prototype =
     }
 };
 
+/**
+ * Preset for the identity matrix
+ */
 Matrix4x4.IDENTITY = new Matrix4x4();
+
+/**
+ * Preset for the all-zero matrix
+ */
 Matrix4x4.ZERO = new Matrix4x4(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 export { Matrix4x4 };

@@ -10,6 +10,14 @@ import {Quaternion} from "../math/Quaternion";
 import {Scene} from "../scene/Scene";
 import {Skybox} from "../scene/Skybox";
 
+/**
+ * @classdesc
+ * DynamicLightProbe is a {@linkcode LightProbe} that is rendered from the scene dynamically.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DynamicLightProbe(textureSize, textureDataType, near, far)
 {
     // TODO: When collecting, make sure this light probe is NOT included!
@@ -71,6 +79,9 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
 
 DynamicLightProbe.prototype = Object.create(LightProbe.prototype);
 
+/**
+ * Triggers an update of the light probe.
+ */
 DynamicLightProbe.prototype.render = function()
 {
     var pos = this.worldMatrix.getColumn(3);

@@ -11,7 +11,7 @@ export {
 
 export {Float2} from './math/Float2';
 export {Float4} from './math/Float4';
-export {Gaussian, CenteredGaussianCurve} from './math/Gaussian';
+export {CenteredGaussianCurve} from './math/CenteredGaussianCurve';
 export {MathX} from './math/MathX';
 export {Matrix4x4} from './math/Matrix4x4';
 export {PlaneSide} from './math/PlaneSide';
@@ -36,7 +36,6 @@ export {KeyFrame} from './animation/KeyFrame';
 export {AnimationClip} from './animation/AnimationClip';
 export {AnimationPlayhead} from './animation/AnimationPlayhead';
 export {MorphAnimation} from './animation/morph/MorphAnimation';
-export {MorphData} from './animation/morph/MorphData';
 export {MorphPose} from './animation/morph/MorphPose';
 export {MorphTarget} from './animation/morph/MorphTarget';
 

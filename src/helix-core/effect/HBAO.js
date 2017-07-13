@@ -1,7 +1,3 @@
-/**
- * @param numSamples
- * @constructor
- */
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {EffectPass} from "./EffectPass";
 import {Texture2D} from "../texture/Texture2D";
@@ -13,6 +9,18 @@ import {GL} from "../core/GL";
 import {ArrayUtils} from "../utils/ArrayUtils";
 import {Color} from "../core/Color";
 
+/**
+ * @classdesc
+ * HBAO adds Horizon-Based Ambient Occlusion to the renderer.
+ *
+ * @constructor
+ * @param numRays The amount of rays to march over.
+ * @param numSamplesPerRay The samples per ray during a march.
+ *
+ * @see {@linkcode Renderer#ambientOcclusion}
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function HBAO(numRays, numSamplesPerRay)
 {
     numRays = numRays || 4;
@@ -58,17 +66,25 @@ function HBAO(numRays, numSamplesPerRay)
     this._backTexture.wrapMode = TextureWrapMode.CLAMP;
     this._fbo1 = new FrameBuffer(this._backTexture);
     this._fbo2 = new FrameBuffer(this._aoTexture);
-};
+}
 
 HBAO.prototype = Object.create(Effect.prototype);
 
-// every AO type should implement this
+/**
+ * Returns the texture containing the ambient occlusion values.
+ *
+ * @returns {Texture2D}
+ * @ignore
+ */
 HBAO.prototype.getAOTexture = function()
 {
     return this._aoTexture;
 };
 
 Object.defineProperties(HBAO.prototype, {
+    /**
+     * The sample radius in world space to search for occluders.
+     */
     sampleRadius: {
         get: function ()
         {
@@ -82,6 +98,9 @@ Object.defineProperties(HBAO.prototype, {
         }
     },
 
+    /**
+     * The maximum distance for occluders to still count.
+     */
     fallOffDistance: {
         get: function ()
         {
@@ -94,6 +113,9 @@ Object.defineProperties(HBAO.prototype, {
         }
     },
 
+    /**
+     * The strength of the ambient occlusion effect.
+     */
     strength: {
         get: function()
         {
@@ -106,6 +128,9 @@ Object.defineProperties(HBAO.prototype, {
         }
     },
 
+    /**
+     * The angle bias to prevent some artifacts.
+     */
     bias: {
         get: function()
         {
@@ -118,12 +143,18 @@ Object.defineProperties(HBAO.prototype, {
         }
     },
 
+    /**
+     * The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
+     */
     scale: {
         get: function() { return this._scale; },
         set: function(value) { this._scale = value; }
     }
 });
 
+/**
+ * @ignore
+ */
 HBAO.prototype.draw = function(dt)
 {
     var w = this._renderer._width * this._scale;
@@ -149,6 +180,10 @@ HBAO.prototype.draw = function(dt)
     GL.setClearColor(Color.BLACK);
 };
 
+/**
+ * @ignore
+ * @private
+ */
 HBAO.prototype._initSampleDirTexture = function()
 {
     this._sampleDirTexture = new Texture2D();
@@ -172,6 +207,10 @@ HBAO.prototype._initSampleDirTexture = function()
     this._sampleDirTexture.wrapMode = TextureWrapMode.REPEAT;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 HBAO.prototype._initDitherTexture = function()
 {
     this._ditherTexture = new Texture2D();

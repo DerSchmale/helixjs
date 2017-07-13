@@ -1,5 +1,23 @@
 import {Primitive} from "./Primitive";
 
+/**
+ * @classdesc
+ * TorusPrimitive provides a primitive cylinder {@linkcode Model}.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of horizontal segments</li>
+ *     <li>numSegmentsH: The amount of vertical segments </li>
+ *     <li>radius: The radius of the torus</li>
+ *     <li>tubeRadius: The radius of the torus's tube</li>
+ *     <li>invert: Whether or not the faces should point inwards</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ *     <li>alignment: The axes along which to orient the torus. One of {@linkcode TorusPrimitive.ALIGN_XZ}, {@linkcode TorusPrimitive.ALIGN_XY}, {@linkcode TorusPrimitive.ALIGN_YZ}</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function TorusPrimitive(definition)
 {
     Primitive.call(this, definition);

@@ -16,6 +16,14 @@ import {GBuffer} from "./GBuffer";
 import {BlendState} from "./BlendState";
 import {DeferredAmbientShader} from "../light/shaders/DeferredAmbientShader";
 
+/**
+ * @classdesc
+ * Renderer performs the actual rendering of a {@linkcode Scene} as viewed by a {@linkcode Camera} to the screen.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Renderer()
 {
     this._width = 0;
@@ -44,6 +52,10 @@ function Renderer()
     this._renderAmbientShader = new DeferredAmbientShader();
 }
 
+/**
+ * A collection of debug render modes to inspect some steps in the render pipeline.
+ * @enum
+ */
 Renderer.DebugRenderMode = {
     NONE: 0,
     SSAO: 1,
@@ -54,6 +66,9 @@ Renderer.DebugRenderMode = {
     LIGHT_ACCUMULATION: 5
 };
 
+/**
+ * @ignore
+ */
 Renderer.HDRBuffers = function(depthBuffer)
 {
     this.texture = new Texture2D();
@@ -65,13 +80,6 @@ Renderer.HDRBuffers = function(depthBuffer)
 
 Renderer.HDRBuffers.prototype =
 {
-    dispose: function()
-    {
-        this.texture.dispose();
-        this.fbo.dispose();
-        this.fboDepth.dispose();
-    },
-
     resize: function(width, height)
     {
         this.texture.initEmpty(width, height, TextureFormat.RGBA, capabilities.HDR_FORMAT);
@@ -82,6 +90,9 @@ Renderer.HDRBuffers.prototype =
 
 Renderer.prototype =
 {
+    /**
+     * One of {Renderer.DebugRenderMode}
+     */
     get debugMode()
     {
         return this._debugMode;
@@ -92,6 +103,9 @@ Renderer.prototype =
         this._debugMode = value;
     },
 
+    /**
+     * The background {@linkcode Color}.
+     */
     get backgroundColor()
     {
         return this._backgroundColor;
@@ -102,6 +116,9 @@ Renderer.prototype =
         this._backgroundColor = new Color(value);
     },
 
+    /**
+     * Allows up- or downscaling the render pipeline's resolution.
+     */
     get scale()
     {
         return this._scale;
@@ -112,11 +129,19 @@ Renderer.prototype =
         this._scale = value;
     },
 
+    /**
+     * The Camera currently being used for rendering.
+     */
     get camera()
     {
         return this._camera;
     },
 
+    /**
+     * Allows applying ambient occlusion ({@linkcode SSAO} or {@linkcode HBAO}) to the scene. Objects using the deferred
+     * path (ie: non-blended using default lighting mode), always have it applied. Others need to have {@linkcode Material.ssao}
+     * set to true.
+     */
     get ambientOcclusion()
     {
         return this._aoEffect;
@@ -140,11 +165,12 @@ Renderer.prototype =
     },*/
 
     /**
+     * Renders the scene through a camera.
      * It's not recommended changing render targets if they have different sizes (so splitscreen should be fine). Otherwise, use different renderer instances.
-     * @param camera
-     * @param scene
-     * @param dt
-     * @param renderTarget (optional)
+     * @param camera The {@linkcode Camera} from which to view the scene.
+     * @param scene The {@linkcode Scene} to render.
+     * @param dt The milliseconds passed since last frame.
+     * @param [renderTarget] An optional {@linkcode FrameBuffer} object to render to.
      */
     render: function (camera, scene, dt, renderTarget)
     {
@@ -196,6 +222,10 @@ Renderer.prototype =
         GL.setDepthMask(true);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderForwardLit: function(list)
     {
         var lights = this._renderCollector.getLights();
@@ -226,6 +256,10 @@ Renderer.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderLightPassIfIntersects: function(light, passType, renderList)
     {
         var lightBound = light.worldBounds;
@@ -246,6 +280,10 @@ Renderer.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderGBuffer: function(list)
     {
         if (this._renderCollector.needsGBuffer) {
@@ -270,6 +308,10 @@ Renderer.prototype =
         GL.setClearColor(Color.BLACK);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderGBufferPlane: function(list, plane, passType, clearColor)
     {
         GL.setRenderTarget(this._gbuffer.fbos[plane]);
@@ -279,6 +321,10 @@ Renderer.prototype =
         this._renderPass(passType, list);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderDeferredLighting: function()
     {
         if (!this._renderCollector._needsGBuffer) return;
@@ -304,6 +350,10 @@ Renderer.prototype =
         GL.setBlendState();
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderAO: function()
     {
         if (this._aoEffect) {
@@ -312,6 +362,10 @@ Renderer.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderShadowCasters: function ()
     {
         var casters = this._renderCollector._shadowCasters;
@@ -321,17 +375,29 @@ Renderer.prototype =
             casters[i].render(this._camera, this._scene)
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderEffect: function (effect, dt)
     {
         this._gammaApplied = this._gammaApplied || effect._outputsGamma;
         effect.render(this, dt);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderPass: function (passType, renderItems, data)
     {
         RenderUtils.renderPass(this, passType, renderItems, data);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderToScreen: function (renderTarget)
     {
         GL.setRenderTarget(renderTarget);
@@ -369,6 +435,10 @@ Renderer.prototype =
             this._applyGamma.execute(RectMesh.DEFAULT, this._hdrBack.texture);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderEffects: function (dt)
     {
         var effects = this._renderCollector._effects;
@@ -385,6 +455,10 @@ Renderer.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _updateSize: function (renderTarget)
     {
         var width, height;
@@ -406,7 +480,9 @@ Renderer.prototype =
         }
     },
 
-    // allows effects to ping pong on the renderer's own buffers
+    /**
+     * @ignore
+     */
     _swapHDRFrontAndBack: function()
     {
         var tmp = this._hdrBack;
@@ -414,6 +490,10 @@ Renderer.prototype =
         this._hdrFront = tmp;
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _createDepthBuffer: function()
     {
         /*if (HX.EXT_DEPTH_TEXTURE) {
@@ -425,6 +505,10 @@ Renderer.prototype =
             return new WriteOnlyDepthBuffer();
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _createDummySSAOTexture: function()
     {
         var data = new Uint8Array([0xff, 0xff, 0xff, 0xff]);
@@ -434,6 +518,10 @@ Renderer.prototype =
         return tex;
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _copyToBackBuffer: function()
     {
         GL.setRenderTarget(this._hdrBack.fbo);

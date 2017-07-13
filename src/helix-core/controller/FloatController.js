@@ -4,16 +4,19 @@ import {META} from "../Helix";
 
 
 /**
+ * @classdesc
+ * FloatController is a {@linkcode Component} that allows moving an object (usually a camera) using mouse and keyboard (typical WASD controls) in all directions.
+ * It uses gimbal free pitch/yaw/roll controls.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FloatController()
 {
     Component.call(this);
     this._speed = 1.0;
     this._speedMultiplier = 2.0;
-    this._torquePitch = 0.0;
-    this._torqueYaw = 0.0;
     this._localVelocity = new Float4(0, 0, 0, 0);
     this._localAcceleration = new Float4(0, 0, 0, 0);
     this._pitch = 0.0;
@@ -21,7 +24,6 @@ function FloatController()
     this._mouseX = 0;
     this._mouseY = 0;
 
-    this._torque = 1.0;    // m/s^2
     this._friction = 5.0;    // 1/s
 
     this._maxAcceleration = this._speed;    // m/s^2
@@ -32,6 +34,9 @@ function FloatController()
 }
 
 FloatController.prototype = Object.create(Component.prototype, {
+    /**
+     * The speed at which to move.
+     */
     speed: {
         get: function()
         {
@@ -46,6 +51,9 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
+    /**
+     * A speed-up factor for when the shift key is pressed.
+     */
     shiftMultiplier: {
         get: function()
         {
@@ -58,6 +66,9 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
+    /**
+     * The current orientation pitch (rotation about the X axis).
+     */
     pitch: {
         get: function()
         {
@@ -70,6 +81,9 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
+    /**
+     * The current orientation yaw (rotation about the Y axis).
+     */
     yaw: {
         get: function()
         {
@@ -82,6 +96,9 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
+    /**
+     * The current orientation roll (rotation around the Z axis)
+     */
     roll: {
         get: function()
         {
@@ -94,18 +111,9 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
-    torque: {
-        get: function()
-        {
-            return this._torque;
-        },
-
-        set: function(value)
-        {
-            this._torque = value;
-        }
-    },
-
+    /**
+     * The amount of friction that will cause the movement to stop when there's no input.
+     */
     friction: {
         get: function()
         {
@@ -119,6 +127,9 @@ FloatController.prototype = Object.create(Component.prototype, {
     }
 });
 
+/**
+ * @ignore
+ */
 FloatController.prototype.onAdded = function(dt)
 {
     var self = this;
@@ -197,6 +208,9 @@ FloatController.prototype.onAdded = function(dt)
     META.TARGET_CANVAS.addEventListener("mouseup", this._onMouseUp);
 };
 
+/**
+ * @ignore
+ */
 FloatController.prototype.onRemoved = function(dt)
 {
     document.removeEventListener("keydown", this._onKeyDown);
@@ -206,6 +220,9 @@ FloatController.prototype.onRemoved = function(dt)
     META.TARGET_CANVAS.removeEventListener("mouseup", this._onMouseUp);
 };
 
+/**
+ * @ignore
+ */
 FloatController.prototype.onUpdate = function(dt)
 {
     var seconds = dt * .001;
@@ -219,9 +236,6 @@ FloatController.prototype.onUpdate = function(dt)
     var absVelocity = this._localVelocity.length;
     if (absVelocity > this._maxVelocity)
         this._localVelocity.scale(this._maxVelocity/absVelocity);
-
-    this._pitch += this._torquePitch;
-    this._yaw += this._torqueYaw;
 
     if (this._pitch < -Math.PI*.5) this._pitch = -Math.PI*.5;
     else if (this._pitch > Math.PI*.5) this._pitch = Math.PI*.5;
@@ -238,32 +252,33 @@ FloatController.prototype.onUpdate = function(dt)
     this.entity.matrix = matrix;
 };
 
-// ratio is "how far the controller is pushed", from -1 to 1
+/**
+ * @ignore
+ */
 FloatController.prototype._setForwardForce = function(ratio)
 {
     this._localAcceleration.z = ratio * this._maxAcceleration;
 };
 
+/**
+ * @ignore
+ */
 FloatController.prototype._setStrideForce = function(ratio)
 {
     this._localAcceleration.x = ratio * this._maxAcceleration;
 };
 
-FloatController.prototype._setTorquePitch = function(ratio)
-{
-    this._torquePitch = ratio * this._torque;
-};
-
-FloatController.prototype._setTorqueYaw = function(ratio)
-{
-    this._torqueYaw = ratio * this._torque;
-};
-
+/**
+ * @ignore
+ */
 FloatController.prototype._addPitch = function(value)
 {
     this._pitch += value;
 };
 
+/**
+ * @ignore
+ */
 FloatController.prototype._addYaw = function(value)
 {
     this._yaw += value;

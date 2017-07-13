@@ -7,6 +7,9 @@
 /**
  * ShaderLibrary is an object that will store shader code processed by the build process: contents of glsl files stored
  * in the glsl folder will be stored here and can be retrieved using their original filename.
+ *
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
  */
 var ShaderLibrary = {
     _files: {},
@@ -140,18 +143,6 @@ ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_G
 
 ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
-ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
-
-ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
-
-ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
-
-ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
 ShaderLibrary._files['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
 
 ShaderLibrary._files['dir_shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
@@ -163,6 +154,18 @@ ShaderLibrary._files['dir_shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadow
 ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	gl_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
 ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n	gl_FragColor.xy = hx_floatToRG8(total.x);\n	gl_FragColor.zw = hx_floatToRG8(total.y);\n}';
+
+ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
+
+ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
+
+ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
+
+ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(normal.z*8.0 + 8.0);\n    data = normal.xy / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xy = data.xy * g;\n    normal.z = 1.0 - f * .5;\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_BONES 1.0 / float(HX_MAX_BONES - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_BONES;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_boneWeights, hx_boneIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_boneWeights.x * mat4(hx_skinningMatrices[int(hx_boneIndices.x) * 3], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.y * mat4(hx_skinningMatrices[int(hx_boneIndices.y) * 3], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.z * mat4(hx_skinningMatrices[int(hx_boneIndices.z) * 3], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.w * mat4(hx_skinningMatrices[int(hx_boneIndices.w) * 3], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
 
@@ -188,7 +191,15 @@ ShaderLibrary._files['hbao_vertex.glsl'] = 'attribute vec4 hx_position;\nattribu
 
 ShaderLibrary._files['ssao_fragment.glsl'] = 'uniform mat4 hx_projectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\n\nuniform vec2 ditherScale;\nuniform float strengthPerSample;\nuniform float rcpFallOffDistance;\nuniform float sampleRadius;\nuniform vec3 samples[NUM_SAMPLES]; // w contains bias\n\nuniform sampler2D ditherTexture;\nuniform sampler2D hx_gbufferNormalDepth;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_gbufferNormalDepth, uv);\n    vec3 centerNormal = hx_decodeNormal(normalDepth);\n    float centerDepth = hx_decodeLinearDepth(normalDepth);\n    float totalOcclusion = 0.0;\n    vec3 dither = texture2D(ditherTexture, uv * ditherScale).xyz;\n    vec3 randomPlaneNormal = normalize(dither - .5);\n    float w = centerDepth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;\n    vec3 sampleRadii;\n    sampleRadii.xy = sampleRadius * .5 / w * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1]);\n    sampleRadii.z = sampleRadius;\n\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        vec3 sampleOffset = reflect(samples[i], randomPlaneNormal);\n        vec3 normOffset = normalize(sampleOffset);\n        float cosFactor = dot(normOffset, centerNormal);\n        float sign = sign(cosFactor);\n        sampleOffset *= sign;\n        cosFactor *= sign;\n\n        vec3 scaledOffset = sampleOffset * sampleRadii;\n\n        vec2 samplePos = uv + scaledOffset.xy;\n        normalDepth = texture2D(hx_gbufferNormalDepth, samplePos);\n        float occluderDepth = hx_decodeLinearDepth(normalDepth);\n        float diffZ = (centerDepth - occluderDepth) * hx_cameraFrustumRange;\n\n        // distanceFactor: from 1 to 0, near to far\n        float distanceFactor = clamp(diffZ * rcpFallOffDistance, 0.0, 1.0);\n        distanceFactor = 1.0 - distanceFactor;\n\n        // sampleOcclusion: 1 if occluding, 0 otherwise\n        float sampleOcclusion = float(diffZ > scaledOffset.z);\n        totalOcclusion += sampleOcclusion * distanceFactor * cosFactor;\n    }\n    gl_FragColor = vec4(vec3(1.0 - totalOcclusion * strengthPerSample), 1.0);\n}';
 
+/**
+ * Some utilities for Arrays.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var ArrayUtils = {
+    /**
+     * Randomizes the order of the elements in the array.
+     */
     shuffle: function(array)
     {
         var currentIndex = array.length, temporaryValue, randomIndex;
@@ -211,18 +222,54 @@ var ArrayUtils = {
 };
 
 /**
- * Hexadecimal representations are always 0xAARRGGBB
- * @param rOrHex
- * @param g
- * @param b
- * @param a
+ * @classdesc
+ * Color is an object representing an RGBA color. It can contain HDR values (> 1).
+ *
+ * @param rOrHex The red component of the colour or a hexadecimal representation of the entire colour.
+ * @param g The green component of the colour or omitted in favor of the hexadecimal representation.
+ * @param b The blue component of the colour or omitted in favor of the hexadecimal representation.
+ * @param a The alpha component of the colour or omitted in favor of the hexadecimal representation.
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Color(rOrHex, g, b, a)
 {
+    /**
+     * The green component of the colour.
+     * @type {number}
+     */
+    this.r = 0.0;
+
+    /**
+     * The green component of the colour.
+     * @type {number}
+     */
+    this.g = 0.0;
+
+    /**
+     * The blue component of the colour.
+     * @type {number}
+     */
+    this.b = 0.0;
+
+    /**
+     * The alpha component of the colour.
+     * @type {number}
+     */
+    this.a = 1.0;
     this.set(rOrHex, g, b, a);
 }
 
+/**
+ * Linearly interpolates between two Colors.
+ * @param {Color} a The first color to interpolate from.
+ * @param {Color} b The second color to interpolate to.
+ * @param {Number} t The interpolation factor.
+ * @param {Color} [target] An optional target color. If not provided, a new Color object will be created and returned.
+ * @returns {Color} The interpolated color.
+ */
 Color.lerp = function(a, b, t, target)
 {
     target = target || new Color();
@@ -237,6 +284,13 @@ Color.lerp = function(a, b, t, target)
 
 Color.prototype =
 {
+    /**
+     * Sets the color values directly.
+     * @param rOrHex The red component of the colour or a hexadecimal representation of the entire colour.
+     * @param g The green component of the colour or omitted in favor of the hexadecimal representation.
+     * @param b The blue component of the colour or omitted in favor of the hexadecimal representation.
+     * @param a The alpha component of the colour or omitted in favor of the hexadecimal representation.
+     */
     set: function (rOrHex, g, b, a)
     {
         if (rOrHex === undefined) {
@@ -259,6 +313,9 @@ Color.prototype =
         }
     },
 
+    /**
+     * Scales all components (except alpha).
+     */
     scale: function(s)
     {
         this.r *= s;
@@ -266,7 +323,9 @@ Color.prototype =
         this.b *= s;
     },
 
-
+    /**
+     * Returns a numerical representation of the entire colour. Only works for non-HDR color values.
+     */
     hex: function ()
     {
         var r = (Math.min(this.r, 1.0) * 0xff);
@@ -276,11 +335,21 @@ Color.prototype =
         return (r << 16) | (g << 8) | b;
     },
 
+    /**
+     * Returns the luminance value of the color.
+     */
     luminance: function ()
     {
         return this.r * .30 + this.g * 0.59 + this.b * .11;
     },
 
+    /**
+     * Converts the color from gamma space to linear space.
+     * @param [target] An optional target Color. If not provided, a new Color object will be created and returned.
+     * @returns {Color} The Color in linear space.
+     *
+     * @see {@link http://www.kinematicsoup.com/news/2016/6/15/gamma-and-linear-space-what-they-are-how-they-differ}
+     */
     gammaToLinear: function (target)
     {
         target = target || new Color();
@@ -300,6 +369,13 @@ Color.prototype =
         return target;
     },
 
+    /**
+     * Converts the color from linear space to gamma space.
+     * @param [target] An optional target Color. If not provided, a new Color object will be created and returned.
+     * @returns {Color} The Color in linear space.
+     *
+     * @see {@link http://www.kinematicsoup.com/news/2016/6/15/gamma-and-linear-space-what-they-are-how-they-differ}
+     */
     linearToGamma: function (target)
     {
         target = target || new Color();
@@ -319,6 +395,9 @@ Color.prototype =
         return target;
     },
 
+    /**
+     * Copies the values from another Color object.
+     */
     copyFrom: function (color)
     {
         this.r = color.r;
@@ -327,11 +406,17 @@ Color.prototype =
         this.a = color.a;
     },
 
+    /**
+     * @ignore
+     */
     toString: function ()
     {
         return "Color(" + this.r + ", " + this.g + ", " + this.b + ", " + this.a + ")";
     },
 
+    /**
+     * Returns a copy of this Color.
+     */
     clone: function ()
     {
         var color = new Color();
@@ -343,20 +428,55 @@ Color.prototype =
     }
 };
 
+/**
+ * Preset for black with alpha 1
+ */
 Color.BLACK = new Color(0, 0, 0, 1);
+/**
+ * Preset for black with alpha 0
+ */
 Color.ZERO = new Color(0, 0, 0, 0);
+/**
+ * Preset for red
+ */
 Color.RED = new Color(1, 0, 0, 1);
+/**
+ * Preset for green
+ */
 Color.GREEN = new Color(0, 1, 0, 1);
+/**
+ * Preset for blue
+ */
 Color.BLUE = new Color(0, 0, 1, 1);
+/**
+ * Preset for yellow
+ */
 Color.YELLOW = new Color(1, 1, 0, 1);
+/**
+ * Preset for magenta
+ */
 Color.MAGENTA = new Color(1, 0, 1, 1);
+/**
+ * Preset for cyan
+ */
 Color.CYAN = new Color(0, 1, 1, 1);
+/**
+ * Preset for white
+ */
 Color.WHITE = new Color(1, 1, 1, 1);
 
 /**
- * Creates a new Float4 object, which can be used as a vector (w = 0), a point (w = 1) or a homogeneous coordinate.
- * @class
+ * @classdesc
+ * Float4 is a class describing 4-dimensional homogeneous points. These can represent points (w == 1), vectors (w == 0),
+ * points in homogeneous projective space, or planes (a, b, c = x, y, z), (w = d).
+ *
  * @constructor
+ * @param x The x-coordinate
+ * @param y The y-coordinate
+ * @param z The z-coordinate
+ * @param w The w-coordinate
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Float4(x, y, z, w)
 {
@@ -369,23 +489,42 @@ function Float4(x, y, z, w)
 
 
 /**
- * Returns the angle between two vectors
+ * Returns the angle between two vectors.
  */
 Float4.angle = function(a, b)
 {
     return Math.acos(Float4.dot3(a, b) / (a.length * b.length));
 };
 
-Float4.dot = Float4.dot3 = function(a, b)
+/**
+ * Returns the 3-component dot product of 2 vectors.
+ */
+Float4.dot3 = function(a, b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 };
 
+/**
+ * Returns the 3-component dot product of 2 vectors.
+ */
+Float4.dot = Float4.dot3;
+
+/**
+ * Returns the 4-component dot product of 2 vectors. This can be useful for signed distances to a plane.
+ */
 Float4.dot4 = function(a, b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 };
 
+/**
+ * Linearly interpolates two vectors.
+ * @param {Float4} a The first vector to interpolate from.
+ * @param {Float4} b The second vector to interpolate to.
+ * @param {Number} t The interpolation factor.
+ * @param {Float4} target An optional target object. If not provided, a new object will be created and returned.
+ * @returns {Float4} The interpolated value.
+ */
 Float4.lerp = function(a, b, factor, target)
 {
     target = target || new Float4();
@@ -398,6 +537,9 @@ Float4.lerp = function(a, b, factor, target)
     return target;
 };
 
+/**
+ * Returns the distance between two points.
+ */
 Float4.distance = function(a, b)
 {
     var dx = a.x - b.x;
@@ -406,6 +548,9 @@ Float4.distance = function(a, b)
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
 };
 
+/**
+ * Returns the squared distance between two points.
+ */
 Float4.distanceSqr = function(a, b)
 {
     var dx = a.x - b.x;
@@ -414,6 +559,12 @@ Float4.distanceSqr = function(a, b)
     return dx * dx + dy * dy + dz * dz;
 };
 
+/**
+ * Creates a negated vector.
+ * @param a The vector to negate.
+ * @param target An optional target object. If not provided, a new object will be created and returned.
+ * @returns -a
+ */
 Float4.negate = function(a, target)
 {
     target = target || new Float4();
@@ -425,13 +576,21 @@ Float4.negate = function(a, target)
 };
 
 /**
- * Returns the angle between two vectors, assuming they are normalized
+ * Returns the angle between two vectors, assuming they are normalized.
  */
 Float4.angleNormalized = function(a, b)
 {
     return Math.acos(Float4.dot3(a, b));
 };
 
+/**
+ * Adds 2 vectors.
+ *
+ * @param a
+ * @param b
+ * @param [target] An optional target object. If omitted, a new object will be created.
+ * @returns The sum of a and b.
+ */
 Float4.add = function(a, b, target)
 {
     target = target || new Float4();
@@ -442,6 +601,14 @@ Float4.add = function(a, b, target)
     return target;
 };
 
+/**
+ * Subtracts 2 vectors.
+ *
+ * @param a
+ * @param b
+ * @param [target] An optional target object. If omitted, a new object will be created.
+ * @returns The difference of a and b.
+ */
 Float4.subtract = function(a, b, target)
 {
     target = target || new Float4();
@@ -452,6 +619,14 @@ Float4.subtract = function(a, b, target)
     return target;
 };
 
+/**
+ * Multiplies a vector with a scalar. The w-coordinate is not scaled, since that's generally not what is desired.
+ *
+ * @param a
+ * @param s
+ * @param [target] An optional target object. If omitted, a new object will be created.
+ * @returns The product of a * s
+ */
 Float4.scale = function(a, s, target)
 {
     target = target || new Float4();
@@ -461,6 +636,13 @@ Float4.scale = function(a, s, target)
     return target;
 };
 
+/**
+ * Multiplies a vector with a scalar, including the w-coordinate.
+ * @param a
+ * @param s
+ * @param [target] An optional target object. If omitted, a new object will be created.
+ * @returns The product of a * s
+ */
 Float4.scale4 = function(a, s, target)
 {
     target = target || new Float4();
@@ -471,6 +653,13 @@ Float4.scale4 = function(a, s, target)
     return target;
 };
 
+/**
+ * Returns the 3-component dot product of 2 vectors.
+ * @param a
+ * @param b
+ * @param [target] An optional target object. If omitted, a new object will be created.
+ * @returns The product of a x b
+ */
 Float4.cross = function(a, b, target)
 {
     target = target || new Float4();
@@ -486,6 +675,9 @@ Float4.cross = function(a, b, target)
 
 Float4.prototype =
 {
+    /**
+     * Sets the components explicitly.
+     */
     set: function(x, y, z, w)
     {
         this.x = x;
@@ -494,16 +686,25 @@ Float4.prototype =
         this.w = w === undefined? this.w : w;
     },
 
+    /**
+     * The squared length of the vector.
+     */
     get lengthSqr()
     {
         return this.x * this.x + this.y * this.y + this.z * this.z;
     },
 
+    /**
+     * The length of the vector.
+     */
     get length()
     {
         return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
     },
 
+    /**
+     * Normalizes the vector.
+     */
     normalize: function()
     {
         var rcpLength = 1.0/this.length;
@@ -512,6 +713,9 @@ Float4.prototype =
         this.z *= rcpLength;
     },
 
+    /**
+     * Normalizes the vector as if it were a plane.
+     */
     normalizeAsPlane: function()
     {
         var rcpLength = 1.0/this.length;
@@ -521,11 +725,17 @@ Float4.prototype =
         this.w *= rcpLength;
     },
 
+    /**
+     * Returns a copy of this object.
+     */
     clone: function()
     {
         return new Float4(this.x, this.y, this.z, this.w);
     },
 
+    /**
+     * Adds a vector to this one in place.
+     */
     add: function(v)
     {
         this.x += v.x;
@@ -534,6 +744,11 @@ Float4.prototype =
         this.w += v.w;
     },
 
+    /**
+     * Adds a scalar multiple of another vector in place.
+     * @param v The vector to scale and add.
+     * @param s The scale to apply to v
+     */
     addScaled: function(v, s)
     {
         this.x += v.x * s;
@@ -542,6 +757,9 @@ Float4.prototype =
         this.w += v.w * s;
     },
 
+    /**
+     * Subtracts a vector from this one in place.
+     */
     subtract: function(v)
     {
         this.x -= v.x;
@@ -550,6 +768,9 @@ Float4.prototype =
         this.w -= v.w;
     },
 
+    /**
+     * Multiplies the components of this vector with a scalar, except the w-component.
+     */
     scale: function(s)
     {
         this.x *= s;
@@ -558,6 +779,9 @@ Float4.prototype =
         //this.w *= s;
     },
 
+    /**
+     * Multiplies the components of this vector with a scalar, including the w-component.
+     */
     scale4: function(s)
     {
         this.x *= s;
@@ -566,6 +790,9 @@ Float4.prototype =
         this.w *= s;
     },
 
+    /**
+     * Negates the components of this vector.
+     */
     negate: function()
     {
         this.x = -this.x;
@@ -575,7 +802,7 @@ Float4.prototype =
     },
 
     /**
-     * Project to carthesian 3D space by dividing by w
+     * Project a point in homogeneous projective space to carthesian 3D space by dividing by w
      */
     homogeneousProject: function()
     {
@@ -586,6 +813,9 @@ Float4.prototype =
         this.w = 1.0;
     },
 
+    /**
+     * Sets the components of this vector to their absolute values.
+     */
     abs: function()
     {
         this.x = Math.abs(this.x);
@@ -594,6 +824,12 @@ Float4.prototype =
         this.w = Math.abs(this.w);
     },
 
+    /**
+     * Sets the euclidian coordinates based on spherical coordinates
+     * @param radius The radius coordinate
+     * @param azimuthalAngle The azimuthal coordinate
+     * @param polarAngle The polar coordinate
+     */
     fromSphericalCoordinates: function(radius, azimuthalAngle, polarAngle)
     {
         this.x = radius*Math.sin(polarAngle)*Math.cos(azimuthalAngle);
@@ -602,6 +838,9 @@ Float4.prototype =
         this.w = 0.0;
     },
 
+    /**
+     * Copies the values from a different Float4
+     */
     copyFrom: function(b)
     {
         this.x = b.x;
@@ -610,6 +849,9 @@ Float4.prototype =
         this.w = b.w;
     },
 
+    /**
+     * Replaces the components' values if those of the other Float2 are higher, respectively
+     */
     maximize: function(b)
     {
         if (b.x > this.x) this.x = b.x;
@@ -618,6 +860,9 @@ Float4.prototype =
         if (b.w > this.w) this.w = b.w;
     },
 
+    /**
+     * Replaces the components' values if those of the other Float2 are higher, respectively. Excludes the w-component.
+     */
     maximize3: function(b)
     {
         if (b.x > this.x) this.x = b.x;
@@ -625,6 +870,9 @@ Float4.prototype =
         if (b.z > this.z) this.z = b.z;
     },
 
+    /**
+     * Replaces the components' values if those of the other Float2 are lower, respectively
+     */
     minimize: function(b)
     {
         if (b.x < this.x) this.x = b.x;
@@ -633,6 +881,9 @@ Float4.prototype =
         if (b.w < this.w) this.w = b.w;
     },
 
+    /**
+     * Replaces the components' values if those of the other Float2 are lower, respectively. Excludes the w-component.
+     */
     minimize3: function(b)
     {
         if (b.x < this.x) this.x = b.x;
@@ -640,6 +891,11 @@ Float4.prototype =
         if (b.z < this.z) this.z = b.z;
     },
 
+    /**
+     * Generates a plane representation from the normal vector and a point contained in the plane.
+     * @param normal The vector normal to the plane.
+     * @param point A point contained in the plane.
+     */
     planeFromNormalAndPoint: function(normal, point)
     {
         var nx = normal.x, ny = normal.y, nz = normal.z;
@@ -649,40 +905,87 @@ Float4.prototype =
         this.w = -(point.x * nx + point.y * ny + point.z * nz);
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "Float4(" + this.x + ", " + this.y + ", " + this.z + ", " + this.w + ")";
     }
 };
 
+/**
+ * A preset for the origin point (w = 1)
+ */
 Float4.ORIGIN_POINT = new Float4(0, 0, 0, 1);
+
+/**
+ * A preset for the zero vector (w = 0)
+ */
 Float4.ZERO = new Float4(0, 0, 0, 0);
+
+/**
+ * A preset for the X-axis
+ */
 Float4.X_AXIS = new Float4(1, 0, 0, 0);
+
+/**
+ * A preset for the Y-axis
+ */
 Float4.Y_AXIS = new Float4(0, 1, 0, 0);
+
+/**
+ * A preset for the Z-axis
+ */
 Float4.Z_AXIS = new Float4(0, 0, 1, 0);
 
 var RCP_LOG_OF_2 = 1.0 / Math.log(2);
 
+/**
+ * Some extra Math functionality for your enjoyment.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var MathX = {
+    /**
+     * The factor to convert degrees to radians.
+     */
     DEG_TO_RAD: Math.PI / 180.0,
+
+    /**
+     * The factor to convert radians to degrees.
+     */
     RAD_TO_DEG: 180.0 / Math.PI,
 
+    /**
+     * Returns the sign of a given value.
+     * @returns {number} -1 if v < 0, 0 if v == 0, 1 if v > 1
+     */
     sign: function(v)
     {
         return  v === 0.0? 0.0 :
             v > 0.0? 1.0 : -1.0;
     },
 
+    /**
+     * Verifies whether the value is a power of 2.
+     */
     isPowerOfTwo: function(value)
     {
         return value? ((value & -value) === value) : false;
     },
 
+    /**
+     * Return the base-2 logarithm.
+     */
     log2: function(value)
     {
         return Math.log(value) * RCP_LOG_OF_2;
     },
 
+    /**
+     * Clamps a value to a minimum and maximum.
+     */
     clamp: function(value, min, max)
     {
         return  value < min?    min :
@@ -690,22 +993,54 @@ var MathX = {
                 value;
     },
 
+    /**
+     * Clamps a value to 0 and 1
+     */
     saturate: function(value)
     {
         return MathX.clamp(value, 0.0, 1.0);
     },
 
+    /**
+     * Linearly interpolates a number.
+     */
     lerp: function(a, b, factor)
     {
         return a + (b - a) * factor;
     },
 
+    /**
+     * Returns 0 if x < lower, 1 if x > lower, and linearly interpolates in between.
+     */
     linearStep: function(lower, upper, x)
     {
         return MathX.saturate((x - lower) / (upper - lower));
+    },
+
+    /**
+     * Estimates the radius of a gaussian curve.
+     * @param variance The variance of the gaussian curve.
+     * @param epsilon The minimum value of the curve to still be considered within the radius.
+     */
+    estimateGaussianRadius: function (variance, epsilon)
+    {
+        return Math.sqrt(-2.0 * variance * Math.log(epsilon));
     }
 };
 
+/*
+ * TODO: There is some API cleaning up to do here
+ * - move multiply(a, b) to static
+ */
+
+/**
+ * @classdesc
+ * Quaternion is a class to represent (in our case) rotations.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Quaternion()
 {
     // x, y, z, w allowed to be accessed publicly for simplicity, changing this does not violate invariant. Ever.
@@ -715,6 +1050,9 @@ function Quaternion()
     this.w = 1;
 }
 
+/**
+ * Returns the conjugate of the given quaternion.
+ */
 Quaternion.conjugate = function(q, target)
 {
     target = target || new Quaternion();
@@ -725,6 +1063,9 @@ Quaternion.conjugate = function(q, target)
     return target;
 };
 
+/**
+ * Returns the inverse of the given quaternion.
+ */
 Quaternion.invert = function (q, target)
 {
     target = target || new Quaternion();
@@ -737,6 +1078,14 @@ Quaternion.invert = function (q, target)
     return target;
 };
 
+/**
+ * Linearly interpolates two quaternions.
+ * @param {Quaternion} a The first vector to interpolate from.
+ * @param {Quaternion} b The second vector to interpolate to.
+ * @param {Number} t The interpolation factor.
+ * @param {Quaternion} [target] An optional target object. If not provided, a new object will be created and returned.
+ * @returns {Quaternion} The interpolated value.
+ */
 Quaternion.lerp = function(a, b, factor, target)
 {
     target = target || new Quaternion();
@@ -759,6 +1108,14 @@ Quaternion.lerp = function(a, b, factor, target)
     this.normalize();
 };
 
+/**
+ * Spherical-linearly interpolates two quaternions.
+ * @param {Quaternion} a The first vector to interpolate from.
+ * @param {Quaternion} b The second vector to interpolate to.
+ * @param {Number} t The interpolation factor.
+ * @param {Quaternion} [target] An optional target object. If not provided, a new object will be created and returned.
+ * @returns {Quaternion} The interpolated value.
+ */
 Quaternion.slerp = function(a, b, factor, target)
 {
     target = target || new Quaternion();
@@ -805,6 +1162,9 @@ Quaternion.slerp = function(a, b, factor, target)
     return target;
 };
 
+/**
+ * Creates a new Quaternion representing an axis/angle rotation
+ */
 Quaternion.fromAxisAngle = function(axis, radians)
 {
     var quat = new Quaternion();
@@ -814,6 +1174,9 @@ Quaternion.fromAxisAngle = function(axis, radians)
 
 Quaternion.prototype =
 {
+    /**
+     * Initializes as an axis/angle rotation
+     */
     fromAxisAngle: function (axis, radians)
     {
         var halfAngle = radians * .5;
@@ -824,7 +1187,9 @@ Quaternion.prototype =
         this.w = Math.cos(halfAngle);
     },
 
-    // Tait-Bryan angles, not classic Euler, radians
+    /**
+     * Initializes from Tait-Bryan angles
+     */
     fromPitchYawRoll: function(pitch, yaw, roll)
     {
         var mtx = new Matrix4x4();
@@ -833,7 +1198,9 @@ Quaternion.prototype =
         this.fromMatrix(mtx);
     },
 
-    // X*Y*Z order (meaning z first), radians
+    /**
+     * Initializes from Euler angles
+     */
     fromEuler: function(x, y, z)
     {
         var cx = Math.cos(x * 0.5), cy = Math.cos(y * 0.5), cz = Math.cos(z * 0.5);
@@ -845,6 +1212,9 @@ Quaternion.prototype =
         this.w = cx*cy*cz - sx*sy*sz;
     },
 
+    /**
+     * Stores the rotation as Euler angles in a Float4 object
+     */
     toEuler: function(target)
     {
         target = target || new Float4();
@@ -859,6 +1229,9 @@ Quaternion.prototype =
         return target;
     },
 
+    /**
+     * Initializes from a rotation matrix
+     */
     fromMatrix: function(m)
     {
         var m00 = m._m[0];
@@ -907,6 +1280,11 @@ Quaternion.prototype =
         this.normalize();
     },
 
+    /**
+     * Rotates a Float4 point.
+     *
+     * @param {Float4} [target] An optional target object. If not provided, a new object will be created and returned.
+     */
     rotate: function(v, target)
     {
         target = target || new Float4();
@@ -927,7 +1305,9 @@ Quaternion.prototype =
         return target;
     },
 
-    // results in the same net rotation, but with different orientation
+    /**
+     * Negates all the components. This results in the same net rotation, but with different orientation
+     */
     negate: function()
     {
         this.x = -this.x;
@@ -936,6 +1316,9 @@ Quaternion.prototype =
         this.w = -this.w;
     },
 
+    /**
+     * Sets all components explicitly
+     */
     set: function(x, y, z, w)
     {
         this.x = x;
@@ -944,6 +1327,9 @@ Quaternion.prototype =
         this.w = w;
     },
 
+    /**
+     * Copies all components from another quaternion
+     */
     copyFrom: function(b)
     {
         this.x = b.x;
@@ -952,16 +1338,25 @@ Quaternion.prototype =
         this.w = b.w;
     },
 
+    /**
+     * Gets the quaternion's squared norm
+     */
     get normSquared()
     {
         return this.x*this.x + this.y*this.y + this.z*this.z + this.w*this.w;
     },
 
+    /**
+     * Gets the quaternion's norm
+     */
     get norm()
     {
         return Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z + this.w*this.w);
     },
 
+    /**
+     * Normalizes the quaternion.
+     */
     normalize : function()
     {
         var rcpNorm = 1.0/Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z + this.w*this.w);
@@ -971,6 +1366,9 @@ Quaternion.prototype =
         this.w *= rcpNorm;
     },
 
+    /**
+     * inverts the quaternion.
+     */
     invert: function ()
     {
         var x = this.x, y = this.y, z = this.z, w = this.w;
@@ -981,6 +1379,11 @@ Quaternion.prototype =
         this.w = w*rcpSqrNorm;
     },
 
+    /**
+     * Multiplies two quaternions and stores it in the current.
+     *
+     * @deprecated
+     */
     multiply: function(a, b)
     {
         var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
@@ -992,22 +1395,42 @@ Quaternion.prototype =
         this.w = w1*w2 - x1*x2 - y1*y2 - z1*z2;
     },
 
+    /**
+     * Post-multiplies another quaternion to this one.
+     */
     append: function(q)
     {
         this.multiply(q, this);
     },
 
+    /**
+     * Pre-multiplies another quaternion to this one.
+     */
     prepend: function(q)
     {
         this.multiply(this, q);
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "Quaternion(" + this.x + ", " + this.y + ", " + this.z + ", " + this.w + ")";
     }
 };
 
+/**
+ * @classdesc
+ * <p>Signal provides an implementation of the Observer pattern. Functions can be bound to the Signal, and they will be
+ * called when the Signal is dispatched. This implementation allows for keeping scope.</p>
+ * <p>When dispatch has an object passed to it, this is called the "payload" and will be passed as a parameter to the
+ * listener functions</p>
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Signal()
 {
     this._listeners = [];
@@ -1019,6 +1442,14 @@ function Signal()
  */
 Signal.prototype =
 {
+    /**
+     * Binds a function as a listener to the Signal
+     * @param listener A function to be called when the function is dispatched.
+     * @param [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
+     *
+     * @example
+     * signal.bind(this.methodFunction, this);
+     */
     bind: function(listener, thisRef)
     {
         this._lookUp[listener] = this._listeners.length;
@@ -1026,6 +1457,9 @@ Signal.prototype =
         this._listeners.push(callback);
     },
 
+    /**
+     * Removes a function as a listener.
+     */
     unbind: function(listener)
     {
         var index = this._lookUp[listener];
@@ -1033,6 +1467,10 @@ Signal.prototype =
         delete this._lookUp[listener];
     },
 
+    /**
+     * Dispatches the signal, causing all the listening functions to be called.
+     * @param [payload] An optional object to be passed in as a parameter to the listening functions. Can be used to provide data.
+     */
     dispatch: function(payload)
     {
         var len = this._listeners.length;
@@ -1040,6 +1478,9 @@ Signal.prototype =
             this._listeners[i](payload);
     },
 
+    /**
+     * Returns whether there are any functions bound to the Signal or not.
+     */
     get hasListeners()
     {
         return this._listeners.length > 0;
@@ -1047,9 +1488,15 @@ Signal.prototype =
 };
 
 /**
+ *
  * PropertyListener allows listening to changes to other objects' properties. When a change occurs, the onChange signal will be dispatched.
  * It's a bit hackish, but it prevents having to dispatch signals in performance-critical classes such as Float4.
+ *
  * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function PropertyListener()
 {
@@ -1124,9 +1571,12 @@ PropertyListener.prototype =
 };
 
 /**
- * An object using position, rotation quaternion and scale to describe an object's transformation.
+ * @classdesc
+ * Transform is a class to describe an object's transformation through position, rotation (as a quaternion) and scale.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Transform()
 {
@@ -1151,15 +1601,22 @@ function Transform()
 
 Transform.prototype =
 {
+    /**
+     * The position of the object.
+     */
     get position() {
         return this._position;
     },
+
 
     set position(value) {
         // make sure position object never changes
         this._position.copyFrom(value);
     },
 
+    /**
+     * The rotation of the object.
+     */
     get rotation() {
         return this._rotation;
     },
@@ -1169,6 +1626,9 @@ Transform.prototype =
         this._rotation.copyFrom(value);
     },
 
+    /**
+     * The scale of the object.
+     */
     get scale() {
         return this._scale;
     },
@@ -1178,12 +1638,18 @@ Transform.prototype =
         this._scale.copyFrom(value);
     },
 
+    /**
+     * Orients the object in such a way as to face the target point.
+     */
     lookAt: function(target)
     {
         this._matrix.lookAt(target, this._position, Float4.Y_AXIS);
         this._applyMatrix();
     },
 
+    /**
+     * Copies the state of another Transform object
+     */
     copyFrom: function(transform)
     {
         this._changeListener.enabled = false;
@@ -1193,6 +1659,9 @@ Transform.prototype =
         this._changeListener.enabled = true;
     },
 
+    /**
+     * The matrix representing the transform.
+     */
     get matrix()
     {
         if (this._matrixInvalid)
@@ -1207,17 +1676,26 @@ Transform.prototype =
         this._applyMatrix();
     },
 
+    /**
+     * @ignore
+     */
     _invalidateMatrix: function ()
     {
         this._matrixInvalid = true;
     },
 
+    /**
+     * @ignore
+     */
     _updateMatrix: function()
     {
         this._matrix.compose(this);
         this._matrixInvalid = false;
     },
 
+    /**
+     * @ignore
+     */
     _applyMatrix: function()
     {
         this._matrixInvalid = false;
@@ -1228,11 +1706,21 @@ Transform.prototype =
     }
 };
 
+/*
+ * TODO: There is some API cleaning up to do here
+ * - move multiply(a, b) to static
+ * - fromScale should possibly accept a Float4
+ */
+
 /**
- * Creates a new Matrix4x4 object.
- * Column-major storage. Vector multiplication is in column format (ie v' = M x v)
- * @class
+ * @classdec
+ * Matrix4x4 object represents a 4D matrix (generally an affine transformation or a projection). The elements are stored
+ * in column-major order. Vector multiplication is in column format (ie v' = M x v)
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ *
  */
 function Matrix4x4(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 {
@@ -1265,6 +1753,9 @@ Matrix4x4.prototype =
 {
     /**
      * Transforms a Float4 object (use for homogeneous general case of Float4, perspective or when "type" (w) of Float4 is unknown)
+     *
+     * @param v The Float4 object to transform.
+     * @param [target] An optional target. If not provided, a new object will be created and returned.
      */
     transform: function (v, target)
     {
@@ -1282,6 +1773,9 @@ Matrix4x4.prototype =
 
     /**
      * Transforms a Float4 object, treating it as a point. Slightly faster than transform for points.
+     *
+     * @param v The Float4 object to transform.
+     * @param [target] An optional target. If not provided, a new object will be created and returned.
      */
     transformPoint: function (v, target)
     {
@@ -1299,6 +1793,9 @@ Matrix4x4.prototype =
 
     /**
      * Transforms a Float4 object, treating it as a vector (ie: disregarding translation). Slightly faster than transform for vectors.
+     *
+     * @param v The Float4 object to transform.
+     * @param [target] An optional target. If not provided, a new object will be created and returned.
      */
     transformVector: function (v, target)
     {
@@ -1316,6 +1813,9 @@ Matrix4x4.prototype =
 
     /**
      * Transforms a Float4 object, treating it as a vector (ie: disregarding translation) containing a size (so always abs)! Slightly faster than transform for vectors.
+     *
+     * @param v The Float4 object to transform.
+     * @param [target] An optional target. If not provided, a new object will be created and returned.
      */
     transformExtent: function (v, target)
     {
@@ -1339,6 +1839,9 @@ Matrix4x4.prototype =
         return target;
     },
 
+    /**
+     * Copies its elements from another matrix.
+     */
     copyFrom: function(a)
     {
         var m = this._m;
@@ -1361,6 +1864,9 @@ Matrix4x4.prototype =
         m[15] = mm[15];
     },
 
+    /**
+     * Initializes the matrix as a rotation matrix based on a quaternion.
+     */
     fromQuaternion: function (q)
     {
         var x = q.x, y = q.y, z = q.z, w = q.w;
@@ -1384,6 +1890,14 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Multiplies two matrix objects and stores the result in this one
+     *
+     * @deprecated Should be moved to Matrix4x4.multiply(a, b, target)
+     *
+     * @param a
+     * @param b
+     */
     multiply: function (a, b)
     {
         var am = a._m, bm = b._m;
@@ -1415,6 +1929,14 @@ Matrix4x4.prototype =
         m[15] = a_m30 * b_m03 + a_m31 * b_m13 + a_m32 * b_m23 + a_m33 * b_m33;
     },
 
+    /**
+     * Multiplies two matrix objects, assuming they're affine transformations, and stores the result in this one
+     *
+     * @deprecated Should be moved to Matrix4x4.multiplyAffine(a, b, target)
+     *
+     * @param a
+     * @param b
+     */
     multiplyAffine: function (a, b)
     {
         var am = a._m, bm = b._m;
@@ -1446,6 +1968,12 @@ Matrix4x4.prototype =
 
     },
 
+    /**
+     * Initializes the matrix as a rotation matrix around a given axis
+     *
+     * @param axis The axis around which the rotation takes place.
+     * @param radians The angle of rotation
+     */
     fromRotationAxisAngle: function (axis, radians)
     {
         var cos = Math.cos(radians);
@@ -1475,6 +2003,10 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+
+    /**
+     * Initializes the matrix as a rotation matrix from 3 Euler angles
+     */
     // this actually doesn't use a vector, because they're three unrelated quantities. A vector just doesn't make sense here, mathematically.
     fromEuler: function (x, y, z)
     {
@@ -1504,7 +2036,9 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
-    // Tait-Bryan angles, not classic Euler
+    /**
+     * Initializes the matrix as a rotation matrix from Tait-Bryan angles (pitch, yaw, roll).
+     */
     fromRotationPitchYawRoll: function (pitch, yaw, roll)
     {
         var cosP = Math.cos(-pitch);
@@ -1545,6 +2079,12 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Initializes as a translation matrix.
+     * @param xOrV A Float4 or a Number as x-coordinate
+     * @param y The y-translation. Omitted if xOrV is a Float4.
+     * @param z The z-translation. Omitted if xOrV is a Float4.
+     */
     fromTranslation: function (xOrV, y, z)
     {
         if (y === undefined) {
@@ -1571,6 +2111,12 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Initializes as a scale matrix.
+     * @param x
+     * @param y
+     * @param z
+     */
     fromScale: function (x, y, z)
     {
         if (y === undefined)
@@ -1595,6 +2141,13 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Initializes as a perspective projection matrix.
+     * @param vFOV The vertical field of view in radians.
+     * @param aspectRatio The aspect ratio
+     * @param nearDistance The near plane distance
+     * @param farDistance The far plane distance
+     */
     fromPerspectiveProjection: function (vFOV, aspectRatio, nearDistance, farDistance)
     {
         var yMax = 1.0 / Math.tan(vFOV * .5);
@@ -1623,6 +2176,15 @@ Matrix4x4.prototype =
         m[15] = 0;
     },
 
+    /**
+     * Initializes as an off-center orthographic projection matrix.
+     * @param left The distance to the left plane
+     * @param right The distance to the right plane
+     * @param top The distance to the top plane
+     * @param bottom The distance to the bottom plane
+     * @param nearDistance The near plane distance
+     * @param farDistance The far plane distance
+     */
     fromOrthographicOffCenterProjection: function (left, right, top, bottom, nearDistance, farDistance)
     {
         var rcpWidth = 1.0 / (right - left);
@@ -1651,6 +2213,13 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Initializes as a symmetrical orthographic projection matrix.
+     * @param width The width of the projection
+     * @param top The height of the projection
+     * @param nearDistance The near plane distance
+     * @param farDistance The far plane distance
+     */
     fromOrthographicProjection: function (width, height, nearDistance, farDistance)
     {
         var rcpWidth = 1.0 / width;
@@ -1679,11 +2248,17 @@ Matrix4x4.prototype =
         m[15] = 1;
     },
 
+    /**
+     * Returns a copy of this object.
+     */
     clone: function ()
     {
         return new Matrix4x4(this._m);
     },
 
+    /**
+     * Transposes the matrix.
+     */
     transpose: function ()
     {
         var m = this._m;
@@ -1714,6 +2289,7 @@ Matrix4x4.prototype =
     /**
      * The determinant of a 3x3 minor matrix (matrix created by removing a given row and column)
      * @private
+     * @ignore
      */
     determinant3x3: function (row, col)
     {
@@ -1734,6 +2310,9 @@ Matrix4x4.prototype =
             + m[c3 | r1] * (m21 * m32 - m22 * m31);
     },
 
+    /**
+     * Calculates the cofactor for the given row and column
+     */
     cofactor: function (row, col)
     {
         // should be able to xor sign bit instead
@@ -1741,6 +2320,9 @@ Matrix4x4.prototype =
         return sign * this.determinant3x3(row, col);
     },
 
+    /**
+     * Creates a matrix containing all the cofactors.
+     */
     getCofactorMatrix: function (row, col, target)
     {
         target = target || new Matrix4x4();
@@ -1752,6 +2334,9 @@ Matrix4x4.prototype =
         return target;
     },
 
+    /**
+     * Calculates teh adjugate matrix.
+     */
     getAdjugate: function (row, col, target)
     {
         target = target || new Matrix4x4();
@@ -1763,12 +2348,18 @@ Matrix4x4.prototype =
         return target;
     },
 
+    /**
+     * Calculates the determinant of the matrix.
+     */
     determinant: function ()
     {
         var m = this._m;
         return m[0] * this.determinant3x3(0, 0) - m[4] * this.determinant3x3(0, 1) + m[8] * this.determinant3x3(0, 2) - m[12] * this.determinant3x3(0, 3);
     },
 
+    /**
+     * Initializes as the inverse of the given matrix.
+     */
     inverseOf: function (matrix)
     {
         // this can be much more efficient, but I'd like to keep it readable for now. The full inverse is not required often anyway.
@@ -1812,8 +2403,7 @@ Matrix4x4.prototype =
     },
 
     /**
-     * If you know it's an affine matrix (such as general transforms rather than perspective projection matrices), use this.
-     * @param m
+     * Initializes as the inverse of the given matrix, assuming it is affine. It's faster than regular inverse.
      */
     inverseAffineOf: function (a)
     {
@@ -1879,6 +2469,9 @@ Matrix4x4.prototype =
         array[index + 8] = (m0 * m5 - m4 * m1) * rcpDet;
     },
 
+    /**
+     * Writes the matrix into an array for upload
+     */
     writeData: function(array, index)
     {
         index = index || 0;
@@ -1887,6 +2480,9 @@ Matrix4x4.prototype =
             array[index + i] = m[i];
     },
 
+    /**
+     * Writes the matrix into an array for upload, ignoring the bottom row (for affine matrices)
+     */
     writeData4x3: function(array, index)
     {
         var m = this._m;
@@ -1905,36 +2501,57 @@ Matrix4x4.prototype =
         array[index + 11] = m[14];
     },
 
+    /**
+     * Inverts the matrix.
+     */
     invert: function ()
     {
         this.inverseOf(this);
     },
 
+    /**
+     * Inverts the matrix, assuming it's affine (faster than regular inverse)
+     */
     invertAffine: function ()
     {
         this.inverseAffineOf(this);
     },
 
+    /**
+     * Post-multiplication (M x this)
+     */
     append: function (m)
     {
         this.multiply(m, this);
     },
 
+    /**
+     * Pre-multiplication (this x M)
+     */
     prepend: function (m)
     {
         this.multiply(this, m);
     },
 
+    /**
+     * Post-multiplication (M x this) assuming affine matrices
+     */
     appendAffine: function (m)
     {
         this.multiplyAffine(m, this);
     },
 
+    /**
+     * Pre-multiplication (M x this) assuming affine matrices
+     */
     prependAffine: function (m)
     {
         this.multiplyAffine(this, m);
     },
 
+    /**
+     * Adds the elements of another matrix to this one.
+     */
     add: function (a)
     {
         var m = this._m;
@@ -1957,6 +2574,9 @@ Matrix4x4.prototype =
         m[15] += mm[15];
     },
 
+    /**
+     * Adds the elements of another matrix to this one, assuming both are affine.
+     */
     addAffine: function (a)
     {
         var m = this._m;
@@ -1972,6 +2592,9 @@ Matrix4x4.prototype =
         m[10] += mm[10];
     },
 
+    /**
+     * Subtracts the elements of another matrix from this one.
+     */
     subtract: function (a)
     {
         var m = this._m;
@@ -1994,6 +2617,9 @@ Matrix4x4.prototype =
         m[15] -= mm[15];
     },
 
+    /**
+     * Subtracts the elements of another matrix from this one, assuming both are affine.
+     */
     subtractAffine: function (a)
     {
         var m = this._m;
@@ -2009,6 +2635,9 @@ Matrix4x4.prototype =
         m[10] -= mm[10];
     },
 
+    /**
+     * Post-multiplies a scale
+     */
     appendScale: function (x, y, z)
     {
         if (y === undefined)
@@ -2029,6 +2658,9 @@ Matrix4x4.prototype =
         m[14] *= z;
     },
 
+    /**
+     * Pre-multiplies a scale
+     */
     prependScale: function (x, y, z)
     {
         if (y === undefined)
@@ -2049,6 +2681,9 @@ Matrix4x4.prototype =
         m[11] *= z;
     },
 
+    /**
+     * Post-multiplies a translation
+     */
     appendTranslation: function (v)
     {
         var m = this._m;
@@ -2057,6 +2692,9 @@ Matrix4x4.prototype =
         m[14] += v.z;
     },
 
+    /**
+     * Pre-multiplies a translation
+     */
     prependTranslation: function (v)
     {
         var m = this._m;
@@ -2067,6 +2705,9 @@ Matrix4x4.prototype =
         m[15] += m[3] * x + m[7] * y + m[11] * z;
     },
 
+    /**
+     * Post-multiplies a quaternion rotation
+     */
     appendQuaternion: function (q)
     {
         var m = this._m;
@@ -2097,6 +2738,9 @@ Matrix4x4.prototype =
         m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23;
     },
 
+    /**
+     * Pre-multiplies a quaternion rotation
+     */
     prependQuaternion: function (q)
     {
         var m = this._m;
@@ -2122,6 +2766,9 @@ Matrix4x4.prototype =
         m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
     },
 
+    /**
+     * Post-multiplies an axis/angle rotation
+     */
     appendRotationAxisAngle: function (axis, radians)
     {
         var m = this._m;
@@ -2158,6 +2805,9 @@ Matrix4x4.prototype =
         m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23;
     },
 
+    /**
+     * Pre-multiplies an axis/angle rotation
+     */
     prependRotationAxisAngle: function (axis, radians)
     {
         var m = this._m;
@@ -2189,6 +2839,11 @@ Matrix4x4.prototype =
         m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
     },
 
+    /**
+     * Gets the given row from the matrix.
+     * @param {Number} index The index of the row
+     * @param {Float4} [target] An optional target. If omitted, a new object will be created.
+     */
     getRow: function (index, target)
     {
         var m = this._m;
@@ -2200,6 +2855,11 @@ Matrix4x4.prototype =
         return target;
     },
 
+    /**
+     * Sets a row in the matrix.
+     * @param {Number} index The index of the row.
+     * @param {Float4} v The vector to assign to the row
+     */
     setRow: function (index, v)
     {
         var m = this._m;
@@ -2209,16 +2869,32 @@ Matrix4x4.prototype =
         m[index | 12] = v.w;
     },
 
+    /**
+     * Gets the value of a single element.
+     * @param row The row index
+     * @param col The column index
+     */
     getElement: function(row, col)
     {
         return this._m[row | (col << 2)];
     },
 
+    /**
+     * Sets the value of a single element.
+     * @param row The row index
+     * @param col The column index
+     * @param value The value to assign to the element
+     */
     setElement: function(row, col, value)
     {
         this._m[row | (col << 2)] = value;
     },
 
+    /**
+     * Gets the given column from the matrix.
+     * @param {Number} index The index of the column
+     * @param {Float4} [target] An optional target. If omitted, a new object will be created.
+     */
     getColumn: function (index, target)
     {
         var m = this._m;
@@ -2231,6 +2907,11 @@ Matrix4x4.prototype =
         return target;
     },
 
+    /**
+     * Sets a column in the matrix.
+     * @param {Number} index The index of the column.
+     * @param {Float4} v The vector to assign to the column
+     */
     setColumn: function (index, v)
     {
         var m = this._m;
@@ -2242,9 +2923,10 @@ Matrix4x4.prototype =
     },
 
     /**
-     * @param target
-     * @param eye
-     * @param up Must be unit length
+     * Initializes as a "lookAt" matrix at the given eye position oriented toward a target
+     * @param {Float4} target The target position to look at.
+     * @param {Float4} eye The target position the matrix should "be" at
+     * @param {Float4} up The world-up vector. Must be unit length (usually Float4.Y_AXIS)
      */
     lookAt: function (target, eye, up)
     {
@@ -2288,7 +2970,7 @@ Matrix4x4.prototype =
     },
 
     /**
-     * Generates a matrix from a transform object
+     * Initializes as an affine transformation based on a transform object
      */
     compose: function(transform)
     {
@@ -2355,6 +3037,9 @@ Matrix4x4.prototype =
         return targetOrPos;
     },
 
+    /**
+     * Swaps two columns
+     */
     swapColums: function(i, j)
     {
         var m = this._m;
@@ -2375,6 +3060,9 @@ Matrix4x4.prototype =
         m[j | 3] = w;
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         var m = this._m;
@@ -2395,12 +3083,21 @@ Matrix4x4.prototype =
     }
 };
 
+/**
+ * Preset for the identity matrix
+ */
 Matrix4x4.IDENTITY = new Matrix4x4();
+
+/**
+ * Preset for the all-zero matrix
+ */
 Matrix4x4.ZERO = new Matrix4x4(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 /**
- *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SceneVisitor()
 {
@@ -2422,6 +3119,9 @@ SceneVisitor.prototype =
  * This goes through a scene to find a material with a given name
  * @param materialName
  * @constructor
+ *
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
  */
 function MaterialQueryVisitor(materialName)
 {
@@ -2457,9 +3157,11 @@ MaterialQueryVisitor.prototype.visitModelInstance = function (modelInstance, wor
 };
 
 /**
- *
+ * @ignore
  * @param type
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function BoundingVolume(type)
 {
@@ -2591,11 +3293,31 @@ BoundingVolume.prototype =
     }
 };
 
+/**
+ * Values for classifying a point or object to a plane
+ * @enum
+ * @author derschmale <http://www.derschmale.com>
+ */
 var PlaneSide = {
+    /**
+     * Entirely on the front side of the plane
+     */
     FRONT: 1,
+
+    /**
+     * Entirely on the back side of the plane
+     */
     BACK: -1,
+
+    /**
+     * Intersecting the plane.
+     */
     INTERSECTING: 0
 };
+
+/**
+ * @author derschmale <http://www.derschmale.com>
+ */
 
 // Just contains some convenience methods and GL management stuff that shouldn't be called directly
 // Will become an abstraction layer
@@ -2718,6 +3440,11 @@ function _updateRenderState()
     }
 }
 
+/**
+ * GL forms a bridge to native WebGL. It's used to keep track of certain states. If the method is in here, use it instead of the raw gl calls.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var GL = {
     gl: null,
 
@@ -2727,8 +3454,9 @@ var GL = {
     },
 
     /**
-     * Default clearing function. Can be called if no special clearing functionality is needed (or in case another api is used that clears)
-     * Otherwise, you can manually clear using GL context.
+     * Clears the current render target.
+     *
+     * @param [clearMask] One of {@linkcode ClearMask}. If omitted, all planes will be cleared.
      */
     clear: function (clearMask)
     {
@@ -2740,6 +3468,12 @@ var GL = {
         ++_glStats.numClears;
     },
 
+    /**
+     * Draws elements for the current index buffer bound.
+     * @param elementType One of {@linkcode ElementType}.
+     * @param numIndices The amount of indices in the index buffer
+     * @param offset The first index to start drawing from.
+     */
     drawElements: function (elementType, numIndices, offset)
     {
         ++_glStats.numDrawCalls;
@@ -2750,8 +3484,8 @@ var GL = {
 
 
     /**
-     *
-     * @param rect Any object with a width and height property, so it can be a Rect or even an FBO. If x and y are present, it will use these too.
+     * Sets the viewport to render into.
+     * @param {*} rect Any object with a width and height property, so it can be a {@linkcode Rect} or even a {linkcode FrameBuffer}. If x and y are present, it will use these too.
      */
     setViewport: function (rect)
     {
@@ -2770,11 +3504,17 @@ var GL = {
         }
     },
 
+    /**
+     * Gets the current render target.
+     */
     getCurrentRenderTarget: function ()
     {
         return _renderTarget;
     },
 
+    /**
+     * Sets the current render target. It's recommended to clear afterwards for certain platforms.
+     */
     setRenderTarget: function (frameBuffer)
     {
         _renderTarget = frameBuffer;
@@ -2782,6 +3522,9 @@ var GL = {
         GL.setViewport(frameBuffer);
     },
 
+    /**
+     * Enables a given count of vertex attributes.
+     */
     enableAttributes: function (count)
     {
         var numActiveAttribs = _numActiveAttributes;
@@ -2803,12 +3546,18 @@ var GL = {
         _numActiveAttributes = count;
     },
 
+    /**
+     * Sets the clear color.
+     */
     setClearColor: function (color)
     {
         color = isNaN(color) ? color : new Color(color);
         gl.clearColor(color.r, color.g, color.b, color.a);
     },
 
+    /**
+     * Sets the cull mode.
+     */
     setCullMode: function (value)
     {
         if (_cullMode === value) return;
@@ -2816,6 +3565,9 @@ var GL = {
         _cullModeInvalid = true;
     },
 
+    /**
+     * Sets the depth mask.
+     */
     setDepthMask: function (value)
     {
         if (_depthMask === value) return;
@@ -2823,6 +3575,9 @@ var GL = {
         _depthMaskInvalid = true;
     },
 
+    /**
+     * Sets the depth test.
+     */
     setDepthTest: function (value)
     {
         if (_depthTest === value) return;
@@ -2830,6 +3585,11 @@ var GL = {
         _depthTestInvalid = true;
     },
 
+    /**
+     * Sets the blend state.
+     *
+     * @see {@linkcode BlendState}
+     */
     setBlendState: function (value)
     {
         if (_blendState === value) return;
@@ -2837,6 +3597,9 @@ var GL = {
         _blendStateInvalid = true;
     },
 
+    /**
+     * Sets a new stencil reference value for the current stencil state. This prevents resetting an entire state.
+     */
     updateStencilReferenceValue: function (value)
     {
         var currentState = _stencilState;
@@ -2849,6 +3612,11 @@ var GL = {
             gl.stencilFunc(currentState.comparison, value, currentState.readMask);
     },
 
+    /**
+     * Sets a new stencil state.
+     *
+     * @see {@linkcode StencilState}
+     */
     setStencilState: function (value)
     {
         _stencilState = value;
@@ -2857,8 +3625,10 @@ var GL = {
 };
 
 /**
- *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function IndexBuffer()
 {
@@ -2880,14 +3650,6 @@ IndexBuffer.prototype = {
         GL.gl.bufferData(GL.gl.ELEMENT_ARRAY_BUFFER, data, usageHint);
     },
 
-    dispose: function()
-    {
-        if (this._buffer) {
-            GL.gl.deleteBuffer(this._buffer);
-            this._buffer = 0;
-        }
-    },
-
     /**
      * @private
      */
@@ -2898,8 +3660,10 @@ IndexBuffer.prototype = {
 };
 
 /**
- *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function VertexBuffer()
 {
@@ -2922,14 +3686,6 @@ VertexBuffer.prototype = {
         GL.gl.bufferData(GL.gl.ARRAY_BUFFER, data, usageHint);
     },
 
-    dispose: function()
-    {
-        if (this._buffer) {
-            GL.gl.deleteBuffer(this._buffer);
-            this._buffer = 0;
-        }
-    },
-
     /**
      * @private
      */
@@ -2940,20 +3696,28 @@ VertexBuffer.prototype = {
 };
 
 /**
- *
- * @param meshData
- * @param model
- * @constructor
+ * @ignore
  */
 var Mesh_ID_COUNTER = 0;
 
 /**
- * A Mesh should have its layout defined using addVertexAttribute, and initial data supplied using setVertexData,
+ * @classdesc
+ *
+ * <p>Mesh contains the actual geometry of a renderable object. A {@linkcode Model} can contain several Mesh objects. The
+ * {@linkcode Model} is used by {@linkcode ModelInstance}, which links materials to the meshes, and provides them a
+ * place in the scene graph.</p>
+ *
+ * <p>A Mesh can have vertex attributes spread out over several "streams". Every stream means a separate vertex buffer will be used.</p>
+ *
+ * <p>A Mesh should have its layout defined using addVertexAttribute, and initial data supplied using setVertexData,
  * before passing it on to a Model. These values will be used to calculate its local bounding box.
- * After this, setVertexData can be called to change data, but it will not change the model
- * @param vertexUsage
- * @param indexUsage
+ * After this, setVertexData can be called to change data, but it will not change the model</p>
+ *
+ * @param vertexUsage One of {@linkcode} BufferUsage
+ * @param indexUsage One of {@linkcode} BufferUsage
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Mesh(vertexUsage, indexUsage)
 {
@@ -2975,14 +3739,23 @@ function Mesh(vertexUsage, indexUsage)
     this._renderOrderHint = ++Mesh_ID_COUNTER;
 }
 
+/**
+ * The vertex stride for meshes created with {@linkcode Mesh.createDefaultEmpty}
+ */
 Mesh.DEFAULT_VERTEX_SIZE = 12;
 
+/**
+ * @ignore
+ */
 Mesh.ID_COUNTER = 0;
 
 // other possible indices:
 // hx_instanceID (used by MeshBatch)
 // hx_boneIndices (4)
 // hx_boneWeights (4)
+/**
+ * Creates an empty Mesh with a default layout.
+ */
 Mesh.createDefaultEmpty = function()
 {
     var data = new Mesh();
@@ -2995,24 +3768,35 @@ Mesh.createDefaultEmpty = function()
 
 
 Mesh.prototype = {
+    /**
+     * Whether or not this Mesh supports morph target animations. This is the case if {@linkcode Mesh.generateMorphData}
+     * was called.
+     */
     get hasMorphData()
     {
         return !!this._defaultMorphTarget;
     },
 
-    // this should only be null for morph targets!
+    /**
+     * Returns whether or not vertex data was uploaded to the given stream index.
+     */
     hasVertexData: function (streamIndex)
     {
         return !!this._vertexData[streamIndex];
     },
 
+    /**
+     * Gets the vertex data for a given stream.
+     */
     getVertexData: function (streamIndex)
     {
         return this._vertexData[streamIndex];
     },
 
     /**
-     * Sets data from Array. Must call this after addVertexAttribute defines where the data goes in the array.
+     * Uploads vertex data from an Array or a Float32Array. This method must be called after the layout for the stream
+     * has been finalized using setVertexAttribute calls. The data in the stream should be an interleaved array of
+     * floats, with each attribute data in the order specified with the setVertexAttribute calls.
      */
     setVertexData: function (data, streamIndex)
     {
@@ -3027,11 +3811,11 @@ Mesh.prototype = {
     },
 
     /**
-     * Sets data from Array
+     * Uploads index data from an Array or a Uint16Array
      */
     setIndexData: function (data)
     {
-        this._indexData = new Uint16Array(data);
+        this._indexData = data instanceof Uint16Array? data : new Uint16Array(data);
         this._numIndices = this._indexData.length;
         this._indexBuffer.uploadData(this._indexData, this._indexUsage);
     },
@@ -3059,11 +3843,17 @@ Mesh.prototype = {
         this._vertexStrides[streamIndex] = offset + numComponents;
     },
 
+    /**
+     * The amount of streams (vertex buffers) used for this Mesh/
+     */
     get numStreams()
     {
         return this._numStreams;
     },
 
+    /**
+     * Extracts the vertex attribute data for the given attribute name as a flat Array.
+     */
     extractAttributeData: function(name)
     {
         var attrib = this.getVertexAttributeByName(name);
@@ -3080,6 +3870,9 @@ Mesh.prototype = {
         return vertData;
     },
 
+    /**
+     * Generates the required data to support morph target animations.
+     */
     generateMorphData: function()
     {
         for (i = 0; i < capabilities.NUM_MORPH_TARGETS; ++i) {
@@ -3098,31 +3891,49 @@ Mesh.prototype = {
         this._defaultMorphTarget.uploadData(new Float32Array(data), BufferUsage.STATIC_DRAW);
     },
 
+    /**
+     * The amount of vertices contained in the Mesh.
+     */
     get numVertices()
     {
         return this._numVertices;
     },
 
+    /**
+     * The amount of face indices contained in the Mesh.
+     */
     get numIndices()
     {
         return this._numIndices;
     },
 
+    /**
+     * The amount of vertex attributes contained in the Mesh.
+     */
     get numVertexAttributes()
     {
         return this._vertexAttributes.length;
     },
 
+    /**
+     * Gets the vertex stride (number of components used per stream per vertex) for a given stream
+     */
     getVertexStride: function(streamIndex)
     {
         return this._vertexStrides[streamIndex];
     },
 
+    /**
+     * Gets the vertex attribute data according to the attribute name.
+     */
     getVertexAttributeByName: function (name)
     {
         return this._vertexAttributesLookUp[name];
     },
 
+    /**
+     * Gets the vertex attribute data according to the index.
+     */
     getVertexAttributeByIndex: function (index)
     {
         return this._vertexAttributes[index];
@@ -3130,13 +3941,18 @@ Mesh.prototype = {
 };
 
 /**
- * A Model combines a list of Meshes
- * @param modelData
+ * @classdesc
+ * The Model class bundles several {@linkcode Mesh} objects into a single renderable object. This allows a single object
+ * (for example: a character) to use different Materials for different parts (fe: a skin material and a clothes material)
+ *
  * @constructor
+ * @param [meshes] The {@linkcode Mesh} objects with which to initialize the Model.
+ *
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Model(meshes)
 {
-    this.onLocalBoundsChanged = new Signal();
     this._name = null;
     this._localBounds = new BoundingAABB();
     this._localBoundsInvalid = true;
@@ -3157,6 +3973,9 @@ function Model(meshes)
 
 Model.prototype =
     {
+        /**
+         * The name of the Model.
+         */
         get name()
         {
             return this._name;
@@ -3167,23 +3986,34 @@ Model.prototype =
             this._name = value;
         },
 
+        /**
+         * The amount of {@linkcode Mesh} objects in this Model.
+         */
         get numMeshes()
         {
             return this._meshes.length;
         },
 
+        /**
+         * Retrieves the {@linkcode Mesh} at the given index.
+         */
         getMesh: function (index)
         {
             return this._meshes[index];
         },
 
+        /**
+         * The object-space bounding box.
+         */
         get localBounds()
         {
             if (this._localBoundsInvalid) this._updateLocalBounds();
             return this._localBounds;
         },
 
-
+        /**
+         * The {@linkcode Skeleton} used for skinning animations.
+         */
         get skeleton()
         {
             return this._skeleton;
@@ -3194,6 +4024,9 @@ Model.prototype =
             this._skeleton = value;
         },
 
+        /**
+         * Removes a Mesh from the Model.
+         */
         removeMesh: function (mesh)
         {
             var index = this._meshes.indexOf(mesh);
@@ -3205,6 +4038,9 @@ Model.prototype =
             this.onChange.dispatch();
         },
 
+        /**
+         * Adds a Mesh to the Model
+         */
         addMesh: function (mesh)
         {
             if (mesh._model) throw new Error("Mesh cannot be shared across Models");
@@ -3215,11 +4051,18 @@ Model.prototype =
             this.onChange.dispatch();
         },
 
+        /**
+         * @ignore
+         */
         toString: function()
         {
             return "[Model(name=" + this._name + ")]";
         },
 
+        /**
+         * @ignore
+         * @private
+         */
         _updateLocalBounds: function()
         {
             this._localBounds.clear();
@@ -3232,18 +4075,14 @@ Model.prototype =
     };
 
 /**
- * Returns the angle between two vectors
- */
-Float2.angle = function(a, b)
-{
-    return Math.acos(Float2.dot(a, b) / (a.length * b.length));
-};
-
-
-/**
- * Creates a new Float2 object
- * @class
+ * @classdesc
+ * Float2 is a class describing 2-dimensional points.
+ *
  * @constructor
+ * @param x The x-coordinate
+ * @param y The y-coordinate
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Float2(x, y)
 {
@@ -3252,6 +4091,35 @@ function Float2(x, y)
     this.y = y || 0;
 }
 
+/**
+ * Returns the angle between two vectors.
+ */
+Float2.angle = function(a, b)
+{
+    return Math.acos(Float2.dot(a, b) / (a.length * b.length));
+};
+
+/**
+ * Linearly interpolates two vectors.
+ * @param {Float2} a The first vector to interpolate from.
+ * @param {Float2} b The second vector to interpolate to.
+ * @param {Number} t The interpolation factor.
+ * @param {Float2} target An optional target object. If not provided, a new object will be created and returned.
+ * @returns {Float2} The interpolated value.
+ */
+Float2.lerp = function(a, b, t, target)
+{
+    target = target || new Float2();
+    var ax = a.x, ay = a.y;
+
+    target.x = ax + (b.x - ax) * t;
+    target.y = ay + (b.y - ay) * t;
+    return target;
+};
+
+/**
+ * Returns the distance between two points.
+ */
 Float2.distance = function(a, b)
 {
     var dx = a.x - b.x;
@@ -3259,6 +4127,23 @@ Float2.distance = function(a, b)
     return Math.sqrt(dx * dx + dy * dy);
 };
 
+/**
+ * Creates a negated vector.
+ * @param a The vector to negate.
+ * @param target An optional target object. If not provided, a new object will be created and returned.
+ * @returns -a
+ */
+Float2.negate = function(a, target)
+{
+    target = target || new Float2();
+    target.x = -a.x;
+    target.y = -a.y;
+    return target;
+};
+
+/**
+ * Returns the dot product of 2 vectors.
+ */
 Float2.dot = function(a, b)
 {
     return a.x * b.x + a.y * b.y;
@@ -3272,6 +4157,14 @@ Float2.angleNormalized = function(a, b)
     return Math.acos(Float2.dot(a, b));
 };
 
+/**
+ * Adds 2 vectors.
+ *
+ * @param a
+ * @param b
+ * @param [target] An optional target object. If omitted, a new object will be created.
+ * @returns The sum of a and b.
+ */
 Float2.add = function(a, b, target)
 {
     target = target || new Float2();
@@ -3280,6 +4173,14 @@ Float2.add = function(a, b, target)
     return target;
 };
 
+/**
+ * Subtracts 2 vectors.
+ *
+ * @param a
+ * @param b
+ * @param [target] An optional target object. If omitted, a new object will be created.
+ * @returns The difference of a and b.
+ */
 Float2.subtract = function(a, b, target)
 {
     target = target || new Float2();
@@ -3288,6 +4189,14 @@ Float2.subtract = function(a, b, target)
     return target;
 };
 
+/**
+ * Multiplies a vector with a scalar.
+ *
+ * @param a
+ * @param s
+ * @param [target] An optional target object. If omitted, a new object will be created.
+ * @returns The product of a * s
+ */
 Float2.scale = function(a, s, target)
 {
     target = target || new Float2();
@@ -3296,32 +4205,36 @@ Float2.scale = function(a, s, target)
     return target;
 };
 
-Float2.negate = function(a, b, target)
-{
-    target = target || new Float2();
-    target.x = -target.x;
-    target.y = -target.y;
-    return target;
-};
-
 Float2.prototype =
 {
+    /**
+     * Sets the components explicitly.
+     */
     set: function(x, y)
     {
         this.x = x;
         this.y = y;
     },
 
+    /**
+     * The squared length of the vector.
+     */
     get lengthSqr()
     {
         return this.x * this.x + this.y * this.y;
     },
 
+    /**
+     * The length of the vector.
+     */
     get length()
     {
         return Math.sqrt(this.x * this.x + this.y * this.y);
     },
 
+    /**
+     * Normalizes the vector.
+     */
     normalize: function()
     {
         var rcpLength = 1.0/this.length;
@@ -3329,67 +4242,91 @@ Float2.prototype =
         this.y *= rcpLength;
     },
 
+    /**
+     * Returns a copy of this object.
+     */
     clone: function()
     {
         return new Float2(this.x, this.y);
     },
 
+    /**
+     * Adds a vector to this one in place.
+     */
     add: function(v)
     {
         this.x += v.x;
         this.y += v.y;
     },
 
+    /**
+     * Subtracts a vector from this one in place.
+     */
     subtract: function(v)
     {
         this.x -= v.x;
         this.y -= v.y;
     },
 
+    /**
+     * Multiplies the components of this vector with a scalar.
+     */
     scale: function(s)
     {
         this.x *= s;
         this.y *= s;
     },
 
+    /**
+     * Negates the components of this vector.
+     */
     negate: function()
     {
         this.x = -this.x;
         this.y = -this.y;
     },
 
+    /**
+     * Sets the components of this vector to their absolute values.
+     */
     abs: function()
     {
         this.x = Math.abs(this.x);
         this.y = Math.abs(this.y);
     },
 
-    lerp: function(a, b, factor)
-    {
-        var ax = a.x, ay = a.y;
-
-        this.x = ax + (b.x - ax) * factor;
-        this.y = ay + (b.y - ay) * factor;
-    },
-
+    /**
+     * Sets the euclidian coordinates based on polar coordinates
+     * @param radius The radius coordinate
+     * @param angle The angle coordinate
+     */
     fromPolarCoordinates: function(radius, angle)
     {
         this.x = radius*Math.cos(angle);
         this.y = radius*Math.sin(angle);
     },
 
+    /**
+     * Copies the values from a different Float2
+     */
     copyFrom: function(b)
     {
         this.x = b.x;
         this.y = b.y;
     },
 
+    /**
+     * Replaces the components' values if those of the other Float2 are higher, respectively
+     */
     maximize: function(b)
     {
         if (b.x > this.x) this.x = b.x;
         if (b.y > this.y) this.y = b.y;
     },
 
+    /**
+     * Replaces the components' values if those of the other Float2 are lower, respectively
+     */
     minimize: function(b)
     {
         if (b.x < this.x) this.x = b.x;
@@ -3397,13 +4334,28 @@ Float2.prototype =
     }
 };
 
+/**
+ * A preset for the origin
+ */
 Float2.ZERO = new Float2(0, 0);
+
+/**
+ * A preset for the X-axis
+ */
 Float2.X_AXIS = new Float2(1, 0);
+
+/**
+ * A preset for the Y-axis
+ */
 Float2.Y_AXIS = new Float2(0, 1);
 
 /**
+ * @classdesc
+ * NormalTangentGenerator generates normal and/or tangent vectors for a {@codelink Mesh}.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function NormalTangentGenerator()
 {
@@ -3414,11 +4366,24 @@ function NormalTangentGenerator()
     this._faceBitangents = null;
 }
 
+/**
+ * A bit flag to generate normal vectors
+ */
 NormalTangentGenerator.MODE_NORMALS = 1;
+
+/**
+ * A bit flag to generate tangent vectors
+ */
 NormalTangentGenerator.MODE_TANGENTS = 2;
 
 NormalTangentGenerator.prototype =
 {
+    /**
+     * Generates normal and/or tangent vectors for a {@codelink Mesh}.
+     * @param mesh The target {@codelink Mesh}
+     * @param mode Defines which vectors to use. Use {@linkcode NormalTangentGenerator.MODE_NORMALS} | {@linkcode NormalTangentGenerator.MODE_TANGENTS}
+     * @param [useFaceWeights] Defines whether or not the face sizes should play a role in how much weight their contribute to the vertex normal.
+     */
     generate: function(mesh, mode, useFaceWeights)
     {
         if (useFaceWeights === undefined) useFaceWeights = true;
@@ -3653,6 +4618,13 @@ NormalTangentGenerator.prototype =
     }
 };
 
+/**
+ * @ignore
+ * @param definition
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Primitive(definition)
 {
     definition = definition || {};
@@ -3761,6 +4733,25 @@ Primitive.prototype._createMesh = function(definition)
     return mesh;
 };
 
+/**
+ * @classdesc
+ * BoxPrimitive provides a primitive box {@linkcode Model}.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of segments along the X-axis</li>
+ *     <li>numSegmentsH: The amount of segments along the Y-axis</li>
+ *     <li>numSegmentsD: The amount of segments along the Z-axis</li>
+ *     <li>width: The width of the box</li>
+ *     <li>height: The height of the box</li>
+ *     <li>depth: The depth of the box</li>
+ *     <li>invert: Whether or not the faces should point inwards</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function BoxPrimitive(definition)
 {
     Primitive.call(this, definition);
@@ -3911,8 +4902,12 @@ BoxPrimitive.prototype._generate = function(target, definition)
 };
 
 /**
+ * @classdesc
+ * BoundingAABB represents an axis-aligned bounding box.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function BoundingAABB()
 {
@@ -3921,6 +4916,9 @@ function BoundingAABB()
 
 BoundingAABB.prototype = Object.create(BoundingVolume.prototype);
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.growToIncludeMesh = function(mesh)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
@@ -3964,6 +4962,9 @@ BoundingAABB.prototype.growToIncludeMesh = function(mesh)
     this._updateCenterAndExtent();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.growToIncludeBound = function(bounds)
 {
     if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
@@ -3998,6 +4999,9 @@ BoundingAABB.prototype.growToIncludeBound = function(bounds)
     this._updateCenterAndExtent();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
@@ -4029,6 +5033,9 @@ BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
     this._updateCenterAndExtent();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
 {
     if (sourceBound._expanse === BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === BoundingVolume.EXPANSE_EMPTY)
@@ -4070,6 +5077,9 @@ BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
 };
 
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE)
@@ -4097,6 +5107,9 @@ BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
     return true;
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.intersectsBound = function(bound)
 {
     if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
@@ -4119,6 +5132,9 @@ BoundingAABB.prototype.intersectsBound = function(bound)
     }
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.classifyAgainstPlane = function(plane)
 {
     var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
@@ -4141,6 +5157,9 @@ BoundingAABB.prototype.classifyAgainstPlane = function(plane)
         return PlaneSide.INTERSECTING;
 };
 
+/**
+ * Sets the minimum and maximum explicitly using {@linkcode Float4}
+ */
 BoundingAABB.prototype.setExplicit = function(min, max)
 {
     this._minimumX = min.x;
@@ -4153,6 +5172,10 @@ BoundingAABB.prototype.setExplicit = function(min, max)
     this._updateCenterAndExtent();
 };
 
+/**
+ * @ignore
+ * @private
+ */
 BoundingAABB.prototype._updateCenterAndExtent = function()
 {
     var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
@@ -4165,12 +5188,17 @@ BoundingAABB.prototype._updateCenterAndExtent = function()
     this._halfExtentZ = (maxZ - minZ) * .5;
 };
 
-// part of the
+/**
+ * @inheritDoc
+ */
 BoundingAABB.prototype.getRadius = function()
 {
     return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
 };
 
+/**
+ * @ignore
+ */
 BoundingAABB.prototype.createDebugModel = function()
 {
     return new BoxPrimitive();
@@ -4178,8 +5206,18 @@ BoundingAABB.prototype.createDebugModel = function()
 
 // basic version is non-hierarchical, for use with lights etc
 /**
+ * @classdesc
+ * <p>SceneNode is an empty hierarchical container for the scene graph. It can be attached to other SceneNode objects and
+ * have SceneNode objects attached to itself.</p>
+ *
+ * <p>SceneNode also functions as the base class for other scene graph objects, such as entities ({@linkcode ModelInstance},
+ * lights, camera, ...).
+ *
+ * @see {@linkcode Scene}
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SceneNode()
 {
@@ -4203,6 +5241,9 @@ function SceneNode()
 }
 
 SceneNode.prototype = Object.create(Transform.prototype, {
+    /**
+     * The name of te scene node
+     */
     name: {
         get: function()
         {
@@ -4214,10 +5255,16 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         }
     },
 
+    /**
+     * The amount of children attached to this node.
+     */
     numChildren: {
         get: function() { return this._children.length; }
     },
 
+    /**
+     * Defines whether or not this and any children attached to this node should be rendered or not.
+     */
     visible: {
         get: function()
         {
@@ -4229,6 +5276,9 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         }
     },
 
+    /**
+     * The bounding volume for this node and its children in world coordinates.
+     */
     worldBounds: {
         get: function()
         {
@@ -4241,6 +5291,9 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         }
     },
 
+    /**
+     * The matrix transforming from the node's local space to world space.
+     */
     worldMatrix: {
         get: function()
         {
@@ -4252,6 +5305,9 @@ SceneNode.prototype = Object.create(Transform.prototype, {
     }
 });
 
+/**
+ * Attaches a child SceneNode to this node.
+ */
 SceneNode.prototype.attach = function(child)
 {
     if (child instanceof Array) {
@@ -4272,6 +5328,9 @@ SceneNode.prototype.attach = function(child)
     this._invalidateWorldBounds();
 };
 
+/**
+ * Removes a child SceneNode from this node.
+ */
 SceneNode.prototype.detach = function(child)
 {
     var index = this._children.indexOf(child);
@@ -4285,14 +5344,24 @@ SceneNode.prototype.detach = function(child)
     this._invalidateWorldBounds();
 };
 
+/**
+ * Retrieves a child SceneNode with the given index.
+ */
 SceneNode.prototype.getChild = function(index) { return this._children[index]; };
 
+/**
+ * @ignore
+ * @private
+ */
 SceneNode.prototype._applyMatrix = function()
 {
     Transform.prototype._applyMatrix.call(this);
     this._invalidateWorldMatrix();
 };
 
+/**
+ * Finds a material with the given name somewhere in this node's children.
+ */
 SceneNode.prototype.findMaterialByName = function(name)
 {
     var visitor = new MaterialQueryVisitor(name);
@@ -4300,6 +5369,9 @@ SceneNode.prototype.findMaterialByName = function(name)
     return visitor.foundMaterial;
 };
 
+/**
+ * Finds a scene node with the given name somewhere in this node's children.
+ */
 SceneNode.prototype.findNodeByName = function(name)
 {
     if (this._name === name) return this;
@@ -4311,6 +5383,9 @@ SceneNode.prototype.findNodeByName = function(name)
     }
 };
 
+/**
+ * @ignore
+ */
 SceneNode.prototype._setScene = function(scene)
 {
     this._scene = scene;
@@ -4321,6 +5396,9 @@ SceneNode.prototype._setScene = function(scene)
         this._children[i]._setScene(scene);
 };
 
+/**
+ * @ignore
+ */
 SceneNode.prototype.acceptVisitor = function(visitor)
 {
     if (this._debugBounds)
@@ -4335,12 +5413,18 @@ SceneNode.prototype.acceptVisitor = function(visitor)
     }
 };
 
+/**
+ * @ignore
+ */
 SceneNode.prototype._invalidateMatrix = function ()
 {
     Transform.prototype._invalidateMatrix.call(this);
     this._invalidateWorldMatrix();
 };
 
+/**
+ * @ignore
+ */
 SceneNode.prototype._invalidateWorldMatrix = function ()
 {
     this._worldMatrixInvalid = true;
@@ -4351,6 +5435,9 @@ SceneNode.prototype._invalidateWorldMatrix = function ()
         this._children[i]._invalidateWorldMatrix();
 };
 
+/**
+ * @ignore
+ */
 SceneNode.prototype._invalidateWorldBounds = function ()
 {
     if (this._worldBoundsInvalid) return;
@@ -4361,6 +5448,9 @@ SceneNode.prototype._invalidateWorldBounds = function ()
         this._parent._invalidateWorldBounds();
 };
 
+/**
+ * @ignore
+ */
 SceneNode.prototype._updateWorldBounds = function ()
 {
     var len = this._children.length;
@@ -4375,6 +5465,9 @@ SceneNode.prototype._updateWorldBounds = function ()
         this._updateDebugBounds();
 };
 
+/**
+ * @ignore
+ */
 SceneNode.prototype._updateDebugBounds = function()
 {
     var matrix = this._debugBounds.matrix;
@@ -4385,12 +5478,18 @@ SceneNode.prototype._updateDebugBounds = function()
     this._debugBounds.matrix = matrix;
 };
 
+/**
+ * @ignore
+ */
 SceneNode.prototype._updateMatrix = function()
 {
     Transform.prototype._updateMatrix.call(this);
     this._invalidateWorldBounds();
 };
 
+/**
+ * @ignore
+ */
 SceneNode.prototype._updateWorldMatrix = function()
 {
     if (this._parent)
@@ -4401,17 +5500,27 @@ SceneNode.prototype._updateWorldMatrix = function()
     this._worldMatrixInvalid = false;
 };
 
-// override for better matches
+/**
+ * @ignore
+ */
 SceneNode.prototype._createBoundingVolume = function()
 {
     return new BoundingAABB();
 };
 
+/**
+ * @ignore
+ */
 SceneNode.prototype.toString = function()
 {
     return "[SceneNode(name=" + this._name + ")]";
 };
 
+/**
+ * Applies a function recursively to all child nodes.
+ * @param func The function to call (using the traversed node as argument)
+ * @param [thisRef] Optional reference to "this" in the calling function, to keep the scope of "this" in the called method.
+ */
 SceneNode.prototype.applyFunction = function(func, thisRef)
 {
     if (thisRef)
@@ -4425,6 +5534,15 @@ SceneNode.prototype.applyFunction = function(func, thisRef)
         this._children[i].applyFunction(func, thisRef);
 };
 
+/**
+ * @classdesc
+ * Entity represents a node in the Scene graph that can have {@linkcode Component} objects added to it, which can
+ * define its behavior in a modular way.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Entity()
 {
     SceneNode.call(this);
@@ -4438,53 +5556,12 @@ function Entity()
     this._effects = null;
 }
 
-/*Entity.create = function(components)
-{
-    var entity = new Entity();
-
-    if (components) {
-        var len = components.length;
-        for (var i = 0; i < len; ++i)
-            entity.addComponent(components[i]);
-    }
-
-    return entity;
-};*/
-
 Entity.prototype = Object.create(SceneNode.prototype);
 
-Entity.prototype.addComponents = function(components)
-{
-    for (var i = 0; i < components.length; ++i)
-        this.addComponent(components[i]);
-};
 
-Entity.prototype.removeComponents = function(components)
-{
-    for (var i = 0; i < components.length; ++i) {
-        this.removeComponent(components[i]);
-    }
-};
-
-Entity.prototype.hasComponentType = function(type)
-{
-    if (!this._components) return false;
-    for (var i = 0; i < this._components.length; ++i) {
-        if (this._components[i] instanceof type) return true;
-    }
-};
-
-Entity.prototype.getComponentsByType = function(type)
-{
-    var collection = [];
-    if (!this._components) return collection;
-    for (var i = 0; i < this._components.length; ++i) {
-        var comp = this._components[i];
-        if (comp instanceof type) collection.push(comp);
-    }
-    return collection;
-};
-
+/**
+ * Adds a single {@linkcode Component} object to the Entity.
+ */
 Entity.prototype.addComponent = function(component)
 {
     if (component._entity)
@@ -4500,14 +5577,9 @@ Entity.prototype.addComponent = function(component)
     component.onAdded();
 };
 
-Entity.prototype._updateRequiresUpdates = function(value)
-{
-    if (value !== this._requiresUpdates) {
-        this._requiresUpdates = value;
-        this._onRequireUpdatesChange.dispatch(this);
-    }
-};
-
+/**
+ * Removes a single Component from the Entity.
+ */
 Entity.prototype.removeComponent = function(component)
 {
     component.onRemoved();
@@ -4531,6 +5603,67 @@ Entity.prototype.removeComponent = function(component)
     this._updateRequiresUpdates(requiresUpdates);
 };
 
+/**
+ * Adds multiple {@linkcode Component} objects to the Entity.
+ * @param {Array} components An array of components to add.
+ */
+Entity.prototype.addComponents = function(components)
+{
+    for (var i = 0; i < components.length; ++i)
+        this.addComponent(components[i]);
+};
+
+/**
+ * Removes multiple {@linkcode Component} objects from the Entity.
+ * @param {Array} components A list of components to remove.
+ */
+Entity.prototype.removeComponents = function(components)
+{
+    for (var i = 0; i < components.length; ++i) {
+        this.removeComponent(components[i]);
+    }
+};
+
+/**
+ * Returns whether or not the Entity has a component of a given type assigned to it.
+ */
+Entity.prototype.hasComponentType = function(type)
+{
+    if (!this._components) return false;
+    for (var i = 0; i < this._components.length; ++i) {
+        if (this._components[i] instanceof type) return true;
+    }
+};
+
+/**
+ * Returns an array of all Components with a given type.
+ */
+Entity.prototype.getComponentsByType = function(type)
+{
+    var collection = [];
+    if (!this._components) return collection;
+    for (var i = 0; i < this._components.length; ++i) {
+        var comp = this._components[i];
+        if (comp instanceof type) collection.push(comp);
+    }
+    return collection;
+};
+
+/**
+ * @ignore
+ * @private
+ */
+Entity.prototype._updateRequiresUpdates = function(value)
+{
+    if (value !== this._requiresUpdates) {
+        this._requiresUpdates = value;
+        this._onRequireUpdatesChange.dispatch(this);
+    }
+};
+
+/**
+ * @ignore
+ */
 Entity.prototype.acceptVisitor = function(visitor)
 {
     SceneNode.prototype.acceptVisitor.call(this, visitor);
@@ -4539,6 +5672,9 @@ Entity.prototype.acceptVisitor = function(visitor)
         visitor.visitEffects(this._effects, this);
 };
 
+/**
+ * @ignore
+ */
 Entity.prototype.update = function(dt)
 {
     var components = this._components;
@@ -4553,12 +5689,18 @@ Entity.prototype.update = function(dt)
     }
 };
 
+/**
+ * @ignore
+ */
 Entity.prototype._registerEffect = function(effect)
 {
     this._effects = this._effects || [];
     this._effects.push(effect);
 };
 
+/**
+ * @ignore
+ */
 Entity.prototype._unregisterEffect = function(effect)
 {
     var index = this._effects.indexOf(effect);
@@ -4567,6 +5709,9 @@ Entity.prototype._unregisterEffect = function(effect)
         this._effects = null;
 };
 
+/**
+ * @ignore
+ */
 Entity.prototype._setScene = function(scene)
 {
     if (this._scene)
@@ -4579,10 +5724,16 @@ Entity.prototype._setScene = function(scene)
 };
 
 /**
- * Subclasses must implement:
- * prototype.activate
- * prototype.prepareBatch
+ * @classdesc
+ * Light forms a base class for lights.
+ *
+ * @abstract
+ *
  * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Light()
 {
@@ -4661,6 +5812,12 @@ Light.prototype.renderDeferredLighting = function(renderer)
     // To implement by concrete subclasses
 };
 
+/**
+ * RectMesh is a util that allows creating Mesh objects for rendering 2D quads. Generally, use RectMesh.DEFAULT for
+ * full-screen quads.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var RectMesh = {
     create: function()
     {
@@ -4681,6 +5838,10 @@ var RectMesh = {
     }
 };
 
+/**
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
+ */
 var TextureUtils =
 {
     /**
@@ -4776,8 +5937,12 @@ var TextureUtils =
 };
 
 /**
+ * @classdesc
+ * Texture2D represents a 2D texture.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Texture2D()
 {
@@ -4801,6 +5966,9 @@ function Texture2D()
     GL.gl.bindTexture(GL.gl.TEXTURE_2D, null);
 }
 
+/**
+ * @ignore
+ */
 Texture2D._initDefault = function()
 {
     var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
@@ -4811,6 +5979,9 @@ Texture2D._initDefault = function()
 
 Texture2D.prototype =
 {
+    /**
+     * The name of the texture.
+     */
     get name()
     {
         return this._name;
@@ -4821,12 +5992,9 @@ Texture2D.prototype =
         this._name = value;
     },
 
-    dispose: function()
-    {
-        GL.gl.deleteTexture(this._texture);
-        this._isReady = false;
-    },
-
+    /**
+     * Generates a mip map chain.
+     */
     generateMipmap: function()
     {
         var gl = GL.gl;
@@ -4837,6 +6005,9 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
+     */
     get filter()
     {
         return this._filter;
@@ -4856,6 +6027,9 @@ Texture2D.prototype =
         }
     },
 
+    /**
+     * A {@linkcode TextureWrapMode} object defining how out-of-bounds sampling should be handled.
+     */
     get wrapMode()
     {
         return this._wrapMode;
@@ -4871,6 +6045,9 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY}
+     */
     get maxAnisotropy()
     {
         return this._maxAnisotropy;
@@ -4891,11 +6068,37 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * The texture's width
+     */
     get width() { return this._width; },
+
+    /**
+     * The texture's height
+     */
     get height() { return this._height; },
+
+    /**
+     * The texture's format
+     *
+     * @see {@linkcode TextureFormat}
+     */
     get format() { return this._format; },
+
+    /**
+     * The texture's data type
+     *
+     * @see {@linkcode DataType}
+     */
     get dataType() { return this._dataType; },
 
+    /**
+     * Inits an empty texture.
+     * @param width The width of the texture.
+     * @param height The height of the texture.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     initEmpty: function(width, height, format, dataType)
     {
         var gl = GL.gl;
@@ -4913,6 +6116,15 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * Initializes the texture with the given data.
+     * @param data An typed array containing the initial data.
+     * @param width The width of the texture.
+     * @param height The height of the texture.
+     * @param generateMips Whether or not a mip chain should be generated.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     uploadData: function(data, width, height, generateMips, format, dataType)
     {
         var gl = GL.gl;
@@ -4941,6 +6153,17 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * Initializes the texture with a given Image.
+     * @param image The Image to upload to the texture
+     * @param width The width of the texture.
+     * @param height The height of the texture.
+     * @param generateMips Whether or not a mip chain should be generated.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     *
+     * TODO: Just use image.naturalWidth / image.naturalHeight ?
+     */
     uploadImage: function(image, width, height, generateMips, format, dataType)
     {
         var gl = GL.gl;
@@ -4967,9 +6190,15 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * Defines whether data has been uploaded to the texture or not.
+     */
     isReady: function() { return this._isReady; },
 
-    // binds a texture to a given texture unit
+    /**
+     * Binds a texture to a given texture unit.
+     * @ignore
+     */
     bind: function(unitIndex)
     {
         var gl = GL.gl;
@@ -4981,6 +6210,9 @@ Texture2D.prototype =
         gl.bindTexture(gl.TEXTURE_2D, this._texture);
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "[Texture2D(name=" + this._name + ")]";
@@ -4988,7 +6220,15 @@ Texture2D.prototype =
 };
 
 /**
+ * @classdesc
+ * FrameBuffer provides a render target associated with a given texture/textures.
+ *
+ * @param colorTextures Either a single texture, or an Array of textures (only if {@linkcode capabilities.EXT_DRAW_BUFFERS} is supported).
+ * @param depthBuffer An optional depth buffer. This can be a {@linkcode WriteOnlyDepthBuffer} or, if readback is required, a {@linkcode Texture2D} (only available if {@linkcode capabilities.EXT_DEPTH_TEXTURE} is supported).
+ * @param cubeFace If colorTextures is a {@linkcode TextureCube}, cubeFace should contain the relevant {@linkcode CubeFace}.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FrameBuffer(colorTextures, depthBuffer, cubeFace)
 {
@@ -5017,6 +6257,10 @@ FrameBuffer.prototype = {
     get width() { return this._width; },
     get height() { return this._height; },
 
+    /**
+     * Initializes the framebuffer object. This needs to be called whenever the Texture2D's are resized using initEmpty.
+     * @param silent Whether or not warnings should be printed.
+     */
     init: function(silent)
     {
         var gl = GL.gl;
@@ -5080,17 +6324,20 @@ FrameBuffer.prototype = {
         }
 
         return status === gl.FRAMEBUFFER_COMPLETE;
-    },
-
-    dispose: function()
-    {
-        GL.gl.deleteFramebuffer(this._fbo);
     }
 };
 
-// 0) RGB: ALBEDO, (TODO, A: material ID, can be used by post-processing effects such as SSS to selectively apply if a match)
-// 1) XY: NORMAL, ZW: DEPTH
-// 2) X: METALLICNESS, Y: NORMAL REFLECTION, Z: ROUGHNESS, W: TBD
+/**
+ * 0) RGB: ALBEDO, (TODO, A: effectID, can be used by post-processing effects such as SSS to selectively apply if a match)
+ * 1) XY: NORMAL, ZW: DEPTH
+ * 2) X: METALLICNESS, Y: NORMAL REFLECTION, Z: ROUGHNESS, W: TBD
+ * @param depthBuffer
+ * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function GBuffer(depthBuffer)
 {
     this.textures = [];
@@ -5126,8 +6373,8 @@ GBuffer.prototype = {
 };
 
 /**
- *
- * @type {{}}
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
  */
 var TextureSetter = {
     getSettersPerPass: function (materialPass)
@@ -5265,8 +6512,10 @@ SkinningTextureSetter.prototype.execute = function (renderItem)
 };
 
 /**
- *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function TextureSlot() {
     this.location = -1;
@@ -5276,9 +6525,11 @@ function TextureSlot() {
 }
 
 /**
- *
+ * @ignore
  * @param shader
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function MaterialPass(shader)
 {
@@ -5649,8 +6900,10 @@ MaterialPass.prototype =
 };
 
 /**
- *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function RenderItem()
 {
@@ -5667,6 +6920,12 @@ function RenderItem()
     this.next = null;
 }
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function RenderItemPool()
 {
     var head = null;
@@ -5696,8 +6955,10 @@ function RenderItemPool()
 }
 
 /**
- *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function CascadeShadowCasterCollector()
 {
@@ -5797,8 +7058,14 @@ CascadeShadowCasterCollector.prototype.qualifies = function(object)
 };
 
 /**
+ * @classdesc
+ * Frustum (a truncated pyramid) describes the set of planes bounding the camera's visible area.
  *
  * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Frustum()
 {
@@ -5812,13 +7079,39 @@ function Frustum()
         this._corners[i] = new Float4();
 }
 
+/**
+ * The index for the left plane.
+ */
 Frustum.PLANE_LEFT = 0;
+
+/**
+ * The index for the right plane.
+ */
 Frustum.PLANE_RIGHT = 1;
+
+/**
+ * The index for the bottom plane.
+ */
 Frustum.PLANE_BOTTOM = 2;
+
+/**
+ * The index for the top plane.
+ */
 Frustum.PLANE_TOP = 3;
+
+/**
+ * The index for the near plane.
+ */
 Frustum.PLANE_NEAR = 4;
+
+/**
+ * The index for the far plane.
+ */
 Frustum.PLANE_FAR = 5;
 
+/**
+ * @ignore
+ */
 Frustum.CLIP_SPACE_CORNERS = [
     new Float4(-1.0, -1.0, -1.0, 1.0),
     new Float4(1.0, -1.0, -1.0, 1.0),
@@ -5833,7 +7126,7 @@ Frustum.CLIP_SPACE_CORNERS = [
 Frustum.prototype =
     {
         /**
-         * An Array of planes describing frustum. The planes are in world space and point outwards.
+         * An Array of planes describing the frustum. The planes are in world space and point outwards.
          */
         get planes() { return this._planes; },
 
@@ -5842,6 +7135,9 @@ Frustum.prototype =
          */
         get corners() { return this._corners; },
 
+        /**
+         * @ignore
+         */
         update: function(projection, inverseProjection)
         {
             this._updatePlanes(projection);
@@ -5912,8 +7208,14 @@ Frustum.prototype =
     };
 
 /**
+ * @classdesc
+ * Camera is an abstract base class for camera objects.
  *
  * @constructor
+ *
+ * @see {@linkcode PerspectiveCamera}
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Camera()
 {
@@ -5936,6 +7238,9 @@ function Camera()
 }
 
 Camera.prototype = Object.create(Entity.prototype, {
+    /**
+     * The minimum distance to be able to render. Anything closer gets cut off.
+     */
     nearDistance: {
         get: function() {
             return this._nearDistance;
@@ -5946,6 +7251,10 @@ Camera.prototype = Object.create(Entity.prototype, {
             this._invalidateProjectionMatrix();
         }
     },
+
+    /**
+     * The maximum distance to be able to render. Anything farther gets cut off.
+     */
     farDistance: {
         get: function() {
             return this._farDistance;
@@ -5957,6 +7266,9 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The matrix transforming coordinates from world space to the camera's homogeneous projective space.
+     */
     viewProjectionMatrix: {
         get: function() {
             if (this._viewProjectionMatrixInvalid)
@@ -5966,6 +7278,9 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The matrix transforming coordinates from world space to the camera's local coordinate system (eye space).
+     */
     viewMatrix: {
         get: function()
         {
@@ -5976,6 +7291,9 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The matrix transforming coordinates from eye space to the camera's homogeneous projective space.
+     */
     projectionMatrix: {
         get: function()
         {
@@ -5986,6 +7304,9 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The matrix that transforms from the homogeneous projective space to world space.
+     */
     inverseViewProjectionMatrix: {
         get: function()
         {
@@ -5996,6 +7317,9 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The matrix that transforms from the homogeneous projective space to view space.
+     */
     inverseProjectionMatrix: {
         get: function()
         {
@@ -6006,6 +7330,11 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /***
+     * The Camera's view frustum.
+     *
+     * @ignore
+     */
     frustum: {
         get: function()
         {
@@ -6017,28 +7346,38 @@ Camera.prototype = Object.create(Entity.prototype, {
     }
 });
 
-// Camera.prototype.acceptVisitor = function(visitor)
-// {
-//     Entity.prototype.acceptVisitor.call(this, visitor);
-// };
-
+/**
+ * @ignore
+ * @param width
+ * @param height
+ * @private
+ */
 Camera.prototype._setRenderTargetResolution = function(width, height)
 {
     this._renderTargetWidth = width;
     this._renderTargetHeight = height;
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._invalidateViewProjectionMatrix = function()
 {
     this._viewProjectionMatrixInvalid = true;
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._invalidateWorldMatrix = function()
 {
     Entity.prototype._invalidateWorldMatrix.call(this);
     this._invalidateViewProjectionMatrix();
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._updateViewProjectionMatrix = function()
 {
     this._viewMatrix.inverseAffineOf(this.worldMatrix);
@@ -6049,29 +7388,47 @@ Camera.prototype._updateViewProjectionMatrix = function()
     this._viewProjectionMatrixInvalid = false;
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._invalidateProjectionMatrix = function()
 {
     this._projectionMatrixDirty = true;
     this._invalidateViewProjectionMatrix();
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._updateProjectionMatrix = function()
 {
     throw new Error("Abstract method!");
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
+/**
+ * @ignore
+ */
 Camera.prototype.toString = function()
 {
     return "[Camera(name=" + this._name + ")]";
 };
 
 /**
+ * @classdesc
+ * Only used for things like shadow map rendering.
+ *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function OrthographicOffCenterCamera()
 {
@@ -6100,7 +7457,13 @@ OrthographicOffCenterCamera.prototype._updateProjectionMatrix = function()
 };
 
 /**
+ * @classdesc
+ * WriteOnlyDepthBuffer is a depth buffer that can be used with {@linkcode FrameBuffer} as a depth buffer if read-backs
+ * are not required.
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function WriteOnlyDepthBuffer()
 {
@@ -6109,10 +7472,27 @@ function WriteOnlyDepthBuffer()
 }
 
 WriteOnlyDepthBuffer.prototype = {
+    /**
+     * The width of the depth buffer.
+     */
     get width() { return this._width; },
+
+    /**
+     * The height of the depth buffer.
+     */
     get height() { return this._height; },
+
+    /**
+     * The format of the depth buffer.
+     */
     get format() { return this._format; },
 
+    /**
+     * Initializes the depth buffer.
+     * @param width The width of the depth buffer.
+     * @param height The height of the depth buffer.
+     * @param stencil Whether or not a stencil buffer is required.
+     */
     init: function(width, height, stencil)
     {
         var gl = GL.gl;
@@ -6123,14 +7503,20 @@ WriteOnlyDepthBuffer.prototype = {
 
         gl.bindRenderbuffer(gl.RENDERBUFFER, this._renderBuffer);
         gl.renderbufferStorage(gl.RENDERBUFFER, this._format, width, height);
-    },
-
-    dispose: function()
-    {
-        GL.gl.deleteRenderBuffer(this._renderBuffer);
     }
 };
 
+/**
+ * @classdesc
+ * Rect is a value object describing an axis-aligned rectangle.
+ * @param x The x-coordinate of the "top-left" corner.
+ * @param y The y-coordinate of the "top-left" corner.
+ * @param width The width of the rectangle.
+ * @param height The height of the rectangle.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Rect(x, y, width, height)
 {
     this.x = x || 0;
@@ -6139,6 +7525,11 @@ function Rect(x, y, width, height)
     this.height = height || 0;
 }
 
+/**
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var RenderUtils =
 {
     /**
@@ -6186,8 +7577,12 @@ var RenderUtils =
 };
 
 /**
- *
+ * @ignore
+ * @param light
+ * @param shadowMapSize
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function CascadeShadowMapRenderer(light, shadowMapSize)
 {
@@ -6571,6 +7966,11 @@ CascadeShadowMapRenderer.prototype =
     }
 };
 
+/**
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var GLSLIncludes = {
 
     GENERAL:
@@ -6579,12 +7979,17 @@ var GLSLIncludes = {
 };
 
 /**
+ * @classdesc
+ * PoissonDisk is a class that allows generating 2D points in a poisson distribution.
  *
- * @param mode
- * @param initialDistance
- * @param decayFactor
- * @param maxTests
  * @constructor
+ * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonDisk.SQUARE}) or a circle ({@linkcode PoissonDisk.CIRCULAR}). Defaults to circular.
+ * @param [initialDistance]
+ * @param [decayFactor]
+ * @param [maxTests]
+ *
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function PoissonDisk(mode, initialDistance, decayFactor, maxTests)
 {
@@ -6597,9 +8002,19 @@ function PoissonDisk(mode, initialDistance, decayFactor, maxTests)
     this.reset();
 }
 
+/**
+ * Generates points in a square.
+ */
 PoissonDisk.SQUARE = 0;
+
+/**
+ * Generates points in a circle.
+ */
 PoissonDisk.CIRCULAR = 1;
 
+/**
+ * @ignore
+ */
 PoissonDisk._initDefault = function()
 {
     PoissonDisk.DEFAULT = new PoissonDisk();
@@ -6617,23 +8032,36 @@ PoissonDisk._initDefault = function()
 
 PoissonDisk.prototype =
 {
+    /**
+     * Gets all points currently generated.
+     */
     getPoints: function()
     {
         return this._points;
     },
 
+    /**
+     * Clears all generated points.
+     */
     reset : function()
     {
         this._currentDistance = this._initialDistance;
         this._points = [];
     },
 
+    /**
+     * Generates new points and add them to the set. This does not return a set of points.
+     * @param numPoints The amount of points to generate.
+     */
     generatePoints: function(numPoints)
     {
         for (var i = 0; i < numPoints; ++i)
             this.generatePoint();
     },
 
+    /**
+     * Generates a single point and adds it to the set.
+     */
     generatePoint: function()
     {
         for (;;) {
@@ -6651,6 +8079,10 @@ PoissonDisk.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _getCandidate: function()
     {
         for (;;) {
@@ -6661,6 +8093,10 @@ PoissonDisk.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _isValid: function(candidate, sqrDistance)
     {
         var len = this._points.length;
@@ -6677,8 +8113,8 @@ PoissonDisk.prototype =
 };
 
 /**
- * per pass setters have a method execute(camera, renderer), per instance have execute(camera, renderItem)
- * @type {{}}
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
  */
 var UniformSetter = {
 
@@ -7042,6 +8478,11 @@ MorphWeightsSetter.prototype.execute = function (camera, renderItem)
     GL.gl.uniform1fv(this.location, renderItem.meshInstance._morphWeights);
 };
 
+/**
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var Debug = {
     printShaderCode: function(code)
     {
@@ -7075,10 +8516,12 @@ var Debug = {
 };
 
 /**
- *
+ * @ignore
  * @param vertexShaderCode
  * @param fragmentShaderCode
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Shader(vertexShaderCode, fragmentShaderCode)
 {
@@ -7258,6 +8701,12 @@ Shader.prototype = {
     }
 };
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DeferredDirectionalShader(shadows)
 {
     Shader.call(this);
@@ -7374,8 +8823,13 @@ DeferredDirectionalShader.prototype.execute = function(renderer, light)
 }();
 
 /**
+ * @classdesc
+ * DirectionalLight represents a light source that is "infinitely far away", used as an approximation for sun light where
+ * locally all sun rays appear to be parallel.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function DirectionalLight()
 {
@@ -7390,9 +8844,15 @@ function DirectionalLight()
     this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
 }
 
-// set on init
+/**
+ * @ignore
+ */
 DirectionalLight.SHADOW_FILTER = null;
 
+/**
+ * @ignore
+ * @private
+ */
 DirectionalLight._initDeferredShaders = function()
 {
     DirectionalLight._deferredShader = new DeferredDirectionalShader(false);
@@ -7401,6 +8861,9 @@ DirectionalLight._initDeferredShaders = function()
 
 DirectionalLight.prototype = Object.create(Light.prototype,
     {
+        /**
+         * Defines whether or not this light casts shadows.
+         */
         castShadows: {
             get: function()
             {
@@ -7417,12 +8880,14 @@ DirectionalLight.prototype = Object.create(Light.prototype,
                     this._shadowMapRenderer = new CascadeShadowMapRenderer(this, this._shadowMapSize);
                 }
                 else {
-                    this._shadowMapRenderer.dispose();
                     this._shadowMapRenderer = null;
                 }
             }
         },
 
+        /**
+         * The shadow map size used by this light.
+         */
         shadowMapSize: {
             get: function()
             {
@@ -7436,6 +8901,9 @@ DirectionalLight.prototype = Object.create(Light.prototype,
             }
         },
 
+        /**
+         * The direction of the light rays.
+         */
         direction: {
             get: function()
             {
@@ -7458,22 +8926,24 @@ DirectionalLight.prototype = Object.create(Light.prototype,
     });
 
 /**
- * The ratios that define every cascade's split distance. Reset when numCascades change. 1 is at the far plane, 0 is at the near plane. Passing more than numCascades has no effect.
- * @param r1
- * @param r2
- * @param r3
- * @param r4
+ * The ratios that define every shadow cascade's split distance. Reset when numCascades change. 1 is at the far plane, 0 is at the near plane. Passing more than InitOptions.numShadowCascades has no effect.
  */
 DirectionalLight.prototype.setCascadeRatios = function(r1, r2, r3, r4)
 {
     this._shadowMapRenderer.setSplitRatios(r1, r2, r3, r4);
 };
 
+/**
+ * @ignore
+ */
 DirectionalLight.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
+/**
+ * @ignore
+ */
 DirectionalLight.prototype.renderDeferredLighting = function(renderer)
 {
     var shader = this._castShadows? DirectionalLight._deferredShadowShader : DirectionalLight._deferredShader;
@@ -7512,8 +8982,11 @@ DirectionalLight.prototype.renderDeferredLighting = function(renderer)
 /**
  * Encapsulates behaviour to handle frames and time differences.
  * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
-
 function FrameTicker()
 {
     this._isRunning = false;
@@ -7582,6 +9055,11 @@ FrameTicker.prototype = {
     }
 };
 
+/**
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ShadowFilter()
 {
     this._blurShader = null;
@@ -7642,13 +9120,21 @@ ShadowFilter.prototype =
 
     _invalidateBlurShader: function()
     {
-        if (this._blurShader) {
-            this._blurShader.dispose();
+        if (this._blurShader)
             this._blurShader = null;
-        }
     }
 };
 
+/**
+ * @classdesc
+ * HardDirectionalShadowFilter is a shadow filter that doesn't apply any filtering at all.
+ *
+ * @see {@linkcode InitOptions#directionalShadowFilter}
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function HardDirectionalShadowFilter()
 {
     ShadowFilter.call(this);
@@ -7656,19 +9142,32 @@ function HardDirectionalShadowFilter()
 
 HardDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype);
 
+/**
+ * @ignore
+ */
 HardDirectionalShadowFilter.prototype.getGLSL = function()
 {
     return ShaderLibrary.get("dir_shadow_hard.glsl");
 };
 
+/**
+ * @ignore
+ */
 HardDirectionalShadowFilter.prototype.getCullMode = function()
 {
     return CullMode.FRONT;
 };
 
 /**
- * You can add your own, as long as the glsl code contains a function
- * void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)
+ * <p>LightingModel defines a lighting model to be used by a {@Material}. A default lighting model can be assigned to
+ * {@linkcode InitOptions.defaultLightingModel}, which will mean any material will use it by default. In addition,
+ * any material using the default lighting model without a {@linkcode BlendState} will use the deferred rendering path,
+ * potentially increasing the performance for heavily lit scenes.</p>
+ *
+ * <p>You can add pass your own lighting models as a string into a material, as long as the glsl code contains the
+ * functions hx_brdf and hx_probeGeometricShadowing</p>
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 var LightingModel =
 {
@@ -7678,14 +9177,11 @@ var LightingModel =
 };
 
 /**
- * Base function for basic copies
- * @param fragmentShader The fragment shader to use while copying.
- * @constructor
- */
-/**
- *
  * @param fragmentShader
  * @constructor
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function CustomCopyShader(fragmentShader)
 {
@@ -7731,6 +9227,9 @@ CustomCopyShader.prototype.execute = function(rect, texture)
  * Copies one texture's channels (in configurable ways) to another's.
  * @param channel Can be either x, y, z, w or any 4-component swizzle. default is xyzw, meaning a simple copy
  * @constructor
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function CopyChannelsShader(channel, copyAlpha)
 {
@@ -7750,6 +9249,9 @@ CopyChannelsShader.prototype = Object.create(CustomCopyShader.prototype);
 
 /**
  * Copies the texture from linear space to gamma space.
+ *
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
  */
 function ApplyGammaShader()
 {
@@ -7759,8 +9261,12 @@ function ApplyGammaShader()
 ApplyGammaShader.prototype = Object.create(CustomCopyShader.prototype);
 
 /**
+ * @classdesc
+ * Texture2D represents a cube map texture.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function TextureCube()
 {
@@ -7778,6 +9284,9 @@ function TextureCube()
     this._isReady = false;
 }
 
+/**
+ * @ignore
+ */
 TextureCube._initDefault = function()
 {
     var gl = GL.gl;
@@ -7790,6 +9299,9 @@ TextureCube._initDefault = function()
 
 TextureCube.prototype =
 {
+    /**
+     * The name of the texture.
+     */
     get name()
     {
         return this._name;
@@ -7800,12 +9312,9 @@ TextureCube.prototype =
         this._name = value;
     },
 
-    dispose: function()
-    {
-        GL.gl.deleteTexture(this._texture);
-        this._isReady = false;
-    },
-
+    /**
+     * Generates a mip map chain.
+     */
     generateMipmap: function()
     {
         this.bind();
@@ -7814,6 +9323,9 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
+     */
     get filter()
     {
         return this._filter;
@@ -7829,6 +9341,9 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY}
+     */
     get maxAnisotropy()
     {
         return this._maxAnisotropy;
@@ -7849,10 +9364,31 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * The cube texture's size
+     */
     get size() { return this._size; },
+
+    /**
+     * The texture's format
+     *
+     * @see {@linkcode TextureFormat}
+     */
     get format() { return this._format; },
+
+    /**
+     * The texture's data type
+     *
+     * @see {@linkcode DataType}
+     */
     get dataType() { return this._dataType; },
 
+    /**
+     * Inits an empty texture.
+     * @param size The size of the texture.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     initEmpty: function(size, format, dataType)
     {
         this._format = format = format || TextureFormat.RGBA;
@@ -7875,6 +9411,14 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_2D, null);
     },
 
+    /**
+     * Initializes the texture with the given data.
+     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+     * @param size The size of the texture.
+     * @param generateMips Whether or not a mip chain should be generated.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     uploadData: function(data, size, generateMips, format, dataType)
     {
         this._size = size;
@@ -7903,6 +9447,13 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * Initializes the texture with the given Images.
+     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+     * @param generateMips Whether or not a mip chain should be generated.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     uploadImages: function(images, generateMips, format, dataType)
     {
         generateMips = generateMips === undefined? true: generateMips;
@@ -7923,6 +9474,13 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * Initializes a miplevel with the given Images.
+     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+     * @param mipLevel The mip-level to initialize.
+     * @param {TextureFormat} format The texture's format.
+     * @param {DataType} dataType The texture's data format.
+     */
     uploadImagesToMipLevel: function(images, mipLevel, format, dataType)
     {
         var gl = GL.gl;
@@ -7946,9 +9504,15 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },
 
+    /**
+     * Defines whether data has been uploaded to the texture or not.
+     */
     isReady: function() { return this._isReady; },
 
-    // binds a texture to a given texture unit
+    /**
+     * Binds a texture to a given texture unit.
+     * @ignore
+     */
     bind: function(unitIndex)
     {
         var gl = GL.gl;
@@ -7959,22 +9523,64 @@ TextureCube.prototype =
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, this._texture);
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "[TextureCube(name=" + this._name + ")]";
     }
 };
 
+/**
+ * @classdesc
+ * BlendState defines the blend mode the renderer should use. Default presets include BlendState.ALPHA, BlendState.ADD
+ * and BlendState.MULTIPLY.
+ *
+ * @param srcFactor The source blend factor.
+ * @param dstFactor The destination blend factor.
+ * @param operator The blend operator.
+ * @param color The blend color.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function BlendState(srcFactor, dstFactor, operator, color)
 {
+    /**
+     * Defines whether blending is enabled.
+     */
     this.enabled = true;
+
+    /**
+     * The source blend factor.
+     * @see {@linkcode BlendFactor}
+     */
     this.srcFactor = srcFactor || BlendFactor.ONE;
+
+    /**
+     * The destination blend factor.
+     * @see {@linkcode BlendFactor}
+     */
     this.dstFactor = dstFactor || BlendFactor.ZERO;
+
+    /**
+     * The blend operator.
+     * @see {@linkcode BlendOperation}
+     */
     this.operator = operator || BlendOperation.ADD;
+
+    /**
+     * The blend color.
+     * @see {@linkcode Color}
+     */
     this.color = color || null;
 }
 
 BlendState.prototype = {
+    /**
+     * Creates a copy of this BlendState.
+     */
     clone: function() {
         return new BlendState(this.srcFactor, this.dstFactor, this.operator, this.color);
     }
@@ -7990,16 +9596,20 @@ BlendState._initDefaults = function()
 };
 
 /**
+ * @classdesc
+ * PoissonSphere is a class that allows generating 3D points in a poisson distribution.
  *
- * @param mode
- * @param initialDistance
- * @param decayFactor
- * @param maxTests
  * @constructor
+ * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonSphere.BOX}) or a circle ({@linkcode PoissonSphere.SPHERICAL}). Defaults to spherical.
+ * @param [initialDistance]
+ * @param [decayFactor]
+ * @param [maxTests]
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function PoissonSphere(mode, initialDistance, decayFactor, maxTests)
 {
-    this._mode = mode === undefined? PoissonSphere.CIRCULAR : mode;
+    this._mode = mode === undefined? PoissonSphere.SPHERICAL : mode;
     this._initialDistance = initialDistance || 1.0;
     this._decayFactor = decayFactor || .99;
     this._maxTests = maxTests || 20000;
@@ -8008,9 +9618,20 @@ function PoissonSphere(mode, initialDistance, decayFactor, maxTests)
     this.reset();
 }
 
+/**
+ * Generates points in a box.
+ */
 PoissonSphere.BOX = 0;
-PoissonSphere.CIRCULAR = 1;
 
+/**
+ * Generates points in a sphere.
+ */
+PoissonSphere.SPHERICAL = 1;
+
+/**
+ * @ignore
+ * @private
+ */
 PoissonSphere._initDefault = function()
 {
     PoissonSphere.DEFAULT = new PoissonSphere();
@@ -8028,24 +9649,37 @@ PoissonSphere._initDefault = function()
 };
 
 PoissonSphere.prototype =
-{
+
+    /**
+     * Gets all points currently generated.
+     */{
     getPoints: function()
     {
         return this._points;
     },
 
+    /**
+     * Clears all generated points.
+     */
     reset : function()
     {
         this._currentDistance = this._initialDistance;
         this._points = [];
     },
 
+    /**
+     * Generates new points and add them to the set. This does not return a set of points.
+     * @param numPoints The amount of points to generate.
+     */
     generatePoints: function(numPoints)
     {
         for (var i = 0; i < numPoints; ++i)
             this.generatePoint();
     },
 
+    /**
+     * Generates a single point and adds it to the set.
+     */
     generatePoint: function()
     {
         for (;;) {
@@ -8063,6 +9697,10 @@ PoissonSphere.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _getCandidate: function()
     {
         for (;;) {
@@ -8074,6 +9712,10 @@ PoissonSphere.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _isValid: function(candidate, sqrDistance)
     {
         var len = this._points.length;
@@ -8090,18 +9732,55 @@ PoissonSphere.prototype =
     }
 };
 
+/**
+ * META contains some data about the Helix engine, such as the options it was initialized with.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var META =
     {
-        VERSION: "0.1",
+        /**
+         * The current of the engine.
+         */
+        VERSION: "0.1.0",
+
+        /**
+         * Whether or not Helix has been initialized.
+         */
         INITIALIZED: false,
+
+        /**
+         * The options passed to Helix when initializing. These are possibly updated to reflect the device's capabilties,
+         * so it can be used to verify settings.
+         */
         OPTIONS: null,
+
+        /**
+         * The canvas used to contain the to-screen renders.
+         */
         TARGET_CANVAS: null
     };
 
+/**
+ * The {@linkcode Signal} that dispatched before a frame renders.
+ */
 var onPreFrame = new Signal();
+
+/**
+ * The {@linkcode Signal} that triggers rendering. Listen to this to call {@linkcode Renderer.render}
+ */
 var onFrame = new Signal();
+
+/**
+ * @ignore
+ * @type {FrameTicker}
+ */
 var frameTicker = new FrameTicker();
 
+/**
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
+ */
 var DEFAULTS =
     {
         COPY_SHADER: null,
@@ -8109,6 +9788,11 @@ var DEFAULTS =
         DEFAULT_SKINNING_TEXTURE: null
     };
 
+/**
+ * capabilities contains the device-specific properties and supported extensions.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var capabilities =
     {
         // extensions:
@@ -8149,8 +9833,12 @@ var BufferUsage = {};
 var CubeFace = {};
 
 /**
- * Provides a set of options to configure Helix
+ * @classdesc
+ * Provides a set of options to configure Helix.
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function InitOptions()
 {
@@ -8186,6 +9874,8 @@ function InitOptions()
 /**
  * Initializes Helix and creates a WebGL context from a given canvas
  * @param canvas The canvas to create the gl context from.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function init(canvas, options)
 {
@@ -8193,6 +9883,9 @@ function init(canvas, options)
 
 
     META.TARGET_CANVAS = canvas;
+
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
 
     var webglFlags = {
         antialias: false,   // we're rendering to texture by default, so native AA has no effect
@@ -8513,14 +10206,15 @@ function _initGLProperties()
     CubeFace.NEGATIVE_Z = gl.TEXTURE_CUBE_MAP_NEGATIVE_Z;
 }
 
-var Gaussian =
-{
-    estimateGaussianRadius: function (variance, epsilon)
-    {
-        return Math.sqrt(-2.0 * variance * Math.log(epsilon));
-    }
-};
-
+/**
+ * @classdesc
+ * CenteredGaussianCurve is a class that can be used to generate values from a gaussian curve symmetrical to the Y-axis.
+ *
+ * @constructor
+ * @param variance The variance of the distribution.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function CenteredGaussianCurve(variance)
 {
     this._amplitude = 1.0 / Math.sqrt(2.0 * variance * Math.PI);
@@ -8529,12 +10223,21 @@ function CenteredGaussianCurve(variance)
 
 CenteredGaussianCurve.prototype =
 {
+    /**
+     * Gets the y-value of the curve at the given x-coordinate.
+     */
     getValueAt: function(x)
     {
         return this._amplitude * Math.pow(Math.E, x*x*this._expScale);
     }
 };
 
+/**
+ * Creates a CenteredGaussianCurve with a given "radius" of influence.
+ * @param radius The "radius" of the curve.
+ * @param epsilon The minimum value to still be considered within the radius.
+ * @returns {CenteredGaussianCurve} The curve with the given radius.
+ */
 CenteredGaussianCurve.fromRadius = function(radius, epsilon)
 {
     epsilon = epsilon || .01;
@@ -8542,6 +10245,22 @@ CenteredGaussianCurve.fromRadius = function(radius, epsilon)
     return new CenteredGaussianCurve(standardDeviation*standardDeviation);
 };
 
+/**
+ * @classdesc
+ * SpherePrimitive provides a primitive cylinder {@linkcode Model}.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of horizontal segments</li>
+ *     <li>numSegmentsH: The amount of vertical segments </li>
+ *     <li>radius: The radius of the sphere</li>
+ *     <li>invert: Whether or not the faces should point inwards</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function SpherePrimitive(definition)
 {
     Primitive.call(this, definition);
@@ -8616,8 +10335,12 @@ SpherePrimitive.prototype._generate = function(target, definition)
 };
 
 /**
+ * @classdesc
+ * BoundingAABB represents a bounding sphere.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function BoundingSphere()
 {
@@ -8626,6 +10349,9 @@ function BoundingSphere()
 
 BoundingSphere.prototype = Object.create(BoundingVolume.prototype);
 
+/**
+ * Sets the center and radius explicitly.
+ */
 BoundingSphere.prototype.setExplicit = function(center, radius)
 {
     this._center.copyFrom(center);
@@ -8634,6 +10360,9 @@ BoundingSphere.prototype.setExplicit = function(center, radius)
     this._updateMinAndMax();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.growToIncludeMesh = function(mesh)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
@@ -8697,6 +10426,9 @@ BoundingSphere.prototype.growToIncludeMesh = function(mesh)
     this._updateMinAndMax();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.growToIncludeBound = function(bounds)
 {
     if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
@@ -8750,6 +10482,9 @@ BoundingSphere.prototype.growToIncludeBound = function(bounds)
     this._updateMinAndMax();
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.growToIncludeMinMax = function(min, max)
 {
     // temp solution, not run-time perf critical
@@ -8758,11 +10493,17 @@ BoundingSphere.prototype.growToIncludeMinMax = function(min, max)
     this.growToIncludeBound(aabb);
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.getRadius = function()
 {
     return this._halfExtentX;
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
 {
     if (sourceBound._expanse === BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === BoundingVolume.EXPANSE_EMPTY)
@@ -8807,6 +10548,9 @@ BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
     }
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE)
@@ -8828,6 +10572,9 @@ BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
     return true;
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.intersectsBound = function(bound)
 {
     if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
@@ -8848,6 +10595,9 @@ BoundingSphere.prototype.intersectsBound = function(bound)
         return BoundingVolume._testAABBToSphere(bound, this);
 };
 
+/**
+ * @inheritDoc
+ */
 BoundingSphere.prototype.classifyAgainstPlane = function(plane)
 {
     var dist = plane.x * this._center.x + plane.y * this._center.y + plane.z * this._center.z + plane.w;
@@ -8857,6 +10607,10 @@ BoundingSphere.prototype.classifyAgainstPlane = function(plane)
     else return PlaneSide.INTERSECTING;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 BoundingSphere.prototype._updateMinAndMax = function()
 {
     var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
@@ -8869,14 +10623,23 @@ BoundingSphere.prototype._updateMinAndMax = function()
     this._maximumZ = centerZ + radius;
 };
 
+/**
+ * @ignore
+ */
 BoundingSphere.prototype.createDebugModel = function()
 {
     return new SpherePrimitive({doubleSided:true});
 };
 
 /**
+ * @classdesc
  * Keeps track and updates entities
+ *
  * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function EntityEngine()
 {
@@ -8929,9 +10692,15 @@ EntityEngine.prototype =
 };
 
 /**
- * Creates a new Scene object
- * @param rootNode (optional) A rootnode to be used, allowing different partition types to be used as the root.
+ * @classdesc
+ * Scene forms the base to contain the entire scene graph. It contains a hierarchical structure including
+ * {@linknode ModelInstance}, lights, cameras, etc.
+ *
+ * @param {SceneNode} [rootNode] An optional scene node to use as a root. Useful if an entire scene hierarchy was already loaded.
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Scene(rootNode)
 {
@@ -8944,46 +10713,71 @@ function Scene(rootNode)
 }
 
 Scene.prototype = {
+    /**
+     * The {@linkcode Skybox} to use when rendering the scene.
+     */
     get skybox() { return this._skybox; },
     set skybox(value) { this._skybox = value; },
 
-    // TODO: support regex for partial matches
+    /**
+     * Finds a scene node with the given name somewhere in the Scene.
+     */
     findNodeByName: function(name)
     {
         return this._rootNode.findNodeByName(name);
     },
 
-    // TODO: support regex for partial matches
+    /**
+     * Finds a material with the given name somewhere in the Scene.
+     */
     findMaterialByName: function(name)
     {
         return this._rootNode.findMaterialByName(name);
     },
 
+    /**
+     * Attaches a child to the root node.
+     */
     attach: function(child)
     {
         this._rootNode.attach(child);
     },
 
+    /**
+     * Removes a child from the root node.
+     */
     detach: function(child)
     {
         this._rootNode.detach(child);
     },
 
+    /**
+     * The amount of children in the scene root node.
+     */
     get numChildren()
     {
         return this._rootNode.numChildren;
     },
 
+    /**
+     * Gets the child object at the given index.
+     */
     getChild: function(index)
     {
         return this._rootNode.getChild(index);
     },
 
+    /**
+     * Returns whether or not the child object is attached to the root node.
+     */
     contains: function(child)
     {
         this._rootNode.contains(child);
     },
 
+    /**
+     * @ignore
+     */
     acceptVisitor: function(visitor)
     {
         visitor.visitScene(this);
@@ -8991,17 +10785,31 @@ Scene.prototype = {
         this._rootNode.acceptVisitor(visitor);
     },
 
+    /**
+     * @ignore
+     */
     get entityEngine()
     {
         return this._entityEngine;
     },
 
+    /**
+     * The bounding volume for the entire scene in world coordinates.
+     */
     get worldBounds()
     {
         return this._rootNode.worldBounds;
     }
 };
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function UnlitPass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
@@ -9016,6 +10824,14 @@ UnlitPass.prototype._generateShader = function(geometryVertex, geometryFragment)
     return new Shader(vertexShader, fragmentShader);
 };
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ForwardLitBasePass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
@@ -9030,6 +10846,14 @@ ForwardLitBasePass.prototype._generateShader = function(geometryVertex, geometry
     return new Shader(vertexShader, fragmentShader);
 };
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DirectionalShadowPass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
@@ -9044,6 +10868,16 @@ DirectionalShadowPass.prototype._generateShader = function(geometryVertex, geome
     return new Shader(vertexShader, fragmentShader);
 };
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @param lightingModel
+ * @param shadows
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ForwardLitDirPass(geometryVertex, geometryFragment, lightingModel, shadows)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
@@ -9126,6 +10960,15 @@ ForwardLitDirPass.prototype._generateShader = function(geometryVertex, geometryF
     return new Shader(vertexShader, fragmentShader);
 };
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @param lightingModel
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ForwardLitPointPass(geometryVertex, geometryFragment, lightingModel)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
@@ -9173,6 +11016,16 @@ ForwardLitPointPass.prototype._generateShader = function(geometryVertex, geometr
     return new Shader(vertexShader, fragmentShader);
 };
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @param lightingModel
+ * @param ssao
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel, ssao)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, ssao));
@@ -9240,6 +11093,14 @@ ForwardLitProbePass.prototype._setSSAOTexture = function(texture)
     this._ssaoSlot.texture = texture;
 };
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function GBufferAlbedoPass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
@@ -9254,6 +11115,14 @@ GBufferAlbedoPass.prototype._generateShader = function(geometryVertex, geometryF
     return new Shader(vertexShader, fragmentShader);
 };
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function GBufferNormalDepthPass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
@@ -9268,6 +11137,13 @@ GBufferNormalDepthPass.prototype._generateShader = function(geometryVertex, geom
     return new Shader(vertexShader, fragmentShader);
 };
 
+/**
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function GBufferSpecularPass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
@@ -9282,6 +11158,14 @@ GBufferSpecularPass.prototype._generateShader = function(geometryVertex, geometr
     return new Shader(vertexShader, fragmentShader);
 };
 
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function GBufferFullPass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
@@ -9296,6 +11180,12 @@ GBufferFullPass.prototype._generateShader = function(geometryVertex, geometryFra
     return new Shader(vertexShader, fragmentShader);
 };
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ApplyGBufferPass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
@@ -9311,11 +11201,22 @@ ApplyGBufferPass.prototype._generateShader = function(geometryVertex, geometryFr
 };
 
 /**
- *
- * @constructor
+ * @ignore
  */
 var MATERIAL_ID_COUNTER = 0;
 
+/**
+ * @classdesc
+ * Material is a base class for materials. It splits up into two components: the geometry stage, and the lighting model.
+ *
+ * @constructor
+ *
+ * @param geometryVertexShader The vertex code for the geometry stage.
+ * @param geometryFragmentShader The fragment code for the geometry stage.
+ * @param [lightingModel] The {@linkcode LightingModel} to use. Defaults to what was passed in (if anything) with {@linkcode InitOptions.defaultLightingModel}.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
 {
     this._elementType = ElementType.TRIANGLES;
@@ -9348,6 +11249,9 @@ Material.ID_COUNTER = 0;
 
 Material.prototype =
 {
+    /**
+     * @ignore
+     */
     init: function()
     {
         if (this._initialized || !this._geometryVertexShader || !this._geometryFragmentShader)
@@ -9388,8 +11292,17 @@ Material.prototype =
         // TODO: init dynamic light passes
     },
 
+    /**
+     * Whether or not the Material was initialized and ready to use.
+     * @ignore
+     */
     get initialized() { return this._initialized; },
 
+    /**
+     * Whether or not SSAO should be applied to this material. This requires {@linkcode Renderer.ambientOcclusion} to be set.
+     * If this material is using the same lighting model as set to {@linkcode InitOptions.defaultLightingModel} and is not
+     * transparent, it uses the deferred render path and ssao is always applied if assigned to the renderer.
+     */
     get ssao() { return this._ssao; },
     set ssao(value)
     {
@@ -9398,6 +11311,11 @@ Material.prototype =
         this._invalidate();
     },
 
+    /**
+     * The blend state used for this material.
+     *
+     * @see {BlendState}
+     */
     get blendState()
     {
         return this._blendState;
@@ -9418,6 +11336,9 @@ Material.prototype =
         this._invalidate();
     },
 
+    /**
+     * The name of the material.
+     */
     get name()
     {
         return this._name;
@@ -9428,6 +11349,10 @@ Material.prototype =
         this._name = value;
     },
 
+    /**
+     * The {@options LightingModel} used to light this material. If this is set to {@linkcode InitOptions.defaultLightingModel} and
+     * no blendState is assigned, this material will be rendered using the deferred render path.
+     */
     get lightingModel()
     {
         return this._lightingModel;
@@ -9439,6 +11364,9 @@ Material.prototype =
         this._invalidate();
     },
 
+    /**
+     * A Number that can force the order in which the material is rendered. Higher values will be rendered later!
+     */
     get renderOrder()
     {
         return this._renderOrder;
@@ -9449,6 +11377,9 @@ Material.prototype =
         this._renderOrder = value;
     },
 
+    /**
+     * An {@linkcode ElementType} to describe the type of elements to render.
+     */
     get elementType()
     {
         return this._elementType;
@@ -9463,6 +11394,9 @@ Material.prototype =
         }
     },
 
+    /**
+     * Defines whether or not this material should write depth information.
+     */
     get writeDepth()
     {
         return this._writeDepth;
@@ -9484,6 +11418,9 @@ Material.prototype =
         }
     },
 
+    /**
+     * Defines how back-face culling is applied. One of {@linkcode CullMode}.
+     */
     get cullMode()
     {
         return this._cullMode;
@@ -9498,12 +11435,18 @@ Material.prototype =
         }
     },
 
+    /**
+     * @ignore
+     */
     getPass: function (type)
     {
         if (!this._initialized) this.init();
         return this._passes[type];
     },
 
+    /**
+     * @ignore
+     */
     setPass: function (type, pass)
     {
         this._passes[type] = pass;
@@ -9555,12 +11498,20 @@ Material.prototype =
         this.onChange.dispatch();
     },
 
+    /**
+     * @ignore
+     */
     hasPass: function (type)
     {
         if (!this._initialized) this.init();
         return !!this._passes[type];
     },
 
+    /**
+     * Assigns a texture to the shaders with a given name.
+     * @param {string} slotName The name of the texture as it appears in the shader code.
+     * @param {Texture2D} texture The texture to assign
+     */
     setTexture: function(slotName, texture)
     {
         if (texture)
@@ -9572,6 +11523,11 @@ Material.prototype =
             if (this.hasPass(i)) this._passes[i].setTexture(slotName, texture);
     },
 
+    /**
+     * Assigns a texture array to the shaders with a given name.
+     * @param {string} slotName The name of the texture array as it appears in the shader code.
+     * @param {Array} texture An Array of {@linkcode Texture2D} objects
+     */
     setTextureArray: function(slotName, textures)
     {
         if (textures)
@@ -9584,9 +11540,9 @@ Material.prototype =
     },
 
     /**
-     *
-     * @param name
-     * @param value
+     * Sets a uniform value to the shaders.
+     * @param name The uniform name as it appears in the shader code.
+     * @param value The uniform value. For vectors, this can be a {@linkcode Float2}, {@linkcode Float4}, or an Array
      * @param overwrite (Optional) If the value was already set, ignore the new value.
      */
     setUniform: function(name, value, overwrite)
@@ -9605,9 +11561,9 @@ Material.prototype =
     },
 
     /**
-     *
-     * @param name
-     * @param value
+     * Sets the value for a uniform array to the shaders.
+     * @param name The uniform array name as it appears in the shader code.
+     * @param value An array of values.
      * @param overwrite (Optional) If the value was already set, ignore the new value.
      */
     setUniformArray: function(name, value, overwrite)
@@ -9625,16 +11581,26 @@ Material.prototype =
         }
     },
 
+    /**
+     * @ignore
+     */
     _setUseSkinning: function(value)
     {
         this._useSkinning = value;
     },
 
+    /**
+     * @ignore
+     */
     _setUseMorphing: function(value)
     {
         this._useMorphing = value;
     },
 
+    /**
+     * Called by subclasses when their shaders are invalidated
+     * @ignore
+     */
     _invalidate: function()
     {
         this._initialized = false;
@@ -9642,6 +11608,9 @@ Material.prototype =
         this.onChange.dispatch();
     },
 
+    /**
+     * @ignore
+     */
     _setSSAOTexture: function(texture)
     {
         var pass = this.getPass(MaterialPass.BASE_PASS);
@@ -9650,6 +11619,9 @@ Material.prototype =
         if (pass) pass._setSSAOTexture(texture);
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "[Material(name=" + this._name + ")]";
@@ -9657,7 +11629,10 @@ Material.prototype =
 };
 
 /**
- * Creates a default skybox rendering material.
+ * @classdesc
+ * SkyboxMaterial forms the default material to render skyboxes.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkyboxMaterial(texture)
 {
@@ -9682,10 +11657,16 @@ function SkyboxMaterial(texture)
 SkyboxMaterial.prototype = Object.create(Material.prototype);
 
 /**
+ * @classdesc
  * VertexLayout links the mesh's vertex attributes to a shader's attributes
+ *
  * @param mesh
  * @param pass
  * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function VertexLayout(mesh, pass)
 {
@@ -9722,10 +11703,16 @@ function VertexLayout(mesh, pass)
 }
 
 /**
- * MeshInstance represents a mesh/material combination as it appears on a scene
- * @param mesh
- * @param material
+ * @classdesc
+ * MeshInstance allows bundling a {@linkcode Mesh} with a {@linkcode Material} for rendering, allowing both the geometry
+ * and materials to be shared regardless of the combination of both. MeshInstance is managed by {@linkcode ModelInstance}
+ * internally and should never be created manually.
+ *
  * @constructor
+ * @param mesh The {@linkcode Mesh} to wrap.
+ * @param material The {@linkcode Material} to use to render the given Mesh.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function MeshInstance(mesh, material)
 {
@@ -9747,6 +11734,9 @@ function MeshInstance(mesh, material)
 }
 
 MeshInstance.prototype = {
+    /**
+     * Defines whether this MeshInstance should be rendered or not.
+     */
     get visible()
     {
         return this._visible;
@@ -9757,12 +11747,18 @@ MeshInstance.prototype = {
         this._visible = value;
     },
 
+    /**
+     * @ignore
+     */
     setMorphTarget: function(targetIndex, vertexBuffer, weight)
     {
         this._morphTargets[targetIndex] = vertexBuffer;
         this._morphWeights[targetIndex] = vertexBuffer? weight : 0.0;
     },
 
+    /**
+     * The {@linkcode Material} used to render the Mesh.
+     */
     get material()
     {
         return this._material;
@@ -9788,6 +11784,7 @@ MeshInstance.prototype = {
     /**
      * Sets state for this mesh/material combination.
      * @param passType
+     * @ignore
      */
     updateRenderState: function(passType)
     {
@@ -9823,6 +11820,10 @@ MeshInstance.prototype = {
         GL.enableAttributes(layout._numAttributes);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _initVertexLayouts: function()
     {
         this._vertexLayouts = new Array(MaterialPass.NUM_PASS_TYPES);
@@ -9833,6 +11834,10 @@ MeshInstance.prototype = {
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _linkMeshWithMaterial: function()
     {
         this._initVertexLayouts();
@@ -9840,6 +11845,10 @@ MeshInstance.prototype = {
         this._meshMaterialLinkInvalid = false;
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _onMaterialChange: function()
     {
         this._meshMaterialLinkInvalid = true;
@@ -9847,322 +11856,18 @@ MeshInstance.prototype = {
 };
 
 /**
- * BasicMaterial is the default physically plausible rendering material.
+ * @classdesc
+ * <p>ModelInstance is a scene graph node that contains Model geometry and a Material to use for rendering. It allows
+ * reusing geometry multiple times in the scene.</p>
+ * <p>ModelInstance creates a matching {@linkcode MeshInstance} for each {@linkcode Mesh} in the {@linkcode Model}, in
+ * which the {@linkcode Mesh} is linked with its {@linkcode Material}.
+ *
  * @constructor
- */
-function BasicMaterial(options)
-{
-    Material.call(this);
-
-    options = options || {};
-
-    this._color = options.color || new Color(1, 1, 1, 1);
-    this._colorMap = options.colorMap || null;
-    this._doubleSided = !!options.doubleSided;
-    this._normalMap = options.normalMap || null;
-    this._specularMap = options.specularMap || null;
-    this._maskMap = options.maskMap || null;
-    this._specularMapMode = options.specularMapMode || BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
-    this._metallicness = options.metallicness === undefined? 0.0 : options.metallicness;
-    this._alpha = options.alpha === undefined? 1.0 : options.alpha;
-    this._roughness = options.roughness === undefined ? 0.5 : options.roughness;
-    this._roughnessRange = options.roughnessRange === undefined? .5 : options.roughnessRange;
-    this._normalSpecularReflectance = options.normalSpecularReflectance === undefined? 0.027 : options.normalSpecularReflectance;
-    this._alphaThreshold = options.alphaThreshold === undefined? 1.0 : options.alphaThreshold;
-    this._useVertexColors = !!options.useVertexColors;
-
-    // trigger assignments
-    this.color = this._color;
-    this.alpha = this._alpha;
-    this.metallicness = this._metallicness;
-    this.roughness = this._roughness;
-    this.normalSpecularReflectance = this._normalSpecularReflectance;
-
-    if (options.lightingModel !== undefined)
-        this.lightingModel = options.lightingModel;
-}
-
-BasicMaterial.roughnessFromShininess = function(specularPower)
-{
-    return Math.sqrt(2.0/(specularPower + 2.0));
-};
-
-/**
- * used for specularMapMode to specify the specular map only uses roughness data
- */
-BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
-/**
- * used for specularMapMode to specify the specular map has rgb channels containing roughness, normal reflectance and metallicness, respectively
- */
-BasicMaterial.SPECULAR_MAP_ALL = 2;
-/**
- * used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
- */
-BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
-
-
-BasicMaterial.prototype = Object.create(Material.prototype,
-    {
-        doubleSided: {
-            get: function()
-            {
-                return this._doubleSided;
-            },
-
-            set: function(value)
-            {
-                this._doubleSided = value;
-
-                for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
-                    if (this._passes[i])
-                        this._passes[i].cullMode = value ? CullMode.NONE : CullMode.BACK;
-                }
-            }
-        },
-
-        alpha: {
-            get: function ()
-            {
-                return this._alpha;
-            },
-            set: function (value)
-            {
-                this._alpha = MathX.saturate(value);
-                this.setUniform("alpha", this._alpha);
-            }
-        },
-
-        // this can ONLY be used if the MeshData was created with a hx_vertexColor attribute!
-        useVertexColors: {
-            get: function ()
-            {
-                return this._useVertexColors;
-            },
-            set: function (value)
-            {
-                if (this._useVertexColors !== value)
-                    this._invalidate();
-
-                this._useVertexColors = value;
-            }
-        },
-
-        color: {
-            get: function ()
-            {
-                return this._color;
-            },
-            set: function (value)
-            {
-                this._color = isNaN(value) ? value : new Color(value);
-                this.setUniform("color", this._color);
-            }
-        },
-
-        colorMap: {
-            get: function ()
-            {
-                return this._colorMap;
-            },
-
-            set: function (value)
-            {
-                if (!!this._colorMap !== !!value) {
-                    this._invalidate();
-                }
-
-                this._colorMap = value;
-
-                this.setTexture("colorMap", value);
-            }
-        },
-
-        normalMap: {
-            get: function ()
-            {
-                return this._normalMap;
-            },
-            set: function (value)
-            {
-                if (!!this._normalMap !== !!value)
-                    this._invalidate();
-
-                this.setTexture("normalMap", value);
-
-                this._normalMap = value;
-            }
-        },
-
-        /**
-         * The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
-         */
-        specularMap: {
-            get: function ()
-            {
-                return this._specularMap;
-            },
-            set: function (value)
-            {
-                if (!!this._specularMap !== !!value)
-                    this._invalidate();
-
-                this.setTexture("specularMap", value);
-
-                this._specularMap = value;
-            }
-        },
-
-        maskMap: {
-            get: function ()
-            {
-                return this._maskMap;
-            },
-            set: function (value)
-            {
-                if (!!this._maskMap !== !!value)
-                    this._invalidate();
-
-                this.setTexture("maskMap", value);
-
-                this._maskMap = value;
-            }
-        },
-
-        specularMapMode: {
-            get: function ()
-            {
-                return this._specularMapMode;
-            },
-            set: function (value)
-            {
-                if (this._specularMapMode !== value)
-                    this._invalidate();
-
-                this._specularMapMode = value;
-            }
-        },
-
-        metallicness: {
-            get: function ()
-            {
-                return this._metallicness;
-            },
-            set: function (value)
-            {
-                this._metallicness = MathX.saturate(value);
-                this.setUniform("metallicness", this._metallicness);
-            }
-        },
-
-        normalSpecularReflectance: {
-            get: function ()
-            {
-                return this._normalSpecularReflectance;
-            },
-            set: function (value)
-            {
-                this._normalSpecularReflectance = MathX.saturate(value);
-                this.setUniform("normalSpecularReflectance", this._normalSpecularReflectance);
-            }
-        },
-
-        roughness:
-            {
-                get: function ()
-                {
-                    return this._roughness;
-                },
-
-                set: function(value)
-                {
-                    this._roughness = value;
-                    this.setUniform("roughness", this._roughness);
-                }
-            },
-
-        /**
-         * When using a roughness texture, roughness represents the middle roughness, range the deviation from there.
-         * So textured roughness ranges from [roughness - roughnessRange, roughness + roughnessRange]
-         */
-        roughnessRange:
-            {
-                get: function ()
-                {
-                    return this._roughnessRange;
-                },
-
-                set: function(value)
-                {
-                    this._roughnessRange = value;
-                    this.setUniform("roughnessRange", this._roughnessRange * 2.0);
-                }
-            },
-
-        alphaThreshold:
-            {
-                get: function() { return this._alphaThreshold; },
-                set: function(value) {
-                    value = MathX.saturate(value);
-                    if ((this._alphaThreshold === 1.0) !== (value === 1.0))
-                        this._invalidate();
-
-                    this._alphaThreshold = value;
-                    this.setUniform("alphaThreshold", value);
-                }
-            }
-    }
-);
-
-BasicMaterial.prototype.init = function()
-{
-    var defines = this._generateDefines();
-
-    this._geometryVertexShader = ShaderLibrary.get("default_geometry_vertex.glsl", defines);
-    this._geometryFragmentShader = ShaderLibrary.get("default_geometry_fragment.glsl", defines);
-
-    Material.prototype.init.call(this);
-};
-
-BasicMaterial.prototype._generateDefines = function()
-{
-    var defines = {};
-    if (this._colorMap) defines.COLOR_MAP = 1;
-    if (this._useVertexColors) defines.VERTEX_COLORS = 1;
-    if (this._normalMap) defines.NORMAL_MAP = 1;
-    if (this._maskMap) defines.MASK_MAP = 1;
-    if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
-    if (this._useSkinning) defines.HX_USE_SKINNING = 1;
-    if (this._useMorphing) {
-        defines.HX_USE_MORPHING = 1;
-        defines.HX_NUM_MORPH_TARGETS = capabilities.NUM_MORPH_TARGETS;
-    }
-
-    switch (this._specularMapMode) {
-        case BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:
-            if (this._specularMap) defines.ROUGHNESS_MAP = 1;
-            break;
-        case BasicMaterial.SPECULAR_MAP_ALL:
-            if (this._specularMap) defines.SPECULAR_MAP = 1;
-            break;
-        default:
-            defines.NORMAL_ROUGHNESS_MAP = 1;
-    }
-    return defines;
-};
-
-BasicMaterial.prototype._setUseSkinning = function(value)
-{
-    if (this._useSkinning !== value)
-        this._invalidate();
-
-    this._useSkinning = value;
-};
-
-/**
- * ModelInstance is a combination of a Model and a set of Materials (up to 1 per Mesh).
- * @param model
- * @param materials Either a single material or an array of materials for each mesh in model.
- * @constructor
+ * @param model The {@linkcode Model} to use as the geometry
+ * @param materials Either a single {@linkcode Material} to link to all Meshes in the Model, or an array of materials to link to the meshes in respective order.
+ *
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function ModelInstance(model, materials)
 {
@@ -10172,7 +11877,7 @@ function ModelInstance(model, materials)
     this._model = null;
     this._meshInstances = [];
     this._castShadows = true;
-    this._skeletonPose = null;
+    this._skeletonMatrices = null;
     this._morphPose = null;
     this._meshInstancesInvalid = false;
 
@@ -10180,11 +11885,17 @@ function ModelInstance(model, materials)
 }
 
 ModelInstance.prototype = Object.create(Entity.prototype, {
+    /**
+     * The {@linkcode Model} to use as the geometry
+     */
     model:
         {
             get: function() { return this._model; }
         },
 
+    /**
+     * Defines whether or not this ModelInstance should cast shadows.
+     */
     castShadows: {
         get: function()
         {
@@ -10197,6 +11908,9 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The amount of MeshInstance objects.
+     */
     numMeshInstances: {
         get: function ()
         {
@@ -10204,21 +11918,34 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
         }
     },
 
+    /**
+     * The skeleton used for skinning animations.
+     */
     skeleton: {
         get: function() {
             return this._model.skeleton;
         }
     },
 
+    /**
+     * The global matrices defining the skeleton pose. This could be a Float32Array with flat matrix data, or a texture
+     * containing the data (depending on the capabilities). This is usually set by {@linkcode SkeletonAnimation}, and
+     * should not be handled manually.
+     *
+     * @ignore
+     */
     skeletonMatrices: {
         get: function() {
-            return this._skeletonPose;
+            return this._skeletonMatrices;
         },
         set: function(value) {
-            this._skeletonPose = value;
+            this._skeletonMatrices = value;
         }
     },
 
+    /**
+     * The {@linkcode MorphPose} object defining the current morph target state.
+     */
     morphPose: {
         get: function() {
             return this._morphPose;
@@ -10241,9 +11968,9 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
 });
 
 /**
- * Used if we choose to deferredly initialize the model
- * @param model
- * @param materials
+ * Init allows us to leave the constructor empty and initialize the model lazily.
+ * @param model The {@linkcode Model} to use as the geometry
+ * @param materials Either a single {@linkcode Material} to link to all Meshes in the Model, or an array of materials to link to the meshes in respective order.
  */
 ModelInstance.prototype.init = function(model, materials)
 {
@@ -10268,6 +11995,9 @@ ModelInstance.prototype.init = function(model, materials)
     this._updateMeshInstances();
 };
 
+/**
+ * Forces all MeshInstances in the ModelInstance to use the material.
+ */
 ModelInstance.prototype.assignMaterial = function(material)
 {
     if (this._meshInstancesInvalid) this._updateMeshInstances();
@@ -10277,24 +12007,35 @@ ModelInstance.prototype.assignMaterial = function(material)
     }
 };
 
+/**
+ * Gets the {@linkcode MeshInstance} at the given index.
+ */
 ModelInstance.prototype.getMeshInstance = function(index)
 {
     return this._meshInstances[index];
 };
 
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._generateDefaultSkeletonPose = function()
 {
     if (META.OPTIONS.useSkinningTexture) {
-        this._skeletonPose = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
+        this._skeletonMatrices = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
         return;
     }
 
-    this._skeletonPose = [];
+    this._skeletonMatrices = [];
     for (var i = 0; i < this._model.skeleton.numJoints; ++i) {
-        this._skeletonPose[i] = new Matrix4x4();
+        this._skeletonMatrices[i] = new Matrix4x4();
     }
 };
 
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._updateMeshInstances = function()
 {
     this._meshInstances = [];
@@ -10307,12 +12048,20 @@ ModelInstance.prototype._updateMeshInstances = function()
     this._meshInstancesInvalid = false;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._onModelChange = function()
 {
     this._meshInstancesInvalid = true;
     this._invalidateWorldBounds();
 };
 
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._clearMorph = function()
 {
     var numTargets = capabilities.NUM_MORPH_TARGETS;
@@ -10325,6 +12074,10 @@ ModelInstance.prototype._clearMorph = function()
     }
 };
 
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._onMorphChanged = function()
 {
     var numTargets = capabilities.NUM_MORPH_TARGETS;
@@ -10347,7 +12100,10 @@ ModelInstance.prototype._onMorphChanged = function()
     }
 };
 
-// override for better matches
+/**
+ * @ignore
+ * @private
+ */
 ModelInstance.prototype._updateWorldBounds = function()
 {
     if (this._meshInstancesInvalid) this._updateMeshInstances();
@@ -10356,6 +12112,9 @@ ModelInstance.prototype._updateWorldBounds = function()
     this._worldBounds.growToIncludeBound(this._meshBounds);
 };
 
+/**
+ * @ignore
+ */
 ModelInstance.prototype.acceptVisitor = function(visitor)
 {
     if (this._meshInstancesInvalid) this._updateMeshInstances();
@@ -10363,16 +12122,23 @@ ModelInstance.prototype.acceptVisitor = function(visitor)
     Entity.prototype.acceptVisitor.call(this, visitor);
 };
 
+/**
+ * @ignore
+ */
 ModelInstance.prototype.toString = function()
 {
     return "[ModelInstance(name=" + this._name + ")]";
 };
 
 /**
+ * @classdesc
  * Skybox provides a backdrop "at infinity" for the scene.
- * @param materialOrTexture Either a texture or a material used to render the skybox. If a texture is passed,
- * HX.SkyboxMaterial is used as material.
+ *
+ * @param materialOrTexture Either a {@linkcode TextureCube} or a {@linkcode Material} used to render the skybox. If a
+ * texture is passed, {@linkcode HX.SkyboxMaterial} is used as material.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Skybox(materialOrTexture)
 {
@@ -10388,8 +12154,10 @@ function Skybox(materialOrTexture)
 Skybox.prototype = {};
 
 /**
- *
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function RenderCollector()
 {
@@ -10588,8 +12356,18 @@ RenderCollector.prototype._sortLights = function(a, b)
             a._type - b._type;
 };
 
-// TODO: there no way to figure out correct mip level for texture
-// TODO: Should we provide a snap size in the vertex data?
+/**
+ * Terrain provides a paged terrain engine with dynamic LOD. The heightmapping itself happens in the Material.
+ * @param terrainSize The world size for the entire terrain.
+ * @param minElevation The minimum elevation for the terrain (maps to heightmap value 0)
+ * @param maxElevation The maximum elevation for the terrain (maps to heightmap value 1)
+ * @param numLevels The amount of levels the page tree should contain. More levels means more(!) triangles.
+ * @param material The {@linkcode Material} to use when rendering the terrain.
+ * @param detail The grid size.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, detail)
 {
     SceneNode.call(this);
@@ -10614,6 +12392,9 @@ function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, d
 
 // TODO: Allow setting material
 Terrain.prototype = Object.create(SceneNode.prototype, {
+    /**
+     * The world size for the entire terrain.
+     */
     terrainSize: {
         get: function() {
             return this._terrainSize;
@@ -10622,11 +12403,7 @@ Terrain.prototype = Object.create(SceneNode.prototype, {
 });
 
 /**
- *
- * @param size
- * @param numSegments
- * @param subDiv Subdivide an edge
- * @returns {HX.Model}
+ * @ignore
  * @private
  */
 Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
@@ -10693,6 +12470,10 @@ Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
     return model;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Terrain.prototype._initModels = function(gridSize)
 {
     this._models = [];
@@ -10719,6 +12500,10 @@ Terrain.prototype._initModels = function(gridSize)
     }
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Terrain.prototype._initTree = function()
 {
     var level = 0;
@@ -10766,6 +12551,10 @@ Terrain.prototype._initTree = function()
     }
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Terrain.prototype._addModel = function(x, y, level, rotation, mode)
 {
     var modelInstance = new ModelInstance(this._models[level][mode], this._material);
@@ -10774,6 +12563,10 @@ Terrain.prototype._addModel = function(x, y, level, rotation, mode)
     this.attach(modelInstance);
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
 {
     size *= .5;
@@ -10842,6 +12635,9 @@ Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
         this._subDivide(x + size * subX, y + size * subY, subX, subY, level + 1, size);
 };
 
+/**
+ * @ignore
+ */
 Terrain.prototype.acceptVisitor = function(visitor)
 {
     // typechecking isn't nice, but it does what we want
@@ -10854,11 +12650,29 @@ Terrain.prototype.acceptVisitor = function(visitor)
     SceneNode.prototype.acceptVisitor.call(this, visitor);
 };
 
+/**
+ * @ignore
+ */
 Terrain.prototype._updateWorldBounds = function ()
 {
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
+/**
+ * @abstract
+ *
+ * @constructor
+ *
+ * @classdesc
+ * <p>A Component is an object that can be added to an {@linkcode Entity} to add behavior to it in a modular fashion.
+ * This can be useful to create small pieces of functionality that can be reused often and without extra boilerplate code.</p>
+ * <p>If it implements an onUpdate(dt) function, the update method will be called every frame.</p>
+ * <p>A single Component instance is unique to an Entity and cannot be shared!</p>
+ *
+ * @see {@linkcode Entity}
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Component()
 {
     // this allows notifying entities about bound changes (useful for sized components)
@@ -10867,21 +12681,40 @@ function Component()
 
 Component.prototype =
 {
-    // to be overridden:
+    /**
+     * Called when this component is added to an Entity.
+     */
     onAdded: function() {},
+
+    /**
+     * Called when this component is removed from an Entity.
+     */
     onRemoved: function() {},
 
-    // by default, onUpdate is not implemented at all
-    //onUpdate: function(dt) {},
+    /**
+     * If provided, this method will be called every frame, allowing updating the entity.
+     * @param [Number] dt The amount of milliseconds passed since last frame.
+     */
     onUpdate: null,
 
+    /**
+     * The target entity.
+     */
     get entity()
     {
         return this._entity;
     }
 };
 
-// usually subclassed
+/**
+ * @classdesc
+ * CompositeComponent is a {@linkcode Component} that can be used to group together multiple Components. It's usually
+ * subclassed to provide easy building blocks for certain combinations of Components.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function CompositeComponent()
 {
     Component.call(this);
@@ -10890,6 +12723,9 @@ function CompositeComponent()
 
 CompositeComponent.prototype = Object.create(Component.prototype);
 
+/**
+ * Adds a {@linkcode Component} to the composite. Usually called in the constructor of the subclass.
+ */
 CompositeComponent.prototype.addComponent = function(comp)
 {
     if (comp._entity)
@@ -10898,6 +12734,9 @@ CompositeComponent.prototype.addComponent = function(comp)
     this._subs.push(comp);
 };
 
+/**
+ * Removes a {@linkcode Component} to the composite.
+ */
 CompositeComponent.prototype.removeComponent = function(comp)
 {
     var index = this._subs.indexOf(comp);
@@ -10905,6 +12744,9 @@ CompositeComponent.prototype.removeComponent = function(comp)
         this._subs.splice(index, 1);
 };
 
+/**
+ * @inheritDoc
+ */
 CompositeComponent.prototype.onAdded = function()
 {
     for (var i = 0; i < this._subs.length; ++i) {
@@ -10914,6 +12756,9 @@ CompositeComponent.prototype.onAdded = function()
     }
 };
 
+/**
+ * @inheritDoc
+ */
 CompositeComponent.prototype.onRemoved = function()
 {
     for (var i = 0; i < this._subs.length; ++i) {
@@ -10923,8 +12768,9 @@ CompositeComponent.prototype.onRemoved = function()
     }
 };
 
-// by default, onUpdate is not implemented at all
-//onUpdate: function(dt) {},
+/**
+ * @inheritDoc
+ */
 CompositeComponent.prototype.onUpdate = function(dt)
 {
     var len = this._subs.length;
@@ -10934,6 +12780,16 @@ CompositeComponent.prototype.onUpdate = function(dt)
     }
 };
 
+/**
+ * @classdesc
+ * KeyFrame is a time/value pair for use in {@AnimationClip}.
+ * @param time The time in milliseconds of the key frame.
+ * @param value The value of the key frame. This can for example be a {@linkcode SkeletonPose} for skinned animation clip.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function KeyFrame(time, value)
 {
     this.time = time || 0.0;
@@ -10941,8 +12797,17 @@ function KeyFrame(time, value)
 }
 
 /**
+ * @classdesc
+ * AnimationClip is a resource that contains key frames (time / value pairs). AnimationClip itself has no playback state,
+ * but is only used as a shareable data resource. It can be passed to {@linkcode AnimationPlayhead} or its wrappers
+ * (fe: (@linkcode SkeletonClipNode}) which will manage the play head position and allow animations.
  *
  * @constructor
+ *
+ * @see {@linkcode KeyFrame}
+ * @see {@linkcode AnimationPlayhead}
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function AnimationClip()
 {
@@ -10954,6 +12819,9 @@ function AnimationClip()
 
 AnimationClip.prototype =
 {
+    /**
+     * Defines whether this clip should repeat or not.
+     */
     get looping()
     {
         return this._looping;
@@ -10964,6 +12832,9 @@ AnimationClip.prototype =
         this._looping = value;
     },
 
+    /**
+     * The name of the animation clip.
+     */
     get name()
     {
         return this._name;
@@ -10974,11 +12845,17 @@ AnimationClip.prototype =
         this._name = value;
     },
 
+    /**
+     * The amount of key frames in this clip.
+     */
     get numKeyFrames()
     {
         return this._keyFrames.length;
     },
 
+    /**
+     * The total duration of the clip, in milliseconds.
+     */
     get duration()
     {
         return this._duration;
@@ -10995,7 +12872,7 @@ AnimationClip.prototype =
     },
 
     /**
-     * Only call this if for some reason the keyframes were added out of order.
+     * Sorts the key frames based on their time. Only call this if for some reason the keyframes were added out of order.
      */
     sortKeyFrames: function()
     {
@@ -11004,11 +12881,17 @@ AnimationClip.prototype =
         });
     },
 
+    /**
+     * Returns the key frame with the given index.
+     */
     getKeyFrame: function(index)
     {
         return this._keyFrames[index];
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "[AnimationClip(name=" + this.name + ")";
@@ -11016,9 +12899,15 @@ AnimationClip.prototype =
 };
 
 /**
- * AnimationPlayhead is a 'helper' class that just updates a playhead. Returns the keyframes and the ratio between them
- * @param clip
+ * @classdesc
+ * AnimationPlayhead is a 'helper' class that just updates a play head. Returns the keyframes and the ratio between them.
+ * This is for example used in {@linkcode SkeletonClipNode}.
+ *
+ * @param clip {AnimationClip} The clip to play.
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function AnimationPlayhead(clip)
 {
@@ -11031,25 +12920,49 @@ function AnimationPlayhead(clip)
 
     this._looping = clip.looping;
 
-    // the number of times the playhead has wrapped during the last update. Useful when moving skeleton root bone, fe.
+    /**
+     * The number of times the playhead has wrapped during the last update. Useful when moving skeleton root bone, fe.
+     * @type {number}
+     */
     this.wraps = 0;
 
-    // the playhead is currently between these two frames:
+    /**
+     * The first before frame the playhead's current position.
+     * @type {number}
+     */
     this.frame1 = 0;
+
+    /**
+     * The frame right after the playhead's current position.
+     * @type {number}
+     */
     this.frame2 = 0;
 
-    // the ratio of the position of the playhead, used for lerping frame1 and frame2
+    /**
+     * The ratio of the play head's position between frame1 and frame2. This is used to interpolate between frame1 and frame2's keyframe values.
+     * @type {number}
+     */
     this.ratio = 0;
 }
 
 AnimationPlayhead.prototype =
     {
+        /**
+         * A value to control the playback speed.
+         */
         get timeScale() { return this._timeScale; },
         set timeScale(value) { this._timeScale = value; },
 
+        /**
+         * Determines whether the animation should loop or not. By default, it uses the value determined by the
+         * AnimationClip, but can be overridden.
+         */
         get looping() { return this._looping; },
         set looping(value) { this._looping = value;},
 
+        /**
+         * The current time in milliseconds of the play head.
+         */
         get time() { return this._time; },
         set time(value)
         {
@@ -11061,16 +12974,27 @@ AnimationPlayhead.prototype =
             this._timeChanged = true;
         },
 
+        /**
+         * Starts updating the play head when update(dt) is called.
+         */
         play: function()
         {
             this._isPlaying = true;
         },
 
+        /**
+         * Stops updating the play head when update(dt) is called.
+         */
         stop: function()
         {
             this._isPlaying = false;
         },
 
+        /**
+         * This needs to be called every frame.
+         * @param dt The time passed since last frame in milliseconds.
+         * @returns {boolean} Whether or not the playhead moved. This can be used to spare further calculations if the old state is kept.
+         */
         update: function(dt)
         {
             var playheadUpdated = (this._isPlaying && dt !== 0.0);
@@ -11148,9 +13072,14 @@ AnimationPlayhead.prototype =
     };
 
 /**
- * MorphPose defines a certain configuration for blending several morph targets.
- * (even if they have different targets, they could be considered to have weight 0 if absent from eachother)
+ * @classdesc
+ * MorphPose defines a certain configuration for blending several morph targets. While this can be used to directly
+ * assign to a {@linkcode ModelInstance}, it's usually controlled through a component such as {@MorphAnimation}. Other
+ * components could use several MorphPose objects in keyframes and tween between them over a timeline.
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function MorphPose()
 {
@@ -11163,20 +13092,28 @@ function MorphPose()
 MorphPose.prototype =
 {
     /**
-     * Gets the morph targets as sorted by weight in update()
-     * @param index
-     * @returns {*}
+     * Gets the morph target as sorted by weight in update()
+     * @param {number} index The index of the {@linkcode MorphTarget}
+     * @returns {MorphTarget}
      */
     getMorphTarget: function(index)
     {
         return this._targets[index];
     },
 
+    /**
+     * The amount of morph targets used in this pose.
+     * @returns {Number}
+     */
     get numMorphTargets()
     {
         return this._targets.length;
     },
 
+    /**
+     * Adds a MorphTarget object to the pose.
+     * @param {MorphTarget} morphTarget
+     */
     addMorphTarget: function(morphTarget)
     {
         this._targets.push(morphTarget);
@@ -11184,11 +13121,21 @@ MorphPose.prototype =
         this._stateInvalid = true;
     },
 
-    getWeight: function(id)
+    /**
+     * Gets the weight of a morph target with the given name.
+     * @param {string} name The name of the morph target.
+     * @returns {number}
+     */
+    getWeight: function(name)
     {
-        return this._weights[id];
+        return this._weights[name];
     },
 
+    /**
+     * Sets the weight of a morph target with the given name.
+     * @param {string} name The name of the morph target.
+     * @param {number} value The new weight.
+     */
     setWeight: function(id, value)
     {
         if (this._weights[id] !== value)
@@ -11197,6 +13144,10 @@ MorphPose.prototype =
         this._weights[id] = value;
     },
 
+    /**
+     * Updates the morph pose given the current weights. Usually called by a wrapping component. If no component is used,
+     * update needs to be called manually.
+     */
     update: function()
     {
         if (!this._stateInvalid) return;
@@ -11214,8 +13165,20 @@ MorphPose.prototype =
 };
 
 /**
+ * @classdesc
+ * MorphAnimation is a {@linkcode Component} that can be added to ModelInstances to control morph target animations. The Mesh objects
+ * used by the ModelInstance's Model must contain morph data generated with {@linkcode Mesh#generateMorphData}.
+ * Up to 8 morph targets can be active at a time. If more morph targets have a weight assigned to them, only those with
+ * the highest weight are used.
  *
+ * @param {Array} targets An Array of {@linkcode MorphTarget} objects.
  * @constructor
+ *
+ * @see {@linkcode MorphPose}
+ * @see {@linkcode MorphTarget}
+ * @see {@linkcode Mesh#generateMorphData}
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function MorphAnimation(targets)
 {
@@ -11230,42 +13193,74 @@ function MorphAnimation(targets)
 
 MorphAnimation.prototype = Object.create(Component.prototype,
     {
+        /**
+         * The amount of morph targets in total (active and non-active).
+         */
         numMorphTargets: {
             get: function() { return this._morphPose.numMorphTargets; }
         }
     }
 );
 
+/**
+ * Retrieves the morph target at the given index, as sorted by weight.
+ * @param {Number} index The index of the morph target.
+ * @returns {MorphTarget}
+ */
 MorphAnimation.prototype.getMorphTarget = function(index)
 {
     return this._morphPose.getMorphTarget(index);
 };
 
-MorphAnimation.prototype.setWeight = function(id, value)
+
+/**
+ * Sets the weight of the morph target with the given name.
+ * @param {string} name The name of the morph target to influence.
+ * @param {number} value The new weight of the morph target.
+ */
+MorphAnimation.prototype.setWeight = function(name, value)
 {
-    this._morphPose.setWeight(id, value);
+    this._morphPose.setWeight(name, value);
 };
 
+/**
+ * @ignore
+ */
 MorphAnimation.prototype.onAdded = function()
 {
     this.entity.morphPose = this._morphPose;
 };
 
+/**
+ * @ignore
+ */
 MorphAnimation.prototype.onRemoved = function()
 {
     this.entity.morphPose = null;
 };
 
+/**
+ * @ignore
+ */
 MorphAnimation.prototype.onUpdate = function(dt)
 {
     this._morphPose.update(dt);
 };
 
-function MorphData()
-{
-    this.positions = [];
-}
-
+/**
+ * @classdesc
+ * MorphTarget defines the displacements per vertex that can be used to displace a Mesh. This can be used to animate
+ * vertices between different poses. Several MorphTargets can be used in a {@linkcode MorphPose} or through a component
+ * such as {@linkcode MorphAnimation}
+ * A MorphTarget describes the offsets for a whole {@linkcode Model}, so several sets might be present (one for each {@linkcode Mesh}).
+ *
+ * @constructor
+ *
+ * @see {@linkcode MorphAnimation}
+ * @see {@linkcode MorphPose}
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function MorphTarget()
 {
     // So basically, every morph pose is a list of vertex buffers, one for each Mesh in the Model
@@ -11277,27 +13272,29 @@ function MorphTarget()
 
 MorphTarget.prototype =
 {
-    get numVertices()
-    {
-        return this._numVertices;
-    },
-
+    /**
+     * @ignore
+     */
     getNumVertices: function(meshIndex)
     {
         return this._numVertices[meshIndex];
     },
 
+    /**
+     * @ignore
+     */
     getVertexBuffer: function(meshIndex)
     {
         return this._vertexBuffers[meshIndex];
     },
 
     /**
-     * @param positions An Array of 3 floats per vertex
+     * Initializes the current MorphTarget object.
+     * @param {Array} positions An Array of 3 floats per vertex (x, y, z), containing the displacement vectors. The size must match the vertex count of the target Mesh.
+     * @param {number} meshIndex The meshIndex for which to assign the vertices.
      */
-    initFromMorphData: function(data, meshIndex)
+    init: function(positions, meshIndex)
     {
-        var positions = data.positions;
         this._numVertices[meshIndex] = positions.length / 3;
 
         this._vertexBuffers[meshIndex] = new VertexBuffer();
@@ -11306,8 +13303,14 @@ MorphTarget.prototype =
 };
 
 /**
+ * @classdesc
+ * Skeleton defines the collection of joints used by the model to handle skinned animations.
+ *
+ * @see {@linkcode SkeletonJoint}
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Skeleton()
 {
@@ -11317,21 +13320,36 @@ function Skeleton()
 
 Skeleton.prototype =
 {
+    /**
+     * The amount of joints in the Skeleton.
+     * @returns {Number}
+     */
     get numJoints()
     {
         return this._joints.length;
     },
 
+    /**
+     * Adds a joint to the Skeleton.
+     * @param {SkeletonJoint} joint
+     */
     addJoint: function(joint)
     {
         this._joints.push(joint);
     },
 
+    /**
+     * Gets a joint at the specified index.
+     * @param {number} index
+     */
     getJoint: function(index)
     {
         return this._joints[index];
     },
 
+    /**
+     * The name of this Skeleton.
+     */
     get name()
     {
         return this._name;
@@ -11342,6 +13360,9 @@ Skeleton.prototype =
         this._name = value;
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "[Skeleton(name=" + this.name + ")";
@@ -11349,10 +13370,16 @@ Skeleton.prototype =
 };
 
 /**
+ * @classdesc
+ * SkeletonJointPose represents the translation, rotation, and scale for a joint to have. Used by {@linkcode SkeletonPose}.
+ * Generally not of interest to casual users.
  *
  * @constructor
+ *
+ * @see {@linkcode SkeletonPose}
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
-
 function SkeletonJointPose()
 {
     this.rotation = new Quaternion();
@@ -11376,8 +13403,12 @@ SkeletonJointPose.prototype =
     };
 
 /**
+ * @classdesc
+ * SkeletonPose represents an entire pose a {@linkcode Skeleton} can have. Usually, several poses are interpolated to create animations.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonPose()
 {
@@ -11444,8 +13475,12 @@ SkeletonPose.prototype =
     };
 
 /**
+ * @classdesc
+ * An abstract base class for nodes in a {@linkcode SkeletonBlendTree}
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonBlendNode()
 {
@@ -11456,11 +13491,16 @@ function SkeletonBlendNode()
 
 SkeletonBlendNode.prototype =
 {
-    // child nodes should ALWAYS be requested to update first
+    /**
+     * @ignore
+     */
     update: function(dt, transferRootJoint)
     {
     },
 
+    /**
+     * @ignore
+     */
     setValue: function(id, value)
     {
         if (this._valueID === id) {
@@ -11468,10 +13508,21 @@ SkeletonBlendNode.prototype =
         }
     },   // a node can have a value associated with it, either time, interpolation value, directional value, ...
 
+    /**
+     * @ignore
+     */
     get rootJointDeltaPosition() { return this._rootJointDeltaPosition; },
+
+    /**
+     * @ignore
+     */
     get numJoints() { return -1; },
 
-    // the id used to set values
+    /**
+     * The value ID linked to this node. The meaning is context dependent.
+     *
+     * @deprecated
+     */
     get valueID() { return this._valueID; },
     set valueID(value) { this._valueID = value; },
 
@@ -11479,9 +13530,16 @@ SkeletonBlendNode.prototype =
 };
 
 /**
- * A node to contain a single clip
- * @param clip
+ * @classdesc
+ * A node in a SkeletonBlendTree to contain a single animation clip. An AnimationClip on its own is simply a resource and
+ * does not contain playback state so it can be used across different animation instances. That relevant state is kept here.
+ *
+ * @param {AnimationClip} clip The animation clip to be played.
  * @constructor
+ *
+ * @see {@linkcode AnimationClip}
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonClipNode(clip)
 {
@@ -11498,13 +13556,24 @@ function SkeletonClipNode(clip)
 
 SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
     {
+        /**
+         * @ignore
+         */
         numJoints: {
             get: function() { return this._numJoints; }
         },
+
+        /**
+         * A value to control the playback speed.
+         */
         timeScale: {
             get: function() { return this._playhead.timeScale; },
             set: function(value) { this._playhead.timeScale = value; }
         },
+
+        /**
+         * The current time in milliseconds of the play head.
+         */
         time: {
             get: function() { return this._playhead; },
             set: function(value)
@@ -11515,16 +13584,25 @@ SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
         }
     });
 
+/**
+ * Starts playback.
+ */
 SkeletonClipNode.prototype.play = function()
 {
     this._animationClipPlayer.play();
 };
 
+/**
+ * Pauzes playback.
+ */
 SkeletonClipNode.prototype.stop = function()
 {
     this._animationClipPlayer.stop();
 };
 
+/**
+ * @ignore
+ */
 SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
 {
     if (!this._playhead.update(dt))
@@ -11540,6 +13618,9 @@ SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
     return true;
 };
 
+/**
+ * @ignore
+ */
 SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
     var rootBonePos = this._pose.jointPoses[0].position;
@@ -11561,6 +13642,9 @@ SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
     rootBonePos.set(0.0, 0.0, 0.0);
 };
 
+/**
+ * @ignore
+ */
 SkeletonClipNode.prototype._applyValue = function(value)
 {
     this.time = value * this._clip.duration;
@@ -11568,7 +13652,15 @@ SkeletonClipNode.prototype._applyValue = function(value)
 
 /**
  *
- * @constructor
+ * @param {SkeletonBlendNode} rootNode The root node of the tree.
+ * @param {Skeleton} skeleton The skeleton to animate.
+ *
+ * @classdesc
+ * A SkeletonBlendTree is used by {@linkcode SkeletonAnimation} internally to blend complex animation setups. Using this,
+ * we can crossfade between animation clips (such as walking/running) while additionally having extra modifiers applied,
+ * such as gun aiming, head turning, etc.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonBlendTree(rootNode, skeleton)
 {
@@ -11733,8 +13825,20 @@ SkeletonBlendTree.prototype =
 };
 
 /**
+ * @param {*} rootNode Either a {@linkcode SkeletonBlendNode} for more complex animations, or an {@linkcode AnimationClip} for single-clip start/stop animations.
+ *
+ * @classdesc
+ *
+ * SkeletonAnimation is a {@linkcode Component} that allows skinned animations on a Model. Internally, it uses a
+ * {@linkcode SkeletonBlendTree} for blending.
  *
  * @constructor
+ *
+ * @see {@linkcode AnimationClip}
+ * @see {@linkcode SkeletonBlendNode}
+ * @see {@linkcode SkeletonXFadeNode}
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonAnimation(rootNode)
 {
@@ -11746,6 +13850,10 @@ function SkeletonAnimation(rootNode)
 
 SkeletonAnimation.prototype = Object.create(Component.prototype,
     {
+        /**
+         * Defines whether the root joint's movement will be applied to the target Model's scene position. This way,
+         * scene movement can be synchronized to the animation.
+         */
         transferRootJoint: {
             get: function()
             {
@@ -11757,6 +13865,10 @@ SkeletonAnimation.prototype = Object.create(Component.prototype,
                 this._blendTree.transferRootJoint = value;
             }
         },
+
+        /**
+         * Defines whether or not the inverse bind pose should be applied to the skeleton's pose.
+         */
         applyInverseBindPose: {
             get: function()
             {
@@ -11768,6 +13880,10 @@ SkeletonAnimation.prototype = Object.create(Component.prototype,
                 this._blendTree.applyInverseBindPose = value;
             }
         },
+
+        /**
+         * The root animation node of the blend tree.
+         */
         animationNode: {
             get: function ()
             {
@@ -11782,17 +13898,31 @@ SkeletonAnimation.prototype = Object.create(Component.prototype,
     }
 );
 
+/**
+ * If a node somewhere in the tree has registered with a given ID, it's "value" (node-dependent) can be changed through here.
+ *
+ * @deprecated
+ *
+ * @param id
+ * @param value
+ */
 SkeletonAnimation.prototype.setValue = function(id, value)
 {
     // if any of the nodes in the animation blend tree has a value id assigned, it can be controlled here from the root.
     this._blendTree.setValue(id, value);
 };
 
+/**
+ * @ignore
+ */
 SkeletonAnimation.prototype.onAdded = function()
 {
     this._blendTree.skeleton = this._entity.skeleton;
 };
 
+/**
+ * @ignore
+ */
 SkeletonAnimation.prototype.onUpdate = function(dt)
 {
     if (this._blendTree.update(dt)) {
@@ -11805,8 +13935,12 @@ SkeletonAnimation.prototype.onUpdate = function(dt)
 };
 
 /**
- * Blends between two states based on a lerp value.
+ * @classdesc
+ * SkeletonBinaryLerpNode allows simple blending between 2 child nodes.
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonBinaryLerpNode()
 {
@@ -11822,10 +13956,16 @@ function SkeletonBinaryLerpNode()
 }
 
 SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
+    /**
+     * @ignore
+     */
     numJoints: {
         get: function() {return this._numJoints; }
     },
 
+    /**
+     * The minimum value of the input range.
+     */
     minValue: {
         get: function ()
         {
@@ -11838,6 +13978,9 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
+    /**
+     * The maximum value of the input range.
+     */
     maxValue: {
         get: function()
         {
@@ -11850,6 +13993,9 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
+    /**
+     * The value between minValue and maxValue that defines how to interpolate between the children.
+     */
     value: {
         get: function ()
         {
@@ -11866,6 +14012,9 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
+    /**
+     * The first child (matching minValue).
+     */
     child1: {
         get: function()
         {
@@ -11880,6 +14029,9 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
+    /**
+     * The second child (matching maxValue).
+     */
     child2: {
         get: function ()
         {
@@ -11894,6 +14046,9 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
     }
 });
 
+/**
+ * @ignore
+ */
 SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
 {
     var updated = this._child1.update(dt, transferRootJoint);
@@ -11915,11 +14070,17 @@ SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
     return updated;
 };
 
+/**
+ * @ignore
+ */
 SkeletonBinaryLerpNode.prototype._applyValue = function(value)
 {
     this.value = value;
 };
 
+/**
+ * @ignore
+ */
 SkeletonBinaryLerpNode.prototype.setValue = function(id, value)
 {
     SkeletonBlendNode.prototype.setValue.call(this, id, value);
@@ -11928,9 +14089,14 @@ SkeletonBinaryLerpNode.prototype.setValue = function(id, value)
 };
 
 /**
- *
  * @param skeleton The original skeleton, needed to copy the bind pose.
+ *
+ * @classdesc
+ * <p>SkeletonFreePoseNode is a SkeletonBlendNode that allows freely setting any Skeleton joint's pose directly.</p>
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonFreePoseNode(skeleton)
 {
@@ -11948,11 +14114,17 @@ function SkeletonFreePoseNode(skeleton)
 }
 
 SkeletonFreePoseNode.prototype = Object.create(SkeletonBlendNode.prototype, {
+    /**
+     * @ignore
+     */
     numJoints: {
         get function() { return this._skeleton.numJoints; }
     }
 });
 
+/**
+ * @ignore
+ */
 SkeletonFreePoseNode.prototype.update = function(dt)
 {
     var updated = this._poseInvalid;
@@ -11960,6 +14132,11 @@ SkeletonFreePoseNode.prototype.update = function(dt)
     return updated
 };
 
+/**
+ * Sets a joint's rotation.
+ * @param {*} indexOrName If a Number, the index of the joint in the skeleton, if a String, its name.
+ * @param {Quaternion} quaternion The new rotation.
+ */
 SkeletonFreePoseNode.prototype.setJointRotation = function(indexOrName, quaternion)
 {
     var p = this._getJointPose(indexOrName);
@@ -11967,6 +14144,11 @@ SkeletonFreePoseNode.prototype.setJointRotation = function(indexOrName, quaterni
     this._poseInvalid = true;
 };
 
+/**
+ * Sets a joint's translation.
+ * @param {*} indexOrName If a Number, the index of the joint in the skeleton, if a String, its name.
+ * @param {Float4} value The new translation.
+ */
 SkeletonFreePoseNode.prototype.setJointTranslation = function(indexOrName, value)
 {
     var p = this._getJointPose(indexOrName);
@@ -11974,6 +14156,11 @@ SkeletonFreePoseNode.prototype.setJointTranslation = function(indexOrName, value
     this._poseInvalid = true;
 };
 
+/**
+ * Sets a joint's scale.
+ * @param {*} indexOrName If a Number, the index of the joint in the skeleton, if a String, its name.
+ * @param {Float4} value The new scale.
+ */
 SkeletonFreePoseNode.prototype.setJointScale = function(indexOrName, value)
 {
     var p = this._getJointPose(indexOrName);
@@ -11981,6 +14168,9 @@ SkeletonFreePoseNode.prototype.setJointScale = function(indexOrName, value)
     this._poseInvalid = true;
 };
 
+/**
+ * @ignore
+ */
 SkeletonFreePoseNode.prototype._getJointPose = function(indexOrName)
 {
     if (indexOrName instanceof String)
@@ -11990,13 +14180,30 @@ SkeletonFreePoseNode.prototype._getJointPose = function(indexOrName)
 };
 
 /**
+ * @classdesc
+ * SkeletonJoint describes a single joint in a {@linkcode Skeleton}.
+ * (Pedantic note: some packages call these "bones", which is technically a slight misnomer.)
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonJoint()
 {
+    /**
+     * The name of the joint.
+     */
     this.name = null;
+
+    /**
+     * The index in the Skeleton of the parent joint.
+     */
     this.parentIndex = -1;
+
+    /**
+     * The inverse bind pose of the joint. This was how the joint was positioned with the mesh in the default skinned state (usually the T-pose).
+     * @type {Matrix4x4}
+     */
     this.inverseBindPose = new Matrix4x4();
 }
 
@@ -12009,8 +14216,11 @@ SkeletonJoint.prototype =
 };
 
 /**
- * This is generally the node you probably want to be using for simple crossfading between animations.
+ * SkeletonXFadeNode is a {@linkcode SkeletonBlendNode} for simple cross-fading between child animation clips.
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonXFadeNode()
 {
@@ -12023,11 +14233,36 @@ function SkeletonXFadeNode()
 }
 
 SkeletonXFadeNode.prototype = Object.create(SkeletonBlendNode.prototype, {
+    /**
+     * @ignore
+     */
     numJoints: {
         get: function() {return this._numJoints; }
     }
 });
 
+/**
+ * @classdesc
+ * Cross-fades the animation to a new target animation.
+ * @param node A {@linkcode SkeletonBlendTreeNode} or an {@linkcode AnimationClip}.
+ * @param time The time the fade takes in milliseconds.
+ */
+SkeletonXFadeNode.prototype.fadeTo = function(node, time)
+{
+    if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
+
+    this._numJoints = node.numJoints;
+    // put the new one in front, it makes the update loop more efficient
+    this._children.unshift({
+        node: node,
+        weight: 0.0,
+        fadeSpeed: 1 / time
+    });
+};
+
+/**
+ * @ignore
+ */
 SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
 {
     var len = this._children.length;
@@ -12082,24 +14317,12 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
 };
 
 /**
- * @param node A SkeletonBlendTreeNode or a clip.
- * @param time In milliseconds
- */
-SkeletonXFadeNode.prototype.fadeTo = function(node, time)
-{
-    if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
-
-    this._numJoints = node.numJoints;
-    // put the new one in front, it makes the update loop more efficient
-    this._children.unshift({
-        node: node,
-        weight: 0.0,
-        fadeSpeed: 1 / time
-    });
-};
-
-/**
+ * @classdesc
+ * PerspectiveCamera is a Camera used for rendering with perspective.
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function PerspectiveCamera()
 {
@@ -12113,6 +14336,9 @@ function PerspectiveCamera()
 PerspectiveCamera.prototype = Object.create(Camera.prototype);
 
 Object.defineProperties(PerspectiveCamera.prototype, {
+    /**
+     * The vertical field of view in radians.
+     */
     verticalFOV: {
         get: function()
         {
@@ -12126,6 +14352,9 @@ Object.defineProperties(PerspectiveCamera.prototype, {
     }
 });
 
+/**
+ * @ignore
+ */
 PerspectiveCamera.prototype._setAspectRatio = function(value)
 {
     if (this._aspectRatio === value) return;
@@ -12134,12 +14363,18 @@ PerspectiveCamera.prototype._setAspectRatio = function(value)
     this._invalidateProjectionMatrix();
 };
 
+/**
+ * @ignore
+ */
 PerspectiveCamera.prototype._setRenderTargetResolution = function(width, height)
 {
     Camera.prototype._setRenderTargetResolution.call(this, width, height);
     this._setAspectRatio(width / height);
 };
 
+/**
+ * @ignore
+ */
 PerspectiveCamera.prototype._updateProjectionMatrix = function()
 {
     this._projectionMatrix.fromPerspectiveProjection(this._vFOV, this._aspectRatio, this._nearDistance, this._farDistance);
@@ -12147,16 +14382,19 @@ PerspectiveCamera.prototype._updateProjectionMatrix = function()
 };
 
 /**
+ * @classdesc
+ * FloatController is a {@linkcode Component} that allows moving an object (usually a camera) using mouse and keyboard (typical WASD controls) in all directions.
+ * It uses gimbal free pitch/yaw/roll controls.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FloatController()
 {
     Component.call(this);
     this._speed = 1.0;
     this._speedMultiplier = 2.0;
-    this._torquePitch = 0.0;
-    this._torqueYaw = 0.0;
     this._localVelocity = new Float4(0, 0, 0, 0);
     this._localAcceleration = new Float4(0, 0, 0, 0);
     this._pitch = 0.0;
@@ -12164,7 +14402,6 @@ function FloatController()
     this._mouseX = 0;
     this._mouseY = 0;
 
-    this._torque = 1.0;    // m/s^2
     this._friction = 5.0;    // 1/s
 
     this._maxAcceleration = this._speed;    // m/s^2
@@ -12175,6 +14412,9 @@ function FloatController()
 }
 
 FloatController.prototype = Object.create(Component.prototype, {
+    /**
+     * The speed at which to move.
+     */
     speed: {
         get: function()
         {
@@ -12189,6 +14429,9 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
+    /**
+     * A speed-up factor for when the shift key is pressed.
+     */
     shiftMultiplier: {
         get: function()
         {
@@ -12201,6 +14444,9 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
+    /**
+     * The current orientation pitch (rotation about the X axis).
+     */
     pitch: {
         get: function()
         {
@@ -12213,6 +14459,9 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
+    /**
+     * The current orientation yaw (rotation about the Y axis).
+     */
     yaw: {
         get: function()
         {
@@ -12225,6 +14474,9 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
+    /**
+     * The current orientation roll (rotation around the Z axis)
+     */
     roll: {
         get: function()
         {
@@ -12237,18 +14489,9 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
-    torque: {
-        get: function()
-        {
-            return this._torque;
-        },
-
-        set: function(value)
-        {
-            this._torque = value;
-        }
-    },
-
+    /**
+     * The amount of friction that will cause the movement to stop when there's no input.
+     */
     friction: {
         get: function()
         {
@@ -12262,6 +14505,9 @@ FloatController.prototype = Object.create(Component.prototype, {
     }
 });
 
+/**
+ * @ignore
+ */
 FloatController.prototype.onAdded = function(dt)
 {
     var self = this;
@@ -12340,6 +14586,9 @@ FloatController.prototype.onAdded = function(dt)
     META.TARGET_CANVAS.addEventListener("mouseup", this._onMouseUp);
 };
 
+/**
+ * @ignore
+ */
 FloatController.prototype.onRemoved = function(dt)
 {
     document.removeEventListener("keydown", this._onKeyDown);
@@ -12349,6 +14598,9 @@ FloatController.prototype.onRemoved = function(dt)
     META.TARGET_CANVAS.removeEventListener("mouseup", this._onMouseUp);
 };
 
+/**
+ * @ignore
+ */
 FloatController.prototype.onUpdate = function(dt)
 {
     var seconds = dt * .001;
@@ -12362,9 +14614,6 @@ FloatController.prototype.onUpdate = function(dt)
     var absVelocity = this._localVelocity.length;
     if (absVelocity > this._maxVelocity)
         this._localVelocity.scale(this._maxVelocity/absVelocity);
-
-    this._pitch += this._torquePitch;
-    this._yaw += this._torqueYaw;
 
     if (this._pitch < -Math.PI*.5) this._pitch = -Math.PI*.5;
     else if (this._pitch > Math.PI*.5) this._pitch = Math.PI*.5;
@@ -12381,41 +14630,46 @@ FloatController.prototype.onUpdate = function(dt)
     this.entity.matrix = matrix;
 };
 
-// ratio is "how far the controller is pushed", from -1 to 1
+/**
+ * @ignore
+ */
 FloatController.prototype._setForwardForce = function(ratio)
 {
     this._localAcceleration.z = ratio * this._maxAcceleration;
 };
 
+/**
+ * @ignore
+ */
 FloatController.prototype._setStrideForce = function(ratio)
 {
     this._localAcceleration.x = ratio * this._maxAcceleration;
 };
 
-FloatController.prototype._setTorquePitch = function(ratio)
-{
-    this._torquePitch = ratio * this._torque;
-};
-
-FloatController.prototype._setTorqueYaw = function(ratio)
-{
-    this._torqueYaw = ratio * this._torque;
-};
-
+/**
+ * @ignore
+ */
 FloatController.prototype._addPitch = function(value)
 {
     this._pitch += value;
 };
 
+/**
+ * @ignore
+ */
 FloatController.prototype._addYaw = function(value)
 {
     this._yaw += value;
 };
 
 /**
+ * @classdesc
+ * FloatController is a {@linkcode Component} that allows moving an object (usually a camera) using mouse or touch around a central point.
+ * @param {Float4} target The position around which to orbit.
  *
- * @param target
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function OrbitController(lookAtTarget)
 {
@@ -12438,22 +14692,34 @@ function OrbitController(lookAtTarget)
 
 OrbitController.prototype = Object.create(Component.prototype,
     {
+        /**
+         * The distance between the Entity and the lookAtTarget.
+         */
         radius: {
             get: function() { return this._coords.z; },
             set: function(value) { this._coords.z = value; }
         },
 
+        /**
+         * The azimuth coordinate of the object relative to the lookAtTarget.
+         */
         azimuth: {
             get: function() { return this._coords.x; },
             set: function(value) { this._coords.x = value; }
         },
 
+        /**
+         * The polar coordinate of the object relative to the lookAtTarget.
+         */
         polar: {
             get: function() { return this._coords.y; },
             set: function(value) { this._coords.y = value; }
         }
     });
 
+/**
+ * @ignore
+ */
 OrbitController.prototype.onAdded = function()
 {
     var self = this;
@@ -12530,6 +14796,9 @@ OrbitController.prototype.onAdded = function()
     META.TARGET_CANVAS.addEventListener("touchend", this._onUp);
 };
 
+/**
+ * @ignore
+ */
 OrbitController.prototype.onRemoved = function()
 {
     var mousewheelevt = (/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel";
@@ -12542,6 +14811,9 @@ OrbitController.prototype.onRemoved = function()
     META.TARGET_CANVAS.removeEventListener("touchend", this._onUp);
 };
 
+/**
+ * @ignore
+ */
 OrbitController.prototype.onUpdate = function(dt)
 {
     this._localVelocity.x *= this.dampen;
@@ -12566,22 +14838,33 @@ OrbitController.prototype.onUpdate = function(dt)
     this.entity.matrix = matrix;
 };
 
-    // ratio is "how far the controller is pushed", from -1 to 1
+/**
+ * @ignore
+ */
 OrbitController.prototype.setAzimuthImpulse  = function(value)
 {
     this._localAcceleration.x = value;
 };
 
+/**
+ * @ignore
+ */
 OrbitController.prototype.setPolarImpulse = function(value)
 {
     this._localAcceleration.y = value;
 };
 
+/**
+ * @ignore
+ */
 OrbitController.prototype.setZoomImpulse = function(value)
 {
     this._localAcceleration.z = value;
 };
 
+/**
+ * @ignore
+ */
 OrbitController.prototype._updateMove = function(x, y)
 {
     if (this._oldMouseX !== undefined) {
@@ -12594,6 +14877,14 @@ OrbitController.prototype._updateMove = function(x, y)
     this._oldMouseY = y;
 };
 
+/**
+ * @classdesc
+ * DataStream is a wrapper for DataView which allows reading the data as a linear stream of data.
+ * @param dataView the DataView object to read from.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DataStream(dataView)
 {
     this._dataView = dataView;
@@ -12601,30 +14892,59 @@ function DataStream(dataView)
     this._endian = DataStream.LITTLE_ENDIAN;
 }
 
+/**
+ * Little Endian encoding
+ */
 DataStream.LITTLE_ENDIAN = true;
+
+/**
+ * Big Endian encoding
+ */
 DataStream.BIG_ENDIAN = false;
 
 DataStream.prototype =
 {
+    /**
+     * The current byte offset into the file.
+     */
     get offset() { return this._offset; },
     set offset(value) { this._offset = value; },
 
+    /**
+     * The endianness used by the data.
+     */
     get endian() { return this._endian; },
     set endian(value) { this._endian = value; },
 
+    /**
+     * The size of the data view in bytes.
+     */
     get byteLength () { return this._dataView.byteLength; },
+
+    /**
+     * The amount of bytes still left in the file until EOF.
+     */
     get bytesAvailable() { return this._dataView.byteLength - this._offset; },
 
+    /**
+     * Reads a single 8-bit string character from the stream.
+     */
     getChar: function()
     {
         return String.fromCharCode(this.getUint8());
     },
 
+    /**
+     * Reads a single unsigned byte integer from the string.
+     */
     getUint8: function()
     {
         return this._dataView.getUint8(this._offset++);
     },
 
+    /**
+     * Reads a single unsigned short integer from the string.
+     */
     getUint16: function()
     {
         var data = this._dataView.getUint16(this._offset, this._endian);
@@ -12632,6 +14952,9 @@ DataStream.prototype =
         return data;
     },
 
+    /**
+     * Reads a single unsigned 32-bit integer from the string.
+     */
     getUint32: function()
     {
         var data = this._dataView.getUint32(this._offset, this._endian);
@@ -12639,11 +14962,17 @@ DataStream.prototype =
         return data;
     },
 
+    /**
+     * Reads a single signed byte integer from the string.
+     */
     getInt8: function()
     {
         return this._dataView.getInt8(this._offset++);
     },
 
+    /**
+     * Reads a single signed short integer from the string.
+     */
     getInt16: function()
     {
         var data = this._dataView.getInt16(this._offset, this._endian);
@@ -12651,6 +14980,9 @@ DataStream.prototype =
         return data;
     },
 
+    /**
+     * Reads a single 32 bit integer from the string.
+     */
     getInt32: function()
     {
         var data = this._dataView.getInt32(this._offset, this._endian);
@@ -12658,7 +14990,10 @@ DataStream.prototype =
         return data;
     },
 
-    // dangerous, but might be an okay approximation
+    /**
+     * Reads a 64-bit integer and stores it in a Number. The read value is not necessarily the same as what's stored, but
+     * may provide an acceptable approximation.
+     */
     getInt64AsFloat64: function()
     {
         var L, B;
@@ -12674,6 +15009,9 @@ DataStream.prototype =
         return L + B * 4294967296.0;
     },
 
+    /**
+     * Reads a single float.
+     */
     getFloat32: function()
     {
         var data = this._dataView.getFloat32(this._offset, this._endian);
@@ -12681,6 +15019,9 @@ DataStream.prototype =
         return data;
     },
 
+    /**
+     * Reads a double float.
+     */
     getFloat64: function()
     {
         var data = this._dataView.getFloat64(this._offset, this._endian);
@@ -12688,56 +15029,101 @@ DataStream.prototype =
         return data;
     },
 
-    getArray: function(len)
-    {
-        return this._readArray(len, Array, this.getUint8);
-    },
-
+    /**
+     * Reads an array of unsigned bytes.
+     *
+     * @param len The amount of elements to read.
+     */
     getUint8Array: function(len)
     {
         return this._readArray(len, Uint8Array, this.getUint8);
     },
 
+    /**
+     * Reads an array of unsigned shorts.
+     *
+     * @param len The amount of elements to read.
+     */
     getUint16Array: function(len)
     {
         return this._readArray(len, Uint16Array, this.getUint16);
     },
 
+    /**
+     * Reads an array of unsigned 32-bit integers.
+     *
+     * @param len The amount of elements to read.
+     */
     getUint32Array: function(len)
     {
         return this._readArray(len, Uint32Array, this.getUint32);
     },
 
+    /**
+     * Reads an array of signed bytes.
+     *
+     * @param len The amount of elements to read.
+     */
     getInt8Array: function(len)
     {
         return this._readArray(len, Int8Array, this.getInt8);
     },
 
+    /**
+     * Reads an array of signed shorts.
+     *
+     * @param len The amount of elements to read.
+     */
     getInt16Array: function(len)
     {
         return this._readArray(len, Int16Array, this.getInt16);
     },
 
+    /**
+     * Reads an array of signed 32-bit integers.
+     *
+     * @param len The amount of elements to read.
+     */
     getInt32Array: function(len)
     {
         return this._readArray(len, Int32Array, this.getInt32);
     },
 
+    /**
+     * Reads an array of 64-bit integers into floats.
+     *
+     * @param len The amount of elements to read.
+     */
     getInt64AsFloat64Array: function(len)
     {
         return this._readArray(len, Float64Array, this.getInt64AsFloat64);
     },
 
+    /**
+     * Reads an array of single floats.
+     *
+     * @param len The amount of elements to read.
+     */
     getFloat32Array: function(len)
     {
         return this._readArray(len, Float32Array, this.getFloat32);
     },
 
+    /**
+     * Reads an array of double floats.
+     *
+     * @param len The amount of elements to read.
+     */
     getFloat64Array: function(len)
     {
         return this._readArray(len, Float64Array, this.getFloat64);
     },
 
+    /**
+     * Reads a string.
+     *
+     * @param [len] The amount of characters in the string. If omitted, it reads until (and including) it encounters a "\0" character.
+     */
     getString: function(len)
     {
         if (!len) return this._get0String();
@@ -12750,6 +15136,9 @@ DataStream.prototype =
         return str;
     },
 
+    /**
+     * @ignore
+     */
     _get0String: function()
     {
         var str = "";
@@ -12762,6 +15151,9 @@ DataStream.prototype =
         return str;
     },
 
+    /**
+     * @ignore
+     */
     _readArray: function(len, arrayType, func)
     {
         var arr = new arrayType(len);
@@ -12774,7 +15166,14 @@ DataStream.prototype =
 };
 
 /**
+ * @classdesc
+ * EffectPass is used by {@linkcode Effect} classes to perform individual render tasks.
+ *
  * @constructor
+ * @param {string} vertexShader The vertex shader code for this pass's shader.
+ * @param {string} fragmentShader The fragment shader code for this pass's shader.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function EffectPass(vertexShader, fragmentShader)
 {
@@ -12794,6 +15193,9 @@ function EffectPass(vertexShader, fragmentShader)
 
 EffectPass.prototype = Object.create(MaterialPass.prototype);
 
+/**
+ * @ignore
+ */
 EffectPass.prototype.setMesh = function(mesh)
 {
     if (this._mesh === mesh) return;
@@ -12801,6 +15203,9 @@ EffectPass.prototype.setMesh = function(mesh)
     this._vertexLayout = new VertexLayout(this._mesh, this);
 };
 
+/**
+ * @ignore
+ */
 EffectPass.prototype.updateRenderState = function(renderer)
 {
     var cam = renderer._camera;
@@ -12824,7 +15229,13 @@ EffectPass.prototype.updateRenderState = function(renderer)
 };
 
 /**
+ * @classdesc
+ * GaussianBlurPass is an {@linkcode EffectPass} that performs a separable gaussian blur pass (ie: in one direction).
+ *
  * @constructor
+ * @param radius The radius of the blur.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function GaussianBlurPass(radius)
 {
@@ -12847,6 +15258,9 @@ function GaussianBlurPass(radius)
 
 GaussianBlurPass.prototype = Object.create(EffectPass.prototype);
 
+/**
+ * @ignore
+ */
 GaussianBlurPass.prototype._initWeights = function(radius)
 {
     this._weights = [];
@@ -12867,10 +15281,14 @@ GaussianBlurPass.prototype._initWeights = function(radius)
 };
 
 /**
+ * @classdesc
+ * Effect is a {@linkcode Component} that will be picked up by the renderer for post-processing. Most effects are added
+ * to the Camera, but some could be tied to a different Entity (for example: a DirectionalLight for crepuscular rays)
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
-
 function Effect()
 {
     Component.call(this);
@@ -12882,55 +15300,82 @@ function Effect()
 
 Effect.prototype = Object.create(Component.prototype,
     {
+        /**
+         * Defines whether this Effect needs normal/depth information from the renderer.
+         */
         needsNormalDepth: {
             get: function() { return this._needsNormalDepth; },
             set: function(value) { this._needsNormalDepth = value; }
         },
 
+        /**
+         * The current full-resolution render target.
+         */
         hdrTarget: {
             get: function() { return this._renderer._hdrFront.fbo; }
         },
 
+        /**
+         * The current full-resolution source texture.
+         */
         hdrSource: {
             get: function() { return this._renderer._hdrBack.texture; }
         }
     }
 );
 
+/**
+ * Returns whether this Effect is supported considering the current capabilities.
+ */
 Effect.prototype.isSupported = function()
 {
     return this._isSupported;
 };
 
+/**
+ * @ignore
+ */
 Effect.prototype.render = function(renderer, dt)
 {
     this._renderer = renderer;
     this.draw(dt);
 };
 
+/**
+ * This method needs to be implemented by child classes.
+ */
 Effect.prototype.draw = function(dt)
 {
     throw new Error("Abstract method error!");
 };
 
+/**
+ * @ignore
+ */
 Effect.prototype._drawPass = function(pass)
 {
     pass.updateRenderState(this._renderer);
     GL.drawElements(GL.gl.TRIANGLES, 6, 0);
 };
 
+/**
+ * @ignore
+ */
 Effect.prototype.onAdded = function()
 {
     this._entity._registerEffect(this);
 };
 
+/**
+ * @ignore
+ */
 Effect.prototype.onRemoved = function()
 {
     this._entity._unregisterEffect(this);
 };
 
 /**
- * Used when we need to current render target as a source.
+ * Child classes need to call this when rendering to and from full-resolution textures.
  */
 Effect.prototype._swapHDRFrontAndBack = function()
 {
@@ -12938,8 +15383,15 @@ Effect.prototype._swapHDRFrontAndBack = function()
 };
 
 /**
- *
+ * @classdesc
+ * Bloom is an {@linkcode Effect} added to the Camera that allows bright areas in the image to bleed into less bright areas.
+ * @param radius The radius of the bloom effect.
+ * @param strength The strength of the bloom effect.
+ * @param [downScale] How many times smaller the bloom should be calculated relative to the render target.
+ * @param [anisotropy] Defines the ratio between the horizontal and vertical bloom. For the JJ Abrams people among us.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Bloom(radius, strength, downScale, anisotropy)
 {
@@ -12985,6 +15437,9 @@ function Bloom(radius, strength, downScale, anisotropy)
 
 Bloom.prototype = Object.create(Effect.prototype,
     {
+        /**
+         * The strength of the bloom effect.
+         */
         strength: {
             get: function ()
             {
@@ -12998,6 +15453,9 @@ Bloom.prototype = Object.create(Effect.prototype,
             }
         },
 
+        /**
+         * The threshold luminance for pixels that are allowed to bleed.
+         */
         thresholdLuminance: {
             get: function ()
             {
@@ -13013,6 +15471,9 @@ Bloom.prototype = Object.create(Effect.prototype,
     }
 );
 
+/**
+ * @ignore
+ */
 Bloom.prototype._initTextures = function ()
 {
     for (var i = 0; i < 2; ++i) {
@@ -13023,6 +15484,9 @@ Bloom.prototype._initTextures = function ()
     }
 };
 
+/**
+ * @ignore
+ */
 Bloom.prototype.draw = function (dt)
 {
     if (this._renderer._width !== this._targetWidth || this._renderer._height !== this._targetHeight) {
@@ -13052,20 +15516,14 @@ Bloom.prototype.draw = function (dt)
     this._drawPass(this._compositePass);
 };
 
-Bloom.prototype.dispose = function ()
-{
-    for (var i = 0; i < 2; ++i) {
-        this._smallFBOs[i].dispose();
-        this._thresholdMaps[i].dispose();
-    }
-
-    this._smallFBOs = null;
-    this._thresholdMaps = null;
-};
-
 /**
- *
+ * @classdesc
+ * Blur is an {@linkcode Effect} added to the Camera that simply applies a gaussian blur to the screen.
+ * @param numSamples The amount of samples used to calculate the blur in each direction.
+ * @param radius The radius of the blur.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Blur(numSamples, radius)
 {
@@ -13080,6 +15538,9 @@ function Blur(numSamples, radius)
 
 Blur.prototype = Object.create(Effect.prototype,
     {
+        /**
+         * The radius of the blur.
+         */
         radius: {
             get: function() {
                 return this._radius;
@@ -13091,6 +15552,9 @@ Blur.prototype = Object.create(Effect.prototype,
         }
     });
 
+/**
+ * @ignore
+ */
 Blur.prototype.draw = function(dt)
 {
     var ratio = this._radius / this._numSamples;
@@ -13111,20 +15575,13 @@ Blur.prototype.draw = function(dt)
     this._drawPass(this._blurPass);
 };
 
-Blur.prototype.dispose = function()
-{
-    for (var i = 0; i < 2; ++i) {
-        this._smallFBOs[i].dispose();
-        this._thresholdMaps[i].dispose();
-    }
-
-    this._smallFBOs = null;
-    this._thresholdMaps = null;
-};
-
 /**
+ * @classdesc
+ * CopyTexturePass is an {@linkcode EffectPass} that simply copies a texture. Used for downscaling etc.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function CopyTexturePass()
 {
@@ -13133,11 +15590,25 @@ function CopyTexturePass()
 
 CopyTexturePass.prototype = Object.create(EffectPass.prototype);
 
+/**
+ * Sets the texture to copy from.
+ */
 CopyTexturePass.prototype.setSourceTexture = function(value)
 {
     this.setTexture("sampler", value);
 };
 
+/**
+ * @classdesc
+ * A base class for tone mapping effects.
+ *
+ * @constructor
+ * @param adaptive
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ToneMapEffect(adaptive)
 {
     this._adaptive = adaptive === undefined? false : adaptive;
@@ -13178,13 +15649,6 @@ ToneMapEffect.prototype._createToneMapPass = function()
     throw new Error("Abstract method called!");
 };
 
-
-ToneMapEffect.prototype.dispose = function()
-{
-    Effect.prototype.dispose.call(this);
-    this._luminanceFBO.dispose();
-    this._luminanceMap.dispose();
-};
 
 ToneMapEffect.prototype.draw = function(dt)
 {
@@ -13253,8 +15717,13 @@ Object.defineProperties(ToneMapEffect.prototype, {
 });
 
 /**
+ * @classdesc
+ * FilmicToneMapping is an {@linkcode Effect} added to the Camera that applies filmic tone mapping.
  *
  * @constructor
+ * @param adaptive Whether or not the brightness should adapt to the average brightness of the scene. If not supported, it will disable.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FilmicToneMapping(adaptive)
 {
@@ -13265,6 +15734,9 @@ function FilmicToneMapping(adaptive)
 
 FilmicToneMapping.prototype = Object.create(ToneMapEffect.prototype);
 
+/**
+ * @ignore
+ */
 FilmicToneMapping.prototype._createToneMapPass = function()
 {
     var defines = {};
@@ -13282,7 +15754,16 @@ FilmicToneMapping.prototype._createToneMapPass = function()
 };
 
 /**
+ * @classdesc
+ * Fog is an {@linkcode Effect} added to the Camera that applies a fog effect to the scene.
+ *
  * @constructor
+ * @param {Number} [density] The "thickness" of the fog. Keep it tiny.
+ * @param {Color} [tint] The color of the fog.
+ * @param {Number} [heightFallOff] The fall-off based on the height. This is to simulate a thinning atmosphere.
+ * @param {Number} [startDistance] The distance from the camera at which the effect should start to be applied.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Fog(density, tint, heightFallOff, startDistance)
 {
@@ -13298,6 +15779,9 @@ function Fog(density, tint, heightFallOff, startDistance)
 
 Fog.prototype = Object.create(Effect.prototype,
     {
+        /**
+         * The "thickness" of the fog. Keep it tiny.
+         */
         density: {
             get: function()
             {
@@ -13310,6 +15794,9 @@ Fog.prototype = Object.create(Effect.prototype,
             }
         },
 
+        /**
+         * The color of the fog.
+         */
         tint: {
             get: function ()
             {
@@ -13322,6 +15809,9 @@ Fog.prototype = Object.create(Effect.prototype,
             }
         },
 
+        /**
+         * The distance from the camera at which the effect should start to be applied.
+         */
         startDistance: {
             get: function()
             {
@@ -13334,6 +15824,9 @@ Fog.prototype = Object.create(Effect.prototype,
             }
         },
 
+        /**
+         * The fall-off based on the height. This is to simulate a thinning atmosphere.
+         */
         heightFallOff: {
             get: function()
             {
@@ -13348,7 +15841,9 @@ Fog.prototype = Object.create(Effect.prototype,
     }
 );
 
-
+/**
+ * @ignore
+ */
 Fog.prototype.draw = function(dt)
 {
     GL.setRenderTarget(this.hdrTarget);
@@ -13357,8 +15852,12 @@ Fog.prototype.draw = function(dt)
 };
 
 /**
+ * @classdesc
+ * FXAA is an {@linkcode Effect} added to the Camera that applies "Fast approXimate Anti-Aliasing" on the render.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FXAA()
 {
@@ -13372,6 +15871,9 @@ function FXAA()
 
 FXAA.prototype = Object.create(Effect.prototype);
 
+/**
+ * @ignore
+ */
 FXAA.prototype.draw = function(dt)
 {
     GL.setRenderTarget(this.hdrTarget);
@@ -13380,8 +15882,16 @@ FXAA.prototype.draw = function(dt)
 };
 
 /**
- * @param numSamples
+ * @classdesc
+ * HBAO adds Horizon-Based Ambient Occlusion to the renderer.
+ *
  * @constructor
+ * @param numRays The amount of rays to march over.
+ * @param numSamplesPerRay The samples per ray during a march.
+ *
+ * @see {@linkcode Renderer#ambientOcclusion}
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function HBAO(numRays, numSamplesPerRay)
 {
@@ -13432,13 +15942,21 @@ function HBAO(numRays, numSamplesPerRay)
 
 HBAO.prototype = Object.create(Effect.prototype);
 
-// every AO type should implement this
+/**
+ * Returns the texture containing the ambient occlusion values.
+ *
+ * @returns {Texture2D}
+ * @ignore
+ */
 HBAO.prototype.getAOTexture = function()
 {
     return this._aoTexture;
 };
 
 Object.defineProperties(HBAO.prototype, {
+    /**
+     * The sample radius in world space to search for occluders.
+     */
     sampleRadius: {
         get: function ()
         {
@@ -13452,6 +15970,9 @@ Object.defineProperties(HBAO.prototype, {
         }
     },
 
+    /**
+     * The maximum distance for occluders to still count.
+     */
     fallOffDistance: {
         get: function ()
         {
@@ -13464,6 +15985,9 @@ Object.defineProperties(HBAO.prototype, {
         }
     },
 
+    /**
+     * The strength of the ambient occlusion effect.
+     */
     strength: {
         get: function()
         {
@@ -13476,6 +16000,9 @@ Object.defineProperties(HBAO.prototype, {
         }
     },
 
+    /**
+     * The angle bias to prevent some artifacts.
+     */
     bias: {
         get: function()
         {
@@ -13488,12 +16015,18 @@ Object.defineProperties(HBAO.prototype, {
         }
     },
 
+    /**
+     * The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
+     */
     scale: {
         get: function() { return this._scale; },
         set: function(value) { this._scale = value; }
     }
 });
 
+/**
+ * @ignore
+ */
 HBAO.prototype.draw = function(dt)
 {
     var w = this._renderer._width * this._scale;
@@ -13519,6 +16052,10 @@ HBAO.prototype.draw = function(dt)
     GL.setClearColor(Color.BLACK);
 };
 
+/**
+ * @ignore
+ * @private
+ */
 HBAO.prototype._initSampleDirTexture = function()
 {
     this._sampleDirTexture = new Texture2D();
@@ -13542,6 +16079,10 @@ HBAO.prototype._initSampleDirTexture = function()
     this._sampleDirTexture.wrapMode = TextureWrapMode.REPEAT;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 HBAO.prototype._initDitherTexture = function()
 {
     this._ditherTexture = new Texture2D();
@@ -13584,8 +16125,15 @@ HBAO.prototype._initDitherTexture = function()
 };
 
 /**
+ * @classdesc
+ * SSAO adds Screen-Space Ambient Occlusion to the renderer.
  *
- * @param numSamples
+ * @constructor
+ * @param numSamples The amount of samples to take per pixel.
+ *
+ * @see {@linkcode Renderer#ambientOcclusion}
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SSAO(numSamples)
 {
@@ -13629,13 +16177,21 @@ function SSAO(numSamples)
 
 SSAO.prototype = Object.create(Effect.prototype);
 
-// every SSAO type should implement this
+/**
+ * Returns the texture containing the ambient occlusion values.
+ * @returns {Texture2D}
+ *
+ * @ignore
+ */
 SSAO.prototype.getAOTexture = function()
 {
     return this._ssaoTexture;
 };
 
 Object.defineProperties(SSAO.prototype, {
+    /**
+     * The sample radius in world space to search for occluders.
+     */
     sampleRadius: {
         get: function ()
         {
@@ -13648,6 +16204,9 @@ Object.defineProperties(SSAO.prototype, {
         }
     },
 
+    /**
+     * The maximum distance for occluders to still count.
+     */
     fallOffDistance: {
         get: function ()
         {
@@ -13660,6 +16219,9 @@ Object.defineProperties(SSAO.prototype, {
         }
     },
 
+    /**
+     * The strength of the ambient occlusion effect.
+     */
     strength: {
         get: function()
         {
@@ -13672,6 +16234,9 @@ Object.defineProperties(SSAO.prototype, {
         }
     },
 
+    /**
+     * The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
+     */
     scale: {
         get: function() { return this._scale; },
         set: function(value) { this._scale = value; }
@@ -13679,6 +16244,10 @@ Object.defineProperties(SSAO.prototype, {
 });
 
 
+/**
+ * @ignore
+ * @private
+ */
 SSAO.prototype._initSamples = function()
 {
     var samples = [];
@@ -13697,6 +16266,9 @@ SSAO.prototype._initSamples = function()
     this._ssaoPass.setUniformArray("samples", new Float32Array(samples));
 };
 
+/**
+ * @ignore
+ */
 SSAO.prototype.draw = function(dt)
 {
     var w = this._renderer._width * this._scale;
@@ -13722,6 +16294,10 @@ SSAO.prototype.draw = function(dt)
     GL.setClearColor(Color.BLACK);
 };
 
+/**
+ * @ignore
+ * @private
+ */
 SSAO.prototype._initDitherTexture = function()
 {
     var data = [ 126, 255, 126, 255, 135, 253, 105, 255, 116, 51, 26, 255, 137, 57, 233, 255, 139, 254, 121, 255, 56, 61, 210, 255, 227, 185, 73, 255, 191, 179, 30, 255, 107, 245, 173, 255, 205, 89, 34, 255, 191, 238, 138, 255, 56, 233, 125, 255, 198, 228, 161, 255, 85, 13, 164, 255, 140, 248, 168, 255, 147, 237, 65, 255 ];
@@ -13747,8 +16323,13 @@ SSAO.prototype._initDitherTexture = function()
 };
 
 /**
+ * @classdesc
+ * ReinhardToneMapping is an {@linkcode Effect} added to the Camera that applies Reinhard tone mapping.
  *
  * @constructor
+ * @param adaptive Whether or not the brightness should adapt to the average brightness of the scene. If not supported, it will disable.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function ReinhardToneMapping(adaptive)
 {
@@ -13757,6 +16338,10 @@ function ReinhardToneMapping(adaptive)
 
 ReinhardToneMapping.prototype = Object.create(ToneMapEffect.prototype);
 
+/**
+ * @ignore
+ * @private
+ */
 ReinhardToneMapping.prototype._createToneMapPass = function()
 {
     var defines = {};
@@ -13773,6 +16358,10 @@ ReinhardToneMapping.prototype._createToneMapPass = function()
     );
 };
 
+/**
+ * @ignore
+ * @author derschmale <http://www.derschmale.com>
+ */
 var FileUtils =
 {
     extractPathAndFilename: function(filename)
@@ -13793,6 +16382,17 @@ var FileUtils =
     }
 };
 
+/**
+ * @ignore
+ *
+ * @classdesc
+ * URLLoader loads any sort of file. It exists only to hide ugly XMLHttpRequest stuff.
+ *
+ * @param [headers] Optional headers (key/value pairs) to pass along to the request.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function URLLoader(headers)
 {
     this._params = undefined;
@@ -13913,6 +16513,17 @@ URLLoader.prototype =
     }
 };
 
+/**
+ * @classdesc
+ * A base class for importers.
+ *
+ * @ignore
+ * @param containerType
+ * @param dataType
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Importer(containerType, dataType)
 {
     this._dataType = dataType === undefined? URLLoader.DATA_TEXT : dataType;
@@ -13967,9 +16578,12 @@ Importer.TYPE_BINARY = URLLoader.DATA_BINARY;
 Importer.TYPE_IMAGE = 2;
 
 /**
+ * @classdesc
  * AssetLoader allows loading of any sort of asset. It can be used to load several assets, but onComplete and onFail will be called for each.
- * @param ImporterType The type of importer to use for the asset. For example: JPG, HCM (material), OBJ, ... Must be am Importer subtype.
+ * @param ImporterType ImporterType The type of importer to use for the asset. For example: JPG, HCM (material), OBJ, ... Do NOT pass in an instance, just the class name!
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function AssetLoader(ImporterType)
 {
@@ -13986,11 +16600,22 @@ function AssetLoader(ImporterType)
 
 AssetLoader.prototype =
 {
+    /**
+     * Set custom http request headers.
+     * @param name The name of the header.
+     * @param value The value of the header.
+     */
     setRequestHeader: function(name, value)
     {
         this._headers[name] = value;
     },
 
+    /**
+     * Loads the asset.
+     * @param filename The filename/url to load.
+     * @param [target] An optional empty target asset. This allows lazy loading.
+     * @returns {*} Immediately returns an empty version of the assets that will be populated eventually during parsing.
+     */
     load: function (filename, target)
     {
         function fail(code) {
@@ -14049,8 +16674,228 @@ AssetLoader.prototype =
 };
 
 /**
+ * @constructor
+ * Creates a new AssetLibrary object.
+ * @param {string} basePath The base path or url to load the assets from. All filenames will have this value prepended.
+ * @param {string} [crossOrigin] An optional cross origin string. This is used when loading images from a different domain.
+ *
+ * @classdesc
+ * AssetLibrary provides a way to load a collection of assets. These can be textures, models, plain text, json, ...
+ * Assets need to be queued with a given ID and loading starts when requested. When loading completes, the ID can be used
+ * to retrieve the loaded asset.
+ *
+ * @example
+ * var assetLibrary = new AssetLibrary("assets/");
+ * assetLibrary.queueAsset("some-model", "models/some-model.obj", HX.AssetLibrary.Type.ASSET, HX.OBJ);
+ * assetLibrary.queueAsset("some-texture", "textures/some_texture.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+ * assetLibrary.onComplete.bind(onAssetsLoaded);
+ * assetLibrary.onProgress.bind(onAssetsProgress);
+ * assetLibrary.load();
+ *
+ * function onAssetsLoaded()
+ * {
+ * // do something
+ * }
+ *
+ * function onAssetsProgress(ratio)
+ * {
+ *      var percent = ratio * 100
+ * }
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+
+function AssetLibrary(basePath, crossOrigin)
+{
+    this._numLoaded = 0;
+    this._queue = [];
+    this._assets = {};
+    if (basePath && basePath.charAt(basePath.length - 1) !== "/") basePath += "/";
+    this._basePath = basePath || "";
+    this._onComplete = new Signal(/* void */);
+    this._onProgress = new Signal(/* number */);
+    this._crossOrigin = crossOrigin;
+}
+
+/**
+ * The type of asset to load. For example: <code>AssetLibrary.Type.JSON</code> for a JSON object.
+ * @enum
+ */
+AssetLibrary.Type = {
+    /**
+     * A JSON data object.
+     */
+    JSON: 0,
+
+    /**
+     * An asset.
+     */
+    ASSET: 1,
+
+    /**
+     * A plain text file.
+     */
+    PLAIN_TEXT: 2
+};
+
+AssetLibrary.prototype =
+{
+    /**
+     * The {@linkcode Signal} dispatched when all assets have completed loading. Its payload object is a reference to
+     * the assetLibrary itself.
+     * @see {@linkcode Signal}.
+     */
+    get onComplete()
+    {
+        return this._onComplete;
+    },
+
+    /**
+     * The {@linkcode Signal} dispatched when all assets have completed loading. Its payload is the ratio of loaded
+     * objects for 0 to 1.
+     * @see {@linkcode Signal}
+     */
+    get onProgress()
+    {
+        return this._onProgress;
+    },
+
+    /**
+     * The base path relative to which all the filenames are defined. This value is set in the constructor.
+     */
+    get basePath()
+    {
+        return this._basePath;
+    },
+
+    /**
+     * The cross origin string passed to the constructor.
+     */
+    get crossOrigin()
+    {
+        return this._crossOrigin;
+    },
+
+    /**
+     * Adds an asset to the loading queue.
+     * @param {string} id The ID that will be used to retrieve the asset when loaded.
+     * @param {string} filename The filename relative to the base path provided in the constructor.
+     * @param {AssetLibrary.Type} type The type of asset to be loaded.
+     * @param {parser} The parser used to parse the loaded data.
+     * @param {target} An optional empty target to contain the parsed asset. This allows lazy loading.
+     * @see {@linkcode AssetLibrary.Type}
+     */
+    queueAsset: function(id, filename, type, parser, target)
+    {
+        this._queue.push({
+            id: id,
+            filename: this._basePath + filename,
+            type: type,
+            parser: parser,
+            target: target
+        });
+    },
+
+    /**
+     * Start loading all the assets. Every time a single asset finished loading, <code>onProgress</code> is dispatched.
+     * When all assets have finished loading, <code>onComplete</code> is dispatched.
+     */
+    load: function()
+    {
+        if (this._queue.length === 0) {
+            this.onComplete.dispatch();
+            return;
+        }
+
+        var asset = this._queue[this._numLoaded];
+
+        switch (asset.type) {
+            case AssetLibrary.Type.JSON:
+                this._json(asset.filename, asset.id);
+                break;
+            case AssetLibrary.Type.PLAIN_TEXT:
+                this._plainText(asset.filename, asset.id);
+                break;
+            case AssetLibrary.Type.ASSET:
+                this._asset(asset.filename, asset.id, asset.parser, asset.target);
+                break;
+            default:
+                throw new Error("Unknown asset type " + asset.type + "!");
+        }
+    },
+
+    /**
+     * Retrieves a loaded asset from the asset library. This method should only be called once <code>onComplete</code>
+     * has been dispatched.
+     * @param {string} id The ID assigned to the loaded asset when calling <code>queueAsset</code>
+     * @returns {*} The loaded asset.
+     */
+    get: function(id) { return this._assets[id]; },
+
+    _json: function(file, id)
+    {
+        var self = this;
+        var loader = new XMLHttpRequest();
+        loader.overrideMimeType("application/json");
+        loader.open('GET', file, true);
+        loader.onreadystatechange = function()
+        {
+            if (loader.readyState === 4 && loader.status === 200) {
+                self._assets[id] = JSON.parse(loader.responseText);
+                self._onAssetLoaded();
+            }
+        };
+        loader.send(null);
+    },
+
+    _plainText: function(file, id)
+    {
+        var self = this;
+        var loader = new XMLHttpRequest();
+        loader.overrideMimeType("application/json");
+        loader.open('GET', file, true);
+        loader.onreadystatechange = function()
+        {
+            if (loader.readyState === 4 && loader.status === 200) {
+                self._assets[id] = loader.responseText;
+                self._onAssetLoaded();
+            }
+        };
+
+        loader.send(null);
+    },
+
+    _asset: function(file, id, parser, target)
+    {
+        var loader = new AssetLoader(parser);
+        loader.options = loader.options || {};
+        loader.options.crossOrigin = this._crossOrigin;
+        loader.onComplete.bind(function()
+        {
+            this._onAssetLoaded();
+        }, this);
+
+        this._assets[id] = loader.load(file, target);
+    },
+
+    _onAssetLoaded: function()
+    {
+        this._onProgress.dispatch(this._numLoaded / this._queue.length);
+
+        if (++this._numLoaded === this._queue.length)
+            this._onComplete.dispatch(this);
+        else
+            this.load();
+    }
+};
+
+/**
+ * @classdesc
+ * HCM is an Importer for Helix' json-based cube map formats. Yields a {@linkcode TextureCube} object.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function HCM()
 {
@@ -14200,6 +17045,15 @@ HCM.prototype._loadMipChain = function(urls, target)
     }
 };
 
+/**
+ * @classdesc
+ *
+ * JPG is an importer for JPG images as textures. Yields a {@linkcode Texture2D} object.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function JPG()
 {
     Importer.call(this, Texture2D, Importer.TYPE_IMAGE);
@@ -14214,211 +17068,18 @@ JPG.prototype.parse = function(data, target)
     this._notifyComplete(target);
 };
 
+/**
+ * Synonymous to {@linkcode JPG}.
+ */
 var PNG = JPG;
 
 /**
- * Creates a new AssetLibrary object.
- * @param {string} basePath The base path or url to load the assets from. All filenames will have this value prepended.
- * @constructor
- *
  * @classdesc
- * AssetLibrary provides a way to load a collection of assets. These can be textures, models, plain text, json, ...
- * Assets need to be queued with a given ID and loading starts when requested. When loading completes, the ID can be used
- * to retrieve the loaded asset.
+ * HCM is an Importer for Helix' json-based material formats. Yields a {@linkcode Material} object.
  *
- * @example
- * var assetLibrary = new AssetLibrary("assets/");
- * assetLibrary.queueAsset("some-model", "models/some-model.obj", HX.AssetLibrary.Type.ASSET, HX.OBJ);
- * assetLibrary.queueAsset("some-texture", "textures/some_texture.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
- * assetLibrary.onComplete.bind(onAssetsLoaded);
- * assetLibrary.onProgress.bind(onAssetsProgress);
- * assetLibrary.load();
- */
-
-function AssetLibrary(basePath, crossOrigin)
-{
-    this._numLoaded = 0;
-    this._queue = [];
-    this._assets = {};
-    if (basePath && basePath.charAt(basePath.length - 1) !== "/") basePath += "/";
-    this._basePath = basePath || "";
-    this._onComplete = new Signal(/* void */);
-    this._onProgress = new Signal(/* number */);
-    this._crossOrigin = crossOrigin;
-}
-
-/**
- * The type of asset to load. For example: <code>AssetLibrary.Type.JSON</code> for a JSON object.
- * @enum
- */
-AssetLibrary.Type = {
-    /**
-     * A JSON data object.
-     */
-    JSON: 0,
-
-    /**
-     * An asset.
-     */
-    ASSET: 1,
-
-    /**
-     * A plain text file.
-     */
-    PLAIN_TEXT: 2
-};
-
-AssetLibrary.prototype =
-{
-    /**
-     * The {@linkcode Signal} dispatched when all assets have completed loading. Its payload object is a reference to
-     * the assetLibrary itself.
-     * @see {@linkcode Signal}.
-     */
-    get onComplete()
-    {
-        return this._onComplete;
-    },
-
-    /**
-     * The {@linkcode Signal} dispatched when all assets have completed loading. Its payload is the ratio of loaded
-     * objects for 0 to 1.
-     * @see {@linkcode Signal}
-     */
-    get onProgress()
-    {
-        return this._onProgress;
-    },
-
-    /**
-     * The base path relative to which all the filenames are defined. This value is set in the constructor.
-     */
-    get basePath()
-    {
-        return this._basePath;
-    },
-
-    get crossOrigin()
-    {
-        return this._crossOrigin;
-    },
-
-    /**
-     * Adds an asset to the loading queue.
-     * @param {string} id The ID that will be used to retrieve the asset when loaded.
-     * @param {string} filename The filename relative to the base path provided in the constructor.
-     * @param {AssetLibrary.Type} type The type of asset to be loaded.
-     * @param {parser} The parser used to parse the loaded data.
-     * @param {target} An optional target to contain the data. Allows lazy loading.
-     * @see {@linkcode AssetLibrary.Type}
-     */
-    queueAsset: function(id, filename, type, parser, target)
-    {
-        this._queue.push({
-            id: id,
-            filename: this._basePath + filename,
-            type: type,
-            parser: parser,
-            target: target
-        });
-    },
-
-    /**
-     * Start loading all the assets. Every time a single asset finished loading, <code>onProgress</code> is dispatched.
-     * When all assets have finished loading, <code>onComplete</code> is dispatched.
-     */
-    load: function()
-    {
-        if (this._queue.length === 0) {
-            this.onComplete.dispatch();
-            return;
-        }
-
-        var asset = this._queue[this._numLoaded];
-
-        switch (asset.type) {
-            case AssetLibrary.Type.JSON:
-                this._json(asset.filename, asset.id);
-                break;
-            case AssetLibrary.Type.PLAIN_TEXT:
-                this._plainText(asset.filename, asset.id);
-                break;
-            case AssetLibrary.Type.ASSET:
-                this._asset(asset.filename, asset.id, asset.parser, asset.target);
-                break;
-            default:
-                throw new Error("Unknown asset type " + asset.type + "!");
-        }
-    },
-
-    /**
-     * Retrieves a loaded asset from the asset library. This method should only be called once <code>onComplete</code>
-     * has been dispatched.
-     * @param {string} id The ID assigned to the loaded asset when calling <code>queueAsset</code>
-     * @returns {*} The loaded asset.
-     */
-    get: function(id) { return this._assets[id]; },
-
-    _json: function(file, id)
-    {
-        var self = this;
-        var loader = new XMLHttpRequest();
-        loader.overrideMimeType("application/json");
-        loader.open('GET', file, true);
-        loader.onreadystatechange = function()
-        {
-            if (loader.readyState === 4 && loader.status === 200) {
-                self._assets[id] = JSON.parse(loader.responseText);
-                self._onAssetLoaded();
-            }
-        };
-        loader.send(null);
-    },
-
-    _plainText: function(file, id)
-    {
-        var self = this;
-        var loader = new XMLHttpRequest();
-        loader.overrideMimeType("application/json");
-        loader.open('GET', file, true);
-        loader.onreadystatechange = function()
-        {
-            if (loader.readyState === 4 && loader.status === 200) {
-                self._assets[id] = loader.responseText;
-                self._onAssetLoaded();
-            }
-        };
-
-        loader.send(null);
-    },
-
-    _asset: function(file, id, parser, target)
-    {
-        var loader = new AssetLoader(parser);
-        loader.options = loader.options || {};
-        loader.options.crossOrigin = this._crossOrigin;
-        loader.onComplete.bind(function()
-        {
-            this._onAssetLoaded();
-        }, this);
-
-        this._assets[id] = loader.load(file, target);
-    },
-
-    _onAssetLoaded: function()
-    {
-        this._onProgress.dispatch(this._numLoaded / this._queue.length);
-
-        if (++this._numLoaded === this._queue.length)
-            this._onComplete.dispatch(this);
-        else
-            this.load();
-    }
-};
-
-/**
- * The HMT file format is for file-based materials (JSON)
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function HMT()
 {
@@ -14453,7 +17114,7 @@ HMT.prototype._loadShaders = function(data, material)
 {
     // urls will already be correctURL'ed
     var shaderFiles = this._gatherShaderFiles(data);
-    this._shaderLibrary = new AssetLibrary();
+    this._shaderLibrary = new AssetLibrary(null, this.options.crossOrigin);
 
     for (var i = 0; i < shaderFiles.length; ++i) {
         this._shaderLibrary.queueAsset(shaderFiles[i], shaderFiles[i], AssetLibrary.Type.PLAIN_TEXT);
@@ -14553,7 +17214,7 @@ HMT.prototype._loadTextures = function(data, material)
         }
     }
 
-    this._textureLibrary = new AssetLibrary();
+    this._textureLibrary = new AssetLibrary(null, this.options.crossOrigin);
 
     for (var i = 0; i < files.length; ++i) {
         this._textureLibrary.queueAsset(files[i], files[i], AssetLibrary.Type.ASSET, JPG);
@@ -14615,8 +17276,21 @@ HMT._initPropertyMap = function() {
     };
 };
 
+/**
+ * EquirectangularTexture is a utility class that converts equirectangular environment {@linknode Texture2D} to a
+ * {@linkcode TextureCube}.
+ * @author derschmale <http://www.derschmale.com>
+ */
 var EquirectangularTexture =
 {
+    /**
+     * Convert an equirectangular environment {@linknode Texture2D} to a {@linkcode TextureCube}.
+     * @param source The source {@linknode Texture2D}
+     * @param [size] The size of the target cube map.
+     * @param [generateMipmaps] Whether or not a mip chain should be generated.
+     * @param [target] An optional target {@linkcode TextureCube} to contain the converted data.
+     * @returns {TextureCube} The environment map in a {@linkcode TextureCube}
+     */
     toCube: function(source, size, generateMipmaps, target)
     {
         generateMipmaps = generateMipmaps || true;
@@ -14655,8 +17329,6 @@ var EquirectangularTexture =
 
             GL.setRenderTarget(fbo);
             GL.drawElements(gl.TRIANGLES, 6, i * 6);
-
-            fbo.dispose();
         }
 
         GL.setRenderTarget(old);
@@ -14727,8 +17399,13 @@ var EquirectangularTexture =
 };
 
 /**
- * Loads a jpg or png equirectangular as a cubemap
+ * @classdesc
+ * JPG_EQUIRECTANGULAR loads a JPG containing an equirectangular environment map and converts it to a cube map for use
+ * in shaders. Yields a {@linkcode TextureCube} object.
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function JPG_EQUIRECTANGULAR()
 {
@@ -14745,14 +17422,26 @@ JPG_EQUIRECTANGULAR.prototype.parse = function(data, target)
 
     var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
     EquirectangularTexture.toCube(texture2D, this.options.size, generateMipmaps, target);
-    texture2D.dispose();
     this._notifyComplete(target);
 };
 
 var PNG_EQUIRECTANGULAR = JPG_EQUIRECTANGULAR;
 
+/**
+ * HeightMap contains some utilities for height maps.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var HeightMap =
 {
+    /**
+     * Smooths out an 8-bit per channel texture to serve as a height map. Otherwise, the limited 8 bit precision would
+     * result in a stair-case effect.
+     *
+     * @param texture The source 8-bit per channel texture.
+     * @param [generateMipmaps] Whether or not to generate a mip chain.
+     * @param [target] An optional target texture.
+     */
     from8BitTexture: function(texture, generateMipmaps, target)
     {
         var gl = GL.gl;
@@ -14795,21 +17484,23 @@ var HeightMap =
         gl.uniform2f(offsetLocation, 0.0, 1.0 / texture.height);
         smooth.execute(RectMesh.DEFAULT, tex2);
 
-        fbo2.dispose();
-
         if (generateMipmaps)
             target.generateMipmap();
 
         GL.setRenderTarget(oldRT);
-        fbo1.dispose();
 
         return tex1;
     }
 };
 
 /**
- * Loads a jpg or png equirectangular as a cubemap
+ * @classdesc
+ * JPG_HEIGHTMAP imports an 8-bit per channel image and smooths it out to serve as a height map. Otherwise, the limited
+ * 8 bit precision would result in a stair-case effect. Yields a {@linkcode Texture2D} object.
+ *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function JPG_HEIGHTMAP()
 {
@@ -14826,15 +17517,18 @@ JPG_HEIGHTMAP.prototype.parse = function(data, target)
 
     var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
     HeightMap.from8BitTexture(texture2D, generateMipmaps, target);
-    texture2D.dispose();
     this._notifyComplete(target);
 };
 
 var PNG_HEIGHTMAP = JPG_HEIGHTMAP;
 
 /**
+ * @classdesc
+ * AmbientLight can be added to the scene to provide a minimum (single-color) amount of light in the scene.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function AmbientLight()
 {
@@ -14850,6 +17544,9 @@ function AmbientLight()
 AmbientLight.prototype = Object.create(Entity.prototype);
 
 Object.defineProperties(AmbientLight.prototype, {
+    /**
+     * The color of the ambient light.
+     */
     color: {
         get: function() { return this._color; },
         set: function(value)
@@ -14859,6 +17556,9 @@ Object.defineProperties(AmbientLight.prototype, {
         }
     },
 
+    /**
+     * The intensity of the ambient light.
+     */
     intensity: {
         get: function() { return this._intensity; },
         set: function(value)
@@ -14869,17 +17569,26 @@ Object.defineProperties(AmbientLight.prototype, {
     }
 });
 
+/**
+ * @ignore
+ */
 AmbientLight.prototype.acceptVisitor = function (visitor)
 {
     Entity.prototype.acceptVisitor.call(this, visitor);
     visitor.visitAmbientLight(this);
 };
 
+/**
+ * @ignore
+ */
 AmbientLight.prototype._updateWorldBounds = function()
 {
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
+/**
+ * @ignore
+ */
 AmbientLight.prototype._updateScaledIrradiance = function()
 {
     // do not scale by 1/PI. It feels weird to control.
@@ -14893,6 +17602,12 @@ AmbientLight.prototype._updateScaledIrradiance = function()
     this._scaledIrradiance.b *= this._intensity;
 };
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ESMBlurShader(blurRadius)
 {
     Shader.call(this);
@@ -14943,7 +17658,17 @@ ESMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
     GL.drawElements(ElementType.TRIANGLES, 6, 0);
 };
 
-// highly experimental
+/**
+ * @classdesc
+ * ExponentialDirectionalShadowFilter is a shadow filter that provides exponential soft shadow mapping.
+ * The implementation is highly experimental at this point.
+ *
+ * @see {@linkcode InitOptions#directionalShadowFilter}
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ExponentialDirectionalShadowFilter()
 {
     ShadowFilter.call(this);
@@ -14955,6 +17680,9 @@ function ExponentialDirectionalShadowFilter()
 
 ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
+        /**
+         * The blur radius for the soft shadows.
+         */
         blurRadius: {
             get: function()
             {
@@ -14968,6 +17696,9 @@ ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.protot
             }
         },
 
+        /**
+         * A darkening factor of the shadows. Counters some artifacts of the technique.
+         */
         darkeningFactor: {
             get: function()
             {
@@ -14981,7 +17712,9 @@ ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.protot
             }
         },
 
-        // not recommended to change
+        /**
+         * The exponential scale factor. Probably you shouldn't touch this.
+         */
         expScaleFactor: {
             get: function()
             {
@@ -14996,22 +17729,34 @@ ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.protot
         }
     });
 
+/**
+ * @ignore
+ */
 ExponentialDirectionalShadowFilter.prototype.getShadowMapFormat = function()
 {
     return TextureFormat.RGB;
 };
 
+/**
+ * @ignore
+ */
 ExponentialDirectionalShadowFilter.prototype.getShadowMapDataType = function()
 {
     return DataType.FLOAT;
 };
 
+/**
+ * @ignore
+ */
 ExponentialDirectionalShadowFilter.prototype.getGLSL = function()
 {
     var defines = this._getDefines();
     return ShaderLibrary.get("dir_shadow_esm.glsl", defines);
 };
 
+/**
+ * @ignore
+ */
 ExponentialDirectionalShadowFilter.prototype._getDefines = function()
 {
     return {
@@ -15020,11 +17765,20 @@ ExponentialDirectionalShadowFilter.prototype._getDefines = function()
     };
 };
 
+/**
+ * @ignore
+ */
 ExponentialDirectionalShadowFilter.prototype._createBlurShader = function()
 {
     return new ESMBlurShader(this._blurRadius);
 };
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DeferredLightProbeShader(probe)
 {
     Shader.call(this);
@@ -15140,7 +17894,16 @@ DeferredLightProbeShader.prototype.execute = function(renderer)
 };
 
 /**
- * Can be used directly, or have SkyBox manage this for you (generally the best approach). Acts as an infinite environment map.
+ * @classdesc
+ * LightProbe provides functionality to store global illumination information and apply it to the scene lighting.
+ * Only providing a simple specularTexture will behave like environment mapping, but diffuse convolution can be applied
+ * for global diffuse illumination.
+ *
+ * @see {@linkcode https://www.knaldtech.com/lys/} for an example tool to generate the required images.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function LightProbe(diffuseTexture, specularTexture)
 {
@@ -15153,7 +17916,7 @@ function LightProbe(diffuseTexture, specularTexture)
         this._deferredShader = new DeferredLightProbeShader(this);
 }
 
-// conversion range for spec power to mip
+// conversion range for spec power to mip. Lys style.
 LightProbe.powerRange0 = .00098;
 LightProbe.powerRange1 = .9921;
 
@@ -15185,6 +17948,9 @@ LightProbe.prototype = Object.create(Entity.prototype,
         }
     });
 
+/**
+ * @ignore
+ */
 LightProbe.prototype._updateWorldBounds = function()
 {
     var min = new Float4();
@@ -15208,22 +17974,29 @@ LightProbe.prototype._updateWorldBounds = function()
     }
 }();
 
+/**
+ * ignore
+ */
 LightProbe.prototype.acceptVisitor = function (visitor)
 {
     Entity.prototype.acceptVisitor.call(this, visitor);
     visitor.visitLight(this);
 };
 
-LightProbe.prototype.renderDeferredLighting = function(renderer)
-{
-    // To implement by concrete subclasses
-};
-
+/**
+ * ignore
+ */
 LightProbe.prototype.renderDeferredLighting = function(renderer)
 {
     this._deferredShader.execute(renderer);
 };
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DeferredPointShader(useSphere)
 {
     Shader.call(this);
@@ -15327,8 +18100,13 @@ DeferredPointShader.prototype.execute = function(renderer, light)
 }();
 
 /**
+ * @classdesc
+ * PointLight represents an omnidirectional light source with a single point as origin. The light strength falls off
+ * according to the inverse square rule.
  *
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function PointLight()
 {
@@ -15343,14 +18121,12 @@ function PointLight()
     this.intensity = 3.1415;
 }
 
-PointLight.LIGHTS_PER_BATCH = 20;
-PointLight.SPHERE_SEGMENTS_W = 16;
-PointLight.SPHERE_SEGMENTS_H = 10;
-PointLight.NUM_SPHERE_INDICES = -1;  // will be set on creation instead of passing value that might get invalidated
-
 PointLight.prototype = Object.create(Light.prototype,
     {
-        // radius is not physically correct, but invaluable for performance
+        /**
+         * The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a
+         * given area for performance.
+         */
         radius: {
             get: function() {
                 return this._radius;
@@ -15363,16 +18139,25 @@ PointLight.prototype = Object.create(Light.prototype,
         }
     });
 
+/**
+ * @ignore
+ */
 PointLight.prototype._createBoundingVolume = function()
 {
     return new BoundingSphere();
 };
 
+/**
+ * @ignore
+ */
 PointLight.prototype._updateWorldBounds = function()
 {
     this._worldBounds.setExplicit(this.worldMatrix.getColumn(3), this._radius);
 };
 
+/**
+ * @ignore
+ */
 PointLight.prototype.renderDeferredLighting = function(renderer)
 {
     var camPos = new Float4();
@@ -15392,6 +18177,12 @@ PointLight.prototype.renderDeferredLighting = function(renderer)
     }
 }();
 
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DeferredAmbientShader()
 {
     Shader.call(this);
@@ -15452,6 +18243,14 @@ DeferredAmbientShader.prototype.execute = function(renderer)
     GL.drawElements(ElementType.TRIANGLES, 6, 0);
 };
 
+/**
+ * @classdesc
+ * Renderer performs the actual rendering of a {@linkcode Scene} as viewed by a {@linkcode Camera} to the screen.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Renderer()
 {
     this._width = 0;
@@ -15480,6 +18279,10 @@ function Renderer()
     this._renderAmbientShader = new DeferredAmbientShader();
 }
 
+/**
+ * A collection of debug render modes to inspect some steps in the render pipeline.
+ * @enum
+ */
 Renderer.DebugRenderMode = {
     NONE: 0,
     SSAO: 1,
@@ -15490,6 +18293,9 @@ Renderer.DebugRenderMode = {
     LIGHT_ACCUMULATION: 5
 };
 
+/**
+ * @ignore
+ */
 Renderer.HDRBuffers = function(depthBuffer)
 {
     this.texture = new Texture2D();
@@ -15501,13 +18307,6 @@ Renderer.HDRBuffers = function(depthBuffer)
 
 Renderer.HDRBuffers.prototype =
 {
-    dispose: function()
-    {
-        this.texture.dispose();
-        this.fbo.dispose();
-        this.fboDepth.dispose();
-    },
-
     resize: function(width, height)
     {
         this.texture.initEmpty(width, height, TextureFormat.RGBA, capabilities.HDR_FORMAT);
@@ -15518,6 +18317,9 @@ Renderer.HDRBuffers.prototype =
 
 Renderer.prototype =
 {
+    /**
+     * One of {Renderer.DebugRenderMode}
+     */
     get debugMode()
     {
         return this._debugMode;
@@ -15528,6 +18330,9 @@ Renderer.prototype =
         this._debugMode = value;
     },
 
+    /**
+     * The background {@linkcode Color}.
+     */
     get backgroundColor()
     {
         return this._backgroundColor;
@@ -15538,6 +18343,9 @@ Renderer.prototype =
         this._backgroundColor = new Color(value);
     },
 
+    /**
+     * Allows up- or downscaling the render pipeline's resolution.
+     */
     get scale()
     {
         return this._scale;
@@ -15548,11 +18356,19 @@ Renderer.prototype =
         this._scale = value;
     },
 
+    /**
+     * The Camera currently being used for rendering.
+     */
     get camera()
     {
         return this._camera;
     },
 
+    /**
+     * Allows applying ambient occlusion ({@linkcode SSAO} or {@linkcode HBAO}) to the scene. Objects using the deferred
+     * path (ie: non-blended using default lighting mode), always have it applied. Others need to have {@linkcode Material.ssao}
+     * set to true.
+     */
     get ambientOcclusion()
     {
         return this._aoEffect;
@@ -15576,11 +18392,12 @@ Renderer.prototype =
     },*/
 
     /**
+     * Renders the scene through a camera.
      * It's not recommended changing render targets if they have different sizes (so splitscreen should be fine). Otherwise, use different renderer instances.
-     * @param camera
-     * @param scene
-     * @param dt
-     * @param renderTarget (optional)
+     * @param camera The {@linkcode Camera} from which to view the scene.
+     * @param scene The {@linkcode Scene} to render.
+     * @param dt The milliseconds passed since last frame.
+     * @param [renderTarget] An optional {@linkcode FrameBuffer} object to render to.
      */
     render: function (camera, scene, dt, renderTarget)
     {
@@ -15632,6 +18449,10 @@ Renderer.prototype =
         GL.setDepthMask(true);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderForwardLit: function(list)
     {
         var lights = this._renderCollector.getLights();
@@ -15662,6 +18483,10 @@ Renderer.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderLightPassIfIntersects: function(light, passType, renderList)
     {
         var lightBound = light.worldBounds;
@@ -15682,6 +18507,10 @@ Renderer.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderGBuffer: function(list)
     {
         if (this._renderCollector.needsGBuffer) {
@@ -15706,6 +18535,10 @@ Renderer.prototype =
         GL.setClearColor(Color.BLACK);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderGBufferPlane: function(list, plane, passType, clearColor)
     {
         GL.setRenderTarget(this._gbuffer.fbos[plane]);
@@ -15715,6 +18548,10 @@ Renderer.prototype =
         this._renderPass(passType, list);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderDeferredLighting: function()
     {
         if (!this._renderCollector._needsGBuffer) return;
@@ -15740,6 +18577,10 @@ Renderer.prototype =
         GL.setBlendState();
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderAO: function()
     {
         if (this._aoEffect) {
@@ -15748,6 +18589,10 @@ Renderer.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderShadowCasters: function ()
     {
         var casters = this._renderCollector._shadowCasters;
@@ -15757,17 +18602,29 @@ Renderer.prototype =
             casters[i].render(this._camera, this._scene);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderEffect: function (effect, dt)
     {
         this._gammaApplied = this._gammaApplied || effect._outputsGamma;
         effect.render(this, dt);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderPass: function (passType, renderItems, data)
     {
         RenderUtils.renderPass(this, passType, renderItems, data);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderToScreen: function (renderTarget)
     {
         GL.setRenderTarget(renderTarget);
@@ -15805,6 +18662,10 @@ Renderer.prototype =
             this._applyGamma.execute(RectMesh.DEFAULT, this._hdrBack.texture);
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _renderEffects: function (dt)
     {
         var effects = this._renderCollector._effects;
@@ -15821,6 +18682,10 @@ Renderer.prototype =
         }
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _updateSize: function (renderTarget)
     {
         var width, height;
@@ -15842,7 +18707,9 @@ Renderer.prototype =
         }
     },
 
-    // allows effects to ping pong on the renderer's own buffers
+    /**
+     * @ignore
+     */
     _swapHDRFrontAndBack: function()
     {
         var tmp = this._hdrBack;
@@ -15850,6 +18717,10 @@ Renderer.prototype =
         this._hdrFront = tmp;
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _createDepthBuffer: function()
     {
         /*if (HX.EXT_DEPTH_TEXTURE) {
@@ -15861,6 +18732,10 @@ Renderer.prototype =
             return new WriteOnlyDepthBuffer();
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _createDummySSAOTexture: function()
     {
         var data = new Uint8Array([0xff, 0xff, 0xff, 0xff]);
@@ -15870,6 +18745,10 @@ Renderer.prototype =
         return tex;
     },
 
+    /**
+     * @ignore
+     * @private
+     */
     _copyToBackBuffer: function()
     {
         GL.setRenderTarget(this._hdrBack.fbo);
@@ -15880,6 +18759,14 @@ Renderer.prototype =
     }
 };
 
+/**
+ * @classdesc
+ * DynamicLightProbe is a {@linkcode LightProbe} that is rendered from the scene dynamically.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function DynamicLightProbe(textureSize, textureDataType, near, far)
 {
     // TODO: When collecting, make sure this light probe is NOT included!
@@ -15900,16 +18787,20 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
     var depthBuffer = new WriteOnlyDepthBuffer();
     depthBuffer.init(textureSize, textureSize, false);
 
-    // var flipY = new Quaternion();
-    // flipY.fromAxisAngle(Float4.Z_AXIS, Math.PI);
+    var flipY = new Quaternion();
+    flipY.fromAxisAngle(Float4.Z_AXIS, Math.PI);
 
     var rotations = [];
-    rotations[0] = Quaternion.fromAxisAngle(Float4.Y_AXIS, Math.PI * .5);
-    rotations[1] = Quaternion.fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
+    rotations[0] = Quaternion.fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
+    rotations[0].prepend(flipY);
+    rotations[1] = Quaternion.fromAxisAngle(Float4.Y_AXIS, Math.PI * .5);
+    rotations[1].prepend(flipY);
     rotations[2] = Quaternion.fromAxisAngle(Float4.X_AXIS, Math.PI * .5);
     rotations[3] = Quaternion.fromAxisAngle(Float4.X_AXIS, -Math.PI * .5);
     rotations[4] = Quaternion.fromAxisAngle(Float4.Y_AXIS, Math.PI);
+    rotations[4].prepend(flipY);
     rotations[5] = Quaternion.fromAxisAngle(Float4.Y_AXIS, 0);
+    rotations[5].prepend(flipY);
 
     this._diffuseScene = new Scene();
     this._diffuseScene.skybox = new Skybox(specular);
@@ -15920,7 +18811,6 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
         camera.nearDistance = near;
         camera.farDistance = far;
         camera.verticalFOV = Math.PI * .5;
-        // camera.rotation.multiply(rotations[i], flipY);
         camera.rotation.copyFrom(rotations[i]);
         this._cameras.push(camera);
 
@@ -15938,6 +18828,9 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
 
 DynamicLightProbe.prototype = Object.create(LightProbe.prototype);
 
+/**
+ * Triggers an update of the light probe.
+ */
 DynamicLightProbe.prototype.render = function()
 {
     var pos = this.worldMatrix.getColumn(3);
@@ -15955,6 +18848,17 @@ DynamicLightProbe.prototype.render = function()
     this._diffuseTexture.generateMipmap();
 };
 
+/**
+ * @classdesc
+ * ExponentialDirectionalShadowFilter is a shadow filter that provides percentage closer soft shadow mapping. However,
+ * WebGL does not support shadow test interpolations, so the results aren't as great as its GL/DX counterpart.
+ *
+ * @see {@linkcode InitOptions#directionalShadowFilter}
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function PCFDirectionalShadowFilter()
 {
     ShadowFilter.call(this);
@@ -15965,6 +18869,9 @@ function PCFDirectionalShadowFilter()
 
 PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
+        /**
+         * The softness of the shadows in world space.
+         */
         softness: {
             get: function()
             {
@@ -15980,6 +18887,9 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
             }
         },
 
+        /**
+         * The amount of shadow samples to take.
+         */
         numShadowSamples: {
             get: function()
             {
@@ -15995,6 +18905,9 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
             }
         },
 
+        /**
+         * Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
+         */
         dither: {
             get: function()
             {
@@ -16012,11 +18925,17 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     }
 );
 
+/**
+ * @ignore
+ */
 PCFDirectionalShadowFilter.prototype.getCullMode = function()
 {
     return CullMode.FRONT;
 };
 
+/**
+ * @ignore
+ */
 PCFDirectionalShadowFilter.prototype.getGLSL = function()
 {
     var defines = {
@@ -16032,9 +18951,10 @@ PCFDirectionalShadowFilter.prototype.getGLSL = function()
 };
 
 /**
- * Base function for basic copies
- * @param fragmentShader The fragment shader to use while copying.
+ * @ignore
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function VSMBlurShader(blurRadius)
 {
@@ -16085,6 +19005,17 @@ VSMBlurShader.prototype.execute = function (rect, texture, dirX, dirY)
     GL.drawElements(gl.TRIANGLES, 6, 0);
 };
 
+/**
+ * @classdesc
+ * VarianceDirectionalShadowFilter is a shadow filter that provides variance soft shadow mapping.
+ * The implementation is highly experimental at this point.
+ *
+ * @see {@linkcode InitOptions#directionalShadowFilter}
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function VarianceDirectionalShadowFilter()
 {
     ShadowFilter.call(this);
@@ -16094,6 +19025,9 @@ function VarianceDirectionalShadowFilter()
 
 VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
+        /**
+         * The blur radius for the soft shadows.
+         */
         blurRadius: {
             get: function()
             {
@@ -16107,6 +19041,9 @@ VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype
             }
         },
 
+        /**
+         * A value to counter light bleeding, an artifact of the technique.
+         */
         lightBleedReduction: {
             get: function()
             {
@@ -16121,17 +19058,26 @@ VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype
         }
     });
 
+/**
+ * @ignore
+ */
 VarianceDirectionalShadowFilter.prototype.getGLSL = function()
 {
     var defines = this._getDefines();
     return ShaderLibrary.get("dir_shadow_vsm.glsl", defines);
 };
 
+/**
+ * @ignore
+ */
 VarianceDirectionalShadowFilter.prototype._createBlurShader = function()
 {
     return new VSMBlurShader(this._blurRadius);
 };
 
+/**
+ * @ignore
+ */
 VarianceDirectionalShadowFilter.prototype._getDefines = function()
 {
     var range = 1.0 - this._lightBleedReduction;
@@ -16143,7 +19089,404 @@ VarianceDirectionalShadowFilter.prototype._getDefines = function()
 };
 
 /**
- * Creates a number copies of the same mesh with hx_instanceID being the instance number of the copy.
+ * @classdesc
+ * BasicMaterial is the default physically plausible rendering material.
+ *
+ * @constructor
+ * Creates a new BasicMaterial object.
+ *
+ * @param options An object with key/value pairs describing the initial values of the material.
+ *
+ * <ul>
+ * <li>color: {@linkcode Color} or hexcode Number</li>
+ * <li>colorMap: {@linkcode Texture2D}</li>
+ * <li>doubleSided: Boolean</li>
+ * <li>normalMap: {@linkcode Texture2D}</li>
+ * <li>specularMap: {@linkcode Texture2D}</li>
+ * <li>maskMap: {@linkcode Texture2D}</li>
+ * <li>specularMapMode: {@linkcode BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+ * <li>metallicness: Number</li>
+ * <li>alpha: Number</li>
+ * <li>roughness: Number</li>
+ * <li>roughnessRange: Number</li>
+ * <li>normalSpecularReflectance: Number</li>
+ * <li>alphaThreshold: Number</li>
+ * <li>useVertexColors: Boolean</li>
+ * <li>lightingModel: {@linkcode LightingModel}</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function BasicMaterial(options)
+{
+    Material.call(this);
+
+    options = options || {};
+
+    this._color = options.color || new Color(1, 1, 1, 1);
+    this._colorMap = options.colorMap || null;
+    this._doubleSided = !!options.doubleSided;
+    this._normalMap = options.normalMap || null;
+    this._specularMap = options.specularMap || null;
+    this._maskMap = options.maskMap || null;
+    this._specularMapMode = options.specularMapMode || BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
+    this._metallicness = options.metallicness === undefined? 0.0 : options.metallicness;
+    this._alpha = options.alpha === undefined? 1.0 : options.alpha;
+    this._roughness = options.roughness === undefined ? 0.5 : options.roughness;
+    this._roughnessRange = options.roughnessRange === undefined? .5 : options.roughnessRange;
+    this._normalSpecularReflectance = options.normalSpecularReflectance === undefined? 0.027 : options.normalSpecularReflectance;
+    this._alphaThreshold = options.alphaThreshold === undefined? 1.0 : options.alphaThreshold;
+    this._useVertexColors = !!options.useVertexColors;
+
+    // trigger assignments
+    this.color = this._color;
+    this.alpha = this._alpha;
+    this.metallicness = this._metallicness;
+    this.roughness = this._roughness;
+    this.normalSpecularReflectance = this._normalSpecularReflectance;
+
+    if (options.lightingModel !== undefined)
+        this.lightingModel = options.lightingModel;
+}
+
+/**
+ * Converts to roughness from a "shininess" or "gloss" property, traditionally used in Phong lighting.
+ * @param specularPower The specular power used as the gloss parameter.
+ */
+BasicMaterial.roughnessFromShininess = function(specularPower)
+{
+    return Math.sqrt(2.0/(specularPower + 2.0));
+};
+
+/**
+ * Used for specularMapMode to specify the specular map only uses roughness data
+ */
+BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
+/**
+ * Used for specularMapMode to specify the specular map has rgb channels containing roughness, normal reflectance and metallicness, respectively
+ */
+BasicMaterial.SPECULAR_MAP_ALL = 2;
+/**
+ * Used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
+ */
+BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
+
+
+BasicMaterial.prototype = Object.create(Material.prototype,
+    {
+        /**
+         * Defines whether the material is double sided (no back-face culling) or not.
+         */
+        doubleSided: {
+            get: function()
+            {
+                return this._doubleSided;
+            },
+
+            set: function(value)
+            {
+                this._doubleSided = value;
+
+                for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
+                    if (this._passes[i])
+                        this._passes[i].cullMode = value ? CullMode.NONE : CullMode.BACK;
+                }
+            }
+        },
+
+        /**
+         * The overal transparency of the object. Has no effect without a matching blendState value.
+         */
+        alpha: {
+            get: function ()
+            {
+                return this._alpha;
+            },
+            set: function (value)
+            {
+                this._alpha = MathX.saturate(value);
+                this.setUniform("alpha", this._alpha);
+            }
+        },
+
+        /**
+         * Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
+         */
+        useVertexColors: {
+            get: function ()
+            {
+                return this._useVertexColors;
+            },
+            set: function (value)
+            {
+                if (this._useVertexColors !== value)
+                    this._invalidate();
+
+                this._useVertexColors = value;
+            }
+        },
+
+        /**
+         * The base color of the material. Multiplied with the colorMap if provided.
+         */
+        color: {
+            get: function ()
+            {
+                return this._color;
+            },
+            set: function (value)
+            {
+                this._color = isNaN(value) ? value : new Color(value);
+                this.setUniform("color", this._color);
+            }
+        },
+
+        /**
+         * A {@linkcode Texture2D} object containing color data.
+         */
+        colorMap: {
+            get: function ()
+            {
+                return this._colorMap;
+            },
+
+            set: function (value)
+            {
+                if (!!this._colorMap !== !!value) {
+                    this._invalidate();
+                }
+
+                this._colorMap = value;
+
+                this.setTexture("colorMap", value);
+            }
+        },
+
+        /**
+         * A {@linkcode Texture2D} object containing surface normals.
+         */
+        normalMap: {
+            get: function ()
+            {
+                return this._normalMap;
+            },
+            set: function (value)
+            {
+                if (!!this._normalMap !== !!value)
+                    this._invalidate();
+
+                this.setTexture("normalMap", value);
+
+                this._normalMap = value;
+            }
+        },
+
+        /**
+         * A {@linkcode Texture2D} object containing specular reflection data. The contents of the map depend on {@linkcode BasicMaterial#specularMapMode}.
+         * The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
+         */
+        specularMap: {
+            get: function ()
+            {
+                return this._specularMap;
+            },
+            set: function (value)
+            {
+                if (!!this._specularMap !== !!value)
+                    this._invalidate();
+
+                this.setTexture("specularMap", value);
+
+                this._specularMap = value;
+            }
+        },
+
+        /**
+         * A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
+         */
+        maskMap: {
+            get: function ()
+            {
+                return this._maskMap;
+            },
+            set: function (value)
+            {
+                if (!!this._maskMap !== !!value)
+                    this._invalidate();
+
+                this.setTexture("maskMap", value);
+
+                this._maskMap = value;
+            }
+        },
+
+        /**
+         * Defines the contents of the specular map. One of the following:
+         * <ul>
+         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_ALL}</li>
+         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
+         * </ul>
+         */
+        specularMapMode: {
+            get: function ()
+            {
+                return this._specularMapMode;
+            },
+            set: function (value)
+            {
+                if (this._specularMapMode !== value)
+                    this._invalidate();
+
+                this._specularMapMode = value;
+            }
+        },
+
+        /**
+         * A value describing the overall "metallicness" of an object. Normally 0 or 1, but it can be used for some
+         * hybrid materials.
+         */
+        metallicness: {
+            get: function ()
+            {
+                return this._metallicness;
+            },
+            set: function (value)
+            {
+                this._metallicness = MathX.saturate(value);
+                this.setUniform("metallicness", this._metallicness);
+            }
+        },
+
+        /**
+         * The amount of light reflecting off a surface at 90 degrees (ie: the minimum reflectance in the Fresnel
+         * equation according to Schlick's approximation). This is generally 0.027 for most materials.
+         */
+        normalSpecularReflectance: {
+            get: function ()
+            {
+                return this._normalSpecularReflectance;
+            },
+            set: function (value)
+            {
+                this._normalSpecularReflectance = MathX.saturate(value);
+                this.setUniform("normalSpecularReflectance", this._normalSpecularReflectance);
+            }
+        },
+
+        /**
+         * The microfacet roughness of the material. Higher values will result in dimmer but larger highlights.
+         */
+        roughness:
+            {
+                get: function ()
+                {
+                    return this._roughness;
+                },
+
+                set: function(value)
+                {
+                    this._roughness = value;
+                    this.setUniform("roughness", this._roughness);
+                }
+            },
+
+        /**
+         * Represents the range at which the roughness map operates. When using a roughness texture, roughness represents
+         * the middle roughness, range the deviation from there. So textured roughness ranges from
+         * [roughness - roughnessRange, roughness + roughnessRange]
+         */
+        roughnessRange:
+            {
+                get: function ()
+                {
+                    return this._roughnessRange;
+                },
+
+                set: function(value)
+                {
+                    this._roughnessRange = value;
+                    this.setUniform("roughnessRange", this._roughnessRange * 2.0);
+                }
+            },
+
+        /**
+         * The alpha threshold that prevents pixels with opacity below this from being rendered. This is not recommended
+         * on certain mobile platforms due to depth buffer hierarchy performance.
+         */
+        alphaThreshold:
+            {
+                get: function() { return this._alphaThreshold; },
+                set: function(value) {
+                    value = MathX.saturate(value);
+                    if ((this._alphaThreshold === 1.0) !== (value === 1.0))
+                        this._invalidate();
+
+                    this._alphaThreshold = value;
+                    this.setUniform("alphaThreshold", value);
+                }
+            }
+    }
+);
+
+/**
+ * @ignore
+ */
+BasicMaterial.prototype.init = function()
+{
+    var defines = this._generateDefines();
+
+    this._geometryVertexShader = ShaderLibrary.get("default_geometry_vertex.glsl", defines);
+    this._geometryFragmentShader = ShaderLibrary.get("default_geometry_fragment.glsl", defines);
+
+    Material.prototype.init.call(this);
+};
+
+/**
+ * @ignore
+ */
+BasicMaterial.prototype._generateDefines = function()
+{
+    var defines = {};
+    if (this._colorMap) defines.COLOR_MAP = 1;
+    if (this._useVertexColors) defines.VERTEX_COLORS = 1;
+    if (this._normalMap) defines.NORMAL_MAP = 1;
+    if (this._maskMap) defines.MASK_MAP = 1;
+    if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
+    if (this._useSkinning) defines.HX_USE_SKINNING = 1;
+    if (this._useMorphing) {
+        defines.HX_USE_MORPHING = 1;
+        defines.HX_NUM_MORPH_TARGETS = capabilities.NUM_MORPH_TARGETS;
+    }
+
+    switch (this._specularMapMode) {
+        case BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:
+            if (this._specularMap) defines.ROUGHNESS_MAP = 1;
+            break;
+        case BasicMaterial.SPECULAR_MAP_ALL:
+            if (this._specularMap) defines.SPECULAR_MAP = 1;
+            break;
+        default:
+            defines.NORMAL_ROUGHNESS_MAP = 1;
+    }
+    return defines;
+};
+
+/**
+ * @ignore
+ */
+BasicMaterial.prototype._setUseSkinning = function(value)
+{
+    if (this._useSkinning !== value)
+        this._invalidate();
+
+    this._useSkinning = value;
+};
+
+/**
+ * MeshBatch is a util that creates a number copies of the same mesh with hx_instanceID being the instance number of the copy.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 var MeshBatch =
     {
@@ -16214,6 +19557,22 @@ var MeshBatch =
         }
     };
 
+/**
+ * @classdesc
+ * ConePrimitive provides a primitive cone {@linkcode Model}.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of horizontal segments</li>
+ *     <li>numSegmentsH: The amount of vertical segments </li>
+ *     <li>radius: The radius of the cone base</li>
+ *     <li>height: The height of the cone</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function ConePrimitive(definition)
 {
     Primitive.call(this, definition);
@@ -16300,6 +19659,23 @@ ConePrimitive.prototype._generate = function(target, definition)
         indices.push(indexOffset, indexOffset + ci, indexOffset + ci + 1);
 };
 
+/**
+ * @classdesc
+ * CylinderPrimitive provides a primitive cylinder {@linkcode Model}.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of horizontal segments</li>
+ *     <li>numSegmentsH: The amount of vertical segments </li>
+ *     <li>radius: The radius of the cylinder</li>
+ *     <li>height: The height of the cylinder</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ *     <li>alignment: The axis along which to orient the cylinder. One of {@linkcode CylinderPrimitive.ALIGN_X}, {@linkcode CylinderPrimitive.ALIGN_Y}, {@linkcode CylinderPrimitive.ALIGN_Z}</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function CylinderPrimitive(definition)
 {
     Primitive.call(this, definition);
@@ -16454,10 +19830,21 @@ CylinderPrimitive.prototype._generate = function(target, definition)
 };
 
 /**
- * Provide a definition with the property names to automatically build a primitive. Properties provided in the definition
- * are the same as the setter names (without get/set).
- * @param definition
+ * @classdesc
+ * PlanePrimitive provides a primitive plane {@linkcode Model}.
+ *
  * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of horizontal segments</li>
+ *     <li>numSegmentsH: The amount of vertical segments </li>
+ *     <li>width: The width of the plane</li>
+ *     <li>height: The height of the plane</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ *     <li>alignment: The axes along which to orient the plane. One of {@linkcode PlanePrimitive.ALIGN_XZ}, {@linkcode PlanePrimitive.ALIGN_XY}, {@linkcode PlanePrimitive.ALIGN_YZ}</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function PlanePrimitive(definition)
 {
@@ -16559,6 +19946,24 @@ PlanePrimitive.prototype._generate = function(target, definition)
     }
 };
 
+/**
+ * @classdesc
+ * TorusPrimitive provides a primitive cylinder {@linkcode Model}.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of horizontal segments</li>
+ *     <li>numSegmentsH: The amount of vertical segments </li>
+ *     <li>radius: The radius of the torus</li>
+ *     <li>tubeRadius: The radius of the torus's tube</li>
+ *     <li>invert: Whether or not the faces should point inwards</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ *     <li>alignment: The axes along which to orient the torus. One of {@linkcode TorusPrimitive.ALIGN_XZ}, {@linkcode TorusPrimitive.ALIGN_XY}, {@linkcode TorusPrimitive.ALIGN_YZ}</li>
+ * </ul>
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function TorusPrimitive(definition)
 {
     Primitive.call(this, definition);
@@ -16651,23 +20056,64 @@ TorusPrimitive.prototype._generate = function(target, definition)
 };
 
 /**
- * MultiRenderer is a renderer for multiple viewports
+ * @classdesc
+ * View represents a renderable area on screen with the data it should render.
+ *
+ * @param scene The {@linkcode Scene} to render to this view.
+ * @param camera The {@linkcode Camera} to use for this view.
+ * @param xRatio The ratio (0 - 1) of the top-left corner of the view's horizontal position relative to the screen width.
+ * @param yRatio The ratio (0 - 1) of the top-left corner of the view vertical position relative to the screen height.
+ * @param widthRatio The ratio (0 - 1) of the top-left corner of the view's width relative to the screen width.
+ * @param heightRatio The ratio (0 - 1) of the top-left corner of the view's height relative to the screen height.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function View(scene, camera, xRatio, yRatio, widthRatio, heightRatio)
 {
+    /**
+     * The {@linkcode Scene} to render to this view.
+     */
     this.scene = scene;
+
+    /**
+     * The {@linkcode Camera} to use for this view.
+     */
     this.camera = camera;
-    this.viewport = new Rect();
+
     this._renderer = null;
     this._texture = null;
     this._fbo = null;
+
+    /**
+     * The ratio (0 - 1) of the top-left corner of the view's horizontal position relative to the screen width.
+     */
     this.xRatio = xRatio || 0;
+
+    /**
+     * The ratio (0 - 1) of the top-left corner of the view's vertical position relative to the screen height.
+     */
     this.yRatio = yRatio || 0;
+
+    /**
+     * The ratio (0 - 1) of the top-left corner of the view's width relative to the screen width.
+     */
     this.widthRatio = widthRatio || 1;
+
+    /**
+     * The ratio (0 - 1) of the top-left corner of the view's height relative to the screen height.
+     */
     this.heightRatio = heightRatio || 1;
 }
 
+/**
+ * MultiRenderer is a renderer for multiple simultaneous viewports. Multiple scenes can be rendered, with multiple
+ * cameras.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function MultiRenderer()
 {
     this._views = [];
@@ -16675,6 +20121,9 @@ function MultiRenderer()
 
 MultiRenderer.prototype =
 {
+    /**
+     * Adds a {@linkcode View} to be rendered.
+     */
     addView: function (view)
     {
         view._renderer = new Renderer();
@@ -16685,15 +20134,23 @@ MultiRenderer.prototype =
         this._views.push(view);
     },
 
+    /**
+     * Removes a {@linkcode View}.
+     */
     removeView: function (view)
     {
-        view._fbo.dispose();
-        view._texture.dispose();
-        view._renderer.dispose();
+        view._fbo = null;
+        view._texture = null;
+        view._renderer = null;
         var index = this._views.indexOf(view);
         this._views.splice(index, 1);
     },
 
+    /**
+     * Renders all views.
+     * @param dt The milliseconds passed since last frame.
+     * @param [renderTarget] An optional {@linkcode FrameBuffer} object to render to.
+     */
     render: function (dt, renderTarget)
     {
         var screenWidth = META.TARGET_CANVAS.clientWidth;
@@ -16729,6 +20186,20 @@ MultiRenderer.prototype =
     }
 };
 
+/**
+ * @classdesc
+ * StencilState defines the stencil mode the renderer should use.
+ * @param reference The stencil reference value.
+ * @param comparison The stencil comparison.
+ * @param onStencilFail The operation to use when the stencil test fails.
+ * @param onDepthFail The operation to use when the depth test fails.
+ * @param onPass The operation to use when both tests succeed.
+ * @param readMask The stencil read mask.
+ * @param writeMask The stencil write mask.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function StencilState(reference, comparison, onStencilFail, onDepthFail, onPass, readMask, writeMask)
 {
     this.enabled = true;
@@ -16741,8 +20212,16 @@ function StencilState(reference, comparison, onStencilFail, onDepthFail, onPass,
     this.writeMask = writeMask === undefined || writeMask === null? 0xffffffff: writeMask;
 }
 
+/**
+ * ImageData provides some utilities for images.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 var ImageData =
 {
+    /**
+     * Gets image data from an Image.
+     */
     getFromImage: function(image)
     {
         var canvas = document.createElement("canvas");
@@ -16755,9 +20234,13 @@ var ImageData =
 };
 
 /**
+ * @classdesc
+ * A utility class to keep track of teh frame rate. It keeps a running average for the last few frames.
  *
- * @param numFrames The amount of frames to average
+ * @param numFrames The amount of frames to average.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function FPSCounter(numFrames)
 {
@@ -16779,7 +20262,7 @@ FPSCounter.prototype =
 {
     /**
      * Updates the counter with a new frame time
-     * @param dt The time in milliseconds for the last frame
+     * @param dt The time in milliseconds since the last frame
      */
     update: function(dt)
     {
@@ -16801,26 +20284,41 @@ FPSCounter.prototype =
 
     },
 
+    /**
+     * Returns the last frame's fps.
+     */
     get lastFrameFPS()
     {
         return Math.round(this._currentFPS);
     },
 
+    /**
+     * Returns the running average fps.
+     */
     get averageFPS()
     {
         return Math.round(this._averageFPS);
     },
 
+    /**
+     * Returns the maximum fps since last reset.
+     */
     get maxFPS()
     {
         return Math.round(this._maxFPS);
     },
 
+    /**
+     * Returns the minimum fps since last reset.
+     */
     get minFPS()
     {
         return Math.round(this._minFPS);
     },
 
+    /**
+     * Resets minimum and maximum fps stats.
+     */
     reset: function()
     {
         this._maxFPS = undefined;
@@ -16829,7 +20327,13 @@ FPSCounter.prototype =
 };
 
 /**
+ * @classdesc
+ * StatsDisplay is a simple display for render statistics.
+ *
+ * @param container The DOM element to add the stats to.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function StatsDisplay(container)
 {
@@ -16855,6 +20359,9 @@ function StatsDisplay(container)
 
 StatsDisplay.prototype =
 {
+    /**
+     * Removes the stats display from the container.
+     */
     remove: function()
     {
         this._div.parentNode.removeChild(this._div);
@@ -16900,7 +20407,6 @@ exports.BufferUsage = BufferUsage;
 exports.CubeFace = CubeFace;
 exports.Float2 = Float2;
 exports.Float4 = Float4;
-exports.Gaussian = Gaussian;
 exports.CenteredGaussianCurve = CenteredGaussianCurve;
 exports.MathX = MathX;
 exports.Matrix4x4 = Matrix4x4;
@@ -16923,7 +20429,6 @@ exports.KeyFrame = KeyFrame;
 exports.AnimationClip = AnimationClip;
 exports.AnimationPlayhead = AnimationPlayhead;
 exports.MorphAnimation = MorphAnimation;
-exports.MorphData = MorphData;
 exports.MorphPose = MorphPose;
 exports.MorphTarget = MorphTarget;
 exports.Skeleton = Skeleton;

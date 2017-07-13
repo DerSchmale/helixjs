@@ -2,6 +2,16 @@ import { CullMode } from '../Helix';
 import { ShaderLibrary } from '../shader/ShaderLibrary';
 import { ShadowFilter } from './ShadowFilter';
 
+/**
+ * @classdesc
+ * HardDirectionalShadowFilter is a shadow filter that doesn't apply any filtering at all.
+ *
+ * @see {@linkcode InitOptions#directionalShadowFilter}
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function HardDirectionalShadowFilter()
 {
     ShadowFilter.call(this);
@@ -9,11 +19,17 @@ function HardDirectionalShadowFilter()
 
 HardDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype);
 
+/**
+ * @ignore
+ */
 HardDirectionalShadowFilter.prototype.getGLSL = function()
 {
     return ShaderLibrary.get("dir_shadow_hard.glsl");
 };
 
+/**
+ * @ignore
+ */
 HardDirectionalShadowFilter.prototype.getCullMode = function()
 {
     return CullMode.FRONT;

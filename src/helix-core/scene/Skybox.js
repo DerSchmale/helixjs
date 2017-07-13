@@ -6,10 +6,14 @@ import {ModelInstance} from "../mesh/ModelInstance";
 
 
 /**
+ * @classdesc
  * Skybox provides a backdrop "at infinity" for the scene.
- * @param materialOrTexture Either a texture or a material used to render the skybox. If a texture is passed,
- * HX.SkyboxMaterial is used as material.
+ *
+ * @param materialOrTexture Either a {@linkcode TextureCube} or a {@linkcode Material} used to render the skybox. If a
+ * texture is passed, {@linkcode HX.SkyboxMaterial} is used as material.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function Skybox(materialOrTexture)
 {
@@ -20,7 +24,7 @@ function Skybox(materialOrTexture)
     var model = new BoxPrimitive({width: 1, invert: true});
     model.localBounds.clear(BoundingVolume.EXPANSE_INFINITE);
     this._modelInstance = new ModelInstance(model, materialOrTexture);
-};
+}
 
 Skybox.prototype = {};
 

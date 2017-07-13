@@ -4,8 +4,22 @@ import {CustomCopyShader} from "../render/UtilShaders";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {GL} from "../core/GL";
 import {RectMesh} from "../mesh/RectMesh";
+
+/**
+ * HeightMap contains some utilities for height maps.
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 export var HeightMap =
 {
+    /**
+     * Smooths out an 8-bit per channel texture to serve as a height map. Otherwise, the limited 8 bit precision would
+     * result in a stair-case effect.
+     *
+     * @param texture The source 8-bit per channel texture.
+     * @param [generateMipmaps] Whether or not to generate a mip chain.
+     * @param [target] An optional target texture.
+     */
     from8BitTexture: function(texture, generateMipmaps, target)
     {
         var gl = GL.gl
@@ -48,13 +62,10 @@ export var HeightMap =
         gl.uniform2f(offsetLocation, 0.0, 1.0 / texture.height);
         smooth.execute(RectMesh.DEFAULT, tex2);
 
-        fbo2.dispose();
-
         if (generateMipmaps)
             target.generateMipmap();
 
         GL.setRenderTarget(oldRT);
-        fbo1.dispose();
 
         return tex1;
     }

@@ -1,7 +1,7 @@
-import * as HX from 'helix';
+import * as HX from "helix";
 
 /**
- *
+ * MTL is an importer for
  * @constructor
  */
 function MTL()
@@ -82,7 +82,7 @@ MTL.prototype._getTexture = function(url)
 
 MTL.prototype._loadTextures = function(lib)
 {
-    var library = new HX.AssetLibrary();
+    var library = new HX.AssetLibrary(null, this.options.crossOrigin);
     var files = this._texturesToLoad;
     var len = files.length;
     if (len === 0) {

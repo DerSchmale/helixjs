@@ -1,3 +1,7 @@
+/**
+ * @author derschmale <http://www.derschmale.com>
+ */
+
 var project = new MultiDemoProject();
 
 project.onInit = function()

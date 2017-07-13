@@ -1,6 +1,19 @@
 import {Float4} from './Float4';
 import {Matrix4x4} from './Matrix4x4';
 
+/*
+ * TODO: There is some API cleaning up to do here
+ * - move multiply(a, b) to static
+ */
+
+/**
+ * @classdesc
+ * Quaternion is a class to represent (in our case) rotations.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function Quaternion()
 {
     // x, y, z, w allowed to be accessed publicly for simplicity, changing this does not violate invariant. Ever.
@@ -10,6 +23,9 @@ function Quaternion()
     this.w = 1;
 }
 
+/**
+ * Returns the conjugate of the given quaternion.
+ */
 Quaternion.conjugate = function(q, target)
 {
     target = target || new Quaternion();
@@ -20,6 +36,9 @@ Quaternion.conjugate = function(q, target)
     return target;
 };
 
+/**
+ * Returns the inverse of the given quaternion.
+ */
 Quaternion.invert = function (q, target)
 {
     target = target || new Quaternion();
@@ -32,6 +51,14 @@ Quaternion.invert = function (q, target)
     return target;
 };
 
+/**
+ * Linearly interpolates two quaternions.
+ * @param {Quaternion} a The first vector to interpolate from.
+ * @param {Quaternion} b The second vector to interpolate to.
+ * @param {Number} t The interpolation factor.
+ * @param {Quaternion} [target] An optional target object. If not provided, a new object will be created and returned.
+ * @returns {Quaternion} The interpolated value.
+ */
 Quaternion.lerp = function(a, b, factor, target)
 {
     target = target || new Quaternion();
@@ -54,6 +81,14 @@ Quaternion.lerp = function(a, b, factor, target)
     this.normalize();
 };
 
+/**
+ * Spherical-linearly interpolates two quaternions.
+ * @param {Quaternion} a The first vector to interpolate from.
+ * @param {Quaternion} b The second vector to interpolate to.
+ * @param {Number} t The interpolation factor.
+ * @param {Quaternion} [target] An optional target object. If not provided, a new object will be created and returned.
+ * @returns {Quaternion} The interpolated value.
+ */
 Quaternion.slerp = function(a, b, factor, target)
 {
     target = target || new Quaternion();
@@ -100,6 +135,9 @@ Quaternion.slerp = function(a, b, factor, target)
     return target;
 };
 
+/**
+ * Creates a new Quaternion representing an axis/angle rotation
+ */
 Quaternion.fromAxisAngle = function(axis, radians)
 {
     var quat = new Quaternion();
@@ -109,6 +147,9 @@ Quaternion.fromAxisAngle = function(axis, radians)
 
 Quaternion.prototype =
 {
+    /**
+     * Initializes as an axis/angle rotation
+     */
     fromAxisAngle: function (axis, radians)
     {
         var halfAngle = radians * .5;
@@ -119,7 +160,9 @@ Quaternion.prototype =
         this.w = Math.cos(halfAngle);
     },
 
-    // Tait-Bryan angles, not classic Euler, radians
+    /**
+     * Initializes from Tait-Bryan angles
+     */
     fromPitchYawRoll: function(pitch, yaw, roll)
     {
         var mtx = new Matrix4x4();
@@ -128,7 +171,9 @@ Quaternion.prototype =
         this.fromMatrix(mtx);
     },
 
-    // X*Y*Z order (meaning z first), radians
+    /**
+     * Initializes from Euler angles
+     */
     fromEuler: function(x, y, z)
     {
         var cx = Math.cos(x * 0.5), cy = Math.cos(y * 0.5), cz = Math.cos(z * 0.5);
@@ -140,6 +185,9 @@ Quaternion.prototype =
         this.w = cx*cy*cz - sx*sy*sz;
     },
 
+    /**
+     * Stores the rotation as Euler angles in a Float4 object
+     */
     toEuler: function(target)
     {
         target = target || new Float4();
@@ -154,6 +202,9 @@ Quaternion.prototype =
         return target;
     },
 
+    /**
+     * Initializes from a rotation matrix
+     */
     fromMatrix: function(m)
     {
         var m00 = m._m[0];
@@ -202,6 +253,11 @@ Quaternion.prototype =
         this.normalize();
     },
 
+    /**
+     * Rotates a Float4 point.
+     *
+     * @param {Float4} [target] An optional target object. If not provided, a new object will be created and returned.
+     */
     rotate: function(v, target)
     {
         target = target || new Float4();
@@ -222,7 +278,9 @@ Quaternion.prototype =
         return target;
     },
 
-    // results in the same net rotation, but with different orientation
+    /**
+     * Negates all the components. This results in the same net rotation, but with different orientation
+     */
     negate: function()
     {
         this.x = -this.x;
@@ -231,6 +289,9 @@ Quaternion.prototype =
         this.w = -this.w;
     },
 
+    /**
+     * Sets all components explicitly
+     */
     set: function(x, y, z, w)
     {
         this.x = x;
@@ -239,6 +300,9 @@ Quaternion.prototype =
         this.w = w;
     },
 
+    /**
+     * Copies all components from another quaternion
+     */
     copyFrom: function(b)
     {
         this.x = b.x;
@@ -247,16 +311,25 @@ Quaternion.prototype =
         this.w = b.w;
     },
 
+    /**
+     * Gets the quaternion's squared norm
+     */
     get normSquared()
     {
         return this.x*this.x + this.y*this.y + this.z*this.z + this.w*this.w;
     },
 
+    /**
+     * Gets the quaternion's norm
+     */
     get norm()
     {
         return Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z + this.w*this.w);
     },
 
+    /**
+     * Normalizes the quaternion.
+     */
     normalize : function()
     {
         var rcpNorm = 1.0/Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.z + this.w*this.w);
@@ -266,6 +339,9 @@ Quaternion.prototype =
         this.w *= rcpNorm;
     },
 
+    /**
+     * inverts the quaternion.
+     */
     invert: function ()
     {
         var x = this.x, y = this.y, z = this.z, w = this.w;
@@ -276,6 +352,11 @@ Quaternion.prototype =
         this.w = w*rcpSqrNorm;
     },
 
+    /**
+     * Multiplies two quaternions and stores it in the current.
+     *
+     * @deprecated
+     */
     multiply: function(a, b)
     {
         var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
@@ -287,16 +368,25 @@ Quaternion.prototype =
         this.w = w1*w2 - x1*x2 - y1*y2 - z1*z2;
     },
 
+    /**
+     * Post-multiplies another quaternion to this one.
+     */
     append: function(q)
     {
         this.multiply(q, this);
     },
 
+    /**
+     * Pre-multiplies another quaternion to this one.
+     */
     prepend: function(q)
     {
         this.multiply(this, q);
     },
 
+    /**
+     * @ignore
+     */
     toString: function()
     {
         return "Quaternion(" + this.x + ", " + this.y + ", " + this.z + ", " + this.w + ")";

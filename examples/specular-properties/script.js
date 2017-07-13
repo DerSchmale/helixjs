@@ -9,6 +9,7 @@ project.onInit = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
+    options.defaultLightingModel = HX.LightingModel.GGX;
     options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
 };
@@ -20,7 +21,7 @@ function initCamera(camera)
     controller.polar = Math.PI * .5;
     controller.radius = 1.6;
 
-    var tonemap = new HX.ReinhardToneMapEffect(false);
+    var tonemap = new HX.ReinhardToneMapping(false);
     tonemap.exposure = 1.0;
 
     camera.addComponents([ controller, tonemap ]);
@@ -51,7 +52,6 @@ function initScene(scene)
             numSegmentsW: 20
         });
 
-    var lights = [ light, lightProbe ];
     var numX = 10;
     var numY = 7;
     for (var x = 0; x < numX; ++x) {
@@ -61,7 +61,6 @@ function initScene(scene)
             //material.color = new HX.Color(1, 0.0, 0.0);
             material.roughness = x / (numX - 1.0);
             material.metallicness = y / (numY - 1.0);
-            material.lights = lights;
 
             var modelInstance = new HX.ModelInstance(primitive, material);
             modelInstance.position.x = -((x + .5) / numX - .5) * 3.0;

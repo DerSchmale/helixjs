@@ -1,4 +1,4 @@
-HX.FileUtils =
+export var FileUtils =
 {
     extractPathAndFilename: function(filename)
     {

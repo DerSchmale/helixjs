@@ -2,23 +2,30 @@
  * Loads a jpg or png equirectangular as a cubemap
  * @constructor
  */
-HX.JPG_HEIGHTMAP = function()
+import {Texture2D} from "../texture/Texture2D";
+import {Importer} from "./Importer";
+import {TextureWrapMode} from "../Helix";
+import {HeightMap} from "../utils/HeightMap";
+
+function JPG_HEIGHTMAP()
 {
-    HX.Importer.call(this, HX.Texture2D, HX.Importer.TYPE_IMAGE);
+    Importer.call(this, Texture2D, Importer.TYPE_IMAGE);
 };
 
-HX.JPG_HEIGHTMAP.prototype = Object.create(HX.Importer.prototype);
+JPG_HEIGHTMAP.prototype = Object.create(Importer.prototype);
 
-HX.JPG_HEIGHTMAP.prototype.parse = function(data, target)
+JPG_HEIGHTMAP.prototype.parse = function(data, target)
 {
-    var texture2D = new HX.Texture2D();
-    texture2D.wrapMode = HX.TextureWrapMode.REPEAT;
+    var texture2D = new Texture2D();
+    texture2D.wrapMode = TextureWrapMode.REPEAT;
     texture2D.uploadImage(data, data.naturalWidth, data.naturalHeight, true);
 
     var generateMipmaps = this.options.generateMipmaps === undefined? true : this.options.generateMipmaps;
-    HX.HeightMap.from8BitTexture(texture2D, generateMipmaps, target);
+    HeightMap.from8BitTexture(texture2D, generateMipmaps, target);
     texture2D.dispose();
     this._notifyComplete(target);
 };
 
-HX.PNG_HEIGHTMAP = HX.JPG_HEIGHTMAP;
+var PNG_HEIGHTMAP = JPG_HEIGHTMAP;
+
+export { JPG_HEIGHTMAP, PNG_HEIGHTMAP };

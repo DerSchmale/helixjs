@@ -1,17 +1,20 @@
+import {FBXRecord} from "./FBXRecord";
+
+import * as pako from "pako";
+
 // Could also create an ASCII deserializer
-HX.FBXBinaryDeserializer = function()
+function FBXBinaryDeserializer()
 {
     this._version = 0;
-};
+}
 
-HX.FBXBinaryDeserializer.prototype =
+FBXBinaryDeserializer.prototype =
 {
     get version() { return this._version },
 
     deserialize: function(dataStream)
     {
         this._data = dataStream;
-
         this._verifyHeader();
 
         if (this._data.getUint16() !== 0x001a)
@@ -19,8 +22,9 @@ HX.FBXBinaryDeserializer.prototype =
 
         this._version = this._data.getUint32();
 
-        var root = new HX.FBXRecord();
+        var root = new FBXRecord();
         root.name = "[root]";
+
         this._deserializeNode(root);
         return root;
     },
@@ -54,7 +58,7 @@ HX.FBXBinaryDeserializer.prototype =
             return null;
         }
 
-        var record = new HX.FBXRecord();
+        var record = new FBXRecord();
         record.name = data.getString(nameLen);
 
         for (var i = 0; i < numProperties; ++i) {
@@ -63,8 +67,9 @@ HX.FBXBinaryDeserializer.prototype =
         }
 
         // there's more data, must contain child nodes (terminated by null node)
-        if (data.offset !== endOffset)
+        if (data.offset !== endOffset) {
             this._deserializeNode(record);
+        }
 
         return record;
     },
@@ -74,30 +79,31 @@ HX.FBXBinaryDeserializer.prototype =
         var typeCode = this._data.getChar();
 
         switch (typeCode) {
-            case HX.FBXBinaryDeserializer.BOOLEAN:
+            case FBXBinaryDeserializer.BOOLEAN:
                 return this._data.getUint8();
                 break;
-            case HX.FBXBinaryDeserializer.INT16:
+            case FBXBinaryDeserializer.INT16:
                 return this._data.getInt16();
                 break;
-            case HX.FBXBinaryDeserializer.INT32:
+            case FBXBinaryDeserializer.INT32:
                 return this._data.getInt32();
                 break;
-            case HX.FBXBinaryDeserializer.INT64:
+            case FBXBinaryDeserializer.INT64:
                 // just concatenating strings, since they're only used for ids
                 return this._data.getInt64AsFloat64();
                 break;
-            case HX.FBXBinaryDeserializer.FLOAT:
+            case FBXBinaryDeserializer.FLOAT:
                 return this._data.getFloat32();
                 break;
-            case HX.FBXBinaryDeserializer.DOUBLE:
+            case FBXBinaryDeserializer.DOUBLE:
                 return this._data.getFloat64();
                 break;
-            case HX.FBXBinaryDeserializer.STRING:
+            case FBXBinaryDeserializer.STRING:
                 var len = this._data.getUint32();
+                if (len === 0) return "";
                 return this._data.getString(len);
                 break;
-            case HX.FBXBinaryDeserializer.RAW:
+            case FBXBinaryDeserializer.RAW:
                 var len = this._data.getUint32();
                 return this._data.getUint8Array(len);
                 break;
@@ -114,58 +120,62 @@ HX.FBXBinaryDeserializer.prototype =
 
         if (encoding === 0) {
             switch (type) {
-                case HX.FBXBinaryDeserializer.BOOLEAN_ARRAY:
+                case FBXBinaryDeserializer.BOOLEAN_ARRAY:
                     return this._data.getUint8Array(len);
-                case HX.FBXBinaryDeserializer.INT32_ARRAY:
+                case FBXBinaryDeserializer.INT32_ARRAY:
                     return this._data.getInt32Array(len);
-                case HX.FBXBinaryDeserializer.INT64_ARRAY:
+                case FBXBinaryDeserializer.INT64_ARRAY:
                     return this._data.getInt64AsFloat64Array(len);
                     break;
-                case HX.FBXBinaryDeserializer.FLOAT_ARRAY:
+                case FBXBinaryDeserializer.FLOAT_ARRAY:
                     return this._data.getFloat32Array(len);
                     break;
-                case HX.FBXBinaryDeserializer.DOUBLE_ARRAY:
+                case FBXBinaryDeserializer.DOUBLE_ARRAY:
                     return this._data.getFloat64Array(len);
                     break;
                 default:
                     throw new Error("Unknown data type code " + type);
             }
         }
-        else {
+        else if (encoding === 1) {
             var data = this._data.getUint8Array(compressedLength);
             data = pako.inflate(data).buffer;
 
             switch (type) {
-                case HX.FBXBinaryDeserializer.BOOLEAN_ARRAY:
-                    return new Uint8Array(data.buffer);
-                case HX.FBXBinaryDeserializer.INT32_ARRAY:
+                case FBXBinaryDeserializer.BOOLEAN_ARRAY:
+                    return new Uint8Array(data);
+                case FBXBinaryDeserializer.INT32_ARRAY:
                     return new Int32Array(data);
-                case HX.FBXBinaryDeserializer.INT64_ARRAY:
-                    var data = new HX.DataStream(new DataView(data));
+                case FBXBinaryDeserializer.INT64_ARRAY:
+                    data = new HX.DataStream(new DataView(data));
                     return data.getInt64AsFloat64Array(data.byteLength / 8);
-                case HX.FBXBinaryDeserializer.FLOAT_ARRAY:
+                case FBXBinaryDeserializer.FLOAT_ARRAY:
                     return new Float32Array(data);
-                case HX.FBXBinaryDeserializer.DOUBLE_ARRAY:
+                case FBXBinaryDeserializer.DOUBLE_ARRAY:
                     return new Float64Array(data);
                 default:
                     throw new Error("Unknown data type code " + type);
             }
         }
+        else
+            throw new Error("Invalid encoding value " + encoding);
     }
 };
 
-HX.FBXBinaryDeserializer.INT16 = "Y";
-HX.FBXBinaryDeserializer.BOOLEAN = "C";
-HX.FBXBinaryDeserializer.INT32 = "I";
-HX.FBXBinaryDeserializer.FLOAT = "F";
-HX.FBXBinaryDeserializer.DOUBLE = "D";
-HX.FBXBinaryDeserializer.INT64 = "L";
+FBXBinaryDeserializer.INT16 = "Y";
+FBXBinaryDeserializer.BOOLEAN = "C";
+FBXBinaryDeserializer.INT32 = "I";
+FBXBinaryDeserializer.FLOAT = "F";
+FBXBinaryDeserializer.DOUBLE = "D";
+FBXBinaryDeserializer.INT64 = "L";
 
-HX.FBXBinaryDeserializer.BOOLEAN_ARRAY = "b";
-HX.FBXBinaryDeserializer.INT32_ARRAY = "i";
-HX.FBXBinaryDeserializer.FLOAT_ARRAY = "f";
-HX.FBXBinaryDeserializer.DOUBLE_ARRAY = "d";
-HX.FBXBinaryDeserializer.INT64_ARRAY = "l";
+FBXBinaryDeserializer.BOOLEAN_ARRAY = "b";
+FBXBinaryDeserializer.INT32_ARRAY = "i";
+FBXBinaryDeserializer.FLOAT_ARRAY = "f";
+FBXBinaryDeserializer.DOUBLE_ARRAY = "d";
+FBXBinaryDeserializer.INT64_ARRAY = "l";
 
-HX.FBXBinaryDeserializer.STRING = "S";
-HX.FBXBinaryDeserializer.RAW = "R";
+FBXBinaryDeserializer.STRING = "S";
+FBXBinaryDeserializer.RAW = "R";
+
+export { FBXBinaryDeserializer };

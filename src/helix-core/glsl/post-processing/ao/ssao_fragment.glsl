@@ -10,13 +10,13 @@ uniform float sampleRadius;
 uniform vec3 samples[NUM_SAMPLES]; // w contains bias
 
 uniform sampler2D ditherTexture;
-uniform sampler2D hx_normalDepth;
+uniform sampler2D hx_gbufferNormalDepth;
 
 varying vec2 uv;
 
 void main()
 {
-    vec4 normalDepth = texture2D(hx_normalDepth, uv);
+    vec4 normalDepth = texture2D(hx_gbufferNormalDepth, uv);
     vec3 centerNormal = hx_decodeNormal(normalDepth);
     float centerDepth = hx_decodeLinearDepth(normalDepth);
     float totalOcclusion = 0.0;
@@ -38,7 +38,7 @@ void main()
         vec3 scaledOffset = sampleOffset * sampleRadii;
 
         vec2 samplePos = uv + scaledOffset.xy;
-        normalDepth = texture2D(hx_normalDepth, samplePos);
+        normalDepth = texture2D(hx_gbufferNormalDepth, samplePos);
         float occluderDepth = hx_decodeLinearDepth(normalDepth);
         float diffZ = (centerDepth - occluderDepth) * hx_cameraFrustumRange;
 

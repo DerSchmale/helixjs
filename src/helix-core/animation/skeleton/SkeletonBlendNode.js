@@ -1,16 +1,19 @@
+import {Float4} from "../../math/Float4";
+import {SkeletonPose} from "./SkeletonPose";
+
+
 /**
  *
  * @constructor
  */
-HX.SkeletonBlendNode = function()
+function SkeletonBlendNode()
 {
-    this._rootJointDeltaPosition = new HX.Float4();
+    this._rootJointDeltaPosition = new Float4();
     this._valueID = null;
-    this._pose = new HX.SkeletonPose();
-    this._rootPosition = new HX.Float4();
-};
+    this._pose = new SkeletonPose();
+}
 
-HX.SkeletonBlendNode.prototype =
+SkeletonBlendNode.prototype =
 {
     // child nodes should ALWAYS be requested to update first
     update: function(dt, transferRootJoint)
@@ -33,3 +36,5 @@ HX.SkeletonBlendNode.prototype =
 
     _applyValue: function(value) {}
 };
+
+export { SkeletonBlendNode };

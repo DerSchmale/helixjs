@@ -1,8 +1,16 @@
+import {SceneNode} from "./SceneNode";
+import {Model} from "../mesh/Model";
+import {BoundingVolume} from "../scene/BoundingVolume";
+import {Float4} from "../math/Float4";
+import {ModelInstance} from "../mesh/ModelInstance";
+import {RenderCollector} from "../render/RenderCollector";
+import {Mesh} from "../mesh/Mesh";
+
 // TODO: there no way to figure out correct mip level for texture
 // TODO: Should we provide a snap size in the vertex data?
-HX.Terrain = function(terrainSize, minElevation, maxElevation, numLevels, material, detail)
+function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, detail)
 {
-    HX.SceneNode.call(this);
+    SceneNode.call(this);
 
     this._terrainSize = terrainSize || 512;
     this._minElevation = minElevation;
@@ -20,10 +28,10 @@ HX.Terrain = function(terrainSize, minElevation, maxElevation, numLevels, materi
 
     this._initModels(gridSize);
     this._initTree();
-};
+}
 
 // TODO: Allow setting material
-HX.Terrain.prototype = Object.create(HX.SceneNode.prototype, {
+Terrain.prototype = Object.create(SceneNode.prototype, {
     terrainSize: {
         get: function() {
             return this._terrainSize;
@@ -39,16 +47,16 @@ HX.Terrain.prototype = Object.create(HX.SceneNode.prototype, {
  * @returns {HX.Model}
  * @private
  */
-HX.Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
+Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
 {
     var rcpNumSegments = 1.0 / numSegments;
-    var meshData = new HX.MeshData();
+    var mesh = new Mesh();
     var cellSize = size * rcpNumSegments;
     var halfCellSize = cellSize * .5;
 
-    meshData.addVertexAttribute("hx_position", 3);
-    meshData.addVertexAttribute("hx_normal", 3);
-    meshData.addVertexAttribute("hx_cellSize", 1);
+    mesh.addVertexAttribute("hx_position", 3);
+    mesh.addVertexAttribute("hx_normal", 3);
+    mesh.addVertexAttribute("hx_cellSize", 1);
 
     var vertices = [];
     var indices = [];
@@ -95,17 +103,15 @@ HX.Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLeve
         }
     }
 
-    meshData.setVertexData(vertices, 0);
-    meshData.setIndexData(indices);
+    mesh.setVertexData(vertices, 0);
+    mesh.setIndexData(indices);
 
-    var modelData = new HX.ModelData();
-    modelData.addMeshData(meshData);
-    var model = new HX.Model(modelData);
-    model.localBounds.growToIncludeMinMax(new HX.Float4(0, this._minElevation, 0), new HX.Float4(0, this._maxElevation, 0));
+    var model = new Model(mesh);
+    model.localBounds.growToIncludeMinMax(new Float4(0, this._minElevation, 0), new Float4(0, this._maxElevation, 0));
     return model;
 };
 
-HX.Terrain.prototype._initModels = function(gridSize)
+Terrain.prototype._initModels = function(gridSize)
 {
     this._models = [];
     var modelSize = this._terrainSize * .25;
@@ -131,7 +137,7 @@ HX.Terrain.prototype._initModels = function(gridSize)
     }
 };
 
-HX.Terrain.prototype._initTree = function()
+Terrain.prototype._initTree = function()
 {
     var level = 0;
     var size = this._terrainSize * .25;
@@ -178,15 +184,15 @@ HX.Terrain.prototype._initTree = function()
     }
 };
 
-HX.Terrain.prototype._addModel = function(x, y, level, rotation, mode)
+Terrain.prototype._addModel = function(x, y, level, rotation, mode)
 {
-    var modelInstance = new HX.ModelInstance(this._models[level][mode], this._material);
+    var modelInstance = new ModelInstance(this._models[level][mode], this._material);
     modelInstance.position.set(x, 0, y);
-    modelInstance.rotation.fromAxisAngle(HX.Float4.Y_AXIS, rotation * Math.PI * .5);
+    modelInstance.rotation.fromAxisAngle(Float4.Y_AXIS, rotation * Math.PI * .5);
     this.attach(modelInstance);
 };
 
-HX.Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
+Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
 {
     size *= .5;
 
@@ -254,19 +260,21 @@ HX.Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
         this._subDivide(x + size * subX, y + size * subY, subX, subY, level + 1, size);
 };
 
-HX.Terrain.prototype.acceptVisitor = function(visitor)
+Terrain.prototype.acceptVisitor = function(visitor)
 {
     // typechecking isn't nice, but it does what we want
-    if (visitor instanceof HX.RenderCollector) {
+    if (visitor instanceof RenderCollector) {
         var pos = visitor._camera.position;
         this.position.x = Math.floor(pos.x / this._snapSize) * this._snapSize;
         this.position.z = Math.floor(pos.z / this._snapSize) * this._snapSize;
     }
 
-    HX.SceneNode.prototype.acceptVisitor.call(this, visitor);
+    SceneNode.prototype.acceptVisitor.call(this, visitor);
 };
 
-HX.Terrain.prototype._updateWorldBounds = function ()
+Terrain.prototype._updateWorldBounds = function ()
 {
-    this._worldBounds.clear(HX.BoundingVolume.EXPANSE_INFINITE);
+    this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
+
+export { Terrain };

@@ -1,5 +1,5 @@
 // Could also create an ASCII deserializer
-HX.FBXSettings = function()
+function FBXSettings()
 {
     this._matrix = new HX.Matrix4x4();
     this._frameRate = 24;
@@ -9,7 +9,7 @@ HX.FBXSettings = function()
     // multiply respective columns with signs
 };
 
-HX.FBXSettings.prototype =
+FBXSettings.prototype =
 {
     get orientationMatrix() { return this._matrix; },
     get frameRate() { return this._frameRate; },
@@ -56,3 +56,5 @@ HX.FBXSettings.prototype =
         this._matrix.invert();
     }
 };
+
+export {FBXSettings};

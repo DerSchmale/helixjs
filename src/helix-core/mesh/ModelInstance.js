@@ -4,23 +4,35 @@
  * @param materials Either a single material or an array of materials for each mesh in model.
  * @constructor
  */
-HX.ModelInstance = function(model, materials)
+import {BoundingAABB} from "../scene/BoundingAABB";
+import {capabilities, DEFAULTS, META} from "../Helix";
+import {Matrix4x4} from "../math/Matrix4x4";
+import {MeshInstance} from "./MeshInstance";
+import {Entity} from "../entity/Entity";
+import {LightingModel} from "../render/LightingModel";
+import {Color} from "../core/Color";
+import {BasicMaterial} from "../material/BasicMaterial";
+
+function ModelInstance(model, materials)
 {
-    HX.Entity.call(this);
-    this._meshBounds = new HX.BoundingAABB();
+    Entity.call(this);
+
+    this._meshBounds = new BoundingAABB();
     this._model = null;
     this._meshInstances = [];
     this._castShadows = true;
     this._skeletonPose = null;
+    this._morphPose = null;
+    this._meshInstancesInvalid = false;
 
     this.init(model, materials);
-};
+}
 
-HX.ModelInstance.prototype = Object.create(HX.Entity.prototype, {
+ModelInstance.prototype = Object.create(Entity.prototype, {
     model:
-    {
-        get: function() { return this._model; }
-    },
+        {
+            get: function() { return this._model; }
+        },
 
     castShadows: {
         get: function()
@@ -54,6 +66,26 @@ HX.ModelInstance.prototype = Object.create(HX.Entity.prototype, {
         set: function(value) {
             this._skeletonPose = value;
         }
+    },
+
+    morphPose: {
+        get: function() {
+            return this._morphPose;
+        },
+
+        set: function(value) {
+            if (this._morphPose)
+                this._morphPose.onChange.unbind(this._onMorphChanged);
+
+            this._morphPose = value;
+
+            if (this._morphPose) {
+                this._morphPose.onChange.bind(this._onMorphChanged, this);
+                this._onMorphChanged();
+            }
+            else
+                this._clearMorph();
+        }
     }
 });
 
@@ -62,12 +94,13 @@ HX.ModelInstance.prototype = Object.create(HX.Entity.prototype, {
  * @param model
  * @param materials
  */
-HX.ModelInstance.prototype.init = function(model, materials)
+ModelInstance.prototype.init = function(model, materials)
 {
     if (this._model || this._materials)
         throw new Error("ModelInstance already initialized");
 
     this._model = model;
+    this._model.onChange.bind(this._invalidateWorldBounds, this);
 
     if (materials)
         this._materials = materials instanceof Array? materials : [ materials ];
@@ -81,57 +114,107 @@ HX.ModelInstance.prototype.init = function(model, materials)
     }
 
     this._invalidateWorldBounds();
+    this._updateMeshInstances();
 };
 
-HX.ModelInstance.prototype.getMeshInstance = function(index)
+ModelInstance.prototype.assignMaterial = function(material)
+{
+    if (this._meshInstancesInvalid) this._updateMeshInstances();
+
+    for (var i = 0; i < this._meshInstances.length; ++i) {
+        this._meshInstances[i].material = material;
+    }
+};
+
+ModelInstance.prototype.getMeshInstance = function(index)
 {
     return this._meshInstances[index];
 };
 
-HX.ModelInstance.prototype._generateDefaultSkeletonPose = function()
+ModelInstance.prototype._generateDefaultSkeletonPose = function()
 {
-    if (HX.OPTIONS.useSkinningTexture) {
-        this._skeletonPose = HX.DEFAULT_SKINNING_TEXTURE;
+    if (META.OPTIONS.useSkinningTexture) {
+        this._skeletonPose = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
         return;
     }
 
     this._skeletonPose = [];
     for (var i = 0; i < this._model.skeleton.numJoints; ++i) {
-        this._skeletonPose[i] = new HX.Matrix4x4();
+        this._skeletonPose[i] = new Matrix4x4();
     }
 };
 
-
-HX.ModelInstance.prototype._addMeshInstance = function(mesh, material)
+ModelInstance.prototype._updateMeshInstances = function()
 {
-    this._meshInstances.push(new HX.MeshInstance(mesh, material));
-};
-
-HX.ModelInstance.prototype._onModelChange = function()
-{
+    this._meshInstances = [];
     var maxIndex = this._materials.length - 1;
+
     for (var i = 0; i < this._model.numMeshes; ++i) {
-        this._addMeshInstance(this._model.getMesh(i), this._materials[Math.min(i, maxIndex)]);
+        this._meshInstances.push(new MeshInstance(this._model.getMesh(i), this._materials[Math.min(i, maxIndex)]));
     }
 
+    this._meshInstancesInvalid = false;
+};
+
+ModelInstance.prototype._onModelChange = function()
+{
+    this._meshInstancesInvalid = true;
     this._invalidateWorldBounds();
 };
 
-// override for better matches
-HX.ModelInstance.prototype._updateWorldBounds = function()
+ModelInstance.prototype._clearMorph = function()
 {
+    var numTargets = capabilities.NUM_MORPH_TARGETS;
+    var numMeshes = this._meshInstances.length;
+
+    for (var t = 0; t < numTargets; ++t) {
+        for (var i = 0; i < numMeshes; ++i) {
+            this._meshInstances[i].setMorphTarget(t, null, 0);
+        }
+    }
+};
+
+ModelInstance.prototype._onMorphChanged = function()
+{
+    var numTargets = capabilities.NUM_MORPH_TARGETS;
+    var numMeshes = this._meshInstances.length;
+
+    for (var t = 0; t < numTargets; ++t) {
+        var target = this._morphPose.getMorphTarget(t);
+        if (target) {
+            var weight = this._morphPose.getWeight(target.name);
+            for (var i = 0; i < numMeshes; ++i) {
+                var meshInstance = this._meshInstances[i];
+                meshInstance.setMorphTarget(t, target.getVertexBuffer(i), weight);
+            }
+        }
+        else {
+            for (i = 0; i < numMeshes; ++i) {
+                this._meshInstances[i].setMorphTarget(t, null, 0.0);
+            }
+        }
+    }
+};
+
+// override for better matches
+ModelInstance.prototype._updateWorldBounds = function()
+{
+    if (this._meshInstancesInvalid) this._updateMeshInstances();
+    Entity.prototype._updateWorldBounds.call(this);
     this._meshBounds.transformFrom(this._model.localBounds, this.worldMatrix);
     this._worldBounds.growToIncludeBound(this._meshBounds);
-    HX.Entity.prototype._updateWorldBounds.call(this);
 };
 
-HX.ModelInstance.prototype.acceptVisitor = function(visitor)
+ModelInstance.prototype.acceptVisitor = function(visitor)
 {
+    if (this._meshInstancesInvalid) this._updateMeshInstances();
     visitor.visitModelInstance(this, this.worldMatrix, this.worldBounds);
-    HX.Entity.prototype.acceptVisitor.call(this, visitor);
+    Entity.prototype.acceptVisitor.call(this, visitor);
 };
 
-HX.ModelInstance.prototype.toString = function()
+ModelInstance.prototype.toString = function()
 {
     return "[ModelInstance(name=" + this._name + ")]";
 };
+
+export { ModelInstance };

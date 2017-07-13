@@ -4,16 +4,23 @@
  * @param definition
  * @constructor
  */
-HX.PlanePrimitive = HX.Primitive.define();
+import {Primitive} from "./Primitive";
 
-HX.PlanePrimitive.ALIGN_XZ = 1;
-HX.PlanePrimitive.ALIGN_XY = 2;
-HX.PlanePrimitive.ALIGN_YZ = 3;
+function PlanePrimitive(definition)
+{
+    Primitive.call(this, definition);
+}
 
-HX.PlanePrimitive._generate = function(target, definition)
+PlanePrimitive.prototype = Object.create(Primitive.prototype);
+
+PlanePrimitive.ALIGN_XZ = 1;
+PlanePrimitive.ALIGN_XY = 2;
+PlanePrimitive.ALIGN_YZ = 3;
+
+PlanePrimitive.prototype._generate = function(target, definition)
 {
     definition = definition || {};
-    var alignment = definition.alignment || HX.PlanePrimitive.ALIGN_XZ;
+    var alignment = definition.alignment || PlanePrimitive.ALIGN_XZ;
     var numSegmentsW = definition.numSegmentsW || 1;
     var numSegmentsH = definition.numSegmentsH || 1;
     var width = definition.width || 1;
@@ -31,9 +38,9 @@ HX.PlanePrimitive._generate = function(target, definition)
     var normalX = 0, normalY = 0, normalZ = 0;
     var uvU = 0, uvV = 0;
 
-    if (alignment === HX.PlanePrimitive.ALIGN_XY)
+    if (alignment === PlanePrimitive.ALIGN_XY)
         normalZ = -1;
-    else if (alignment === HX.PlanePrimitive.ALIGN_XZ)
+    else if (alignment === PlanePrimitive.ALIGN_XZ)
         normalY = 1;
     else
         normalX = 1;
@@ -44,13 +51,13 @@ HX.PlanePrimitive._generate = function(target, definition)
         for (var xi = 0; xi <= numSegmentsW; ++xi) {
             var x = (xi*rcpNumSegmentsW - .5)*width;
 
-            if (alignment === HX.PlanePrimitive.ALIGN_XY) {
+            if (alignment === PlanePrimitive.ALIGN_XY) {
                 posX = x;
                 posY = y;
                 uvU = 1.0 - xi*rcpNumSegmentsW;
                 uvV = yi*rcpNumSegmentsH;
             }
-            else if (alignment === HX.PlanePrimitive.ALIGN_XZ) {
+            else if (alignment === PlanePrimitive.ALIGN_XZ) {
                 posX = x;
                 posZ = y;
                 uvU = 1.0 - xi*rcpNumSegmentsW;
@@ -98,3 +105,5 @@ HX.PlanePrimitive._generate = function(target, definition)
         }
     }
 };
+
+export {PlanePrimitive };

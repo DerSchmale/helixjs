@@ -1,24 +1,25 @@
+import {EffectPass} from "./EffectPass";
+import {ShaderLibrary} from "../shader/ShaderLibrary";
+import {Effect} from "./Effect";
+import {GL} from "../core/GL";
+import {Color} from "../core/Color";
+
 /**
- *
- * @param density
- * @param tint
- * @param startDistance
- * @param height
  * @constructor
  */
-HX.Fog = function(density, tint, heightFallOff, startDistance)
+function Fog(density, tint, heightFallOff, startDistance)
 {
-    HX.Effect.call(this);
+    Effect.call(this);
 
-    this._fogPass = new HX.EffectPass(HX.ShaderLibrary.get("fog_vertex.glsl"), HX.ShaderLibrary.get("fog_fragment.glsl"));
+    this._fogPass = new EffectPass(ShaderLibrary.get("fog_vertex.glsl"), ShaderLibrary.get("fog_fragment.glsl"));
     this.needsNormalDepth = true;
     this.density = density === undefined? .001 : density;
-    this.tint = tint === undefined? new HX.Color(1, 1, 1, 1) : tint;
+    this.tint = tint === undefined? new Color(1, 1, 1, 1) : tint;
     this.startDistance = startDistance === undefined? 0 : startDistance;
     this.heightFallOff = heightFallOff === undefined? 0.01 : heightFallOff;
 };
 
-HX.Fog.prototype = Object.create(HX.Effect.prototype,
+Fog.prototype = Object.create(Effect.prototype,
     {
         density: {
             get: function()
@@ -71,9 +72,11 @@ HX.Fog.prototype = Object.create(HX.Effect.prototype,
 );
 
 
-HX.Fog.prototype.draw = function(dt)
+Fog.prototype.draw = function(dt)
 {
-    HX.setRenderTarget(this.hdrTarget);
-    HX.clear();
+    GL.setRenderTarget(this.hdrTarget);
+    GL.clear();
     this._drawPass(this._fogPass);
 };
+
+export { Fog };

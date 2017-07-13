@@ -1,12 +1,16 @@
-HX.PCFDirectionalShadowFilter = function()
+import { CullMode } from '../Helix';
+import { ShaderLibrary } from '../shader/ShaderLibrary';
+import { ShadowFilter } from './ShadowFilter';
+
+function PCFDirectionalShadowFilter()
 {
-    HX.ShadowFilter.call(this);
+    ShadowFilter.call(this);
     this._softness = .01;
     this._numShadowSamples = 6;
     this._dither = false;
 };
 
-HX.PCFDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.prototype,
+PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
         softness: {
             get: function()
@@ -55,12 +59,12 @@ HX.PCFDirectionalShadowFilter.prototype = Object.create(HX.ShadowFilter.prototyp
     }
 );
 
-HX.PCFDirectionalShadowFilter.prototype.getCullMode = function()
+PCFDirectionalShadowFilter.prototype.getCullMode = function()
 {
-    return HX.CullMode.FRONT;
+    return CullMode.FRONT;
 };
 
-HX.PCFDirectionalShadowFilter.prototype.getGLSL = function()
+PCFDirectionalShadowFilter.prototype.getGLSL = function()
 {
     var defines = {
         HX_PCF_NUM_SHADOW_SAMPLES: this._numShadowSamples,
@@ -71,5 +75,7 @@ HX.PCFDirectionalShadowFilter.prototype.getGLSL = function()
     if (this._dither)
         defines.HX_PCF_DITHER_SHADOWS = 1;
 
-    return HX.ShaderLibrary.get("dir_shadow_pcf.glsl", defines);
+    return ShaderLibrary.get("dir_shadow_pcf.glsl", defines);
 };
+
+export { PCFDirectionalShadowFilter };

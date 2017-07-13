@@ -1,13 +1,113 @@
-HX.Quaternion = function ()
+import {Float4} from './Float4';
+import {Matrix4x4} from './Matrix4x4';
+
+function Quaternion()
 {
     // x, y, z, w allowed to be accessed publicly for simplicity, changing this does not violate invariant. Ever.
     this.x = 0;
     this.y = 0;
     this.z = 0;
     this.w = 1;
+}
+
+Quaternion.conjugate = function(q, target)
+{
+    target = target || new Quaternion();
+    target.x = -q.x;
+    target.y = -q.y;
+    target.z = -q.z;
+    target.w = q.w;
+    return target;
 };
 
-HX.Quaternion.prototype =
+Quaternion.invert = function (q, target)
+{
+    target = target || new Quaternion();
+    var x = q.x, y = q.y, z = q.z, w = q.w;
+    var rcpSqrNorm = 1.0 / (x*x + y*y + z*z + w*w);
+    this.x = -x*rcpSqrNorm;
+    this.y = -y*rcpSqrNorm;
+    this.z = -z*rcpSqrNorm;
+    this.w = w*rcpSqrNorm;
+    return target;
+};
+
+Quaternion.lerp = function(a, b, factor, target)
+{
+    target = target || new Quaternion();
+    var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
+    var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
+
+    // use shortest direction
+    if (w1 * w2 + x1 * x2 + y1 * y2 + z1 * z2 < 0) {
+        w2 = -w2;
+        x2 = -x2;
+        y2 = -y2;
+        z2 = -z2;
+    }
+
+    target.x = x1 + factor * (x2 - x1);
+    target.y = y1 + factor * (y2 - y1);
+    target.z = z1 + factor * (z2 - z1);
+    target.w = w1 + factor * (w2 - w1);
+
+    this.normalize();
+};
+
+Quaternion.slerp = function(a, b, factor, target)
+{
+    target = target || new Quaternion();
+    var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
+    var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
+    var dot = w1*w2 + x1*x2 + y1*y2 + z1*z2;
+
+    // shortest direction
+    if (dot < 0.0) {
+        dot = -dot;
+        w2 = -w2;
+        x2 = -x2;
+        y2 = -y2;
+        z2 = -z2;
+    }
+
+    if (dot < 0.95) {
+        // interpolate angle linearly
+        var angle = Math.acos(dot);
+        var interpolatedAngle = factor*angle;
+
+        target.x = x2 - x1*dot;
+        target.y = y2 - y1*dot;
+        target.z = z2 - z1*dot;
+        target.w = w2 - w1*dot;
+        target.normalize();
+
+        var cos = Math.cos(interpolatedAngle);
+        var sin = Math.sin(interpolatedAngle);
+        target.x = x1 * cos + target.x * sin;
+        target.y = y1 * cos + target.y * sin;
+        target.z = z1 * cos + target.z * sin;
+        target.w = w1 * cos + target.w * sin;
+    }
+    else {
+        // nearly identical angle, interpolate linearly
+        target.x = x1 + factor * (x2 - x1);
+        target.y = y1 + factor * (y2 - y1);
+        target.z = z1 + factor * (z2 - z1);
+        target.w = w1 + factor * (w2 - w1);
+        target.normalize();
+    }
+
+    return target;
+};
+
+Quaternion.fromAxisAngle = function(axis, radians)
+{
+    var quat = new Quaternion();
+    quat.fromAxisAngle(axis, radians);
+    return quat;
+};
+
+Quaternion.prototype =
 {
     fromAxisAngle: function (axis, radians)
     {
@@ -22,7 +122,7 @@ HX.Quaternion.prototype =
     // Tait-Bryan angles, not classic Euler, radians
     fromPitchYawRoll: function(pitch, yaw, roll)
     {
-        var mtx = new HX.Matrix4x4();
+        var mtx = new Matrix4x4();
         // wasteful. improve.
         mtx.fromRotationPitchYawRoll(pitch, yaw, roll);
         this.fromMatrix(mtx);
@@ -42,7 +142,7 @@ HX.Quaternion.prototype =
 
     toEuler: function(target)
     {
-        target = target || new HX.Float4();
+        target = target || new Float4();
 
         var x = this.x, y = this.y, z = this.z, w = this.w;
         var xx = x * x, yy = y * y, zz = z * z, ww = w * w;
@@ -104,7 +204,7 @@ HX.Quaternion.prototype =
 
     rotate: function(v, target)
     {
-        target = target || new HX.Float4();
+        target = target || new Float4();
 
         var vx = v.x, vy = v.y, vz = v.z;
         var x = this.x, y = this.y, z = this.z, w = this.w;
@@ -120,70 +220,6 @@ HX.Quaternion.prototype =
         target.z = -w1 * z - x1 * y + y1 * x + z1 * w;
         target.w = v.w;
         return target;
-    },
-
-    lerp: function(a, b, factor)
-    {
-        var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
-        var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
-
-        // use shortest direction
-        if (w1 * w2 + x1 * x2 + y1 * y2 + z1 * z2 < 0) {
-            w2 = -w2;
-            x2 = -x2;
-            y2 = -y2;
-            z2 = -z2;
-        }
-
-        this.x = x1 + factor * (x2 - x1);
-        this.y = y1 + factor * (y2 - y1);
-        this.z = z1 + factor * (z2 - z1);
-        this.w = w1 + factor * (w2 - w1);
-
-        this.normalize();
-    },
-
-    slerp: function(a, b, factor)
-    {
-        var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
-        var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
-        var dot = w1*w2 + x1*x2 + y1*y2 + z1*z2;
-
-        // shortest direction
-        if (dot < 0.0) {
-            dot = -dot;
-            w2 = -w2;
-            x2 = -x2;
-            y2 = -y2;
-            z2 = -z2;
-        }
-
-        if (dot < 0.95) {
-            // interpolate angle linearly
-            var angle = Math.acos(dot);
-            var interpolatedAngle = factor*angle;
-
-            this.x = x2 - x1*dot;
-            this.y = y2 - y1*dot;
-            this.z = z2 - z1*dot;
-            this.w = w2 - w1*dot;
-            this.normalize();
-
-            var cos = Math.cos(interpolatedAngle);
-            var sin = Math.sin(interpolatedAngle);
-            this.x = x1 * cos + this.x * sin;
-            this.y = y1 * cos + this.y * sin;
-            this.z = z1 * cos + this.z * sin;
-            this.w = w1 * cos + this.w * sin;
-        }
-        else {
-            // nearly identical angle, interpolate linearly
-            this.x = x1 + factor * (x2 - x1);
-            this.y = y1 + factor * (y2 - y1);
-            this.z = z1 + factor * (z2 - z1);
-            this.w = w1 + factor * (w2 - w1);
-            this.normalize();
-        }
     },
 
     // results in the same net rotation, but with different orientation
@@ -230,25 +266,7 @@ HX.Quaternion.prototype =
         this.w *= rcpNorm;
     },
 
-    conjugateOf : function(q)
-    {
-        this.x = -q.x;
-        this.y = -q.y;
-        this.z = -q.z;
-        this.w = q.w;
-    },
-
-    inverseOf: function (q)
-    {
-        var x = q.x, y = q.y, z = q.z, w = q.w;
-        var rcpSqrNorm = 1.0 / (x*x + y*y + z*z + w*w);
-        this.x = -x*rcpSqrNorm;
-        this.y = -y*rcpSqrNorm;
-        this.z = -z*rcpSqrNorm;
-        this.w = w*rcpSqrNorm;
-    },
-
-    invert: function (q)
+    invert: function ()
     {
         var x = this.x, y = this.y, z = this.z, w = this.w;
         var rcpSqrNorm = 1.0 / (x*x + y*y + z*z + w*w);
@@ -283,5 +301,6 @@ HX.Quaternion.prototype =
     {
         return "Quaternion(" + this.x + ", " + this.y + ", " + this.z + ", " + this.w + ")";
     }
-
 };
+
+export { Quaternion };

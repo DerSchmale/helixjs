@@ -1,39 +1,35 @@
+import {GL} from "../core/GL";
+
 /**
  * @constructor
  */
-HX.WriteOnlyDepthBuffer = function()
+function WriteOnlyDepthBuffer()
 {
-    this._renderBuffer = HX_GL.createRenderbuffer();
+    this._renderBuffer = GL.gl.createRenderbuffer();
     this._format = null;
-};
+}
 
-HX.WriteOnlyDepthBuffer.prototype = {
-    constructor: HX.FrameBuffer,
-
+WriteOnlyDepthBuffer.prototype = {
     get width() { return this._width; },
     get height() { return this._height; },
     get format() { return this._format; },
 
-    /**
-     *
-     * @param width
-     * @param height
-     * @param formats An Array of formats for each color buffer. If only one provided, it will be used for all. Defaults to [ HX_GL.RGBA ]
-     * @param dataTypes An Array of data types for each color buffer. If only one provided, it will be used for all. Defaults to [ HX_GL.UNSIGNED_BYTE ]
-     */
     init: function(width, height, stencil)
     {
+        var gl = GL.gl;
         stencil = stencil === undefined? true : stencil;
         this._width = width;
         this._height = height;
-        this._format = stencil? HX_GL.DEPTH_STENCIL : HX_GL.DEPTH_COMPONENT16;
+        this._format = stencil? gl.DEPTH_STENCIL : gl.DEPTH_COMPONENT16;
 
-        HX_GL.bindRenderbuffer(HX_GL.RENDERBUFFER, this._renderBuffer);
-        HX_GL.renderbufferStorage(HX_GL.RENDERBUFFER, this._format, width, height);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, this._renderBuffer);
+        gl.renderbufferStorage(gl.RENDERBUFFER, this._format, width, height);
     },
 
     dispose: function()
     {
-        HX_GL.deleteRenderBuffer(this._renderBuffer);
+        GL.gl.deleteRenderBuffer(this._renderBuffer);
     }
 };
+
+export { WriteOnlyDepthBuffer };

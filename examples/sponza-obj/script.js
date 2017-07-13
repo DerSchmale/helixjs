@@ -1,6 +1,5 @@
 var project = new DemoProject();
 var sponza;
-var lights;
 
 project.onInit = function()
 {
@@ -13,7 +12,9 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
+    options.numShadowCascades = 3;
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -45,8 +46,8 @@ function initCamera(camera)
     // bloom.thresholdLuminance = 1.0;
     // camera.addComponent(bloom);
 
-    var tonemap = new HX.FilmicToneMapEffect(true);
-    tonemap.exposure = 2;
+    var tonemap = new HX.FilmicToneMapping(true);
+    tonemap.exposure = 1;
     camera.addComponent(tonemap);
 
     camera.addComponent(new HX.FXAA());
@@ -55,10 +56,9 @@ function initCamera(camera)
 function initScene(scene)
 {
     var dirLight = new HX.DirectionalLight();
-    dirLight.color = new HX.Color(1.0, .9, .7);
+    dirLight.color = new HX.Color(1.0, .95, .9);
     dirLight.direction = new HX.Float4(3.0, -5.0, 1.0);
-    dirLight.intensity = 5.0;
-    dirLight.numCascades = 3;
+    dirLight.intensity = 1.0;
     dirLight.castShadows = true;
 
     scene.attach(dirLight);
@@ -74,8 +74,6 @@ function initScene(scene)
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture);
     scene.attach(lightProbe);
 
-    lights = [ lightProbe, dirLight ];
-
     var loader = new HX.AssetLoader(HX.OBJ);
     loader.onComplete.bind(onSponzaComplete);
     sponza = loader.load('resources/crytek-sponza/sponza.obj');
@@ -85,19 +83,6 @@ function initScene(scene)
 
 function onSponzaComplete()
 {
-    sponza.applyFunction(function(obj)
-    {
-        if (obj instanceof HX.ModelInstance) {
-            for (var i = 0; i < obj.numMeshInstances; ++i) {
-                var mesh = obj.getMeshInstance(i);
-                if (mesh.material) {
-                    mesh.material.lights = lights;
-                    mesh.material.ssao = true;
-                }
-            }
-        }
-    });
-
     var material = sponza.findMaterialByName("chain");
     material.alphaThreshold = .5;
     material.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;

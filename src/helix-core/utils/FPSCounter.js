@@ -3,7 +3,7 @@
  * @param numFrames The amount of frames to average
  * @constructor
  */
-HX.FPSCounter = function(numFrames)
+function FPSCounter(numFrames)
 {
     this._numFrames = numFrames || 1;
     this._frames = [ ];
@@ -19,7 +19,7 @@ HX.FPSCounter = function(numFrames)
     this._index = 0;
 };
 
-HX.FPSCounter.prototype =
+FPSCounter.prototype =
 {
     /**
      * Updates the counter with a new frame time
@@ -71,3 +71,5 @@ HX.FPSCounter.prototype =
         this._minFPS = undefined;
     }
 };
+
+export { FPSCounter };

@@ -1,15 +1,16 @@
+import { GL } from './GL.js';
+import { BufferUsage } from '../Helix.js';
+
 /**
  *
  * @constructor
  */
-HX.IndexBuffer = function()
+function IndexBuffer()
 {
-    this._buffer = HX_GL.createBuffer();
+    this._buffer = GL.gl.createBuffer();
 };
 
-HX.IndexBuffer.prototype = {
-    constructor: HX.IndexBuffer,
-
+IndexBuffer.prototype = {
     /**
      * Uploads data for the buffer.
      * @param data The data to upload, must be a Int16Array object.
@@ -18,16 +19,16 @@ HX.IndexBuffer.prototype = {
     uploadData: function(data, usageHint)
     {
         if (usageHint === undefined)
-            usageHint = HX_GL.STATIC_DRAW;
+            usageHint = BufferUsage.STATIC_DRAW;
 
         this.bind();
-        HX_GL.bufferData(HX_GL.ELEMENT_ARRAY_BUFFER, data, usageHint);
+        GL.gl.bufferData(GL.gl.ELEMENT_ARRAY_BUFFER, data, usageHint);
     },
 
     dispose: function()
     {
         if (this._buffer) {
-            HX_GL.deleteBuffer(this._buffer);
+            GL.gl.deleteBuffer(this._buffer);
             this._buffer = 0;
         }
     },
@@ -37,6 +38,8 @@ HX.IndexBuffer.prototype = {
      */
     bind: function()
     {
-        HX_GL.bindBuffer(HX_GL.ELEMENT_ARRAY_BUFFER, this._buffer);
+        GL.gl.bindBuffer(GL.gl.ELEMENT_ARRAY_BUFFER, this._buffer);
     }
 };
+
+export { IndexBuffer };

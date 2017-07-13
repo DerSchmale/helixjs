@@ -10,6 +10,8 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
+    // this will make sure the GGX model is calculated deferredly
+    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -47,12 +49,27 @@ function initScene(scene)
         lights.push(light);
     }
 
+    // TODO: Should num cascades be initialized as a Helix option?
+    // that way, things can be optimized in the shader
+    var dirLight = new HX.DirectionalLight();
+    dirLight.intensity = .1;
+    dirLight.direction = new HX.Float4(-1.0, -1.0, -1.0);
+    lights.push(dirLight);
+
+    scene.attach(dirLight);
+
     var textureLoader = new HX.AssetLoader(HX.JPG);
     var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
     var material = new HX.BasicMaterial();
-    material.lights = lights;
+    // the difference is, we don't assign lights, but we do assign a lighting model
     material.colorMap = texture;
     material.roughness = 0.05;
+
+    var material2 = new HX.BasicMaterial();
+    material2.colorMap = texture;
+    material2.roughness = 0.2;
+    // use non-default lighting model to cause forward lighting
+    material2.lightingModel = HX.LightingModel.BlinnPhong;
 
     var primitive = new HX.SpherePrimitive(
         {

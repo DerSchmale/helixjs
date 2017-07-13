@@ -1,7 +1,11 @@
 /**
  * @constructor
  */
-HX.GaussianBlurPass = function(radius)
+import {ShaderLibrary} from "../shader/ShaderLibrary";
+import {EffectPass} from "./EffectPass";
+import {CenteredGaussianCurve} from "../math/Gaussian";
+
+function GaussianBlurPass(radius)
 {
     radius = Math.floor(radius);
 
@@ -12,21 +16,21 @@ HX.GaussianBlurPass = function(radius)
         NUM_WEIGHTS: radius + 1
     };
 
-    var vertex = HX.ShaderLibrary.get("gaussian_blur_vertex.glsl", defines);
-    var fragment = HX.ShaderLibrary.get("gaussian_blur_fragment.glsl", defines);
+    var vertex = ShaderLibrary.get("gaussian_blur_vertex.glsl", defines);
+    var fragment = ShaderLibrary.get("gaussian_blur_fragment.glsl", defines);
 
-    HX.EffectPass.call(this, vertex, fragment);
+    EffectPass.call(this, vertex, fragment);
 
     this.setUniformArray("gaussianWeights", new Float32Array(this._weights));
 };
 
-HX.GaussianBlurPass.prototype = Object.create(HX.EffectPass.prototype);
+GaussianBlurPass.prototype = Object.create(EffectPass.prototype);
 
-HX.GaussianBlurPass.prototype._initWeights = function(radius)
+GaussianBlurPass.prototype._initWeights = function(radius)
 {
     this._weights = [];
 
-    var gaussian = HX.CenteredGaussianCurve.fromRadius(radius, .01);
+    var gaussian = CenteredGaussianCurve.fromRadius(radius, .01);
 
     var total = 0;
     for (var j = 0; j <= radius; ++j) {
@@ -40,3 +44,5 @@ HX.GaussianBlurPass.prototype._initWeights = function(radius)
         this._weights[j] *= total;
     }
 };
+
+export { GaussianBlurPass };

@@ -3,39 +3,59 @@
  * @param shader
  * @constructor
  */
-HX.MaterialPass = function (shader)
+import {Comparison, CullMode, DEFAULTS, ElementType} from "../Helix";
+import {TextureSetter} from "../shader/TextureSetter";
+import {GL} from "../core/GL";
+import {TextureSlot} from "./TextureSlot";
+import {Texture2D} from "../texture/Texture2D";
+
+
+function MaterialPass(shader)
 {
     this._shader = shader;
     this._textureSlots = [];
     this._uniforms = {};
-    this._elementType = HX.ElementType.TRIANGLES;
-    this._cullMode = HX.CullMode.BACK;
-    this._depthTest = HX.Comparison.LESS_EQUAL;
+    this._elementType = ElementType.TRIANGLES;
+    this._cullMode = CullMode.BACK;
+    this._depthTest = Comparison.LESS_EQUAL;
     this._writeDepth = true;
     this._blendState = null;
 
     this._storeUniforms();
-    this._textureSettersPass = HX.TextureSetter.getSettersPerPass(this);
-    this._textureSettersInstance = HX.TextureSetter.getSettersPerInstance(this);
+    this._textureSettersPass = TextureSetter.getSettersPerPass(this);
+    this._textureSettersInstance = TextureSetter.getSettersPerInstance(this);
 
     // if material supports animations, this would need to be handled properly
     this._useSkinning = false;
-};
+    this.setTexture("hx_dither2D", DEFAULTS.DEFAULT_2D_DITHER_TEXTURE);
+}
 
 // these will be set upon initialization
 // if a shader supports multiple lights per pass, they will take up 3 type slots (fe: 3 point lights: POINT_LIGHT_PASS, POINT_LIGHT_PASS + 1, POINT_LIGHT_PASS + 2)
-HX.MaterialPass.BASE_PASS = 0;  // used for unlit or for predefined lights
-HX.MaterialPass.NORMAL_DEPTH_PASS = 1;  // used for unlit or for predefined lights
-HX.MaterialPass.DIR_LIGHT_PASS = 2;
-HX.MaterialPass.DIR_LIGHT_SHADOW_PASS = -1;
-HX.MaterialPass.POINT_LIGHT_PASS = -1;
-HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = -1;
+MaterialPass.BASE_PASS = 0;  // used for unlit or for predefined lights
 
-HX.MaterialPass.NUM_PASS_TYPES = -1;
+// dynamic lighting passes
+MaterialPass.DIR_LIGHT_PASS = 1;
+MaterialPass.DIR_LIGHT_SHADOW_PASS = 2;
+MaterialPass.POINT_LIGHT_PASS = 3;
+MaterialPass.LIGHT_PROBE_PASS = 4;
 
-HX.MaterialPass.prototype =
+// shadow map generation
+MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 5;
+
+// used if MRT is supported:
+MaterialPass.GBUFFER_PASS = 6;
+
+// used if MRT is not supported
+MaterialPass.GBUFFER_ALBEDO_PASS = 6;
+MaterialPass.GBUFFER_NORMAL_DEPTH_PASS = 7;
+MaterialPass.GBUFFER_SPECULAR_PASS = 8;
+
+MaterialPass.NUM_PASS_TYPES = 9;
+
+MaterialPass.prototype =
 {
-    constructor: HX.MaterialPass,
+    constructor: MaterialPass,
 
     getShader: function ()
     {
@@ -90,6 +110,7 @@ HX.MaterialPass.prototype =
 
     /**
      * Called per render item.
+     * TODO: Could separate UniformSetters per pass / instance as well
      */
     updateInstanceRenderState: function(camera, renderItem)
     {
@@ -99,13 +120,13 @@ HX.MaterialPass.prototype =
             this._textureSettersInstance[i].execute(renderItem);
         }
 
-        this._shader.updateRenderState(camera, renderItem);
+        this._shader.updateInstanceRenderState(camera, renderItem);
     },
 
     /**
      * Only called upon activation, not per render item.
      */
-    updatePassRenderState: function (renderer)
+    updatePassRenderState: function (camera, renderer)
     {
         var len = this._textureSettersPass.length;
         var i;
@@ -120,7 +141,7 @@ HX.MaterialPass.prototype =
             var texture = slot.texture;
 
             if (!texture) {
-                HX.Texture2D.DEFAULT.bind(i);
+                Texture2D.DEFAULT.bind(i);
                 continue;
             }
 
@@ -130,20 +151,23 @@ HX.MaterialPass.prototype =
                 texture._default.bind(i);
         }
 
-        HX.setCullMode(this._cullMode);
-        HX.setDepthTest(this._depthTest);
-        HX.setDepthMask(this._writeDepth);
-        HX.setBlendState(this._blendState);
+        GL.setCullMode(this._cullMode);
+        GL.setDepthTest(this._depthTest);
+        GL.setDepthMask(this._writeDepth);
+        GL.setBlendState(this._blendState);
+
+        this._shader.updatePassRenderState(camera, renderer);
     },
 
     _storeUniforms: function()
     {
-        var len = HX_GL.getProgramParameter(this._shader._program, HX_GL.ACTIVE_UNIFORMS);
+        var gl = GL.gl;
+        var len = gl.getProgramParameter(this._shader._program, gl.ACTIVE_UNIFORMS);
 
         for (var i = 0; i < len; ++i) {
-            var uniform = HX_GL.getActiveUniform(this._shader._program, i);
+            var uniform = gl.getActiveUniform(this._shader._program, i);
             var name = uniform.name;
-            var location = HX_GL.getUniformLocation(this._shader._program, name);
+            var location = gl.getUniformLocation(this._shader._program, name);
             this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
         }
     },
@@ -152,7 +176,8 @@ HX.MaterialPass.prototype =
     {
         if (!this._uniforms.hasOwnProperty(slotName)) return null;
 
-        HX_GL.useProgram(this._shader._program);
+        var gl = GL.gl;
+        gl.useProgram(this._shader._program);
 
         var uniform = this._uniforms[slotName];
 
@@ -174,7 +199,7 @@ HX.MaterialPass.prototype =
         if (!slot) {
             var indices = new Int32Array(uniform.size);
             for (var s = 0; s < uniform.size; ++s) {
-                slot = new HX.TextureSlot();
+                slot = new TextureSlot();
                 slot.index = i;
                 slot.name = slotName;
                 this._textureSlots.push(slot);
@@ -183,10 +208,10 @@ HX.MaterialPass.prototype =
             }
 
             if (uniform.size === 1) {
-                HX_GL.uniform1i(location, i);
+                gl.uniform1i(location, i);
             }
             else {
-                HX_GL.uniform1iv(location, indices);
+                gl.uniform1iv(location, indices);
             }
         }
 
@@ -247,48 +272,48 @@ HX.MaterialPass.prototype =
             return;
 
         var uniform = this._uniforms[name];
-
-        HX_GL.useProgram(this._shader._program);
+        var gl = GL.gl;
+        gl.useProgram(this._shader._program);
 
         switch(uniform.type) {
-            case HX_GL.FLOAT:
-                HX_GL.uniform1fv(uniform.location, value);
+            case gl.FLOAT:
+                gl.uniform1fv(uniform.location, value);
                 break;
-            case HX_GL.FLOAT_VEC2:
-                HX_GL.uniform2fv(uniform.location, value);
+            case gl.FLOAT_VEC2:
+                gl.uniform2fv(uniform.location, value);
                 break;
-            case HX_GL.FLOAT_VEC3:
-                HX_GL.uniform3fv(uniform.location, value);
+            case gl.FLOAT_VEC3:
+                gl.uniform3fv(uniform.location, value);
                 break;
-            case HX_GL.FLOAT_VEC4:
-                HX_GL.uniform4fv(uniform.location, value);
+            case gl.FLOAT_VEC4:
+                gl.uniform4fv(uniform.location, value);
                 break;
-            case HX_GL.FLOAT_MAT4:
-                HX_GL.uniformMatrix4fv(uniform.location, false, value);
+            case gl.FLOAT_MAT4:
+                gl.uniformMatrix4fv(uniform.location, false, value);
                 break;
-            case HX_GL.INT:
-                HX_GL.uniform1iv(uniform.location, value);
+            case gl.INT:
+                gl.uniform1iv(uniform.location, value);
                 break;
-            case HX_GL.INT_VEC2:
-                HX_GL.uniform2iv(uniform.location, value);
+            case gl.INT_VEC2:
+                gl.uniform2iv(uniform.location, value);
                 break;
-            case HX_GL.INT_VEC3:
-                HX_GL.uniform3iv(uniform.location, value);
+            case gl.INT_VEC3:
+                gl.uniform3iv(uniform.location, value);
                 break;
-            case HX_GL.INT_VEC4:
-                HX_GL.uniform1iv(uniform.location, value);
+            case gl.INT_VEC4:
+                gl.uniform1iv(uniform.location, value);
                 break;
-            case HX_GL.BOOL:
-                HX_GL.uniform1bv(uniform.location, value);
+            case gl.BOOL:
+                gl.uniform1bv(uniform.location, value);
                 break;
-            case HX_GL.BOOL_VEC2:
-                HX_GL.uniform2bv(uniform.location, value);
+            case gl.BOOL_VEC2:
+                gl.uniform2bv(uniform.location, value);
                 break;
-            case HX_GL.BOOL_VEC3:
-                HX_GL.uniform3bv(uniform.location, value);
+            case gl.BOOL_VEC3:
+                gl.uniform3bv(uniform.location, value);
                 break;
-            case HX_GL.BOOL_VEC4:
-                HX_GL.uniform4bv(uniform.location, value);
+            case gl.BOOL_VEC4:
+                gl.uniform4bv(uniform.location, value);
                 break;
             default:
                 throw new Error("Unsupported uniform format for setting (" + uniform.type + ") for uniform '" + name + "'. May be a todo.");
@@ -303,47 +328,48 @@ HX.MaterialPass.prototype =
 
         var uniform = this._uniforms[name];
 
-        HX_GL.useProgram(this._shader._program);
+        var gl = GL.gl;
+        gl.useProgram(this._shader._program);
 
         switch(uniform.type) {
-            case HX_GL.FLOAT:
-                HX_GL.uniform1f(uniform.location, value);
+            case gl.FLOAT:
+                gl.uniform1f(uniform.location, value);
                 break;
-            case HX_GL.FLOAT_VEC2:
-                HX_GL.uniform2f(uniform.location, value.x || value[0] || 0, value.y || value[1] || 0);
+            case gl.FLOAT_VEC2:
+                gl.uniform2f(uniform.location, value.x || value[0] || 0, value.y || value[1] || 0);
                 break;
-            case HX_GL.FLOAT_VEC3:
-                HX_GL.uniform3f(uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0 );
+            case gl.FLOAT_VEC3:
+                gl.uniform3f(uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0 );
                 break;
-            case HX_GL.FLOAT_VEC4:
-                HX_GL.uniform4f(uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0, value.w || value.a || value[3] || 0);
+            case gl.FLOAT_VEC4:
+                gl.uniform4f(uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0, value.w || value.a || value[3] || 0);
                 break;
-            case HX_GL.INT:
-                HX_GL.uniform1i(uniform.location, value);
+            case gl.INT:
+                gl.uniform1i(uniform.location, value);
                 break;
-            case HX_GL.INT_VEC2:
-                HX_GL.uniform2i(uniform.location, value.x || value[0], value.y || value[1]);
+            case gl.INT_VEC2:
+                gl.uniform2i(uniform.location, value.x || value[0], value.y || value[1]);
                 break;
-            case HX_GL.INT_VEC3:
-                HX_GL.uniform3i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
+            case gl.INT_VEC3:
+                gl.uniform3i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
                 break;
-            case HX_GL.INT_VEC4:
-                HX_GL.uniform1i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
+            case gl.INT_VEC4:
+                gl.uniform4i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
                 break;
-            case HX_GL.BOOL:
-                HX_GL.uniform1i(uniform.location, value);
+            case gl.BOOL:
+                gl.uniform1i(uniform.location, value);
                 break;
-            case HX_GL.BOOL_VEC2:
-                HX_GL.uniform2i(uniform.location, value.x || value[0], value.y || value[1]);
+            case gl.BOOL_VEC2:
+                gl.uniform2i(uniform.location, value.x || value[0], value.y || value[1]);
                 break;
-            case HX_GL.BOOL_VEC3:
-                HX_GL.uniform3i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
+            case gl.BOOL_VEC3:
+                gl.uniform3i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
                 break;
-            case HX_GL.BOOL_VEC4:
-                HX_GL.uniform4i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
+            case gl.BOOL_VEC4:
+                gl.uniform4i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
                 break;
-            case HX_GL.FLOAT_MAT4:
-                HX_GL.uniformMatrix4fv(uniform.location, false, value._m);
+            case gl.FLOAT_MAT4:
+                gl.uniformMatrix4fv(uniform.location, false, value._m);
                 break;
             default:
                 throw new Error("Unsupported uniform format for setting. May be a todo.");
@@ -351,3 +377,5 @@ HX.MaterialPass.prototype =
         }
     }
 };
+
+export { MaterialPass };

@@ -11,7 +11,9 @@ project.onInit = function()
 
 window.onload = function ()
 {
-    project.init(document.getElementById('webglContainer'));
+    var options = new HX.InitOptions();
+    options.defaultLightingModel = HX.LightingModel.GGX;
+    project.init(document.getElementById('webglContainer'), options);
 };
 
 function initScene(scene)
@@ -55,7 +57,6 @@ function initScene(scene)
     material.colorMap = albedoMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
-    material.lights = [light1, light2, light3];
     material.roughness = .6;
     material.roughnessRange = .4;
 

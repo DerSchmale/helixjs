@@ -1,9 +1,25 @@
+import {FbxNode} from "./objects/FbxNode";
+import {FbxNodeAttribute} from "./objects/FbxNodeAttribute";
+import {FbxMaterial} from "./objects/FbxMaterial";
+import {FbxVideo} from "./objects/FbxVideo";
+import {FbxFileTexture} from "./objects/FbxFileTexture";
+import {FbxSkin} from "./objects/FbxSkin";
+import {FbxAnimStack} from "./objects/FbxAnimStack";
+import {FbxAnimLayer} from "./objects/FbxAnimLayer";
+import {FbxAnimationCurve} from "./objects/FbxAnimationCurve";
+import {FbxTime} from "./objects/FbxTime";
+import {FbxAnimationCurveNode} from "./objects/FbxAnimationCurveNode";
+import {FbxTrashNode} from "./objects/FbxTrashNode";
+import {FbxPose, FbxPoseNode} from "./objects/FbxPose";
+import {FbxMesh} from "./objects/FbxMesh";
+import {FbxLayerElement} from "./objects/FbxLayerElement";
+import {FbxCluster} from "./objects/FbxCluster";
 // Could also create an ASCII deserializer
 /**
  *
  * @constructor
  */
-HX.FBXGraphBuilder = function()
+function FBXGraphBuilder()
 {
     this._settings = null;
     this._templates = null;
@@ -11,9 +27,9 @@ HX.FBXGraphBuilder = function()
     this._rootNode = null;
     this._animationStack = null;
     this._bindPoses = null;
-};
+}
 
-HX.FBXGraphBuilder.prototype =
+FBXGraphBuilder.prototype =
 {
     get bindPoses() { return this._bindPoses; },
     get sceneRoot() { return this._rootNode; },
@@ -27,7 +43,7 @@ HX.FBXGraphBuilder.prototype =
         this._bindPoses = null;
 
         // fbx scene node
-        this._rootNode = new HX.FbxNode();
+        this._rootNode = new FbxNode();
         this._rootNode.name = "hx_rootNode";
 
         // animations, we'll turn them into a SkeletonBlendTree eventually
@@ -72,24 +88,24 @@ HX.FBXGraphBuilder.prototype =
                 case "NodeAttribute":
                     // at this point, we're only supporting meshes
                     // TODO: FbxNodeAttribute will be cast to FbxCamera etc
-                    obj = new HX.FbxNodeAttribute();
+                    obj = new FbxNodeAttribute();
                     obj.type = node.data[2];
                     break;
                 case "Model":
-                    obj = new HX.FbxNode();
+                    obj = new FbxNode();
                     obj.type = node.data[2];
                     // not sure if this is correct
                     break;
                 case "Material":
-                    obj = new HX.FbxMaterial();
+                    obj = new FbxMaterial();
                     break;
                 case "Video":
-                    obj = new HX.FbxVideo();
+                    obj = new FbxVideo();
                     var rel = node.getChildByName("RelativeFilename");
                     obj.relativeFilename = rel? rel.data[0] : null;
                     break;
                 case "Texture":
-                    obj = new HX.FbxFileTexture();
+                    obj = new FbxFileTexture();
                     var rel = node.getChildByName("RelativeFilename");
                     obj.relativeFilename = rel? rel.data[0] : null;
                     break;
@@ -100,31 +116,31 @@ HX.FBXGraphBuilder.prototype =
                     break;
                 case "Deformer":
                     if (node.data[2] === "Skin")
-                        obj = new HX.FbxSkin();
+                        obj = new FbxSkin();
                     else
                         obj = this._processCluster(node);
                     break;
                 case "AnimationStack":
-                    obj = new HX.FbxAnimStack();
+                    obj = new FbxAnimStack();
                     this._animationStack = obj;
                     break;
                 case "AnimationLayer":
-                    obj = new HX.FbxAnimLayer();
+                    obj = new FbxAnimLayer();
                     break;
                 case "AnimationCurve":
-                    obj = new HX.FbxAnimationCurve();
+                    obj = new FbxAnimationCurve();
                     this._assignFlatData(obj, node);
                     var arr = [];
                     for (var j = 0; j < obj.KeyTime.length; ++j)
-                        arr[j] = new HX.FbxTime(obj.KeyTime[j]);
+                        arr[j] = new FbxTime(obj.KeyTime[j]);
                     obj.KeyTime = arr;
                     break;
                 case "AnimationCurveNode":
-                    obj = new HX.FbxAnimationCurveNode();
+                    obj = new FbxAnimationCurveNode();
                     break;
                 default:
                     // deal with some irrelevant nodes
-                    obj = new HX.FbxTrashNode();
+                    obj = new FbxTrashNode();
             }
 
             if (obj) {
@@ -144,12 +160,12 @@ HX.FBXGraphBuilder.prototype =
 
     _processPose: function(objDef)
     {
-        var pose = new HX.FbxPose();
+        var pose = new FbxPose();
         pose.type = objDef.data[2];
         for (var i = 0; i < objDef.children.length; ++i) {
             var node = objDef.children[i];
             if (node.name === "PoseNode") {
-                var poseNode = new HX.FbxPoseNode();
+                var poseNode = new FbxPoseNode();
                 poseNode.targetUID = node.getChildByName("Node").data[0];
                 poseNode.matrix = new HX.Matrix4x4(node.getChildByName("Matrix").data[0]);
                 pose.poseNodes.push(poseNode);
@@ -179,7 +195,7 @@ HX.FBXGraphBuilder.prototype =
     _createNode: function(name, subclass)
     {
         if (name === "Material")
-            return new HX.FbxMaterial();
+            return new FbxMaterial();
 
         if (HX[subclass]) return new HX[subclass];
     },
@@ -231,7 +247,7 @@ HX.FBXGraphBuilder.prototype =
             case "KString":
                 return data[4];
             case "KTime":
-                return new HX.FbxTime(data[4]);
+                return new FbxTime(data[4]);
             case "object":
                 return null;    // TODO: this will be connected using OP?
         }
@@ -239,7 +255,7 @@ HX.FBXGraphBuilder.prototype =
 
     _processGeometry: function(objDef)
     {
-        var geometry = new HX.FbxMesh();
+        var geometry = new FbxMesh();
         var len = objDef.children.length;
         var layerMap = {};
 
@@ -282,7 +298,7 @@ HX.FBXGraphBuilder.prototype =
 
     _processLayerElement: function(objDef)
     {
-        var layerElement = new HX.FbxLayerElement();
+        var layerElement = new FbxLayerElement();
         var len = objDef.children.length;
 
         for (var i = 0; i < len; ++i) {
@@ -290,13 +306,13 @@ HX.FBXGraphBuilder.prototype =
             switch(node.name) {
                 case "MappingInformationType":
                     var mapMode = node.data[0];
-                    layerElement.mappingInformationType =   mapMode === "ByPolygonVertex"?  HX.FbxLayerElement.MAPPING_TYPE.BY_POLYGON_VERTEX :
-                                                            mapMode === "ByPolygon"?        HX.FbxLayerElement.MAPPING_TYPE.BY_POLYGON :
-                                                            mapMode === "AllSame"?          HX.FbxLayerElement.MAPPING_TYPE.ALL_SAME :
-                                                                                            HX.FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT;
+                    layerElement.mappingInformationType =   mapMode === "ByPolygonVertex"?  FbxLayerElement.MAPPING_TYPE.BY_POLYGON_VERTEX :
+                                                            mapMode === "ByPolygon"?        FbxLayerElement.MAPPING_TYPE.BY_POLYGON :
+                                                            mapMode === "AllSame"?          FbxLayerElement.MAPPING_TYPE.ALL_SAME :
+                                                                                            FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT;
                     break;
                 case "ReferenceInformationType":
-                    layerElement.referenceInformationType = node.data[0] === "Direct"? HX.FbxLayerElement.REFERENCE_TYPE.DIRECT : HX.FbxLayerElement.REFERENCE_TYPE.INDEX_TO_DIRECT;
+                    layerElement.referenceInformationType = node.data[0] === "Direct"? FbxLayerElement.REFERENCE_TYPE.DIRECT : FbxLayerElement.REFERENCE_TYPE.INDEX_TO_DIRECT;
                     break;
                 case "Normals":
                 case "Colors":
@@ -323,12 +339,12 @@ HX.FBXGraphBuilder.prototype =
 
     _getObjectDefName: function(objDef)
     {
-        return objDef.data[1].split(HX.FBXGraphBuilder._STRING_DEMARCATION)[0];
+        return objDef.data[1].split(FBXGraphBuilder._STRING_DEMARCATION)[0];
     },
 
     _processCluster: function(objDef)
     {
-        var cluster = new HX.FbxCluster();
+        var cluster = new FbxCluster();
         var len = objDef.children.length;
 
         for (var i = 0; i < len; ++i) {
@@ -353,4 +369,6 @@ HX.FBXGraphBuilder.prototype =
     }
 };
 
-HX.FBXGraphBuilder._STRING_DEMARCATION = String.fromCharCode(0, 1);
+FBXGraphBuilder._STRING_DEMARCATION = String.fromCharCode(0, 1);
+
+export {FBXGraphBuilder};

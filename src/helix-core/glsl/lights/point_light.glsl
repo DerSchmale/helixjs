@@ -1,7 +1,7 @@
 struct HX_PointLight
 {
     vec3 color;
-    vec3 position; // in view space?
+    vec3 position;
     float radius;
 };
 

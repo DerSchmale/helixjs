@@ -1,61 +1,71 @@
-HX.EquirectangularTexture =
+import {Shader} from "../shader/Shader";
+import {ShaderLibrary} from "../shader/ShaderLibrary";
+import {TextureCube} from "../texture/TextureCube";
+import {GL} from "../core/GL";
+import {FrameBuffer} from "../texture/FrameBuffer";
+import {capabilities, TextureFilter} from "../Helix";
+import {VertexBuffer} from "../core/VertexBuffer";
+import {IndexBuffer} from "../core/IndexBuffer";
+
+export var EquirectangularTexture =
 {
     toCube: function(source, size, generateMipmaps, target)
     {
         generateMipmaps = generateMipmaps || true;
         size = size || source.height;
 
-        if (!HX.EquirectangularTexture._EQUI_TO_CUBE_SHADER)
-            HX.EquirectangularTexture._EQUI_TO_CUBE_SHADER = new HX.Shader(HX.ShaderLibrary.get("2d_to_cube_vertex.glsl"), HX.ShaderLibrary.get("equirectangular_to_cube_fragment.glsl"));
+        if (!EquirectangularTexture._EQUI_TO_CUBE_SHADER)
+            EquirectangularTexture._EQUI_TO_CUBE_SHADER = new Shader(ShaderLibrary.get("2d_to_cube_vertex.glsl"), ShaderLibrary.get("equirectangular_to_cube_fragment.glsl"));
 
         this._createRenderCubeGeometry();
 
-        target = target || new HX.TextureCube();
+        var gl = GL.gl;
+        target = target || new TextureCube();
         target.initEmpty(size, source.format, source.dataType);
-        var faces = [ HX_GL.TEXTURE_CUBE_MAP_POSITIVE_X, HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_X, HX_GL.TEXTURE_CUBE_MAP_POSITIVE_Y, HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_Y, HX_GL.TEXTURE_CUBE_MAP_POSITIVE_Z, HX_GL.TEXTURE_CUBE_MAP_NEGATIVE_Z ];
+        var faces = [ gl.TEXTURE_CUBE_MAP_POSITIVE_X, gl.TEXTURE_CUBE_MAP_NEGATIVE_X, gl.TEXTURE_CUBE_MAP_POSITIVE_Y, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Z, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z ];
 
-        HX.EquirectangularTexture._EQUI_TO_CUBE_SHADER.updateRenderState();
+        EquirectangularTexture._EQUI_TO_CUBE_SHADER.updatePassRenderState();
 
-        var textureLocation = HX.EquirectangularTexture._EQUI_TO_CUBE_SHADER.getUniformLocation("source");
-        var posLocation = HX.EquirectangularTexture._EQUI_TO_CUBE_SHADER.getAttributeLocation("hx_position");
-        var cornerLocation = HX.EquirectangularTexture._EQUI_TO_CUBE_SHADER.getAttributeLocation("corner");
+        var textureLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getUniformLocation("source");
+        var posLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getAttributeLocation("hx_position");
+        var cornerLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getAttributeLocation("corner");
 
-        HX_GL.uniform1i(textureLocation, 0);
+        gl.uniform1i(textureLocation, 0);
         source.bind(0);
 
-        HX.EquirectangularTexture._TO_CUBE_VERTICES.bind();
-        HX.EquirectangularTexture._TO_CUBE_INDICES.bind();
-        HX_GL.vertexAttribPointer(posLocation, 2, HX_GL.FLOAT, false, 20, 0);
-        HX_GL.vertexAttribPointer(cornerLocation, 3, HX_GL.FLOAT, false, 20, 8);
+        EquirectangularTexture._TO_CUBE_VERTICES.bind();
+        EquirectangularTexture._TO_CUBE_INDICES.bind();
+        gl.vertexAttribPointer(posLocation, 2, gl.FLOAT, false, 20, 0);
+        gl.vertexAttribPointer(cornerLocation, 3, gl.FLOAT, false, 20, 8);
 
-        HX.enableAttributes(2);
-        var old = HX.getCurrentRenderTarget();
+        GL.enableAttributes(2);
+        var old = GL.getCurrentRenderTarget();
 
         for (var i = 0; i < 6; ++i) {
-            var fbo = new HX.FrameBuffer(target, null, faces[i]);
+            var fbo = new FrameBuffer(target, null, faces[i]);
             fbo.init();
 
-            HX.setRenderTarget(fbo);
-            HX.drawElements(HX_GL.TRIANGLES, 6, i * 6);
+            GL.setRenderTarget(fbo);
+            GL.drawElements(gl.TRIANGLES, 6, i * 6);
 
             fbo.dispose();
         }
 
-        HX.setRenderTarget(old);
+        GL.setRenderTarget(old);
 
         if (generateMipmaps)
             target.generateMipmap();
 
         // TODO: for some reason, if EXT_shader_texture_lod is not supported, mipmapping of rendered-to cubemaps does not work
-        if (!HX.EXT_SHADER_TEXTURE_LOD)
-            target.filter = HX.TextureFilter.BILINEAR_NOMIP;
+        if (!capabilities.EXT_SHADER_TEXTURE_LOD)
+            target.filter = TextureFilter.BILINEAR_NOMIP;
 
         return target;
     },
 
     _createRenderCubeGeometry: function()
     {
-        if (HX.EquirectangularTexture._TO_CUBE_VERTICES) return;
+        if (EquirectangularTexture._TO_CUBE_VERTICES) return;
         var vertices = [
             // pos X
             1.0, 1.0, 1.0, -1.0, -1.0,
@@ -101,9 +111,9 @@ HX.EquirectangularTexture =
             16, 17, 18, 16, 18, 19,
             20, 21, 22, 20, 22, 23
         ];
-        HX.EquirectangularTexture._TO_CUBE_VERTICES = new HX.VertexBuffer();
-        HX.EquirectangularTexture._TO_CUBE_INDICES = new HX.IndexBuffer();
-        HX.EquirectangularTexture._TO_CUBE_VERTICES.uploadData(new Float32Array(vertices));
-        HX.EquirectangularTexture._TO_CUBE_INDICES.uploadData(new Uint16Array(indices));
+        EquirectangularTexture._TO_CUBE_VERTICES = new VertexBuffer();
+        EquirectangularTexture._TO_CUBE_INDICES = new IndexBuffer();
+        EquirectangularTexture._TO_CUBE_VERTICES.uploadData(new Float32Array(vertices));
+        EquirectangularTexture._TO_CUBE_INDICES.uploadData(new Uint16Array(indices));
     }
 }

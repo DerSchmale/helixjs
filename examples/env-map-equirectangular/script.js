@@ -36,7 +36,7 @@ function initScene(scene)
     material.roughness = .25;
     material.roughnessRange = -.1;  // invert roughness by making range negative
     material.metallicness = 1.0;
-    material.lights = [ lightProbe ];
+    material.lightingModel = HX.LightingModel.GGX;
 
     var primitive = new HX.TorusPrimitive(
         {

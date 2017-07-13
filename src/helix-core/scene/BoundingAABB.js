@@ -2,26 +2,30 @@
  *
  * @constructor
  */
-HX.BoundingAABB = function()
+import {BoundingVolume} from "./BoundingVolume";
+import {PlaneSide} from "../math/PlaneSide";
+import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
+
+function BoundingAABB()
 {
-    HX.BoundingVolume.call(this, HX.BoundingAABB);
-};
+    BoundingVolume.call(this, BoundingAABB);
+}
 
-HX.BoundingAABB.prototype = Object.create(HX.BoundingVolume.prototype);
+BoundingAABB.prototype = Object.create(BoundingVolume.prototype);
 
-HX.BoundingAABB.prototype.growToIncludeMesh = function(meshData)
+BoundingAABB.prototype.growToIncludeMesh = function(mesh)
 {
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
 
-    var attribute = meshData.getVertexAttribute("hx_position");
+    var attribute = mesh.getVertexAttributeByName("hx_position");
     var index = attribute.offset;
-    var stride = meshData.getVertexStride(attribute.streamIndex);
-    var vertices = meshData.getVertexData(attribute.streamIndex);
+    var stride = mesh.getVertexStride(attribute.streamIndex);
+    var vertices = mesh.getVertexData(attribute.streamIndex);
     var len = vertices.length;
     var minX, minY, minZ;
     var maxX, maxY, maxZ;
 
-    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
+    if (this._expanse === BoundingVolume.EXPANSE_EMPTY) {
         maxX = minX = vertices[index];
         maxY = minY = vertices[index + 1];
         maxZ = minZ = vertices[index + 2];
@@ -47,26 +51,26 @@ HX.BoundingAABB.prototype.growToIncludeMesh = function(meshData)
 
     this._minimumX = minX; this._minimumY = minY; this._minimumZ = minZ;
     this._maximumX = maxX; this._maximumY = maxY; this._maximumZ = maxZ;
-    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    this._expanse = BoundingVolume.EXPANSE_FINITE;
 
     this._updateCenterAndExtent();
 };
 
-HX.BoundingAABB.prototype.growToIncludeBound = function(bounds)
+BoundingAABB.prototype.growToIncludeBound = function(bounds)
 {
-    if (bounds._expanse === HX.BoundingVolume.EXPANSE_EMPTY || this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+    if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
 
-    if (bounds._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
-        this._expanse = HX.BoundingVolume.EXPANSE_INFINITE;
+    if (bounds._expanse === BoundingVolume.EXPANSE_INFINITE)
+        this._expanse = BoundingVolume.EXPANSE_INFINITE;
 
-    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
+    else if (this._expanse === BoundingVolume.EXPANSE_EMPTY) {
         this._minimumX = bounds._minimumX;
         this._minimumY = bounds._minimumY;
         this._minimumZ = bounds._minimumZ;
         this._maximumX = bounds._maximumX;
         this._maximumY = bounds._maximumY;
         this._maximumZ = bounds._maximumZ;
-        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+        this._expanse = BoundingVolume.EXPANSE_FINITE;
     }
     else {
         if (bounds._minimumX < this._minimumX)
@@ -86,18 +90,18 @@ HX.BoundingAABB.prototype.growToIncludeBound = function(bounds)
     this._updateCenterAndExtent();
 };
 
-HX.BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
+BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
 {
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE) return;
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
 
-    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY) {
+    if (this._expanse === BoundingVolume.EXPANSE_EMPTY) {
         this._minimumX = min.x;
         this._minimumY = min.y;
         this._minimumZ = min.z;
         this._maximumX = max.x;
         this._maximumY = max.y;
         this._maximumZ = max.z;
-        this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+        this._expanse = BoundingVolume.EXPANSE_FINITE;
     }
     else {
         if (min.x < this._minimumX)
@@ -117,9 +121,9 @@ HX.BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
     this._updateCenterAndExtent();
 };
 
-HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
+BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
 {
-    if (sourceBound._expanse === HX.BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
+    if (sourceBound._expanse === BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === BoundingVolume.EXPANSE_EMPTY)
         this.clear(sourceBound._expanse);
     else {
         var arr = matrix._m;
@@ -158,11 +162,11 @@ HX.BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
 };
 
 
-HX.BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
+BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE)
         return true;
-    else if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
+    else if (this._expanse === BoundingVolume.EXPANSE_EMPTY)
         return false;
 
     var minX = this._minimumX, minY = this._minimumY, minZ = this._minimumZ;
@@ -185,12 +189,12 @@ HX.BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes
     return true;
 };
 
-HX.BoundingAABB.prototype.intersectsBound = function(bound)
+BoundingAABB.prototype.intersectsBound = function(bound)
 {
-    if (this._expanse === HX.BoundingVolume.EXPANSE_EMPTY || bound._expanse === HX.BoundingVolume.EXPANSE_EMPTY)
+    if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
         return false;
 
-    if (this._expanse === HX.BoundingVolume.EXPANSE_INFINITE || bound._expanse === HX.BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE)
         return true;
 
     // both AABB
@@ -203,11 +207,11 @@ HX.BoundingAABB.prototype.intersectsBound = function(bound)
             this._minimumZ < bound._maximumZ;
     }
     else {
-        return HX.BoundingVolume._testAABBToSphere(this, bound);
+        return BoundingVolume._testAABBToSphere(this, bound);
     }
 };
 
-HX.BoundingAABB.prototype.classifyAgainstPlane = function(plane)
+BoundingAABB.prototype.classifyAgainstPlane = function(plane)
 {
     var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
 
@@ -218,16 +222,18 @@ HX.BoundingAABB.prototype.classifyAgainstPlane = function(plane)
     if (planeZ < 0) planeZ = -planeZ;
 
     var intersectionDist = planeX * this._halfExtentX + planeY * this._halfExtentY + planeZ * this._halfExtentZ;
+    // intersectionDist is the distance to the far point
+    // -intersectionDist is the distance to the closest point
 
     if (centerDist > intersectionDist)
-        return HX.PlaneSide.FRONT;
-    else if (centerDist < -intersectionDist)
-        return HX.PlaneSide.BACK;
+        return PlaneSide.FRONT;
+    if (centerDist < -intersectionDist)
+        return PlaneSide.BACK;
     else
-        return HX.PlaneSide.INTERSECTING;
+        return PlaneSide.INTERSECTING;
 };
 
-HX.BoundingAABB.prototype.setExplicit = function(min, max)
+BoundingAABB.prototype.setExplicit = function(min, max)
 {
     this._minimumX = min.x;
     this._minimumY = min.y;
@@ -235,11 +241,11 @@ HX.BoundingAABB.prototype.setExplicit = function(min, max)
     this._maximumX = max.x;
     this._maximumY = max.y;
     this._maximumZ = max.z;
-    this._expanse = HX.BoundingVolume.EXPANSE_FINITE;
+    this._expanse = BoundingVolume.EXPANSE_FINITE;
     this._updateCenterAndExtent();
 };
 
-HX.BoundingAABB.prototype._updateCenterAndExtent = function()
+BoundingAABB.prototype._updateCenterAndExtent = function()
 {
     var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
     var maxX = this._maximumX; var maxY = this._maximumY; var maxZ = this._maximumZ;
@@ -252,12 +258,14 @@ HX.BoundingAABB.prototype._updateCenterAndExtent = function()
 };
 
 // part of the
-HX.BoundingAABB.prototype.getRadius = function()
+BoundingAABB.prototype.getRadius = function()
 {
     return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
 };
 
-HX.BoundingAABB.prototype.createDebugModelInstance = function()
+BoundingAABB.prototype.createDebugModel = function()
 {
-    return new HX.ModelInstance(new HX.BoxPrimitive(), [this.getDebugMaterial()]);
+    return new BoxPrimitive();
 };
+
+export { BoundingAABB };

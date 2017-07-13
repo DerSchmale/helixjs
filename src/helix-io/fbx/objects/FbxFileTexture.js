@@ -1,22 +1,26 @@
-HX.FbxFileTexture = function()
+import {FbxObject} from "./FbxObject";
+import {FbxVideo} from "./FbxVideo";
+function FbxFileTexture()
 {
-    HX.FbxObject.call(this);
+    FbxObject.call(this);
     this.WrapModeU = 0;
     this.WrapModeV = 0;
     //this.UVSet = null;    // we only support a single uv set
 
     this.relativeFilename = null;
     this.video = null;
-};
+}
 
-HX.FbxFileTexture.prototype = Object.create(HX.FbxObject.prototype);
+FbxFileTexture.prototype = Object.create(FbxObject.prototype);
 
-HX.FbxFileTexture.prototype.connectObject = function(obj)
+FbxFileTexture.prototype.connectObject = function(obj)
 {
-    if (obj instanceof HX.FbxVideo)
+    if (obj instanceof FbxVideo)
         this.video = obj;
     else
         throw new Error("Incompatible child object!");
 };
 
-HX.FbxFileTexture.prototype.toString = function() { return "[FbxFileTexture(name="+this.name+")]"; };
+FbxFileTexture.prototype.toString = function() { return "[FbxFileTexture(name="+this.name+")]"; };
+
+export {FbxFileTexture};

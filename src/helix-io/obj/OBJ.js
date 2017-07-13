@@ -1,9 +1,11 @@
+import * as HX from 'helix';
+
 /**
  * The options property supports the following settings:
  * - groupsAsObjects
  * @constructor
  */
-HX.OBJ = function()
+function OBJ()
 {
     HX.Importer.call(this, HX.SceneNode);
     this._objects = [];
@@ -14,11 +16,11 @@ HX.OBJ = function()
     this._defaultMaterial = new HX.BasicMaterial();
     this._target = null;
     this._mtlLibFile = null;
-};
+}
 
-HX.OBJ.prototype = Object.create(HX.Importer.prototype);
+OBJ.prototype = Object.create(HX.Importer.prototype);
 
-HX.OBJ.prototype.parse = function(data, target)
+OBJ.prototype.parse = function(data, target)
 {
     this._groupsAsObjects = this.options.groupsAsObjects === undefined? true : this._groupsAsObjects;
     this._target = target;
@@ -39,13 +41,13 @@ HX.OBJ.prototype.parse = function(data, target)
         this._finish(null);
 };
 
-HX.OBJ.prototype._finish = function(mtlLib)
+OBJ.prototype._finish = function(mtlLib)
 {
     this._translate(mtlLib);
     this._notifyComplete(this._target);
 };
 
-HX.OBJ.prototype._loadMTLLib = function(filename)
+OBJ.prototype._loadMTLLib = function(filename)
 {
     var loader = new HX.AssetLoader(HX.MTL);
     var self = this;
@@ -63,7 +65,7 @@ HX.OBJ.prototype._loadMTLLib = function(filename)
     loader.load(filename);
 };
 
-HX.OBJ.prototype._parseLine = function(line)
+OBJ.prototype._parseLine = function(line)
 {
     // skip line
     if (line.length === 0 || line.charAt(0) === "#") return;
@@ -105,36 +107,36 @@ HX.OBJ.prototype._parseLine = function(line)
     }
 };
 
-HX.OBJ.prototype._pushNewObject = function(name)
+OBJ.prototype._pushNewObject = function(name)
 {
-    this._activeObject = new HX.OBJ._ObjectData();
+    this._activeObject = new OBJ._ObjectData();
     this._activeObject.name = name;
     this._objects.push(this._activeObject);
     this._pushNewGroup("hx_default");
 };
 
-HX.OBJ.prototype._pushNewGroup = function(name)
+OBJ.prototype._pushNewGroup = function(name)
 {
-    this._activeGroup = new HX.OBJ._GroupData();
+    this._activeGroup = new OBJ._GroupData();
     this._activeGroup.name = name || "Group" + this._activeGroup.length;
 
     this._activeObject.groups.push(this._activeGroup);
     this._setActiveSubGroup("hx_default");
 };
 
-HX.OBJ.prototype._setActiveSubGroup = function(name)
+OBJ.prototype._setActiveSubGroup = function(name)
 {
-    this._activeGroup.subgroups[name] = this._activeGroup.subgroups[name] || new HX.OBJ._SubGroupData();
+    this._activeGroup.subgroups[name] = this._activeGroup.subgroups[name] || new OBJ._SubGroupData();
     this._activeSubGroup = this._activeGroup.subgroups[name];
 };
 
-HX.OBJ.prototype._parseFaceData = function(tokens)
+OBJ.prototype._parseFaceData = function(tokens)
 {
-    var face = new HX.OBJ._FaceData();
+    var face = new OBJ._FaceData();
     var numTokens = tokens.length;
 
     for (var i = 1; i < numTokens; ++i) {
-        var faceVertexData = new HX.OBJ._FaceVertexData();
+        var faceVertexData = new OBJ._FaceVertexData();
         face.vertices.push(faceVertexData);
 
         var indices = tokens[i].split("/");
@@ -164,7 +166,7 @@ HX.OBJ.prototype._parseFaceData = function(tokens)
     this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
 };
 
-HX.OBJ.prototype._translate = function(mtlLib)
+OBJ.prototype._translate = function(mtlLib)
 {
     var numObjects = this._objects.length;
     for (var i = 0; i < numObjects; ++i) {
@@ -172,11 +174,10 @@ HX.OBJ.prototype._translate = function(mtlLib)
     }
 };
 
-HX.OBJ.prototype._translateObject = function(object, mtlLib)
+OBJ.prototype._translateObject = function(object, mtlLib)
 {
     var numGroups = object.groups.length;
     if (numGroups === 0) return;
-    var modelData = new HX.ModelData();
     var materials = [];
     var model = new HX.Model();
 
@@ -188,7 +189,7 @@ HX.OBJ.prototype._translateObject = function(object, mtlLib)
             if (group.subgroups.hasOwnProperty(key)) {
                 var subgroup = group.subgroups[key];
                 if (subgroup.numIndices === 0) continue;
-                modelData.addMeshData(this._translateMeshData(subgroup));
+                model.addMesh(this._translateMesh(subgroup));
 
                 var material = mtlLib? mtlLib[key] : null;
                 material = material || this._defaultMaterial;
@@ -197,16 +198,14 @@ HX.OBJ.prototype._translateObject = function(object, mtlLib)
         }
     }
 
-    model._setModelData(modelData);
-
     var modelInstance = new HX.ModelInstance(model, materials);
     modelInstance.name = object.name;
     this._target.attach(modelInstance);
 };
 
-HX.OBJ.prototype._translateMeshData = function(group)
+OBJ.prototype._translateMesh = function(group)
 {
-    var meshData = HX.MeshData.createDefaultEmpty();
+    var mesh = HX.Mesh.createDefaultEmpty();
     var realIndices = [];
     var indices = new Array(group.numIndices);
     var numVertices = 0;
@@ -240,13 +239,13 @@ HX.OBJ.prototype._translateMeshData = function(group)
         }
     }
 
-    var vertices = new Array(numVertices * HX.MeshData.DEFAULT_VERTEX_SIZE);
+    var vertices = new Array(numVertices * HX.Mesh.DEFAULT_VERTEX_SIZE);
 
     for (var hash in realIndices) {
         if (!realIndices.hasOwnProperty(hash)) continue;
         var data = realIndices[hash];
         var vertex = data.vertex;
-        var index = data.index * HX.MeshData.DEFAULT_VERTEX_SIZE;
+        var index = data.index * HX.Mesh.DEFAULT_VERTEX_SIZE;
 
         vertices[index] = vertex.posX;
         vertices[index+1] = vertex.posY;
@@ -262,17 +261,17 @@ HX.OBJ.prototype._translateMeshData = function(group)
         vertices[index+11] = vertex.uvV;
     }
 
-    meshData.setVertexData(vertices, 0);
-    meshData.setIndexData(indices);
+    mesh.setVertexData(vertices, 0);
+    mesh.setIndexData(indices);
 
     var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
     if (!this._hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
     var generator = new HX.NormalTangentGenerator();
-    generator.generate(meshData, mode, true);
-    return meshData;
+    generator.generate(mesh, mode, true);
+    return mesh;
 };
 
-HX.OBJ._FaceVertexData = function()
+OBJ._FaceVertexData = function()
 {
     this.posX = 0;
     this.posY = 0;
@@ -285,7 +284,7 @@ HX.OBJ._FaceVertexData = function()
     this._hash = "";
 };
 
-HX.OBJ._FaceVertexData.prototype =
+OBJ._FaceVertexData.prototype =
 {
     // instead of actually using the values, we should use the indices as keys
     getHash: function()
@@ -297,27 +296,29 @@ HX.OBJ._FaceVertexData.prototype =
     }
 };
 
-HX.OBJ._FaceData = function()
+OBJ._FaceData = function()
 {
     this.vertices = []; // <FaceVertexData>
 };
 
-HX.OBJ._SubGroupData = function()
+OBJ._SubGroupData = function()
 {
     this.numIndices = 0;
     this.faces = [];    // <FaceData>
 };
 
-HX.OBJ._GroupData = function()
+OBJ._GroupData = function()
 {
     this.subgroups = [];
     this.name = "";    // <FaceData>
     this._activeMaterial = null;
 };
 
-HX.OBJ._ObjectData = function()
+OBJ._ObjectData = function()
 {
     this.name = "";
     this.groups = [];
     this._activeGroup = null;
 };
+
+export { OBJ };

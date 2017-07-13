@@ -33,7 +33,9 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
+    options.numShadowCascades = 3;
     options.hdr = true;
+    options.defaultLightingModel = HX.LightingModel.GGX;
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
     options.directionalShadowFilter.blurRadius = 1;
     project.init(document.getElementById('webglContainer'), options);
@@ -54,10 +56,10 @@ function initCamera(camera)
     controller.yaw = Math.PI;
     camera.addComponent(controller);
 
-    fog = new HX.Fog(0.0005, new HX.Color(0x3977ff), 0.0005);
+    fog = new HX.Fog(0.00025, new HX.Color(0x3977ff), 0.0005);
     camera.addComponent(fog);
 
-    var tonemap = new HX.FilmicToneMapEffect();
+    var tonemap = new HX.FilmicToneMapping();
     tonemap.exposure = 0.0;
     camera.addComponent(tonemap);
 }
@@ -69,7 +71,6 @@ function initScene(scene)
     // sun.depthBias = 10.0;
     sun.intensity = 3;
     sun.castShadows = true;
-    sun.numCascades = 3;
     // sun.shadowMapSize = 1024;
     // sun.setCascadeRatios(.01,.07,.15, .3);
     scene.attach(sun);
@@ -103,10 +104,7 @@ function initScene(scene)
     terrainMaterial.setUniform("worldSize", worldSize);
     // terrainMaterial.ssao = true;
 
-    terrainMaterial.lights = [ sun, lightProbe ];
-
     waterMaterial = materialLoader.load("material/waterMaterial.hmt");
-    waterMaterial.lights = [ sun, lightProbe ];
 
     var terrain = new HX.Terrain(4000, -100, 200, 5, terrainMaterial, 64);
 

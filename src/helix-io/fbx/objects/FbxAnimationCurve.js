@@ -1,6 +1,7 @@
-HX.FbxAnimationCurve = function()
+import {FbxObject} from "./FbxObject";
+function FbxAnimationCurve()
 {
-    HX.FbxObject.call(this);
+    FbxObject.call(this);
     this.Default = undefined;
     this.KeyVer = 0.0;
     this.KeyTime = 0.0;
@@ -8,7 +9,9 @@ HX.FbxAnimationCurve = function()
     this.KeyAttrFlags = 0.0;
     this.KeyAttrDataFloat = null;
     this.KeyAttrRefCount = 0.0;
-};
+}
 
-HX.FbxAnimationCurve.prototype = Object.create(HX.FbxObject.prototype);
-HX.FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
+FbxAnimationCurve.prototype = Object.create(FbxObject.prototype);
+FbxAnimationCurve.prototype.toString = function() { return "[FbxAnimationCurve(name="+this.name+")]"; };
+
+export {FbxAnimationCurve};

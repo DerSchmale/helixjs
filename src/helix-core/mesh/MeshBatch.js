@@ -1,67 +1,75 @@
-HX.MeshBatch = {
-    create: function(sourceMeshData, numInstances)
+import {Mesh} from "./Mesh";
+
+/**
+ * Creates a number copies of the same mesh with hx_instanceID being the instance number of the copy.
+ */
+var MeshBatch =
     {
-        var len, i, j;
-        var target = new HX.MeshData();
-        var sourceIndices = sourceMeshData._indexData;
+        create: function (sourceMesh, numInstances)
+        {
+            var len, i, j;
+            var target = new Mesh();
+            var sourceIndices = sourceMesh._indexData;
 
-        target.vertexUsage = sourceMeshData.vertexUsage;
-        target.indexUsage = sourceMeshData.indexUsage;
+            target._vertexUsage = sourceMesh._vertexUsage;
+            target._indexUsage = sourceMesh._indexUsage;
 
-        var attribs = sourceMeshData._vertexAttributes;
-        var instanceStream = sourceMeshData.numStreams;
+            var attribs = sourceMesh._vertexAttributes;
+            var instanceStream = sourceMesh.numStreams;
 
-        for (i = 0; i < attribs.length; ++i) {
-            var attribute = attribs[i];
-            target.addVertexAttribute(attribute.name, attribute.numComponents, attribute.streamIndex);
-        }
-
-        target.addVertexAttribute("hx_instanceID", 1, instanceStream);
-
-        var targetIndices = [];
-        var index = 0;
-        var numVertices = sourceMeshData.numVertices;
-
-        len = sourceIndices.length;
-
-        for (i = 0; i < numInstances; ++i) {
-            for (j = 0; j < len; ++j) {
-                targetIndices[index++] = sourceIndices[j] + numVertices * i;
+            for (i = 0; i < attribs.length; ++i) {
+                var attribute = attribs[i];
+                target.addVertexAttribute(attribute.name, attribute.numComponents, attribute.streamIndex);
             }
-        }
 
-        target.setIndexData(targetIndices);
+            target.addVertexAttribute("hx_instanceID", 1, instanceStream);
 
-        for (i = 0; i < sourceMeshData.numStreams; ++i) {
-            var targetVertices = [];
-            var sourceVertices = sourceMeshData.getVertexData(i);
+            var targetIndices = [];
+            var index = 0;
+            var numVertices = sourceMesh.numVertices;
 
-            len = sourceVertices.length;
-            index = 0;
+            len = sourceIndices.length;
 
-            // duplicate vertex data for each instance
-            for (j = 0; j < numInstances; ++j) {
-                for (var k = 0; k < len; ++k) {
-                    targetVertices[index++] = sourceVertices[k];
+            for (i = 0; i < numInstances; ++i) {
+                for (j = 0; j < len; ++j) {
+                    targetIndices[index++] = sourceIndices[j] + numVertices * i;
                 }
             }
 
-            target.setVertexData(targetVertices, i);
-        }
+            target.setIndexData(targetIndices);
 
-        var instanceData = [];
-        index = 0;
-        for (j = 0; j < numInstances; ++j) {
-            for (i = 0; i < numVertices; ++i) {
-                instanceData[index++] = j;
+            for (i = 0; i < sourceMesh.numStreams; ++i) {
+                var targetVertices = [];
+                var sourceVertices = sourceMesh.getVertexData(i);
+
+                len = sourceVertices.length;
+                index = 0;
+
+                // duplicate vertex data for each instance
+                for (j = 0; j < numInstances; ++j) {
+                    for (var k = 0; k < len; ++k) {
+                        targetVertices[index++] = sourceVertices[k];
+                    }
+                }
+
+                target.setVertexData(targetVertices, i);
             }
+
+            var instanceData = [];
+            index = 0;
+            for (j = 0; j < numInstances; ++j) {
+                for (i = 0; i < numVertices; ++i) {
+                    instanceData[index++] = j;
+                }
+            }
+
+            // something actually IS wrong with the instance data
+            // drawing an explicit subselection of indices with constant instance index is correct
+            // filling the entire array with 0 doesn't help, so it looks like the data is not set correctly
+            target.setVertexData(instanceData, instanceStream);
+
+            return target;
         }
+    };
 
-        // something actually IS wrong with the instance data
-        // drawing an explicit subselection of indices with constant instance index is correct
-        // filling the entire array with 0 doesn't help, so it looks like the data is not set correctly
-        target.setVertexData(instanceData, instanceStream);
-
-        return target;
-    }
-};
+export { MeshBatch };

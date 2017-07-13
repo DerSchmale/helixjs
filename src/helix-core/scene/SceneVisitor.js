@@ -2,58 +2,12 @@
  *
  * @constructor
  */
-HX.RenderItem = function()
-{
-    this.worldMatrix = null;
-    this.meshInstance = null;
-    this.skeleton = null;
-    this.skeletonMatrices = null;
-    this.material = null;
-    this.camera = null;
-    this.renderOrderHint = 0;
-
-    // to store this in a linked list for pooling
-    this.next = null;
-};
-
-HX.RenderItemPool = function()
-{
-    var head = null;
-    var pool = null;
-
-    this.getItem = function()
-    {
-        var item;
-
-        if (head) {
-            item = head;
-            head = head.next;
-        }
-        else {
-            item = new HX.RenderItemPool();
-            item.next = pool;
-            pool = item;
-        }
-
-        return item;
-    };
-
-    this.reset = function()
-    {
-        head = pool;
-    };
-};
-
-/**
- *
- * @constructor
- */
-HX.SceneVisitor = function()
+function SceneVisitor()
 {
 
-};
+}
 
-HX.SceneVisitor.prototype =
+SceneVisitor.prototype =
 {
     collect: function(camera, scene) {},
     qualifies: function(object) {},
@@ -63,3 +17,5 @@ HX.SceneVisitor.prototype =
     visitScene: function (scene) {},
     visitEffects: function(effects, ownerNode) {}
 };
+
+export { SceneVisitor };

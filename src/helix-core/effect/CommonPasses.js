@@ -2,14 +2,19 @@
  *
  * @constructor
  */
-HX.CopyTexturePass = function()
+import {EffectPass} from "./EffectPass";
+import {ShaderLibrary} from "../shader/ShaderLibrary";
+
+function CopyTexturePass()
 {
-    HX.EffectPass.call(this, null, HX.ShaderLibrary.get("copy_fragment.glsl"));
-};
+    EffectPass.call(this, null, ShaderLibrary.get("copy_fragment.glsl"));
+}
 
-HX.CopyTexturePass.prototype = Object.create(HX.EffectPass.prototype);
+CopyTexturePass.prototype = Object.create(EffectPass.prototype);
 
-HX.CopyTexturePass.prototype.setSourceTexture = function(value)
+CopyTexturePass.prototype.setSourceTexture = function(value)
 {
     this.setTexture("sampler", value);
 };
+
+export { CopyTexturePass };

@@ -1,249 +1,263 @@
+import { capabilities, ClearMask, Comparison, CullMode, StencilOp, META } from '../Helix.js';
+import { Color } from '../core/Color.js';
+
 // Just contains some convenience methods and GL management stuff that shouldn't be called directly
-
 // Will become an abstraction layer
-
 // properties to keep track of render state
-HX._numActiveAttributes = 0;
+var _numActiveAttributes = 0;
 
-HX._renderTarget = null;
-HX._renderTargetInvalid = true;
+var _renderTarget = null;
+var _renderTargetInvalid = true;
 
-HX._viewport = {x: 0, y: 0, width: 0, height: 0};
-HX._viewportInvalid = true;
+var _viewport = {x: 0, y: 0, width: 0, height: 0};
+var _viewportInvalid = true;
 
-HX._depthMask = true;
-HX._depthMaskInvalid = true;
+var _depthMask = true;
+var _depthMaskInvalid = true;
 
-HX._cullMode = null;
-HX._cullModeInvalid = true;
+var _cullMode = null;
+var _cullModeInvalid = true;
 
-HX._depthTest = null;
-HX._depthTestInvalid = true;
+var _depthTest = null;
+var _depthTestInvalid = true;
 
-HX._blendState = null;
-HX._blendStateInvalid = false;
+var _blendState = null;
+var _blendStateInvalid = false;
 
 // this is so that effects can push states on the stack
 // the renderer at the root just pushes one single state and invalidates that constantly
-HX._stencilState = null;
-HX._stencilStateInvalid = false;
+var _stencilState = null;
+var _stencilStateInvalid = false;
 
-HX._glStats =
+var _glStats =
+    {
+        numDrawCalls: 0,
+        numTriangles: 0,
+        numClears: 0
+    };
+
+var _clearGLStats = function ()
 {
-    numDrawCalls: 0,
-    numTriangles: 0,
-    numClears: 0
+    _glStats.numDrawCalls = 0;
+    _glStats.numTriangles = 0;
+    _glStats.numClears = 0;
 };
 
-HX._clearGLStats = function()
+var gl = null;
+
+function _updateRenderState()
 {
-    HX._glStats.numDrawCalls = 0;
-    HX._glStats.numTriangles = 0;
-    HX._glStats.numClears = 0;
-};
-
-/**
- * Default clearing function. Can be called if no special clearing functionality is needed (or in case another api is used that clears)
- * Otherwise, you can manually clear using GL context.
- */
-HX.clear = function(clearMask)
-{
-    if (clearMask === undefined)
-        clearMask = HX.COMPLETE_CLEAR_MASK;
-
-    HX._updateRenderState();
-    HX_GL.clear(clearMask);
-    ++HX._glStats.numClears;
-};
-
-HX.drawElements = function(elementType, numIndices, offset)
-{
-    ++HX._glStats.numDrawCalls;
-    HX._glStats.numTriangles += numIndices / 3;
-    HX._updateRenderState();
-    HX_GL.drawElements(elementType, numIndices, HX_GL.UNSIGNED_SHORT, offset * 2);
-};
-
-
-/**
- *
- * @param rect Any object with a width and height property, so it can be a Rect or even an FBO. If x and y are present, it will use these too.
- */
-HX.setViewport = function(rect)
-{
-    HX._viewportInvalid = true;
-    if (rect) {
-        HX._viewport.x = rect.x || 0;
-        HX._viewport.y = rect.y || 0;
-        HX._viewport.width = rect.width || 0;
-        HX._viewport.height = rect.height || 0;
-    }
-    else {
-        HX._viewport.x = 0;
-        HX._viewport.y = 0;
-        HX._viewport.width = HX.TARGET_CANVAS.width;
-        HX._viewport.height = HX.TARGET_CANVAS.height;
-    }
-};
-
-HX.getCurrentRenderTarget = function()
-{
-    return HX._renderTarget;
-};
-
-HX.setRenderTarget = function(frameBuffer)
-{
-    HX._renderTarget = frameBuffer;
-    HX._renderTargetInvalid = true;
-    HX.setViewport(frameBuffer);
-};
-
-HX.enableAttributes = function(count)
-{
-    var numActiveAttribs = HX._numActiveAttributes;
-    var i;
-
-    if (numActiveAttribs < count) {
-        for (i = numActiveAttribs; i < count; ++i)
-            HX_GL.enableVertexAttribArray(i);
-    }
-    else if (numActiveAttribs > count) {
-        // bug in WebGL/ANGLE? When rendering to a render target, disabling vertex attrib array 1 causes errors when using only up to the index below o_O
-        // so for now + 1
-        count += 1;
-        for (i = count; i < numActiveAttribs; ++i) {
-            HX_GL.disableVertexAttribArray(i);
-        }
-    }
-
-    HX._numActiveAttributes = count;
-};
-
-HX.setClearColor = function(color)
-{
-    color = isNaN(color) ? color : new HX.Color(color);
-    HX_GL.clearColor(color.r, color.g, color.b, color.a);
-};
-
-HX.setCullMode = function(value)
-{
-    if (HX._cullMode === value) return;
-    HX._cullMode = value;
-    HX._cullModeInvalid = true;
-};
-
-HX.setDepthMask = function(value)
-{
-    if (HX._depthMask === value) return;
-    HX._depthMask = value;
-    HX._depthMaskInvalid = true;
-};
-
-HX.setDepthTest = function(value)
-{
-    if (HX._depthTest === value) return;
-    HX._depthTest = value;
-    HX._depthTestInvalid = true;
-};
-
-HX.setBlendState = function(value)
-{
-    if (HX._blendState === value) return;
-    HX._blendState = value;
-    HX._blendStateInvalid = true;
-};
-
-HX.updateStencilReferenceValue = function(value)
-{
-    var currentState = HX._stencilState;
-
-    if (!currentState || currentState.reference === value) return;
-
-    currentState.reference = value;
-
-    if (!HX._stencilStateInvalid && currentState.enabled)
-        HX_GL.stencilFunc(currentState.comparison, value, currentState.readMask);
-};
-
-HX.setStencilState = function(value)
-{
-    HX._stencilState = value;
-    HX._stencilStateInvalid = true;
-};
-
-HX._updateRenderState = function()
-{
-    if (HX._renderTargetInvalid) {
-        var target = HX._renderTarget;
+    if (_renderTargetInvalid) {
+        var target = _renderTarget;
 
         if (target) {
-            HX_GL.bindFramebuffer(HX_GL.FRAMEBUFFER, target._fbo);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, target._fbo);
 
             if (target._numColorTextures > 1)
-                HX.EXT_DRAW_BUFFERS.drawBuffersWEBGL(target._drawBuffers);
+                capabilities.EXT_DRAW_BUFFERS.drawBuffersWEBGL(target._drawBuffers);
         }
         else
-            HX_GL.bindFramebuffer(HX_GL.FRAMEBUFFER, null);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        HX._renderTargetInvalid = false;
+        _renderTargetInvalid = false;
     }
 
-    if (this._viewportInvalid) {
-        HX_GL.viewport(HX._viewport.x, HX._viewport.y, HX._viewport.width, HX._viewport.height);
-        HX._viewportInvalid = false;
+    if (_viewportInvalid) {
+        gl.viewport(_viewport.x, _viewport.y, _viewport.width, _viewport.height);
+        _viewportInvalid = false;
     }
 
-    if (HX._depthMaskInvalid) {
-        HX_GL.depthMask(HX._depthMask);
-        HX._depthMaskInvalid = false;
+    if (_depthMaskInvalid) {
+        gl.depthMask(_depthMask);
+        _depthMaskInvalid = false;
     }
 
-    if (HX._cullModeInvalid) {
-        if (HX._cullMode === HX.CullMode.NONE)
-            HX_GL.disable(HX_GL.CULL_FACE);
+    if (_cullModeInvalid) {
+        if (_cullMode === CullMode.NONE)
+            gl.disable(gl.CULL_FACE);
         else {
-            HX_GL.enable(HX_GL.CULL_FACE);
-            HX_GL.cullFace(HX._cullMode);
+            gl.enable(gl.CULL_FACE);
+            gl.cullFace(_cullMode);
         }
     }
 
-    if (HX._depthTestInvalid) {
-        if (HX._depthTest === HX.Comparison.DISABLED)
-            HX_GL.disable(HX_GL.DEPTH_TEST);
+    if (_depthTestInvalid) {
+        if (_depthTest === Comparison.DISABLED)
+            gl.disable(gl.DEPTH_TEST);
         else {
-            HX_GL.enable(HX_GL.DEPTH_TEST);
-            HX_GL.depthFunc(HX._depthTest);
+            gl.enable(gl.DEPTH_TEST);
+            gl.depthFunc(_depthTest);
         }
     }
 
-    if (HX._blendStateInvalid) {
-        var blendState = HX._blendState;
-        if (blendState === null || blendState === undefined || blendState.enabled === false)
-            HX_GL.disable(HX_GL.BLEND);
+    if (_blendStateInvalid) {
+        var blendState = _blendState;
+        if (!blendState || blendState.enabled === false)
+            gl.disable(gl.BLEND);
         else {
-            HX_GL.enable(HX_GL.BLEND);
-            HX_GL.blendFunc(blendState.srcFactor, blendState.dstFactor);
-            HX_GL.blendEquation(blendState.operator);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
+            gl.blendEquation(blendState.operator);
             var color = blendState.color;
             if (color)
-                HX_GL.blendColor(color.r, color.g, color.b, color.a);
+                gl.blendColor(color.r, color.g, color.b, color.a);
         }
-        HX._blendStateInvalid = false;
+        _blendStateInvalid = false;
     }
 
-    if (HX._stencilStateInvalid) {
-        var stencilState = HX._stencilState;
-        if (stencilState === null || stencilState.enabled === false) {
-            HX_GL.disable(HX_GL.STENCIL_TEST);
-            HX_GL.stencilFunc(HX.Comparison.ALWAYS, 0, 0xff);
-            HX_GL.stencilOp(HX.StencilOp.KEEP, HX.StencilOp.KEEP, HX.StencilOp.KEEP);
+    if (_stencilStateInvalid) {
+        var stencilState = _stencilState;
+        if (!stencilState || stencilState.enabled === false) {
+            gl.disable(gl.STENCIL_TEST);
+            gl.stencilFunc(Comparison.ALWAYS, 0, 0xff);
+            gl.stencilOp(StencilOp.KEEP, StencilOp.KEEP, StencilOp.KEEP);
         }
         else {
-            HX_GL.enable(HX_GL.STENCIL_TEST);
-            HX_GL.stencilFunc(stencilState.comparison, stencilState.reference, stencilState.readMask);
-            HX_GL.stencilOp(stencilState.onStencilFail, stencilState.onDepthFail, stencilState.onPass);
-            HX_GL.stencilMask(stencilState.writeMask);
+            gl.enable(gl.STENCIL_TEST);
+            gl.stencilFunc(stencilState.comparison, stencilState.reference, stencilState.readMask);
+            gl.stencilOp(stencilState.onStencilFail, stencilState.onDepthFail, stencilState.onPass);
+            gl.stencilMask(stencilState.writeMask);
         }
-        HX._stencilStateInvalid = false;
+        _stencilStateInvalid = false;
     }
 };
+
+var GL = {
+    gl: null,
+
+    _setGL: function (value)
+    {
+        GL.gl = gl = value;
+    },
+
+    /**
+     * Default clearing function. Can be called if no special clearing functionality is needed (or in case another api is used that clears)
+     * Otherwise, you can manually clear using GL context.
+     */
+    clear: function (clearMask)
+    {
+        if (clearMask === undefined)
+            clearMask = ClearMask.COMPLETE;
+
+        _updateRenderState();
+        gl.clear(clearMask);
+        ++_glStats.numClears;
+    },
+
+    drawElements: function (elementType, numIndices, offset)
+    {
+        ++_glStats.numDrawCalls;
+        _glStats.numTriangles += numIndices / 3;
+        _updateRenderState();
+        gl.drawElements(elementType, numIndices, gl.UNSIGNED_SHORT, offset * 2);
+    },
+
+
+    /**
+     *
+     * @param rect Any object with a width and height property, so it can be a Rect or even an FBO. If x and y are present, it will use these too.
+     */
+    setViewport: function (rect)
+    {
+        _viewportInvalid = true;
+        if (rect) {
+            _viewport.x = rect.x || 0;
+            _viewport.y = rect.y || 0;
+            _viewport.width = rect.width || 0;
+            _viewport.height = rect.height || 0;
+        }
+        else {
+            _viewport.x = 0;
+            _viewport.y = 0;
+            _viewport.width = META.TARGET_CANVAS.width;
+            _viewport.height = META.TARGET_CANVAS.height;
+        }
+    },
+
+    getCurrentRenderTarget: function ()
+    {
+        return _renderTarget;
+    },
+
+    setRenderTarget: function (frameBuffer)
+    {
+        _renderTarget = frameBuffer;
+        _renderTargetInvalid = true;
+        GL.setViewport(frameBuffer);
+    },
+
+    enableAttributes: function (count)
+    {
+        var numActiveAttribs = _numActiveAttributes;
+        var i;
+
+        if (numActiveAttribs < count) {
+            for (i = numActiveAttribs; i < count; ++i)
+                gl.enableVertexAttribArray(i);
+        }
+        else if (numActiveAttribs > count) {
+            // bug in WebGL/ANGLE? When rendering to a render target, disabling vertex attrib array 1 causes errors when using only up to the index below o_O
+            // so for now + 1
+            count += 1;
+            for (i = count; i < numActiveAttribs; ++i) {
+                gl.disableVertexAttribArray(i);
+            }
+        }
+
+        _numActiveAttributes = count;
+    },
+
+    setClearColor: function (color)
+    {
+        color = isNaN(color) ? color : new Color(color);
+        gl.clearColor(color.r, color.g, color.b, color.a);
+    },
+
+    setCullMode: function (value)
+    {
+        if (_cullMode === value) return;
+        _cullMode = value;
+        _cullModeInvalid = true;
+    },
+
+    setDepthMask: function (value)
+    {
+        if (_depthMask === value) return;
+        _depthMask = value;
+        _depthMaskInvalid = true;
+    },
+
+    setDepthTest: function (value)
+    {
+        if (_depthTest === value) return;
+        _depthTest = value;
+        _depthTestInvalid = true;
+    },
+
+    setBlendState: function (value)
+    {
+        if (_blendState === value) return;
+        _blendState = value;
+        _blendStateInvalid = true;
+    },
+
+    updateStencilReferenceValue: function (value)
+    {
+        var currentState = _stencilState;
+
+        if (!currentState || currentState.reference === value) return;
+
+        currentState.reference = value;
+
+        if (!_stencilStateInvalid && currentState.enabled)
+            gl.stencilFunc(currentState.comparison, value, currentState.readMask);
+    },
+
+    setStencilState: function (value)
+    {
+        _stencilState = value;
+        _stencilStateInvalid = true;
+    }
+};
+
+export { _glStats, _clearGLStats, GL };

@@ -1,6 +1,12 @@
-HX.FbxNode = function()
+import {FbxObject} from "./FbxObject";
+import {FbxNodeAttribute} from "./FbxNodeAttribute";
+import {FbxMesh} from "./FbxMesh";
+import {FbxMaterial} from "./FbxMaterial";
+import {FbxTrashNode} from "./FbxTrashNode";
+import {FbxAnimationCurveNode} from "./FbxAnimationCurveNode";
+function FbxNode()
 {
-    HX.FbxObject.call(this);
+    FbxObject.call(this);
     this.RotationOffset = null;
     this.RotationPivot = null;
     this.ScalingOffset = null;
@@ -28,9 +34,9 @@ HX.FbxNode = function()
 
     this._geometricMatrix = null;
     this._matrix = null;
-};
+}
 
-HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
+FbxNode.prototype = Object.create(FbxObject.prototype,
     {
         numChildren:
         {
@@ -93,14 +99,14 @@ HX.FbxNode.prototype = Object.create(HX.FbxObject.prototype,
     }
 );
 
-HX.FbxNode.prototype.getChild = function(i)
+FbxNode.prototype.getChild = function(i)
 {
     return this.children[i];
 };
 
-HX.FbxNode.prototype.connectObject = function(obj)
+FbxNode.prototype.connectObject = function(obj)
 {
-    if (obj instanceof HX.FbxNode) {
+    if (obj instanceof FbxNode) {
         //if (obj.type === "Null") return;
 
         if (obj.type === "Root") {
@@ -112,20 +118,20 @@ HX.FbxNode.prototype.connectObject = function(obj)
             obj.parent = this;
         }
     }
-    else if (obj instanceof HX.FbxNodeAttribute) {
+    else if (obj instanceof FbxNodeAttribute) {
         this.defaultAttribute = this.defaultAttribute || obj;
         this.attributes = this.attributes || [];
         this.attributes.push(obj);
     }
-    else if (obj instanceof HX.FbxMesh) {
+    else if (obj instanceof FbxMesh) {
         this.mesh = obj;
         this.mesh.parent = this;
     }
-    else if (obj instanceof HX.FbxMaterial) {
+    else if (obj instanceof FbxMaterial) {
         this.materials = this.materials || [];
         this.materials.push(obj);
     }
-    else if (obj instanceof HX.FbxTrashNode) {
+    else if (obj instanceof FbxTrashNode) {
         // silently ignore it
     }
     else {
@@ -133,20 +139,22 @@ HX.FbxNode.prototype.connectObject = function(obj)
     }
 };
 
-HX.FbxNode.prototype._convertRotation = function(v)
+FbxNode.prototype._convertRotation = function(v)
 {
     var quat = new HX.Quaternion();
     quat.fromEuler(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
     return quat;
 };
 
-HX.FbxNode.prototype.connectProperty = function(obj, propertyName)
+FbxNode.prototype.connectProperty = function(obj, propertyName)
 {
-    if (obj instanceof HX.FbxAnimationCurveNode) {
+    if (obj instanceof FbxAnimationCurveNode) {
         this.animationCurveNodes = this.animationCurveNodes || {};
         this.animationCurveNodes[propertyName] = obj;
         obj.propertyName = propertyName;
     }
 };
 
-HX.FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+", type="+this.type+")]"; };
+FbxNode.prototype.toString = function() { return "[FbxNode(name="+this.name+", type="+this.type+")]"; };
+
+export {FbxNode};

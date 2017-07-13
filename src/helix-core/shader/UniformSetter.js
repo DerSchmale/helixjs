@@ -1,167 +1,185 @@
 /**
- *
+ * per pass setters have a method execute(camera, renderer), per instance have execute(camera, renderItem)
  * @type {{}}
  */
-HX.UniformSetter = {};
+import {GL} from "../core/GL";
+import {DEFAULTS} from "../Helix";
+import {PoissonDisk} from "../math/PoissonDisk";
+import {Matrix4x4} from "../math/Matrix4x4";
 
-HX.UniformSetter.getSetters = function(shader) {
-    if (HX.UniformSetter._table === undefined)
-        HX.UniformSetter._init();
+export var UniformSetter = {
 
-    return HX.UniformSetter._findSetters(shader);
-};
+    getSettersPerInstance: function (shader)
+    {
+        if (UniformSetter._instanceTable === undefined)
+            UniformSetter._init();
 
-HX.UniformSetter._findSetters = function(shader)
-{
-    var setters = [];
-    for (var uniformName in HX.UniformSetter._table) {
-        var location = HX_GL.getUniformLocation(shader._program, uniformName);
-        if (location === null) continue;
-        var setter = new HX.UniformSetter._table[uniformName]();
-        setters.push(setter);
-        setter.location = location;
+        return UniformSetter._findSetters(shader, UniformSetter._instanceTable);
+    },
+
+    getSettersPerPass: function (shader)
+    {
+        if (UniformSetter._passTable === undefined)
+            UniformSetter._init();
+
+        return UniformSetter._findSetters(shader, UniformSetter._passTable);
+    },
+
+    _findSetters: function (shader, table)
+    {
+        var setters = [];
+        for (var uniformName in table) {
+            var location = GL.gl.getUniformLocation(shader._program, uniformName);
+            if (!location) continue;
+            var setter = new table[uniformName]();
+            setters.push(setter);
+            setter.location = location;
+        }
+
+        return setters;
+    },
+
+    _init: function ()
+    {
+        UniformSetter._instanceTable = {};
+        UniformSetter._passTable = {};
+
+        UniformSetter._instanceTable.hx_worldMatrix = WorldMatrixSetter;
+        UniformSetter._instanceTable.hx_worldViewMatrix = WorldViewMatrixSetter;
+        UniformSetter._instanceTable.hx_wvpMatrix = WorldViewProjectionSetter;
+        UniformSetter._instanceTable.hx_inverseWVPMatrix = InverseWVPSetter;
+        UniformSetter._instanceTable.hx_normalWorldMatrix = NormalWorldMatrixSetter;
+        UniformSetter._instanceTable.hx_normalWorldViewMatrix = NormalWorldViewMatrixSetter;
+        UniformSetter._instanceTable["hx_skinningMatrices[0]"] = SkinningMatricesSetter;
+        UniformSetter._instanceTable["hx_morphWeights[0]"] = MorphWeightsSetter;
+
+        UniformSetter._passTable.hx_viewMatrix = ViewMatrixSetter;
+        UniformSetter._passTable.hx_projectionMatrix = ProjectionSetter;
+        UniformSetter._passTable.hx_inverseProjectionMatrix = InverseProjectionSetter;
+        UniformSetter._passTable.hx_viewProjectionMatrix = ViewProjectionSetter;
+        UniformSetter._passTable.hx_inverseViewProjectionMatrix = InverseViewProjectionSetter;
+        UniformSetter._passTable.hx_cameraWorldPosition = CameraWorldPosSetter;
+        UniformSetter._passTable.hx_cameraWorldMatrix = CameraWorldMatrixSetter;
+        UniformSetter._passTable.hx_cameraFrustumRange = CameraFrustumRangeSetter;
+        UniformSetter._passTable.hx_rcpCameraFrustumRange = RCPCameraFrustumRangeSetter;
+        UniformSetter._passTable.hx_cameraNearPlaneDistance = CameraNearPlaneDistanceSetter;
+        UniformSetter._passTable.hx_cameraFarPlaneDistance = CameraFarPlaneDistanceSetter;
+        UniformSetter._passTable.hx_renderTargetResolution = RenderTargetResolutionSetter;
+        UniformSetter._passTable.hx_rcpRenderTargetResolution = RCPRenderTargetResolutionSetter;
+        UniformSetter._passTable.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
+        UniformSetter._passTable.hx_ambientColor = AmbientColorSetter;
+        UniformSetter._passTable["hx_poissonDisk[0]"] = PoissonDiskSetter;
     }
-
-    return setters;
-};
-
-HX.UniformSetter._init = function()
-{
-    HX.UniformSetter._table = {};
-
-    // TODO: We can probably just use functions for these
-    HX.UniformSetter._table.hx_worldMatrix = HX.WorldMatrixSetter;
-    HX.UniformSetter._table.hx_worldViewMatrix = HX.WorldViewMatrixSetter;
-    HX.UniformSetter._table.hx_wvpMatrix = HX.WorldViewProjectionSetter;
-    HX.UniformSetter._table.hx_viewMatrix = HX.ViewMatrixSetter;
-    HX.UniformSetter._table.hx_projectionMatrix = HX.ProjectionSetter;
-    HX.UniformSetter._table.hx_inverseProjectionMatrix = HX.InverseProjectionSetter;
-    HX.UniformSetter._table.hx_inverseWVPMatrix = HX.InverseWVPSetter;
-    HX.UniformSetter._table.hx_viewProjectionMatrix = HX.ViewProjectionSetter;
-    HX.UniformSetter._table.hx_inverseViewProjectionMatrix = HX.InverseViewProjectionSetter;
-    HX.UniformSetter._table.hx_normalWorldMatrix = HX.NormalWorldMatrixSetter;
-    HX.UniformSetter._table.hx_normalWorldViewMatrix = HX.NormalWorldViewMatrixSetter;
-    HX.UniformSetter._table.hx_cameraWorldPosition = HX.CameraWorldPosSetter;
-    HX.UniformSetter._table.hx_cameraWorldMatrix = HX.CameraWorldMatrixSetter;
-    HX.UniformSetter._table.hx_cameraFrustumRange = HX.CameraFrustumRangeSetter;
-    HX.UniformSetter._table.hx_rcpCameraFrustumRange = HX.RCPCameraFrustumRangeSetter;
-    HX.UniformSetter._table.hx_cameraNearPlaneDistance = HX.CameraNearPlaneDistanceSetter;
-    HX.UniformSetter._table.hx_cameraFarPlaneDistance = HX.CameraFarPlaneDistanceSetter;
-    HX.UniformSetter._table.hx_renderTargetResolution = HX.RenderTargetResolutionSetter;
-    HX.UniformSetter._table.hx_rcpRenderTargetResolution = HX.RCPRenderTargetResolutionSetter;
-    HX.UniformSetter._table.hx_dither2DTextureScale = HX.Dither2DTextureScaleSetter;
-    HX.UniformSetter._table["hx_skinningMatrices[0]"] = HX.SkinningMatricesSetter;
-    HX.UniformSetter._table["hx_poissonDisk[0]"] = HX.PoissonDiskSetter;
 };
 
 
-HX.WorldMatrixSetter = function()
+function WorldMatrixSetter()
 {
+}
+
+WorldMatrixSetter.prototype.execute = function (camera, renderItem)
+{
+    GL.gl.uniformMatrix4fv(this.location, false, renderItem.worldMatrix._m);
 };
 
-HX.WorldMatrixSetter.prototype.execute = function (camera, renderItem)
+
+function ViewProjectionSetter()
 {
-    HX_GL.uniformMatrix4fv(this.location, false, renderItem.worldMatrix._m);
+}
+
+ViewProjectionSetter.prototype.execute = function(camera)
+{
+    GL.gl.uniformMatrix4fv(this.location, false, camera.viewProjectionMatrix._m);
 };
 
-
-HX.ViewProjectionSetter = function()
+function InverseViewProjectionSetter()
 {
+}
+
+InverseViewProjectionSetter.prototype.execute = function(camera)
+{
+    GL.gl.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
 };
 
-HX.ViewProjectionSetter.prototype.execute = function(camera)
+function InverseWVPSetter()
 {
-    HX_GL.uniformMatrix4fv(this.location, false, camera.viewProjectionMatrix._m);
+}
+
+InverseWVPSetter.prototype.execute = function(camera)
+{
+    GL.gl.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
 };
 
-HX.InverseViewProjectionSetter = function()
+function ProjectionSetter()
 {
+}
+
+ProjectionSetter.prototype.execute = function(camera)
+{
+    GL.gl.uniformMatrix4fv(this.location, false, camera.projectionMatrix._m);
 };
 
-HX.InverseViewProjectionSetter.prototype.execute = function(camera)
+function InverseProjectionSetter()
 {
-    HX_GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
+}
+
+InverseProjectionSetter.prototype.execute = function(camera)
+{
+    GL.gl.uniformMatrix4fv(this.location, false, camera.inverseProjectionMatrix._m);
 };
 
-HX.InverseWVPSetter = function()
+function WorldViewProjectionSetter()
 {
-};
+}
 
-HX.InverseWVPSetter.prototype.execute = function(camera)
+WorldViewProjectionSetter.prototype.execute = function()
 {
-    HX_GL.uniformMatrix4fv(this.location, false, camera.inverseViewProjectionMatrix._m);
-};
-
-HX.ProjectionSetter = function()
-{
-};
-
-HX.ProjectionSetter.prototype.execute = function(camera)
-{
-    HX_GL.uniformMatrix4fv(this.location, false, camera.projectionMatrix._m);
-};
-
-HX.InverseProjectionSetter = function()
-{
-};
-
-HX.InverseProjectionSetter.prototype.execute = function(camera)
-{
-    HX_GL.uniformMatrix4fv(this.location, false, camera.inverseProjectionMatrix._m);
-};
-
-HX.WorldViewProjectionSetter = function()
-{
-};
-
-HX.WorldViewProjectionSetter.prototype.execute = function()
-{
-    var matrix = new HX.Matrix4x4();
+    var matrix = new Matrix4x4();
     var m = matrix._m;
     return function(camera, renderItem)
     {
         matrix.multiply(camera.viewProjectionMatrix, renderItem.worldMatrix);
-        HX_GL.uniformMatrix4fv(this.location, false, m);
+        GL.gl.uniformMatrix4fv(this.location, false, m);
     };
 }();
 
-HX.WorldViewMatrixSetter = function()
+function WorldViewMatrixSetter()
 {
-    this._matrix = new HX.Matrix4x4();
+    this._matrix = new Matrix4x4();
 };
 
-HX.WorldViewMatrixSetter.prototype.execute = function(){
-    var matrix = new HX.Matrix4x4();
+WorldViewMatrixSetter.prototype.execute = function(){
+    var matrix = new Matrix4x4();
     var m = matrix._m;
     return function (camera, renderItem)
     {
         matrix.multiply(camera.viewMatrix, renderItem.worldMatrix);
-        HX_GL.uniformMatrix4fv(this.location, false, m);
+        GL.gl.uniformMatrix4fv(this.location, false, m);
     }
 }();
 
 
-HX.NormalWorldMatrixSetter = function()
+function NormalWorldMatrixSetter()
 {
-};
+}
 
-HX.NormalWorldMatrixSetter.prototype.execute = function() {
+NormalWorldMatrixSetter.prototype.execute = function() {
     var data = new Float32Array(9);
     return function (camera, renderItem)
     {
         renderItem.worldMatrix.writeNormalMatrix(data);
-        HX_GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
+        GL.gl.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
     }
 }();
 
 
-HX.NormalWorldViewMatrixSetter = function()
+function NormalWorldViewMatrixSetter()
 {
-};
+}
 
-HX.NormalWorldViewMatrixSetter.prototype.execute = function() {
+NormalWorldViewMatrixSetter.prototype.execute = function() {
     var data = new Float32Array(9);
-    //var matrix = new HX.Matrix4x4();
+    //var matrix = new Matrix4x4();
 
     return function (camera, renderItem)
     {
@@ -203,129 +221,150 @@ HX.NormalWorldViewMatrixSetter.prototype.execute = function() {
         data[7] = (m4 * m2 - m0 * m6) * rcpDet;
         data[8] = (m0 * m5 - m4 * m1) * rcpDet;
 
-        HX_GL.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
+        GL.gl.uniformMatrix3fv(this.location, false, data);    // transpose of inverse
     }
 }();
 
-HX.CameraWorldPosSetter = function()
+function CameraWorldPosSetter()
 {
-};
+}
 
-HX.CameraWorldPosSetter.prototype.execute = function (camera)
+CameraWorldPosSetter.prototype.execute = function (camera)
 {
     var arr = camera.worldMatrix._m;
-    HX_GL.uniform3f(this.location, arr[12], arr[13], arr[14]);
+    GL.gl.uniform3f(this.location, arr[12], arr[13], arr[14]);
 };
 
-HX.CameraWorldMatrixSetter = function()
+function CameraWorldMatrixSetter()
 {
-};
+}
 
-HX.CameraWorldMatrixSetter.prototype.execute = function (camera)
+CameraWorldMatrixSetter.prototype.execute = function (camera)
 {
     var matrix = camera.worldMatrix;
-    HX_GL.uniformMatrix4fv(this.location, false, matrix._m);
+    GL.gl.uniformMatrix4fv(this.location, false, matrix._m);
 };
 
-HX.CameraFrustumRangeSetter = function()
+function CameraFrustumRangeSetter()
 {
-};
+}
 
-HX.CameraFrustumRangeSetter.prototype.execute = function (camera)
+CameraFrustumRangeSetter.prototype.execute = function (camera)
 {
-    HX_GL.uniform1f(this.location, camera._farDistance - camera._nearDistance);
+    GL.gl.uniform1f(this.location, camera._farDistance - camera._nearDistance);
 };
 
-HX.RCPCameraFrustumRangeSetter = function()
+function RCPCameraFrustumRangeSetter()
 {
-};
+}
 
-HX.RCPCameraFrustumRangeSetter.prototype.execute = function (camera)
+RCPCameraFrustumRangeSetter.prototype.execute = function (camera)
 {
-    HX_GL.uniform1f(this.location, 1.0 / (camera._farDistance - camera._nearDistance));
+    GL.gl.uniform1f(this.location, 1.0 / (camera._farDistance - camera._nearDistance));
 };
 
-HX.CameraNearPlaneDistanceSetter = function()
+function CameraNearPlaneDistanceSetter()
 {
-};
+}
 
-HX.CameraNearPlaneDistanceSetter.prototype.execute = function (camera)
+CameraNearPlaneDistanceSetter.prototype.execute = function (camera)
 {
-    HX_GL.uniform1f(this.location, camera._nearDistance);
+    GL.gl.uniform1f(this.location, camera._nearDistance);
 };
 
-HX.CameraFarPlaneDistanceSetter = function()
+function CameraFarPlaneDistanceSetter()
 {
-};
+}
 
-HX.CameraFarPlaneDistanceSetter.prototype.execute = function (camera)
+CameraFarPlaneDistanceSetter.prototype.execute = function (camera)
 {
-    HX_GL.uniform1f(this.location, camera._farDistance);
+    GL.gl.uniform1f(this.location, camera._farDistance);
 };
 
-HX.ViewMatrixSetter = function()
+function ViewMatrixSetter()
 {
-};
+}
 
-HX.ViewMatrixSetter.prototype.execute = function (camera)
+ViewMatrixSetter.prototype.execute = function (camera)
 {
-    HX_GL.uniformMatrix4fv(this.location, false, camera.viewMatrix._m);
+    GL.gl.uniformMatrix4fv(this.location, false, camera.viewMatrix._m);
 };
 
-HX.RenderTargetResolutionSetter = function()
+function RenderTargetResolutionSetter()
 {
-};
+}
 
-HX.RenderTargetResolutionSetter.prototype.execute = function (camera)
+RenderTargetResolutionSetter.prototype.execute = function (camera)
 {
-    HX_GL.uniform2f(this.location, camera._renderTargetWidth, camera._renderTargetHeight);
+    GL.gl.uniform2f(this.location, camera._renderTargetWidth, camera._renderTargetHeight);
 };
 
-HX.RCPRenderTargetResolutionSetter = function()
+function AmbientColorSetter()
 {
-};
+}
 
-HX.RCPRenderTargetResolutionSetter.prototype.execute = function (camera)
+AmbientColorSetter.prototype.execute = function (camera, renderer)
 {
-    HX_GL.uniform2f(this.location, 1.0/camera._renderTargetWidth, 1.0/camera._renderTargetHeight);
+    var color = renderer._ambientColor;
+    GL.gl.uniform3f(this.location, color.r, color.g, color.b);
 };
 
-HX.Dither2DTextureScaleSetter = function()
+function RCPRenderTargetResolutionSetter()
 {
-};
+}
 
-HX.Dither2DTextureScaleSetter.prototype.execute = function ()
+RCPRenderTargetResolutionSetter.prototype.execute = function (camera)
 {
-    HX_GL.uniform2f(this.location, 1.0 / HX.DEFAULT_2D_DITHER_TEXTURE.width, 1.0 / HX.DEFAULT_2D_DITHER_TEXTURE.height);
+    GL.gl.uniform2f(this.location, 1.0/camera._renderTargetWidth, 1.0/camera._renderTargetHeight);
 };
 
-HX.PoissonDiskSetter = function()
+function Dither2DTextureScaleSetter()
 {
-};
+}
 
-HX.PoissonDiskSetter.prototype.execute = function ()
+Dither2DTextureScaleSetter.prototype.execute = function ()
 {
-    HX_GL.uniform2fv(this.location, HX.PoissonDisk.DEFAULT_FLOAT32);
+    GL.gl.uniform2f(this.location, 1.0 / DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.width, 1.0 / DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.height);
 };
 
-HX.SkinningMatricesSetter = function()
+function PoissonDiskSetter()
 {
-    this._data = new Float32Array(HX.OPTIONS.maxBones * 12);
+}
+
+PoissonDiskSetter.prototype.execute = function ()
+{
+    GL.gl.uniform2fv(this.location, PoissonDisk.DEFAULT_FLOAT32);
 };
 
-HX.SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
+function SkinningMatricesSetter()
+{
+    this._data = new Float32Array(OPTIONS.maxBones * 12);
+}
+
+SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
 {
     var skeleton = renderItem.skeleton;
 
     if (skeleton) {
+        // TODO: Could we store the 4x3 format in renderItem.skeletonMatrices?
+        // no need to store actual matrices in this data
         var matrices = renderItem.skeletonMatrices;
         var numJoints = skeleton.numJoints;
         var j = 0;
-        // TODO: This rewrites the data every time, should only happen once a frame
+
         for (var i = 0; i < numJoints; ++i) {
             matrices[i].writeData4x3(this._data, j);
             j += 12;
         }
-        HX_GL.uniform4fv(this.location, this._data);
+        GL.gl.uniform4fv(this.location, this._data);
     }
+};
+
+function MorphWeightsSetter()
+{
+}
+
+MorphWeightsSetter.prototype.execute = function (camera, renderItem)
+{
+    GL.gl.uniform1fv(this.location, renderItem.meshInstance._morphWeights);
 };

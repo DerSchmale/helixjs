@@ -3,149 +3,91 @@
  * @param clip
  * @constructor
  */
-HX.SkeletonClipNode = function(clip)
-{
-    HX.SkeletonBlendNode.call(this);
-    this._clip = clip;
-    this._timeScale = 1.0;
-    this._isPlaying = true;
-    this._time = 0;
-    this._currentFrameIndex = 0;
-};
+import {Float4} from "../../math/Float4";
+import {SkeletonBlendNode} from "./SkeletonBlendNode";
+import {AnimationPlayhead} from "../AnimationPlayhead";
 
-HX.SkeletonClipNode.prototype = Object.create(HX.SkeletonBlendNode.prototype,
+function SkeletonClipNode(clip)
+{
+    SkeletonBlendNode.call(this);
+    this._playhead = new AnimationPlayhead(clip);
+    this._rootPosition = new Float4();
+
+    this._numJoints = clip.getKeyFrame(0).value.jointPoses.length;
+
+    var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
+    var firstFramePos = clip.getKeyFrame(0).value.jointPoses[0].position;
+    this._clipRootDelta = Float4.subtract(lastFramePos, firstFramePos);
+}
+
+SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
     {
         numJoints: {
-            get: function() { return this._clip.getKeyFrame(0).value.jointPoses.length; }
+            get: function() { return this._numJoints; }
         },
         timeScale: {
-            get: function() { return this._timeScale; },
-            set: function(value) { this._timeScale = value; }
+            get: function() { return this._playhead.timeScale; },
+            set: function(value) { this._playhead.timeScale = value; }
         },
         time: {
-            get: function() { return this._time; },
+            get: function() { return this._playhead; },
             set: function(value)
             {
-                this._time = value;
+                this._playhead.time = value;
                 this._timeChanged = true;
             }
         }
     });
 
-HX.SkeletonClipNode.prototype.play = function()
+SkeletonClipNode.prototype.play = function()
 {
-    this._isPlaying = true;
+    this._animationClipPlayer.play();
 };
 
-HX.SkeletonClipNode.prototype.stop = function()
+SkeletonClipNode.prototype.stop = function()
 {
-    this._isPlaying = false;
+    this._animationClipPlayer.stop();
 };
 
-HX.SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
+SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
 {
-    if ((!this._isPlaying || dt === 0.0) && !this._timeChanged)
+    if (!this._playhead.update(dt))
         return false;
 
-    this._timeChanged = false;
+    var playhead = this._playhead;
 
-    if (this._isPlaying) {
-        dt *= this._timeScale;
-        this._time += dt;
-    }
-
-    var clip = this._clip;
-    // the last keyframe is just an "end marker" to interpolate with, it has no duration
-    var numKeyFrames = clip.numKeyFrames;
-    var numBaseFrames = numKeyFrames - 1;
-    var duration = clip.duration;
-    var wraps = 0;
-
-
-    var frameA, frameB;
-
-    if (dt > 0) {
-        // todo: should be able to simply do this by division
-        while (this._time >= duration) {
-            // reset playhead to make sure progressive update logic works
-            this._currentFrameIndex = 0;
-            this._time -= duration;
-            ++wraps;
-        }
-        //  old     A            B
-        //  new                  A           B
-        //  frames: 0           10          20          30
-        //  time:         x   ----->   x
-        do {
-            // advance play head
-            if (++this._currentFrameIndex === numKeyFrames) this._currentFrameIndex = 0;
-            frameB = clip.getKeyFrame(this._currentFrameIndex);
-        } while (frameB.time < this._time);
-
-        --this._currentFrameIndex;
-        frameA = clip.getKeyFrame(this._currentFrameIndex);
-    }
-    else {
-        while (this._time < 0) {
-            // reset playhead to make sure progressive update logic works
-            this._currentFrameIndex = numBaseFrames;
-            this._time += duration;
-            ++wraps;
-        }
-
-        //  old     A            B
-        //  new                  A           B
-        //  frames: 0           10          20          30
-        //  time:         x   <-----   x
-        // advance play head
-        ++this._currentFrameIndex;
-        do {
-            if (--this._currentFrameIndex < 0) this._currentFrameIndex = numKeyFrames;
-            frameA = clip.getKeyFrame(this._currentFrameIndex);
-        } while (frameA.time > this._time);
-    }
-
-    var fraction = (this._time - frameA.time) / (frameB.time - frameA.time);
-
-    this._pose.interpolate(frameA.value, frameB.value, fraction);
+    this._pose.interpolate(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
 
     if (transferRootJoint)
-        this._transferRootJointTransform(wraps, dt);
+        this._transferRootJointTransform(playhead.wraps, dt);
 
     return true;
 };
 
-HX.SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
+SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
-    var clip = this._clip;
-    var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
-    var firstFramePos = clip.getKeyFrame(0).value.jointPoses[0].position;
-
-    var currentPos = this._pose.jointPoses[0].position;
+    var rootBonePos = this._pose.jointPoses[0].position;
     var rootPos = this._rootPosition;
     var rootDelta = this._rootJointDeltaPosition;
 
+    Float4.subtract(rootBonePos, rootPos, rootDelta);
+
     if (dt > 0 && numWraps > 0) {
-        rootDelta.x = lastFramePos.x - rootPos.x + currentPos.x - firstFramePos.x + (lastFramePos.x - firstFramePos.x) * (numWraps - 1);
-        rootDelta.y = lastFramePos.y - rootPos.y + currentPos.y - firstFramePos.y + (lastFramePos.y - firstFramePos.y) * (numWraps - 1);
-        rootDelta.z = lastFramePos.z - rootPos.z + currentPos.z - firstFramePos.z + (lastFramePos.z - firstFramePos.z) * (numWraps - 1);
+        // apply the entire displacement for the amount of times it wrapped
+        rootDelta.addScaled(this._clipRootDelta, numWraps);
     }
-    else if (numWraps > 0) {
-        rootDelta.x = firstFramePos.x - rootPos.x + currentPos.x - lastFramePos.x + (firstFramePos.x - lastFramePos.x) * (numWraps - 1);
-        rootDelta.y = firstFramePos.y - rootPos.y + currentPos.y - lastFramePos.y + (firstFramePos.y - lastFramePos.y) * (numWraps - 1);
-        rootDelta.z = firstFramePos.z - rootPos.z + currentPos.z - lastFramePos.z + (firstFramePos.z - lastFramePos.z) * (numWraps - 1);
-    }
-    else { // no wraps
-        rootDelta.x = currentPos.x - rootPos.x;
-        rootDelta.y = currentPos.y - rootPos.y;
-        rootDelta.z = currentPos.z - rootPos.z;
+    else if (dt < 0 && numWraps > 0) {
+        // apply the entire displacement for the amount of times it wrapped, in the other direction
+        rootDelta.addScaled(this._clipRootDelta, -numWraps);
     }
 
-    this._rootPosition.copyFrom(currentPos);
-    currentPos.set(0.0, 0.0, 0.0);
+    this._rootPosition.copyFrom(rootBonePos);
+    rootBonePos.set(0.0, 0.0, 0.0);
 };
 
-HX.SkeletonClipNode.prototype._applyValue = function(value)
+SkeletonClipNode.prototype._applyValue = function(value)
 {
     this.time = value * this._clip.duration;
 };
+
+export { SkeletonClipNode };

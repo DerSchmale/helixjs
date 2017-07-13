@@ -1,25 +1,25 @@
-HX.FbxTime = function(value)
+function FbxTime(value)
 {
     this._value = value;
-};
+}
 
-HX.FbxTime.getSpan = function(start, stop)
+FbxTime.getSpan = function(start, stop)
 {
-    return new HX.FbxTime(stop._value - start._value);
+    return new FbxTime(stop._value - start._value);
 };
 
-HX.FbxTime.TC_MILLISECOND = 46186158;
+FbxTime.TC_MILLISECOND = 46186158;
 
-HX.FbxTime.prototype =
+FbxTime.prototype =
 {
     get milliseconds()
     {
-        return this._value / HX.FbxTime.TC_MILLISECOND;
+        return this._value / FbxTime.TC_MILLISECOND;
     },
 
     set milliseconds(value)
     {
-        this._value = value * HX.FbxTime.TC_MILLISECOND;
+        this._value = value * FbxTime.TC_MILLISECOND;
     },
 
     getFrameCount: function(frameRate)
@@ -32,3 +32,5 @@ HX.FbxTime.prototype =
         return "[FbxTime(name="+this._value+")]";
     }
 };
+
+export {FbxTime};

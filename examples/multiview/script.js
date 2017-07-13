@@ -31,6 +31,7 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.hdr = true;
+    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -79,7 +80,6 @@ function initScene(scene)
     material.colorMap = albedoMap;
     material.normalMap = normalMap;
     material.specularMap = specularMap;
-    material.lights = [ light1, light2, light3 ];
     material.roughness = .15;
     material.roughnessRange = .12;
 

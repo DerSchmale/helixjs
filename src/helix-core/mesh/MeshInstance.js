@@ -4,20 +4,31 @@
  * @param material
  * @constructor
  */
-HX.MeshInstance = function(mesh, material)
+import {capabilities} from "../Helix";
+import {MaterialPass} from "../material/MaterialPass";
+import {GL} from "../core/GL";
+import {VertexLayout} from "./VertexLayout";
+
+function MeshInstance(mesh, material)
 {
     this._mesh = mesh;
     this._meshMaterialLinkInvalid = false;
     this._vertexLayouts = null;
-    this._morphPose = null;
     this._visible = true;
+
+    if (mesh.hasMorphData) {
+        this._morphTargets = [];
+        var w = [];
+        for (var i = 0; i < capabilities.NUM_MORPH_TARGETS; ++i) {
+            w[i] = 0;
+        }
+        this._morphWeights = new Float32Array(w);
+    }
 
     this.material = material;
 };
 
-HX.MeshInstance.prototype = {
-    constructor: HX.MeshInstance,
-
+MeshInstance.prototype = {
     get visible()
     {
         return this._visible;
@@ -28,14 +39,10 @@ HX.MeshInstance.prototype = {
         this._visible = value;
     },
 
-    get morphPose()
+    setMorphTarget: function(targetIndex, vertexBuffer, weight)
     {
-        return this._morphPose;
-    },
-
-    set morphPose(value)
-    {
-        this._morphPose = value;
+        this._morphTargets[targetIndex] = vertexBuffer;
+        this._morphWeights[targetIndex] = vertexBuffer? weight : 0.0;
     },
 
     get material()
@@ -55,12 +62,9 @@ HX.MeshInstance.prototype = {
 
             this.material._setUseSkinning(this._material._useSkinning || !!this._mesh._model.skeleton);
             this.material._setUseMorphing(this._material._useMorphing || this._mesh.hasMorphData);
-
-            if (this._mesh.hasMorphData)
-                this._morphPose = this._mesh.baseMorphPose;
         }
 
-        this._linkMeshWithMaterial();
+        this._meshMaterialLinkInvalid = true;
     },
 
     /**
@@ -77,25 +81,37 @@ HX.MeshInstance.prototype = {
         this._mesh._indexBuffer.bind();
 
         var layout = this._vertexLayouts[passType];
-        var attributes = layout.attributes;
-        var len = attributes.length;
+        var morphAttributes = layout.morphAttributes;
+        var len = morphAttributes.length;
+        var attribute;
+        var gl = GL.gl;
 
         for (var i = 0; i < len; ++i) {
-            var attribute = attributes[i];
-            vertexBuffers[attribute.streamIndex].bind();
-            HX_GL.vertexAttribPointer(attribute.index, attribute.numComponents, HX_GL.FLOAT, false, attribute.stride, attribute.offset);
+            attribute = morphAttributes[i];
+            var buffer = this._morphTargets[i] || this._mesh._defaultMorphTarget;
+            buffer.bind();
+            gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
         }
 
-        HX.enableAttributes(layout._numAttributes);
+        var attributes = layout.attributes;
+        len = attributes.length;
+
+        for (i = 0; i < len; ++i) {
+            attribute = attributes[i];
+            vertexBuffers[attribute.streamIndex].bind();
+            gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+        }
+
+        GL.enableAttributes(layout._numAttributes);
     },
 
     _initVertexLayouts: function()
     {
-        this._vertexLayouts = new Array(HX.MaterialPass.NUM_PASS_TYPES);
-        for (var type = 0; type < HX.MaterialPass.NUM_PASS_TYPES; ++type) {
+        this._vertexLayouts = new Array(MaterialPass.NUM_PASS_TYPES);
+        for (var type = 0; type < MaterialPass.NUM_PASS_TYPES; ++type) {
             var pass = this._material.getPass(type);
             if (pass)
-                this._vertexLayouts[type] = new HX.VertexLayout(this._mesh, pass);
+                this._vertexLayouts[type] = new VertexLayout(this._mesh, pass);
         }
     },
 
@@ -111,3 +127,6 @@ HX.MeshInstance.prototype = {
         this._meshMaterialLinkInvalid = true;
     }
 };
+
+
+export { MeshInstance };

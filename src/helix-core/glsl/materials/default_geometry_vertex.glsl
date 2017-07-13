@@ -1,19 +1,23 @@
-#ifdef USE_MORPHING
-attribute vec2 hx_morphUV;
-
-uniform sampler2D hx_morphPositionsTexture;
-
-// TODO:
-// uniform sampler2D hx_morphNormals;
-
-// TODO: Remove normal:
-attribute vec3 hx_normal;
-#else
 attribute vec4 hx_position;
 attribute vec3 hx_normal;
+
+// morph positions are offsets re the base position!
+#ifdef HX_USE_MORPHING
+attribute vec3 hx_morphPosition0;
+attribute vec3 hx_morphPosition1;
+attribute vec3 hx_morphPosition2;
+attribute vec3 hx_morphPosition3;
+#if HX_NUM_MORPH_TARGETS > 4
+attribute vec3 hx_morphPosition4;
+attribute vec3 hx_morphPosition5;
+attribute vec3 hx_morphPosition6;
+attribute vec3 hx_morphPosition7;
 #endif
 
-#ifdef USE_SKINNING
+uniform float hx_morphWeights[HX_NUM_MORPH_TARGETS];
+#endif
+
+#ifdef HX_USE_SKINNING
 attribute vec4 hx_boneIndices;
 attribute vec4 hx_boneWeights;
 
@@ -50,16 +54,24 @@ varying vec3 bitangent;
 
 void hx_geometry()
 {
-#ifdef USE_MORPHING
-// TODO: Also apply to normals
-    vec4 morphedPosition = vec4(texture2D(hx_morphPositionsTexture, hx_morphUV).xyz, 1.0);
-    vec3 morphedNormal = hx_normal;
-#else
     vec4 morphedPosition = hx_position;
     vec3 morphedNormal = hx_normal;
+
+// TODO: Abstract this in functions for easier reuse in other materials
+#ifdef HX_USE_MORPHING
+    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];
+    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];
+    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];
+    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];
+    #if HX_NUM_MORPH_TARGETS > 4
+        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];
+        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];
+        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];
+        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];
+    #endif
 #endif
 
-#ifdef USE_SKINNING
+#ifdef HX_USE_SKINNING
     mat4 skinningMatrix = hx_getSkinningMatrix(0);
 
     vec4 animPosition = morphedPosition * skinningMatrix;

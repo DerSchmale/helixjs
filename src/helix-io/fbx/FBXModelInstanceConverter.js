@@ -1,8 +1,10 @@
+import {FBXAnimationConverter} from "./FBXAnimationConverter";
+import {FbxLayerElement} from "./objects/FbxLayerElement";
 /**
  *
  * @constructor
  */
-HX.FBXModelInstanceConverter = function()
+function FBXModelInstanceConverter()
 {
     this._perMaterialData = null;
     this._expandedMesh = null;
@@ -12,9 +14,9 @@ HX.FBXModelInstanceConverter = function()
     this._animationConverter = null;
     this._fakeJointIndex = -1;
     this._useSkinning = false;
-};
+}
 
-HX.FBXModelInstanceConverter.prototype =
+FBXModelInstanceConverter.prototype =
 {
     // to be called after convertToModel
     createModelInstance: function(materials)
@@ -29,10 +31,10 @@ HX.FBXModelInstanceConverter.prototype =
         var modelInstance = new HX.ModelInstance(this._model, expandedMaterials);
         var clips = this._animationConverter.animationClips;
         if (clips) {
-            if (clips.length === 1)
-                modelInstance.addComponent(new HX.SkeletonAnimation(clips[0]));
-            else
-                throw new Error("TODO! Implement blend node");
+            // if (clips.length === 1)
+            //     modelInstance.addComponent(new HX.SkeletonAnimation(clips[0]));
+            // else
+            //     throw new Error("TODO! Implement blend node");
         }
 
         return modelInstance;
@@ -45,14 +47,14 @@ HX.FBXModelInstanceConverter.prototype =
         this._modelMaterialIDs = [];
         this._useSkinning = false;
 
-        this._modelData = new HX.ModelData();
-        this._animationConverter = new HX.FBXAnimationConverter();
+        this._model = new HX.Model();
+        this._animationConverter = new FBXAnimationConverter();
 
         if (fbxMesh.deformers)
             this._generateSkinningData(fbxMesh, geometryMatrix);
         this._generateExpandedMeshData(fbxMesh, geometryMatrix);
 
-        this._vertexStride = HX.MeshData.DEFAULT_VERTEX_SIZE;
+        this._vertexStride = HX.Mesh.DEFAULT_VERTEX_SIZE;
         if (this._expandedMesh.hasColor)
             this._vertexStride += 3;
 
@@ -65,7 +67,7 @@ HX.FBXModelInstanceConverter.prototype =
 
     _generateExpandedMeshData: function(fbxMesh, matrix)
     {
-        this._expandedMesh = new HX.FBXModelInstanceConverter._ExpandedMesh();
+        this._expandedMesh = new FBXModelInstanceConverter._ExpandedMesh();
         var indexData = fbxMesh.indices;
         var vertexData = fbxMesh.vertices;
         var normalData, colorData, uvData, materialData;
@@ -89,7 +91,7 @@ HX.FBXModelInstanceConverter.prototype =
 
         for (var i = 0; i < len; ++i) {
             var ctrlPointIndex = indexData[i];
-            var v = new HX.FBXModelInstanceConverter._Vertex();
+            var v = new FBXModelInstanceConverter._Vertex();
 
             if (ctrlPointIndex < 0) {
                 ctrlPointIndex = -ctrlPointIndex - 1;
@@ -103,7 +105,7 @@ HX.FBXModelInstanceConverter.prototype =
             if (matrix)
                 matrix.transformPoint(v.pos, v.pos);
 
-            if (this._modelData.skeleton)
+            if (this._model.skeleton)
                 v.jointBindings = this._animationConverter.getJointBinding(ctrlPointIndex);
 
             v.ctrlPointIndex = ctrlPointIndex;   // if these indices are different, they are probably triggered differerently in animations
@@ -116,7 +118,7 @@ HX.FBXModelInstanceConverter.prototype =
             if (colorData) v.color = this._extractLayerData(colorData, ctrlPointIndex, i, 3);
             if (uvData) v.uv = this._extractLayerData(uvData, ctrlPointIndex, i, 2);
 
-            if (materialData && materialData.mappingInformationType !== HX.FbxLayerElement.MAPPING_TYPE.ALL_SAME) {
+            if (materialData && materialData.mappingInformationType !== FbxLayerElement.MAPPING_TYPE.ALL_SAME) {
                 var matIndex = materialData.indexData[polyIndex];
                 v.materialIndex = matIndex;
                 if (matIndex > maxMaterialIndex)
@@ -137,8 +139,8 @@ HX.FBXModelInstanceConverter.prototype =
     {
         var target = numComponents > 2? new HX.Float4() : new HX.Float2();
         // direct
-        if (layer.referenceInformationType === HX.FbxLayerElement.REFERENCE_TYPE.DIRECT) {
-            var directIndex = layer.mappingInformationType === HX.FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT? index : i;
+        if (layer.referenceInformationType === FbxLayerElement.REFERENCE_TYPE.DIRECT) {
+            var directIndex = layer.mappingInformationType === FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT? index : i;
             target.x = layer.directData[directIndex * numComponents];
             target.y = layer.directData[directIndex * numComponents + 1];
             if (numComponents > 2)
@@ -146,7 +148,7 @@ HX.FBXModelInstanceConverter.prototype =
         }
         // index to direct
         else {
-            var directIndex = layer.mappingInformationType === HX.FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT? layer.indexData[index] : layer.indexData[i];
+            var directIndex = layer.mappingInformationType === FbxLayerElement.MAPPING_TYPE.BY_CONTROL_POINT? layer.indexData[index] : layer.indexData[i];
             target.x = layer.directData[directIndex * numComponents];
             target.y = layer.directData[directIndex * numComponents + 1];
             if (numComponents > 2)
@@ -158,7 +160,7 @@ HX.FBXModelInstanceConverter.prototype =
     _splitPerMaterial: function()
     {
         for (var i = 0; i < this._expandedMesh.numMaterials; ++i)
-            this._perMaterialData[i] = new HX.FBXModelInstanceConverter._PerMaterialData();
+            this._perMaterialData[i] = new FBXModelInstanceConverter._PerMaterialData();
 
         // todo: change this expansion
         var i = 0, j = 0;
@@ -323,16 +325,16 @@ HX.FBXModelInstanceConverter.prototype =
 
             var stackSize = data.indexStack.length;
             for (var j = 0; j < stackSize; ++j) {
-                var meshData = HX.MeshData.createDefaultEmpty();
-                if (this._expandedMesh.hasColor) meshData.addVertexAttribute("hx_vertexColor", 3);
+                var mesh = HX.Mesh.createDefaultEmpty();
+                if (this._expandedMesh.hasColor) mesh.addVertexAttribute("hx_vertexColor", 3);
 
-                meshData.setVertexData(data.vertexStack[j], 0);
-                meshData.setIndexData(data.indexStack[j]);
+                mesh.setVertexData(data.vertexStack[j], 0);
+                mesh.setIndexData(data.indexStack[j]);
 
                 if (this._useSkinning) {
-                    meshData.addVertexAttribute("hx_boneIndices", 4, 1);
-                    meshData.addVertexAttribute("hx_boneWeights", 4, 1);
-                    meshData.setVertexData(data.skinningStack[j], 1);
+                    mesh.addVertexAttribute("hx_boneIndices", 4, 1);
+                    mesh.addVertexAttribute("hx_boneWeights", 4, 1);
+                    mesh.setVertexData(data.skinningStack[j], 1);
                 }
 
                 var ctrlPoints = data.ctrlPointStack[j];
@@ -348,12 +350,10 @@ HX.FBXModelInstanceConverter.prototype =
                 var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
                 if (!this._expandedMesh.hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
                 var generator = new HX.NormalTangentGenerator();
-                generator.generate(meshData, mode);
-                this._modelData.addMeshData(meshData);
+                generator.generate(mesh, mode);
+                this._model.addMesh(mesh);
             }
         }
-
-        this._model = new HX.Model(this._modelData);
     },
 
     _generateSkinningData: function(fbxMesh, geometryMatrix)
@@ -363,12 +363,12 @@ HX.FBXModelInstanceConverter.prototype =
         if (len > 1) throw new Error("Multiple skins not supported");
 
         this._animationConverter.convertSkin(fbxMesh.deformers[0], geometryMatrix);
-        this._modelData.skeleton = this._animationConverter.skeleton;
+        this._model.skeleton = this._animationConverter.skeleton;
         this._useSkinning = true;
     }
 };
 
-HX.FBXModelInstanceConverter._ExpandedMesh = function()
+FBXModelInstanceConverter._ExpandedMesh = function()
 {
     this.vertices = null;
     this.hasColor = false;
@@ -377,13 +377,13 @@ HX.FBXModelInstanceConverter._ExpandedMesh = function()
     this.numMaterials = 0;
 };
 
-HX.FBXModelInstanceConverter._JointBinding = function()
+FBXModelInstanceConverter._JointBinding = function()
 {
     this.jointIndex = 0;
     this.jointWeight = 0;
 };
 
-HX.FBXModelInstanceConverter._Vertex = function()
+FBXModelInstanceConverter._Vertex = function()
 {
     this.pos = new HX.Float4();
     this.uv = null;
@@ -396,7 +396,7 @@ HX.FBXModelInstanceConverter._Vertex = function()
     this.lastVertex = false;
 };
 
-HX.FBXModelInstanceConverter._Vertex.prototype =
+FBXModelInstanceConverter._Vertex.prototype =
 {
     // instead of actually using the values, we should use the indices as keys
     getHash: function()
@@ -420,7 +420,7 @@ HX.FBXModelInstanceConverter._Vertex.prototype =
     }
 };
 
-HX.FBXModelInstanceConverter._PerMaterialData = function()
+FBXModelInstanceConverter._PerMaterialData = function()
 {
     this.indexCounter = 0;
     this.vertexStack = [];
@@ -433,3 +433,5 @@ HX.FBXModelInstanceConverter._PerMaterialData = function()
     this.ctrlPointIndices = null;
     this.indexLookUp = {};
 };
+
+export {FBXModelInstanceConverter};

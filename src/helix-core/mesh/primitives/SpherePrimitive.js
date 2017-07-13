@@ -1,6 +1,13 @@
-HX.SpherePrimitive = HX.Primitive.define();
+import {Primitive} from "./Primitive";
 
-HX.SpherePrimitive._generate = function(target, definition)
+function SpherePrimitive(definition)
+{
+    Primitive.call(this, definition);
+}
+
+SpherePrimitive.prototype = Object.create(Primitive.prototype);
+
+SpherePrimitive.prototype._generate = function(target, definition)
 {
     definition = definition || {};
     var numSegmentsW = definition.numSegmentsW || 16;
@@ -65,3 +72,5 @@ HX.SpherePrimitive._generate = function(target, definition)
         }
     }
 };
+
+export { SpherePrimitive };

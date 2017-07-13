@@ -1,4 +1,4 @@
-HX.FbxObject = function()
+function FbxObject()
 {
     this.name = null;
     this.UID = null;
@@ -6,9 +6,9 @@ HX.FbxObject = function()
 
     // can be use for marking during parsing
     this.data = null;
-};
+}
 
-HX.FbxObject.prototype =
+FbxObject.prototype =
 {
     connectObject: function(obj)
     {
@@ -35,4 +35,6 @@ HX.FbxObject.prototype =
     }
 };
 
-HX.FbxObject.prototype.toString = function() { return "[FbxObject(name="+this.name+")]"; };
+FbxObject.prototype.toString = function() { return "[FbxObject(name="+this.name+")]"; };
+
+export {FbxObject};

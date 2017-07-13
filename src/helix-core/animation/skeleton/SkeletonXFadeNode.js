@@ -2,26 +2,29 @@
  * This is generally the node you probably want to be using for simple crossfading between animations.
  * @constructor
  */
-HX.SkeletonXFadeNode = function()
+import {AnimationClip} from "./../AnimationClip";
+import {SkeletonClipNode} from "./SkeletonClipNode";
+import {SkeletonBlendNode} from "./SkeletonBlendNode";
+import {MathX as Float4} from "../../math/MathX";
+
+function SkeletonXFadeNode()
 {
-    HX.SkeletonBlendNode.call(this);
+    SkeletonBlendNode.call(this);
     this._children = [];
     this._numJoints = 0;
 
-    // TODO: Add the possibility to sync times!
+    // TODO: Add the possibility to sync times, useful for syncing walk -> run!
     // in this case, the clips should have their timesteps recalculated
 };
 
-HX.SkeletonXFadeNode.prototype = Object.create(HX.SkeletonBlendNode.prototype, {
+SkeletonXFadeNode.prototype = Object.create(SkeletonBlendNode.prototype, {
     numJoints: {
         get: function() {return this._numJoints; }
     }
 });
 
-HX.SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
+SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
 {
-    // TODO: Also updates when the time changes the crossfade factor
-
     var len = this._children.length;
 
     // still fading if len > 1
@@ -32,7 +35,7 @@ HX.SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
     for (var i = 0; i < len; ++i) {
         var child = this._children[i];
 
-        updated = child.node.update(dt) || updated;
+        updated = child.node.update(dt, transferRootJoint) || updated;
 
         var w = child.weight + dt * child.fadeSpeed;
 
@@ -52,11 +55,22 @@ HX.SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
     var last = this._children.length - 1;
 
     // work backwards, so we can just override each old state progressively
-    this._pose.copyFrom(this._children[last].node._pose);
+    var childNode = this._children[last].node;
+    var delta = this._rootJointDeltaPosition;
+    var pose = this._pose;
+    pose.copyFrom(childNode._pose);
 
+    if (transferRootJoint)
+        delta.copyFrom(childNode._rootJointDeltaPosition);
+    
     for (i = last - 1; i >= 0; --i) {
         child = this._children[i];
-        this._pose.interpolate(this._pose, child.node._pose, child.weight);
+        childNode = child.node;
+
+        if (transferRootJoint)
+            Float4.lerp(delta, childNode._rootJointDeltaPosition, child.weight, delta);
+
+        pose.interpolate(pose, childNode._pose, child.weight);
     }
 
     return true;
@@ -66,9 +80,9 @@ HX.SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
  * @param node A SkeletonBlendTreeNode or a clip.
  * @param time In milliseconds
  */
-HX.SkeletonXFadeNode.prototype.fadeTo = function(node, time)
+SkeletonXFadeNode.prototype.fadeTo = function(node, time)
 {
-    if (node instanceof HX.SkeletonClip) node = new HX.SkeletonClipNode(node);
+    if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
 
     this._numJoints = node.numJoints;
     // put the new one in front, it makes the update loop more efficient
@@ -78,3 +92,5 @@ HX.SkeletonXFadeNode.prototype.fadeTo = function(node, time)
         fadeSpeed: 1 / time
     });
 };
+
+export { SkeletonXFadeNode };

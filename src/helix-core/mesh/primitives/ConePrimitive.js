@@ -1,14 +1,13 @@
-HX.ConePrimitive = HX.Primitive.define();
+import {Primitive} from "./Primitive";
 
-/**
- * The alignment dictates which access should be parallel to the sides of the cylinder
- * @type {number}
- */
-HX.ConePrimitive.ALIGN_X = 1;
-HX.ConePrimitive.ALIGN_Y = 2;
-HX.ConePrimitive.ALIGN_Z = 3;
+function ConePrimitive(definition)
+{
+    Primitive.call(this, definition);
+}
 
-HX.ConePrimitive._generate = function(target, definition)
+ConePrimitive.prototype = Object.create(Primitive.prototype);
+
+ConePrimitive.prototype._generate = function(target, definition)
 {
     definition = definition || {};
     var numSegmentsH = definition.numSegmentsH || 1;
@@ -86,3 +85,5 @@ HX.ConePrimitive._generate = function(target, definition)
     for (ci = 1; ci < numSegmentsW - 1; ++ci)
         indices.push(indexOffset, indexOffset + ci, indexOffset + ci + 1);
 };
+
+export { ConePrimitive };

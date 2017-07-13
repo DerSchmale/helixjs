@@ -1,114 +1,139 @@
+import {GBuffer} from "../render/GBuffer";
 /**
  *
  * @type {{}}
  */
-HX.TextureSetter = {};
+export var TextureSetter = {
+    getSettersPerPass: function (materialPass)
+    {
+        if (TextureSetter._passTable === undefined)
+            TextureSetter._init();
 
-HX.TextureSetter.getSettersPerPass = function(materialPass)
-{
-    if (HX.TextureSetter._passTable === undefined)
-        HX.TextureSetter._init();
+        return TextureSetter._findSetters(materialPass, TextureSetter._passTable);
+    },
 
-    return HX.TextureSetter._findSetters(materialPass, HX.TextureSetter._passTable);
-};
+    getSettersPerInstance: function (materialPass)
+    {
+        if (TextureSetter._instanceTable === undefined)
+            TextureSetter._init();
 
-HX.TextureSetter.getSettersPerInstance = function(materialPass)
-{
-    if (HX.TextureSetter._instanceTable === undefined)
-        HX.TextureSetter._init();
+        return TextureSetter._findSetters(materialPass, TextureSetter._instanceTable);
+    },
 
-    return HX.TextureSetter._findSetters(materialPass, HX.TextureSetter._instanceTable);
-};
+    _findSetters: function (materialPass, table)
+    {
+        var setters = [];
+        for (var slotName in table) {
+            if (!table.hasOwnProperty(slotName)) continue;
+            var slot = materialPass.getTextureSlot(slotName);
+            if (!slot) continue;
+            var setter = new table[slotName]();
+            setters.push(setter);
+            setter.slot = slot;
+        }
 
-HX.TextureSetter._findSetters = function(materialPass, table)
-{
-    var setters = [];
-    for (var slotName in table) {
-        if (!table.hasOwnProperty(slotName)) continue;
-        var slot = materialPass.getTextureSlot(slotName);
-        if (!slot) continue;
-        var setter = new table[slotName]();
-        setters.push(setter);
-        setter.slot = slot;
+        return setters;
+    },
+
+    _init: function()
+    {
+        TextureSetter._passTable = {};
+        TextureSetter._instanceTable = {};
+
+        TextureSetter._passTable.hx_gbufferAlbedo = GBufferAlbedoSetter;
+        TextureSetter._passTable.hx_gbufferNormalDepth = GBufferNormalDepthSetter;
+        TextureSetter._passTable.hx_gbufferSpecular = GBufferSpecularSetter;
+        TextureSetter._passTable.hx_backbuffer = BackbufferSetter;
+        TextureSetter._passTable.hx_frontbuffer = FrontbufferSetter;
+        TextureSetter._passTable.hx_lightAccumulation = LightAccumulationSetter;
+        TextureSetter._passTable.hx_ssao = SSAOSetter;
+
+        TextureSetter._instanceTable.hx_skinningTexture = SkinningTextureSetter;
     }
-
-    return setters;
 };
 
-
-HX.TextureSetter._init = function()
-{
-    HX.TextureSetter._passTable = {};
-    HX.TextureSetter._instanceTable = {};
-
-    HX.TextureSetter._passTable.hx_normalDepth = HX.NormalDepthSetter;
-    HX.TextureSetter._passTable.hx_backbuffer = HX.BackbufferSetter;
-    HX.TextureSetter._passTable.hx_frontbuffer = HX.FrontbufferSetter;
-    HX.TextureSetter._passTable.hx_ssao = HX.SSAOSetter;
-
-    HX.TextureSetter._instanceTable.hx_morphPositionsTexture = HX.MorphPositionsTextureSetter;
-    HX.TextureSetter._instanceTable.hx_skinningTexture = HX.SkinningTextureSetter;
-};
 
 // Texture setters can be either per pass or per instance. The execute method gets passed eithter the renderer or the
 // render item, respectively.
 
-HX.NormalDepthSetter = function()
+function GBufferAlbedoSetter()
 {
+}
+
+GBufferAlbedoSetter.prototype.execute = function (renderer)
+{
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer.textures[GBuffer.ALBEDO];
 };
 
-HX.NormalDepthSetter.prototype.execute = function (renderer)
+
+function GBufferNormalDepthSetter()
 {
-    if (renderer._normalDepthTexture)
-        this.slot.texture = renderer._normalDepthTexture;
+}
+
+GBufferNormalDepthSetter.prototype.execute = function (renderer)
+{
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer.textures[GBuffer.NORMAL_DEPTH];
 };
 
 
-HX.FrontbufferSetter = function()
+function GBufferSpecularSetter()
 {
+}
+
+GBufferSpecularSetter.prototype.execute = function (renderer)
+{
+    if (renderer._gbuffer)
+        this.slot.texture = renderer._gbuffer.textures[GBuffer.SPECULAR];
 };
 
-HX.FrontbufferSetter.prototype.execute = function (renderer)
+
+function FrontbufferSetter()
+{
+}
+
+FrontbufferSetter.prototype.execute = function (renderer)
 {
     if (renderer._hdrFront)
         this.slot.texture = renderer._hdrFront.texture;
 };
 
-HX.BackbufferSetter = function()
+function BackbufferSetter()
 {
+}
+
+BackbufferSetter.prototype.execute = function (renderer)
+{
+    if (renderer._hdrBack)
+        this.slot.texture = renderer._hdrBack.texture;
 };
 
-HX.BackbufferSetter.prototype.execute = function (renderer)
+function LightAccumulationSetter()
+{
+}
+
+LightAccumulationSetter.prototype.execute = function (renderer)
 {
     if (renderer._hdrBack)
         this.slot.texture = renderer._hdrBack.texture;
 };
 
 
-HX.SSAOSetter = function()
+function SSAOSetter()
 {
-};
+}
 
-HX.SSAOSetter.prototype.execute = function (renderer)
+SSAOSetter.prototype.execute = function (renderer)
 {
     this.slot.texture = renderer._ssaoTexture;
 };
 
-
-HX.MorphPositionsTextureSetter = function()
+function SkinningTextureSetter()
 {
-};
+}
 
-HX.MorphPositionsTextureSetter.prototype.execute = function (renderItem)
-{
-    this.slot.texture = renderItem.meshInstance.morphPose.positionTexture;
-};
-
-HX.SkinningTextureSetter = function()
-{
-};
-
-HX.SkinningTextureSetter.prototype.execute = function (renderItem)
+SkinningTextureSetter.prototype.execute = function (renderItem)
 {
     this.slot.texture = renderItem.skeletonMatrices;
 };

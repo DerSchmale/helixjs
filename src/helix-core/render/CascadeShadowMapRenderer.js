@@ -2,11 +2,26 @@
  *
  * @constructor
  */
-HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
+import {DirectionalLight} from "../light/DirectionalLight";
+import {TextureFilter, TextureWrapMode, META} from "../Helix";
+import {Color} from "../core/Color";
+import {Matrix4x4} from "../math/Matrix4x4";
+import {BoundingAABB} from "../scene/BoundingAABB";
+import {MaterialPass} from "../material/MaterialPass";
+import {CascadeShadowCasterCollector} from "./CascadeShadowCasterCollector";
+import {OrthographicOffCenterCamera} from "../camera/OrthographicOffCenterCamera";
+import {GL} from "../core/GL";
+import {Float4} from "../math/Float4";
+import {RectMesh} from "../mesh/RectMesh";
+import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
+import {FrameBuffer} from "../texture/FrameBuffer";
+import {Rect} from "../core/Rect";
+import {Texture2D} from "../texture/Texture2D";
+import {RenderUtils} from "./RenderUtils";
+
+function CascadeShadowMapRenderer(light, shadowMapSize)
 {
     this._light = light;
-    this._numCascades = numCascades || 3;
-    if (this._numCascades > 4) this._numCascades = 4;
     this._shadowMapSize = shadowMapSize || 1024;
     this._shadowMapInvalid = true;
     this._fboFront = null;
@@ -14,20 +29,20 @@ HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
     this._depthBuffer = null;   // only used if depth textures aren't supported
 
     this._shadowMap = this._createShadowBuffer();
-    this._shadowBackBuffer = HX.DirectionalLight.SHADOW_FILTER.blurShader? this._createShadowBuffer() : null;
+    this._shadowBackBuffer = DirectionalLight.SHADOW_FILTER.blurShader? this._createShadowBuffer() : null;
 
-    this._shadowMatrices = [ new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4() ];
-    this._transformToUV = [ new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4(), new HX.Matrix4x4() ];
-    this._inverseLightMatrix = new HX.Matrix4x4();
+    this._shadowMatrices = [ new Matrix4x4(), new Matrix4x4(), new Matrix4x4(), new Matrix4x4() ];
+    this._transformToUV = [ new Matrix4x4(), new Matrix4x4(), new Matrix4x4(), new Matrix4x4() ];
+    this._inverseLightMatrix = new Matrix4x4();
     this._splitRatios = null;
     this._splitDistances = null;
     this._shadowMapCameras = null;
-    this._collectorCamera = new HX.OrthographicOffCenterCamera();
+    this._collectorCamera = new OrthographicOffCenterCamera();
     this._minZ = 0;
     this._numCullPlanes = 0;
     this._cullPlanes = [];
-    this._localBounds = new HX.BoundingAABB();
-    this._casterCollector = new HX.CascadeShadowCasterCollector(this._numCascades);
+    this._localBounds = new BoundingAABB();
+    this._casterCollector = new CascadeShadowCasterCollector();
 
     this._initSplitProperties();
     this._initCameras();
@@ -35,23 +50,8 @@ HX.CascadeShadowMapRenderer = function(light, numCascades, shadowMapSize)
     this._viewports = [];
 };
 
-HX.CascadeShadowMapRenderer.prototype =
+CascadeShadowMapRenderer.prototype =
 {
-    get numCascades()
-    {
-        return this._numCascades;
-    },
-
-    set numCascades(value)
-    {
-        if (this._numCascades === value) return;
-        this._numCascades = value;
-        this._invalidateShadowMap();
-        this._initSplitProperties();
-        this._initCameras();
-        this._casterCollector = new HX.CascadeShadowCasterCollector(value);
-    },
-
     get shadowMapSize()
     {
         return this._shadowMapSize;
@@ -76,32 +76,35 @@ HX.CascadeShadowMapRenderer.prototype =
         this._collectShadowCasters(scene);
         this._updateCascadeCameras(viewCamera, this._casterCollector.getBounds());
 
-        HX.setRenderTarget(this._fboFront);
+        GL.setRenderTarget(this._fboFront);
+        var gl = GL.gl;
 
-        var passType = HX.MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
-        HX.setClearColor(HX.Color.WHITE);
-        HX.clear();
+        var passType = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
+        GL.setClearColor(Color.WHITE);
+        GL.clear();
 
-        for (var cascadeIndex = 0; cascadeIndex < this._numCascades; ++cascadeIndex) {
+        var numCascades = META.OPTIONS.numShadowCascades;
+
+        for (var cascadeIndex = 0; cascadeIndex < numCascades; ++cascadeIndex) {
             var viewport = this._viewports[cascadeIndex];
-            HX_GL.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-            HX.RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
+            gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+            RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
         }
 
-        if (HX.DirectionalLight.SHADOW_FILTER.blurShader)
+        if (DirectionalLight.SHADOW_FILTER.blurShader)
             this._blur();
 
-        HX.setRenderTarget();
+        GL.setRenderTarget();
 
-        HX.setClearColor(HX.Color.BLACK);
+        GL.setClearColor(Color.BLACK);
     },
 
     _updateCollectorCamera: function(viewCamera)
     {
         var corners = viewCamera.frustum._corners;
-        var min = new HX.Float4();
-        var max = new HX.Float4();
-        var tmp = new HX.Float4();
+        var min = new Float4();
+        var max = new Float4();
+        var tmp = new Float4();
 
         this._inverseLightMatrix.transformPoint(corners[0], min);
         max.copyFrom(min);
@@ -122,16 +125,17 @@ HX.CascadeShadowMapRenderer.prototype =
 
     _updateSplits: function(viewCamera)
     {
-        var nearDist = viewCamera.nearDistance;
-        var frustumRange = viewCamera.farDistance - nearDist;
-        var plane = new HX.Float4(0.0, 0.0, -1.0, 0.0);
-        var matrix = viewCamera.worldMatrix;
+        return function(viewCamera) {
+            var nearDist = viewCamera.nearDistance;
+            var frustumRange = viewCamera.farDistance - nearDist;
+            var numCascades = META.OPTIONS.numShadowCascades;
 
-        for (var i = 0; i < this._numCascades; ++i) {
-            this._splitDistances[i] = plane.w = -(nearDist + this._splitRatios[i] * frustumRange);
-            matrix.transform(plane, this._splitPlanes[i]);
+            for (var i = 0; i < numCascades; ++i) {
+                var z = nearDist + this._splitRatios[i] * frustumRange;
+                this._splitDistances[i] = -z;
+            }
         }
-    },
+    }(),
 
     _updateCascadeCameras: function(viewCamera, bounds)
     {
@@ -142,17 +146,18 @@ HX.CascadeShadowMapRenderer.prototype =
 
         var scaleSnap = 1.0;	// always scale snap to a meter
 
-        var localNear = new HX.Float4();
-        var localFar = new HX.Float4();
-        var min = new HX.Float4();
-        var max = new HX.Float4();
+        var localNear = new Float4();
+        var localFar = new Float4();
+        var min = new Float4();
+        var max = new Float4();
 
         var corners = viewCamera.frustum.corners;
 
         // camera distances are suboptimal? need to constrain to local near too?
 
         var nearRatio = 0;
-        for (var cascade = 0; cascade < this._numCascades; ++cascade) {
+        var numCascades = META.OPTIONS.numShadowCascades
+        for (var cascade = 0; cascade < numCascades; ++cascade) {
             var farRatio = this._splitRatios[cascade];
             var camera = this._shadowMapCameras[cascade];
 
@@ -219,7 +224,7 @@ HX.CascadeShadowMapRenderer.prototype =
             right = left + width;
             top = bottom + height;
 
-            var softness = HX.DirectionalLight.SHADOW_FILTER.softness ? HX.DirectionalLight.SHADOW_FILTER.softness : .1;
+            var softness = DirectionalLight.SHADOW_FILTER.softness ? DirectionalLight.SHADOW_FILTER.softness : .1;
 
             camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 
@@ -252,14 +257,14 @@ HX.CascadeShadowMapRenderer.prototype =
             var plane = planes[j];
 
             // view frustum planes facing away from the light direction mark a boundary beyond which no shadows need to be known
-            if (HX.dot3(plane, dir) > 0.001)
+            if (Float4.dot3(plane, dir) > 0.001)
                 this._cullPlanes[this._numCullPlanes++] = plane;
         }
     },
 
     _collectShadowCasters: function(scene)
     {
-        this._casterCollector.setSplitPlanes(this._splitPlanes);
+        // this._casterCollector.setSplitPlanes(this._splitPlanes);
         this._casterCollector.setCullPlanes(this._cullPlanes, this._numCullPlanes);
         this._casterCollector.setRenderCameras(this._shadowMapCameras);
         this._casterCollector.collect(this._collectorCamera, scene);
@@ -297,31 +302,32 @@ HX.CascadeShadowMapRenderer.prototype =
 
     _initShadowMap: function()
     {
-        var numMapsW = this._numCascades > 1? 2 : 1;
-        var numMapsH = Math.ceil(this._numCascades / 2);
+        var numCascades = META.OPTIONS.numShadowCascades;
+        var numMapsW = numCascades > 1? 2 : 1;
+        var numMapsH = Math.ceil(numCascades / 2);
 
         var texWidth = this._shadowMapSize * numMapsW;
         var texHeight = this._shadowMapSize * numMapsH;
 
-        this._shadowMap.initEmpty(texWidth, texHeight, HX.DirectionalLight.SHADOW_FILTER.getShadowMapFormat(), HX.DirectionalLight.SHADOW_FILTER.getShadowMapDataType());
-        if (!this._depthBuffer) this._depthBuffer = new HX.WriteOnlyDepthBuffer();
-        if (!this._fboFront) this._fboFront = new HX.FrameBuffer(this._shadowMap, this._depthBuffer);
+        this._shadowMap.initEmpty(texWidth, texHeight, DirectionalLight.SHADOW_FILTER.getShadowMapFormat(), DirectionalLight.SHADOW_FILTER.getShadowMapDataType());
+        if (!this._depthBuffer) this._depthBuffer = new WriteOnlyDepthBuffer();
+        if (!this._fboFront) this._fboFront = new FrameBuffer(this._shadowMap, this._depthBuffer);
 
         this._depthBuffer.init(texWidth, texHeight, false);
         this._fboFront.init();
         this._shadowMapInvalid = false;
 
         if (this._shadowBackBuffer) {
-            this._shadowBackBuffer.initEmpty(texWidth, texHeight, HX.DirectionalLight.SHADOW_FILTER.getShadowMapFormat(), HX.DirectionalLight.SHADOW_FILTER.getShadowMapDataType());
-            if (!this._fboBack) this._fboBack = new HX.FrameBuffer(this._shadowBackBuffer, this._depthBuffer);
+            this._shadowBackBuffer.initEmpty(texWidth, texHeight, DirectionalLight.SHADOW_FILTER.getShadowMapFormat(), DirectionalLight.SHADOW_FILTER.getShadowMapDataType());
+            if (!this._fboBack) this._fboBack = new FrameBuffer(this._shadowBackBuffer, this._depthBuffer);
             this._fboBack.init();
         }
 
         this._viewports = [];
-        this._viewports.push(new HX.Rect(0, 0, this._shadowMapSize, this._shadowMapSize));
-        this._viewports.push(new HX.Rect(this._shadowMapSize, 0, this._shadowMapSize, this._shadowMapSize));
-        this._viewports.push(new HX.Rect(0, this._shadowMapSize, this._shadowMapSize, this._shadowMapSize));
-        this._viewports.push(new HX.Rect(this._shadowMapSize, this._shadowMapSize, this._shadowMapSize, this._shadowMapSize));
+        this._viewports.push(new Rect(0, 0, this._shadowMapSize, this._shadowMapSize));
+        this._viewports.push(new Rect(this._shadowMapSize, 0, this._shadowMapSize, this._shadowMapSize));
+        this._viewports.push(new Rect(0, this._shadowMapSize, this._shadowMapSize, this._shadowMapSize));
+        this._viewports.push(new Rect(this._shadowMapSize, this._shadowMapSize, this._shadowMapSize, this._shadowMapSize));
 
         this._initViewportMatrices(1.0 / numMapsW, 1.0 / numMapsH);
     },
@@ -330,29 +336,30 @@ HX.CascadeShadowMapRenderer.prototype =
     {
         var ratio = 1.0;
         this._splitRatios = [];
-        this._splitDistances = [0, 0, 0, 0];
+        this._splitDistances = [];
         this._splitPlanes = [];
-        for (var i = this._numCascades - 1; i >= 0; --i)
+
+        for (var i = META.OPTIONS.numShadowCascades - 1; i >= 0; --i)
         {
             this._splitRatios[i] = ratio;
-            this._splitPlanes[i] = new HX.Float4();
+            this._splitPlanes[i] = new Float4();
             this._splitDistances[i] = 0;
-            ratio *= .33;
+            ratio *= .5;
         }
     },
 
     _initCameras: function()
     {
         this._shadowMapCameras = [];
-        for (var i = this._numCascades - 1; i >= 0; --i)
+        for (var i = 0; i < META.OPTIONS.numShadowCascades; ++i)
         {
-            this._shadowMapCameras[i] = new HX.OrthographicOffCenterCamera();
+            this._shadowMapCameras[i] = new OrthographicOffCenterCamera();
         }
     },
 
     _initViewportMatrices: function(scaleW, scaleH)
     {
-        var halfVec = new HX.Float4(.5,.5,.5);
+        var halfVec = new Float4(.5,.5,.5);
         for (var i = 0; i < 4; ++i) {
             // transform [-1, 1] to [0 - 1] (also for Z)
             this._transformToUV[i].fromScale(.5);
@@ -362,34 +369,36 @@ HX.CascadeShadowMapRenderer.prototype =
             this._transformToUV[i].appendScale(scaleW, scaleH, 1.0);
         }
 
-        this._transformToUV[1].appendTranslation(new HX.Float4(0.5, 0.0, 0.0));
-        this._transformToUV[2].appendTranslation(new HX.Float4(0.0, 0.5, 0.0));
-        this._transformToUV[3].appendTranslation(new HX.Float4(0.5, 0.5, 0.0));
+        this._transformToUV[1].appendTranslation(new Float4(0.5, 0.0, 0.0));
+        this._transformToUV[2].appendTranslation(new Float4(0.0, 0.5, 0.0));
+        this._transformToUV[3].appendTranslation(new Float4(0.5, 0.5, 0.0));
     },
 
     _createShadowBuffer: function()
     {
-        var tex = new HX.Texture2D();
-        //tex.filter = HX.TextureFilter.NEAREST_NOMIP;
+        var tex = new Texture2D();
+        //tex.filter = TextureFilter.NEAREST_NOMIP;
         // while filtering doesn't actually work on encoded values, it looks much better this way since at least it can filter
         // the MSB, which is useful for ESM etc
-        tex.filter = HX.TextureFilter.BILINEAR_NOMIP;
-        tex.wrapMode = HX.TextureWrapMode.CLAMP;
+        tex.filter = TextureFilter.BILINEAR_NOMIP;
+        tex.wrapMode = TextureWrapMode.CLAMP;
         return tex;
     },
 
     _blur: function()
     {
-        var shader = HX.DirectionalLight.SHADOW_FILTER.blurShader;
+        var shader = DirectionalLight.SHADOW_FILTER.blurShader;
 
-        for (var i = 0; i < HX.DirectionalLight.SHADOW_FILTER.numBlurPasses; ++i) {
-            HX.setRenderTarget(this._fboBack);
-            HX.clear();
-            shader.execute(HX.RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
+        for (var i = 0; i < DirectionalLight.SHADOW_FILTER.numBlurPasses; ++i) {
+            GL.setRenderTarget(this._fboBack);
+            GL.clear();
+            shader.execute(RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
 
-            HX.setRenderTarget(this._fboFront);
-            HX.clear();
-            shader.execute(HX.RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);
+            GL.setRenderTarget(this._fboFront);
+            GL.clear();
+            shader.execute(RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);
         }
     }
 };
+
+export { CascadeShadowMapRenderer };

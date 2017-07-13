@@ -2,19 +2,25 @@
  * BasicMaterial is the default physically plausible rendering material.
  * @constructor
  */
-HX.BasicMaterial = function(options)
+import {Color} from "../core/Color";
+import {capabilities, CullMode} from "../Helix";
+import {Material} from "./Material";
+import {MaterialPass} from "./MaterialPass";
+import {MathX} from "../math/MathX";
+import {ShaderLibrary} from "../shader/ShaderLibrary";
+function BasicMaterial(options)
 {
-    HX.Material.call(this);
+    Material.call(this);
 
     options = options || {};
 
-    this._color = options.color || new HX.Color(1, 1, 1, 1);
+    this._color = options.color || new Color(1, 1, 1, 1);
     this._colorMap = options.colorMap || null;
     this._doubleSided = !!options.doubleSided;
     this._normalMap = options.normalMap || null;
     this._specularMap = options.specularMap || null;
     this._maskMap = options.maskMap || null;
-    this._specularMapMode = options.specularMapMode || HX.BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
+    this._specularMapMode = options.specularMapMode || BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
     this._metallicness = options.metallicness === undefined? 0.0 : options.metallicness;
     this._alpha = options.alpha === undefined? 1.0 : options.alpha;
     this._roughness = options.roughness === undefined ? 0.5 : options.roughness;
@@ -34,7 +40,7 @@ HX.BasicMaterial = function(options)
         this.lightingModel = options.lightingModel;
 };
 
-HX.BasicMaterial.roughnessFromShininess = function(specularPower)
+BasicMaterial.roughnessFromShininess = function(specularPower)
 {
     return Math.sqrt(2.0/(specularPower + 2.0));
 };
@@ -42,18 +48,18 @@ HX.BasicMaterial.roughnessFromShininess = function(specularPower)
 /**
  * used for specularMapMode to specify the specular map only uses roughness data
  */
-HX.BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
+BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
 /**
  * used for specularMapMode to specify the specular map has rgb channels containing roughness, normal reflectance and metallicness, respectively
  */
-HX.BasicMaterial.SPECULAR_MAP_ALL = 2;
+BasicMaterial.SPECULAR_MAP_ALL = 2;
 /**
  * used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
  */
-HX.BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
+BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 
-HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
+BasicMaterial.prototype = Object.create(Material.prototype,
     {
         doubleSided: {
             get: function()
@@ -65,9 +71,9 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             {
                 this._doubleSided = value;
 
-                for (var i = 0; i < HX.MaterialPass.NUM_PASS_TYPES; ++i) {
+                for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
                     if (this._passes[i])
-                        this._passes[i].cullMode = value ? HX.CullMode.NONE : HX.CullMode.BACK;
+                        this._passes[i].cullMode = value ? CullMode.NONE : CullMode.BACK;
                 }
             }
         },
@@ -79,7 +85,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             },
             set: function (value)
             {
-                this._alpha = HX.saturate(value);
+                this._alpha = MathX.saturate(value);
                 this.setUniform("alpha", this._alpha);
             }
         },
@@ -106,7 +112,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             },
             set: function (value)
             {
-                this._color = isNaN(value) ? value : new HX.Color(value);
+                this._color = isNaN(value) ? value : new Color(value);
                 this.setUniform("color", this._color);
             }
         },
@@ -201,7 +207,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             },
             set: function (value)
             {
-                this._metallicness = HX.saturate(value);
+                this._metallicness = MathX.saturate(value);
                 this.setUniform("metallicness", this._metallicness);
             }
         },
@@ -213,7 +219,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             },
             set: function (value)
             {
-                this._normalSpecularReflectance = HX.saturate(value);
+                this._normalSpecularReflectance = MathX.saturate(value);
                 this.setUniform("normalSpecularReflectance", this._normalSpecularReflectance);
             }
         },
@@ -254,7 +260,7 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
             {
                 get: function() { return this._alphaThreshold; },
                 set: function(value) {
-                    value = HX.saturate(value);
+                    value = MathX.saturate(value);
                     if ((this._alphaThreshold === 1.0) !== (value === 1.0))
                         this._invalidate();
 
@@ -265,17 +271,17 @@ HX.BasicMaterial.prototype = Object.create(HX.Material.prototype,
     }
 );
 
-HX.BasicMaterial.prototype.init = function()
+BasicMaterial.prototype.init = function()
 {
     var defines = this._generateDefines();
 
-    this._geometryVertexShader = HX.ShaderLibrary.get("default_geometry_vertex.glsl", defines);
-    this._geometryFragmentShader = HX.ShaderLibrary.get("default_geometry_fragment.glsl", defines);
+    this._geometryVertexShader = ShaderLibrary.get("default_geometry_vertex.glsl", defines);
+    this._geometryFragmentShader = ShaderLibrary.get("default_geometry_fragment.glsl", defines);
 
-    HX.Material.prototype.init.call(this);
+    Material.prototype.init.call(this);
 };
 
-HX.BasicMaterial.prototype._generateDefines = function()
+BasicMaterial.prototype._generateDefines = function()
 {
     var defines = {};
     if (this._colorMap) defines.COLOR_MAP = 1;
@@ -283,14 +289,17 @@ HX.BasicMaterial.prototype._generateDefines = function()
     if (this._normalMap) defines.NORMAL_MAP = 1;
     if (this._maskMap) defines.MASK_MAP = 1;
     if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
-    if (this._useSkinning) defines.USE_SKINNING = 1;
-    if (this._useMorphing) defines.USE_MORPHING = 1;
+    if (this._useSkinning) defines.HX_USE_SKINNING = 1;
+    if (this._useMorphing) {
+        defines.HX_USE_MORPHING = 1;
+        defines.HX_NUM_MORPH_TARGETS = capabilities.NUM_MORPH_TARGETS;
+    }
 
     switch (this._specularMapMode) {
-        case HX.BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:
+        case BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:
             if (this._specularMap) defines.ROUGHNESS_MAP = 1;
             break;
-        case HX.BasicMaterial.SPECULAR_MAP_ALL:
+        case BasicMaterial.SPECULAR_MAP_ALL:
             if (this._specularMap) defines.SPECULAR_MAP = 1;
             break;
         default:
@@ -299,10 +308,12 @@ HX.BasicMaterial.prototype._generateDefines = function()
     return defines;
 };
 
-HX.BasicMaterial.prototype._setUseSkinning = function(value)
+BasicMaterial.prototype._setUseSkinning = function(value)
 {
     if (this._useSkinning !== value)
         this._invalidate();
 
     this._useSkinning = value;
 };
+
+export { BasicMaterial };

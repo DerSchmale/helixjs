@@ -1,13 +1,17 @@
-HX.RenderUtils =
+import {GL} from "../core/GL";
+
+export var RenderUtils =
 {
     /**
      * @param renderer The actual renderer doing the rendering.
      * @param passType
      * @param renderItems
+     * @param data (optional) depending on the type of pass being rendered, data could contain extra stuff to be injected
+     * For example. Dynamic dir lights will use this
      * @returns The index for the first unrendered renderItem in the list
      * @private
      */
-    renderPass: function (renderer, passType, renderItems)
+    renderPass: function (renderer, passType, renderItems, data)
     {
         var len = renderItems.length;
         var activePass = null;
@@ -20,25 +24,24 @@ HX.RenderUtils =
             if (!pass) continue;
             var meshInstance = renderItem.meshInstance;
 
-            // make sure renderstate is propagated
-            pass.updateInstanceRenderState(renderItem.camera, renderItem);
-
             if (pass !== activePass) {
-                pass.updatePassRenderState(renderer);
+                pass.updatePassRenderState(renderItem.camera, renderer, data);
                 activePass = pass;
-
                 lastMesh = null;    // need to reset mesh data too
             }
+
+            // make sure renderstate is propagated
+            pass.updateInstanceRenderState(renderItem.camera, renderItem, data);
 
             if (lastMesh !== meshInstance._mesh) {
                 meshInstance.updateRenderState(passType);
                 lastMesh = meshInstance._mesh;
             }
 
-            HX.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
+            GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
         }
 
-        HX.setBlendState(null);
+        GL.setBlendState(null);
         return len;
     }
 };

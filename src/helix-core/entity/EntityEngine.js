@@ -1,14 +1,16 @@
+import { onPreFrame } from '../Helix';
+
 /**
  * Keeps track and updates entities
  * @constructor
  */
-HX.EntityEngine = function()
+function EntityEngine()
 {
     this._updateableEntities = [];
-    HX.onPreFrame.bind(this._update, this);
+    onPreFrame.bind(this._update, this);
 };
 
-HX.EntityEngine.prototype =
+EntityEngine.prototype =
 {
     registerEntity: function(entity)
     {
@@ -51,3 +53,5 @@ HX.EntityEngine.prototype =
             entities[i].update(dt);
     }
 };
+
+export { EntityEngine };

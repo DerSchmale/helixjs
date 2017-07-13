@@ -10,6 +10,7 @@ project.onInit = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
+    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -51,7 +52,6 @@ function initScene(scene)
     var normalMap = textureLoader.load("textures/normals.jpg");
     var specularMap = textureLoader.load("textures/specular.jpg");
     var material = new HX.BasicMaterial();
-    material.lights = [ light1, light2, light3 ];
     material.lightingModel = HX.LightingModel.GGX;
     material.colorMap = albedoMap;
     material.normalMap = normalMap;

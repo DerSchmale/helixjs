@@ -97,7 +97,6 @@ float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
 
     hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;
 
-    // TODO: fade out last samples
     amount *= clamp((1.0 - (sampleCount - float(NUM_SAMPLES)) / float(NUM_SAMPLES)) * 5.0, 0.0, 1.0);
     return amount;
 }

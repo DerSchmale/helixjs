@@ -1,11 +1,18 @@
 import * as HX from 'helix';
 
-/**
- * The options property supports the following settings:
- * - groupsAsObjects
- * @constructor
- */
 function OBJ()
+/**
+ * @classdesc
+ * OBJ is an importer for the Wavefront OBJ format.
+ * The options property supports the following settings:
+ * <ul>
+ * <li>groupsAsObjects: Specifies whether group tags should be treated as separate scene graph objects (true) or as separate Mesh objects (false). Defaults to true.</li>
+ * </ul>
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 {
     HX.Importer.call(this, HX.SceneNode);
     this._objects = [];

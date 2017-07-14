@@ -16,11 +16,25 @@ function AssetLoader(ImporterType)
     // this can either be listened to, or overwritten by a function
     this.onComplete = new Signal();
     this.onFail = new Signal();
+
+    /**
+     * Key/value pairs that allows replacing file names with new ones.
+     */
     this.fileMap = {};
+
+    /**
+     * Key/value pairs that specify options to be passed on to the Importers. See the importer documentation for details
+     * on which options can be set.
+     */
     this.options = {};
+
     this._headers = {};
+
     this._importerType = ImporterType;
-    // used for images
+
+    /**
+     * Allow setting a cross-origin string when loading images.
+     */
     this.crossOrigin = undefined;
 }
 

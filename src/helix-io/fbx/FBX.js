@@ -5,7 +5,9 @@ import {FBXConverter} from "./FBXConverter";
 import {FBXSettings} from "./FBXSettings";
 
 /**
- * FBX is an importer for Autodesk FBX formats. Animations are currently broken.
+ * @classdesc
+ * FBX is an importer for Autodesk FBX files. Animations are currently broken.
+ *
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>

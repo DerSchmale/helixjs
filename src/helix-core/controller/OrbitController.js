@@ -121,7 +121,7 @@ OrbitController.prototype.onAdded = function()
             var dy = touch1.screenY - touch2.screenY;
             var dist = Math.sqrt(dx*dx + dy*dy);
             var diff = self._startPitchDistance - dist;
-            self.radius = self._startZoom + diff * this.touchZoomSpeed;
+            self.radius = self._startZoom + diff * self.touchZoomSpeed;
         }
     };
 

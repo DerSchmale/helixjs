@@ -410,12 +410,19 @@ MD5Anim._FrameData = function()
     this.components = [];
 };
 
-/**
- * The options property supports the following settings:
- * - groupsAsObjects
- * @constructor
- */
 function OBJ()
+/**
+ * @classdesc
+ * OBJ is an importer for the Wavefront OBJ format.
+ * The options property supports the following settings:
+ * <ul>
+ * <li>groupsAsObjects: Specifies whether group tags should be treated as separate scene graph objects (true) or as separate Mesh objects (false). Defaults to true.</li>
+ * </ul>
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 {
     HX$1.Importer.call(this, HX$1.SceneNode);
     this._objects = [];
@@ -2955,7 +2962,9 @@ FBXSettings.prototype =
 };
 
 /**
- * FBX is an importer for Autodesk FBX formats. Animations are currently broken.
+ * @classdesc
+ * FBX is an importer for Autodesk FBX files. Animations are currently broken.
+ *
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>

@@ -11,10 +11,17 @@ import {Entity} from "../entity/Entity";
  * <p>ModelInstance creates a matching {@linkcode MeshInstance} for each {@linkcode Mesh} in the {@linkcode Model}, in
  * which the {@linkcode Mesh} is linked with its {@linkcode Material}.
  *
+ * @property {Model} model The model to use as the geometry
+ * @property {boolean} castShadows Defines whether or not this ModelInstance should cast shadows.
+ * @property {number} numMeshInstances The amount of MeshInstance objects.
+ * @property {Skeleton} skeleton The skeleton used for skinning animations.
+ * @property {MorphPose} morphPose The MorphPose object defining the current morph target state.
+ *
  * @constructor
  * @param model The {@linkcode Model} to use as the geometry
  * @param materials Either a single {@linkcode Material} to link to all Meshes in the Model, or an array of materials to link to the meshes in respective order.
  *
+ * @extends Entity
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -34,17 +41,11 @@ function ModelInstance(model, materials)
 }
 
 ModelInstance.prototype = Object.create(Entity.prototype, {
-    /**
-     * The {@linkcode Model} to use as the geometry
-     */
     model:
         {
             get: function() { return this._model; }
         },
 
-    /**
-     * Defines whether or not this ModelInstance should cast shadows.
-     */
     castShadows: {
         get: function()
         {
@@ -57,9 +58,6 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The amount of MeshInstance objects.
-     */
     numMeshInstances: {
         get: function ()
         {
@@ -67,9 +65,6 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The skeleton used for skinning animations.
-     */
     skeleton: {
         get: function() {
             return this._model.skeleton;
@@ -92,9 +87,6 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The {@linkcode MorphPose} object defining the current morph target state.
-     */
     morphPose: {
         get: function() {
             return this._morphPose;

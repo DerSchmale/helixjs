@@ -9,6 +9,8 @@ import {CenteredGaussianCurve} from "../math/CenteredGaussianCurve";
  * @constructor
  * @param radius The radius of the blur.
  *
+ * @extends EffectPass
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function GaussianBlurPass(radius)

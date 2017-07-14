@@ -12,6 +12,8 @@ import {AssetLibrary} from "./AssetLibrary";
  *
  * @constructor
  *
+ * @extends Importer
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function HMT()

@@ -1,6 +1,8 @@
 /**
  * ImageData provides some utilities for images.
  *
+ * @namespace
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 export var ImageData =

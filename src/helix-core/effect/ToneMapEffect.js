@@ -14,10 +14,16 @@ import {GL} from "../core/GL";
  * @classdesc
  * A base class for tone mapping effects.
  *
+ * @property {number} exposure The exposure value (in "stops"). Higher values will result in brighter results.
+ * @property {number} key The intended average luminosity in the scene. Gives a hint whether the scene should be dark (low-key) or bright (high-key).
+ * @property {number} adaptionRate The amount of time in milliseconds for the "lens" to adapt to the scene's brightness.
+ *
  * @constructor
- * @param adaptive
+ * @param adaptive Defines whether or not the brightness should adapt to the average brightness of the scene. If not supported, it will disable.
  *
  * @ignore
+ *
+ * @extends Effect
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -52,7 +58,7 @@ function ToneMapEffect(adaptive)
 
     this.key = .25;
     this.exposure = 0.0;
-};
+}
 
 ToneMapEffect.prototype = Object.create(Effect.prototype, {
     exposure: {
@@ -68,9 +74,6 @@ ToneMapEffect.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The intended average luminosity in the scene
-     */
     key: {
         get: function()
         {
@@ -84,9 +87,6 @@ ToneMapEffect.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The amount of time in milliseconds for the "lens" to adapt to the frame's exposure.
-     */
     adaptationRate: {
         get: function()
         {

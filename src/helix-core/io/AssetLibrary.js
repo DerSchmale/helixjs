@@ -3,7 +3,6 @@ import {AssetLoader} from "./AssetLoader";
 
 /**
  * @constructor
- * Creates a new AssetLibrary object.
  * @param {string} basePath The base path or url to load the assets from. All filenames will have this value prepended.
  * @param {string} [crossOrigin] An optional cross origin string. This is used when loading images from a different domain.
  *

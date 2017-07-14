@@ -8,6 +8,8 @@ import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
  *
  * @constructor
  *
+ * @extends BoundingVolume
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function BoundingAABB()

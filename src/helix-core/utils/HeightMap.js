@@ -8,6 +8,8 @@ import {RectMesh} from "../mesh/RectMesh";
 /**
  * HeightMap contains some utilities for height maps.
  *
+ * @namespace
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 export var HeightMap =

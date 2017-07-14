@@ -3,6 +3,8 @@ var RCP_LOG_OF_2 = 1.0 / Math.log(2);
 /**
  * Some extra Math functionality for your enjoyment.
  *
+ * @namespace
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 var MathX = {

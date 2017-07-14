@@ -11,6 +11,10 @@ import {META} from "../Helix";
  * DirectionalLight represents a light source that is "infinitely far away", used as an approximation for sun light where
  * locally all sun rays appear to be parallel.
  *
+ * @property {boolean} castShadows Defines whether or not this light casts shadows.
+ * @property {number} shadowMapSize The shadow map size used by this light.
+ * @property {Float4} direction The direction of the light rays.
+ *
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -45,9 +49,6 @@ DirectionalLight._initDeferredShaders = function()
 
 DirectionalLight.prototype = Object.create(Light.prototype,
     {
-        /**
-         * Defines whether or not this light casts shadows.
-         */
         castShadows: {
             get: function()
             {
@@ -69,9 +70,6 @@ DirectionalLight.prototype = Object.create(Light.prototype,
             }
         },
 
-        /**
-         * The shadow map size used by this light.
-         */
         shadowMapSize: {
             get: function()
             {
@@ -85,9 +83,6 @@ DirectionalLight.prototype = Object.create(Light.prototype,
             }
         },
 
-        /**
-         * The direction of the light rays.
-         */
         direction: {
             get: function()
             {

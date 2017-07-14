@@ -8,9 +8,14 @@ import { VSMBlurShader } from './shaders/VSMBlurShader';
  * VarianceDirectionalShadowFilter is a shadow filter that provides variance soft shadow mapping.
  * The implementation is highly experimental at this point.
  *
+ * @property {number} blurRadius The blur radius for the soft shadows.
+ * @property {number} lightBleedReduction A value to counter light bleeding, an artifact of the technique.
+ *
  * @see {@linkcode InitOptions#directionalShadowFilter}
  *
  * @constructor
+ *
+ * @extends ShadowFilter
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -23,9 +28,6 @@ function VarianceDirectionalShadowFilter()
 
 VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
-        /**
-         * The blur radius for the soft shadows.
-         */
         blurRadius: {
             get: function()
             {
@@ -39,9 +41,6 @@ VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype
             }
         },
 
-        /**
-         * A value to counter light bleeding, an artifact of the technique.
-         */
         lightBleedReduction: {
             get: function()
             {

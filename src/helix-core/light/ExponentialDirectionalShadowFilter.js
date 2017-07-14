@@ -8,9 +8,15 @@ import {ESMBlurShader} from "./shaders/ESMBlurShader";
  * ExponentialDirectionalShadowFilter is a shadow filter that provides exponential soft shadow mapping.
  * The implementation is highly experimental at this point.
  *
+ * @property {number} blurRadius The blur radius for the soft shadows.
+ * @property {number} darkeningFactor A darkening factor of the shadows. Counters some artifacts of the technique.
+ * @property {number} expScaleFactor The exponential scale factor. Probably you shouldn't touch this.
+ *
  * @see {@linkcode InitOptions#directionalShadowFilter}
  *
  * @constructor
+ *
+ * @extends ShadowFilter
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -25,9 +31,6 @@ function ExponentialDirectionalShadowFilter()
 
 ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
-        /**
-         * The blur radius for the soft shadows.
-         */
         blurRadius: {
             get: function()
             {
@@ -41,9 +44,6 @@ ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.protot
             }
         },
 
-        /**
-         * A darkening factor of the shadows. Counters some artifacts of the technique.
-         */
         darkeningFactor: {
             get: function()
             {
@@ -57,9 +57,6 @@ ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.protot
             }
         },
 
-        /**
-         * The exponential scale factor. Probably you shouldn't touch this.
-         */
         expScaleFactor: {
             get: function()
             {

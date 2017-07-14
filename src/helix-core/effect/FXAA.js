@@ -9,6 +9,8 @@ import {GL} from "../core/GL";
  *
  * @constructor
  *
+ * @extends Effect
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function FXAA()

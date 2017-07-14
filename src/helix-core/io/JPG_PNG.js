@@ -8,6 +8,8 @@ import {Importer} from "./Importer";
  *
  * @constructor
  *
+ * @extends Importer
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function JPG()
@@ -25,7 +27,10 @@ JPG.prototype.parse = function(data, target)
 };
 
 /**
+ * @classdesc
  * Synonymous to {@linkcode JPG}.
+ *
+ * @constructor
  */
 var PNG = JPG;
 

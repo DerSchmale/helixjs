@@ -5,9 +5,15 @@ import {META} from "../Helix";
 
 /**
  * @classdesc
- * AmbientLight can be added to the scene to provide a minimum (single-color) amount of light in the scene.
+ * AmbientLight can be added to the scene to provide a minimum (single-color) amount of light in the scene. Internally,
+ * it's not a true {@linkcode Light} object, and it's handled differently in the renderer.
+ *
+ * @property {Color} color The color of the ambient light.
+ * @property {number} intensity The intensity of the ambient light.
  *
  * @constructor
+ *
+ * @extends Entity
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -20,12 +26,9 @@ function AmbientLight()
     this.color = new Color(1, 1, 1);
     this._scaledIrradiance = new Color();
     this._updateScaledIrradiance();
-};
+}
 
 AmbientLight.prototype = Object.create(Entity.prototype, {
-    /**
-     * The color of the ambient light.
-     */
     color: {
         get: function() { return this._color; },
         set: function(value)
@@ -35,9 +38,6 @@ AmbientLight.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The intensity of the ambient light.
-     */
     intensity: {
         get: function() { return this._intensity; },
         set: function(value)

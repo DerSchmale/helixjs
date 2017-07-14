@@ -10,6 +10,8 @@ import { ShadowFilter } from './ShadowFilter';
  *
  * @constructor
  *
+ * @extends ShadowFilter
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function HardDirectionalShadowFilter()

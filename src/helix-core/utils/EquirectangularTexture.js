@@ -10,6 +10,9 @@ import {IndexBuffer} from "../core/IndexBuffer";
 /**
  * EquirectangularTexture is a utility class that converts equirectangular environment {@linknode Texture2D} to a
  * {@linkcode TextureCube}.
+ *
+ * @namespace
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 export var EquirectangularTexture =

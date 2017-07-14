@@ -7,6 +7,8 @@ import {Component} from "./Component";
  *
  * @constructor
  *
+ * @extends Component
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function CompositeComponent()

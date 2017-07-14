@@ -9,6 +9,14 @@ import {BoundingVolume} from "../scene/BoundingVolume";
  *
  * @constructor
  *
+ * @property {number} nearDistance The minimum distance to be able to render. Anything closer gets cut off.
+ * @property {number} farDistance The maximum distance to be able to render. Anything farther gets cut off.
+ * @property {Matrix4x4} viewProjectionMatrix The matrix transforming coordinates from world space to the camera's homogeneous projective space.
+ * @property {Matrix4x4} viewMatrix The matrix transforming coordinates from world space to the camera's local coordinate system (eye space).
+ * @property {Matrix4x4} projectionMatrix The matrix transforming coordinates from eye space to the camera's homogeneous projective space.
+ * @property {Matrix4x4} inverseViewProjectionMatrix The matrix that transforms from the homogeneous projective space to world space.
+ * @property {Matrix4x4} inverseProjectionMatrix The matrix that transforms from the homogeneous projective space to view space.
+ *
  * @see {@linkcode PerspectiveCamera}
  *
  * @author derschmale <http://www.derschmale.com>
@@ -34,9 +42,6 @@ function Camera()
 }
 
 Camera.prototype = Object.create(Entity.prototype, {
-    /**
-     * The minimum distance to be able to render. Anything closer gets cut off.
-     */
     nearDistance: {
         get: function() {
             return this._nearDistance;
@@ -48,9 +53,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The maximum distance to be able to render. Anything farther gets cut off.
-     */
     farDistance: {
         get: function() {
             return this._farDistance;
@@ -62,9 +64,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The matrix transforming coordinates from world space to the camera's homogeneous projective space.
-     */
     viewProjectionMatrix: {
         get: function() {
             if (this._viewProjectionMatrixInvalid)
@@ -74,9 +73,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The matrix transforming coordinates from world space to the camera's local coordinate system (eye space).
-     */
     viewMatrix: {
         get: function()
         {
@@ -87,9 +83,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The matrix transforming coordinates from eye space to the camera's homogeneous projective space.
-     */
     projectionMatrix: {
         get: function()
         {
@@ -100,9 +93,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The matrix that transforms from the homogeneous projective space to world space.
-     */
     inverseViewProjectionMatrix: {
         get: function()
         {
@@ -113,9 +103,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The matrix that transforms from the homogeneous projective space to view space.
-     */
     inverseProjectionMatrix: {
         get: function()
         {
@@ -126,11 +113,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /***
-     * The Camera's view frustum.
-     *
-     * @ignore
-     */
     frustum: {
         get: function()
         {

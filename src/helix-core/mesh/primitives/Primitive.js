@@ -7,6 +7,8 @@ import {Mesh} from "../Mesh";
  * @param definition
  * @constructor
  *
+ * @extends Model
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function Primitive(definition)

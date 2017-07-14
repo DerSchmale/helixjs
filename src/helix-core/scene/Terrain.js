@@ -8,6 +8,9 @@ import {Mesh} from "../mesh/Mesh";
 
 /**
  * Terrain provides a paged terrain engine with dynamic LOD. The heightmapping itself happens in the Material.
+ *
+ * @property {number} terrainSize The world size for the entire terrain.
+ *
  * @param terrainSize The world size for the entire terrain.
  * @param minElevation The minimum elevation for the terrain (maps to heightmap value 0)
  * @param maxElevation The maximum elevation for the terrain (maps to heightmap value 1)
@@ -15,6 +18,8 @@ import {Mesh} from "../mesh/Mesh";
  * @param material The {@linkcode Material} to use when rendering the terrain.
  * @param detail The grid size.
  * @constructor
+ *
+ * @extends SceneNode
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -42,9 +47,6 @@ function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, d
 
 // TODO: Allow setting material
 Terrain.prototype = Object.create(SceneNode.prototype, {
-    /**
-     * The world size for the entire terrain.
-     */
     terrainSize: {
         get: function() {
             return this._terrainSize;

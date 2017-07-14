@@ -11,6 +11,8 @@ import {EquirectangularTexture} from "../utils/EquirectangularTexture";
  *
  * @constructor
  *
+ * @extends Importer
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function JPG_EQUIRECTANGULAR()

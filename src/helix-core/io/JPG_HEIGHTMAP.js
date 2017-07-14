@@ -10,6 +10,8 @@ import {HeightMap} from "../utils/HeightMap";
  *
  * @constructor
  *
+ * @extends Importer
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function JPG_HEIGHTMAP()

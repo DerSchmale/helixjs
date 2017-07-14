@@ -8,6 +8,8 @@ import {MathX} from "../math/MathX";
  *
  * @constructor
  *
+ * @extends Importer
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function HCM()

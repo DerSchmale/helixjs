@@ -7,7 +7,13 @@ import {Component} from "../entity/Component";
  * Effect is a {@linkcode Component} that will be picked up by the renderer for post-processing. Most effects are added
  * to the Camera, but some could be tied to a different Entity (for example: a DirectionalLight for crepuscular rays)
  *
+ * @property {boolean} needsNormalDepth Defines whether this Effect needs normal/depth information from the renderer.
+ * @property {FrameBuffer} hdrTarget The current full-resolution render target.
+ * @property {Texture2D} hdrSource The current full-resolution source texture.
+ *
  * @constructor
+ *
+ * @extends Component
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -22,24 +28,15 @@ function Effect()
 
 Effect.prototype = Object.create(Component.prototype,
     {
-        /**
-         * Defines whether this Effect needs normal/depth information from the renderer.
-         */
         needsNormalDepth: {
             get: function() { return this._needsNormalDepth; },
             set: function(value) { this._needsNormalDepth = value; }
         },
 
-        /**
-         * The current full-resolution render target.
-         */
         hdrTarget: {
             get: function() { return this._renderer._hdrFront.fbo; }
         },
 
-        /**
-         * The current full-resolution source texture.
-         */
         hdrSource: {
             get: function() { return this._renderer._hdrBack.texture; }
         }
@@ -97,7 +94,7 @@ Effect.prototype.onRemoved = function()
 };
 
 /**
- * Child classes need to call this when rendering to and from full-resolution textures.
+ * Child classes need to call this when rendering to and from full-resolution textures. This will effectively swap hdrSource and hdrTarget to allow ping-ponging.
  */
 Effect.prototype._swapHDRFrontAndBack = function()
 {

@@ -9,8 +9,27 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  * @classdesc
  * BasicMaterial is the default physically plausible rendering material.
  *
+ * @property {boolean} doubleSided Defines whether the material is double sided (no back-face culling) or not. An easier-to-read alternative to {@linkcode Material.cullMode}
+ * @property {number} alpha The overall transparency of the object. Has no effect without a matching blendState value.
+ * @property {boolean} useVertexColors Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
+ * @property {Color} color The base color of the material. Multiplied with the colorMap if provided.
+ * @property {Texture2D} colorMap A {@linkcode Texture2D} object containing color data.
+ * @property {Texture2D} normalMap A {@linkcode Texture2D} object containing surface normals.
+ * @property {Texture2D} specularMap A texture containing specular reflection data. The contents of the map depend on {@linkcode BasicMaterial#specularMapMode}. The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
+ * @property {Texture2D} maskMap A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
+ * @property {number} specularMapMode Defines the contents of the specular map. One of the following:
+ * <ul>
+ *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+ *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_ALL}</li>
+ *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
+ * </ul>
+ * @property {number} metallicness A value describing the overall "metallicness" of an object. Normally 0 or 1, but it can be used for some hybrid materials.
+ * @property {number} normalSpecularReflectance The amount of light reflecting off a surface at 90 degrees (ie: the minimum reflectance in the Fresnel equation according to Schlick's approximation). This is generally 0.027 for most materials.
+ * @property {number} roughness The microfacet roughness of the material. Higher values will result in dimmer but larger highlights.
+ * @property {number} roughnessRange Represents the range at which the roughness map operates. When using a roughness texture, roughness represents the middle roughness, range the deviation from there. So textured roughness ranges from [roughness - roughnessRange, roughness + roughnessRange]
+ * @property {number} alphaThreshold The alpha threshold that prevents pixels with opacity below this from being rendered. This is not recommended on certain mobile platforms due to depth buffer hierarchy performance.
+ *
  * @constructor
- * Creates a new BasicMaterial object.
  *
  * @param options An object with key/value pairs describing the initial values of the material.
  *
@@ -31,6 +50,8 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  * <li>useVertexColors: Boolean</li>
  * <li>lightingModel: {@linkcode LightingModel}</li>
  * </ul>
+ *
+ * @extends Material
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -91,9 +112,6 @@ BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 BasicMaterial.prototype = Object.create(Material.prototype,
     {
-        /**
-         * Defines whether the material is double sided (no back-face culling) or not.
-         */
         doubleSided: {
             get: function()
             {
@@ -102,18 +120,10 @@ BasicMaterial.prototype = Object.create(Material.prototype,
 
             set: function(value)
             {
-                this._doubleSided = value;
-
-                for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
-                    if (this._passes[i])
-                        this._passes[i].cullMode = value ? CullMode.NONE : CullMode.BACK;
-                }
+                this.cullMode = value? CullMode.NONE : CullMode.BACK;
             }
         },
 
-        /**
-         * The overal transparency of the object. Has no effect without a matching blendState value.
-         */
         alpha: {
             get: function ()
             {
@@ -126,9 +136,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
-         */
         useVertexColors: {
             get: function ()
             {
@@ -143,9 +150,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * The base color of the material. Multiplied with the colorMap if provided.
-         */
         color: {
             get: function ()
             {
@@ -158,9 +162,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * A {@linkcode Texture2D} object containing color data.
-         */
         colorMap: {
             get: function ()
             {
@@ -179,9 +180,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * A {@linkcode Texture2D} object containing surface normals.
-         */
         normalMap: {
             get: function ()
             {
@@ -198,10 +196,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * A {@linkcode Texture2D} object containing specular reflection data. The contents of the map depend on {@linkcode BasicMaterial#specularMapMode}.
-         * The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
-         */
         specularMap: {
             get: function ()
             {
@@ -218,9 +212,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
-         */
         maskMap: {
             get: function ()
             {
@@ -237,14 +228,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * Defines the contents of the specular map. One of the following:
-         * <ul>
-         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
-         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_ALL}</li>
-         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
-         * </ul>
-         */
         specularMapMode: {
             get: function ()
             {
@@ -259,10 +242,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * A value describing the overall "metallicness" of an object. Normally 0 or 1, but it can be used for some
-         * hybrid materials.
-         */
         metallicness: {
             get: function ()
             {
@@ -275,10 +254,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * The amount of light reflecting off a surface at 90 degrees (ie: the minimum reflectance in the Fresnel
-         * equation according to Schlick's approximation). This is generally 0.027 for most materials.
-         */
         normalSpecularReflectance: {
             get: function ()
             {
@@ -291,9 +266,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * The microfacet roughness of the material. Higher values will result in dimmer but larger highlights.
-         */
         roughness:
             {
                 get: function ()
@@ -308,11 +280,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
                 }
             },
 
-        /**
-         * Represents the range at which the roughness map operates. When using a roughness texture, roughness represents
-         * the middle roughness, range the deviation from there. So textured roughness ranges from
-         * [roughness - roughnessRange, roughness + roughnessRange]
-         */
         roughnessRange:
             {
                 get: function ()
@@ -327,10 +294,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
                 }
             },
 
-        /**
-         * The alpha threshold that prevents pixels with opacity below this from being rendered. This is not recommended
-         * on certain mobile platforms due to depth buffer hierarchy performance.
-         */
         alphaThreshold:
             {
                 get: function() { return this._alphaThreshold; },

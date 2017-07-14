@@ -1,5 +1,6 @@
 /**
  * Some utilities for Arrays.
+ * @namespace
  *
  * @author derschmale <http://www.derschmale.com>
  */

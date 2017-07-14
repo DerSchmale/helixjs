@@ -20,6 +20,8 @@ import {FrameBuffer} from "./texture/FrameBuffer";
 /**
  * META contains some data about the Helix engine, such as the options it was initialized with.
  *
+ * @namespace
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 export var META =

@@ -5,14 +5,14 @@ import {Matrix4x4} from "../../math/Matrix4x4";
 import {SkeletonJointPose} from "./SkeletonJointPose";
 
 /**
- *
- * @param {SkeletonBlendNode} rootNode The root node of the tree.
- * @param {Skeleton} skeleton The skeleton to animate.
- *
  * @classdesc
  * A SkeletonBlendTree is used by {@linkcode SkeletonAnimation} internally to blend complex animation setups. Using this,
  * we can crossfade between animation clips (such as walking/running) while additionally having extra modifiers applied,
  * such as gun aiming, head turning, etc.
+ *
+ * @constructor
+ * @param {SkeletonBlendNode} rootNode The root node of the tree.
+ * @param {Skeleton} skeleton The skeleton to animate.
  *
  * @author derschmale <http://www.derschmale.com>
  */

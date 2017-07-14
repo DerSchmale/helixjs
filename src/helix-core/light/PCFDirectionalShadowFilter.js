@@ -7,9 +7,15 @@ import { ShadowFilter } from './ShadowFilter';
  * ExponentialDirectionalShadowFilter is a shadow filter that provides percentage closer soft shadow mapping. However,
  * WebGL does not support shadow test interpolations, so the results aren't as great as its GL/DX counterpart.
  *
+ * @property {number} softness The softness of the shadows in world space.
+ * @property {number} numShadowSamples The amount of shadow samples to take.
+ * @property {boolean} dither Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
+ *
  * @see {@linkcode InitOptions#directionalShadowFilter}
  *
  * @constructor
+ *
+ * @extends ShadowFilter
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -23,9 +29,6 @@ function PCFDirectionalShadowFilter()
 
 PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
-        /**
-         * The softness of the shadows in world space.
-         */
         softness: {
             get: function()
             {
@@ -41,9 +44,6 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
             }
         },
 
-        /**
-         * The amount of shadow samples to take.
-         */
         numShadowSamples: {
             get: function()
             {
@@ -59,9 +59,6 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
             }
         },
 
-        /**
-         * Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
-         */
         dither: {
             get: function()
             {

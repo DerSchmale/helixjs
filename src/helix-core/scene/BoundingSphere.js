@@ -9,6 +9,8 @@ import {SpherePrimitive} from "../mesh/primitives/SpherePrimitive";
  *
  * @constructor
  *
+ * @extends BoundingVolume
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function BoundingSphere()

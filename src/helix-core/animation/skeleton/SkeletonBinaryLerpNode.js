@@ -5,7 +5,15 @@ import { MathX } from "../../math/MathX";
  * @classdesc
  * SkeletonBinaryLerpNode allows simple blending between 2 child nodes.
  *
+ * @property {number} minValue The minimum value of the input range.
+ * @property {number} maxValue The maximum value of the input range.
+ * @property {number} value The value between minValue and maxValue that defines how to interpolate between the children.
+ * @property {SkeletonBlendNode} child1 The first child (matching minValue).
+ * @property {SkeletonBlendNode} child2 The second child (matching maxValue).
+ *
  * @constructor
+ *
+ * @extends SkeletonBlendNode
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -23,16 +31,10 @@ function SkeletonBinaryLerpNode()
 }
 
 SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
-    /**
-     * @ignore
-     */
     numJoints: {
         get: function() {return this._numJoints; }
     },
 
-    /**
-     * The minimum value of the input range.
-     */
     minValue: {
         get: function ()
         {
@@ -45,9 +47,6 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
-    /**
-     * The maximum value of the input range.
-     */
     maxValue: {
         get: function()
         {
@@ -60,9 +59,6 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
-    /**
-     * The value between minValue and maxValue that defines how to interpolate between the children.
-     */
     value: {
         get: function ()
         {
@@ -79,9 +75,6 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
-    /**
-     * The first child (matching minValue).
-     */
     child1: {
         get: function()
         {
@@ -96,9 +89,6 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
-    /**
-     * The second child (matching maxValue).
-     */
     child2: {
         get: function ()
         {

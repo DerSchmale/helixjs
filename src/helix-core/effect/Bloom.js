@@ -10,11 +10,18 @@ import {Effect} from "./Effect";
 /**
  * @classdesc
  * Bloom is an {@linkcode Effect} added to the Camera that allows bright areas in the image to bleed into less bright areas.
+ *
+ * @property {number} strength The strength of the bloom effect.
+ * @property {number} thresholdLuminance The threshold luminance for pixels that are allowed to bleed.
+ *
  * @param radius The radius of the bloom effect.
  * @param strength The strength of the bloom effect.
  * @param [downScale] How many times smaller the bloom should be calculated relative to the render target.
  * @param [anisotropy] Defines the ratio between the horizontal and vertical bloom. For the JJ Abrams people among us.
+ *
  * @constructor
+ *
+ * @extends Effect
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -62,9 +69,6 @@ function Bloom(radius, strength, downScale, anisotropy)
 
 Bloom.prototype = Object.create(Effect.prototype,
     {
-        /**
-         * The strength of the bloom effect.
-         */
         strength: {
             get: function ()
             {
@@ -78,9 +82,6 @@ Bloom.prototype = Object.create(Effect.prototype,
             }
         },
 
-        /**
-         * The threshold luminance for pixels that are allowed to bleed.
-         */
         thresholdLuminance: {
             get: function ()
             {

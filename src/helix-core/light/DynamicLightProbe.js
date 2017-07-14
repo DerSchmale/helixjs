@@ -16,6 +16,8 @@ import {Skybox} from "../scene/Skybox";
  *
  * @constructor
  *
+ * @extends LightProbe
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function DynamicLightProbe(textureSize, textureDataType, near, far)

@@ -9,7 +9,11 @@ import {META} from "../Helix";
  * PointLight represents an omnidirectional light source with a single point as origin. The light strength falls off
  * according to the inverse square rule.
  *
+ * @property {number} radius The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a given area for performance.
+ *
  * @constructor
+ *
+ * @extends Light
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -28,10 +32,6 @@ function PointLight()
 
 PointLight.prototype = Object.create(Light.prototype,
     {
-        /**
-         * The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a
-         * given area for performance.
-         */
         radius: {
             get: function() {
                 return this._radius;

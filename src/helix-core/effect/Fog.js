@@ -9,11 +9,18 @@ import {Color} from "../core/Color";
  * @classdesc
  * Fog is an {@linkcode Effect} added to the Camera that applies a fog effect to the scene.
  *
+ * @property {number} density The "thickness" of the fog. Keep it tiny.
+ * @property {Color} tint The color of the fog.
+ * @property {number} heightFallOff The fall-off based on the height. This is to simulate a thinning atmosphere.
+ * @property {number} startDistance The distance from the camera at which the effect should start to be applied.
+ *
  * @constructor
  * @param {Number} [density] The "thickness" of the fog. Keep it tiny.
  * @param {Color} [tint] The color of the fog.
  * @param {Number} [heightFallOff] The fall-off based on the height. This is to simulate a thinning atmosphere.
  * @param {Number} [startDistance] The distance from the camera at which the effect should start to be applied.
+ *
+ * @extends Effect
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -31,9 +38,6 @@ function Fog(density, tint, heightFallOff, startDistance)
 
 Fog.prototype = Object.create(Effect.prototype,
     {
-        /**
-         * The "thickness" of the fog. Keep it tiny.
-         */
         density: {
             get: function()
             {
@@ -46,9 +50,6 @@ Fog.prototype = Object.create(Effect.prototype,
             }
         },
 
-        /**
-         * The color of the fog.
-         */
         tint: {
             get: function ()
             {
@@ -61,9 +62,6 @@ Fog.prototype = Object.create(Effect.prototype,
             }
         },
 
-        /**
-         * The distance from the camera at which the effect should start to be applied.
-         */
         startDistance: {
             get: function()
             {
@@ -76,9 +74,6 @@ Fog.prototype = Object.create(Effect.prototype,
             }
         },
 
-        /**
-         * The fall-off based on the height. This is to simulate a thinning atmosphere.
-         */
         heightFallOff: {
             get: function()
             {

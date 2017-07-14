@@ -8,6 +8,8 @@ import {Material} from "./Material";
  * @classdesc
  * SkyboxMaterial forms the default material to render skyboxes.
  *
+ * @constructor
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function SkyboxMaterial(texture)

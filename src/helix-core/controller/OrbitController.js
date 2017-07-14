@@ -6,9 +6,16 @@ import {META} from "../Helix";
 /**
  * @classdesc
  * FloatController is a {@linkcode Component} that allows moving an object (usually a camera) using mouse or touch around a central point.
+ *
+ * @property {number} radius The distance between the Entity and the lookAtTarget.
+ * @property {number} azimuth The azimuth coordinate of the object relative to the lookAtTarget.
+ * @property {number} polar The polar coordinate of the object relative to the lookAtTarget.
+ *
  * @param {Float4} target The position around which to orbit.
  *
  * @constructor
+ *
+ * @extends Component
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -33,25 +40,16 @@ function OrbitController(lookAtTarget)
 
 OrbitController.prototype = Object.create(Component.prototype,
     {
-        /**
-         * The distance between the Entity and the lookAtTarget.
-         */
         radius: {
             get: function() { return this._coords.z; },
             set: function(value) { this._coords.z = value; }
         },
 
-        /**
-         * The azimuth coordinate of the object relative to the lookAtTarget.
-         */
         azimuth: {
             get: function() { return this._coords.x; },
             set: function(value) { this._coords.x = value; }
         },
 
-        /**
-         * The polar coordinate of the object relative to the lookAtTarget.
-         */
         polar: {
             get: function() { return this._coords.y; },
             set: function(value) { this._coords.y = value; }

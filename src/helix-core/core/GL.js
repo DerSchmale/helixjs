@@ -1,10 +1,6 @@
 import { capabilities, ClearMask, Comparison, CullMode, StencilOp, META } from '../Helix.js';
 import { Color } from '../core/Color.js';
 
-/**
- * @author derschmale <http://www.derschmale.com>
- */
-
 // Just contains some convenience methods and GL management stuff that shouldn't be called directly
 // Will become an abstraction layer
 // properties to keep track of render state
@@ -128,6 +124,8 @@ function _updateRenderState()
 
 /**
  * GL forms a bridge to native WebGL. It's used to keep track of certain states. If the method is in here, use it instead of the raw gl calls.
+ *
+ * @namespace
  *
  * @author derschmale <http://www.derschmale.com>
  */

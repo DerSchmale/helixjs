@@ -4,6 +4,8 @@ import {Mesh} from "./Mesh";
  * RectMesh is a util that allows creating Mesh objects for rendering 2D quads. Generally, use RectMesh.DEFAULT for
  * full-screen quads.
  *
+ * @namespace
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 export var RectMesh = {

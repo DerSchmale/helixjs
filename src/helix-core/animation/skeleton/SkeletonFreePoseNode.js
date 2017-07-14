@@ -8,6 +8,8 @@ import {SkeletonBlendNode} from "./SkeletonBlendNode";
  *
  * @constructor
  *
+ * @extends  SkeletonBlendNode
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonFreePoseNode(skeleton)

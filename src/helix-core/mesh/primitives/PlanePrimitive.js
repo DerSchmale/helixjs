@@ -15,6 +15,8 @@ import {Primitive} from "./Primitive";
  *     <li>alignment: The axes along which to orient the plane. One of {@linkcode PlanePrimitive.ALIGN_XZ}, {@linkcode PlanePrimitive.ALIGN_XY}, {@linkcode PlanePrimitive.ALIGN_YZ}</li>
  * </ul>
  *
+ * @extends Primitive
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function PlanePrimitive(definition)

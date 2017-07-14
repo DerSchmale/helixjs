@@ -1,6 +1,7 @@
 /**
  * Values for classifying a point or object to a plane
- * @enum
+ * @namespace
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 export var PlaneSide = {

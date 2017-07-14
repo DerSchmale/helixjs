@@ -16,7 +16,7 @@ function OrthographicOffCenterCamera()
     this._right = 1;
     this._top = 1;
     this._bottom = -1;
-};
+}
 
 OrthographicOffCenterCamera.prototype = Object.create(Camera.prototype);
 

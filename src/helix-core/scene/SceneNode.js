@@ -12,9 +12,17 @@ import {BoundingAABB} from "./BoundingAABB";
  * <p>SceneNode also functions as the base class for other scene graph objects, such as entities ({@linkcode ModelInstance},
  * lights, camera, ...).
  *
+ * @property {string} name The name of te scene node.
+ * @property {number} numChildren The amount of children attached to this node.
+ * @property {boolean} visible Defines whether or not this and any children attached to this node should be rendered or not.
+ * @property {BoundingVolume} worldBounds The bounding volume for this node and its children in world coordinates.
+ * @property {Matrix4x4} worldMatrix The matrix transforming from the node's local space to world space.
+ *
  * @see {@linkcode Scene}
  *
  * @constructor
+ *
+ * @extends Transform
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -40,9 +48,6 @@ function SceneNode()
 }
 
 SceneNode.prototype = Object.create(Transform.prototype, {
-    /**
-     * The name of te scene node
-     */
     name: {
         get: function()
         {
@@ -54,16 +59,10 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         }
     },
 
-    /**
-     * The amount of children attached to this node.
-     */
     numChildren: {
         get: function() { return this._children.length; }
     },
 
-    /**
-     * Defines whether or not this and any children attached to this node should be rendered or not.
-     */
     visible: {
         get: function()
         {
@@ -75,9 +74,6 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         }
     },
 
-    /**
-     * The bounding volume for this node and its children in world coordinates.
-     */
     worldBounds: {
         get: function()
         {
@@ -90,9 +86,6 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         }
     },
 
-    /**
-     * The matrix transforming from the node's local space to world space.
-     */
     worldMatrix: {
         get: function()
         {

@@ -16,6 +16,8 @@ import {Primitive} from "./Primitive";
  *     <li>alignment: The axes along which to orient the torus. One of {@linkcode TorusPrimitive.ALIGN_XZ}, {@linkcode TorusPrimitive.ALIGN_XY}, {@linkcode TorusPrimitive.ALIGN_YZ}</li>
  * </ul>
  *
+ * @extends Primitive
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function TorusPrimitive(definition)

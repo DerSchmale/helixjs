@@ -13,11 +13,17 @@ import {META} from "../../Helix";
  * SkeletonAnimation is a {@linkcode Component} that allows skinned animations on a Model. Internally, it uses a
  * {@linkcode SkeletonBlendTree} for blending.
  *
+ * @property {Boolean} transferRootJoint Defines whether the root joint's movement will be applied to the target Model's scene position. This way, scene movement can be synchronized to the animation.
+ * @property {Boolean} applyInverseBindPose Defines whether or not the inverse bind pose should be applied to the skeleton's pose.
+ * @property {SkeletonBlendNode} animationNode The root animation node of the blend tree.
+ *
  * @constructor
  *
  * @see {@linkcode AnimationClip}
  * @see {@linkcode SkeletonBlendNode}
  * @see {@linkcode SkeletonXFadeNode}
+ *
+ * @extends Component
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -31,10 +37,6 @@ function SkeletonAnimation(rootNode)
 
 SkeletonAnimation.prototype = Object.create(Component.prototype,
     {
-        /**
-         * Defines whether the root joint's movement will be applied to the target Model's scene position. This way,
-         * scene movement can be synchronized to the animation.
-         */
         transferRootJoint: {
             get: function()
             {
@@ -47,9 +49,6 @@ SkeletonAnimation.prototype = Object.create(Component.prototype,
             }
         },
 
-        /**
-         * Defines whether or not the inverse bind pose should be applied to the skeleton's pose.
-         */
         applyInverseBindPose: {
             get: function()
             {
@@ -62,9 +61,6 @@ SkeletonAnimation.prototype = Object.create(Component.prototype,
             }
         },
 
-        /**
-         * The root animation node of the blend tree.
-         */
         animationNode: {
             get: function ()
             {

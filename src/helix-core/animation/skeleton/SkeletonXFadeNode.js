@@ -8,6 +8,8 @@ import {MathX as Float4} from "../../math/MathX";
  *
  * @constructor
  *
+ * @extends  SkeletonBlendNode
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonXFadeNode()

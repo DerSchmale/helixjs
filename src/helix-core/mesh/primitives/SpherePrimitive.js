@@ -14,6 +14,8 @@ import {Primitive} from "./Primitive";
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
  * </ul>
  *
+ * @extends Primitive
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function SpherePrimitive(definition)

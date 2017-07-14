@@ -6,11 +6,14 @@ import {META} from "../Helix";
  * @classdesc
  * Light forms a base class for lights.
  *
+ * @property {number} intensity The intensity of the light.
+ * @property {Color} color The color of the light.
+ *
  * @abstract
  *
  * @constructor
  *
- * @ignore
+ * @extends Entity
  *
  * @author derschmale <http://www.derschmale.com>
  */

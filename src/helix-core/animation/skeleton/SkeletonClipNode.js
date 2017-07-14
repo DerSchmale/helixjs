@@ -7,8 +7,13 @@ import {AnimationPlayhead} from "../AnimationPlayhead";
  * A node in a SkeletonBlendTree to contain a single animation clip. An AnimationClip on its own is simply a resource and
  * does not contain playback state so it can be used across different animation instances. That relevant state is kept here.
  *
+ * @property {number} timeScale A value to control the playback speed.
+ * @property {number} time The current time in milliseconds of the play head.
+ *
  * @param {AnimationClip} clip The animation clip to be played.
  * @constructor
+ *
+ * @extends  SkeletonBlendNode
  *
  * @see {@linkcode AnimationClip}
  *
@@ -36,17 +41,11 @@ SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
             get: function() { return this._numJoints; }
         },
 
-        /**
-         * A value to control the playback speed.
-         */
         timeScale: {
             get: function() { return this._playhead.timeScale; },
             set: function(value) { this._playhead.timeScale = value; }
         },
 
-        /**
-         * The current time in milliseconds of the play head.
-         */
         time: {
             get: function() { return this._playhead; },
             set: function(value)
@@ -66,7 +65,7 @@ SkeletonClipNode.prototype.play = function()
 };
 
 /**
- * Pauzes playback.
+ * Pauses playback.
  */
 SkeletonClipNode.prototype.stop = function()
 {

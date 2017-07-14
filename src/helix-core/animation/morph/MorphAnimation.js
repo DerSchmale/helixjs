@@ -8,12 +8,17 @@ import {MorphPose} from "./MorphPose";
  * Up to 8 morph targets can be active at a time. If more morph targets have a weight assigned to them, only those with
  * the highest weight are used.
  *
+ * @property {number} numMorphTargets The amount of morph targets in total (active and non-active).
+ *
+ *
  * @param {Array} targets An Array of {@linkcode MorphTarget} objects.
  * @constructor
  *
  * @see {@linkcode MorphPose}
  * @see {@linkcode MorphTarget}
  * @see {@linkcode Mesh#generateMorphData}
+ *
+ * @extends Component
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -26,13 +31,10 @@ function MorphAnimation(targets)
     for (var i = 0; i < targets.length; ++i) {
         this._morphPose.addMorphTarget(targets[i]);
     }
-};
+}
 
 MorphAnimation.prototype = Object.create(Component.prototype,
     {
-        /**
-         * The amount of morph targets in total (active and non-active).
-         */
         numMorphTargets: {
             get: function() { return this._morphPose.numMorphTargets; }
         }

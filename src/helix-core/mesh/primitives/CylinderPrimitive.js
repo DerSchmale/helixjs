@@ -15,6 +15,8 @@ import {Primitive} from "./Primitive";
  *     <li>alignment: The axis along which to orient the cylinder. One of {@linkcode CylinderPrimitive.ALIGN_X}, {@linkcode CylinderPrimitive.ALIGN_Y}, {@linkcode CylinderPrimitive.ALIGN_Z}</li>
  * </ul>
  *
+ * @extends Primitive
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function CylinderPrimitive(definition)

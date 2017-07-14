@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width">
+	<title>Documentation Class: BoundingVolume</title>
+
+	<!--[if lt IE 9]>
+	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+	<link type="text/css" rel="stylesheet" href="styles/sunlight.default.css">
+
+	<link type="text/css" rel="stylesheet" href="styles/site.cerulean.css">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-default navbar-fixed-top ">
+<div class="container">
+	<div class="navbar-header">
+		<a class="navbar-brand" href="index.html">Documentation</a>
+		<button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#topNavigation">
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+        </button>
+	</div>
+	<div class="navbar-collapse collapse" id="topNavigation">
+		<ul class="nav navbar-nav">
+			
+			<li class="dropdown">
+				<a href="namespaces.list.html" class="dropdown-toggle" data-toggle="dropdown">Namespaces<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="ArrayUtils.html">ArrayUtils</a></li><li><a href="EquirectangularTexture.html">EquirectangularTexture</a></li><li><a href="GL.html">GL</a></li><li><a href="HeightMap.html">HeightMap</a></li><li><a href="ImageData.html">ImageData</a></li><li><a href="LightingModel.html">LightingModel</a></li><li><a href="MathX.html">MathX</a></li><li><a href="MeshBatch.html">MeshBatch</a></li><li><a href="META.html">META</a></li><li><a href="PlaneSide.html">PlaneSide</a></li><li><a href="RectMesh.html">RectMesh</a></li>
+				</ul>
+			</li>
+			
+			<li class="dropdown">
+				<a href="classes.list.html" class="dropdown-toggle" data-toggle="dropdown">Classes<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="AmbientLight.html">AmbientLight</a></li><li><a href="AnimationClip.html">AnimationClip</a></li><li><a href="AnimationPlayhead.html">AnimationPlayhead</a></li><li><a href="AssetLibrary.html">AssetLibrary</a></li><li><a href="AssetLoader.html">AssetLoader</a></li><li><a href="BasicMaterial.html">BasicMaterial</a></li><li><a href="BlendState.html">BlendState</a></li><li><a href="Bloom.html">Bloom</a></li><li><a href="Blur.html">Blur</a></li><li><a href="BoundingAABB.html">BoundingAABB</a></li><li><a href="BoundingSphere.html">BoundingSphere</a></li><li><a href="BoundingVolume.html">BoundingVolume</a></li><li><a href="BoxPrimitive.html">BoxPrimitive</a></li><li><a href="Camera.html">Camera</a></li><li><a href="CenteredGaussianCurve.html">CenteredGaussianCurve</a></li><li><a href="Color.html">Color</a></li><li><a href="Component.html">Component</a></li><li><a href="CompositeComponent.html">CompositeComponent</a></li><li><a href="ConePrimitive.html">ConePrimitive</a></li><li><a href="CopyTexturePass.html">CopyTexturePass</a></li><li><a href="CylinderPrimitive.html">CylinderPrimitive</a></li><li><a href="DataStream.html">DataStream</a></li><li><a href="DirectionalLight.html">DirectionalLight</a></li><li><a href="DynamicLightProbe.html">DynamicLightProbe</a></li><li><a href="Effect.html">Effect</a></li><li><a href="EffectPass.html">EffectPass</a></li><li><a href="Entity.html">Entity</a></li><li><a href="ExponentialDirectionalShadowFilter.html">ExponentialDirectionalShadowFilter</a></li><li><a href="FilmicToneMapping.html">FilmicToneMapping</a></li><li><a href="Float2.html">Float2</a></li><li><a href="Float4.html">Float4</a></li><li><a href="FloatController.html">FloatController</a></li><li><a href="Fog.html">Fog</a></li><li><a href="FPSCounter.html">FPSCounter</a></li><li><a href="FrameBuffer.html">FrameBuffer</a></li><li><a href="FXAA.html">FXAA</a></li><li><a href="GaussianBlurPass.html">GaussianBlurPass</a></li><li><a href="GBufferSpecularPass.html">GBufferSpecularPass</a></li><li><a href="HardDirectionalShadowFilter.html">HardDirectionalShadowFilter</a></li><li><a href="HBAO.html">HBAO</a></li><li><a href="HCM.html">HCM</a></li><li><a href="HMT.html">HMT</a></li><li><a href="InitOptions.html">InitOptions</a></li><li><a href="JPG.html">JPG</a></li><li><a href="JPG_EQUIRECTANGULAR.html">JPG_EQUIRECTANGULAR</a></li><li><a href="JPG_HEIGHTMAP.html">JPG_HEIGHTMAP</a></li><li><a href="KeyFrame.html">KeyFrame</a></li><li><a href="Light.html">Light</a></li><li><a href="LightProbe.html">LightProbe</a></li><li><a href="Material.html">Material</a></li><li><a href="Matrix4x4.html">Matrix4x4</a></li><li><a href="Mesh.html">Mesh</a></li><li><a href="MeshInstance.html">MeshInstance</a></li><li><a href="Model.html">Model</a></li><li><a href="ModelInstance.html">ModelInstance</a></li><li><a href="MorphAnimation.html">MorphAnimation</a></li><li><a href="MorphPose.html">MorphPose</a></li><li><a href="MorphTarget.html">MorphTarget</a></li><li><a href="MultiRenderer.html">MultiRenderer</a></li><li><a href="NormalTangentGenerator.html">NormalTangentGenerator</a></li><li><a href="OrbitController.html">OrbitController</a></li><li><a href="PCFDirectionalShadowFilter.html">PCFDirectionalShadowFilter</a></li><li><a href="PerspectiveCamera.html">PerspectiveCamera</a></li><li><a href="PlanePrimitive.html">PlanePrimitive</a></li><li><a href="PNG.html">PNG</a></li><li><a href="PointLight.html">PointLight</a></li><li><a href="PoissonDisk.html">PoissonDisk</a></li><li><a href="PoissonSphere.html">PoissonSphere</a></li><li><a href="Quaternion.html">Quaternion</a></li><li><a href="Rect.html">Rect</a></li><li><a href="ReinhardToneMapping.html">ReinhardToneMapping</a></li><li><a href="Renderer.html">Renderer</a></li><li><a href="Scene.html">Scene</a></li><li><a href="SceneNode.html">SceneNode</a></li><li><a href="Signal.html">Signal</a></li><li><a href="Skeleton.html">Skeleton</a></li><li><a href="SkeletonAnimation.html">SkeletonAnimation</a></li><li><a href="SkeletonBinaryLerpNode.html">SkeletonBinaryLerpNode</a></li><li><a href="SkeletonBlendNode.html">SkeletonBlendNode</a></li><li><a href="SkeletonBlendTree.html">SkeletonBlendTree</a></li><li><a href="SkeletonClipNode.html">SkeletonClipNode</a></li><li><a href="SkeletonFreePoseNode.html">SkeletonFreePoseNode</a></li><li><a href="SkeletonJoint.html">SkeletonJoint</a></li><li><a href="SkeletonJointPose.html">SkeletonJointPose</a></li><li><a href="SkeletonPose.html">SkeletonPose</a></li><li><a href="SkeletonXFadeNode.html">SkeletonXFadeNode</a></li><li><a href="Skybox.html">Skybox</a></li><li><a href="SkyboxMaterial.html">SkyboxMaterial</a></li><li><a href="SpherePrimitive.html">SpherePrimitive</a></li><li><a href="SSAO.html">SSAO</a></li><li><a href="StatsDisplay.html">StatsDisplay</a></li><li><a href="StencilState.html">StencilState</a></li><li><a href="Terrain.html">Terrain</a></li><li><a href="Texture2D.html">Texture2D</a></li><li><a href="TextureCube.html">TextureCube</a></li><li><a href="TorusPrimitive.html">TorusPrimitive</a></li><li><a href="Transform.html">Transform</a></li><li><a href="VarianceDirectionalShadowFilter.html">VarianceDirectionalShadowFilter</a></li><li><a href="View.html">View</a></li><li><a href="WriteOnlyDepthBuffer.html">WriteOnlyDepthBuffer</a></li>
+				</ul>
+			</li>
+			
+			<li class="dropdown">
+				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="global.html#capabilities">capabilities</a></li><li><a href="global.html#init">init</a></li><li><a href="global.html#onFrame">onFrame</a></li><li><a href="global.html#onPreFrame">onPreFrame</a></li><li><a href="global.html#start">start</a></li><li><a href="global.html#stop">stop</a></li>
+				</ul>
+			</li>
+			
+		</ul>
+        
+            <div class="col-sm-3 col-md-3">
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search" name="q" id="search-input">
+                        <div class="input-group-btn">
+                            <button class="btn btn-default" id="search-submit"><i class="glyphicon glyphicon-search"></i></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        
+	</div>
+
+</div>
+</div>
+
+
+<div class="container" id="toc-content">
+<div class="row">
+
+	
+	<div class="col-md-8">
+	
+		<div id="main">
+			
+
+	<h1 class="page-title">Class: BoundingVolume</h1>
+<section>
+
+<header>
+    
+        <h2>
+        BoundingVolume
+        </h2>
+        
+            <div class="class-description"><p>BoundingVolume forms an abstract base class for axis-aligned bounding volumes, used in the scene hierarchy.</p></div>
+        
+    
+</header>
+
+
+<article>
+    <div class="container-overview">
+    
+        
+<hr>
+<dt>
+    <h4 class="name" id="BoundingVolume"><span class="type-signature"></span>new BoundingVolume(type)</h4>
+    
+    
+</dt>
+<dd>
+
+    
+
+    
+
+    
+
+    
+    
+        <h5>Parameters:</h5>
+        
+
+<table class="params table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>type</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The type of bounding volume.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+	<dt class="tag-author method-doc-label method-doc-details-label">Author:</dt>
+	<dd class="tag-author">
+		<ul>
+			<li>derschmale &lt;http://www.derschmale.com></li>
+			</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Members</h3>
+
+        <dl>
+            
+<hr>
+<dt class="name" id=".EXPANSE_EMPTY">
+    <h4 id=".EXPANSE_EMPTY"><span class="type-signature">&lt;static> </span>EXPANSE_EMPTY<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>Indicates the bounds are empty</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".EXPANSE_FINITE">
+    <h4 id=".EXPANSE_FINITE"><span class="type-signature">&lt;static> </span>EXPANSE_FINITE<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>Indicates the bounds have a real size and position</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".EXPANSE_INFINITE">
+    <h4 id=".EXPANSE_INFINITE"><span class="type-signature">&lt;static> </span>EXPANSE_INFINITE<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>Indicates the bounds are infinitely large</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="center">
+    <h4 id="center"><span class="type-signature"></span>center<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The center coordinate of the bounds</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="expanse">
+    <h4 id="expanse"><span class="type-signature"></span>expanse<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>Describes the size of the bounding box. <a href="BoundingVolume.html#.EXPANSE_EMPTY"><code>BoundingVolume.EXPANSE_EMPTY</code></a>, <a href="BoundingVolume.html#.EXPANSE_FINITE"><code>BoundingVolume.EXPANSE_FINITE</code></a>, or <a href="BoundingVolume.html#.EXPANSE_INFINITE"><code>BoundingVolume.EXPANSE_INFINITE</code></a></p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="halfExtent">
+    <h4 id="halfExtent"><span class="type-signature"></span>halfExtent<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The half extents of the bounds. These are the half-dimensions of the box encompassing the bounds from the center.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="maximum">
+    <h4 id="maximum"><span class="type-signature"></span>maximum<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The maximum reach of the bounds, described as a box range.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="minimum">
+    <h4 id="minimum"><span class="type-signature"></span>minimum<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The minimum reach of the bounds, described as a box range.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        </dl>
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        <dl>
+            
+<hr>
+<dt>
+    <h4 class="name" id="classifyAgainstPlane"><span class="type-signature"></span>classifyAgainstPlane(plane)</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Tests on which side of the plane the bounding box is (front, back or intersecting).</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+        <h5>Parameters:</h5>
+        
+
+<table class="params table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>plane</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The plane to test against.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+<div class="param-desc">
+    <p>The side of the plane</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type"><a href="PlaneSide.html">PlaneSide</a></span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="clear"><span class="type-signature"></span>clear(expanseState)</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Clear the bounds.</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+        <h5>Parameters:</h5>
+        
+
+<table class="params table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>expanseState</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The state to reset to. Either <a href="BoundingVolume.html#.EXPANSE_EMPTY"><code>BoundingVolume.EXPANSE_EMPTY</code></a> or <a href="BoundingVolume.html#.EXPANSE_INFINITE"><code>BoundingVolume.EXPANSE_INFINITE</code></a>.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="getRadius"><span class="type-signature"></span>getRadius()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>The radius of the sphere encompassing the bounds. This is implementation-dependent, because the radius is less precise for a box than for a sphere</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="intersectsBound"><span class="type-signature"></span>intersectsBound()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Tests whether the bounds intersect another bounding volume</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="intersectsConvexSolid"><span class="type-signature"></span>intersectsConvexSolid(cullPlanes, numPlanes)</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Tests whether the bounds intersects a given convex solid. The convex solid is described as a list of planes pointing outward. Infinite solids are also allowed (Directional Light frusta without a near plane, for example)</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+        <h5>Parameters:</h5>
+        
+
+<table class="params table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>cullPlanes</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>An Array of planes to be tested. Planes are simply Float4 objects.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>numPlanes</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The amount of planes to be tested against. This so we can test less planes than are in the cullPlanes array (Directional Light frusta, for example)</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+<div class="param-desc">
+    <p>Whether or not the bounds intersect the solid.</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">boolean</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="transformFrom"><span class="type-signature"></span>transformFrom(sourceBound, matrix)</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Transforms a bounding volume and stores it in this one.</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+        <h5>Parameters:</h5>
+        
+
+<table class="params table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>sourceBound</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="BoundingVolume.html">BoundingVolume</a></span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The bounds to transform.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>matrix</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="Matrix4x4.html">Matrix4x4</a></span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The matrix containing the transformation.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
+        </dl>
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+		</div>
+	</div>
+
+	<div class="clearfix"></div>
+
+	
+		<div class="col-md-3">
+			<div id="toc" class="col-md-3 hidden-xs hidden-sm hidden-md"></div>
+		</div>
+	
+
+</div>
+</div>
+
+
+    <div class="modal fade" id="searchResults">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title">Search results</h4>
+          </div>
+          <div class="modal-body"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div>
+
+
+<footer>
+
+
+<span class="jsdoc-message">
+	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.2</a>
+	
+		on July 14th 2017, 1:07:33 pm
+	
+	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
+</span>
+</footer>
+
+<script src="scripts/docstrap.lib.js"></script>
+<script src="scripts/toc.js"></script>
+
+    <script type="text/javascript" src="scripts/fulltext-search-ui.js"></script>
+
+
+<script>
+$( function () {
+	$( "[id*='$']" ).each( function () {
+		var $this = $( this );
+
+		$this.attr( "id", $this.attr( "id" ).replace( "$", "__" ) );
+	} );
+
+	$( ".tutorial-section pre, .readme-section pre, pre.prettyprint.source" ).each( function () {
+		var $this = $( this );
+
+		var example = $this.find( "code" );
+		exampleText = example.html();
+		var lang = /{@lang (.*?)}/.exec( exampleText );
+		if ( lang && lang[1] ) {
+			exampleText = exampleText.replace( lang[0], "" );
+			example.html( exampleText );
+			lang = lang[1];
+		} else {
+			var langClassMatch = example.parent()[0].className.match(/lang\-(\S+)/);
+			lang = langClassMatch ? langClassMatch[1] : "javascript";
+		}
+
+		if ( lang ) {
+
+			$this
+			.addClass( "sunlight-highlight-" + lang )
+			.addClass( "linenums" )
+			.html( example.html() );
+
+		}
+	} );
+
+	Sunlight.highlightAll( {
+		lineNumbers : true,
+		showMenu : true,
+		enableDoclinks : true
+	} );
+
+	$.catchAnchorLinks( {
+        navbarOffset: 10
+	} );
+	$( "#toc" ).toc( {
+		anchorName  : function ( i, heading, prefix ) {
+			return $( heading ).attr( "id" ) || ( prefix + i );
+		},
+		selectors   : "#toc-content h1,#toc-content h2,#toc-content h3,#toc-content h4",
+		showAndHide : false,
+		smoothScrolling: true
+	} );
+
+	$( "#main span[id^='toc']" ).addClass( "toc-shim" );
+	$( '.dropdown-toggle' ).dropdown();
+
+    $( "table" ).each( function () {
+      var $this = $( this );
+      $this.addClass('table');
+    } );
+
+} );
+</script>
+
+
+
+<!--Navigation and Symbol Display-->
+
+
+<!--Google Analytics-->
+
+
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            SearcherDisplay.init();
+        });
+    </script>
+
+
+</body>
+</html>

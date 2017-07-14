@@ -10,9 +10,17 @@ import {Float4} from "../math/Float4";
  * Only providing a simple specularTexture will behave like environment mapping, but diffuse convolution can be applied
  * for global diffuse illumination.
  *
+ * @property {TextureCube} diffuseTexture A cube map texture containing diffuse global illumination information
+ * @property {TextureCube} specularTexture A cube map texture containing specular global illumination information
+ * @property {number} size Defines the virtual size of the environment map box. Useful for local reflections. Leave undefined for a traditional environment map "at infinity"
+ *
  * @see {@linkcode https://www.knaldtech.com/lys/} for an example tool to generate the required images.
  *
  * @constructor
+ * @param {TextureCube} diffuseTexture A cube map texture containing diffuse global illumination information
+ * @param {TextureCube} specularTexture A cube map texture containing specular global illumination information
+ *
+ * @extends Entity
  *
  * @author derschmale <http://www.derschmale.com>
  */

@@ -10,6 +10,8 @@ import {EffectPass} from "./EffectPass";
  * @constructor
  * @param adaptive Whether or not the brightness should adapt to the average brightness of the scene. If not supported, it will disable.
  *
+ * @extends ToneMapping
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function ReinhardToneMapping(adaptive)

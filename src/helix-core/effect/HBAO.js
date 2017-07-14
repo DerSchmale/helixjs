@@ -13,11 +13,19 @@ import {Color} from "../core/Color";
  * @classdesc
  * HBAO adds Horizon-Based Ambient Occlusion to the renderer.
  *
+ * @property {number} sampleRadius The sample radius in world space to search for occluders.
+ * @property {number} fallOffDistance The maximum distance for occluders to still count.
+ * @property {number} strength The strength of the ambient occlusion effect.
+ * @property {number} bias The angle bias to prevent some artifacts.
+ * @property {number} scale The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
+ *
  * @constructor
  * @param numRays The amount of rays to march over.
  * @param numSamplesPerRay The samples per ray during a march.
  *
  * @see {@linkcode Renderer#ambientOcclusion}
+ *
+ * @extends Effect
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -69,9 +77,6 @@ function HBAO(numRays, numSamplesPerRay)
 }
 
 HBAO.prototype = Object.create(Effect.prototype, {
-    /**
-     * The sample radius in world space to search for occluders.
-     */
     sampleRadius: {
         get: function ()
         {
@@ -85,9 +90,6 @@ HBAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The maximum distance for occluders to still count.
-     */
     fallOffDistance: {
         get: function ()
         {
@@ -100,9 +102,6 @@ HBAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The strength of the ambient occlusion effect.
-     */
     strength: {
         get: function()
         {
@@ -115,9 +114,6 @@ HBAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The angle bias to prevent some artifacts.
-     */
     bias: {
         get: function()
         {
@@ -130,9 +126,6 @@ HBAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
-     */
     scale: {
         get: function() { return this._scale; },
         set: function(value) { this._scale = value; }

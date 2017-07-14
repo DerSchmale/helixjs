@@ -13,10 +13,17 @@ import {Effect} from "./Effect";
  * @classdesc
  * SSAO adds Screen-Space Ambient Occlusion to the renderer.
  *
+ * @property {number} sampleRadius The sample radius in world space to search for occluders.
+ * @property {number} fallOffDistance The maximum distance for occluders to still count.
+ * @property {number} strength The strength of the ambient occlusion effect.
+ * @property {number} scale The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
+ *
  * @constructor
  * @param numSamples The amount of samples to take per pixel.
  *
  * @see {@linkcode Renderer#ambientOcclusion}
+ *
+ * @extends Effect
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -61,9 +68,6 @@ function SSAO(numSamples)
 }
 
 SSAO.prototype = Object.create(Effect.prototype, {
-    /**
-     * The sample radius in world space to search for occluders.
-     */
     sampleRadius: {
         get: function ()
         {
@@ -76,9 +80,6 @@ SSAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The maximum distance for occluders to still count.
-     */
     fallOffDistance: {
         get: function ()
         {
@@ -91,9 +92,6 @@ SSAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The strength of the ambient occlusion effect.
-     */
     strength: {
         get: function()
         {
@@ -106,9 +104,6 @@ SSAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
-     */
     scale: {
         get: function() { return this._scale; },
         set: function(value) { this._scale = value; }

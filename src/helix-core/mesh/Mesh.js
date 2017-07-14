@@ -58,8 +58,8 @@ Mesh.ID_COUNTER = 0;
 
 // other possible indices:
 // hx_instanceID (used by MeshBatch)
-// hx_boneIndices (4)
-// hx_boneWeights (4)
+// hx_jointIndices (4)
+// hx_jointWeights (4)
 /**
  * Creates an empty Mesh with a default layout.
  */

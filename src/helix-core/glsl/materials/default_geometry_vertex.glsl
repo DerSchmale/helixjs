@@ -18,14 +18,14 @@ uniform float hx_morphWeights[HX_NUM_MORPH_TARGETS];
 #endif
 
 #ifdef HX_USE_SKINNING
-attribute vec4 hx_boneIndices;
-attribute vec4 hx_boneWeights;
+attribute vec4 hx_jointIndices;
+attribute vec4 hx_jointWeights;
 
 // WebGL doesn't support mat4x3 and I don't want to split the uniform either
 #ifdef HX_USE_SKINNING_TEXTURE
 uniform sampler2D hx_skinningTexture;
 #else
-uniform vec4 hx_skinningMatrices[HX_MAX_BONES * 3];
+uniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];
 #endif
 #endif
 

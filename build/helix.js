@@ -65,7 +65,7 @@ ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 co
 
 ShaderLibrary._files['default_geometry_fragment.glsl'] = 'varying vec3 normal;\n\nuniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifdef NORMAL_MAP\nvarying vec3 tangent;\nvarying vec3 bitangent;\n\nuniform sampler2D normalMap;\n#endif\n\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n\n    vec3 fragNormal = normal;\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut -= roughnessRange * (specSample.x - .5);\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    HX_GeometryData data;\n    data.color = hx_gammaToLinear(outputColor);\n    data.normal = normalize(fragNormal);\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n    data.emission = vec3(0.0);\n    return data;\n}';
 
-ShaderLibrary._files['default_geometry_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nattribute vec3 hx_morphPosition0;\nattribute vec3 hx_morphPosition1;\nattribute vec3 hx_morphPosition2;\nattribute vec3 hx_morphPosition3;\n#if HX_NUM_MORPH_TARGETS > 4\nattribute vec3 hx_morphPosition4;\nattribute vec3 hx_morphPosition5;\nattribute vec3 hx_morphPosition6;\nattribute vec3 hx_morphPosition7;\n#endif\n\nuniform float hx_morphWeights[HX_NUM_MORPH_TARGETS];\n#endif\n\n#ifdef HX_USE_SKINNING\nattribute vec4 hx_boneIndices;\nattribute vec4 hx_boneWeights;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_BONES * 3];\n#endif\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\nuniform mat4 hx_worldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nattribute vec3 hx_vertexColor;\nvarying vec3 vertexColor;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n    vec3 morphedNormal = hx_normal;\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #if HX_NUM_MORPH_TARGETS > 4\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    vec4 animPosition = morphedPosition * skinningMatrix;\n    vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n    vec3 animNormal = morphedNormal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz;\n    #endif\n#endif\n\n    gl_Position = hx_wvpMatrix * animPosition;\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * animTangent;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
+ShaderLibrary._files['default_geometry_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec3 hx_normal;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nattribute vec3 hx_morphPosition0;\nattribute vec3 hx_morphPosition1;\nattribute vec3 hx_morphPosition2;\nattribute vec3 hx_morphPosition3;\n#if HX_NUM_MORPH_TARGETS > 4\nattribute vec3 hx_morphPosition4;\nattribute vec3 hx_morphPosition5;\nattribute vec3 hx_morphPosition6;\nattribute vec3 hx_morphPosition7;\n#endif\n\nuniform float hx_morphWeights[HX_NUM_MORPH_TARGETS];\n#endif\n\n#ifdef HX_USE_SKINNING\nattribute vec4 hx_jointIndices;\nattribute vec4 hx_jointWeights;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];\n#endif\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat3 hx_normalWorldViewMatrix;\nuniform mat4 hx_worldViewMatrix;\n\nvarying vec3 normal;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nattribute vec2 hx_texCoord;\nvarying vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nattribute vec3 hx_vertexColor;\nvarying vec3 vertexColor;\n#endif\n\n#ifdef NORMAL_MAP\nattribute vec4 hx_tangent;\n\nvarying vec3 tangent;\nvarying vec3 bitangent;\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n    vec3 morphedNormal = hx_normal;\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #if HX_NUM_MORPH_TARGETS > 4\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    vec4 animPosition = morphedPosition * skinningMatrix;\n    vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n    vec3 animNormal = morphedNormal;\n\n    #ifdef NORMAL_MAP\n    vec3 animTangent = hx_tangent.xyz;\n    #endif\n#endif\n\n    gl_Position = hx_wvpMatrix * animPosition;\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n#ifdef NORMAL_MAP\n    tangent = mat3(hx_worldViewMatrix) * animTangent;\n    bitangent = cross(tangent, normal) * hx_tangent.w;\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
 
 ShaderLibrary._files['default_skybox_fragment.glsl'] = 'varying vec3 viewWorldDir;\n\nuniform samplerCube hx_skybox;\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n    data.color = textureCube(hx_skybox, viewWorldDir);\n    data.emission = vec3(0.0);\n    data.color = hx_gammaToLinear(data.color);\n    return data;\n}';
 
@@ -113,18 +113,6 @@ ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_G
 
 ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
-ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
-
-ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
-
-ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
-
-ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
 ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -155,6 +143,18 @@ ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nu
 
 ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	gl_FragColor = color / (1.0 + lum);\n}';
 
+ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
+
+ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
+
+ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
+
+ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
 ShaderLibrary._files['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
 
 ShaderLibrary._files['dir_shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
@@ -167,7 +167,7 @@ ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sa
 
 ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n	gl_FragColor.xy = hx_floatToRG8(total.x);\n	gl_FragColor.zw = hx_floatToRG8(total.y);\n}';
 
-ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(normal.z*8.0 + 8.0);\n    data = normal.xy / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xy = data.xy * g;\n    normal.z = 1.0 - f * .5;\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_BONES 1.0 / float(HX_MAX_BONES - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_BONES;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_boneWeights, hx_boneIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_boneWeights.x * mat4(hx_skinningMatrices[int(hx_boneIndices.x) * 3], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.y * mat4(hx_skinningMatrices[int(hx_boneIndices.y) * 3], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.z * mat4(hx_skinningMatrices[int(hx_boneIndices.z) * 3], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_boneWeights.w * mat4(hx_skinningMatrices[int(hx_boneIndices.w) * 3], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_boneIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
+ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(normal.z*8.0 + 8.0);\n    data = normal.xy / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xy = data.xy * g;\n    normal.z = 1.0 - f * .5;\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return -unproj.xyz / unproj.z;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewZ(float depthSample, mat4 projectionMatrix)\n{\n//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])\n    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
 
 ShaderLibrary._files['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)\n};\n\n// used for parsing deferred passes\nstruct HX_GBufferData\n{\n    HX_GeometryData geometry;\n\n    // extra decoding stuff\n    vec3 normalSpecularReflectance;\n    float linearDepth;\n};\n\nHX_GBufferData hx_parseGBuffer(sampler2D albedoTex, sampler2D normalDepthTex, sampler2D specularTex, vec2 uv)\n{\n    HX_GBufferData data;\n    vec4 albedoSample = texture2D(albedoTex, uv);\n    vec4 normalDepthSample = texture2D(normalDepthTex, uv);\n    vec4 specularSample = texture2D(specularTex, uv);\n    data.geometry.normal = hx_decodeNormal(normalDepthSample);\n    data.geometry.metallicness = specularSample.x;\n    data.geometry.normalSpecularReflectance = specularSample.y * .2;\n    data.geometry.roughness = max(specularSample.z, .01);\n    data.geometry.color = vec4(albedoSample.xyz * (1.0 - data.geometry.metallicness), 1.0);\n    data.normalSpecularReflectance = hx_getNormalSpecularReflectance(specularSample.x, data.geometry.normalSpecularReflectance, albedoSample.xyz);\n    data.linearDepth = hx_RG8ToFloat(normalDepthSample.zw);\n    return data;\n}';
 
@@ -193,6 +193,7 @@ ShaderLibrary._files['ssao_fragment.glsl'] = 'uniform mat4 hx_projectionMatrix;\
 
 /**
  * Some utilities for Arrays.
+ * @namespace
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -943,6 +944,8 @@ var RCP_LOG_OF_2 = 1.0 / Math.log(2);
 
 /**
  * Some extra Math functionality for your enjoyment.
+ *
+ * @namespace
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -3157,8 +3160,10 @@ MaterialQueryVisitor.prototype.visitModelInstance = function (modelInstance, wor
 };
 
 /**
- * @ignore
- * @param type
+ * @classdesc
+ * BoundingVolume forms an abstract base class for axis-aligned bounding volumes, used in the scene hierarchy.
+ *
+ * @param type The type of bounding volume.
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -3180,8 +3185,19 @@ function BoundingVolume(type)
     this._center = new Float4();
 }
 
+/**
+ * Indicates the bounds are empty
+ */
 BoundingVolume.EXPANSE_EMPTY = 0;
+
+/**
+ * Indicates the bounds are infinitely large
+ */
 BoundingVolume.EXPANSE_INFINITE = 1;
+
+/**
+ * Indicates the bounds have a real size and position
+ */
 BoundingVolume.EXPANSE_FINITE = 2;
 
 BoundingVolume._testAABBToSphere = function(aabb, sphere)
@@ -3231,13 +3247,24 @@ BoundingVolume._testAABBToSphere = function(aabb, sphere)
 
 BoundingVolume.prototype =
 {
+    /**
+     * Describes the size of the bounding box. {@linkcode BoundingVolume.EXPANSE_EMPTY}, {@linkcode BoundingVolume.EXPANSE_FINITE}, or {@linkcode BoundingVolume.EXPANSE_INFINITE}
+     */
     get expanse() { return this._expanse; },
+
+    /**
+     * @ignore
+     */
     get type() { return this._type; },
 
     growToIncludeMesh: function(mesh) { throw new Error("Abstract method!"); },
     growToIncludeBound: function(bounds) { throw new Error("Abstract method!"); },
     growToIncludeMinMax: function(min, max) { throw new Error("Abstract method!"); },
 
+    /**
+     * Clear the bounds.
+     * @param expanseState The state to reset to. Either {@linkcode BoundingVolume.EXPANSE_EMPTY} or {@linkcode BoundingVolume.EXPANSE_INFINITE}.
+     */
     clear: function(expanseState)
     {
         this._minimumX = this._minimumY = this._minimumZ = 0;
@@ -3247,31 +3274,66 @@ BoundingVolume.prototype =
         this._expanse = expanseState === undefined? BoundingVolume.EXPANSE_EMPTY : expanseState;
     },
 
-    // both center/radius and min/max approaches are used, depending on the type, but both are required
+    /**
+     * The minimum reach of the bounds, described as a box range.
+     */
     get minimum() { return new Float4(this._minimumX, this._minimumY, this._minimumZ, 1.0); },
+
+    /**
+     * The maximum reach of the bounds, described as a box range.
+     */
     get maximum() { return new Float4(this._maximumX, this._maximumY, this._maximumZ, 1.0); },
 
+    /**
+     * The center coordinate of the bounds
+     */
     get center() { return this._center; },
-    // the half-extents of the box encompassing the bounds.
+
+    /**
+     * The half extents of the bounds. These are the half-dimensions of the box encompassing the bounds from the center.
+     */
     get halfExtent() { return new Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0); },
-    // the radius of the sphere encompassing the bounds. This is implementation-dependent, because the radius is less precise for a box than for a sphere
+
+    /**
+     * The radius of the sphere encompassing the bounds. This is implementation-dependent, because the radius is less precise for a box than for a sphere
+     */
     getRadius: function() { throw new Error("Abstract method!"); },
 
+    /**
+     * Transforms a bounding volume and stores it in this one.
+     * @param {BoundingVolume} sourceBound The bounds to transform.
+     * @param {Matrix4x4} matrix The matrix containing the transformation.
+     */
     transformFrom: function(sourceBound, matrix) { throw new Error("Abstract method!"); },
 
     /**
-     * Tests whether the bounding box intersects. The convex solid is described as a list of planes pointing outward. Infinite solids are also allowed (Directional Light frusta without a near plane, for example)
+     * Tests whether the bounds intersects a given convex solid. The convex solid is described as a list of planes pointing outward. Infinite solids are also allowed (Directional Light frusta without a near plane, for example)
      * @param cullPlanes An Array of planes to be tested. Planes are simply Float4 objects.
      * @param numPlanes The amount of planes to be tested against. This so we can test less planes than are in the cullPlanes array (Directional Light frusta, for example)
      * @returns {boolean} Whether or not the bounds intersect the solid.
      */
     intersectsConvexSolid: function(cullPlanes, numPlanes) { throw new Error("Abstract method!"); },
 
+    /**
+     * Tests whether the bounds intersect another bounding volume
+     */
     intersectsBound: function(bound) { throw new Error("Abstract method!"); },
+
+    /**
+     * Tests on which side of the plane the bounding box is (front, back or intersecting).
+     * @param plane The plane to test against.
+     * @return {PlaneSide} The side of the plane
+     */
     classifyAgainstPlane: function(plane) { throw new Error("Abstract method!"); },
 
+    /**
+     * @ignore
+     */
     createDebugModel: function() { throw new Error("Abstract method!"); },
 
+    /**
+     * @ignore
+     */
     getDebugModel: function()
     {
         if (this._type._debugModel === undefined)
@@ -3295,7 +3357,8 @@ BoundingVolume.prototype =
 
 /**
  * Values for classifying a point or object to a plane
- * @enum
+ * @namespace
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 var PlaneSide = {
@@ -3314,10 +3377,6 @@ var PlaneSide = {
      */
     INTERSECTING: 0
 };
-
-/**
- * @author derschmale <http://www.derschmale.com>
- */
 
 // Just contains some convenience methods and GL management stuff that shouldn't be called directly
 // Will become an abstraction layer
@@ -3442,6 +3501,8 @@ function _updateRenderState()
 
 /**
  * GL forms a bridge to native WebGL. It's used to keep track of certain states. If the method is in here, use it instead of the raw gl calls.
+ *
+ * @namespace
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -3751,8 +3812,8 @@ Mesh.ID_COUNTER = 0;
 
 // other possible indices:
 // hx_instanceID (used by MeshBatch)
-// hx_boneIndices (4)
-// hx_boneWeights (4)
+// hx_jointIndices (4)
+// hx_jointWeights (4)
 /**
  * Creates an empty Mesh with a default layout.
  */
@@ -4623,6 +4684,8 @@ NormalTangentGenerator.prototype =
  * @param definition
  * @constructor
  *
+ * @extends Model
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function Primitive(definition)
@@ -4749,6 +4812,8 @@ Primitive.prototype._createMesh = function(definition)
  *     <li>invert: Whether or not the faces should point inwards</li>
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
  * </ul>
+ *
+ * @extends Primitive
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -4906,6 +4971,8 @@ BoxPrimitive.prototype._generate = function(target, definition)
  * BoundingAABB represents an axis-aligned bounding box.
  *
  * @constructor
+ *
+ * @extends BoundingVolume
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -5213,9 +5280,17 @@ BoundingAABB.prototype.createDebugModel = function()
  * <p>SceneNode also functions as the base class for other scene graph objects, such as entities ({@linkcode ModelInstance},
  * lights, camera, ...).
  *
+ * @property {string} name The name of te scene node.
+ * @property {number} numChildren The amount of children attached to this node.
+ * @property {boolean} visible Defines whether or not this and any children attached to this node should be rendered or not.
+ * @property {BoundingVolume} worldBounds The bounding volume for this node and its children in world coordinates.
+ * @property {Matrix4x4} worldMatrix The matrix transforming from the node's local space to world space.
+ *
  * @see {@linkcode Scene}
  *
  * @constructor
+ *
+ * @extends Transform
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -5241,9 +5316,6 @@ function SceneNode()
 }
 
 SceneNode.prototype = Object.create(Transform.prototype, {
-    /**
-     * The name of te scene node
-     */
     name: {
         get: function()
         {
@@ -5255,16 +5327,10 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         }
     },
 
-    /**
-     * The amount of children attached to this node.
-     */
     numChildren: {
         get: function() { return this._children.length; }
     },
 
-    /**
-     * Defines whether or not this and any children attached to this node should be rendered or not.
-     */
     visible: {
         get: function()
         {
@@ -5276,9 +5342,6 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         }
     },
 
-    /**
-     * The bounding volume for this node and its children in world coordinates.
-     */
     worldBounds: {
         get: function()
         {
@@ -5291,9 +5354,6 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         }
     },
 
-    /**
-     * The matrix transforming from the node's local space to world space.
-     */
     worldMatrix: {
         get: function()
         {
@@ -5727,11 +5787,14 @@ Entity.prototype._setScene = function(scene)
  * @classdesc
  * Light forms a base class for lights.
  *
+ * @property {number} intensity The intensity of the light.
+ * @property {Color} color The color of the light.
+ *
  * @abstract
  *
  * @constructor
  *
- * @ignore
+ * @extends Entity
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -5813,6 +5876,8 @@ Light.prototype.renderDeferredLighting = function(renderer)
 /**
  * RectMesh is a util that allows creating Mesh objects for rendering 2D quads. Generally, use RectMesh.DEFAULT for
  * full-screen quads.
+ *
+ * @namespace
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -7211,6 +7276,14 @@ Frustum.prototype =
  *
  * @constructor
  *
+ * @property {number} nearDistance The minimum distance to be able to render. Anything closer gets cut off.
+ * @property {number} farDistance The maximum distance to be able to render. Anything farther gets cut off.
+ * @property {Matrix4x4} viewProjectionMatrix The matrix transforming coordinates from world space to the camera's homogeneous projective space.
+ * @property {Matrix4x4} viewMatrix The matrix transforming coordinates from world space to the camera's local coordinate system (eye space).
+ * @property {Matrix4x4} projectionMatrix The matrix transforming coordinates from eye space to the camera's homogeneous projective space.
+ * @property {Matrix4x4} inverseViewProjectionMatrix The matrix that transforms from the homogeneous projective space to world space.
+ * @property {Matrix4x4} inverseProjectionMatrix The matrix that transforms from the homogeneous projective space to view space.
+ *
  * @see {@linkcode PerspectiveCamera}
  *
  * @author derschmale <http://www.derschmale.com>
@@ -7236,9 +7309,6 @@ function Camera()
 }
 
 Camera.prototype = Object.create(Entity.prototype, {
-    /**
-     * The minimum distance to be able to render. Anything closer gets cut off.
-     */
     nearDistance: {
         get: function() {
             return this._nearDistance;
@@ -7250,9 +7320,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The maximum distance to be able to render. Anything farther gets cut off.
-     */
     farDistance: {
         get: function() {
             return this._farDistance;
@@ -7264,9 +7331,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The matrix transforming coordinates from world space to the camera's homogeneous projective space.
-     */
     viewProjectionMatrix: {
         get: function() {
             if (this._viewProjectionMatrixInvalid)
@@ -7276,9 +7340,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The matrix transforming coordinates from world space to the camera's local coordinate system (eye space).
-     */
     viewMatrix: {
         get: function()
         {
@@ -7289,9 +7350,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The matrix transforming coordinates from eye space to the camera's homogeneous projective space.
-     */
     projectionMatrix: {
         get: function()
         {
@@ -7302,9 +7360,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The matrix that transforms from the homogeneous projective space to world space.
-     */
     inverseViewProjectionMatrix: {
         get: function()
         {
@@ -7315,9 +7370,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The matrix that transforms from the homogeneous projective space to view space.
-     */
     inverseProjectionMatrix: {
         get: function()
         {
@@ -7328,11 +7380,6 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /***
-     * The Camera's view frustum.
-     *
-     * @ignore
-     */
     frustum: {
         get: function()
         {
@@ -8445,7 +8492,7 @@ PoissonDiskSetter.prototype.execute = function ()
 
 function SkinningMatricesSetter()
 {
-    this._data = new Float32Array(OPTIONS.maxBones * 12);
+    this._data = new Float32Array(OPTIONS.maxSkeletonJoints * 12);
 }
 
 SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
@@ -8825,6 +8872,10 @@ DeferredDirectionalShader.prototype.execute = function(renderer, light)
  * DirectionalLight represents a light source that is "infinitely far away", used as an approximation for sun light where
  * locally all sun rays appear to be parallel.
  *
+ * @property {boolean} castShadows Defines whether or not this light casts shadows.
+ * @property {number} shadowMapSize The shadow map size used by this light.
+ * @property {Float4} direction The direction of the light rays.
+ *
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -8859,9 +8910,6 @@ DirectionalLight._initDeferredShaders = function()
 
 DirectionalLight.prototype = Object.create(Light.prototype,
     {
-        /**
-         * Defines whether or not this light casts shadows.
-         */
         castShadows: {
             get: function()
             {
@@ -8883,9 +8931,6 @@ DirectionalLight.prototype = Object.create(Light.prototype,
             }
         },
 
-        /**
-         * The shadow map size used by this light.
-         */
         shadowMapSize: {
             get: function()
             {
@@ -8899,9 +8944,6 @@ DirectionalLight.prototype = Object.create(Light.prototype,
             }
         },
 
-        /**
-         * The direction of the light rays.
-         */
         direction: {
             get: function()
             {
@@ -9131,6 +9173,8 @@ ShadowFilter.prototype =
  *
  * @constructor
  *
+ * @extends ShadowFilter
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function HardDirectionalShadowFilter()
@@ -9165,12 +9209,18 @@ HardDirectionalShadowFilter.prototype.getCullMode = function()
  * <p>You can add pass your own lighting models as a string into a material, as long as the glsl code contains the
  * functions hx_brdf and hx_probeGeometricShadowing</p>
  *
+ * @namespace
+ *
  * @author derschmale <http://www.derschmale.com>
+ *
  */
 var LightingModel =
 {
+    /** No lighting applied when rendering */
     Unlit: null,
+    /** Normalized Blinn-Phong shading applied */
     BlinnPhong: ShaderLibrary.get("lighting_blinn_phong.glsl"),
+    /** GGX shading applied */
     GGX: ShaderLibrary.get("lighting_ggx.glsl")
 };
 
@@ -9258,9 +9308,17 @@ function ApplyGammaShader()
 
 ApplyGammaShader.prototype = Object.create(CustomCopyShader.prototype);
 
+//       +-----+
+//       |  +Y |
+// +-----+-----+-----+-----+
+// |  -X |  +Z |  +X |  -Z |
+// +-----+-----+-----+-----+
+//       |  -Y |
+//       +-----+
+
 /**
  * @classdesc
- * Texture2D represents a cube map texture.
+ * TextureCube represents a cube map texture. The order of the textures in a cross map is as such:
  *
  * @constructor
  *
@@ -9733,6 +9791,8 @@ PoissonSphere.prototype =
 /**
  * META contains some data about the Helix engine, such as the options it was initialized with.
  *
+ * @namespace
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 var META =
@@ -9844,11 +9904,9 @@ var CubeFace = {};
 function InitOptions()
 {
     /**
-     * The maximum supported number of bones for skinning animations.
-     *
-     * TODO: rename to maxSkeletonJoints
+     * The maximum supported number of joints for skinning animations.
      */
-    this.maxBones = 64;
+    this.maxSkeletonJoints = 64;
 
     /**
      * Whether or not to use a texture to store skinning data. May be forced to "false" if floating point textures are not supported.
@@ -9973,7 +10031,7 @@ function init(canvas, options)
         defines += META.OPTIONS.usePreciseGammaCorrection ? "#define HX_GAMMA_CORRECTION_PRECISE\n" : "#define HX_GAMMA_CORRECTION_FAST\n";
 
     defines += "#define HX_NUM_SHADOW_CASCADES " + META.OPTIONS.numShadowCascades + "\n";
-    defines += "#define HX_MAX_BONES " + META.OPTIONS.maxBones + "\n";
+    defines += "#define HX_MAX_SKELETON_JOINTS " + META.OPTIONS.maxSkeletonJoints + "\n";
 
     options.ignoreDrawBuffersExtension = options.ignoreDrawBuffersExtension || options.ignoreAllExtensions;
     options.ignoreDepthTexturesExtension = options.ignoreDepthTexturesExtension || options.ignoreAllExtensions;
@@ -10126,10 +10184,10 @@ function _initDefaultSkinningTexture()
     DEFAULTS.DEFAULT_SKINNING_TEXTURE = new Texture2D();
 
     var data = [];
-    for (var i = 0; i < META.OPTIONS.maxBones; ++i)
+    for (var i = 0; i < META.OPTIONS.maxSkeletonJoints; ++i)
         data.push(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
 
-    DEFAULTS.DEFAULT_SKINNING_TEXTURE.uploadData(new Float32Array(data), META.OPTIONS.maxBones, 3, false, gl.RGBA, gl.FLOAT);
+    DEFAULTS.DEFAULT_SKINNING_TEXTURE.uploadData(new Float32Array(data), META.OPTIONS.maxSkeletonJoints, 3, false, gl.RGBA, gl.FLOAT);
     DEFAULTS.DEFAULT_SKINNING_TEXTURE.filter = TextureFilter.NEAREST_NOMIP;
     DEFAULTS.DEFAULT_SKINNING_TEXTURE.wrapMode = TextureWrapMode.CLAMP;
 }
@@ -10316,6 +10374,8 @@ CenteredGaussianCurve.fromRadius = function(radius, epsilon)
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
  * </ul>
  *
+ * @extends Primitive
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function SpherePrimitive(definition)
@@ -10396,6 +10456,8 @@ SpherePrimitive.prototype._generate = function(target, definition)
  * BoundingAABB represents a bounding sphere.
  *
  * @constructor
+ *
+ * @extends BoundingVolume
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -11689,6 +11751,8 @@ Material.prototype =
  * @classdesc
  * SkyboxMaterial forms the default material to render skyboxes.
  *
+ * @constructor
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function SkyboxMaterial(texture)
@@ -11919,10 +11983,17 @@ MeshInstance.prototype = {
  * <p>ModelInstance creates a matching {@linkcode MeshInstance} for each {@linkcode Mesh} in the {@linkcode Model}, in
  * which the {@linkcode Mesh} is linked with its {@linkcode Material}.
  *
+ * @property {Model} model The model to use as the geometry
+ * @property {boolean} castShadows Defines whether or not this ModelInstance should cast shadows.
+ * @property {number} numMeshInstances The amount of MeshInstance objects.
+ * @property {Skeleton} skeleton The skeleton used for skinning animations.
+ * @property {MorphPose} morphPose The MorphPose object defining the current morph target state.
+ *
  * @constructor
  * @param model The {@linkcode Model} to use as the geometry
  * @param materials Either a single {@linkcode Material} to link to all Meshes in the Model, or an array of materials to link to the meshes in respective order.
  *
+ * @extends Entity
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -11942,17 +12013,11 @@ function ModelInstance(model, materials)
 }
 
 ModelInstance.prototype = Object.create(Entity.prototype, {
-    /**
-     * The {@linkcode Model} to use as the geometry
-     */
     model:
         {
             get: function() { return this._model; }
         },
 
-    /**
-     * Defines whether or not this ModelInstance should cast shadows.
-     */
     castShadows: {
         get: function()
         {
@@ -11965,9 +12030,6 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The amount of MeshInstance objects.
-     */
     numMeshInstances: {
         get: function ()
         {
@@ -11975,9 +12037,6 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The skeleton used for skinning animations.
-     */
     skeleton: {
         get: function() {
             return this._model.skeleton;
@@ -12000,9 +12059,6 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The {@linkcode MorphPose} object defining the current morph target state.
-     */
     morphPose: {
         get: function() {
             return this._morphPose;
@@ -12413,6 +12469,9 @@ RenderCollector.prototype._sortLights = function(a, b)
 
 /**
  * Terrain provides a paged terrain engine with dynamic LOD. The heightmapping itself happens in the Material.
+ *
+ * @property {number} terrainSize The world size for the entire terrain.
+ *
  * @param terrainSize The world size for the entire terrain.
  * @param minElevation The minimum elevation for the terrain (maps to heightmap value 0)
  * @param maxElevation The maximum elevation for the terrain (maps to heightmap value 1)
@@ -12420,6 +12479,8 @@ RenderCollector.prototype._sortLights = function(a, b)
  * @param material The {@linkcode Material} to use when rendering the terrain.
  * @param detail The grid size.
  * @constructor
+ *
+ * @extends SceneNode
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -12447,9 +12508,6 @@ function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, d
 
 // TODO: Allow setting material
 Terrain.prototype = Object.create(SceneNode.prototype, {
-    /**
-     * The world size for the entire terrain.
-     */
     terrainSize: {
         get: function() {
             return this._terrainSize;
@@ -12768,6 +12826,8 @@ Component.prototype =
  *
  * @constructor
  *
+ * @extends Component
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function CompositeComponent()
@@ -12976,7 +13036,7 @@ function AnimationPlayhead(clip)
     this._looping = clip.looping;
 
     /**
-     * The number of times the playhead has wrapped during the last update. Useful when moving skeleton root bone, fe.
+     * The number of times the playhead has wrapped during the last update. Useful when moving skeleton root joint, fe.
      * @type {number}
      */
     this.wraps = 0;
@@ -13226,12 +13286,17 @@ MorphPose.prototype =
  * Up to 8 morph targets can be active at a time. If more morph targets have a weight assigned to them, only those with
  * the highest weight are used.
  *
+ * @property {number} numMorphTargets The amount of morph targets in total (active and non-active).
+ *
+ *
  * @param {Array} targets An Array of {@linkcode MorphTarget} objects.
  * @constructor
  *
  * @see {@linkcode MorphPose}
  * @see {@linkcode MorphTarget}
  * @see {@linkcode Mesh#generateMorphData}
+ *
+ * @extends Component
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -13248,9 +13313,6 @@ function MorphAnimation(targets)
 
 MorphAnimation.prototype = Object.create(Component.prototype,
     {
-        /**
-         * The amount of morph targets in total (active and non-active).
-         */
         numMorphTargets: {
             get: function() { return this._morphPose.numMorphTargets; }
         }
@@ -13589,8 +13651,13 @@ SkeletonBlendNode.prototype =
  * A node in a SkeletonBlendTree to contain a single animation clip. An AnimationClip on its own is simply a resource and
  * does not contain playback state so it can be used across different animation instances. That relevant state is kept here.
  *
+ * @property {number} timeScale A value to control the playback speed.
+ * @property {number} time The current time in milliseconds of the play head.
+ *
  * @param {AnimationClip} clip The animation clip to be played.
  * @constructor
+ *
+ * @extends  SkeletonBlendNode
  *
  * @see {@linkcode AnimationClip}
  *
@@ -13618,17 +13685,11 @@ SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
             get: function() { return this._numJoints; }
         },
 
-        /**
-         * A value to control the playback speed.
-         */
         timeScale: {
             get: function() { return this._playhead.timeScale; },
             set: function(value) { this._playhead.timeScale = value; }
         },
 
-        /**
-         * The current time in milliseconds of the play head.
-         */
         time: {
             get: function() { return this._playhead; },
             set: function(value)
@@ -13648,7 +13709,7 @@ SkeletonClipNode.prototype.play = function()
 };
 
 /**
- * Pauzes playback.
+ * Pauses playback.
  */
 SkeletonClipNode.prototype.stop = function()
 {
@@ -13678,11 +13739,11 @@ SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
  */
 SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
-    var rootBonePos = this._pose.jointPoses[0].position;
+    var rootJointPos = this._pose.jointPoses[0].position;
     var rootPos = this._rootPosition;
     var rootDelta = this._rootJointDeltaPosition;
 
-    Float4.subtract(rootBonePos, rootPos, rootDelta);
+    Float4.subtract(rootJointPos, rootPos, rootDelta);
 
     if (dt > 0 && numWraps > 0) {
         // apply the entire displacement for the amount of times it wrapped
@@ -13693,8 +13754,8 @@ SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
         rootDelta.addScaled(this._clipRootDelta, -numWraps);
     }
 
-    this._rootPosition.copyFrom(rootBonePos);
-    rootBonePos.set(0.0, 0.0, 0.0);
+    this._rootPosition.copyFrom(rootJointPos);
+    rootJointPos.set(0.0, 0.0, 0.0);
 };
 
 /**
@@ -13706,14 +13767,14 @@ SkeletonClipNode.prototype._applyValue = function(value)
 };
 
 /**
- *
- * @param {SkeletonBlendNode} rootNode The root node of the tree.
- * @param {Skeleton} skeleton The skeleton to animate.
- *
  * @classdesc
  * A SkeletonBlendTree is used by {@linkcode SkeletonAnimation} internally to blend complex animation setups. Using this,
  * we can crossfade between animation clips (such as walking/running) while additionally having extra modifiers applied,
  * such as gun aiming, head turning, etc.
+ *
+ * @constructor
+ * @param {SkeletonBlendNode} rootNode The root node of the tree.
+ * @param {Skeleton} skeleton The skeleton to animate.
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -13870,12 +13931,12 @@ SkeletonBlendTree.prototype =
                 data.push(m[r], m[r + 4], m[r + 8], m[r + 12]);
             }
 
-            for (i = len; i < META.OPTIONS.maxBones; ++i) {
+            for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
                 data.push(0, 0, 0, 0);
             }
         }
 
-        this._texture.uploadData(new Float32Array(data), META.OPTIONS.maxBones, 3, false, TextureFormat.RGBA, DataType.FLOAT);
+        this._texture.uploadData(new Float32Array(data), META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
     }
 };
 
@@ -13887,11 +13948,17 @@ SkeletonBlendTree.prototype =
  * SkeletonAnimation is a {@linkcode Component} that allows skinned animations on a Model. Internally, it uses a
  * {@linkcode SkeletonBlendTree} for blending.
  *
+ * @property {Boolean} transferRootJoint Defines whether the root joint's movement will be applied to the target Model's scene position. This way, scene movement can be synchronized to the animation.
+ * @property {Boolean} applyInverseBindPose Defines whether or not the inverse bind pose should be applied to the skeleton's pose.
+ * @property {SkeletonBlendNode} animationNode The root animation node of the blend tree.
+ *
  * @constructor
  *
  * @see {@linkcode AnimationClip}
  * @see {@linkcode SkeletonBlendNode}
  * @see {@linkcode SkeletonXFadeNode}
+ *
+ * @extends Component
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -13905,10 +13972,6 @@ function SkeletonAnimation(rootNode)
 
 SkeletonAnimation.prototype = Object.create(Component.prototype,
     {
-        /**
-         * Defines whether the root joint's movement will be applied to the target Model's scene position. This way,
-         * scene movement can be synchronized to the animation.
-         */
         transferRootJoint: {
             get: function()
             {
@@ -13921,9 +13984,6 @@ SkeletonAnimation.prototype = Object.create(Component.prototype,
             }
         },
 
-        /**
-         * Defines whether or not the inverse bind pose should be applied to the skeleton's pose.
-         */
         applyInverseBindPose: {
             get: function()
             {
@@ -13936,9 +13996,6 @@ SkeletonAnimation.prototype = Object.create(Component.prototype,
             }
         },
 
-        /**
-         * The root animation node of the blend tree.
-         */
         animationNode: {
             get: function ()
             {
@@ -13993,7 +14050,15 @@ SkeletonAnimation.prototype.onUpdate = function(dt)
  * @classdesc
  * SkeletonBinaryLerpNode allows simple blending between 2 child nodes.
  *
+ * @property {number} minValue The minimum value of the input range.
+ * @property {number} maxValue The maximum value of the input range.
+ * @property {number} value The value between minValue and maxValue that defines how to interpolate between the children.
+ * @property {SkeletonBlendNode} child1 The first child (matching minValue).
+ * @property {SkeletonBlendNode} child2 The second child (matching maxValue).
+ *
  * @constructor
+ *
+ * @extends SkeletonBlendNode
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -14011,16 +14076,10 @@ function SkeletonBinaryLerpNode()
 }
 
 SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
-    /**
-     * @ignore
-     */
     numJoints: {
         get: function() {return this._numJoints; }
     },
 
-    /**
-     * The minimum value of the input range.
-     */
     minValue: {
         get: function ()
         {
@@ -14033,9 +14092,6 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
-    /**
-     * The maximum value of the input range.
-     */
     maxValue: {
         get: function()
         {
@@ -14048,9 +14104,6 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
-    /**
-     * The value between minValue and maxValue that defines how to interpolate between the children.
-     */
     value: {
         get: function ()
         {
@@ -14067,9 +14120,6 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
-    /**
-     * The first child (matching minValue).
-     */
     child1: {
         get: function()
         {
@@ -14084,9 +14134,6 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         }
     },
 
-    /**
-     * The second child (matching maxValue).
-     */
     child2: {
         get: function ()
         {
@@ -14150,6 +14197,8 @@ SkeletonBinaryLerpNode.prototype.setValue = function(id, value)
  * <p>SkeletonFreePoseNode is a SkeletonBlendNode that allows freely setting any Skeleton joint's pose directly.</p>
  *
  * @constructor
+ *
+ * @extends  SkeletonBlendNode
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -14275,6 +14324,8 @@ SkeletonJoint.prototype =
  *
  * @constructor
  *
+ * @extends  SkeletonBlendNode
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonXFadeNode()
@@ -14372,8 +14423,12 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
 };
 
 /**
+ * @extends Camera
+ *
  * @classdesc
  * PerspectiveCamera is a Camera used for rendering with perspective.
+ *
+ * @property {number} verticalFOV The vertical field of view in radians.
  *
  * @constructor
  *
@@ -14389,9 +14444,6 @@ function PerspectiveCamera()
 
 
 PerspectiveCamera.prototype = Object.create(Camera.prototype, {
-    /**
-     * The vertical field of view in radians.
-     */
     verticalFOV: {
         get: function()
         {
@@ -14437,9 +14489,18 @@ PerspectiveCamera.prototype._updateProjectionMatrix = function()
 /**
  * @classdesc
  * FloatController is a {@linkcode Component} that allows moving an object (usually a camera) using mouse and keyboard (typical WASD controls) in all directions.
- * It uses gimbal free pitch/yaw/roll controls.
+ * It uses Tait-Bryan pitch/yaw/roll angles.
+ *
+ * @property {number} speed The speed at which to move.
+ * @property {number} shiftMultiplier A speed-up factor for when the shift key is pressed.
+ * @property {number} pitch The current orientation pitch (rotation about the X axis).
+ * @property {number} yaw The current orientation yaw (rotation about the Y axis).
+ * @property {number} roll The current orientation roll (rotation about the Z axis).
+ * @property {number} friction The amount of friction that will cause the movement to stop when there's no input.
  *
  * @constructor
+ *
+ * @extends Component
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -14465,9 +14526,6 @@ function FloatController()
 }
 
 FloatController.prototype = Object.create(Component.prototype, {
-    /**
-     * The speed at which to move.
-     */
     speed: {
         get: function()
         {
@@ -14482,9 +14540,6 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
-    /**
-     * A speed-up factor for when the shift key is pressed.
-     */
     shiftMultiplier: {
         get: function()
         {
@@ -14497,9 +14552,6 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
-    /**
-     * The current orientation pitch (rotation about the X axis).
-     */
     pitch: {
         get: function()
         {
@@ -14512,9 +14564,6 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
-    /**
-     * The current orientation yaw (rotation about the Y axis).
-     */
     yaw: {
         get: function()
         {
@@ -14527,9 +14576,6 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
-    /**
-     * The current orientation roll (rotation around the Z axis)
-     */
     roll: {
         get: function()
         {
@@ -14542,9 +14588,6 @@ FloatController.prototype = Object.create(Component.prototype, {
         }
     },
 
-    /**
-     * The amount of friction that will cause the movement to stop when there's no input.
-     */
     friction: {
         get: function()
         {
@@ -14718,9 +14761,16 @@ FloatController.prototype._addYaw = function(value)
 /**
  * @classdesc
  * FloatController is a {@linkcode Component} that allows moving an object (usually a camera) using mouse or touch around a central point.
+ *
+ * @property {number} radius The distance between the Entity and the lookAtTarget.
+ * @property {number} azimuth The azimuth coordinate of the object relative to the lookAtTarget.
+ * @property {number} polar The polar coordinate of the object relative to the lookAtTarget.
+ *
  * @param {Float4} target The position around which to orbit.
  *
  * @constructor
+ *
+ * @extends Component
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -14745,25 +14795,16 @@ function OrbitController(lookAtTarget)
 
 OrbitController.prototype = Object.create(Component.prototype,
     {
-        /**
-         * The distance between the Entity and the lookAtTarget.
-         */
         radius: {
             get: function() { return this._coords.z; },
             set: function(value) { this._coords.z = value; }
         },
 
-        /**
-         * The azimuth coordinate of the object relative to the lookAtTarget.
-         */
         azimuth: {
             get: function() { return this._coords.x; },
             set: function(value) { this._coords.x = value; }
         },
 
-        /**
-         * The polar coordinate of the object relative to the lookAtTarget.
-         */
         polar: {
             get: function() { return this._coords.y; },
             set: function(value) { this._coords.y = value; }
@@ -15288,6 +15329,8 @@ EffectPass.prototype.updateRenderState = function(renderer)
  * @constructor
  * @param radius The radius of the blur.
  *
+ * @extends EffectPass
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function GaussianBlurPass(radius)
@@ -15338,7 +15381,13 @@ GaussianBlurPass.prototype._initWeights = function(radius)
  * Effect is a {@linkcode Component} that will be picked up by the renderer for post-processing. Most effects are added
  * to the Camera, but some could be tied to a different Entity (for example: a DirectionalLight for crepuscular rays)
  *
+ * @property {boolean} needsNormalDepth Defines whether this Effect needs normal/depth information from the renderer.
+ * @property {FrameBuffer} hdrTarget The current full-resolution render target.
+ * @property {Texture2D} hdrSource The current full-resolution source texture.
+ *
  * @constructor
+ *
+ * @extends Component
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -15353,24 +15402,15 @@ function Effect()
 
 Effect.prototype = Object.create(Component.prototype,
     {
-        /**
-         * Defines whether this Effect needs normal/depth information from the renderer.
-         */
         needsNormalDepth: {
             get: function() { return this._needsNormalDepth; },
             set: function(value) { this._needsNormalDepth = value; }
         },
 
-        /**
-         * The current full-resolution render target.
-         */
         hdrTarget: {
             get: function() { return this._renderer._hdrFront.fbo; }
         },
 
-        /**
-         * The current full-resolution source texture.
-         */
         hdrSource: {
             get: function() { return this._renderer._hdrBack.texture; }
         }
@@ -15428,7 +15468,7 @@ Effect.prototype.onRemoved = function()
 };
 
 /**
- * Child classes need to call this when rendering to and from full-resolution textures.
+ * Child classes need to call this when rendering to and from full-resolution textures. This will effectively swap hdrSource and hdrTarget to allow ping-ponging.
  */
 Effect.prototype._swapHDRFrontAndBack = function()
 {
@@ -15438,11 +15478,18 @@ Effect.prototype._swapHDRFrontAndBack = function()
 /**
  * @classdesc
  * Bloom is an {@linkcode Effect} added to the Camera that allows bright areas in the image to bleed into less bright areas.
+ *
+ * @property {number} strength The strength of the bloom effect.
+ * @property {number} thresholdLuminance The threshold luminance for pixels that are allowed to bleed.
+ *
  * @param radius The radius of the bloom effect.
  * @param strength The strength of the bloom effect.
  * @param [downScale] How many times smaller the bloom should be calculated relative to the render target.
  * @param [anisotropy] Defines the ratio between the horizontal and vertical bloom. For the JJ Abrams people among us.
+ *
  * @constructor
+ *
+ * @extends Effect
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -15490,9 +15537,6 @@ function Bloom(radius, strength, downScale, anisotropy)
 
 Bloom.prototype = Object.create(Effect.prototype,
     {
-        /**
-         * The strength of the bloom effect.
-         */
         strength: {
             get: function ()
             {
@@ -15506,9 +15550,6 @@ Bloom.prototype = Object.create(Effect.prototype,
             }
         },
 
-        /**
-         * The threshold luminance for pixels that are allowed to bleed.
-         */
         thresholdLuminance: {
             get: function ()
             {
@@ -15572,9 +15613,14 @@ Bloom.prototype.draw = function (dt)
 /**
  * @classdesc
  * Blur is an {@linkcode Effect} added to the Camera that simply applies a gaussian blur to the screen.
- * @param numSamples The amount of samples used to calculate the blur in each direction.
+ *
+ * @param {number} radius The radius of the blur.
+ *
+ * @param numSamples The amount of samples used to calculate the blur in each direction. Cannot be changed after creation.
  * @param radius The radius of the blur.
  * @constructor
+ *
+ * @extends Effect
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -15591,9 +15637,6 @@ function Blur(numSamples, radius)
 
 Blur.prototype = Object.create(Effect.prototype,
     {
-        /**
-         * The radius of the blur.
-         */
         radius: {
             get: function() {
                 return this._radius;
@@ -15655,10 +15698,16 @@ CopyTexturePass.prototype.setSourceTexture = function(value)
  * @classdesc
  * A base class for tone mapping effects.
  *
+ * @property {number} exposure The exposure value (in "stops"). Higher values will result in brighter results.
+ * @property {number} key The intended average luminosity in the scene. Gives a hint whether the scene should be dark (low-key) or bright (high-key).
+ * @property {number} adaptionRate The amount of time in milliseconds for the "lens" to adapt to the scene's brightness.
+ *
  * @constructor
- * @param adaptive
+ * @param adaptive Defines whether or not the brightness should adapt to the average brightness of the scene. If not supported, it will disable.
  *
  * @ignore
+ *
+ * @extends Effect
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -15709,9 +15758,6 @@ ToneMapEffect.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The intended average luminosity in the scene
-     */
     key: {
         get: function()
         {
@@ -15725,9 +15771,6 @@ ToneMapEffect.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The amount of time in milliseconds for the "lens" to adapt to the frame's exposure.
-     */
     adaptationRate: {
         get: function()
         {
@@ -15773,6 +15816,8 @@ ToneMapEffect.prototype.draw = function(dt)
  * @constructor
  * @param adaptive Whether or not the brightness should adapt to the average brightness of the scene. If not supported, it will disable.
  *
+ * @extends ToneMapping
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function FilmicToneMapping(adaptive)
@@ -15807,11 +15852,18 @@ FilmicToneMapping.prototype._createToneMapPass = function()
  * @classdesc
  * Fog is an {@linkcode Effect} added to the Camera that applies a fog effect to the scene.
  *
+ * @property {number} density The "thickness" of the fog. Keep it tiny.
+ * @property {Color} tint The color of the fog.
+ * @property {number} heightFallOff The fall-off based on the height. This is to simulate a thinning atmosphere.
+ * @property {number} startDistance The distance from the camera at which the effect should start to be applied.
+ *
  * @constructor
  * @param {Number} [density] The "thickness" of the fog. Keep it tiny.
  * @param {Color} [tint] The color of the fog.
  * @param {Number} [heightFallOff] The fall-off based on the height. This is to simulate a thinning atmosphere.
  * @param {Number} [startDistance] The distance from the camera at which the effect should start to be applied.
+ *
+ * @extends Effect
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -15829,9 +15881,6 @@ function Fog(density, tint, heightFallOff, startDistance)
 
 Fog.prototype = Object.create(Effect.prototype,
     {
-        /**
-         * The "thickness" of the fog. Keep it tiny.
-         */
         density: {
             get: function()
             {
@@ -15844,9 +15893,6 @@ Fog.prototype = Object.create(Effect.prototype,
             }
         },
 
-        /**
-         * The color of the fog.
-         */
         tint: {
             get: function ()
             {
@@ -15859,9 +15905,6 @@ Fog.prototype = Object.create(Effect.prototype,
             }
         },
 
-        /**
-         * The distance from the camera at which the effect should start to be applied.
-         */
         startDistance: {
             get: function()
             {
@@ -15874,9 +15917,6 @@ Fog.prototype = Object.create(Effect.prototype,
             }
         },
 
-        /**
-         * The fall-off based on the height. This is to simulate a thinning atmosphere.
-         */
         heightFallOff: {
             get: function()
             {
@@ -15907,6 +15947,8 @@ Fog.prototype.draw = function(dt)
  *
  * @constructor
  *
+ * @extends Effect
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function FXAA()
@@ -15935,11 +15977,19 @@ FXAA.prototype.draw = function(dt)
  * @classdesc
  * HBAO adds Horizon-Based Ambient Occlusion to the renderer.
  *
+ * @property {number} sampleRadius The sample radius in world space to search for occluders.
+ * @property {number} fallOffDistance The maximum distance for occluders to still count.
+ * @property {number} strength The strength of the ambient occlusion effect.
+ * @property {number} bias The angle bias to prevent some artifacts.
+ * @property {number} scale The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
+ *
  * @constructor
  * @param numRays The amount of rays to march over.
  * @param numSamplesPerRay The samples per ray during a march.
  *
  * @see {@linkcode Renderer#ambientOcclusion}
+ *
+ * @extends Effect
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -15991,9 +16041,6 @@ function HBAO(numRays, numSamplesPerRay)
 }
 
 HBAO.prototype = Object.create(Effect.prototype, {
-    /**
-     * The sample radius in world space to search for occluders.
-     */
     sampleRadius: {
         get: function ()
         {
@@ -16007,9 +16054,6 @@ HBAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The maximum distance for occluders to still count.
-     */
     fallOffDistance: {
         get: function ()
         {
@@ -16022,9 +16066,6 @@ HBAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The strength of the ambient occlusion effect.
-     */
     strength: {
         get: function()
         {
@@ -16037,9 +16078,6 @@ HBAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The angle bias to prevent some artifacts.
-     */
     bias: {
         get: function()
         {
@@ -16052,9 +16090,6 @@ HBAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
-     */
     scale: {
         get: function() { return this._scale; },
         set: function(value) { this._scale = value; }
@@ -16176,10 +16211,17 @@ HBAO.prototype._initDitherTexture = function()
  * @classdesc
  * SSAO adds Screen-Space Ambient Occlusion to the renderer.
  *
+ * @property {number} sampleRadius The sample radius in world space to search for occluders.
+ * @property {number} fallOffDistance The maximum distance for occluders to still count.
+ * @property {number} strength The strength of the ambient occlusion effect.
+ * @property {number} scale The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
+ *
  * @constructor
  * @param numSamples The amount of samples to take per pixel.
  *
  * @see {@linkcode Renderer#ambientOcclusion}
+ *
+ * @extends Effect
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -16224,9 +16266,6 @@ function SSAO(numSamples)
 }
 
 SSAO.prototype = Object.create(Effect.prototype, {
-    /**
-     * The sample radius in world space to search for occluders.
-     */
     sampleRadius: {
         get: function ()
         {
@@ -16239,9 +16278,6 @@ SSAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The maximum distance for occluders to still count.
-     */
     fallOffDistance: {
         get: function ()
         {
@@ -16254,9 +16290,6 @@ SSAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The strength of the ambient occlusion effect.
-     */
     strength: {
         get: function()
         {
@@ -16269,9 +16302,6 @@ SSAO.prototype = Object.create(Effect.prototype, {
         }
     },
 
-    /**
-     * The scale at which to calculate the ambient occlusion (usually 0.5, half-resolution)
-     */
     scale: {
         get: function() { return this._scale; },
         set: function(value) { this._scale = value; }
@@ -16373,6 +16403,8 @@ SSAO.prototype._initDitherTexture = function()
  *
  * @constructor
  * @param adaptive Whether or not the brightness should adapt to the average brightness of the scene. If not supported, it will disable.
+ *
+ * @extends ToneMapping
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -16734,7 +16766,6 @@ AssetLoader.prototype =
 
 /**
  * @constructor
- * Creates a new AssetLibrary object.
  * @param {string} basePath The base path or url to load the assets from. All filenames will have this value prepended.
  * @param {string} [crossOrigin] An optional cross origin string. This is used when loading images from a different domain.
  *
@@ -16954,6 +16985,8 @@ AssetLibrary.prototype =
  *
  * @constructor
  *
+ * @extends Importer
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function HCM()
@@ -17111,6 +17144,8 @@ HCM.prototype._loadMipChain = function(urls, target)
  *
  * @constructor
  *
+ * @extends Importer
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function JPG()
@@ -17128,7 +17163,10 @@ JPG.prototype.parse = function(data, target)
 };
 
 /**
+ * @classdesc
  * Synonymous to {@linkcode JPG}.
+ *
+ * @constructor
  */
 var PNG = JPG;
 
@@ -17137,6 +17175,8 @@ var PNG = JPG;
  * HCM is an Importer for Helix' json-based material formats. Yields a {@linkcode Material} object.
  *
  * @constructor
+ *
+ * @extends Importer
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -17338,6 +17378,9 @@ HMT._initPropertyMap = function() {
 /**
  * EquirectangularTexture is a utility class that converts equirectangular environment {@linknode Texture2D} to a
  * {@linkcode TextureCube}.
+ *
+ * @namespace
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 var EquirectangularTexture =
@@ -17464,6 +17507,8 @@ var EquirectangularTexture =
  *
  * @constructor
  *
+ * @extends Importer
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function JPG_EQUIRECTANGULAR()
@@ -17488,6 +17533,8 @@ var PNG_EQUIRECTANGULAR = JPG_EQUIRECTANGULAR;
 
 /**
  * HeightMap contains some utilities for height maps.
+ *
+ * @namespace
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -17559,6 +17606,8 @@ var HeightMap =
  *
  * @constructor
  *
+ * @extends Importer
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function JPG_HEIGHTMAP()
@@ -17583,9 +17632,15 @@ var PNG_HEIGHTMAP = JPG_HEIGHTMAP;
 
 /**
  * @classdesc
- * AmbientLight can be added to the scene to provide a minimum (single-color) amount of light in the scene.
+ * AmbientLight can be added to the scene to provide a minimum (single-color) amount of light in the scene. Internally,
+ * it's not a true {@linkcode Light} object, and it's handled differently in the renderer.
+ *
+ * @property {Color} color The color of the ambient light.
+ * @property {number} intensity The intensity of the ambient light.
  *
  * @constructor
+ *
+ * @extends Entity
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -17601,9 +17656,6 @@ function AmbientLight()
 }
 
 AmbientLight.prototype = Object.create(Entity.prototype, {
-    /**
-     * The color of the ambient light.
-     */
     color: {
         get: function() { return this._color; },
         set: function(value)
@@ -17613,9 +17665,6 @@ AmbientLight.prototype = Object.create(Entity.prototype, {
         }
     },
 
-    /**
-     * The intensity of the ambient light.
-     */
     intensity: {
         get: function() { return this._intensity; },
         set: function(value)
@@ -17720,9 +17769,15 @@ ESMBlurShader.prototype.execute = function(rect, texture, dirX, dirY)
  * ExponentialDirectionalShadowFilter is a shadow filter that provides exponential soft shadow mapping.
  * The implementation is highly experimental at this point.
  *
+ * @property {number} blurRadius The blur radius for the soft shadows.
+ * @property {number} darkeningFactor A darkening factor of the shadows. Counters some artifacts of the technique.
+ * @property {number} expScaleFactor The exponential scale factor. Probably you shouldn't touch this.
+ *
  * @see {@linkcode InitOptions#directionalShadowFilter}
  *
  * @constructor
+ *
+ * @extends ShadowFilter
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -17737,9 +17792,6 @@ function ExponentialDirectionalShadowFilter()
 
 ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
-        /**
-         * The blur radius for the soft shadows.
-         */
         blurRadius: {
             get: function()
             {
@@ -17753,9 +17805,6 @@ ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.protot
             }
         },
 
-        /**
-         * A darkening factor of the shadows. Counters some artifacts of the technique.
-         */
         darkeningFactor: {
             get: function()
             {
@@ -17769,9 +17818,6 @@ ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.protot
             }
         },
 
-        /**
-         * The exponential scale factor. Probably you shouldn't touch this.
-         */
         expScaleFactor: {
             get: function()
             {
@@ -17956,9 +18002,17 @@ DeferredLightProbeShader.prototype.execute = function(renderer)
  * Only providing a simple specularTexture will behave like environment mapping, but diffuse convolution can be applied
  * for global diffuse illumination.
  *
+ * @property {TextureCube} diffuseTexture A cube map texture containing diffuse global illumination information
+ * @property {TextureCube} specularTexture A cube map texture containing specular global illumination information
+ * @property {number} size Defines the virtual size of the environment map box. Useful for local reflections. Leave undefined for a traditional environment map "at infinity"
+ *
  * @see {@linkcode https://www.knaldtech.com/lys/} for an example tool to generate the required images.
  *
  * @constructor
+ * @param {TextureCube} diffuseTexture A cube map texture containing diffuse global illumination information
+ * @param {TextureCube} specularTexture A cube map texture containing specular global illumination information
+ *
+ * @extends Entity
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -18161,7 +18215,11 @@ DeferredPointShader.prototype.execute = function(renderer, light)
  * PointLight represents an omnidirectional light source with a single point as origin. The light strength falls off
  * according to the inverse square rule.
  *
+ * @property {number} radius The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a given area for performance.
+ *
  * @constructor
+ *
+ * @extends Light
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -18180,10 +18238,6 @@ function PointLight()
 
 PointLight.prototype = Object.create(Light.prototype,
     {
-        /**
-         * The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a
-         * given area for performance.
-         */
         radius: {
             get: function() {
                 return this._radius;
@@ -18822,6 +18876,8 @@ Renderer.prototype =
  *
  * @constructor
  *
+ * @extends LightProbe
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function DynamicLightProbe(textureSize, textureDataType, near, far)
@@ -18910,9 +18966,15 @@ DynamicLightProbe.prototype.render = function()
  * ExponentialDirectionalShadowFilter is a shadow filter that provides percentage closer soft shadow mapping. However,
  * WebGL does not support shadow test interpolations, so the results aren't as great as its GL/DX counterpart.
  *
+ * @property {number} softness The softness of the shadows in world space.
+ * @property {number} numShadowSamples The amount of shadow samples to take.
+ * @property {boolean} dither Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
+ *
  * @see {@linkcode InitOptions#directionalShadowFilter}
  *
  * @constructor
+ *
+ * @extends ShadowFilter
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -18926,9 +18988,6 @@ function PCFDirectionalShadowFilter()
 
 PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
-        /**
-         * The softness of the shadows in world space.
-         */
         softness: {
             get: function()
             {
@@ -18944,9 +19003,6 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
             }
         },
 
-        /**
-         * The amount of shadow samples to take.
-         */
         numShadowSamples: {
             get: function()
             {
@@ -18962,9 +19018,6 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
             }
         },
 
-        /**
-         * Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
-         */
         dither: {
             get: function()
             {
@@ -19067,9 +19120,14 @@ VSMBlurShader.prototype.execute = function (rect, texture, dirX, dirY)
  * VarianceDirectionalShadowFilter is a shadow filter that provides variance soft shadow mapping.
  * The implementation is highly experimental at this point.
  *
+ * @property {number} blurRadius The blur radius for the soft shadows.
+ * @property {number} lightBleedReduction A value to counter light bleeding, an artifact of the technique.
+ *
  * @see {@linkcode InitOptions#directionalShadowFilter}
  *
  * @constructor
+ *
+ * @extends ShadowFilter
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -19082,9 +19140,6 @@ function VarianceDirectionalShadowFilter()
 
 VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
-        /**
-         * The blur radius for the soft shadows.
-         */
         blurRadius: {
             get: function()
             {
@@ -19098,9 +19153,6 @@ VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype
             }
         },
 
-        /**
-         * A value to counter light bleeding, an artifact of the technique.
-         */
         lightBleedReduction: {
             get: function()
             {
@@ -19149,8 +19201,27 @@ VarianceDirectionalShadowFilter.prototype._getDefines = function()
  * @classdesc
  * BasicMaterial is the default physically plausible rendering material.
  *
+ * @property {boolean} doubleSided Defines whether the material is double sided (no back-face culling) or not. An easier-to-read alternative to {@linkcode Material.cullMode}
+ * @property {number} alpha The overall transparency of the object. Has no effect without a matching blendState value.
+ * @property {boolean} useVertexColors Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
+ * @property {Color} color The base color of the material. Multiplied with the colorMap if provided.
+ * @property {Texture2D} colorMap A {@linkcode Texture2D} object containing color data.
+ * @property {Texture2D} normalMap A {@linkcode Texture2D} object containing surface normals.
+ * @property {Texture2D} specularMap A texture containing specular reflection data. The contents of the map depend on {@linkcode BasicMaterial#specularMapMode}. The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
+ * @property {Texture2D} maskMap A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
+ * @property {number} specularMapMode Defines the contents of the specular map. One of the following:
+ * <ul>
+ *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+ *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_ALL}</li>
+ *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
+ * </ul>
+ * @property {number} metallicness A value describing the overall "metallicness" of an object. Normally 0 or 1, but it can be used for some hybrid materials.
+ * @property {number} normalSpecularReflectance The amount of light reflecting off a surface at 90 degrees (ie: the minimum reflectance in the Fresnel equation according to Schlick's approximation). This is generally 0.027 for most materials.
+ * @property {number} roughness The microfacet roughness of the material. Higher values will result in dimmer but larger highlights.
+ * @property {number} roughnessRange Represents the range at which the roughness map operates. When using a roughness texture, roughness represents the middle roughness, range the deviation from there. So textured roughness ranges from [roughness - roughnessRange, roughness + roughnessRange]
+ * @property {number} alphaThreshold The alpha threshold that prevents pixels with opacity below this from being rendered. This is not recommended on certain mobile platforms due to depth buffer hierarchy performance.
+ *
  * @constructor
- * Creates a new BasicMaterial object.
  *
  * @param options An object with key/value pairs describing the initial values of the material.
  *
@@ -19171,6 +19242,8 @@ VarianceDirectionalShadowFilter.prototype._getDefines = function()
  * <li>useVertexColors: Boolean</li>
  * <li>lightingModel: {@linkcode LightingModel}</li>
  * </ul>
+ *
+ * @extends Material
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -19231,9 +19304,6 @@ BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
 
 BasicMaterial.prototype = Object.create(Material.prototype,
     {
-        /**
-         * Defines whether the material is double sided (no back-face culling) or not.
-         */
         doubleSided: {
             get: function()
             {
@@ -19242,18 +19312,10 @@ BasicMaterial.prototype = Object.create(Material.prototype,
 
             set: function(value)
             {
-                this._doubleSided = value;
-
-                for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
-                    if (this._passes[i])
-                        this._passes[i].cullMode = value ? CullMode.NONE : CullMode.BACK;
-                }
+                this.cullMode = value? CullMode.NONE : CullMode.BACK;
             }
         },
 
-        /**
-         * The overal transparency of the object. Has no effect without a matching blendState value.
-         */
         alpha: {
             get: function ()
             {
@@ -19266,9 +19328,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
-         */
         useVertexColors: {
             get: function ()
             {
@@ -19283,9 +19342,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * The base color of the material. Multiplied with the colorMap if provided.
-         */
         color: {
             get: function ()
             {
@@ -19298,9 +19354,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * A {@linkcode Texture2D} object containing color data.
-         */
         colorMap: {
             get: function ()
             {
@@ -19319,9 +19372,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * A {@linkcode Texture2D} object containing surface normals.
-         */
         normalMap: {
             get: function ()
             {
@@ -19338,10 +19388,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * A {@linkcode Texture2D} object containing specular reflection data. The contents of the map depend on {@linkcode BasicMaterial#specularMapMode}.
-         * The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
-         */
         specularMap: {
             get: function ()
             {
@@ -19358,9 +19404,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
-         */
         maskMap: {
             get: function ()
             {
@@ -19377,14 +19420,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * Defines the contents of the specular map. One of the following:
-         * <ul>
-         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
-         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_ALL}</li>
-         *     <li>{@linkcode:BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
-         * </ul>
-         */
         specularMapMode: {
             get: function ()
             {
@@ -19399,10 +19434,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * A value describing the overall "metallicness" of an object. Normally 0 or 1, but it can be used for some
-         * hybrid materials.
-         */
         metallicness: {
             get: function ()
             {
@@ -19415,10 +19446,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * The amount of light reflecting off a surface at 90 degrees (ie: the minimum reflectance in the Fresnel
-         * equation according to Schlick's approximation). This is generally 0.027 for most materials.
-         */
         normalSpecularReflectance: {
             get: function ()
             {
@@ -19431,9 +19458,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
             }
         },
 
-        /**
-         * The microfacet roughness of the material. Higher values will result in dimmer but larger highlights.
-         */
         roughness:
             {
                 get: function ()
@@ -19448,11 +19472,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
                 }
             },
 
-        /**
-         * Represents the range at which the roughness map operates. When using a roughness texture, roughness represents
-         * the middle roughness, range the deviation from there. So textured roughness ranges from
-         * [roughness - roughnessRange, roughness + roughnessRange]
-         */
         roughnessRange:
             {
                 get: function ()
@@ -19467,10 +19486,6 @@ BasicMaterial.prototype = Object.create(Material.prototype,
                 }
             },
 
-        /**
-         * The alpha threshold that prevents pixels with opacity below this from being rendered. This is not recommended
-         * on certain mobile platforms due to depth buffer hierarchy performance.
-         */
         alphaThreshold:
             {
                 get: function() { return this._alphaThreshold; },
@@ -19542,6 +19557,8 @@ BasicMaterial.prototype._setUseSkinning = function(value)
 
 /**
  * MeshBatch is a util that creates a number copies of the same mesh with hx_instanceID being the instance number of the copy.
+ *
+ * @namespace
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -19627,6 +19644,8 @@ var MeshBatch =
  *     <li>height: The height of the cone</li>
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
  * </ul>
+ *
+ * @extends Primitive
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -19730,6 +19749,8 @@ ConePrimitive.prototype._generate = function(target, definition)
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
  *     <li>alignment: The axis along which to orient the cylinder. One of {@linkcode CylinderPrimitive.ALIGN_X}, {@linkcode CylinderPrimitive.ALIGN_Y}, {@linkcode CylinderPrimitive.ALIGN_Z}</li>
  * </ul>
+ *
+ * @extends Primitive
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -19901,6 +19922,8 @@ CylinderPrimitive.prototype._generate = function(target, definition)
  *     <li>alignment: The axes along which to orient the plane. One of {@linkcode PlanePrimitive.ALIGN_XZ}, {@linkcode PlanePrimitive.ALIGN_XY}, {@linkcode PlanePrimitive.ALIGN_YZ}</li>
  * </ul>
  *
+ * @extends Primitive
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function PlanePrimitive(definition)
@@ -20018,6 +20041,8 @@ PlanePrimitive.prototype._generate = function(target, definition)
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
  *     <li>alignment: The axes along which to orient the torus. One of {@linkcode TorusPrimitive.ALIGN_XZ}, {@linkcode TorusPrimitive.ALIGN_XY}, {@linkcode TorusPrimitive.ALIGN_YZ}</li>
  * </ul>
+ *
+ * @extends Primitive
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -20271,6 +20296,8 @@ function StencilState(reference, comparison, onStencilFail, onDepthFail, onPass,
 
 /**
  * ImageData provides some utilities for images.
+ *
+ * @namespace
  *
  * @author derschmale <http://www.derschmale.com>
  */

@@ -169,12 +169,12 @@ SkeletonBlendTree.prototype =
                 data.push(m[r], m[r + 4], m[r + 8], m[r + 12]);
             }
 
-            for (i = len; i < META.OPTIONS.maxBones; ++i) {
+            for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
                 data.push(0, 0, 0, 0);
             }
         }
 
-        this._texture.uploadData(new Float32Array(data), META.OPTIONS.maxBones, 3, false, TextureFormat.RGBA, DataType.FLOAT);
+        this._texture.uploadData(new Float32Array(data), META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
     }
 };
 

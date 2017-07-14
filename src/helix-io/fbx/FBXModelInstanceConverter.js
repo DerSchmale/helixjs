@@ -332,8 +332,8 @@ FBXModelInstanceConverter.prototype =
                 mesh.setIndexData(data.indexStack[j]);
 
                 if (this._useSkinning) {
-                    mesh.addVertexAttribute("hx_boneIndices", 4, 1);
-                    mesh.addVertexAttribute("hx_boneWeights", 4, 1);
+                    mesh.addVertexAttribute("hx_jointIndices", 4, 1);
+                    mesh.addVertexAttribute("hx_jointWeights", 4, 1);
                     mesh.setVertexData(data.skinningStack[j], 1);
                 }
 

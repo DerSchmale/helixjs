@@ -23,7 +23,7 @@ function AnimationPlayhead(clip)
     this._looping = clip.looping;
 
     /**
-     * The number of times the playhead has wrapped during the last update. Useful when moving skeleton root bone, fe.
+     * The number of times the playhead has wrapped during the last update. Useful when moving skeleton root joint, fe.
      * @type {number}
      */
     this.wraps = 0;

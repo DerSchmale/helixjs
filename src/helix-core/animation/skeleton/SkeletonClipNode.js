@@ -95,11 +95,11 @@ SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
  */
 SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
-    var rootBonePos = this._pose.jointPoses[0].position;
+    var rootJointPos = this._pose.jointPoses[0].position;
     var rootPos = this._rootPosition;
     var rootDelta = this._rootJointDeltaPosition;
 
-    Float4.subtract(rootBonePos, rootPos, rootDelta);
+    Float4.subtract(rootJointPos, rootPos, rootDelta);
 
     if (dt > 0 && numWraps > 0) {
         // apply the entire displacement for the amount of times it wrapped
@@ -110,8 +110,8 @@ SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
         rootDelta.addScaled(this._clipRootDelta, -numWraps);
     }
 
-    this._rootPosition.copyFrom(rootBonePos);
-    rootBonePos.set(0.0, 0.0, 0.0);
+    this._rootPosition.copyFrom(rootJointPos);
+    rootJointPos.set(0.0, 0.0, 0.0);
 };
 
 /**

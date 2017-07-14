@@ -133,11 +133,9 @@ export var CubeFace = {};
 export function InitOptions()
 {
     /**
-     * The maximum supported number of bones for skinning animations.
-     *
-     * TODO: rename to maxSkeletonJoints
+     * The maximum supported number of joints for skinning animations.
      */
-    this.maxBones = 64;
+    this.maxSkeletonJoints = 64;
 
     /**
      * Whether or not to use a texture to store skinning data. May be forced to "false" if floating point textures are not supported.
@@ -262,7 +260,7 @@ export function init(canvas, options)
         defines += META.OPTIONS.usePreciseGammaCorrection ? "#define HX_GAMMA_CORRECTION_PRECISE\n" : "#define HX_GAMMA_CORRECTION_FAST\n";
 
     defines += "#define HX_NUM_SHADOW_CASCADES " + META.OPTIONS.numShadowCascades + "\n";
-    defines += "#define HX_MAX_BONES " + META.OPTIONS.maxBones + "\n";
+    defines += "#define HX_MAX_SKELETON_JOINTS " + META.OPTIONS.maxSkeletonJoints + "\n";
 
     options.ignoreDrawBuffersExtension = options.ignoreDrawBuffersExtension || options.ignoreAllExtensions;
     options.ignoreDepthTexturesExtension = options.ignoreDepthTexturesExtension || options.ignoreAllExtensions;
@@ -415,10 +413,10 @@ function _initDefaultSkinningTexture()
     DEFAULTS.DEFAULT_SKINNING_TEXTURE = new Texture2D();
 
     var data = [];
-    for (var i = 0; i < META.OPTIONS.maxBones; ++i)
+    for (var i = 0; i < META.OPTIONS.maxSkeletonJoints; ++i)
         data.push(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
 
-    DEFAULTS.DEFAULT_SKINNING_TEXTURE.uploadData(new Float32Array(data), META.OPTIONS.maxBones, 3, false, gl.RGBA, gl.FLOAT);
+    DEFAULTS.DEFAULT_SKINNING_TEXTURE.uploadData(new Float32Array(data), META.OPTIONS.maxSkeletonJoints, 3, false, gl.RGBA, gl.FLOAT);
     DEFAULTS.DEFAULT_SKINNING_TEXTURE.filter = TextureFilter.NEAREST_NOMIP;
     DEFAULTS.DEFAULT_SKINNING_TEXTURE.wrapMode = TextureWrapMode.CLAMP;
 }

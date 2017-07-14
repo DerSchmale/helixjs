@@ -338,7 +338,7 @@ PoissonDiskSetter.prototype.execute = function ()
 
 function SkinningMatricesSetter()
 {
-    this._data = new Float32Array(OPTIONS.maxBones * 12);
+    this._data = new Float32Array(OPTIONS.maxSkeletonJoints * 12);
 }
 
 SkinningMatricesSetter.prototype.execute = function (camera, renderItem)

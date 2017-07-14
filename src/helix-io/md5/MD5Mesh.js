@@ -141,8 +141,8 @@ MD5Mesh.prototype._parseWeight = function(tokens)
 MD5Mesh.prototype._translateMesh = function()
 {
     var mesh = new HX.Mesh.createDefaultEmpty();
-    mesh.addVertexAttribute("hx_boneIndices", 4, 1);
-    mesh.addVertexAttribute("hx_boneWeights", 4, 1);
+    mesh.addVertexAttribute("hx_jointIndices", 4, 1);
+    mesh.addVertexAttribute("hx_jointWeights", 4, 1);
     var vertices = [];
     var anims = [];
 

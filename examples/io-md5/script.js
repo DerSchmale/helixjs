@@ -13,7 +13,7 @@ project.onInit = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.maxBones = 39;
+    options.maxSkeletonJoints = 39;
     options.useSkinningTexture = true;
     project.init(document.getElementById('webglContainer'), options);
 };

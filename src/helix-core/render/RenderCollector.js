@@ -30,15 +30,7 @@ function RenderCollector()
     this._needsBackbuffer = false;
 }
 
-RenderCollector.prototype = Object.create(SceneVisitor.prototype);
-
-RenderCollector.prototype.getOpaqueRenderList = function() { return this._opaques; };
-RenderCollector.prototype.getTransparentRenderList = function() { return this._transparents; };
-RenderCollector.prototype.getLights = function() { return this._lights; };
-RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
-RenderCollector.prototype.getEffects = function() { return this._effects; };
-
-Object.defineProperties(RenderCollector.prototype, {
+RenderCollector.prototype = Object.create(SceneVisitor.prototype, {
     ambientColor: {
         get: function() { return this._ambientColor; }
     },
@@ -55,6 +47,12 @@ Object.defineProperties(RenderCollector.prototype, {
         get: function() { return this._needsBackbuffer; }
     }
 });
+
+RenderCollector.prototype.getOpaqueRenderList = function() { return this._opaques; };
+RenderCollector.prototype.getTransparentRenderList = function() { return this._transparents; };
+RenderCollector.prototype.getLights = function() { return this._lights; };
+RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
+RenderCollector.prototype.getEffects = function() { return this._effects; };
 
 RenderCollector.prototype.collect = function(camera, scene)
 {

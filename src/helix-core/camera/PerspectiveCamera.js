@@ -17,9 +17,7 @@ function PerspectiveCamera()
 };
 
 
-PerspectiveCamera.prototype = Object.create(Camera.prototype);
-
-Object.defineProperties(PerspectiveCamera.prototype, {
+PerspectiveCamera.prototype = Object.create(Camera.prototype, {
     /**
      * The vertical field of view in radians.
      */

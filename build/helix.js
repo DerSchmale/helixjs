@@ -113,6 +113,18 @@ ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_G
 
 ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
+ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
+
+ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
+
+ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
+
+ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
 ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -142,18 +154,6 @@ ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec4 co
 ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
 
 ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	gl_FragColor = color / (1.0 + lum);\n}';
-
-ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
-
-ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);\n}';
-
-ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
-
-ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 ShaderLibrary._files['dir_shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)\n{\n    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
 
@@ -5746,15 +5746,7 @@ function Light()
     this._updateScaledIrradiance();
 }
 
-Light.prototype = Object.create(Entity.prototype);
-
-Light.prototype.acceptVisitor = function (visitor)
-{
-    Entity.prototype.acceptVisitor.call(this, visitor);
-    visitor.visitLight(this);
-};
-
-Object.defineProperties(Light.prototype, {
+Light.prototype = Object.create(Entity.prototype, {
     intensity: {
         get: function ()
         {
@@ -5785,6 +5777,12 @@ Object.defineProperties(Light.prototype, {
         }
     }
 });
+
+Light.prototype.acceptVisitor = function (visitor)
+{
+    Entity.prototype.acceptVisitor.call(this, visitor);
+    visitor.visitLight(this);
+};
 
 Light.prototype.luminance = function ()
 {
@@ -12238,15 +12236,7 @@ function RenderCollector()
     this._needsBackbuffer = false;
 }
 
-RenderCollector.prototype = Object.create(SceneVisitor.prototype);
-
-RenderCollector.prototype.getOpaqueRenderList = function() { return this._opaques; };
-RenderCollector.prototype.getTransparentRenderList = function() { return this._transparents; };
-RenderCollector.prototype.getLights = function() { return this._lights; };
-RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
-RenderCollector.prototype.getEffects = function() { return this._effects; };
-
-Object.defineProperties(RenderCollector.prototype, {
+RenderCollector.prototype = Object.create(SceneVisitor.prototype, {
     ambientColor: {
         get: function() { return this._ambientColor; }
     },
@@ -12263,6 +12253,12 @@ Object.defineProperties(RenderCollector.prototype, {
         get: function() { return this._needsBackbuffer; }
     }
 });
+
+RenderCollector.prototype.getOpaqueRenderList = function() { return this._opaques; };
+RenderCollector.prototype.getTransparentRenderList = function() { return this._transparents; };
+RenderCollector.prototype.getLights = function() { return this._lights; };
+RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
+RenderCollector.prototype.getEffects = function() { return this._effects; };
 
 RenderCollector.prototype.collect = function(camera, scene)
 {
@@ -14392,9 +14388,7 @@ function PerspectiveCamera()
 }
 
 
-PerspectiveCamera.prototype = Object.create(Camera.prototype);
-
-Object.defineProperties(PerspectiveCamera.prototype, {
+PerspectiveCamera.prototype = Object.create(Camera.prototype, {
     /**
      * The vertical field of view in radians.
      */
@@ -15701,35 +15695,7 @@ function ToneMapEffect(adaptive)
     this.exposure = 0.0;
 }
 
-ToneMapEffect.prototype = Object.create(Effect.prototype);
-
-ToneMapEffect.prototype._createToneMapPass = function()
-{
-    throw new Error("Abstract method called!");
-};
-
-
-ToneMapEffect.prototype.draw = function(dt)
-{
-    if (this._adaptive) {
-        var amount = this._adaptationRate > 0 ? dt / this._adaptationRate : 1.0;
-        if (amount > 1) amount = 1;
-
-        this._extractLuminancePass.blendState.color.a = amount;
-
-        GL.setRenderTarget(this._luminanceFBO);
-        // can't clear at this point
-        this._drawPass(this._extractLuminancePass);
-        this._luminanceMap.generateMipmap();
-    }
-
-    GL.setRenderTarget(this.hdrTarget);
-    GL.clear();
-    this._drawPass(this._toneMapPass);
-};
-
-
-Object.defineProperties(ToneMapEffect.prototype, {
+ToneMapEffect.prototype = Object.create(Effect.prototype, {
     exposure: {
         get: function()
         {
@@ -15774,6 +15740,31 @@ Object.defineProperties(ToneMapEffect.prototype, {
         }
     }
 });
+
+ToneMapEffect.prototype._createToneMapPass = function()
+{
+    throw new Error("Abstract method called!");
+};
+
+
+ToneMapEffect.prototype.draw = function(dt)
+{
+    if (this._adaptive) {
+        var amount = this._adaptationRate > 0 ? dt / this._adaptationRate : 1.0;
+        if (amount > 1) amount = 1;
+
+        this._extractLuminancePass.blendState.color.a = amount;
+
+        GL.setRenderTarget(this._luminanceFBO);
+        // can't clear at this point
+        this._drawPass(this._extractLuminancePass);
+        this._luminanceMap.generateMipmap();
+    }
+
+    GL.setRenderTarget(this.hdrTarget);
+    GL.clear();
+    this._drawPass(this._toneMapPass);
+};
 
 /**
  * @classdesc
@@ -15999,20 +15990,7 @@ function HBAO(numRays, numSamplesPerRay)
     this._fbo2 = new FrameBuffer(this._aoTexture);
 }
 
-HBAO.prototype = Object.create(Effect.prototype);
-
-/**
- * Returns the texture containing the ambient occlusion values.
- *
- * @returns {Texture2D}
- * @ignore
- */
-HBAO.prototype.getAOTexture = function()
-{
-    return this._aoTexture;
-};
-
-Object.defineProperties(HBAO.prototype, {
+HBAO.prototype = Object.create(Effect.prototype, {
     /**
      * The sample radius in world space to search for occluders.
      */
@@ -16082,6 +16060,17 @@ Object.defineProperties(HBAO.prototype, {
         set: function(value) { this._scale = value; }
     }
 });
+
+/**
+ * Returns the texture containing the ambient occlusion values.
+ *
+ * @returns {Texture2D}
+ * @ignore
+ */
+HBAO.prototype.getAOTexture = function()
+{
+    return this._aoTexture;
+};
 
 /**
  * @ignore
@@ -16234,20 +16223,7 @@ function SSAO(numSamples)
     this._fbo2 = new FrameBuffer(this._ssaoTexture);
 }
 
-SSAO.prototype = Object.create(Effect.prototype);
-
-/**
- * Returns the texture containing the ambient occlusion values.
- * @returns {Texture2D}
- *
- * @ignore
- */
-SSAO.prototype.getAOTexture = function()
-{
-    return this._ssaoTexture;
-};
-
-Object.defineProperties(SSAO.prototype, {
+SSAO.prototype = Object.create(Effect.prototype, {
     /**
      * The sample radius in world space to search for occluders.
      */
@@ -16302,6 +16278,16 @@ Object.defineProperties(SSAO.prototype, {
     }
 });
 
+/**
+ * Returns the texture containing the ambient occlusion values.
+ * @returns {Texture2D}
+ *
+ * @ignore
+ */
+SSAO.prototype.getAOTexture = function()
+{
+    return this._ssaoTexture;
+};
 
 /**
  * @ignore
@@ -17614,9 +17600,7 @@ function AmbientLight()
     this._updateScaledIrradiance();
 }
 
-AmbientLight.prototype = Object.create(Entity.prototype);
-
-Object.defineProperties(AmbientLight.prototype, {
+AmbientLight.prototype = Object.create(Entity.prototype, {
     /**
      * The color of the ambient light.
      */

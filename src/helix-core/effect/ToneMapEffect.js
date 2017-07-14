@@ -54,35 +54,7 @@ function ToneMapEffect(adaptive)
     this.exposure = 0.0;
 };
 
-ToneMapEffect.prototype = Object.create(Effect.prototype);
-
-ToneMapEffect.prototype._createToneMapPass = function()
-{
-    throw new Error("Abstract method called!");
-};
-
-
-ToneMapEffect.prototype.draw = function(dt)
-{
-    if (this._adaptive) {
-        var amount = this._adaptationRate > 0 ? dt / this._adaptationRate : 1.0;
-        if (amount > 1) amount = 1;
-
-        this._extractLuminancePass.blendState.color.a = amount;
-
-        GL.setRenderTarget(this._luminanceFBO);
-        // can't clear at this point
-        this._drawPass(this._extractLuminancePass);
-        this._luminanceMap.generateMipmap();
-    }
-
-    GL.setRenderTarget(this.hdrTarget);
-    GL.clear();
-    this._drawPass(this._toneMapPass);
-};
-
-
-Object.defineProperties(ToneMapEffect.prototype, {
+ToneMapEffect.prototype = Object.create(Effect.prototype, {
     exposure: {
         get: function()
         {
@@ -127,5 +99,30 @@ Object.defineProperties(ToneMapEffect.prototype, {
         }
     }
 });
+
+ToneMapEffect.prototype._createToneMapPass = function()
+{
+    throw new Error("Abstract method called!");
+};
+
+
+ToneMapEffect.prototype.draw = function(dt)
+{
+    if (this._adaptive) {
+        var amount = this._adaptationRate > 0 ? dt / this._adaptationRate : 1.0;
+        if (amount > 1) amount = 1;
+
+        this._extractLuminancePass.blendState.color.a = amount;
+
+        GL.setRenderTarget(this._luminanceFBO);
+        // can't clear at this point
+        this._drawPass(this._extractLuminancePass);
+        this._luminanceMap.generateMipmap();
+    }
+
+    GL.setRenderTarget(this.hdrTarget);
+    GL.clear();
+    this._drawPass(this._toneMapPass);
+};
 
 export { ToneMapEffect };

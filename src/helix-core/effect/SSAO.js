@@ -60,20 +60,7 @@ function SSAO(numSamples)
     this._fbo2 = new FrameBuffer(this._ssaoTexture);
 }
 
-SSAO.prototype = Object.create(Effect.prototype);
-
-/**
- * Returns the texture containing the ambient occlusion values.
- * @returns {Texture2D}
- *
- * @ignore
- */
-SSAO.prototype.getAOTexture = function()
-{
-    return this._ssaoTexture;
-};
-
-Object.defineProperties(SSAO.prototype, {
+SSAO.prototype = Object.create(Effect.prototype, {
     /**
      * The sample radius in world space to search for occluders.
      */
@@ -128,6 +115,16 @@ Object.defineProperties(SSAO.prototype, {
     }
 });
 
+/**
+ * Returns the texture containing the ambient occlusion values.
+ * @returns {Texture2D}
+ *
+ * @ignore
+ */
+SSAO.prototype.getAOTexture = function()
+{
+    return this._ssaoTexture;
+};
 
 /**
  * @ignore

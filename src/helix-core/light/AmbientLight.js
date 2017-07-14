@@ -22,9 +22,7 @@ function AmbientLight()
     this._updateScaledIrradiance();
 };
 
-AmbientLight.prototype = Object.create(Entity.prototype);
-
-Object.defineProperties(AmbientLight.prototype, {
+AmbientLight.prototype = Object.create(Entity.prototype, {
     /**
      * The color of the ambient light.
      */

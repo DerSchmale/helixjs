@@ -25,15 +25,7 @@ function Light()
     this._updateScaledIrradiance();
 }
 
-Light.prototype = Object.create(Entity.prototype);
-
-Light.prototype.acceptVisitor = function (visitor)
-{
-    Entity.prototype.acceptVisitor.call(this, visitor);
-    visitor.visitLight(this);
-};
-
-Object.defineProperties(Light.prototype, {
+Light.prototype = Object.create(Entity.prototype, {
     intensity: {
         get: function ()
         {
@@ -64,6 +56,12 @@ Object.defineProperties(Light.prototype, {
         }
     }
 });
+
+Light.prototype.acceptVisitor = function (visitor)
+{
+    Entity.prototype.acceptVisitor.call(this, visitor);
+    visitor.visitLight(this);
+};
 
 Light.prototype.luminance = function ()
 {

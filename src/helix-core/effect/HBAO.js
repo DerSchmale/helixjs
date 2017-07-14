@@ -68,20 +68,7 @@ function HBAO(numRays, numSamplesPerRay)
     this._fbo2 = new FrameBuffer(this._aoTexture);
 }
 
-HBAO.prototype = Object.create(Effect.prototype);
-
-/**
- * Returns the texture containing the ambient occlusion values.
- *
- * @returns {Texture2D}
- * @ignore
- */
-HBAO.prototype.getAOTexture = function()
-{
-    return this._aoTexture;
-};
-
-Object.defineProperties(HBAO.prototype, {
+HBAO.prototype = Object.create(Effect.prototype, {
     /**
      * The sample radius in world space to search for occluders.
      */
@@ -151,6 +138,17 @@ Object.defineProperties(HBAO.prototype, {
         set: function(value) { this._scale = value; }
     }
 });
+
+/**
+ * Returns the texture containing the ambient occlusion values.
+ *
+ * @returns {Texture2D}
+ * @ignore
+ */
+HBAO.prototype.getAOTexture = function()
+{
+    return this._aoTexture;
+};
 
 /**
  * @ignore

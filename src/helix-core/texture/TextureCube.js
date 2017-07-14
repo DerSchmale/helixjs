@@ -2,9 +2,17 @@ import {GL} from "../core/GL";
 import {DataType, TextureFormat, TextureFilter, capabilities} from "../Helix";
 
 
+//       +-----+
+//       |  +Y |
+// +-----+-----+-----+-----+
+// |  -X |  +Z |  +X |  -Z |
+// +-----+-----+-----+-----+
+//       |  -Y |
+//       +-----+
+
 /**
  * @classdesc
- * Texture2D represents a cube map texture.
+ * TextureCube represents a cube map texture. The order of the textures in a cross map is as such:
  *
  * @constructor
  *

@@ -5,7 +5,6 @@
  * @author derschmale <http://www.derschmale.com>
  */
 
-var project = new DemoProject();
 var renderer;
 var camera;
 var scene;

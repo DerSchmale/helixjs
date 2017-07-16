@@ -20,8 +20,10 @@ var Mesh_ID_COUNTER = 0;
  * before passing it on to a Model. These values will be used to calculate its local bounding box.
  * After this, setVertexData can be called to change data, but it will not change the model</p>
  *
- * @param vertexUsage One of {@linkcode} BufferUsage
- * @param indexUsage One of {@linkcode} BufferUsage
+ * @param vertexUsage A usage hint for the vertex buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates
+ * the buffer will not be updated (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+ * @param indexUsage A usage hint for the index buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates
+ * the buffer will not be updated (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -85,6 +87,34 @@ Mesh.prototype = {
     },
 
     /**
+     * A usage hint for the vertex buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates the buffer will not be updated
+     * (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+     */
+    get vertexUsage()
+    {
+        return this._vertexUsage;
+    },
+
+    set vertexUsage(value)
+    {
+        this._vertexUsage = value;
+    },
+
+    /**
+     * A usage hint for the index buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates the buffer will not be updated
+     * (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+     */
+    get indexUsage()
+    {
+        return this._indexUsage;
+    },
+
+    set indexUsage(value)
+    {
+        this._indexUsage = value;
+    },
+
+    /**
      * Returns whether or not vertex data was uploaded to the given stream index.
      */
     hasVertexData: function (streamIndex)
@@ -105,7 +135,7 @@ Mesh.prototype = {
      * has been finalized using setVertexAttribute calls. The data in the stream should be an interleaved array of
      * floats, with each attribute data in the order specified with the setVertexAttribute calls.
      */
-    setVertexData: function (data, streamIndex)
+        setVertexData: function (data, streamIndex)
     {
         streamIndex = streamIndex || 0;
 

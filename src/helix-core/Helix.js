@@ -541,6 +541,7 @@ function _initGLProperties()
     DataType.FLOAT = gl.FLOAT;
 
     BufferUsage.STATIC_DRAW = gl.STATIC_DRAW;
+    BufferUsage.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;
 
     CubeFace.POSITIVE_X = gl.TEXTURE_CUBE_MAP_POSITIVE_X;
     CubeFace.NEGATIVE_X = gl.TEXTURE_CUBE_MAP_NEGATIVE_X;

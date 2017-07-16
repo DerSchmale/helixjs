@@ -270,7 +270,6 @@ Quaternion.prototype =
      * @param {Quaternion} a The first vector to interpolate from.
      * @param {Quaternion} b The second vector to interpolate to.
      * @param {Number} t The interpolation factor.
-     * @returns {Quaternion} The interpolated value.
      */
     lerp: function(a, b, factor)
     {
@@ -298,7 +297,6 @@ Quaternion.prototype =
      * @param {Quaternion} a The first vector to interpolate from.
      * @param {Quaternion} b The second vector to interpolate to.
      * @param {Number} t The interpolation factor.
-     * @returns {Quaternion} The interpolated value.
      */
     slerp: function(a, b, factor)
     {
@@ -320,18 +318,18 @@ Quaternion.prototype =
             var angle = Math.acos(dot);
             var interpolatedAngle = factor*angle;
 
-            this.x = x2 - x1*dot;
-            this.y = y2 - y1*dot;
-            this.z = z2 - z1*dot;
-            this.w = w2 - w1*dot;
+            var x = x2 - x1*dot;
+            var y = y2 - y1*dot;
+            var z = z2 - z1*dot;
+            var w = w2 - w1*dot;
             this.normalize();
 
             var cos = Math.cos(interpolatedAngle);
             var sin = Math.sin(interpolatedAngle);
-            this.x = x1 * cos + this.x * sin;
-            this.y = y1 * cos + this.y * sin;
-            this.z = z1 * cos + this.z * sin;
-            this.w = w1 * cos + this.w * sin;
+            this.x = x1 * cos + x * sin;
+            this.y = y1 * cos + y * sin;
+            this.z = z1 * cos + z * sin;
+            this.w = w1 * cos + w * sin;
         }
         else {
             // nearly identical angle, interpolate linearly

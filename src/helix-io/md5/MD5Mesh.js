@@ -195,6 +195,7 @@ MD5Mesh.prototype._translateMesh = function()
 
     var generator = new HX.NormalTangentGenerator();
     generator.generate(mesh);
+    mesh.setVertexData(vertices, 0);
     this._model.addMesh(mesh);
 };
 

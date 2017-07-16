@@ -106,7 +106,7 @@ function initScene(scene)
         {
             var animation = new HX.SkeletonAnimation(clip);
             animation.transferRootJoint = true;
-            modelInstance.addComponent(animation);
+            // modelInstance.addComponent(animation);
         };
         loader.load("model/bob_lamp_update.md5anim");
     };

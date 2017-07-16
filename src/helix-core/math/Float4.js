@@ -20,102 +20,6 @@ function Float4(x, y, z, w)
     this.w = w === undefined? 1 : w;
 }
 
-
-/**
- * Returns the angle between two vectors.
- */
-Float4.angle = function(a, b)
-{
-    return Math.acos(Float4.dot3(a, b) / (a.length * b.length));
-};
-
-/**
- * Returns the 3-component dot product of 2 vectors.
- */
-Float4.dot3 = function(a, b)
-{
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-};
-
-/**
- * Returns the 3-component dot product of 2 vectors.
- */
-Float4.dot = Float4.dot3;
-
-/**
- * Returns the 4-component dot product of 2 vectors. This can be useful for signed distances to a plane.
- */
-Float4.dot4 = function(a, b)
-{
-    return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
-};
-
-/**
- * Linearly interpolates two vectors.
- * @param {Float4} a The first vector to interpolate from.
- * @param {Float4} b The second vector to interpolate to.
- * @param {Number} t The interpolation factor.
- * @param {Float4} target An optional target object. If not provided, a new object will be created and returned.
- * @returns {Float4} The interpolated value.
- */
-Float4.lerp = function(a, b, factor, target)
-{
-    target = target || new Float4();
-    var ax = a.x, ay = a.y, az = a.z, aw = a.w;
-
-    target.x = ax + (b.x - ax) * factor;
-    target.y = ay + (b.y - ay) * factor;
-    target.z = az + (b.z - az) * factor;
-    target.w = aw + (b.w - aw) * factor;
-    return target;
-};
-
-/**
- * Returns the distance between two points.
- */
-Float4.distance = function(a, b)
-{
-    var dx = a.x - b.x;
-    var dy = a.y - b.y;
-    var dz = a.z - b.z;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
-};
-
-/**
- * Returns the squared distance between two points.
- */
-Float4.distanceSqr = function(a, b)
-{
-    var dx = a.x - b.x;
-    var dy = a.y - b.y;
-    var dz = a.z - b.z;
-    return dx * dx + dy * dy + dz * dz;
-};
-
-/**
- * Creates a negated vector.
- * @param a The vector to negate.
- * @param target An optional target object. If not provided, a new object will be created and returned.
- * @returns -a
- */
-Float4.negate = function(a, target)
-{
-    target = target || new Float4();
-    target.x = -a.x;
-    target.y = -a.y;
-    target.z = -a.z;
-    target.w = -a.w;
-    return target;
-};
-
-/**
- * Returns the angle between two vectors, assuming they are normalized.
- */
-Float4.angleNormalized = function(a, b)
-{
-    return Math.acos(Float4.dot3(a, b));
-};
-
 /**
  * Adds 2 vectors.
  *
@@ -335,6 +239,17 @@ Float4.prototype =
     },
 
     /**
+     * Copies the negative of a vector
+     */
+    negativeOf: function(a)
+    {
+        this.x = -a.x;
+        this.y = -a.y;
+        this.z = -a.z;
+        this.w = -a.w;
+    },
+
+    /**
      * Project a point in homogeneous projective space to carthesian 3D space by dividing by w
      */
     homogeneousProject: function()
@@ -439,11 +354,105 @@ Float4.prototype =
     },
 
     /**
+     * Returns the angle between this and another vector.
+     */
+    angle: function(a)
+    {
+        return Math.acos(this.dot3(a) / (this.length * a.length));
+    },
+
+    /**
+     * Returns the angle between two vectors, assuming they are normalized
+     */
+    angleNormalized: function(a)
+    {
+        return Math.acos(this.dot3(a));
+    },
+
+    /**
+     * Returns the distance to a point.
+     */
+    distanceTo: function(a)
+    {
+        var dx = a.x - this.x;
+        var dy = a.y - this.y;
+        var dz = a.z - this.z;
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    },
+
+    /**
+     * Returns the squared distance to a point.
+     */
+    squareDistanceTo: function(a)
+    {
+        var dx = a.x - this.x;
+        var dy = a.y - this.y;
+        var dz = a.z - this.z;
+        return dx * dx + dy * dy + dz * dz;
+    },
+
+    /**
+     * Returns the 3-component dot product of 2 vectors.
+     */
+    dot3: function(a)
+    {
+        return a.x * this.x + a.y * this.y + a.z * this.z;
+    },
+
+    /**
+     * Returns the 3-component dot product of 2 vectors.
+     */
+    dot: function(a)
+    {
+        return a.x * this.x + a.y * this.y + a.z * this.z;
+    },
+
+    /**
+     * Returns the 4-component dot product of 2 vectors. This can be useful for signed distances to a plane.
+     */
+    dot4: function(a)
+    {
+        return a.x * this.x + a.y * this.y + a.z * this.z + a.w * this.w;
+    },
+
+    /**
+     * Linearly interpolates two vectors.
+     * @param {Float4} a The first vector to interpolate from.
+     * @param {Float4} b The second vector to interpolate to.
+     * @param {Number} t The interpolation factor.
+     * @returns {Float4} The interpolated value.
+     */
+    lerp: function(a, b, factor)
+    {
+        var ax = a.x, ay = a.y, az = a.z, aw = a.w;
+
+        this.x = ax + (b.x - ax) * factor;
+        this.y = ay + (b.y - ay) * factor;
+        this.z = az + (b.z - az) * factor;
+        this.w = aw + (b.w - aw) * factor;
+    },
+
+    /**
      * @ignore
      */
     toString: function()
     {
         return "Float4(" + this.x + ", " + this.y + ", " + this.z + ", " + this.w + ")";
+    },
+
+    /**
+     * Store the cross product of two vectors.
+     */
+    cross: function(a, b)
+    {
+        // safe to use either a and b parameter
+        var ax = a.x, ay = a.y, az = a.z;
+        var bx = b.x, by = b.y, bz = b.z;
+
+        this.x = ay*bz - az*by;
+        this.y = az*bx - ax*bz;
+        this.z = ax*by - ay*bx;
+        return this;
     }
 };
 

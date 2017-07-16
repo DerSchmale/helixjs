@@ -241,7 +241,7 @@ NormalTangentGenerator.prototype =
                 tangentData[tangentIndex] = tangent.x;
                 tangentData[tangentIndex + 1] = tangent.y;
                 tangentData[tangentIndex + 2] = tangent.z;
-                tangentData[tangentIndex + 3] = Float4.dot3(bitangent, cross) > 0.0? 1.0 : -1.0;
+                tangentData[tangentIndex + 3] = bitangent.dot3(cross) > 0.0? 1.0 : -1.0;
             }
 
             normalIndex += this._normalStride;

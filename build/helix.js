@@ -488,102 +488,6 @@ function Float4(x, y, z, w)
     this.w = w === undefined? 1 : w;
 }
 
-
-/**
- * Returns the angle between two vectors.
- */
-Float4.angle = function(a, b)
-{
-    return Math.acos(Float4.dot3(a, b) / (a.length * b.length));
-};
-
-/**
- * Returns the 3-component dot product of 2 vectors.
- */
-Float4.dot3 = function(a, b)
-{
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-};
-
-/**
- * Returns the 3-component dot product of 2 vectors.
- */
-Float4.dot = Float4.dot3;
-
-/**
- * Returns the 4-component dot product of 2 vectors. This can be useful for signed distances to a plane.
- */
-Float4.dot4 = function(a, b)
-{
-    return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
-};
-
-/**
- * Linearly interpolates two vectors.
- * @param {Float4} a The first vector to interpolate from.
- * @param {Float4} b The second vector to interpolate to.
- * @param {Number} t The interpolation factor.
- * @param {Float4} target An optional target object. If not provided, a new object will be created and returned.
- * @returns {Float4} The interpolated value.
- */
-Float4.lerp = function(a, b, factor, target)
-{
-    target = target || new Float4();
-    var ax = a.x, ay = a.y, az = a.z, aw = a.w;
-
-    target.x = ax + (b.x - ax) * factor;
-    target.y = ay + (b.y - ay) * factor;
-    target.z = az + (b.z - az) * factor;
-    target.w = aw + (b.w - aw) * factor;
-    return target;
-};
-
-/**
- * Returns the distance between two points.
- */
-Float4.distance = function(a, b)
-{
-    var dx = a.x - b.x;
-    var dy = a.y - b.y;
-    var dz = a.z - b.z;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
-};
-
-/**
- * Returns the squared distance between two points.
- */
-Float4.distanceSqr = function(a, b)
-{
-    var dx = a.x - b.x;
-    var dy = a.y - b.y;
-    var dz = a.z - b.z;
-    return dx * dx + dy * dy + dz * dz;
-};
-
-/**
- * Creates a negated vector.
- * @param a The vector to negate.
- * @param target An optional target object. If not provided, a new object will be created and returned.
- * @returns -a
- */
-Float4.negate = function(a, target)
-{
-    target = target || new Float4();
-    target.x = -a.x;
-    target.y = -a.y;
-    target.z = -a.z;
-    target.w = -a.w;
-    return target;
-};
-
-/**
- * Returns the angle between two vectors, assuming they are normalized.
- */
-Float4.angleNormalized = function(a, b)
-{
-    return Math.acos(Float4.dot3(a, b));
-};
-
 /**
  * Adds 2 vectors.
  *
@@ -803,6 +707,17 @@ Float4.prototype =
     },
 
     /**
+     * Copies the negative of a vector
+     */
+    negativeOf: function(a)
+    {
+        this.x = -a.x;
+        this.y = -a.y;
+        this.z = -a.z;
+        this.w = -a.w;
+    },
+
+    /**
      * Project a point in homogeneous projective space to carthesian 3D space by dividing by w
      */
     homogeneousProject: function()
@@ -907,11 +822,105 @@ Float4.prototype =
     },
 
     /**
+     * Returns the angle between this and another vector.
+     */
+    angle: function(a)
+    {
+        return Math.acos(this.dot3(a) / (this.length * a.length));
+    },
+
+    /**
+     * Returns the angle between two vectors, assuming they are normalized
+     */
+    angleNormalized: function(a)
+    {
+        return Math.acos(this.dot3(a));
+    },
+
+    /**
+     * Returns the distance to a point.
+     */
+    distanceTo: function(a)
+    {
+        var dx = a.x - this.x;
+        var dy = a.y - this.y;
+        var dz = a.z - this.z;
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    },
+
+    /**
+     * Returns the squared distance to a point.
+     */
+    squareDistanceTo: function(a)
+    {
+        var dx = a.x - this.x;
+        var dy = a.y - this.y;
+        var dz = a.z - this.z;
+        return dx * dx + dy * dy + dz * dz;
+    },
+
+    /**
+     * Returns the 3-component dot product of 2 vectors.
+     */
+    dot3: function(a)
+    {
+        return a.x * this.x + a.y * this.y + a.z * this.z;
+    },
+
+    /**
+     * Returns the 3-component dot product of 2 vectors.
+     */
+    dot: function(a)
+    {
+        return a.x * this.x + a.y * this.y + a.z * this.z;
+    },
+
+    /**
+     * Returns the 4-component dot product of 2 vectors. This can be useful for signed distances to a plane.
+     */
+    dot4: function(a)
+    {
+        return a.x * this.x + a.y * this.y + a.z * this.z + a.w * this.w;
+    },
+
+    /**
+     * Linearly interpolates two vectors.
+     * @param {Float4} a The first vector to interpolate from.
+     * @param {Float4} b The second vector to interpolate to.
+     * @param {Number} t The interpolation factor.
+     * @returns {Float4} The interpolated value.
+     */
+    lerp: function(a, b, factor)
+    {
+        var ax = a.x, ay = a.y, az = a.z, aw = a.w;
+
+        this.x = ax + (b.x - ax) * factor;
+        this.y = ay + (b.y - ay) * factor;
+        this.z = az + (b.z - az) * factor;
+        this.w = aw + (b.w - aw) * factor;
+    },
+
+    /**
      * @ignore
      */
     toString: function()
     {
         return "Float4(" + this.x + ", " + this.y + ", " + this.z + ", " + this.w + ")";
+    },
+
+    /**
+     * Store the cross product of two vectors.
+     */
+    cross: function(a, b)
+    {
+        // safe to use either a and b parameter
+        var ax = a.x, ay = a.y, az = a.z;
+        var bx = b.x, by = b.y, bz = b.z;
+
+        this.x = ay*bz - az*by;
+        this.y = az*bx - ax*bz;
+        this.z = ax*by - ay*bx;
+        return this;
     }
 };
 
@@ -1052,128 +1061,6 @@ function Quaternion()
     this.z = 0;
     this.w = 1;
 }
-
-/**
- * Returns the conjugate of the given quaternion.
- */
-Quaternion.conjugate = function(q, target)
-{
-    target = target || new Quaternion();
-    target.x = -q.x;
-    target.y = -q.y;
-    target.z = -q.z;
-    target.w = q.w;
-    return target;
-};
-
-/**
- * Returns the inverse of the given quaternion.
- */
-Quaternion.invert = function (q, target)
-{
-    target = target || new Quaternion();
-    var x = q.x, y = q.y, z = q.z, w = q.w;
-    var rcpSqrNorm = 1.0 / (x*x + y*y + z*z + w*w);
-    this.x = -x*rcpSqrNorm;
-    this.y = -y*rcpSqrNorm;
-    this.z = -z*rcpSqrNorm;
-    this.w = w*rcpSqrNorm;
-    return target;
-};
-
-/**
- * Linearly interpolates two quaternions.
- * @param {Quaternion} a The first vector to interpolate from.
- * @param {Quaternion} b The second vector to interpolate to.
- * @param {Number} t The interpolation factor.
- * @param {Quaternion} [target] An optional target object. If not provided, a new object will be created and returned.
- * @returns {Quaternion} The interpolated value.
- */
-Quaternion.lerp = function(a, b, factor, target)
-{
-    target = target || new Quaternion();
-    var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
-    var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
-
-    // use shortest direction
-    if (w1 * w2 + x1 * x2 + y1 * y2 + z1 * z2 < 0) {
-        w2 = -w2;
-        x2 = -x2;
-        y2 = -y2;
-        z2 = -z2;
-    }
-
-    target.x = x1 + factor * (x2 - x1);
-    target.y = y1 + factor * (y2 - y1);
-    target.z = z1 + factor * (z2 - z1);
-    target.w = w1 + factor * (w2 - w1);
-
-    this.normalize();
-};
-
-/**
- * Spherical-linearly interpolates two quaternions.
- * @param {Quaternion} a The first vector to interpolate from.
- * @param {Quaternion} b The second vector to interpolate to.
- * @param {Number} t The interpolation factor.
- * @param {Quaternion} [target] An optional target object. If not provided, a new object will be created and returned.
- * @returns {Quaternion} The interpolated value.
- */
-Quaternion.slerp = function(a, b, factor, target)
-{
-    target = target || new Quaternion();
-    var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
-    var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
-    var dot = w1*w2 + x1*x2 + y1*y2 + z1*z2;
-
-    // shortest direction
-    if (dot < 0.0) {
-        dot = -dot;
-        w2 = -w2;
-        x2 = -x2;
-        y2 = -y2;
-        z2 = -z2;
-    }
-
-    if (dot < 0.95) {
-        // interpolate angle linearly
-        var angle = Math.acos(dot);
-        var interpolatedAngle = factor*angle;
-
-        target.x = x2 - x1*dot;
-        target.y = y2 - y1*dot;
-        target.z = z2 - z1*dot;
-        target.w = w2 - w1*dot;
-        target.normalize();
-
-        var cos = Math.cos(interpolatedAngle);
-        var sin = Math.sin(interpolatedAngle);
-        target.x = x1 * cos + target.x * sin;
-        target.y = y1 * cos + target.y * sin;
-        target.z = z1 * cos + target.z * sin;
-        target.w = w1 * cos + target.w * sin;
-    }
-    else {
-        // nearly identical angle, interpolate linearly
-        target.x = x1 + factor * (x2 - x1);
-        target.y = y1 + factor * (y2 - y1);
-        target.z = z1 + factor * (z2 - z1);
-        target.w = w1 + factor * (w2 - w1);
-        target.normalize();
-    }
-
-    return target;
-};
-
-/**
- * Creates a new Quaternion representing an axis/angle rotation
- */
-Quaternion.fromAxisAngle = function(axis, radians)
-{
-    var quat = new Quaternion();
-    quat.fromAxisAngle(axis, radians);
-    return quat;
-};
 
 Quaternion.prototype =
 {
@@ -1370,6 +1257,16 @@ Quaternion.prototype =
     },
 
     /**
+     * Converts to the conjugate.
+     */
+    conjugate: function()
+    {
+        this.x = -q.x;
+        this.y = -q.y;
+        this.z = -q.z;
+    },
+
+    /**
      * inverts the quaternion.
      */
     invert: function ()
@@ -1384,8 +1281,6 @@ Quaternion.prototype =
 
     /**
      * Multiplies two quaternions and stores it in the current.
-     *
-     * @deprecated
      */
     multiply: function(a, b)
     {
@@ -1412,6 +1307,86 @@ Quaternion.prototype =
     prepend: function(q)
     {
         this.multiply(this, q);
+    },
+
+    /**
+     * Linearly interpolates two quaternions.
+     * @param {Quaternion} a The first vector to interpolate from.
+     * @param {Quaternion} b The second vector to interpolate to.
+     * @param {Number} t The interpolation factor.
+     * @returns {Quaternion} The interpolated value.
+     */
+    lerp: function(a, b, factor)
+    {
+        var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
+        var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
+
+        // use shortest direction
+        if (w1 * w2 + x1 * x2 + y1 * y2 + z1 * z2 < 0) {
+            w2 = -w2;
+            x2 = -x2;
+            y2 = -y2;
+            z2 = -z2;
+        }
+
+        this.x = x1 + factor * (x2 - x1);
+        this.y = y1 + factor * (y2 - y1);
+        this.z = z1 + factor * (z2 - z1);
+        this.w = w1 + factor * (w2 - w1);
+
+        this.normalize();
+    },
+
+    /**
+     * Spherical-linearly interpolates two quaternions.
+     * @param {Quaternion} a The first vector to interpolate from.
+     * @param {Quaternion} b The second vector to interpolate to.
+     * @param {Number} t The interpolation factor.
+     * @returns {Quaternion} The interpolated value.
+     */
+    slerp: function(a, b, factor)
+    {
+        var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
+        var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
+        var dot = w1*w2 + x1*x2 + y1*y2 + z1*z2;
+
+        // shortest direction
+        if (dot < 0.0) {
+            dot = -dot;
+            w2 = -w2;
+            x2 = -x2;
+            y2 = -y2;
+            z2 = -z2;
+        }
+
+        if (dot < 0.95) {
+            // interpolate angle linearly
+            var angle = Math.acos(dot);
+            var interpolatedAngle = factor*angle;
+
+            this.x = x2 - x1*dot;
+            this.y = y2 - y1*dot;
+            this.z = z2 - z1*dot;
+            this.w = w2 - w1*dot;
+            this.normalize();
+
+            var cos = Math.cos(interpolatedAngle);
+            var sin = Math.sin(interpolatedAngle);
+            this.x = x1 * cos + this.x * sin;
+            this.y = y1 * cos + this.y * sin;
+            this.z = z1 * cos + this.z * sin;
+            this.w = w1 * cos + this.w * sin;
+        }
+        else {
+            // nearly identical angle, interpolate linearly
+            this.x = x1 + factor * (x2 - x1);
+            this.y = y1 + factor * (y2 - y1);
+            this.z = z1 + factor * (z2 - z1);
+            this.w = w1 + factor * (w2 - w1);
+            this.normalize();
+        }
+
+        return this;
     },
 
     /**
@@ -3774,8 +3749,10 @@ var Mesh_ID_COUNTER = 0;
  * before passing it on to a Model. These values will be used to calculate its local bounding box.
  * After this, setVertexData can be called to change data, but it will not change the model</p>
  *
- * @param vertexUsage One of {@linkcode} BufferUsage
- * @param indexUsage One of {@linkcode} BufferUsage
+ * @param vertexUsage A usage hint for the vertex buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates
+ * the buffer will not be updated (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+ * @param indexUsage A usage hint for the index buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates
+ * the buffer will not be updated (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -3839,6 +3816,34 @@ Mesh.prototype = {
     },
 
     /**
+     * A usage hint for the vertex buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates the buffer will not be updated
+     * (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+     */
+    get vertexUsage()
+    {
+        return this._vertexUsage;
+    },
+
+    set vertexUsage(value)
+    {
+        this._vertexUsage = value;
+    },
+
+    /**
+     * A usage hint for the index buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates the buffer will not be updated
+     * (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+     */
+    get indexUsage()
+    {
+        return this._indexUsage;
+    },
+
+    set indexUsage(value)
+    {
+        this._indexUsage = value;
+    },
+
+    /**
      * Returns whether or not vertex data was uploaded to the given stream index.
      */
     hasVertexData: function (streamIndex)
@@ -3859,7 +3864,7 @@ Mesh.prototype = {
      * has been finalized using setVertexAttribute calls. The data in the stream should be an interleaved array of
      * floats, with each attribute data in the order specified with the setVertexAttribute calls.
      */
-    setVertexData: function (data, streamIndex)
+        setVertexData: function (data, streamIndex)
     {
         streamIndex = streamIndex || 0;
 
@@ -4153,72 +4158,6 @@ function Float2(x, y)
 }
 
 /**
- * Returns the angle between two vectors.
- */
-Float2.angle = function(a, b)
-{
-    return Math.acos(Float2.dot(a, b) / (a.length * b.length));
-};
-
-/**
- * Linearly interpolates two vectors.
- * @param {Float2} a The first vector to interpolate from.
- * @param {Float2} b The second vector to interpolate to.
- * @param {Number} t The interpolation factor.
- * @param {Float2} target An optional target object. If not provided, a new object will be created and returned.
- * @returns {Float2} The interpolated value.
- */
-Float2.lerp = function(a, b, t, target)
-{
-    target = target || new Float2();
-    var ax = a.x, ay = a.y;
-
-    target.x = ax + (b.x - ax) * t;
-    target.y = ay + (b.y - ay) * t;
-    return target;
-};
-
-/**
- * Returns the distance between two points.
- */
-Float2.distance = function(a, b)
-{
-    var dx = a.x - b.x;
-    var dy = a.y - b.y;
-    return Math.sqrt(dx * dx + dy * dy);
-};
-
-/**
- * Creates a negated vector.
- * @param a The vector to negate.
- * @param target An optional target object. If not provided, a new object will be created and returned.
- * @returns -a
- */
-Float2.negate = function(a, target)
-{
-    target = target || new Float2();
-    target.x = -a.x;
-    target.y = -a.y;
-    return target;
-};
-
-/**
- * Returns the dot product of 2 vectors.
- */
-Float2.dot = function(a, b)
-{
-    return a.x * b.x + a.y * b.y;
-};
-
-/**
- * Returns the angle between two vectors, assuming they are normalized
- */
-Float2.angleNormalized = function(a, b)
-{
-    return Math.acos(Float2.dot(a, b));
-};
-
-/**
  * Adds 2 vectors.
  *
  * @param a
@@ -4268,6 +4207,7 @@ Float2.scale = function(a, s, target)
 
 Float2.prototype =
 {
+
     /**
      * Sets the components explicitly.
      */
@@ -4275,6 +4215,14 @@ Float2.prototype =
     {
         this.x = x;
         this.y = y;
+    },
+
+    /**
+     * Returns the dot product with another vector.
+     */
+    dot: function(a)
+    {
+        return a.x * this.x + a.y * this.y;
     },
 
     /**
@@ -4348,6 +4296,15 @@ Float2.prototype =
     },
 
     /**
+     * Copies the negative of a vector
+     */
+    negativeOf: function(v)
+    {
+        this.x = -v.x;
+        this.y = -v.y;
+    },
+
+    /**
      * Sets the components of this vector to their absolute values.
      */
     abs: function()
@@ -4377,6 +4334,40 @@ Float2.prototype =
     },
 
     /**
+     * Returns the distance between this and another point.
+     */
+    distanceTo: function(a)
+    {
+        var dx = a.x - this.x;
+        var dy = a.y - this.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    },
+
+    /**
+     * Returns the squared distance between this and another point.
+     */
+    squareDistanceTo: function(a)
+    {
+        var dx = a.x - this.x;
+        var dy = a.y - this.y;
+        return dx * dx + dy * dy;
+    },
+
+    /**
+     * Linearly interpolates two vectors.
+     * @param {Float2} a The first vector to interpolate from.
+     * @param {Float2} b The second vector to interpolate to.
+     * @param {Number} t The interpolation factor.
+     */
+    lerp: function(a, b, t)
+    {
+        var ax = a.x, ay = a.y;
+
+        this.x = ax + (b.x - ax) * t;
+        this.y = ay + (b.y - ay) * t;
+    },
+
+    /**
      * Replaces the components' values if those of the other Float2 are higher, respectively
      */
     maximize: function(b)
@@ -4392,6 +4383,22 @@ Float2.prototype =
     {
         if (b.x < this.x) this.x = b.x;
         if (b.y < this.y) this.y = b.y;
+    },
+
+    /**
+     * Returns the angle between this and another vector.
+     */
+    angle: function(a)
+    {
+        return Math.acos(this.dot(a) / (this.length * a.length));
+    },
+
+    /**
+     * Returns the angle between two vectors, assuming they are normalized
+     */
+    angleNormalized: function(a)
+    {
+        return Math.acos(this.dot(a));
     }
 };
 
@@ -4649,7 +4656,7 @@ NormalTangentGenerator.prototype =
                 tangentData[tangentIndex] = tangent.x;
                 tangentData[tangentIndex + 1] = tangent.y;
                 tangentData[tangentIndex + 2] = tangent.z;
-                tangentData[tangentIndex + 3] = Float4.dot3(bitangent, cross) > 0.0? 1.0 : -1.0;
+                tangentData[tangentIndex + 3] = bitangent.dot3(cross) > 0.0? 1.0 : -1.0;
             }
 
             normalIndex += this._normalStride;
@@ -7867,7 +7874,7 @@ CascadeShadowMapRenderer.prototype =
             var plane = planes[j];
 
             // view frustum planes facing away from the light direction mark a boundary beyond which no shadows need to be known
-            if (Float4.dot3(plane, dir) > 0.001)
+            if (plane.dot3(dir) > 0.001)
                 this._cullPlanes[this._numCullPlanes++] = plane;
         }
     },
@@ -10312,6 +10319,7 @@ function _initGLProperties()
     DataType.FLOAT = gl.FLOAT;
 
     BufferUsage.STATIC_DRAW = gl.STATIC_DRAW;
+    BufferUsage.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;
 
     CubeFace.POSITIVE_X = gl.TEXTURE_CUBE_MAP_POSITIVE_X;
     CubeFace.NEGATIVE_X = gl.TEXTURE_CUBE_MAP_NEGATIVE_X;
@@ -13546,9 +13554,9 @@ SkeletonPose.prototype =
             var target = this.jointPoses;
             for (var i = 0; i < len; ++i) {
                 var t = target[i];
-                Quaternion.slerp(a[i].rotation, b[i].rotation, factor, t.rotation);
-                Float4.lerp(a[i].position, b[i].position, factor, t.position);
-                Float4.lerp(a[i].scale, b[i].scale, factor, t.scale);
+                t.rotation.slerp(a[i].rotation, b[i].rotation, factor);
+                t.position.lerp(a[i].position, b[i].position, factor);
+                t.scale.lerp(a[i].scale, b[i].scale, factor);
             }
         },
 
@@ -14414,7 +14422,7 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
         childNode = child.node;
 
         if (transferRootJoint)
-            MathX.lerp(delta, childNode._rootJointDeltaPosition, child.weight, delta);
+            delta.lerp(delta, childNode._rootJointDeltaPosition, child.weight);
 
         pose.interpolate(pose, childNode._pose, child.weight);
     }
@@ -18278,7 +18286,7 @@ PointLight.prototype.renderDeferredLighting = function(renderer)
         // distance camera vs light to estimate projected size
         renderer._camera.worldMatrix.getColumn(3, camPos);
         this.worldMatrix.getColumn(3, thisPos);
-        var distSqr = Float4.distanceSqr(camPos, thisPos);
+        var distSqr = camPos.squareDistanceTo(thisPos);
         var rad = this._radius * 1.1;
 
         if (distSqr > rad * rad)
@@ -18904,15 +18912,18 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
     flipY.fromAxisAngle(Float4.Z_AXIS, Math.PI);
 
     var rotations = [];
-    rotations[0] = Quaternion.fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
+    for (var i = 0; i < 6; ++i)
+        rotations = new HX.Quaternion();
+
+    rotations[0].fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
     rotations[0].prepend(flipY);
-    rotations[1] = Quaternion.fromAxisAngle(Float4.Y_AXIS, Math.PI * .5);
+    rotations[1].fromAxisAngle(Float4.Y_AXIS, Math.PI * .5);
     rotations[1].prepend(flipY);
-    rotations[2] = Quaternion.fromAxisAngle(Float4.X_AXIS, Math.PI * .5);
-    rotations[3] = Quaternion.fromAxisAngle(Float4.X_AXIS, -Math.PI * .5);
-    rotations[4] = Quaternion.fromAxisAngle(Float4.Y_AXIS, Math.PI);
+    rotations[2].fromAxisAngle(Float4.X_AXIS, Math.PI * .5);
+    rotations[3].fromAxisAngle(Float4.X_AXIS, -Math.PI * .5);
+    rotations[4].fromAxisAngle(Float4.Y_AXIS, Math.PI);
     rotations[4].prepend(flipY);
-    rotations[5] = Quaternion.fromAxisAngle(Float4.Y_AXIS, 0);
+    rotations[5].fromAxisAngle(Float4.Y_AXIS, 0);
     rotations[5].prepend(flipY);
 
     this._diffuseScene = new Scene();

@@ -44,15 +44,18 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
     flipY.fromAxisAngle(Float4.Z_AXIS, Math.PI);
 
     var rotations = [];
-    rotations[0] = Quaternion.fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
+    for (var i = 0; i < 6; ++i)
+        rotations = new HX.Quaternion();
+
+    rotations[0].fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
     rotations[0].prepend(flipY);
-    rotations[1] = Quaternion.fromAxisAngle(Float4.Y_AXIS, Math.PI * .5);
+    rotations[1].fromAxisAngle(Float4.Y_AXIS, Math.PI * .5);
     rotations[1].prepend(flipY);
-    rotations[2] = Quaternion.fromAxisAngle(Float4.X_AXIS, Math.PI * .5);
-    rotations[3] = Quaternion.fromAxisAngle(Float4.X_AXIS, -Math.PI * .5);
-    rotations[4] = Quaternion.fromAxisAngle(Float4.Y_AXIS, Math.PI);
+    rotations[2].fromAxisAngle(Float4.X_AXIS, Math.PI * .5);
+    rotations[3].fromAxisAngle(Float4.X_AXIS, -Math.PI * .5);
+    rotations[4].fromAxisAngle(Float4.Y_AXIS, Math.PI);
     rotations[4].prepend(flipY);
-    rotations[5] = Quaternion.fromAxisAngle(Float4.Y_AXIS, 0);
+    rotations[5].fromAxisAngle(Float4.Y_AXIS, 0);
     rotations[5].prepend(flipY);
 
     this._diffuseScene = new Scene();

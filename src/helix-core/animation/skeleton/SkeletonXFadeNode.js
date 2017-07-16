@@ -98,7 +98,7 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
         childNode = child.node;
 
         if (transferRootJoint)
-            Float4.lerp(delta, childNode._rootJointDeltaPosition, child.weight, delta);
+            delta.lerp(delta, childNode._rootJointDeltaPosition, child.weight);
 
         pose.interpolate(pose, childNode._pose, child.weight);
     }

@@ -72,7 +72,7 @@ PointLight.prototype.renderDeferredLighting = function(renderer)
         // distance camera vs light to estimate projected size
         renderer._camera.worldMatrix.getColumn(3, camPos);
         this.worldMatrix.getColumn(3, thisPos);
-        var distSqr = Float4.distanceSqr(camPos, thisPos);
+        var distSqr = camPos.squareDistanceTo(thisPos);
         var rad = this._radius * 1.1;
 
         if (distSqr > rad * rad)

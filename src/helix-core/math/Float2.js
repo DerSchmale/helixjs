@@ -16,72 +16,6 @@ function Float2(x, y)
 }
 
 /**
- * Returns the angle between two vectors.
- */
-Float2.angle = function(a, b)
-{
-    return Math.acos(Float2.dot(a, b) / (a.length * b.length));
-};
-
-/**
- * Linearly interpolates two vectors.
- * @param {Float2} a The first vector to interpolate from.
- * @param {Float2} b The second vector to interpolate to.
- * @param {Number} t The interpolation factor.
- * @param {Float2} target An optional target object. If not provided, a new object will be created and returned.
- * @returns {Float2} The interpolated value.
- */
-Float2.lerp = function(a, b, t, target)
-{
-    target = target || new Float2();
-    var ax = a.x, ay = a.y;
-
-    target.x = ax + (b.x - ax) * t;
-    target.y = ay + (b.y - ay) * t;
-    return target;
-};
-
-/**
- * Returns the distance between two points.
- */
-Float2.distance = function(a, b)
-{
-    var dx = a.x - b.x;
-    var dy = a.y - b.y;
-    return Math.sqrt(dx * dx + dy * dy);
-};
-
-/**
- * Creates a negated vector.
- * @param a The vector to negate.
- * @param target An optional target object. If not provided, a new object will be created and returned.
- * @returns -a
- */
-Float2.negate = function(a, target)
-{
-    target = target || new Float2();
-    target.x = -a.x;
-    target.y = -a.y;
-    return target;
-};
-
-/**
- * Returns the dot product of 2 vectors.
- */
-Float2.dot = function(a, b)
-{
-    return a.x * b.x + a.y * b.y;
-};
-
-/**
- * Returns the angle between two vectors, assuming they are normalized
- */
-Float2.angleNormalized = function(a, b)
-{
-    return Math.acos(Float2.dot(a, b));
-};
-
-/**
  * Adds 2 vectors.
  *
  * @param a
@@ -131,6 +65,7 @@ Float2.scale = function(a, s, target)
 
 Float2.prototype =
 {
+
     /**
      * Sets the components explicitly.
      */
@@ -138,6 +73,14 @@ Float2.prototype =
     {
         this.x = x;
         this.y = y;
+    },
+
+    /**
+     * Returns the dot product with another vector.
+     */
+    dot: function(a)
+    {
+        return a.x * this.x + a.y * this.y;
     },
 
     /**
@@ -211,6 +154,15 @@ Float2.prototype =
     },
 
     /**
+     * Copies the negative of a vector
+     */
+    negativeOf: function(v)
+    {
+        this.x = -v.x;
+        this.y = -v.y;
+    },
+
+    /**
      * Sets the components of this vector to their absolute values.
      */
     abs: function()
@@ -240,6 +192,40 @@ Float2.prototype =
     },
 
     /**
+     * Returns the distance between this and another point.
+     */
+    distanceTo: function(a)
+    {
+        var dx = a.x - this.x;
+        var dy = a.y - this.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    },
+
+    /**
+     * Returns the squared distance between this and another point.
+     */
+    squareDistanceTo: function(a)
+    {
+        var dx = a.x - this.x;
+        var dy = a.y - this.y;
+        return dx * dx + dy * dy;
+    },
+
+    /**
+     * Linearly interpolates two vectors.
+     * @param {Float2} a The first vector to interpolate from.
+     * @param {Float2} b The second vector to interpolate to.
+     * @param {Number} t The interpolation factor.
+     */
+    lerp: function(a, b, t)
+    {
+        var ax = a.x, ay = a.y;
+
+        this.x = ax + (b.x - ax) * t;
+        this.y = ay + (b.y - ay) * t;
+    },
+
+    /**
      * Replaces the components' values if those of the other Float2 are higher, respectively
      */
     maximize: function(b)
@@ -255,6 +241,22 @@ Float2.prototype =
     {
         if (b.x < this.x) this.x = b.x;
         if (b.y < this.y) this.y = b.y;
+    },
+
+    /**
+     * Returns the angle between this and another vector.
+     */
+    angle: function(a)
+    {
+        return Math.acos(this.dot(a) / (this.length * a.length));
+    },
+
+    /**
+     * Returns the angle between two vectors, assuming they are normalized
+     */
+    angleNormalized: function(a)
+    {
+        return Math.acos(this.dot(a));
     }
 };
 

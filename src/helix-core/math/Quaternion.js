@@ -1,11 +1,6 @@
 import {Float4} from './Float4';
 import {Matrix4x4} from './Matrix4x4';
 
-/*
- * TODO: There is some API cleaning up to do here
- * - move multiply(a, b) to static
- */
-
 /**
  * @classdesc
  * Quaternion is a class to represent (in our case) rotations.
@@ -22,128 +17,6 @@ function Quaternion()
     this.z = 0;
     this.w = 1;
 }
-
-/**
- * Returns the conjugate of the given quaternion.
- */
-Quaternion.conjugate = function(q, target)
-{
-    target = target || new Quaternion();
-    target.x = -q.x;
-    target.y = -q.y;
-    target.z = -q.z;
-    target.w = q.w;
-    return target;
-};
-
-/**
- * Returns the inverse of the given quaternion.
- */
-Quaternion.invert = function (q, target)
-{
-    target = target || new Quaternion();
-    var x = q.x, y = q.y, z = q.z, w = q.w;
-    var rcpSqrNorm = 1.0 / (x*x + y*y + z*z + w*w);
-    this.x = -x*rcpSqrNorm;
-    this.y = -y*rcpSqrNorm;
-    this.z = -z*rcpSqrNorm;
-    this.w = w*rcpSqrNorm;
-    return target;
-};
-
-/**
- * Linearly interpolates two quaternions.
- * @param {Quaternion} a The first vector to interpolate from.
- * @param {Quaternion} b The second vector to interpolate to.
- * @param {Number} t The interpolation factor.
- * @param {Quaternion} [target] An optional target object. If not provided, a new object will be created and returned.
- * @returns {Quaternion} The interpolated value.
- */
-Quaternion.lerp = function(a, b, factor, target)
-{
-    target = target || new Quaternion();
-    var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
-    var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
-
-    // use shortest direction
-    if (w1 * w2 + x1 * x2 + y1 * y2 + z1 * z2 < 0) {
-        w2 = -w2;
-        x2 = -x2;
-        y2 = -y2;
-        z2 = -z2;
-    }
-
-    target.x = x1 + factor * (x2 - x1);
-    target.y = y1 + factor * (y2 - y1);
-    target.z = z1 + factor * (z2 - z1);
-    target.w = w1 + factor * (w2 - w1);
-
-    this.normalize();
-};
-
-/**
- * Spherical-linearly interpolates two quaternions.
- * @param {Quaternion} a The first vector to interpolate from.
- * @param {Quaternion} b The second vector to interpolate to.
- * @param {Number} t The interpolation factor.
- * @param {Quaternion} [target] An optional target object. If not provided, a new object will be created and returned.
- * @returns {Quaternion} The interpolated value.
- */
-Quaternion.slerp = function(a, b, factor, target)
-{
-    target = target || new Quaternion();
-    var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
-    var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
-    var dot = w1*w2 + x1*x2 + y1*y2 + z1*z2;
-
-    // shortest direction
-    if (dot < 0.0) {
-        dot = -dot;
-        w2 = -w2;
-        x2 = -x2;
-        y2 = -y2;
-        z2 = -z2;
-    }
-
-    if (dot < 0.95) {
-        // interpolate angle linearly
-        var angle = Math.acos(dot);
-        var interpolatedAngle = factor*angle;
-
-        target.x = x2 - x1*dot;
-        target.y = y2 - y1*dot;
-        target.z = z2 - z1*dot;
-        target.w = w2 - w1*dot;
-        target.normalize();
-
-        var cos = Math.cos(interpolatedAngle);
-        var sin = Math.sin(interpolatedAngle);
-        target.x = x1 * cos + target.x * sin;
-        target.y = y1 * cos + target.y * sin;
-        target.z = z1 * cos + target.z * sin;
-        target.w = w1 * cos + target.w * sin;
-    }
-    else {
-        // nearly identical angle, interpolate linearly
-        target.x = x1 + factor * (x2 - x1);
-        target.y = y1 + factor * (y2 - y1);
-        target.z = z1 + factor * (z2 - z1);
-        target.w = w1 + factor * (w2 - w1);
-        target.normalize();
-    }
-
-    return target;
-};
-
-/**
- * Creates a new Quaternion representing an axis/angle rotation
- */
-Quaternion.fromAxisAngle = function(axis, radians)
-{
-    var quat = new Quaternion();
-    quat.fromAxisAngle(axis, radians);
-    return quat;
-};
 
 Quaternion.prototype =
 {
@@ -340,6 +213,16 @@ Quaternion.prototype =
     },
 
     /**
+     * Converts to the conjugate.
+     */
+    conjugate: function()
+    {
+        this.x = -q.x;
+        this.y = -q.y;
+        this.z = -q.z;
+    },
+
+    /**
      * inverts the quaternion.
      */
     invert: function ()
@@ -354,8 +237,6 @@ Quaternion.prototype =
 
     /**
      * Multiplies two quaternions and stores it in the current.
-     *
-     * @deprecated
      */
     multiply: function(a, b)
     {
@@ -382,6 +263,86 @@ Quaternion.prototype =
     prepend: function(q)
     {
         this.multiply(this, q);
+    },
+
+    /**
+     * Linearly interpolates two quaternions.
+     * @param {Quaternion} a The first vector to interpolate from.
+     * @param {Quaternion} b The second vector to interpolate to.
+     * @param {Number} t The interpolation factor.
+     * @returns {Quaternion} The interpolated value.
+     */
+    lerp: function(a, b, factor)
+    {
+        var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
+        var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
+
+        // use shortest direction
+        if (w1 * w2 + x1 * x2 + y1 * y2 + z1 * z2 < 0) {
+            w2 = -w2;
+            x2 = -x2;
+            y2 = -y2;
+            z2 = -z2;
+        }
+
+        this.x = x1 + factor * (x2 - x1);
+        this.y = y1 + factor * (y2 - y1);
+        this.z = z1 + factor * (z2 - z1);
+        this.w = w1 + factor * (w2 - w1);
+
+        this.normalize();
+    },
+
+    /**
+     * Spherical-linearly interpolates two quaternions.
+     * @param {Quaternion} a The first vector to interpolate from.
+     * @param {Quaternion} b The second vector to interpolate to.
+     * @param {Number} t The interpolation factor.
+     * @returns {Quaternion} The interpolated value.
+     */
+    slerp: function(a, b, factor)
+    {
+        var w1 = a.w, x1 = a.x, y1 = a.y, z1 = a.z;
+        var w2 = b.w, x2 = b.x, y2 = b.y, z2 = b.z;
+        var dot = w1*w2 + x1*x2 + y1*y2 + z1*z2;
+
+        // shortest direction
+        if (dot < 0.0) {
+            dot = -dot;
+            w2 = -w2;
+            x2 = -x2;
+            y2 = -y2;
+            z2 = -z2;
+        }
+
+        if (dot < 0.95) {
+            // interpolate angle linearly
+            var angle = Math.acos(dot);
+            var interpolatedAngle = factor*angle;
+
+            this.x = x2 - x1*dot;
+            this.y = y2 - y1*dot;
+            this.z = z2 - z1*dot;
+            this.w = w2 - w1*dot;
+            this.normalize();
+
+            var cos = Math.cos(interpolatedAngle);
+            var sin = Math.sin(interpolatedAngle);
+            this.x = x1 * cos + this.x * sin;
+            this.y = y1 * cos + this.y * sin;
+            this.z = z1 * cos + this.z * sin;
+            this.w = w1 * cos + this.w * sin;
+        }
+        else {
+            // nearly identical angle, interpolate linearly
+            this.x = x1 + factor * (x2 - x1);
+            this.y = y1 + factor * (y2 - y1);
+            this.z = z1 + factor * (z2 - z1);
+            this.w = w1 + factor * (w2 - w1);
+            this.normalize();
+        }
+
+        return this;
     },
 
     /**

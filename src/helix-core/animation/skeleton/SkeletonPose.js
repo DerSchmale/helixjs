@@ -31,9 +31,9 @@ SkeletonPose.prototype =
             var target = this.jointPoses;
             for (var i = 0; i < len; ++i) {
                 var t = target[i];
-                Quaternion.slerp(a[i].rotation, b[i].rotation, factor, t.rotation);
-                Float4.lerp(a[i].position, b[i].position, factor, t.position);
-                Float4.lerp(a[i].scale, b[i].scale, factor, t.scale);
+                t.rotation.slerp(a[i].rotation, b[i].rotation, factor);
+                t.position.lerp(a[i].position, b[i].position, factor);
+                t.scale.lerp(a[i].scale, b[i].scale, factor);
             }
         },
 

@@ -2,12 +2,6 @@ import {Float4} from './Float4';
 import {MathX} from './MathX';
 import {Transform} from './Transform';
 
-/*
- * TODO: There is some API cleaning up to do here
- * - move multiply(a, b) to static
- * - fromScale should possibly accept a Float4
- */
-
 /**
  * @classdec
  * Matrix4x4 object represents a 4D matrix (generally an affine transformation or a projection). The elements are stored

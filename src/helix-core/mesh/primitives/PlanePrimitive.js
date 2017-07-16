@@ -12,7 +12,7 @@ import {Primitive} from "./Primitive";
  *     <li>width: The width of the plane</li>
  *     <li>height: The height of the plane</li>
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
- *     <li>alignment: The axes along which to orient the plane. One of {@linkcode PlanePrimitive.ALIGN_XZ}, {@linkcode PlanePrimitive.ALIGN_XY}, {@linkcode PlanePrimitive.ALIGN_YZ}</li>
+ *     <li>alignment: The axes along which to orient the plane. One of {@linkcode PlanePrimitive#ALIGN_XZ}, {@linkcode PlanePrimitive#ALIGN_XY}, {@linkcode PlanePrimitive#ALIGN_YZ}</li>
  * </ul>
  *
  * @extends Primitive

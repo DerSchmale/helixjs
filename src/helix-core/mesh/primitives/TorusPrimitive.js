@@ -13,7 +13,7 @@ import {Primitive} from "./Primitive";
  *     <li>tubeRadius: The radius of the torus's tube</li>
  *     <li>invert: Whether or not the faces should point inwards</li>
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
- *     <li>alignment: The axes along which to orient the torus. One of {@linkcode TorusPrimitive.ALIGN_XZ}, {@linkcode TorusPrimitive.ALIGN_XY}, {@linkcode TorusPrimitive.ALIGN_YZ}</li>
+ *     <li>alignment: The axes along which to orient the torus. One of {@linkcode TorusPrimitive#ALIGN_XZ}, {@linkcode TorusPrimitive#ALIGN_XY}, {@linkcode TorusPrimitive#ALIGN_YZ}</li>
  * </ul>
  *
  * @extends Primitive

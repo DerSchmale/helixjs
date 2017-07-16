@@ -10,7 +10,7 @@ import {ModelInstance} from "../mesh/ModelInstance";
  * Skybox provides a backdrop "at infinity" for the scene.
  *
  * @param materialOrTexture Either a {@linkcode TextureCube} or a {@linkcode Material} used to render the skybox. If a
- * texture is passed, {@linkcode HX.SkyboxMaterial} is used as material.
+ * texture is passed, {@linkcode SkyboxMaterial} is used as material.
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>

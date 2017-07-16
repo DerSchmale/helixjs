@@ -28,7 +28,7 @@ var MATERIAL_ID_COUNTER = 0;
  *
  * @param geometryVertexShader The vertex code for the geometry stage.
  * @param geometryFragmentShader The fragment code for the geometry stage.
- * @param [lightingModel] The {@linkcode LightingModel} to use. Defaults to what was passed in (if anything) with {@linkcode InitOptions.defaultLightingModel}.
+ * @param [lightingModel] The {@linkcode LightingModel} to use. Defaults to what was passed in (if anything) with {@linkcode InitOptions#defaultLightingModel}.
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -114,8 +114,8 @@ Material.prototype =
     get initialized() { return this._initialized; },
 
     /**
-     * Whether or not SSAO should be applied to this material. This requires {@linkcode Renderer.ambientOcclusion} to be set.
-     * If this material is using the same lighting model as set to {@linkcode InitOptions.defaultLightingModel} and is not
+     * Whether or not SSAO should be applied to this material. This requires {@linkcode Renderer#ambientOcclusion} to be set.
+     * If this material is using the same lighting model as set to {@linkcode InitOptions#defaultLightingModel} and is not
      * transparent, it uses the deferred render path and ssao is always applied if assigned to the renderer.
      */
     get ssao() { return this._ssao; },
@@ -165,7 +165,7 @@ Material.prototype =
     },
 
     /**
-     * The {@options LightingModel} used to light this material. If this is set to {@linkcode InitOptions.defaultLightingModel} and
+     * The {@options LightingModel} used to light this material. If this is set to {@linkcode InitOptions#defaultLightingModel} and
      * no blendState is assigned, this material will be rendered using the deferred render path.
      */
     get lightingModel()

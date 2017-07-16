@@ -110,7 +110,7 @@ AssetLibrary.prototype =
      * @param {AssetLibrary.Type} type The type of asset to be loaded.
      * @param {parser} The parser used to parse the loaded data.
      * @param {target} An optional empty target to contain the parsed asset. This allows lazy loading.
-     * @see {@linkcode AssetLibrary.Type}
+     * @see {@linkcode AssetLibrary#Type}
      */
     queueAsset: function(id, filename, type, parser, target)
     {

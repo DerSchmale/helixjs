@@ -92,7 +92,7 @@ TextureCube.prototype =
     },
 
     /**
-     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY}
+     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities#DEFAULT_TEXTURE_MAX_ANISOTROPY}
      */
     get maxAnisotropy()
     {

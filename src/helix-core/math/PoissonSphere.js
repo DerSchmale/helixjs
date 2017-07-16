@@ -5,7 +5,7 @@ import {Float4} from "./Float4";
  * PoissonSphere is a class that allows generating 3D points in a poisson distribution.
  *
  * @constructor
- * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonSphere.BOX}) or a circle ({@linkcode PoissonSphere.SPHERICAL}). Defaults to spherical.
+ * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonSphere#BOX}) or a circle ({@linkcode PoissonSphere#SPHERICAL}). Defaults to spherical.
  * @param [initialDistance]
  * @param [decayFactor]
  * @param [maxTests]

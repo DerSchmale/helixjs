@@ -5,7 +5,7 @@ import {Float2} from "./Float2";
  * PoissonDisk is a class that allows generating 2D points in a poisson distribution.
  *
  * @constructor
- * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonDisk.SQUARE}) or a circle ({@linkcode PoissonDisk.CIRCULAR}). Defaults to circular.
+ * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonDisk#SQUARE}) or a circle ({@linkcode PoissonDisk#CIRCULAR}). Defaults to circular.
  * @param [initialDistance]
  * @param [decayFactor]
  * @param [maxTests]

@@ -12,7 +12,7 @@ import {Primitive} from "./Primitive";
  *     <li>radius: The radius of the cylinder</li>
  *     <li>height: The height of the cylinder</li>
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
- *     <li>alignment: The axis along which to orient the cylinder. One of {@linkcode CylinderPrimitive.ALIGN_X}, {@linkcode CylinderPrimitive.ALIGN_Y}, {@linkcode CylinderPrimitive.ALIGN_Z}</li>
+ *     <li>alignment: The axis along which to orient the cylinder. One of {@linkcode CylinderPrimitive#ALIGN_X}, {@linkcode CylinderPrimitive#ALIGN_Y}, {@linkcode CylinderPrimitive#ALIGN_Z}</li>
  * </ul>
  *
  * @extends Primitive

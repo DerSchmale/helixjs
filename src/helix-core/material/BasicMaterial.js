@@ -9,7 +9,7 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  * @classdesc
  * BasicMaterial is the default physically plausible rendering material.
  *
- * @property {boolean} doubleSided Defines whether the material is double sided (no back-face culling) or not. An easier-to-read alternative to {@linkcode Material.cullMode}
+ * @property {boolean} doubleSided Defines whether the material is double sided (no back-face culling) or not. An easier-to-read alternative to {@linkcode Material#cullMode}
  * @property {number} alpha The overall transparency of the object. Has no effect without a matching blendState value.
  * @property {boolean} useVertexColors Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
  * @property {Color} color The base color of the material. Multiplied with the colorMap if provided.
@@ -19,9 +19,9 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  * @property {Texture2D} maskMap A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
  * @property {number} specularMapMode Defines the contents of the specular map. One of the following:
  * <ul>
- *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
- *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_ALL}</li>
- *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
+ *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+ *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_ALL}</li>
+ *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
  * </ul>
  * @property {number} metallicness A value describing the overall "metallicness" of an object. Normally 0 or 1, but it can be used for some hybrid materials.
  * @property {number} normalSpecularReflectance The amount of light reflecting off a surface at 90 degrees (ie: the minimum reflectance in the Fresnel equation according to Schlick's approximation). This is generally 0.027 for most materials.
@@ -40,7 +40,7 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  * <li>normalMap: {@linkcode Texture2D}</li>
  * <li>specularMap: {@linkcode Texture2D}</li>
  * <li>maskMap: {@linkcode Texture2D}</li>
- * <li>specularMapMode: {@linkcode BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+ * <li>specularMapMode: {@linkcode BasicMaterial#SPECULAR_MAP_ROUGHNESS_ONLY}</li>
  * <li>metallicness: Number</li>
  * <li>alpha: Number</li>
  * <li>roughness: Number</li>

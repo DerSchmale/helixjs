@@ -34,7 +34,7 @@ NormalTangentGenerator.prototype =
     /**
      * Generates normal and/or tangent vectors for a {@codelink Mesh}.
      * @param mesh The target {@codelink Mesh}
-     * @param mode Defines which vectors to use. Use {@linkcode NormalTangentGenerator.MODE_NORMALS} | {@linkcode NormalTangentGenerator.MODE_TANGENTS}
+     * @param mode Defines which vectors to use. Use {@linkcode NormalTangentGenerator#MODE_NORMALS} | {@linkcode NormalTangentGenerator#MODE_TANGENTS}
      * @param [useFaceWeights] Defines whether or not the face sizes should play a role in how much weight their contribute to the vertex normal.
      */
     generate: function(mesh, mode, useFaceWeights)

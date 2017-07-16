@@ -2,7 +2,7 @@
  * @classdesc
  * AnimationClip is a resource that contains key frames (time / value pairs). AnimationClip itself has no playback state,
  * but is only used as a shareable data resource. It can be passed to {@linkcode AnimationPlayhead} or its wrappers
- * (fe: (@linkcode SkeletonClipNode}) which will manage the play head position and allow animations.
+ * (fe: {@linkcode SkeletonClipNode}) which will manage the play head position and allow animations.
  *
  * @constructor
  *

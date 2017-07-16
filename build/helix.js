@@ -3212,7 +3212,7 @@ BoundingVolume._testAABBToSphere = function(aabb, sphere)
 BoundingVolume.prototype =
 {
     /**
-     * Describes the size of the bounding box. {@linkcode BoundingVolume.EXPANSE_EMPTY}, {@linkcode BoundingVolume.EXPANSE_FINITE}, or {@linkcode BoundingVolume.EXPANSE_INFINITE}
+     * Describes the size of the bounding box. {@linkcode BoundingVolume#EXPANSE_EMPTY}, {@linkcode BoundingVolume#EXPANSE_FINITE}, or {@linkcode BoundingVolume#EXPANSE_INFINITE}
      */
     get expanse() { return this._expanse; },
 
@@ -3227,7 +3227,7 @@ BoundingVolume.prototype =
 
     /**
      * Clear the bounds.
-     * @param expanseState The state to reset to. Either {@linkcode BoundingVolume.EXPANSE_EMPTY} or {@linkcode BoundingVolume.EXPANSE_INFINITE}.
+     * @param expanseState The state to reset to. Either {@linkcode BoundingVolume#EXPANSE_EMPTY} or {@linkcode BoundingVolume#EXPANSE_INFINITE}.
      */
     clear: function(expanseState)
     {
@@ -3738,10 +3738,8 @@ var Mesh_ID_COUNTER = 0;
  * before passing it on to a Model. These values will be used to calculate its local bounding box.
  * After this, setVertexData can be called to change data, but it will not change the model</p>
  *
- * @param vertexUsage A usage hint for the vertex buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates
- * the buffer will not be updated (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
- * @param indexUsage A usage hint for the index buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates
- * the buffer will not be updated (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+ * @param {BufferUsage} vertexUsage A usage hint for the vertex buffer.
+ * @param {BufferUsage} indexUsage A usage hint for the index buffer.
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -3767,7 +3765,7 @@ function Mesh(vertexUsage, indexUsage)
 }
 
 /**
- * The vertex stride for meshes created with {@linkcode Mesh.createDefaultEmpty}
+ * The vertex stride for meshes created with {@linkcode Mesh#createDefaultEmpty}
  */
 Mesh.DEFAULT_VERTEX_SIZE = 12;
 
@@ -3796,7 +3794,7 @@ Mesh.createDefaultEmpty = function()
 
 Mesh.prototype = {
     /**
-     * Whether or not this Mesh supports morph target animations. This is the case if {@linkcode Mesh.generateMorphData}
+     * Whether or not this Mesh supports morph target animations. This is the case if {@linkcode Mesh#generateMorphData}
      * was called.
      */
     get hasMorphData()
@@ -3805,8 +3803,9 @@ Mesh.prototype = {
     },
 
     /**
-     * A usage hint for the vertex buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates the buffer will not be updated
-     * (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+     * A usage hint for the vertex buffer.
+     *
+     * @see {@linkcode BufferUsage}
      */
     get vertexUsage()
     {
@@ -3819,8 +3818,9 @@ Mesh.prototype = {
     },
 
     /**
-     * A usage hint for the index buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates the buffer will not be updated
-     * (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+     * A usage hint for the index buffer.
+     *
+     * @see {@linkcode BufferUsage}
      */
     get indexUsage()
     {
@@ -4438,7 +4438,7 @@ NormalTangentGenerator.prototype =
     /**
      * Generates normal and/or tangent vectors for a {@codelink Mesh}.
      * @param mesh The target {@codelink Mesh}
-     * @param mode Defines which vectors to use. Use {@linkcode NormalTangentGenerator.MODE_NORMALS} | {@linkcode NormalTangentGenerator.MODE_TANGENTS}
+     * @param mode Defines which vectors to use. Use {@linkcode NormalTangentGenerator#MODE_NORMALS} | {@linkcode NormalTangentGenerator#MODE_TANGENTS}
      * @param [useFaceWeights] Defines whether or not the face sizes should play a role in how much weight their contribute to the vertex normal.
      */
     generate: function(mesh, mode, useFaceWeights)
@@ -6105,7 +6105,7 @@ Texture2D.prototype =
     },
 
     /**
-     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY}
+     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities#DEFAULT_TEXTURE_MAX_ANISOTROPY}
      */
     get maxAnisotropy()
     {
@@ -6282,8 +6282,8 @@ Texture2D.prototype =
  * @classdesc
  * FrameBuffer provides a render target associated with a given texture/textures.
  *
- * @param colorTextures Either a single texture, or an Array of textures (only if {@linkcode capabilities.EXT_DRAW_BUFFERS} is supported).
- * @param depthBuffer An optional depth buffer. This can be a {@linkcode WriteOnlyDepthBuffer} or, if readback is required, a {@linkcode Texture2D} (only available if {@linkcode capabilities.EXT_DEPTH_TEXTURE} is supported).
+ * @param colorTextures Either a single texture, or an Array of textures (only if {@linkcode capabilities#EXT_DRAW_BUFFERS} is supported).
+ * @param depthBuffer An optional depth buffer. This can be a {@linkcode WriteOnlyDepthBuffer} or, if readback is required, a {@linkcode Texture2D} (only available if {@linkcode capabilities#EXT_DEPTH_TEXTURE} is supported).
  * @param cubeFace If colorTextures is a {@linkcode TextureCube}, cubeFace should contain the relevant {@linkcode CubeFace}.
  * @constructor
  *
@@ -8024,7 +8024,7 @@ var GLSLIncludes = {
  * PoissonDisk is a class that allows generating 2D points in a poisson distribution.
  *
  * @constructor
- * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonDisk.SQUARE}) or a circle ({@linkcode PoissonDisk.CIRCULAR}). Defaults to circular.
+ * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonDisk#SQUARE}) or a circle ({@linkcode PoissonDisk#CIRCULAR}). Defaults to circular.
  * @param [initialDistance]
  * @param [decayFactor]
  * @param [maxTests]
@@ -9198,7 +9198,7 @@ HardDirectionalShadowFilter.prototype.getCullMode = function()
 
 /**
  * <p>LightingModel defines a lighting model to be used by a {@Material}. A default lighting model can be assigned to
- * {@linkcode InitOptions.defaultLightingModel}, which will mean any material will use it by default. In addition,
+ * {@linkcode InitOptions#defaultLightingModel}, which will mean any material will use it by default. In addition,
  * any material using the default lighting model without a {@linkcode BlendState} will use the deferred rendering path,
  * potentially increasing the performance for heavily lit scenes.</p>
  *
@@ -9394,7 +9394,7 @@ TextureCube.prototype =
     },
 
     /**
-     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY}
+     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities#DEFAULT_TEXTURE_MAX_ANISOTROPY}
      */
     get maxAnisotropy()
     {
@@ -9652,7 +9652,7 @@ BlendState._initDefaults = function()
  * PoissonSphere is a class that allows generating 3D points in a poisson distribution.
  *
  * @constructor
- * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonSphere.BOX}) or a circle ({@linkcode PoissonSphere.SPHERICAL}). Defaults to spherical.
+ * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonSphere#BOX}) or a circle ({@linkcode PoissonSphere#SPHERICAL}). Defaults to spherical.
  * @param [initialDistance]
  * @param [decayFactor]
  * @param [maxTests]
@@ -9821,7 +9821,7 @@ var META =
 var onPreFrame = new Signal();
 
 /**
- * The {@linkcode Signal} that triggers rendering. Listen to this to call {@linkcode Renderer.render}
+ * The {@linkcode Signal} that triggers rendering. Listen to this to call {@linkcode Renderer#render}
  */
 var onFrame = new Signal();
 
@@ -9873,81 +9873,193 @@ var _HX_ = {
 };
 
 /**
- * @namespace
  * TextureFilter contains texture filtering presets.
  *
- * @property NEAREST
- * @property NEAREST_NOMIP
- * @property BILINEAR
- * @property BILINEAR_NOMIP
- * @property TRILINEAR
- * @property TRILINEAR_ANISOTROPIC Only available if capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC is available.
+ * @namespace
+ *
+ * @property NEAREST Performs nearest neighbour filter with nearest mip level selection
+ * @property NEAREST_NOMIP Performs nearest neighbour filter with mipmapping disabled
+ * @property BILINEAR Performs bilinear filtering with nearest mip level selection
+ * @property BILINEAR_NOMIP Performs bilinear filtering with mipmapping disabled
+ * @property TRILINEAR Performs trilinear filtering (bilinear + linear mipmap interpolation)
+ * @property TRILINEAR_ANISOTROPIC Performs anisotropic trilinear filtering. Only available if capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC is available.
  */
 var TextureFilter = {};
 
 /**
+ * TextureWrapMode defines how a texture should be samples when the coordinate is outside the [0, 1] range.
  *
+ * @namespace
+ *
+ * @property DEFAULT The default texture wrap mode (REPEAT).
+ * @property REPEAT The fractional part of the coordinate will be used as the coordinate, causing the texture to repeat.
+ * @property CLAMP The coordinates will be clamped to 0 and 1.
  */
 var TextureWrapMode = {};
 
 /**
+ * CullMode defines the type of face culling used when rendering.
  *
+ * @namespace
+ *
+ * @property NONE Doesn't perform any culling (both sides are rendered).
+ * @property BACK Culls the faces pointing away from the screen
+ * @property FRONT = Culls the faces pointing toward the screen
+ * @property ALL = Culls both faces (nothing is rendered)
  */
 var CullMode = {};
 
 /**
+ * StencilOp defines how the stencil buffer gets updated.
  *
+ * @namespace
+ *
+ * @property KEEP Keeps the existing stencil value.
+ * @property ZERO Sets the stencil value to 0.
+ * @property REPLACE Replaces the stencil value with the reference value.
+ * @property INCREMENT Increments the current stencil buffer value. Clamps to the maximum representable unsigned value.
+ * @property INCREMENT_WRAP Increments the current stencil buffer value. Wraps stencil buffer value to zero when incrementing the maximum representable unsigned value.
+ * @property DECREMENT Decrements the current stencil buffer value. Clamps to 0.
+ * @property DECREMENT_WRAP Decrements the current stencil buffer value. Wraps stencil buffer value to the maximum representable unsigned value when decrementing a stencil buffer value of zero.
+ * @property INVERT Bitwise inverts the current stencil buffer value.
+ *
+ * @see {@linkcode StencilState}
  */
 var StencilOp = {};
 
 /**
+ * Comparison represents comparison modes used in depth tests, stencil tests, etc
  *
+ * @namespace
+ *
+ * @property DISABLED The given test is disabled.
+ * @property ALWAYS The given test always succeeds.
+ * @property NEVER The given test never succeeds.
+ * @property LESS Less than
+ * @property EQUAL Equal
+ * @property LESS_EQUAL Less than or equal
+ * @property GREATER Greater than.
+ * @property GREATER_EQUAL Greater than or equal.
+ * @property NOT_EQUAL Not equal.
  */
 var Comparison = {};
 
 /**
+ * ElementType described the type of geometry is described by the index buffer.
  *
+ * @namespace
+ *
+ * @property POINTS Every index represents a point.
+ * @property LINES Every two indices represent a line.
+ * @property LINE_STRIP The indices represent a set of connected lines.
+ * @property LINE_LOOP The indices represent a set of connected lines. The last index is also connected to the first.
+ * @property TRIANGLES Every three indices represent a line.
+ * @property TRIANGLE_STRIP The indices represent a set of connected triangles, in such a way that any consecutive 3 indices form a triangle.
+ * @property TRIANGLE_FAN The indices represent a set of connected triangles, fanning out with the first index shared.
  */
 var ElementType = {};
 
 /**
+ * BlendFactor define the factors used by {@linkcode BlendState} to multiply with the source and destination colors.
  *
+ * @namespace
+ *
+ * @property ZERO Multiplies by 0.
+ * @property ONE Multiplies by 1.
+ * @property SOURCE_COLOR Multiplies by the source color.
+ * @property ONE_MINUS_SOURCE_COLOR Multiplies by one minus the source color.
+ * @property DESTINATION_COLOR Multiplies by the destination color.
+ * @property ONE_MINUS_DESTINATION_COLOR Multiplies by one minus the destination color.
+ * @property SOURCE_ALPHA Multiplies by the source alpha.
+ * @property ONE_MINUS_SOURCE_ALPHA Multiplies by one minus the source alpha.
+ * @property DESTINATION_ALPHA Multiplies by the destination alpha.
+ * @property ONE_MINUS_DESTINATION_ALPHA Multiplies by one minus the destination alpha.
+ * @property SOURCE_ALPHA_SATURATE Multiplies by the minimum of the source and (1 – destination) alphas
+ * @property CONSTANT_ALPHA Multiplies by the constant alpha value
+ * @property ONE_MINUS_CONSTANT_ALPHA Multiplies by one minus the constant alpha value
+ *
+ * @see {@linkcode BlendState}
  */
 var BlendFactor = {};
 
 /**
+ * BlendOperation defines the operation used to combine the multiplied source and destination colors.
+ * @namespace
  *
+ * @property ADD Adds the two values.
+ * @property SUBTRACT Subtracts the two values.
+ * @property REVERSE_SUBTRACT Subtracts the two values in the reverse order.
+ *
+ * @see {@linkcode BlendState}
  */
 var BlendOperation = {};
 
 /**
+ * ClearMask defines which data needs to be cleared when calling {@linkcode GL#clear}
  *
+ * @namespace
+ *
+ * @property COLOR Only clear the color buffer.
+ * @property STENCIL Only clear the stencil buffer.
+ * @property DEPTH Only clear the depth buffer.
+ * @property COMPLETE Clear all buffers.
+ *
+ * @see {@linkcode GL#clear}
  */
 var ClearMask = {};
 
 /**
+ * TextureFormat defines which texture channels are used by a texture.
  *
+ * @namespace
+ *
+ * @property RGBA A 4-channel color texture
+ * @property RGB A 3-channel color texture (no alpha)
  */
 var TextureFormat = {};
 
 /**
+ * DataType represents the data type used by a gpu buffer (vertex buffer, index buffer, textures)
  *
+ * @namespace
+ *
+ * @property UNSIGNED_BYTE Unsigned byte (8 bit integer)
+ * @property UNSIGNED_SHORT Unsigned short (16 bit integer)
+ * @property UNSIGNED_INT Unsigned short (32 bit integer)
+ * @property FLOAT Floating point (32 bit float)
  */
 var DataType = {};
 
 /**
+ * BufferUsage describes the type of cpu <-> gpu interaction a vertex or index buffer requires.
  *
+ * @namespace
+ *
+ * @property STATIC_DRAW The buffer is meant to be uploaded once (or rarely)
+ * @property DYNAMIC_DRAW The buffer is meant to be updated often.
+ *
+ * @see {@linkcode Mesh#vertexUsage}
+ * @see {@linkcode Mesh#indexUsage}
  */
 var BufferUsage = {};
 
 /**
+ * CubeFace represents the sides of a cube, for example the faces of a cube texture.
  *
+ * @namespace
+ *
+ * @property POSITIVE_X The positive X side.
+ * @property NEGATIVE_X The negative X side.
+ * @property POSITIVE_Y The positive Y side.
+ * @property NEGATIVE_Y The negative Y side.
+ * @property POSITIVE_Z The positive Z side.
+ * @property NEGATIVE_Z The negative Z side.
  */
 var CubeFace = {};
 
 /**
  * @classdesc
- * Provides a set of options to configure Helix at init. Once passed, the options get assigned to {@linkcode META.OPTIONS}
+ * Provides a set of options to configure Helix at init. Once passed, the options get assigned to {@linkcode META#OPTIONS}
  * but the values may have changed to reflect the capabilities of the device. For example: hdr may be set to false if
  * floating point render targets aren't supported. It's important to check options like these through META.OPTIONS to
  * handle them correctly. (lack of hdr may require a different lighting setup).
@@ -9986,7 +10098,7 @@ function InitOptions()
     /**
      * The default {@codelink LightingModel} to use. This will cause non-blended materials using this lighting model to
      * use the deferred lighting path, which may improve lighting performance. If not, leave it set to Unlit and assign
-     * lighting models explicitly through {@linkcode Material.lightingModel}.
+     * lighting models explicitly through {@linkcode Material#lightingModel}.
      */
     this.defaultLightingModel = LightingModel.Unlit;
 
@@ -10355,7 +10467,7 @@ function _initGLProperties()
 
     ClearMask.COLOR = gl.COLOR_BUFFER_BIT;
     ClearMask.STENCIL = gl.STENCIL_BUFFER_BIT;
-    ClearMask.BUFFER = gl.DEPTH_BUFFER_BIT;
+    ClearMask.DEPTH = gl.DEPTH_BUFFER_BIT;
     ClearMask.COMPLETE = gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT;
 
     TextureFormat.RGBA = gl.RGBA;
@@ -11388,7 +11500,7 @@ var MATERIAL_ID_COUNTER = 0;
  *
  * @param geometryVertexShader The vertex code for the geometry stage.
  * @param geometryFragmentShader The fragment code for the geometry stage.
- * @param [lightingModel] The {@linkcode LightingModel} to use. Defaults to what was passed in (if anything) with {@linkcode InitOptions.defaultLightingModel}.
+ * @param [lightingModel] The {@linkcode LightingModel} to use. Defaults to what was passed in (if anything) with {@linkcode InitOptions#defaultLightingModel}.
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -11474,8 +11586,8 @@ Material.prototype =
     get initialized() { return this._initialized; },
 
     /**
-     * Whether or not SSAO should be applied to this material. This requires {@linkcode Renderer.ambientOcclusion} to be set.
-     * If this material is using the same lighting model as set to {@linkcode InitOptions.defaultLightingModel} and is not
+     * Whether or not SSAO should be applied to this material. This requires {@linkcode Renderer#ambientOcclusion} to be set.
+     * If this material is using the same lighting model as set to {@linkcode InitOptions#defaultLightingModel} and is not
      * transparent, it uses the deferred render path and ssao is always applied if assigned to the renderer.
      */
     get ssao() { return this._ssao; },
@@ -11525,7 +11637,7 @@ Material.prototype =
     },
 
     /**
-     * The {@options LightingModel} used to light this material. If this is set to {@linkcode InitOptions.defaultLightingModel} and
+     * The {@options LightingModel} used to light this material. If this is set to {@linkcode InitOptions#defaultLightingModel} and
      * no blendState is assigned, this material will be rendered using the deferred render path.
      */
     get lightingModel()
@@ -12304,7 +12416,7 @@ ModelInstance.prototype.toString = function()
  * Skybox provides a backdrop "at infinity" for the scene.
  *
  * @param materialOrTexture Either a {@linkcode TextureCube} or a {@linkcode Material} used to render the skybox. If a
- * texture is passed, {@linkcode HX.SkyboxMaterial} is used as material.
+ * texture is passed, {@linkcode SkyboxMaterial} is used as material.
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -12971,7 +13083,7 @@ function KeyFrame(time, value)
  * @classdesc
  * AnimationClip is a resource that contains key frames (time / value pairs). AnimationClip itself has no playback state,
  * but is only used as a shareable data resource. It can be passed to {@linkcode AnimationPlayhead} or its wrappers
- * (fe: (@linkcode SkeletonClipNode}) which will manage the play head position and allow animations.
+ * (fe: {@linkcode SkeletonClipNode}) which will manage the play head position and allow animations.
  *
  * @constructor
  *
@@ -16929,7 +17041,7 @@ AssetLibrary.prototype =
      * @param {AssetLibrary.Type} type The type of asset to be loaded.
      * @param {parser} The parser used to parse the loaded data.
      * @param {target} An optional empty target to contain the parsed asset. This allows lazy loading.
-     * @see {@linkcode AssetLibrary.Type}
+     * @see {@linkcode AssetLibrary#Type}
      */
     queueAsset: function(id, filename, type, parser, target)
     {
@@ -18533,7 +18645,7 @@ Renderer.prototype =
 
     /**
      * Allows applying ambient occlusion ({@linkcode SSAO} or {@linkcode HBAO}) to the scene. Objects using the deferred
-     * path (ie: non-blended using default lighting mode), always have it applied. Others need to have {@linkcode Material.ssao}
+     * path (ie: non-blended using default lighting mode), always have it applied. Others need to have {@linkcode Material#ssao}
      * set to true.
      */
     get ambientOcclusion()
@@ -19260,7 +19372,7 @@ VarianceDirectionalShadowFilter.prototype._getDefines = function()
  * @classdesc
  * BasicMaterial is the default physically plausible rendering material.
  *
- * @property {boolean} doubleSided Defines whether the material is double sided (no back-face culling) or not. An easier-to-read alternative to {@linkcode Material.cullMode}
+ * @property {boolean} doubleSided Defines whether the material is double sided (no back-face culling) or not. An easier-to-read alternative to {@linkcode Material#cullMode}
  * @property {number} alpha The overall transparency of the object. Has no effect without a matching blendState value.
  * @property {boolean} useVertexColors Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
  * @property {Color} color The base color of the material. Multiplied with the colorMap if provided.
@@ -19270,9 +19382,9 @@ VarianceDirectionalShadowFilter.prototype._getDefines = function()
  * @property {Texture2D} maskMap A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
  * @property {number} specularMapMode Defines the contents of the specular map. One of the following:
  * <ul>
- *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
- *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_ALL}</li>
- *     <li>{@linkcode BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
+ *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+ *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_ALL}</li>
+ *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
  * </ul>
  * @property {number} metallicness A value describing the overall "metallicness" of an object. Normally 0 or 1, but it can be used for some hybrid materials.
  * @property {number} normalSpecularReflectance The amount of light reflecting off a surface at 90 degrees (ie: the minimum reflectance in the Fresnel equation according to Schlick's approximation). This is generally 0.027 for most materials.
@@ -19291,7 +19403,7 @@ VarianceDirectionalShadowFilter.prototype._getDefines = function()
  * <li>normalMap: {@linkcode Texture2D}</li>
  * <li>specularMap: {@linkcode Texture2D}</li>
  * <li>maskMap: {@linkcode Texture2D}</li>
- * <li>specularMapMode: {@linkcode BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+ * <li>specularMapMode: {@linkcode BasicMaterial#SPECULAR_MAP_ROUGHNESS_ONLY}</li>
  * <li>metallicness: Number</li>
  * <li>alpha: Number</li>
  * <li>roughness: Number</li>
@@ -19806,7 +19918,7 @@ ConePrimitive.prototype._generate = function(target, definition)
  *     <li>radius: The radius of the cylinder</li>
  *     <li>height: The height of the cylinder</li>
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
- *     <li>alignment: The axis along which to orient the cylinder. One of {@linkcode CylinderPrimitive.ALIGN_X}, {@linkcode CylinderPrimitive.ALIGN_Y}, {@linkcode CylinderPrimitive.ALIGN_Z}</li>
+ *     <li>alignment: The axis along which to orient the cylinder. One of {@linkcode CylinderPrimitive#ALIGN_X}, {@linkcode CylinderPrimitive#ALIGN_Y}, {@linkcode CylinderPrimitive#ALIGN_Z}</li>
  * </ul>
  *
  * @extends Primitive
@@ -19978,7 +20090,7 @@ CylinderPrimitive.prototype._generate = function(target, definition)
  *     <li>width: The width of the plane</li>
  *     <li>height: The height of the plane</li>
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
- *     <li>alignment: The axes along which to orient the plane. One of {@linkcode PlanePrimitive.ALIGN_XZ}, {@linkcode PlanePrimitive.ALIGN_XY}, {@linkcode PlanePrimitive.ALIGN_YZ}</li>
+ *     <li>alignment: The axes along which to orient the plane. One of {@linkcode PlanePrimitive#ALIGN_XZ}, {@linkcode PlanePrimitive#ALIGN_XY}, {@linkcode PlanePrimitive#ALIGN_YZ}</li>
  * </ul>
  *
  * @extends Primitive
@@ -20098,7 +20210,7 @@ PlanePrimitive.prototype._generate = function(target, definition)
  *     <li>tubeRadius: The radius of the torus's tube</li>
  *     <li>invert: Whether or not the faces should point inwards</li>
  *     <li>doubleSided: Whether or not the faces should point both ways</li>
- *     <li>alignment: The axes along which to orient the torus. One of {@linkcode TorusPrimitive.ALIGN_XZ}, {@linkcode TorusPrimitive.ALIGN_XY}, {@linkcode TorusPrimitive.ALIGN_YZ}</li>
+ *     <li>alignment: The axes along which to orient the torus. One of {@linkcode TorusPrimitive#ALIGN_XZ}, {@linkcode TorusPrimitive#ALIGN_XY}, {@linkcode TorusPrimitive#ALIGN_YZ}</li>
  * </ul>
  *
  * @extends Primitive

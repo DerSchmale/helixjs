@@ -54,7 +54,7 @@ export var META =
 export var onPreFrame = new Signal();
 
 /**
- * The {@linkcode Signal} that triggers rendering. Listen to this to call {@linkcode Renderer.render}
+ * The {@linkcode Signal} that triggers rendering. Listen to this to call {@linkcode Renderer#render}
  */
 export var onFrame = new Signal();
 
@@ -228,7 +228,7 @@ export var BlendFactor = {};
 export var BlendOperation = {};
 
 /**
- * ClearMask defines which data needs to be cleared when calling {@linkcode GL.clear}
+ * ClearMask defines which data needs to be cleared when calling {@linkcode GL#clear}
  *
  * @namespace
  *
@@ -237,7 +237,7 @@ export var BlendOperation = {};
  * @property DEPTH Only clear the depth buffer.
  * @property COMPLETE Clear all buffers.
  *
- * @see {@linkcode GL.clear}
+ * @see {@linkcode GL#clear}
  */
 export var ClearMask = {};
 
@@ -271,8 +271,8 @@ export var DataType = {};
  * @property STATIC_DRAW The buffer is meant to be uploaded once (or rarely)
  * @property DYNAMIC_DRAW The buffer is meant to be updated often.
  *
- * @see {@linkcode Mesh.vertexUsage}
- * @see {@linkcode Mesh.indexUsage}
+ * @see {@linkcode Mesh#vertexUsage}
+ * @see {@linkcode Mesh#indexUsage}
  */
 export var BufferUsage = {};
 
@@ -292,7 +292,7 @@ export var CubeFace = {};
 
 /**
  * @classdesc
- * Provides a set of options to configure Helix at init. Once passed, the options get assigned to {@linkcode META.OPTIONS}
+ * Provides a set of options to configure Helix at init. Once passed, the options get assigned to {@linkcode META#OPTIONS}
  * but the values may have changed to reflect the capabilities of the device. For example: hdr may be set to false if
  * floating point render targets aren't supported. It's important to check options like these through META.OPTIONS to
  * handle them correctly. (lack of hdr may require a different lighting setup).
@@ -331,7 +331,7 @@ export function InitOptions()
     /**
      * The default {@codelink LightingModel} to use. This will cause non-blended materials using this lighting model to
      * use the deferred lighting path, which may improve lighting performance. If not, leave it set to Unlit and assign
-     * lighting models explicitly through {@linkcode Material.lightingModel}.
+     * lighting models explicitly through {@linkcode Material#lightingModel}.
      */
     this.defaultLightingModel = LightingModel.Unlit;
 

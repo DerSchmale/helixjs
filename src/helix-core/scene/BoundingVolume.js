@@ -89,7 +89,7 @@ BoundingVolume._testAABBToSphere = function(aabb, sphere)
 BoundingVolume.prototype =
 {
     /**
-     * Describes the size of the bounding box. {@linkcode BoundingVolume.EXPANSE_EMPTY}, {@linkcode BoundingVolume.EXPANSE_FINITE}, or {@linkcode BoundingVolume.EXPANSE_INFINITE}
+     * Describes the size of the bounding box. {@linkcode BoundingVolume#EXPANSE_EMPTY}, {@linkcode BoundingVolume#EXPANSE_FINITE}, or {@linkcode BoundingVolume#EXPANSE_INFINITE}
      */
     get expanse() { return this._expanse; },
 
@@ -104,7 +104,7 @@ BoundingVolume.prototype =
 
     /**
      * Clear the bounds.
-     * @param expanseState The state to reset to. Either {@linkcode BoundingVolume.EXPANSE_EMPTY} or {@linkcode BoundingVolume.EXPANSE_INFINITE}.
+     * @param expanseState The state to reset to. Either {@linkcode BoundingVolume#EXPANSE_EMPTY} or {@linkcode BoundingVolume#EXPANSE_INFINITE}.
      */
     clear: function(expanseState)
     {

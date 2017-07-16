@@ -20,10 +20,8 @@ var Mesh_ID_COUNTER = 0;
  * before passing it on to a Model. These values will be used to calculate its local bounding box.
  * After this, setVertexData can be called to change data, but it will not change the model</p>
  *
- * @param vertexUsage A usage hint for the vertex buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates
- * the buffer will not be updated (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
- * @param indexUsage A usage hint for the index buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates
- * the buffer will not be updated (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+ * @param {BufferUsage} vertexUsage A usage hint for the vertex buffer.
+ * @param {BufferUsage} indexUsage A usage hint for the index buffer.
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -49,7 +47,7 @@ function Mesh(vertexUsage, indexUsage)
 }
 
 /**
- * The vertex stride for meshes created with {@linkcode Mesh.createDefaultEmpty}
+ * The vertex stride for meshes created with {@linkcode Mesh#createDefaultEmpty}
  */
 Mesh.DEFAULT_VERTEX_SIZE = 12;
 
@@ -78,7 +76,7 @@ Mesh.createDefaultEmpty = function()
 
 Mesh.prototype = {
     /**
-     * Whether or not this Mesh supports morph target animations. This is the case if {@linkcode Mesh.generateMorphData}
+     * Whether or not this Mesh supports morph target animations. This is the case if {@linkcode Mesh#generateMorphData}
      * was called.
      */
     get hasMorphData()
@@ -87,8 +85,9 @@ Mesh.prototype = {
     },
 
     /**
-     * A usage hint for the vertex buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates the buffer will not be updated
-     * (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+     * A usage hint for the vertex buffer.
+     *
+     * @see {@linkcode BufferUsage}
      */
     get vertexUsage()
     {
@@ -101,8 +100,9 @@ Mesh.prototype = {
     },
 
     /**
-     * A usage hint for the index buffer. {@linkcode BufferUsage.STATIC_DRAW} indicates the buffer will not be updated
-     * (often). {@linkcode BufferUsage.DYNAMIC_DRAW} means the buffer will be updated often.
+     * A usage hint for the index buffer.
+     *
+     * @see {@linkcode BufferUsage}
      */
     get indexUsage()
     {

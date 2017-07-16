@@ -6,8 +6,8 @@ import {Texture2D} from "./Texture2D";
  * @classdesc
  * FrameBuffer provides a render target associated with a given texture/textures.
  *
- * @param colorTextures Either a single texture, or an Array of textures (only if {@linkcode capabilities.EXT_DRAW_BUFFERS} is supported).
- * @param depthBuffer An optional depth buffer. This can be a {@linkcode WriteOnlyDepthBuffer} or, if readback is required, a {@linkcode Texture2D} (only available if {@linkcode capabilities.EXT_DEPTH_TEXTURE} is supported).
+ * @param colorTextures Either a single texture, or an Array of textures (only if {@linkcode capabilities#EXT_DRAW_BUFFERS} is supported).
+ * @param depthBuffer An optional depth buffer. This can be a {@linkcode WriteOnlyDepthBuffer} or, if readback is required, a {@linkcode Texture2D} (only available if {@linkcode capabilities#EXT_DEPTH_TEXTURE} is supported).
  * @param cubeFace If colorTextures is a {@linkcode TextureCube}, cubeFace should contain the relevant {@linkcode CubeFace}.
  * @constructor
  *

@@ -139,7 +139,7 @@ Renderer.prototype =
 
     /**
      * Allows applying ambient occlusion ({@linkcode SSAO} or {@linkcode HBAO}) to the scene. Objects using the deferred
-     * path (ie: non-blended using default lighting mode), always have it applied. Others need to have {@linkcode Material.ssao}
+     * path (ie: non-blended using default lighting mode), always have it applied. Others need to have {@linkcode Material#ssao}
      * set to true.
      */
     get ambientOcclusion()

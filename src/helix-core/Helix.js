@@ -105,18 +105,189 @@ export var _HX_ = {
     GAMMA_CORRECT_LIGHTS: false
 };
 
+/**
+ * TextureFilter contains texture filtering presets.
+ *
+ * @namespace
+ *
+ * @property NEAREST Performs nearest neighbour filter with nearest mip level selection
+ * @property NEAREST_NOMIP Performs nearest neighbour filter with mipmapping disabled
+ * @property BILINEAR Performs bilinear filtering with nearest mip level selection
+ * @property BILINEAR_NOMIP Performs bilinear filtering with mipmapping disabled
+ * @property TRILINEAR Performs trilinear filtering (bilinear + linear mipmap interpolation)
+ * @property TRILINEAR_ANISOTROPIC Performs anisotropic trilinear filtering. Only available if capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC is available.
+ */
 export var TextureFilter = {};
+
+/**
+ * TextureWrapMode defines how a texture should be samples when the coordinate is outside the [0, 1] range.
+ *
+ * @namespace
+ *
+ * @property DEFAULT The default texture wrap mode (REPEAT).
+ * @property REPEAT The fractional part of the coordinate will be used as the coordinate, causing the texture to repeat.
+ * @property CLAMP The coordinates will be clamped to 0 and 1.
+ */
 export var TextureWrapMode = {};
+
+/**
+ * CullMode defines the type of face culling used when rendering.
+ *
+ * @namespace
+ *
+ * @property NONE Doesn't perform any culling (both sides are rendered).
+ * @property BACK Culls the faces pointing away from the screen
+ * @property FRONT = Culls the faces pointing toward the screen
+ * @property ALL = Culls both faces (nothing is rendered)
+ */
 export var CullMode = {};
+
+/**
+ * StencilOp defines how the stencil buffer gets updated.
+ *
+ * @namespace
+ *
+ * @property KEEP Keeps the existing stencil value.
+ * @property ZERO Sets the stencil value to 0.
+ * @property REPLACE Replaces the stencil value with the reference value.
+ * @property INCREMENT Increments the current stencil buffer value. Clamps to the maximum representable unsigned value.
+ * @property INCREMENT_WRAP Increments the current stencil buffer value. Wraps stencil buffer value to zero when incrementing the maximum representable unsigned value.
+ * @property DECREMENT Decrements the current stencil buffer value. Clamps to 0.
+ * @property DECREMENT_WRAP Decrements the current stencil buffer value. Wraps stencil buffer value to the maximum representable unsigned value when decrementing a stencil buffer value of zero.
+ * @property INVERT Bitwise inverts the current stencil buffer value.
+ *
+ * @see {@linkcode StencilState}
+ */
 export var StencilOp = {};
+
+/**
+ * Comparison represents comparison modes used in depth tests, stencil tests, etc
+ *
+ * @namespace
+ *
+ * @property DISABLED The given test is disabled.
+ * @property ALWAYS The given test always succeeds.
+ * @property NEVER The given test never succeeds.
+ * @property LESS Less than
+ * @property EQUAL Equal
+ * @property LESS_EQUAL Less than or equal
+ * @property GREATER Greater than.
+ * @property GREATER_EQUAL Greater than or equal.
+ * @property NOT_EQUAL Not equal.
+ */
 export var Comparison = {};
+
+/**
+ * ElementType described the type of geometry is described by the index buffer.
+ *
+ * @namespace
+ *
+ * @property POINTS Every index represents a point.
+ * @property LINES Every two indices represent a line.
+ * @property LINE_STRIP The indices represent a set of connected lines.
+ * @property LINE_LOOP The indices represent a set of connected lines. The last index is also connected to the first.
+ * @property TRIANGLES Every three indices represent a line.
+ * @property TRIANGLE_STRIP The indices represent a set of connected triangles, in such a way that any consecutive 3 indices form a triangle.
+ * @property TRIANGLE_FAN The indices represent a set of connected triangles, fanning out with the first index shared.
+ */
 export var ElementType = {};
+
+/**
+ * BlendFactor define the factors used by {@linkcode BlendState} to multiply with the source and destination colors.
+ *
+ * @namespace
+ *
+ * @property ZERO Multiplies by 0.
+ * @property ONE Multiplies by 1.
+ * @property SOURCE_COLOR Multiplies by the source color.
+ * @property ONE_MINUS_SOURCE_COLOR Multiplies by one minus the source color.
+ * @property DESTINATION_COLOR Multiplies by the destination color.
+ * @property ONE_MINUS_DESTINATION_COLOR Multiplies by one minus the destination color.
+ * @property SOURCE_ALPHA Multiplies by the source alpha.
+ * @property ONE_MINUS_SOURCE_ALPHA Multiplies by one minus the source alpha.
+ * @property DESTINATION_ALPHA Multiplies by the destination alpha.
+ * @property ONE_MINUS_DESTINATION_ALPHA Multiplies by one minus the destination alpha.
+ * @property SOURCE_ALPHA_SATURATE Multiplies by the minimum of the source and (1 – destination) alphas
+ * @property CONSTANT_ALPHA Multiplies by the constant alpha value
+ * @property ONE_MINUS_CONSTANT_ALPHA Multiplies by one minus the constant alpha value
+ *
+ * @see {@linkcode BlendState}
+ */
 export var BlendFactor = {};
+
+/**
+ * BlendOperation defines the operation used to combine the multiplied source and destination colors.
+ * @namespace
+ *
+ * @property ADD Adds the two values.
+ * @property SUBTRACT Subtracts the two values.
+ * @property REVERSE_SUBTRACT Subtracts the two values in the reverse order.
+ *
+ * @see {@linkcode BlendState}
+ */
 export var BlendOperation = {};
+
+/**
+ * ClearMask defines which data needs to be cleared when calling {@linkcode GL.clear}
+ *
+ * @namespace
+ *
+ * @property COLOR Only clear the color buffer.
+ * @property STENCIL Only clear the stencil buffer.
+ * @property DEPTH Only clear the depth buffer.
+ * @property COMPLETE Clear all buffers.
+ *
+ * @see {@linkcode GL.clear}
+ */
 export var ClearMask = {};
+
+/**
+ * TextureFormat defines which texture channels are used by a texture.
+ *
+ * @namespace
+ *
+ * @property RGBA A 4-channel color texture
+ * @property RGB A 3-channel color texture (no alpha)
+ */
 export var TextureFormat = {};
+
+/**
+ * DataType represents the data type used by a gpu buffer (vertex buffer, index buffer, textures)
+ *
+ * @namespace
+ *
+ * @property UNSIGNED_BYTE Unsigned byte (8 bit integer)
+ * @property UNSIGNED_SHORT Unsigned short (16 bit integer)
+ * @property UNSIGNED_INT Unsigned short (32 bit integer)
+ * @property FLOAT Floating point (32 bit float)
+ */
 export var DataType = {};
+
+/**
+ * BufferUsage describes the type of cpu <-> gpu interaction a vertex or index buffer requires.
+ *
+ * @namespace
+ *
+ * @property STATIC_DRAW The buffer is meant to be uploaded once (or rarely)
+ * @property DYNAMIC_DRAW The buffer is meant to be updated often.
+ *
+ * @see {@linkcode Mesh.vertexUsage}
+ * @see {@linkcode Mesh.indexUsage}
+ */
 export var BufferUsage = {};
+
+/**
+ * CubeFace represents the sides of a cube, for example the faces of a cube texture.
+ *
+ * @namespace
+ *
+ * @property POSITIVE_X The positive X side.
+ * @property NEGATIVE_X The negative X side.
+ * @property POSITIVE_Y The positive Y side.
+ * @property NEGATIVE_Y The negative Y side.
+ * @property POSITIVE_Z The positive Z side.
+ * @property NEGATIVE_Z The negative Z side.
+ */
 export var CubeFace = {};
 
 /**
@@ -529,7 +700,7 @@ function _initGLProperties()
 
     ClearMask.COLOR = gl.COLOR_BUFFER_BIT;
     ClearMask.STENCIL = gl.STENCIL_BUFFER_BIT;
-    ClearMask.BUFFER = gl.DEPTH_BUFFER_BIT;
+    ClearMask.DEPTH = gl.DEPTH_BUFFER_BIT;
     ClearMask.COMPLETE = gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT;
 
     TextureFormat.RGBA = gl.RGBA;

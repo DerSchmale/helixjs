@@ -1040,11 +1040,6 @@ var MathX = {
     }
 };
 
-/*
- * TODO: There is some API cleaning up to do here
- * - move multiply(a, b) to static
- */
-
 /**
  * @classdesc
  * Quaternion is a class to represent (in our case) rotations.
@@ -1683,12 +1678,6 @@ Transform.prototype =
         this._changeListener.enabled = true;
     }
 };
-
-/*
- * TODO: There is some API cleaning up to do here
- * - move multiply(a, b) to static
- * - fromScale should possibly accept a Float4
- */
 
 /**
  * @classdec
@@ -9883,18 +9872,77 @@ var _HX_ = {
     GAMMA_CORRECT_LIGHTS: false
 };
 
+/**
+ * @namespace
+ * TextureFilter contains texture filtering presets.
+ *
+ * @property NEAREST
+ * @property NEAREST_NOMIP
+ * @property BILINEAR
+ * @property BILINEAR_NOMIP
+ * @property TRILINEAR
+ * @property TRILINEAR_ANISOTROPIC Only available if capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC is available.
+ */
 var TextureFilter = {};
+
+/**
+ *
+ */
 var TextureWrapMode = {};
+
+/**
+ *
+ */
 var CullMode = {};
+
+/**
+ *
+ */
 var StencilOp = {};
+
+/**
+ *
+ */
 var Comparison = {};
+
+/**
+ *
+ */
 var ElementType = {};
+
+/**
+ *
+ */
 var BlendFactor = {};
+
+/**
+ *
+ */
 var BlendOperation = {};
+
+/**
+ *
+ */
 var ClearMask = {};
+
+/**
+ *
+ */
 var TextureFormat = {};
+
+/**
+ *
+ */
 var DataType = {};
+
+/**
+ *
+ */
 var BufferUsage = {};
+
+/**
+ *
+ */
 var CubeFace = {};
 
 /**

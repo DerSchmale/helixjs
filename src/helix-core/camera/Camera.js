@@ -135,10 +135,10 @@ Camera.prototype.getRay = function(x, y)
 {
     var ray = new Ray();
     var dir = ray.direction;
-    dir.set(x, y, -1, 1);
+    dir.set(x, y, 1, 1);
     this.inverseProjectionMatrix.transform(dir, dir);
     dir.homogeneousProject();
-    this.viewMatrix.transformVector(dir, dir);
+    this.worldMatrix.transformVector(dir, dir);
     dir.normalize();
     this.worldMatrix.getColumn(3, ray.origin);
     return ray;

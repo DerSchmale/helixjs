@@ -8,14 +8,19 @@ var indicator;
 project.onInit = function()
 {
     initScene(this.scene);
+
+    this.camera.addComponent(new HX.OrbitController());
+
     var self = this;
     HX.META.TARGET_CANVAS.addEventListener("mousemove", function(evt) { self._onMouseMove.call(self, evt); });
 };
 
 project._onMouseMove = function(event)
 {
-    // TODO: This should become an interaction Component!
-    // (could store this in a System, so we can have a localized RayCaster?)
+    // TODO:
+    // For now, raycasting happens manually
+    // We may want a set of interaction components
+    // fe: a simple Clickable component etc
 
     var canvas = HX.META.TARGET_CANVAS;
     var ray = this.camera.getRay(
@@ -23,15 +28,14 @@ project._onMouseMove = function(event)
         -(event.clientY / canvas.clientHeight * 2.0 - 1.0)
     );
 
+    indicator.visible = false;
+
     var rayCaster = new HX.RayCaster();
     var hitData = rayCaster.cast(ray, this.scene);
 
     if (hitData) {
         indicator.visible = true;
         indicator.position.copyFrom(hitData.point);
-    }
-    else {
-        indicator.visible = false;
     }
 };
 
@@ -45,12 +49,16 @@ function initScene(scene)
     var material = new HX.BasicMaterial();
     material.color = 0xff0000;
 
-    var primitive = new HX.SpherePrimitive(
+    var primitive = new HX.BoxPrimitive(
         {
-            radius: .25
+            width: .5
         });
 
-    scene.attach(new HX.ModelInstance(primitive, material));
+
+    var instance = new HX.ModelInstance(primitive, material);
+    instance.name = "Sphere";
+    instance.rotation.fromEuler(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+    scene.attach(instance);
 
 
     material = new HX.BasicMaterial();
@@ -63,5 +71,6 @@ function initScene(scene)
 
     indicator = new HX.ModelInstance(primitive, material);
     indicator.visible = false;
+    indicator.name = "Indicator";
     scene.attach(indicator);
 }

@@ -265,6 +265,8 @@ BoundingAABB.prototype.classifyAgainstPlane = function(plane)
  */
 BoundingAABB.prototype.intersectsRay = function(ray)
 {
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return true;
+    if (this._expanse === BoundingVolume.EXPANSE_EMPTY) return false;
     // slab method
     var o = ray.origin;
     var d = ray.direction;
@@ -272,31 +274,40 @@ BoundingAABB.prototype.intersectsRay = function(ray)
     var dirX = d.x, dirY = d.y, dirZ = d.z;
     var rcpDirX = 1.0 / dirX, rcpDirY = 1.0 / dirY, rcpDirZ = 1.0 / dirZ;
 
-    var near = Infinity;
-    var far = -Infinity;
+    var nearT = -Infinity;
+    var farT = Infinity;
+
+    var t1, t2;
+
+    // t = (minX - oX) / dirX
 
     if (dirX !== 0.0) {
-        var x1 = (this._minimumX - oX) * rcpDirX;
-        var x2 = (this._maximumX - oX) * rcpDirX;
-        near = Math.min(x1, x2);
-        far = Math.max(x1, x2);
+        t1 = (this._minimumX - oX) * rcpDirX;
+        t2 = (this._maximumX - oX) * rcpDirX;
+        // near is the closest intersection factor to the ray, far the furthest
+        // so [nearT - farT] is the line segment cut off by the planes
+        nearT = Math.min(t1, t2);
+        farT = Math.max(t1, t2);
     }
 
     if (dirY !== 0.0) {
-        var y1 = (this._minimumY - oY) * rcpDirY;
-        var y2 = (this._maximumY - oY) * rcpDirY;
-        near = Math.max(near, Math.min(y1, y2));
-        far = Math.min(far, Math.max(y1, y2));
+        t1 = (this._minimumY - oY) * rcpDirY;
+        t2 = (this._maximumY - oY) * rcpDirY;
+
+        // slice of more from the line segment [nearT - farT]
+        nearT = Math.max(nearT, Math.min(t1, t2));
+        farT = Math.min(farT, Math.max(t1, t2));
     }
 
     if (dirZ !== 0.0) {
-        var z1 = (this._minimumZ - oZ) * rcpDirZ;
-        var z2 = (this._maximumZ - oZ) * rcpDirZ;
-        near = Math.max(near, Math.min(z1, z2));
-        far = Math.min(far, Math.max(z1, z2));
+        t1 = (this._minimumZ - oZ) * rcpDirZ;
+        t2 = (this._maximumZ - oZ) * rcpDirZ;
+
+        nearT = Math.max(nearT, Math.min(t1, t2));
+        farT = Math.min(farT, Math.max(t1, t2));
     }
 
-    return far >= near;
+    return farT > 0 && farT >= nearT;
 };
 
 /**
@@ -320,8 +331,8 @@ BoundingAABB.prototype.setExplicit = function(min, max)
  */
 BoundingAABB.prototype._updateCenterAndExtent = function()
 {
-    var minX = this._minimumX; var minY = this._minimumY; var minZ = this._minimumZ;
-    var maxX = this._maximumX; var maxY = this._maximumY; var maxZ = this._maximumZ;
+    var minX = this._minimumX, minY = this._minimumY, minZ = this._minimumZ;
+    var maxX = this._maximumX, maxY = this._maximumY, maxZ = this._maximumZ;
     this._center.x = (minX + maxX) * .5;
     this._center.y = (minY + maxY) * .5;
     this._center.z = (minZ + maxZ) * .5;

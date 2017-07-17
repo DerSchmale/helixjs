@@ -29,6 +29,7 @@ Ray.prototype =
     {
         matrix.transformPoint(ray.origin, this.origin);
         matrix.transformVector(ray.direction, this.direction);
+        this.direction.normalize();
     },
 
     /**

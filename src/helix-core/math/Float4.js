@@ -433,14 +433,6 @@ Float4.prototype =
     },
 
     /**
-     * @ignore
-     */
-    toString: function()
-    {
-        return "Float4(" + this.x + ", " + this.y + ", " + this.z + ", " + this.w + ")";
-    },
-
-    /**
      * Store the cross product of two vectors.
      */
     cross: function(a, b)
@@ -453,6 +445,14 @@ Float4.prototype =
         this.y = az*bx - ax*bz;
         this.z = ax*by - ay*bx;
         return this;
+    },
+
+    /**
+     * @ignore
+     */
+    toString: function()
+    {
+        return "Float4(" + this.x + ", " + this.y + ", " + this.z + ", " + this.w + ")";
     }
 };
 

@@ -2,6 +2,8 @@ import {Entity} from "../entity/Entity";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {Frustum} from "./Frustum";
 import {BoundingVolume} from "../scene/BoundingVolume";
+import {Ray} from "../math/Ray";
+import {Float4} from "../math/Float4";
 
 /**
  * @classdesc
@@ -123,6 +125,24 @@ Camera.prototype = Object.create(Entity.prototype, {
         }
     }
 });
+
+/**
+ * Returns a ray in world space at the given coordinates.
+ * @param x The x-coordinate in NDC [-1, 1] range.
+ * @param y The y-coordinate in NDC [-1, 1] range.
+ */
+Camera.prototype.getRay = function(x, y)
+{
+    var ray = new Ray();
+    var dir = ray.direction;
+    dir.set(x, y, -1, 1);
+    this.inverseProjectionMatrix.transform(dir, dir);
+    dir.homogeneousProject();
+    this.viewMatrix.transformVector(dir, dir);
+    dir.normalize();
+    this.worldMatrix.getColumn(3, ray.origin);
+    return ray;
+};
 
 /**
  * @ignore

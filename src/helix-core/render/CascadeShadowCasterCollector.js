@@ -1,5 +1,5 @@
 import {BoundingAABB} from "../scene/BoundingAABB";
-import {RenderItemPool} from "./RenderItemPool";
+import {ObjectPool} from "../core/ObjectPool";
 import {SceneVisitor} from "../scene/SceneVisitor";
 import {MaterialPass} from "../material/MaterialPass";
 import {META} from "../Helix";
@@ -19,7 +19,7 @@ function CascadeShadowCasterCollector()
     // this._splitPlanes = null;
     this._numCullPlanes = 0;
     this._renderLists = [];
-    this._renderItemPool = new RenderItemPool();
+    this._renderItemPool = new ObjectPool(RenderItem);
 };
 
 CascadeShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);

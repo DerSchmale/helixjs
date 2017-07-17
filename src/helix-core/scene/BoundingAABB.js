@@ -261,6 +261,45 @@ BoundingAABB.prototype.classifyAgainstPlane = function(plane)
 };
 
 /**
+ * @ignore
+ */
+BoundingAABB.prototype.intersectsRay = function(ray)
+{
+    // slab method
+    var o = ray.origin;
+    var d = ray.direction;
+    var oX = o.x, oY = o.y, oZ = o.z;
+    var dirX = d.x, dirY = d.y, dirZ = d.z;
+    var rcpDirX = 1.0 / dirX, rcpDirY = 1.0 / dirY, rcpDirZ = 1.0 / dirZ;
+
+    var near = Infinity;
+    var far = -Infinity;
+
+    if (dirX !== 0.0) {
+        var x1 = (this._minimumX - oX) * rcpDirX;
+        var x2 = (this._maximumX - oX) * rcpDirX;
+        near = Math.min(x1, x2);
+        far = Math.max(x1, x2);
+    }
+
+    if (dirY !== 0.0) {
+        var y1 = (this._minimumY - oY) * rcpDirY;
+        var y2 = (this._maximumY - oY) * rcpDirY;
+        near = Math.max(near, Math.min(y1, y2));
+        far = Math.min(far, Math.max(y1, y2));
+    }
+
+    if (dirZ !== 0.0) {
+        var z1 = (this._minimumZ - oZ) * rcpDirZ;
+        var z2 = (this._maximumZ - oZ) * rcpDirZ;
+        near = Math.max(near, Math.min(z1, z2));
+        far = Math.min(far, Math.max(z1, z2));
+    }
+
+    return far >= near;
+};
+
+/**
  * Sets the minimum and maximum explicitly using {@linkcode Float4}
  */
 BoundingAABB.prototype.setExplicit = function(min, max)
@@ -306,5 +345,6 @@ BoundingAABB.prototype.createDebugModel = function()
 {
     return new BoxPrimitive();
 };
+
 
 export { BoundingAABB };

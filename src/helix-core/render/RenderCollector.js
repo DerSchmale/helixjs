@@ -1,8 +1,9 @@
-import {RenderItemPool} from "./RenderItemPool";
+import {ObjectPool} from "../core/ObjectPool";
 import {Float4} from "../math/Float4";
 import {Color} from "../core/Color";
 import {SceneVisitor} from "../scene/SceneVisitor";
 import {META} from "../Helix";
+import {RenderItem} from "./RenderItem";
 
 /**
  * @ignore
@@ -14,7 +15,7 @@ function RenderCollector()
 {
     SceneVisitor.call(this);
 
-    this._renderItemPool = new RenderItemPool();
+    this._renderItemPool = new ObjectPool(RenderItem);
 
     this._opaques = [];
     this._transparents = []; // add in individual pass types

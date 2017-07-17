@@ -148,6 +148,14 @@ Mesh.prototype = {
     },
 
     /**
+     * Returns the index data uploaded to the index buffer.
+     */
+    getIndexData: function()
+    {
+        return this._indexData;
+    },
+
+    /**
      * Uploads index data from an Array or a Uint16Array
      */
     setIndexData: function (data)

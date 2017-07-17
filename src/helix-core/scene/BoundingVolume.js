@@ -168,6 +168,11 @@ BoundingVolume.prototype =
     classifyAgainstPlane: function(plane) { throw new Error("Abstract method!"); },
 
     /**
+     * Tests whether or not this BoundingVolume intersects a ray.
+     */
+    intersectsRay: function(ray) { throw new Error("Abstract method!"); },
+
+    /**
      * @ignore
      */
     createDebugModel: function() { throw new Error("Abstract method!"); },

@@ -376,6 +376,11 @@ export function InitOptions()
      * The shadow filter to use when rendering directional light shadows.
      */
     this.directionalShadowFilter = new HardDirectionalShadowFilter();
+
+    /**
+     * Indicates whether the back buffer should support transparency.
+     */
+    this.transparentBackground = false;
 }
 
 /**
@@ -396,9 +401,11 @@ export function init(canvas, options)
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
 
+    META.OPTIONS = options || new InitOptions();
+
     var webglFlags = {
         antialias: false,   // we're rendering to texture by default, so native AA has no effect
-        alpha: false,
+        alpha: META.OPTIONS.transparentBackground,
         depth: false,
         stencil: false,
         premultipliedAlpha: false,
@@ -408,8 +415,6 @@ export function init(canvas, options)
     var gl = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
     if (!gl) throw new Error("WebGL not supported");
     GL._setGL(gl);
-
-    META.OPTIONS = options || new InitOptions();
 
     META.INITIALIZED = true;
 

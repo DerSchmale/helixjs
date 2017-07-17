@@ -11,7 +11,7 @@ function SceneVisitor()
 
 SceneVisitor.prototype =
 {
-    collect: function(camera, scene) {},
+    // the entry point depends on the concrete subclass (collect, etc)
     qualifies: function(object) {},
     visitLight: function(light) {},
     visitAmbientLight: function(light) {},

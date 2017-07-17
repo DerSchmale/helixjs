@@ -297,6 +297,42 @@ BoundingSphere.prototype._updateMinAndMax = function()
 /**
  * @ignore
  */
+BoundingSphere.prototype.intersectsRay = function(ray)
+{
+    var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
+    var radius = this._halfExtentX;
+    var o = ray.origin;
+    var d = ray.direction;
+    var oX = o.x, oY = o.y, oZ = o.z;
+    var dirX = d.x, dirY = d.y, dirZ = d.z;
+    var diffX = centerX - oX;
+    var diffY = centerY - oY;
+    var diffZ = centerZ - oZ;
+
+    // project center onto ray
+    var dot = diffX * dirX + diffY * dirY + diffZ * dirZ;
+    var sqrDist;
+    if (dot > 0.0) {
+        // projection of c on the line
+        var cx = oX + dot * dirX;
+        var cy = oY + dot * dirY;
+        var cz = oZ + dot * dirZ;
+        // vector from projection to center is perpendicular length
+        cx = centerX - cx;
+        cy = centerY - cy;
+        cz = centerZ - cz;
+        sqrDist = cx * cx + cy * cy + cz * cz
+    }
+    else
+        sqrDist = diffX * diffX + diffY * diffY + diffZ * diffZ;
+
+    // larger than the radius, so cannot intersect
+    return sqrDist <= radius * radius;
+};
+
+/**
+ * @ignore
+ */
 BoundingSphere.prototype.createDebugModel = function()
 {
     return new SpherePrimitive({doubleSided:true});

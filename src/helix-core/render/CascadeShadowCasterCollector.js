@@ -3,6 +3,7 @@ import {ObjectPool} from "../core/ObjectPool";
 import {SceneVisitor} from "../scene/SceneVisitor";
 import {MaterialPass} from "../material/MaterialPass";
 import {META} from "../Helix";
+import {RenderItem} from "./RenderItem";
 
 /**
  * @ignore

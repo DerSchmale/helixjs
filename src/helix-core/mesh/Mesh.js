@@ -1,4 +1,4 @@
-import {capabilities, BufferUsage} from "../Helix";
+    import {capabilities, BufferUsage} from "../Helix";
 import {IndexBuffer} from "../core/IndexBuffer";
 import {VertexBuffer} from "../core/VertexBuffer";
 
@@ -282,6 +282,30 @@ Mesh.prototype = {
     getVertexAttributeByIndex: function (index)
     {
         return this._vertexAttributes[index];
+    },
+
+    /**
+     * Returns a duplicate of this Mesh.
+     */
+    clone: function()
+    {
+        var mesh = new Mesh(this._vertexUsage, this._indexUsage);
+        var numAttribs = this._vertexAttributes.length;
+
+        for (var i = 0; i < numAttribs; ++i) {
+            var attrib = this._vertexAttributes[i];
+            mesh.addVertexAttribute(attrib.name, attrib.numComponents, attrib.streamIndex);
+        }
+
+        for (i = 0; i < this._numStreams; ++i) {
+            if (this._vertexData[i])
+                mesh.setVertexData(this._vertexData[i], i);
+        }
+
+        if (this._indexData)
+            mesh.setIndexData(this._indexData);
+
+        return mesh;
     }
 };
 

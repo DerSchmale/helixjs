@@ -10,7 +10,7 @@ import {VertexLayout} from "./VertexLayout";
  * internally and should never be created manually.
  *
  * @constructor
- * @param mesh The {@linkcode Mesh} to wrap.
+ * @param mesh The {@linkcode Mesh} providing the geometry for this instance.
  * @param material The {@linkcode Material} to use to render the given Mesh.
  *
  * @author derschmale <http://www.derschmale.com>
@@ -46,6 +46,14 @@ MeshInstance.prototype = {
     set visible(value)
     {
         this._visible = value;
+    },
+
+    /**
+     * The {@linkcode Mesh} providing the geometry for this instance
+     */
+    get mesh()
+    {
+        return this._mesh;
     },
 
     /**

@@ -78,15 +78,19 @@ FbxNode.prototype = Object.create(FbxObject.prototype,
                     this._matrix = new HX.Matrix4x4();
                     var matrix = this._matrix;
                     var p = new HX.Float4();
-                    p.negativeOf(this.ScalingPivot);
-                    if (this.ScalingPivot) matrix.appendTranslation(p);
+                    if (this.ScalingPivot) {
+                        p.negativeOf(this.ScalingPivot);
+                        matrix.appendTranslation(p);
+                    }
                     var scale = this["Lcl Scaling"];
                     if (scale) matrix.appendScale(scale.x, scale.y, scale.z);
                     if (this.ScalingPivot) matrix.appendTranslation(this.ScalingPivot);
                     if (this.ScalingOffset) matrix.appendTranslation(this.ScalingOffset);
 
-                    p.negativeOf(this.RotationPivot);
-                    if (this.RotationPivot) matrix.appendTranslation(p);
+                    if (this.RotationPivot) {
+                        p.negativeOf(this.RotationPivot);
+                        matrix.appendTranslation(p);
+                    }
                     if (this.PreRotation) matrix.appendQuaternion(this._convertRotation(this.PreRotation));
                     if (this["Lcl Rotation"]) matrix.appendQuaternion(this._convertRotation(this["Lcl Rotation"]));
                     if (this.PostRotation) matrix.appendQuaternion(this._convertRotation(this.PostRotation));

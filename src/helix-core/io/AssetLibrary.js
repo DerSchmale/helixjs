@@ -12,7 +12,7 @@ import {AssetLoader} from "./AssetLoader";
  * to retrieve the loaded asset.
  *
  * @example
- * var assetLibrary = new AssetLibrary("assets/");
+ * var assetLibrary = new HX.AssetLibrary("assets/");
  * assetLibrary.queueAsset("some-model", "models/some-model.obj", HX.AssetLibrary.Type.ASSET, HX.OBJ);
  * assetLibrary.queueAsset("some-texture", "textures/some_texture.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
  * assetLibrary.onComplete.bind(onAssetsLoaded);
@@ -34,6 +34,7 @@ import {AssetLoader} from "./AssetLoader";
 
 function AssetLibrary(basePath, crossOrigin)
 {
+    this.fileMap = {};
     this._numLoaded = 0;
     this._queue = [];
     this._assets = {};
@@ -108,17 +109,19 @@ AssetLibrary.prototype =
      * @param {string} id The ID that will be used to retrieve the asset when loaded.
      * @param {string} filename The filename relative to the base path provided in the constructor.
      * @param {AssetLibrary.Type} type The type of asset to be loaded.
-     * @param {parser} The parser used to parse the loaded data.
-     * @param {target} An optional empty target to contain the parsed asset. This allows lazy loading.
+     * @param parser The parser used to parse the loaded data.
+     * @param [options] An optional options object (importer-dependent)
+     * @param [target] An optional empty target to contain the parsed asset. This allows lazy loading.
      * @see {@linkcode AssetLibrary#Type}
      */
-    queueAsset: function(id, filename, type, parser, target)
+    queueAsset: function(id, filename, type, parser, options, target)
     {
         this._queue.push({
             id: id,
             filename: this._basePath + filename,
             type: type,
             parser: parser,
+            options: options,
             target: target
         });
     },
@@ -144,7 +147,7 @@ AssetLibrary.prototype =
                 this._plainText(asset.filename, asset.id);
                 break;
             case AssetLibrary.Type.ASSET:
-                this._asset(asset.filename, asset.id, asset.parser, asset.target);
+                this._asset(asset.filename, asset.id, asset.parser, asset.options, asset.target);
                 break;
             default:
                 throw new Error("Unknown asset type " + asset.type + "!");
@@ -192,10 +195,11 @@ AssetLibrary.prototype =
         loader.send(null);
     },
 
-    _asset: function(file, id, parser, target)
+    _asset: function(file, id, parser, options, target)
     {
         var loader = new AssetLoader(parser);
-        loader.options = loader.options || {};
+        loader.fileMap = this.fileMap;
+        loader.options = options || {};
         loader.options.crossOrigin = this._crossOrigin;
         loader.onComplete.bind(function()
         {

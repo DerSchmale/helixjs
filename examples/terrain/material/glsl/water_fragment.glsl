@@ -36,7 +36,7 @@ HX_GeometryData hx_geometry()
 
     vec3 refractDir = refract(viewDir, normal, 1.0 / indexOfRefraction);
 // cannot clamp, as this would make any deep region have the same offset, which looks weird
-    vec2 offset = refractDir.xy / proj.w * dist;
+    vec2 offset = refractDir.xy / max(proj.w, 1.0) * min(dist, 3.0);
 
     screenCoord += offset;
 

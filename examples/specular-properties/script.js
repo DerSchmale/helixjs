@@ -4,10 +4,16 @@
 
 var project = new DemoProject();
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("skybox-specular", "textures/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("skybox-irradiance", "textures/skybox/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+};
+
 project.onInit = function()
 {
     initCamera(this.camera);
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 };
 
 window.onload = function ()
@@ -31,7 +37,7 @@ function initCamera(camera)
     camera.addComponents([ controller, tonemap ]);
 }
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
     var light = new HX.DirectionalLight();
     light.color = new HX.Color(1.0,.8,.6);
@@ -39,9 +45,8 @@ function initScene(scene)
     light.intensity = .3;
     scene.attach(light);
 
-    var cubeLoader = new HX.AssetLoader(HX.HCM);
-    var skyboxSpecularTexture = cubeLoader.load("textures/skybox/skybox_specular.hcm");
-    var skyboxIrradianceTexture = cubeLoader.load("textures/skybox/skybox_irradiance.hcm");
+    var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
+    var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxSpecularTexture);
@@ -61,8 +66,8 @@ function initScene(scene)
     for (var x = 0; x < numX; ++x) {
         for (var y = 0; y < numY; ++y) {
             var material = new HX.BasicMaterial();
-            //var gold = new HX.Color(1, 0.765557, 0.336057);
-            //material.color = new HX.Color(1, 0.0, 0.0);
+            var gold = new HX.Color(1, 0.765557, 0.336057);
+            material.color = gold;
             material.roughness = x / (numX - 1.0);
             material.metallicness = y / (numY - 1.0);
 

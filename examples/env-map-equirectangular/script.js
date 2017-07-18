@@ -4,13 +4,20 @@
 
 var project = new DemoProject();
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("skybox", "textures/river_rocks_1k.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
+    assetLibrary.queueAsset("metal-normals", "textures/Tarnished_Metal_01_normal.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("metal-specular", "textures/Tarnished_Metal_01_specular.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+};
+
 project.onInit = function()
 {
     var controller = new HX.OrbitController();
     controller.radius = 1.5;
     this.camera.addComponent(controller);
 
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 };
 
 window.onload = function ()
@@ -19,24 +26,21 @@ window.onload = function ()
     project.init(document.getElementById('webglContainer'), options);
 };
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
-    var envMapLoader = new HX.AssetLoader(HX.JPG_EQUIRECTANGULAR);
-    var skyboxTexture = envMapLoader.load("textures/river_rocks_1k.jpg");
+    var skyboxTexture = assetLibrary.get("skybox");
 
-    // top level of specular texture is the original skybox texture
+    // use it as skybox
     var skybox = new HX.Skybox(skyboxTexture);
     scene.skybox = skybox;
 
+    // use the same texture as environment map
     var lightProbe = new HX.LightProbe(null, skyboxTexture);
     scene.attach(lightProbe);
 
-    var textureLoader = new HX.AssetLoader(HX.JPG);
-    var normalMap = textureLoader.load("textures/Tarnished_Metal_01_normal.png");
-    var specularMap = textureLoader.load("textures/Tarnished_Metal_01_specular.jpg");
     var material = new HX.BasicMaterial();
-    material.normalMap = normalMap;
-    material.specularMap = specularMap;
+    material.normalMap = assetLibrary.get("metal-normals");
+    material.specularMap = assetLibrary.get("metal-specular");
     material.roughness = .25;
     material.roughnessRange = -.1;  // invert roughness by making range negative
     material.metallicness = 1.0;

@@ -1,10 +1,3 @@
-import {EffectPass} from "./EffectPass";
-import {ShaderLibrary} from "../shader/ShaderLibrary";
-import {Effect} from "./Effect";
-import {GL} from "../core/GL";
-import {Color} from "../core/Color";
-
-
 /**
  * @classdesc
  * Fog is an {@linkcode Effect} added to the Camera that applies a fog effect to the scene.
@@ -24,6 +17,14 @@ import {Color} from "../core/Color";
  *
  * @author derschmale <http://www.derschmale.com>
  */
+import {EffectPass} from "./EffectPass";
+import {ShaderLibrary} from "../shader/ShaderLibrary";
+import {Effect} from "./Effect";
+import {GL} from "../core/GL";
+import {Color} from "../core/Color";
+import {META} from "../Helix";
+
+
 function Fog(density, tint, heightFallOff, startDistance)
 {
     Effect.call(this);
@@ -31,7 +32,9 @@ function Fog(density, tint, heightFallOff, startDistance)
     this._fogPass = new EffectPass(ShaderLibrary.get("fog_vertex.glsl"), ShaderLibrary.get("fog_fragment.glsl"));
     this.needsNormalDepth = true;
     this.density = density === undefined? .001 : density;
-    this.tint = tint === undefined? new Color(1, 1, 1, 1) : tint;
+    this._tint = new Color(1, 1, 1, 1);
+    if (tint !== undefined)
+        this.tint = tint;
     this.startDistance = startDistance === undefined? 0 : startDistance;
     this.heightFallOff = heightFallOff === undefined? 0.01 : heightFallOff;
 }
@@ -57,7 +60,11 @@ Fog.prototype = Object.create(Effect.prototype,
             },
             set: function (value)
             {
-                this._tint = value;
+                this._tint.copyFrom(value);
+
+                if (META.OPTIONS.useGammaCorrection)
+                    this._tint.gammaToLinear();
+
                 this._fogPass.setUniform("tint", {x: value.r, y: value.g, z: value.b});
             }
         },

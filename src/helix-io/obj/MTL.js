@@ -83,6 +83,7 @@ MTL.prototype._getTexture = function(url)
 MTL.prototype._loadTextures = function(lib)
 {
     var library = new HX.AssetLibrary(null, this.options.crossOrigin);
+    library.fileMap = this.fileMap;
     var files = this._texturesToLoad;
     var len = files.length;
     if (len === 0) {
@@ -91,7 +92,7 @@ MTL.prototype._loadTextures = function(lib)
     }
 
     for (var i = 0; i < files.length; ++i) {
-        library.queueAsset(files[i].file, files[i].file, HX.AssetLibrary.Type.ASSET, files[i].importer, files[i].target)
+        library.queueAsset(files[i].file, files[i].file, HX.AssetLibrary.Type.ASSET, files[i].importer, this.options, files[i].target)
     }
 
 

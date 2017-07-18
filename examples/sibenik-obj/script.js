@@ -5,11 +5,16 @@
 var project = new DemoProject();
 var pointLight;
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("model", "resources/sibenik/sibenik.obj", HX.AssetLibrary.Type.ASSET, HX.OBJ);
+};
+
 project.onInit = function()
 {
     initRenderer(this.renderer);
     initCamera(this.camera);
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 };
 
 project.onUpdate = function()
@@ -29,11 +34,6 @@ window.onload = function ()
 
 function initRenderer(renderer)
 {
-    /*var ssr = new HX.ScreenSpaceReflections(32);
-    ssr.scale = .25;
-    ssr.stepSize = 20;
-    renderer.localReflections = ssr;*/
-
     var ssao = new HX.HBAO(5, 6);
     ssao.strength = 1.0;
     ssao.sampleRadius = 1.0;
@@ -51,7 +51,7 @@ function initCamera(camera)
     camera.addComponent(floatController);
 }
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
     var ambientLight = new HX.AmbientLight();
     ambientLight.color = new HX.Color(.3,.3,.3);
@@ -65,7 +65,5 @@ function initScene(scene)
     scene.attach(pointLight);
     scene.attach(ambientLight);
 
-    var loader = new HX.AssetLoader(HX.OBJ);
-    var sibenik = loader.load('resources/sibenik/sibenik.obj');
-    scene.attach(sibenik);
+    scene.attach(assetLibrary.get("model"));
 }

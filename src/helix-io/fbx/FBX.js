@@ -70,6 +70,7 @@ FBX.prototype._loadTextures = function(tokens, map, target)
     var numTextures = tokens.length;
 
     this._textureLibrary = new HX.AssetLibrary(null, this.options.crossOrigin);
+    this._textureLibrary.fileMap = this.fileMap;
 
     for (var i = 0; i < numTextures; ++i) {
         var token = tokens[i];

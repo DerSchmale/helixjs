@@ -50,6 +50,7 @@ HMT.prototype._loadShaders = function(data, material)
     // urls will already be correctURL'ed
     var shaderFiles = this._gatherShaderFiles(data);
     this._shaderLibrary = new AssetLibrary(null, this.options.crossOrigin);
+    this._shaderLibrary.fileMap = this.fileMap;
 
     for (var i = 0; i < shaderFiles.length; ++i) {
         this._shaderLibrary.queueAsset(shaderFiles[i], shaderFiles[i], AssetLibrary.Type.PLAIN_TEXT);
@@ -150,6 +151,7 @@ HMT.prototype._loadTextures = function(data, material)
     }
 
     this._textureLibrary = new AssetLibrary(null, this.options.crossOrigin);
+    this._textureLibrary.fileMap = this.fileMap;
 
     for (var i = 0; i < files.length; ++i) {
         this._textureLibrary.queueAsset(files[i], files[i], AssetLibrary.Type.ASSET, JPG);

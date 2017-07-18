@@ -5,11 +5,18 @@
 var project = new DemoProject();
 var sponza;
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("skybox-specular", "resources/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("skybox-irradiance", "resources/skybox/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("model", "resources/crytek-sponza/sponza.obj", HX.AssetLibrary.Type.ASSET, HX.OBJ);
+};
+
 project.onInit = function()
 {
     initRenderer(this.renderer);
     initCamera(this.camera);
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 };
 
 window.onload = function ()
@@ -51,13 +58,13 @@ function initCamera(camera)
     // camera.addComponent(bloom);
 
     var tonemap = new HX.FilmicToneMapping(true);
-    tonemap.exposure = 1;
+    tonemap.exposure = -1;
     camera.addComponent(tonemap);
 
     camera.addComponent(new HX.FXAA());
 }
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
     var dirLight = new HX.DirectionalLight();
     dirLight.color = new HX.Color(1.0, .95, .9);
@@ -67,9 +74,8 @@ function initScene(scene)
 
     scene.attach(dirLight);
 
-    var cubeLoader = new HX.AssetLoader(HX.HCM);
-    var skyboxSpecularTexture = cubeLoader.load("resources/skybox/skybox_specular.hcm");
-    var skyboxIrradianceTexture = cubeLoader.load("resources/skybox/skybox_irradiance.hcm");
+    var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
+    var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxSpecularTexture);
@@ -78,14 +84,14 @@ function initScene(scene)
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture);
     scene.attach(lightProbe);
 
-    var loader = new HX.AssetLoader(HX.OBJ);
-    loader.onComplete.bind(onSponzaComplete);
-    sponza = loader.load('resources/crytek-sponza/sponza.obj');
+    sponza = assetLibrary.get("model");
     sponza.scale.set(1.0/40.0, 1.0/40.0, 1.0/40.0);
     scene.attach(sponza);
+
+    processMaterials();
 }
 
-function onSponzaComplete()
+function processMaterials()
 {
     var material = sponza.findMaterialByName("chain");
     material.alphaThreshold = .5;

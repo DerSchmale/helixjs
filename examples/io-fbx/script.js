@@ -4,10 +4,28 @@
 
 var project = new DemoProject();
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.fileMap = {
+        "Muro_body_dm.tga": "Muro_body_dm.jpg",
+        "Muro_body_nm.tga": "Muro_body_nm.png",
+        "Muro_body_sm.tga": "Muro_body_sm.jpg",
+        "Muro_head_dm.tga": "Muro_head_dm.jpg",
+        "Muro_head_nm.tga": "Muro_head_nm.png",
+        "Muro_head_sm.tga": "Muro_head_sm.jpg"
+    };
+
+    assetLibrary.queueAsset("skybox-specular", "textures/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("floor-albedo", "textures/Sponza_Ceiling_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("floor-normals", "textures/Sponza_Ceiling_normal.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("floor-specular", "textures/Sponza_Ceiling_roughness.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("model", "model/muro.fbx", HX.AssetLibrary.Type.ASSET, HX.FBX);
+};
+
 project.onInit = function()
 {
     initCamera(this.camera);
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 };
 
 window.onload = function ()
@@ -28,17 +46,13 @@ function initCamera(camera)
     camera.addComponent(orbitController);
 }
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
     // textures are from http://www.alexandre-pestana.com/pbr-textures-sponza/
-    var textureLoader = new HX.AssetLoader(HX.JPG);
-    var colorMap = textureLoader.load("textures/Sponza_Ceiling_diffuse.jpg");
-    var normalMap = textureLoader.load("textures/Sponza_Ceiling_normal.png");
-    var specularMap = textureLoader.load("textures/Sponza_Ceiling_roughness.jpg");
     var material = new HX.BasicMaterial();
-    material.colorMap = colorMap;
-    material.normalMap = normalMap;
-    material.specularMap = specularMap;
+    material.colorMap = assetLibrary.get("floor-albedo");
+    material.normalMap = assetLibrary.get("floor-normals");
+    material.specularMap = assetLibrary.get("floor-specular");
 
     var primitive = new HX.PlanePrimitive(
         {
@@ -53,32 +67,15 @@ function initScene(scene)
     var floorInstance = new HX.ModelInstance(primitive, material);
     scene.attach(floorInstance);
 
-    var cubeLoader = new HX.AssetLoader(HX.HCM);
-    var skyboxSpecularTexture = cubeLoader.load("textures/skybox/skybox_specular.hcm");
+    var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxSpecularTexture);
     scene.skybox = skybox;
 
-    var loader = new HX.AssetLoader(HX.FBX);
-
-    // using the Function override approach for this demo
-    loader.onComplete = function(asset)
-    {
-        var bounds = scene.worldBounds;
-        asset.position.y = -bounds.minimum.y;
-    };
-
-    loader.fileMap = {
-        "Muro_body_dm.tga": "Muro_body_dm.jpg",
-        "Muro_body_nm.tga": "Muro_body_nm.png",
-        "Muro_body_sm.tga": "Muro_body_sm.jpg",
-        "Muro_head_dm.tga": "Muro_head_dm.jpg",
-        "Muro_head_nm.tga": "Muro_head_nm.png",
-        "Muro_head_sm.tga": "Muro_head_sm.jpg"
-    };
-
-    var node = loader.load("model/muro.fbx");
+    var node = assetLibrary.get("model");
+    var bounds = node.worldBounds;
+    node.position.y = -bounds.minimum.y;
     node.scale.set(.01, .01, .01);   // back to meters
     scene.attach(node);
 }

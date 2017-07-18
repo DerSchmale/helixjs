@@ -4,33 +4,33 @@
     <meta charset="UTF-8">
     <title>Helix example: Multiview demo</title>
 
-    <script src="../js/webgl-debug.js"></script>
     <script src="../../build/helix.js"></script>
     <script src="../js/AnimateRotateComponent.js"></script>
     <script src="../js/AnimateOrbitComponent.js"></script>
     <script src="../js/ProjectTemplates.js"></script>
     <script src="../js/MultiDemoProject.js"></script>
 
-    <style>
-        body {
-            background-color: black;
-            color: gainsboro;
-            margin: 0;
-        }
-
-        #webglContainer {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            border: none;
-        }
-    </style>
+    <link rel="stylesheet" type="text/css" href="../css/style.css">
 
 </head>
 <body id="rootBody">
     <canvas id="webglContainer">
         Canvas tag not supported by the browser!
     </canvas>
+
+    <div id="preloader" class="preloader">
+        <div id="preloaderBar" class="vAligned">
+            Loading...
+            <div class="preloaderBorder">
+                <div id="preloaderProgress" class="preloaderProgress">
+                </div>
+            </div>
+        </div>
+        <div id="errorContainer" class="vAligned hidden">
+            <h1>Sorry!</h1>
+            <p>It seems your browser doesn't support WebGL!</p>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>

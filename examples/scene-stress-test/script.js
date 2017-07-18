@@ -4,10 +4,15 @@
 
 var project = new DemoProject();
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("albedo", "textures/marbletiles_diffuse_white.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+};
+
 project.onInit = function()
 {
     initCamera(this.camera);
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 };
 
 window.onload = function ()
@@ -30,7 +35,7 @@ function initCamera(camera)
     camera.addComponent(floatController);
 }
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
     // TODO: Do this dynamically
     var lights = [ ];
@@ -62,15 +67,13 @@ function initScene(scene)
 
     scene.attach(dirLight);
 
-    var textureLoader = new HX.AssetLoader(HX.JPG);
-    var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
     var material = new HX.BasicMaterial();
     // the difference is, we don't assign lights, but we do assign a lighting model
-    material.colorMap = texture;
+    material.colorMap = assetLibrary.get("albedo");
     material.roughness = 0.05;
 
     var material2 = new HX.BasicMaterial();
-    material2.colorMap = texture;
+    material2.colorMap = assetLibrary.get("albedo");
     material2.roughness = 0.2;
     // use non-default lighting model to cause forward lighting
     material2.lightingModel = HX.LightingModel.BlinnPhong;

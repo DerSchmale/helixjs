@@ -12,10 +12,20 @@ var worldSize = 5000;
 var waterLevel = -15;
 var fog;
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("skybox-specular", "textures/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("skybox-irradiance", "textures/skybox/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("heightMap", "textures/heightMap.png", HX.AssetLibrary.Type.ASSET, HX.JPG_HEIGHTMAP);
+    assetLibrary.queueAsset("terrainMap", "textures/terrainMap.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("terrain-material", "material/terrainMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
+    assetLibrary.queueAsset("water-material", "material/waterMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
+};
+
 project.onInit = function()
 {
     initCamera(this.camera);
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 
     /*var ssao = new HX.HBAO();
     ssao.radius = 50.0;
@@ -40,8 +50,8 @@ window.onload = function ()
     options.numShadowCascades = 3;
     options.hdr = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
-    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
-    options.directionalShadowFilter.blurRadius = 1;
+    options.directionalShadowFilter = new HX.PCFDirectionalShadowFilter();
+    options.directionalShadowFilter.softness = 5.0;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -60,55 +70,49 @@ function initCamera(camera)
     controller.yaw = Math.PI;
     camera.addComponent(controller);
 
-    fog = new HX.Fog(0.00025, new HX.Color(0x3977ff), 0.0005);
+    fog = new HX.Fog(0.00025, new HX.Color(0x1155ff), 0.0005, 100);
     camera.addComponent(fog);
 
-    var tonemap = new HX.FilmicToneMapping();
+    var tonemap = new HX.ACESToneMapping();
     tonemap.exposure = 0.0;
     camera.addComponent(tonemap);
 }
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
     var sun = new HX.DirectionalLight();
     sun.direction = new HX.Float4(-0.3, -.3, 1.0, 0.0);
-    // sun.depthBias = 10.0;
     sun.intensity = 3;
     sun.castShadows = true;
-    // sun.shadowMapSize = 1024;
-    // sun.setCascadeRatios(.01,.07,.15, .3);
     scene.attach(sun);
 
     // TODO: Add procedural skybox
 
-    var cubeLoader = new HX.AssetLoader(HX.HCM);
-    var skyboxSpecularTexture = cubeLoader.load("textures/skybox/skybox_specular.hcm");
-    var skyboxIrradianceTexture = cubeLoader.load("textures/skybox/skybox_irradiance.hcm");
+    var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
+    var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
+
     var skybox = new HX.Skybox(skyboxSpecularTexture);
     scene.skybox = skybox;
 
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
     scene.attach(lightProbe);
 
-    var heightMapLoader = new HX.AssetLoader(HX.JPG_HEIGHTMAP);
-    var heightMap = heightMapLoader.load("textures/heightMap.png");
-    var textureLoader = new HX.AssetLoader(HX.JPG);
-    var terrainMap = textureLoader.load("textures/terrainMap.jpg");
+    var heightMap = assetLibrary.get("heightMap");
+    var terrainMap = assetLibrary.get("terrainMap");
 
     // in our material
     // red = beach
     // green = rock
     // blue = snow
     // otherwise, fall back to grass
-    var materialLoader = new HX.AssetLoader(HX.HMT);
-    terrainMaterial = materialLoader.load("material/terrainMaterial.hmt");
+    terrainMaterial = assetLibrary.get("terrain-material");
     terrainMaterial.setTexture("heightMap", heightMap);
     terrainMaterial.setTexture("terrainMap", terrainMap);
     terrainMaterial.setUniform("heightMapSize", 2048);
     terrainMaterial.setUniform("worldSize", worldSize);
     // terrainMaterial.ssao = true;
 
-    waterMaterial = materialLoader.load("material/waterMaterial.hmt");
+    waterMaterial = assetLibrary.get("water-material");
 
     var terrain = new HX.Terrain(4000, -100, 200, 5, terrainMaterial, 64);
 

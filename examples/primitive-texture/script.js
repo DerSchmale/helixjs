@@ -4,10 +4,15 @@
 
 var project = new DemoProject();
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("albedo", "textures/marbletiles_diffuse_white.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+};
+
 project.onInit = function()
 {
     this.camera.addComponent(new HX.OrbitController());
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 };
 
 window.onload = function ()
@@ -15,12 +20,10 @@ window.onload = function ()
     project.init(document.getElementById('webglContainer'));
 };
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
-    var textureLoader = new HX.AssetLoader(HX.JPG);
-    var texture = textureLoader.load("textures/marbletiles_diffuse_white.jpg");
     var material = new HX.BasicMaterial();
-    material.colorMap = texture;
+    material.colorMap = assetLibrary.get("albedo");
 
     var primitive = new HX.SpherePrimitive(
         {

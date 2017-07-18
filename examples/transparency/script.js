@@ -4,10 +4,15 @@
 
 var project = new DemoProject();
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("skybox", "textures/river_rocks_1k.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
+};
+
 project.onInit = function()
 {
     initCamera(this.camera);
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 };
 
 window.onload = function ()
@@ -25,10 +30,9 @@ function initCamera(camera)
     camera.addComponent(controller);
 }
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
-    var envMapLoader = new HX.AssetLoader(HX.JPG_EQUIRECTANGULAR);
-    var skyboxTexture = envMapLoader.load("textures/skybox/river_rocks_1k.jpg");
+    var skyboxTexture = assetLibrary.get("skybox");
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxTexture);

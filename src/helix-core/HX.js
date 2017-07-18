@@ -71,6 +71,7 @@ export {CopyTexturePass} from "./effect/CommonPasses";
 export {Effect} from "./effect/Effect";
 export {EffectPass} from "./effect/EffectPass";
 export {FilmicToneMapping} from "./effect/FilmicToneMapping";
+export {ACESToneMapping} from "./effect/ACESToneMapping";
 export {Fog} from "./effect/Fog";
 export {FXAA} from "./effect/FXAA";
 export {GaussianBlurPass} from "./effect/GaussianBlurPass";
@@ -134,6 +135,7 @@ export {EquirectangularTexture} from "./utils/EquirectangularTexture";
 export {HeightMap} from "./utils/HeightMap";
 export {ImageData} from "./utils/ImageData";
 export {NormalTangentGenerator} from "./utils/NormalTangentGenerator";
+export {Platform} from "./utils/Platform";
 export {RayCaster} from "./utils/RayCaster";
 export {StatsDisplay} from "./utils/StatsDisplay";
 

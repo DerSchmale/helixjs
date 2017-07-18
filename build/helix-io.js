@@ -822,6 +822,7 @@ MTL$1.prototype._getTexture = function(url)
 MTL$1.prototype._loadTextures = function(lib)
 {
     var library = new HX$1.AssetLibrary(null, this.options.crossOrigin);
+    library.fileMap = this.fileMap;
     var files = this._texturesToLoad;
     var len = files.length;
     if (len === 0) {
@@ -830,7 +831,7 @@ MTL$1.prototype._loadTextures = function(lib)
     }
 
     for (var i = 0; i < files.length; ++i) {
-        library.queueAsset(files[i].file, files[i].file, HX$1.AssetLibrary.Type.ASSET, files[i].importer, files[i].target);
+        library.queueAsset(files[i].file, files[i].file, HX$1.AssetLibrary.Type.ASSET, files[i].importer, this.options, files[i].target);
     }
 
 
@@ -1375,15 +1376,19 @@ FbxNode.prototype = Object.create(FbxObject.prototype,
                     this._matrix = new HX.Matrix4x4();
                     var matrix = this._matrix;
                     var p = new HX.Float4();
-                    p.negativeOf(this.ScalingPivot);
-                    if (this.ScalingPivot) matrix.appendTranslation(p);
+                    if (this.ScalingPivot) {
+                        p.negativeOf(this.ScalingPivot);
+                        matrix.appendTranslation(p);
+                    }
                     var scale = this["Lcl Scaling"];
                     if (scale) matrix.appendScale(scale.x, scale.y, scale.z);
                     if (this.ScalingPivot) matrix.appendTranslation(this.ScalingPivot);
                     if (this.ScalingOffset) matrix.appendTranslation(this.ScalingOffset);
 
-                    p.negativeOf(this.RotationPivot);
-                    if (this.RotationPivot) matrix.appendTranslation(p);
+                    if (this.RotationPivot) {
+                        p.negativeOf(this.RotationPivot);
+                        matrix.appendTranslation(p);
+                    }
                     if (this.PreRotation) matrix.appendQuaternion(this._convertRotation(this.PreRotation));
                     if (this["Lcl Rotation"]) matrix.appendQuaternion(this._convertRotation(this["Lcl Rotation"]));
                     if (this.PostRotation) matrix.appendQuaternion(this._convertRotation(this.PostRotation));
@@ -3031,6 +3036,7 @@ FBX.prototype._loadTextures = function(tokens, map, target)
     var numTextures = tokens.length;
 
     this._textureLibrary = new HX$1.AssetLibrary(null, this.options.crossOrigin);
+    this._textureLibrary.fileMap = this.fileMap;
 
     for (var i = 0; i < numTextures; ++i) {
         var token = tokens[i];

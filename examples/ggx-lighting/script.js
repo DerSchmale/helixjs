@@ -4,21 +4,27 @@
 
 var project = new DemoProject();
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("albedo", "textures/diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("normals", "textures/normals.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("specular", "textures/specular.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+};
+
 project.onInit = function()
 {
     this.camera.addComponent(new HX.OrbitController());
 
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 };
 
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
     var ambientLight = new HX.AmbientLight();
     ambientLight.intensity = .02;
@@ -51,15 +57,11 @@ function initScene(scene)
     component.speed = .1;
     light3.addComponent(component);
 
-    var textureLoader = new HX.AssetLoader(HX.JPG);
-    var albedoMap = textureLoader.load("textures/diffuse.jpg");
-    var normalMap = textureLoader.load("textures/normals.jpg");
-    var specularMap = textureLoader.load("textures/specular.jpg");
     var material = new HX.BasicMaterial();
     material.lightingModel = HX.LightingModel.GGX;
-    material.colorMap = albedoMap;
-    material.normalMap = normalMap;
-    material.specularMap = specularMap;
+    material.colorMap = assetLibrary.get("albedo");
+    material.normalMap = assetLibrary.get("normals");
+    material.specularMap = assetLibrary.get("specular");
     material.roughness = .6;
     material.roughnessRange = .4;
 

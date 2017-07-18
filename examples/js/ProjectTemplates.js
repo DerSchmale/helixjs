@@ -5,6 +5,7 @@
 function SimpleProject()
 {
     this._initialized = false;
+    this._assetLibrary = new HX.AssetLibrary();
 }
 
 SimpleProject.prototype =
@@ -21,6 +22,25 @@ SimpleProject.prototype =
             HX.init(canvas, initOptions);
 
             this._canvas = canvas;
+
+            this.queueAssets(this._assetLibrary);
+
+            this._assetLibrary.onComplete.bind(this._onAssetsLoaded, this);
+            this._assetLibrary.onProgress.bind(this._onAssetsProgress, this);
+            this._assetLibrary.load();
+        },
+
+        _onAssetsProgress: function(ratio)
+        {
+            var preloader = document.getElementById("preloaderProgress");
+            preloader.style.width = Math.floor(ratio * 100) + "%";
+        },
+
+        _onAssetsLoaded: function()
+        {
+            var preloader = document.getElementById("preloader");
+            preloader.style.display = "none";
+
             this._resizeCanvas();
 
             this._scene = new HX.Scene();
@@ -40,6 +60,11 @@ SimpleProject.prototype =
             this.start();
         },
 
+        queueAssets: function(assetLibrary)
+        {
+
+        },
+
         start: function()
         {
             HX.onFrame.bind(this._update, this);
@@ -53,6 +78,11 @@ SimpleProject.prototype =
         get renderer()
         {
             return this._renderer;
+        },
+
+        get assetLibrary()
+        {
+            return this._assetLibrary;
         },
 
         get scene()
@@ -92,7 +122,7 @@ SimpleProject.prototype =
 
         _resizeCanvas: function()
         {
-            var pixelRatio = /*window.devicePixelRatio || */1.0;
+            var pixelRatio = window.devicePixelRatio || 1.0;
             this._canvas.width = this._canvas.clientWidth * pixelRatio;
             this._canvas.height = this._canvas.clientHeight * pixelRatio;
         }
@@ -132,6 +162,7 @@ DemoProject.prototype.init = function(canvas, initOptions)
 function MultiViewProject()
 {
     this._initialized = false;
+    this._assetLibrary = new HX.AssetLibrary();
 }
 
 MultiViewProject.prototype =
@@ -146,6 +177,27 @@ MultiViewProject.prototype =
             if (this._initialized) throw new Error("Already initialized project!");
 
             HX.init(canvas, initOptions);
+
+            this._canvas = document.getElementById('webglContainer');
+
+            this.queueAssets(this._assetLibrary);
+
+            this._assetLibrary.onComplete.bind(this._onAssetsLoaded, this);
+            this._assetLibrary.onProgress.bind(this._onAssetsProgress, this);
+            this._assetLibrary.load();
+        },
+
+        _onAssetsProgress: function(ratio)
+        {
+            var preloader = document.getElementById("preloaderProgress");
+            preloader.style.width = Math.floor(ratio * 100) + "%";
+        },
+
+        _onAssetsLoaded: function()
+        {
+            var preloader = document.getElementById("preloader");
+            preloader.style.display = "none";
+
             this._resizeCanvas();
 
             this._renderer = new HX.MultiRenderer();
@@ -154,12 +206,17 @@ MultiViewProject.prototype =
 
             window.addEventListener('resize', function()
             {
-                self._resizeCanvas.call(self);
+                self._resizeCanvas();
             });
 
             this.onInit();
             this._initialized = true;
             this.start();
+        },
+
+        queueAssets: function(assetLibrary)
+        {
+
         },
 
         addView: function(view)
@@ -187,6 +244,11 @@ MultiViewProject.prototype =
             return this._renderer;
         },
 
+        get assetLibrary()
+        {
+            return this._assetLibrary;
+        },
+
         _update: function(dt)
         {
             this.onUpdate(dt);
@@ -196,7 +258,6 @@ MultiViewProject.prototype =
 
         _resizeCanvas: function()
         {
-            this._canvas = document.getElementById('webglContainer');
             this._canvas.width = this._canvas.clientWidth;
             this._canvas.height = this._canvas.clientHeight;
         }

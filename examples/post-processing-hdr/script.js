@@ -4,10 +4,16 @@
 
 var project = new DemoProject();
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("albedo", "textures/diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("normals", "textures/normals.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+};
+
 project.onInit = function()
 {
     initCamera(this.camera);
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 };
 
 window.onload = function ()
@@ -26,14 +32,14 @@ function initCamera(camera)
     // ADD POST-PROCESSING COMPONENTS:
     //camera.addComponent(new HX.FXAA());
 
-    var bloom = new HX.Bloom(256, 1.0, 8);
-    bloom.thresholdLuminance = .5;
+    var bloom = new HX.Bloom(128, 1.0);
+    bloom.thresholdLuminance = 1.0;
     camera.addComponent(bloom);
 
     camera.addComponent(new HX.FilmicToneMapping());
 }
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
     var ambientLight = new HX.AmbientLight();
     ambientLight.color = new HX.Color(.1, .1, .1);
@@ -43,8 +49,8 @@ function initScene(scene)
     var light3 = new HX.PointLight();
 
     light1.intensity = 30;
-    light2.intensity = 30;
-    light3.intensity = 30;
+    light2.intensity = 40;
+    light3.intensity = 20;
 
     light1.color = 0xff2020;
     light2.color = 0x2020ff;
@@ -72,12 +78,9 @@ function initScene(scene)
     component.speed = .1;
     light3.addComponent(component);
 
-    var textureLoader = new HX.AssetLoader(HX.JPG);
-    var albedoMap = textureLoader.load("textures/diffuse.jpg");
-    var normalMap = textureLoader.load("textures/normals.png");
     var material = new HX.BasicMaterial();
-    material.colorMap = albedoMap;
-    material.normalMap = normalMap;
+    material.colorMap = assetLibrary.get("albedo");
+    material.normalMap = assetLibrary.get("normals");
     material.roughness = .3;
 
     var primitive = new HX.SpherePrimitive(

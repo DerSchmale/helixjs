@@ -17,6 +17,16 @@ var settings = {
 
 // units are million km
 
+project.queueAssets = function(assetLibrary)
+{
+    assetLibrary.queueAsset("sunMaterial", "materials/sunMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
+    assetLibrary.queueAsset("earthMaterial", "materials/earthMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
+    assetLibrary.queueAsset("atmosMaterial", "materials/atmosphereMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
+    assetLibrary.queueAsset("moon-albedo", "textures/moon/albedo.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("moon-normals", "textures/moon/normals.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("skybox", "textures/skybox/milkyway.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
+};
+
 project.onInit = function()
 {
     if (HX.META.OPTIONS.hdr)
@@ -25,7 +35,7 @@ project.onInit = function()
         initLDRSettings();
 
     initCamera(this.camera);
-    initScene(this.scene);
+    initScene(this.scene, this.assetLibrary);
 
     time = 0;
 };
@@ -42,7 +52,7 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.hdr = true;
+    options.hdr = !HX.Platform.isMobile;
     options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
@@ -60,7 +70,7 @@ function initHDRSettings()
 
     // TODO: Implement pseudo lens flare
 
-    var tonemap = new HX.FilmicToneMapping(false);
+    var tonemap = new HX.ACESToneMapping(false);
     tonemap.exposure = 0;
 
     settings.effects = [bloom1, bloom2, bloom3, tonemap];
@@ -73,10 +83,6 @@ function initHDRSettings()
 
 function initLDRSettings()
 {
-    var bloom1 = new HX.Bloom(300, 1.5, 8,.75);
-    bloom1.thresholdLuminance = .95;
-
-    settings.effects = [ bloom1 ];
     settings.sunIntensity = 10.0;
     settings.cloudColor = new HX.Color(0.64, 0.624, 0.6);
 
@@ -85,9 +91,9 @@ function initLDRSettings()
 
 function initCamera(camera)
 {
-    camera.position.x = -.01;
-    camera.position.y = -.0001;
-    camera.position.z = -.01;
+    camera.position.x = 0.013820930384099483;
+    camera.position.y = .0001396583509631455;
+    camera.position.z = -0.004580328706651926;
 
     camera.lookAt(HX.Float4.ORIGIN_POINT);
     // earth sun distance ~150
@@ -98,13 +104,14 @@ function initCamera(camera)
     var controller = new HX.FloatController();
     controller.speed = .07;
     controller.shiftMultiplier = 5.0;
-    controller.yaw = Math.PI;
+    controller.pitch = -0.23000000000000015;
+    controller.yaw = 2.4615926535898036;
     camera.addComponent(controller);
 
     camera.addComponents(settings.effects);
 }
 
-function initSun(container)
+function initSun(container, assetLibrary)
 {
     var distanceToSun = 150;    // same as with moon, we're bringing it 5x closer than it is
     var sunPosX = 0;
@@ -123,9 +130,8 @@ function initSun(container)
             radius: 0.696
         }
     );
-// TODO: Could replace with local light probes?
-    var loader = new HX.AssetLoader(HX.HMT);
-    var sunMaterial = loader.load("materials/sunMaterial.hmt");
+
+    var sunMaterial = assetLibrary.get("sunMaterial");
     sunMaterial.lightingModel = HX.LightingModel.Unlit;
 
     var sun = new HX.ModelInstance(sunSpherePrimitive, sunMaterial);
@@ -136,7 +142,7 @@ function initSun(container)
     container.attach(sun);
 }
 
-function initEarth(container)
+function initEarth(container, assetLibrary)
 {
     var earthRadius = 0.006371;
     var atmosphereScale = 1.025;
@@ -156,8 +162,7 @@ function initEarth(container)
 
     var lightDir = sunLight.worldMatrix.getColumn(2);
 
-    var materialLoader = new HX.AssetLoader(HX.HMT);
-    earthMaterial = materialLoader.load("materials/earthMaterial.hmt");
+    earthMaterial = assetLibrary.get("earthMaterial");
     earthMaterial.setUniform("lightDir", lightDir);
     earthMaterial.setUniform("atmosphereRadius", atmosphereRadius);
     earthMaterial.setUniform("earthRadius", earthRadius);
@@ -168,7 +173,7 @@ function initEarth(container)
     var globe = new HX.ModelInstance(earthSpherePrimitive, earthMaterial);
     earth.attach(globe);
 
-    var atmosMaterial = materialLoader.load("materials/atmosphereMaterial.hmt");
+    var atmosMaterial = assetLibrary.get("atmosMaterial");
     var atmosphere = new HX.ModelInstance(earthSpherePrimitive, atmosMaterial);
 
     atmosphere.scale.set(atmosphereScale, atmosphereScale, atmosphereScale);
@@ -186,7 +191,7 @@ function initEarth(container)
     container.attach(earth);
 }
 
-function initMoon(container)
+function initMoon(container, assetLibrary)
 {
     // bringing it 5x closer than it is
     var distanceToEarth = 0.384400 / 5;
@@ -199,9 +204,8 @@ function initMoon(container)
         }
     );
 
-    var textureLoader = new HX.AssetLoader(HX.JPG);
-    var colorMap = textureLoader.load("textures/moon/albedo.jpg");
-    var normalMap = textureLoader.load("textures/moon/normals.png");
+    var colorMap = assetLibrary.get("moon-albedo");
+    var normalMap = assetLibrary.get("moon-normals");
 
     var moonMaterial = new HX.BasicMaterial();
     moonMaterial.colorMap = colorMap;
@@ -219,20 +223,19 @@ function initMoon(container)
     container.attach(moon);
 }
 
-function initScene(scene)
+function initScene(scene, assetLibrary)
 {
     // rotate everything so the skybox is oriented
     var container = new HX.SceneNode();
     container.rotation.fromEuler(0, 0, .6);
     scene.attach(container);
-    initSun(container);
-    initEarth(container);
-    initMoon(container);
+    initSun(container, assetLibrary);
+    initEarth(container, assetLibrary);
+    initMoon(container, assetLibrary);
 
     scene.detach(project.camera);
     container.attach(project.camera);
 
-    var envMapLoader = new HX.AssetLoader(HX.JPG_EQUIRECTANGULAR);
-    var skyboxTexture = envMapLoader.load("textures/skybox/milkyway.jpg");
+    var skyboxTexture = assetLibrary.get("skybox");
     scene.skybox = new HX.Skybox(skyboxTexture);
 }

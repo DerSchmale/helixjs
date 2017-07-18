@@ -34,7 +34,7 @@ function Bloom(radius, strength, downScale, anisotropy)
     this._targetWidth = -1;
     this._targetHeight = -1;
 
-    radius = radius || 256;
+    radius = radius || 100;
     radius /= this._downScale;
     this._thresholdPass = new EffectPass(null, ShaderLibrary.get("bloom_threshold_fragment.glsl"));
     this._compositePass = new EffectPass(ShaderLibrary.get("bloom_composite_vertex.glsl"), ShaderLibrary.get("bloom_composite_fragment.glsl"));

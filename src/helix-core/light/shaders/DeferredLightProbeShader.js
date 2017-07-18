@@ -46,9 +46,6 @@ function DeferredLightProbeShader(probe)
     var p = this._program;
     gl.useProgram(p);
 
-    this._colorLocation = gl.getUniformLocation(p, "hx_directionalLight.color");
-    this._dirLocation = gl.getUniformLocation(p, "hx_directionalLight.direction");
-
     if (probe.size) {
         this._sizeLocation = gl.getUniformLocation(p, "hx_probeSize");
         this._positionLocation = gl.getUniformLocation(p, "hx_probePosition");

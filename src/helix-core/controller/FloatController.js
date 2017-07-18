@@ -6,13 +6,12 @@ import {META} from "../Helix";
 /**
  * @classdesc
  * FloatController is a {@linkcode Component} that allows moving an object (usually a camera) using mouse and keyboard (typical WASD controls) in all directions.
- * It uses Tait-Bryan pitch/yaw/roll angles.
+ * It uses Tait-Bryan pitch/yaw (ignoring roll) angles.
  *
  * @property {number} speed The speed at which to move.
  * @property {number} shiftMultiplier A speed-up factor for when the shift key is pressed.
  * @property {number} pitch The current orientation pitch (rotation about the X axis).
  * @property {number} yaw The current orientation yaw (rotation about the Y axis).
- * @property {number} roll The current orientation roll (rotation about the Z axis).
  * @property {number} friction The amount of friction that will cause the movement to stop when there's no input.
  *
  * @constructor
@@ -90,18 +89,6 @@ FloatController.prototype = Object.create(Component.prototype, {
         set: function(value)
         {
             this._yaw = value;
-        }
-    },
-
-    roll: {
-        get: function()
-        {
-            return this._roll;
-        },
-
-        set: function(value)
-        {
-            this._roll = value;
         }
     },
 

@@ -96,6 +96,16 @@ function initScene(scene)
     opaqueMaterial.roughnessRange = 0.4;
     opaqueMaterial.lightingModel = HX.LightingModel.GGX;
 
+    var transparentMaterial = new HX.BasicMaterial();
+    // transparentMaterial.ssao = true;
+    transparentMaterial.maskMap = colorMap;
+    transparentMaterial.roughness = 0.5;
+    transparentMaterial.roughnessRange = 0.4;
+    transparentMaterial.lightingModel = HX.LightingModel.GGX;
+    // transparentMaterial.alpha = .5;
+    transparentMaterial.blendState = HX.BlendState.ALPHA;
+    transparentMaterial.writeDepth = false;
+
     var primitive = new HX.SpherePrimitive(
         {
             radius:.5,
@@ -108,7 +118,10 @@ function initScene(scene)
 
     for (var x = -8; x <= 8; ++x) {
         for (var z = -8; z <= 8; ++z) {
-            var modelInstance = new HX.ModelInstance(primitive, opaqueMaterial);
+            var material = opaqueMaterial;
+            if (x === 0 && z === 0)
+                material = transparentMaterial;
+            var modelInstance = new HX.ModelInstance(primitive, material);
             modelInstance.position.x = x * 2.0;
             modelInstance.position.z = z * 2.0;
             modelInstance.position.y = (Math.sin(x *.5 + 1) + Math.cos(z *.5 +.5)) * .5 + .75;

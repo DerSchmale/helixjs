@@ -209,7 +209,7 @@ Renderer.prototype =
             if (this._renderCollector.needsBackbuffer)
                 this._copyToBackBuffer();
 
-            this._renderForwardLit(transparentList);
+            this._renderForwardTransparent(transparentList);
 
             this._swapHDRFrontAndBack();
             this._renderEffects(dt);
@@ -256,6 +256,43 @@ Renderer.prototype =
         }
     },
 
+    _renderForwardTransparent: function(list)
+    {
+        var lights = this._renderCollector.getLights();
+        var numLights = lights.length;
+
+
+        // transparents need to be rendered one-by-one, not light by light
+        var len = list.length;
+        for (var r = 0; r < len; ++r) {
+
+            var renderItem = list[r];
+
+            this._renderSingleItem(MaterialPass.BASE_PASS, renderItem);
+
+            for (var i = 0; i < numLights; ++i) {
+                var light = lights[i];
+
+                // I don't like type checking, but lighting support is such a core thing...
+                // maybe we can work in a more plug-in like light system
+                if (light instanceof LightProbe) {
+                    this._renderSingleItem(MaterialPass.LIGHT_PROBE_PASS, renderItem, light);
+                }
+                else if (light instanceof DirectionalLight) {
+                    // if non-global, do intersection tests
+                    var passType = light.castShadows? MaterialPass.DIR_LIGHT_SHADOW_PASS : MaterialPass.DIR_LIGHT_PASS;
+                    this._renderSingleItem(passType, renderItem, light);
+                }
+                else if (light instanceof PointLight) {
+                    // cannot just use renderPass, need to do intersection tests
+                    this._renderLightPassIfIntersects(light, MaterialPass.POINT_LIGHT_PASS, list);
+                }
+            }
+        }
+
+        GL.setBlendState();
+    },
+
     /**
      * @ignore
      * @private
@@ -270,14 +307,20 @@ Renderer.prototype =
             var pass = material.getPass(passType);
             if (!pass) continue;
 
-            if (lightBound.intersectsBound(renderItem.worldBounds)) {
-                var meshInstance = renderItem.meshInstance;
-                pass.updatePassRenderState(renderItem.camera, this, light);
-                pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
-                meshInstance.updateRenderState(passType);
-                GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
-            }
+            if (lightBound.intersectsBound(renderItem.worldBounds))
+                this._renderSingleItem(passType, renderItem, light);
         }
+    },
+
+    _renderSingleItem: function(passType, renderItem, light)
+    {
+        var pass = renderItem.material.getPass(passType);
+        if (!pass) return;
+        var meshInstance = renderItem.meshInstance;
+        pass.updatePassRenderState(renderItem.camera, this, light);
+        pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
+        meshInstance.updateRenderState(passType);
+        GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
     },
 
     /**

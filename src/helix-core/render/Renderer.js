@@ -34,9 +34,6 @@ function Renderer()
     this._copyTextureShader = new CopyChannelsShader("xyzw", true);
     this._applyGamma = new ApplyGammaShader();
 
-    // devices with high resolution (retina etc)
-    this._scale = 1.0; // > 1.0? .5 : 1.0;
-
     this._camera = null;
     this._scene = null;
     this._depthBuffer = this._createDepthBuffer();
@@ -117,19 +114,6 @@ Renderer.prototype =
     },
 
     /**
-     * Allows up- or downscaling the render pipeline's resolution.
-     */
-    get scale()
-    {
-        return this._scale;
-    },
-
-    set scale(value)
-    {
-        this._scale = value;
-    },
-
-    /**
      * The Camera currently being used for rendering.
      */
     get camera()
@@ -196,7 +180,9 @@ Renderer.prototype =
         GL.setDepthMask(true);
         this._renderGBuffer(opaqueList);
         this._renderAO();
-        this._renderDeferredLighting(opaqueList);
+
+        if (this._renderCollector.needsGBuffer)
+            this._renderDeferredLighting(opaqueList);
 
         if (this._debugMode !== Renderer.DebugRenderMode.LIGHT_ACCUMULATION) {
             GL.setRenderTarget(this._hdrFront.fboDepth);
@@ -228,11 +214,10 @@ Renderer.prototype =
      */
     _renderForwardLit: function(list)
     {
-        var lights = this._renderCollector.getLights();
-        var numLights = lights.length;
-
         this._renderPass(MaterialPass.BASE_PASS, list);
 
+        var lights = this._renderCollector.getLights();
+        var numLights = lights.length;
 
         for (var i = 0; i < numLights; ++i) {
             var light = lights[i];
@@ -342,13 +327,13 @@ Renderer.prototype =
                 this._renderGBufferPlane(list, GBuffer.NORMAL_DEPTH, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, Color.BLUE);
                 this._renderGBufferPlane(list, GBuffer.SPECULAR, MaterialPass.GBUFFER_SPECULAR_PASS, Color.BLACK);
             }
+            GL.setClearColor(Color.BLACK);
         }
         else if (this._renderCollector.needsNormalDepth || this._aoEffect) {
             // otherwise, we might just need normalDepth
             this._renderGBufferPlane(list, GBuffer.NORMAL_DEPTH, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, Color.BLUE);
+            GL.setClearColor(Color.BLACK);
         }
-
-        GL.setClearColor(Color.BLACK);
     },
 
     /**
@@ -510,9 +495,10 @@ Renderer.prototype =
             height = renderTarget.height;
         }
         else {
-            width = Math.floor(META.TARGET_CANVAS.width * this._scale);
-            height = Math.floor(META.TARGET_CANVAS.height * this._scale);
+            width = META.TARGET_CANVAS.width;
+            height = META.TARGET_CANVAS.height;
         }
+
         if (this._width !== width || this._height !== height) {
             this._width = width;
             this._height = height;

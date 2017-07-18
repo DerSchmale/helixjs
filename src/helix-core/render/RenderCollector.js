@@ -129,7 +129,7 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         var lightingModel = material._lightingModel;
 
         // only required for the default lighting model (if not unlit)
-        this._needsGBuffer = this._needsGBuffer || (lightingModel && lightingModel === defaultLightingModel);
+        this._needsGBuffer = this._needsGBuffer || (!!lightingModel && lightingModel === defaultLightingModel);
         this._needsNormalDepth = this._needsNormalDepth || material._needsNormalDepth;
         this._needsBackbuffer = this._needsBackbuffer || material._needsBackbuffer;
 

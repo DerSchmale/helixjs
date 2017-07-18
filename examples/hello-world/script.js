@@ -36,6 +36,8 @@ window.onload = function()
 
     // register to the HX.onFrame Signal for frame updates
     HX.onFrame.bind(update);
+
+    this._stats = new HX.StatsDisplay();
 };
 
 window.onresize = function()
@@ -46,13 +48,16 @@ window.onresize = function()
 function update(dt)
 {
     renderer.render(camera, scene, dt);
+    console.log(window.innerWidth, window.innerHeight, window.devicePixelRatio);
+    console.log(window.screen.width, window.screen.height);
 }
 
 function resizeCanvas()
 {
     // helix does NOT adapt the size automatically, so you can have complete control over the resolution
     var dpr = window.devicePixelRatio || 1;
-    var canvas = document.getElementById('webglContainer');
-    canvas.width = canvas.clientWidth * dpr;
-    canvas.height = canvas.clientHeight * dpr;
+
+    var canvas = document.getElementById("webglContainer");
+    canvas.width = Math.round(window.innerWidth * dpr);
+    canvas.height = Math.round(window.innerHeight * dpr);
 }

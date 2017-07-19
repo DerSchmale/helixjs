@@ -21,9 +21,6 @@ project.onInit = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    //options.ignoreAllExtensions = true;
-    //options.debug = true;
-    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -40,6 +37,7 @@ function initScene(scene, assetLibrary)
 
     var material = new HX.BasicMaterial();
     material.colorMap = assetLibrary.get("albedo");
+    material.lightingModel = HX.LightingModel.GGX;
 
     var primitive = new HX.SpherePrimitive(
         {

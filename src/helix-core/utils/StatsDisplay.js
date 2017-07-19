@@ -14,21 +14,27 @@ import {_glStats} from "../core/GL";
 function StatsDisplay(container)
 {
     this._fpsCounter = new FPSCounter(30);
+    this._width = 100;
+    this._height = 80;
 
-    this._div = document.createElement("div");
-    this._div.style.position = "absolute";
-    this._div.style.left = "5px";
-    this._div.style.top = "5px";
-    this._div.style.width = "100px";
-    //this._div.style.height = "100px";
-    this._div.style.background = "rgba(0, 0, 0, .5)";
-    this._div.style.padding = "10px 15px 10px 15px";
-    this._div.style.color = "#ffffff";
-    this._div.style.fontFamily = '"Lucida Console", Monaco, monospace';
-    this._div.style.fontSize = "small";
+    this._dpr = window.devicePixelRatio || 1;
+
+    this._elm = document.createElement("canvas");
+    this._elm.style.position = "fixed";
+    this._elm.style.left = "5px";
+    this._elm.style.top = "5px";
+    this._elm.style.width = this._width + "px";
+    this._elm.style.height = this._height + "px";
+    this._elm.width = this._pixelWidth = this._width * this._dpr;
+    this._elm.height = this._pixelHeight = this._height * this._dpr;
+
+    var fontSize = 10 * this._dpr;
+    this._context = this._elm.getContext( '2d' );
+    this._context.font = fontSize + 'px "Lucida Console",Monaco,monospace';
+    // this._context.globalAlpha = 0;
 
     container = container || document.getElementsByTagName("body")[0];
-    container.appendChild(this._div);
+    container.appendChild(this._elm);
 
     onPreFrame.bind(this._update, this);
 }
@@ -40,21 +46,23 @@ StatsDisplay.prototype =
      */
     remove: function()
     {
-        this._div.parentNode.removeChild(this._div);
+        this._elm.parentNode.removeChild(this._elm);
     },
 
     _update: function(dt)
     {
         this._fpsCounter.update(dt);
-        this._div.innerHTML =
-            "FPS: " + this._fpsCounter.averageFPS + "<br/>" +
-            "Draws: " + _glStats.numDrawCalls + "<br/>" +
-            "Tris: " + _glStats.numTriangles + "<br/>" +
-            "Clears: " + _glStats.numClears + "<br/><br/>" +
 
-            "<div style='font-size:x-small; width:100%; text-align:right;'>"+
-            "Helix " + META.VERSION + "<br/>" +
-            "</div>";
+        var ctx = this._context;
+
+        ctx.fillStyle = "rgba(0, 0, 0, .5)";
+        ctx.fillRect(0, 0, this._pixelWidth, this._pixelHeight);
+
+        ctx.fillStyle = "#fff";
+        ctx.fillText("FPS: " + this._fpsCounter.averageFPS, 10, 15);
+        ctx.fillText("Draws: " + _glStats.numDrawCalls, 10, 30);
+        ctx.fillText("Tris: " + _glStats.numTriangles, 10, 45);
+        ctx.fillText("Clears: " + _glStats.numClears, 10, 60);
     }
 };
 

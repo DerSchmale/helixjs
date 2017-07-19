@@ -316,7 +316,7 @@ export function InitOptions()
     /**
      * Use high dynamic range for rendering. May be forced to "false" if floating point render targets are not supported.
      */
-    this.hdr = false;   // only if available
+    this.hdr = false;
 
     /**
      * Apply gamma correction. This allows lighting to happen in linear space, as it should.

@@ -45,9 +45,9 @@ ShaderLibrary._files['deferred_dir_light_fragment.glsl'] = 'varying vec2 uv;\nva
 
 ShaderLibrary._files['deferred_dir_light_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
 
-ShaderLibrary._files['deferred_point_light_fragment.glsl'] = '//#ifdef HX_SPHERE_MESH\n//uniform mat4 hx_inverseProjectionMatrix;\n//uniform vec2 hx_rcpRenderTargetResolution;\n//#else\nvarying vec2 uv;\nvarying vec3 viewDir;\n//#endif\n\nuniform HX_PointLight hx_pointLight;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\n\nvoid main()\n{\n//    #ifdef HX_SPHERE_MESH\n//    vec2 uv = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n//    vec3 viewDir = hx_getLinearDepthViewVector(uv * 2.0 - 1.0, hx_inverseProjectionMatrix);\n//    #endif\n\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;\n\n\n	vec3 viewPosition = viewDir * absViewZ;\n    vec3 viewVector = normalize(viewPosition);\n    vec3 diffuse, specular;\n\n    hx_calculateLight(hx_pointLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);\n\n    gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+ShaderLibrary._files['deferred_point_light_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform HX_PointLight hx_pointLight;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\n\nvoid main()\n{\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;\n\n	vec3 viewPosition = viewDir * absViewZ;\n    vec3 viewVector = normalize(viewPosition);\n    vec3 diffuse, specular;\n\n    hx_calculateLight(hx_pointLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);\n\n    gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
-ShaderLibrary._files['deferred_point_light_vertex.glsl'] = 'attribute vec4 hx_position;\n\n\n#ifdef HX_SPHERE_MESH\nuniform HX_PointLight hx_pointLight;\nuniform mat4 hx_projectionMatrix;\n\n#else\n\nattribute vec2 hx_texCoord;\n#endif\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n#ifdef HX_SPHERE_MESH\n    vec4 viewPos = vec4(hx_position.xyz * hx_pointLight.radius + hx_pointLight.position, 1.0);\n\n    gl_Position = hx_projectionMatrix * viewPos;\n//    gl_Position /= gl_Position.w;\n    uv = gl_Position.xy / gl_Position.w * .5 + .5;\n    viewDir = hx_getLinearDepthViewVector(gl_Position.xy / gl_Position.w, hx_inverseProjectionMatrix);\n#else\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n#endif\n}';
+ShaderLibrary._files['deferred_point_light_vertex.glsl'] = 'attribute vec4 hx_position;\n\n\n#ifdef HX_SPHERE_MESH\nuniform HX_PointLight hx_pointLight;\nuniform mat4 hx_projectionMatrix;\n\n#else\n\nattribute vec2 hx_texCoord;\n#endif\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n#ifdef HX_SPHERE_MESH\n    vec4 viewPos = vec4(hx_position.xyz * hx_pointLight.radius + hx_pointLight.position, 1.0);\n\n    gl_Position = hx_projectionMatrix * viewPos;\n    uv = gl_Position.xy / gl_Position.w * .5 + .5;\n    viewDir = hx_getLinearDepthViewVector(gl_Position.xy / gl_Position.w, hx_inverseProjectionMatrix);\n#else\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n#endif\n}';
 
 ShaderLibrary._files['deferred_probe_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_ssao;\nuniform samplerCube hx_diffuseProbeMap;\nuniform samplerCube hx_specularProbeMap;\n\nuniform float hx_specularProbeNumMips;\nuniform mat4 hx_cameraWorldMatrix;\n\n#ifdef HX_LOCAL_PROBE\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float hx_probeSize;\nuniform vec3 hx_probePosition;\n#endif\n\nvoid main()\n{\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.geometry.normal;\n\n    vec3 viewVector = normalize(viewDir);\n    vec3 reflectedViewDir = reflect(viewVector, data.geometry.normal);\n    vec3 fresnel = hx_fresnelProbe(data.normalSpecularReflectance, reflectedViewDir, data.geometry.normal, data.geometry.roughness);\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n#ifdef HX_LOCAL_PROBE\n    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;\n    vec3 viewPosition = viewDir * absViewZ;\n    vec3 worldPosition = mat3(hx_cameraWorldMatrix) * viewPosition;\n#endif\n\n    vec3 diffuse = vec3(0.0);\n    vec3 specular = vec3(0.0);\n\n#ifdef HX_DIFFUSE_PROBE\n    vec3 diffRay = worldNormal;\n    #ifdef HX_LOCAL_PROBE\n        diffRay = hx_intersectCubeMap(worldPosition, hx_probePosition, diffRay, hx_probeSize);\n    #endif\n    diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, worldNormal);\n#endif\n#ifdef HX_SPECULAR_PROBE\n    vec3 specRay = reflectedViewDir;\n    #ifdef HX_LOCAL_PROBE\n        specRay = hx_intersectCubeMap(worldPosition, hx_probePosition, specRay, hx_probeSize);\n    #endif\n    specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, specRay, fresnel, data.geometry.roughness);\n#endif\n\n    float ssao = texture2D(hx_ssao, uv).x;\n    gl_FragColor.xyz = (diffuse * data.geometry.color.xyz + specular) * ssao;\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
@@ -10235,7 +10235,7 @@ function InitOptions()
     /**
      * Use high dynamic range for rendering. May be forced to "false" if floating point render targets are not supported.
      */
-    this.hdr = false;   // only if available
+    this.hdr = false;
 
     /**
      * Apply gamma correction. This allows lighting to happen in linear space, as it should.
@@ -18944,6 +18944,8 @@ Renderer.prototype =
 
             this._swapHDRFrontAndBack();
             this._renderEffects(dt);
+
+            // for the future, if we ever need back-projection
             //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
         }
 
@@ -21102,21 +21104,27 @@ FPSCounter.prototype =
 function StatsDisplay(container)
 {
     this._fpsCounter = new FPSCounter(30);
+    this._width = 100;
+    this._height = 80;
 
-    this._div = document.createElement("div");
-    this._div.style.position = "absolute";
-    this._div.style.left = "5px";
-    this._div.style.top = "5px";
-    this._div.style.width = "100px";
-    //this._div.style.height = "100px";
-    this._div.style.background = "rgba(0, 0, 0, .5)";
-    this._div.style.padding = "10px 15px 10px 15px";
-    this._div.style.color = "#ffffff";
-    this._div.style.fontFamily = '"Lucida Console", Monaco, monospace';
-    this._div.style.fontSize = "small";
+    this._dpr = window.devicePixelRatio || 1;
+
+    this._elm = document.createElement("canvas");
+    this._elm.style.position = "fixed";
+    this._elm.style.left = "5px";
+    this._elm.style.top = "5px";
+    this._elm.style.width = this._width + "px";
+    this._elm.style.height = this._height + "px";
+    this._elm.width = this._pixelWidth = this._width * this._dpr;
+    this._elm.height = this._pixelHeight = this._height * this._dpr;
+
+    var fontSize = 10 * this._dpr;
+    this._context = this._elm.getContext( '2d' );
+    this._context.font = fontSize + 'px "Lucida Console",Monaco,monospace';
+    // this._context.globalAlpha = 0;
 
     container = container || document.getElementsByTagName("body")[0];
-    container.appendChild(this._div);
+    container.appendChild(this._elm);
 
     onPreFrame.bind(this._update, this);
 }
@@ -21128,21 +21136,23 @@ StatsDisplay.prototype =
      */
     remove: function()
     {
-        this._div.parentNode.removeChild(this._div);
+        this._elm.parentNode.removeChild(this._elm);
     },
 
     _update: function(dt)
     {
         this._fpsCounter.update(dt);
-        this._div.innerHTML =
-            "FPS: " + this._fpsCounter.averageFPS + "<br/>" +
-            "Draws: " + _glStats.numDrawCalls + "<br/>" +
-            "Tris: " + _glStats.numTriangles + "<br/>" +
-            "Clears: " + _glStats.numClears + "<br/><br/>" +
 
-            "<div style='font-size:x-small; width:100%; text-align:right;'>"+
-            "Helix " + META.VERSION + "<br/>" +
-            "</div>";
+        var ctx = this._context;
+
+        ctx.fillStyle = "rgba(0, 0, 0, .5)";
+        ctx.fillRect(0, 0, this._pixelWidth, this._pixelHeight);
+
+        ctx.fillStyle = "#fff";
+        ctx.fillText("FPS: " + this._fpsCounter.averageFPS, 10, 15);
+        ctx.fillText("Draws: " + _glStats.numDrawCalls, 10, 30);
+        ctx.fillText("Tris: " + _glStats.numTriangles, 10, 45);
+        ctx.fillText("Clears: " + _glStats.numClears, 10, 60);
     }
 };
 

@@ -199,6 +199,8 @@ Renderer.prototype =
 
             this._swapHDRFrontAndBack();
             this._renderEffects(dt);
+
+            // for the future, if we ever need back-projection
             //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
         }
 

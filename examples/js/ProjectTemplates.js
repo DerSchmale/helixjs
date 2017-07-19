@@ -145,14 +145,6 @@ DemoProject.prototype.init = function(canvas, initOptions)
     SimpleProject.prototype.init.call(this, canvas, initOptions);
 
     this._stats = new HX.StatsDisplay();
-    var debugInfoField = this._stats._div.cloneNode(false);
-    debugInfoField.style.removeProperty("width");
-    debugInfoField.style.removeProperty("left");
-    debugInfoField.style.right = "10px";
-    debugInfoField.style.top = "10px";
-    debugInfoField.style.display = "none";
-
-    document.body.appendChild(debugInfoField);
 };
 
 /**

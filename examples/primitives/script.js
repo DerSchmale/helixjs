@@ -23,7 +23,7 @@ project.onInit = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.defaultLightingModel = HX.LightingModel.GGX;
+    // options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -34,6 +34,9 @@ function initScene(scene, assetLibrary)
     var light1 = new HX.PointLight();
     var light2 = new HX.PointLight();
     var light3 = new HX.PointLight();
+    light1.radius = 4;
+    light2.radius = 4;
+    light3.radius = 4;
     light1.color = 0xff2020;
     light2.color = 0x2020ff;
     light3.color = 0x20ff20;
@@ -66,6 +69,7 @@ function initScene(scene, assetLibrary)
     material.specularMap = assetLibrary.get("specular");
     material.roughness = .6;
     material.roughnessRange = .4;
+    material.lightingModel = HX.LightingModel.GGX;
 
     var primitive = new HX.SpherePrimitive(
     {

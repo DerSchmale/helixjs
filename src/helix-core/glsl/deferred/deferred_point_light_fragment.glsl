@@ -1,10 +1,5 @@
-//#ifdef HX_SPHERE_MESH
-//uniform mat4 hx_inverseProjectionMatrix;
-//uniform vec2 hx_rcpRenderTargetResolution;
-//#else
 varying vec2 uv;
 varying vec3 viewDir;
-//#endif
 
 uniform HX_PointLight hx_pointLight;
 
@@ -18,15 +13,9 @@ uniform float hx_cameraFrustumRange;
 
 void main()
 {
-//    #ifdef HX_SPHERE_MESH
-//    vec2 uv = gl_FragCoord.xy * hx_rcpRenderTargetResolution;
-//    vec3 viewDir = hx_getLinearDepthViewVector(uv * 2.0 - 1.0, hx_inverseProjectionMatrix);
-//    #endif
-
     HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);
 
     float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;
-
 
 	vec3 viewPosition = viewDir * absViewZ;
     vec3 viewVector = normalize(viewPosition);

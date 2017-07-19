@@ -21,7 +21,6 @@ void main()
     vec4 viewPos = vec4(hx_position.xyz * hx_pointLight.radius + hx_pointLight.position, 1.0);
 
     gl_Position = hx_projectionMatrix * viewPos;
-//    gl_Position /= gl_Position.w;
     uv = gl_Position.xy / gl_Position.w * .5 + .5;
     viewDir = hx_getLinearDepthViewVector(gl_Position.xy / gl_Position.w, hx_inverseProjectionMatrix);
 #else

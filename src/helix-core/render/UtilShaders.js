@@ -98,9 +98,13 @@ BlendColorCopyShader.prototype.setBlendColor = function(r, g, b, a)
 
 
 /**
+ * @classdesc
  * Copies the texture from linear space to gamma space.
  *
  * @ignore
+ *
+ * @constructor
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function ApplyGammaShader()

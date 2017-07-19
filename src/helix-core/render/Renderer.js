@@ -146,7 +146,6 @@ Renderer.prototype =
         this._camera = camera;
         this._scene = scene;
 
-
         this._updateSize(renderTarget);
 
         camera._setRenderTargetResolution(this._width, this._height);
@@ -184,14 +183,15 @@ Renderer.prototype =
             this._swapHDRFrontAndBack();
             this._renderEffects(dt);
 
-            // for the future, if we ever need back-projection
-            //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
         }
 
         this._renderToScreen(renderTarget);
 
         GL.setBlendState();
         GL.setDepthMask(true);
+
+        // for the future, if we ever need back-projection
+        //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
     },
 
     /**

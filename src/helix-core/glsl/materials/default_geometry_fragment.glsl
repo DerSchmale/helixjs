@@ -1,5 +1,3 @@
-varying vec3 normal;
-
 uniform vec3 color;
 uniform float alpha;
 
@@ -15,24 +13,30 @@ uniform sampler2D colorMap;
 uniform sampler2D maskMap;
 #endif
 
-#ifdef NORMAL_MAP
-varying vec3 tangent;
-varying vec3 bitangent;
+#ifndef HX_SKIP_NORMALS
+    varying vec3 normal;
 
-uniform sampler2D normalMap;
+    #ifdef NORMAL_MAP
+    varying vec3 tangent;
+    varying vec3 bitangent;
+
+    uniform sampler2D normalMap;
+    #endif
 #endif
 
-uniform float roughness;
-uniform float roughnessRange;
-uniform float normalSpecularReflectance;
-uniform float metallicness;
+#ifndef HX_SKIP_SPECULAR
+    uniform float roughness;
+    uniform float roughnessRange;
+    uniform float normalSpecularReflectance;
+    uniform float metallicness;
+
+    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
+    uniform sampler2D specularMap;
+    #endif
+#endif
 
 #if defined(ALPHA_THRESHOLD)
 uniform float alphaThreshold;
-#endif
-
-#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
-uniform sampler2D specularMap;
 #endif
 
 #ifdef VERTEX_COLORS
@@ -41,6 +45,8 @@ varying vec3 vertexColor;
 
 HX_GeometryData hx_geometry()
 {
+    HX_GeometryData data;
+
     vec4 outputColor = vec4(color, alpha);
 
     #ifdef VERTEX_COLORS
@@ -59,10 +65,15 @@ HX_GeometryData hx_geometry()
         if (outputColor.w < alphaThreshold) discard;
     #endif
 
+    data.color = hx_gammaToLinear(outputColor);
+
+#ifndef HX_SKIP_SPECULAR
     float metallicnessOut = metallicness;
     float specNormalReflOut = normalSpecularReflectance;
     float roughnessOut = roughness;
+#endif
 
+#ifndef HX_SKIP_NORMALS
     vec3 fragNormal = normal;
     #ifdef NORMAL_MAP
         vec4 normalSample = texture2D(normalMap, texCoords);
@@ -71,13 +82,15 @@ HX_GeometryData hx_geometry()
         TBN[0] = normalize(tangent);
         TBN[1] = normalize(bitangent);
 
-        fragNormal = TBN * (normalSample.xyz - .5);
+        data.normal = normalize(TBN * (normalSample.xyz - .5));
 
         #ifdef NORMAL_ROUGHNESS_MAP
             roughnessOut -= roughnessRange * (normalSample.w - .5);
         #endif
     #endif
+#endif
 
+#ifndef HX_SKIP_SPECULAR
     #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
           vec4 specSample = texture2D(specularMap, texCoords);
           roughnessOut -= roughnessRange * (specSample.x - .5);
@@ -88,12 +101,11 @@ HX_GeometryData hx_geometry()
           #endif
     #endif
 
-    HX_GeometryData data;
-    data.color = hx_gammaToLinear(outputColor);
-    data.normal = normalize(fragNormal);
     data.metallicness = metallicnessOut;
     data.normalSpecularReflectance = specNormalReflOut;
     data.roughness = roughnessOut;
+#endif
+
     data.emission = vec3(0.0);
     return data;
 }

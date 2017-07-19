@@ -90,7 +90,8 @@ DeferredLightProbeShader.prototype.execute = function(renderer)
     if ((specularProbe && specularProbe.size === 0) ||
         (diffuseProbe && diffuseProbe.size === 0)) return;
 
-    renderer._ssaoTexture.bind(3);
+    if (renderer._ssaoTexture)
+        renderer._ssaoTexture.bind(3);
 
     if (specularProbe) {
         specularProbe.bind(4);

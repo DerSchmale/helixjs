@@ -1,6 +1,6 @@
-import {MaterialPass} from "./MaterialPass";
-import {ShaderLibrary} from "../shader/ShaderLibrary";
-import {Shader} from "../shader/Shader";
+import {MaterialPass} from "../MaterialPass";
+import {ShaderLibrary} from "../../shader/ShaderLibrary";
+import {Shader} from "../../shader/Shader";
 
 /**
  * @param geometryVertex
@@ -18,8 +18,9 @@ GBufferSpecularPass.prototype = Object.create(MaterialPass.prototype);
 
 GBufferSpecularPass.prototype._generateShader = function(geometryVertex, geometryFragment)
 {
-    var fragmentShader = ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_specular_fragment.glsl");
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_specular_vertex.glsl");
+    var defines = "#define HX_SKIP_NORMALS\n";
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_specular_fragment.glsl");
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_specular_vertex.glsl");
     return new Shader(vertexShader, fragmentShader);
 };
 

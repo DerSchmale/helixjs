@@ -1,6 +1,6 @@
-import {MaterialPass} from "./MaterialPass";
-import {ShaderLibrary} from "../shader/ShaderLibrary";
-import {Shader} from "../shader/Shader";
+import {MaterialPass} from "../MaterialPass";
+import {ShaderLibrary} from "../../shader/ShaderLibrary";
+import {Shader} from "../../shader/Shader";
 
 /**
  * @ignore
@@ -19,8 +19,9 @@ GBufferNormalDepthPass.prototype = Object.create(MaterialPass.prototype);
 
 GBufferNormalDepthPass.prototype._generateShader = function(geometryVertex, geometryFragment)
 {
-    var fragmentShader = ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_normal_depth_fragment.glsl");
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_normal_depth_vertex.glsl");
+    var defines = "#define HX_SKIP_SPECULAR\n";
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_normal_depth_fragment.glsl");
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_normal_depth_vertex.glsl");
     return new Shader(vertexShader, fragmentShader);
 };
 

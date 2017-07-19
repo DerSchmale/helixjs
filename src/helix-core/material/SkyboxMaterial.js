@@ -1,6 +1,6 @@
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {CullMode} from "../Helix";
-import {UnlitPass} from "./UnlitPass";
+import {UnlitPass} from "./passes/UnlitPass";
 import {MaterialPass} from "./MaterialPass";
 import {Material} from "./Material";
 

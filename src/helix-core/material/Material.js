@@ -2,18 +2,18 @@ import {CullMode, ElementType, META, BlendFactor, capabilities, Comparison} from
 import {DirectionalLight} from "../light/DirectionalLight";
 import {Signal} from "../core/Signal";
 import {MaterialPass} from "./MaterialPass";
-import {UnlitPass} from "./UnlitPass";
-import {ForwardLitBasePass} from "./ForwardLitBasePass";
-import {DirectionalShadowPass} from "./DirectionalShadowPass";
-import {ForwardLitDirPass} from "./ForwardLitDirPass";
+import {UnlitPass} from "./passes/UnlitPass";
+import {ForwardLitBasePass} from "./passes/ForwardLitBasePass";
+import {DirectionalShadowPass} from "./passes/DirectionalShadowPass";
+import {ForwardLitDirPass} from "./passes/ForwardLitDirPass";
 import {BlendState} from "../render/BlendState";
-import {ForwardLitPointPass} from "./ForwardLitPointPass";
-import {ForwardLitProbePass} from "./ForwardLitProbePass";
-import {GBufferAlbedoPass} from "./GBufferAlbedoPass";
-import {GBufferNormalDepthPass} from "./GBufferNormalDepthPass";
-import {GBufferSpecularPass} from "./GBufferSpecularPass";
-import {GBufferFullPass} from "./GBufferFullPass";
-import {ApplyGBufferPass} from "./ApplyGBufferPass";
+import {ForwardLitPointPass} from "./passes/ForwardLitPointPass";
+import {ForwardLitProbePass} from "./passes/ForwardLitProbePass";
+import {GBufferAlbedoPass} from "./passes/GBufferAlbedoPass";
+import {GBufferNormalDepthPass} from "./passes/GBufferNormalDepthPass";
+import {GBufferSpecularPass} from "./passes/GBufferSpecularPass";
+import {GBufferFullPass} from "./passes/GBufferFullPass";
+import {ApplyGBufferPass} from "./passes/ApplyGBufferPass";
 
 /**
  * @ignore

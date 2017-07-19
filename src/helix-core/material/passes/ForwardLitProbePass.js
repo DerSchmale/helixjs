@@ -1,10 +1,10 @@
-import {MaterialPass} from "./MaterialPass";
-import {ShaderLibrary} from "../shader/ShaderLibrary";
-import {Shader} from "../shader/Shader";
-import {TextureCube} from "../texture/TextureCube";
-import {GL} from "../core/GL";
-import {MathX} from "../math/MathX";
-import {capabilities} from "../Helix";
+import {MaterialPass} from "../MaterialPass";
+import {ShaderLibrary} from "../../shader/ShaderLibrary";
+import {Shader} from "../../shader/Shader";
+import {TextureCube} from "../../texture/TextureCube";
+import {GL} from "../../core/GL";
+import {MathX} from "../../math/MathX";
+import {capabilities} from "../../Helix";
 
 /**
  * @ignore

@@ -1,8 +1,8 @@
-import {MaterialPass} from "./MaterialPass";
-import {ShaderLibrary} from "../shader/ShaderLibrary";
-import {Shader} from "../shader/Shader";
-import {GL} from "../core/GL";
-import {Float4} from "../math/Float4";
+import {MaterialPass} from "../MaterialPass";
+import {ShaderLibrary} from "../../shader/ShaderLibrary";
+import {Shader} from "../../shader/Shader";
+import {GL} from "../../core/GL";
+import {Float4} from "../../math/Float4";
 
 /**
  * @ignore

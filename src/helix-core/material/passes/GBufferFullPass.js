@@ -1,6 +1,6 @@
-import {MaterialPass} from "./MaterialPass";
-import {ShaderLibrary} from "../shader/ShaderLibrary";
-import {Shader} from "../shader/Shader";
+import {MaterialPass} from "../MaterialPass";
+import {ShaderLibrary} from "../../shader/ShaderLibrary";
+import {Shader} from "../../shader/Shader";
 
 /**
  * @ignore

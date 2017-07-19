@@ -1,7 +1,6 @@
 import {Color} from "../core/Color";
 import {capabilities, CullMode} from "../Helix";
 import {Material} from "./Material";
-import {MaterialPass} from "./MaterialPass";
 import {MathX} from "../math/MathX";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
 

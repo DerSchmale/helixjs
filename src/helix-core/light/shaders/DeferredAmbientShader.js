@@ -52,7 +52,9 @@ DeferredAmbientShader.prototype.execute = function(renderer)
     texs[0].bind(0);
     texs[1].bind(1);
     texs[2].bind(2);
-    renderer._ssaoTexture.bind(3);
+
+    if (renderer._ssaoTexture)
+        renderer._ssaoTexture.bind(3);
 
     this.updatePassRenderState(renderer._camera, renderer);
 

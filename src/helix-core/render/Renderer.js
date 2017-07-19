@@ -4,7 +4,7 @@ import {ApplyGammaShader, CopyChannelsShader} from "./UtilShaders";
 import {Texture2D} from "../texture/Texture2D";
 import {MaterialPass} from "../material/MaterialPass";
 import {RectMesh} from "../mesh/RectMesh";
-import {_HX_, TextureFormat, TextureFilter, TextureWrapMode, META, capabilities, Comparison, CullMode} from "../Helix";
+import {_HX_, TextureFormat, TextureFilter, TextureWrapMode, META, capabilities, Comparison} from "../Helix";
 import {FrameBuffer} from "../texture/FrameBuffer";
 import {GL} from "../core/GL";
 import {RenderUtils} from "./RenderUtils";

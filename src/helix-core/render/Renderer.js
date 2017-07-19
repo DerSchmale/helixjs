@@ -167,6 +167,7 @@ Renderer.prototype =
         if (this._renderCollector.needsGBuffer)
             this._renderDeferredLighting(opaqueList);
 
+
         if (this._debugMode !== Renderer.DebugRenderMode.LIGHT_ACCUMULATION) {
             GL.setRenderTarget(this._hdrFront.fboDepth);
             GL.setClearColor(this._backgroundColor);

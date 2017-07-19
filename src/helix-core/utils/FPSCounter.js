@@ -21,7 +21,7 @@ function FPSCounter(numFrames)
         this._frames[i] = 0;
 
     this._index = 0;
-};
+}
 
 FPSCounter.prototype =
 {

@@ -39,7 +39,7 @@ SimpleProject.prototype =
         _onAssetsLoaded: function()
         {
             var preloader = document.getElementById("preloader");
-            preloader.style.display = "none";
+            document.body.removeChild(preloader);
 
             this._resizeCanvas();
 
@@ -123,8 +123,13 @@ SimpleProject.prototype =
         _resizeCanvas: function()
         {
             var pixelRatio = window.devicePixelRatio || 1.0;
-            this._canvas.width = this._canvas.clientWidth * pixelRatio;
-            this._canvas.height = this._canvas.clientHeight * pixelRatio;
+            var w = window.innerWidth;
+            var h = window.innerHeight;
+            this._canvas.width = Math.round(w * pixelRatio);
+            this._canvas.height = Math.round(h * pixelRatio);
+
+            this._canvas.style.width = w + "px";
+            this._canvas.style.height = h + "px";
         }
     };
 

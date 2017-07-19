@@ -1,7 +1,3 @@
-import {FPSCounter} from "./FPSCounter";
-import {META, onPreFrame} from "../Helix";
-import {_glStats} from "../core/GL";
-
 /**
  * @classdesc
  * StatsDisplay is a simple display for render statistics.
@@ -11,11 +7,15 @@ import {_glStats} from "../core/GL";
  *
  * @author derschmale <http://www.derschmale.com>
  */
+import {FPSCounter} from "./FPSCounter";
+import {frameTime, onPreFrame} from "../Helix";
+import {_glStats} from "../core/GL";
+
 function StatsDisplay(container)
 {
     this._fpsCounter = new FPSCounter(30);
     this._width = 100;
-    this._height = 80;
+    this._height = 95;
 
     this._dpr = window.devicePixelRatio || 1;
 
@@ -58,11 +58,15 @@ StatsDisplay.prototype =
         ctx.fillStyle = "rgba(0, 0, 0, .5)";
         ctx.fillRect(0, 0, this._pixelWidth, this._pixelHeight);
 
+        var innerTime = frameTime.toFixed(1);
+        var outerTime = dt.toFixed(1);
+
         ctx.fillStyle = "#fff";
         ctx.fillText("FPS: " + this._fpsCounter.averageFPS, 10 * this._dpr, 15 * this._dpr);
-        ctx.fillText("Draws: " + _glStats.numDrawCalls, 10 * this._dpr, 30 * this._dpr);
-        ctx.fillText("Tris: " + _glStats.numTriangles, 10 * this._dpr, 45 * this._dpr);
-        ctx.fillText("Clears: " + _glStats.numClears, 10 * this._dpr, 60 * this._dpr);
+        ctx.fillText("Time: " + innerTime + " (" + outerTime + ") ", 10 * this._dpr, 30 * this._dpr);
+        ctx.fillText("Draws: " + _glStats.numDrawCalls, 10 * this._dpr, 45 * this._dpr);
+        ctx.fillText("Tris: " + _glStats.numTriangles, 10 * this._dpr, 60 * this._dpr);
+        ctx.fillText("Clears: " + _glStats.numClears, 10 * this._dpr, 75 * this._dpr);
     }
 };
 

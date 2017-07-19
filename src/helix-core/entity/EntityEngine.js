@@ -14,7 +14,7 @@ function EntityEngine()
 {
     this._updateableEntities = [];
     onPreFrame.bind(this._update, this);
-};
+}
 
 EntityEngine.prototype =
 {

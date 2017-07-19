@@ -9,6 +9,7 @@ var _depthMask = true;
 var _cullMode = null;
 var _depthTest = null;
 var _blendState = null;
+var _renderTarget = null;
 
 // this is so that effects can push states on the stack
 // the renderer at the root just pushes one single state and invalidates that constantly

@@ -35,10 +35,6 @@ var ShaderLibrary = {
     }
 };
 
-ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
-
-ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
-
 ShaderLibrary._files['deferred_ambient_light_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef HX_SSAO\nuniform sampler2D hx_ssao;\n#endif\n\nuniform vec3 hx_ambientColor;\n\n\nvoid main()\n{\n// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    gl_FragColor.xyz = hx_ambientColor * data.geometry.color.xyz;\n\n#ifdef HX_SSAO\n    gl_FragColor.xyz *= texture2D(hx_ssao, uv).x;\n#endif\n\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['deferred_dir_light_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform HX_DirectionalLight hx_directionalLight;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef HX_SHADOW_MAP\nuniform sampler2D hx_shadowMap;\n#endif\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\n\nvoid main()\n{\n// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;\n	vec3 viewPosition = viewDir * absViewZ;\n    vec3 viewVector = normalize(viewPosition);\n    vec3 diffuse, specular;\n\n    hx_calculateLight(hx_directionalLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);\n\n    gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_SHADOW_MAP\n        gl_FragColor.xyz *= hx_calculateShadows(hx_directionalLight, hx_shadowMap, viewPosition);\n    #endif\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
@@ -52,6 +48,10 @@ ShaderLibrary._files['deferred_point_light_vertex.glsl'] = 'attribute vec4 hx_po
 ShaderLibrary._files['deferred_probe_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef HX_SSAO\nuniform sampler2D hx_ssao;\n#endif\n\nuniform samplerCube hx_diffuseProbeMap;\nuniform samplerCube hx_specularProbeMap;\n\nuniform float hx_specularProbeNumMips;\nuniform mat4 hx_cameraWorldMatrix;\n\n#ifdef HX_LOCAL_PROBE\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\nuniform float hx_probeSize;\nuniform vec3 hx_probePosition;\n#endif\n\nvoid main()\n{\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.geometry.normal;\n\n    vec3 viewVector = normalize(viewDir);\n    vec3 reflectedViewDir = reflect(viewVector, data.geometry.normal);\n    vec3 fresnel = hx_fresnelProbe(data.normalSpecularReflectance, reflectedViewDir, data.geometry.normal, data.geometry.roughness);\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n#ifdef HX_LOCAL_PROBE\n    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;\n    vec3 viewPosition = viewDir * absViewZ;\n    vec3 worldPosition = mat3(hx_cameraWorldMatrix) * viewPosition;\n#endif\n\n    vec3 diffuse = vec3(0.0);\n    vec3 specular = vec3(0.0);\n\n#ifdef HX_DIFFUSE_PROBE\n    vec3 diffRay = worldNormal;\n    #ifdef HX_LOCAL_PROBE\n        diffRay = hx_intersectCubeMap(worldPosition, hx_probePosition, diffRay, hx_probeSize);\n    #endif\n    diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, worldNormal);\n#endif\n#ifdef HX_SPECULAR_PROBE\n    vec3 specRay = reflectedViewDir;\n    #ifdef HX_LOCAL_PROBE\n        specRay = hx_intersectCubeMap(worldPosition, hx_probePosition, specRay, hx_probeSize);\n    #endif\n    specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, specRay, fresnel, data.geometry.roughness);\n#endif\n\n    gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;\n\n    #ifdef HX_SSAO\n    gl_FragColor.xyz *= texture2D(hx_ssao, uv).x;\n    #endif\n\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['deferred_probe_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
+
+ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
+
+ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
 ShaderLibrary._files['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    // schlick-smith\n    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));\n    float nDotV = max(dot(normal, reflection), 0.0);\n    float denom = nDotV * (1.0 - k) + k;\n    return nDotV * nDotV / (denom * denom);   // since l == v*/\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
 
@@ -1417,8 +1417,8 @@ Signal.prototype =
 {
     /**
      * Binds a function as a listener to the Signal
-     * @param listener A function to be called when the function is dispatched.
-     * @param [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
+     * @param {function(*):void} listener A function to be called when the function is dispatched.
+     * @param {Object} [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
      *
      * @example
      * signal.bind(this.methodFunction, this);
@@ -3351,16 +3351,11 @@ var PlaneSide = {
 // Will become an abstraction layer
 // properties to keep track of render state
 var _numActiveAttributes = 0;
-
-var _renderTarget = null;
-
 var _depthMask = true;
-
 var _cullMode = null;
-
 var _depthTest = null;
-
 var _blendState = null;
+var _renderTarget = null;
 
 // this is so that effects can push states on the stack
 // the renderer at the root just pushes one single state and invalidates that constantly
@@ -9089,35 +9084,6 @@ DirectionalLight.prototype.renderDeferredLighting = function(renderer)
     shader.execute(renderer, this);
 };
 
-// http://paulirish.com/2011/requestanimationframe-for-smart-animating/
-// http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
-// requestAnimationFrame polyfill by Erik Möller. fixes from Paul Irish and Tino Zijdel
-// MIT license
-(function () {
-    var lastTime = 0;
-    var vendors = ['ms', 'moz', 'webkit', 'o'];
-    for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
-        window.requestAnimationFrame = window[vendors[x] + 'RequestAnimationFrame'];
-        window.cancelAnimationFrame = window[vendors[x] + 'CancelAnimationFrame'] || window[vendors[x] + 'CancelRequestAnimationFrame'];
-    }
-    if(!window.requestAnimationFrame)
-        window.requestAnimationFrame = function (callback, element) {
-            var currTime = new Date().getTime();
-            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
-            var id = window.setTimeout(function () {
-                    callback(currTime + timeToCall);
-                },
-                timeToCall);
-            lastTime = currTime + timeToCall;
-            return id;
-        };
-    if(!window.cancelAnimationFrame)
-        window.cancelAnimationFrame = function (id) {
-            clearTimeout(id);
-        };
-}());
-
-
 /**
  * Encapsulates behaviour to handle frames and time differences.
  * @constructor
@@ -9129,9 +9095,9 @@ DirectionalLight.prototype.renderDeferredLighting = function(renderer)
 function FrameTicker()
 {
     this._isRunning = false;
-    this._callback = undefined;
     this._dt = 0;
     this._currentTime = 0;
+    this._tickFunc = this._tick.bind(this);
     this.onTick = new Signal();
 }
 
@@ -9141,13 +9107,11 @@ FrameTicker.prototype = {
      * Starts automatically calling a callback function every animation frame.
      * @param callback Function to call when a frame needs to be processed.
      */
-    start: function(callback) {
+    start: function() {
         if (this._isRunning) return;
-        this._callback = callback;
-        this._currentTime = this._getTime();
+        this._currentTime = 0;
         this._isRunning = true;
-        this._tick();
-        this._tick._this = this;
+        requestAnimationFrame(this._tickFunc);
     },
 
     /**
@@ -9166,31 +9130,21 @@ FrameTicker.prototype = {
     /**
      * @private
      */
-    _tick: function() {
+    _tick: function(time) {
         if (!this._isRunning) return;
 
-        self.requestAnimationFrame(this._tick.bind(this));
+        requestAnimationFrame(this._tickFunc);
 
-        var currentTime = this._getTime();
-        this._dt = currentTime - this._currentTime;
-        // IsNan (on Safari?)
-        if (this._dt !== this._dt) this._dt = 0;
-        this._currentTime = currentTime;
+        // difference with previous currentTime
+        // var currentTime = (performance || Date).now();
+        if (this._currentTime === 0)
+            this._dt = 16;
+        else
+            this._dt = time - this._currentTime;
 
-        if(this._callback)
-            this._callback(this._dt);
+        this._currentTime = time;
 
         this.onTick.dispatch(this._dt);
-    },
-
-    /**
-     * @private
-     */
-    _getTime: function() {
-        if (self.performance === undefined || self.performance.now === undefined)
-            return Date.now();
-        else
-            return self.performance.now();
     }
 };
 
@@ -9935,10 +9889,17 @@ var onPreFrame = new Signal();
 var onFrame = new Signal();
 
 /**
+ * The duration to update and render a frame.
+ */
+var frameTime = 0;
+
+/**
  * @ignore
  * @type {FrameTicker}
  */
 var frameTicker = new FrameTicker();
+
+frameTicker.onTick.bind(_onFrameTick);
 
 /**
  * @ignore
@@ -10443,17 +10404,21 @@ function init(canvas, options)
     start();
 }
 
+function _onFrameTick(dt)
+{
+    var startTime = (performance || Date).now();
+    onPreFrame.dispatch(dt);
+    _clearGLStats();
+    onFrame.dispatch(dt);
+    frameTime = (performance || Date).now() - startTime;
+}
+
 /**
  * Starts the Helix loop (happens automatically).
  */
 function start()
 {
-    frameTicker.start(function (dt)
-    {
-        onPreFrame.dispatch(dt);
-        _clearGLStats();
-        onFrame.dispatch(dt);
-    });
+    frameTicker.start();
 }
 
 /**
@@ -18911,6 +18876,7 @@ Renderer.prototype =
         if (this._renderCollector.needsGBuffer)
             this._renderDeferredLighting(opaqueList);
 
+
         if (this._debugMode !== Renderer.DebugRenderMode.LIGHT_ACCUMULATION) {
             GL.setRenderTarget(this._hdrFront.fboDepth);
             GL.setClearColor(this._backgroundColor);
@@ -21076,7 +21042,7 @@ function StatsDisplay(container)
 {
     this._fpsCounter = new FPSCounter(30);
     this._width = 100;
-    this._height = 80;
+    this._height = 95;
 
     this._dpr = window.devicePixelRatio || 1;
 
@@ -21119,11 +21085,15 @@ StatsDisplay.prototype =
         ctx.fillStyle = "rgba(0, 0, 0, .5)";
         ctx.fillRect(0, 0, this._pixelWidth, this._pixelHeight);
 
+        var innerTime = frameTime.toFixed(1);
+        var outerTime = dt.toFixed(1);
+
         ctx.fillStyle = "#fff";
         ctx.fillText("FPS: " + this._fpsCounter.averageFPS, 10 * this._dpr, 15 * this._dpr);
-        ctx.fillText("Draws: " + _glStats.numDrawCalls, 10 * this._dpr, 30 * this._dpr);
-        ctx.fillText("Tris: " + _glStats.numTriangles, 10 * this._dpr, 45 * this._dpr);
-        ctx.fillText("Clears: " + _glStats.numClears, 10 * this._dpr, 60 * this._dpr);
+        /*ctx.fillText("Time: " + innerTime + " (" + outerTime + ") ", 10 * this._dpr, 30 * this._dpr);
+        ctx.fillText("Draws: " + _glStats.numDrawCalls, 10 * this._dpr, 45 * this._dpr);
+        ctx.fillText("Tris: " + _glStats.numTriangles, 10 * this._dpr, 60 * this._dpr);
+        ctx.fillText("Clears: " + _glStats.numClears, 10 * this._dpr, 75 * this._dpr);*/
     }
 };
 

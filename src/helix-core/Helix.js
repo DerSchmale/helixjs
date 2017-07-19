@@ -59,10 +59,17 @@ export var onPreFrame = new Signal();
 export var onFrame = new Signal();
 
 /**
+ * The duration to update and render a frame.
+ */
+export var frameTime = 0;
+
+/**
  * @ignore
  * @type {FrameTicker}
  */
 export var frameTicker = new FrameTicker();
+
+frameTicker.onTick.bind(_onFrameTick);
 
 /**
  * @ignore
@@ -567,17 +574,21 @@ export function init(canvas, options)
     start();
 }
 
+function _onFrameTick(dt)
+{
+    var startTime = (performance || Date).now();
+    onPreFrame.dispatch(dt);
+    _clearGLStats();
+    onFrame.dispatch(dt);
+    frameTime = (performance || Date).now() - startTime;
+}
+
 /**
  * Starts the Helix loop (happens automatically).
  */
 export function start()
 {
-    frameTicker.start(function (dt)
-    {
-        onPreFrame.dispatch(dt);
-        _clearGLStats();
-        onFrame.dispatch(dt);
-    });
+    frameTicker.start();
 }
 
 /**

@@ -22,8 +22,8 @@ Signal.prototype =
 {
     /**
      * Binds a function as a listener to the Signal
-     * @param listener A function to be called when the function is dispatched.
-     * @param [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
+     * @param {function(*):void} listener A function to be called when the function is dispatched.
+     * @param {Object} [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
      *
      * @example
      * signal.bind(this.methodFunction, this);

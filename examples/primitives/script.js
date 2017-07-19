@@ -42,9 +42,9 @@ function initScene(scene, assetLibrary)
     light3.color = 0x20ff20;
 
     scene.attach(ambientLight);
-    // scene.attach(light1);
-    // scene.attach(light2);
-    // scene.attach(light3);
+    scene.attach(light1);
+    scene.attach(light2);
+    scene.attach(light3);
 
     var component = new AnimateOrbitComponent();
     component.axis = new HX.Float4(1.0, 1.0, 1.0);

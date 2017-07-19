@@ -21,6 +21,7 @@ function VertexLayout(mesh, pass)
     for (var i = 0; i < mesh.numVertexAttributes; ++i) {
         var attribute = mesh.getVertexAttributeByIndex(i);
         var index = shader.getAttributeLocation(attribute.name);
+
         if (!(index >= 0)) continue;
 
         var stride = mesh.getVertexStride(attribute.streamIndex);
@@ -36,11 +37,11 @@ function VertexLayout(mesh, pass)
         if (attribute.name.indexOf("hx_morph") === 0)
             this.morphAttributes.push(attrib);
         else
-            this.attributes.push(attrib);
+        // so in some cases, it occurs that - when attributes are optimized out by the driver - the indices don't change,
+        // but those unused become -1, leaving gaps. This keeps the gaps so we can take care of them
+            this.attributes[index] = attrib;
 
         this._numAttributes = Math.max(this._numAttributes, index + 1);
-
-
     }
 }
 

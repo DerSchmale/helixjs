@@ -7,7 +7,7 @@ import { ShaderLibrary } from '../shader/ShaderLibrary';
  * potentially increasing the performance for heavily lit scenes.</p>
  *
  * <p>You can add pass your own lighting models as a string into a material, as long as the glsl code contains the
- * functions hx_brdf and hx_probeGeometricShadowing</p>
+ * hx_brdf function</p>
  *
  * @namespace
  *
@@ -21,5 +21,7 @@ export var LightingModel =
     /** Normalized Blinn-Phong shading applied */
     BlinnPhong: ShaderLibrary.get("lighting_blinn_phong.glsl"),
     /** GGX shading applied */
-    GGX: ShaderLibrary.get("lighting_ggx.glsl")
+    GGX: ShaderLibrary.get("lighting_ggx.glsl"),
+    /** Empty brdf */
+    DEBUG: ShaderLibrary.get("lighting_debug.glsl")
 };

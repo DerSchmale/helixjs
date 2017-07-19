@@ -156,6 +156,7 @@ Renderer.prototype =
         this._renderShadowCasters();
 
         var opaqueList = this._renderCollector.getOpaqueRenderList();
+        var unlitOpaqueList = this._renderCollector.getUnlitOpaqueRenderList();
         var transparentList = this._renderCollector.getTransparentRenderList();
 
         GL.setClearColor(Color.BLACK);
@@ -173,6 +174,7 @@ Renderer.prototype =
             GL.setClearColor(this._backgroundColor);
             GL.clear();
 
+            this._renderPass(MaterialPass.BASE_PASS, unlitOpaqueList);
             this._renderForwardLit(opaqueList);
 
             // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
@@ -241,6 +243,8 @@ Renderer.prototype =
             var renderItem = list[r];
 
             this._renderSingleItem(MaterialPass.BASE_PASS, renderItem);
+
+            if (!renderItem.material.lightingModel) continue;
 
             for (var i = 0; i < numLights; ++i) {
                 var light = lights[i];

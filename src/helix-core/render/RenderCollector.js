@@ -18,6 +18,7 @@ function RenderCollector()
     this._renderItemPool = new ObjectPool(RenderItem);
 
     this._opaques = [];
+    this._unlitOpaques = [];
     this._transparents = []; // add in individual pass types
     this._camera = null;
     this._cameraZAxis = new Float4();
@@ -50,6 +51,7 @@ RenderCollector.prototype = Object.create(SceneVisitor.prototype, {
 });
 
 RenderCollector.prototype.getOpaqueRenderList = function() { return this._opaques; };
+RenderCollector.prototype.getUnlitOpaqueRenderList = function() { return this._unlitOpaques; };
 RenderCollector.prototype.getTransparentRenderList = function() { return this._transparents; };
 RenderCollector.prototype.getLights = function() { return this._lights; };
 RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
@@ -64,6 +66,7 @@ RenderCollector.prototype.collect = function(camera, scene)
 
     scene.acceptVisitor(this);
 
+    this._unlitOpaques.sort(this._sortOpaques);
     this._opaques.sort(this._sortOpaques);
     this._transparents.sort(this._sortTransparents);
 
@@ -116,6 +119,7 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
     var camera = this._camera;
     var defaultLightingModel = META.OPTIONS.defaultLightingModel;
     var opaques = this._opaques;
+    var unlitOpaques = this._unlitOpaques;
     var transparents = this._transparents;
 
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
@@ -147,7 +151,7 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         renderItem.worldBounds = worldBounds;
 
 
-        var list = material.blendState || material._needsBackbuffer? transparents : opaques;
+        var list = material.blendState || material._needsBackbuffer? transparents : material.lightingModel? opaques : unlitOpaques;
         list.push(renderItem);
     }
 };
@@ -171,6 +175,7 @@ RenderCollector.prototype._reset = function()
     this._renderItemPool.reset();
 
     this._opaques = [];
+    this._unlitOpaques = [];
     this._transparents = [];
     this._lights = [];
     this._shadowCasters = [];

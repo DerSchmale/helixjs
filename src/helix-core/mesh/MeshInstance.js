@@ -120,21 +120,19 @@ MeshInstance.prototype = {
         var attributes = layout.attributes;
         len = layout._numAttributes;
 
+        GL.enableAttributes(layout._numAttributes);
+
         for (i = 0; i < len; ++i) {
             attribute = attributes[i];
-            // in some cases, it occurs that - when attributes are optimized out by the driver - the indices don't change,
-            // but those unused become -1, leaving gaps. This binds a dummy to the gaps.
+
             if (attribute) {
                 vertexBuffers[attribute.streamIndex].bind();
                 gl.vertexAttribPointer(i, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
             }
             else {
-                vertexBuffers[0].bind();
-                gl.vertexAttribPointer(i, 1, gl.FLOAT, false, 4, 0);
+                GL.gl.disableVertexAttribArray(i);
             }
         }
-
-        GL.enableAttributes(layout._numAttributes);
     },
 
     /**

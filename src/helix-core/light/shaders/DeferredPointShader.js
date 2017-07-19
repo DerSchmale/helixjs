@@ -48,6 +48,7 @@ function DeferredPointShader(useSphere)
     this._colorLocation = gl.getUniformLocation(p, "hx_pointLight.color");
     this._posLocation = gl.getUniformLocation(p, "hx_pointLight.position");
     this._radiusLocation = gl.getUniformLocation(p, "hx_pointLight.radius");
+    this._rcpRadiusLocation = gl.getUniformLocation(p, "hx_pointLight.rcpRadius");
 
     this._positionAttributeLocation = gl.getAttribLocation(p, "hx_position");
     this._texCoordAttributeLocation = gl.getAttribLocation(p, "hx_texCoord");
@@ -85,6 +86,7 @@ DeferredPointShader.prototype.execute = function(renderer, light)
         gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
         gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
         gl.uniform1f(this._radiusLocation, light._radius);
+        gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
 
         this.updatePassRenderState(camera, renderer);
 

@@ -20,6 +20,7 @@ function ForwardLitPointPass(geometryVertex, geometryFragment, lightingModel)
     this._colorLocation = this.getUniformLocation("hx_pointLight.color");
     this._posLocation = this.getUniformLocation("hx_pointLight.position");
     this._radiusLocation = this.getUniformLocation("hx_pointLight.radius");
+    this._rcpRadiusLocation = this.getUniformLocation("hx_pointLight.rcpRadius");
 }
 
 ForwardLitPointPass.prototype = Object.create(MaterialPass.prototype);
@@ -40,6 +41,7 @@ ForwardLitPointPass.prototype.updatePassRenderState = function(camera, renderer,
         gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
         gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
         gl.uniform1f(this._radiusLocation, light.radius);
+        gl.uniform1f(this._rcpRadiusLocation, 1.0 / light.radius);
 
         MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
     }

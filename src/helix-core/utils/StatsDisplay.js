@@ -59,10 +59,10 @@ StatsDisplay.prototype =
         ctx.fillRect(0, 0, this._pixelWidth, this._pixelHeight);
 
         ctx.fillStyle = "#fff";
-        ctx.fillText("FPS: " + this._fpsCounter.averageFPS, 10, 15);
-        ctx.fillText("Draws: " + _glStats.numDrawCalls, 10, 30);
-        ctx.fillText("Tris: " + _glStats.numTriangles, 10, 45);
-        ctx.fillText("Clears: " + _glStats.numClears, 10, 60);
+        ctx.fillText("FPS: " + this._fpsCounter.averageFPS, 10 * this._dpr, 15 * this._dpr);
+        ctx.fillText("Draws: " + _glStats.numDrawCalls, 10 * this._dpr, 30 * this._dpr);
+        ctx.fillText("Tris: " + _glStats.numTriangles, 10 * this._dpr, 45 * this._dpr);
+        ctx.fillText("Clears: " + _glStats.numClears, 10 * this._dpr, 60 * this._dpr);
     }
 };
 

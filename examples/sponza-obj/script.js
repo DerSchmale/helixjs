@@ -5,6 +5,23 @@
 var project = new DemoProject();
 var sponza;
 
+window.onload = function ()
+{
+    var options = new HX.InitOptions();
+
+    var ssao = new HX.SSAO(25);
+    ssao.strength = 2.0;
+    ssao.sampleRadius = 4.0;
+    ssao.fallOffDistance = 8.0;
+    options.ambientOcclusion = ssao;
+
+    options.hdr = true;
+    options.numShadowCascades = 3;
+    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+    options.defaultLightingModel = HX.LightingModel.GGX;
+    project.init(document.getElementById('webglContainer'), options);
+};
+
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("skybox-specular", "resources/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
@@ -14,34 +31,9 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
-    initRenderer(this.renderer);
     initCamera(this.camera);
     initScene(this.scene, this.assetLibrary);
 };
-
-window.onload = function ()
-{
-    var options = new HX.InitOptions();
-    options.hdr = true;
-    options.numShadowCascades = 3;
-    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
-    options.defaultLightingModel = HX.LightingModel.GGX;
-    project.init(document.getElementById('webglContainer'), options);
-};
-
-function initRenderer(renderer)
-{
-    //var ssr = new HX.ScreenSpaceReflections(32);
-    //ssr.scale = .5;
-    //ssr.stepSize = 20;
-    //renderer.localReflections = ssr;
-
-    var ssao = new HX.SSAO(25);
-    ssao.strength = 2.0;
-    ssao.sampleRadius = 4.0;
-    ssao.fallOffDistance = 8.0;
-    renderer.ambientOcclusion = ssao;
-}
 
 function initCamera(camera)
 {

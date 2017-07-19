@@ -177,7 +177,7 @@ Shader.prototype = {
             var name = occ.substring(start, end);
             name = name.trim();
             covered[occ] = true;
-            var defName = name.toUpperCase();
+            var defName = "HX_GUARD_" + name.toUpperCase();
             var repl =  "#ifndef " + defName + "\n" +
                         "#define " + defName + "\n" +
                         occ + "\n" +

@@ -4,33 +4,15 @@
 
 var project = new DemoProject();
 
-project.queueAssets = function(assetLibrary)
-{
-    assetLibrary.queueAsset("skybox-specular", "textures/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("skybox-irradiance", "textures/skybox/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("metal-albedo", "textures/Tarnished_Metal_01_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("metal-normals", "textures/Tarnished_Metal_01_normal.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("metal-specular", "textures/Tarnished_Metal_01_specular.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("floor-albedo", "textures/Sponza_Ceiling_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("floor-normals", "textures/Sponza_Ceiling_normal.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("floor-specular", "textures/Sponza_Ceiling_roughness.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-};
-
-project.onInit = function()
-{
-    initRenderer(this.renderer);
-    initCamera(this.camera);
-    initScene(this.scene, this.assetLibrary);
-};
-
-project.onUpdate = function(dt)
-{
-    // no updates necessary, everything happens through components
-};
-
 window.onload = function ()
 {
     var options = new HX.InitOptions();
+
+    var ssao = new HX.SSAO(16);
+    ssao.strength = 2.0;
+    ssao.sampleRadius = 1.0;
+    ssao.fallOffDistance = 2.0;
+    options.ambientOcclusion = ssao;
 
     if (HX.Platform.isMobile) {
         options.numShadowCascades = 1;
@@ -51,14 +33,29 @@ window.onload = function ()
     project.init(document.getElementById('webglContainer'), options);
 };
 
-function initRenderer(renderer)
+
+project.queueAssets = function(assetLibrary)
 {
-    var ssao = new HX.SSAO(16);
-    ssao.strength = 2.0;
-    ssao.sampleRadius = 1.0;
-    ssao.fallOffDistance = 2.0;
-    renderer.ambientOcclusion = ssao;
-}
+    assetLibrary.queueAsset("skybox-specular", "textures/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("skybox-irradiance", "textures/skybox/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("metal-albedo", "textures/Tarnished_Metal_01_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("metal-normals", "textures/Tarnished_Metal_01_normal.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("metal-specular", "textures/Tarnished_Metal_01_specular.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("floor-albedo", "textures/Sponza_Ceiling_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("floor-normals", "textures/Sponza_Ceiling_normal.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("floor-specular", "textures/Sponza_Ceiling_roughness.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+};
+
+project.onInit = function()
+{
+    initCamera(this.camera);
+    initScene(this.scene, this.assetLibrary);
+};
+
+project.onUpdate = function(dt)
+{
+    // no updates necessary, everything happens through components
+};
 
 function initCamera(camera)
 {

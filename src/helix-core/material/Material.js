@@ -48,7 +48,6 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._useSkinning = false;
 
     this._name = null;
-    this._ssao = false;
     this._geometryVertexShader = geometryVertexShader;
     this._geometryFragmentShader = geometryFragmentShader;
     this._lightingModel = lightingModel || META.OPTIONS.defaultLightingModel;
@@ -83,7 +82,7 @@ Material.prototype =
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
             this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
             this.setPass(MaterialPass.POINT_LIGHT_PASS, new ForwardLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
-            this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._ssao));
+            this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
         }
         else {
             // deferred lighting forward pass
@@ -112,19 +111,6 @@ Material.prototype =
      * @ignore
      */
     get initialized() { return this._initialized; },
-
-    /**
-     * Whether or not SSAO should be applied to this material. This requires {@linkcode Renderer#ambientOcclusion} to be set.
-     * If this material is using the same lighting model as set to {@linkcode InitOptions#defaultLightingModel} and is not
-     * transparent, it uses the deferred render path and ssao is always applied if assigned to the renderer.
-     */
-    get ssao() { return this._ssao; },
-    set ssao(value)
-    {
-        if (this._ssao === value) return;
-        this._ssao = value;
-        this._invalidate();
-    },
 
     /**
      * The blend state used for this material.
@@ -429,9 +415,10 @@ Material.prototype =
     _setSSAOTexture: function(texture)
     {
         var pass = this.getPass(MaterialPass.BASE_PASS);
-        if (pass) pass._setSSAOTexture(texture)
-        pass = this.getPass(MaterialPass.BASE_PASS);
-        if (pass) pass._setSSAOTexture(texture)
+        if (pass) pass._setSSAOTexture(texture);
+
+        pass = this.getPass(MaterialPass.LIGHT_PROBE_PASS);
+        if (pass) pass._setSSAOTexture(texture);
     },
 
     /**

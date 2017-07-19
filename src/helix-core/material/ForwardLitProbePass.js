@@ -11,17 +11,15 @@ import {capabilities} from "../Helix";
  * @param geometryVertex
  * @param geometryFragment
  * @param lightingModel
- * @param ssao
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel, ssao)
+function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel)
 {
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, ssao));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
     this._diffuseSlot = this.getTextureSlot("hx_diffuseProbeMap");
     this._specularSlot = this.getTextureSlot("hx_specularProbeMap");
-    this._ssaoSlot = this.getTextureSlot("hx_ssao");
     this._numMipsLocation = this.getUniformLocation("hx_specularProbeNumMips");
     this._localLocation = this.getUniformLocation("hx_probeLocal");
     this._sizeLocation = this.getUniformLocation("hx_probeSize");
@@ -55,32 +53,23 @@ ForwardLitProbePass.prototype.updatePassRenderState = function(camera, renderer,
     MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
 };
 
-ForwardLitProbePass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, ssao)
+ForwardLitProbePass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
 {
-    var defines = {
-        HX_APPLY_SSAO: ssao? 1 : 0
-    };
-
     var extensions = "";
     if (capabilities.EXT_SHADER_TEXTURE_LOD) {
         extensions += "#texturelod\n";
     }
 
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_probe_vertex.glsl", defines);
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_probe_vertex.glsl");
 
     var fragmentShader =
         extensions +
-        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
         lightingModel + "\n\n\n" +
         ShaderLibrary.get("light_probe.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_fwd_probe_fragment.glsl");
     return new Shader(vertexShader, fragmentShader);
-};
-
-ForwardLitProbePass.prototype._setSSAOTexture = function(texture)
-{
-    this._ssaoSlot.texture = texture;
 };
 
 export { ForwardLitProbePass };

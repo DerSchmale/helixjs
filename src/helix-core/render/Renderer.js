@@ -41,12 +41,11 @@ function Renderer()
     this._hdrFront = new Renderer.HDRBuffers(this._depthBuffer);
     this._renderCollector = new RenderCollector();
     this._gbuffer = new GBuffer(this._depthBuffer);
-    this._ssaoTexture = this._createDummySSAOTexture();
-    this._aoEffect = null;
     this._backgroundColor = Color.BLACK.clone();
     //this._previousViewProjection = new Matrix4x4();
     this._debugMode = Renderer.DebugRenderMode.NONE;
     this._renderAmbientShader = new DeferredAmbientShader();
+    this._ssaoTexture = null;
 }
 
 /**
@@ -121,21 +120,6 @@ Renderer.prototype =
         return this._camera;
     },
 
-    /**
-     * Allows applying ambient occlusion ({@linkcode SSAO} or {@linkcode HBAO}) to the scene. Objects using the deferred
-     * path (ie: non-blended using default lighting mode), always have it applied. Others need to have {@linkcode Material#ssao}
-     * set to true.
-     */
-    get ambientOcclusion()
-    {
-        return this._aoEffect;
-    },
-
-    set ambientOcclusion(value)
-    {
-        this._aoEffect = value;
-        if (!this._aoEffect) this._ssaoTexture = this._createDummySSAOTexture();
-    },
 
     /*get localReflections()
     {
@@ -331,7 +315,7 @@ Renderer.prototype =
             }
             GL.setClearColor(Color.BLACK);
         }
-        else if (this._renderCollector.needsNormalDepth || this._aoEffect) {
+        else if (this._renderCollector.needsNormalDepth || HX.META.OPTIONS.ambientOcclusion) {
             // otherwise, we might just need normalDepth
             this._renderGBufferPlane(list, GBuffer.NORMAL_DEPTH, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, Color.BLUE);
             GL.setClearColor(Color.BLACK);
@@ -386,9 +370,10 @@ Renderer.prototype =
      */
     _renderAO: function()
     {
-        if (this._aoEffect) {
-            this._ssaoTexture = this._aoEffect.getAOTexture();
-            this._aoEffect.render(this, 0);
+        var ssao = HX.META.OPTIONS.ambientOcclusion;
+        if (ssao) {
+            this._ssaoTexture = ssao.getAOTexture();
+            ssao.render(this, 0);
         }
     },
 
@@ -534,19 +519,6 @@ Renderer.prototype =
         }
         else {*/
             return new WriteOnlyDepthBuffer();
-    },
-
-    /**
-     * @ignore
-     * @private
-     */
-    _createDummySSAOTexture: function()
-    {
-        var data = new Uint8Array([0xff, 0xff, 0xff, 0xff]);
-        var tex = new Texture2D();
-        tex.filter = TextureFilter.NEAREST_NOMIP;
-        tex.uploadData(data, 1, 1, true);
-        return tex;
     },
 
     /**

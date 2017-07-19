@@ -37,6 +37,7 @@ function HBAO(numRays, numSamplesPerRay)
     if (numSamplesPerRay > 32) numSamplesPerRay = 32;
 
     this._numRays = numRays;
+    this._numSamplesPerRay = numSamplesPerRay
     this._strength = 1.0;
     this._bias = .01;
     this._fallOffDistance = 1.0;
@@ -46,11 +47,79 @@ function HBAO(numRays, numSamplesPerRay)
     this._ditherTexture = null;
 
     Effect.call(this);
+}
+
+HBAO.prototype = Object.create(Effect.prototype, {
+    sampleRadius: {
+        get: function ()
+        {
+            return this._radius;
+        },
+
+        set: function (value)
+        {
+            this._radius = value;
+            if (this._aoPass)
+                this._aoPass.setUniform("halfSampleRadius", this._radius * .5);
+        }
+    },
+
+    fallOffDistance: {
+        get: function ()
+        {
+            return this._fallOffDistance;
+        },
+        set: function (value)
+        {
+            this._fallOffDistance = value;
+            if (this._aoPass)
+                this._aoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
+        }
+    },
+
+    strength: {
+        get: function()
+        {
+            return this._strength;
+        },
+        set: function (value)
+        {
+            this._strength = value;
+            if (this._aoPass)
+                this._aoPass.setUniform("strengthPerRay", this._strength / this._numRays);
+        }
+    },
+
+    bias: {
+        get: function()
+        {
+            return this._bias;
+        },
+        set: function (value)
+        {
+            this._bias = value;
+            if (this._aoPass)
+                this._aoPass.setUniform("bias", this._bias);
+        }
+    },
+
+    scale: {
+        get: function() { return this._scale; },
+        set: function(value) { this._scale = value; }
+    }
+});
+
+/**
+ * Called by Helix when initialized
+ * @ignore
+ */
+HBAO.prototype.init = function()
+{
     this._aoPass = new EffectPass(
         ShaderLibrary.get("hbao_vertex.glsl"),
         ShaderLibrary.get("hbao_fragment.glsl", {
-            NUM_RAYS: numRays,
-            NUM_SAMPLES_PER_RAY: numSamplesPerRay
+            NUM_RAYS: this._numRays,
+            NUM_SAMPLES_PER_RAY: this._numSamplesPerRay
         })
     );
 
@@ -74,63 +143,7 @@ function HBAO(numRays, numSamplesPerRay)
     this._backTexture.wrapMode = TextureWrapMode.CLAMP;
     this._fbo1 = new FrameBuffer(this._backTexture);
     this._fbo2 = new FrameBuffer(this._aoTexture);
-}
-
-HBAO.prototype = Object.create(Effect.prototype, {
-    sampleRadius: {
-        get: function ()
-        {
-            return this._radius;
-        },
-
-        set: function (value)
-        {
-            this._radius = value;
-            this._aoPass.setUniform("halfSampleRadius", this._radius * .5);
-        }
-    },
-
-    fallOffDistance: {
-        get: function ()
-        {
-            return this._fallOffDistance;
-        },
-        set: function (value)
-        {
-            this._fallOffDistance = value;
-            this._aoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
-        }
-    },
-
-    strength: {
-        get: function()
-        {
-            return this._strength;
-        },
-        set: function (value)
-        {
-            this._strength = value;
-            this._aoPass.setUniform("strengthPerRay", this._strength / this._numRays);
-        }
-    },
-
-    bias: {
-        get: function()
-        {
-            return this._bias;
-        },
-        set: function (value)
-        {
-            this._bias = value;
-            this._aoPass.setUniform("bias", this._bias);
-        }
-    },
-
-    scale: {
-        get: function() { return this._scale; },
-        set: function(value) { this._scale = value; }
-    }
-});
+};
 
 /**
  * Returns the texture containing the ambient occlusion values.

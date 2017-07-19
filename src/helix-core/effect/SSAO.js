@@ -40,11 +40,64 @@ function SSAO(numSamples)
     this._ditherTexture = null;
 
     Effect.call(this);
+}
 
+SSAO.prototype = Object.create(Effect.prototype, {
+    sampleRadius: {
+        get: function ()
+        {
+            return this._radius;
+        },
+        set: function (value)
+        {
+            this._radius = value;
+            if (this._ssaoPass)
+                this._ssaoPass.setUniform("sampleRadius", this._radius);
+        }
+    },
+
+    fallOffDistance: {
+        get: function ()
+        {
+            return this._fallOffDistance;
+        },
+        set: function (value)
+        {
+            this._fallOffDistance = value;
+            if (this._ssaoPass)
+                this._ssaoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
+        }
+    },
+
+    strength: {
+        get: function()
+        {
+            return this._strength;
+        },
+        set: function (value)
+        {
+            this._strength = value;
+            if (this._ssaoPass)
+                this._ssaoPass.setUniform("strengthPerSample", 2.0 * this._strength / this._numSamples);
+        }
+    },
+
+    scale: {
+        get: function() { return this._scale; },
+        set: function(value) { this._scale = value; }
+    }
+});
+
+/**
+ * Called by Helix when initialized
+ * @ignore
+ */
+SSAO.prototype.init = function()
+{
     this._ssaoPass = new EffectPass(null,
         ShaderLibrary.get("ssao_fragment.glsl",
             {
-                NUM_SAMPLES: numSamples
+                NUM_SAMPLES: this._numSamples
             }
         ));
     this._blurPass = new EffectPass(ShaderLibrary.get("ao_blur_vertex.glsl"), ShaderLibrary.get("ao_blur_fragment.glsl"));
@@ -65,50 +118,7 @@ function SSAO(numSamples)
     this._backTexture.wrapMode = TextureWrapMode.CLAMP;
     this._fbo1 = new FrameBuffer(this._backTexture);
     this._fbo2 = new FrameBuffer(this._ssaoTexture);
-}
-
-SSAO.prototype = Object.create(Effect.prototype, {
-    sampleRadius: {
-        get: function ()
-        {
-            return this._radius;
-        },
-        set: function (value)
-        {
-            this._radius = value;
-            this._ssaoPass.setUniform("sampleRadius", this._radius);
-        }
-    },
-
-    fallOffDistance: {
-        get: function ()
-        {
-            return this._fallOffDistance;
-        },
-        set: function (value)
-        {
-            this._fallOffDistance = value;
-            this._ssaoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
-        }
-    },
-
-    strength: {
-        get: function()
-        {
-            return this._strength;
-        },
-        set: function (value)
-        {
-            this._strength = value;
-            this._ssaoPass.setUniform("strengthPerSample", 2.0 * this._strength / this._numSamples);
-        }
-    },
-
-    scale: {
-        get: function() { return this._scale; },
-        set: function(value) { this._scale = value; }
-    }
-});
+};
 
 /**
  * Returns the texture containing the ambient occlusion values.

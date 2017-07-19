@@ -4,7 +4,11 @@ varying vec3 viewDir;
 uniform sampler2D hx_gbufferAlbedo;
 uniform sampler2D hx_gbufferNormalDepth;
 uniform sampler2D hx_gbufferSpecular;
+
+#ifdef HX_SSAO
 uniform sampler2D hx_ssao;
+#endif
+
 uniform samplerCube hx_diffuseProbeMap;
 uniform samplerCube hx_specularProbeMap;
 
@@ -54,8 +58,12 @@ void main()
     specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, specRay, fresnel, data.geometry.roughness);
 #endif
 
-    float ssao = texture2D(hx_ssao, uv).x;
-    gl_FragColor.xyz = (diffuse * data.geometry.color.xyz + specular) * ssao;
+    gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;
+
+    #ifdef HX_SSAO
+    gl_FragColor.xyz *= texture2D(hx_ssao, uv).x;
+    #endif
+
     gl_FragColor.w = 1.0;
 
     #ifdef HX_GAMMA_CORRECT_LIGHTS

@@ -69,7 +69,7 @@ function initScene(scene, assetLibrary)
     material.specularMap = assetLibrary.get("specular");
     material.roughness = .6;
     material.roughnessRange = .4;
-    material.lightingModel = HX.LightingModel.DEBUG;
+    material.lightingModel = HX.LightingModel.GGX;
 
     var primitive = new HX.SpherePrimitive(
     {

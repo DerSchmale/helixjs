@@ -7,7 +7,7 @@ uniform float hx_specularProbeNumMips;
 
 uniform mat4 hx_cameraWorldMatrix;
 
-#if HX_APPLY_SSAO
+#ifdef HX_SSAO
 uniform vec2 hx_rcpRenderTargetResolution;
 uniform sampler2D hx_ssao;
 #endif
@@ -39,7 +39,7 @@ void main()
 
     gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);
 
-    #if HX_APPLY_SSAO
+    #ifdef HX_SSAO
     vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;
     gl_FragColor.xyz *= texture2D(hx_ssao, screenUV).x;
     #endif

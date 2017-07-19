@@ -309,6 +309,11 @@ export function InitOptions()
     this.maxSkeletonJoints = 64;
 
     /**
+     * Allows applying ambient occlusion ({@linkcode SSAO} or {@linkcode HBAO}) to the scene.
+     */
+    this.ambientOcclusion = null;
+
+    /**
      * Whether or not to use a texture to store skinning data. May be forced to "false" if floating point textures are not supported.
      */
     this.useSkinningTexture = true;
@@ -538,17 +543,22 @@ export function init(canvas, options)
     // this cannot be defined by the user
     capabilities.NUM_MORPH_TARGETS = 8;
 
-    GLSLIncludes.GENERAL = defines + GLSLIncludes.GENERAL;
-
-    // default copy shader
-    DEFAULTS.COPY_SHADER = new CopyChannelsShader();
-
     Texture2D._initDefault();
     TextureCube._initDefault();
     BlendState._initDefaults();
     RectMesh._initDefault();
     PoissonDisk._initDefault();
     PoissonSphere._initDefault();
+
+    if (options.ambientOcclusion) {
+        defines += "#define HX_SSAO\n";
+        options.ambientOcclusion.init();
+    }
+
+    GLSLIncludes.GENERAL = defines + GLSLIncludes.GENERAL;
+
+    // default copy shader
+    DEFAULTS.COPY_SHADER = new CopyChannelsShader();
 
     _init2DDitherTexture(32, 32);
 

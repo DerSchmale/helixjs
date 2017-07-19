@@ -5,6 +5,21 @@
 var project = new DemoProject();
 var pointLight;
 
+window.onload = function ()
+{
+    var options = new HX.InitOptions();
+
+    var ssao = new HX.HBAO(5, 6);
+    ssao.strength = 2.0;
+    ssao.sampleRadius = 1.0;
+    options.ambientOcclusion = ssao;
+
+    options.defaultLightingModel = HX.LightingModel.GGX;
+    options.hdr = true;
+    project.init(document.getElementById('webglContainer'), options);
+};
+
+
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("model", "resources/sibenik/sibenik.obj", HX.AssetLibrary.Type.ASSET, HX.OBJ);
@@ -12,7 +27,6 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
-    initRenderer(this.renderer);
     initCamera(this.camera);
     initScene(this.scene, this.assetLibrary);
 };
@@ -23,22 +37,6 @@ project.onUpdate = function()
     diff.scale(.05);
     pointLight.position.add(diff);
 };
-
-window.onload = function ()
-{
-    var options = new HX.InitOptions();
-    options.defaultLightingModel = HX.LightingModel.GGX;
-    options.hdr = true;
-    project.init(document.getElementById('webglContainer'), options);
-};
-
-function initRenderer(renderer)
-{
-    var ssao = new HX.HBAO(5, 6);
-    ssao.strength = 1.0;
-    ssao.sampleRadius = 1.0;
-    renderer.ambientOcclusion = ssao;
-}
 
 function initCamera(camera)
 {
@@ -54,7 +52,7 @@ function initCamera(camera)
 function initScene(scene, assetLibrary)
 {
     var ambientLight = new HX.AmbientLight();
-    ambientLight.color = new HX.Color(.3,.3,.3);
+    ambientLight.intensity = .5;
 
     pointLight = new HX.PointLight();
     pointLight.color = new HX.Color(.6,.8, 1.0);

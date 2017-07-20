@@ -18,7 +18,6 @@ project.onInit = function()
     initScene(this.scene, this.assetLibrary);
 
     this.renderer.backgroundColor = 0x808080;
-    this.renderer.debugMode = HX.Renderer.DebugRenderMode.GBUFFER_NORMAL_DEPTH;
 };
 
 window.onload = function ()

@@ -99,7 +99,6 @@ HX_GeometryData hx_geometry()
     #ifdef DOUBLE_SIDED
         fragNormal *= gl_FrontFacing? 1.0 : -1.0;
     #endif
-
     data.normal = normalize(fragNormal);
 #endif
 
@@ -118,7 +117,6 @@ HX_GeometryData hx_geometry()
     data.normalSpecularReflectance = specNormalReflOut;
     data.roughness = roughnessOut;
 #endif
-
 
     data.emission = vec3(0.0);
     return data;

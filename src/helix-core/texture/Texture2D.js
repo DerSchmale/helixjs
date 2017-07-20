@@ -184,10 +184,10 @@ Texture2D.prototype =
 
     /**
      * Initializes the texture with the given data.
-     * @param data An typed array containing the initial data.
-     * @param width The width of the texture.
-     * @param height The height of the texture.
-     * @param generateMips Whether or not a mip chain should be generated.
+     * @param {*} data An typed array containing the initial data.
+     * @param {number} width The width of the texture.
+     * @param {number} height The height of the texture.
+     * @param {boolean} generateMips Whether or not a mip chain should be generated.
      * @param {TextureFormat} format The texture's format.
      * @param {DataType} dataType The texture's data format.
      */

@@ -18,12 +18,14 @@ project.onInit = function()
     initScene(this.scene, this.assetLibrary);
 
     this.renderer.backgroundColor = 0x808080;
+    this.renderer.debugMode = HX.Renderer.DebugRenderMode.GBUFFER_NORMAL_DEPTH;
 };
 
 window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.defaultLightingModel = HX.LightingModel.GGX;
+    options.deferredLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -69,7 +71,7 @@ function initScene(scene, assetLibrary)
     material.specularMap = assetLibrary.get("specular");
     material.roughness = .6;
     material.roughnessRange = .4;
-    material.fixedLights = [ light1, light2, light3 ];
+    // material.fixedLights = [ light1, light2, light3 ];
 
     var primitive = new HX.SpherePrimitive(
     {

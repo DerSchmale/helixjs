@@ -561,17 +561,17 @@ export function init(canvas, options)
     PoissonDisk._initDefault();
     PoissonSphere._initDefault();
 
+    // default copy shader
+    DEFAULTS.COPY_SHADER = new CopyChannelsShader();
+
+    _init2DDitherTexture(32, 32);
+
     if (options.ambientOcclusion) {
         defines += "#define HX_SSAO\n";
         options.ambientOcclusion.init();
     }
 
     GLSLIncludes.GENERAL = defines + GLSLIncludes.GENERAL;
-
-    // default copy shader
-    DEFAULTS.COPY_SHADER = new CopyChannelsShader();
-
-    _init2DDitherTexture(32, 32);
 
     GL.setClearColor(Color.BLACK);
 

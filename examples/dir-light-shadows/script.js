@@ -113,7 +113,6 @@ function initScene(scene, assetLibrary)
     opaqueMaterial.specularMap = assetLibrary.get("metal-specular");
     opaqueMaterial.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_ALL;
     opaqueMaterial.metallicness = 1.0;
-    opaqueMaterial.ssao = true;
     opaqueMaterial.roughness = 0.5;
     opaqueMaterial.roughnessRange = 0.4;
     opaqueMaterial.lightingModel = HX.LightingModel.GGX;
@@ -144,7 +143,6 @@ function initScene(scene, assetLibrary)
     material.colorMap = assetLibrary.get("floor-albedo");
     material.normalMap = assetLibrary.get("floor-normals");
     material.specularMap = assetLibrary.get("floor-specular");
-    material.ssao = true;
     material.roughness = .3;
     material.lightingModel = HX.LightingModel.GGX;;
 

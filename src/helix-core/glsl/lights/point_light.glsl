@@ -11,6 +11,7 @@ void hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewV
     vec3 direction = viewPosition - light.position;
     float attenuation = dot(direction, direction);  // distance squared
     float distance = sqrt(attenuation);
+    // normalize
     direction /= distance;
     attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);
 	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);

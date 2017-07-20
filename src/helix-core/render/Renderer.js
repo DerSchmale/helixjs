@@ -120,18 +120,6 @@ Renderer.prototype =
         return this._camera;
     },
 
-
-    /*get localReflections()
-    {
-        return this._ssrEffect;
-    },
-
-    set localReflections(value)
-    {
-        this._ssrEffect = value;
-        this._ssrTexture = this._ssrEffect? this._ssrEffect.getSSRTexture() : null;
-    },*/
-
     /**
      * Renders the scene through a camera.
      * It's not recommended changing render targets if they have different sizes (so splitscreen should be fine). Otherwise, use different renderer instances.
@@ -162,6 +150,7 @@ Renderer.prototype =
         GL.setClearColor(Color.BLACK);
 
         GL.setDepthMask(true);
+        // TODO: Refresh my memory... WHY are all opaques (not only default lit) rendered here?
         this._renderGBuffer(opaqueList);
         this._renderAO();
 
@@ -174,7 +163,8 @@ Renderer.prototype =
             GL.setClearColor(this._backgroundColor);
             GL.clear();
 
-            this._renderPass(MaterialPass.BASE_PASS, unlitOpaqueList);
+            RenderUtils.renderPass(this, MaterialPass.BASE_PASS, unlitOpaqueList);
+
             this._renderForwardLit(opaqueList);
 
             // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
@@ -203,7 +193,9 @@ Renderer.prototype =
      */
     _renderForwardLit: function(list)
     {
-        this._renderPass(MaterialPass.BASE_PASS, list);
+        if (list.length === 0) return;
+
+        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, list);
 
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
@@ -214,14 +206,14 @@ Renderer.prototype =
             // I don't like type checking, but lighting support is such a core thing...
             // maybe we can work in a more plug-in like light system
             if (light instanceof LightProbe) {
-                this._renderPass(MaterialPass.LIGHT_PROBE_PASS, list, light);
+                RenderUtils.renderPass(this, MaterialPass.LIGHT_PROBE_PASS, list, light);
             }
             else if (light instanceof DirectionalLight) {
                 // if non-global, do intersection tests
                 var passType = light.castShadows? MaterialPass.DIR_LIGHT_SHADOW_PASS : MaterialPass.DIR_LIGHT_PASS;
 
                 // PASS IN LIGHT AS DATA, so the material can update it
-                this._renderPass(passType, list, light);
+                RenderUtils.renderPass(this, passType, list, light);
             }
             else if (light instanceof PointLight) {
                 // cannot just use renderPass, need to do intersection tests
@@ -237,8 +229,8 @@ Renderer.prototype =
 
 
         // transparents need to be rendered one-by-one, not light by light
-        var len = list.length;
-        for (var r = 0; r < len; ++r) {
+        var numItems = list.length;
+        for (var r = 0; r < numItems; ++r) {
 
             var renderItem = list[r];
 
@@ -311,7 +303,7 @@ Renderer.prototype =
                 // this is just so the linear depth value will be correct
                 GL.setClearColor(Color.BLUE);
                 GL.clear();
-                this._renderPass(MaterialPass.GBUFFER_PASS, list);
+                RenderUtils.renderPass(this, MaterialPass.GBUFFER_PASS, list);
             }
             else {
                 this._renderGBufferPlane(list, GBuffer.ALBEDO, MaterialPass.GBUFFER_ALBEDO_PASS, Color.BLACK);
@@ -337,7 +329,7 @@ Renderer.prototype =
         // furthest depth and alpha must be 1, the rest 0
         GL.setClearColor(clearColor);
         GL.clear();
-        this._renderPass(passType, list);
+        RenderUtils.renderPass(this, passType, list);
     },
 
     /**
@@ -409,15 +401,6 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _renderPass: function (passType, renderItems, data)
-    {
-        RenderUtils.renderPass(this, passType, renderItems, data);
-    },
-
-    /**
-     * @ignore
-     * @private
-     */
     _renderToScreen: function (renderTarget)
     {
         GL.setRenderTarget(renderTarget);
@@ -448,7 +431,6 @@ Renderer.prototype =
             return;
         }
 
-        // TODO: render directly to screen if last post process effect?
         if (this._gammaApplied)
             this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrBack.texture);
         else

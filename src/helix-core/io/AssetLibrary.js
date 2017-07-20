@@ -162,6 +162,28 @@ AssetLibrary.prototype =
      */
     get: function(id) { return this._assets[id]; },
 
+    /**
+     * Adds an asset explicitly.
+     * @param {string} id The ID assigned to the asset when calling <code>get</code>
+     * @param asset The asset to add to the library
+     */
+    addAsset: function(id, asset)
+    {
+        this._assets[id] = asset;
+    },
+
+    /**
+     * Merges the contents of another library into the current.
+     * @param {AssetLibrary} library The library to add.
+     */
+    mergeLibrary: function(library)
+    {
+        for (var key in library._assets) {
+            if (library.hasOwnProperty(key))
+                this.addAsset(key, library._assets[key]);
+        }
+    },
+
     _json: function(file, id)
     {
         var self = this;

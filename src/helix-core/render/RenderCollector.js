@@ -151,7 +151,7 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         renderItem.worldBounds = worldBounds;
 
 
-        var list = material.blendState || material._needsBackbuffer? transparents : material.lightingModel? opaques : unlitOpaques;
+        var list = (material.blendState || material._needsBackbuffer)? transparents : (material.lightingModel? opaques : unlitOpaques);
         list.push(renderItem);
     }
 };

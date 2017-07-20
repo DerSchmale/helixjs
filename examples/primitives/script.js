@@ -74,8 +74,8 @@ function initScene(scene, assetLibrary)
     var primitive = new HX.SpherePrimitive(
     {
         radius:.25,
-        numSegmentsH: 20,
-        numSegmentsW: 30
+        numSegmentsH: 8,
+        numSegmentsW: 10
     });
 
     var modelInstance = new HX.ModelInstance(primitive, material);
@@ -94,7 +94,7 @@ function initScene(scene, assetLibrary)
     modelInstance = new HX.ModelInstance(primitive, material);
     modelInstance.position.x = .3;
     modelInstance.position.y = .3;
-    scene.attach(modelInstance);
+    // scene.attach(modelInstance);
 
     primitive = new HX.BoxPrimitive(
         {
@@ -104,7 +104,7 @@ function initScene(scene, assetLibrary)
     modelInstance = new HX.ModelInstance(primitive, material);
     modelInstance.position.x = -.3;
     modelInstance.position.y = -.3;
-    scene.attach(modelInstance);
+    // scene.attach(modelInstance);
 
     primitive = new HX.TorusPrimitive(
         {
@@ -119,5 +119,5 @@ function initScene(scene, assetLibrary)
     modelInstance = new HX.ModelInstance(primitive, material);
     modelInstance.position.x = .3;
     modelInstance.position.y = -.3;
-    scene.attach(modelInstance);
+    // scene.attach(modelInstance);
 }

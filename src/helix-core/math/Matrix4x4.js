@@ -183,8 +183,6 @@ Matrix4x4.prototype =
     /**
      * Multiplies two matrix objects and stores the result in this one
      *
-     * @deprecated Should be moved to Matrix4x4.multiply(a, b, target)
-     *
      * @param a
      * @param b
      */
@@ -221,8 +219,6 @@ Matrix4x4.prototype =
 
     /**
      * Multiplies two matrix objects, assuming they're affine transformations, and stores the result in this one
-     *
-     * @deprecated Should be moved to Matrix4x4.multiplyAffine(a, b, target)
      *
      * @param a
      * @param b

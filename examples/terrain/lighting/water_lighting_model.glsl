@@ -66,11 +66,7 @@ void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in 
 
 	float halfDotLight = max(dot(halfVector, lightDir), 0.0);
 	float cosAngle = 1.0 - halfDotLight;
-	// to the 5th power
-	float power = cosAngle*cosAngle;
-	power *= power;
-	power *= cosAngle;
-	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;
+	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);
 
 	diffuseColor = vec3(0.0);
 

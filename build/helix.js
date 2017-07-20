@@ -39,12 +39,6 @@ ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoi
 
 ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
-ShaderLibrary._files['lighting_blinn_phong.glsl'] = 'float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)\n{\n    // schlick-smith\n    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));\n    float nDotV = max(dot(normal, reflection), 0.0);\n    float denom = nDotV * (1.0 - k) + k;\n    return nDotV * nDotV / (denom * denom);   // since l == v*/\n    float att = 1.0 - roughness;\n    return mix(att * att, 1.0, metallicness);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
-
-ShaderLibrary._files['lighting_ggx.glsl'] = '// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	float power = cosAngle*cosAngle;\n	power *= power;\n	power *= cosAngle;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif\n}';
-
 ShaderLibrary._files['deferred_ambient_light_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef HX_SSAO\nuniform sampler2D hx_ssao;\n#endif\n\nuniform vec3 hx_ambientColor;\n\n\nvoid main()\n{\n// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    gl_FragColor.xyz = hx_ambientColor * data.geometry.color.xyz;\n\n#ifdef HX_SSAO\n    gl_FragColor.xyz *= texture2D(hx_ssao, uv).x;\n#endif\n\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['deferred_dir_light_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform HX_DirectionalLight hx_directionalLight;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef HX_SHADOW_MAP\nuniform sampler2D hx_shadowMap;\n#endif\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\n\nvoid main()\n{\n// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;\n	vec3 viewPosition = viewDir * absViewZ;\n    vec3 viewVector = normalize(viewPosition);\n    vec3 diffuse, specular;\n\n    hx_calculateLight(hx_directionalLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);\n\n    gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_SHADOW_MAP\n        gl_FragColor.xyz *= hx_calculateShadows(hx_directionalLight, hx_shadowMap, viewPosition);\n    #endif\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
@@ -59,11 +53,11 @@ ShaderLibrary._files['deferred_probe_fragment.glsl'] = 'varying vec2 uv;\nvaryin
 
 ShaderLibrary._files['deferred_probe_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
 
-ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            // remember, negative Z!\n            if (viewPos.z > light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    float shadow = hx_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.z < light.maxShadowDistance));\n}';
+ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
 
-ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
+ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
 
-ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
+ShaderLibrary._files['lighting_ggx.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n/*#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif*/\n}';
 
 ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying vec3 tangent;\n    varying vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut -= roughnessRange * (specSample.x - .5);\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n\n    data.emission = vec3(0.0);\n    return data;\n}';
 
@@ -78,6 +72,10 @@ ShaderLibrary._files['material_apply_gbuffer_fragment.glsl'] = 'uniform vec2 hx_
 ShaderLibrary._files['material_apply_gbuffer_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
 ShaderLibrary._files['material_dir_shadow_fragment.glsl'] = 'void main()\n{\n    // geometry is really only used for kil instructions if necessary\n    // hopefully the compiler optimizes the rest out for us\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z);\n}';
+
+ShaderLibrary._files['material_fwd_all_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\n\n#if HX_NUM_DIR_LIGHTS > 0\nuniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_DIR_LIGHT_CASTERS > 0\nuniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];\n\nuniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];\n#endif\n\n#if HX_NUM_POINT_LIGHTS > 0\nuniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\nuniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\nuniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#ifdef HX_SSAO\nuniform sampler2D hx_ssao;\n\nuniform vec2 hx_rcpRenderTargetResolution;\n#endif\n\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ssao = 1.0;\n\n    #ifdef HX_SSAO\n        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n        ssao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIR_LIGHT_CASTERS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);\n        diffuseAccum += diffuse * shadow;\n        specularAccum += specular * shadow;\n    }\n    #endif\n\n\n    #if HX_NUM_POINT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {\n        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;\n    }\n    #endif\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n   for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ssao;\n    }\n    #endif\n\n    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+ShaderLibrary._files['material_fwd_all_vertex.glsl'] = 'varying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    // we need to do an unprojection here to be sure to have skinning - or anything like that - support\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
 
 ShaderLibrary._files['material_fwd_base_fragment.glsl'] = 'uniform vec3 hx_ambientColor;\n\n#ifdef HX_SSAO\nuniform sampler2D hx_ssao;\n#endif\n\nuniform vec2 hx_rcpRenderTargetResolution;\n\nvoid main()\n{\n    vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n\n    HX_GeometryData data = hx_geometry();\n    // simply override with emission\n    gl_FragColor = data.color;\n    #ifdef HX_SSAO\n    float ssao = texture2D(hx_ssao, screenUV).x;\n    #else\n    float ssao = 1.0;\n    #endif\n    gl_FragColor.xyz = gl_FragColor.xyz * hx_ambientColor * ssao + data.emission;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
@@ -114,6 +112,12 @@ ShaderLibrary._files['material_gbuffer_specular_vertex.glsl'] = 'void main()\n{\
 ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = data.color;\n    gl_FragColor.xyz += data.emission;\n\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
+
+ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            // remember, negative Z!\n            if (viewPos.z > light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    float shadow = hx_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.z < light.maxShadowDistance));\n}';
+
+ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
+
+ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
 
 ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
@@ -1860,8 +1864,6 @@ Matrix4x4.prototype =
     /**
      * Multiplies two matrix objects and stores the result in this one
      *
-     * @deprecated Should be moved to Matrix4x4.multiply(a, b, target)
-     *
      * @param a
      * @param b
      */
@@ -1898,8 +1900,6 @@ Matrix4x4.prototype =
 
     /**
      * Multiplies two matrix objects, assuming they're affine transformations, and stores the result in this one
-     *
-     * @deprecated Should be moved to Matrix4x4.multiplyAffine(a, b, target)
      *
      * @param a
      * @param b
@@ -11707,6 +11707,679 @@ ApplyGBufferPass.prototype._generateShader = function(geometryVertex, geometryFr
 
 /**
  * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function DeferredPointShader(useSphere)
+{
+    Shader.call(this);
+    this._useSphere = useSphere;
+
+    var defines = {};
+
+    if (useSphere) {
+        var primitive = new SpherePrimitive({
+            // overshoot a bit
+            radius: 1.1
+        });
+        this._mesh = primitive.getMesh(0);
+        defines.HX_SPHERE_MESH = 1;
+    }
+
+    var vertex =
+        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
+        META.OPTIONS.deferredLightingModel + "\n\n\n" +
+        ShaderLibrary.get("point_light.glsl") + "\n" +
+        ShaderLibrary.get("deferred_point_light_vertex.glsl", defines);
+    var fragment =
+        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
+        META.OPTIONS.deferredLightingModel + "\n\n\n" +
+        ShaderLibrary.get("point_light.glsl") + "\n" +
+        ShaderLibrary.get("deferred_point_light_fragment.glsl", defines);
+
+    this.init(vertex, fragment);
+
+    var gl = GL.gl;
+    var p = this._program;
+    gl.useProgram(p);
+
+    this._colorLocation = gl.getUniformLocation(p, "hx_pointLight.color");
+    this._posLocation = gl.getUniformLocation(p, "hx_pointLight.position");
+    this._radiusLocation = gl.getUniformLocation(p, "hx_pointLight.radius");
+    this._rcpRadiusLocation = gl.getUniformLocation(p, "hx_pointLight.rcpRadius");
+
+    this._positionAttributeLocation = gl.getAttribLocation(p, "hx_position");
+    this._texCoordAttributeLocation = gl.getAttribLocation(p, "hx_texCoord");
+
+    var albedoSlot = gl.getUniformLocation(p, "hx_gbufferAlbedo");
+    var normalDepthSlot = gl.getUniformLocation(p, "hx_gbufferNormalDepth");
+    var specularSlot = gl.getUniformLocation(p, "hx_gbufferSpecular");
+
+    gl.uniform1i(albedoSlot, 0);
+    gl.uniform1i(normalDepthSlot, 1);
+    gl.uniform1i(specularSlot, 2);
+}
+
+DeferredPointShader.prototype = Object.create(Shader.prototype);
+
+DeferredPointShader.prototype.execute = function(renderer, light)
+{
+    var pos = new Float4();
+
+    return function(renderer, light) {
+        var gl = GL.gl;
+
+        gl.useProgram(this._program);
+
+        var texs = renderer._gbuffer.textures;
+        texs[0].bind(0);
+        texs[1].bind(1);
+        texs[2].bind(2);
+
+        var camera = renderer._camera;
+        var col = light._scaledIrradiance;
+
+        light.worldMatrix.getColumn(3, pos);
+        camera.viewMatrix.transformPoint(pos, pos);
+        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
+        gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
+        gl.uniform1f(this._radiusLocation, light._radius);
+        gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
+
+        this.updatePassRenderState(camera, renderer);
+
+        if (this._useSphere) {
+            GL.setCullMode(CullMode.FRONT);
+            var mesh = this._mesh;
+            mesh._vertexBuffers[0].bind();
+            mesh._indexBuffer.bind();
+
+            gl.vertexAttribPointer(this._positionAttributeLocation, 3, gl.FLOAT, false, 48, 0);
+            GL.enableAttributes(1);
+            GL.drawElements(ElementType.TRIANGLES, mesh.numIndices, 0);
+        }
+        else {
+            GL.setCullMode(CullMode.NONE);
+            var rect = RectMesh.DEFAULT;
+            rect._vertexBuffers[0].bind();
+            rect._indexBuffer.bind();
+
+            gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
+            gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
+
+            GL.enableAttributes(2);
+
+            GL.drawElements(ElementType.TRIANGLES, 6, 0);
+        }
+    }
+}();
+
+/**
+ * @classdesc
+ * PointLight represents an omnidirectional light source with a single point as origin. The light strength falls off
+ * according to the inverse square rule.
+ *
+ * @property {number} radius The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a given area for performance.
+ *
+ * @constructor
+ *
+ * @extends Light
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function PointLight()
+{
+    Light.call(this);
+
+    if (!PointLight._deferredShaderSphere && META.OPTIONS.deferredLightingModel) {
+        PointLight._deferredShaderSphere = new DeferredPointShader(true);
+        PointLight._deferredShaderRect = new DeferredPointShader(false);
+    }
+
+    this._radius = 100.0;
+    this.intensity = 3.1415;
+}
+
+PointLight.prototype = Object.create(Light.prototype,
+    {
+        radius: {
+            get: function() {
+                return this._radius;
+            },
+
+            set: function(value) {
+                this._radius = value;
+                this._updateWorldBounds();
+            }
+        }
+    });
+
+/**
+ * @ignore
+ */
+PointLight.prototype._createBoundingVolume = function()
+{
+    return new BoundingSphere();
+};
+
+/**
+ * @ignore
+ */
+PointLight.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.setExplicit(this.worldMatrix.getColumn(3), this._radius);
+};
+
+/**
+ * @ignore
+ */
+PointLight.prototype.renderDeferredLighting = function(renderer)
+{
+    var camPos = new Float4();
+    var thisPos = new Float4();
+    return function(renderer) {
+
+        // distance camera vs light to estimate projected size
+        renderer._camera.worldMatrix.getColumn(3, camPos);
+        this.worldMatrix.getColumn(3, thisPos);
+        var distSqr = camPos.squareDistanceTo(thisPos);
+        var rad = this._radius * 1.1;
+
+        if (distSqr > rad * rad)
+            PointLight._deferredShaderSphere.execute(renderer, this);
+        else
+            PointLight._deferredShaderRect.execute(renderer, this);
+    }
+}();
+
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function DeferredLightProbeShader(probe)
+{
+    Shader.call(this);
+    var defines = {};
+
+    var extensions = "";
+    if (capabilities.EXT_SHADER_TEXTURE_LOD) {
+        extensions += "#texturelod\n";
+    }
+
+    if (probe.size)
+        defines.HX_LOCAL_PROBE = 1;
+
+    this._probe = probe;
+
+    if (probe.diffuseTexture)
+        defines.HX_DIFFUSE_PROBE = 1;
+
+    if (probe.specularTexture)
+        defines.HX_SPECULAR_PROBE = 1;
+
+    var vertex = ShaderLibrary.get("deferred_probe_vertex.glsl", defines);
+    var fragment =
+        extensions +
+        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+        META.OPTIONS.deferredLightingModel + "\n\n\n" +
+        ShaderLibrary.get("light_probe.glsl") + "\n" +
+        ShaderLibrary.get("deferred_probe_fragment.glsl");
+
+    this.init(vertex, fragment);
+
+    var gl = GL.gl;
+    var p = this._program;
+    gl.useProgram(p);
+
+    if (probe.size) {
+        this._sizeLocation = gl.getUniformLocation(p, "hx_probeSize");
+        this._positionLocation = gl.getUniformLocation(p, "hx_probePosition");
+    }
+
+    this._positionAttributeLocation = gl.getAttribLocation(p, "hx_position");
+    this._texCoordAttributeLocation = gl.getAttribLocation(p, "hx_texCoord");
+
+    var albedoSlot = gl.getUniformLocation(p, "hx_gbufferAlbedo");
+    var normalDepthSlot = gl.getUniformLocation(p, "hx_gbufferNormalDepth");
+    var specularSlot = gl.getUniformLocation(p, "hx_gbufferSpecular");
+    var specProbeSlot = gl.getUniformLocation(p, "hx_specularProbeMap");
+    var diffuseProbeSlot = gl.getUniformLocation(p, "hx_diffuseProbeMap");
+    var ssaoSlot = gl.getUniformLocation(p, "hx_ssao");
+
+    this._numMipsLocation = this.getUniformLocation("hx_specularProbeNumMips");
+
+    gl.uniform1i(albedoSlot, 0);
+    gl.uniform1i(normalDepthSlot, 1);
+    gl.uniform1i(specularSlot, 2);
+    gl.uniform1i(ssaoSlot, 3);
+    gl.uniform1i(specProbeSlot, 4);
+    gl.uniform1i(diffuseProbeSlot, 5);
+}
+
+DeferredLightProbeShader.prototype = Object.create(Shader.prototype);
+
+DeferredLightProbeShader.prototype.execute = function(renderer)
+{
+    var gl = GL.gl;
+
+    gl.useProgram(this._program);
+
+    var texs = renderer._gbuffer.textures;
+    texs[0].bind(0);
+    texs[1].bind(1);
+    texs[2].bind(2);
+
+    var specularProbe = this._probe.specularTexture;
+    var diffuseProbe = this._probe.diffuseTexture;
+
+    if ((specularProbe && specularProbe.size === 0) ||
+        (diffuseProbe && diffuseProbe.size === 0)) return;
+
+    if (renderer._ssaoTexture)
+        renderer._ssaoTexture.bind(3);
+
+    if (specularProbe) {
+        specularProbe.bind(4);
+        gl.uniform1f(this._numMipsLocation, Math.floor(MathX.log2(specularProbe.size)));
+    }
+
+    if (diffuseProbe)
+        diffuseProbe.bind(5);
+
+    if (this._sizeLocation) {
+        var m = this._probe.worldMatrix._m;
+        gl.uniform1f(this._sizeLocation, this._probe._size * .5);
+        gl.uniform3f(this._positionLocation, m[12], m[13], m[14]);
+    }
+
+    GL.setCullMode(CullMode.NONE);
+
+    this.updatePassRenderState(renderer._camera, renderer);
+
+    var rect = RectMesh.DEFAULT;
+    rect._vertexBuffers[0].bind();
+    rect._indexBuffer.bind();
+
+    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
+    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
+
+    GL.enableAttributes(2);
+
+    GL.drawElements(ElementType.TRIANGLES, 6, 0);
+};
+
+/**
+ * @classdesc
+ * LightProbe provides functionality to store global illumination information and apply it to the scene lighting.
+ * Only providing a simple specularTexture will behave like environment mapping, but diffuse convolution can be applied
+ * for global diffuse illumination.
+ *
+ * @property {TextureCube} diffuseTexture A cube map texture containing diffuse global illumination information
+ * @property {TextureCube} specularTexture A cube map texture containing specular global illumination information
+ * @property {number} size Defines the virtual size of the environment map box. Useful for local reflections. Leave undefined for a traditional environment map "at infinity"
+ *
+ * @see {@linkcode https://www.knaldtech.com/lys/} for an example tool to generate the required images.
+ *
+ * @constructor
+ * @param {TextureCube} diffuseTexture A cube map texture containing diffuse global illumination information
+ * @param {TextureCube} specularTexture A cube map texture containing specular global illumination information
+ *
+ * @extends Entity
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function LightProbe(diffuseTexture, specularTexture)
+{
+    Entity.call(this);
+    this._specularTexture = specularTexture;
+    this._diffuseTexture = diffuseTexture;
+    this._size = undefined;
+
+    if (META.OPTIONS.deferredLightingModel)
+        this._deferredShader = new DeferredLightProbeShader(this);
+}
+
+// conversion range for spec power to mip. Lys style.
+LightProbe.powerRange0 = .00098;
+LightProbe.powerRange1 = .9921;
+
+LightProbe.prototype = Object.create(Entity.prototype,
+    {
+        specularTexture: {
+            get: function() { return this._specularTexture; }
+        },
+        diffuseTexture: {
+            get: function() { return this._diffuseTexture; }
+        },
+        size: {
+            get: function()
+            {
+                return this._size;
+            },
+            set: function(value)
+            {
+                if (this._size === value) return;
+                var deferredInvalid = false;
+                if (META.OPTIONS.deferredLightingModel && (this._size === undefined || value === undefined))
+                    deferredInvalid = true;
+
+                this._size = value;
+                this._invalidateWorldBounds();
+
+                if (deferredInvalid) this._deferredShader = new DeferredLightProbeShader(this);
+            },
+        }
+    });
+
+/**
+ * @ignore
+ */
+LightProbe.prototype._updateWorldBounds = function()
+{
+    var min = new Float4();
+    var max = new Float4();
+    return function()
+    {
+        if (!this._size)
+            this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
+        else {
+            this.worldMatrix.getColumn(3, min);
+            this.worldMatrix.getColumn(3, max);
+            var rad = this._size * .5;
+            min.x -= rad;
+            min.y -= rad;
+            min.z -= rad;
+            max.x += rad;
+            max.y += rad;
+            max.z += rad;
+            this._worldBounds.setExplicit(min, max);
+        }
+    }
+}();
+
+/**
+ * ignore
+ */
+LightProbe.prototype.acceptVisitor = function (visitor)
+{
+    Entity.prototype.acceptVisitor.call(this, visitor);
+    visitor.visitLight(this);
+};
+
+/**
+ * ignore
+ */
+LightProbe.prototype.renderDeferredLighting = function(renderer)
+{
+    this._deferredShader.execute(renderer);
+};
+
+/**
+ * @classdesc
+ * This material pass renders all lighting in one fragment shader.
+ *
+ * @ignore
+ *
+ * @param geometryVertex
+ * @param geometryFragment
+ * @param lightingModel
+ * @param lights
+ * @constructor
+ */
+function ForwardFixedLitPass(geometryVertex, geometryFragment, lightingModel, lights) {
+    this._dirLights = null;
+    this._dirLightCasters = null;
+    this._pointLights = null;
+    this._diffuseLightProbes = null;
+    this._specularLightProbes = null;
+
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights));
+
+    this._getUniformLocations();
+
+    this._assignShadowMaps();
+    this._assignLightProbes();
+}
+
+ForwardFixedLitPass.prototype = Object.create(MaterialPass.prototype);
+
+ForwardFixedLitPass.prototype.updatePassRenderState = function (camera, renderer) {
+    GL.gl.useProgram(this._shader._program);
+    this._assignDirLights(camera);
+    this._assignDirLightCasters(camera);
+    this._assignPointLights(camera);
+    this._assignLightProbes(camera);
+
+    MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+};
+
+ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragment, lightingModel, lights) {
+    this._dirLights = [];
+    this._dirLightCasters = [];
+    this._pointLights = [];
+    this._diffuseLightProbes = [];
+    this._specularLightProbes = [];
+
+    for (var i = 0; i < lights.length; ++i) {
+        var light = lights[i];
+
+        // I don't like typechecking, but do we have a choice? :(
+        if (light instanceof DirectionalLight) {
+            if (light.castShadows)
+                this._dirLightCasters.push(light);
+        else
+            this._dirLights.push(light);
+        }
+        else if (light instanceof PointLight) {
+            this._pointLights.push(light);
+        }
+        else if (light instanceof LightProbe) {
+            if (light.diffuseTexture)
+                this._diffuseLightProbes.push(light);
+
+            if (light.specularTexture)
+                this._specularLightProbes.push(light);
+        }
+    }
+
+    var extensions = [];
+
+    var defines = {
+        HX_NUM_DIR_LIGHTS: this._dirLights.length,
+        HX_NUM_DIR_LIGHT_CASTERS: this._dirLightCasters.length,
+        HX_NUM_POINT_LIGHTS: this._pointLights.length,
+        HX_NUM_DIFFUSE_PROBES: this._diffuseLightProbes.length,
+        HX_NUM_SPECULAR_PROBES: this._specularLightProbes.length
+    };
+
+    if (capabilities.EXT_SHADER_TEXTURE_LOD) {
+        extensions += "#texturelod\n";
+    }
+
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_all_vertex.glsl", defines);
+
+    var fragmentShader =
+        extensions +
+        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
+        lightingModel + "\n\n\n" +
+        DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
+        ShaderLibrary.get("directional_light.glsl", defines) + "\n" +
+        ShaderLibrary.get("point_light.glsl") + "\n" +
+        ShaderLibrary.get("light_probe.glsl") + "\n" +
+        geometryFragment + "\n" +
+        ShaderLibrary.get("material_fwd_all_fragment.glsl");
+
+    return new Shader(vertexShader, fragmentShader);
+};
+
+ForwardFixedLitPass.prototype._assignDirLights = function (camera) {
+    var dir = new Float4();
+
+    return function(camera) {
+        var lights = this._dirLights;
+        if (!lights) return;
+
+        var len = lights.length;
+        var gl = GL.gl;
+
+        for (var i = 0; i < len; ++i) {
+            var light = lights[i];
+            var locs = this._dirLocations[i];
+            camera.viewMatrix.transformVector(light.direction, dir);
+
+            var col = light._scaledIrradiance;
+            gl.uniform3f(locs.color, col.r, col.g, col.b);
+            gl.uniform3f(locs.direction, dir.x, dir.y, dir.z);
+        }
+    }
+}();
+
+ForwardFixedLitPass.prototype._assignDirLightCasters = function (camera) {
+    var dir = new Float4();
+    var matrix = new Matrix4x4();
+    var matrixData = new Float32Array(64);
+
+    return function(camera) {
+        var lights = this._dirLightCasters;
+        if (!lights) return;
+
+        var len = lights.length;
+        var gl = GL.gl;
+
+        for (var i = 0; i < len; ++i) {
+            var light = lights[i];
+            camera.viewMatrix.transformVector(light.direction, dir);
+
+            var locs = this._dirCasterLocations[i];
+
+            var col = light._scaledIrradiance;
+            gl.uniform3f(locs.color, col.r, col.g, col.b);
+            gl.uniform3f(locs.direction, dir.x, dir.y, dir.z);
+
+            var shadowRenderer = light._shadowMapRenderer;
+            var numCascades = META.OPTIONS.numShadowCascades;
+            var splits = shadowRenderer._splitDistances;
+            var k = 0;
+            for (var j = 0; j < numCascades; ++j) {
+                matrix.multiply(shadowRenderer.getShadowMatrix(j), camera.worldMatrix);
+                var m = matrix._m;
+
+                for (var l = 0; l < 16; ++l) {
+                    matrixData[k++] = m[l];
+                }
+            }
+
+            gl.uniformMatrix4fv(locs.matrices, false, matrixData);
+            gl.uniform4f(locs.splits, splits[0], splits[1], splits[2], splits[3]);
+            gl.uniform1f(locs.depthBias, light.depthBias);
+            gl.uniform1f(locs.maxShadowDistance, splits[numCascades - 1]);
+        }
+    }
+}();
+
+ForwardFixedLitPass.prototype._assignPointLights = function (camera) {
+    var pos = new Float4();
+
+    return function(camera) {
+        var lights = this._pointLights;
+        if (!lights) return;
+
+        var gl = GL.gl;
+
+        var len = lights.length;
+
+        for (var i = 0; i < len; ++i) {
+            var locs = this._pointLocations[i];
+            var light = lights[i];
+            light.worldMatrix.getColumn(3, pos);
+            camera.viewMatrix.transformPoint(pos, pos);
+
+            var col = light._scaledIrradiance;
+            gl.uniform3f(locs.color, col.r, col.g, col.b);
+            gl.uniform3f(locs.position, pos.x, pos.y, pos.z);
+            gl.uniform1f(locs.radius, light.radius);
+        }
+    }
+}();
+
+ForwardFixedLitPass.prototype._assignShadowMaps = function () {
+    var lights = this._dirLightCasters;
+    var len = lights.length;
+    if (len > 0) {
+        var shadowMaps = [];
+
+        for (var i = 0; i < len; ++i) {
+            var light = lights[i];
+            var shadowRenderer = light._shadowMapRenderer;
+            shadowMaps[i] = shadowRenderer._shadowMap;
+        }
+
+        this.setTextureArray("hx_directionalShadowMaps", shadowMaps);
+    }
+};
+
+ForwardFixedLitPass.prototype._assignLightProbes = function () {
+    var diffuseMaps = [];
+    var specularMaps = [];
+
+    var probes = this._diffuseLightProbes;
+    var len = probes.length;
+    for (var i = 0; i < len; ++i)
+        diffuseMaps[i] = probes[i].diffuseTexture;
+
+    probes = this._specularLightProbes;
+    len = probes.length;
+    var mips = [];
+    for (i = 0; i < len; ++i) {
+        specularMaps[i] = probes[i].specularTexture;
+        mips[i] = Math.floor(MathX.log2(specularMaps[i].size));
+    }
+
+    if (diffuseMaps.length > 0) this.setTextureArray("hx_diffuseProbeMaps", diffuseMaps);
+    if (specularMaps.length > 0) {
+        this.setTextureArray("hx_specularProbeMaps", specularMaps);
+        this.setUniformArray("hx_specularProbeNumMips", new Float32Array(mips));
+    }
+};
+
+ForwardFixedLitPass.prototype._getUniformLocations = function()
+{
+    this._dirLocations = [];
+    this._dirCasterLocations = [];
+    this._pointLocations = [];
+
+    for (var i = 0; i < this._dirLights.length; ++i) {
+        this._dirLocations.push({
+            color: this.getUniformLocation("hx_directionalLights[" + i + "].color"),
+            direction: this.getUniformLocation("hx_directionalLights[" + i + "].direction")
+        });
+    }
+
+    for (i = 0; i < this._dirLightCasters.length; ++i) {
+        this._dirCasterLocations.push({
+            color: this.getUniformLocation("hx_directionalLightCasters[" + i + "].color"),
+            direction: this.getUniformLocation("hx_directionalLightCasters[" + i + "].direction"),
+            matrices: this.getUniformLocation("hx_directionalLightCasters[" + i + "].shadowMapMatrices[0]"),
+            splits: this.getUniformLocation("hx_directionalLightCasters[" + i + "].splitDistances"),
+            depthBias: this.getUniformLocation("hx_directionalLightCasters[" + i + "].depthBias"),
+            maxShadowDistance: this.getUniformLocation("hx_directionalLightCasters[" + i + "].maxShadowDistance")
+        });
+    }
+
+    for (i = 0; i < this._pointLights.length; ++i) {
+        this._pointLocations.push({
+            color: this.getUniformLocation("hx_pointLights[" + i + "].color"),
+            position: this.getUniformLocation("hx_pointLights[" + i + "].position"),
+            radius: this.getUniformLocation("hx_pointLights[" + i + "].radius")
+        });
+    }
+};
+
+/**
+ * @ignore
  */
 var MATERIAL_ID_COUNTER = 0;
 
@@ -11735,6 +12408,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this.onChange = new Signal();
     this._textures = {};
     this._uniforms = {};
+    this._fixedLights = null;
     this._useMorphing = false;
     this._useSkinning = false;
 
@@ -11767,6 +12441,8 @@ Material.prototype =
 
         if (!this._lightingModel)
             this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
+        else if (this._fixedLights)
+            this.setPass(MaterialPass.BASE_PASS, new ForwardFixedLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._fixedLights));
         else if (this._lightingModel !== META.OPTIONS.deferredLightingModel || this._blendState) {
             this.setPass(MaterialPass.BASE_PASS, new ForwardLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
 
@@ -11824,6 +12500,21 @@ Material.prototype =
         }
 
         // blend state can require different render path, so shaders need to adapt
+        this._invalidate();
+    },
+
+    /**
+     * Allows setting a specific set of lights to this material, avoiding having to figure out lighting dynamically.
+     * This will cause all lighting to happen in a single pass, which is generally *much* faster than any other option.
+     */
+    get fixedLights()
+    {
+        return this._fixedLights;
+    },
+
+    set fixedLights(value)
+    {
+        this._fixedLights = value;
         this._invalidate();
     },
 
@@ -12117,18 +12808,6 @@ Material.prototype =
         this._initialized = false;
         this._passes = new Array(Material.NUM_PASS_TYPES);
         this.onChange.dispatch();
-    },
-
-    /**
-     * @ignore
-     */
-    _setSSAOTexture: function(texture)
-    {
-        var pass = this.getPass(MaterialPass.BASE_PASS);
-        if (pass) pass._setSSAOTexture(texture);
-
-        pass = this.getPass(MaterialPass.LIGHT_PROBE_PASS);
-        if (pass) pass._setSSAOTexture(texture);
     },
 
     /**
@@ -18383,418 +19062,6 @@ ExponentialDirectionalShadowFilter.prototype._createBlurShader = function()
 {
     return new ESMBlurShader(this._blurRadius);
 };
-
-/**
- * @ignore
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function DeferredLightProbeShader(probe)
-{
-    Shader.call(this);
-    var defines = {};
-
-    var extensions = "";
-    if (capabilities.EXT_SHADER_TEXTURE_LOD) {
-        extensions += "#texturelod\n";
-    }
-
-    if (probe.size)
-        defines.HX_LOCAL_PROBE = 1;
-
-    this._probe = probe;
-
-    if (probe.diffuseTexture)
-        defines.HX_DIFFUSE_PROBE = 1;
-
-    if (probe.specularTexture)
-        defines.HX_SPECULAR_PROBE = 1;
-
-    var vertex = ShaderLibrary.get("deferred_probe_vertex.glsl", defines);
-    var fragment =
-        extensions +
-        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
-        META.OPTIONS.deferredLightingModel + "\n\n\n" +
-        ShaderLibrary.get("light_probe.glsl") + "\n" +
-        ShaderLibrary.get("deferred_probe_fragment.glsl");
-
-    this.init(vertex, fragment);
-
-    var gl = GL.gl;
-    var p = this._program;
-    gl.useProgram(p);
-
-    if (probe.size) {
-        this._sizeLocation = gl.getUniformLocation(p, "hx_probeSize");
-        this._positionLocation = gl.getUniformLocation(p, "hx_probePosition");
-    }
-
-    this._positionAttributeLocation = gl.getAttribLocation(p, "hx_position");
-    this._texCoordAttributeLocation = gl.getAttribLocation(p, "hx_texCoord");
-
-    var albedoSlot = gl.getUniformLocation(p, "hx_gbufferAlbedo");
-    var normalDepthSlot = gl.getUniformLocation(p, "hx_gbufferNormalDepth");
-    var specularSlot = gl.getUniformLocation(p, "hx_gbufferSpecular");
-    var specProbeSlot = gl.getUniformLocation(p, "hx_specularProbeMap");
-    var diffuseProbeSlot = gl.getUniformLocation(p, "hx_diffuseProbeMap");
-    var ssaoSlot = gl.getUniformLocation(p, "hx_ssao");
-
-    this._numMipsLocation = this.getUniformLocation("hx_specularProbeNumMips");
-
-    gl.uniform1i(albedoSlot, 0);
-    gl.uniform1i(normalDepthSlot, 1);
-    gl.uniform1i(specularSlot, 2);
-    gl.uniform1i(ssaoSlot, 3);
-    gl.uniform1i(specProbeSlot, 4);
-    gl.uniform1i(diffuseProbeSlot, 5);
-}
-
-DeferredLightProbeShader.prototype = Object.create(Shader.prototype);
-
-DeferredLightProbeShader.prototype.execute = function(renderer)
-{
-    var gl = GL.gl;
-
-    gl.useProgram(this._program);
-
-    var texs = renderer._gbuffer.textures;
-    texs[0].bind(0);
-    texs[1].bind(1);
-    texs[2].bind(2);
-
-    var specularProbe = this._probe.specularTexture;
-    var diffuseProbe = this._probe.diffuseTexture;
-
-    if ((specularProbe && specularProbe.size === 0) ||
-        (diffuseProbe && diffuseProbe.size === 0)) return;
-
-    if (renderer._ssaoTexture)
-        renderer._ssaoTexture.bind(3);
-
-    if (specularProbe) {
-        specularProbe.bind(4);
-        gl.uniform1f(this._numMipsLocation, Math.floor(MathX.log2(specularProbe.size)));
-    }
-
-    if (diffuseProbe)
-        diffuseProbe.bind(5);
-
-    if (this._sizeLocation) {
-        var m = this._probe.worldMatrix._m;
-        gl.uniform1f(this._sizeLocation, this._probe._size * .5);
-        gl.uniform3f(this._positionLocation, m[12], m[13], m[14]);
-    }
-
-    GL.setCullMode(CullMode.NONE);
-
-    this.updatePassRenderState(renderer._camera, renderer);
-
-    var rect = RectMesh.DEFAULT;
-    rect._vertexBuffers[0].bind();
-    rect._indexBuffer.bind();
-
-    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
-    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
-
-    GL.enableAttributes(2);
-
-    GL.drawElements(ElementType.TRIANGLES, 6, 0);
-};
-
-/**
- * @classdesc
- * LightProbe provides functionality to store global illumination information and apply it to the scene lighting.
- * Only providing a simple specularTexture will behave like environment mapping, but diffuse convolution can be applied
- * for global diffuse illumination.
- *
- * @property {TextureCube} diffuseTexture A cube map texture containing diffuse global illumination information
- * @property {TextureCube} specularTexture A cube map texture containing specular global illumination information
- * @property {number} size Defines the virtual size of the environment map box. Useful for local reflections. Leave undefined for a traditional environment map "at infinity"
- *
- * @see {@linkcode https://www.knaldtech.com/lys/} for an example tool to generate the required images.
- *
- * @constructor
- * @param {TextureCube} diffuseTexture A cube map texture containing diffuse global illumination information
- * @param {TextureCube} specularTexture A cube map texture containing specular global illumination information
- *
- * @extends Entity
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function LightProbe(diffuseTexture, specularTexture)
-{
-    Entity.call(this);
-    this._specularTexture = specularTexture;
-    this._diffuseTexture = diffuseTexture;
-    this._size = undefined;
-
-    if (META.OPTIONS.deferredLightingModel)
-        this._deferredShader = new DeferredLightProbeShader(this);
-}
-
-// conversion range for spec power to mip. Lys style.
-LightProbe.powerRange0 = .00098;
-LightProbe.powerRange1 = .9921;
-
-LightProbe.prototype = Object.create(Entity.prototype,
-    {
-        specularTexture: {
-            get: function() { return this._specularTexture; }
-        },
-        diffuseTexture: {
-            get: function() { return this._diffuseTexture; }
-        },
-        size: {
-            get: function()
-            {
-                return this._size;
-            },
-            set: function(value)
-            {
-                if (this._size === value) return;
-                var deferredInvalid = false;
-                if (META.OPTIONS.deferredLightingModel && (this._size === undefined || value === undefined))
-                    deferredInvalid = true;
-
-                this._size = value;
-                this._invalidateWorldBounds();
-
-                if (deferredInvalid) this._deferredShader = new DeferredLightProbeShader(this);
-            },
-        }
-    });
-
-/**
- * @ignore
- */
-LightProbe.prototype._updateWorldBounds = function()
-{
-    var min = new Float4();
-    var max = new Float4();
-    return function()
-    {
-        if (!this._size)
-            this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
-        else {
-            this.worldMatrix.getColumn(3, min);
-            this.worldMatrix.getColumn(3, max);
-            var rad = this._size * .5;
-            min.x -= rad;
-            min.y -= rad;
-            min.z -= rad;
-            max.x += rad;
-            max.y += rad;
-            max.z += rad;
-            this._worldBounds.setExplicit(min, max);
-        }
-    }
-}();
-
-/**
- * ignore
- */
-LightProbe.prototype.acceptVisitor = function (visitor)
-{
-    Entity.prototype.acceptVisitor.call(this, visitor);
-    visitor.visitLight(this);
-};
-
-/**
- * ignore
- */
-LightProbe.prototype.renderDeferredLighting = function(renderer)
-{
-    this._deferredShader.execute(renderer);
-};
-
-/**
- * @ignore
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function DeferredPointShader(useSphere)
-{
-    Shader.call(this);
-    this._useSphere = useSphere;
-
-    var defines = {};
-
-    if (useSphere) {
-        var primitive = new SpherePrimitive({
-            // overshoot a bit
-            radius: 1.1
-        });
-        this._mesh = primitive.getMesh(0);
-        defines.HX_SPHERE_MESH = 1;
-    }
-
-    var vertex =
-        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
-        META.OPTIONS.deferredLightingModel + "\n\n\n" +
-        ShaderLibrary.get("point_light.glsl") + "\n" +
-        ShaderLibrary.get("deferred_point_light_vertex.glsl", defines);
-    var fragment =
-        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
-        META.OPTIONS.deferredLightingModel + "\n\n\n" +
-        ShaderLibrary.get("point_light.glsl") + "\n" +
-        ShaderLibrary.get("deferred_point_light_fragment.glsl", defines);
-
-    this.init(vertex, fragment);
-
-    var gl = GL.gl;
-    var p = this._program;
-    gl.useProgram(p);
-
-    this._colorLocation = gl.getUniformLocation(p, "hx_pointLight.color");
-    this._posLocation = gl.getUniformLocation(p, "hx_pointLight.position");
-    this._radiusLocation = gl.getUniformLocation(p, "hx_pointLight.radius");
-    this._rcpRadiusLocation = gl.getUniformLocation(p, "hx_pointLight.rcpRadius");
-
-    this._positionAttributeLocation = gl.getAttribLocation(p, "hx_position");
-    this._texCoordAttributeLocation = gl.getAttribLocation(p, "hx_texCoord");
-
-    var albedoSlot = gl.getUniformLocation(p, "hx_gbufferAlbedo");
-    var normalDepthSlot = gl.getUniformLocation(p, "hx_gbufferNormalDepth");
-    var specularSlot = gl.getUniformLocation(p, "hx_gbufferSpecular");
-
-    gl.uniform1i(albedoSlot, 0);
-    gl.uniform1i(normalDepthSlot, 1);
-    gl.uniform1i(specularSlot, 2);
-}
-
-DeferredPointShader.prototype = Object.create(Shader.prototype);
-
-DeferredPointShader.prototype.execute = function(renderer, light)
-{
-    var pos = new Float4();
-
-    return function(renderer, light) {
-        var gl = GL.gl;
-
-        gl.useProgram(this._program);
-
-        var texs = renderer._gbuffer.textures;
-        texs[0].bind(0);
-        texs[1].bind(1);
-        texs[2].bind(2);
-
-        var camera = renderer._camera;
-        var col = light._scaledIrradiance;
-
-        light.worldMatrix.getColumn(3, pos);
-        camera.viewMatrix.transformPoint(pos, pos);
-        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
-        gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
-        gl.uniform1f(this._radiusLocation, light._radius);
-        gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
-
-        this.updatePassRenderState(camera, renderer);
-
-        if (this._useSphere) {
-            GL.setCullMode(CullMode.FRONT);
-            var mesh = this._mesh;
-            mesh._vertexBuffers[0].bind();
-            mesh._indexBuffer.bind();
-
-            gl.vertexAttribPointer(this._positionAttributeLocation, 3, gl.FLOAT, false, 48, 0);
-            GL.enableAttributes(1);
-            GL.drawElements(ElementType.TRIANGLES, mesh.numIndices, 0);
-        }
-        else {
-            GL.setCullMode(CullMode.NONE);
-            var rect = RectMesh.DEFAULT;
-            rect._vertexBuffers[0].bind();
-            rect._indexBuffer.bind();
-
-            gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
-            gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
-
-            GL.enableAttributes(2);
-
-            GL.drawElements(ElementType.TRIANGLES, 6, 0);
-        }
-    }
-}();
-
-/**
- * @classdesc
- * PointLight represents an omnidirectional light source with a single point as origin. The light strength falls off
- * according to the inverse square rule.
- *
- * @property {number} radius The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a given area for performance.
- *
- * @constructor
- *
- * @extends Light
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function PointLight()
-{
-    Light.call(this);
-
-    if (!PointLight._deferredShaderSphere && META.OPTIONS.deferredLightingModel) {
-        PointLight._deferredShaderSphere = new DeferredPointShader(true);
-        PointLight._deferredShaderRect = new DeferredPointShader(false);
-    }
-
-    this._radius = 100.0;
-    this.intensity = 3.1415;
-}
-
-PointLight.prototype = Object.create(Light.prototype,
-    {
-        radius: {
-            get: function() {
-                return this._radius;
-            },
-
-            set: function(value) {
-                this._radius = value;
-                this._updateWorldBounds();
-            }
-        }
-    });
-
-/**
- * @ignore
- */
-PointLight.prototype._createBoundingVolume = function()
-{
-    return new BoundingSphere();
-};
-
-/**
- * @ignore
- */
-PointLight.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.setExplicit(this.worldMatrix.getColumn(3), this._radius);
-};
-
-/**
- * @ignore
- */
-PointLight.prototype.renderDeferredLighting = function(renderer)
-{
-    var camPos = new Float4();
-    var thisPos = new Float4();
-    return function(renderer) {
-
-        // distance camera vs light to estimate projected size
-        renderer._camera.worldMatrix.getColumn(3, camPos);
-        this.worldMatrix.getColumn(3, thisPos);
-        var distSqr = camPos.squareDistanceTo(thisPos);
-        var rad = this._radius * 1.1;
-
-        if (distSqr > rad * rad)
-            PointLight._deferredShaderSphere.execute(renderer, this);
-        else
-            PointLight._deferredShaderRect.execute(renderer, this);
-    }
-}();
 
 /**
  * @ignore

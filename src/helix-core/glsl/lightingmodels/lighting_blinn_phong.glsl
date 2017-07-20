@@ -1,15 +1,4 @@
-float hx_probeGeometricShadowing(vec3 normal, vec3 reflection, float roughness, float metallicness)
-{
-    // schlick-smith
-    /*float k = 2.0 / sqrt(3.1415 * (roughness * roughness + 2.0));
-    float nDotV = max(dot(normal, reflection), 0.0);
-    float denom = nDotV * (1.0 - k) + k;
-    return nDotV * nDotV / (denom * denom);   // since l == v*/
-    float att = 1.0 - roughness;
-    return mix(att * att, 1.0, metallicness);
-}
-
-// schlick-beckman
+/*// schlick-beckman
 float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
 {
 	float nDotV = max(-dot(normal, viewDir), 0.0);
@@ -17,7 +6,7 @@ float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL
 	float g1 = nDotV * (1.0 - r) + r;
 	float g2 = nDotL * (1.0 - r) + r;
     return .25 / (g1 * g2);
-}
+}*/
 
 float hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)
 {
@@ -39,10 +28,7 @@ void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in 
 	float halfDotLight = max(dot(halfVector, lightDir), 0.0);
 	float cosAngle = 1.0 - halfDotLight;
 	// to the 5th power
-	float power = cosAngle*cosAngle;
-	power *= power;
-	power *= cosAngle;
-	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*power;
+	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);
 
 // / PI factor is encoded in light colour
 	diffuseColor = irradiance;

@@ -14,6 +14,7 @@ import {GBufferNormalDepthPass} from "./passes/GBufferNormalDepthPass";
 import {GBufferSpecularPass} from "./passes/GBufferSpecularPass";
 import {GBufferFullPass} from "./passes/GBufferFullPass";
 import {ApplyGBufferPass} from "./passes/ApplyGBufferPass";
+import {ForwardFixedLitPass} from "./passes/ForwardFixedLitPass";
 
 /**
  * @ignore
@@ -45,6 +46,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this.onChange = new Signal();
     this._textures = {};
     this._uniforms = {};
+    this._fixedLights = null;
     this._useMorphing = false;
     this._useSkinning = false;
 
@@ -77,6 +79,8 @@ Material.prototype =
 
         if (!this._lightingModel)
             this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
+        else if (this._fixedLights)
+            this.setPass(MaterialPass.BASE_PASS, new ForwardFixedLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._fixedLights));
         else if (this._lightingModel !== META.OPTIONS.deferredLightingModel || this._blendState) {
             this.setPass(MaterialPass.BASE_PASS, new ForwardLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
 
@@ -134,6 +138,21 @@ Material.prototype =
         }
 
         // blend state can require different render path, so shaders need to adapt
+        this._invalidate();
+    },
+
+    /**
+     * Allows setting a specific set of lights to this material, avoiding having to figure out lighting dynamically.
+     * This will cause all lighting to happen in a single pass, which is generally *much* faster than any other option.
+     */
+    get fixedLights()
+    {
+        return this._fixedLights;
+    },
+
+    set fixedLights(value)
+    {
+        this._fixedLights = value;
         this._invalidate();
     },
 
@@ -427,18 +446,6 @@ Material.prototype =
         this._initialized = false;
         this._passes = new Array(Material.NUM_PASS_TYPES);
         this.onChange.dispatch();
-    },
-
-    /**
-     * @ignore
-     */
-    _setSSAOTexture: function(texture)
-    {
-        var pass = this.getPass(MaterialPass.BASE_PASS);
-        if (pass) pass._setSSAOTexture(texture);
-
-        pass = this.getPass(MaterialPass.LIGHT_PROBE_PASS);
-        if (pass) pass._setSSAOTexture(texture);
     },
 
     /**

@@ -344,12 +344,11 @@ export function InitOptions()
      * The default {@codelink LightingModel} to use.
      */
     this.defaultLightingModel = LightingModel.Unlit;
-
     /**
      * The lighting model {@codelink LightingModel} to use in the deferred lighting path, which may improve lighting
-     * performance. Usually you'd want this to be either null or the same as defaultLightingModel.
+     * performance. Usually you'd want this to be either null or the same as defaulyt
      */
-    this.deferredLightingModel = null;
+    this.deferredeLightingModel = null;
 
     /**
      * The amount of shadow cascades to use. Cascades split up the view frustum into areas with their own shadow maps,
@@ -422,6 +421,7 @@ export function init(canvas, options)
     var webglFlags = {
         antialias: false,   // we're rendering to texture by default, so native AA has no effect
         alpha: META.OPTIONS.transparentBackground,
+        // we render offscreen, so no depth/stencil needed in backbuffer
         depth: false,
         stencil: false,
         premultipliedAlpha: false,

@@ -1,7 +1,6 @@
 /**
  * @author derschmale <http://www.derschmale.com>
  */
-
 var project = new DemoProject();
 
 project.queueAssets = function(assetLibrary)
@@ -53,8 +52,10 @@ function initCamera(camera)
         camera.addComponent(toneMap);
     }
 
-    var fxaa = new HX.FXAA();
-    camera.addComponent(fxaa);
+    if (!HX.Platform.isMobile) {
+        var fxaa = new HX.FXAA();
+        camera.addComponent(fxaa);
+    }
 }
 
 function initScene(scene, assetLibrary)

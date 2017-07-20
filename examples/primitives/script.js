@@ -7,8 +7,6 @@ var project = new DemoProject();
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("albedo", "textures/diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("normals", "textures/normals.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("specular", "textures/specular.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
 };
 
 project.onInit = function()
@@ -24,7 +22,6 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
     options.defaultLightingModel = HX.LightingModel.GGX;
-    options.deferredLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -33,43 +30,19 @@ function initScene(scene, assetLibrary)
     var ambientLight = new HX.AmbientLight();
     ambientLight.color = new HX.Color(.5,.5,.5);
     var light1 = new HX.PointLight();
-    var light2 = new HX.PointLight();
-    var light3 = new HX.PointLight();
     light1.radius = 4;
-    light2.radius = 4;
-    light3.radius = 4;
-    light1.color = 0xff2020;
-    light2.color = 0x2020ff;
-    light3.color = 0x20ff20;
 
     scene.attach(ambientLight);
     scene.attach(light1);
-    scene.attach(light2);
-    scene.attach(light3);
 
     var component = new AnimateOrbitComponent();
     component.axis = new HX.Float4(1.0, 1.0, 1.0);
     component.radius = 2.0;
     light1.addComponent(component);
 
-    component = new AnimateOrbitComponent();
-    component.axis = new HX.Float4(-1.0, 1.0, 1.0);
-    component.radius = 2.0;
-    component.speed = .7;
-    light2.addComponent(component);
-
-    component = new AnimateOrbitComponent();
-    component.axis = new HX.Float4(1.0, 1.0, 1.0);
-    component.radius = 2.0;
-    component.speed = .1;
-    light3.addComponent(component);
-
     var material = new HX.BasicMaterial();
     material.colorMap = assetLibrary.get("albedo");
-    material.normalMap = assetLibrary.get("normals");
-    material.specularMap = assetLibrary.get("specular");
-    material.roughness = .6;
-    material.roughnessRange = .4;
+    material.roughness = .15;
 
     var primitive = new HX.SpherePrimitive(
     {
@@ -94,7 +67,7 @@ function initScene(scene, assetLibrary)
     modelInstance = new HX.ModelInstance(primitive, material);
     modelInstance.position.x = .3;
     modelInstance.position.y = .3;
-    // scene.attach(modelInstance);
+    scene.attach(modelInstance);
 
     primitive = new HX.BoxPrimitive(
         {
@@ -104,7 +77,7 @@ function initScene(scene, assetLibrary)
     modelInstance = new HX.ModelInstance(primitive, material);
     modelInstance.position.x = -.3;
     modelInstance.position.y = -.3;
-    // scene.attach(modelInstance);
+    scene.attach(modelInstance);
 
     primitive = new HX.TorusPrimitive(
         {
@@ -119,5 +92,5 @@ function initScene(scene, assetLibrary)
     modelInstance = new HX.ModelInstance(primitive, material);
     modelInstance.position.x = .3;
     modelInstance.position.y = -.3;
-    // scene.attach(modelInstance);
+    scene.attach(modelInstance);
 }

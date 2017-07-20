@@ -63,28 +63,29 @@ FrameBuffer.prototype = {
             this._height = this._depthBuffer._height;
         }
 
-        for (var i = 0; i < this._numColorTextures; ++i) {
-            var texture = this._colorTextures[i];
-            var target = this._cubeFace === undefined? gl.TEXTURE_2D : this._cubeFace;
+        var target = this._cubeFace === undefined? gl.TEXTURE_2D : this._cubeFace;
 
-            if (capabilities.EXT_DRAW_BUFFERS)
-                gl.framebufferTexture2D(gl.FRAMEBUFFER, capabilities.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, target, texture._texture, 0);
-            else
-            // try using default (will only work for 1 color texture tho)
-                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, target, texture._texture, 0);
+        if (this._numColorTextures === 1) {
+            var texture = this._colorTextures[0];
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, target, texture._texture, 0);
         }
+        else if (capabilities.EXT_DRAW_BUFFERS) {
+            for (var i = 0; i < this._numColorTextures; ++i) {
+                texture = this._colorTextures[i];
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, capabilities.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, target, texture._texture, 0);
+            }
+        }
+        else
+            throw new Error("Trying to bind multiple render targets without EXT_DRAW_BUFFERS support!");
 
 
         if (this._depthBuffer) {
             var attachment = this._depthBuffer.format === gl.DEPTH_STENCIL? gl.DEPTH_STENCIL_ATTACHMENT : gl.DEPTH_ATTACHMENT;
 
-            if (this._depthBuffer instanceof Texture2D) {
+            if (this._depthBuffer instanceof Texture2D)
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, attachment, gl.TEXTURE_2D, this._depthBuffer._texture, 0);
-            }
-            else {
-                gl.bindRenderbuffer(gl.RENDERBUFFER, this._depthBuffer._renderBuffer);
+            else
                 gl.framebufferRenderbuffer(gl.FRAMEBUFFER, attachment, gl.RENDERBUFFER, this._depthBuffer._renderBuffer);
-            }
         }
 
         var status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);

@@ -47,6 +47,7 @@ WriteOnlyDepthBuffer.prototype = {
 
         gl.bindRenderbuffer(gl.RENDERBUFFER, this._renderBuffer);
         gl.renderbufferStorage(gl.RENDERBUFFER, this._format, width, height);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
     }
 };
 

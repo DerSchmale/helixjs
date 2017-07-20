@@ -119,6 +119,10 @@ BasicMaterial.prototype = Object.create(Material.prototype,
 
             set: function(value)
             {
+                if (this._doubleSided !== value)
+                    this._invalidate();
+
+                this._doubleSided = value;
                 this.cullMode = value? CullMode.NONE : CullMode.BACK;
             }
         },
@@ -347,6 +351,10 @@ BasicMaterial.prototype._generateDefines = function()
             break;
         default:
             defines.NORMAL_ROUGHNESS_MAP = 1;
+    }
+
+    if (this._doubleSided) {
+        defines.DOUBLE_SIDED = 1;
     }
 
     return defines;

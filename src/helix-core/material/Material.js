@@ -37,6 +37,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._elementType = ElementType.TRIANGLES;
     this._cullMode = CullMode.BACK;
     this._writeDepth = true;
+    this._writeColor = true;
     this._passes = new Array(Material.NUM_PASS_TYPES);
     this._renderOrderHint = ++MATERIAL_ID_COUNTER;
     // forced render order by user:
@@ -150,8 +151,8 @@ Material.prototype =
     },
 
     /**
-     * The {@options LightingModel} used to light this material. If this is set to {@linkcode InitOptions#defaultLightingModel} and
-     * no blendState is assigned, this material will be rendered using the deferred render path.
+     * The {@options LightingModel} used to light this material. If this is set to {@linkcode InitOptions#deferredLightingModel}
+     * and no blendState is assigned, this material will be rendered using the deferred render path.
      */
     get lightingModel()
     {
@@ -219,6 +220,25 @@ Material.prototype =
     },
 
     /**
+     * Defines whether or not this material should write color information. This should only be used for some special
+     * cases.
+     */
+    get writeColor()
+    {
+        return this._writeColor;
+    },
+
+    set writeColor(value)
+    {
+        this._writeColor = value;
+
+        for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
+            if (this._passes[i])
+                this._passes[i].writeColor = value;
+        }
+    },
+
+    /**
      * Defines how back-face culling is applied. One of {@linkcode CullMode}.
      */
     get cullMode()
@@ -259,6 +279,7 @@ Material.prototype =
 
             pass.elementType = this._elementType;
             pass.writeDepth = this._writeDepth;
+            pass.writeColor = this._writeColor;
 
             if (type === MaterialPass.DIR_LIGHT_PASS ||
                 type === MaterialPass.DIR_LIGHT_SHADOW_PASS ||

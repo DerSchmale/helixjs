@@ -150,6 +150,8 @@ Renderer.prototype =
         GL.setClearColor(Color.BLACK);
 
         GL.setDepthMask(true);
+        GL.setColorMask(true);
+
         // TODO: Refresh my memory... WHY are all opaques (not only default lit) rendered here?
         this._renderGBuffer(opaqueList);
         this._renderAO();
@@ -177,6 +179,8 @@ Renderer.prototype =
             this._renderEffects(dt);
 
         }
+
+        GL.setColorMask(true);
 
         this._renderToScreen(renderTarget);
 

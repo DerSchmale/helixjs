@@ -18,6 +18,7 @@ function MaterialPass(shader)
     this._uniforms = {};
     this._elementType = ElementType.TRIANGLES;
     this._cullMode = CullMode.BACK;
+    this._writeColor = true;
     this._depthTest = Comparison.LESS_EQUAL;
     this._writeDepth = true;
     this._blendState = null;
@@ -81,6 +82,20 @@ MaterialPass.prototype =
     set depthTest(value)
     {
         this._depthTest = value;
+    },
+
+    get writeColor()
+    {
+        return this._writeColor;
+    },
+
+    set writeColor(value)
+    {
+        this._writeColor = value;
+    },
+    get writeDepth()
+    {
+        return this._writeDepth;
     },
 
     set writeDepth(value)
@@ -152,10 +167,7 @@ MaterialPass.prototype =
                 texture._default.bind(i);
         }
 
-        GL.setCullMode(this._cullMode);
-        GL.setDepthTest(this._depthTest);
-        GL.setDepthMask(this._writeDepth);
-        GL.setBlendState(this._blendState);
+        GL.setMaterialPassState(this._cullMode, this._depthTest, this._writeDepth, this._writeColor, this._blendState);
 
         this._shader.updatePassRenderState(camera, renderer);
     },

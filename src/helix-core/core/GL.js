@@ -6,6 +6,7 @@ import { Color } from '../core/Color.js';
 // properties to keep track of render state
 var _numActiveAttributes = 0;
 var _depthMask = true;
+var _colorMask = true;
 var _cullMode = null;
 var _depthTest = null;
 var _blendState = null;
@@ -93,6 +94,17 @@ var GL = {
     getCurrentRenderTarget: function ()
     {
         return _renderTarget;
+    },
+
+    /**
+     * Specifies whether or not to write color. Uses all channels for efficiency (and the current lack of need for
+     * anything else).
+     */
+    setColorMask: function(value)
+    {
+        if (value === _colorMask) return;
+        _colorMask = value;
+        gl.colorMask(value, value, value, value);
     },
 
     /**
@@ -248,6 +260,61 @@ var GL = {
             gl.stencilFunc(stencilState.comparison, stencilState.reference, stencilState.readMask);
             gl.stencilOp(stencilState.onStencilFail, stencilState.onDepthFail, stencilState.onPass);
             gl.stencilMask(stencilState.writeMask);
+        }
+    },
+
+    /**
+     * Just inlined to reduce function calls in the render loop
+     *
+     * @ignore
+     */
+    setMaterialPassState: function(cullMode, depthTest, depthMask, colorMask, blendState)
+    {
+        if (_cullMode !== cullMode) {
+            _cullMode = cullMode;
+
+            if (_cullMode === CullMode.NONE)
+                gl.disable(gl.CULL_FACE);
+            else {
+                gl.enable(gl.CULL_FACE);
+                gl.cullFace(_cullMode);
+            }
+        }
+
+        if (_depthTest !== depthTest) {
+            _depthTest = depthTest;
+
+            if (_depthTest === Comparison.DISABLED)
+                gl.disable(gl.DEPTH_TEST);
+            else {
+                gl.enable(gl.DEPTH_TEST);
+                gl.depthFunc(_depthTest);
+            }
+        }
+
+        if (_depthMask !== depthMask) {
+            _depthMask = depthMask;
+            gl.depthMask(_depthMask);
+        }
+
+        if (colorMask !== _colorMask) {
+            _colorMask = colorMask;
+            gl.colorMask(colorMask, colorMask, colorMask, colorMask);
+        }
+
+        if (_blendState !== blendState) {
+            _blendState = blendState;
+
+            if (!blendState || blendState.enabled === false)
+                gl.disable(gl.BLEND);
+            else {
+                gl.enable(gl.BLEND);
+                gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
+                gl.blendEquation(blendState.operator);
+                var color = blendState.color;
+                if (color)
+                    gl.blendColor(color.r, color.g, color.b, color.a);
+            }
         }
     }
 };

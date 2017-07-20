@@ -96,6 +96,10 @@ HX_GeometryData hx_geometry()
         #endif
     #endif
 
+    #ifdef DOUBLE_SIDED
+        fragNormal *= gl_FrontFacing? 1.0 : -1.0;
+    #endif
+
     data.normal = normalize(fragNormal);
 #endif
 

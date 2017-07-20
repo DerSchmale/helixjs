@@ -1,0 +1,6 @@
+.idea/
+*.iml
+node_modules/
+examples/
+libs/
+docs/

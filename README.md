@@ -2,9 +2,7 @@
 
 ## Introduction
 
-### What is Helix? 
-
-In a nutshell: it's a WebGL 3D engine\* built in Javascript.
+What is Helix? In a nutshell: it's a WebGL 3D engine\* built in Javascript.
 
 I didn't build it to compete with other Javascript 3D engines. Building and maintaining 3D engines is a sort of hobby of 
 mine. It allows me to experiment much more freely than when I'm confined to an existing engine. I do occasionally use it
@@ -40,8 +38,8 @@ describes more accurately what the relationship between child/parent is.
  point.*
 
 
-Getting started
----------------
+## Getting started
+
 The easiest way to get started is just grabbing and including the `.js` files in the `build` folder. Take a look at
 `examples/hello-world` to see how to create a simple scene and render it (the other examples hide a lot of boilerplate
 code).
@@ -61,8 +59,8 @@ With this, you're ready to explore the other examples. Easy ones to start:
 - `sibenik-obj`
 - `specular-properties`
 
-Building
---------
+## Building
+
 If you want to change code and re-build the project yourself? Helix's compilation process uses Node.js, npm, and gulp,
 so be sure to have those installed. Then, in a terminal, simply perform the following steps in the helix directory:
 ```
@@ -79,8 +77,7 @@ The newly built files will end up in the `build` folder.
 
 If anything goes wrong, make sure you have the latest versions of Node.js and npm installed!
 
-Modules
--------
+## Modules
 
 Helix is divided into several modules, each having their own directory in the src folder and are built to separate files 
 to prevent optional functionality bloating your Javascript includes. Currently these are the following:

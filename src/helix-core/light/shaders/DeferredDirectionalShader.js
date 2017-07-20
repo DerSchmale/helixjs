@@ -24,7 +24,7 @@ function DeferredDirectionalShader(shadows)
     var vertex = ShaderLibrary.get("deferred_dir_light_vertex.glsl", defines);
     var fragment =
         ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
-        META.OPTIONS.defaultLightingModel + "\n\n\n" +
+        META.OPTIONS.deferredLightingModel + "\n\n\n" +
         DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
         ShaderLibrary.get("directional_light.glsl") + "\n" +
         ShaderLibrary.get("deferred_dir_light_fragment.glsl");

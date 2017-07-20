@@ -21,6 +21,7 @@ window.onload = function ()
     options.hdr = true;
     // this will make sure the GGX model is calculated deferredly
     options.defaultLightingModel = HX.LightingModel.GGX;
+    options.deferredLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 

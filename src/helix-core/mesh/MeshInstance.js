@@ -126,11 +126,17 @@ MeshInstance.prototype = {
             attribute = attributes[i];
 
             if (attribute) {
-                vertexBuffers[attribute.streamIndex].bind();
-                gl.vertexAttribPointer(i, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+                // external = in case of morph targets etc
+                if (!attribute.external) {
+                    vertexBuffers[attribute.streamIndex].bind();
+                    gl.vertexAttribPointer(i, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+                }
             }
             else {
                 GL.gl.disableVertexAttribArray(i);
+                // there seem to be some bugs in ANGLE with disabling vertex attribute arrays, so bind a dummy instead
+                // vertexBuffers[0].bind();
+                // gl.vertexAttribPointer(i, 1, gl.FLOAT, false, 4, 0);
             }
         }
     },

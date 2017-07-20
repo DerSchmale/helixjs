@@ -36,7 +36,7 @@ function DeferredLightProbeShader(probe)
     var fragment =
         extensions +
         ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
-        META.OPTIONS.defaultLightingModel + "\n\n\n" +
+        META.OPTIONS.deferredLightingModel + "\n\n\n" +
         ShaderLibrary.get("light_probe.glsl") + "\n" +
         ShaderLibrary.get("deferred_probe_fragment.glsl");
 

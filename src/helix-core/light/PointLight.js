@@ -21,7 +21,7 @@ function PointLight()
 {
     Light.call(this);
 
-    if (!PointLight._deferredShaderSphere && META.OPTIONS.defaultLightingModel) {
+    if (!PointLight._deferredShaderSphere && META.OPTIONS.deferredLightingModel) {
         PointLight._deferredShaderSphere = new DeferredPointShader(true);
         PointLight._deferredShaderRect = new DeferredPointShader(false);
     }

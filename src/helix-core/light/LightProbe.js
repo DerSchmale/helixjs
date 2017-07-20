@@ -31,7 +31,7 @@ function LightProbe(diffuseTexture, specularTexture)
     this._diffuseTexture = diffuseTexture;
     this._size = undefined;
 
-    if (META.OPTIONS.defaultLightingModel)
+    if (META.OPTIONS.deferredLightingModel)
         this._deferredShader = new DeferredLightProbeShader(this);
 }
 
@@ -56,7 +56,7 @@ LightProbe.prototype = Object.create(Entity.prototype,
             {
                 if (this._size === value) return;
                 var deferredInvalid = false;
-                if (META.OPTIONS.defaultLightingModel && (this._size === undefined || value === undefined))
+                if (META.OPTIONS.deferredLightingModel && (this._size === undefined || value === undefined))
                     deferredInvalid = true;
 
                 this._size = value;

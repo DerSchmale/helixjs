@@ -50,6 +50,7 @@ window.onload = function ()
     options.numShadowCascades = 3;
     options.hdr = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
+    options.deferredLightingModel = HX.LightingModel.GGX;
     options.directionalShadowFilter = new HX.PCFDirectionalShadowFilter();
     options.directionalShadowFilter.softness = 5.0;
     project.init(document.getElementById('webglContainer'), options);

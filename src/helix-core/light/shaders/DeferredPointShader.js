@@ -30,12 +30,12 @@ function DeferredPointShader(useSphere)
 
     var vertex =
         ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
-        META.OPTIONS.defaultLightingModel + "\n\n\n" +
+        META.OPTIONS.deferredLightingModel + "\n\n\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
         ShaderLibrary.get("deferred_point_light_vertex.glsl", defines);
     var fragment =
         ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
-        META.OPTIONS.defaultLightingModel + "\n\n\n" +
+        META.OPTIONS.deferredLightingModel + "\n\n\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
         ShaderLibrary.get("deferred_point_light_fragment.glsl", defines);
 

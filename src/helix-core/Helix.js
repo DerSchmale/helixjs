@@ -341,11 +341,15 @@ export function InitOptions()
     this.usePreciseGammaCorrection = false;
 
     /**
-     * The default {@codelink LightingModel} to use. This will cause non-blended materials using this lighting model to
-     * use the deferred lighting path, which may improve lighting performance. If not, leave it set to Unlit and assign
-     * lighting models explicitly through {@linkcode Material#lightingModel}.
+     * The default {@codelink LightingModel} to use.
      */
     this.defaultLightingModel = LightingModel.Unlit;
+
+    /**
+     * The lighting model {@codelink LightingModel} to use in the deferred lighting path, which may improve lighting
+     * performance. Usually you'd want this to be either null or the same as defaultLightingModel.
+     */
+    this.deferredLightingModel = null;
 
     /**
      * The amount of shadow cascades to use. Cascades split up the view frustum into areas with their own shadow maps,

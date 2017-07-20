@@ -23,7 +23,7 @@ function DirectionalLight()
 {
     Light.call(this);
 
-    if (!DirectionalLight._deferredShader && META.OPTIONS.defaultLightingModel)
+    if (!DirectionalLight._deferredShader && META.OPTIONS.deferredLightingModel)
         DirectionalLight._initDeferredShaders();
 
     this.depthBias = .0;

@@ -76,7 +76,7 @@ Material.prototype =
 
         if (!this._lightingModel)
             this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
-        else if (this._lightingModel !== META.OPTIONS.defaultLightingModel || this._blendState) {
+        else if (this._lightingModel !== META.OPTIONS.deferredLightingModel || this._blendState) {
             this.setPass(MaterialPass.BASE_PASS, new ForwardLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
 
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
@@ -103,7 +103,6 @@ Material.prototype =
         this.setPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, new GBufferNormalDepthPass(this._geometryVertexShader, this._geometryFragmentShader));
 
         this._initialized = true;
-        // TODO: init dynamic light passes
     },
 
     /**
@@ -321,7 +320,7 @@ Material.prototype =
             delete this._textures[slotName];
 
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i)
-            if (this.hasPass(i)) this._passes[i].setTexture(slotName, texture);
+            if (this._passes[i]) this._passes[i].setTexture(slotName, texture);
     },
 
     /**
@@ -337,7 +336,7 @@ Material.prototype =
             delete this._textures[slotName];
 
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i)
-            if (this.hasPass(i)) this._passes[i].setTextureArray(slotName, textures);
+            if (this._passes[i]) this._passes[i].setTextureArray(slotName, textures);
     },
 
     /**

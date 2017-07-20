@@ -117,7 +117,7 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
     var skeletonMatrices = modelInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
     var camera = this._camera;
-    var defaultLightingModel = META.OPTIONS.defaultLightingModel;
+    var deferredLightingModel = META.OPTIONS.deferredLightingModel;
     var opaques = this._opaques;
     var unlitOpaques = this._unlitOpaques;
     var transparents = this._transparents;
@@ -133,7 +133,7 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         var lightingModel = material._lightingModel;
 
         // only required for the default lighting model (if not unlit)
-        this._needsGBuffer = this._needsGBuffer || (!!lightingModel && lightingModel === defaultLightingModel);
+        this._needsGBuffer = this._needsGBuffer || (!!lightingModel && lightingModel === deferredLightingModel);
         this._needsNormalDepth = this._needsNormalDepth || material._needsNormalDepth;
         this._needsBackbuffer = this._needsBackbuffer || material._needsBackbuffer;
 

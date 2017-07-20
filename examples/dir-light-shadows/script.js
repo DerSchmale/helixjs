@@ -28,6 +28,7 @@ window.onload = function ()
     }
 
     options.defaultLightingModel = HX.LightingModel.GGX;
+    options.deferredLightingModel = HX.LightingModel.GGX;
     // options.directionalShadowFilter.blurRadius = 1;
 
     project.init(document.getElementById('webglContainer'), options);

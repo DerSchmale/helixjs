@@ -28,18 +28,21 @@ function VertexLayout(mesh, pass)
         var attrib = {
             index: index,
             offset: attribute.offset * 4,
+            external: false,
             numComponents: attribute.numComponents,
             stride: stride * 4,
             streamIndex: attribute.streamIndex
         };
 
         // morph attributes are handled differently because their associated vertex buffers change dynamically
-        if (attribute.name.indexOf("hx_morph") === 0)
+        if (attribute.name.indexOf("hx_morph") === 0) {
             this.morphAttributes.push(attrib);
-        else
+            attrib.external = true;
+        }
+
         // so in some cases, it occurs that - when attributes are optimized out by the driver - the indices don't change,
         // but those unused become -1, leaving gaps. This keeps the gaps so we can take care of them
-            this.attributes[index] = attrib;
+        this.attributes[index] = attrib;
 
         this._numAttributes = Math.max(this._numAttributes, index + 1);
     }

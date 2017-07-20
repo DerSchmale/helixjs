@@ -6,7 +6,7 @@ var project = new DemoProject();
 
 window.onload = function ()
 {
-    project.init(document.getElementById('webglContainer'), options);
+    project.init(document.getElementById('webglContainer'));
 };
 
 project.queueAssets = function(assetLibrary)

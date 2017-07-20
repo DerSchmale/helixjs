@@ -348,6 +348,7 @@ BasicMaterial.prototype._generateDefines = function()
         default:
             defines.NORMAL_ROUGHNESS_MAP = 1;
     }
+
     return defines;
 };
 

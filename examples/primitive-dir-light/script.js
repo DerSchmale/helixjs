@@ -4,6 +4,11 @@
 
 var project = new DemoProject();
 
+window.onload = function ()
+{
+    project.init(document.getElementById('webglContainer'), options);
+};
+
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("albedo", "textures/marbletiles_diffuse_white.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
@@ -16,12 +21,6 @@ project.onInit = function()
     this.camera.farDistance = 1.0;
 
     initScene(this.scene, this.assetLibrary);
-};
-
-window.onload = function ()
-{
-    var options = new HX.InitOptions();
-    project.init(document.getElementById('webglContainer'), options);
 };
 
 function initScene(scene, assetLibrary)

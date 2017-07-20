@@ -25,14 +25,15 @@ uniform sampler2D maskMap;
 #endif
 
 #ifndef HX_SKIP_SPECULAR
-    uniform float roughness;
-    uniform float roughnessRange;
-    uniform float normalSpecularReflectance;
-    uniform float metallicness;
+uniform float roughness;
+uniform float roughnessRange;
+uniform float normalSpecularReflectance;
+uniform float metallicness;
 
-    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
-    uniform sampler2D specularMap;
-    #endif
+#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
+uniform sampler2D specularMap;
+#endif
+
 #endif
 
 #if defined(ALPHA_THRESHOLD)
@@ -73,8 +74,14 @@ HX_GeometryData hx_geometry()
     float roughnessOut = roughness;
 #endif
 
+#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)
+    vec4 normalSample = texture2D(normalMap, texCoords);
+    roughnessOut -= roughnessRange * (normalSample.w - .5);
+#endif
+
 #ifndef HX_SKIP_NORMALS
     vec3 fragNormal = normal;
+
     #ifdef NORMAL_MAP
         vec4 normalSample = texture2D(normalMap, texCoords);
         mat3 TBN;
@@ -82,12 +89,14 @@ HX_GeometryData hx_geometry()
         TBN[0] = normalize(tangent);
         TBN[1] = normalize(bitangent);
 
-        data.normal = normalize(TBN * (normalSample.xyz - .5));
+        fragNormal = TBN * (normalSample.xyz - .5);
 
         #ifdef NORMAL_ROUGHNESS_MAP
             roughnessOut -= roughnessRange * (normalSample.w - .5);
         #endif
     #endif
+
+    data.normal = normalize(fragNormal);
 #endif
 
 #ifndef HX_SKIP_SPECULAR
@@ -105,6 +114,7 @@ HX_GeometryData hx_geometry()
     data.normalSpecularReflectance = specNormalReflOut;
     data.roughness = roughnessOut;
 #endif
+
 
     data.emission = vec3(0.0);
     return data;

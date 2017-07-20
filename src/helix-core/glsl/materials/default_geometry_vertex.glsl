@@ -31,12 +31,6 @@ uniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];
 uniform mat4 hx_wvpMatrix;
 uniform mat4 hx_worldViewMatrix;
 
-#ifndef HX_SKIP_NORMALS
-attribute vec3 hx_normal;
-uniform mat3 hx_normalWorldViewMatrix;
-varying vec3 normal;
-#endif
-
 #if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)
 attribute vec2 hx_texCoord;
 varying vec2 texCoords;
@@ -48,6 +42,10 @@ varying vec3 vertexColor;
 #endif
 
 #ifndef HX_SKIP_NORMALS
+attribute vec3 hx_normal;
+varying vec3 normal;
+
+uniform mat3 hx_normalWorldViewMatrix;
 #ifdef NORMAL_MAP
 attribute vec4 hx_tangent;
 
@@ -105,13 +103,12 @@ void hx_geometry()
     gl_Position = hx_wvpMatrix * animPosition;
 
 #ifndef HX_SKIP_NORMALS
-        normal = normalize(hx_normalWorldViewMatrix * animNormal);
+    normal = normalize(hx_normalWorldViewMatrix * animNormal);
 
     #ifdef NORMAL_MAP
         tangent = mat3(hx_worldViewMatrix) * animTangent;
         bitangent = cross(tangent, normal) * hx_tangent.w;
     #endif
-
 #endif
 
 #if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)

@@ -45,7 +45,7 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
 
     var rotations = [];
     for (var i = 0; i < 6; ++i)
-        rotations = new HX.Quaternion();
+        rotations[i] = new Quaternion();
 
     rotations[0].fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
     rotations[0].prepend(flipY);

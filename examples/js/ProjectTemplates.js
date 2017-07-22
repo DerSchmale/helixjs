@@ -255,7 +255,13 @@ MultiViewProject.prototype =
 
         _resizeCanvas: function()
         {
-            this._canvas.width = this._canvas.clientWidth;
-            this._canvas.height = this._canvas.clientHeight;
+            var pixelRatio = window.devicePixelRatio || 1.0;
+            var w = window.innerWidth;
+            var h = window.innerHeight;
+            this._canvas.width = Math.round(w * pixelRatio);
+            this._canvas.height = Math.round(h * pixelRatio);
+
+            this._canvas.style.width = w + "px";
+            this._canvas.style.height = h + "px";
         }
     };

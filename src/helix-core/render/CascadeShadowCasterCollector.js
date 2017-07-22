@@ -19,13 +19,13 @@ function CascadeShadowCasterCollector()
     this._cullPlanes = null;
     // this._splitPlanes = null;
     this._numCullPlanes = 0;
-    this._renderLists = [];
+    this._opaques = [];
     this._renderItemPool = new ObjectPool(RenderItem);
 };
 
 CascadeShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
 
-CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return this._renderLists[index]; };
+CascadeShadowCasterCollector.prototype.getOpaqueRenderList = function(index) { return this._opaques[index]; };
 
 CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 {
@@ -35,7 +35,7 @@ CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 
     var numCascades = META.OPTIONS.numShadowCascades;
     for (var i = 0; i < numCascades; ++i) {
-        this._renderLists[i] = [];
+        this._opaques[i] = [];
     }
 
     scene.acceptVisitor(this);
@@ -76,7 +76,7 @@ CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInsta
     var skeletonMatrices = modelInstance.skeletonMatrices;
 
     for (var cascade = 0; cascade < numCascades; ++cascade) {
-        var renderList = this._renderLists[cascade];
+        var renderList = this._opaques[cascade];
         var renderCamera = this._renderCameras[cascade];
 
         var contained = worldBounds.intersectsConvexSolid(renderCamera.frustum.planes, 4);

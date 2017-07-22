@@ -144,7 +144,7 @@ function initScene(scene, assetLibrary)
     material.normalMap = assetLibrary.get("floor-normals");
     material.specularMap = assetLibrary.get("floor-specular");
     material.roughness = .3;
-    material.lightingModel = HX.LightingModel.GGX;;
+    material.lightingModel = HX.LightingModel.GGX;
 
     primitive = new HX.PlanePrimitive(
         {

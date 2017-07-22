@@ -15,6 +15,7 @@ import {GBufferSpecularPass} from "./passes/GBufferSpecularPass";
 import {GBufferFullPass} from "./passes/GBufferFullPass";
 import {ApplyGBufferPass} from "./passes/ApplyGBufferPass";
 import {ForwardFixedLitPass} from "./passes/ForwardFixedLitPass";
+import {RenderPath} from "../render/RenderPath";
 
 /**
  * @ignore
@@ -41,6 +42,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._writeColor = true;
     this._passes = new Array(Material.NUM_PASS_TYPES);
     this._renderOrderHint = ++MATERIAL_ID_COUNTER;
+    this._renderPath = null;
     // forced render order by user:
     this._renderOrder = 0;
     this.onChange = new Signal();
@@ -77,11 +79,17 @@ Material.prototype =
         this._needsNormalDepth = false;
         this._needsBackbuffer = false;
 
-        if (!this._lightingModel)
+        if (!this._lightingModel) {
+            this._renderPath = RenderPath.FORWARD_FIXED;
             this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
-        else if (this._fixedLights)
+        }
+        else if (this._fixedLights) {
+            this._renderPath = RenderPath.FORWARD_FIXED;
             this.setPass(MaterialPass.BASE_PASS, new ForwardFixedLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._fixedLights));
+        }
         else if (this._lightingModel !== META.OPTIONS.deferredLightingModel || this._blendState) {
+            this._renderPath = RenderPath.FORWARD_DYNAMIC;
+
             this.setPass(MaterialPass.BASE_PASS, new ForwardLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
 
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
@@ -90,21 +98,23 @@ Material.prototype =
             this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
         }
         else {
-            // deferred lighting forward pass
+            this._renderPath = RenderPath.DEFERRED;
             this.setPass(MaterialPass.BASE_PASS, new ApplyGBufferPass(this._geometryVertexShader, this._geometryFragmentShader));
+
+            // only deferred needs these passes:
+            if (!capabilities.GBUFFER_MRT) {
+                this.setPass(MaterialPass.GBUFFER_ALBEDO_PASS, new GBufferAlbedoPass(this._geometryVertexShader, this._geometryFragmentShader));
+                this.setPass(MaterialPass.GBUFFER_SPECULAR_PASS, new GBufferSpecularPass(this._geometryVertexShader, this._geometryFragmentShader));
+            }
         }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 
-        if (capabilities.GBUFFER_MRT) {
+        // always may need these passes for AO
+        if (capabilities.GBUFFER_MRT)
             this.setPass(MaterialPass.GBUFFER_PASS, new GBufferFullPass(this._geometryVertexShader, this._geometryFragmentShader));
-        }
-        else {
-            this.setPass(MaterialPass.GBUFFER_ALBEDO_PASS, new GBufferAlbedoPass(this._geometryVertexShader, this._geometryFragmentShader));
-            this.setPass(MaterialPass.GBUFFER_SPECULAR_PASS, new GBufferSpecularPass(this._geometryVertexShader, this._geometryFragmentShader));
-        }
 
-        // always may need this pass for AO
+        // may need this even with MRT, if no deferred materials are selected
         this.setPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, new GBufferNormalDepthPass(this._geometryVertexShader, this._geometryFragmentShader));
 
         this._initialized = true;
@@ -272,6 +282,16 @@ Material.prototype =
             if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && this._passes[i])
                 this._passes[i].cullMode = value;
         }
+    },
+
+    /**
+     * @ignore
+     */
+    get renderPath()
+    {
+        // make sure that if we request the path, it's figured out
+        if (!this._initialized) this.init();
+        return this._renderPath;
     },
 
     /**

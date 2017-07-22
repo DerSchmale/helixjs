@@ -15,6 +15,7 @@ import {LightProbe} from "../light/LightProbe";
 import {GBuffer} from "./GBuffer";
 import {BlendState} from "./BlendState";
 import {DeferredAmbientShader} from "../light/shaders/DeferredAmbientShader";
+import {RenderPath} from "./RenderPath";
 
 /**
  * @classdesc
@@ -43,7 +44,7 @@ function Renderer()
     this._gbuffer = new GBuffer(this._depthBuffer);
     this._backgroundColor = Color.BLACK.clone();
     //this._previousViewProjection = new Matrix4x4();
-    this._debugMode = Renderer.DebugRenderMode.NONE;
+    this._debugMode = Renderer.DebugMode.NONE;
     this._renderAmbientShader = new DeferredAmbientShader();
     this._ssaoTexture = null;
 }
@@ -52,7 +53,7 @@ function Renderer()
  * A collection of debug render modes to inspect some steps in the render pipeline.
  * @enum
  */
-Renderer.DebugRenderMode = {
+Renderer.DebugMode = {
     NONE: 0,
     SSAO: 1,
     GBUFFER_ALBEDO: 2,
@@ -87,7 +88,7 @@ Renderer.HDRBuffers.prototype =
 Renderer.prototype =
 {
     /**
-     * One of {Renderer.DebugRenderMode}
+     * One of {Renderer.DebugMode}
      */
     get debugMode()
     {
@@ -143,37 +144,33 @@ Renderer.prototype =
 
         this._renderShadowCasters();
 
-        var opaqueList = this._renderCollector.getOpaqueRenderList();
-        var unlitOpaqueList = this._renderCollector.getUnlitOpaqueRenderList();
-        var transparentList = this._renderCollector.getTransparentRenderList();
-
         GL.setClearColor(Color.BLACK);
 
         GL.setDepthMask(true);
         GL.setColorMask(true);
 
-        // TODO: Refresh my memory... WHY are all opaques (not only default lit) rendered here?
-        this._renderGBuffer(opaqueList);
+        this._renderGBuffer();
         this._renderAO();
 
-        if (this._renderCollector.needsGBuffer)
-            this._renderDeferredLighting(opaqueList);
+        this._renderDeferredLighting();
 
 
-        if (this._debugMode !== Renderer.DebugRenderMode.LIGHT_ACCUMULATION) {
+        if (this._debugMode !== Renderer.DebugMode.LIGHT_ACCUMULATION) {
             GL.setRenderTarget(this._hdrFront.fboDepth);
             GL.setClearColor(this._backgroundColor);
             GL.clear();
 
-            RenderUtils.renderPass(this, MaterialPass.BASE_PASS, unlitOpaqueList);
+            RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+            // render applied gbuffer too:
+            RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.DEFERRED));
 
-            this._renderForwardLit(opaqueList);
+            this._renderForwardDynamicLit();
 
             // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
             if (this._renderCollector.needsBackbuffer)
                 this._copyToBackBuffer();
 
-            this._renderForwardTransparent(transparentList);
+            this._renderForwardTransparent();
 
             this._swapHDRFrontAndBack();
             this._renderEffects(dt);
@@ -195,8 +192,9 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _renderForwardLit: function(list)
+    _renderForwardDynamicLit: function()
     {
+        var list = this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC);
         if (list.length === 0) return;
 
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, list);
@@ -226,11 +224,12 @@ Renderer.prototype =
         }
     },
 
-    _renderForwardTransparent: function(list)
+    _renderForwardTransparent: function()
     {
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
 
+        var list = this._renderCollector.getTransparentRenderList();
 
         // transparents need to be rendered one-by-one, not light by light
         var numItems = list.length;
@@ -240,7 +239,10 @@ Renderer.prototype =
 
             this._renderSingleItem(MaterialPass.BASE_PASS, renderItem);
 
-            if (!renderItem.material.lightingModel) continue;
+            var material = renderItem.material;
+
+            // these won't have the correct pass
+            if (material._renderPath !== RenderPath.FORWARD_DYNAMIC) continue;
 
             for (var i = 0; i < numLights; ++i) {
                 var light = lights[i];
@@ -301,24 +303,52 @@ Renderer.prototype =
      */
     _renderGBuffer: function(list)
     {
-        if (this._renderCollector.needsGBuffer) {
+        var rc = this._renderCollector;
+        var deferred = rc.getOpaqueRenderList(RenderPath.DEFERRED);
+        var dynamic = rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC);
+        var fixed = rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED);
+
+        if (deferred.length > 0) {
             if (capabilities.GBUFFER_MRT) {
                 GL.setRenderTarget(this._gbuffer.mrt);
                 // this is just so the linear depth value will be correct
                 GL.setClearColor(Color.BLUE);
                 GL.clear();
-                RenderUtils.renderPass(this, MaterialPass.GBUFFER_PASS, list);
+
+                RenderUtils.renderPass(this, MaterialPass.GBUFFER_PASS, deferred);
+
+                // need to render all to gbuffer (can't switch fbos without clear on mobile)
+                if (rc.needsNormalDepth) {
+                    RenderUtils.renderPass(this, MaterialPass.GBUFFER_PASS, dynamic);
+                    RenderUtils.renderPass(this, MaterialPass.GBUFFER_PASS, fixed);
+                }
             }
             else {
-                this._renderGBufferPlane(list, GBuffer.ALBEDO, MaterialPass.GBUFFER_ALBEDO_PASS, Color.BLACK);
-                this._renderGBufferPlane(list, GBuffer.NORMAL_DEPTH, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, Color.BLUE);
-                this._renderGBufferPlane(list, GBuffer.SPECULAR, MaterialPass.GBUFFER_SPECULAR_PASS, Color.BLACK);
+                this._renderGBufferPlane(deferred, GBuffer.ALBEDO, MaterialPass.GBUFFER_ALBEDO_PASS, Color.BLACK);
+                this._renderGBufferPlane(deferred, GBuffer.SPECULAR, MaterialPass.GBUFFER_SPECULAR_PASS, Color.BLACK);
+
+                GL.setRenderTarget(this._gbuffer.fbos[GBuffer.NORMAL_DEPTH]);
+                GL.setClearColor(Color.BLUE);
+                GL.clear();
+                RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, deferred);
+
+                // need to render all to normal depth
+                if (rc.needsNormalDepth) {
+                    RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, dynamic);
+                    RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, fixed);
+                }
+
+                GL.setClearColor(Color.BLACK);
             }
             GL.setClearColor(Color.BLACK);
         }
-        else if (this._renderCollector.needsNormalDepth || HX.META.OPTIONS.ambientOcclusion) {
-            // otherwise, we might just need normalDepth
-            this._renderGBufferPlane(list, GBuffer.NORMAL_DEPTH, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, Color.BLUE);
+        else if (rc.needsNormalDepth) {
+            GL.setRenderTarget(this._gbuffer.fbos[GBuffer.NORMAL_DEPTH]);
+            GL.setClearColor(Color.BLUE);
+            GL.clear();
+            RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, deferred);
+            RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, dynamic);
+            RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, fixed);
             GL.setClearColor(Color.BLACK);
         }
     },
@@ -342,7 +372,9 @@ Renderer.prototype =
      */
     _renderDeferredLighting: function()
     {
-        if (!this._renderCollector._needsGBuffer) return;
+        if (this._renderCollector.getOpaqueRenderList(RenderPath.DEFERRED).length === 0)
+            return;
+
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
 
@@ -371,7 +403,7 @@ Renderer.prototype =
      */
     _renderAO: function()
     {
-        var ssao = HX.META.OPTIONS.ambientOcclusion;
+        var ssao = META.OPTIONS.ambientOcclusion;
         if (ssao) {
             this._ssaoTexture = ssao.getAOTexture();
             ssao.render(this, 0);
@@ -413,19 +445,19 @@ Renderer.prototype =
         if (this._debugMode) {
             var tex;
             switch (this._debugMode) {
-                case Renderer.DebugRenderMode.GBUFFER_ALBEDO:
+                case Renderer.DebugMode.GBUFFER_ALBEDO:
                     tex = this._gbuffer.textures[0];
                     break;
-                case Renderer.DebugRenderMode.GBUFFER_NORMAL_DEPTH:
+                case Renderer.DebugMode.GBUFFER_NORMAL_DEPTH:
                     tex = this._gbuffer.textures[1];
                     break;
-                case Renderer.DebugRenderMode.GBUFFER_SPECULAR:
+                case Renderer.DebugMode.GBUFFER_SPECULAR:
                     tex = this._gbuffer.textures[2];
                     break;
-                case Renderer.DebugRenderMode.SSAO:
+                case Renderer.DebugMode.SSAO:
                     tex = this._ssaoTexture;
                     break;
-                case Renderer.DebugRenderMode.LIGHT_ACCUMULATION:
+                case Renderer.DebugMode.LIGHT_ACCUMULATION:
                     tex = this._hdrBack.texture;
                     break;
                 default:

@@ -4,6 +4,7 @@ import {Color} from "../core/Color";
 import {SceneVisitor} from "../scene/SceneVisitor";
 import {META} from "../Helix";
 import {RenderItem} from "./RenderItem";
+import {RenderPath} from "./RenderPath";
 
 /**
  * @ignore
@@ -18,8 +19,7 @@ function RenderCollector()
     this._renderItemPool = new ObjectPool(RenderItem);
 
     this._opaques = [];
-    this._unlitOpaques = [];
-    this._transparents = []; // add in individual pass types
+    this._transparents = null;
     this._camera = null;
     this._cameraZAxis = new Float4();
     this._frustum = null;
@@ -28,7 +28,6 @@ function RenderCollector()
     this._shadowCasters = null;
     this._effects = null;
     this._needsNormalDepth = false;
-    this._needsGBuffer = false;
     this._needsBackbuffer = false;
 }
 
@@ -41,17 +40,12 @@ RenderCollector.prototype = Object.create(SceneVisitor.prototype, {
         get: function() { return this._needsNormalDepth; }
     },
 
-    needsGBuffer: {
-        get: function() { return this._needsGBuffer; }
-    },
-
     needsBackbuffer: {
         get: function() { return this._needsBackbuffer; }
     }
 });
 
-RenderCollector.prototype.getOpaqueRenderList = function() { return this._opaques; };
-RenderCollector.prototype.getUnlitOpaqueRenderList = function() { return this._unlitOpaques; };
+RenderCollector.prototype.getOpaqueRenderList = function(path) { return this._opaques[path]; };
 RenderCollector.prototype.getTransparentRenderList = function() { return this._transparents; };
 RenderCollector.prototype.getLights = function() { return this._lights; };
 RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
@@ -66,8 +60,9 @@ RenderCollector.prototype.collect = function(camera, scene)
 
     scene.acceptVisitor(this);
 
-    this._unlitOpaques.sort(this._sortOpaques);
-    this._opaques.sort(this._sortOpaques);
+    for (var i = 0; i < RenderPath.NUM_PATHS; ++i)
+        this._opaques[i].sort(this._sortOpaques);
+
     this._transparents.sort(this._sortTransparents);
 
     this._lights.sort(this._sortLights);
@@ -117,10 +112,8 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
     var skeletonMatrices = modelInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
     var camera = this._camera;
-    var deferredLightingModel = META.OPTIONS.deferredLightingModel;
-    var opaques = this._opaques;
-    var unlitOpaques = this._unlitOpaques;
-    var transparents = this._transparents;
+    var opaqueLists = this._opaques;
+    var transparentList = this._transparents;
 
     for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
         var meshInstance = modelInstance.getMeshInstance(meshIndex);
@@ -128,12 +121,9 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
 
         var material = meshInstance.material;
 
-        // if (!material._initialized) continue;
-
-        var lightingModel = material._lightingModel;
+        var path = material.renderPath;
 
         // only required for the default lighting model (if not unlit)
-        this._needsGBuffer = this._needsGBuffer || (!!lightingModel && lightingModel === deferredLightingModel);
         this._needsNormalDepth = this._needsNormalDepth || material._needsNormalDepth;
         this._needsBackbuffer = this._needsBackbuffer || material._needsBackbuffer;
 
@@ -150,9 +140,8 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         renderItem.camera = camera;
         renderItem.worldBounds = worldBounds;
 
-
-        var list = (material.blendState || material._needsBackbuffer)? transparents : (material.lightingModel? opaques : unlitOpaques);
-        list.push(renderItem);
+        var bucket = (material.blendState || material._needsBackbuffer)? transparentList : opaqueLists[path];
+        bucket.push(renderItem);
     }
 };
 
@@ -174,13 +163,15 @@ RenderCollector.prototype._reset = function()
 {
     this._renderItemPool.reset();
 
-    this._opaques = [];
-    this._unlitOpaques = [];
+    for (var i = 0; i < RenderPath.NUM_PATHS; ++i)
+        this._opaques[i] = [];
+
     this._transparents = [];
+
     this._lights = [];
     this._shadowCasters = [];
     this._effects = [];
-    this._needsNormalDepth = false;
+    this._needsNormalDepth = META.OPTIONS.ambientOcclusion;
     this._ambientColor.set(0, 0, 0, 1);
 };
 

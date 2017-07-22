@@ -3,6 +3,7 @@ import {CullMode} from "../Helix";
 import {UnlitPass} from "./passes/UnlitPass";
 import {MaterialPass} from "./MaterialPass";
 import {Material} from "./Material";
+import {RenderPath} from "../render/RenderPath";
 
 /**
  * @classdesc
@@ -26,6 +27,7 @@ function SkyboxMaterial(texture)
 
     // if no draw buffers, normals and specular don't need to be updated
     this.setPass(MaterialPass.BASE_PASS, pass);
+    this._renderPath = RenderPath.FORWARD_FIXED;
     this._initialized = true;
     this._renderOrder = Number.POSITIVE_INFINITY;
 

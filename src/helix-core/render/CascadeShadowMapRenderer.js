@@ -92,7 +92,7 @@ CascadeShadowMapRenderer.prototype =
         for (var cascadeIndex = 0; cascadeIndex < numCascades; ++cascadeIndex) {
             var viewport = this._viewports[cascadeIndex];
             gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-            RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
+            RenderUtils.renderPass(this, passType, this._casterCollector.getOpaqueRenderList(cascadeIndex));
         }
 
         if (DirectionalLight.SHADOW_FILTER.blurShader)

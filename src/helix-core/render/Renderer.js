@@ -16,6 +16,7 @@ import {GBuffer} from "./GBuffer";
 import {BlendState} from "./BlendState";
 import {DeferredAmbientShader} from "../light/shaders/DeferredAmbientShader";
 import {RenderPath} from "./RenderPath";
+import {SpotLight} from "../light/SpotLight";
 
 /**
  * @classdesc
@@ -221,6 +222,9 @@ Renderer.prototype =
                 // cannot just use renderPass, need to do intersection tests
                 this._renderLightPassIfIntersects(light, MaterialPass.POINT_LIGHT_PASS, list);
             }
+            else if (light instanceof SpotLight) {
+                this._renderLightPassIfIntersects(light, MaterialPass.SPOT_LIGHT_PASS, list);
+            }
         }
     },
 
@@ -260,6 +264,10 @@ Renderer.prototype =
                 else if (light instanceof PointLight) {
                     // cannot just use renderPass, need to do intersection tests
                     this._renderLightPassIfIntersects(light, MaterialPass.POINT_LIGHT_PASS, list);
+                }
+                else if (light instanceof SpotLight) {
+                    // cannot just use renderPass, need to do intersection tests
+                    this._renderLightPassIfIntersects(light, MaterialPass.SPOT_LIGHT_PASS, list);
                 }
             }
         }

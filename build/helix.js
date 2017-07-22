@@ -53,11 +53,23 @@ ShaderLibrary._files['deferred_probe_fragment.glsl'] = 'varying vec2 uv;\nvaryin
 
 ShaderLibrary._files['deferred_probe_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
 
+ShaderLibrary._files['deferred_spot_light_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform HX_SpotLight hx_spotLight;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\n\nvoid main()\n{\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;\n\n	vec3 viewPosition = viewDir * absViewZ;\n    vec3 viewVector = normalize(viewPosition);\n    vec3 diffuse, specular;\n\n    hx_calculateLight(hx_spotLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);\n\n    gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+ShaderLibrary._files['deferred_spot_light_vertex.glsl'] = 'attribute vec4 hx_position;\n\n#ifdef HX_CONE_MESH\nuniform HX_SpotLight hx_spotLight;\nuniform mat4 hx_viewProjectionMatrix;\nuniform mat4 hx_projectionMatrix;\nuniform mat4 hx_spotLightWorldMatrix;\n#else\n\nattribute vec2 hx_texCoord;\n#endif\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n#ifdef HX_CONE_MESH\n    vec3 localPos = hx_position.xyz;\n    // need to flip z, but also another axis to keep windedness\n    localPos.xz = -localPos.xz;\n    // align to origin, with height 1\n    localPos.z += .5;\n    // adapt to correct radius\n    localPos.xyz *= hx_spotLight.radius;\n    // make sure the base is correctly sized\n    localPos.xy *= hx_spotLight.sinOuterAngle;\n\n    // this just rotates, it does not translate\n    vec4 worldPos = hx_spotLightWorldMatrix * vec4(localPos, 1.0);\n    gl_Position = hx_viewProjectionMatrix * worldPos;\n    gl_Position /= gl_Position.w;\n    uv = gl_Position.xy / gl_Position.w * .5 + .5;\n    viewDir = hx_getLinearDepthViewVector(gl_Position.xy / gl_Position.w, hx_inverseProjectionMatrix);\n#else\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n#endif\n}';
+
+ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
+
+ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
+
+ShaderLibrary._files['lighting_ggx.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n/*#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif*/\n}';
+
 ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.z < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    float shadow = hx_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.z > light.maxShadowDistance));\n}';
 
 ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
 
 ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
+
+ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n    float sinOuterAngle;    // only used in deferred, hence separate\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}';
 
 ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)\nvarying vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying vec3 tangent;\n    varying vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n          roughnessOut -= roughnessRange * (specSample.x - .5);\n\n          #ifdef SPECULAR_MAP\n              specNormalReflOut *= specSample.y;\n              metallicnessOut *= specSample.z;\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.emission = vec3(0.0);\n    return data;\n}';
 
@@ -73,7 +85,7 @@ ShaderLibrary._files['material_apply_gbuffer_vertex.glsl'] = 'void main()\n{\n  
 
 ShaderLibrary._files['material_dir_shadow_fragment.glsl'] = 'void main()\n{\n    // geometry is really only used for kil instructions if necessary\n    // hopefully the compiler optimizes the rest out for us\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = hx_getShadowMapValue(gl_FragCoord.z);\n}';
 
-ShaderLibrary._files['material_fwd_all_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\n\n#if HX_NUM_DIR_LIGHTS > 0\nuniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_DIR_LIGHT_CASTERS > 0\nuniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];\n\nuniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];\n#endif\n\n#if HX_NUM_POINT_LIGHTS > 0\nuniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\nuniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\nuniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#ifdef HX_SSAO\nuniform sampler2D hx_ssao;\n\nuniform vec2 hx_rcpRenderTargetResolution;\n#endif\n\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ssao = 1.0;\n\n    #ifdef HX_SSAO\n        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n        ssao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIR_LIGHT_CASTERS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);\n        diffuseAccum += diffuse * shadow;\n        specularAccum += specular * shadow;\n    }\n    #endif\n\n\n    #if HX_NUM_POINT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {\n        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;\n    }\n    #endif\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n   for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ssao;\n    }\n    #endif\n\n    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+ShaderLibrary._files['material_fwd_all_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform vec3 hx_ambientColor;\n\n#if HX_NUM_DIR_LIGHTS > 0\nuniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];\n#endif\n\n#if HX_NUM_DIR_LIGHT_CASTERS > 0\nuniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];\n\nuniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];\n#endif\n\n#if HX_NUM_POINT_LIGHTS > 0\nuniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];\n#endif\n\n#if HX_NUM_SPOT_LIGHTS > 0\nuniform HX_PointLight hx_spotLights[HX_NUM_SPOT_LIGHTS];\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0\nuniform mat4 hx_cameraWorldMatrix;\n#endif\n\n#if HX_NUM_DIFFUSE_PROBES > 0\nuniform samplerCube hx_diffuseProbeMaps[HX_NUM_DIFFUSE_PROBES];\n#endif\n\n#if HX_NUM_SPECULAR_PROBES > 0\nuniform samplerCube hx_specularProbeMaps[HX_NUM_SPECULAR_PROBES];\nuniform float hx_specularProbeNumMips[HX_NUM_SPECULAR_PROBES];\n#endif\n\n#ifdef HX_SSAO\nuniform sampler2D hx_ssao;\n\nuniform vec2 hx_rcpRenderTargetResolution;\n#endif\n\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    // update the colours\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    vec3 diffuseAccum = vec3(0.0);\n    vec3 specularAccum = vec3(0.0);\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    float ssao = 1.0;\n\n    #ifdef HX_SSAO\n        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n        ssao = texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #if HX_NUM_DIR_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIR_LIGHT_CASTERS > 0\n    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_directionalLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);\n        diffuseAccum += diffuse * shadow;\n        specularAccum += specular * shadow;\n    }\n    #endif\n\n\n    #if HX_NUM_POINT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_SPOT_LIGHTS > 0\n    for (int i = 0; i < HX_NUM_SPOT_LIGHTS; ++i) {\n        vec3 diffuse, specular;\n        hx_calculateLight(hx_spotLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n        diffuseAccum += diffuse;\n        specularAccum += specular;\n    }\n    #endif\n\n    #if HX_NUM_DIFFUSE_PROBES > 0\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {\n        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;\n    }\n    #endif\n\n    #if HX_NUM_SPECULAR_PROBES > 0\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n\n   for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {\n        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ssao;\n    }\n    #endif\n\n    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['material_fwd_all_vertex.glsl'] = 'varying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    // we need to do an unprojection here to be sure to have skinning - or anything like that - support\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
 
@@ -92,6 +104,10 @@ ShaderLibrary._files['material_fwd_point_vertex.glsl'] = 'varying vec3 hx_viewPo
 ShaderLibrary._files['material_fwd_probe_fragment.glsl'] = 'varying vec3 hx_viewPosition;\nvarying vec3 hx_worldPosition;\n\nuniform samplerCube hx_diffuseProbeMap;\nuniform samplerCube hx_specularProbeMap;\nuniform float hx_specularProbeNumMips;\n\nuniform mat4 hx_cameraWorldMatrix;\n\n#ifdef HX_SSAO\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform sampler2D hx_ssao;\n#endif\n\nuniform float hx_probeSize;\nuniform vec3 hx_probePosition;\nuniform float hx_probeLocal;\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    vec3 viewVector = normalize(hx_viewPosition);\n\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    // TODO: We should be able to change the base of TBN in vertex shader\n    vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;\n    vec3 reflectedViewDir = reflect(viewVector, data.normal);\n    vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);\n    reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;\n    vec3 diffRay = hx_intersectCubeMap(hx_worldPosition, hx_probePosition, worldNormal, hx_probeSize);\n    vec3 specRay = hx_intersectCubeMap(hx_worldPosition, hx_probePosition, reflectedViewDir, hx_probeSize);\n    diffRay = mix(worldNormal, diffRay, hx_probeLocal);\n    specRay = mix(reflectedViewDir, specRay, hx_probeLocal);\n    vec3 diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, diffRay);\n    vec3 specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, specRay, fresnel, data.roughness);\n\n    gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);\n\n    #ifdef HX_SSAO\n    vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;\n    gl_FragColor.xyz *= texture2D(hx_ssao, screenUV).x;\n    #endif\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['material_fwd_probe_vertex.glsl'] = 'varying vec3 hx_viewPosition;\nvarying vec3 hx_worldPosition;\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_worldMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    hx_worldPosition = (hx_worldMatrix * gl_Position).xyz;\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
+
+ShaderLibrary._files['material_fwd_spot_fragment.glsl'] = 'varying vec3 hx_viewPosition;\n\nuniform HX_SpotLight hx_spotLight;\n\nvoid main()\n{\n    HX_GeometryData data = hx_geometry();\n\n    vec3 viewVector = normalize(hx_viewPosition);\n    vec3 diffuse, specular;\n\n    vec3 specularColor = mix(vec3(data.normalSpecularReflectance), data.color.xyz, data.metallicness);\n    data.color.xyz *= 1.0 - data.metallicness;\n\n    hx_calculateLight(hx_spotLight, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);\n\n    gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
+
+ShaderLibrary._files['material_fwd_spot_vertex.glsl'] = 'varying vec3 hx_viewPosition;\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    hx_geometry();\n    hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;\n}';
 
 ShaderLibrary._files['material_gbuffer_albedo_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor.xyz = data.color.xyz;\n    gl_FragColor.w = 1.0;    // only opaques are rendered; could use this as a sort of post-process mark (fe: apply SSS)\n}';
 
@@ -112,12 +128,6 @@ ShaderLibrary._files['material_gbuffer_specular_vertex.glsl'] = 'void main()\n{\
 ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = data.color;\n    gl_FragColor.xyz += data.emission;\n\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
-
-ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
-
-ShaderLibrary._files['lighting_ggx.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n/*#ifdef VISIBILITY\n    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n#endif*/\n}';
 
 ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
@@ -1621,19 +1631,21 @@ Transform.prototype =
     lookAt: function(target)
     {
         this._matrix.lookAt(target, this._position, Float4.Y_AXIS);
+        this._matrix.appendScale(this._scale);
         this._applyMatrix();
     },
 
     /**
      * Copies the state of another Transform object
      */
-    copyFrom: function(transform)
+    copyTransform: function(transform)
     {
         this._changeListener.enabled = false;
-        this.position.copyFrom(transform.position);
-        this.rotation.copyFrom(transform.rotation);
-        this.scale.copyFrom(transform.scale);
+        this._position.copyFrom(transform.position);
+        this._rotation.copyFrom(transform.rotation);
+        this._scale.copyFrom(transform.scale);
         this._changeListener.enabled = true;
+        this._invalidateMatrix();
     },
 
     /**
@@ -2086,6 +2098,12 @@ Matrix4x4.prototype =
      */
     fromScale: function (x, y, z)
     {
+        if (x instanceof Float4) {
+            y = x.y;
+            z = x.z;
+            x = x.x;
+        }
+
         if (y === undefined)
             y = z = x;
 
@@ -2607,6 +2625,12 @@ Matrix4x4.prototype =
      */
     appendScale: function (x, y, z)
     {
+        if (x instanceof Float4) {
+            y = x.y;
+            z = x.z;
+            x = x.x;
+        }
+
         if (y === undefined)
             y = z = x;
 
@@ -2897,44 +2921,51 @@ Matrix4x4.prototype =
      */
     lookAt: function (target, eye, up)
     {
-        var zAxis = Float4.subtract(target, eye);
-        zAxis.normalize();
+        var xAxis = new Float4();
+        var yAxis = new Float4();
+        var zAxis = new Float4();
 
-        var xAxis = Float4.cross(up, zAxis);
+        return function(target, eye, up)
+        {
+            Float4.subtract(target, eye, zAxis);
+            zAxis.normalize();
 
-        if (Math.abs(xAxis.lengthSqr) > .0001) {
-            xAxis.normalize();
-        }
-        else {
-            var altUp = new Float4(up.x, up.z, up.y, 0.0);
-            Float4.cross(altUp, zAxis, xAxis);
-            if (Math.abs(xAxis.lengthSqr) <= .0001) {
-                altUp.set(up.z, up.y, up.z, 0.0);
-                Float4.cross(altUp, zAxis, xAxis);
+            Float4.cross(up, zAxis, xAxis);
+
+            if (Math.abs(xAxis.lengthSqr) > .0001) {
+                xAxis.normalize();
             }
-            xAxis.normalize();
+            else {
+                var altUp = new Float4(up.x, up.z, up.y, 0.0);
+                Float4.cross(altUp, zAxis, xAxis);
+                if (Math.abs(xAxis.lengthSqr) <= .0001) {
+                    altUp.set(up.z, up.y, up.z, 0.0);
+                    Float4.cross(altUp, zAxis, xAxis);
+                }
+                xAxis.normalize();
+            }
+
+            Float4.cross(zAxis, xAxis, yAxis);
+
+            var m = this._m;
+            m[0] = xAxis.x;
+            m[1] = xAxis.y;
+            m[2] = xAxis.z;
+            m[3] = 0.0;
+            m[4] = yAxis.x;
+            m[5] = yAxis.y;
+            m[6] = yAxis.z;
+            m[7] = 0.0;
+            m[8] = zAxis.x;
+            m[9] = zAxis.y;
+            m[10] = zAxis.z;
+            m[11] = 0.0;
+            m[12] = eye.x;
+            m[13] = eye.y;
+            m[14] = eye.z;
+            m[15] = 1.0;
         }
-
-        var yAxis = Float4.cross(zAxis, xAxis);
-
-        var m = this._m;
-        m[0] = xAxis.x;
-        m[1] = xAxis.y;
-        m[2] = xAxis.z;
-        m[3] = 0.0;
-        m[4] = yAxis.x;
-        m[5] = yAxis.y;
-        m[6] = yAxis.z;
-        m[7] = 0.0;
-        m[8] = zAxis.x;
-        m[9] = zAxis.y;
-        m[10] = zAxis.z;
-        m[11] = 0.0;
-        m[12] = eye.x;
-        m[13] = eye.y;
-        m[14] = eye.z;
-        m[15] = 1.0;
-    },
+    }(),
 
     /**
      * Initializes as an affine transformation based on a transform object
@@ -3163,6 +3194,11 @@ BoundingVolume.EXPANSE_INFINITE = 1;
  * Indicates the bounds have a real size and position
  */
 BoundingVolume.EXPANSE_FINITE = 2;
+
+/**
+ * Indicates the parent's bounds are used in selecting.
+ */
+BoundingVolume.EXPANSE_INHERIT = 3;
 
 BoundingVolume._testAABBToSphere = function(aabb, sphere)
 {
@@ -5078,7 +5114,9 @@ BoundingAABB.prototype.growToIncludeMesh = function(mesh)
  */
 BoundingAABB.prototype.growToIncludeBound = function(bounds)
 {
-    if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
+    if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY ||
+        bounds._expanse === BoundingVolume.EXPANSE_INHERIT ||
+        this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
 
     if (bounds._expanse === BoundingVolume.EXPANSE_INFINITE)
         this._expanse = BoundingVolume.EXPANSE_INFINITE;
@@ -5149,9 +5187,7 @@ BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
  */
 BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
 {
-    if (sourceBound._expanse === BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === BoundingVolume.EXPANSE_EMPTY)
-        this.clear(sourceBound._expanse);
-    else {
+    if (sourceBound._expanse === BoundingVolume.EXPANSE_FINITE) {
         var arr = matrix._m;
         var m00 = arr[0], m10 = arr[1], m20 = arr[2];
         var m01 = arr[4], m11 = arr[5], m21 = arr[6];
@@ -5185,6 +5221,9 @@ BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
         this._maximumZ = this._center.z + this._halfExtentZ;
         this._expanse = sourceBound._expanse;
     }
+    else {
+        this.clear(sourceBound._expanse);
+    }
 };
 
 
@@ -5193,7 +5232,7 @@ BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
  */
 BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
-    if (this._expanse === BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || this._expanse === BoundingVolume.EXPANSE_INHERIT)
         return true;
     else if (this._expanse === BoundingVolume.EXPANSE_EMPTY)
         return false;
@@ -5226,7 +5265,8 @@ BoundingAABB.prototype.intersectsBound = function(bound)
     if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
         return false;
 
-    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE ||
+        this._expanse === BoundingVolume.EXPANSE_INHERIT || bound._expanse === BoundingVolume.EXPANSE_INHERIT)
         return true;
 
     // both AABB
@@ -5274,7 +5314,7 @@ BoundingAABB.prototype.classifyAgainstPlane = function(plane)
 BoundingAABB.prototype.intersectsRay = function(ray)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return true;
-    if (this._expanse === BoundingVolume.EXPANSE_EMPTY) return false;
+    if (this._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INHERIT) return false;
     // slab method
     var o = ray.origin;
     var d = ray.direction;
@@ -6718,20 +6758,21 @@ MaterialPass.BASE_PASS = 0;  // used for unlit or for predefined lights
 MaterialPass.DIR_LIGHT_PASS = 1;
 MaterialPass.DIR_LIGHT_SHADOW_PASS = 2;
 MaterialPass.POINT_LIGHT_PASS = 3;
-MaterialPass.LIGHT_PROBE_PASS = 4;
+MaterialPass.SPOT_LIGHT_PASS = 4;
+MaterialPass.LIGHT_PROBE_PASS = 5;
 
 // shadow map generation
-MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 5;
+MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 6;
 
 // used if MRT is supported:
-MaterialPass.GBUFFER_PASS = 6;
+MaterialPass.GBUFFER_PASS = 7;
 
 // used if MRT is not supported
-MaterialPass.GBUFFER_ALBEDO_PASS = 6;
-MaterialPass.GBUFFER_NORMAL_DEPTH_PASS = 7;
-MaterialPass.GBUFFER_SPECULAR_PASS = 8;
+MaterialPass.GBUFFER_ALBEDO_PASS = 7;
+MaterialPass.GBUFFER_NORMAL_DEPTH_PASS = 8;
+MaterialPass.GBUFFER_SPECULAR_PASS = 9;
 
-MaterialPass.NUM_PASS_TYPES = 9;
+MaterialPass.NUM_PASS_TYPES = 10;
 
 MaterialPass.prototype =
 {
@@ -9048,7 +9089,8 @@ DeferredDirectionalShader.prototype.execute = function(renderer, light)
  *
  * @property {boolean} castShadows Defines whether or not this light casts shadows.
  * @property {number} shadowMapSize The shadow map size used by this light.
- * @property {Float4} direction The direction of the light rays.
+ * @property {Float4} direction The direction in *world space* of the light rays. This cannot be set per component but
+ * needs to be assigned as a whole Float4.
  *
  * @constructor
  *
@@ -9065,6 +9107,9 @@ function DirectionalLight()
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;
     this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
+
+    // this is just a storage vector
+    this._direction = new Float4();
 }
 
 /**
@@ -9121,7 +9166,8 @@ DirectionalLight.prototype = Object.create(Light.prototype,
         direction: {
             get: function()
             {
-                var dir = this.worldMatrix.getColumn(2);
+                var dir = this._direction;
+                this.worldMatrix.getColumn(2, dir);
                 return dir;
             },
 
@@ -10372,7 +10418,7 @@ function init(canvas, options)
     if (capabilities.EXT_DRAW_BUFFERS && capabilities.EXT_DRAW_BUFFERS.MAX_DRAW_BUFFERS_WEBGL >= 3) {
         capabilities.GBUFFER_MRT = true;
         // remove the last (individual) gbuffer pass
-        MaterialPass.NUM_PASS_TYPES = 8;
+        --MaterialPass.NUM_PASS_TYPES;
     }
 
     capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
@@ -10699,6 +10745,412 @@ CenteredGaussianCurve.fromRadius = function(radius, epsilon)
 };
 
 /**
+ * @abstract
+ *
+ * @constructor
+ *
+ * @classdesc
+ * <p>A Component is an object that can be added to an {@linkcode Entity} to add behavior to it in a modular fashion.
+ * This can be useful to create small pieces of functionality that can be reused often and without extra boilerplate code.</p>
+ * <p>If it implements an onUpdate(dt) function, the update method will be called every frame.</p>
+ * <p>A single Component instance is unique to an Entity and cannot be shared!</p>
+ *
+ * @see {@linkcode Entity}
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function Component()
+{
+    // this allows notifying entities about bound changes (useful for sized components)
+    this._entity = null;
+}
+
+Component.prototype =
+{
+    /**
+     * Called when this component is added to an Entity.
+     */
+    onAdded: function() {},
+
+    /**
+     * Called when this component is removed from an Entity.
+     */
+    onRemoved: function() {},
+
+    /**
+     * If provided, this method will be called every frame, allowing updating the entity.
+     * @param [Number] dt The amount of milliseconds passed since last frame.
+     */
+    onUpdate: null,
+
+    /**
+     * The target entity.
+     */
+    get entity()
+    {
+        return this._entity;
+    }
+};
+
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function UnlitPass(geometryVertex, geometryFragment)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+}
+
+UnlitPass.prototype = Object.create(MaterialPass.prototype);
+
+UnlitPass.prototype._generateShader = function(geometryVertex, geometryFragment)
+{
+    var defines =
+        "#define HX_SKIP_NORMALS\n" +
+        "#define HX_SKIP_SPECULAR\n";
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_unlit_fragment.glsl");
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_unlit_vertex.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function DirectionalShadowPass(geometryVertex, geometryFragment)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+}
+
+DirectionalShadowPass.prototype = Object.create(MaterialPass.prototype);
+
+DirectionalShadowPass.prototype._generateShader = function(geometryVertex, geometryFragment)
+{
+    var defines =
+        "#define HX_SKIP_NORMALS\n" +
+        "#define HX_SKIP_SPECULAR\n";
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_dir_shadow_fragment.glsl");
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_unlit_vertex.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function ForwardLitBasePass(geometryVertex, geometryFragment)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+}
+
+ForwardLitBasePass.prototype = Object.create(MaterialPass.prototype);
+
+ForwardLitBasePass.prototype._generateShader = function(geometryVertex, geometryFragment)
+{
+    // no normals or specular are needed
+    var defines =   "#define HX_SKIP_NORMALS\n" +
+                    "#define HX_SKIP_SPECULAR\n";
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_fwd_base_fragment.glsl");
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_fwd_base_vertex.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @param lightingModel
+ * @param shadows
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function ForwardLitDirPass(geometryVertex, geometryFragment, lightingModel, shadows)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
+
+    this._colorLocation = this.getUniformLocation("hx_directionalLight.color");
+    this._dirLocation = this.getUniformLocation("hx_directionalLight.direction");
+
+    if (shadows) {
+        this._shadowMatricesLocation = this.getUniformLocation("hx_directionalLight.shadowMapMatrices[0]");
+        this._shadowSplitsLocation = this.getUniformLocation("hx_directionalLight.splitDistances");
+        this._depthBiasLocation = this.getUniformLocation("hx_directionalLight.depthBias");
+        this._maxShadowDistanceLocation = this.getUniformLocation("hx_directionalLight.maxShadowDistance");
+        this._shadowMapSlot = this.getTextureSlot("hx_shadowMap");
+    }
+}
+
+ForwardLitDirPass.prototype = Object.create(MaterialPass.prototype);
+
+// the light is passed in as data
+ForwardLitDirPass.prototype.updatePassRenderState = function(camera, renderer, light)
+{
+    var dir = new Float4();
+    var matrix = new Matrix4x4();
+    var matrixData = new Float32Array(64);
+
+    return function(camera, renderer, light) {
+        var gl = GL.gl;
+        var col = light._scaledIrradiance;
+
+        gl.useProgram(this._shader._program);
+
+        camera.viewMatrix.transformVector(light.direction, dir);
+        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
+        gl.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
+
+
+        if (light.castShadows) {
+            var shadowRenderer = light._shadowMapRenderer;
+            var numCascades = META.OPTIONS.numShadowCascades;
+            var splits = shadowRenderer._splitDistances;
+            var k = 0;
+
+            this._shadowMapSlot.texture = shadowRenderer._shadowMap;
+
+            for (var j = 0; j < numCascades; ++j) {
+                matrix.multiply(shadowRenderer.getShadowMatrix(j), camera.worldMatrix);
+                var m = matrix._m;
+                for (var l = 0; l < 16; ++l) {
+                    matrixData[k++] = m[l];
+                }
+            }
+
+            gl.uniformMatrix4fv(this._shadowMatricesLocation, false, matrixData);
+            gl.uniform4f(this._shadowSplitsLocation, splits[0], splits[1], splits[2], splits[3]);
+            gl.uniform1f(this._depthBiasLocation, light.depthBias);
+            gl.uniform1f(this._maxShadowDistanceLocation, splits[numCascades - 1]);
+        }
+
+        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+    }
+}();
+
+ForwardLitDirPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
+{
+    var defines = {};
+
+    if (shadows) {
+        defines.HX_SHADOW_MAP = 1;
+    }
+
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_dir_vertex.glsl", defines);
+
+    var fragmentShader =
+        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+        lightingModel + "\n\n\n" +
+        DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
+        ShaderLibrary.get("directional_light.glsl") + "\n" +
+        geometryFragment + "\n" +
+        ShaderLibrary.get("material_fwd_dir_fragment.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @param lightingModel
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function ForwardLitPointPass(geometryVertex, geometryFragment, lightingModel)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
+
+    this._colorLocation = this.getUniformLocation("hx_pointLight.color");
+    this._posLocation = this.getUniformLocation("hx_pointLight.position");
+    this._radiusLocation = this.getUniformLocation("hx_pointLight.radius");
+    this._rcpRadiusLocation = this.getUniformLocation("hx_pointLight.rcpRadius");
+}
+
+ForwardLitPointPass.prototype = Object.create(MaterialPass.prototype);
+
+// the light is passed in as data
+ForwardLitPointPass.prototype.updatePassRenderState = function(camera, renderer, light)
+{
+    var pos = new Float4();
+
+    return function(camera, renderer, light) {
+        var gl = GL.gl;
+        var col = light._scaledIrradiance;
+
+        gl.useProgram(this._shader._program);
+
+        light.worldMatrix.getColumn(3, pos);
+        camera.viewMatrix.transformPoint(pos, pos);
+        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
+        gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
+        gl.uniform1f(this._radiusLocation, light._radius);
+        gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
+
+        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+    }
+}();
+
+ForwardLitPointPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
+{
+    var defines = {};
+
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_point_vertex.glsl", defines);
+
+    var fragmentShader =
+        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+        lightingModel + "\n\n\n" +
+        ShaderLibrary.get("point_light.glsl") + "\n" +
+        geometryFragment + "\n" +
+        ShaderLibrary.get("material_fwd_point_fragment.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @param lightingModel
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function ForwardLitSpotPass(geometryVertex, geometryFragment, lightingModel)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
+
+    this._colorLocation = this.getUniformLocation("hx_spotLight.color");
+    this._posLocation = this.getUniformLocation("hx_spotLight.position");
+    this._radiusLocation = this.getUniformLocation("hx_spotLight.radius");
+    this._anglesLocation = this.getUniformLocation("hx_spotLight.angleData");
+    this._dirLocation = this.getUniformLocation("hx_spotLight.direction");
+    this._rcpRadiusLocation = this.getUniformLocation("hx_spotLight.rcpRadius");
+}
+
+ForwardLitSpotPass.prototype = Object.create(MaterialPass.prototype);
+
+// the light is passed in as data
+ForwardLitSpotPass.prototype.updatePassRenderState = function(camera, renderer, light)
+{
+    var pos = new Float4();
+
+    return function(camera, renderer, light) {
+        var gl = GL.gl;
+        var col = light._scaledIrradiance;
+
+        gl.useProgram(this._shader._program);
+
+        var worldMatrix = light.worldMatrix;
+        worldMatrix.getColumn(3, pos);
+        camera.viewMatrix.transformPoint(pos, pos);
+        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
+        gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
+
+        worldMatrix.getColumn(2, pos);
+        camera.viewMatrix.transformVector(pos, pos);
+        gl.uniform3f(this._dirLocation, pos.x, pos.y, pos.z);
+
+        gl.uniform1f(this._radiusLocation, light._radius);
+        gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
+        gl.uniform2f(this._anglesLocation, light._cosOuter, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001));
+
+        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+    }
+}();
+
+ForwardLitSpotPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
+{
+    var defines = {};
+
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_spot_vertex.glsl", defines);
+
+    var fragmentShader =
+        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
+        lightingModel + "\n\n\n" +
+        ShaderLibrary.get("spot_light.glsl") + "\n" +
+        geometryFragment + "\n" +
+        ShaderLibrary.get("material_fwd_spot_fragment.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @param lightingModel
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
+    this._diffuseSlot = this.getTextureSlot("hx_diffuseProbeMap");
+    this._specularSlot = this.getTextureSlot("hx_specularProbeMap");
+    this._numMipsLocation = this.getUniformLocation("hx_specularProbeNumMips");
+    this._localLocation = this.getUniformLocation("hx_probeLocal");
+    this._sizeLocation = this.getUniformLocation("hx_probeSize");
+    this._positionLocation = this.getUniformLocation("hx_probePosition");
+    if (!ForwardLitProbePass.dummyTexture) {
+        var data = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
+        data = [ data, data, data, data, data, data ];
+        ForwardLitProbePass.dummyTexture = new TextureCube();
+        ForwardLitProbePass.dummyTexture.uploadData(data, 1, true);
+    }
+}
+
+ForwardLitProbePass.prototype = Object.create(MaterialPass.prototype);
+
+// the light is passed in as data
+ForwardLitProbePass.prototype.updatePassRenderState = function(camera, renderer, probe)
+{
+    var gl = GL.gl;
+    gl.useProgram(this._shader._program);
+
+    // TODO: allow setting locality of probes
+    this._diffuseSlot.texture = probe.diffuseTexture || ForwardLitProbePass.dummyTexture;
+    var specularTex = probe.specularTexture || ForwardLitProbePass.dummyTexture;
+
+    this._specularSlot.texture = specularTex;
+    gl.uniform1f(this._numMipsLocation, Math.floor(MathX.log2(specularTex.size)));
+    gl.uniform1f(this._localLocation, probe._size? 1.0 : 0.0);
+    gl.uniform1f(this._sizeLocation, probe._size || 0.0);
+    var m = probe.worldMatrix._m;
+    gl.uniform3f(this._positionLocation, m[12], m[13], m[14]);
+    MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+};
+
+ForwardLitProbePass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
+{
+    var extensions = "";
+    if (capabilities.EXT_SHADER_TEXTURE_LOD) {
+        extensions += "#texturelod\n";
+    }
+
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_probe_vertex.glsl");
+
+    var fragmentShader =
+        extensions +
+        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
+        lightingModel + "\n\n\n" +
+        ShaderLibrary.get("light_probe.glsl") + "\n" +
+        geometryFragment + "\n" +
+        ShaderLibrary.get("material_fwd_probe_fragment.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+/**
  * @classdesc
  * SpherePrimitive provides a primitive cylinder {@linkcode Model}.
  *
@@ -10888,7 +11340,9 @@ BoundingSphere.prototype.growToIncludeMesh = function(mesh)
  */
 BoundingSphere.prototype.growToIncludeBound = function(bounds)
 {
-    if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
+    if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY ||
+        bounds._expanse === BoundingVolume.EXPANSE_INHERIT ||
+        this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
 
     if (bounds._expanse === BoundingVolume.EXPANSE_INFINITE)
         this._expanse = BoundingVolume.EXPANSE_INFINITE;
@@ -11010,7 +11464,7 @@ BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
  */
 BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
-    if (this._expanse === BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || this._expanse === BoundingVolume.EXPANSE_INHERIT)
         return true;
     else if (this._expanse === BoundingVolume.EXPANSE_EMPTY)
         return false;
@@ -11037,7 +11491,7 @@ BoundingSphere.prototype.intersectsBound = function(bound)
     if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
         return false;
 
-    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE || this._expanse === BoundingVolume.EXPANSE_INHERIT || bounds._expanse === BoundingVolume.EXPANSE_INHERIT)
         return true;
 
     // both Spheres
@@ -11085,6 +11539,9 @@ BoundingSphere.prototype._updateMinAndMax = function()
  */
 BoundingSphere.prototype.intersectsRay = function(ray)
 {
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return true;
+    if (this._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INHERIT) return false;
+
     var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
     var radius = this._halfExtentX;
     var o = ray.origin;
@@ -11122,583 +11579,6 @@ BoundingSphere.prototype.intersectsRay = function(ray)
 BoundingSphere.prototype.createDebugModel = function()
 {
     return new SpherePrimitive({doubleSided:true});
-};
-
-/**
- * @classdesc
- * Keeps track and updates entities
- *
- * @constructor
- *
- * @ignore
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function EntityEngine()
-{
-    this._updateableEntities = [];
-    onPreFrame.bind(this._update, this);
-}
-
-EntityEngine.prototype =
-{
-    registerEntity: function(entity)
-    {
-        entity._onRequireUpdatesChange.bind(this._onEntityUpdateChange, this);
-        if (entity._requiresUpdates)
-            this._addUpdatableEntity(entity);
-    },
-
-    unregisterEntity: function(entity)
-    {
-        entity._onRequireUpdatesChange.unbind(this);
-        if (entity._requiresUpdates)
-            this._removeUpdatableEntity(entity);
-    },
-
-    _onEntityUpdateChange: function(entity)
-    {
-        if (entity._requiresUpdates)
-            this._addUpdatableEntity(entity);
-        else
-            this._removeUpdatableEntity(entity);
-    },
-
-    _addUpdatableEntity: function(entity)
-    {
-        this._updateableEntities.push(entity);
-    },
-
-    _removeUpdatableEntity: function(entity)
-    {
-        var index = this._updateableEntities.indexOf(entity);
-        this._updateableEntities.splice(index, 1);
-    },
-
-    _update: function(dt)
-    {
-        var entities = this._updateableEntities;
-        var len = entities.length;
-        for (var i = 0; i < len; ++i)
-            entities[i].update(dt);
-    }
-};
-
-/**
- * @classdesc
- * Scene forms the base to contain the entire scene graph. It contains a hierarchical structure including
- * {@linknode ModelInstance}, lights, cameras, etc.
- *
- * @param {SceneNode} [rootNode] An optional scene node to use as a root. Useful if an entire scene hierarchy was already loaded.
- *
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function Scene(rootNode)
-{
-    // the default partition is a BVH node
-    //  -> or this may need to become an infinite bound node?
-    this._rootNode = rootNode || new SceneNode();
-    this._rootNode._setScene(this);
-    this._skybox = null;
-    this._entityEngine = new EntityEngine();
-}
-
-Scene.prototype = {
-    /**
-     * The {@linkcode Skybox} to use when rendering the scene.
-     */
-    get skybox() { return this._skybox; },
-    set skybox(value) { this._skybox = value; },
-
-    /**
-     * Finds a scene node with the given name somewhere in the Scene.
-     */
-    findNodeByName: function(name)
-    {
-        return this._rootNode.findNodeByName(name);
-    },
-
-    /**
-     * Finds a material with the given name somewhere in the Scene.
-     */
-    findMaterialByName: function(name)
-    {
-        return this._rootNode.findMaterialByName(name);
-    },
-
-    /**
-     * Attaches a child to the root node.
-     */
-    attach: function(child)
-    {
-        this._rootNode.attach(child);
-    },
-
-    /**
-     * Removes a child from the root node.
-     */
-    detach: function(child)
-    {
-        this._rootNode.detach(child);
-    },
-
-    /**
-     * The amount of children in the scene root node.
-     */
-    get numChildren()
-    {
-        return this._rootNode.numChildren;
-    },
-
-    /**
-     * Gets the child object at the given index.
-     */
-    getChild: function(index)
-    {
-        return this._rootNode.getChild(index);
-    },
-
-    /**
-     * Returns whether or not the child object is attached to the root node.
-     */
-    contains: function(child)
-    {
-        this._rootNode.contains(child);
-    },
-
-    /**
-     * @ignore
-     */
-    acceptVisitor: function(visitor)
-    {
-        visitor.visitScene(this);
-        // assume root node will always qualify
-        this._rootNode.acceptVisitor(visitor);
-    },
-
-    /**
-     * @ignore
-     */
-    get entityEngine()
-    {
-        return this._entityEngine;
-    },
-
-    /**
-     * The bounding volume for the entire scene in world coordinates.
-     */
-    get worldBounds()
-    {
-        return this._rootNode.worldBounds;
-    }
-};
-
-/**
- * @ignore
- * @param geometryVertex
- * @param geometryFragment
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function UnlitPass(geometryVertex, geometryFragment)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
-}
-
-UnlitPass.prototype = Object.create(MaterialPass.prototype);
-
-UnlitPass.prototype._generateShader = function(geometryVertex, geometryFragment)
-{
-    var defines =
-        "#define HX_SKIP_NORMALS\n" +
-        "#define HX_SKIP_SPECULAR\n";
-    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_unlit_fragment.glsl");
-    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_unlit_vertex.glsl");
-    return new Shader(vertexShader, fragmentShader);
-};
-
-/**
- * @ignore
- * @param geometryVertex
- * @param geometryFragment
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function ForwardLitBasePass(geometryVertex, geometryFragment)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
-}
-
-ForwardLitBasePass.prototype = Object.create(MaterialPass.prototype);
-
-ForwardLitBasePass.prototype._generateShader = function(geometryVertex, geometryFragment)
-{
-    // no normals or specular are needed
-    var defines =   "#define HX_SKIP_NORMALS\n" +
-                    "#define HX_SKIP_SPECULAR\n";
-    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_fwd_base_fragment.glsl");
-    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_fwd_base_vertex.glsl");
-    return new Shader(vertexShader, fragmentShader);
-};
-
-/**
- * @ignore
- * @param geometryVertex
- * @param geometryFragment
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function DirectionalShadowPass(geometryVertex, geometryFragment)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
-}
-
-DirectionalShadowPass.prototype = Object.create(MaterialPass.prototype);
-
-DirectionalShadowPass.prototype._generateShader = function(geometryVertex, geometryFragment)
-{
-    var defines =
-        "#define HX_SKIP_NORMALS\n" +
-        "#define HX_SKIP_SPECULAR\n";
-    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_dir_shadow_fragment.glsl");
-    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_unlit_vertex.glsl");
-    return new Shader(vertexShader, fragmentShader);
-};
-
-/**
- * @ignore
- * @param geometryVertex
- * @param geometryFragment
- * @param lightingModel
- * @param shadows
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function ForwardLitDirPass(geometryVertex, geometryFragment, lightingModel, shadows)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
-
-    this._colorLocation = this.getUniformLocation("hx_directionalLight.color");
-    this._dirLocation = this.getUniformLocation("hx_directionalLight.direction");
-
-    if (shadows) {
-        this._shadowMatricesLocation = this.getUniformLocation("hx_directionalLight.shadowMapMatrices[0]");
-        this._shadowSplitsLocation = this.getUniformLocation("hx_directionalLight.splitDistances");
-        this._depthBiasLocation = this.getUniformLocation("hx_directionalLight.depthBias");
-        this._maxShadowDistanceLocation = this.getUniformLocation("hx_directionalLight.maxShadowDistance");
-        this._shadowMapSlot = this.getTextureSlot("hx_shadowMap");
-    }
-}
-
-ForwardLitDirPass.prototype = Object.create(MaterialPass.prototype);
-
-// the light is passed in as data
-ForwardLitDirPass.prototype.updatePassRenderState = function(camera, renderer, light)
-{
-    var dir = new Float4();
-    var matrix = new Matrix4x4();
-    var matrixData = new Float32Array(64);
-
-    return function(camera, renderer, light) {
-        var gl = GL.gl;
-        var col = light._scaledIrradiance;
-
-        gl.useProgram(this._shader._program);
-
-        camera.viewMatrix.transformVector(light.direction, dir);
-        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
-        gl.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
-
-
-        if (light.castShadows) {
-            var shadowRenderer = light._shadowMapRenderer;
-            var numCascades = META.OPTIONS.numShadowCascades;
-            var splits = shadowRenderer._splitDistances;
-            var k = 0;
-
-            this._shadowMapSlot.texture = shadowRenderer._shadowMap;
-
-            for (var j = 0; j < numCascades; ++j) {
-                matrix.multiply(shadowRenderer.getShadowMatrix(j), camera.worldMatrix);
-                var m = matrix._m;
-                for (var l = 0; l < 16; ++l) {
-                    matrixData[k++] = m[l];
-                }
-            }
-
-            gl.uniformMatrix4fv(this._shadowMatricesLocation, false, matrixData);
-            gl.uniform4f(this._shadowSplitsLocation, splits[0], splits[1], splits[2], splits[3]);
-            gl.uniform1f(this._depthBiasLocation, light.depthBias);
-            gl.uniform1f(this._maxShadowDistanceLocation, splits[numCascades - 1]);
-        }
-
-        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
-    }
-}();
-
-ForwardLitDirPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
-{
-    var defines = {};
-
-    if (shadows) {
-        defines.HX_SHADOW_MAP = 1;
-    }
-
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_dir_vertex.glsl", defines);
-
-    var fragmentShader =
-        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
-        lightingModel + "\n\n\n" +
-        DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
-        ShaderLibrary.get("directional_light.glsl") + "\n" +
-        geometryFragment + "\n" +
-        ShaderLibrary.get("material_fwd_dir_fragment.glsl");
-    return new Shader(vertexShader, fragmentShader);
-};
-
-/**
- * @ignore
- * @param geometryVertex
- * @param geometryFragment
- * @param lightingModel
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function ForwardLitPointPass(geometryVertex, geometryFragment, lightingModel)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
-
-    this._colorLocation = this.getUniformLocation("hx_pointLight.color");
-    this._posLocation = this.getUniformLocation("hx_pointLight.position");
-    this._radiusLocation = this.getUniformLocation("hx_pointLight.radius");
-    this._rcpRadiusLocation = this.getUniformLocation("hx_pointLight.rcpRadius");
-}
-
-ForwardLitPointPass.prototype = Object.create(MaterialPass.prototype);
-
-// the light is passed in as data
-ForwardLitPointPass.prototype.updatePassRenderState = function(camera, renderer, light)
-{
-    var pos = new Float4();
-
-    return function(camera, renderer, light) {
-        var gl = GL.gl;
-        var col = light._scaledIrradiance;
-
-        gl.useProgram(this._shader._program);
-
-        light.worldMatrix.getColumn(3, pos);
-        camera.viewMatrix.transformPoint(pos, pos);
-        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
-        gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
-        gl.uniform1f(this._radiusLocation, light.radius);
-        gl.uniform1f(this._rcpRadiusLocation, 1.0 / light.radius);
-
-        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
-    }
-}();
-
-ForwardLitPointPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
-{
-    var defines = {};
-
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_point_vertex.glsl", defines);
-
-    var fragmentShader =
-        ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
-        lightingModel + "\n\n\n" +
-        ShaderLibrary.get("point_light.glsl") + "\n" +
-        geometryFragment + "\n" +
-        ShaderLibrary.get("material_fwd_point_fragment.glsl");
-    return new Shader(vertexShader, fragmentShader);
-};
-
-/**
- * @ignore
- * @param geometryVertex
- * @param geometryFragment
- * @param lightingModel
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
-    this._diffuseSlot = this.getTextureSlot("hx_diffuseProbeMap");
-    this._specularSlot = this.getTextureSlot("hx_specularProbeMap");
-    this._numMipsLocation = this.getUniformLocation("hx_specularProbeNumMips");
-    this._localLocation = this.getUniformLocation("hx_probeLocal");
-    this._sizeLocation = this.getUniformLocation("hx_probeSize");
-    this._positionLocation = this.getUniformLocation("hx_probePosition");
-    if (!ForwardLitProbePass.dummyTexture) {
-        var data = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
-        data = [ data, data, data, data, data, data ];
-        ForwardLitProbePass.dummyTexture = new TextureCube();
-        ForwardLitProbePass.dummyTexture.uploadData(data, 1, true);
-    }
-}
-
-ForwardLitProbePass.prototype = Object.create(MaterialPass.prototype);
-
-// the light is passed in as data
-ForwardLitProbePass.prototype.updatePassRenderState = function(camera, renderer, probe)
-{
-    var gl = GL.gl;
-    gl.useProgram(this._shader._program);
-
-    // TODO: allow setting locality of probes
-    this._diffuseSlot.texture = probe.diffuseTexture || ForwardLitProbePass.dummyTexture;
-    var specularTex = probe.specularTexture || ForwardLitProbePass.dummyTexture;
-
-    this._specularSlot.texture = specularTex;
-    gl.uniform1f(this._numMipsLocation, Math.floor(MathX.log2(specularTex.size)));
-    gl.uniform1f(this._localLocation, probe._size? 1.0 : 0.0);
-    gl.uniform1f(this._sizeLocation, probe._size || 0.0);
-    var m = probe.worldMatrix._m;
-    gl.uniform3f(this._positionLocation, m[12], m[13], m[14]);
-    MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
-};
-
-ForwardLitProbePass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
-{
-    var extensions = "";
-    if (capabilities.EXT_SHADER_TEXTURE_LOD) {
-        extensions += "#texturelod\n";
-    }
-
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_probe_vertex.glsl");
-
-    var fragmentShader =
-        extensions +
-        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
-        lightingModel + "\n\n\n" +
-        ShaderLibrary.get("light_probe.glsl") + "\n" +
-        geometryFragment + "\n" +
-        ShaderLibrary.get("material_fwd_probe_fragment.glsl");
-    return new Shader(vertexShader, fragmentShader);
-};
-
-/**
- * @ignore
- * @param geometryVertex
- * @param geometryFragment
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function GBufferAlbedoPass(geometryVertex, geometryFragment)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
-}
-
-GBufferAlbedoPass.prototype = Object.create(MaterialPass.prototype);
-
-GBufferAlbedoPass.prototype._generateShader = function(geometryVertex, geometryFragment)
-{
-    var defines =
-        "#define HX_SKIP_NORMALS\n" +
-        "#define HX_SKIP_SPECULAR\n";
-    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_albedo_fragment.glsl");
-    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_albedo_vertex.glsl");
-    return new Shader(vertexShader, fragmentShader);
-};
-
-/**
- * @ignore
- * @param geometryVertex
- * @param geometryFragment
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function GBufferNormalDepthPass(geometryVertex, geometryFragment)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
-}
-
-GBufferNormalDepthPass.prototype = Object.create(MaterialPass.prototype);
-
-GBufferNormalDepthPass.prototype._generateShader = function(geometryVertex, geometryFragment)
-{
-    var defines = "#define HX_SKIP_SPECULAR\n";
-    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_normal_depth_fragment.glsl");
-    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_normal_depth_vertex.glsl");
-    return new Shader(vertexShader, fragmentShader);
-};
-
-/**
- * @param geometryVertex
- * @param geometryFragment
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function GBufferSpecularPass(geometryVertex, geometryFragment)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
-}
-
-GBufferSpecularPass.prototype = Object.create(MaterialPass.prototype);
-
-GBufferSpecularPass.prototype._generateShader = function(geometryVertex, geometryFragment)
-{
-    var defines = "#define HX_SKIP_NORMALS\n";
-    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_specular_fragment.glsl");
-    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_specular_vertex.glsl");
-    return new Shader(vertexShader, fragmentShader);
-};
-
-/**
- * @ignore
- * @param geometryVertex
- * @param geometryFragment
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function GBufferFullPass(geometryVertex, geometryFragment)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
-}
-
-GBufferFullPass.prototype = Object.create(MaterialPass.prototype);
-
-GBufferFullPass.prototype._generateShader = function(geometryVertex, geometryFragment)
-{
-    var fragmentShader = ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_full_fragment.glsl");
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_full_vertex.glsl");
-    return new Shader(vertexShader, fragmentShader);
-};
-
-/**
- * @ignore
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function ApplyGBufferPass(geometryVertex, geometryFragment)
-{
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
-}
-
-ApplyGBufferPass.prototype = Object.create(MaterialPass.prototype);
-
-ApplyGBufferPass.prototype._generateShader = function(geometryVertex, geometryFragment)
-{
-    var defines =
-        "#define HX_SKIP_NORMALS\n" +
-        "#define HX_SKIP_SPECULAR\n";
-    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_apply_gbuffer_vertex.glsl");
-    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_apply_gbuffer_fragment.glsl");
-    return new Shader(vertexShader, fragmentShader);
 };
 
 /**
@@ -12115,6 +11995,436 @@ LightProbe.prototype.renderDeferredLighting = function(renderer)
 
 /**
  * @classdesc
+ * ConePrimitive provides a primitive cone {@linkcode Model}.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>numSegmentsW: The amount of horizontal segments</li>
+ *     <li>numSegmentsH: The amount of vertical segments </li>
+ *     <li>radius: The radius of the cone base</li>
+ *     <li>height: The height of the cone</li>
+ *     <li>doubleSided: Whether or not the faces should point both ways</li>
+ * </ul>
+ *
+ * @extends Primitive
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function ConePrimitive(definition)
+{
+    Primitive.call(this, definition);
+}
+
+ConePrimitive.prototype = Object.create(Primitive.prototype);
+
+/**
+ * The alignment dictates which access should be parallel to the sides of the cone
+ * @type {number}
+ */
+ConePrimitive.ALIGN_X = 1;
+ConePrimitive.ALIGN_Y = 2;
+ConePrimitive.ALIGN_Z = 3;
+
+ConePrimitive.prototype._generate = function(target, definition)
+{
+    definition = definition || {};
+    var alignment = definition.alignment || ConePrimitive.ALIGN_Y;
+    var numSegmentsH = definition.numSegmentsH || 1;
+    var numSegmentsW = definition.numSegmentsW || 16;
+    var radius = definition.radius || 1;
+    var height = definition.height || 1;
+    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
+
+    var positions = target.positions;
+    var uvs = target.uvs;
+    var normals = target.normals;
+    var indices = target.indices;
+    var hi, ci;
+    var cx, cy;
+    var angle;
+
+    var rcpNumSegmentsW = 1/numSegmentsW;
+    var rcpNumSegmentsH = 1/numSegmentsH;
+
+    // sides
+    for (hi = 0; hi <= numSegmentsH; ++hi) {
+        var rad = (1.0 - hi * rcpNumSegmentsH) * radius;
+        var h = (hi*rcpNumSegmentsH - .5)*height;
+        for (ci = 0; ci <= numSegmentsW; ++ci) {
+            angle = ci * rcpNumSegmentsW * Math.PI * 2;
+            var nx = Math.sin(angle);
+            var ny = Math.cos(angle);
+            cx = nx * rad;
+            cy = ny * rad;
+
+            switch (alignment) {
+                case ConePrimitive.ALIGN_X:
+                    positions.push(-h, cx, -cy);
+                    if (normals) normals.push(0, nx, -ny);
+                    break;
+                case ConePrimitive.ALIGN_Z:
+                    positions.push(cx, cy, h);
+                    if (normals) normals.push(nx, ny, 0);
+                    break;
+                default:
+                    // Y
+                    positions.push(cx, h, -cy);
+                    if (normals) normals.push(nx, 0, -ny);
+                    break;
+            }
+
+            if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, hi*rcpNumSegmentsH);
+        }
+    }
+
+    var w = numSegmentsW + 1;
+    var base;
+    for (ci = 0; ci < numSegmentsW; ++ci) {
+        for (hi = 0; hi < numSegmentsH - 1; ++hi) {
+            base = ci + hi*w;
+            indices.push(base, base + w, base + w + 1);
+            indices.push(base, base + w + 1, base + 1);
+
+            if (doubleSided) {
+                indices.push(base, base + w + 1, base + w);
+                indices.push(base, base + 1, base + w + 1);
+            }
+        }
+
+        // tip only needs 1 tri
+        base = ci + (numSegmentsH - 1)*w;
+        indices.push(base, base + w + 1, base + 1);
+    }
+
+    // bottom
+    var indexOffset = positions.length / 3;
+    var halfH = height * .5;
+    for (ci = 0; ci < numSegmentsW; ++ci) {
+        angle = ci * rcpNumSegmentsW * Math.PI * 2;
+        var u = Math.sin(angle);
+        var v = Math.cos(angle);
+        cx = u * radius;
+        cy = v * radius;
+
+        u = -u * .5 + .5;
+        v = v * .5 + .5;
+
+        switch (alignment) {
+            case ConePrimitive.ALIGN_X:
+                positions.push(halfH, cx, -cy);
+                if (normals) normals.push(1, 0, 0);
+                if (uvs) uvs.push(v, 1.0 - u);
+                break;
+
+            case ConePrimitive.ALIGN_Z:
+                positions.push(cx, cy, -halfH);
+                if (normals) normals.push(0, 0, -1);
+                if (uvs) uvs.push(u, v);
+                break;
+            default:
+                positions.push(cx, -halfH, -cy);
+                if (normals) normals.push(0, -1, 0);
+                if (uvs) uvs.push(u, v);
+                break;
+        }
+    }
+
+    for (ci = 1; ci < numSegmentsW - 1; ++ci)
+        indices.push(indexOffset, indexOffset + ci, indexOffset + ci + 1);
+};
+
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function DeferredSpotShader(useCone)
+{
+    Shader.call(this);
+    this._useCone = useCone;
+
+    var defines = {};
+
+    if (useCone) {
+        var primitive = new ConePrimitive({
+            // overshoot a bit
+            radius: 1.1,
+            numSegmentsH: 1,
+            alignment: ConePrimitive.ALIGN_Z
+        });
+        this._mesh = primitive.getMesh(0);
+        defines.HX_CONE_MESH = 1;
+    }
+
+    var vertex =
+        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
+        META.OPTIONS.deferredLightingModel + "\n\n\n" +
+        ShaderLibrary.get("spot_light.glsl") + "\n" +
+        ShaderLibrary.get("deferred_spot_light_vertex.glsl", defines);
+    var fragment =
+        ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
+        META.OPTIONS.deferredLightingModel + "\n\n\n" +
+        ShaderLibrary.get("spot_light.glsl") + "\n" +
+        ShaderLibrary.get("deferred_spot_light_fragment.glsl", defines);
+
+    this.init(vertex, fragment);
+
+    var gl = GL.gl;
+    var p = this._program;
+    gl.useProgram(p);
+
+    this._colorLocation = gl.getUniformLocation(p, "hx_spotLight.color");
+    this._posLocation = gl.getUniformLocation(p, "hx_spotLight.position");
+    this._radiusLocation = gl.getUniformLocation(p, "hx_spotLight.radius");
+    this._dirLocation = gl.getUniformLocation(p, "hx_spotLight.direction");
+    this._rcpRadiusLocation = gl.getUniformLocation(p, "hx_spotLight.rcpRadius");
+    this._anglesLocation = gl.getUniformLocation(p, "hx_spotLight.angleData");
+    if (useCone) {
+        this._sinOuterAngleLocation = gl.getUniformLocation(p, "hx_spotLight.sinOuterAngle");
+        this._worldMatrixLocation = gl.getUniformLocation(p, "hx_spotLightWorldMatrix");
+    }
+
+    this._positionAttributeLocation = gl.getAttribLocation(p, "hx_position");
+    this._texCoordAttributeLocation = gl.getAttribLocation(p, "hx_texCoord");
+
+    var albedoSlot = gl.getUniformLocation(p, "hx_gbufferAlbedo");
+    var normalDepthSlot = gl.getUniformLocation(p, "hx_gbufferNormalDepth");
+    var specularSlot = gl.getUniformLocation(p, "hx_gbufferSpecular");
+
+    gl.uniform1i(albedoSlot, 0);
+    gl.uniform1i(normalDepthSlot, 1);
+    gl.uniform1i(specularSlot, 2);
+}
+
+DeferredSpotShader.prototype = Object.create(Shader.prototype);
+
+DeferredSpotShader.prototype.execute = function(renderer, light)
+{
+    var pos = new Float4();
+
+    return function(renderer, light) {
+        var gl = GL.gl;
+
+        gl.useProgram(this._program);
+
+        var texs = renderer._gbuffer.textures;
+        texs[0].bind(0);
+        texs[1].bind(1);
+        texs[2].bind(2);
+
+        var camera = renderer._camera;
+        var col = light._scaledIrradiance;
+
+        var worldMatrix = light.worldMatrix;
+        worldMatrix.getColumn(3, pos);
+        camera.viewMatrix.transformPoint(pos, pos);
+        gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
+        gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
+
+        worldMatrix.getColumn(2, pos);
+        camera.viewMatrix.transformVector(pos, pos);
+        gl.uniform3f(this._dirLocation, pos.x, pos.y, pos.z);
+        gl.uniform1f(this._radiusLocation, light._radius);
+        gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
+        gl.uniform2f(this._anglesLocation, light._cosOuter, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001));
+
+        if (this._useCone) {
+            gl.uniform1f(this._sinOuterAngleLocation, light._sinOuter);
+            gl.uniformMatrix4fv(this._worldMatrixLocation, false, worldMatrix._m);
+        }
+
+        this.updatePassRenderState(camera, renderer);
+
+        if (this._useCone) {
+            GL.setCullMode(CullMode.FRONT);
+            var mesh = this._mesh;
+            mesh._vertexBuffers[0].bind();
+            mesh._indexBuffer.bind();
+
+            gl.vertexAttribPointer(this._positionAttributeLocation, 3, gl.FLOAT, false, 48, 0);
+            GL.enableAttributes(1);
+            GL.drawElements(ElementType.TRIANGLES, mesh.numIndices, 0);
+        }
+        else {
+            GL.setCullMode(CullMode.NONE);
+            var rect = RectMesh.DEFAULT;
+            rect._vertexBuffers[0].bind();
+            rect._indexBuffer.bind();
+
+            gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
+            gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
+
+            GL.enableAttributes(2);
+
+            GL.drawElements(ElementType.TRIANGLES, 6, 0);
+        }
+    }
+}();
+
+/**
+ * @classdesc
+ * SpotLight represents an light source with a single point as origin and a conical range. The light strength falls off
+ * according to the inverse square rule.
+ *
+ * @property {number} radius The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a given area for performance.
+ * @property {number} innerAngle The angle from the center where the spot light starts attenuating outwards. In radians!
+ * @property {number} outerAngle The maximum angle of the spot light's reach. In radians!
+ *
+ * @constructor
+ *
+ * @extends Light
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function SpotLight()
+{
+    Light.call(this);
+
+    if (!SpotLight._deferredShaderSphere && META.OPTIONS.deferredLightingModel) {
+        SpotLight._deferredShaderCone = new DeferredSpotShader(true);
+        SpotLight._deferredShaderRect = new DeferredSpotShader(false);
+    }
+
+    this._localBounds = new BoundingAABB();
+    this._radius = 50.0;
+    this._innerAngle = 0.6;
+    this._outerAngle = 0.65;
+    this._cosInner = Math.cos(this._innerAngle);
+    this._cosOuter = Math.cos(this._outerAngle);
+    this._sinOuter = Math.sin(this._outerAngle);
+    this.intensity = 3.1415;
+    this.lookAt(new Float4(0, -1, 0));
+    this._localBoundsInvalid = true;
+}
+
+SpotLight.prototype = Object.create(Light.prototype,
+    {
+        radius: {
+            get: function() {
+                return this._radius;
+            },
+
+            set: function(value) {
+                this._radius = value;
+                this._updateWorldBounds();
+                this._invalidateLocalBounds();
+            }
+        },
+
+        innerAngle: {
+            get: function() {
+                return this._innerAngle;
+            },
+
+            set: function(value) {
+                var deg90 = Math.PI * .5;
+                this._innerAngle = MathX.clamp(value, 0, deg90);
+                this._outerAngle = MathX.clamp(this._outerAngle, this._innerAngle, deg90);
+                this._cosInner = Math.cos(this._innerAngle);
+                this._cosOuter = Math.cos(this._outerAngle);
+                this._sinOuter = Math.cos(this._sinOuter);
+                this._invalidateLocalBounds();
+            }
+        },
+
+        outerAngle: {
+            get: function() {
+                return this._outerAngle;
+            },
+
+            set: function(value) {
+                var deg90 = Math.PI * .5;
+                this._outerAngle = MathX.clamp(value, 0, deg90);
+                this._innerAngle = MathX.clamp(this._innerAngle, 0, this._outerAngle);
+                this._cosInner = Math.cos(this._innerAngle);
+                this._cosOuter = Math.cos(this._outerAngle);
+                this._sinOuter = Math.cos(this._sinOuter);
+                this._invalidateLocalBounds();
+            }
+        }
+    });
+
+/**
+ * @ignore
+ */
+SpotLight.prototype._createBoundingVolume = function()
+{
+    return new BoundingAABB();
+};
+
+/**
+ * @ignore
+ */
+SpotLight.prototype._updateWorldBounds = function()
+{
+    if (this._localBoundsInvalid)
+        this._updateLocalBounds();
+
+    this._worldBounds.transformFrom(this._localBounds, this.worldMatrix);
+};
+
+/**
+ * @ignore
+ */
+SpotLight.prototype.renderDeferredLighting = function(renderer)
+{
+    var camPos = new Float4();
+    var thisPos = new Float4();
+
+    return function(renderer) {
+
+        var camera = renderer._camera;
+        // distance camera vs light to estimate projected size
+        camera.worldMatrix.getColumn(3, camPos);
+        this.worldMatrix.getColumn(3, thisPos);
+        var side = this.worldBounds.classifyAgainstPlane(camera.frustum.planes[Frustum.PLANE_NEAR]);
+
+        if (side === PlaneSide.FRONT)
+            SpotLight._deferredShaderCone.execute(renderer, this);
+        else
+            SpotLight._deferredShaderRect.execute(renderer, this);
+    }
+}();
+
+/**
+ * @ignore
+ * @private
+ */
+SpotLight.prototype._updateLocalBounds = function()
+{
+    var min = new Float4();
+    var max = new Float4();
+
+    return function() {
+        // spotlight points in posZ direction, with range [0, radius]
+        max.z = this._radius;
+
+        // most basic trig
+        var b = this._sinOuter * this._radius;
+        min.x = -b;
+        min.y = -b;
+        max.x = b;
+        max.y = b;
+
+        if (this._radius === undefined) {
+            throw new Error("No radius!");
+        }
+
+        this._localBounds.setExplicit(min, max);
+        this._localBoundsInvalid = false;
+    };
+}();
+
+SpotLight.prototype._invalidateLocalBounds = function()
+{
+    this._localBoundsInvalid = true;
+    this._invalidateWorldBounds();
+};
+
+/**
+ * @classdesc
  * This material pass renders all lighting in one fragment shader.
  *
  * @ignore
@@ -12129,6 +12439,7 @@ function ForwardFixedLitPass(geometryVertex, geometryFragment, lightingModel, li
     this._dirLights = null;
     this._dirLightCasters = null;
     this._pointLights = null;
+    this._spotLights = null;
     this._diffuseLightProbes = null;
     this._specularLightProbes = null;
 
@@ -12147,6 +12458,7 @@ ForwardFixedLitPass.prototype.updatePassRenderState = function (camera, renderer
     this._assignDirLights(camera);
     this._assignDirLightCasters(camera);
     this._assignPointLights(camera);
+    this._assignSpotLights(camera);
     this._assignLightProbes(camera);
 
     MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
@@ -12156,6 +12468,7 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
     this._dirLights = [];
     this._dirLightCasters = [];
     this._pointLights = [];
+    this._spotLights = [];
     this._diffuseLightProbes = [];
     this._specularLightProbes = [];
 
@@ -12172,6 +12485,9 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
         else if (light instanceof PointLight) {
             this._pointLights.push(light);
         }
+        else if (light instanceof SpotLight()) {
+            this._spotLights.push(light);
+        }
         else if (light instanceof LightProbe) {
             if (light.diffuseTexture)
                 this._diffuseLightProbes.push(light);
@@ -12187,6 +12503,7 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
         HX_NUM_DIR_LIGHTS: this._dirLights.length,
         HX_NUM_DIR_LIGHT_CASTERS: this._dirLightCasters.length,
         HX_NUM_POINT_LIGHTS: this._pointLights.length,
+        HX_NUM_SPOT_LIGHTS: this._spotLights.length,
         HX_NUM_DIFFUSE_PROBES: this._diffuseLightProbes.length,
         HX_NUM_SPECULAR_PROBES: this._specularLightProbes.length
     };
@@ -12204,6 +12521,7 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
         DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
         ShaderLibrary.get("directional_light.glsl", defines) + "\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
+        ShaderLibrary.get("spot_light.glsl") + "\n" +
         ShaderLibrary.get("light_probe.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_fwd_all_fragment.glsl");
@@ -12301,6 +12619,32 @@ ForwardFixedLitPass.prototype._assignPointLights = function (camera) {
     }
 }();
 
+ForwardFixedLitPass.prototype._assignSpotLights = function (camera) {
+    var pos = new Float4();
+
+    return function(camera) {
+        var lights = this._spotLights;
+        if (!lights) return;
+
+        var gl = GL.gl;
+
+        var len = lights.length;
+
+        for (var i = 0; i < len; ++i) {
+            var locs = this._spotLocations[i];
+            var light = lights[i];
+            light.worldMatrix.getColumn(3, pos);
+            camera.viewMatrix.transformPoint(pos, pos);
+
+            var col = light._scaledIrradiance;
+            gl.uniform3f(locs.color, col.r, col.g, col.b);
+            gl.uniform3f(locs.position, pos.x, pos.y, pos.z);
+            gl.uniform1f(locs.radius, light.radius);
+            gl.uniform2f(locs.angleData, light._cosOuter, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001));
+        }
+    }
+}();
+
 ForwardFixedLitPass.prototype._assignShadowMaps = function () {
     var lights = this._dirLightCasters;
     var len = lights.length;
@@ -12346,6 +12690,7 @@ ForwardFixedLitPass.prototype._getUniformLocations = function()
     this._dirLocations = [];
     this._dirCasterLocations = [];
     this._pointLocations = [];
+    this._spotLocations = [];
 
     for (var i = 0; i < this._dirLights.length; ++i) {
         this._dirLocations.push({
@@ -12372,6 +12717,130 @@ ForwardFixedLitPass.prototype._getUniformLocations = function()
             radius: this.getUniformLocation("hx_pointLights[" + i + "].radius")
         });
     }
+
+    for (i = 0; i < this._spotLights.length; ++i) {
+        this._spotLights.push({
+            color: this.getUniformLocation("hx_spotLights[" + i + "].color"),
+            position: this.getUniformLocation("hx_spotLights[" + i + "].position"),
+            radius: this.getUniformLocation("hx_spotLights[" + i + "].radius"),
+            angleData: this.getUniformLocation("hx_spotLights[" + i + "].angleData")
+        });
+    }
+};
+
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function GBufferAlbedoPass(geometryVertex, geometryFragment)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+}
+
+GBufferAlbedoPass.prototype = Object.create(MaterialPass.prototype);
+
+GBufferAlbedoPass.prototype._generateShader = function(geometryVertex, geometryFragment)
+{
+    var defines =
+        "#define HX_SKIP_NORMALS\n" +
+        "#define HX_SKIP_SPECULAR\n";
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_albedo_fragment.glsl");
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_albedo_vertex.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function GBufferNormalDepthPass(geometryVertex, geometryFragment)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+}
+
+GBufferNormalDepthPass.prototype = Object.create(MaterialPass.prototype);
+
+GBufferNormalDepthPass.prototype._generateShader = function(geometryVertex, geometryFragment)
+{
+    var defines = "#define HX_SKIP_SPECULAR\n";
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_normal_depth_fragment.glsl");
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_normal_depth_vertex.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+/**
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function GBufferSpecularPass(geometryVertex, geometryFragment)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+}
+
+GBufferSpecularPass.prototype = Object.create(MaterialPass.prototype);
+
+GBufferSpecularPass.prototype._generateShader = function(geometryVertex, geometryFragment)
+{
+    var defines = "#define HX_SKIP_NORMALS\n";
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_specular_fragment.glsl");
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_specular_vertex.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+/**
+ * @ignore
+ * @param geometryVertex
+ * @param geometryFragment
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function GBufferFullPass(geometryVertex, geometryFragment)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+}
+
+GBufferFullPass.prototype = Object.create(MaterialPass.prototype);
+
+GBufferFullPass.prototype._generateShader = function(geometryVertex, geometryFragment)
+{
+    var fragmentShader = ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_gbuffer_full_fragment.glsl");
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_gbuffer_full_vertex.glsl");
+    return new Shader(vertexShader, fragmentShader);
+};
+
+/**
+ * @ignore
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function ApplyGBufferPass(geometryVertex, geometryFragment)
+{
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
+}
+
+ApplyGBufferPass.prototype = Object.create(MaterialPass.prototype);
+
+ApplyGBufferPass.prototype._generateShader = function(geometryVertex, geometryFragment)
+{
+    var defines =
+        "#define HX_SKIP_NORMALS\n" +
+        "#define HX_SKIP_SPECULAR\n";
+    var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_apply_gbuffer_vertex.glsl");
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_apply_gbuffer_fragment.glsl");
+    return new Shader(vertexShader, fragmentShader);
 };
 
 /**
@@ -12466,6 +12935,7 @@ Material.prototype =
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
             this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
             this.setPass(MaterialPass.POINT_LIGHT_PASS, new ForwardLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
+            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new ForwardLitSpotPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
             this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
         }
         else {
@@ -12694,6 +13164,7 @@ Material.prototype =
             if (type === MaterialPass.DIR_LIGHT_PASS ||
                 type === MaterialPass.DIR_LIGHT_SHADOW_PASS ||
                 type === MaterialPass.POINT_LIGHT_PASS ||
+                type === MaterialPass.SPOT_LIGHT_PASS ||
                 type === MaterialPass.LIGHT_PROBE_PASS)
                 pass.blendState = this._additiveBlendState;
 
@@ -12850,34 +13321,432 @@ Material.prototype =
 
 /**
  * @classdesc
- * SkyboxMaterial forms the default material to render skyboxes.
+ * BasicMaterial is the default physically plausible rendering material.
+ *
+ * @property {boolean} doubleSided Defines whether the material is double sided (no back-face culling) or not. An easier-to-read alternative to {@linkcode Material#cullMode}
+ * @property {number} alpha The overall transparency of the object. Has no effect without a matching blendState value.
+ * @property {boolean} useVertexColors Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
+ * @property {Color} color The base color of the material. Multiplied with the colorMap if provided.
+ * @property {Texture2D} colorMap A {@linkcode Texture2D} object containing color data.
+ * @property {Texture2D} normalMap A {@linkcode Texture2D} object containing surface normals.
+ * @property {Texture2D} specularMap A texture containing specular reflection data. The contents of the map depend on {@linkcode BasicMaterial#specularMapMode}. The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
+ * @property {Texture2D} maskMap A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
+ * @property {number} specularMapMode Defines the contents of the specular map. One of the following:
+ * <ul>
+ *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+ *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_ALL}</li>
+ *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
+ * </ul>
+ * @property {number} metallicness A value describing the overall "metallicness" of an object. Normally 0 or 1, but it can be used for some hybrid materials.
+ * @property {number} normalSpecularReflectance The amount of light reflecting off a surface at 90 degrees (ie: the minimum reflectance in the Fresnel equation according to Schlick's approximation). This is generally 0.027 for most materials.
+ * @property {number} roughness The microfacet roughness of the material. Higher values will result in dimmer but larger highlights.
+ * @property {number} roughnessRange Represents the range at which the roughness map operates. When using a roughness texture, roughness represents the middle roughness, range the deviation from there. So textured roughness ranges from [roughness - roughnessRange, roughness + roughnessRange]
+ * @property {number} alphaThreshold The alpha threshold that prevents pixels with opacity below this from being rendered. This is not recommended on certain mobile platforms due to depth buffer hierarchy performance.
  *
  * @constructor
  *
+ * @param options An object with key/value pairs describing the initial values of the material.
+ *
+ * <ul>
+ * <li>color: {@linkcode Color} or hexcode Number</li>
+ * <li>colorMap: {@linkcode Texture2D}</li>
+ * <li>doubleSided: Boolean</li>
+ * <li>normalMap: {@linkcode Texture2D}</li>
+ * <li>specularMap: {@linkcode Texture2D}</li>
+ * <li>maskMap: {@linkcode Texture2D}</li>
+ * <li>specularMapMode: {@linkcode BasicMaterial#SPECULAR_MAP_ROUGHNESS_ONLY}</li>
+ * <li>metallicness: Number</li>
+ * <li>alpha: Number</li>
+ * <li>roughness: Number</li>
+ * <li>roughnessRange: Number</li>
+ * <li>normalSpecularReflectance: Number</li>
+ * <li>alphaThreshold: Number</li>
+ * <li>useVertexColors: Boolean</li>
+ * <li>lightingModel: {@linkcode LightingModel}</li>
+ * </ul>
+ *
+ * @extends Material
+ *
  * @author derschmale <http://www.derschmale.com>
  */
-function SkyboxMaterial(texture)
+function BasicMaterial(options)
 {
     Material.call(this);
 
-    var vertexShader = ShaderLibrary.get("default_skybox_vertex.glsl");
-    var fragmentShader = ShaderLibrary.get("default_skybox_fragment.glsl");
+    options = options || {};
 
-    this.writeDepth = false;
-    this.cullMode = CullMode.NONE;
+    this._color = options.color || new Color(1, 1, 1, 1);
+    this._colorMap = options.colorMap || null;
+    this._doubleSided = !!options.doubleSided;
+    this._normalMap = options.normalMap || null;
+    this._specularMap = options.specularMap || null;
+    this._maskMap = options.maskMap || null;
+    this._specularMapMode = options.specularMapMode || BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
+    this._metallicness = options.metallicness === undefined? 0.0 : options.metallicness;
+    this._alpha = options.alpha === undefined? 1.0 : options.alpha;
+    this._roughness = options.roughness === undefined ? 0.5 : options.roughness;
+    this._roughnessRange = options.roughnessRange === undefined? .5 : options.roughnessRange;
+    this._normalSpecularReflectance = options.normalSpecularReflectance === undefined? 0.027 : options.normalSpecularReflectance;
+    this._alphaThreshold = options.alphaThreshold === undefined? 1.0 : options.alphaThreshold;
+    this._useVertexColors = !!options.useVertexColors;
 
-    var pass = new UnlitPass(vertexShader, fragmentShader);
+    // trigger assignments
+    this.color = this._color;
+    this.alpha = this._alpha;
+    this.metallicness = this._metallicness;
+    this.roughness = this._roughness;
+    this.normalSpecularReflectance = this._normalSpecularReflectance;
 
-    // if no draw buffers, normals and specular don't need to be updated
-    this.setPass(MaterialPass.BASE_PASS, pass);
-    this._renderPath = RenderPath.FORWARD_FIXED;
-    this._initialized = true;
-    this._renderOrder = Number.POSITIVE_INFINITY;
-
-    this.setTexture("hx_skybox", texture);
+    if (options.lightingModel !== undefined)
+        this.lightingModel = options.lightingModel;
 }
 
-SkyboxMaterial.prototype = Object.create(Material.prototype);
+/**
+ * Converts to roughness from a "shininess" or "gloss" property, traditionally used in Phong lighting.
+ * @param specularPower The specular power used as the gloss parameter.
+ */
+BasicMaterial.roughnessFromShininess = function(specularPower)
+{
+    return Math.sqrt(2.0/(specularPower + 2.0));
+};
+
+/**
+ * Used for specularMapMode to specify the specular map only uses roughness data
+ */
+BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
+/**
+ * Used for specularMapMode to specify the specular map has rgb channels containing roughness, normal reflectance and metallicness, respectively
+ */
+BasicMaterial.SPECULAR_MAP_ALL = 2;
+/**
+ * Used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
+ */
+BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
+
+
+BasicMaterial.prototype = Object.create(Material.prototype,
+    {
+        doubleSided: {
+            get: function()
+            {
+                return this._doubleSided;
+            },
+
+            set: function(value)
+            {
+                if (this._doubleSided !== value)
+                    this._invalidate();
+
+                this._doubleSided = value;
+                this.cullMode = value? CullMode.NONE : CullMode.BACK;
+            }
+        },
+
+        alpha: {
+            get: function ()
+            {
+                return this._alpha;
+            },
+            set: function (value)
+            {
+                this._alpha = MathX.saturate(value);
+                this.setUniform("alpha", this._alpha);
+            }
+        },
+
+        useVertexColors: {
+            get: function ()
+            {
+                return this._useVertexColors;
+            },
+            set: function (value)
+            {
+                if (this._useVertexColors !== value)
+                    this._invalidate();
+
+                this._useVertexColors = value;
+            }
+        },
+
+        color: {
+            get: function ()
+            {
+                return this._color;
+            },
+            set: function (value)
+            {
+                this._color = isNaN(value) ? value : new Color(value);
+                this.setUniform("color", this._color);
+            }
+        },
+
+        colorMap: {
+            get: function ()
+            {
+                return this._colorMap;
+            },
+
+            set: function (value)
+            {
+                if (!!this._colorMap !== !!value) {
+                    this._invalidate();
+                }
+
+                this._colorMap = value;
+
+                this.setTexture("colorMap", value);
+            }
+        },
+
+        normalMap: {
+            get: function ()
+            {
+                return this._normalMap;
+            },
+            set: function (value)
+            {
+                if (!!this._normalMap !== !!value)
+                    this._invalidate();
+
+                this.setTexture("normalMap", value);
+
+                this._normalMap = value;
+            }
+        },
+
+        specularMap: {
+            get: function ()
+            {
+                return this._specularMap;
+            },
+            set: function (value)
+            {
+                if (!!this._specularMap !== !!value)
+                    this._invalidate();
+
+                this.setTexture("specularMap", value);
+
+                this._specularMap = value;
+            }
+        },
+
+        maskMap: {
+            get: function ()
+            {
+                return this._maskMap;
+            },
+            set: function (value)
+            {
+                if (!!this._maskMap !== !!value)
+                    this._invalidate();
+
+                this.setTexture("maskMap", value);
+
+                this._maskMap = value;
+            }
+        },
+
+        specularMapMode: {
+            get: function ()
+            {
+                return this._specularMapMode;
+            },
+            set: function (value)
+            {
+                if (this._specularMapMode !== value)
+                    this._invalidate();
+
+                this._specularMapMode = value;
+            }
+        },
+
+        metallicness: {
+            get: function ()
+            {
+                return this._metallicness;
+            },
+            set: function (value)
+            {
+                this._metallicness = MathX.saturate(value);
+                this.setUniform("metallicness", this._metallicness);
+            }
+        },
+
+        normalSpecularReflectance: {
+            get: function ()
+            {
+                return this._normalSpecularReflectance;
+            },
+            set: function (value)
+            {
+                this._normalSpecularReflectance = MathX.saturate(value);
+                this.setUniform("normalSpecularReflectance", this._normalSpecularReflectance);
+            }
+        },
+
+        roughness:
+            {
+                get: function ()
+                {
+                    return this._roughness;
+                },
+
+                set: function(value)
+                {
+                    this._roughness = value;
+                    this.setUniform("roughness", this._roughness);
+                }
+            },
+
+        roughnessRange:
+            {
+                get: function ()
+                {
+                    return this._roughnessRange;
+                },
+
+                set: function(value)
+                {
+                    this._roughnessRange = value;
+                    this.setUniform("roughnessRange", this._roughnessRange * 2.0);
+                }
+            },
+
+        alphaThreshold:
+            {
+                get: function() { return this._alphaThreshold; },
+                set: function(value) {
+                    value = MathX.saturate(value);
+                    if ((this._alphaThreshold === 1.0) !== (value === 1.0))
+                        this._invalidate();
+
+                    this._alphaThreshold = value;
+                    this.setUniform("alphaThreshold", value);
+                }
+            }
+    }
+);
+
+/**
+ * @ignore
+ */
+BasicMaterial.prototype.init = function()
+{
+    var defines = this._generateDefines();
+
+    this._geometryVertexShader = ShaderLibrary.get("default_geometry_vertex.glsl", defines);
+    this._geometryFragmentShader = ShaderLibrary.get("default_geometry_fragment.glsl", defines);
+
+    Material.prototype.init.call(this);
+};
+
+/**
+ * @ignore
+ */
+BasicMaterial.prototype._generateDefines = function()
+{
+    var defines = {};
+    if (this._colorMap) defines.COLOR_MAP = 1;
+    if (this._useVertexColors) defines.VERTEX_COLORS = 1;
+    if (this._normalMap) defines.NORMAL_MAP = 1;
+    if (this._maskMap) defines.MASK_MAP = 1;
+    if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
+    if (this._useSkinning) defines.HX_USE_SKINNING = 1;
+    if (this._useMorphing) {
+        defines.HX_USE_MORPHING = 1;
+        defines.HX_NUM_MORPH_TARGETS = capabilities.NUM_MORPH_TARGETS;
+    }
+
+    switch (this._specularMapMode) {
+        case BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:
+            if (this._specularMap) defines.ROUGHNESS_MAP = 1;
+            break;
+        case BasicMaterial.SPECULAR_MAP_ALL:
+            if (this._specularMap) defines.SPECULAR_MAP = 1;
+            break;
+        default:
+            defines.NORMAL_ROUGHNESS_MAP = 1;
+    }
+
+    if (this._doubleSided) {
+        defines.DOUBLE_SIDED = 1;
+    }
+
+    return defines;
+};
+
+/**
+ * @ignore
+ */
+BasicMaterial.prototype._setUseSkinning = function(value)
+{
+    if (this._useSkinning !== value)
+        this._invalidate();
+
+    this._useSkinning = value;
+};
+
+/**
+ * @classdesc
+ * WireWireBoxPrimitive provides a primitive box {@linkcode Model} to use with line types, useful for debugging.
+ *
+ * @constructor
+ * @param definition An object containing the following (optional) parameters:
+ * <ul>
+ *     <li>width: The width of the box</li>
+ *     <li>height: The height of the box</li>
+ *     <li>depth: The depth of the box</li>
+ * </ul>
+ *
+ * @extends Primitive
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function WireBoxPrimitive(definition)
+{
+    Primitive.call(this, definition);
+}
+
+WireBoxPrimitive.prototype = Object.create(Primitive.prototype);
+
+WireBoxPrimitive.prototype._generate = function(target, definition)
+{
+    var width = definition.width || 1;
+    var height = definition.height || width;
+    var depth = definition.depth || width;
+
+    var halfW = width * .5;
+    var halfH = height * .5;
+    var halfD = depth * .5;
+
+    var positions = target.positions;
+    var indices = target.indices;
+
+    positions.push(-halfW, -halfH, -halfD);
+    positions.push(halfW, -halfH, -halfD);
+    positions.push(-halfW, halfH, -halfD);
+    positions.push(halfW, halfH, -halfD);
+
+    positions.push(-halfW, -halfH, halfD);
+    positions.push(halfW, -halfH, halfD);
+    positions.push(-halfW, halfH, halfD);
+    positions.push(halfW, halfH, halfD);
+
+    indices.push(0, 1);
+    indices.push(2, 3);
+    indices.push(0, 2);
+    indices.push(1, 3);
+
+    indices.push(4, 5);
+    indices.push(6, 7);
+    indices.push(4, 6);
+    indices.push(5, 7);
+
+    indices.push(0, 4);
+    indices.push(2, 6);
+    indices.push(1, 5);
+    indices.push(3, 7);
+};
 
 /**
  * @classdesc
@@ -13368,6 +14237,317 @@ ModelInstance.prototype.toString = function()
 {
     return "[ModelInstance(name=" + this._name + ")]";
 };
+
+/**
+ * @classdesc
+ *
+ * This is basically only used internally for bounding box stuff
+ *
+ * @ignore
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function DebugModelInstance(model, materials)
+{
+    ModelInstance.call(this, model, materials);
+}
+
+DebugModelInstance.prototype = Object.create(ModelInstance.prototype);
+
+DebugModelInstance.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.clear(BoundingVolume.EXPANSE_INHERIT);
+};
+
+/**
+ * @classdesc
+ *
+ * DebugBoundsComponent is a component that allows rendering the world-space bounds of scene objects.
+ *
+ * @property {Color} color The color used to render the debug bounds.
+ *
+ * @constructor
+ *
+ * @param {Color} color The color used to render the debug bounds.
+ */
+function DebugBoundsComponent(color)
+{
+    Component.call(this);
+    this._initModelInstance();
+    if (color)
+        this._material.color = color;
+}
+
+DebugBoundsComponent.prototype = Object.create(Component.prototype, {
+    color: {
+        get: function ()
+        {
+            return this._material.color;
+        },
+        set: function (value)
+        {
+            this._material.color = value;
+        }
+    }
+});
+
+/**
+ * @ignore
+ */
+DebugBoundsComponent.prototype.onAdded = function()
+{
+    this.entity.attach(this._modelInstance);
+};
+
+/**
+ * @ignore
+ */
+DebugBoundsComponent.prototype.onRemoved = function()
+{
+    this.entity.detach(this._modelInstance);
+    this._modelInstance = null;
+};
+
+/**
+ * @ignore
+ */
+DebugBoundsComponent.prototype.onUpdate = function(dt)
+{
+    var inverse = new Matrix4x4();
+    return function(dt) {
+        var worldBounds = this.entity.worldBounds;
+        var matrix = this._modelInstance.matrix;
+
+        inverse.inverseAffineOf(this.entity.worldMatrix);
+        matrix.fromScale(worldBounds._halfExtentX, worldBounds._halfExtentY, worldBounds._halfExtentZ);
+        matrix.setColumn(3, worldBounds.center);
+        matrix.append(inverse);
+
+        this._modelInstance.matrix = matrix;
+    }
+}();
+
+/**
+ * @ignore
+ * @private
+ */
+DebugBoundsComponent.prototype._initModelInstance = function()
+{
+    // TODO: Allow rendering spherical bounds
+    var box = new WireBoxPrimitive({
+        width: 2
+    });
+
+    this._material = new BasicMaterial();
+    this._material.elementType = ElementType.LINES;
+    this._material.doubleSided = true;
+    this._material.lightingModel = LightingModel.Unlit;
+    this._modelInstance = new DebugModelInstance(box, this._material);
+};
+
+/**
+ * @classdesc
+ * Keeps track and updates entities
+ *
+ * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function EntityEngine()
+{
+    this._updateableEntities = [];
+    onPreFrame.bind(this._update, this);
+}
+
+EntityEngine.prototype =
+{
+    registerEntity: function(entity)
+    {
+        entity._onRequireUpdatesChange.bind(this._onEntityUpdateChange, this);
+        if (entity._requiresUpdates)
+            this._addUpdatableEntity(entity);
+    },
+
+    unregisterEntity: function(entity)
+    {
+        entity._onRequireUpdatesChange.unbind(this);
+        if (entity._requiresUpdates)
+            this._removeUpdatableEntity(entity);
+    },
+
+    _onEntityUpdateChange: function(entity)
+    {
+        if (entity._requiresUpdates)
+            this._addUpdatableEntity(entity);
+        else
+            this._removeUpdatableEntity(entity);
+    },
+
+    _addUpdatableEntity: function(entity)
+    {
+        this._updateableEntities.push(entity);
+    },
+
+    _removeUpdatableEntity: function(entity)
+    {
+        var index = this._updateableEntities.indexOf(entity);
+        this._updateableEntities.splice(index, 1);
+    },
+
+    _update: function(dt)
+    {
+        var entities = this._updateableEntities;
+        var len = entities.length;
+        for (var i = 0; i < len; ++i)
+            entities[i].update(dt);
+    }
+};
+
+/**
+ * @classdesc
+ * Scene forms the base to contain the entire scene graph. It contains a hierarchical structure including
+ * {@linknode ModelInstance}, lights, cameras, etc.
+ *
+ * @param {SceneNode} [rootNode] An optional scene node to use as a root. Useful if an entire scene hierarchy was already loaded.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function Scene(rootNode)
+{
+    // the default partition is a BVH node
+    //  -> or this may need to become an infinite bound node?
+    this._rootNode = rootNode || new SceneNode();
+    this._rootNode._setScene(this);
+    this._skybox = null;
+    this._entityEngine = new EntityEngine();
+}
+
+Scene.prototype = {
+    /**
+     * The {@linkcode Skybox} to use when rendering the scene.
+     */
+    get skybox() { return this._skybox; },
+    set skybox(value) { this._skybox = value; },
+
+    /**
+     * Finds a scene node with the given name somewhere in the Scene.
+     */
+    findNodeByName: function(name)
+    {
+        return this._rootNode.findNodeByName(name);
+    },
+
+    /**
+     * Finds a material with the given name somewhere in the Scene.
+     */
+    findMaterialByName: function(name)
+    {
+        return this._rootNode.findMaterialByName(name);
+    },
+
+    /**
+     * Attaches a child to the root node.
+     */
+    attach: function(child)
+    {
+        this._rootNode.attach(child);
+    },
+
+    /**
+     * Removes a child from the root node.
+     */
+    detach: function(child)
+    {
+        this._rootNode.detach(child);
+    },
+
+    /**
+     * The amount of children in the scene root node.
+     */
+    get numChildren()
+    {
+        return this._rootNode.numChildren;
+    },
+
+    /**
+     * Gets the child object at the given index.
+     */
+    getChild: function(index)
+    {
+        return this._rootNode.getChild(index);
+    },
+
+    /**
+     * Returns whether or not the child object is attached to the root node.
+     */
+    contains: function(child)
+    {
+        this._rootNode.contains(child);
+    },
+
+    /**
+     * @ignore
+     */
+    acceptVisitor: function(visitor)
+    {
+        visitor.visitScene(this);
+        // assume root node will always qualify
+        this._rootNode.acceptVisitor(visitor);
+    },
+
+    /**
+     * @ignore
+     */
+    get entityEngine()
+    {
+        return this._entityEngine;
+    },
+
+    /**
+     * The bounding volume for the entire scene in world coordinates.
+     */
+    get worldBounds()
+    {
+        return this._rootNode.worldBounds;
+    }
+};
+
+/**
+ * @classdesc
+ * SkyboxMaterial forms the default material to render skyboxes.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function SkyboxMaterial(texture)
+{
+    Material.call(this);
+
+    var vertexShader = ShaderLibrary.get("default_skybox_vertex.glsl");
+    var fragmentShader = ShaderLibrary.get("default_skybox_fragment.glsl");
+
+    this.writeDepth = false;
+    this.cullMode = CullMode.NONE;
+
+    var pass = new UnlitPass(vertexShader, fragmentShader);
+
+    // if no draw buffers, normals and specular don't need to be updated
+    this.setPass(MaterialPass.BASE_PASS, pass);
+    this._renderPath = RenderPath.FORWARD_FIXED;
+    this._initialized = true;
+    this._renderOrder = Number.POSITIVE_INFINITY;
+
+    this.setTexture("hx_skybox", texture);
+}
+
+SkyboxMaterial.prototype = Object.create(Material.prototype);
 
 /**
  * @classdesc
@@ -13890,54 +15070,6 @@ Terrain.prototype.acceptVisitor = function(visitor)
 Terrain.prototype._updateWorldBounds = function ()
 {
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
-};
-
-/**
- * @abstract
- *
- * @constructor
- *
- * @classdesc
- * <p>A Component is an object that can be added to an {@linkcode Entity} to add behavior to it in a modular fashion.
- * This can be useful to create small pieces of functionality that can be reused often and without extra boilerplate code.</p>
- * <p>If it implements an onUpdate(dt) function, the update method will be called every frame.</p>
- * <p>A single Component instance is unique to an Entity and cannot be shared!</p>
- *
- * @see {@linkcode Entity}
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function Component()
-{
-    // this allows notifying entities about bound changes (useful for sized components)
-    this._entity = null;
-}
-
-Component.prototype =
-{
-    /**
-     * Called when this component is added to an Entity.
-     */
-    onAdded: function() {},
-
-    /**
-     * Called when this component is removed from an Entity.
-     */
-    onRemoved: function() {},
-
-    /**
-     * If provided, this method will be called every frame, allowing updating the entity.
-     * @param [Number] dt The amount of milliseconds passed since last frame.
-     */
-    onUpdate: null,
-
-    /**
-     * The target entity.
-     */
-    get entity()
-    {
-        return this._entity;
-    }
 };
 
 /**
@@ -19355,6 +20487,9 @@ Renderer.prototype =
                 // cannot just use renderPass, need to do intersection tests
                 this._renderLightPassIfIntersects(light, MaterialPass.POINT_LIGHT_PASS, list);
             }
+            else if (light instanceof SpotLight) {
+                this._renderLightPassIfIntersects(light, MaterialPass.SPOT_LIGHT_PASS, list);
+            }
         }
     },
 
@@ -19394,6 +20529,10 @@ Renderer.prototype =
                 else if (light instanceof PointLight) {
                     // cannot just use renderPass, need to do intersection tests
                     this._renderLightPassIfIntersects(light, MaterialPass.POINT_LIGHT_PASS, list);
+                }
+                else if (light instanceof SpotLight) {
+                    // cannot just use renderPass, need to do intersection tests
+                    this._renderLightPassIfIntersects(light, MaterialPass.SPOT_LIGHT_PASS, list);
                 }
             }
         }
@@ -20022,373 +21161,6 @@ VarianceDirectionalShadowFilter.prototype._getDefines = function()
 };
 
 /**
- * @classdesc
- * BasicMaterial is the default physically plausible rendering material.
- *
- * @property {boolean} doubleSided Defines whether the material is double sided (no back-face culling) or not. An easier-to-read alternative to {@linkcode Material#cullMode}
- * @property {number} alpha The overall transparency of the object. Has no effect without a matching blendState value.
- * @property {boolean} useVertexColors Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
- * @property {Color} color The base color of the material. Multiplied with the colorMap if provided.
- * @property {Texture2D} colorMap A {@linkcode Texture2D} object containing color data.
- * @property {Texture2D} normalMap A {@linkcode Texture2D} object containing surface normals.
- * @property {Texture2D} specularMap A texture containing specular reflection data. The contents of the map depend on {@linkcode BasicMaterial#specularMapMode}. The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
- * @property {Texture2D} maskMap A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
- * @property {number} specularMapMode Defines the contents of the specular map. One of the following:
- * <ul>
- *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_ROUGHNESS_ONLY}</li>
- *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_ALL}</li>
- *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
- * </ul>
- * @property {number} metallicness A value describing the overall "metallicness" of an object. Normally 0 or 1, but it can be used for some hybrid materials.
- * @property {number} normalSpecularReflectance The amount of light reflecting off a surface at 90 degrees (ie: the minimum reflectance in the Fresnel equation according to Schlick's approximation). This is generally 0.027 for most materials.
- * @property {number} roughness The microfacet roughness of the material. Higher values will result in dimmer but larger highlights.
- * @property {number} roughnessRange Represents the range at which the roughness map operates. When using a roughness texture, roughness represents the middle roughness, range the deviation from there. So textured roughness ranges from [roughness - roughnessRange, roughness + roughnessRange]
- * @property {number} alphaThreshold The alpha threshold that prevents pixels with opacity below this from being rendered. This is not recommended on certain mobile platforms due to depth buffer hierarchy performance.
- *
- * @constructor
- *
- * @param options An object with key/value pairs describing the initial values of the material.
- *
- * <ul>
- * <li>color: {@linkcode Color} or hexcode Number</li>
- * <li>colorMap: {@linkcode Texture2D}</li>
- * <li>doubleSided: Boolean</li>
- * <li>normalMap: {@linkcode Texture2D}</li>
- * <li>specularMap: {@linkcode Texture2D}</li>
- * <li>maskMap: {@linkcode Texture2D}</li>
- * <li>specularMapMode: {@linkcode BasicMaterial#SPECULAR_MAP_ROUGHNESS_ONLY}</li>
- * <li>metallicness: Number</li>
- * <li>alpha: Number</li>
- * <li>roughness: Number</li>
- * <li>roughnessRange: Number</li>
- * <li>normalSpecularReflectance: Number</li>
- * <li>alphaThreshold: Number</li>
- * <li>useVertexColors: Boolean</li>
- * <li>lightingModel: {@linkcode LightingModel}</li>
- * </ul>
- *
- * @extends Material
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function BasicMaterial(options)
-{
-    Material.call(this);
-
-    options = options || {};
-
-    this._color = options.color || new Color(1, 1, 1, 1);
-    this._colorMap = options.colorMap || null;
-    this._doubleSided = !!options.doubleSided;
-    this._normalMap = options.normalMap || null;
-    this._specularMap = options.specularMap || null;
-    this._maskMap = options.maskMap || null;
-    this._specularMapMode = options.specularMapMode || BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY;
-    this._metallicness = options.metallicness === undefined? 0.0 : options.metallicness;
-    this._alpha = options.alpha === undefined? 1.0 : options.alpha;
-    this._roughness = options.roughness === undefined ? 0.5 : options.roughness;
-    this._roughnessRange = options.roughnessRange === undefined? .5 : options.roughnessRange;
-    this._normalSpecularReflectance = options.normalSpecularReflectance === undefined? 0.027 : options.normalSpecularReflectance;
-    this._alphaThreshold = options.alphaThreshold === undefined? 1.0 : options.alphaThreshold;
-    this._useVertexColors = !!options.useVertexColors;
-
-    // trigger assignments
-    this.color = this._color;
-    this.alpha = this._alpha;
-    this.metallicness = this._metallicness;
-    this.roughness = this._roughness;
-    this.normalSpecularReflectance = this._normalSpecularReflectance;
-
-    if (options.lightingModel !== undefined)
-        this.lightingModel = options.lightingModel;
-}
-
-/**
- * Converts to roughness from a "shininess" or "gloss" property, traditionally used in Phong lighting.
- * @param specularPower The specular power used as the gloss parameter.
- */
-BasicMaterial.roughnessFromShininess = function(specularPower)
-{
-    return Math.sqrt(2.0/(specularPower + 2.0));
-};
-
-/**
- * Used for specularMapMode to specify the specular map only uses roughness data
- */
-BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY = 1;
-/**
- * Used for specularMapMode to specify the specular map has rgb channels containing roughness, normal reflectance and metallicness, respectively
- */
-BasicMaterial.SPECULAR_MAP_ALL = 2;
-/**
- * Used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
- */
-BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
-
-
-BasicMaterial.prototype = Object.create(Material.prototype,
-    {
-        doubleSided: {
-            get: function()
-            {
-                return this._doubleSided;
-            },
-
-            set: function(value)
-            {
-                if (this._doubleSided !== value)
-                    this._invalidate();
-
-                this._doubleSided = value;
-                this.cullMode = value? CullMode.NONE : CullMode.BACK;
-            }
-        },
-
-        alpha: {
-            get: function ()
-            {
-                return this._alpha;
-            },
-            set: function (value)
-            {
-                this._alpha = MathX.saturate(value);
-                this.setUniform("alpha", this._alpha);
-            }
-        },
-
-        useVertexColors: {
-            get: function ()
-            {
-                return this._useVertexColors;
-            },
-            set: function (value)
-            {
-                if (this._useVertexColors !== value)
-                    this._invalidate();
-
-                this._useVertexColors = value;
-            }
-        },
-
-        color: {
-            get: function ()
-            {
-                return this._color;
-            },
-            set: function (value)
-            {
-                this._color = isNaN(value) ? value : new Color(value);
-                this.setUniform("color", this._color);
-            }
-        },
-
-        colorMap: {
-            get: function ()
-            {
-                return this._colorMap;
-            },
-
-            set: function (value)
-            {
-                if (!!this._colorMap !== !!value) {
-                    this._invalidate();
-                }
-
-                this._colorMap = value;
-
-                this.setTexture("colorMap", value);
-            }
-        },
-
-        normalMap: {
-            get: function ()
-            {
-                return this._normalMap;
-            },
-            set: function (value)
-            {
-                if (!!this._normalMap !== !!value)
-                    this._invalidate();
-
-                this.setTexture("normalMap", value);
-
-                this._normalMap = value;
-            }
-        },
-
-        specularMap: {
-            get: function ()
-            {
-                return this._specularMap;
-            },
-            set: function (value)
-            {
-                if (!!this._specularMap !== !!value)
-                    this._invalidate();
-
-                this.setTexture("specularMap", value);
-
-                this._specularMap = value;
-            }
-        },
-
-        maskMap: {
-            get: function ()
-            {
-                return this._maskMap;
-            },
-            set: function (value)
-            {
-                if (!!this._maskMap !== !!value)
-                    this._invalidate();
-
-                this.setTexture("maskMap", value);
-
-                this._maskMap = value;
-            }
-        },
-
-        specularMapMode: {
-            get: function ()
-            {
-                return this._specularMapMode;
-            },
-            set: function (value)
-            {
-                if (this._specularMapMode !== value)
-                    this._invalidate();
-
-                this._specularMapMode = value;
-            }
-        },
-
-        metallicness: {
-            get: function ()
-            {
-                return this._metallicness;
-            },
-            set: function (value)
-            {
-                this._metallicness = MathX.saturate(value);
-                this.setUniform("metallicness", this._metallicness);
-            }
-        },
-
-        normalSpecularReflectance: {
-            get: function ()
-            {
-                return this._normalSpecularReflectance;
-            },
-            set: function (value)
-            {
-                this._normalSpecularReflectance = MathX.saturate(value);
-                this.setUniform("normalSpecularReflectance", this._normalSpecularReflectance);
-            }
-        },
-
-        roughness:
-            {
-                get: function ()
-                {
-                    return this._roughness;
-                },
-
-                set: function(value)
-                {
-                    this._roughness = value;
-                    this.setUniform("roughness", this._roughness);
-                }
-            },
-
-        roughnessRange:
-            {
-                get: function ()
-                {
-                    return this._roughnessRange;
-                },
-
-                set: function(value)
-                {
-                    this._roughnessRange = value;
-                    this.setUniform("roughnessRange", this._roughnessRange * 2.0);
-                }
-            },
-
-        alphaThreshold:
-            {
-                get: function() { return this._alphaThreshold; },
-                set: function(value) {
-                    value = MathX.saturate(value);
-                    if ((this._alphaThreshold === 1.0) !== (value === 1.0))
-                        this._invalidate();
-
-                    this._alphaThreshold = value;
-                    this.setUniform("alphaThreshold", value);
-                }
-            }
-    }
-);
-
-/**
- * @ignore
- */
-BasicMaterial.prototype.init = function()
-{
-    var defines = this._generateDefines();
-
-    this._geometryVertexShader = ShaderLibrary.get("default_geometry_vertex.glsl", defines);
-    this._geometryFragmentShader = ShaderLibrary.get("default_geometry_fragment.glsl", defines);
-
-    Material.prototype.init.call(this);
-};
-
-/**
- * @ignore
- */
-BasicMaterial.prototype._generateDefines = function()
-{
-    var defines = {};
-    if (this._colorMap) defines.COLOR_MAP = 1;
-    if (this._useVertexColors) defines.VERTEX_COLORS = 1;
-    if (this._normalMap) defines.NORMAL_MAP = 1;
-    if (this._maskMap) defines.MASK_MAP = 1;
-    if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
-    if (this._useSkinning) defines.HX_USE_SKINNING = 1;
-    if (this._useMorphing) {
-        defines.HX_USE_MORPHING = 1;
-        defines.HX_NUM_MORPH_TARGETS = capabilities.NUM_MORPH_TARGETS;
-    }
-
-    switch (this._specularMapMode) {
-        case BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:
-            if (this._specularMap) defines.ROUGHNESS_MAP = 1;
-            break;
-        case BasicMaterial.SPECULAR_MAP_ALL:
-            if (this._specularMap) defines.SPECULAR_MAP = 1;
-            break;
-        default:
-            defines.NORMAL_ROUGHNESS_MAP = 1;
-    }
-
-    if (this._doubleSided) {
-        defines.DOUBLE_SIDED = 1;
-    }
-
-    return defines;
-};
-
-/**
- * @ignore
- */
-BasicMaterial.prototype._setUseSkinning = function(value)
-{
-    if (this._useSkinning !== value)
-        this._invalidate();
-
-    this._useSkinning = value;
-};
-
-/**
  * MeshBatch is a util that creates a number copies of the same mesh with hx_instanceID being the instance number of the copy.
  *
  * @namespace
@@ -20466,110 +21238,6 @@ var MeshBatch =
 
 /**
  * @classdesc
- * ConePrimitive provides a primitive cone {@linkcode Model}.
- *
- * @constructor
- * @param definition An object containing the following (optional) parameters:
- * <ul>
- *     <li>numSegmentsW: The amount of horizontal segments</li>
- *     <li>numSegmentsH: The amount of vertical segments </li>
- *     <li>radius: The radius of the cone base</li>
- *     <li>height: The height of the cone</li>
- *     <li>doubleSided: Whether or not the faces should point both ways</li>
- * </ul>
- *
- * @extends Primitive
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function ConePrimitive(definition)
-{
-    Primitive.call(this, definition);
-}
-
-ConePrimitive.prototype = Object.create(Primitive.prototype);
-
-ConePrimitive.prototype._generate = function(target, definition)
-{
-    definition = definition || {};
-    var numSegmentsH = definition.numSegmentsH || 1;
-    var numSegmentsW = definition.numSegmentsW || 16;
-    var radius = definition.radius || 1;
-    var height = definition.height || 1;
-    var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
-
-    var positions = target.positions;
-    var uvs = target.uvs;
-    var normals = target.normals;
-    var indices = target.indices;
-    var hi, ci;
-    var cx, cy;
-    var angle;
-
-    var rcpNumSegmentsW = 1/numSegmentsW;
-    var rcpNumSegmentsH = 1/numSegmentsH;
-
-    // sides
-    for (hi = 0; hi <= numSegmentsH; ++hi) {
-        var rad = (1.0 - hi * rcpNumSegmentsH) * radius;
-        var h = (hi*rcpNumSegmentsH - .5)*height;
-        for (ci = 0; ci <= numSegmentsW; ++ci) {
-            angle = ci * rcpNumSegmentsW * Math.PI * 2;
-            var nx = Math.sin(angle);
-            var ny = Math.cos(angle);
-            cx = nx * rad;
-            cy = ny * rad;
-
-            positions.push(cx, h, -cy);
-            if (normals) normals.push(nx, 0, -ny);
-
-            if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, hi*rcpNumSegmentsH);
-        }
-    }
-
-    var w = numSegmentsW + 1;
-    var base;
-    for (ci = 0; ci < numSegmentsW; ++ci) {
-        for (hi = 0; hi < numSegmentsH - 1; ++hi) {
-            base = ci + hi*w;
-            indices.push(base, base + w, base + w + 1);
-            indices.push(base, base + w + 1, base + 1);
-
-            if (doubleSided) {
-                indices.push(base, base + w + 1, base + w);
-                indices.push(base, base + 1, base + w + 1);
-            }
-        }
-
-        // tip only needs 1 tri
-        base = ci + (numSegmentsH - 1)*w;
-        indices.push(base, base + w + 1, base + 1);
-    }
-
-    // top & bottom
-    var indexOffset = positions.length / 3;
-    var halfH = height * .5;
-    for (ci = 0; ci < numSegmentsW; ++ci) {
-        angle = ci * rcpNumSegmentsW * Math.PI * 2;
-        var u = Math.sin(angle);
-        var v = Math.cos(angle);
-        cx = u * radius;
-        cy = v * radius;
-
-        u = -u * .5 + .5;
-        v = v * .5 + .5;
-
-        positions.push(cx, -halfH, -cy);
-        if (normals) normals.push(0, -1, 0);
-        if (uvs) uvs.push(u, v);
-    }
-
-    for (ci = 1; ci < numSegmentsW - 1; ++ci)
-        indices.push(indexOffset, indexOffset + ci, indexOffset + ci + 1);
-};
-
-/**
- * @classdesc
  * CylinderPrimitive provides a primitive cylinder {@linkcode Model}.
  *
  * @constructor
@@ -20602,6 +21270,9 @@ CylinderPrimitive.ALIGN_X = 1;
 CylinderPrimitive.ALIGN_Y = 2;
 CylinderPrimitive.ALIGN_Z = 3;
 
+/**
+ * @ignore
+ */
 CylinderPrimitive.prototype._generate = function(target, definition)
 {
     definition = definition || {};
@@ -20638,16 +21309,14 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                     positions.push(-h, cx, -cy);
                     if (normals) normals.push(0, nx, -ny);
                     break;
-                case CylinderPrimitive.ALIGN_Y:
-                    positions.push(cx, h, -cy);
-                    if (normals) normals.push(nx, 0, -ny);
-                    break;
                 case CylinderPrimitive.ALIGN_Z:
                     positions.push(cx, cy, h);
                     if (normals) normals.push(nx, ny, 0);
                     break;
                 default:
-                // nothing
+                    positions.push(cx, h, -cy);
+                    if (normals) normals.push(nx, 0, -ny);
+                    break;
             }
 
             if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, hi*rcpNumSegmentsH);
@@ -20699,21 +21368,6 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                 }
                 break;
 
-            case CylinderPrimitive.ALIGN_Y:
-                positions.push(cx, -halfH, -cy);
-                positions.push(cx, halfH, -cy);
-
-                if (normals) {
-                    normals.push(0, -1, 0);
-                    normals.push(0, 1, 0);
-                }
-
-                if (uvs) {
-                    uvs.push(u, v);
-                    uvs.push(u, 1.0 - v);
-                }
-                break;
-
             case CylinderPrimitive.ALIGN_Z:
                 positions.push(cx, cy, -halfH);
                 positions.push(cx, cy, halfH);
@@ -20729,7 +21383,19 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                 }
                 break;
             default:
-                // nothing
+                positions.push(cx, -halfH, -cy);
+                positions.push(cx, halfH, -cy);
+
+                if (normals) {
+                    normals.push(0, -1, 0);
+                    normals.push(0, 1, 0);
+                }
+
+                if (uvs) {
+                    uvs.push(u, v);
+                    uvs.push(u, 1.0 - v);
+                }
+                break;
         }
     }
 
@@ -21586,6 +22252,7 @@ exports.PoissonSphere = PoissonSphere;
 exports.Quaternion = Quaternion;
 exports.Ray = Ray;
 exports.Transform = Transform;
+exports.DebugBoundsComponent = DebugBoundsComponent;
 exports.BoundingAABB = BoundingAABB;
 exports.BoundingSphere = BoundingSphere;
 exports.SceneNode = SceneNode;
@@ -21657,6 +22324,7 @@ exports.LightProbe = LightProbe;
 exports.DynamicLightProbe = DynamicLightProbe;
 exports.PCFDirectionalShadowFilter = PCFDirectionalShadowFilter;
 exports.PointLight = PointLight;
+exports.SpotLight = SpotLight;
 exports.ShadowFilter = ShadowFilter;
 exports.VarianceDirectionalShadowFilter = VarianceDirectionalShadowFilter;
 exports.MaterialPass = MaterialPass;

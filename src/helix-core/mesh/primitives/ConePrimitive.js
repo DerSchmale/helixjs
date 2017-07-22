@@ -25,9 +25,18 @@ function ConePrimitive(definition)
 
 ConePrimitive.prototype = Object.create(Primitive.prototype);
 
+/**
+ * The alignment dictates which access should be parallel to the sides of the cone
+ * @type {number}
+ */
+ConePrimitive.ALIGN_X = 1;
+ConePrimitive.ALIGN_Y = 2;
+ConePrimitive.ALIGN_Z = 3;
+
 ConePrimitive.prototype._generate = function(target, definition)
 {
     definition = definition || {};
+    var alignment = definition.alignment || ConePrimitive.ALIGN_Y;
     var numSegmentsH = definition.numSegmentsH || 1;
     var numSegmentsW = definition.numSegmentsW || 16;
     var radius = definition.radius || 1;
@@ -56,8 +65,21 @@ ConePrimitive.prototype._generate = function(target, definition)
             cx = nx * rad;
             cy = ny * rad;
 
-            positions.push(cx, h, -cy);
-            if (normals) normals.push(nx, 0, -ny);
+            switch (alignment) {
+                case ConePrimitive.ALIGN_X:
+                    positions.push(-h, cx, -cy);
+                    if (normals) normals.push(0, nx, -ny);
+                    break;
+                case ConePrimitive.ALIGN_Z:
+                    positions.push(cx, cy, h);
+                    if (normals) normals.push(nx, ny, 0);
+                    break;
+                default:
+                    // Y
+                    positions.push(cx, h, -cy);
+                    if (normals) normals.push(nx, 0, -ny);
+                    break;
+            }
 
             if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, hi*rcpNumSegmentsH);
         }
@@ -82,7 +104,7 @@ ConePrimitive.prototype._generate = function(target, definition)
         indices.push(base, base + w + 1, base + 1);
     }
 
-    // top & bottom
+    // bottom
     var indexOffset = positions.length / 3;
     var halfH = height * .5;
     for (ci = 0; ci < numSegmentsW; ++ci) {
@@ -95,9 +117,24 @@ ConePrimitive.prototype._generate = function(target, definition)
         u = -u * .5 + .5;
         v = v * .5 + .5;
 
-        positions.push(cx, -halfH, -cy);
-        if (normals) normals.push(0, -1, 0);
-        if (uvs) uvs.push(u, v);
+        switch (alignment) {
+            case ConePrimitive.ALIGN_X:
+                positions.push(halfH, cx, -cy);
+                if (normals) normals.push(1, 0, 0);
+                if (uvs) uvs.push(v, 1.0 - u);
+                break;
+
+            case ConePrimitive.ALIGN_Z:
+                positions.push(cx, cy, -halfH);
+                if (normals) normals.push(0, 0, -1);
+                if (uvs) uvs.push(u, v);
+                break;
+            default:
+                positions.push(cx, -halfH, -cy);
+                if (normals) normals.push(0, -1, 0);
+                if (uvs) uvs.push(u, v);
+                break;
+        }
     }
 
     for (ci = 1; ci < numSegmentsW - 1; ++ci)

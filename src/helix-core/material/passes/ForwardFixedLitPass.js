@@ -9,6 +9,7 @@ import {Matrix4x4} from "../../math/Matrix4x4";
 import {MathX} from "../../math/MathX";
 import {Shader} from "../../shader/Shader";
 import {GL} from "../../core/GL";
+import {SpotLight} from "../../light/SpotLight";
 
 
 /**
@@ -27,6 +28,7 @@ function ForwardFixedLitPass(geometryVertex, geometryFragment, lightingModel, li
     this._dirLights = null;
     this._dirLightCasters = null;
     this._pointLights = null;
+    this._spotLights = null;
     this._diffuseLightProbes = null;
     this._specularLightProbes = null;
 
@@ -45,6 +47,7 @@ ForwardFixedLitPass.prototype.updatePassRenderState = function (camera, renderer
     this._assignDirLights(camera);
     this._assignDirLightCasters(camera);
     this._assignPointLights(camera);
+    this._assignSpotLights(camera);
     this._assignLightProbes(camera);
 
     MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
@@ -54,6 +57,7 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
     this._dirLights = [];
     this._dirLightCasters = [];
     this._pointLights = [];
+    this._spotLights = [];
     this._diffuseLightProbes = [];
     this._specularLightProbes = [];
 
@@ -70,6 +74,9 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
         else if (light instanceof PointLight) {
             this._pointLights.push(light);
         }
+        else if (light instanceof SpotLight()) {
+            this._spotLights.push(light);
+        }
         else if (light instanceof LightProbe) {
             if (light.diffuseTexture)
                 this._diffuseLightProbes.push(light);
@@ -85,6 +92,7 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
         HX_NUM_DIR_LIGHTS: this._dirLights.length,
         HX_NUM_DIR_LIGHT_CASTERS: this._dirLightCasters.length,
         HX_NUM_POINT_LIGHTS: this._pointLights.length,
+        HX_NUM_SPOT_LIGHTS: this._spotLights.length,
         HX_NUM_DIFFUSE_PROBES: this._diffuseLightProbes.length,
         HX_NUM_SPECULAR_PROBES: this._specularLightProbes.length
     };
@@ -102,6 +110,7 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
         DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
         ShaderLibrary.get("directional_light.glsl", defines) + "\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
+        ShaderLibrary.get("spot_light.glsl") + "\n" +
         ShaderLibrary.get("light_probe.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_fwd_all_fragment.glsl");
@@ -199,6 +208,32 @@ ForwardFixedLitPass.prototype._assignPointLights = function (camera) {
     }
 }();
 
+ForwardFixedLitPass.prototype._assignSpotLights = function (camera) {
+    var pos = new Float4();
+
+    return function(camera) {
+        var lights = this._spotLights;
+        if (!lights) return;
+
+        var gl = GL.gl;
+
+        var len = lights.length;
+
+        for (var i = 0; i < len; ++i) {
+            var locs = this._spotLocations[i];
+            var light = lights[i];
+            light.worldMatrix.getColumn(3, pos);
+            camera.viewMatrix.transformPoint(pos, pos);
+
+            var col = light._scaledIrradiance;
+            gl.uniform3f(locs.color, col.r, col.g, col.b);
+            gl.uniform3f(locs.position, pos.x, pos.y, pos.z);
+            gl.uniform1f(locs.radius, light.radius);
+            gl.uniform2f(locs.angleData, light._cosOuter, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001));
+        }
+    }
+}();
+
 ForwardFixedLitPass.prototype._assignShadowMaps = function () {
     var lights = this._dirLightCasters;
     var len = lights.length;
@@ -244,6 +279,7 @@ ForwardFixedLitPass.prototype._getUniformLocations = function()
     this._dirLocations = [];
     this._dirCasterLocations = [];
     this._pointLocations = [];
+    this._spotLocations = [];
 
     for (var i = 0; i < this._dirLights.length; ++i) {
         this._dirLocations.push({
@@ -268,6 +304,15 @@ ForwardFixedLitPass.prototype._getUniformLocations = function()
             color: this.getUniformLocation("hx_pointLights[" + i + "].color"),
             position: this.getUniformLocation("hx_pointLights[" + i + "].position"),
             radius: this.getUniformLocation("hx_pointLights[" + i + "].radius")
+        });
+    }
+
+    for (i = 0; i < this._spotLights.length; ++i) {
+        this._spotLights.push({
+            color: this.getUniformLocation("hx_spotLights[" + i + "].color"),
+            position: this.getUniformLocation("hx_spotLights[" + i + "].position"),
+            radius: this.getUniformLocation("hx_spotLights[" + i + "].radius"),
+            angleData: this.getUniformLocation("hx_spotLights[" + i + "].angleData")
         });
     }
 };

@@ -40,20 +40,21 @@ MaterialPass.BASE_PASS = 0;  // used for unlit or for predefined lights
 MaterialPass.DIR_LIGHT_PASS = 1;
 MaterialPass.DIR_LIGHT_SHADOW_PASS = 2;
 MaterialPass.POINT_LIGHT_PASS = 3;
-MaterialPass.LIGHT_PROBE_PASS = 4;
+MaterialPass.SPOT_LIGHT_PASS = 4;
+MaterialPass.LIGHT_PROBE_PASS = 5;
 
 // shadow map generation
-MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 5;
+MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 6;
 
 // used if MRT is supported:
-MaterialPass.GBUFFER_PASS = 6;
+MaterialPass.GBUFFER_PASS = 7;
 
 // used if MRT is not supported
-MaterialPass.GBUFFER_ALBEDO_PASS = 6;
-MaterialPass.GBUFFER_NORMAL_DEPTH_PASS = 7;
-MaterialPass.GBUFFER_SPECULAR_PASS = 8;
+MaterialPass.GBUFFER_ALBEDO_PASS = 7;
+MaterialPass.GBUFFER_NORMAL_DEPTH_PASS = 8;
+MaterialPass.GBUFFER_SPECULAR_PASS = 9;
 
-MaterialPass.NUM_PASS_TYPES = 9;
+MaterialPass.NUM_PASS_TYPES = 10;
 
 MaterialPass.prototype =
 {

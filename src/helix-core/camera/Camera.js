@@ -3,7 +3,6 @@ import {Matrix4x4} from "../math/Matrix4x4";
 import {Frustum} from "./Frustum";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Ray} from "../math/Ray";
-import {Float4} from "../math/Float4";
 
 /**
  * @classdesc

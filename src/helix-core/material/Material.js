@@ -3,18 +3,19 @@ import {DirectionalLight} from "../light/DirectionalLight";
 import {Signal} from "../core/Signal";
 import {MaterialPass} from "./MaterialPass";
 import {UnlitPass} from "./passes/UnlitPass";
-import {ForwardLitBasePass} from "./passes/ForwardLitBasePass";
 import {DirectionalShadowPass} from "./passes/DirectionalShadowPass";
-import {ForwardLitDirPass} from "./passes/ForwardLitDirPass";
 import {BlendState} from "../render/BlendState";
+import {ForwardLitBasePass} from "./passes/ForwardLitBasePass";
+import {ForwardLitDirPass} from "./passes/ForwardLitDirPass";
 import {ForwardLitPointPass} from "./passes/ForwardLitPointPass";
+import {ForwardLitSpotPass} from "./passes/ForwardLitSpotPass";
 import {ForwardLitProbePass} from "./passes/ForwardLitProbePass";
+import {ForwardFixedLitPass} from "./passes/ForwardFixedLitPass";
 import {GBufferAlbedoPass} from "./passes/GBufferAlbedoPass";
 import {GBufferNormalDepthPass} from "./passes/GBufferNormalDepthPass";
 import {GBufferSpecularPass} from "./passes/GBufferSpecularPass";
 import {GBufferFullPass} from "./passes/GBufferFullPass";
 import {ApplyGBufferPass} from "./passes/ApplyGBufferPass";
-import {ForwardFixedLitPass} from "./passes/ForwardFixedLitPass";
 import {RenderPath} from "../render/RenderPath";
 
 /**
@@ -95,6 +96,7 @@ Material.prototype =
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
             this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
             this.setPass(MaterialPass.POINT_LIGHT_PASS, new ForwardLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
+            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new ForwardLitSpotPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
             this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
         }
         else {
@@ -323,6 +325,7 @@ Material.prototype =
             if (type === MaterialPass.DIR_LIGHT_PASS ||
                 type === MaterialPass.DIR_LIGHT_SHADOW_PASS ||
                 type === MaterialPass.POINT_LIGHT_PASS ||
+                type === MaterialPass.SPOT_LIGHT_PASS ||
                 type === MaterialPass.LIGHT_PROBE_PASS)
                 pass.blendState = this._additiveBlendState;
 

@@ -115,8 +115,12 @@ function initScene(scene, assetLibrary)
     modelInstance.scale.set(.3,.3,.3);
     scene.attach(modelInstance);
 
+    // modelInstance.lookAt(new HX.Float4(1.0, 0.0, 0.0));
+
     var clip = assetLibrary.get("animation-clip");
     var animation = new HX.SkeletonAnimation(clip);
     animation.transferRootJoint = true;
     modelInstance.addComponent(animation);
+
+    // modelInstance.addComponent(new HX.DebugBoundsComponent());
 }

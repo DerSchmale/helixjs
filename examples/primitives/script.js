@@ -18,6 +18,7 @@ project.onInit = function()
     initScene(this.scene, this.assetLibrary);
 
     this.renderer.backgroundColor = 0x808080;
+    this.renderer.backgroundColor = 0x808080;
 };
 
 window.onload = function ()

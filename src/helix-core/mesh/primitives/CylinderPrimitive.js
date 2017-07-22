@@ -34,6 +34,9 @@ CylinderPrimitive.ALIGN_X = 1;
 CylinderPrimitive.ALIGN_Y = 2;
 CylinderPrimitive.ALIGN_Z = 3;
 
+/**
+ * @ignore
+ */
 CylinderPrimitive.prototype._generate = function(target, definition)
 {
     definition = definition || {};
@@ -70,16 +73,14 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                     positions.push(-h, cx, -cy);
                     if (normals) normals.push(0, nx, -ny);
                     break;
-                case CylinderPrimitive.ALIGN_Y:
-                    positions.push(cx, h, -cy);
-                    if (normals) normals.push(nx, 0, -ny);
-                    break;
                 case CylinderPrimitive.ALIGN_Z:
                     positions.push(cx, cy, h);
                     if (normals) normals.push(nx, ny, 0);
                     break;
                 default:
-                // nothing
+                    positions.push(cx, h, -cy);
+                    if (normals) normals.push(nx, 0, -ny);
+                    break;
             }
 
             if (uvs) uvs.push(1.0 - ci*rcpNumSegmentsW, hi*rcpNumSegmentsH);
@@ -131,21 +132,6 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                 }
                 break;
 
-            case CylinderPrimitive.ALIGN_Y:
-                positions.push(cx, -halfH, -cy);
-                positions.push(cx, halfH, -cy);
-
-                if (normals) {
-                    normals.push(0, -1, 0);
-                    normals.push(0, 1, 0);
-                }
-
-                if (uvs) {
-                    uvs.push(u, v);
-                    uvs.push(u, 1.0 - v);
-                }
-                break;
-
             case CylinderPrimitive.ALIGN_Z:
                 positions.push(cx, cy, -halfH);
                 positions.push(cx, cy, halfH);
@@ -161,7 +147,19 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                 }
                 break;
             default:
-                // nothing
+                positions.push(cx, -halfH, -cy);
+                positions.push(cx, halfH, -cy);
+
+                if (normals) {
+                    normals.push(0, -1, 0);
+                    normals.push(0, 1, 0);
+                }
+
+                if (uvs) {
+                    uvs.push(u, v);
+                    uvs.push(u, 1.0 - v);
+                }
+                break;
         }
     }
 

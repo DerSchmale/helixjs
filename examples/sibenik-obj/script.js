@@ -3,7 +3,7 @@
  */
 
 var project = new DemoProject();
-var pointLight;
+var spotLight;
 
 window.onload = function ()
 {
@@ -15,6 +15,7 @@ window.onload = function ()
     options.ambientOcclusion = ssao;
 
     options.defaultLightingModel = HX.LightingModel.GGX;
+    options.deferredLightingModel = HX.LightingModel.GGX;
     options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
 };
@@ -28,14 +29,11 @@ project.queueAssets = function(assetLibrary)
 project.onInit = function()
 {
     initCamera(this.camera);
-    initScene(this.scene, this.assetLibrary);
+    initScene(this.scene, this.camera, this.assetLibrary);
 };
 
 project.onUpdate = function()
 {
-    var diff = HX.Float4.subtract(this.camera.position, pointLight.position);
-    diff.scale(.05);
-    pointLight.position.add(diff);
 };
 
 function initCamera(camera)
@@ -49,18 +47,23 @@ function initCamera(camera)
     camera.addComponent(floatController);
 }
 
-function initScene(scene, assetLibrary)
+function initScene(scene, camera, assetLibrary)
 {
     var ambientLight = new HX.AmbientLight();
-    ambientLight.intensity = .5;
+    ambientLight.intensity = .1;
 
-    pointLight = new HX.PointLight();
-    pointLight.color = new HX.Color(.6,.8, 1.0);
-    pointLight.intensity = 100.0;
-    pointLight.position.y = 1;
-    pointLight.position.z = 1;
+    spotLight = new HX.SpotLight();
+    spotLight.color = new HX.Color(.6,.8, 1.0);
+    spotLight.intensity = 300.0;
+    spotLight.position.y = 1;
+    spotLight.position.x = .5;
+    spotLight.lookAt(new HX.Float4(0.0, 0.0, 4.0));
+    spotLight.innerAngle = 0.1;
+    spotLight.radius = 20;
+    spotLight.outerAngle = 0.5;
+    spotLight.fixedLights = [spotLight];
 
-    scene.attach(pointLight);
+    camera.attach(spotLight);
     scene.attach(ambientLight);
 
     scene.attach(assetLibrary.get("model"));

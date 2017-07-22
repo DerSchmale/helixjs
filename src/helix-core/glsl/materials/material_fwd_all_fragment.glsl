@@ -16,6 +16,10 @@ uniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];
 uniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];
 #endif
 
+#if HX_NUM_SPOT_LIGHTS > 0
+uniform HX_PointLight hx_spotLights[HX_NUM_SPOT_LIGHTS];
+#endif
+
 #if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0
 uniform mat4 hx_cameraWorldMatrix;
 #endif
@@ -79,6 +83,15 @@ void main()
     for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {
         vec3 diffuse, specular;
         hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
+        diffuseAccum += diffuse;
+        specularAccum += specular;
+    }
+    #endif
+
+    #if HX_NUM_SPOT_LIGHTS > 0
+    for (int i = 0; i < HX_NUM_SPOT_LIGHTS; ++i) {
+        vec3 diffuse, specular;
+        hx_calculateLight(hx_spotLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
         diffuseAccum += diffuse;
         specularAccum += specular;
     }

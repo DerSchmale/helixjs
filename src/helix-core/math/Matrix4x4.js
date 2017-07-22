@@ -405,6 +405,12 @@ Matrix4x4.prototype =
      */
     fromScale: function (x, y, z)
     {
+        if (x instanceof Float4) {
+            y = x.y;
+            z = x.z;
+            x = x.x;
+        }
+
         if (y === undefined)
             y = z = x;
 
@@ -926,6 +932,12 @@ Matrix4x4.prototype =
      */
     appendScale: function (x, y, z)
     {
+        if (x instanceof Float4) {
+            y = x.y;
+            z = x.z;
+            x = x.x;
+        }
+
         if (y === undefined)
             y = z = x;
 
@@ -1216,44 +1228,51 @@ Matrix4x4.prototype =
      */
     lookAt: function (target, eye, up)
     {
-        var zAxis = Float4.subtract(target, eye);
-        zAxis.normalize();
+        var xAxis = new Float4();
+        var yAxis = new Float4();
+        var zAxis = new Float4();
 
-        var xAxis = Float4.cross(up, zAxis);
+        return function(target, eye, up)
+        {
+            Float4.subtract(target, eye, zAxis);
+            zAxis.normalize();
 
-        if (Math.abs(xAxis.lengthSqr) > .0001) {
-            xAxis.normalize();
-        }
-        else {
-            var altUp = new Float4(up.x, up.z, up.y, 0.0);
-            Float4.cross(altUp, zAxis, xAxis);
-            if (Math.abs(xAxis.lengthSqr) <= .0001) {
-                altUp.set(up.z, up.y, up.z, 0.0);
-                Float4.cross(altUp, zAxis, xAxis);
+            Float4.cross(up, zAxis, xAxis);
+
+            if (Math.abs(xAxis.lengthSqr) > .0001) {
+                xAxis.normalize();
             }
-            xAxis.normalize();
+            else {
+                var altUp = new Float4(up.x, up.z, up.y, 0.0);
+                Float4.cross(altUp, zAxis, xAxis);
+                if (Math.abs(xAxis.lengthSqr) <= .0001) {
+                    altUp.set(up.z, up.y, up.z, 0.0);
+                    Float4.cross(altUp, zAxis, xAxis);
+                }
+                xAxis.normalize();
+            }
+
+            Float4.cross(zAxis, xAxis, yAxis);
+
+            var m = this._m;
+            m[0] = xAxis.x;
+            m[1] = xAxis.y;
+            m[2] = xAxis.z;
+            m[3] = 0.0;
+            m[4] = yAxis.x;
+            m[5] = yAxis.y;
+            m[6] = yAxis.z;
+            m[7] = 0.0;
+            m[8] = zAxis.x;
+            m[9] = zAxis.y;
+            m[10] = zAxis.z;
+            m[11] = 0.0;
+            m[12] = eye.x;
+            m[13] = eye.y;
+            m[14] = eye.z;
+            m[15] = 1.0;
         }
-
-        var yAxis = Float4.cross(zAxis, xAxis);
-
-        var m = this._m;
-        m[0] = xAxis.x;
-        m[1] = xAxis.y;
-        m[2] = xAxis.z;
-        m[3] = 0.0;
-        m[4] = yAxis.x;
-        m[5] = yAxis.y;
-        m[6] = yAxis.z;
-        m[7] = 0.0;
-        m[8] = zAxis.x;
-        m[9] = zAxis.y;
-        m[10] = zAxis.z;
-        m[11] = 0.0;
-        m[12] = eye.x;
-        m[13] = eye.y;
-        m[14] = eye.z;
-        m[15] = 1.0;
-    },
+    }(),
 
     /**
      * Initializes as an affine transformation based on a transform object

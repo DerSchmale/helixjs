@@ -102,7 +102,9 @@ BoundingSphere.prototype.growToIncludeMesh = function(mesh)
  */
 BoundingSphere.prototype.growToIncludeBound = function(bounds)
 {
-    if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
+    if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY ||
+        bounds._expanse === BoundingVolume.EXPANSE_INHERIT ||
+        this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
 
     if (bounds._expanse === BoundingVolume.EXPANSE_INFINITE)
         this._expanse = BoundingVolume.EXPANSE_INFINITE;
@@ -224,7 +226,7 @@ BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
  */
 BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
-    if (this._expanse === BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || this._expanse === BoundingVolume.EXPANSE_INHERIT)
         return true;
     else if (this._expanse === BoundingVolume.EXPANSE_EMPTY)
         return false;
@@ -251,7 +253,7 @@ BoundingSphere.prototype.intersectsBound = function(bound)
     if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
         return false;
 
-    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE || this._expanse === BoundingVolume.EXPANSE_INHERIT || bounds._expanse === BoundingVolume.EXPANSE_INHERIT)
         return true;
 
     // both Spheres
@@ -299,6 +301,9 @@ BoundingSphere.prototype._updateMinAndMax = function()
  */
 BoundingSphere.prototype.intersectsRay = function(ray)
 {
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return true;
+    if (this._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INHERIT) return false;
+
     var centerX = this._center.x, centerY = this._center.y, centerZ = this._center.z;
     var radius = this._halfExtentX;
     var o = ray.origin;

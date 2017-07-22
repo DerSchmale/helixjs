@@ -70,7 +70,9 @@ BoundingAABB.prototype.growToIncludeMesh = function(mesh)
  */
 BoundingAABB.prototype.growToIncludeBound = function(bounds)
 {
-    if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
+    if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY ||
+        bounds._expanse === BoundingVolume.EXPANSE_INHERIT ||
+        this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
 
     if (bounds._expanse === BoundingVolume.EXPANSE_INFINITE)
         this._expanse = BoundingVolume.EXPANSE_INFINITE;
@@ -141,9 +143,7 @@ BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
  */
 BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
 {
-    if (sourceBound._expanse === BoundingVolume.EXPANSE_INFINITE || sourceBound._expanse === BoundingVolume.EXPANSE_EMPTY)
-        this.clear(sourceBound._expanse);
-    else {
+    if (sourceBound._expanse === BoundingVolume.EXPANSE_FINITE) {
         var arr = matrix._m;
         var m00 = arr[0], m10 = arr[1], m20 = arr[2];
         var m01 = arr[4], m11 = arr[5], m21 = arr[6];
@@ -177,6 +177,9 @@ BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
         this._maximumZ = this._center.z + this._halfExtentZ;
         this._expanse = sourceBound._expanse;
     }
+    else {
+        this.clear(sourceBound._expanse);
+    }
 };
 
 
@@ -185,7 +188,7 @@ BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
  */
 BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 {
-    if (this._expanse === BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || this._expanse === BoundingVolume.EXPANSE_INHERIT)
         return true;
     else if (this._expanse === BoundingVolume.EXPANSE_EMPTY)
         return false;
@@ -218,7 +221,8 @@ BoundingAABB.prototype.intersectsBound = function(bound)
     if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
         return false;
 
-    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE)
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE ||
+        this._expanse === BoundingVolume.EXPANSE_INHERIT || bound._expanse === BoundingVolume.EXPANSE_INHERIT)
         return true;
 
     // both AABB
@@ -266,7 +270,7 @@ BoundingAABB.prototype.classifyAgainstPlane = function(plane)
 BoundingAABB.prototype.intersectsRay = function(ray)
 {
     if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return true;
-    if (this._expanse === BoundingVolume.EXPANSE_EMPTY) return false;
+    if (this._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INHERIT) return false;
     // slab method
     var o = ray.origin;
     var d = ray.direction;

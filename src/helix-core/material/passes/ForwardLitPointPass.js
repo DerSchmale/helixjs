@@ -40,8 +40,8 @@ ForwardLitPointPass.prototype.updatePassRenderState = function(camera, renderer,
         camera.viewMatrix.transformPoint(pos, pos);
         gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
         gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
-        gl.uniform1f(this._radiusLocation, light.radius);
-        gl.uniform1f(this._rcpRadiusLocation, 1.0 / light.radius);
+        gl.uniform1f(this._radiusLocation, light._radius);
+        gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
 
         MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
     }

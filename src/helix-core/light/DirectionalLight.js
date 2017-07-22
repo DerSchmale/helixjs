@@ -13,7 +13,8 @@ import {META} from "../Helix";
  *
  * @property {boolean} castShadows Defines whether or not this light casts shadows.
  * @property {number} shadowMapSize The shadow map size used by this light.
- * @property {Float4} direction The direction of the light rays.
+ * @property {Float4} direction The direction in *world space* of the light rays. This cannot be set per component but
+ * needs to be assigned as a whole Float4.
  *
  * @constructor
  *
@@ -30,6 +31,9 @@ function DirectionalLight()
     this._shadowMapSize = 1024;
     this._shadowMapRenderer = null;
     this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
+
+    // this is just a storage vector
+    this._direction = new Float4();
 }
 
 /**
@@ -86,7 +90,8 @@ DirectionalLight.prototype = Object.create(Light.prototype,
         direction: {
             get: function()
             {
-                var dir = this.worldMatrix.getColumn(2);
+                var dir = this._direction;
+                this.worldMatrix.getColumn(2, dir);
                 return dir;
             },
 

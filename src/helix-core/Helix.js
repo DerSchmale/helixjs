@@ -465,7 +465,7 @@ export function init(canvas, options)
     if (capabilities.EXT_DRAW_BUFFERS && capabilities.EXT_DRAW_BUFFERS.MAX_DRAW_BUFFERS_WEBGL >= 3) {
         capabilities.GBUFFER_MRT = true;
         // remove the last (individual) gbuffer pass
-        MaterialPass.NUM_PASS_TYPES = 8;
+        --MaterialPass.NUM_PASS_TYPES;
     }
 
     capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');

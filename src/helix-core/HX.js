@@ -21,6 +21,8 @@ export {Quaternion} from "./math/Quaternion";
 export {Ray} from "./math/Ray";
 export {Transform} from "./math/Transform";
 
+export {DebugBoundsComponent} from "./debug/DebugBoundsComponent";
+
 export {BoundingAABB} from "./scene/BoundingAABB";
 export {BoundingSphere} from "./scene/BoundingSphere";
 export {SceneNode} from "./scene/SceneNode";
@@ -98,6 +100,7 @@ export {LightProbe} from "./light/LightProbe";
 export {DynamicLightProbe} from "./light/DynamicLightProbe";
 export {PCFDirectionalShadowFilter} from "./light/PCFDirectionalShadowFilter";
 export {PointLight} from "./light/PointLight";
+export {SpotLight} from "./light/SpotLight";
 export {ShadowFilter} from "./light/ShadowFilter";
 export {VarianceDirectionalShadowFilter} from "./light/VarianceDirectionalShadowFilter";
 

@@ -41,6 +41,11 @@ BoundingVolume.EXPANSE_INFINITE = 1;
  */
 BoundingVolume.EXPANSE_FINITE = 2;
 
+/**
+ * Indicates the parent's bounds are used in selecting.
+ */
+BoundingVolume.EXPANSE_INHERIT = 3;
+
 BoundingVolume._testAABBToSphere = function(aabb, sphere)
 {
     // b = sphere var max = aabb._maximum;

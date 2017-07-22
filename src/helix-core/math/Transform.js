@@ -77,19 +77,21 @@ Transform.prototype =
     lookAt: function(target)
     {
         this._matrix.lookAt(target, this._position, Float4.Y_AXIS);
+        this._matrix.appendScale(this._scale);
         this._applyMatrix();
     },
 
     /**
      * Copies the state of another Transform object
      */
-    copyFrom: function(transform)
+    copyTransform: function(transform)
     {
         this._changeListener.enabled = false;
-        this.position.copyFrom(transform.position);
-        this.rotation.copyFrom(transform.rotation);
-        this.scale.copyFrom(transform.scale);
+        this._position.copyFrom(transform.position);
+        this._rotation.copyFrom(transform.rotation);
+        this._scale.copyFrom(transform.scale);
         this._changeListener.enabled = true;
+        this._invalidateMatrix();
     },
 
     /**

@@ -19,7 +19,7 @@ float miePhase(float cosTheta)
 
 HX_GeometryData hx_geometry()
 {
-    vec3 view = -normalize(viewDir);
+    vec3 view = normalize(viewDir);
     float cosTheta = dot(lightDir, view);
     vec4 color = vec4(color0 + color1 * miePhase(cosTheta), 1.0);
     HX_GeometryData data;

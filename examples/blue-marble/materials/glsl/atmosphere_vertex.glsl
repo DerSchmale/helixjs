@@ -75,7 +75,7 @@ void hx_geometry()
         float fHeight = length(v3SamplePoint);
         float expThicknessOverScaleDepth = exp(thicknessOverScaleDepth * (earthRadius - fHeight));
         float rcpHeight = 1.0 / fHeight;
-        float lightAngle = dot(lightDir, v3SamplePoint) * rcpHeight;
+        float lightAngle = dot(-lightDir, v3SamplePoint) * rcpHeight;
         float cameraAngle = dot(viewDir, v3SamplePoint) * rcpHeight;
         float scatter = fStartOffset + expThicknessOverScaleDepth * scaleDepth * (scale(lightAngle) - scale(cameraAngle));
         v3Attenuate = saturate(exp(-scatter * waveLenFactorsKr4PiKm4Pi));

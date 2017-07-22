@@ -42,7 +42,7 @@ function CascadeShadowMapRenderer(light, shadowMapSize)
     this._splitDistances = null;
     this._shadowMapCameras = null;
     this._collectorCamera = new OrthographicOffCenterCamera();
-    this._minZ = 0;
+    this._maxZ = 0;
     this._numCullPlanes = 0;
     this._cullPlanes = [];
     this._localBounds = new BoundingAABB();
@@ -119,7 +119,7 @@ CascadeShadowMapRenderer.prototype =
             max.maximize(tmp);
         }
 
-        this._minZ = min.z;
+        this._maxZ = max.z;
 
         this._collectorCamera.matrix.copyFrom(this._light.worldMatrix);
         this._collectorCamera._invalidateWorldMatrix();
@@ -135,8 +135,7 @@ CascadeShadowMapRenderer.prototype =
             var numCascades = META.OPTIONS.numShadowCascades;
 
             for (var i = 0; i < numCascades; ++i) {
-                var z = nearDist + this._splitRatios[i] * frustumRange;
-                this._splitDistances[i] = -z;
+                this._splitDistances[i] = nearDist + this._splitRatios[i] * frustumRange;
             }
         }
     }(),
@@ -204,7 +203,7 @@ CascadeShadowMapRenderer.prototype =
             nearRatio = farRatio;
 
             // do not render beyond range of view camera or scene depth
-            min.z = Math.max(this._minZ, min.z);
+            max.z = Math.min(this._maxZ, max.z);
 
             var left = Math.max(min.x, minBound.x);
             var right = Math.min(max.x, maxBound.x);
@@ -233,8 +232,8 @@ CascadeShadowMapRenderer.prototype =
             camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 
             // cannot clip nearDistance to frustum, because casters in front may cast into this frustum
-            camera.nearDistance = -maxBound.z;
-            camera.farDistance = -min.z;
+            camera.nearDistance = minBound.z;
+            camera.farDistance = max.z;
 
             camera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
 
@@ -341,12 +340,12 @@ CascadeShadowMapRenderer.prototype =
         var ratio = 1.0;
         this._splitRatios = [];
         this._splitDistances = [];
-        this._splitPlanes = [];
+        // this._splitPlanes = [];
 
         for (var i = META.OPTIONS.numShadowCascades - 1; i >= 0; --i)
         {
             this._splitRatios[i] = ratio;
-            this._splitPlanes[i] = new Float4();
+            // this._splitPlanes[i] = new Float4();
             this._splitDistances[i] = 0;
             ratio *= .5;
         }

@@ -207,10 +207,10 @@ OrbitController.prototype.setZoomImpulse = function(value)
 OrbitController.prototype._updateMove = function(x, y)
 {
     if (this._oldMouseX !== undefined) {
-        var dx = x - this._oldMouseX;
-        var dy = y - this._oldMouseY;
+        var dx = this._oldMouseX - x;
+        var dy = this._oldMouseY - y;
         this.setAzimuthImpulse(dx * .0015);
-        this.setPolarImpulse(-dy * .0015);
+        this.setPolarImpulse(dy * .0015);
     }
     this._oldMouseX = x;
     this._oldMouseY = y;

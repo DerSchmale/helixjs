@@ -29,7 +29,7 @@ ConePrimitive.prototype._generate = function(target, definition)
 {
     definition = definition || {};
     var numSegmentsH = definition.numSegmentsH || 1;
-    var numSegmentsW = definition.numSegmentsW || 1;
+    var numSegmentsW = definition.numSegmentsW || 16;
     var radius = definition.radius || 1;
     var height = definition.height || 1;
     var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;

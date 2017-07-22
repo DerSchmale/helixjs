@@ -428,7 +428,7 @@ Matrix4x4.prototype =
     },
 
     /**
-     * Initializes as a perspective projection matrix.
+     * Initializes as a perspective projection matrix (left-handed!).
      * @param vFOV The vertical field of view in radians.
      * @param aspectRatio The aspect ratio
      * @param nearDistance The near plane distance
@@ -453,8 +453,8 @@ Matrix4x4.prototype =
 
         m[8] = 0;
         m[9] = 0;
-        m[10] = (farDistance + nearDistance) * rcpFrustumDepth;
-        m[11] = -1;
+        m[10] = -(farDistance + nearDistance) * rcpFrustumDepth;
+        m[11] = 1;
 
         m[12] = 0;
         m[13] = 0;
@@ -490,7 +490,7 @@ Matrix4x4.prototype =
 
         m[8] = 0;
         m[9] = 0;
-        m[10] = 2.0 * rcpDepth;
+        m[10] = -2.0 * rcpDepth;
         m[11] = 0;
 
         m[12] = -(left + right) * rcpWidth;
@@ -1216,7 +1216,7 @@ Matrix4x4.prototype =
      */
     lookAt: function (target, eye, up)
     {
-        var zAxis = Float4.subtract(eye, target);
+        var zAxis = Float4.subtract(target, eye);
         zAxis.normalize();
 
         var xAxis = Float4.cross(up, zAxis);

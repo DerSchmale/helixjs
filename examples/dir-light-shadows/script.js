@@ -9,9 +9,9 @@ window.onload = function ()
     var options = new HX.InitOptions();
 
     var ssao = new HX.SSAO(16);
-    ssao.strength = 2.0;
+    ssao.strength = 3.0;
     ssao.sampleRadius = 1.0;
-    ssao.fallOffDistance = 2.0;
+    ssao.fallOffDistance = 2.5;
     options.ambientOcclusion = ssao;
 
     if (HX.Platform.isMobile) {
@@ -28,7 +28,7 @@ window.onload = function ()
     }
 
     options.defaultLightingModel = HX.LightingModel.GGX;
-    // options.deferredLightingModel = HX.LightingModel.GGX;
+    options.deferredLightingModel = HX.LightingModel.GGX;
     // options.directionalShadowFilter.blurRadius = 1;
 
     project.init(document.getElementById('webglContainer'), options);

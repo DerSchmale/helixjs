@@ -87,9 +87,6 @@ DirectionalLight.prototype = Object.create(Light.prototype,
             get: function()
             {
                 var dir = this.worldMatrix.getColumn(2);
-                dir.x = -dir.x;
-                dir.y = -dir.y;
-                dir.z = -dir.z;
                 return dir;
             },
 

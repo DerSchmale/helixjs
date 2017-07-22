@@ -40,7 +40,7 @@ function Camera()
     this._farDistance = 1000;
     this._frustum = new Frustum();
 
-    this.position.set(0.0, 0.0, 1.0);
+    this.position.set(0.0, 0.0, -1.0);
 }
 
 Camera.prototype = Object.create(Entity.prototype, {

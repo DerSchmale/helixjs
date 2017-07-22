@@ -120,10 +120,10 @@ FloatController.prototype.onAdded = function(dt)
                 self._maxAcceleration = self._speed * self._speedMultiplier;
                 break;
             case 87:
-                self._setForwardForce(-1.0);
+                self._setForwardForce(1.0);
                 break;
             case 83:
-                self._setForwardForce(1.0);
+                self._setForwardForce(-1.0);
                 break;
             case 65:
                 self._setStrideForce(-1.0);
@@ -161,8 +161,8 @@ FloatController.prototype.onAdded = function(dt)
     {
         event = event || window.event;
 
-        self._addPitch(-(self._mouseY-event.clientY) / 100);
-        self._addYaw((self._mouseX-event.clientX) / 100);
+        self._addPitch((self._mouseY-event.clientY) / 100);
+        self._addYaw(-(self._mouseX-event.clientX) / 100);
 
         self._mouseX = event.clientX;
         self._mouseY = event.clientY;

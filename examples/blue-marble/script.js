@@ -47,6 +47,8 @@ project.onUpdate = function(dt)
 
     var v = this.camera.viewMatrix.transformVector(sunLight.direction);
     earthMaterial.setUniform("sunViewDirection", v);
+
+    console.log();
 };
 
 window.onload = function ()
@@ -92,9 +94,9 @@ function initLDRSettings()
 
 function initCamera(camera)
 {
-    camera.position.x = 0.013820930384099483;
-    camera.position.y = .0001396583509631455;
-    camera.position.z = -0.004580328706651926;
+    camera.position.x = -0.014656872488558292;
+    camera.position.y = 0.001973972423002124;
+    camera.position.z = -0.00644469540566206;
 
     camera.lookAt(HX.Float4.ORIGIN_POINT);
     // earth sun distance ~150
@@ -105,8 +107,8 @@ function initCamera(camera)
     var controller = new HX.FloatController();
     controller.speed = .07;
     controller.shiftMultiplier = 5.0;
-    controller.pitch = -0.23000000000000015;
-    controller.yaw = 2.4615926535898036;
+    controller.pitch = 0.15;
+    controller.yaw = 0.6484073464101978;
     camera.addComponent(controller);
 
     camera.addComponents(settings.effects);

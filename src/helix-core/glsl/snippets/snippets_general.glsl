@@ -50,7 +50,7 @@ float hx_RG8ToFloat(vec2 rg)
 vec2 hx_encodeNormal(vec3 normal)
 {
     vec2 data;
-    float p = sqrt(normal.z*8.0 + 8.0);
+    float p = sqrt(-normal.z*8.0 + 8.0);
     data = normal.xy / p + .5;
     return data;
 }
@@ -62,7 +62,7 @@ vec3 hx_decodeNormal(vec4 data)
     float f = dot(data.xy, data.xy);
     float g = sqrt(1.0 - f * .25);
     normal.xy = data.xy * g;
-    normal.z = 1.0 - f * .5;
+    normal.z = -(1.0 - f * .5);
     return normal;
 }
 
@@ -136,19 +136,19 @@ vec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)
     return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;
 }
 
-// view vector with z = -1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position
+// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position
 vec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)
 {
     vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);
     unproj /= unproj.w;
-    return -unproj.xyz / unproj.z;
+    return unproj.xyz / unproj.z;
 }
 
 // THIS IS FOR NON_LINEAR DEPTH!
 float hx_depthToViewZ(float depthSample, mat4 projectionMatrix)
 {
-//    z = -projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])
-    return -projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);
+//    z = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[2][2])
+    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[2][2]);
 }
 
 vec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)

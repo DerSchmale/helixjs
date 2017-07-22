@@ -22,7 +22,7 @@ void main()
     float totalOcclusion = 0.0;
     vec3 dither = texture2D(ditherTexture, uv * ditherScale).xyz;
     vec3 randomPlaneNormal = normalize(dither - .5);
-    float w = centerDepth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;
+    float w = hx_cameraNearPlaneDistance + centerDepth * hx_cameraFrustumRange;
     vec3 sampleRadii;
     sampleRadii.xy = sampleRadius * .5 / w * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1]);
     sampleRadii.z = sampleRadius;
@@ -40,14 +40,14 @@ void main()
         vec2 samplePos = uv + scaledOffset.xy;
         normalDepth = texture2D(hx_gbufferNormalDepth, samplePos);
         float occluderDepth = hx_decodeLinearDepth(normalDepth);
-        float diffZ = (centerDepth - occluderDepth) * hx_cameraFrustumRange;
 
-        // distanceFactor: from 1 to 0, near to far
-        float distanceFactor = clamp(diffZ * rcpFallOffDistance, 0.0, 1.0);
-        distanceFactor = 1.0 - distanceFactor;
+        // can ignore nearDist
+        float occluderZ = hx_cameraFrustumRange * occluderDepth;
+        float sampleZ = centerDepth * hx_cameraFrustumRange + scaledOffset.z;
 
-        // sampleOcclusion: 1 if occluding, 0 otherwise
-        float sampleOcclusion = float(diffZ > scaledOffset.z);
+        float distanceFactor = 1.0 - (sampleZ - occluderZ) * rcpFallOffDistance;
+
+        float sampleOcclusion = float(occluderZ < sampleZ);
         totalOcclusion += sampleOcclusion * distanceFactor * cosFactor;
     }
     gl_FragColor = vec4(vec3(1.0 - totalOcclusion * strengthPerSample), 1.0);

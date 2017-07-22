@@ -348,7 +348,7 @@ export function InitOptions()
      * The lighting model {@codelink LightingModel} to use in the deferred lighting path, which may improve lighting
      * performance. Usually you'd want this to be either null or the same as defaulyt
      */
-    this.deferredeLightingModel = null;
+    this.deferredLightingModel = null;
 
     /**
      * The amount of shadow cascades to use. Cascades split up the view frustum into areas with their own shadow maps,
@@ -679,8 +679,8 @@ function _initGLProperties()
     TextureFilter.DEFAULT = TextureFilter.TRILINEAR;
 
     CullMode.NONE = null;
-    CullMode.BACK = gl.BACK;
-    CullMode.FRONT = gl.FRONT;
+    CullMode.BACK = gl.FRONT;
+    CullMode.FRONT = gl.BACK;
     CullMode.ALL = gl.FRONT_AND_BACK;
 
     StencilOp.KEEP = gl.KEEP;

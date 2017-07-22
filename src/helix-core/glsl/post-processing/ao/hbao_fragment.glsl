@@ -21,7 +21,7 @@ vec3 getViewPos(vec2 sampleUV)
 {
     vec4 smp = texture2D(hx_gbufferNormalDepth, sampleUV);
     float depth = hx_decodeLinearDepth(smp);
-    float viewZ = depth * hx_cameraFrustumRange + hx_cameraNearPlaneDistance;
+    float viewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
     vec3 viewPos = frustumCorner * vec3(sampleUV * 2.0 - 1.0, 1.0);
     return viewPos * viewZ;
 }
@@ -48,8 +48,7 @@ float getSampleOcclusion(vec2 sampleUV, vec3 centerViewPos, vec3 centerNormal, v
     topOcclusion = max(occlusion, topOcclusion);
 
     // attenuate occlusion contribution using distance function 1 - (d/f)^2
-    float distanceFactor = clamp(horizonVectorLength * rcpFallOffDistance, 0.0, 1.0);
-    distanceFactor = 1.0 - distanceFactor * distanceFactor;
+    float distanceFactor = 1.0 - saturate(horizonVectorLength * rcpFallOffDistance);
     return diff * distanceFactor;
 }
 
@@ -95,7 +94,7 @@ void main()
     vec3 centerViewPos = viewZ * viewDir;
 
     // clamp z to a minimum, so the radius does not get excessively large in screen-space
-    float projRadius = halfSampleRadius / max(-centerViewPos.z, 7.0);
+    float projRadius = halfSampleRadius / max(centerViewPos.z, 7.0);
     vec2 projectedRadii = projRadius * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1]);
 
     // do not take more steps than there are pixels

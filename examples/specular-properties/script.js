@@ -72,7 +72,7 @@ function initScene(scene, assetLibrary)
             material.metallicness = y / (numY - 1.0);
 
             var modelInstance = new HX.ModelInstance(primitive, material);
-            modelInstance.position.x = -((x + .5) / numX - .5) * 3.0;
+            modelInstance.position.x = ((x + .5) / numX - .5) * 3.0;
             modelInstance.position.y = -((y + .5) / numY - .5) * 1.5;
             modelInstance.position.z = 0.0;
             scene.attach(modelInstance);

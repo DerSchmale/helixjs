@@ -39,7 +39,7 @@ function HBAO(numRays, numSamplesPerRay)
     this._numRays = numRays;
     this._numSamplesPerRay = numSamplesPerRay
     this._strength = 1.0;
-    this._bias = .01;
+    this._bias = .1;
     this._fallOffDistance = 1.0;
     this._radius = .5;
     this._scale = .5;

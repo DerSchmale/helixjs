@@ -70,6 +70,8 @@ function initScene(scene, assetLibrary)
     scene.attach(lightProbe);
 
     var dirLight = new HX.DirectionalLight();
+    dirLight.color = new HX.Color(1.0,.8,.6);
+    dirLight.direction = new HX.Float4(0.0, -0.3, -1.0, 0.0);
     scene.attach(dirLight);
 
     if (!HX.META.OPTIONS.hdr) {

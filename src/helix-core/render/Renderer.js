@@ -338,7 +338,6 @@ Renderer.prototype =
                     RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, fixed);
                 }
 
-                GL.setClearColor(Color.BLACK);
             }
             GL.setClearColor(Color.BLACK);
         }

@@ -61,7 +61,7 @@ void hx_geometry()
 
     vec3 pos = (hx_worldViewMatrix * hx_position).xyz;
     viewDir = pos;
-    linearDepth = (-pos.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;
+    linearDepth = (pos.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;
     gl_Position = hx_wvpMatrix * hx_position;
 
     // scattering
@@ -84,7 +84,7 @@ void hx_geometry()
     vec3 nearPoint = hx_cameraWorldPosition + v3Ray * nearDist;
     float atmosDist = farDist - nearDist;
     float cameraAngle = dot(-v3Ray, v3Pos);
-    float lightAngle = dot(lightDir, v3Pos);
+    float lightAngle = dot(-lightDir, v3Pos);
     float cameraScale = scale(cameraAngle);
     float lightScale = scale(lightAngle);
     float cameraOffset = expThicknessOverScaleDepth*cameraScale;

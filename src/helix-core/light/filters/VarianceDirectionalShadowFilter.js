@@ -5,7 +5,7 @@ import { VSMBlurShader } from '../shaders/VSMBlurShader';
 
 /**
  * @classdesc
- * VarianceDirectionalShadowFilter is a shadow filter that provides variance soft shadow mapping.
+ * VarianceDirectionalShadowFilter is a shadow filter for directional lights that provides variance soft shadow mapping.
  * The implementation is highly experimental at this point.
  *
  * @property {number} blurRadius The blur radius for the soft shadows.

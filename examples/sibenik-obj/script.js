@@ -13,6 +13,9 @@ window.onload = function ()
     ssao.sampleRadius = 1.0;
     options.ambientOcclusion = ssao;
 
+    options.spotShadowFilter = new HX.PCFSpotShadowFilter();
+    options.spotShadowFilter.dither = true;
+
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.deferredLightingModel = HX.LightingModel.GGX;
     options.hdr = true;

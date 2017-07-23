@@ -4,9 +4,9 @@ import { ShadowFilter } from './ShadowFilter';
 
 /**
  * @classdesc
- * HardSpotShadowFilter is a shadow filter that doesn't apply any filtering at all.
+ * HardSpotShadowFilter is a shadow filter for spot lights that doesn't apply any filtering at all.
  *
- * @see {@linkcode InitOptions#directionalShadowFilter}
+ * @see {@linkcode InitOptions#spotShadowFilter}
  *
  * @constructor
  *

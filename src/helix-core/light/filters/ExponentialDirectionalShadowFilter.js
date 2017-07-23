@@ -5,8 +5,8 @@ import {ESMBlurShader} from "../shaders/ESMBlurShader";
 
 /**
  * @classdesc
- * ExponentialDirectionalShadowFilter is a shadow filter that provides exponential soft shadow mapping.
- * The implementation is highly experimental at this point.
+ * ExponentialDirectionalShadowFilter is a shadow filter for directional lights that provides exponential soft shadow
+ * mapping. The implementation is highly experimental at this point.
  *
  * @property {number} blurRadius The blur radius for the soft shadows.
  * @property {number} darkeningFactor A darkening factor of the shadows. Counters some artifacts of the technique.

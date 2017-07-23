@@ -4,15 +4,14 @@ import { ShadowFilter } from './ShadowFilter';
 
 /**
  * @classdesc
- * PCFDirectionalShadowFilter is a shadow filter for directional lights that provides percentage closer soft shadow
- * mapping. However, WebGL does not support shadow test interpolations, so the results aren't as great as its GL/DX
- * counterpart.
+ * PCFSpotShadowFilter is a shadow filter for spot lights that provides percentage closer soft shadow mapping. However,
+ * WebGL does not support shadow test interpolations, so the results aren't as great as its GL/DX counterpart.
  *
  * @property {number} softness The softness of the shadows in shadow map space.
  * @property {number} numShadowSamples The amount of shadow samples to take.
  * @property {boolean} dither Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
  *
- * @see {@linkcode InitOptions#directionalShadowFilter}
+ * @see {@linkcode InitOptions#spotShadowFilter}
  *
  * @constructor
  *
@@ -20,15 +19,15 @@ import { ShadowFilter } from './ShadowFilter';
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function PCFDirectionalShadowFilter()
+function PCFSpotShadowFilter()
 {
     ShadowFilter.call(this);
-    this._softness = .001;
+    this._softness = .003;
     this._numShadowSamples = 6;
     this._dither = false;
 }
 
-PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
+PCFSpotShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
         softness: {
             get: function()
@@ -80,7 +79,7 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
 /**
  * @ignore
  */
-PCFDirectionalShadowFilter.prototype.getCullMode = function()
+PCFSpotShadowFilter.prototype.getCullMode = function()
 {
     return CullMode.FRONT;
 };
@@ -88,18 +87,18 @@ PCFDirectionalShadowFilter.prototype.getCullMode = function()
 /**
  * @ignore
  */
-PCFDirectionalShadowFilter.prototype.getGLSL = function()
+PCFSpotShadowFilter.prototype.getGLSL = function()
 {
     var defines = {
-        HX_DIR_PCF_NUM_SHADOW_SAMPLES: this._numShadowSamples,
-        HX_DIR_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + ( 1.0 / this._numShadowSamples ) + ")",
-        HX_DIR_PCF_SOFTNESS: this._softness
+        HX_SPOT_PCF_NUM_SHADOW_SAMPLES: this._numShadowSamples,
+        HX_SPOT_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + ( 1.0 / this._numShadowSamples ) + ")",
+        HX_SPOT_PCF_SOFTNESS: this._softness
     };
 
     if (this._dither)
-        defines.HX_DIR_PCF_DITHER_SHADOWS = 1;
+        defines.HX_SPOT_PCF_DITHER_SHADOWS = 1;
 
-    return ShaderLibrary.get("dir_shadow_pcf.glsl", defines);
+    return ShaderLibrary.get("spot_shadow_pcf.glsl", defines);
 };
 
-export { PCFDirectionalShadowFilter };
+export { PCFSpotShadowFilter };

@@ -34,8 +34,8 @@ Shader.prototype = {
     init: function(vertexShaderCode, fragmentShaderCode)
     {
         var gl = GL.gl;
-        vertexShaderCode = GLSLIncludes.GENERAL + vertexShaderCode;
-        fragmentShaderCode = GLSLIncludes.GENERAL + fragmentShaderCode;
+        vertexShaderCode = "#define HX_VERTEX_SHADER\n" + GLSLIncludes.GENERAL + vertexShaderCode;
+        fragmentShaderCode = "#define HX_FRAGMENT_SHADER\n" + GLSLIncludes.GENERAL + fragmentShaderCode;
 
         vertexShaderCode = this._processShaderCode(vertexShaderCode);
         fragmentShaderCode = this._processShaderCode(fragmentShaderCode);

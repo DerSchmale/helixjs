@@ -4,7 +4,7 @@ import { ShadowFilter } from './ShadowFilter';
 
 /**
  * @classdesc
- * HardDirectionalShadowFilter is a shadow filter that doesn't apply any filtering at all.
+ * HardDirectionalShadowFilter is a shadow filter for directional lights that doesn't apply any filtering at all.
  *
  * @see {@linkcode InitOptions#directionalShadowFilter}
  *

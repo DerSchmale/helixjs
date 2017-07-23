@@ -28,7 +28,9 @@ void hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVe
 	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);
 }
 
+#ifdef HX_FRAGMENT_SHADER
 float hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)
 {
     return hx_spot_readShadow(shadowMap, viewPos, light.shadowMapMatrix, light.depthBias);
 }
+#endif

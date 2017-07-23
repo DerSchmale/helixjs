@@ -96,16 +96,17 @@ export {DirectionalLight} from "./light/DirectionalLight";
 export {Light} from "./light/Light";
 export {LightProbe} from "./light/LightProbe";
 export {DynamicLightProbe} from "./light/DynamicLightProbe";
-export {PCFDirectionalShadowFilter} from "./light/filters/PCFDirectionalShadowFilter";
 export {PointLight} from "./light/PointLight";
 export {SpotLight} from "./light/SpotLight";
 
 export {ShadowFilter} from "./light/filters/ShadowFilter";
 export {ExponentialDirectionalShadowFilter} from "./light/filters/ExponentialDirectionalShadowFilter";
 export {HardDirectionalShadowFilter} from "./light/filters/HardDirectionalShadowFilter";
+export {PCFDirectionalShadowFilter} from "./light/filters/PCFDirectionalShadowFilter";
 export {VarianceDirectionalShadowFilter} from "./light/filters/VarianceDirectionalShadowFilter";
 export {HardSpotShadowFilter} from "./light/filters/HardSpotShadowFilter";
 export {PCFSpotShadowFilter} from "./light/filters/PCFSpotShadowFilter";
+export {HardPointShadowFilter} from "./light/filters/HardPointShadowFilter";
 
 export {MaterialPass} from "./material/MaterialPass";
 export {Material} from "./material/Material";

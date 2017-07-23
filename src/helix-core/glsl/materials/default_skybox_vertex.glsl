@@ -18,4 +18,3 @@ void hx_geometry()
     pos.z = pos.w;
     gl_Position = pos;
 }
-

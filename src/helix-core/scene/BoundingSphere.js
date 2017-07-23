@@ -248,24 +248,24 @@ BoundingSphere.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
 /**
  * @inheritDoc
  */
-BoundingSphere.prototype.intersectsBound = function(bound)
+BoundingSphere.prototype.intersectsBound = function(bounds)
 {
-    if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
+    if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bounds._expanse === BoundingVolume.EXPANSE_EMPTY)
         return false;
 
-    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE || this._expanse === BoundingVolume.EXPANSE_INHERIT || bounds._expanse === BoundingVolume.EXPANSE_INHERIT)
+    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bounds._expanse === BoundingVolume.EXPANSE_INFINITE || this._expanse === BoundingVolume.EXPANSE_INHERIT || bounds._expanse === BoundingVolume.EXPANSE_INHERIT)
         return true;
 
     // both Spheres
-    if (bound._type === this._type) {
-        var dx = this._center.x - bound._center.x;
-        var dy = this._center.y - bound._center.y;
-        var dz = this._center.z - bound._center.z;
-        var touchDistance = this._halfExtentX + bound._halfExtentX;
+    if (bounds._type === this._type) {
+        var dx = this._center.x - bounds._center.x;
+        var dy = this._center.y - bounds._center.y;
+        var dz = this._center.z - bounds._center.z;
+        var touchDistance = this._halfExtentX + bounds._halfExtentX;
         return dx*dx + dy*dy + dz*dz < touchDistance*touchDistance;
     }
     else
-        return BoundingVolume._testAABBToSphere(bound, this);
+        return BoundingVolume._testAABBToSphere(bounds, this);
 };
 
 /**

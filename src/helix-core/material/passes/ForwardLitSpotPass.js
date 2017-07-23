@@ -88,7 +88,7 @@ ForwardLitSpotPass.prototype._generateShader = function(geometryVertex, geometry
     var fragmentShader =
         ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
         lightingModel + "\n\n\n" +
-        META.OPTIONS.spotShadowFilter.getGLSL() + "\n" +
+        META.OPTIONS.spotShadowFilter.getGLSL() + "\n" +META.OPTIONS.spotShadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("spot_light.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_fwd_spot_fragment.glsl");

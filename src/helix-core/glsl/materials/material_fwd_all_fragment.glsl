@@ -16,6 +16,13 @@ uniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];
 uniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];
 #endif
 
+
+#if HX_NUM_POINT_LIGHT_CASTERS > 0
+uniform HX_PointLight hx_pointLightCasters[HX_NUM_POINT_LIGHT_CASTERS];
+
+uniform samplerCube hx_pointShadowMaps[HX_NUM_POINT_LIGHT_CASTERS];
+#endif
+
 #if HX_NUM_SPOT_LIGHTS > 0
 uniform HX_SpotLight hx_spotLights[HX_NUM_SPOT_LIGHTS];
 #endif
@@ -91,6 +98,16 @@ void main()
         hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
         diffuseAccum += diffuse;
         specularAccum += specular;
+    }
+    #endif
+
+    #if HX_NUM_POINT_LIGHT_CASTERS > 0
+    for (int i = 0; i < HX_NUM_POINT_LIGHT_CASTERS; ++i) {
+        vec3 diffuse, specular;
+        hx_calculateLight(hx_pointLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
+        float shadow = hx_calculateShadows(hx_pointLightCasters[i], hx_pointShadowMaps[i], hx_viewPosition);
+        diffuseAccum += diffuse * shadow;
+        specularAccum += specular * shadow;
     }
     #endif
 

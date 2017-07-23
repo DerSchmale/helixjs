@@ -9,6 +9,7 @@ import {CubeFace} from "../Helix";
 import {Quaternion} from "../math/Quaternion";
 import {Scene} from "../scene/Scene";
 import {Skybox} from "../scene/Skybox";
+import {GL} from "../core/GL";
 
 /**
  * @classdesc
@@ -40,23 +41,17 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
     var depthBuffer = new WriteOnlyDepthBuffer();
     depthBuffer.init(textureSize, textureSize, false);
 
-    var flipY = new Quaternion();
-    flipY.fromAxisAngle(Float4.Z_AXIS, Math.PI);
-
     var rotations = [];
-    for (var i = 0; i < 6; ++i)
+    for (var i = 0; i < 6; ++i) {
         rotations[i] = new Quaternion();
+    }
 
-    rotations[0].fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
-    rotations[0].prepend(flipY);
-    rotations[1].fromAxisAngle(Float4.Y_AXIS, Math.PI * .5);
-    rotations[1].prepend(flipY);
-    rotations[2].fromAxisAngle(Float4.X_AXIS, Math.PI * .5);
-    rotations[3].fromAxisAngle(Float4.X_AXIS, -Math.PI * .5);
-    rotations[4].fromAxisAngle(Float4.Y_AXIS, Math.PI);
-    rotations[4].prepend(flipY);
-    rotations[5].fromAxisAngle(Float4.Y_AXIS, 0);
-    rotations[5].prepend(flipY);
+    rotations[0].fromAxisAngle(Float4.Y_AXIS, Math.PI * .5);
+    rotations[1].fromAxisAngle(Float4.Y_AXIS, -Math.PI * .5);
+    rotations[2].fromAxisAngle(Float4.X_AXIS, -Math.PI * .5);
+    rotations[3].fromAxisAngle(Float4.X_AXIS, Math.PI * .5);
+    rotations[4].fromAxisAngle(Float4.Y_AXIS, 0);
+    rotations[5].fromAxisAngle(Float4.Y_AXIS, Math.PI);
 
     this._diffuseScene = new Scene();
     this._diffuseScene.skybox = new Skybox(specular);
@@ -68,6 +63,7 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
         camera.farDistance = far;
         camera.verticalFOV = Math.PI * .5;
         camera.rotation.copyFrom(rotations[i]);
+        camera.scale.set(1, -1, 1);
         this._cameras.push(camera);
 
         var fbo = new FrameBuffer(specular, depthBuffer, cubeFaces[i]);
@@ -98,8 +94,12 @@ DynamicLightProbe.prototype.render = function()
 
     this._specularTexture.generateMipmap();
 
+    GL.setInvertCulling(true);
+
     for (i = 0; i < 6; ++i)
         this._renderer.render(this._cameras[i], this._diffuseScene, 0, this._diffuseFBOs[i]);
+
+    GL.setInvertCulling(false);
 
     this._diffuseTexture.generateMipmap();
 };

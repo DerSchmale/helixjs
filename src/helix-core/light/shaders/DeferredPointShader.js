@@ -1,4 +1,4 @@
-import {ElementType, META, CullMode} from "../../Helix";
+import {ElementType, META, CullMode, DEFAULTS} from "../../Helix";
 import {GL} from "../../core/GL";
 import {Shader} from "../../shader/Shader";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
@@ -12,12 +12,15 @@ import {RectMesh} from "../../mesh/RectMesh";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function DeferredPointShader(useSphere)
+function DeferredPointShader(useSphere, shadows)
 {
     Shader.call(this);
     this._useSphere = useSphere;
 
     var defines = {};
+
+    if (shadows)
+        defines.HX_SHADOW_MAP = 1;
 
     if (useSphere) {
         var primitive = new SpherePrimitive({
@@ -31,11 +34,13 @@ function DeferredPointShader(useSphere)
     var vertex =
         ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
         META.OPTIONS.deferredLightingModel + "\n\n\n" +
+        META.OPTIONS.pointShadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
         ShaderLibrary.get("deferred_point_light_vertex.glsl", defines);
     var fragment =
         ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
         META.OPTIONS.deferredLightingModel + "\n\n\n" +
+        META.OPTIONS.pointShadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
         ShaderLibrary.get("deferred_point_light_fragment.glsl", defines);
 
@@ -60,6 +65,15 @@ function DeferredPointShader(useSphere)
     gl.uniform1i(albedoSlot, 0);
     gl.uniform1i(normalDepthSlot, 1);
     gl.uniform1i(specularSlot, 2);
+
+    if (shadows) {
+        this._shadowMatrixLocation = gl.getUniformLocation(p, "hx_pointLight.shadowMapMatrix");
+        this._depthBiasLocation = gl.getUniformLocation(p, "hx_pointLight.depthBias");
+        var shadowMapSlot = gl.getUniformLocation(p, "hx_shadowMap");
+        var ditherSlot = gl.getUniformLocation(p, "hx_dither2D");
+        gl.uniform1i(shadowMapSlot, 3);
+        gl.uniform1i(ditherSlot, 4);
+    }
 }
 
 DeferredPointShader.prototype = Object.create(Shader.prototype);
@@ -87,6 +101,16 @@ DeferredPointShader.prototype.execute = function(renderer, light)
         gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
         gl.uniform1f(this._radiusLocation, light._radius);
         gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
+
+        if (light._castShadows) {
+            var shadowRenderer = light._shadowMapRenderer;
+            shadowRenderer._shadowMap.bind(3);
+
+            gl.uniformMatrix4fv(this._shadowMatrixLocation, false, camera.worldMatrix._m);
+            gl.uniform1f(this._depthBiasLocation, light.depthBias);
+
+            DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.bind(4);
+        }
 
         this.updatePassRenderState(camera, renderer);
 

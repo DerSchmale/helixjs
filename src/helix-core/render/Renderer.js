@@ -220,7 +220,8 @@ Renderer.prototype =
             }
             else if (light instanceof PointLight) {
                 // cannot just use renderPass, need to do intersection tests
-                this._renderLightPassIfIntersects(light, MaterialPass.POINT_LIGHT_PASS, list);
+                var passType = light.castShadows? MaterialPass.POINT_LIGHT_SHADOW_PASS : MaterialPass.POINT_LIGHT_PASS;
+                this._renderLightPassIfIntersects(light, passType, list);
             }
             else if (light instanceof SpotLight) {
                 var passType = light.castShadows? MaterialPass.SPOT_LIGHT_SHADOW_PASS : MaterialPass.SPOT_LIGHT_PASS;

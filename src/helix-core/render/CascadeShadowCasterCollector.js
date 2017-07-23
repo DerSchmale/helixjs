@@ -24,7 +24,7 @@ function CascadeShadowCasterCollector()
     this._numCullPlanes = 0;
     this._renderList = [];
     this._renderItemPool = new ObjectPool(RenderItem);
-};
+}
 
 CascadeShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
 

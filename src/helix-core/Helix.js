@@ -1,5 +1,4 @@
 import {ArrayUtils} from './utils/ArrayUtils';
-import {DirectionalLight} from './light/DirectionalLight';
 import {FrameTicker} from './utils/FrameTicker';
 import {_clearGLStats, GL} from './core/GL';
 import {HardDirectionalShadowFilter} from './light/filters/HardDirectionalShadowFilter';
@@ -17,6 +16,7 @@ import {Color} from "./core/Color";
 import {MaterialPass} from "./material/MaterialPass";
 import {FrameBuffer} from "./texture/FrameBuffer";
 import {HardSpotShadowFilter} from "./light/filters/HardSpotShadowFilter";
+import {HardPointShadowFilter} from "./light/filters/HardPointShadowFilter";
 
 /**
  * META contains some data about the Helix engine, such as the options it was initialized with.
@@ -397,6 +397,11 @@ export function InitOptions()
      * The shadow filter to use when rendering spot light shadows.
      */
     this.spotShadowFilter = new HardSpotShadowFilter();
+
+    /**
+     * The shadow filter to use when rendering point light shadows.
+     */
+    this.pointShadowFilter = new HardPointShadowFilter();
 
     /**
      * Indicates whether the back buffer should support transparency.

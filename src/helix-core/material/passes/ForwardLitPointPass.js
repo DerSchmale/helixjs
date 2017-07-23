@@ -3,6 +3,7 @@ import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {Shader} from "../../shader/Shader";
 import {GL} from "../../core/GL";
 import {Float4} from "../../math/Float4";
+import {META} from "../../Helix";
 
 /**
  * @ignore
@@ -13,14 +14,20 @@ import {Float4} from "../../math/Float4";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function ForwardLitPointPass(geometryVertex, geometryFragment, lightingModel)
+function ForwardLitPointPass(geometryVertex, geometryFragment, lightingModel, shadows)
 {
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
 
     this._colorLocation = this.getUniformLocation("hx_pointLight.color");
     this._posLocation = this.getUniformLocation("hx_pointLight.position");
     this._radiusLocation = this.getUniformLocation("hx_pointLight.radius");
     this._rcpRadiusLocation = this.getUniformLocation("hx_pointLight.rcpRadius");
+
+    if (shadows) {
+        this._depthBiasLocation = this.getUniformLocation("hx_pointLight.depthBias");
+        this._shadowMatrixLocation = this.getUniformLocation("hx_pointLight.shadowMapMatrix");
+        this._shadowMapSlot = this.getTextureSlot("hx_shadowMap");
+    }
 }
 
 ForwardLitPointPass.prototype = Object.create(MaterialPass.prototype);
@@ -44,18 +51,31 @@ ForwardLitPointPass.prototype.updatePassRenderState = function(camera, renderer,
         gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
 
         MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+
+        if (light.castShadows) {
+            var shadowRenderer = light._shadowMapRenderer;
+            gl.uniform1f(this._depthBiasLocation, light.depthBias);
+            this._shadowMapSlot.texture = shadowRenderer._shadowMap;
+
+            gl.uniformMatrix4fv(this._shadowMatrixLocation, false, camera.worldMatrix._m);
+        }
     }
 }();
 
-ForwardLitPointPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
+ForwardLitPointPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
 {
     var defines = {};
+
+    if (shadows) {
+        defines.HX_SHADOW_MAP = 1;
+    }
 
     var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_point_vertex.glsl", defines);
 
     var fragmentShader =
         ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
         lightingModel + "\n\n\n" +
+        META.OPTIONS.pointShadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_fwd_point_fragment.glsl");

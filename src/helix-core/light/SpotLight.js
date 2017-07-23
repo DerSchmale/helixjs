@@ -16,6 +16,8 @@ import {SpotShadowMapRenderer} from "../render/SpotShadowMapRenderer";
  * @property {number} radius The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a given area for performance.
  * @property {number} innerAngle The angle of the spot light where it starts attenuating outwards. In radians!
  * @property {number} outerAngle The maximum angle of the spot light's reach. In radians!
+ * @property {boolean} castShadows Defines whether or not this light casts shadows.
+ * @property {number} shadowMapSize The shadow map size used by this light.
  *
  * @constructor
  *

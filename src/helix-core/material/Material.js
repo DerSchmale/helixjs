@@ -18,6 +18,7 @@ import {GBufferFullPass} from "./passes/GBufferFullPass";
 import {ApplyGBufferPass} from "./passes/ApplyGBufferPass";
 import {RenderPath} from "../render/RenderPath";
 import {SpotShadowPass} from "./passes/SpotShadowPass";
+import {PointShadowPass} from "./passes/PointShadowPass";
 
 /**
  * @ignore
@@ -96,7 +97,8 @@ Material.prototype =
 
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
             this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
-            this.setPass(MaterialPass.POINT_LIGHT_PASS, new ForwardLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
+            this.setPass(MaterialPass.POINT_LIGHT_PASS, new ForwardLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
+            this.setPass(MaterialPass.POINT_LIGHT_SHADOW_PASS, new ForwardLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
             this.setPass(MaterialPass.SPOT_LIGHT_PASS, new ForwardLitSpotPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
             this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_PASS, new ForwardLitSpotPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
             this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
@@ -113,6 +115,7 @@ Material.prototype =
         }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
+        this.setPass(MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, new PointShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
         this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS, new SpotShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 
         // always may need these passes for AO
@@ -286,6 +289,7 @@ Material.prototype =
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
             if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS  &&
                 i !== MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS &&
+                i !== MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS &&
                 this._passes[i])
                 this._passes[i].cullMode = value;
         }
@@ -322,6 +326,8 @@ Material.prototype =
                 pass.cullMode = META.OPTIONS.directionalShadowFilter.getCullMode();
             else if(type === MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS)
                 pass.cullMode = META.OPTIONS.spotShadowFilter.getCullMode();
+            else if(type === MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS)
+                pass.cullMode = META.OPTIONS.pointShadowFilter.getCullMode();
             else
                 pass.cullMode = this._cullMode;
 

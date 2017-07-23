@@ -1221,6 +1221,22 @@ Matrix4x4.prototype =
     },
 
     /**
+     * Copies a column from another matrix.
+     * @param {Number} index The index of the column.
+     * @param {Matrix4x4} m The matrix from which to copy.
+     */
+    copyColumn: function(index, m)
+    {
+        var m1 = this._m;
+        var m2 = m._m;
+        index <<= 2;
+        m1[index] = m2[index];
+        m1[index | 1] = m2[index | 1];
+        m1[index | 2] = m2[index | 2];
+        m1[index | 3] = m2[index | 3];
+    },
+
+    /**
      * Initializes as a "lookAt" matrix at the given eye position oriented toward a target
      * @param {Float4} target The target position to look at.
      * @param {Float4} eye The target position the matrix should "be" at

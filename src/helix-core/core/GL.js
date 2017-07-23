@@ -8,6 +8,7 @@ var _numActiveAttributes = 0;
 var _depthMask = true;
 var _colorMask = true;
 var _cullMode = null;
+var _invertCullMode = false;
 var _depthTest = null;
 var _blendState = null;
 var _renderTarget = null;
@@ -167,14 +168,36 @@ var GL = {
     setCullMode: function (value)
     {
         if (_cullMode === value) return;
-        _cullMode = value;
 
-        if (_cullMode === CullMode.NONE)
+        if (value === CullMode.NONE)
             gl.disable(gl.CULL_FACE);
         else {
-            gl.enable(gl.CULL_FACE);
-            gl.cullFace(_cullMode);
+            // was disabled before
+            if (_cullMode === CullMode.NONE)
+                gl.enable(gl.CULL_FACE);
+
+            var cullMode = value;
+
+            if (_invertCullMode) {
+                if (cullMode === CullMode.BACK)
+                    cullMode = CullMode.FRONT;
+                else if (cullMode === CullMode.FRONT)
+                    cullMode = CullMode.BACK;
+            }
+
+            gl.cullFace(cullMode);
         }
+
+        _cullMode = value;
+    },
+
+    setInvertCulling: function(value)
+    {
+        if (_invertCullMode === value) return;
+        _invertCullMode = value;
+
+        // just make sure it gets assigned next time
+        _cullMode = CullMode.NONE;
     },
 
     /**
@@ -271,14 +294,26 @@ var GL = {
     setMaterialPassState: function(cullMode, depthTest, depthMask, colorMask, blendState)
     {
         if (_cullMode !== cullMode) {
-            _cullMode = cullMode;
-
-            if (_cullMode === CullMode.NONE)
+            if (cullMode === CullMode.NONE)
                 gl.disable(gl.CULL_FACE);
             else {
-                gl.enable(gl.CULL_FACE);
-                gl.cullFace(_cullMode);
+                // was disabled before
+                if (_cullMode === CullMode.NONE)
+                    gl.enable(gl.CULL_FACE);
+
+                var cullModeEff = cullMode;
+
+                if (_invertCullMode) {
+                    if (cullModeEff === CullMode.BACK)
+                        cullModeEff = CullMode.FRONT;
+                    else if (cullModeEff === CullMode.FRONT)
+                        cullModeEff = CullMode.BACK;
+                }
+
+                gl.cullFace(cullModeEff);
             }
+
+            _cullMode = cullMode;
         }
 
         if (_depthTest !== depthTest) {

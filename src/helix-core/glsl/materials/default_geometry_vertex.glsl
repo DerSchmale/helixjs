@@ -100,6 +100,7 @@ void hx_geometry()
     #endif
 #endif
 
+    // TODO: Should gl_position be handled by the shaders if we only return local position?
     gl_Position = hx_wvpMatrix * animPosition;
 
 #ifndef HX_SKIP_NORMALS

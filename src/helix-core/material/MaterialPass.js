@@ -40,23 +40,25 @@ MaterialPass.BASE_PASS = 0;  // used for unlit or for predefined lights
 MaterialPass.DIR_LIGHT_PASS = 1;
 MaterialPass.DIR_LIGHT_SHADOW_PASS = 2;
 MaterialPass.POINT_LIGHT_PASS = 3;
-MaterialPass.SPOT_LIGHT_PASS = 4;
-MaterialPass.SPOT_LIGHT_SHADOW_PASS = 5;
-MaterialPass.LIGHT_PROBE_PASS = 6;
+MaterialPass.POINT_LIGHT_SHADOW_PASS = 4;
+MaterialPass.SPOT_LIGHT_PASS = 5;
+MaterialPass.SPOT_LIGHT_SHADOW_PASS = 6;
+MaterialPass.LIGHT_PROBE_PASS = 7;
 
 // shadow map generation
-MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 7;
-MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS = 8;
+MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 8;
+MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS = 9;
+MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS = 10;
 
 // used if MRT is supported:
-MaterialPass.GBUFFER_PASS = 9;
+MaterialPass.GBUFFER_PASS = 11;
 
 // used if MRT is not supported
-MaterialPass.GBUFFER_ALBEDO_PASS = 9;
-MaterialPass.GBUFFER_NORMAL_DEPTH_PASS = 10;
-MaterialPass.GBUFFER_SPECULAR_PASS = 11;
+MaterialPass.GBUFFER_ALBEDO_PASS = 11;
+MaterialPass.GBUFFER_NORMAL_DEPTH_PASS = 12;
+MaterialPass.GBUFFER_SPECULAR_PASS = 13;
 
-MaterialPass.NUM_PASS_TYPES = 12;
+MaterialPass.NUM_PASS_TYPES = 14;
 
 MaterialPass.prototype =
 {
@@ -145,7 +147,7 @@ MaterialPass.prototype =
     /**
      * Only called upon activation, not per render item.
      */
-    updatePassRenderState: function (camera, renderer)
+    updatePassRenderState: function (camera, renderer, data)
     {
         var len = this._textureSettersPass.length;
         var i;

@@ -3,6 +3,7 @@ import {BoundingSphere} from "../scene/BoundingSphere";
 import {DeferredPointShader} from "./shaders/DeferredPointShader";
 import {Float4} from "../math/Float4";
 import {META} from "../Helix";
+import {OmniShadowMapRenderer} from "../render/OmniShadowMapRenderer";
 
 /**
  * @classdesc
@@ -10,6 +11,8 @@ import {META} from "../Helix";
  * according to the inverse square rule.
  *
  * @property {number} radius The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a given area for performance.
+ * @property {boolean} castShadows Defines whether or not this light casts shadows.
+ * @property {number} shadowMapSize The shadow map size used by this light.
  *
  * @constructor
  *
@@ -22,16 +25,55 @@ function PointLight()
     Light.call(this);
 
     if (!PointLight._deferredShaderSphere && META.OPTIONS.deferredLightingModel) {
-        PointLight._deferredShaderSphere = new DeferredPointShader(true);
-        PointLight._deferredShaderRect = new DeferredPointShader(false);
+        PointLight._deferredShaderSphere = new DeferredPointShader(true, false);
+        PointLight._deferredShaderRect = new DeferredPointShader(false, false);
+        PointLight._deferredShaderSphereShadows = new DeferredPointShader(true, true);
+        PointLight._deferredShaderRectShadows = new DeferredPointShader(false, true);
     }
 
     this._radius = 100.0;
     this.intensity = 3.1415;
+    this.depthBias = .0;
+    this._shadowMapSize = 256;
+    this._shadowMapRenderer = null;
 }
 
 PointLight.prototype = Object.create(Light.prototype,
     {
+        castShadows: {
+            get: function()
+            {
+                return this._castShadows;
+            },
+
+            set: function(value)
+            {
+                if (this._castShadows === value) return;
+
+                this._castShadows = value;
+
+                if (value) {
+                    this._shadowMapRenderer = new OmniShadowMapRenderer(this, this._shadowMapSize);
+                }
+                else {
+                    this._shadowMapRenderer = null;
+                }
+            }
+        },
+
+        shadowMapSize: {
+            get: function()
+            {
+                return this._shadowMapSize;
+            },
+
+            set: function(value)
+            {
+                this._shadowMapSize = value;
+                if (this._shadowMapRenderer) this._shadowMapRenderer.shadowMapSize = value;
+            }
+        },
+
         radius: {
             get: function() {
                 return this._radius;
@@ -75,10 +117,13 @@ PointLight.prototype.renderDeferredLighting = function(renderer)
         var distSqr = camPos.squareDistanceTo(thisPos);
         var rad = this._radius * 1.1;
 
+        var shader;
         if (distSqr > rad * rad)
-            PointLight._deferredShaderSphere.execute(renderer, this);
+            shader = this._castShadows? PointLight._deferredShaderSphereShadows : PointLight._deferredShaderSphere;
         else
-            PointLight._deferredShaderRect.execute(renderer, this);
+            shader = this._castShadows? PointLight._deferredShaderRectShadows : PointLight._deferredShaderRect;
+
+        shader.execute(renderer, this);
     }
 }();
 

@@ -1,5 +1,4 @@
 var gulp = require('gulp');
-var concat = require('gulp-concat');
 var rename = require('gulp-rename');
 var uglify = require('gulp-uglify');
 var insert = require('gulp-insert');
@@ -20,7 +19,7 @@ gulp.task('core', ['glsl'], function ()
         .pipe(rollup({
             moduleName: 'HX',
         }, 'umd'))
-        .pipe(concat('helix.js'))
+        .pipe(rename('helix.js'))
         .pipe(gulp.dest('./build/'));
 });
 
@@ -35,7 +34,7 @@ gulp.task('io', [], function ()
             },
             external: [ 'helix', 'pako' ]
         }, 'umd'))
-        .pipe(concat('helix-io.js'))
+        .pipe(rename('helix-io.js'))
         .pipe(gulp.dest('./build/'));
 });
 

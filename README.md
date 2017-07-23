@@ -21,6 +21,8 @@ Away3D "Broomstick" prototype that I developed back in 2010 before it became 4.0
 In any case, I think it's worth making things open source. There may always be things to learn and teach doing so.
 
 Some aspects of note:
+* The 3D engine uses a left-handed system, where X points "right", Y "up", and Z **into** the screen. This may be the 
+opposite of most GL-based systems, but it allows for a consistent notion where positive Z means forward. Always.
 * The engine is built using the Entity/Component model. This means objects in the Scene are Entities that can have
 Components registered to them, defining modular behaviour. More information on this in the documentation. 
 * Materials are strictly split up in "geometry" code and "lighting model" code. You can focus on writing uncluttered 

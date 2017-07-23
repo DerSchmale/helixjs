@@ -28,11 +28,6 @@ import {HardPointShadowFilter} from "./light/filters/HardPointShadowFilter";
 export var META =
     {
         /**
-         * The current version of the engine.
-         */
-        VERSION: "0.1.0",
-
-        /**
          * Whether or not Helix has been initialized.
          */
         INITIALIZED: false,

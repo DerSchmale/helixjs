@@ -5,6 +5,7 @@ import {SceneVisitor} from "../scene/SceneVisitor";
 import {META} from "../Helix";
 import {RenderItem} from "./RenderItem";
 import {RenderPath} from "./RenderPath";
+import {RenderSortFunctions} from "./RenderSortFunctions";
 
 /**
  * @ignore
@@ -22,7 +23,7 @@ function RenderCollector()
     this._transparents = null;
     this._camera = null;
     this._cameraZAxis = new Float4();
-    this._frustum = null;
+    this._frustumPlanes = null;
     this._lights = null;
     this._ambientColor = new Color();
     this._shadowCasters = null;
@@ -55,17 +56,17 @@ RenderCollector.prototype.collect = function(camera, scene)
 {
     this._camera = camera;
     camera.worldMatrix.getColumn(2, this._cameraZAxis);
-    this._frustum = camera.frustum;
+    this._frustumPlanes = camera.frustum._planes;
     this._reset();
 
     scene.acceptVisitor(this);
 
     for (var i = 0; i < RenderPath.NUM_PATHS; ++i)
-        this._opaques[i].sort(this._sortOpaques);
+        this._opaques[i].sort(RenderSortFunctions.sortOpaques);
 
-    this._transparents.sort(this._sortTransparents);
+    this._transparents.sort(RenderSortFunctions.sortTransparents);
 
-    this._lights.sort(this._sortLights);
+    this._lights.sort(RenderSortFunctions.sortLights);
 
     var effects = this._camera._effects;
     // add camera effects at the end
@@ -82,7 +83,7 @@ RenderCollector.prototype.collect = function(camera, scene)
 
 RenderCollector.prototype.qualifies = function(object)
 {
-    return object.visible && object.worldBounds.intersectsConvexSolid(this._frustum._planes, 6);
+    return object.visible && object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6);
 };
 
 RenderCollector.prototype.visitScene = function (scene)
@@ -173,33 +174,6 @@ RenderCollector.prototype._reset = function()
     this._effects = [];
     this._needsNormalDepth = META.OPTIONS.ambientOcclusion;
     this._ambientColor.set(0, 0, 0, 1);
-};
-
-RenderCollector.prototype._sortTransparents = function(a, b)
-{
-    var diff = a.material._renderOrder - b.material._renderOrder;
-    if (diff !== 0) return diff;
-    return b.renderOrderHint - a.renderOrderHint;
-};
-
-RenderCollector.prototype._sortOpaques = function(a, b)
-{
-    var diff;
-
-    diff = a.material._renderOrder - b.material._renderOrder;
-    if (diff !== 0) return diff;
-
-    diff = a.material._renderOrderHint - b.material._renderOrderHint;
-    if (diff !== 0) return diff;
-
-    return a.renderOrderHint - b.renderOrderHint;
-};
-
-RenderCollector.prototype._sortLights = function(a, b)
-{
-    return  a._type === b._type?
-            a._castShadows? 1 : -1 :
-            a._type - b._type;
 };
 
 export { RenderCollector };

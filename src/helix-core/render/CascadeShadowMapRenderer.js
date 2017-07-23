@@ -1,4 +1,3 @@
-import {DirectionalLight} from "../light/DirectionalLight";
 import {TextureFilter, TextureWrapMode, META} from "../Helix";
 import {Color} from "../core/Color";
 import {Matrix4x4} from "../math/Matrix4x4";
@@ -33,7 +32,9 @@ function CascadeShadowMapRenderer(light, shadowMapSize)
     this._depthBuffer = null;   // only used if depth textures aren't supported
 
     this._shadowMap = this._createShadowBuffer();
-    this._shadowBackBuffer = DirectionalLight.SHADOW_FILTER.blurShader? this._createShadowBuffer() : null;
+    this._blurShader = META.OPTIONS.directionalShadowFilter.blurShader;
+    this._shadowBackBuffer = this._blurShader? this._createShadowBuffer() : null;
+    this._softness = META.OPTIONS.directionalShadowFilter.softness ? META.OPTIONS.directionalShadowFilter.softness : .002;
 
     this._shadowMatrices = [ new Matrix4x4(), new Matrix4x4(), new Matrix4x4(), new Matrix4x4() ];
     this._transformToUV = [ new Matrix4x4(), new Matrix4x4(), new Matrix4x4(), new Matrix4x4() ];
@@ -92,10 +93,10 @@ CascadeShadowMapRenderer.prototype =
         for (var cascadeIndex = 0; cascadeIndex < numCascades; ++cascadeIndex) {
             var viewport = this._viewports[cascadeIndex];
             gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-            RenderUtils.renderPass(this, passType, this._casterCollector.getOpaqueRenderList(cascadeIndex));
+            RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
         }
 
-        if (DirectionalLight.SHADOW_FILTER.blurShader)
+        if (this._blurShader)
             this._blur();
 
         GL.setRenderTarget();
@@ -227,7 +228,7 @@ CascadeShadowMapRenderer.prototype =
             right = left + width;
             top = bottom + height;
 
-            var softness = DirectionalLight.SHADOW_FILTER.softness ? DirectionalLight.SHADOW_FILTER.softness : .1;
+            var softness = this._softness;
 
             camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 
@@ -312,7 +313,7 @@ CascadeShadowMapRenderer.prototype =
         var texWidth = this._shadowMapSize * numMapsW;
         var texHeight = this._shadowMapSize * numMapsH;
 
-        this._shadowMap.initEmpty(texWidth, texHeight, DirectionalLight.SHADOW_FILTER.getShadowMapFormat(), DirectionalLight.SHADOW_FILTER.getShadowMapDataType());
+        this._shadowMap.initEmpty(texWidth, texHeight, META.OPTIONS.directionalShadowFilter.getShadowMapFormat(), META.OPTIONS.directionalShadowFilter.getShadowMapDataType());
         if (!this._depthBuffer) this._depthBuffer = new WriteOnlyDepthBuffer();
         if (!this._fboFront) this._fboFront = new FrameBuffer(this._shadowMap, this._depthBuffer);
 
@@ -321,7 +322,7 @@ CascadeShadowMapRenderer.prototype =
         this._shadowMapInvalid = false;
 
         if (this._shadowBackBuffer) {
-            this._shadowBackBuffer.initEmpty(texWidth, texHeight, DirectionalLight.SHADOW_FILTER.getShadowMapFormat(), DirectionalLight.SHADOW_FILTER.getShadowMapDataType());
+            this._shadowBackBuffer.initEmpty(texWidth, texHeight, META.OPTIONS.directionalShadowFilter.getShadowMapFormat(), META.OPTIONS.directionalShadowFilter.getShadowMapDataType());
             if (!this._fboBack) this._fboBack = new FrameBuffer(this._shadowBackBuffer, this._depthBuffer);
             this._fboBack.init();
         }
@@ -390,9 +391,10 @@ CascadeShadowMapRenderer.prototype =
 
     _blur: function()
     {
-        var shader = DirectionalLight.SHADOW_FILTER.blurShader;
+        var shader = this._blurShader;
+        var numPasses = META.OPTIONS.directionalShadowFilter.numBlurPasses;
 
-        for (var i = 0; i < DirectionalLight.SHADOW_FILTER.numBlurPasses; ++i) {
+        for (var i = 0; i < numPasses; ++i) {
             GL.setRenderTarget(this._fboBack);
             GL.clear();
             shader.execute(RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);

@@ -29,6 +29,7 @@ function ForwardFixedLitPass(geometryVertex, geometryFragment, lightingModel, li
     this._dirLightCasters = null;
     this._pointLights = null;
     this._spotLights = null;
+    this._spotLightCasters = null;
     this._diffuseLightProbes = null;
     this._specularLightProbes = null;
 
@@ -48,6 +49,7 @@ ForwardFixedLitPass.prototype.updatePassRenderState = function (camera, renderer
     this._assignDirLightCasters(camera);
     this._assignPointLights(camera);
     this._assignSpotLights(camera);
+    this._assignSpotLightCasters(camera);
     this._assignLightProbes(camera);
 
     MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
@@ -58,6 +60,7 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
     this._dirLightCasters = [];
     this._pointLights = [];
     this._spotLights = [];
+    this._spotLightCasters = [];
     this._diffuseLightProbes = [];
     this._specularLightProbes = [];
 
@@ -68,14 +71,17 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
         if (light instanceof DirectionalLight) {
             if (light.castShadows)
                 this._dirLightCasters.push(light);
-        else
-            this._dirLights.push(light);
+            else
+                this._dirLights.push(light);
         }
         else if (light instanceof PointLight) {
             this._pointLights.push(light);
         }
-        else if (light instanceof SpotLight()) {
-            this._spotLights.push(light);
+        else if (light instanceof SpotLight) {
+            if (light.castShadows)
+                this._spotLightCasters.push(light);
+            else
+                this._spotLights.push(light);
         }
         else if (light instanceof LightProbe) {
             if (light.diffuseTexture)
@@ -93,6 +99,7 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
         HX_NUM_DIR_LIGHT_CASTERS: this._dirLightCasters.length,
         HX_NUM_POINT_LIGHTS: this._pointLights.length,
         HX_NUM_SPOT_LIGHTS: this._spotLights.length,
+        HX_NUM_SPOT_LIGHT_CASTERS: this._spotLightCasters.length,
         HX_NUM_DIFFUSE_PROBES: this._diffuseLightProbes.length,
         HX_NUM_SPECULAR_PROBES: this._specularLightProbes.length
     };
@@ -107,7 +114,8 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
         extensions +
         ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
         lightingModel + "\n\n\n" +
-        DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
+        META.OPTIONS.directionalShadowFilter.getGLSL() + "\n" +
+        META.OPTIONS.spotShadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("directional_light.glsl", defines) + "\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
         ShaderLibrary.get("spot_light.glsl") + "\n" +
@@ -222,14 +230,58 @@ ForwardFixedLitPass.prototype._assignSpotLights = function (camera) {
         for (var i = 0; i < len; ++i) {
             var locs = this._spotLocations[i];
             var light = lights[i];
-            light.worldMatrix.getColumn(3, pos);
-            camera.viewMatrix.transformPoint(pos, pos);
+            var worldMatrix = light.worldMatrix;
+            var viewMatrix = camera.viewMatrix;
+            worldMatrix.getColumn(3, pos);
+            viewMatrix.transformPoint(pos, pos);
 
             var col = light._scaledIrradiance;
             gl.uniform3f(locs.color, col.r, col.g, col.b);
             gl.uniform3f(locs.position, pos.x, pos.y, pos.z);
-            gl.uniform1f(locs.radius, light.radius);
+            gl.uniform1f(locs.radius, light._radius);
             gl.uniform2f(locs.angleData, light._cosOuter, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001));
+
+            worldMatrix.getColumn(2, pos);
+            viewMatrix.transformVector(pos, pos);
+            gl.uniform3f(locs.direction, pos.x, pos.y, pos.z);
+        }
+    }
+}();
+
+ForwardFixedLitPass.prototype._assignSpotLightCasters = function (camera) {
+    var pos = new Float4();
+    var matrix = new Matrix4x4();
+
+    return function(camera) {
+        var lights = this._spotLightCasters;
+        if (!lights) return;
+
+        var gl = GL.gl;
+
+        var len = lights.length;
+
+        for (var i = 0; i < len; ++i) {
+            var locs = this._spotCasterLocations[i];
+            var light = lights[i];
+            var worldMatrix = light.worldMatrix;
+            var viewMatrix = camera.viewMatrix;
+            worldMatrix.getColumn(3, pos);
+            viewMatrix.transformPoint(pos, pos);
+
+            var col = light._scaledIrradiance;
+            gl.uniform3f(locs.color, col.r, col.g, col.b);
+            gl.uniform3f(locs.position, pos.x, pos.y, pos.z);
+            gl.uniform1f(locs.radius, light._radius);
+            gl.uniform2f(locs.angleData, light._cosOuter, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001));
+
+            worldMatrix.getColumn(2, pos);
+            viewMatrix.transformVector(pos, pos);
+            gl.uniform3f(locs.direction, pos.x, pos.y, pos.z);
+
+            matrix.multiply(light._shadowMapRenderer.shadowMatrix, camera.worldMatrix);
+
+            gl.uniformMatrix4fv(locs.matrix, false, matrix._m);
+            gl.uniform1f(locs.depthBias, light.depthBias);
         }
     }
 }();
@@ -247,6 +299,20 @@ ForwardFixedLitPass.prototype._assignShadowMaps = function () {
         }
 
         this.setTextureArray("hx_directionalShadowMaps", shadowMaps);
+    }
+
+    lights = this._spotLightCasters;
+    len = lights.length;
+    if (len > 0) {
+        var shadowMaps = [];
+
+        for (var i = 0; i < len; ++i) {
+            var light = lights[i];
+            var shadowRenderer = light._shadowMapRenderer;
+            shadowMaps[i] = shadowRenderer._shadowMap;
+        }
+
+        this.setTextureArray("hx_spotShadowMaps", shadowMaps);
     }
 };
 
@@ -280,6 +346,7 @@ ForwardFixedLitPass.prototype._getUniformLocations = function()
     this._dirCasterLocations = [];
     this._pointLocations = [];
     this._spotLocations = [];
+    this._spotCasterLocations = [];
 
     for (var i = 0; i < this._dirLights.length; ++i) {
         this._dirLocations.push({
@@ -308,11 +375,24 @@ ForwardFixedLitPass.prototype._getUniformLocations = function()
     }
 
     for (i = 0; i < this._spotLights.length; ++i) {
-        this._spotLights.push({
+        this._spotLocations.push({
             color: this.getUniformLocation("hx_spotLights[" + i + "].color"),
             position: this.getUniformLocation("hx_spotLights[" + i + "].position"),
+            direction: this.getUniformLocation("hx_spotLights[" + i + "].direction"),
             radius: this.getUniformLocation("hx_spotLights[" + i + "].radius"),
             angleData: this.getUniformLocation("hx_spotLights[" + i + "].angleData")
+        });
+    }
+
+    for (i = 0; i < this._spotLightCasters.length; ++i) {
+        this._spotCasterLocations.push({
+            color: this.getUniformLocation("hx_spotLightCasters[" + i + "].color"),
+            position: this.getUniformLocation("hx_spotLightCasters[" + i + "].position"),
+            direction: this.getUniformLocation("hx_spotLightCasters[" + i + "].direction"),
+            radius: this.getUniformLocation("hx_spotLightCasters[" + i + "].radius"),
+            angleData: this.getUniformLocation("hx_spotLightCasters[" + i + "].angleData"),
+            depthBias: this.getUniformLocation("hx_spotLightCasters[" + i + "].depthBias"),
+            matrix: this.getUniformLocation("hx_spotLightCasters[" + i + "].shadowMapMatrix"),
         });
     }
 };

@@ -223,7 +223,8 @@ Renderer.prototype =
                 this._renderLightPassIfIntersects(light, MaterialPass.POINT_LIGHT_PASS, list);
             }
             else if (light instanceof SpotLight) {
-                this._renderLightPassIfIntersects(light, MaterialPass.SPOT_LIGHT_PASS, list);
+                var passType = light.castShadows? MaterialPass.SPOT_LIGHT_SHADOW_PASS : MaterialPass.SPOT_LIGHT_PASS;
+                this._renderLightPassIfIntersects(light, passType, list);
             }
         }
     },

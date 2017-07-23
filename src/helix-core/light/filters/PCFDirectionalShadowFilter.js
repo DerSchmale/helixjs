@@ -1,5 +1,5 @@
-import { CullMode } from '../Helix';
-import { ShaderLibrary } from '../shader/ShaderLibrary';
+import { CullMode } from '../../Helix';
+import { ShaderLibrary } from '../../shader/ShaderLibrary';
 import { ShadowFilter } from './ShadowFilter';
 
 /**
@@ -7,7 +7,7 @@ import { ShadowFilter } from './ShadowFilter';
  * ExponentialDirectionalShadowFilter is a shadow filter that provides percentage closer soft shadow mapping. However,
  * WebGL does not support shadow test interpolations, so the results aren't as great as its GL/DX counterpart.
  *
- * @property {number} softness The softness of the shadows in world space.
+ * @property {number} softness The softness of the shadows in shadow map space.
  * @property {number} numShadowSamples The amount of shadow samples to take.
  * @property {boolean} dither Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
  *
@@ -22,7 +22,7 @@ import { ShadowFilter } from './ShadowFilter';
 function PCFDirectionalShadowFilter()
 {
     ShadowFilter.call(this);
-    this._softness = .01;
+    this._softness = .001;
     this._numShadowSamples = 6;
     this._dither = false;
 }
@@ -90,13 +90,13 @@ PCFDirectionalShadowFilter.prototype.getCullMode = function()
 PCFDirectionalShadowFilter.prototype.getGLSL = function()
 {
     var defines = {
-        HX_PCF_NUM_SHADOW_SAMPLES: this._numShadowSamples,
-        HX_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + ( 1.0 / this._numShadowSamples ) + ")",
-        HX_PCF_SOFTNESS: this._softness
+        HX_DIR_PCF_NUM_SHADOW_SAMPLES: this._numShadowSamples,
+        HX_DIR_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + ( 1.0 / this._numShadowSamples ) + ")",
+        HX_DIR_PCF_SOFTNESS: this._softness
     };
 
     if (this._dither)
-        defines.HX_PCF_DITHER_SHADOWS = 1;
+        defines.HX_DIR_PCF_DITHER_SHADOWS = 1;
 
     return ShaderLibrary.get("dir_shadow_pcf.glsl", defines);
 };

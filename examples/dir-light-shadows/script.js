@@ -18,7 +18,7 @@ window.onload = function ()
         options.numShadowCascades = 1;
         options.directionalShadowFilter = new HX.PCFDirectionalShadowFilter();
         options.directionalShadowFilter.dither = true;
-        options.directionalShadowFilter.softness = .05;
+        options.directionalShadowFilter.softness = .001;
         options.hdr = false;
     }
     else {
@@ -28,8 +28,7 @@ window.onload = function ()
     }
 
     options.defaultLightingModel = HX.LightingModel.GGX;
-    options.deferredLightingModel = HX.LightingModel.GGX;
-    // options.directionalShadowFilter.blurRadius = 1;
+    // options.deferredLightingModel = HX.LightingModel.GGX;
 
     project.init(document.getElementById('webglContainer'), options);
 };

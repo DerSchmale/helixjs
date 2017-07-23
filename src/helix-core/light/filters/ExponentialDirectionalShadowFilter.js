@@ -1,7 +1,7 @@
 import {ShadowFilter} from "./ShadowFilter";
-import {ShaderLibrary} from "../shader/ShaderLibrary";
-import {DataType, TextureFormat} from "../Helix";
-import {ESMBlurShader} from "./shaders/ESMBlurShader";
+import {ShaderLibrary} from "../../shader/ShaderLibrary";
+import {DataType, TextureFormat} from "../../Helix";
+import {ESMBlurShader} from "../shaders/ESMBlurShader";
 
 /**
  * @classdesc
@@ -26,7 +26,7 @@ function ExponentialDirectionalShadowFilter()
     this._expScaleFactor = 80;
     this._blurRadius = 1;
     this._darkeningFactor = .35;
-};
+}
 
 
 ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,

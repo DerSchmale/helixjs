@@ -1,5 +1,5 @@
-import { CullMode } from '../Helix';
-import { ShaderLibrary } from '../shader/ShaderLibrary';
+import { CullMode } from '../../Helix';
+import { ShaderLibrary } from '../../shader/ShaderLibrary';
 import { ShadowFilter } from './ShadowFilter';
 
 /**

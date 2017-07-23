@@ -17,6 +17,7 @@ import {GBufferSpecularPass} from "./passes/GBufferSpecularPass";
 import {GBufferFullPass} from "./passes/GBufferFullPass";
 import {ApplyGBufferPass} from "./passes/ApplyGBufferPass";
 import {RenderPath} from "../render/RenderPath";
+import {SpotShadowPass} from "./passes/SpotShadowPass";
 
 /**
  * @ignore
@@ -96,7 +97,8 @@ Material.prototype =
             this.setPass(MaterialPass.DIR_LIGHT_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
             this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
             this.setPass(MaterialPass.POINT_LIGHT_PASS, new ForwardLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
-            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new ForwardLitSpotPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
+            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new ForwardLitSpotPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
+            this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_PASS, new ForwardLitSpotPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
             this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
         }
         else {
@@ -111,6 +113,7 @@ Material.prototype =
         }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
+        this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS, new SpotShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
 
         // always may need these passes for AO
         if (capabilities.GBUFFER_MRT)
@@ -281,7 +284,9 @@ Material.prototype =
     {
         this._cullMode = value;
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
-            if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS && this._passes[i])
+            if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS  &&
+                i !== MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS &&
+                this._passes[i])
                 this._passes[i].cullMode = value;
         }
     },
@@ -314,7 +319,9 @@ Material.prototype =
 
         if (pass) {
             if(type === MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS)
-                pass.cullMode = DirectionalLight.SHADOW_FILTER.getCullMode();
+                pass.cullMode = META.OPTIONS.directionalShadowFilter.getCullMode();
+            else if(type === MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS)
+                pass.cullMode = META.OPTIONS.spotShadowFilter.getCullMode();
             else
                 pass.cullMode = this._cullMode;
 
@@ -322,11 +329,8 @@ Material.prototype =
             pass.writeDepth = this._writeDepth;
             pass.writeColor = this._writeColor;
 
-            if (type === MaterialPass.DIR_LIGHT_PASS ||
-                type === MaterialPass.DIR_LIGHT_SHADOW_PASS ||
-                type === MaterialPass.POINT_LIGHT_PASS ||
-                type === MaterialPass.SPOT_LIGHT_PASS ||
-                type === MaterialPass.LIGHT_PROBE_PASS)
+            // one of the lit ones
+            if (type >= MaterialPass.DIR_LIGHT_PASS  && type <= MaterialPass.LIGHT_PROBE_PASS)
                 pass.blendState = this._additiveBlendState;
 
             if (type === MaterialPass.BASE_PASS)

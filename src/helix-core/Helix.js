@@ -2,7 +2,7 @@ import {ArrayUtils} from './utils/ArrayUtils';
 import {DirectionalLight} from './light/DirectionalLight';
 import {FrameTicker} from './utils/FrameTicker';
 import {_clearGLStats, GL} from './core/GL';
-import {HardDirectionalShadowFilter} from './light/HardDirectionalShadowFilter';
+import {HardDirectionalShadowFilter} from './light/filters/HardDirectionalShadowFilter';
 import {LightingModel} from './render/LightingModel';
 import {Signal} from './core/Signal';
 import {GLSLIncludes} from "./shader/GLSLIncludes";
@@ -16,6 +16,7 @@ import {PoissonSphere} from "./math/PoissonSphere";
 import {Color} from "./core/Color";
 import {MaterialPass} from "./material/MaterialPass";
 import {FrameBuffer} from "./texture/FrameBuffer";
+import {HardSpotShadowFilter} from "./light/filters/HardSpotShadowFilter";
 
 /**
  * META contains some data about the Helix engine, such as the options it was initialized with.
@@ -27,9 +28,9 @@ import {FrameBuffer} from "./texture/FrameBuffer";
 export var META =
     {
         /**
-         * The current of the engine.
+         * The current version of the engine.
          */
-        VERSION: "0.1.0",
+        VERSION: "0.0.2",
 
         /**
          * Whether or not Helix has been initialized.
@@ -393,6 +394,11 @@ export function InitOptions()
     this.directionalShadowFilter = new HardDirectionalShadowFilter();
 
     /**
+     * The shadow filter to use when rendering spot light shadows.
+     */
+    this.spotShadowFilter = new HardSpotShadowFilter();
+
+    /**
      * Indicates whether the back buffer should support transparency.
      */
     this.transparentBackground = false;
@@ -443,8 +449,6 @@ export function init(canvas, options)
 
     // shortcuts
     _initGLProperties();
-
-    _initLights();
 
     var options = META.OPTIONS;
     var defines = "";
@@ -601,11 +605,6 @@ export function start()
 export function stop()
 {
     frameTicker.stop();
-}
-
-function _initLights()
-{
-    DirectionalLight.SHADOW_FILTER = META.OPTIONS.directionalShadowFilter;
 }
 
 function _initDefaultSkinningTexture()

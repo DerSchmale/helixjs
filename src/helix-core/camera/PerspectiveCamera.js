@@ -17,7 +17,7 @@ function PerspectiveCamera()
     Camera.call(this);
 
     this._vFOV = 1.047198;  // radians!
-    this._aspectRatio = 0;
+    this._aspectRatio = 1;
 };
 
 
@@ -29,6 +29,7 @@ PerspectiveCamera.prototype = Object.create(Camera.prototype, {
         },
         set: function(value)
         {
+            if (this._vFOV === value) return;
             this._vFOV = value;
             this._invalidateProjectionMatrix();
         }

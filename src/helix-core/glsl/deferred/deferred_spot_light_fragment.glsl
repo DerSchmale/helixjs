@@ -10,6 +10,9 @@ uniform sampler2D hx_gbufferSpecular;
 uniform float hx_cameraNearPlaneDistance;
 uniform float hx_cameraFrustumRange;
 
+#ifdef HX_SHADOW_MAP
+uniform sampler2D hx_shadowMap;
+#endif
 
 void main()
 {
@@ -25,6 +28,11 @@ void main()
 
     gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;
     gl_FragColor.w = 1.0;
+
+    #ifdef HX_SHADOW_MAP
+        gl_FragColor.xyz *= hx_calculateShadows(hx_spotLight, hx_shadowMap, viewPosition);
+//        gl_FragColor.xyz = vec3(hx_calculateShadows(hx_spotLight, hx_shadowMap, viewPosition));
+    #endif
 
     #ifdef HX_GAMMA_CORRECT_LIGHTS
         gl_FragColor = hx_linearToGamma(gl_FragColor);

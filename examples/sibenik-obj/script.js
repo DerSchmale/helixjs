@@ -1,7 +1,6 @@
 /**
  * @author derschmale <http://www.derschmale.com>
  */
-
 var project = new DemoProject();
 var spotLight;
 
@@ -53,15 +52,15 @@ function initScene(scene, camera, assetLibrary)
     ambientLight.intensity = .1;
 
     spotLight = new HX.SpotLight();
+    spotLight.castShadows = true;
     spotLight.color = new HX.Color(.6,.8, 1.0);
     spotLight.intensity = 300.0;
     spotLight.position.y = 1;
     spotLight.position.x = .5;
     spotLight.lookAt(new HX.Float4(0.0, 0.0, 4.0));
-    spotLight.innerAngle = 0.1;
+    spotLight.innerAngle = 0.2;
     spotLight.radius = 20;
-    spotLight.outerAngle = 0.5;
-    spotLight.fixedLights = [spotLight];
+    spotLight.outerAngle = 1.0;
 
     camera.attach(spotLight);
     scene.attach(ambientLight);

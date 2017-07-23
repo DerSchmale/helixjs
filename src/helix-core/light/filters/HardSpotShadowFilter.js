@@ -1,0 +1,40 @@
+import { CullMode } from '../../Helix';
+import { ShaderLibrary } from '../../shader/ShaderLibrary';
+import { ShadowFilter } from './ShadowFilter';
+
+/**
+ * @classdesc
+ * HardSpotShadowFilter is a shadow filter that doesn't apply any filtering at all.
+ *
+ * @see {@linkcode InitOptions#directionalShadowFilter}
+ *
+ * @constructor
+ *
+ * @extends ShadowFilter
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function HardSpotShadowFilter()
+{
+    ShadowFilter.call(this);
+}
+
+HardSpotShadowFilter.prototype = Object.create(ShadowFilter.prototype);
+
+/**
+ * @ignore
+ */
+HardSpotShadowFilter.prototype.getGLSL = function()
+{
+    return ShaderLibrary.get("spot_shadow_hard.glsl");
+};
+
+/**
+ * @ignore
+ */
+HardSpotShadowFilter.prototype.getCullMode = function()
+{
+    return CullMode.FRONT;
+};
+
+export { HardSpotShadowFilter };

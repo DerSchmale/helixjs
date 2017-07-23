@@ -1,5 +1,5 @@
-import { CullMode, DataType, TextureFormat } from '../Helix';
-import { Signal } from '../core/Signal';
+import { CullMode, DataType, TextureFormat } from '../../Helix';
+import { Signal } from '../../core/Signal';
 
 /**
  * @ignore

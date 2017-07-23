@@ -4,6 +4,8 @@ import {SceneVisitor} from "../scene/SceneVisitor";
 import {MaterialPass} from "../material/MaterialPass";
 import {META} from "../Helix";
 import {RenderItem} from "./RenderItem";
+import {RenderSortFunctions} from "./RenderSortFunctions";
+import {Float4} from "../math/Float4";
 
 /**
  * @ignore
@@ -15,30 +17,35 @@ function CascadeShadowCasterCollector()
 {
     SceneVisitor.call(this);
     this._renderCameras = null;
+    this._cameraZAxis = new Float4();
     this._bounds = new BoundingAABB();
     this._cullPlanes = null;
     // this._splitPlanes = null;
     this._numCullPlanes = 0;
-    this._opaques = [];
+    this._renderList = [];
     this._renderItemPool = new ObjectPool(RenderItem);
 };
 
 CascadeShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
 
-CascadeShadowCasterCollector.prototype.getOpaqueRenderList = function(index) { return this._opaques[index]; };
+CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return this._renderList[index]; };
 
 CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 {
     this._collectorCamera = camera;
+    camera.worldMatrix.getColumn(2, this._cameraZAxis);
     this._bounds.clear();
     this._renderItemPool.reset();
 
     var numCascades = META.OPTIONS.numShadowCascades;
     for (var i = 0; i < numCascades; ++i) {
-        this._opaques[i] = [];
+        this._renderList[i] = [];
     }
 
     scene.acceptVisitor(this);
+
+    for (var i = 0; i < numCascades; ++i)
+        this._renderList[i].sort(RenderSortFunctions.sortOpaques);
 };
 
 CascadeShadowCasterCollector.prototype.getBounds = function()
@@ -74,9 +81,11 @@ CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInsta
     var numMeshes = modelInstance.numMeshInstances;
     var skeleton = modelInstance.skeleton;
     var skeletonMatrices = modelInstance.skeletonMatrices;
+    var cameraZAxis = this._cameraZAxis;
+    var cameraZ_X = cameraZAxis.x, cameraZ_Y = cameraZAxis.y, cameraZ_Z = cameraZAxis.z;
 
     for (var cascade = 0; cascade < numCascades; ++cascade) {
-        var renderList = this._opaques[cascade];
+        var renderList = this._renderList[cascade];
         var renderCamera = this._renderCameras[cascade];
 
         var contained = worldBounds.intersectsConvexSolid(renderCamera.frustum.planes, 4);
@@ -95,6 +104,8 @@ CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInsta
                     renderItem.material = material;
                     renderItem.skeleton = skeleton;
                     renderItem.skeletonMatrices = skeletonMatrices;
+                    var center = worldBounds._center;
+                    renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
 
                     renderList.push(renderItem);
                 }

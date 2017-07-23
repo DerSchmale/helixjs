@@ -7,6 +7,9 @@ struct HX_SpotLight
     float rcpRadius;
     vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))
     float sinOuterAngle;    // only used in deferred, hence separate
+
+    mat4 shadowMapMatrix;
+    float depthBias;
 };
 
 void hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)
@@ -23,4 +26,9 @@ void hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVe
     attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);
 
 	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);
+}
+
+float hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)
+{
+    return hx_spot_readShadow(shadowMap, viewPos, light.shadowMapMatrix, light.depthBias);
 }

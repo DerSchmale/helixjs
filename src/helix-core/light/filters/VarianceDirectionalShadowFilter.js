@@ -1,6 +1,6 @@
-import { ShaderLibrary } from '../shader/ShaderLibrary';
+import { ShaderLibrary } from '../../shader/ShaderLibrary';
 import { ShadowFilter } from './ShadowFilter';
-import { VSMBlurShader } from './shaders/VSMBlurShader';
+import { VSMBlurShader } from '../shaders/VSMBlurShader';
 
 
 /**
@@ -79,9 +79,9 @@ VarianceDirectionalShadowFilter.prototype._getDefines = function()
 {
     var range = 1.0 - this._lightBleedReduction;
     return {
-        HX_VSM_MIN_VARIANCE: -0.0001,
-        HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + this._lightBleedReduction + ")",
-        HX_VSM_LIGHT_BLEED_REDUCTION_RANGE: "float(" + range + ")"
+        HX_DIR_VSM_MIN_VARIANCE: -0.0001,
+        HX_DIR_VSM_LIGHT_BLEED_REDUCTION: "float(" + this._lightBleedReduction + ")",
+        HX_DIR_VSM_LIGHT_BLEED_REDUCTION_RANGE: "float(" + range + ")"
     };
 };
 

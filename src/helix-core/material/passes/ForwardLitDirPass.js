@@ -92,7 +92,7 @@ ForwardLitDirPass.prototype._generateShader = function(geometryVertex, geometryF
     var fragmentShader =
         ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
         lightingModel + "\n\n\n" +
-        DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
+        META.OPTIONS.directionalShadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("directional_light.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_fwd_dir_fragment.glsl");

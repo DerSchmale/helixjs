@@ -25,7 +25,7 @@ function DeferredDirectionalShader(shadows)
     var fragment =
         ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
         META.OPTIONS.deferredLightingModel + "\n\n\n" +
-        DirectionalLight.SHADOW_FILTER.getGLSL() + "\n" +
+        META.OPTIONS.directionalShadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("directional_light.glsl") + "\n" +
         ShaderLibrary.get("deferred_dir_light_fragment.glsl");
 
@@ -90,7 +90,6 @@ DeferredDirectionalShader.prototype.execute = function(renderer, light)
             var shadowRenderer = light._shadowMapRenderer;
             shadowRenderer._shadowMap.bind(3);
 
-            var shadowRenderer = light._shadowMapRenderer;
             var numCascades = META.OPTIONS.numShadowCascades;
             var splits = shadowRenderer._splitDistances;
             var k = 0;

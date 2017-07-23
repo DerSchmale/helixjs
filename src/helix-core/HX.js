@@ -93,16 +93,18 @@ export {JPG, PNG} from "./io/JPG_PNG";
 
 export {AmbientLight} from "./light/AmbientLight";
 export {DirectionalLight} from "./light/DirectionalLight";
-export {ExponentialDirectionalShadowFilter} from "./light/ExponentialDirectionalShadowFilter";
-export {HardDirectionalShadowFilter} from "./light/HardDirectionalShadowFilter";
 export {Light} from "./light/Light";
 export {LightProbe} from "./light/LightProbe";
 export {DynamicLightProbe} from "./light/DynamicLightProbe";
-export {PCFDirectionalShadowFilter} from "./light/PCFDirectionalShadowFilter";
+export {PCFDirectionalShadowFilter} from "./light/filters/PCFDirectionalShadowFilter";
 export {PointLight} from "./light/PointLight";
 export {SpotLight} from "./light/SpotLight";
-export {ShadowFilter} from "./light/ShadowFilter";
-export {VarianceDirectionalShadowFilter} from "./light/VarianceDirectionalShadowFilter";
+
+export {ShadowFilter} from "./light/filters/ShadowFilter";
+export {ExponentialDirectionalShadowFilter} from "./light/filters/ExponentialDirectionalShadowFilter";
+export {HardDirectionalShadowFilter} from "./light/filters/HardDirectionalShadowFilter";
+export {VarianceDirectionalShadowFilter} from "./light/filters/VarianceDirectionalShadowFilter";
+export {HardSpotShadowFilter} from "./light/filters/HardSpotShadowFilter";
 
 export {MaterialPass} from "./material/MaterialPass";
 export {Material} from "./material/Material";

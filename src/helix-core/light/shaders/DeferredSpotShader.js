@@ -1,10 +1,11 @@
-import {ElementType, META, CullMode} from "../../Helix";
+import {ElementType, META, CullMode, DEFAULTS} from "../../Helix";
 import {GL} from "../../core/GL";
 import {Shader} from "../../shader/Shader";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {Float4} from "../../math/Float4";
 import {RectMesh} from "../../mesh/RectMesh";
 import {ConePrimitive} from "../../mesh/primitives/ConePrimitive";
+import {Matrix4x4} from "../../math/Matrix4x4";
 
 /**
  * @ignore
@@ -12,12 +13,15 @@ import {ConePrimitive} from "../../mesh/primitives/ConePrimitive";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function DeferredSpotShader(useCone)
+function DeferredSpotShader(useCone, shadows)
 {
     Shader.call(this);
     this._useCone = useCone;
 
     var defines = {};
+
+    if (shadows)
+        defines.HX_SHADOW_MAP = 1;
 
     if (useCone) {
         var primitive = new ConePrimitive({
@@ -33,11 +37,13 @@ function DeferredSpotShader(useCone)
     var vertex =
         ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
         META.OPTIONS.deferredLightingModel + "\n\n\n" +
+        META.OPTIONS.spotShadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("spot_light.glsl") + "\n" +
         ShaderLibrary.get("deferred_spot_light_vertex.glsl", defines);
     var fragment =
         ShaderLibrary.get("snippets_geometry.glsl") + "\n" +
         META.OPTIONS.deferredLightingModel + "\n\n\n" +
+        META.OPTIONS.spotShadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("spot_light.glsl") + "\n" +
         ShaderLibrary.get("deferred_spot_light_fragment.glsl", defines);
 
@@ -68,6 +74,15 @@ function DeferredSpotShader(useCone)
     gl.uniform1i(albedoSlot, 0);
     gl.uniform1i(normalDepthSlot, 1);
     gl.uniform1i(specularSlot, 2);
+
+    if (shadows) {
+        this._shadowMatrixLocation = gl.getUniformLocation(p, "hx_spotLight.shadowMapMatrix");
+        this._depthBiasLocation = gl.getUniformLocation(p, "hx_spotLight.depthBias");
+        var shadowMapSlot = gl.getUniformLocation(p, "hx_shadowMap");
+        var ditherSlot = gl.getUniformLocation(p, "hx_dither2D");
+        gl.uniform1i(shadowMapSlot, 3);
+        gl.uniform1i(ditherSlot, 4);
+    }
 }
 
 DeferredSpotShader.prototype = Object.create(Shader.prototype);
@@ -75,6 +90,7 @@ DeferredSpotShader.prototype = Object.create(Shader.prototype);
 DeferredSpotShader.prototype.execute = function(renderer, light)
 {
     var pos = new Float4();
+    var matrix = new Matrix4x4();
 
     return function(renderer, light) {
         var gl = GL.gl;
@@ -105,6 +121,17 @@ DeferredSpotShader.prototype.execute = function(renderer, light)
         if (this._useCone) {
             gl.uniform1f(this._sinOuterAngleLocation, light._sinOuter);
             gl.uniformMatrix4fv(this._worldMatrixLocation, false, worldMatrix._m);
+        }
+
+        if (light._castShadows) {
+            var shadowRenderer = light._shadowMapRenderer;
+            shadowRenderer._shadowMap.bind(3);
+
+            matrix.multiply(shadowRenderer.shadowMatrix, camera.worldMatrix);
+            gl.uniformMatrix4fv(this._shadowMatrixLocation, false, matrix._m);
+            gl.uniform1f(this._depthBiasLocation, light.depthBias);
+
+            DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.bind(4);
         }
 
         this.updatePassRenderState(camera, renderer);

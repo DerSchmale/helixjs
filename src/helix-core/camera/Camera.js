@@ -49,6 +49,7 @@ Camera.prototype = Object.create(Entity.prototype, {
         },
 
         set: function(value) {
+            if (this._nearDistance === value) return;
             this._nearDistance = value;
             this._invalidateProjectionMatrix();
         }
@@ -60,6 +61,7 @@ Camera.prototype = Object.create(Entity.prototype, {
         },
 
         set: function(value) {
+            if (this._farDistance === value) return;
             this._farDistance = value;
             this._invalidateProjectionMatrix();
         }

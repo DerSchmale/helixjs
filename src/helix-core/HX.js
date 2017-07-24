@@ -142,6 +142,7 @@ export {WriteOnlyDepthBuffer} from "./texture/WriteOnlyDepthBuffer";
 export {EquirectangularTexture} from "./utils/EquirectangularTexture";
 export {HeightMap} from "./utils/HeightMap";
 export {ImageData} from "./utils/ImageData";
+export {MergeSpecularTextures} from "./utils/MergeSpecularTextures";
 export {NormalTangentGenerator} from "./utils/NormalTangentGenerator";
 export {Platform} from "./utils/Platform";
 export {RayCaster} from "./utils/RayCaster";

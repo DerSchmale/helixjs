@@ -118,7 +118,7 @@ Shader.prototype = {
         // Check the compile status, return an error if failed
         if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
             console.warn(gl.getShaderInfoLog(shader));
-            // Debug.printShaderCode(code);
+            Debug.printShaderCode(code);
             return false;
         }
 
@@ -174,18 +174,19 @@ Shader.prototype = {
 
         for (var i = 0; i < result.length; ++i) {
             var occ = result[i];
-            if (covered[occ]) continue;
 
             var start = occ.indexOf("hx_");
             var end = occ.indexOf(";");
             // in case of arrays
             var sq = occ.indexOf("[");
-            if (sq >= 0)
-            end = Math.min(sq, end);
+            if (sq >= 0 && sq < end) end = sq;
+
             var name = occ.substring(start, end);
             name = name.trim();
 
-            covered[occ] = true;
+            if (covered[name]) continue;
+
+            covered[name] = true;
 
             var defName = "HX_GUARD_" + name.toUpperCase();
             var repl =  "#ifndef " + defName + "\n" +

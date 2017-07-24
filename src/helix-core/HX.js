@@ -107,6 +107,7 @@ export {VarianceDirectionalShadowFilter} from "./light/filters/VarianceDirection
 export {HardSpotShadowFilter} from "./light/filters/HardSpotShadowFilter";
 export {PCFSpotShadowFilter} from "./light/filters/PCFSpotShadowFilter";
 export {HardPointShadowFilter} from "./light/filters/HardPointShadowFilter";
+export {PCFPointShadowFilter} from "./light/filters/PCFPointShadowFilter";
 
 export {MaterialPass} from "./material/MaterialPass";
 export {Material} from "./material/Material";

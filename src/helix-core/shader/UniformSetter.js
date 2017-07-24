@@ -1,6 +1,7 @@
 import {GL} from "../core/GL";
-import {DEFAULTS} from "../Helix";
+import {DEFAULTS, META} from "../Helix";
 import {PoissonDisk} from "../math/PoissonDisk";
+import {PoissonSphere} from "../math/PoissonSphere";
 import {Matrix4x4} from "../math/Matrix4x4";
 
 /**
@@ -69,6 +70,7 @@ export var UniformSetter = {
         UniformSetter._passTable.hx_dither2DTextureScale = Dither2DTextureScaleSetter;
         UniformSetter._passTable.hx_ambientColor = AmbientColorSetter;
         UniformSetter._passTable["hx_poissonDisk[0]"] = PoissonDiskSetter;
+        UniformSetter._passTable["hx_poissonSphere[0]"] = PoissonSphereSetter;
     }
 };
 
@@ -336,9 +338,18 @@ PoissonDiskSetter.prototype.execute = function ()
     GL.gl.uniform2fv(this.location, PoissonDisk.DEFAULT_FLOAT32);
 };
 
+function PoissonSphereSetter()
+{
+}
+
+PoissonSphereSetter.prototype.execute = function ()
+{
+    GL.gl.uniform3fv(this.location, PoissonSphere.DEFAULT_FLOAT32);
+};
+
 function SkinningMatricesSetter()
 {
-    this._data = new Float32Array(OPTIONS.maxSkeletonJoints * 12);
+    this._data = new Float32Array(META.OPTIONS.maxSkeletonJoints * 12);
 }
 
 SkinningMatricesSetter.prototype.execute = function (camera, renderItem)

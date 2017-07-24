@@ -21,7 +21,7 @@ ApplyGBufferPass.prototype._generateShader = function(geometryVertex, geometryFr
         "#define HX_SKIP_NORMALS\n" +
         "#define HX_SKIP_SPECULAR\n";
     var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_apply_gbuffer_vertex.glsl");
-    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_apply_gbuffer_fragment.glsl");
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + geometryFragment + "\n\n" + ShaderLibrary.get("material_apply_gbuffer_fragment.glsl");
     return new Shader(vertexShader, fragmentShader);
 };
 

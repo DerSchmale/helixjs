@@ -55,7 +55,7 @@ window.onload = function ()
     options.hdr = !HX.Platform.isMobile;
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.deferredLightingModel = HX.LightingModel.GGX;
-    project.init(document.getElementById('webglContainer'), options);
+    project.init(document.getElementById("webglContainer"), options);
 };
 
 function initHDRSettings()

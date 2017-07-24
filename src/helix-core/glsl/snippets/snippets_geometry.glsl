@@ -5,6 +5,7 @@ struct HX_GeometryData
     float metallicness;
     float normalSpecularReflectance;
     float roughness;
+    float occlusion;
     vec3 emission;
     vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)
 };
@@ -30,6 +31,7 @@ HX_GBufferData hx_parseGBuffer(sampler2D albedoTex, sampler2D normalDepthTex, sa
     data.geometry.normalSpecularReflectance = specularSample.y * .2;
     data.geometry.roughness = max(specularSample.z, .01);
     data.geometry.color = vec4(albedoSample.xyz * (1.0 - data.geometry.metallicness), 1.0);
+    data.geometry.occlusion = albedoSample.w;
     data.normalSpecularReflectance = hx_getNormalSpecularReflectance(specularSample.x, data.geometry.normalSpecularReflectance, albedoSample.xyz);
     data.linearDepth = hx_RG8ToFloat(normalDepthSample.zw);
     return data;

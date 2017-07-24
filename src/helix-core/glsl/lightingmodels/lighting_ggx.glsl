@@ -25,6 +25,8 @@ void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in 
 
 	vec3 halfVector = normalize(lightDir + viewDir);
 
+    geometry.roughness *= geometry.roughness;
+
 	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);
 
 	float halfDotLight = max(dot(halfVector, lightDir), 0.0);

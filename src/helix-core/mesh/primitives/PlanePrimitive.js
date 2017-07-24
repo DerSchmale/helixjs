@@ -107,12 +107,12 @@ PlanePrimitive.prototype._generate = function(target, definition)
                 var base = xi + yi*w;
                 var mult = doubleSided ? 1 : 0;
 
-                indices.push(base << mult, (base + w) << mult, (base + w + 1) << mult);
-                indices.push(base << mult, (base + w + 1) << mult, (base + 1) << mult);
+                indices.push(base << mult, (base + w + 1) << mult, (base + w) << mult);
+                indices.push(base << mult, (base + 1) << mult, (base + w + 1) << mult);
 
                 if(doubleSided) {
-                    indices.push(((base + w + 1) << mult) + 1, ((base + w) << mult) + 1, (base << mult) + 1);
-                    indices.push(((base + 1) << mult) + 1, ((base + w + 1) << mult) + 1, (base << mult) + 1);
+                    indices.push(((base + w) << mult) + 1, ((base + w + 1) << mult) + 1, (base << mult) + 1);
+                    indices.push(((base + w + 1) << mult) + 1, ((base + 1) << mult) + 1, (base << mult) + 1);
                 }
             }
         }

@@ -90,18 +90,18 @@ ConePrimitive.prototype._generate = function(target, definition)
     for (ci = 0; ci < numSegmentsW; ++ci) {
         for (hi = 0; hi < numSegmentsH - 1; ++hi) {
             base = ci + hi*w;
-            indices.push(base, base + w, base + w + 1);
-            indices.push(base, base + w + 1, base + 1);
+            indices.push(base, base + w + 1, base + w);
+            indices.push(base, base + 1, base + w + 1);
 
             if (doubleSided) {
-                indices.push(base, base + w + 1, base + w);
-                indices.push(base, base + 1, base + w + 1);
+                indices.push(base, base + w, base + w + 1);
+                indices.push(base, base + w + 1, base + 1);
             }
         }
 
         // tip only needs 1 tri
         base = ci + (numSegmentsH - 1)*w;
-        indices.push(base, base + w + 1, base + 1);
+        indices.push(base, base + 1, base + w + 1);
     }
 
     // bottom
@@ -138,7 +138,7 @@ ConePrimitive.prototype._generate = function(target, definition)
     }
 
     for (ci = 1; ci < numSegmentsW - 1; ++ci)
-        indices.push(indexOffset, indexOffset + ci, indexOffset + ci + 1);
+        indices.push(indexOffset, indexOffset + ci + 1, indexOffset + ci);
 };
 
 export { ConePrimitive };

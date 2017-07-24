@@ -92,12 +92,12 @@ CylinderPrimitive.prototype._generate = function(target, definition)
             var w = numSegmentsW + 1;
             var base = ci + hi*w;
 
-            indices.push(base, base + w, base + w + 1);
-            indices.push(base, base + w + 1, base + 1);
+            indices.push(base, base + w + 1, base + w);
+            indices.push(base, base + 1, base + w + 1);
 
             if (doubleSided) {
-                indices.push(base, base + w + 1, base + w);
-                indices.push(base, base + 1, base + w + 1);
+                indices.push(base, base + w, base + w + 1);
+                indices.push(base, base + w + 1, base + 1);
             }
         }
     }
@@ -165,8 +165,8 @@ CylinderPrimitive.prototype._generate = function(target, definition)
 
     for (ci = 1; ci < numSegmentsW - 1; ++ci) {
         var offset = ci << 1;
-        indices.push(indexOffset, indexOffset + offset, indexOffset + offset + 2);
-        indices.push(indexOffset + 1, indexOffset + offset + 3, indexOffset + offset + 1);
+        indices.push(indexOffset, indexOffset + offset + 2, indexOffset + offset);
+        indices.push(indexOffset + 1, indexOffset + offset + 1, indexOffset + offset + 3);
     }
 };
 

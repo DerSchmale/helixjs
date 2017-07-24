@@ -89,8 +89,8 @@ Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
             if (xi !== numSegments && zi !== numZ) {
                 var base = xi + zi * w;
 
-                indices.push(base, base + w, base + w + 1);
-                indices.push(base, base + w + 1, base + 1);
+                indices.push(base, base + w + 1, base + w);
+                indices.push(base, base + 1, base + w + 1);
             }
         }
     }
@@ -107,9 +107,9 @@ Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
             if (xi !== numSegments) {
                 base = xi + numZ * w;
                 vertices.push(x + halfCellSize, 0, z, 0, 1, 0, halfCellSize);
-                indices.push(base, highIndexX + xi * 2, highIndexX + xi * 2 + 1);
-                indices.push(base, highIndexX + xi * 2 + 1, base + 1);
-                indices.push(highIndexX + xi * 2 + 1, highIndexX + xi * 2 + 2, base + 1);
+                indices.push(base, highIndexX + xi * 2 + 1, highIndexX + xi * 2);
+                indices.push(base + 1, highIndexX + xi * 2 + 1, base);
+                indices.push(highIndexX + xi * 2 + 2, highIndexX + xi * 2 + 1, base + 1);
             }
         }
     }

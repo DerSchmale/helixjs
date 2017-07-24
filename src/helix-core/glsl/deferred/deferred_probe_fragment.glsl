@@ -60,6 +60,8 @@ void main()
 
     gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;
 
+    gl_FragColor.xyz *= data.geometry.occlusion;
+
     #ifdef HX_SSAO
     gl_FragColor.xyz *= texture2D(hx_ssao, uv).x;
     #endif

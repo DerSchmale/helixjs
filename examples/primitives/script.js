@@ -18,7 +18,6 @@ project.onInit = function()
     initScene(this.scene, this.assetLibrary);
 
     this.renderer.backgroundColor = 0x808080;
-    this.renderer.backgroundColor = 0x808080;
 };
 
 window.onload = function ()
@@ -70,7 +69,7 @@ function initScene(scene, assetLibrary)
     material.normalMap = assetLibrary.get("normals");
     material.specularMap = assetLibrary.get("specular");
     material.roughness = .6;
-    material.roughnessRange = .4;
+    material.roughnessRange = .2;
     // material.fixedLights = [ light1, light2, light3 ];
 
     var primitive = new HX.SpherePrimitive(

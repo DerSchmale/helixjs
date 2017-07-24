@@ -103,7 +103,7 @@ MD5Mesh.prototype._parseMesh = function(tokens)
         case "numWeights":
             break;
         case "tri":
-            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[4]), parseInt(tokens[3]));
+            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[3]), parseInt(tokens[4]));
             break;
         case "vert":
             this._parseVert(tokens);

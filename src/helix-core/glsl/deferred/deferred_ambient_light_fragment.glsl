@@ -16,7 +16,7 @@ void main()
 // TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method
     HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);
 
-    gl_FragColor.xyz = hx_ambientColor * data.geometry.color.xyz;
+    gl_FragColor.xyz = hx_ambientColor * data.geometry.color.xyz * data.geometry.occlusion;
 
 #ifdef HX_SSAO
     gl_FragColor.xyz *= texture2D(hx_ssao, uv).x;

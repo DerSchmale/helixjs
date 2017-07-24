@@ -100,12 +100,12 @@ TorusPrimitive.prototype._generate = function(target, definition)
             var w = numSegmentsW + 1;
             var base = azimuthSegment + polarSegment*w;
 
-            indices.push(base, base + w, base + w + 1);
-            indices.push(base, base + w + 1, base + 1);
+            indices.push(base, base + w + 1, base + w);
+            indices.push(base, base + 1, base + w + 1);
 
             if (doubleSided) {
-                indices.push(base, base + w + 1, base + w);
-                indices.push(base, base + 1, base + w + 1);
+                indices.push(base, base + w, base + w + 1);
+                indices.push(base, base + w + 1, base + 1);
             }
         }
     }

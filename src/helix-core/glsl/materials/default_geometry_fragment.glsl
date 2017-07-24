@@ -1,12 +1,21 @@
 uniform vec3 color;
+uniform vec3 emissiveColor;
 uniform float alpha;
 
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)
 varying vec2 texCoords;
 #endif
 
 #ifdef COLOR_MAP
 uniform sampler2D colorMap;
+#endif
+
+#ifdef OCCLUSION_MAP
+uniform sampler2D occlusionMap;
+#endif
+
+#ifdef EMISSION_MAP
+uniform sampler2D emissionMap;
 #endif
 
 #ifdef MASK_MAP
@@ -30,7 +39,7 @@ uniform float roughnessRange;
 uniform float normalSpecularReflectance;
 uniform float metallicness;
 
-#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
+#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)
 uniform sampler2D specularMap;
 #endif
 
@@ -103,13 +112,20 @@ HX_GeometryData hx_geometry()
 #endif
 
 #ifndef HX_SKIP_SPECULAR
-    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP)
+    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)
           vec4 specSample = texture2D(specularMap, texCoords);
-          roughnessOut -= roughnessRange * (specSample.x - .5);
 
-          #ifdef SPECULAR_MAP
-              specNormalReflOut *= specSample.y;
+          #ifdef METALLIC_ROUGHNESS_MAP
+              roughnessOut *= 1.0 - roughnessRange + specSample.y * roughnessRange;
               metallicnessOut *= specSample.z;
+
+          #else
+              roughnessOut -= roughnessRange * (specSample.x - .5);
+
+              #ifdef SPECULAR_MAP
+                  specNormalReflOut *= specSample.y;
+                  metallicnessOut *= specSample.z;
+              #endif
           #endif
     #endif
 
@@ -118,6 +134,17 @@ HX_GeometryData hx_geometry()
     data.roughness = roughnessOut;
 #endif
 
-    data.emission = vec3(0.0);
+    data.occlusion = 1.0;
+
+#ifdef OCCLUSION_MAP
+    data.occlusion = texture2D(occlusionMap, texCoords).x;
+#endif
+
+    vec3 emission = emissiveColor;
+#ifdef EMISSION_MAP
+    emission *= texture2D(emissionMap, texCoords).xyz;
+#endif
+
+    data.emission = hx_gammaToLinear(emission);
     return data;
 }

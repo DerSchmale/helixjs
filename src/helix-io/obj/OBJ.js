@@ -239,14 +239,14 @@ OBJ.prototype._translateMesh = function(group)
         }
 
         indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
-        indices[currentIndex+1] = realIndices[faceVerts[1].getHash()].index;
-        indices[currentIndex+2] = realIndices[faceVerts[2].getHash()].index;
+        indices[currentIndex+1] = realIndices[faceVerts[2].getHash()].index;
+        indices[currentIndex+2] = realIndices[faceVerts[1].getHash()].index;
         currentIndex += 3;
 
         if (numVerts === 4) {
             indices[currentIndex] = realIndices[faceVerts[0].getHash()].index;
-            indices[currentIndex+1] = realIndices[faceVerts[2].getHash()].index;
-            indices[currentIndex+2] = realIndices[faceVerts[3].getHash()].index;
+            indices[currentIndex+1] = realIndices[faceVerts[3].getHash()].index;
+            indices[currentIndex+2] = realIndices[faceVerts[2].getHash()].index;
             currentIndex += 3;
         }
     }

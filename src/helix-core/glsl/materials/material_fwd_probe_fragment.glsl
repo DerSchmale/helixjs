@@ -37,7 +37,7 @@ void main()
     vec3 diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, diffRay);
     vec3 specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, specRay, fresnel, data.roughness);
 
-    gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);
+    gl_FragColor = vec4((diffuse * data.color.xyz + specular) * data.occlusion, data.color.w);
 
     #ifdef HX_SSAO
     vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;

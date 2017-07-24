@@ -12,8 +12,11 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  * @property {number} alpha The overall transparency of the object. Has no effect without a matching blendState value.
  * @property {boolean} useVertexColors Defines whether the material should use the hx_vertexColor attribute. Only available for meshes that have this attribute.
  * @property {Color} color The base color of the material. Multiplied with the colorMap if provided.
+ * @property {Color} emissiveColor The emission color of the material. Multiplied with the emissionMap if provided.
  * @property {Texture2D} colorMap A {@linkcode Texture2D} object containing color data.
  * @property {Texture2D} normalMap A {@linkcode Texture2D} object containing surface normals.
+ * @property {Texture2D} occlusionMap A {@linkcode Texture2D} object containing baked ambient occlusion.
+ * @property {Texture2D} emissionMap A {@linkcode Texture2D} object containing color emission.
  * @property {Texture2D} specularMap A texture containing specular reflection data. The contents of the map depend on {@linkcode BasicMaterial#specularMapMode}. The roughness in the specular map is encoded as shininess; ie: lower values result in higher roughness to reflect the apparent brighness of the reflection. This is visually more intuitive.
  * @property {Texture2D} maskMap A {@linkcode Texture2D} object containing transparency data. Requires a matching blendState.
  * @property {number} specularMapMode Defines the contents of the specular map. One of the following:
@@ -21,6 +24,7 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
  *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_ROUGHNESS_ONLY}</li>
  *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_ALL}</li>
  *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_SHARE_NORMAL_MAP}</li>
+ *     <li>{@linkcode BasicMaterial#SPECULAR_MAP_METALLIC_ROUGHNESS}</li>
  * </ul>
  * @property {number} metallicness A value describing the overall "metallicness" of an object. Normally 0 or 1, but it can be used for some hybrid materials.
  * @property {number} normalSpecularReflectance The amount of light reflecting off a surface at 90 degrees (ie: the minimum reflectance in the Fresnel equation according to Schlick's approximation). This is generally 0.027 for most materials.
@@ -61,6 +65,7 @@ function BasicMaterial(options)
     options = options || {};
 
     this._color = options.color || new Color(1, 1, 1, 1);
+    this._emissiveColor = options.emissiveColor || new Color(0, 0, 0, 1);
     this._colorMap = options.colorMap || null;
     this._doubleSided = !!options.doubleSided;
     this._normalMap = options.normalMap || null;
@@ -77,6 +82,7 @@ function BasicMaterial(options)
 
     // trigger assignments
     this.color = this._color;
+    this.emissiveColor = this._emissiveColor;
     this.alpha = this._alpha;
     this.metallicness = this._metallicness;
     this.roughness = this._roughness;
@@ -107,6 +113,10 @@ BasicMaterial.SPECULAR_MAP_ALL = 2;
  * Used for specularMapMode to specify there is no explicit specular map, but roughness data is present in the alpha channel of the normal map.
  */
 BasicMaterial.SPECULAR_MAP_SHARE_NORMAL_MAP = 3;
+/**
+ * Used for specularMapMode to specify the specular map has gb channels containing metallicness and roughness. This is the glTF standard.
+ */
+BasicMaterial.SPECULAR_MAP_METALLIC_ROUGHNESS = 4;
 
 
 BasicMaterial.prototype = Object.create(Material.prototype,
@@ -196,6 +206,50 @@ BasicMaterial.prototype = Object.create(Material.prototype,
                 this.setTexture("normalMap", value);
 
                 this._normalMap = value;
+            }
+        },
+
+        occlusionMap: {
+            get: function ()
+            {
+                return this._occlusionMap;
+            },
+            set: function (value)
+            {
+                if (!!this._occlusionMap !== !!value)
+                    this._invalidate();
+
+                this.setTexture("occlusionMap", value);
+
+                this._occlusionMap = value;
+            }
+        },
+
+        emissiveColor: {
+            get: function ()
+            {
+                return this._emissiveColor;
+            },
+            set: function (value)
+            {
+                this._emissiveColor = isNaN(value) ? value : new Color(value);
+                this.setUniform("emissiveColor", this._emissiveColor);
+            }
+        },
+
+        emissionMap: {
+            get: function ()
+            {
+                return this._emissionMap;
+            },
+            set: function (value)
+            {
+                if (!!this._emissionMap !== !!value)
+                    this._invalidate();
+
+                this.setTexture("emissionMap", value);
+
+                this._emissionMap = value;
             }
         },
 
@@ -334,6 +388,8 @@ BasicMaterial.prototype._generateDefines = function()
     if (this._colorMap) defines.COLOR_MAP = 1;
     if (this._useVertexColors) defines.VERTEX_COLORS = 1;
     if (this._normalMap) defines.NORMAL_MAP = 1;
+    if (this._occlusionMap) defines.OCCLUSION_MAP = 1;
+    if (this._emissionMap) defines.EMISSION_MAP = 1;
     if (this._maskMap) defines.MASK_MAP = 1;
     if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
     if (this._useSkinning) defines.HX_USE_SKINNING = 1;
@@ -348,6 +404,9 @@ BasicMaterial.prototype._generateDefines = function()
             break;
         case BasicMaterial.SPECULAR_MAP_ALL:
             if (this._specularMap) defines.SPECULAR_MAP = 1;
+            break;
+        case BasicMaterial.SPECULAR_MAP_METALLIC_ROUGHNESS:
+            if (this._specularMap) defines.METALLIC_ROUGHNESS_MAP = 1;
             break;
         default:
             defines.NORMAL_ROUGHNESS_MAP = 1;

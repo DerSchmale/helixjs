@@ -65,11 +65,11 @@ void main()
     vec3 specularAccum = vec3(0.0);
     vec3 viewVector = normalize(hx_viewPosition);
 
-    float ssao = 1.0;
+    float ao = data.occlusion;
 
     #ifdef HX_SSAO
         vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;
-        ssao = texture2D(hx_ssao, screenUV).x;
+        ao = texture2D(hx_ssao, screenUV).x;
     #endif
 
     #if HX_NUM_DIR_LIGHTS > 0
@@ -133,7 +133,7 @@ void main()
     #if HX_NUM_DIFFUSE_PROBES > 0
     vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
     for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {
-        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ssao;
+        diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbeMaps[i], worldNormal) * ao;
     }
     #endif
 
@@ -144,11 +144,11 @@ void main()
     reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
 
    for (int i = 0; i < HX_NUM_SPECULAR_PROBES; ++i) {
-        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ssao;
+        specularAccum += hx_calculateSpecularProbeLight(hx_specularProbeMaps[i], hx_specularProbeNumMips[i], reflectedViewDir, fresnel, data.roughness) * ao;
     }
     #endif
 
-    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ssao) * data.color.xyz + specularAccum + data.emission, data.color.w);
+    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ao) * data.color.xyz + specularAccum + data.emission, data.color.w);
 
     #ifdef HX_GAMMA_CORRECT_LIGHTS
         gl_FragColor = hx_linearToGamma(gl_FragColor);

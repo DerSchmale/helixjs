@@ -678,8 +678,8 @@ function _initGLProperties()
     TextureFilter.DEFAULT = TextureFilter.TRILINEAR;
 
     CullMode.NONE = null;
-    CullMode.BACK = gl.FRONT;
-    CullMode.FRONT = gl.BACK;
+    CullMode.BACK = gl.BACK;
+    CullMode.FRONT = gl.FRONT;
     CullMode.ALL = gl.FRONT_AND_BACK;
 
     StencilOp.KEEP = gl.KEEP;

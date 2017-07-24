@@ -31,7 +31,7 @@ uniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];
 uniform mat4 hx_wvpMatrix;
 uniform mat4 hx_worldViewMatrix;
 
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)
 attribute vec2 hx_texCoord;
 varying vec2 texCoords;
 #endif
@@ -112,7 +112,7 @@ void hx_geometry()
     #endif
 #endif
 
-#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP)
+#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)
     texCoords = hx_texCoord;
 #endif
 

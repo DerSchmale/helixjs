@@ -148,11 +148,11 @@ BoxPrimitive.prototype._generate = function(target, definition)
                 var i2 = (base + w) << 1;
                 var i3 = (base + 1) << 1;
 
-                indices.push(i0, i1, i2);
-                indices.push(i0, i3, i1);
+                indices.push(i0, i2, i1);
+                indices.push(i0, i1, i3);
 
-                indices.push(i0 | 1, i1 | 1, i2 | 1);
-                indices.push(i0 | 1, i3 | 1, i1 | 1);
+                indices.push(i0 | 1, i2 | 1, i1 | 1);
+                indices.push(i0 | 1, i1 | 1, i3 | 1);
             }
         }
         offset += (numSegmentsU + 1) * (numSegmentsV + 1);

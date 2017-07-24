@@ -1,4 +1,4 @@
-    import {capabilities, BufferUsage} from "../Helix";
+import {capabilities, BufferUsage} from "../Helix";
 import {IndexBuffer} from "../core/IndexBuffer";
 import {VertexBuffer} from "../core/VertexBuffer";
 
@@ -66,10 +66,10 @@ Mesh.ID_COUNTER = 0;
 Mesh.createDefaultEmpty = function()
 {
     var data = new Mesh();
-    data.addVertexAttribute('hx_position', 3);
-    data.addVertexAttribute('hx_normal', 3);
-    data.addVertexAttribute('hx_tangent', 4);
-    data.addVertexAttribute('hx_texCoord', 2);
+    data.addVertexAttribute("hx_position", 3);
+    data.addVertexAttribute("hx_normal", 3);
+    data.addVertexAttribute("hx_tangent", 4);
+    data.addVertexAttribute("hx_texCoord", 2);
     return data;
 };
 
@@ -135,7 +135,7 @@ Mesh.prototype = {
      * has been finalized using setVertexAttribute calls. The data in the stream should be an interleaved array of
      * floats, with each attribute data in the order specified with the setVertexAttribute calls.
      */
-        setVertexData: function (data, streamIndex)
+    setVertexData: function (data, streamIndex)
     {
         streamIndex = streamIndex || 0;
 

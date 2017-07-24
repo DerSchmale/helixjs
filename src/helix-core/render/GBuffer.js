@@ -3,9 +3,9 @@ import {Texture2D} from "../texture/Texture2D";
 import {TextureFilter, TextureWrapMode, capabilities} from "../Helix";
 
 /**
- * 0) RGB: ALBEDO, (TODO, A: effectID, can be used by post-processing effects such as SSS to selectively apply if a match)
+ * 0) RGB: ALBEDO, A: OCCLUSION
  * 1) XY: NORMAL, ZW: DEPTH
- * 2) X: METALLICNESS, Y: NORMAL REFLECTION, Z: ROUGHNESS, W: TBD
+ * 2) X: METALLICNESS, Y: NORMAL REFLECTION, Z: ROUGHNESS, W: (TODO, A: effectID, can be used by post-processing effects such as SSS to selectively apply if a match)
  * @param depthBuffer
  * @constructor
  *

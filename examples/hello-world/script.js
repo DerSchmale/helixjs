@@ -48,8 +48,6 @@ window.onresize = function()
 function update(dt)
 {
     renderer.render(camera, scene, dt);
-    console.log(window.innerWidth, window.innerHeight, window.devicePixelRatio);
-    console.log(window.screen.width, window.screen.height);
 }
 
 function resizeCanvas()

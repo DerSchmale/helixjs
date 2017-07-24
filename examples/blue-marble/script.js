@@ -47,8 +47,6 @@ project.onUpdate = function(dt)
 
     var v = this.camera.viewMatrix.transformVector(sunLight.direction);
     earthMaterial.setUniform("sunViewDirection", v);
-
-    console.log();
 };
 
 window.onload = function ()

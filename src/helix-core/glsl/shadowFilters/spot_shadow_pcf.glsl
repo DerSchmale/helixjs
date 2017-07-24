@@ -3,7 +3,7 @@
     uniform vec2 hx_dither2DTextureScale;
 #endif
 
-uniform vec2 hx_poissonDisk[HX_SPOT_PCF_NUM_SHADOW_SAMPLES];
+uniform vec2 hx_poissonDisk[32];
 
 vec4 hx_spot_getShadowMapValue(float depth)
 {

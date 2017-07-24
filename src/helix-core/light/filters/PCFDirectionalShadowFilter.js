@@ -1,6 +1,7 @@
-import { CullMode } from '../../Helix';
+import {CullMode, META} from '../../Helix';
 import { ShaderLibrary } from '../../shader/ShaderLibrary';
 import { ShadowFilter } from './ShadowFilter';
+import {MathX} from "../../math/MathX";
 
 /**
  * @classdesc
@@ -53,6 +54,7 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
 
             set: function(value)
             {
+                value = MathX.clamp(value, 1, 32);
                 if (this._numShadowSamples !== value) {
                     this._numShadowSamples = value;
                     this.onShaderInvalid.dispatch();
@@ -90,6 +92,8 @@ PCFDirectionalShadowFilter.prototype.getCullMode = function()
  */
 PCFDirectionalShadowFilter.prototype.getGLSL = function()
 {
+    if (META.OPTIONS.pointShadowFilter._numShadowSamples)
+
     var defines = {
         HX_DIR_PCF_NUM_SHADOW_SAMPLES: this._numShadowSamples,
         HX_DIR_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + ( 1.0 / this._numShadowSamples ) + ")",

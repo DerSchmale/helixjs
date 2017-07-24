@@ -18,11 +18,12 @@ function Shader(vertexShaderCode, fragmentShaderCode)
     this._vertexShader = null;
     this._fragmentShader = null;
     this._program = null;
-    this._uniformSetters = null;
+    this._uniformSettersInstance = null;
+    this._uniformSettersPass = null;
 
     if (vertexShaderCode && fragmentShaderCode)
         this.init(vertexShaderCode, fragmentShaderCode);
-};
+}
 
 Shader.ID_COUNTER = 0;
 
@@ -58,7 +59,8 @@ Shader.prototype = {
             this.dispose();
             if (META.OPTIONS.throwOnShaderError)
                 throw new Error("Failed generating fragment shader: \n" + fragmentShaderCode);
-            console.warn("Failed generating fragment shader:");
+            else
+                console.warn("Failed generating fragment shader:");
             return;
         }
 
@@ -116,7 +118,7 @@ Shader.prototype = {
         // Check the compile status, return an error if failed
         if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
             console.warn(gl.getShaderInfoLog(shader));
-            Debug.printShaderCode(code);
+            // Debug.printShaderCode(code);
             return false;
         }
 
@@ -150,13 +152,14 @@ Shader.prototype = {
         code = this._processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
         code = this._processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
         code = this._processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
-        code = this._guard(code, /^uniform\s+\w+\s+hx_\w+\s*;/gm);
-        code = this._guard(code, /^attribute\s+\w+\s+hx_\w+\s*;/gm);
+        code = this._guard(code, /^\s*uniform\s+\w+\s+hx_\w+(\[\w+])?\s*;/gm);
+        code = this._guard(code, /^\s*attribute\s+\w+\s+hx_\w+\s*;/gm);
         return code;
     },
 
     _processExtensions: function(code, regEx, extension)
     {
+
         var index = code.search(regEx);
         if (index < 0) return code;
         code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");
@@ -172,16 +175,25 @@ Shader.prototype = {
         for (var i = 0; i < result.length; ++i) {
             var occ = result[i];
             if (covered[occ]) continue;
+
             var start = occ.indexOf("hx_");
             var end = occ.indexOf(";");
+            // in case of arrays
+            var sq = occ.indexOf("[");
+            if (sq >= 0)
+            end = Math.min(sq, end);
             var name = occ.substring(start, end);
             name = name.trim();
+
             covered[occ] = true;
+
             var defName = "HX_GUARD_" + name.toUpperCase();
             var repl =  "#ifndef " + defName + "\n" +
                         "#define " + defName + "\n" +
                         occ + "\n" +
                         "#endif\n";
+
+            occ = occ.replace(/\[/g, "\\[");
             var replReg = new RegExp(occ, "g");
             code = code.replace(replReg, repl);
         }

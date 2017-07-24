@@ -1,6 +1,7 @@
 import { CullMode } from '../../Helix';
 import { ShaderLibrary } from '../../shader/ShaderLibrary';
 import { ShadowFilter } from './ShadowFilter';
+import {MathX} from "../../math/MathX";
 
 /**
  * @classdesc
@@ -52,6 +53,7 @@ PCFSpotShadowFilter.prototype = Object.create(ShadowFilter.prototype,
 
             set: function(value)
             {
+                value = MathX.clamp(value, 1, 32);
                 if (this._numShadowSamples !== value) {
                     this._numShadowSamples = value;
                     this.onShaderInvalid.dispatch();

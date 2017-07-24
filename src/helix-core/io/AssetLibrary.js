@@ -1,5 +1,6 @@
 import {Signal} from "../core/Signal";
 import {AssetLoader} from "./AssetLoader";
+import {URLLoader} from "./URLLoader";
 
 /**
  * @constructor
@@ -63,7 +64,12 @@ AssetLibrary.Type = {
     /**
      * A plain text file.
      */
-    PLAIN_TEXT: 2
+    PLAIN_TEXT: 2,
+
+    /**
+     * Raw binary data
+     */
+    RAW_BINARY: 3
 };
 
 AssetLibrary.prototype =
@@ -146,6 +152,9 @@ AssetLibrary.prototype =
             case AssetLibrary.Type.PLAIN_TEXT:
                 this._plainText(asset.filename, asset.id);
                 break;
+            case AssetLibrary.Type.RAW_BINARY:
+                this._rawBinary(asset.filename, asset.id);
+                break;
             case AssetLibrary.Type.ASSET:
                 this._asset(asset.filename, asset.id, asset.parser, asset.options, asset.target);
                 break;
@@ -217,6 +226,20 @@ AssetLibrary.prototype =
         loader.send(null);
     },
 
+    _rawBinary: function(file, id)
+    {
+        var self = this;
+        var loader = new URLLoader();
+        loader.type = URLLoader.DATA_BINARY;
+        loader.onComplete = function (data)
+        {
+            self._assets[id] = data;
+            self._onAssetLoaded();
+        };
+
+        loader.load(file);
+    },
+
     _asset: function(file, id, parser, options, target)
     {
         var loader = new AssetLoader(parser);
@@ -228,14 +251,21 @@ AssetLibrary.prototype =
             this._onAssetLoaded();
         }, this);
 
+        loader.onProgress.bind(function(ratio)
+        {
+            this._onProgress.dispatch((this._numLoaded + ratio) / this._queue.length);
+        }, this);
+
         this._assets[id] = loader.load(file, target);
     },
 
     _onAssetLoaded: function()
     {
+        ++this._numLoaded;
+
         this._onProgress.dispatch(this._numLoaded / this._queue.length);
 
-        if (++this._numLoaded === this._queue.length)
+        if (this._numLoaded === this._queue.length)
             this._onComplete.dispatch(this);
         else
             this.load();

@@ -1,7 +1,7 @@
 import * as HX from "helix";
 
 /**
- * MTL is an importer for
+ * MTL is an importer for .mtl files accompanying .obj files. Rarely needed by itself.
  * @constructor
  */
 function MTL()
@@ -100,9 +100,9 @@ MTL.prototype._loadTextures = function(lib)
         this._notifyComplete(lib);
     }, this);
 
-    // bulkLoader.onFail = function(message) {
-    //     self._notifyFailure(message);
-    // };
+    library.onProgress.bind(function(ratio) {
+        this._notifyProgress(ratio);
+    }, this);
 
     library.load(files);
 };

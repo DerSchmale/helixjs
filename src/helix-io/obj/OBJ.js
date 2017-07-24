@@ -64,6 +64,11 @@ OBJ.prototype._loadMTLLib = function(filename)
         self._finish(asset);
     };
 
+    loader.onProgress = function(ratio)
+    {
+        self._notifyProgress(ratio);
+    };
+
     loader.onFail = function (message)
     {
         self._notifyFailure(message);

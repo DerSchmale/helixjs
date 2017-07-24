@@ -15,6 +15,7 @@ function AssetLoader(ImporterType)
 {
     // this can either be listened to, or overwritten by a function
     this.onComplete = new Signal();
+    this.onProgress = new Signal();
     this.onFail = new Signal();
 
     /**
@@ -71,6 +72,7 @@ AssetLoader.prototype =
         var importer = new this._importerType();
         target = target || importer.createContainer();
         importer.onComplete = this.onComplete;
+        importer.onProgress = this.onProgress;
         importer.onFail = this.onFail;
         importer.fileMap = this.fileMap;
         importer.options = this.options;

@@ -17,6 +17,7 @@ function Importer(containerType, dataType)
     this._dataType = dataType === undefined? URLLoader.DATA_TEXT : dataType;
     this._containerType = containerType;
     this.onComplete = null;
+    this.onProgress = null;
     this.onFail = null;
     this.fileMap = null;
     // be able to pass importer specific settings. crossOrigin is used for images, fe.
@@ -40,6 +41,16 @@ Importer.prototype =
                 this.onComplete.dispatch(asset);
             else
                 this.onComplete(asset);
+        },
+
+        _notifyProgress: function(ratio)
+        {
+            if (!this.onProgress) return;
+
+            if (this.onProgress instanceof Signal)
+                this.onProgress.dispatch(ratio);
+            else
+                this.onProgress(ratio);
         },
 
         _notifyFailure: function(message)

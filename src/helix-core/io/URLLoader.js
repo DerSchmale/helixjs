@@ -88,8 +88,14 @@ URLLoader.prototype =
                 request.setRequestHeader(key, this._headers[key]);
         }
 
-        if (this._timeout)
+        if (this._timeout) {
             request.timeout = this._timeout;
+
+            request.ontimeout = function ()
+            {
+                self.onError(URLLoader.ERROR_TIME_OUT);
+            };
+        }
 
         if (this._type === URLLoader.DATA_BINARY)
             request.responseType = "arraybuffer";
@@ -97,11 +103,6 @@ URLLoader.prototype =
             request.overrideMimeType("application/json");
 
         var self = this;
-
-        request.ontimeout = function ()
-        {
-            self.onError(URLLoader.ERROR_TIME_OUT);
-        };
 
         request.onreadystatechange = function ()
         {

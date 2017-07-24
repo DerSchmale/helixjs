@@ -59,18 +59,18 @@ HCM.prototype._loadFaces = function(urls, target)
     };
 
     for (var i = 0; i < 6; ++i) {
-        var image = new Image();
+        var image = document.createElementNS("http://www.w3.org/1999/xhtml", "img");
         image.crossOrigin = this.options.crossOrigin;
         image.nextID = i + 1;
         if (i < 5) {
-            image.onload = onLoad;
+            image.addEventListener("load", onLoad);
         }
         // last image to load
         else {
-            image.onload = onLoadLast;
+            image.addEventListener("load", onLoadLast);
         }
 
-        image.onError = onError;
+        image.addEventListener("error", onError);
 
         images[i] = image;
     }
@@ -85,14 +85,14 @@ HCM.prototype._loadMipChain = function(urls, target)
     var numMips;
 
     var self = this;
-    var firstImage = new Image();
+    var firstImage = document.createElementNS("http://www.w3.org/1999/xhtml", "img");
     var realURLs = [];
 
     for (var i = 0; i < 6; ++i) {
         realURLs[i] = urls[i].replace("%m", "0");
     }
 
-    firstImage.onload = function()
+    firstImage.addEventListener("load", function()
     {
         if (firstImage.naturalWidth !== firstImage.naturalHeight || !MathX.isPowerOfTwo(firstImage.naturalWidth)) {
             self._notifyFailure("Failed loading mipchain: incorrect dimensions");
@@ -102,12 +102,12 @@ HCM.prototype._loadMipChain = function(urls, target)
             loadTheRest();
             images[0] = firstImage;
         }
-    };
+    });
 
-    firstImage.onerror = function()
+    firstImage.addEventListener("error", function()
     {
         self._notifyFailure("Failed loading texture");
-    };
+    });
 
     firstImage.src = self.path + realURLs[0];
 
@@ -140,18 +140,18 @@ HCM.prototype._loadMipChain = function(urls, target)
         };
 
         for (i = 1; i < len; ++i) {
-            var image = new Image();
+            var image = document.createElementNS("http://www.w3.org/1999/xhtml", "img");
             image.crossOrigin = self.options.crossOrigin;
             image.nextID = i + 1;
             if (i < len - 1) {
-                image.onload = onLoad;
+                image.addEventListener("load", onLoad);
             }
             // last image to load
             else {
-                image.onload = onLoadLast;
+                image.addEventListener("load", onLoadLast);
             }
 
-            image.onError = onError;
+            image.addEventListener("onError", onError);
 
             images[i] = image;
         }

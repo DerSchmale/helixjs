@@ -79,16 +79,16 @@ AssetLoader.prototype =
         importer.filename = file.filename;
 
         if (importer.dataType === Importer.TYPE_IMAGE) {
-            var image = new Image();
+            var image = document.createElementNS("http://www.w3.org/1999/xhtml", "img");
             image.crossOrigin = this.options.crossOrigin;
-            image.onload = function() {
+            image.addEventListener("load", function() {
                 importer.parse(image, target);
-            };
+            });
 
-            image.onError = function() {
+            image.addEventListener("error", function() {
                 console.warn("Failed loading texture '" + filename + "'");
                 fail.call(this);
-            };
+            });
             image.src = filename;
         }
         else {

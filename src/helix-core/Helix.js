@@ -95,6 +95,7 @@ export var capabilities =
         EXT_STANDARD_DERIVATIVES: null,
         EXT_SHADER_TEXTURE_LOD: null,
         EXT_TEXTURE_FILTER_ANISOTROPIC: null,
+        EXT_ELEMENT_INDEX_UINT: null,
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
         NUM_MORPH_TARGETS: 0,
@@ -517,6 +518,9 @@ export function init(canvas, options)
 
     capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension('EXT_texture_filter_anisotropic');
     if (!capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC) console.warn('EXT_texture_filter_anisotropic extension not supported!');
+
+    capabilities.EXT_ELEMENT_INDEX_UINT = _getExtension('OES_element_index_uint');
+    if (!capabilities.EXT_ELEMENT_INDEX_UINT) console.warn('OES_element_index_uint extension not supported!');
 
     //EXT_SRGB = _getExtension('EXT_sRGB');
     //if (!EXT_SRGB) console.warn('EXT_sRGB extension not supported!');

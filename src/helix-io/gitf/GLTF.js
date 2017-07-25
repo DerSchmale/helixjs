@@ -119,6 +119,9 @@ GLTF.prototype._getAccessor = function(index, data)
         case HX.DataType.UNSIGNED_SHORT:
             f.data = dataStream.getUint16Array(accessorDef.count * f.numComponents);
             break;
+        case HX.DataType.UNSIGNED_INT:
+            f.data = dataStream.getUint32Array(accessorDef.count * f.numComponents);
+            break;
         default:
             throw new Error("Unsupported data type!");
     }
@@ -206,7 +209,7 @@ GLTF.prototype._parseMaterials = function(data)
             }
 
             if (pbr.hasOwnProperty("metallicFactor")) {
-                mat.metallicness = matDef.metallicFactor;
+                mat.metallicness = pbr.metallicFactor;
             }
             else
                 mat.metallicness = 1.0;
@@ -326,8 +329,10 @@ GLTF.prototype._parsePrimitive = function(primDef, data, model, materials)
 
         mesh.setVertexData(tangentAcc.data, 2);
     }
-    else if (texCoordAcc)
+    else if (texCoordAcc) {
+        mesh.setVertexData([], 2);
         normalGenMode = HX.NormalTangentGenerator.MODE_TANGENTS;
+    }
 
     var indexAcc = this._getAccessor(primDef.indices, data);
     mesh.setIndexData(indexAcc.data);
@@ -454,6 +459,9 @@ GLTF.prototype._parseNodes = function(data)
 {
     this._nodes = [];
 
+    var invertZ = new HX.Matrix4x4();
+    invertZ.fromScale(1, 1, -1);
+
     // these may also be skeleton joints, will be determined when parsing skeleton
     for (var i = 0; i < data.nodes.length; ++i) {
         var nodeDef = data.nodes[i];
@@ -480,8 +488,14 @@ GLTF.prototype._parseNodes = function(data)
         if (nodeDef.hasOwnProperty("scale"))
             node.scale.set(nodeDef.scale[0], nodeDef.scale[1], nodeDef.scale[2], 1.0);
 
-        if (nodeDef.hasOwnProperty("matrix"))
-            node.matrix.set(nodeDef.matrix);
+        if (nodeDef.hasOwnProperty("matrix")) {
+            node.matrix = new HX.Matrix4x4(nodeDef.matrix);
+        }
+
+        var matrix = node.matrix;
+        node.matrix.prepend(invertZ);
+        node.matrix = matrix;
+        node.matrix.append(invertZ);
 
         node.name = nodeDef.name;
         this._nodes[i] = node;
@@ -491,8 +505,9 @@ GLTF.prototype._parseNodes = function(data)
         nodeDef = data.nodes[i];
         node = this._nodes[i];
         if (nodeDef.hasOwnProperty("children")) {
-            for (var j = 0; j < data.nodes.length; ++j) {
-                node.attach(nodeDef);
+            for (var j = 0; j < nodeDef.children.length; ++j) {
+                var childIndex = nodeDef.children[j];
+                node.attach(this._nodes[childIndex]);
             }
         }
     }

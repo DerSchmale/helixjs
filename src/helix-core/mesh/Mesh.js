@@ -1,4 +1,4 @@
-import {capabilities, BufferUsage} from "../Helix";
+import {capabilities, BufferUsage, DataType} from "../Helix";
 import {IndexBuffer} from "../core/IndexBuffer";
 import {VertexBuffer} from "../core/VertexBuffer";
 import {Signal} from "../core/Signal";
@@ -162,7 +162,18 @@ Mesh.prototype = {
      */
     setIndexData: function (data)
     {
-        this._indexData = data instanceof Uint16Array? data : new Uint16Array(data);
+        if (data instanceof Uint16Array) {
+            this._indexData = data;
+            this._indexType = DataType.UNSIGNED_SHORT;
+        }
+        else if (data instanceof Uint32Array) {
+            this._indexData = data;
+            this._indexType = DataType.UNSIGNED_INT;
+        }
+        else {
+            this._indexData = new Uint16Array(data);
+            this._indexType = DataType.UNSIGNED_SHORT;
+        }
         this._numIndices = this._indexData.length;
         this._indexBuffer.uploadData(this._indexData, this._indexUsage);
     },

@@ -304,7 +304,8 @@ Renderer.prototype =
         pass.updatePassRenderState(renderItem.camera, this, light);
         pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
         meshInstance.updateRenderState(passType);
-        GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
+        var mesh = meshInstance._mesh;
+        GL.drawElements(pass._elementType, mesh._numIndices, 0, mesh._indexType);
     },
 
     /**

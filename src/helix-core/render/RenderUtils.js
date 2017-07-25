@@ -43,7 +43,8 @@ export var RenderUtils =
                 lastMesh = meshInstance._mesh;
             }
 
-            GL.drawElements(pass._elementType, meshInstance._mesh.numIndices, 0);
+            var mesh = meshInstance._mesh;
+            GL.drawElements(pass._elementType, mesh._numIndices, 0, mesh._indexType);
         }
 
         GL.setBlendState(null);

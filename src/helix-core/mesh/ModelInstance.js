@@ -146,9 +146,9 @@ ModelInstance.prototype.init = function(model, materials)
         this._materials = materials instanceof Array? materials : [ materials ];
 
     if (model) {
-        if (model.skeleton) {
+        if (model.skeleton)
             this._generateDefaultSkeletonPose();
-        }
+
         model.onChange.bind(this._onModelChange, this);
         this._onModelChange();
     }

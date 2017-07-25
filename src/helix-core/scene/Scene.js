@@ -24,6 +24,11 @@ function Scene(rootNode)
 
 Scene.prototype = {
     /**
+     * The rootnode of the scene.
+     */
+    get rootNode() { return this._rootNode; },
+
+    /**
      * The {@linkcode Skybox} to use when rendering the scene.
      */
     get skybox() { return this._skybox; },

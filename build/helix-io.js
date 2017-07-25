@@ -36,7 +36,8 @@ function GLTF()
         SCALAR: 1,
         VEC2: 2,
         VEC3: 3,
-        VEC4: 4
+        VEC4: 4,
+        MAT4: 16
     };
 }
 
@@ -344,23 +345,161 @@ GLTF.prototype._parsePrimitive = function(primDef, data, model, materials)
     materials.push(this._materials[primDef.material]);
 };
 
+
+
+GLTF.prototype._addJoints = function(skeleton, node, parentIndex, matrices, nodeIndexToJointIndexMap)
+{
+    var joint = new HX$1.SkeletonJoint();
+    var jointIndex = skeleton.numJoints;
+    joint.parentIndex = parentIndex;
+    matrices.push(node.worldMatrix);
+    skeleton.addJoint(joint);
+
+    nodeIndexToJointIndexMap[this._nodes.indexOf(node)] = jointIndex;
+
+    for (var i = 0; i < node.numChildren; ++i)
+        this._addJoints(skeleton, node.getChild(i), jointIndex, matrices, nodeIndexToJointIndexMap);
+};
+
+GLTF.prototype._parseSkeleton = function(index)
+{
+    var skeleton = new HX$1.Skeleton();
+    var matrices = [];
+    var indexMap = [];
+
+    // passes in the default pose as well
+    this._addJoints(skeleton, this._nodes[index], -1, matrices, indexMap);
+
+    // TODO: loop through matrices and transform to local pose
+
+    var skeletonPose = new HX$1.SkeletonPose();
+    var mat = new HX$1.Matrix4x4();
+    for (var i = 0; i < skeleton.numJoints; ++i) {
+        var joint = skeleton.getJoint(i);
+        var parentIndex = joint.parentIndex;
+
+        if (parentIndex !== -1) {
+            mat.inverseOf(matrices[parentIndex]);
+            mat.prepend(matrices[i]);
+            var jointPose = new HX$1.SkeletonJointPose();
+            mat.decompose(jointPose);
+            skeletonPose.push(jointPose);
+        }
+    }
+
+    return { skeleton: skeleton, pose: skeletonPose, indexMap: indexMap };
+};
+
+GLTF.prototype._parseSkin = function(data, skinIndex, target)
+{
+    var skinDef = data.skins[skinIndex];
+
+    var skinData = this._parseSkeleton(skinDef.skeleton);
+
+    // indexMap contains [node index -> Helix joint index]
+    var newIndexMap = [];
+
+    var inv = this._getAccessor(skinDef.inverseBindMatrices, data).data;
+
+    var m = 0;
+    // convert to: [gltf joint index -> helix joint index]
+    for (var i = 0; i < skinDef.joints.length; ++i) {
+        var nodeIndex = skinDef.joints[i];
+        var jointIndex = skinData.indexMap[nodeIndex];
+        var joint = skinData.skeleton.getJoint(i);
+        joint.inverseBindPose = new HX$1.Matrix4x4(
+            inv[m], inv[m + 4], inv[m + 8], inv[m + 12],
+            inv[m + 1], inv[m + 5], inv[m + 9], inv[m + 13],
+            inv[m + 2], inv[m + 6], inv[m + 10], inv[m + 14],
+            inv[m + 3], inv[m + 7], inv[m + 11], inv[m + 15]
+        );
+        newIndexMap[i] = jointIndex;
+        m += 16;
+    }
+
+    skinData.indexMap = newIndexMap;
+
+    target.model.skeleton = skeleton;
+    target.skeletonPose = skinData.pose;
+
+    this._addJointBindings(data, target, data.meshes[nodeDef.mesh], skinData);
+};
+
+GLTF.prototype._addJointBindings = function(data, modelInstance, meshDef, skinData)
+{
+    for (var i = 0; i < meshDef.primitives.length; ++i) {
+        var primDef = meshDef.primitives[i];
+        var attribs = primDef.attributes;
+        var indexData = this._getAccessor(attribs.JOINTS_0, data);
+        var weightsData = this._getAccessor(attribs.WEIGHTS_0, data);
+        var meshInstance = modelInstance.getMeshInstance(i);
+        var mesh = meshInstance.mesh;
+
+        var weightStream = mesh.numStreams;
+        data.addVertexAttribute("hx_jointWeights", 4, weightStream);
+        data.setVertexData(weightsData.data, weightStream);
+
+        var indexStream = mesh.numStreams;
+        data.addVertexAttribute("hx_jointIndices", 4, indexStream);
+
+        var newIndexData = new Float32Array();
+        // map glTF joint array indices to the real skeleton indices
+        var map = skinData.indexMap;
+        for (var j = 0; j < indexData.length; ++j) {
+            newIndexData[j] = map[indexData[j]];
+        }
+
+        data.setVertexData(weightsData.data, indexStream);
+
+    }
+};
+
 GLTF.prototype._parseNodes = function(data)
 {
     this._nodes = [];
 
+    // these may also be skeleton joints, will be determined when parsing skeleton
     for (var i = 0; i < data.nodes.length; ++i) {
         var nodeDef = data.nodes[i];
         var node;
         if (nodeDef.hasOwnProperty("mesh")) {
             node = this._modelInstances[nodeDef.mesh];
+
+            if (nodeDef.hasOwnProperty("skin")) {
+                this._parseSkin(data, nodeDef.skin, node);
+            }
+
+
             this._target.modelInstances[nodeDef.name] = node;
         }
         else {
             node = new HX$1.SceneNode();
-            // TODO: parse these
         }
+
+        if (nodeDef.hasOwnProperty("rotation"))
+            node.rotation.set(nodeDef.rotation[0], nodeDef.rotation[1], nodeDef.rotation[2], nodeDef.rotation[3]);
+
+        if (nodeDef.hasOwnProperty("translation"))
+            node.position.set(nodeDef.translation[0], nodeDef.translation[1], nodeDef.translation[2], 1.0);
+
+        if (nodeDef.hasOwnProperty("scale"))
+            node.scale.set(nodeDef.scale[0], nodeDef.scale[1], nodeDef.scale[2], 1.0);
+
+        if (nodeDef.hasOwnProperty("matrix"))
+            node.matrix.set(nodeDef.matrix);
+
         node.name = nodeDef.name;
         this._nodes[i] = node;
+    }
+
+    for (i = 0; i < data.nodes.length; ++i) {
+        nodeDef = data.nodes[i];
+        node = this._nodes[i];
+        if (nodeDef.hasOwnProperty("children")) {
+            for (var j = 0; j < data.nodes.length; ++j) {
+                node.attach(nodeDef);
+            }
+        }
     }
 };
 

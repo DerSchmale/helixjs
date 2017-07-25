@@ -95,6 +95,7 @@ SkeletonAnimation.prototype.setValue = function(id, value)
 SkeletonAnimation.prototype.onAdded = function()
 {
     this._blendTree.skeleton = this._entity.skeleton;
+    this._entity.skeletonPose = this._blendTree.skeletonPose;
 };
 
 /**
@@ -107,8 +108,8 @@ SkeletonAnimation.prototype.onUpdate = function(dt)
         var d = this._blendTree.rootJointDeltaPosition;
         matrix.prependTranslation(d);
         this._entity.matrix = matrix;
+        this._entity.skeletonPose = this._blendTree.skeletonPose;
     }
-    this._entity.skeletonMatrices = META.OPTIONS.useSkinningTexture? this._blendTree.texture : this._blendTree.matrices;
 };
 
 export { SkeletonAnimation };

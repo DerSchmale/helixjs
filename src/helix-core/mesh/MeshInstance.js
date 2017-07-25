@@ -22,6 +22,8 @@ function MeshInstance(mesh, material)
     this._vertexLayouts = null;
     this._visible = true;
 
+    mesh.onLayoutChanged.bind(this._onMaterialOrMeshChange, this);
+
     if (mesh.hasMorphData) {
         this._morphTargets = [];
         var w = [];
@@ -76,12 +78,12 @@ MeshInstance.prototype = {
     set material(value)
     {
         if (this._material)
-            this._material.onChange.unbind(this._onMaterialChange);
+            this._material.onChange.unbind(this._onMaterialOrMeshChange);
 
         this._material = value;
 
         if (this._material) {
-            this._material.onChange.bind(this._onMaterialChange, this);
+            this._material.onChange.bind(this._onMaterialOrMeshChange, this);
 
             this.material._setUseSkinning(this._material._useSkinning || !!this._mesh._model.skeleton);
             this.material._setUseMorphing(this._material._useMorphing || this._mesh.hasMorphData);
@@ -170,7 +172,7 @@ MeshInstance.prototype = {
      * @ignore
      * @private
      */
-    _onMaterialChange: function()
+    _onMaterialOrMeshChange: function()
     {
         this._meshMaterialLinkInvalid = true;
     }

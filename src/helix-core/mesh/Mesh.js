@@ -1,6 +1,7 @@
 import {capabilities, BufferUsage} from "../Helix";
 import {IndexBuffer} from "../core/IndexBuffer";
 import {VertexBuffer} from "../core/VertexBuffer";
+import {Signal} from "../core/Signal";
 
 /**
  * @ignore
@@ -28,6 +29,7 @@ var Mesh_ID_COUNTER = 0;
  */
 function Mesh(vertexUsage, indexUsage)
 {
+    this.onLayoutChanged = new Signal();
     this._model = null;
     this._vertexBuffers = [];
     this._vertexStrides = [];
@@ -186,6 +188,8 @@ Mesh.prototype = {
         this._vertexAttributesLookUp[name] = attrib;
 
         this._vertexStrides[streamIndex] = offset + numComponents;
+
+        this.onLayoutChanged.dispatch();
     },
 
     /**

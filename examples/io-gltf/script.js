@@ -7,6 +7,7 @@ var project = new DemoProject();
 window.onload = function ()
 {
     var options = new HX.InitOptions();
+    options.hdr = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
     // options.deferredLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
@@ -28,7 +29,7 @@ project.onInit = function()
     this.camera.farDistance = 30.0;
 
     var orbitController = new HX.OrbitController();
-    orbitController.minRadius = .01;
+    orbitController.minRadius = .02;
     orbitController.zoomSpeed = .1;
     orbitController.touchZoomSpeed = .01;
     orbitController.radius = .03;
@@ -43,6 +44,13 @@ project.onInit = function()
     // use it as skybox
     var skybox = new HX.Skybox(skyboxTexture);
     this.scene.skybox = skybox;
+
+    this.gltf.materials["BoomBox_Mat"].emissiveColor = new HX.Color(2.0, 2.0, 2.0);
+
+
+    var bloom = new HX.Bloom(100);
+    bloom.thresholdLuminance = 1.0;
+    this.camera.addComponent(bloom);
 
     // use the same texture as environment map
     var lightProbe = new HX.LightProbe(irradianceTexture, skyboxTexture);

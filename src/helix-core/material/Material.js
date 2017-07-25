@@ -1,5 +1,4 @@
 import {CullMode, ElementType, META, BlendFactor, capabilities, Comparison} from "../Helix";
-import {DirectionalLight} from "../light/DirectionalLight";
 import {Signal} from "../core/Signal";
 import {MaterialPass} from "./MaterialPass";
 import {UnlitPass} from "./passes/UnlitPass";

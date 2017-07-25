@@ -10,12 +10,26 @@
  */
 function Skeleton()
 {
+    this._applyInverseBindPose = true;
     this._joints = [];
     this._name = "";
 }
 
 Skeleton.prototype =
 {
+    /**
+     * Defines whether or not the inverse bind pose should be applied for this skeleton.
+     */
+    get applyInverseBindPose()
+    {
+        return this._applyInverseBindPose;
+    },
+
+    set applyInverseBindPose(value)
+    {
+        this._applyInverseBindPose = value;
+    },
+
     /**
      * The amount of joints in the Skeleton.
      * @returns {Number}

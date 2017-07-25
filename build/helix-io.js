@@ -103,30 +103,16 @@ GLTF.prototype._getAccessor = function(index, data)
     var accessorDef = data.accessors[index];
 
     var bufferView = this._getBufferView(data, accessorDef.bufferView);
-    var dataStream = bufferView.data;
     var f = {
         dataType: accessorDef.componentType,
         numComponents: this._numComponentLookUp[accessorDef.type],
-        data: null,
+        data: bufferView.data,
         min: accessorDef.min,
-        max: accessorDef.max
+        max: accessorDef.max,
+        byteOffset: bufferView.byteOffset + (accessorDef.byteOffset || 0),
+        dataType: accessorDef.componentType,
+        count: accessorDef.count
     };
-
-    dataStream.offset = bufferView.byteOffset + (accessorDef.byteOffset || 0);
-
-    switch (accessorDef.componentType) {
-        case HX$1.DataType.FLOAT:
-            f.data = dataStream.getFloat32Array(accessorDef.count * f.numComponents);
-            break;
-        case HX$1.DataType.UNSIGNED_SHORT:
-            f.data = dataStream.getUint16Array(accessorDef.count * f.numComponents);
-            break;
-        case HX$1.DataType.UNSIGNED_INT:
-            f.data = dataStream.getUint32Array(accessorDef.count * f.numComponents);
-            break;
-        default:
-            throw new Error("Unsupported data type!");
-    }
 
     return f;
 };
@@ -140,7 +126,7 @@ GLTF.prototype._getBufferView = function(data, index)
     // HX.Debug.assert(byteOffset + bufferView.byteLength < buffer.byteOffset + buffer.byteLength, "bufferView out of bounds of buffer!");
 
     return {
-        data: new HX$1.DataStream(this._assetLibrary.get(buffer.assetID)),
+        data: this._assetLibrary.get(buffer.assetID),
         byteOffset: byteOffset,
         byteLength: bufferView.byteLength
     };
@@ -258,214 +244,206 @@ GLTF.prototype._parseMeshes = function(data)
     }
 };
 
+
+GLTF.prototype._readVertexDataVec4 = function(target, offset, accessor, stride, flipZ)
+{
+    var p = offset;
+    var o = accessor.byteOffset;
+    var len = accessor.count;
+    var src = accessor.data;
+    var readFnc;
+    var elmSize;
+
+    if (accessor.dataType === HX$1.DataType.FLOAT) {
+        readFnc = src.getFloat32;
+        elmSize = 4;
+    }
+    else if (accessor.dataType === HX$1.DataType.UNSIGNED_SHORT) {
+        readFnc = src.getUint16;
+        elmSize = 2;
+    }
+    else if (accessor.dataType === HX$1.DataType.UNSIGNED_INT) {
+        readFnc = src.getUint32;
+        elmSize = 4;
+    }
+
+    for (var i = 0; i < len; ++i) {
+        target[p] = readFnc.call(src, o, true);
+        target[p + 1] = readFnc.call(src, o + elmSize, true);
+        target[p + 3] = flipZ * readFnc.call(src, o + elmSize * 2, true);
+        target[p + 4] = readFnc.call(src, o + elmSize * 3, true);
+        o += elmSize * 4;
+        p += stride;
+    }
+};
+
+GLTF.prototype._readVertexDataVec3 = function(target, offset, accessor, stride)
+{
+    var p = offset;
+    var o = accessor.byteOffset;
+    var len = accessor.count;
+    var src = accessor.data;
+
+    for (var i = 0; i < len; ++i) {
+        target[p] = src.getFloat32(o, true);
+        target[p + 1] = src.getFloat32(o + 4, true);
+        target[p + 2] = -src.getFloat32(o + 8, true);
+        o += 12;
+
+        p += stride;
+    }
+};
+
+GLTF.prototype._readUVData = function(target, offset, accessor, stride)
+{
+    var p = offset;
+    var o = accessor.byteOffset;
+    var len = accessor.count;
+    var src = accessor.data;
+
+    for (var i = 0; i < len; ++i) {
+        target[p] = src.getFloat32(o, true);
+        target[p + 1] = 1.0 - src.getFloat32(o + 4, true);
+
+        o += 8;
+        p += stride;
+    }
+};
+
+GLTF.prototype._readIndices = function(accessor)
+{
+    var o = accessor.byteOffset;
+    var src = accessor.data;
+    var len = accessor.count;
+    var readFnc;
+    var collType;
+    var elmSize;
+
+    if (accessor.dataType === HX$1.DataType.UNSIGNED_SHORT) {
+        collType = Uint16Array;
+        readFnc = src.getUint16;
+        elmSize = 2;
+    }
+    else if (accessor.dataType === HX$1.DataType.UNSIGNED_INT) {
+        collType = Uint32Array;
+        readFnc = src.getUint32;
+        elmSize = 4;
+    }
+
+    var indexData = new collType(len);
+    for (var i = 0; i < len; ++i) {
+        indexData[i] = readFnc.call(src, o, true);
+        o += elmSize;
+    }
+    return indexData;
+};
+
+
 GLTF.prototype._parsePrimitive = function(primDef, data, model, materials)
 {
-    var mesh = new HX$1.Mesh();
+    var mesh = HX$1.Mesh.createDefaultEmpty();
     var attribs = primDef.attributes;
     var positionAcc = this._getAccessor(attribs.POSITION, data);
     var normalAcc = attribs.NORMAL !== undefined? this._getAccessor(attribs.NORMAL, data) : null;
     var tangentAcc = attribs.TANGENT !== undefined? this._getAccessor(attribs.TANGENT, data) : null;
     var texCoordAcc = attribs.TEXCOORD_0 !== undefined? this._getAccessor(attribs.TEXCOORD_0, data) : null;
-    var i;
+    var jointIndexAcc = attribs.JOINTS_0 !== undefined? this._getAccessor(attribs.JOINTS_0, data) : null;
+    var jointWeightsAcc = attribs.WEIGHTS_0 !== undefined? this._getAccessor(attribs.WEIGHTS_0, data) : null;
+
     var normalGenMode = 0;
 
-    // TODO: Could interlace the data instead
-    // Could remove getAccessor function and replace it with populateData(targetFloat32Array, data.accessors[i])
+    var stride = mesh.getVertexStride(0);
+    var vertexData = new Float32Array(positionAcc.count * stride);
 
-    mesh.addVertexAttribute("hx_position", 3, 0);
+    this._readVertexDataVec3(vertexData, 0, positionAcc, stride);
 
-    if (!positionAcc.flipped) {
-        var posData = positionAcc.data;
-        for (i = 2; i < posData.length; i += 3) {
-            posData[i] *= -1;
-        }
-        positionAcc.flipped = true;
-    }
-
-    mesh.setVertexData(positionAcc.data, 0);
-
-
-
-    mesh.addVertexAttribute("hx_normal", 3, 1);
-    if (normalAcc) {
-        if (!normalAcc.flipped) {
-            var normData = normalAcc.data;
-            for (i = 2; i < normData.length; i += 3) {
-                normData[i] *= -1;
-            }
-            normalAcc.flipped = true;
-        }
-
-        mesh.setVertexData(normalAcc.data, 1);
-    }
+    if (normalAcc)
+        this._readVertexDataVec3(vertexData, 3, normalAcc, stride);
     else
         normalGenMode = HX$1.NormalTangentGenerator.MODE_NORMALS;
 
-    if (texCoordAcc) {
-        // cannot generate tangents without tex coords
-        mesh.addVertexAttribute("hx_tangent", 4, 2);
-        mesh.addVertexAttribute("hx_texCoord", 2, 3);
+    if (tangentAcc)
+        this._readVertexDataVec4(vertexData, 6, tangentAcc, stride, -1);
+    else if (texCoordAcc)
+        normalGenMode = normalGenMode || HX$1.NormalTangentGenerator.MODE_TANGENTS;
 
-        if (!texCoordAcc.flipped) {
-            var texData = texCoordAcc.data;
-            for (i = 1; i < texData.length; i += 2) {
-                texData[i] *= -1.0;
-            }
-            texCoordAcc.flipped = true;
-        }
+    if (texCoordAcc)
+        this._readUVData(vertexData, 10, texCoordAcc, stride);
 
-        mesh.setVertexData(texCoordAcc.data, 3);
-    }
-
-    if (tangentAcc) {
-        // counter right-handedness
-        if (!tangentAcc.flipped) {
-            var tanData = tangentAcc.data;
-            for (i = 0; i < tanData.length; i += 4) {
-                tanData[i] *= 1;
-                tanData[i + 1] *= 1;
-                tanData[i + 2] *= -1;
-                tanData[i + 3] *= 1;
-            }
-
-            tangentAcc.flipped = true;
-        }
-
-        mesh.setVertexData(tangentAcc.data, 2);
-    }
-    else if (texCoordAcc) {
-        mesh.setVertexData([], 2);
-        normalGenMode = HX$1.NormalTangentGenerator.MODE_TANGENTS;
-    }
+    mesh.setVertexData(vertexData, 0);
 
     var indexAcc = this._getAccessor(primDef.indices, data);
-    mesh.setIndexData(indexAcc.data);
+    mesh.setIndexData(this._readIndices(indexAcc));
 
     if (normalGenMode) {
         var normalGen = new HX$1.NormalTangentGenerator();
         normalGen.generate(mesh, normalGenMode);
     }
 
-    model.addMesh(mesh);
-    materials.push(this._materials[primDef.material]);
-};
+    if (jointIndexAcc) {
+        mesh.addVertexAttribute("hx_jointIndices", 4, 1);
+        mesh.addVertexAttribute("hx_jointWeights", 4, 1);
+        stride = mesh.getVertexStride(1);
 
-
-
-GLTF.prototype._addJoints = function(skeleton, node, parentIndex, matrices, nodeIndexToJointIndexMap)
-{
-    var joint = new HX$1.SkeletonJoint();
-    var jointIndex = skeleton.numJoints;
-    joint.parentIndex = parentIndex;
-    matrices.push(node.worldMatrix);
-    skeleton.addJoint(joint);
-
-    nodeIndexToJointIndexMap[this._nodes.indexOf(node)] = jointIndex;
-
-    for (var i = 0; i < node.numChildren; ++i)
-        this._addJoints(skeleton, node.getChild(i), jointIndex, matrices, nodeIndexToJointIndexMap);
-};
-
-GLTF.prototype._parseSkeleton = function(index)
-{
-    var skeleton = new HX$1.Skeleton();
-    var matrices = [];
-    var indexMap = [];
-
-    // passes in the default pose as well
-    this._addJoints(skeleton, this._nodes[index], -1, matrices, indexMap);
-
-    // TODO: loop through matrices and transform to local pose
-
-    var skeletonPose = new HX$1.SkeletonPose();
-    var jointPoses = skeletonPose.jointPoses;
-
-    var mat = new HX$1.Matrix4x4();
-    for (var i = 0; i < skeleton.numJoints; ++i) {
-        var joint = skeleton.getJoint(i);
-        var parentIndex = joint.parentIndex;
-
-        var jointPose = new HX$1.SkeletonJointPose();
-
-        if (parentIndex !== -1) {
-            mat.inverseOf(matrices[parentIndex]);
-            mat.prepend(matrices[i]);
-        }
-            mat.copyFrom(matrices[i]);
-
-        mat.decompose(jointPose);
-
-
-        jointPoses.push(jointPose);
+        var jointData = new Float32Array(jointIndexAcc.count * stride);
+        this._readVertexDataVec4(jointData, 0, jointIndexAcc, stride, 1);
+        this._readVertexDataVec4(jointData, 4, jointWeightsAcc, stride, 1);
     }
 
-    return { skeleton: skeleton, pose: skeletonPose, indexMap: indexMap };
+    model.addMesh(mesh);
+    materials.push(this._materials[primDef.material]);
 };
 
 GLTF.prototype._parseSkin = function(data, nodeDef, target)
 {
     var skinIndex = nodeDef.skin;
-    var meshDef = data.meshes[nodeDef.mesh];
     var skinDef = data.skins[skinIndex];
 
-    var skinData = this._parseSkeleton(skinDef.skeleton);
+    var invBinAcc = this._getAccessor(skinDef.inverseBindMatrices, data);
 
-    // indexMap contains [node index -> Helix joint index]
-    var newIndexMap = [];
+    var src = invBinAcc.data;
+    var o = invBinAcc.byteOffset;
 
-    var inv = this._getAccessor(skinDef.inverseBindMatrices, data).data;
+    var skeleton = new HX$1.Skeleton();
+    var pose = new HX$1.SkeletonPose();
+    var matrix = new HX$1.Matrix4x4();
 
-    var m = 0;
-    // convert to: [gltf joint index -> helix joint index]
     for (var i = 0; i < skinDef.joints.length; ++i) {
         var nodeIndex = skinDef.joints[i];
-        var jointIndex = skinData.indexMap[nodeIndex];
-        var joint = skinData.skeleton.getJoint(i);
-        joint.inverseBindPose = new HX$1.Matrix4x4(
-            inv[m], inv[m + 4], inv[m + 8], inv[m + 12],
-            inv[m + 1], inv[m + 5], inv[m + 9], inv[m + 13],
-            inv[m + 2], inv[m + 6], inv[m + 10], inv[m + 14],
-            inv[m + 3], inv[m + 7], inv[m + 11], inv[m + 15]
-        );
-        newIndexMap[i] = jointIndex;
-        m += 16;
-    }
+        var m = [];
+        var joint = new HX$1.SkeletonJoint();
 
-    skinData.indexMap = newIndexMap;
-
-    target.model.skeleton = skinData.skeleton;
-    // target.skeletonPose = skinData.pose;
-
-    this._addJointBindings(data, target, meshDef, skinData);
-};
-
-GLTF.prototype._addJointBindings = function(data, modelInstance, meshDef, skinData)
-{
-    for (var i = 0; i < meshDef.primitives.length; ++i) {
-        var primDef = meshDef.primitives[i];
-        var attribs = primDef.attributes;
-        var indexData = this._getAccessor(attribs.JOINTS_0, data);
-        var weightsData = this._getAccessor(attribs.WEIGHTS_0, data);
-        var meshInstance = modelInstance.getMeshInstance(i);
-        var mesh = meshInstance.mesh;
-
-        var weightStream = mesh.numStreams;
-        mesh.addVertexAttribute("hx_jointWeights", 4, weightStream);
-        mesh.setVertexData(weightsData.data, weightStream);
-
-        var indexStream = mesh.numStreams;
-        mesh.addVertexAttribute("hx_jointIndices", 4, indexStream);
-
-        var newIndexData = new Float32Array();
-        // map glTF joint array indices to the real skeleton indices
-        var map = skinData.indexMap;
-        for (var j = 0; j < indexData.length; ++j) {
-            newIndexData[j] = map[indexData[j]];
+        for (var j = 0; j < 16; ++j) {
+            m[j] = src.getFloat32(o, true);
+            o += 4;
         }
 
-        mesh.setVertexData(weightsData.data, indexStream);
+        joint.inverseBindPose = new HX$1.Matrix4x4(m);
 
+        skeleton.addJoint(joint);
+
+        var node = this._nodes[nodeIndex];
+        node._jointIndex = i;
+
+        matrix.copyFrom(node.worldMatrix);
+
+        if (node.parent) matrix.append(node.parent.worldMatrix);
+
+        var jointPose = new HX$1.SkeletonJointPose();
+        matrix.decompose(jointPose);
+
+        pose.jointPoses[i] = jointPose;
     }
+
+    for (i = 0; i < skinDef.joints.length; ++i) {
+        var nodeIndex = skinDef.joints[i];
+        var node = this._nodes[nodeIndex];
+        var joint = skeleton.getJoint(i);
+        joint.parentIndex = node.parent? node._jointIndex : -1;
+    }
+
+    target.model.skeleton = skeleton;
+    target.skeletonPose = pose;
 };
 
 GLTF.prototype._parseNodes = function(data)

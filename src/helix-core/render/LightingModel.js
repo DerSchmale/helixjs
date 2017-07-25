@@ -22,6 +22,8 @@ export var LightingModel =
     BlinnPhong: ShaderLibrary.get("lighting_blinn_phong.glsl"),
     /** GGX shading applied */
     GGX: ShaderLibrary.get("lighting_ggx.glsl"),
+    /** Full GGX shading applied (includes visibility term) */
+    GGX_FULL: "#define HX_VISIBILITY_TERM\n" + ShaderLibrary.get("lighting_ggx.glsl"),
     /** Empty brdf */
     DEBUG: ShaderLibrary.get("lighting_debug.glsl")
 };

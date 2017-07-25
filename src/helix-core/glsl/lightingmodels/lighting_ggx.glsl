@@ -1,12 +1,18 @@
-/*// schlick-beckman
-float hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)
+#ifdef HX_VISIBILITY_TERM
+float hx_geometryTerm(vec3 normal, vec3 dir, float k)
 {
-	float nDotV = max(-dot(normal, viewDir), 0.0);
-	float r = roughness * roughness * 0.797896;
-	float g1 = nDotV * (1.0 - r) + r;
-	float g2 = nDotL * (1.0 - r) + r;
-    return .25 / (g1 * g2);
-}*/
+    float d = max(-dot(normal, dir), 0.0);
+    return d / (d * (1.0 - k) + k);
+}
+
+// schlick-beckman
+float hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)
+{
+	float k = roughness + 1.0;
+	k = k * k * .125;
+	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);
+}
+#endif
 
 float hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)
 {
@@ -25,9 +31,9 @@ void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in 
 
 	vec3 halfVector = normalize(lightDir + viewDir);
 
-    geometry.roughness *= geometry.roughness;
+    float mappedRoughness =  geometry.roughness * geometry.roughness;
 
-	float distribution = hx_ggxDistribution(geometry.roughness, geometry.normal, halfVector);
+	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);
 
 	float halfDotLight = max(dot(halfVector, lightDir), 0.0);
 	float cosAngle = 1.0 - halfDotLight;
@@ -37,7 +43,7 @@ void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in 
 
 	specularColor = irradiance * fresnel * distribution;
 
-/*#ifdef VISIBILITY
-    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);
-#endif*/
+#ifdef HX_VISIBILITY_TERM
+    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);
+#endif
 }

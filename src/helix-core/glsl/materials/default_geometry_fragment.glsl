@@ -116,7 +116,7 @@ HX_GeometryData hx_geometry()
           vec4 specSample = texture2D(specularMap, texCoords);
 
           #ifdef METALLIC_ROUGHNESS_MAP
-              roughnessOut *= 1.0 - roughnessRange + specSample.y * roughnessRange;
+              roughnessOut -= roughnessRange * (specSample.y - .5);
               metallicnessOut *= specSample.z;
 
           #else

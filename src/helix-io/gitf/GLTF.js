@@ -57,8 +57,6 @@ GLTF.prototype.parse = function(file, target)
             throw new Error("Unsupported glTF version!");
     }
 
-    // TODO: all loaded objects will need to be registered in the library
-
     this._assetLibrary = new HX.AssetLibrary();
     this._binFileCheck = {};
 
@@ -178,6 +176,7 @@ GLTF.prototype._parseMaterials = function(data)
         var mat = new HX.BasicMaterial();
         mat.name = matDef.name;
         mat.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_METALLIC_ROUGHNESS;
+        mat.roughnessRange = -.5;
 
         if (matDef.hasOwnProperty("pbrMetallicRoughness")) {
             var pbr = matDef.pbrMetallicRoughness;
@@ -198,7 +197,6 @@ GLTF.prototype._parseMaterials = function(data)
             }
 
             if (matDef.hasOwnProperty("occlusionTexture")) {
-                // TODO: Implement occlusion map
                 mat.occlusionMap = this._assetLibrary.get("hx_image_" + matDef.occlusionTexture.index);
             }
 
@@ -215,8 +213,10 @@ GLTF.prototype._parseMaterials = function(data)
                 mat.metallicness = 1.0;
 
             if (pbr.hasOwnProperty("roughnessFactor")) {
-                mat.roughness = matDef.roughnessFactor;
+                mat.roughnessRange = mat.roughness = matDef.roughnessFactor * .5;
             }
+            else
+                mat.roughness = .5;
 
             if (matDef.hasOwnProperty("emissiveFactor")) {
                 var emission = new HX.Color(matDef.emissiveFactor[0], matDef.emissiveFactor[1], matDef.emissiveFactor[2], 1.0);
@@ -374,25 +374,34 @@ GLTF.prototype._parseSkeleton = function(index)
     // TODO: loop through matrices and transform to local pose
 
     var skeletonPose = new HX.SkeletonPose();
+    var jointPoses = skeletonPose.jointPoses;
+
     var mat = new HX.Matrix4x4();
     for (var i = 0; i < skeleton.numJoints; ++i) {
         var joint = skeleton.getJoint(i);
         var parentIndex = joint.parentIndex;
 
+        var jointPose = new HX.SkeletonJointPose();
+
         if (parentIndex !== -1) {
             mat.inverseOf(matrices[parentIndex]);
             mat.prepend(matrices[i]);
-            var jointPose = new HX.SkeletonJointPose();
-            mat.decompose(jointPose);
-            skeletonPose.push(jointPose);
         }
+            mat.copyFrom(matrices[i]);
+
+        mat.decompose(jointPose);
+
+
+        jointPoses.push(jointPose);
     }
 
     return { skeleton: skeleton, pose: skeletonPose, indexMap: indexMap };
 };
 
-GLTF.prototype._parseSkin = function(data, skinIndex, target)
+GLTF.prototype._parseSkin = function(data, nodeDef, target)
 {
+    var skinIndex = nodeDef.skin;
+    var meshDef = data.meshes[nodeDef.mesh];
     var skinDef = data.skins[skinIndex];
 
     var skinData = this._parseSkeleton(skinDef.skeleton);
@@ -420,10 +429,10 @@ GLTF.prototype._parseSkin = function(data, skinIndex, target)
 
     skinData.indexMap = newIndexMap;
 
-    target.model.skeleton = skeleton;
-    target.skeletonPose = skinData.pose;
+    target.model.skeleton = skinData.skeleton;
+    // target.skeletonPose = skinData.pose;
 
-    this._addJointBindings(data, target, data.meshes[nodeDef.mesh], skinData);
+    this._addJointBindings(data, target, meshDef, skinData);
 };
 
 GLTF.prototype._addJointBindings = function(data, modelInstance, meshDef, skinData)
@@ -437,11 +446,11 @@ GLTF.prototype._addJointBindings = function(data, modelInstance, meshDef, skinDa
         var mesh = meshInstance.mesh;
 
         var weightStream = mesh.numStreams;
-        data.addVertexAttribute("hx_jointWeights", 4, weightStream);
-        data.setVertexData(weightsData.data, weightStream);
+        mesh.addVertexAttribute("hx_jointWeights", 4, weightStream);
+        mesh.setVertexData(weightsData.data, weightStream);
 
         var indexStream = mesh.numStreams;
-        data.addVertexAttribute("hx_jointIndices", 4, indexStream);
+        mesh.addVertexAttribute("hx_jointIndices", 4, indexStream);
 
         var newIndexData = new Float32Array();
         // map glTF joint array indices to the real skeleton indices
@@ -450,7 +459,7 @@ GLTF.prototype._addJointBindings = function(data, modelInstance, meshDef, skinDa
             newIndexData[j] = map[indexData[j]];
         }
 
-        data.setVertexData(weightsData.data, indexStream);
+        mesh.setVertexData(weightsData.data, indexStream);
 
     }
 };
@@ -468,11 +477,6 @@ GLTF.prototype._parseNodes = function(data)
         var node;
         if (nodeDef.hasOwnProperty("mesh")) {
             node = this._modelInstances[nodeDef.mesh];
-
-            // disabled for now (untested)
-            // if (nodeDef.hasOwnProperty("skin"))
-            //     this._parseSkin(data, nodeDef.skin, node);
-
             this._target.modelInstances[nodeDef.name] = node;
         }
         else {
@@ -507,9 +511,16 @@ GLTF.prototype._parseNodes = function(data)
         if (nodeDef.hasOwnProperty("children")) {
             for (var j = 0; j < nodeDef.children.length; ++j) {
                 var childIndex = nodeDef.children[j];
-                node.attach(this._nodes[childIndex]);
+                node.attach(this._nodes[childIndex], data.meshes[nodeDef.mesh]);
             }
         }
+    }
+
+    for (i = 0; i < data.nodes.length; ++i) {
+        nodeDef = data.nodes[i];
+        node = this._nodes[i];
+        if (nodeDef.hasOwnProperty("skin"))
+            this._parseSkin(data, nodeDef, node);
     }
 };
 

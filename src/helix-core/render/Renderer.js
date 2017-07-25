@@ -111,7 +111,10 @@ Renderer.prototype =
 
     set backgroundColor(value)
     {
-        this._backgroundColor = new Color(value);
+        if (value instanceof Color)
+            this._backgroundColor.copyFrom(value);
+        else
+            this._backgroundColor.set(value);
     },
 
     /**

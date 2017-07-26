@@ -139,17 +139,17 @@ ModelInstance.prototype.init = function(model, materials)
     if (this._model || this._materials)
         throw new Error("ModelInstance already initialized");
 
-    this._model = model;
-    this._model.onChange.bind(this._invalidateWorldBounds, this);
-
     if (materials)
         this._materials = materials instanceof Array? materials : [ materials ];
 
     if (model) {
+        this._model = model;
+
         if (model.skeleton)
             this._generateDefaultSkeletonPose();
 
         model.onChange.bind(this._onModelChange, this);
+        model.onSkeletonChange.bind(this._onSkeletonChange, this);
         this._onModelChange();
     }
 
@@ -208,6 +208,19 @@ ModelInstance.prototype._updateMeshInstances = function()
     }
 
     this._meshInstancesInvalid = false;
+};
+
+/**
+ * @ignore
+ * @private
+ */
+ModelInstance.prototype._onSkeletonChange = function()
+{
+    if (this._material) {
+        for (var i = 0; i < this._meshInstances.length; ++i) {
+            this._meshInstances[i].material._setUseSkinning(!!this._model.skeleton);
+        }
+    }
 };
 
 /**

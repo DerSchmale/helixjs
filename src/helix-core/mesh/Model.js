@@ -20,6 +20,7 @@ function Model(meshes)
     this._localBoundsInvalid = true;
     this._skeleton = null;
     this.onChange = new Signal();
+    this.onSkeletonChange = new Signal();
     this._meshes = [];
 
     if (meshes) {
@@ -98,6 +99,7 @@ Model.prototype =
 
             this._localBoundsInvalid = true;
             this.onChange.dispatch();
+            this.onSkeletonChange.dispatch();
         },
 
         /**
@@ -111,6 +113,7 @@ Model.prototype =
             this._meshes.push(mesh);
             this._localBoundsInvalid = true;
             this.onChange.dispatch();
+            this.onSkeletonChange.dispatch();
         },
 
         /**

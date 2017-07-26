@@ -148,7 +148,7 @@ ModelInstance.prototype.init = function(model, materials)
         if (model.skeleton)
             this._generateDefaultSkeletonPose();
 
-        model.onChange.bind(this._onModelChange, this);
+        model.onMeshesChange.bind(this._onModelChange, this);
         model.onSkeletonChange.bind(this._onSkeletonChange, this);
         this._onModelChange();
     }

@@ -38,6 +38,9 @@ var MATERIAL_ID_COUNTER = 0;
  */
 function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
 {
+    // dispatched when the material's code changed and a link with a mesh may have become invalid
+    this.onChange = new Signal();
+
     this._elementType = ElementType.TRIANGLES;
     this._cullMode = CullMode.BACK;
     this._writeDepth = true;
@@ -47,7 +50,6 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._renderPath = null;
     // forced render order by user:
     this._renderOrder = 0;
-    this.onChange = new Signal();
     this._textures = {};
     this._uniforms = {};
     this._fixedLights = null;

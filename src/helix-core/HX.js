@@ -38,6 +38,12 @@ export {CompositeComponent} from "./entity/CompositeComponent";
 export {KeyFrame} from "./animation/KeyFrame";
 export {AnimationClip} from "./animation/AnimationClip";
 export {AnimationPlayhead} from "./animation/AnimationPlayhead";
+
+export {LayeredAnimation} from "./animation/layered/LayeredAnimation";
+export {AnimationLayer} from "./animation/layered/AnimationLayer";
+export {AnimationLayerFloat4} from "./animation/layered/AnimationLayerFloat4";
+export {AnimationLayerQuat} from "./animation/layered/AnimationLayerQuat";
+
 export {MorphAnimation} from "./animation/morph/MorphAnimation";
 export {MorphPose} from "./animation/morph/MorphPose";
 export {MorphTarget} from "./animation/morph/MorphTarget";

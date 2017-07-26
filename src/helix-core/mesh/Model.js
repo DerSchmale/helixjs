@@ -19,7 +19,7 @@ function Model(meshes)
     this._localBounds = new BoundingAABB();
     this._localBoundsInvalid = true;
     this._skeleton = null;
-    this.onChange = new Signal();
+    this.onMeshesChange = new Signal();
     this.onSkeletonChange = new Signal();
     this._meshes = [];
 
@@ -98,8 +98,7 @@ Model.prototype =
             mesh._model = null;
 
             this._localBoundsInvalid = true;
-            this.onChange.dispatch();
-            this.onSkeletonChange.dispatch();
+            this.onMeshesChange.dispatch();
         },
 
         /**
@@ -112,8 +111,7 @@ Model.prototype =
             mesh._model = this;
             this._meshes.push(mesh);
             this._localBoundsInvalid = true;
-            this.onChange.dispatch();
-            this.onSkeletonChange.dispatch();
+            this.onMeshesChange.dispatch();
         },
 
         /**

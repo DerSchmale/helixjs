@@ -39,12 +39,6 @@ ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoi
 
 ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
-ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
-
-ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
-
 ShaderLibrary._files['deferred_ambient_light_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef HX_SSAO\nuniform sampler2D hx_ssao;\n#endif\n\nuniform vec3 hx_ambientColor;\n\n\nvoid main()\n{\n// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    gl_FragColor.xyz = hx_ambientColor * data.geometry.color.xyz * data.geometry.occlusion;\n\n#ifdef HX_SSAO\n    gl_FragColor.xyz *= texture2D(hx_ssao, uv).x;\n#endif\n\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['deferred_dir_light_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform HX_DirectionalLight hx_directionalLight;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef HX_SHADOW_MAP\nuniform sampler2D hx_shadowMap;\n#endif\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\n\nvoid main()\n{\n// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;\n	vec3 viewPosition = viewDir * absViewZ;\n    vec3 viewVector = normalize(viewPosition);\n    vec3 diffuse, specular;\n\n    hx_calculateLight(hx_directionalLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);\n\n    gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_SHADOW_MAP\n        gl_FragColor.xyz *= hx_calculateShadows(hx_directionalLight, hx_shadowMap, viewPosition);\n    #endif\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
@@ -62,6 +56,12 @@ ShaderLibrary._files['deferred_probe_vertex.glsl'] = 'attribute vec4 hx_position
 ShaderLibrary._files['deferred_spot_light_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform HX_SpotLight hx_spotLight;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\n#ifdef HX_SHADOW_MAP\nuniform sampler2D hx_shadowMap;\n#endif\n\nvoid main()\n{\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;\n\n	vec3 viewPosition = viewDir * absViewZ;\n    vec3 viewVector = normalize(viewPosition);\n    vec3 diffuse, specular;\n\n    hx_calculateLight(hx_spotLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);\n\n    gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_SHADOW_MAP\n        gl_FragColor.xyz *= hx_calculateShadows(hx_spotLight, hx_shadowMap, viewPosition);\n//        gl_FragColor.xyz = vec3(hx_calculateShadows(hx_spotLight, hx_shadowMap, viewPosition));\n    #endif\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['deferred_spot_light_vertex.glsl'] = 'attribute vec4 hx_position;\n\n#ifdef HX_CONE_MESH\nuniform HX_SpotLight hx_spotLight;\nuniform mat4 hx_viewProjectionMatrix;\nuniform mat4 hx_projectionMatrix;\nuniform mat4 hx_spotLightWorldMatrix;\n#else\n\nattribute vec2 hx_texCoord;\n#endif\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n#ifdef HX_CONE_MESH\n    vec3 localPos = hx_position.xyz;\n    // need to flip z, but also another axis to keep windedness\n    localPos.xz = -localPos.xz;\n    // align to origin, with height 1\n    localPos.z += .5;\n    // adapt to correct radius\n    localPos.xyz *= hx_spotLight.radius;\n    // make sure the base is correctly sized\n    localPos.xy *= hx_spotLight.sinOuterAngle;\n\n    // this just rotates, it does not translate\n    vec4 worldPos = hx_spotLightWorldMatrix * vec4(localPos, 1.0);\n    gl_Position = hx_viewProjectionMatrix * worldPos;\n    gl_Position /= gl_Position.w;\n    uv = gl_Position.xy / gl_Position.w * .5 + .5;\n    viewDir = hx_getLinearDepthViewVector(gl_Position.xy / gl_Position.w, hx_inverseProjectionMatrix);\n#else\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n#endif\n}';
+
+ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
+
+ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
+
+ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
 
 ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.z < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    float shadow = hx_dir_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.z > light.maxShadowDistance));\n}';
 
@@ -8098,7 +8098,7 @@ function Model(meshes)
     this._localBounds = new BoundingAABB();
     this._localBoundsInvalid = true;
     this._skeleton = null;
-    this.onChange = new Signal();
+    this.onMeshesChange = new Signal();
     this.onSkeletonChange = new Signal();
     this._meshes = [];
 
@@ -8177,8 +8177,7 @@ Model.prototype =
             mesh._model = null;
 
             this._localBoundsInvalid = true;
-            this.onChange.dispatch();
-            this.onSkeletonChange.dispatch();
+            this.onMeshesChange.dispatch();
         },
 
         /**
@@ -8191,8 +8190,7 @@ Model.prototype =
             mesh._model = this;
             this._meshes.push(mesh);
             this._localBoundsInvalid = true;
-            this.onChange.dispatch();
-            this.onSkeletonChange.dispatch();
+            this.onMeshesChange.dispatch();
         },
 
         /**
@@ -14246,6 +14244,9 @@ var MATERIAL_ID_COUNTER = 0;
  */
 function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
 {
+    // dispatched when the material's code changed and a link with a mesh may have become invalid
+    this.onChange = new Signal();
+
     this._elementType = ElementType.TRIANGLES;
     this._cullMode = CullMode.BACK;
     this._writeDepth = true;
@@ -14255,7 +14256,6 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._renderPath = null;
     // forced render order by user:
     this._renderOrder = 0;
-    this.onChange = new Signal();
     this._textures = {};
     this._uniforms = {};
     this._fixedLights = null;
@@ -15585,7 +15585,7 @@ ModelInstance.prototype.init = function(model, materials)
         if (model.skeleton)
             this._generateDefaultSkeletonPose();
 
-        model.onChange.bind(this._onModelChange, this);
+        model.onMeshesChange.bind(this._onModelChange, this);
         model.onSkeletonChange.bind(this._onSkeletonChange, this);
         this._onModelChange();
     }
@@ -16814,7 +16814,7 @@ AnimationPlayhead.prototype =
                 --this._currentFrameIndex;
                 frameA = clip.getKeyFrame(this._currentFrameIndex);
             }
-            else if (dt < 0) {
+            else {
                 while (this._looping && this._time < 0) {
                     // reset playhead to make sure progressive update logic works
                     this._currentFrameIndex = numBaseFrames;
@@ -16837,6 +16837,263 @@ AnimationPlayhead.prototype =
             return true;
         }
     };
+
+/**
+ * LayeredAnimation combines a bunch of AnimationLayer objects into a single manageable animation. This acts globally,
+ * so it's not a {@linkcode Component} belonging to an {@linkcode Entity}
+ *
+ * @constructor
+ */
+function LayeredAnimation()
+{
+    this._layers = [];
+    this._time = 0;
+    this._timeScale = 1;
+    this._name = null;
+    this._looping = true;
+}
+
+LayeredAnimation.prototype = {
+    /**
+     * The name of the animation.
+     */
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
+
+    /**
+     * A value to control the playback speed.
+     */
+    get timeScale()
+    {
+        return this._timeScale;
+    },
+    set timeScale(value)
+    {
+        this._timeScale = value;
+    },
+
+    /**
+     * The current time in milliseconds of the play head.
+     */
+    get time()
+    {
+        return this._time;
+    },
+    set time(value)
+    {
+        this._time = value;
+        for (var i = 0; i < this._layers.length; ++i) {
+            this._layers[i].time = value;
+        }
+    },
+
+    /**
+     * Determines whether the animation should loop or not. By default, it uses the value determined by the
+     * AnimationClip, but can be overridden.
+     */
+    get looping()
+    {
+        return this._looping;
+    },
+    set looping(value)
+    {
+        this._looping = value;
+        for (var i = 0; i < this._layers.length; ++i) {
+            this._layers[i].looping = true;
+        }
+    },
+
+    /**
+     * Adds a layer to the animation
+     * @param layer
+     */
+    addLayer: function (layer)
+    {
+        this._layers.push(layer);
+        layer.time = this._time;
+        layer.looping = this._looping;
+    },
+
+    /**
+     * Removes a layer from the animation
+     * @param layer
+     */
+    removeLayer: function (layer)
+    {
+        var index = this._layers.indexOf(layer);
+        if (index >= 0)
+            this._layers.splice(index, 1);
+    },
+
+    /**
+     * Starts playback of the animation
+     */
+    play: function ()
+    {
+        onPreFrame.bind(this._update, this);
+    },
+
+    /**
+     * Stops playback of the animation
+     */
+    stop: function ()
+    {
+        onPreFrame.unbind(this._update);
+    },
+
+    /**
+     * This needs to be called every frame.
+     * @param dt The time passed since last frame in milliseconds.
+     */
+    _update: function (dt)
+    {
+        dt *= this._timeScale;
+
+        this._time += dt;
+
+        var len = this._layers.length;
+        for (var i = 0; i < len; ++i) {
+            this._layers[i].update(dt);
+        }
+    }
+};
+
+/**
+ * @classdesc
+ * AnimationLayer is a wrapper for a clip and a playhead that targets a specific object and that can be used in
+ * LayeredAnimation.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function AnimationLayer(targetObject, clip)
+{
+    this._name = null;
+    this._clip = clip;
+    this._playhead = new AnimationPlayhead(clip);
+    this._targetObject = targetObject;
+}
+
+AnimationLayer.prototype =
+{
+    /**
+     * Defines whether this layer should repeat or not.
+     */
+    get looping()
+    {
+        return this._playhead.looping;
+    },
+
+    set looping(value)
+    {
+        this._playhead.looping = value;
+    },
+
+    /**
+     * The current time in milliseconds of the play head.
+     */
+    get time() { return this._playhead.time; },
+    set time(value) { this._playhead.time = value; },
+
+    /**
+     * The total duration of the layer, in milliseconds.
+     */
+    get duration()
+    {
+        return this._clip.duration;
+    },
+
+    /**
+     * Returns the key frame with the given index.
+     */
+    getKeyFrame: function(index)
+    {
+        return this._clip.getKeyFrame(index);
+    },
+
+    /**
+     * This needs to be called every frame.
+     * @param dt The time passed since last frame in milliseconds.
+     * @returns {boolean} Whether or not the playhead moved. This can be used to spare further calculations if the old state is kept.
+     */
+    update: function(dt)
+    {
+        // this._playhead.update(dt);
+    },
+
+    /**
+     * @ignore
+     */
+    toString: function()
+    {
+        return "[AnimationLayer(name=" + this.name + ")";
+    }
+};
+
+/**
+ * @classdesc
+ * AnimationLayerFloat4 is an {@linkcode AnimationLayer} targeting {@linkcode Float4} objects
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function AnimationLayerFloat4(targetObject, clip)
+{
+    Debug.assert(targetObject instanceof Float4, "Type mismatch!");
+    AnimationLayer.call(this, targetObject, clip);
+}
+
+AnimationLayerFloat4.prototype = Object.create(AnimationLayer.prototype);
+
+/**
+ * This needs to be called every frame.
+ * @param dt The time passed since last frame in milliseconds.
+ * @returns {boolean} Whether or not the playhead moved. This can be used to spare further calculations if the old state is kept.
+ */
+AnimationLayerFloat4.prototype.update = function (dt)
+{
+    var playhead = this._playhead;
+    if (playhead.update(dt))
+        this._targetObject.lerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
+};
+
+/**
+ * @classdesc
+ * AnimationLayerQuat is an {@linkcode AnimationLayer} targeting {@linkcode Quaternion} objects
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function AnimationLayerQuat(targetObject, clip)
+{
+    Debug.assert(targetObject instanceof Quaternion, "Type mismatch!");
+    AnimationLayer.call(this, targetObject, clip);
+}
+
+AnimationLayerQuat.prototype = Object.create(AnimationLayer.prototype);
+
+/**
+ * This needs to be called every frame.
+ * @param dt The time passed since last frame in milliseconds.
+ * @returns {boolean} Whether or not the playhead moved. This can be used to spare further calculations if the old state is kept.
+ */
+AnimationLayerQuat.prototype.update = function (dt)
+{
+    var playhead = this._playhead;
+
+    if (playhead.update(dt))
+        this._targetObject.slerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
+};
 
 /**
  * @classdesc
@@ -23743,6 +24000,10 @@ exports.CompositeComponent = CompositeComponent;
 exports.KeyFrame = KeyFrame;
 exports.AnimationClip = AnimationClip;
 exports.AnimationPlayhead = AnimationPlayhead;
+exports.LayeredAnimation = LayeredAnimation;
+exports.AnimationLayer = AnimationLayer;
+exports.AnimationLayerFloat4 = AnimationLayerFloat4;
+exports.AnimationLayerQuat = AnimationLayerQuat;
 exports.MorphAnimation = MorphAnimation;
 exports.MorphPose = MorphPose;
 exports.MorphTarget = MorphTarget;

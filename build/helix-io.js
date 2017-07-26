@@ -17,6 +17,7 @@ function GLTFData()
     this.materials = {};
     this.models = {};
     this.modelInstances = {};
+    this.animations = {};
 }
 
 /**
@@ -95,6 +96,9 @@ GLTF.prototype._continueParsing = function(data)
     if (data.hasOwnProperty("scenes"))
         this._parseScenes(data, defaultSceneIndex);
 
+    if (data.hasOwnProperty("animations"))
+        this._parseAnimations(data);
+
     this._notifyComplete();
 };
 
@@ -106,6 +110,7 @@ GLTF.prototype._getAccessor = function(index, data)
     var f = {
         dataType: accessorDef.componentType,
         numComponents: this._numComponentLookUp[accessorDef.type],
+        type: accessorDef.type,
         data: bufferView.data,
         min: accessorDef.min,
         max: accessorDef.max,
@@ -191,7 +196,7 @@ GLTF.prototype._parseMaterials = function(data)
             }
 
             if (pbr.hasOwnProperty("baseColorFactor")) {
-                var color = new HX$1.Color(matDef.baseColorFactor[0], matDef.baseColorFactor[1], matDef.baseColorFactor[2], matDef.baseColorFactor[3]);
+                var color = new HX$1.Color(pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
                 // BasicMaterial expects gamma values
                 mat.color = color.linearToGamma();
             }
@@ -203,7 +208,7 @@ GLTF.prototype._parseMaterials = function(data)
                 mat.metallicness = 1.0;
 
             if (pbr.hasOwnProperty("roughnessFactor")) {
-                mat.roughnessRange = mat.roughness = matDef.roughnessFactor * .5;
+                mat.roughnessRange = mat.roughness = pbr.roughnessFactor * .5;
             }
             else
                 mat.roughness = .5;
@@ -480,8 +485,8 @@ GLTF.prototype._parseNodes = function(data)
 
         var matrix = node.matrix;
         node.matrix.prepend(invertZ);
-        node.matrix = matrix;
         node.matrix.append(invertZ);
+        node.matrix = matrix;
 
         node.name = nodeDef.name;
         this._nodes[i] = node;
@@ -522,6 +527,93 @@ GLTF.prototype._parseScenes = function(data, defaultIndex)
             var nodeIndex = sceneDef.nodes[j];
             scene.attach(this._nodes[nodeIndex]);
         }
+    }
+};
+
+GLTF.prototype._parseSampler = function(data, samplerDef, flipZ)
+{
+    var timesAcc = this._getAccessor(samplerDef.input, data);
+    var valuesAcc = this._getAccessor(samplerDef.output, data);
+    var timeSrc = timesAcc.data;
+    var valueSrc = valuesAcc.data;
+    var t = timesAcc.byteOffset;
+    var v = valuesAcc.byteOffset;
+    var matrix = new HX$1.Matrix4x4();
+    var clip = new HX$1.AnimationClip();
+    var invertZ = new HX$1.Matrix4x4();
+    invertZ.fromScale(1, 1, -1);
+
+    for (var k = 0; k < timesAcc.count; ++k) {
+        var value;
+
+        switch(valuesAcc.numComponents) {
+            // TODO: Might become a scalar for morph weights
+            case 3:
+                value = new HX$1.Float4();
+                value.x = valueSrc.getFloat32(v, true);
+                value.y = valueSrc.getFloat32(v + 4, true);
+                value.z = valueSrc.getFloat32(v + 8, true) * (flipZ? -1 : 1);
+                break;
+            case 4:
+                value = new HX$1.Quaternion();
+                value.x = valueSrc.getFloat32(v, true);
+                value.y = valueSrc.getFloat32(v + 4, true);
+                value.z = valueSrc.getFloat32(v + 8, true);
+                value.w = valueSrc.getFloat32(v + 12, true);
+                // I wonder if there's an easier way:
+                matrix.fromQuaternion(value);
+                matrix.prepend(invertZ);
+                matrix.append(invertZ);
+                value.fromMatrix(matrix);
+                break;
+        }
+
+        var keyFrame = new HX$1.KeyFrame(timeSrc.getFloat32(t, true) * 1000.0, value);
+        clip.addKeyFrame(keyFrame);
+
+        v += valuesAcc.numComponents * 4;
+        t += 4;
+    }
+
+    return clip;
+};
+
+GLTF.prototype._parseAnimations = function(data)
+{
+    for (var i = 0; i < data.animations.length; ++i) {
+        var animDef = data.animations[i];
+        var animation = new HX$1.LayeredAnimation();
+
+        animation.name = animDef.name;
+
+        for (var j = 0; j < animDef.channels.length; ++j) {
+            var channelDef = animDef.channels[j];
+            var target = this._nodes[channelDef.target.node];
+            var layer;
+
+            switch (channelDef.target.path) {
+                case "translation":
+                    var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler], true);
+                    layer = new HX$1.AnimationLayerFloat4(target.position, clip);
+                    break;
+                case "rotation":
+                    var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler]);
+                    layer = new HX$1.AnimationLayerQuat(target.rotation, clip);
+                    break;
+                case "scale":
+                    var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler], false);
+                    layer = new HX$1.AnimationLayerFloat4(target.scale, clip);
+                    break;
+                default:
+                    throw new Error("Unknown channel path!");
+            }
+
+            animation.addLayer(layer);
+
+            // TODO: if this is a joint, it should be handled as a SkeletonClip
+        }
+
+        this._target.animations[animation.name] = animation;
     }
 };
 

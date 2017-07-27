@@ -50,7 +50,11 @@ SkeletonBlendTree.prototype =
 
     update: function(dt)
     {
-        return this._rootNode.update(dt, this._transferRootJoint);
+        var updated = this._rootNode.update(dt, this._transferRootJoint);
+        if (updated)
+            this._rootNode._pose.invalidateGlobalPose();
+
+        return updated;
     }
 };
 

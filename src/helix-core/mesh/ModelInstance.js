@@ -5,6 +5,7 @@ import {MeshInstance} from "./MeshInstance";
 import {Entity} from "../entity/Entity";
 import {SkeletonJointPose} from "../animation/skeleton/SkeletonJointPose";
 import {Texture2D} from "../texture/Texture2D";
+import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
 
 /**
  * @classdesc
@@ -39,10 +40,7 @@ function ModelInstance(model, materials)
     this._skeletonMatrices = null;
     this._morphPose = null;
     this._meshInstancesInvalid = false;
-    this._skeletonMatricesInvalid = false;
     this._skeletonPose = null;
-    this._skinningTexture = null;
-    this._globalSkeletonPose = null;
 
     this.init(model, materials);
 }
@@ -86,11 +84,9 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
      * @ignore
      */
     skeletonMatrices: {
-        get: function() {
-            if (this._skeletonMatricesInvalid)
-                this._updateSkeletonMatrices();
-
-            return this._skinningTexture || this._skeletonMatrices;
+        get: function()
+        {
+            return this._skeletonPose? this._skeletonPose.getSkeletonMatrices(this._model._skeleton) : null;
         }
     },
 
@@ -103,7 +99,6 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
         set: function(value)
         {
             this._skeletonPose = value;
-            if (this._model._skeleton) this._skeletonMatricesInvalid = true;
         }
 
     },
@@ -183,15 +178,8 @@ ModelInstance.prototype.getMeshInstance = function(index)
  */
 ModelInstance.prototype._generateDefaultSkeletonPose = function()
 {
-    if (META.OPTIONS.useSkinningTexture) {
-        this._skeletonMatrices = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
-        return;
-    }
-
-    this._skeletonMatrices = [];
-    for (var i = 0; i < this._model.skeleton.numJoints; ++i) {
-        this._skeletonMatrices[i] = new Matrix4x4();
-    }
+    this._skeletonPose = new SkeletonPose();
+    this._skeletonPose._generateDefault();
 };
 
 /**
@@ -221,6 +209,12 @@ ModelInstance.prototype._onSkeletonChange = function()
             this._meshInstances[i].material._setUseSkinning(!!this._model.skeleton);
         }
     }
+
+    if (this._model.skeleton) {
+        this._generateDefaultSkeletonPose();
+    }
+    else
+        this._skeletonPose = null;
 };
 
 /**
@@ -303,92 +297,6 @@ ModelInstance.prototype.acceptVisitor = function(visitor)
 ModelInstance.prototype.toString = function()
 {
     return "[ModelInstance(name=" + this._name + ")]";
-};
-
-/**
- * @ignore
- */
-ModelInstance.prototype._updateSkeletonMatrices = function()
-{
-    if (!this._skeletonPose) {
-        this._generateDefaultSkeletonPose();
-        return;
-    }
-
-    var skeleton = this._model.skeleton;
-    var globals = this._skeletonMatrices;
-    if (!globals || globals.length !== skeleton.numJoints) {
-        this._generateGlobalSkeletonData(skeleton);
-        globals = this._skeletonMatrices;
-    }
-
-    this._globalSkeletonPose.globalFromLocal(this._skeletonPose, skeleton);
-
-
-    var len = skeleton.numJoints;
-    var poses = this._globalSkeletonPose.jointPoses;
-
-    for (var i = 0; i < len; ++i) {
-        var pose = poses[i];
-        var mtx = globals[i];
-        if (skeleton._applyInverseBindPose)
-            mtx.copyFrom(skeleton.getJoint(i).inverseBindPose);
-        else
-            mtx.copyFrom(Matrix4x4.IDENTITY);
-
-        var sc = pose.scale;
-        mtx.appendScale(sc.x, sc.y, sc.z);
-        mtx.appendQuaternion(pose.rotation);
-        mtx.appendTranslation(pose.position);
-    }
-
-    if (META.OPTIONS.useSkinningTexture)
-        this._updateSkinningTexture();
-};
-
-/**
- * @ignore
- * @private
- */
-ModelInstance.prototype._generateGlobalSkeletonData = function(skeleton)
-{
-    this._skeletonMatrices = [];
-    this._globalSkeletonPose = new HX.SkeletonPose();
-    for (var i = 0; i < skeleton.numJoints; ++i) {
-        this._skeletonMatrices[i] = new Matrix4x4();
-        this._globalSkeletonPose.jointPoses[i] = new SkeletonJointPose();
-    }
-
-    if (META.OPTIONS.useSkinningTexture) {
-        this._skinningTexture = new Texture2D();
-        this._skinningTexture.filter = TextureFilter.NEAREST_NOMIP;
-        this._skinningTexture.wrapMode = TextureWrapMode.CLAMP;
-    }
-};
-
-/**
- * @ignore
- * @private
- */
-ModelInstance.prototype._updateSkinningTexture = function()
-{
-    var data = [];
-    var globals = this._skeletonMatrices;
-    var len = globals.length;
-
-    for (var r = 0; r < 3; ++r) {
-        for (var i = 0; i < len; ++i) {
-            var m = globals[i]._m;
-
-            data.push(m[r], m[r + 4], m[r + 8], m[r + 12]);
-        }
-
-        for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
-            data.push(0, 0, 0, 0);
-        }
-    }
-
-    this._skinningTexture.uploadData(new Float32Array(data), META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
 };
 
 export { ModelInstance };

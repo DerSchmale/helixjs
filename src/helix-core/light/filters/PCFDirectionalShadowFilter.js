@@ -92,8 +92,6 @@ PCFDirectionalShadowFilter.prototype.getCullMode = function()
  */
 PCFDirectionalShadowFilter.prototype.getGLSL = function()
 {
-    if (META.OPTIONS.pointShadowFilter._numShadowSamples)
-
     var defines = {
         HX_DIR_PCF_NUM_SHADOW_SAMPLES: this._numShadowSamples,
         HX_DIR_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + ( 1.0 / this._numShadowSamples ) + ")",

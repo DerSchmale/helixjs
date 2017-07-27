@@ -243,8 +243,17 @@ var GL = {
             gl.disable(gl.BLEND);
         else {
             gl.enable(gl.BLEND);
-            gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
-            gl.blendEquation(blendState.operator);
+
+            if (blendState.alphaSrcFactor === null || blendState.alphaSrcFactor === undefined)
+                gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
+            else
+                gl.blendFuncSeparate(blendState.srcFactor, blendState.dstFactor, blendState.alphaSrcFactor, blendState.alphaDstFactor);
+
+            if (blendState.alphaOperator === null || blendState.alphaOperator === undefined)
+                gl.blendEquation(blendState.operator);
+            else
+                gl.blendEquationSeparate(blendState.operator, blendState.alphaOperator);
+
             var color = blendState.color;
             if (color)
                 gl.blendColor(color.r, color.g, color.b, color.a);
@@ -346,8 +355,16 @@ var GL = {
                 gl.disable(gl.BLEND);
             else {
                 gl.enable(gl.BLEND);
-                gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
-                gl.blendEquation(blendState.operator);
+                if (blendState.alphaSrcFactor === null || blendState.alphaSrcFactor === undefined)
+                    gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
+                else 
+                    gl.blendFuncSeparate(blendState.srcFactor, blendState.dstFactor, blendState.alphaSrcFactor, blendState.alphaDstFactor);
+
+                if (blendState.alphaOperator === null || blendState.alphaOperator === undefined)
+                    gl.blendEquation(blendState.operator);
+                else
+                    gl.blendEquationSeparate(blendState.operator, blendState.alphaOperator);
+
                 var color = blendState.color;
                 if (color)
                     gl.blendColor(color.r, color.g, color.b, color.a);

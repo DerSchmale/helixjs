@@ -39,6 +39,24 @@ function BlendState(srcFactor, dstFactor, operator, color)
     this.operator = operator || BlendOperation.ADD;
 
     /**
+     * The source blend factor for the alpha.
+     * @see {@linkcode BlendFactor}
+     */
+    this.alphaSrcFactor = null;
+
+    /**
+     * The source blend factor for the alpha.
+     * @see {@linkcode BlendFactor}
+     */
+    this.alphaDstFactor = null;
+
+    /**
+     * The blend operator for the alpha.
+     * @see {@linkcode BlendOperation}
+     */
+    this.alphaOperator = null;
+
+    /**
      * The blend color.
      * @see {@linkcode Color}
      */
@@ -60,6 +78,8 @@ BlendState._initDefaults = function()
     BlendState.ADD_NO_ALPHA = new BlendState(BlendFactor.ONE, BlendFactor.ONE);
     BlendState.MULTIPLY = new BlendState(BlendFactor.DESTINATION_COLOR, BlendFactor.ZERO);
     BlendState.ALPHA = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE_MINUS_SOURCE_ALPHA);
+    BlendState.ALPHA.alphaSrcFactor = BlendFactor.ZERO;
+    BlendState.ALPHA.alphaDstFactor = BlendFactor.ONE;
     BlendState.INV_ALPHA = new BlendState(BlendFactor.ONE_MINUS_SOURCE_ALPHA, BlendFactor.SOURCE_ALPHA);
 };
 

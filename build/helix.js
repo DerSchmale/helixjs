@@ -869,8 +869,17 @@ var GL = {
             gl.disable(gl.BLEND);
         else {
             gl.enable(gl.BLEND);
-            gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
-            gl.blendEquation(blendState.operator);
+
+            if (blendState.alphaSrcFactor === null || blendState.alphaSrcFactor === undefined)
+                gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
+            else
+                gl.blendFuncSeparate(blendState.srcFactor, blendState.dstFactor, blendState.alphaSrcFactor, blendState.alphaDstFactor);
+
+            if (blendState.alphaOperator === null || blendState.alphaOperator === undefined)
+                gl.blendEquation(blendState.operator);
+            else
+                gl.blendEquationSeparate(blendState.operator, blendState.alphaOperator);
+
             var color = blendState.color;
             if (color)
                 gl.blendColor(color.r, color.g, color.b, color.a);
@@ -972,8 +981,16 @@ var GL = {
                 gl.disable(gl.BLEND);
             else {
                 gl.enable(gl.BLEND);
-                gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
-                gl.blendEquation(blendState.operator);
+                if (blendState.alphaSrcFactor === null || blendState.alphaSrcFactor === undefined)
+                    gl.blendFunc(blendState.srcFactor, blendState.dstFactor);
+                else 
+                    gl.blendFuncSeparate(blendState.srcFactor, blendState.dstFactor, blendState.alphaSrcFactor, blendState.alphaDstFactor);
+
+                if (blendState.alphaOperator === null || blendState.alphaOperator === undefined)
+                    gl.blendEquation(blendState.operator);
+                else
+                    gl.blendEquationSeparate(blendState.operator, blendState.alphaOperator);
+
                 var color = blendState.color;
                 if (color)
                     gl.blendColor(color.r, color.g, color.b, color.a);
@@ -6053,6 +6070,24 @@ function BlendState(srcFactor, dstFactor, operator, color)
     this.operator = operator || BlendOperation.ADD;
 
     /**
+     * The source blend factor for the alpha.
+     * @see {@linkcode BlendFactor}
+     */
+    this.alphaSrcFactor = null;
+
+    /**
+     * The source blend factor for the alpha.
+     * @see {@linkcode BlendFactor}
+     */
+    this.alphaDstFactor = null;
+
+    /**
+     * The blend operator for the alpha.
+     * @see {@linkcode BlendOperation}
+     */
+    this.alphaOperator = null;
+
+    /**
      * The blend color.
      * @see {@linkcode Color}
      */
@@ -6074,6 +6109,8 @@ BlendState._initDefaults = function()
     BlendState.ADD_NO_ALPHA = new BlendState(BlendFactor.ONE, BlendFactor.ONE);
     BlendState.MULTIPLY = new BlendState(BlendFactor.DESTINATION_COLOR, BlendFactor.ZERO);
     BlendState.ALPHA = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE_MINUS_SOURCE_ALPHA);
+    BlendState.ALPHA.alphaSrcFactor = BlendFactor.ZERO;
+    BlendState.ALPHA.alphaDstFactor = BlendFactor.ONE;
     BlendState.INV_ALPHA = new BlendState(BlendFactor.ONE_MINUS_SOURCE_ALPHA, BlendFactor.SOURCE_ALPHA);
 };
 
@@ -7375,10 +7412,10 @@ function init(canvas, options)
 
     // this causes lighting accumulation to happen in gamma space (only accumulation of lights within the same pass is linear)
     // This yields an incorrect gamma correction to be applied, but looks much better due to encoding limitation (otherwise there would be banding)
-    if (options.useGammaCorrection && !options.hdr) {
-        _HX_.GAMMA_CORRECT_LIGHTS = true;
-        defines += "#define HX_GAMMA_CORRECT_LIGHTS\n";
-    }
+    // if (options.useGammaCorrection && !options.hdr) {
+        // _HX_.GAMMA_CORRECT_LIGHTS = true;
+        // defines += "#define HX_GAMMA_CORRECT_LIGHTS\n";
+    // }
 
     if (options.useSkinningTexture) {
         defines += "#define HX_USE_SKINNING_TEXTURE\n";

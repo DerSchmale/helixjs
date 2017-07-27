@@ -70,6 +70,7 @@ function initScene(scene, assetLibrary)
             material.color = gold;
             material.roughness = x / (numX - 1.0);
             material.metallicness = y / (numY - 1.0);
+            // material.fixedLights = [ light, lightProbe ];
 
             var modelInstance = new HX.ModelInstance(primitive, material);
             modelInstance.position.x = ((x + .5) / numX - .5) * 3.0;

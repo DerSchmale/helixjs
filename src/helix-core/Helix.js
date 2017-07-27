@@ -548,10 +548,10 @@ export function init(canvas, options)
 
     // this causes lighting accumulation to happen in gamma space (only accumulation of lights within the same pass is linear)
     // This yields an incorrect gamma correction to be applied, but looks much better due to encoding limitation (otherwise there would be banding)
-    if (options.useGammaCorrection && !options.hdr) {
-        _HX_.GAMMA_CORRECT_LIGHTS = true;
-        defines += "#define HX_GAMMA_CORRECT_LIGHTS\n";
-    }
+    // if (options.useGammaCorrection && !options.hdr) {
+        // _HX_.GAMMA_CORRECT_LIGHTS = true;
+        // defines += "#define HX_GAMMA_CORRECT_LIGHTS\n";
+    // }
 
     if (options.useSkinningTexture) {
         defines += "#define HX_USE_SKINNING_TEXTURE\n";

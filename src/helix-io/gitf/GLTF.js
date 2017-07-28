@@ -1,5 +1,7 @@
 import * as HX from "helix";
 
+// // https://www.khronos.org/files/gltf20-reference-guide.pdf
+
 /**
  * GLTFData contains all the info loaded
  * @constructor
@@ -59,10 +61,11 @@ function GLTF()
         MAT4: 16
     };
 
-    this._invertZ = new HX.Matrix4x4();
+    // this._invertZ = new HX.Matrix4x4();
+    this._flipZ = 1;
+
     // this._invertZ.fromScale(1, 1, -1);
     // this._flipZ = -1;
-    this._flipZ = 1;
 }
 
 GLTF.prototype = Object.create(HX.Importer.prototype);
@@ -434,7 +437,6 @@ GLTF.prototype._parseSkin = function(data, nodeDef, target)
 
     var skeleton = new HX.Skeleton();
     var pose = new HX.SkeletonPose();
-    var matrix = new HX.Matrix4x4();
 
     var skelNode = this._nodes[skinDef.skeleton];
     var worldMatrix = new HX.Matrix4x4();
@@ -452,31 +454,8 @@ GLTF.prototype._parseSkin = function(data, nodeDef, target)
             o += 4;
         }
 
-        joint.inverseBindPose.prepend(this._invertZ);
-        joint.inverseBindPose.append(this._invertZ);
-
-
-        // https://www.khronos.org/files/gltf20-reference-guide.pdf
-
-        // god knows what space the inverse bind pose is expressed in...
-        // global?
-        // The reference tells to undo the transforms of the parent *mesh/skin owner*, that is a different node than
-        // the skeleton node. So which defines global?
-
-        // in the test file, both skeleton node and model node are owned by the same parent, without a transform on the
-        // model node, so it would remain the same
-
-        // the ref says:
-        // inverse(globalTransform) * globalJointTransform[j] * inverseBindMatrix[j];
-        // (inverse(globalTransform) * globalJointTransform[j]) is equivalent to our own "global" joint pose, so we'd
-        // expect inverseBindMatrix to be correct as is?
-
-        // if inverseBindPose is global:
-        // inverseBindPose = localToJointSpace * worldToLocal
-        // we just want: localToJointSpace = localToJointSpace * (worldToLocal * localToWorld) = inverseBindPose * localToWorld
-        // but it's incorrect -_-
-
-        // joint.inverseBindPose.prepend(skelNode.parent.worldMatrix);
+        // joint.inverseBindPose.prepend(this._invertZ);
+        // joint.inverseBindPose.append(this._invertZ);
 
         skeleton.addJoint(joint);
 
@@ -484,10 +463,8 @@ GLTF.prototype._parseSkin = function(data, nodeDef, target)
         node._jointIndex = i;
         node._skeletonPose = pose;
 
-        matrix.copyFrom(node.matrix);
-
         var jointPose = new HX.SkeletonJointPose();
-        matrix.decompose(jointPose);
+        node.matrix.decompose(jointPose);
 
         pose.setJointPose(i, jointPose);
     }
@@ -535,10 +512,10 @@ GLTF.prototype._parseNodes = function(data)
             node.matrix = new HX.Matrix4x4(nodeDef.matrix);
         }
 
-        var matrix = node.matrix;
-        node.matrix.prepend(this._invertZ);
-        node.matrix.append(this._invertZ);
-        node.matrix = matrix;
+        // var matrix = node.matrix;
+        // node.matrix.prepend(this._invertZ);
+        // node.matrix.append(this._invertZ);
+        // node.matrix = matrix;
 
         this._nodes[i] = node;
     }
@@ -581,7 +558,7 @@ GLTF.prototype._parseScenes = function(data, defaultIndex)
     }
 };
 
-GLTF.prototype._parseSampler = function(data, samplerDef, flipZ)
+GLTF.prototype._parseAnimationSampler = function(data, samplerDef, flipZ)
 {
     var timesAcc = this._getAccessor(samplerDef.input, data);
     var valuesAcc = this._getAccessor(samplerDef.output, data);
@@ -609,12 +586,15 @@ GLTF.prototype._parseSampler = function(data, samplerDef, flipZ)
                 value.y = valueSrc.getFloat32(v + 4, true);
                 value.z = valueSrc.getFloat32(v + 8, true);
                 value.w = valueSrc.getFloat32(v + 12, true);
-                // I wonder if there's an easier way:
-                matrix.fromQuaternion(value);
+
+                // I wonder if there's a faster way to flip the axis (TODO: Should only happen on root?):
+                /*matrix.fromQuaternion(value);
                 matrix.prepend(this._invertZ);
                 matrix.append(this._invertZ);
-                value.fromMatrix(matrix);
+                value.fromMatrix(matrix);*/
                 break;
+            default:
+                throw new Error("Unsupported animation sampler data format");
         }
 
         var keyFrame = new HX.KeyFrame(timeSrc.getFloat32(t, true) * 1000.0, value);
@@ -641,20 +621,21 @@ GLTF.prototype._parseAnimations = function(data)
             var target = this._nodes[channelDef.target.node];
             var layer;
 
-            if (target._jointIndex !== undefined)
+            if (target._jointIndex !== undefined) {
                 target = target._skeletonPose._jointPoses[target._jointIndex];
+            }
 
             switch (channelDef.target.path) {
                 case "translation":
-                    var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler], true);
+                    var clip = this._parseAnimationSampler(data, animDef.samplers[channelDef.sampler], true);
                     layer = new HX.AnimationLayerFloat4(target, "position", clip);
                     break;
                 case "rotation":
-                    var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler]);
+                    var clip = this._parseAnimationSampler(data, animDef.samplers[channelDef.sampler]);
                     layer = new HX.AnimationLayerQuat(target, "rotation", clip);
                     break;
                 case "scale":
-                    var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler], false);
+                    var clip = this._parseAnimationSampler(data, animDef.samplers[channelDef.sampler], false);
                     layer = new HX.AnimationLayerFloat4(target, "scale", clip);
                     break;
                 default:

@@ -29,12 +29,4 @@ HardDirectionalShadowFilter.prototype.getGLSL = function()
     return ShaderLibrary.get("dir_shadow_hard.glsl");
 };
 
-/**
- * @ignore
- */
-HardDirectionalShadowFilter.prototype.getCullMode = function()
-{
-    return CullMode.FRONT;
-};
-
 export { HardDirectionalShadowFilter };

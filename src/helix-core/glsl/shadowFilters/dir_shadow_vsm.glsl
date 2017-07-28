@@ -34,5 +34,5 @@ float hx_dir_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix,
     if (diff > 0.0)
         upperBound = variance / (variance + diff*diff);
 
-    return saturate((upperBound - HX_DIR_VSM_LIGHT_BLEED_REDUCTION) / HX_DIR_VSM_LIGHT_BLEED_REDUCTION_RANGE);
+    return saturate((upperBound - HX_DIR_VSM_LIGHT_BLEED_REDUCTION) * HX_DIR_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);
 }

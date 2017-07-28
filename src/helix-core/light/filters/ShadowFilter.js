@@ -1,5 +1,4 @@
 import { CullMode, DataType, TextureFormat } from '../../Helix';
-import { Signal } from '../../core/Signal';
 
 /**
  * @ignore
@@ -10,10 +9,19 @@ function ShadowFilter()
 {
     this._blurShader = null;
     this._numBlurPasses = 1;
+    this._cullMode = CullMode.FRONT;
 }
 
 ShadowFilter.prototype =
 {
+    get cullMode() {
+        return this._cullMode;
+    },
+
+    set cullMode(value) {
+        this._cullMode = value;
+    },
+
     getShadowMapFormat: function()
     {
         return TextureFormat.RGBA;
@@ -27,11 +35,6 @@ ShadowFilter.prototype =
     getGLSL: function()
     {
         throw new Error("Abstract method called");
-    },
-
-    getCullMode: function()
-    {
-        return CullMode.FRONT;
     },
 
     get blurShader()

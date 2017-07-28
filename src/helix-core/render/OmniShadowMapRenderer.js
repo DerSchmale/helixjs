@@ -9,7 +9,6 @@ import {FrameBuffer} from "../texture/FrameBuffer";
 import {TextureCube} from "../texture/TextureCube";
 import {Float4} from "../math/Float4";
 import {Quaternion} from "../math/Quaternion";
-import {SceneNode} from "../scene/SceneNode";
 import {OmniShadowCasterCollector} from "./OmniShadowCasterCollector";
 
 /**
@@ -80,6 +79,8 @@ OmniShadowMapRenderer.prototype =
             }
 
             GL.setInvertCulling(false);
+
+            GL.setColorMask(true);
 
             GL.setRenderTarget();
             GL.setClearColor(Color.BLACK);

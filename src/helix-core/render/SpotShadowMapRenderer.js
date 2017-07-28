@@ -87,6 +87,8 @@ SpotShadowMapRenderer.prototype =
 
         RenderUtils.renderPass(this, MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS, this._casterCollector.getRenderList());
 
+        GL.setColorMask(true);
+
         if (this._blurShader)
             this._blur();
 

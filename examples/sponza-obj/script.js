@@ -86,6 +86,8 @@ function initScene(scene, assetLibrary)
     processMaterials();
 
     var dynLightProbe = new HX.DynamicLightProbe(512, HX.capabilities.HDR_FORMAT);
+    dynLightProbe.size = 30.0;
+    dynLightProbe.position.set(0.0, 2.0, 0.0);
     scene.attach(dynLightProbe);
     dynLightProbe.render();
 

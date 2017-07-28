@@ -144,7 +144,12 @@ export var TextureWrapMode = {};
  * @property FRONT = Culls the faces pointing toward the screen
  * @property ALL = Culls both faces (nothing is rendered)
  */
-export var CullMode = {};
+export var CullMode = {
+    NONE: null,
+    BACK: 0x0405,
+    FRONT: 0x0404,
+    ALL: 0x0408
+};
 
 /**
  * StencilOp defines how the stencil buffer gets updated.
@@ -699,11 +704,6 @@ function _initGLProperties()
     // default settings:
     TextureWrapMode.DEFAULT = TextureWrapMode.REPEAT;
     TextureFilter.DEFAULT = TextureFilter.TRILINEAR;
-
-    CullMode.NONE = null;
-    CullMode.BACK = gl.BACK;
-    CullMode.FRONT = gl.FRONT;
-    CullMode.ALL = gl.FRONT_AND_BACK;
 
     StencilOp.KEEP = gl.KEEP;
     StencilOp.ZERO = gl.ZERO;

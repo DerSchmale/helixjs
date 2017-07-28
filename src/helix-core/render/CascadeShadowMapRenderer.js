@@ -1,4 +1,4 @@
-import {TextureFilter, TextureWrapMode, META} from "../Helix";
+import {TextureFilter, TextureWrapMode, META, Comparison, CullMode} from "../Helix";
 import {Color} from "../core/Color";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {BoundingAABB} from "../scene/BoundingAABB";
@@ -28,6 +28,7 @@ function CascadeShadowMapRenderer(light, shadowMapSize)
     this._shadowMapSize = shadowMapSize || 1024;
     this._shadowMapInvalid = true;
     this._fboFront = null;
+    this._fboFrontNoDepth = null;
     this._fboBack = null;
     this._depthBuffer = null;   // only used if depth textures aren't supported
 
@@ -95,6 +96,8 @@ CascadeShadowMapRenderer.prototype =
             gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
             RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(cascadeIndex));
         }
+
+        GL.setColorMask(true);
 
         if (this._blurShader)
             this._blur();
@@ -323,7 +326,11 @@ CascadeShadowMapRenderer.prototype =
 
         if (this._shadowBackBuffer) {
             this._shadowBackBuffer.initEmpty(texWidth, texHeight, META.OPTIONS.directionalShadowFilter.getShadowMapFormat(), META.OPTIONS.directionalShadowFilter.getShadowMapDataType());
-            if (!this._fboBack) this._fboBack = new FrameBuffer(this._shadowBackBuffer, this._depthBuffer);
+            if (!this._fboBack) {
+                this._fboFrontNoDepth = new FrameBuffer(this._shadowMap);
+                this._fboBack = new FrameBuffer(this._shadowBackBuffer);
+            }
+            this._fboFrontNoDepth.init();
             this._fboBack.init();
         }
 
@@ -399,7 +406,7 @@ CascadeShadowMapRenderer.prototype =
             GL.clear();
             shader.execute(RectMesh.DEFAULT, this._shadowMap, 1.0 / this._shadowMapSize, 0.0);
 
-            GL.setRenderTarget(this._fboFront);
+            GL.setRenderTarget(this._fboFrontNoDepth);
             GL.clear();
             shader.execute(RectMesh.DEFAULT, this._shadowBackBuffer, 0.0, 1.0 / this._shadowMapSize);
         }

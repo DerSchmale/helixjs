@@ -11,6 +11,7 @@ import {capabilities, DataType, TextureFormat} from "../../Helix";
  *
  * @property {Number} blurRadius The blur radius for the soft shadows.
  * @property {Number} lightBleedReduction A value to counter light bleeding, an artifact of the technique.
+ * @property {Number} minVariance The minimum amount of variance.
  * @property {Boolean} useHalfFloat Uses half float textures for the shadow map, if available. This may result in
  * performance improvements, but also precision artifacts. Defaults to true.
  *
@@ -33,6 +34,18 @@ function VarianceDirectionalShadowFilter()
 
 VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
+        minVariance: {
+            get: function()
+            {
+                return this._minVariance;
+            },
+
+            set: function(value)
+            {
+                this._minVariance = value;
+            }
+        },
+
         blurRadius: {
             get: function()
             {
@@ -106,9 +119,9 @@ VarianceDirectionalShadowFilter.prototype._getDefines = function()
 {
     var range = 1.0 - this._lightBleedReduction;
     return {
-        HX_DIR_VSM_MIN_VARIANCE: this._minVariance,
+        HX_DIR_VSM_MIN_VARIANCE: "float(" + this._minVariance + ")",
         HX_DIR_VSM_LIGHT_BLEED_REDUCTION: "float(" + this._lightBleedReduction + ")",
-        HX_DIR_VSM_LIGHT_BLEED_REDUCTION_RANGE: "float(" + range + ")"
+        HX_DIR_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE: "float(" + (1.0 / range) + ")"
     };
 };
 

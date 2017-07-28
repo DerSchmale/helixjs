@@ -324,11 +324,11 @@ Material.prototype =
 
         if (pass) {
             if(type === MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS)
-                pass.cullMode = META.OPTIONS.directionalShadowFilter.getCullMode();
+                pass.cullMode = META.OPTIONS.directionalShadowFilter.cullMode;
             else if(type === MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS)
-                pass.cullMode = META.OPTIONS.spotShadowFilter.getCullMode();
+                pass.cullMode = META.OPTIONS.spotShadowFilter.cullMode;
             else if(type === MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS)
-                pass.cullMode = META.OPTIONS.pointShadowFilter.getCullMode();
+                pass.cullMode = META.OPTIONS.pointShadowFilter.cullMode;
             else
                 pass.cullMode = this._cullMode;
 

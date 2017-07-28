@@ -27,7 +27,7 @@ function VarianceDirectionalShadowFilter()
     ShadowFilter.call(this);
     this._blurRadius = 2;
     this._lightBleedReduction = .35;
-    this._minVariance = -.001;
+    this._minVariance = .001;
     this._useHalfFloat = true;
 }
 

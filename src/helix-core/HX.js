@@ -23,6 +23,7 @@ export {Transform} from "./math/Transform";
 
 export {DebugBoundsComponent} from "./debug/DebugBoundsComponent";
 
+export {BoundingVolume} from "./scene/BoundingVolume";
 export {BoundingAABB} from "./scene/BoundingAABB";
 export {BoundingSphere} from "./scene/BoundingSphere";
 export {SceneNode} from "./scene/SceneNode";

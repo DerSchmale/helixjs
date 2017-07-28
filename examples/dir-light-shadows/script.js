@@ -152,7 +152,10 @@ function initScene(scene, assetLibrary)
             width: 50,
             height: 50,
             scaleU: 50,
-            scaleV: 50
+            scaleV: 50,
+
+            // doublesided is necessary to get good results with VSM
+            doubleSided: true
         });
 
     var modelInstance = new HX.ModelInstance(primitive, material);

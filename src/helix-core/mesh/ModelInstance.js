@@ -1,10 +1,7 @@
 import {BoundingAABB} from "../scene/BoundingAABB";
-import {capabilities, DataType, DEFAULTS, META, TextureFilter, TextureFormat, TextureWrapMode} from "../Helix";
-import {Matrix4x4} from "../math/Matrix4x4";
+import {capabilities} from "../Helix";
 import {MeshInstance} from "./MeshInstance";
 import {Entity} from "../entity/Entity";
-import {SkeletonJointPose} from "../animation/skeleton/SkeletonJointPose";
-import {Texture2D} from "../texture/Texture2D";
 import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
 
 /**
@@ -204,10 +201,8 @@ ModelInstance.prototype._updateMeshInstances = function()
  */
 ModelInstance.prototype._onSkeletonChange = function()
 {
-    if (this._material) {
-        for (var i = 0; i < this._meshInstances.length; ++i) {
-            this._meshInstances[i].material._setUseSkinning(!!this._model.skeleton);
-        }
+    for (var i = 0; i < this._meshInstances.length; ++i) {
+        this._meshInstances[i].material._setUseSkinning(!!this._model.skeleton);
     }
 
     if (this._model.skeleton) {

@@ -13,6 +13,7 @@ import {BoundingAABB} from "./BoundingAABB";
  * lights, camera, ...).
  *
  * @property {string} name The name of te scene node.
+ * @property {SceneNode} parent The parent of this node in the scene hierarchy.
  * @property {number} numChildren The amount of children attached to this node.
  * @property {boolean} visible Defines whether or not this and any children attached to this node should be rendered or not.
  * @property {BoundingVolume} worldBounds The bounding volume for this node and its children in world coordinates.
@@ -56,6 +57,13 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         set: function(value)
         {
             this._name = value;
+        }
+    },
+
+    parent: {
+        get: function()
+        {
+            return this._parent;
         }
     },
 

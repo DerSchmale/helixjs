@@ -152,7 +152,7 @@ MD5Anim.prototype._translateFrame = function()
             pose.position.copyFrom(pos);
         }
 
-        skeletonPose.jointPoses.push(pose);
+        skeletonPose.setJointPose(i, pose);
     }
 
     var time = this._target.numKeyFrames / this._frameRate * 1000.0;

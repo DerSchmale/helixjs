@@ -6,7 +6,11 @@ uniform vec2 direction; // this is 1/pixelSize
 vec2 readValues(vec2 coord)
 {
     vec4 s = texture2D(source, coord);
+    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)
+    return s.xy;
+    #else
     return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));
+    #endif
 }
 
 void main()
@@ -20,6 +24,10 @@ void main()
 
     total *= RCP_NUM_SAMPLES;
 
+#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)
+    gl_FragColor = vec4(total, 0.0, 1.0);
+#else
 	gl_FragColor.xy = hx_floatToRG8(total.x);
 	gl_FragColor.zw = hx_floatToRG8(total.y);
+#endif
 }

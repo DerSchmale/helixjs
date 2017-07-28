@@ -49,10 +49,4 @@ project.onInit = function()
     // use the same texture as environment map
     var lightProbe = new HX.LightProbe(irradianceTexture, skyboxTexture);
     this.scene.attach(lightProbe);
-
-    for (var key in this.gltf.animations) {
-        if (this.gltf.animations.hasOwnProperty(key))
-            this.gltf.animations[key].play();
-    }
-
 };

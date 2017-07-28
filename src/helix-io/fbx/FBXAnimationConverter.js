@@ -344,7 +344,7 @@ FBXAnimationConverter.prototype =
             jointPose.scale.copyFrom(tempJointPose["Lcl Scaling"]);
             var rot = tempJointPose["Lcl Rotation"];
             jointPose.rotation.fromEuler(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
-            skeletonPose.jointPoses[i] = jointPose;
+            skeletonPose.setJointPose(i, jointPose);
         }
         return skeletonPose;
     },
@@ -361,7 +361,7 @@ FBXAnimationConverter.prototype =
 
             var skeletonPose = this._convertSkeletonPose(tempJointPoses);
 
-            skeletonPose.jointPoses[this._fakeJointIndex] = new HX.SkeletonJointPose();
+            skeletonPose.setJointPose(this._fakeJointIndex, new HX.SkeletonJointPose());
 
             clip.addKeyFrame(new HX.KeyFrame(time, skeletonPose));
         }

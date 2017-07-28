@@ -180,6 +180,7 @@ MaterialPass.prototype =
     _storeUniforms: function()
     {
         var gl = GL.gl;
+
         var len = gl.getProgramParameter(this._shader._program, gl.ACTIVE_UNIFORMS);
 
         for (var i = 0; i < len; ++i) {

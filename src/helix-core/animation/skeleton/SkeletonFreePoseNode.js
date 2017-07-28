@@ -23,7 +23,7 @@ function SkeletonFreePoseNode(skeleton)
 
     for (var i = 0; i < skeleton.numJoints; ++i) {
         var j = skeleton.getJoint(i);
-        this._poseLookUp[j.name] = this._pose.jointPoses[i];
+        this._poseLookUp[j.name] = this._pose._jointPoses[i];
     }
 }
 
@@ -90,7 +90,7 @@ SkeletonFreePoseNode.prototype._getJointPose = function(indexOrName)
     if (indexOrName instanceof String)
         return this._poseLookUp[indexOrName];
     else
-        return this._pose.jointPoses[indexOrName];
+        return this._pose._jointPoses[indexOrName];
 };
 
 export { SkeletonFreePoseNode};

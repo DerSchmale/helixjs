@@ -1,6 +1,7 @@
 import { ShaderLibrary } from '../../shader/ShaderLibrary';
 import { ShadowFilter } from './ShadowFilter';
 import { VSMBlurShader } from '../shaders/VSMBlurShader';
+import {capabilities, DataType, TextureFormat} from "../../Helix";
 
 
 /**
@@ -8,8 +9,10 @@ import { VSMBlurShader } from '../shaders/VSMBlurShader';
  * VarianceDirectionalShadowFilter is a shadow filter for directional lights that provides variance soft shadow mapping.
  * The implementation is highly experimental at this point.
  *
- * @property {number} blurRadius The blur radius for the soft shadows.
- * @property {number} lightBleedReduction A value to counter light bleeding, an artifact of the technique.
+ * @property {Number} blurRadius The blur radius for the soft shadows.
+ * @property {Number} lightBleedReduction A value to counter light bleeding, an artifact of the technique.
+ * @property {Boolean} useHalfFloat Uses half float textures for the shadow map, if available. This may result in
+ * performance improvements, but also precision artifacts. Defaults to true.
  *
  * @see {@linkcode InitOptions#directionalShadowFilter}
  *
@@ -24,6 +27,8 @@ function VarianceDirectionalShadowFilter()
     ShadowFilter.call(this);
     this._blurRadius = 2;
     this._lightBleedReduction = .35;
+    this._minVariance = -.001;
+    this._useHalfFloat = true;
 }
 
 VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
@@ -50,7 +55,18 @@ VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype
             set: function(value)
             {
                 this._lightBleedReduction = value;
-                this.onShaderInvalid.dispatch();
+            }
+        },
+
+        useHalfFloat: {
+            get: function()
+            {
+                return this._useHalfFloat;
+            },
+
+            set: function(value)
+            {
+                this._useHalfFloat = value;
             }
         }
     });
@@ -62,6 +78,17 @@ VarianceDirectionalShadowFilter.prototype.getGLSL = function()
 {
     var defines = this._getDefines();
     return ShaderLibrary.get("dir_shadow_vsm.glsl", defines);
+};
+
+VarianceDirectionalShadowFilter.prototype.getShadowMapFormat = function()
+{
+    return capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR || capabilities.EXT_FLOAT_TEXTURES_LINEAR? TextureFormat.RGB : TextureFormat.RGBA;
+};
+
+VarianceDirectionalShadowFilter.prototype.getShadowMapDataType = function()
+{
+    return capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR && this._useHalfFloat? DataType.HALF_FLOAT :
+            capabilities.EXT_FLOAT_TEXTURES_LINEAR? DataType.FLOAT : DataType.UNSIGNED_BYTE;
 };
 
 /**
@@ -79,7 +106,7 @@ VarianceDirectionalShadowFilter.prototype._getDefines = function()
 {
     var range = 1.0 - this._lightBleedReduction;
     return {
-        HX_DIR_VSM_MIN_VARIANCE: -0.0001,
+        HX_DIR_VSM_MIN_VARIANCE: this._minVariance,
         HX_DIR_VSM_LIGHT_BLEED_REDUCTION: "float(" + this._lightBleedReduction + ")",
         HX_DIR_VSM_LIGHT_BLEED_REDUCTION_RANGE: "float(" + range + ")"
     };

@@ -1,7 +1,6 @@
 import {AnimationClip} from "./../AnimationClip";
 import {SkeletonClipNode} from "./SkeletonClipNode";
 import {SkeletonBlendNode} from "./SkeletonBlendNode";
-import {MathX as Float4} from "../../math/MathX";
 
 /**
  * SkeletonXFadeNode is a {@linkcode SkeletonBlendNode} for simple cross-fading between child animation clips.

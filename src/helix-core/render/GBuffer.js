@@ -4,8 +4,8 @@ import {TextureFilter, TextureWrapMode, capabilities} from "../Helix";
 
 /**
  * 0) RGB: ALBEDO, A: OCCLUSION
- * 1) XY: NORMAL, ZW: DEPTH
- * 2) X: METALLICNESS, Y: NORMAL REFLECTION, Z: ROUGHNESS, W: (TODO, A: effectID, can be used by post-processing effects such as SSS to selectively apply if a match)
+ * 1) RG: NORMAL, BA: DEPTH
+ * 2) R: METALLICNESS, G: NORMAL REFLECTION, B: ROUGHNESS, A: (TODO, A: effectID, can be used by post-processing effects such as SSS to selectively apply if a match)
  * @param depthBuffer
  * @constructor
  *

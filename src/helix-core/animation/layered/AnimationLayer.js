@@ -9,12 +9,13 @@ import {AnimationPlayhead} from "../AnimationPlayhead";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function AnimationLayer(targetObject, clip)
+function AnimationLayer(targetObject, propertyName, clip)
 {
     this._name = null;
     this._clip = clip;
     this._playhead = new AnimationPlayhead(clip);
     this._targetObject = targetObject;
+    this._propertyName = propertyName;
 }
 
 AnimationLayer.prototype =

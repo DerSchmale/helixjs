@@ -5,7 +5,7 @@ import {TextureCube} from "../texture/TextureCube";
 import {FrameBuffer} from "../texture/FrameBuffer";
 import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
 import {Renderer} from "../render/Renderer";
-import {CubeFace} from "../Helix";
+import {CubeFace, DataType, DEFAULTS} from "../Helix";
 import {Quaternion} from "../math/Quaternion";
 import {Scene} from "../scene/Scene";
 import {Skybox} from "../scene/Skybox";
@@ -23,11 +23,12 @@ import {GL} from "../core/GL";
  */
 function DynamicLightProbe(textureSize, textureDataType, near, far)
 {
-    // TODO: When collecting, make sure this light probe is NOT included!
-
     var diffuse = new TextureCube();
     var specular = new TextureCube();
-    diffuse.initEmpty(2, null, textureDataType);
+
+    textureDataType = textureDataType || DataType.UNSIGNED_BYTE;
+
+    diffuse.initEmpty(4, null, textureDataType);
     specular.initEmpty(textureSize, null, textureDataType);
 
     near = near || .1;
@@ -85,23 +86,32 @@ DynamicLightProbe.prototype = Object.create(LightProbe.prototype);
  */
 DynamicLightProbe.prototype.render = function()
 {
+    var specularTexture = this._specularTexture;
+    var diffuseTexture = this._diffuseTexture;
+
+    this._specularTexture = DEFAULTS.DARK_CUBE_TEXTURE;
+    this._diffuseTexture = DEFAULTS.DARK_CUBE_TEXTURE;
+
     var pos = this.worldMatrix.getColumn(3);
+
+    GL.setInvertCulling(true);
 
     for (var i = 0; i < 6; ++i) {
         this._cameras[i].position.copyFrom(pos);
         this._renderer.render(this._cameras[i], this._scene, 0, this._specularFBOs[i]);
     }
 
-    this._specularTexture.generateMipmap();
-
-    GL.setInvertCulling(true);
+    specularTexture.generateMipmap();
 
     for (i = 0; i < 6; ++i)
         this._renderer.render(this._cameras[i], this._diffuseScene, 0, this._diffuseFBOs[i]);
 
+    diffuseTexture.generateMipmap();
+
     GL.setInvertCulling(false);
 
-    this._diffuseTexture.generateMipmap();
+    this._diffuseTexture = diffuseTexture;
+    this._specularTexture = specularTexture;
 };
 
 export {DynamicLightProbe};

@@ -1,6 +1,7 @@
 import {AnimationLayer} from "./AnimationLayer";
 import {Float4} from "../../math/Float4";
 import {Debug} from "../../debug/Debug";
+import {SkeletonJointPose} from "../skeleton/SkeletonJointPose";
 
 /**
  * @classdesc
@@ -10,10 +11,11 @@ import {Debug} from "../../debug/Debug";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function AnimationLayerFloat4(targetObject, clip)
+function AnimationLayerFloat4(targetObject, propertyName, clip)
 {
-    Debug.assert(targetObject instanceof Float4, "Type mismatch!");
-    AnimationLayer.call(this, targetObject, clip);
+    Debug.assert(targetObject[propertyName] instanceof Float4, "Type mismatch!");
+    AnimationLayer.call(this, targetObject, propertyName, clip);
+    this._skeletonPose = targetObject instanceof SkeletonJointPose? targetObject.skeletonPose : null;
 }
 
 AnimationLayerFloat4.prototype = Object.create(AnimationLayer.prototype);
@@ -26,8 +28,10 @@ AnimationLayerFloat4.prototype = Object.create(AnimationLayer.prototype);
 AnimationLayerFloat4.prototype.update = function (dt)
 {
     var playhead = this._playhead;
-    if (playhead.update(dt))
-        this._targetObject.lerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
+    if (playhead.update(dt)) {
+        this._targetObject[this._propertyName].lerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
+        if (this._skeletonPose) this._skeletonPose.invalidateGlobalPose();
+    }
 };
 
 export {AnimationLayerFloat4};

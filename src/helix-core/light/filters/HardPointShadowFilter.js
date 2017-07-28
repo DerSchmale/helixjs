@@ -29,12 +29,4 @@ HardPointShadowFilter.prototype.getGLSL = function()
     return ShaderLibrary.get("point_shadow_hard.glsl");
 };
 
-/**
- * @ignore
- */
-HardPointShadowFilter.prototype.getCullMode = function()
-{
-    return CullMode.FRONT;
-};
-
 export { HardPointShadowFilter };

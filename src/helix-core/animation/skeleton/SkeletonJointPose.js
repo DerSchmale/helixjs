@@ -14,9 +14,10 @@ import {Float4} from "../../math/Float4";
  */
 function SkeletonJointPose()
 {
-    this.rotation = new Quaternion();
     this.position = new Float4();
+    this.rotation = new Quaternion();
     this.scale = new Float4(1, 1, 1);
+    this.skeletonPose = null;
 }
 
 SkeletonJointPose.prototype =

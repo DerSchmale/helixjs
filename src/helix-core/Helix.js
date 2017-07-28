@@ -474,7 +474,9 @@ export function init(canvas, options)
     }
 
     capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
-    if (!capabilities.EXT_FLOAT_TEXTURES) {
+    if (capabilities.EXT_FLOAT_TEXTURES)
+        defines += "#define HX_FLOAT_TEXTURES\n";
+    else {
         console.warn('OES_texture_float extension not supported!');
         options.useSkinningTexture = false;
     }
@@ -482,13 +484,24 @@ export function init(canvas, options)
     if (!options.ignoreHalfFloatTextureExtension)
         capabilities.EXT_HALF_FLOAT_TEXTURES = _getExtension('OES_texture_half_float');
 
-    if (!capabilities.EXT_HALF_FLOAT_TEXTURES) console.warn('OES_texture_half_float extension not supported!');
+    if (capabilities.EXT_HALF_FLOAT_TEXTURES)
+        defines += "#define HX_HALF_FLOAT_TEXTURES\n";
+    else
+        console.warn('OES_texture_half_float extension not supported!');
 
     capabilities.EXT_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_float_linear');
-    if (!capabilities.EXT_FLOAT_TEXTURES_LINEAR) console.warn('OES_texture_float_linear extension not supported!');
+    if (capabilities.EXT_FLOAT_TEXTURES_LINEAR)
+        defines += "#define HX_FLOAT_TEXTURES_LINEAR\n";
+    else
+        console.warn('OES_texture_float_linear extension not supported!');
 
     capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_half_float_linear');
-    if (!capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR) console.warn('OES_texture_half_float_linear extension not supported!');
+    if (capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR) {
+        defines += "#define HX_HALF_FLOAT_TEXTURES_LINEAR\n";
+        DataType.HALF_FLOAT = capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES;
+    }
+    else
+        console.warn('OES_texture_half_float_linear extension not supported!');
 
     // these SHOULD be implemented, but are not by Chrome
     //EXT_COLOR_BUFFER_FLOAT = _getExtension('WEBGL_color_buffer_float');
@@ -657,6 +670,12 @@ function _init2DDitherTexture(width, height)
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, gl.RGBA, gl.FLOAT);
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.filter = TextureFilter.NEAREST_NOMIP;
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.wrapMode = TextureWrapMode.REPEAT;
+
+    // this one is used when dynamic light probes passes need to disable a map
+    DEFAULTS.DARK_CUBE_TEXTURE = new TextureCube();
+    var data = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
+    data = [ data, data, data, data, data, data ];
+    DEFAULTS.DARK_CUBE_TEXTURE.uploadData(data, 1, true);
 }
 
 
@@ -743,6 +762,7 @@ function _initGLProperties()
     DataType.UNSIGNED_SHORT = gl.UNSIGNED_SHORT;
     DataType.UNSIGNED_INT = gl.UNSIGNED_INT;
     DataType.FLOAT = gl.FLOAT;
+    DataType.HALF_FLOAT = undefined;    // possibly set later, if supported
 
     BufferUsage.STATIC_DRAW = gl.STATIC_DRAW;
     BufferUsage.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;

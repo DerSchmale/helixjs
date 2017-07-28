@@ -48,7 +48,7 @@ void main()
     #ifdef HX_LOCAL_PROBE
         diffRay = hx_intersectCubeMap(worldPosition, hx_probePosition, diffRay, hx_probeSize);
     #endif
-    diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, worldNormal);
+    diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, diffRay);
 #endif
 #ifdef HX_SPECULAR_PROBE
     vec3 specRay = reflectedViewDir;

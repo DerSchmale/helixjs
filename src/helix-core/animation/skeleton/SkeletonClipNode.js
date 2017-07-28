@@ -25,10 +25,10 @@ function SkeletonClipNode(clip)
     this._playhead = new AnimationPlayhead(clip);
     this._rootPosition = new Float4();
 
-    this._numJoints = clip.getKeyFrame(0).value.jointPoses.length;
+    this._numJoints = clip.getKeyFrame(0).value._jointPoses.length;
 
-    var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value.jointPoses[0].position;
-    var firstFramePos = clip.getKeyFrame(0).value.jointPoses[0].position;
+    var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value._jointPoses[0].position;
+    var firstFramePos = clip.getKeyFrame(0).value._jointPoses[0].position;
     this._clipRootDelta = Float4.subtract(lastFramePos, firstFramePos);
 }
 
@@ -95,7 +95,7 @@ SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
  */
 SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
-    var rootJointPos = this._pose.jointPoses[0].position;
+    var rootJointPos = this._pose._jointPoses[0].position;
     var rootPos = this._rootPosition;
     var rootDelta = this._rootJointDeltaPosition;
 

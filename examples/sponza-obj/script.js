@@ -18,6 +18,7 @@ window.onload = function ()
     options.hdr = true;
     options.numShadowCascades = 3;
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+    options.directionalShadowFilter.useHalfFloat = false;
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.deferredLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
@@ -38,12 +39,13 @@ project.onInit = function()
 
 function initCamera(camera)
 {
-    camera.position.set(0.0, 10.0, 0.0);
+    camera.position.set(0.0, 1.80, 0.0);
     camera.nearDistance = .1;
     camera.farDistance = 100.0;
 
     var floatController = new HX.FloatController();
     floatController.speed = 10.0;
+    floatController.yaw = Math.PI * .5;
     camera.addComponent(floatController);
 
     // var bloom = new HX.Bloom(250, .5, 8);
@@ -74,14 +76,24 @@ function initScene(scene, assetLibrary)
     var skybox = new HX.Skybox(skyboxSpecularTexture);
     scene.skybox = skybox;
 
-    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture);
-    scene.attach(lightProbe);
+    var dummyLightProbe = new HX.LightProbe(skyboxIrradianceTexture);
+    scene.attach(dummyLightProbe);
 
     sponza = assetLibrary.get("model");
     sponza.scale.set(1.0/40.0, 1.0/40.0, 1.0/40.0);
     scene.attach(sponza);
 
     processMaterials();
+
+    var dynLightProbe = new HX.DynamicLightProbe(512, HX.capabilities.HDR_FORMAT);
+    scene.attach(dynLightProbe);
+    dynLightProbe.render();
+
+    scene.detach(dynLightProbe);
+    scene.detach(dummyLightProbe);
+
+    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, dynLightProbe.specularTexture);
+    scene.attach(lightProbe);
 }
 
 function processMaterials()

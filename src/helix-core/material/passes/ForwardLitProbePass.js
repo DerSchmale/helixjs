@@ -1,10 +1,9 @@
 import {MaterialPass} from "../MaterialPass";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {Shader} from "../../shader/Shader";
-import {TextureCube} from "../../texture/TextureCube";
 import {GL} from "../../core/GL";
 import {MathX} from "../../math/MathX";
-import {capabilities} from "../../Helix";
+import {capabilities, DEFAULTS} from "../../Helix";
 
 /**
  * @ignore
@@ -24,12 +23,6 @@ function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel)
     this._localLocation = this.getUniformLocation("hx_probeLocal");
     this._sizeLocation = this.getUniformLocation("hx_probeSize");
     this._positionLocation = this.getUniformLocation("hx_probePosition");
-    if (!ForwardLitProbePass.dummyTexture) {
-        var data = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
-        data = [ data, data, data, data, data, data ];
-        ForwardLitProbePass.dummyTexture = new TextureCube();
-        ForwardLitProbePass.dummyTexture.uploadData(data, 1, true);
-    }
 }
 
 ForwardLitProbePass.prototype = Object.create(MaterialPass.prototype);
@@ -41,8 +34,8 @@ ForwardLitProbePass.prototype.updatePassRenderState = function(camera, renderer,
     gl.useProgram(this._shader._program);
 
     // TODO: allow setting locality of probes
-    this._diffuseSlot.texture = probe.diffuseTexture || ForwardLitProbePass.dummyTexture;
-    var specularTex = probe.specularTexture || ForwardLitProbePass.dummyTexture;
+    this._diffuseSlot.texture = probe.diffuseTexture || DEFAULTS.DARK_CUBE_TEXTURE;
+    var specularTex = probe.specularTexture || DEFAULTS.DARK_CUBE_TEXTURE;
 
     this._specularSlot.texture = specularTex;
     gl.uniform1f(this._numMipsLocation, Math.floor(MathX.log2(specularTex.size)));

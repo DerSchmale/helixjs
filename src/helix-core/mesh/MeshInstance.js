@@ -85,8 +85,8 @@ MeshInstance.prototype = {
         if (this._material) {
             this._material.onChange.bind(this._onMaterialOrMeshChange, this);
 
-            this.material._setUseSkinning(this._material._useSkinning || !!this._mesh._model.skeleton);
-            this.material._setUseMorphing(this._material._useMorphing || this._mesh.hasMorphData);
+            this._material._setUseSkinning(this._material._useSkinning || !!this._mesh._model.skeleton);
+            this._material._setUseMorphing(this._material._useMorphing || this._mesh.hasMorphData);
         }
 
         this._meshMaterialLinkInvalid = true;

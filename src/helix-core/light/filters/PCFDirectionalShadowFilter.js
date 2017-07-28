@@ -41,7 +41,6 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
             {
                 if (this._softness !== value) {
                     this._softness = value;
-                    this.onShaderInvalid.dispatch();
                 }
             }
         },
@@ -57,7 +56,6 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
                 value = MathX.clamp(value, 1, 32);
                 if (this._numShadowSamples !== value) {
                     this._numShadowSamples = value;
-                    this.onShaderInvalid.dispatch();
                 }
             }
         },
@@ -72,20 +70,11 @@ PCFDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
             {
                 if (this._dither !== value) {
                     this._dither = value;
-                    this.onShaderInvalid.dispatch();
                 }
             }
         }
     }
 );
-
-/**
- * @ignore
- */
-PCFDirectionalShadowFilter.prototype.getCullMode = function()
-{
-    return CullMode.FRONT;
-};
 
 /**
  * @ignore

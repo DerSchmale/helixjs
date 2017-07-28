@@ -172,11 +172,22 @@ Shader.prototype = {
         var result = code.match(regEx) || [];
         var covered = {};
 
+
         for (var i = 0; i < result.length; ++i) {
             var occ = result[i];
+            occ = occ.replace(/(\r|\n)/g, "");
+            if (occ.charCodeAt(0) === 10) {
+                occ = occ.substring(1);
+            }
+
+            var arr = [];
+            for (var s = 0; s < occ.length; ++s) {
+                arr[s] = occ.charCodeAt(s);
+            }
 
             var start = occ.indexOf("hx_");
             var end = occ.indexOf(";");
+
             // in case of arrays
             var sq = occ.indexOf("[");
             if (sq >= 0 && sq < end) end = sq;

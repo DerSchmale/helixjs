@@ -10,7 +10,6 @@ function ShadowFilter()
 {
     this._blurShader = null;
     this._numBlurPasses = 1;
-    this.onShaderInvalid = new Signal();
 }
 
 ShadowFilter.prototype =
@@ -32,7 +31,7 @@ ShadowFilter.prototype =
 
     getCullMode: function()
     {
-        return CullMode.BACK;
+        return CullMode.FRONT;
     },
 
     get blurShader()

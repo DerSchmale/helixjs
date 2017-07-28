@@ -85,6 +85,7 @@ Model.prototype =
         set skeleton(value)
         {
             this._skeleton = value;
+            this.onSkeletonChange.dispatch();
         },
 
         /**

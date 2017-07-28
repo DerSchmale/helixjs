@@ -14,14 +14,39 @@ import {Texture2D} from "../../texture/Texture2D";
  */
 function SkeletonPose()
 {
-    this.jointPoses = [];
+    this._jointPoses = [];
 
     this._skinningTexture = null;
     this._globalSkeletonPose = null;
-    this._skeletonMatricesInvalid = false;
+    this._skeletonMatricesInvalid = true;
 }
 
 SkeletonPose.prototype = {
+    /**
+     * The number of joint poses.
+     */
+    numJoints: function()
+    {
+        return this._jointPoses.length;
+    },
+
+    /**
+     * Returns the joint pose at a given position
+     */
+    getJointPose: function(index)
+    {
+        return this._jointPoses[index];
+    },
+
+    /**
+     * Assigns a joint pose.
+     */
+    setJointPose: function(index, value)
+    {
+        this._jointPoses[index] = value;
+        value.skeletonPose = this;
+    },
+
     /**
      * Lets the engine know the pose has been updated
      */
@@ -38,14 +63,14 @@ SkeletonPose.prototype = {
      */
     interpolate: function (a, b, factor)
     {
-        a = a.jointPoses;
-        b = b.jointPoses;
+        a = a._jointPoses;
+        b = b._jointPoses;
         var len = a.length;
 
-        if (this.jointPoses.length !== len)
+        if (this._jointPoses.length !== len)
             this._initJointPoses(len);
 
-        var target = this.jointPoses;
+        var target = this._jointPoses;
         for (var i = 0; i < len; ++i) {
             var t = target[i];
             t.rotation.slerp(a[i].rotation, b[i].rotation, factor);
@@ -63,7 +88,7 @@ SkeletonPose.prototype = {
         var m = new Matrix4x4();
         for (var i = 0; i < skeleton.numJoints; ++i) {
             var j = skeleton.getJoint(i);
-            var p = this.jointPoses[i] = new SkeletonJointPose();
+            var p = this._jointPoses[i] = new SkeletonJointPose();
             // global bind pose matrix
             m.inverseAffineOf(j.inverseBindPose);
 
@@ -80,11 +105,11 @@ SkeletonPose.prototype = {
      */
     copyFrom: function (a)
     {
-        a = a.jointPoses;
-        var target = this.jointPoses;
+        a = a._jointPoses;
+        var target = this._jointPoses;
         var len = a.length;
 
-        if (this.jointPoses.length !== len)
+        if (this._jointPoses.length !== len)
             this._initJointPoses(len);
 
         for (var i = 0; i < len; ++i)
@@ -97,9 +122,9 @@ SkeletonPose.prototype = {
     _initJointPoses: function (numJointPoses)
     {
         this._numJoints = numJointPoses;
-        this.jointPoses.length = numJointPoses;
+        this._jointPoses.length = numJointPoses;
         for (var i = 0; i < numJointPoses; ++i)
-            this.jointPoses[i] = new SkeletonJointPose();
+            this.setJointPose(i, new SkeletonJointPose());
     },
 
     /**
@@ -108,8 +133,8 @@ SkeletonPose.prototype = {
     globalFromLocal: function (local, skeleton)
     {
         var numJoints = skeleton.numJoints;
-        var rootPose = local.jointPoses;
-        var globalPose = this.jointPoses;
+        var rootPose = local._jointPoses;
+        var globalPose = this._jointPoses;
 
         for (var i = 0; i < numJoints; ++i) {
             var localJointPose = rootPose[i];
@@ -179,7 +204,7 @@ SkeletonPose.prototype = {
 
 
         var len = skeleton.numJoints;
-        var poses = this._globalSkeletonPose.jointPoses;
+        var poses = this._globalSkeletonPose._jointPoses;
 
         for (var i = 0; i < len; ++i) {
             var pose = poses[i];
@@ -209,7 +234,7 @@ SkeletonPose.prototype = {
         this._globalSkeletonPose = new SkeletonPose();
         for (var i = 0; i < skeleton.numJoints; ++i) {
             this._skeletonMatrices[i] = new Matrix4x4();
-            this._globalSkeletonPose.jointPoses[i] = new SkeletonJointPose();
+            this._globalSkeletonPose.setJointPose(i, new SkeletonJointPose());
         }
 
         if (META.OPTIONS.useSkinningTexture) {

@@ -10,13 +10,35 @@
  */
 function GLTFData()
 {
+    /**
+     * The default scene to show first, as defined by GLTF.
+     */
     this.defaultScene = new HX$1.Scene();
 
-    // stored by name
+    /**
+     * The loaded scenes.
+     */
     this.scenes = {};
+
+    /**
+     * The loaded materials.
+     */
     this.materials = {};
+
+    /**
+     * The loaded models (these are "meshes" in GLTF).
+     */
     this.models = {};
+
+    /**
+     * The loaded model instances (these are "nodes" containing a "mesh" in GLTF).
+     */
     this.modelInstances = {};
+
+    /**
+     * The animations. Skinned animations cannot be parsed as SkeletonAnimation, since GLTF has no concept of animation
+     * groups.
+     */
     this.animations = {};
 }
 
@@ -40,6 +62,11 @@ function GLTF()
         VEC4: 4,
         MAT4: 16
     };
+
+    this._invertZ = new HX$1.Matrix4x4();
+    // this._invertZ.fromScale(1, 1, -1);
+    // this._flipZ = -1;
+    this._flipZ = 1;
 }
 
 GLTF.prototype = Object.create(HX$1.Importer.prototype);
@@ -243,7 +270,6 @@ GLTF.prototype._parseMeshes = function(data)
         }
         model.name = meshDef.name;
         var modelInstance = new HX$1.ModelInstance(model, materials);
-        modelInstance.name = model.name;
         this._modelInstances[i] = modelInstance;
         this._target.models[model.name] = model;
     }
@@ -368,7 +394,7 @@ GLTF.prototype._parsePrimitive = function(primDef, data, model, materials)
         normalGenMode = HX$1.NormalTangentGenerator.MODE_NORMALS;
 
     if (tangentAcc)
-        this._readVertexDataVec4(vertexData, 6, tangentAcc, stride, -1);
+        this._readVertexDataVec4(vertexData, 6, tangentAcc, stride, this._flipZ);
     else if (texCoordAcc)
         normalGenMode = normalGenMode || HX$1.NormalTangentGenerator.MODE_TANGENTS;
 
@@ -393,6 +419,7 @@ GLTF.prototype._parsePrimitive = function(primDef, data, model, materials)
         var jointData = new Float32Array(jointIndexAcc.count * stride);
         this._readVertexDataVec4(jointData, 0, jointIndexAcc, stride, 1);
         this._readVertexDataVec4(jointData, 4, jointWeightsAcc, stride, 1);
+        mesh.setVertexData(jointData, 1);
     }
 
     model.addMesh(mesh);
@@ -413,38 +440,67 @@ GLTF.prototype._parseSkin = function(data, nodeDef, target)
     var pose = new HX$1.SkeletonPose();
     var matrix = new HX$1.Matrix4x4();
 
+    var skelNode = this._nodes[skinDef.skeleton];
+    var worldMatrix = new HX$1.Matrix4x4();
+    if (skelNode.parent)
+        worldMatrix.copyFrom(skelNode.parent.worldMatrix);
+
     for (var i = 0; i < skinDef.joints.length; ++i) {
         var nodeIndex = skinDef.joints[i];
-        var m = [];
         var joint = new HX$1.SkeletonJoint();
 
+        joint.inverseBindPose = new HX$1.Matrix4x4();
+
         for (var j = 0; j < 16; ++j) {
-            m[j] = src.getFloat32(o, true);
+            joint.inverseBindPose._m[j] = src.getFloat32(o, true);
             o += 4;
         }
 
-        joint.inverseBindPose = new HX$1.Matrix4x4(m);
+        joint.inverseBindPose.prepend(this._invertZ);
+        joint.inverseBindPose.append(this._invertZ);
+
+
+        // https://www.khronos.org/files/gltf20-reference-guide.pdf
+
+        // god knows what space the inverse bind pose is expressed in...
+        // global?
+        // The reference tells to undo the transforms of the parent *mesh/skin owner*, that is a different node than
+        // the skeleton node. So which defines global?
+
+        // in the test file, both skeleton node and model node are owned by the same parent, without a transform on the
+        // model node, so it would remain the same
+
+        // the ref says:
+        // inverse(globalTransform) * globalJointTransform[j] * inverseBindMatrix[j];
+        // (inverse(globalTransform) * globalJointTransform[j]) is equivalent to our own "global" joint pose, so we'd
+        // expect inverseBindMatrix to be correct as is?
+
+        // if inverseBindPose is global:
+        // inverseBindPose = localToJointSpace * worldToLocal
+        // we just want: localToJointSpace = localToJointSpace * (worldToLocal * localToWorld) = inverseBindPose * localToWorld
+        // but it's incorrect -_-
+
+        // joint.inverseBindPose.prepend(skelNode.parent.worldMatrix);
 
         skeleton.addJoint(joint);
 
         var node = this._nodes[nodeIndex];
         node._jointIndex = i;
+        node._skeletonPose = pose;
 
-        matrix.copyFrom(node.worldMatrix);
-
-        if (node.parent) matrix.append(node.parent.worldMatrix);
+        matrix.copyFrom(node.matrix);
 
         var jointPose = new HX$1.SkeletonJointPose();
         matrix.decompose(jointPose);
 
-        pose.jointPoses[i] = jointPose;
+        pose.setJointPose(i, jointPose);
     }
 
     for (i = 0; i < skinDef.joints.length; ++i) {
         var nodeIndex = skinDef.joints[i];
         var node = this._nodes[nodeIndex];
         var joint = skeleton.getJoint(i);
-        joint.parentIndex = node.parent? node._jointIndex : -1;
+        joint.parentIndex = node !== skelNode && node.parent? node.parent._jointIndex : -1;
     }
 
     target.model.skeleton = skeleton;
@@ -455,16 +511,16 @@ GLTF.prototype._parseNodes = function(data)
 {
     this._nodes = [];
 
-    var invertZ = new HX$1.Matrix4x4();
-    invertZ.fromScale(1, 1, -1);
-
     // these may also be skeleton joints, will be determined when parsing skeleton
     for (var i = 0; i < data.nodes.length; ++i) {
         var nodeDef = data.nodes[i];
         var node;
         if (nodeDef.hasOwnProperty("mesh")) {
             node = this._modelInstances[nodeDef.mesh];
-            this._target.modelInstances[nodeDef.name] = node;
+            // if the node has a specific name, use that.
+            // otherwise (for model instances possible), use the model name, or assign a unique one
+            node.name = nodeDef.name || node.model.name || ("node_" + i);
+            this._target.modelInstances[node.name] = node;
         }
         else {
             node = new HX$1.SceneNode();
@@ -484,11 +540,10 @@ GLTF.prototype._parseNodes = function(data)
         }
 
         var matrix = node.matrix;
-        node.matrix.prepend(invertZ);
-        node.matrix.append(invertZ);
+        node.matrix.prepend(this._invertZ);
+        node.matrix.append(this._invertZ);
         node.matrix = matrix;
 
-        node.name = nodeDef.name;
         this._nodes[i] = node;
     }
 
@@ -540,8 +595,6 @@ GLTF.prototype._parseSampler = function(data, samplerDef, flipZ)
     var v = valuesAcc.byteOffset;
     var matrix = new HX$1.Matrix4x4();
     var clip = new HX$1.AnimationClip();
-    var invertZ = new HX$1.Matrix4x4();
-    invertZ.fromScale(1, 1, -1);
 
     for (var k = 0; k < timesAcc.count; ++k) {
         var value;
@@ -552,7 +605,7 @@ GLTF.prototype._parseSampler = function(data, samplerDef, flipZ)
                 value = new HX$1.Float4();
                 value.x = valueSrc.getFloat32(v, true);
                 value.y = valueSrc.getFloat32(v + 4, true);
-                value.z = valueSrc.getFloat32(v + 8, true) * (flipZ? -1 : 1);
+                value.z = valueSrc.getFloat32(v + 8, true) * (flipZ? this._flipZ : 1);
                 break;
             case 4:
                 value = new HX$1.Quaternion();
@@ -562,8 +615,8 @@ GLTF.prototype._parseSampler = function(data, samplerDef, flipZ)
                 value.w = valueSrc.getFloat32(v + 12, true);
                 // I wonder if there's an easier way:
                 matrix.fromQuaternion(value);
-                matrix.prepend(invertZ);
-                matrix.append(invertZ);
+                matrix.prepend(this._invertZ);
+                matrix.append(this._invertZ);
                 value.fromMatrix(matrix);
                 break;
         }
@@ -584,36 +637,38 @@ GLTF.prototype._parseAnimations = function(data)
         var animDef = data.animations[i];
         var animation = new HX$1.LayeredAnimation();
 
-        animation.name = animDef.name;
+        animation.name = animDef.name || "animation_" + i;
+        this._target.animations[animation.name] = animation;
 
         for (var j = 0; j < animDef.channels.length; ++j) {
             var channelDef = animDef.channels[j];
             var target = this._nodes[channelDef.target.node];
             var layer;
 
+            if (target._jointIndex !== undefined)
+                target = target._skeletonPose._jointPoses[target._jointIndex];
+
             switch (channelDef.target.path) {
                 case "translation":
                     var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler], true);
-                    layer = new HX$1.AnimationLayerFloat4(target.position, clip);
+                    layer = new HX$1.AnimationLayerFloat4(target, "position", clip);
                     break;
                 case "rotation":
                     var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler]);
-                    layer = new HX$1.AnimationLayerQuat(target.rotation, clip);
+                    layer = new HX$1.AnimationLayerQuat(target, "rotation", clip);
                     break;
                 case "scale":
                     var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler], false);
-                    layer = new HX$1.AnimationLayerFloat4(target.scale, clip);
+                    layer = new HX$1.AnimationLayerFloat4(target, "scale", clip);
                     break;
                 default:
                     throw new Error("Unknown channel path!");
             }
 
             animation.addLayer(layer);
-
-            // TODO: if this is a joint, it should be handled as a SkeletonClip
         }
 
-        this._target.animations[animation.name] = animation;
+        animation.play();
     }
 };
 
@@ -998,7 +1053,7 @@ MD5Anim.prototype._translateFrame = function()
             pose.position.copyFrom(pos);
         }
 
-        skeletonPose.jointPoses.push(pose);
+        skeletonPose.setJointPose(i, pose);
     }
 
     var time = this._target.numKeyFrames / this._frameRate * 1000.0;
@@ -1399,6 +1454,7 @@ MTL$1.prototype._parseLine = function(line, target)
         case "ns":
             var specularPower = parseFloat(tokens[1]);
             this._activeMaterial.roughness = HX$1.BasicMaterial.roughnessFromShininess(specularPower);
+            this._activeMaterial.roughnessRange = this._activeMaterial.roughness;
             break;
         case "kd":
             this._activeMaterial.color = new HX$1.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
@@ -2906,7 +2962,7 @@ FBXAnimationConverter.prototype =
             jointPose.scale.copyFrom(tempJointPose["Lcl Scaling"]);
             var rot = tempJointPose["Lcl Rotation"];
             jointPose.rotation.fromEuler(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
-            skeletonPose.jointPoses[i] = jointPose;
+            skeletonPose.setJointPose(i, jointPose);
         }
         return skeletonPose;
     },
@@ -2923,7 +2979,7 @@ FBXAnimationConverter.prototype =
 
             var skeletonPose = this._convertSkeletonPose(tempJointPoses);
 
-            skeletonPose.jointPoses[this._fakeJointIndex] = new HX.SkeletonJointPose();
+            skeletonPose.setJointPose(this._fakeJointIndex, new HX.SkeletonJointPose());
 
             clip.addKeyFrame(new HX.KeyFrame(time, skeletonPose));
         }

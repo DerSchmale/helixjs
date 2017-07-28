@@ -53,7 +53,6 @@ ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.protot
             set: function(value)
             {
                 this._darkeningFactor = value;
-                this.onShaderInvalid.dispatch();
             }
         },
 
@@ -66,7 +65,6 @@ ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.protot
             set: function(value)
             {
                 this._expScaleFactor = value;
-                this.onShaderInvalid.dispatch();
             }
         }
     });

@@ -130,6 +130,8 @@ void main()
     }
     #endif
 
+// TODO: add support for local probes
+
     #if HX_NUM_DIFFUSE_PROBES > 0
     vec3 worldNormal = mat3(hx_cameraWorldMatrix) * data.normal;
     for (int i = 0; i < HX_NUM_DIFFUSE_PROBES; ++i) {

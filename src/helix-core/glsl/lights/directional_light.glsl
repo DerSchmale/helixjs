@@ -31,7 +31,13 @@ mat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)
 float hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)
 {
     mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);
-    float shadow = hx_dir_readShadow(shadowMap, viewPos, shadowMatrix, light.depthBias);
+    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);
+    float shadow = hx_dir_readShadow(shadowMap, shadowMapCoord, light.depthBias);
+
+    // this can occur when modelInstance.castShadows = false, or using inherited bounds
+    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;
+    if (isOutside) shadow = 1.0;
+
     // this makes sure that anything beyond the last cascade is unshadowed
     return max(shadow, float(viewPos.z > light.maxShadowDistance));
 }

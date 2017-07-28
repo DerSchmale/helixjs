@@ -136,6 +136,9 @@ SkeletonPose.prototype = {
         var rootPose = local._jointPoses;
         var globalPose = this._jointPoses;
 
+        var m = new HX.Matrix4x4();
+        var p = new HX.Matrix4x4();
+
         for (var i = 0; i < numJoints; ++i) {
             var localJointPose = rootPose[i];
             var globalJointPose = globalPose[i];
@@ -145,7 +148,14 @@ SkeletonPose.prototype = {
                 globalJointPose.copyFrom(localJointPose);
             else {
                 var parentPose = globalPose[joint.parentIndex];
-                var gTr = globalJointPose.position;
+
+                // TODO: replace this again, just for debugging
+                p.compose(parentPose);
+                m.compose(localJointPose);
+                m.append(p);
+                m.decompose(globalJointPose);
+
+                /*var gTr = globalJointPose.position;
                 var ptr = parentPose.position;
                 var pQuad = parentPose.rotation;
                 pQuad.rotate(localJointPose.position, gTr);
@@ -155,7 +165,7 @@ SkeletonPose.prototype = {
                 globalJointPose.rotation.multiply(pQuad, localJointPose.rotation);
                 globalJointPose.scale.x = parentPose.scale.x * localJointPose.scale.x;
                 globalJointPose.scale.y = parentPose.scale.y * localJointPose.scale.y;
-                globalJointPose.scale.z = parentPose.scale.z * localJointPose.scale.z;
+                globalJointPose.scale.z = parentPose.scale.z * localJointPose.scale.z;*/
             }
         }
     },
@@ -176,7 +186,7 @@ SkeletonPose.prototype = {
     /**
      * @ignore
      */
-    _generateDefault: function ()
+    _generateDefault: function (skeleton)
     {
         if (META.OPTIONS.useSkinningTexture) {
             this._skeletonMatrices = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
@@ -184,7 +194,7 @@ SkeletonPose.prototype = {
         }
 
         this._skeletonMatrices = [];
-        for (var i = 0; i < this._model.skeleton.numJoints; ++i) {
+        for (var i = 0; i < skeleton.numJoints; ++i) {
             this._skeletonMatrices[i] = new Matrix4x4();
         }
     },

@@ -383,6 +383,10 @@ export function InitOptions()
      * Ignores the half float texture format extension
      */
     this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
+    /**
+     * Ignores the float texture format extension
+     */
+    this.ignoreFloatTextureExtension = false;     // forces storing depth info explicitly
 
     /**
      * Throws errors when shaders fail to compile.
@@ -468,6 +472,7 @@ export function init(canvas, options)
     options.ignoreDepthTexturesExtension = options.ignoreDepthTexturesExtension || options.ignoreAllExtensions;
     options.ignoreTextureLODExtension = options.ignoreTextureLODExtension || options.ignoreAllExtensions;
     options.ignoreHalfFloatTextureExtension = options.ignoreHalfFloatTextureExtension || options.ignoreAllExtensions;
+    options.ignoreFloatTextureExtension = options.ignoreHalfFloatTextureExtension || options.ignoreAllExtensions;
 
     if (!options.ignoreDrawBuffersExtension)
         capabilities.EXT_DRAW_BUFFERS = _getExtension('WEBGL_draw_buffers');
@@ -478,7 +483,9 @@ export function init(canvas, options)
         --MaterialPass.NUM_PASS_TYPES;
     }
 
-    capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
+    if (!options.ignoreFloatTextureExtension)
+        capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
+
     if (capabilities.EXT_FLOAT_TEXTURES)
         defines += "#define HX_FLOAT_TEXTURES\n";
     else {
@@ -494,19 +501,23 @@ export function init(canvas, options)
     else
         console.warn('OES_texture_half_float extension not supported!');
 
-    capabilities.EXT_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_float_linear');
-    if (capabilities.EXT_FLOAT_TEXTURES_LINEAR)
-        defines += "#define HX_FLOAT_TEXTURES_LINEAR\n";
-    else
-        console.warn('OES_texture_float_linear extension not supported!');
-
-    capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_half_float_linear');
-    if (capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR) {
-        defines += "#define HX_HALF_FLOAT_TEXTURES_LINEAR\n";
-        DataType.HALF_FLOAT = capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES;
+    if (capabilities.EXT_FLOAT_TEXTURES) {
+        capabilities.EXT_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_float_linear');
+        if (capabilities.EXT_FLOAT_TEXTURES_LINEAR)
+            defines += "#define HX_FLOAT_TEXTURES_LINEAR\n";
+        else
+            console.warn('OES_texture_float_linear extension not supported!');
     }
-    else
-        console.warn('OES_texture_half_float_linear extension not supported!');
+
+    if (capabilities.EXT_HALF_FLOAT_TEXTURES) {
+        capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_half_float_linear');
+        if (capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR) {
+            defines += "#define HX_HALF_FLOAT_TEXTURES_LINEAR\n";
+            DataType.HALF_FLOAT = capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES;
+        }
+        else
+            console.warn('OES_texture_half_float_linear extension not supported!');
+    }
 
     // these SHOULD be implemented, but are not by Chrome
     //EXT_COLOR_BUFFER_FLOAT = _getExtension('WEBGL_color_buffer_float');
@@ -548,18 +559,20 @@ export function init(canvas, options)
     if (!capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR || !capabilities.EXT_HALF_FLOAT_TEXTURES)
         options.hdr = false;
 
-    // try creating a HDR fbo
-    if (options.hdr) {
-        var tex = new Texture2D();
-        tex.initEmpty(8, 8, null, capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES);
-        var fbo = new FrameBuffer(tex);
-        if (fbo.init(true)) {
-            capabilities.HALF_FLOAT_FBO = true;
-        } else {
-            options.hdr = false;
-            capabilities.HALF_FLOAT_FBO = false;
-            console.warn("Half float FBOs not supported");
-        }
+    if (capabilities.EXT_HALF_FLOAT_TEXTURES && _tryFBO(capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES)) {
+        capabilities.HALF_FLOAT_FBO = true;
+    }
+    else {
+        options.hdr = false;
+        capabilities.HALF_FLOAT_FBO = false;
+        console.warn("Half float FBOs not supported");
+    }
+
+    if (capabilities.EXT_FLOAT_TEXTURES && _tryFBO(HX.FLOAT)) {
+        capabilities.FLOAT_FBO = true;
+    } else {
+        capabilities.FLOAT_FBO = false;
+        console.warn("Half float FBOs not supported");
     }
 
     capabilities.HDR_FORMAT = options.hdr ? capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;
@@ -672,9 +685,19 @@ function _init2DDitherTexture(width, height)
     }
 
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE = new Texture2D();
-    DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, gl.RGBA, gl.FLOAT);
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.filter = TextureFilter.NEAREST_NOMIP;
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.wrapMode = TextureWrapMode.REPEAT;
+
+    if (capabilities.EXT_FLOAT_TEXTURES)
+        DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, gl.RGBA, gl.FLOAT);
+    else {
+        len = data.length;
+
+        for (i = 0; i < len; ++i)
+            data[i] = Math.round((data[i] * .5 + .5) * 0xff);
+
+        DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Uint8Array(data), width, height, false, gl.RGBA, gl.UNSIGNED_BYTE);
+    }
 
     // this one is used when dynamic light probes passes need to disable a map
     DEFAULTS.DARK_CUBE_TEXTURE = new TextureCube();
@@ -774,3 +797,12 @@ function _initGLProperties()
     CubeFace.POSITIVE_Z = gl.TEXTURE_CUBE_MAP_POSITIVE_Z;
     CubeFace.NEGATIVE_Z = gl.TEXTURE_CUBE_MAP_NEGATIVE_Z;
 }
+
+function _tryFBO(dataType)
+{
+    var tex = new Texture2D();
+    tex.initEmpty(8, 8, null, dataType);
+    var fbo = new FrameBuffer(tex);
+    return fbo.init(true);
+}
+

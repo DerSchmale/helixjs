@@ -10,13 +10,12 @@ vec4 hx_dir_getShadowMapValue(float depth)
     return hx_floatToRGBA8(depth);
 }
 
-float hx_dir_readShadow(sampler2D shadowMap, vec3 viewPos, mat4 shadowMapMatrix, float depthBias)
+float hx_dir_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)
 {
-    vec4 shadowMapCoord = shadowMapMatrix * vec4(viewPos, 1.0);
     float shadowTest = 0.0;
 
     #ifdef HX_DIR_PCF_DITHER_SHADOWS
-        vec4 dither = texture2D(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);
+        vec4 dither = hx_sampleDefaultDither(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);
         dither = vec4(dither.x, -dither.y, dither.y, dither.x) * HX_DIR_PCF_SOFTNESS;  // add radius scale
     #else
         vec4 dither = vec4(HX_DIR_PCF_SOFTNESS);

@@ -192,6 +192,17 @@ float hx_linearStep(float lower, float upper, float x)
     return clamp((x - lower) / (upper - lower), 0.0, 1.0);
 }
 
+vec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)
+{
+    vec4 s = texture2D(ditherTexture, uv);
+
+    #ifndef HX_FLOAT_TEXTURES
+    s = s * 2.0 - 1.0;
+    #endif
+
+    return s;
+}
+
 vec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)
 {
     vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;

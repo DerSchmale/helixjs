@@ -23,9 +23,11 @@ project.onInit = function()
     this.gltf = this.assetLibrary.get("scene");
     this.scene = this.gltf.defaultScene;
 
+    this.camera.farDistance = 10000;
+
     var orbitController = new HX.OrbitController();
-    orbitController.azimuth = -Math.PI * .5;
-    orbitController.radius = 70.0;
+    orbitController.azimuth = Math.PI * .5;
+    orbitController.radius = 700.0;
     orbitController.maxRadius = 5000.0;
     this.camera.addComponent(orbitController);
 };

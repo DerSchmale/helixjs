@@ -176,7 +176,7 @@ ModelInstance.prototype.getMeshInstance = function(index)
 ModelInstance.prototype._generateDefaultSkeletonPose = function()
 {
     this._skeletonPose = new SkeletonPose();
-    this._skeletonPose._generateDefault();
+    this._skeletonPose._generateDefault(this._model._skeleton);
 };
 
 /**

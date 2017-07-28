@@ -26,7 +26,7 @@ uniform float maxRoughness;
 // 0 is start, 1 is end
 float raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)
 {
-    vec4 dither = texture2D(hx_dither2D, uv * ditherTextureScale);
+    vec4 dither = hx_sampleDefaultDither(hx_dither2D, uv * ditherTextureScale);
     // Clip to the near plane
 	float rayLength = ((ray0.z + rayDir.z * maxDistance) > -hx_cameraNearPlaneDistance) ?
 						(-hx_cameraNearPlaneDistance - ray0.z) / rayDir.z : maxDistance;

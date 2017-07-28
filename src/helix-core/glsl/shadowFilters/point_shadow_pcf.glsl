@@ -23,7 +23,7 @@ float hx_point_readShadow(samplerCube shadowMap, vec3 worldDir, float rcpRadius,
     vec3 yDir = cross(xDir, worldDir);
 
     #ifdef HX_POINT_PCF_DITHER_SHADOWS
-        vec4 dither = texture2D(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);
+        vec4 dither = hx_sampleDefaultDither(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);
         dither = vec4(dither.x, -dither.y, dither.y, dither.x) * HX_POINT_PCF_SOFTNESS;  // add radius scale
     #else
         vec4 dither = vec4(HX_POINT_PCF_SOFTNESS);

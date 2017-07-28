@@ -392,7 +392,7 @@ GLTF.prototype._parsePrimitive = function(primDef, data, model, materials)
     if (tangentAcc)
         this._readVertexDataVec4(vertexData, 6, tangentAcc, stride, this._flipZ);
     else if (texCoordAcc)
-        normalGenMode = normalGenMode || HX.NormalTangentGenerator.MODE_TANGENTS;
+        normalGenMode = normalGenMode | HX.NormalTangentGenerator.MODE_TANGENTS;
 
     if (texCoordAcc)
         this._readUVData(vertexData, 10, texCoordAcc, stride);

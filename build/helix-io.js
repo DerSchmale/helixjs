@@ -396,7 +396,7 @@ GLTF.prototype._parsePrimitive = function(primDef, data, model, materials)
     if (tangentAcc)
         this._readVertexDataVec4(vertexData, 6, tangentAcc, stride, this._flipZ);
     else if (texCoordAcc)
-        normalGenMode = normalGenMode || HX$1.NormalTangentGenerator.MODE_TANGENTS;
+        normalGenMode = normalGenMode | HX$1.NormalTangentGenerator.MODE_TANGENTS;
 
     if (texCoordAcc)
         this._readUVData(vertexData, 10, texCoordAcc, stride);
@@ -1356,7 +1356,7 @@ OBJ.prototype._translateMesh = function(group)
     mesh.setIndexData(indices);
 
     var mode = HX$1.NormalTangentGenerator.MODE_TANGENTS;
-    if (!this._hasNormals) mode |= HX$1.NormalTangentGenerator.MODE_NORMALS;
+    mode = mode | HX$1.NormalTangentGenerator.MODE_NORMALS;
     var generator = new HX$1.NormalTangentGenerator();
     generator.generate(mesh, mode, true);
     return mesh;

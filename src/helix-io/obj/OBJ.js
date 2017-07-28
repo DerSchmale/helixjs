@@ -277,7 +277,7 @@ OBJ.prototype._translateMesh = function(group)
     mesh.setIndexData(indices);
 
     var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
-    if (!this._hasNormals) mode |= HX.NormalTangentGenerator.MODE_NORMALS;
+    mode = mode | HX.NormalTangentGenerator.MODE_NORMALS;
     var generator = new HX.NormalTangentGenerator();
     generator.generate(mesh, mode, true);
     return mesh;

@@ -12,6 +12,7 @@ import {Float4} from "../math/Float4";
  */
 function NormalTangentGenerator()
 {
+    this._flip = false;
     this._mesh = null;
     this._mode = 0;
     this._faceNormals = null;
@@ -36,11 +37,14 @@ NormalTangentGenerator.prototype =
      * @param mesh The target {@codelink Mesh}
      * @param mode Defines which vectors to use. Use {@linkcode NormalTangentGenerator#MODE_NORMALS} | {@linkcode NormalTangentGenerator#MODE_TANGENTS}
      * @param [useFaceWeights] Defines whether or not the face sizes should play a role in how much weight their contribute to the vertex normal.
+     * @param [flip] Defines whether or not the face normals should be flipped. Could be required for some mirrored scaling.
      */
-    generate: function(mesh, mode, useFaceWeights)
+    generate: function(mesh, mode, useFaceWeights, flip)
     {
         if (useFaceWeights === undefined) useFaceWeights = true;
         this._mode = mode === undefined? NormalTangentGenerator.MODE_NORMALS | NormalTangentGenerator.MODE_TANGENTS : mode;
+
+        this._flip = flip || false;
 
         this._mesh = mesh;
 
@@ -96,7 +100,10 @@ NormalTangentGenerator.prototype =
             v2.subtract(v0);
 
             if (this._faceNormals) {
-                Float4.cross(v1, v2, temp);
+                if (this._flip)
+                    Float4.cross(v1, v2, temp);
+                else
+                    Float4.cross(v2, v1, temp);
 
                 if (!useFaceWeights) temp.normalize();
 

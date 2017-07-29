@@ -126,16 +126,16 @@
    ],
    "images" : [
       {
-         "uri" : "SciFiHelmet_BaseColor.png"
+         "uri" : "SciFiHelmet_BaseColor.jpg"
       },
       {
-         "uri" : "SciFiHelmet_MetallicRoughness.png"
+         "uri" : "SciFiHelmet_MetallicRoughness.jpg"
       },
       {
-         "uri" : "SciFiHelmet_Normal.png"
+         "uri" : "SciFiHelmet_Normal.jpg"
       },
       {
-         "uri" : "SciFiHelmet_AmbientOcclusion.png"
+         "uri" : "SciFiHelmet_AmbientOcclusion.jpg"
       }
    ],
    "materials" : [

@@ -1,4 +1,7 @@
 /**
+ * Because of how glTF animations are built, the imported skinned animations work differently than the regular
+ * clip-based animations using SkeletonAnimation. Take a look at the io-md5 demo to see how those should work.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 

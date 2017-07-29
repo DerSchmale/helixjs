@@ -1,6 +1,7 @@
 import {Signal} from "../core/Signal";
 import {AssetLoader} from "./AssetLoader";
 import {URLLoader} from "./URLLoader";
+import {ArrayUtils} from "../utils/ArrayUtils";
 
 /**
  * @constructor
@@ -187,10 +188,10 @@ AssetLibrary.prototype =
      */
     mergeLibrary: function(library)
     {
-        for (var key in library._assets) {
-            if (library.hasOwnProperty(key))
-                this.addAsset(key, library._assets[key]);
-        }
+        ArrayUtils.forEach(library._assets, (function (obj, key)
+        {
+            this.addAsset(key, obj);
+        }).bind(this));
     },
 
     _json: function(file, id)

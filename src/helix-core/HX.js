@@ -146,6 +146,7 @@ export {TextureCube} from "./texture/TextureCube";
 export {TextureUtils} from "./texture/TextureUtils";
 export {WriteOnlyDepthBuffer} from "./texture/WriteOnlyDepthBuffer";
 
+export {ArrayUtils} from "./utils/ArrayUtils";
 export {EquirectangularTexture} from "./utils/EquirectangularTexture";
 export {HeightMap} from "./utils/HeightMap";
 export {ImageData} from "./utils/ImageData";

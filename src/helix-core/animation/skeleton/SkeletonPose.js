@@ -132,50 +132,6 @@ SkeletonPose.prototype = {
     /**
      * @ignore
      */
-    globalFromLocal: function (local, skeleton)
-    {
-        var numJoints = skeleton.numJoints;
-        var rootPose = local._jointPoses;
-        var globalPose = this._jointPoses;
-
-        var m = new HX.Matrix4x4();
-
-        for (var i = 0; i < numJoints; ++i) {
-            var localJointPose = rootPose[i];
-            var globalJointPose = globalPose[i];
-            var joint = skeleton.getJoint(i);
-
-            if (joint.parentIndex < 0)
-                globalJointPose.copyFrom(localJointPose);
-            else {
-                var parentPose = globalPose[joint.parentIndex];
-
-                var pSc = parentPose.scale;
-                var gTr = globalJointPose.position;
-                var ptr = parentPose.position;
-                var pQuad = parentPose.rotation;
-
-                pQuad.rotate(localJointPose.position, gTr);
-                gTr.x += ptr.x;
-                gTr.y += ptr.y;
-                gTr.z += ptr.z;
-
-                m.fromQuaternion(localJointPose.rotation);
-                m.appendScale(pSc);
-                m.prependScale(pSc);
-                m.appendQuaternion(pQuad);
-
-                globalJointPose.rotation.fromMatrix(m);
-                globalJointPose.scale.x = pSc.x * localJointPose.scale.x;
-                globalJointPose.scale.y = pSc.y * localJointPose.scale.y;
-                globalJointPose.scale.z = pSc.z * localJointPose.scale.z;
-            }
-        }
-    },
-
-    /**
-     * @ignore
-     */
     getBindMatrices: function(skeleton)
     {
         if (this._skeletonMatricesInvalid || this._skeleton !== skeleton)
@@ -231,12 +187,10 @@ SkeletonPose.prototype = {
             if (parentIndex !== -1)
                 global.append(globals[parentIndex]);
 
-            if (skeleton._applyInverseBindPose) {
+            if (skeleton._applyInverseBindPose)
                 binds[i].multiplyAffine(global, joint.inverseBindPose);
-            }
-            else {
+            else
                 binds[i].copyFrom(global);
-            }
         }
 
         if (META.OPTIONS.useSkinningTexture)

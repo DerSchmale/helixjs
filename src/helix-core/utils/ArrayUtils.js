@@ -1,5 +1,6 @@
 /**
  * Some utilities for Arrays.
+ *
  * @namespace
  *
  * @author derschmale <http://www.derschmale.com>
@@ -26,5 +27,17 @@ export var ArrayUtils = {
         }
 
         return array;
+    },
+
+    /**
+     * Loops over a collection (Array or Object) and calls a function(obj, key).
+     */
+    forEach: function(obj, func)
+    {
+        for (var key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                func(obj[key], key);
+            }
+        }
     }
 };

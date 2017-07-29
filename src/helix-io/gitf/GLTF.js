@@ -1,5 +1,7 @@
 import * as HX from "helix";
 
+// https://www.khronos.org/files/gltf20-reference-guide.pdf
+
 /**
  * GLTFData contains all the info loaded
  * @constructor
@@ -60,17 +62,17 @@ function GLTF()
     };
 
     this._invertZ = new HX.Matrix4x4();
-    // this._invertZ.fromScale(1, 1, -1);
-    // this._flipZ = -1;
-    this._flipZ = 1;
+    this._invertZ.fromScale(1, 1, -1);
 }
 
 GLTF.prototype = Object.create(HX.Importer.prototype);
 
 GLTF.prototype.parse = function(file, target)
 {
-    var data = JSON.parse(file);
-    var asset = data.asset;
+    this._defaultSceneIndex = undefined;
+    this._gltf = JSON.parse(file);
+
+    var asset = this._gltf.asset;
 
     this._target = target;
 
@@ -90,46 +92,37 @@ GLTF.prototype.parse = function(file, target)
 
     // queue all assets for loading first
 
-    if (data.hasOwnProperty("images"))
-        this._parseImages(data.images);
+    this._queueImages();
+    this._queueBuffers();
 
-    if (data.hasOwnProperty("buffers"))
-        this._parseBuffers(data.buffers);
-
-    this._assetLibrary.onComplete.bind(function() { this._continueParsing(data); }, this);
+    // load dependencies first
+    this._assetLibrary.onComplete.bind(function() { this._continueParsing(); }, this);
     this._assetLibrary.onProgress.bind(function(ratio) { this._notifyProgress(ratio); }, this);
     this._assetLibrary.load();
 };
 
-GLTF.prototype._continueParsing = function(data)
+// todo: add some timeouts
+GLTF.prototype._continueParsing = function()
 {
-    if (data.hasOwnProperty("materials"))
-        this._parseMaterials(data);
+    var gltf = this._gltf;
 
-    if (data.hasOwnProperty("meshes"))
-        this._parseMeshes(data);
+    if (gltf.hasOwnProperty("scene"))
+        this._defaultSceneIndex = gltf.scene;
 
-    if (data.hasOwnProperty("nodes"))
-        this._parseNodes(data);
-
-    var defaultSceneIndex;
-    if (data.hasOwnProperty("scene"))
-        defaultSceneIndex = data.scene;
-
-    if (data.hasOwnProperty("scenes"))
-        this._parseScenes(data, defaultSceneIndex);
-
-    if (data.hasOwnProperty("animations"))
-        this._parseAnimations(data);
-
+    this._parseMaterials();
+    this._parseMeshes();
+    this._parseNodes();
+    this._parseScenes();
+    this._parseAnimations();
+    this._playAnimations();
     this._notifyComplete();
 };
 
-GLTF.prototype._getAccessor = function(index, data)
+GLTF.prototype._getAccessor = function(index)
 {
-    var accessorDef = data.accessors[index];
+    var accessorDef = this._gltf.accessors[index];
 
-    var bufferView = this._getBufferView(data, accessorDef.bufferView);
+    var bufferView = this._getBufferView(accessorDef.bufferView);
     var f = {
         dataType: accessorDef.componentType,
         numComponents: this._numComponentLookUp[accessorDef.type],
@@ -145,9 +138,9 @@ GLTF.prototype._getAccessor = function(index, data)
     return f;
 };
 
-GLTF.prototype._getBufferView = function(data, index)
+GLTF.prototype._getBufferView = function(index)
 {
-    var bufferView = data.bufferViews[index];
+    var bufferView = this._gltf.bufferViews[index];
     var buffer = this._buffers[bufferView.buffer];
     var byteOffset = buffer.byteOffset + (bufferView.byteOffset || 0);
 
@@ -160,19 +153,27 @@ GLTF.prototype._getBufferView = function(data, index)
     };
 };
 
-GLTF.prototype._parseImages = function(data)
+GLTF.prototype._queueImages = function()
 {
-    for (var i = 0; i < data.length; ++i) {
-        var image = data[i];
+    var imageDefs = this._gltf.images;
+
+    if (!imageDefs) return;
+
+    for (var i = 0; i < imageDefs.length; ++i) {
+        var image = imageDefs[i];
         this._assetLibrary.queueAsset("hx_image_" + i, this._correctURL(image.uri), HX.AssetLibrary.Type.ASSET, HX.JPG);
     }
 };
 
-GLTF.prototype._parseBuffers = function(data)
+GLTF.prototype._queueBuffers = function()
 {
+    var bufferDefs = this._gltf.buffers;
+
+    if (!bufferDefs) return;
+
     this._buffers = [];
-    for (var i = 0; i < data.length; ++i) {
-        var buffer = data[i];
+    for (var i = 0; i < bufferDefs.length; ++i) {
+        var buffer = bufferDefs[i];
         if (!this._binFileCheck[buffer.uri]) {
             var assetID = "hx_bin_" + i;
             this._assetLibrary.queueAsset(assetID, this._correctURL(buffer.uri), HX.AssetLibrary.Type.RAW_BINARY);
@@ -186,66 +187,51 @@ GLTF.prototype._parseBuffers = function(data)
     }
 };
 
-GLTF.prototype._parseMaterials = function(data)
+GLTF.prototype._parseMaterials = function()
 {
+    var materialDefs = this._gltf.materials;
+
+    if (!materialDefs) return;
+
     this._materials = [];
-    for (var i = 0; i < data.materials.length; ++i) {
-        var matDef = data.materials[i];
+
+    for (var i = 0; i < materialDefs.length; ++i) {
+        var matDef = materialDefs[i];
         var mat = new HX.BasicMaterial();
+
         mat.name = matDef.name;
         mat.specularMapMode = HX.BasicMaterial.SPECULAR_MAP_METALLIC_ROUGHNESS;
-        mat.roughnessRange = -.5;
+        mat.normalMap = this._getTexture(matDef.normalTexture);
+        mat.occlusionMap = this._getTexture(matDef.occlusionTexture);
+        mat.emissionMap = this._getTexture(matDef.emissiveTexture);
 
-        if (matDef.hasOwnProperty("pbrMetallicRoughness")) {
-            var pbr = matDef.pbrMetallicRoughness;
+        if (matDef.emissiveFactor) {
+            var emission = new HX.Color(matDef.emissiveFactor[0], matDef.emissiveFactor[1], matDef.emissiveFactor[2], 1.0);
+            mat.emissiveColor = emission.linearToGamma();   // BasicMaterial expects gamma values
+        }
+        else if (mat.emissionMap)
+            mat.emissiveColor = HX.Color.WHITE;
 
-            if (pbr.hasOwnProperty("baseColorTexture"))
-                mat.colorMap = this._assetLibrary.get("hx_image_" + pbr.baseColorTexture.index);
+        var pbr = matDef.pbrMetallicRoughness;
 
-            if (pbr.hasOwnProperty("metallicRoughnessTexture")) {
-                mat.specularMap = this._assetLibrary.get("hx_image_" + pbr.metallicRoughnessTexture.index);
-            }
+        if (pbr) {
+            mat.colorMap = this._getTexture(pbr.baseColorTexture);
+            mat.specularMap = this._getTexture(pbr.metallicRoughnessTexture);
 
-            if (matDef.hasOwnProperty("normalTexture"))
-                mat.normalMap = this._assetLibrary.get("hx_image_" + matDef.normalTexture.index);
-
-            if (matDef.hasOwnProperty("emissiveTexture")) {
-                mat.emissionMap = this._assetLibrary.get("hx_image_" + matDef.emissiveTexture.index);
-                mat.emissiveColor = HX.Color.WHITE;
-            }
-
-            if (matDef.hasOwnProperty("occlusionTexture")) {
-                mat.occlusionMap = this._assetLibrary.get("hx_image_" + matDef.occlusionTexture.index);
-            }
-
-            if (pbr.hasOwnProperty("baseColorFactor")) {
+            if (pbr.baseColorFactor) {
                 var color = new HX.Color(pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
-                // BasicMaterial expects gamma values
-                mat.color = color.linearToGamma();
+                mat.color = color.linearToGamma();  // BasicMaterial expects gamma values
             }
 
-            if (pbr.hasOwnProperty("metallicFactor")) {
-                mat.metallicness = pbr.metallicFactor;
-            }
-            else
-                mat.metallicness = 1.0;
+            mat.metallicness = pbr.metallicFactor === undefined ? 1.0 : pbr.metallicFactor;
+            mat.roughness = pbr.roughnessFactor === undefined? 1.0 : pbr.roughnessFactor;
 
-            if (pbr.hasOwnProperty("roughnessFactor")) {
-                mat.roughnessRange = mat.roughness = pbr.roughnessFactor * .5;
-            }
-            else
-                mat.roughness = .5;
-
-            if (matDef.hasOwnProperty("emissiveFactor")) {
-                var emission = new HX.Color(matDef.emissiveFactor[0], matDef.emissiveFactor[1], matDef.emissiveFactor[2], 1.0);
-                // BasicMaterial expects gamma values
-                mat.emissiveColor = emission.linearToGamma();
+            if (mat.specularMap) {
+                mat.roughness *= .5;
+                mat.roughnessRange = -mat.roughness;
             }
 
             // TODO: There can also be a texCoord property with the textures, are those texCoord indices?
-
-            // this is too high physically, but determined by the glTF standard?
-            // mat.normalSpecularReflectance = 0.04;
         }
 
         this._materials[i] = mat;
@@ -253,18 +239,29 @@ GLTF.prototype._parseMaterials = function(data)
     }
 };
 
-GLTF.prototype._parseMeshes = function(data)
+GLTF.prototype._getTexture = function(textureDef)
 {
+    return textureDef? this._assetLibrary.get("hx_image_" + textureDef.index) : null;
+};
+
+GLTF.prototype._parseMeshes = function()
+{
+    var meshDefs = this._gltf.meshes;
+
+    if (!meshDefs) return;
+
     // locally stored by index, using gltf nomenclature (actually contains model instances)
     this._modelInstances = [];
-    for (var i = 0; i < data.meshes.length; ++i) {
-        var meshDef = data.meshes[i];
+    for (var i = 0; i < meshDefs.length; ++i) {
+        var meshDef = meshDefs[i];
         var model = new HX.Model();
         var materials = [];
-        for (var j = 0; j < meshDef.primitives.length; ++j) {
-            this._parsePrimitive(meshDef.primitives[j], data, model, materials);
-        }
+
+        for (var j = 0; j < meshDef.primitives.length; ++j)
+            this._parsePrimitive(meshDef.primitives[j], model, materials);
+
         model.name = meshDef.name;
+
         var modelInstance = new HX.ModelInstance(model, materials);
         this._modelInstances[i] = modelInstance;
         this._target.models[model.name] = model;
@@ -294,27 +291,31 @@ GLTF.prototype._readVertexDataVec4 = function(target, offset, accessor, stride, 
         elmSize = 4;
     }
 
+    var flipSign = flipZ? -1 : 1;
+
     for (var i = 0; i < len; ++i) {
         target[p] = readFnc.call(src, o, true);
         target[p + 1] = readFnc.call(src, o + elmSize, true);
-        target[p + 3] = flipZ * readFnc.call(src, o + elmSize * 2, true);
-        target[p + 4] = readFnc.call(src, o + elmSize * 3, true);
+        target[p + 2] = readFnc.call(src, o + elmSize * 2, true) * flipSign;
+        target[p + 3] = readFnc.call(src, o + elmSize * 3, true);
         o += elmSize * 4;
         p += stride;
     }
 };
 
-GLTF.prototype._readVertexDataVec3 = function(target, offset, accessor, stride)
+GLTF.prototype._readVertexDataVec3 = function(target, offset, accessor, stride, flipZ)
 {
     var p = offset;
     var o = accessor.byteOffset;
     var len = accessor.count;
     var src = accessor.data;
 
+    var flipSign = flipZ? -1 : 1;
+
     for (var i = 0; i < len; ++i) {
         target[p] = src.getFloat32(o, true);
         target[p + 1] = src.getFloat32(o + 4, true);
-        target[p + 2] = -src.getFloat32(o + 8, true);
+        target[p + 2] = src.getFloat32(o + 8, true) * flipSign;
         o += 12;
 
         p += stride;
@@ -366,31 +367,31 @@ GLTF.prototype._readIndices = function(accessor)
 };
 
 
-GLTF.prototype._parsePrimitive = function(primDef, data, model, materials)
+GLTF.prototype._parsePrimitive = function(primDef, model, materials)
 {
     var mesh = HX.Mesh.createDefaultEmpty();
     var attribs = primDef.attributes;
-    var positionAcc = this._getAccessor(attribs.POSITION, data);
-    var normalAcc = attribs.NORMAL !== undefined? this._getAccessor(attribs.NORMAL, data) : null;
-    var tangentAcc = attribs.TANGENT !== undefined? this._getAccessor(attribs.TANGENT, data) : null;
-    var texCoordAcc = attribs.TEXCOORD_0 !== undefined? this._getAccessor(attribs.TEXCOORD_0, data) : null;
-    var jointIndexAcc = attribs.JOINTS_0 !== undefined? this._getAccessor(attribs.JOINTS_0, data) : null;
-    var jointWeightsAcc = attribs.WEIGHTS_0 !== undefined? this._getAccessor(attribs.WEIGHTS_0, data) : null
+    var positionAcc = this._getAccessor(attribs.POSITION);
+    var normalAcc = attribs.NORMAL !== undefined? this._getAccessor(attribs.NORMAL) : null;
+    var tangentAcc = attribs.TANGENT !== undefined? this._getAccessor(attribs.TANGENT) : null;
+    var texCoordAcc = attribs.TEXCOORD_0 !== undefined? this._getAccessor(attribs.TEXCOORD_0) : null;
+    var jointIndexAcc = attribs.JOINTS_0 !== undefined? this._getAccessor(attribs.JOINTS_0) : null;
+    var jointWeightsAcc = attribs.WEIGHTS_0 !== undefined? this._getAccessor(attribs.WEIGHTS_0) : null
 
     var normalGenMode = 0;
 
     var stride = mesh.getVertexStride(0);
     var vertexData = new Float32Array(positionAcc.count * stride);
 
-    this._readVertexDataVec3(vertexData, 0, positionAcc, stride);
+    this._readVertexDataVec3(vertexData, 0, positionAcc, stride, true);
 
     if (normalAcc)
-        this._readVertexDataVec3(vertexData, 3, normalAcc, stride);
+        this._readVertexDataVec3(vertexData, 3, normalAcc, stride, true);
     else
         normalGenMode = HX.NormalTangentGenerator.MODE_NORMALS;
 
     if (tangentAcc)
-        this._readVertexDataVec4(vertexData, 6, tangentAcc, stride, this._flipZ);
+        this._readVertexDataVec4(vertexData, 6, tangentAcc, stride, true);
     else if (texCoordAcc)
         normalGenMode = normalGenMode | HX.NormalTangentGenerator.MODE_TANGENTS;
 
@@ -399,12 +400,12 @@ GLTF.prototype._parsePrimitive = function(primDef, data, model, materials)
 
     mesh.setVertexData(vertexData, 0);
 
-    var indexAcc = this._getAccessor(primDef.indices, data);
+    var indexAcc = this._getAccessor(primDef.indices);
     mesh.setIndexData(this._readIndices(indexAcc));
 
     if (normalGenMode) {
         var normalGen = new HX.NormalTangentGenerator();
-        normalGen.generate(mesh, normalGenMode);
+        normalGen.generate(mesh);
     }
 
     if (jointIndexAcc) {
@@ -413,8 +414,8 @@ GLTF.prototype._parsePrimitive = function(primDef, data, model, materials)
         stride = mesh.getVertexStride(1);
 
         var jointData = new Float32Array(jointIndexAcc.count * stride);
-        this._readVertexDataVec4(jointData, 0, jointIndexAcc, stride, 1);
-        this._readVertexDataVec4(jointData, 4, jointWeightsAcc, stride, 1);
+        this._readVertexDataVec4(jointData, 0, jointIndexAcc, stride);
+        this._readVertexDataVec4(jointData, 4, jointWeightsAcc, stride);
         mesh.setVertexData(jointData, 1);
     }
 
@@ -422,73 +423,47 @@ GLTF.prototype._parsePrimitive = function(primDef, data, model, materials)
     materials.push(this._materials[primDef.material]);
 };
 
-GLTF.prototype._parseSkin = function(data, nodeDef, target)
+GLTF.prototype._parseSkin = function(nodeDef, target)
 {
     var skinIndex = nodeDef.skin;
-    var skinDef = data.skins[skinIndex];
+    var skinDef = this._gltf.skins[skinIndex];
 
-    var invBinAcc = this._getAccessor(skinDef.inverseBindMatrices, data);
+    var invBinAcc = this._getAccessor(skinDef.inverseBindMatrices);
 
     var src = invBinAcc.data;
     var o = invBinAcc.byteOffset;
 
     var skeleton = new HX.Skeleton();
     var pose = new HX.SkeletonPose();
-    var matrix = new HX.Matrix4x4();
 
     var skelNode = this._nodes[skinDef.skeleton];
-    var worldMatrix = new HX.Matrix4x4();
-    if (skelNode.parent)
-        worldMatrix.copyFrom(skelNode.parent.worldMatrix);
+
+    // no need for it to end up in the scene graph
+    if (skelNode.parent) skelNode.parent.detach(skelNode);
 
     for (var i = 0; i < skinDef.joints.length; ++i) {
         var nodeIndex = skinDef.joints[i];
         var joint = new HX.SkeletonJoint();
 
-        joint.inverseBindPose = new HX.Matrix4x4();
-
-        for (var j = 0; j < 16; ++j) {
-            joint.inverseBindPose._m[j] = src.getFloat32(o, true);
-            o += 4;
-        }
+        joint.inverseBindPose = this._readMatrix4x4(src, o);
+        o += 64;
 
         joint.inverseBindPose.prepend(this._invertZ);
         joint.inverseBindPose.append(this._invertZ);
 
-
-        // https://www.khronos.org/files/gltf20-reference-guide.pdf
-
-        // god knows what space the inverse bind pose is expressed in...
-        // global?
-        // The reference tells to undo the transforms of the parent *mesh/skin owner*, that is a different node than
-        // the skeleton node. So which defines global?
-
-        // in the test file, both skeleton node and model node are owned by the same parent, without a transform on the
-        // model node, so it would remain the same
-
-        // the ref says:
-        // inverse(globalTransform) * globalJointTransform[j] * inverseBindMatrix[j];
-        // (inverse(globalTransform) * globalJointTransform[j]) is equivalent to our own "global" joint pose, so we'd
-        // expect inverseBindMatrix to be correct as is?
-
-        // if inverseBindPose is global:
-        // inverseBindPose = localToJointSpace * worldToLocal
-        // we just want: localToJointSpace = localToJointSpace * (worldToLocal * localToWorld) = inverseBindPose * localToWorld
-        // but it's incorrect -_-
-
-        // joint.inverseBindPose.prepend(skelNode.parent.worldMatrix);
-
         skeleton.addJoint(joint);
 
         var node = this._nodes[nodeIndex];
+        if (node._jointIndex !== undefined) {
+            throw new Error("Adding one node to multiple skeletons!");
+        }
         node._jointIndex = i;
         node._skeletonPose = pose;
 
-        matrix.copyFrom(node.matrix);
-
         var jointPose = new HX.SkeletonJointPose();
-        matrix.decompose(jointPose);
-
+        jointPose.position.copyFrom(node.position);
+        jointPose.rotation.copyFrom(node.rotation);
+        jointPose.scale.copyFrom(node.scale);
         pose.setJointPose(i, jointPose);
     }
 
@@ -503,14 +478,22 @@ GLTF.prototype._parseSkin = function(data, nodeDef, target)
     target.skeletonPose = pose;
 };
 
-GLTF.prototype._parseNodes = function(data)
+// TODO: The whole nodes 6 animation parsing thing is messy. Clean up
+GLTF.prototype._parseNodes = function()
 {
+    var nodeDefs = this._gltf.nodes;
+
+    if (!nodeDefs) return;
+
+    var m = new HX.Matrix4x4();
+
     this._nodes = [];
 
     // these may also be skeleton joints, will be determined when parsing skeleton
-    for (var i = 0; i < data.nodes.length; ++i) {
-        var nodeDef = data.nodes[i];
+    for (var i = 0; i < nodeDefs.length; ++i) {
+        var nodeDef = nodeDefs[i];
         var node;
+
         if (nodeDef.hasOwnProperty("mesh")) {
             node = this._modelInstances[nodeDef.mesh];
             // if the node has a specific name, use that.
@@ -518,106 +501,114 @@ GLTF.prototype._parseNodes = function(data)
             node.name = nodeDef.name || node.model.name || ("node_" + i);
             this._target.modelInstances[node.name] = node;
         }
-        else {
+        else
             node = new HX.SceneNode();
+
+        if (nodeDef.rotation) {
+            node.rotation.set(nodeDef.rotation[0], nodeDef.rotation[1], nodeDef.rotation[2], nodeDef.rotation[3]);
+            m.fromQuaternion(node.rotation);
+            m.prepend(this._invertZ);
+            m.append(this._invertZ);
+            node.rotation.fromMatrix(m);
         }
 
-        if (nodeDef.hasOwnProperty("rotation"))
-            node.rotation.set(nodeDef.rotation[0], nodeDef.rotation[1], nodeDef.rotation[2], nodeDef.rotation[3]);
+        if (nodeDef.translation)
+            node.position.set(nodeDef.translation[0], nodeDef.translation[1], -nodeDef.translation[2], 1.0);
 
-        if (nodeDef.hasOwnProperty("translation"))
-            node.position.set(nodeDef.translation[0], nodeDef.translation[1], nodeDef.translation[2], 1.0);
-
-        if (nodeDef.hasOwnProperty("scale"))
+        if (nodeDef.scale)
             node.scale.set(nodeDef.scale[0], nodeDef.scale[1], nodeDef.scale[2], 1.0);
 
-        if (nodeDef.hasOwnProperty("matrix")) {
+        if (nodeDef.matrix) {
             node.matrix = new HX.Matrix4x4(nodeDef.matrix);
+            node.matrix.prepend(this._invertZ);
+            node.matrix.append(this._invertZ);
         }
-
-        var matrix = node.matrix;
-        node.matrix.prepend(this._invertZ);
-        node.matrix.append(this._invertZ);
-        node.matrix = matrix;
 
         this._nodes[i] = node;
     }
 
-    for (i = 0; i < data.nodes.length; ++i) {
-        nodeDef = data.nodes[i];
+    // all parsed, now we can attach them together
+    for (i = 0; i < nodeDefs.length; ++i) {
+        nodeDef = nodeDefs[i];
         node = this._nodes[i];
-        if (nodeDef.hasOwnProperty("children")) {
+        if (nodeDef.children) {
             for (var j = 0; j < nodeDef.children.length; ++j) {
                 var childIndex = nodeDef.children[j];
-                node.attach(this._nodes[childIndex], data.meshes[nodeDef.mesh]);
+                node.attach(this._nodes[childIndex]);
             }
         }
     }
 
-    for (i = 0; i < data.nodes.length; ++i) {
-        nodeDef = data.nodes[i];
+    for (i = 0; i < nodeDefs.length; ++i) {
+        nodeDef = nodeDefs[i];
         node = this._nodes[i];
+
         if (nodeDef.hasOwnProperty("skin"))
-            this._parseSkin(data, nodeDef, node);
+            this._parseSkin(nodeDef, node);
     }
 };
 
-GLTF.prototype._parseScenes = function(data, defaultIndex)
+GLTF.prototype._parseScenes = function()
 {
-    for (var i = 0; i < data.scenes.length; ++i) {
+    var sceneDefs = this._gltf.scenes;
+
+    if (!sceneDefs) return;
+
+    for (var i = 0; i < sceneDefs.length; ++i) {
+        var sceneDef = sceneDefs[i];
         var scene;
-        if (i === defaultIndex)
+
+        // this because a scene was already created for immediate access
+        if (i === this._defaultSceneIndex)
             scene = this._target.defaultScene;
         else {
             scene = new HX.Scene();
             this._target.scenes.push(scene);
         }
 
-        var sceneDef = data.scenes[i];
-        for (var j = 0; j < sceneDef.nodes.length; ++j) {
-            var nodeIndex = sceneDef.nodes[j];
+        var childNodes = sceneDef.nodes;
+        for (var j = 0; j < childNodes.length; ++j) {
+            var nodeIndex = childNodes[j];
             scene.attach(this._nodes[nodeIndex]);
         }
     }
 };
 
-GLTF.prototype._parseSampler = function(data, samplerDef, flipZ)
+GLTF.prototype._parseAnimationSampler = function(samplerDef, flipZ)
 {
-    var timesAcc = this._getAccessor(samplerDef.input, data);
-    var valuesAcc = this._getAccessor(samplerDef.output, data);
+    var timesAcc = this._getAccessor(samplerDef.input);
+    var valuesAcc = this._getAccessor(samplerDef.output);
     var timeSrc = timesAcc.data;
     var valueSrc = valuesAcc.data;
     var t = timesAcc.byteOffset;
     var v = valuesAcc.byteOffset;
-    var matrix = new HX.Matrix4x4();
     var clip = new HX.AnimationClip();
+    var m = new HX.Matrix4x4();
 
     for (var k = 0; k < timesAcc.count; ++k) {
         var value;
 
         switch(valuesAcc.numComponents) {
-            // TODO: Might become a scalar for morph weights
+            // TODO: Might need a scalar for morph weights
             case 3:
-                value = new HX.Float4();
-                value.x = valueSrc.getFloat32(v, true);
-                value.y = valueSrc.getFloat32(v + 4, true);
-                value.z = valueSrc.getFloat32(v + 8, true) * (flipZ? this._flipZ : 1);
+                value = this._readFloat3(valueSrc, v);
+                if (flipZ) value.z = -value.z;
                 break;
             case 4:
-                value = new HX.Quaternion();
-                value.x = valueSrc.getFloat32(v, true);
-                value.y = valueSrc.getFloat32(v + 4, true);
-                value.z = valueSrc.getFloat32(v + 8, true);
-                value.w = valueSrc.getFloat32(v + 12, true);
-                // I wonder if there's an easier way:
-                matrix.fromQuaternion(value);
-                matrix.prepend(this._invertZ);
-                matrix.append(this._invertZ);
-                value.fromMatrix(matrix);
+                value = this._readQuat(valueSrc, v);
+                if (flipZ) {
+                    m.fromQuaternion(value);
+                    m.prepend(this._invertZ);
+                    m.append(this._invertZ);
+                    value.fromMatrix(m);
+                }
                 break;
+            default:
+                throw new Error("Unsupported animation sampler type");
         }
 
-        var keyFrame = new HX.KeyFrame(timeSrc.getFloat32(t, true) * 1000.0, value);
+        var time = this._readFloat(timeSrc, t) * 1000.0;
+        var keyFrame = new HX.KeyFrame(time, value);
         clip.addKeyFrame(keyFrame);
 
         v += valuesAcc.numComponents * 4;
@@ -627,45 +618,94 @@ GLTF.prototype._parseSampler = function(data, samplerDef, flipZ)
     return clip;
 };
 
-GLTF.prototype._parseAnimations = function(data)
+
+GLTF.prototype._parseAnimations = function()
 {
-    for (var i = 0; i < data.animations.length; ++i) {
-        var animDef = data.animations[i];
+    var animDefs = this._gltf.animations;
+
+    if (!animDefs) return;
+
+    for (var i = 0; i < animDefs.length; ++i) {
+        var animDef = animDefs[i];
         var animation = new HX.LayeredAnimation();
 
-        animation.name = animDef.name || "animation_" + i;
-        this._target.animations[animation.name] = animation;
-
         for (var j = 0; j < animDef.channels.length; ++j) {
-            var channelDef = animDef.channels[j];
-            var target = this._nodes[channelDef.target.node];
-            var layer;
-
-            if (target._jointIndex !== undefined)
-                target = target._skeletonPose._jointPoses[target._jointIndex];
-
-            switch (channelDef.target.path) {
-                case "translation":
-                    var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler], true);
-                    layer = new HX.AnimationLayerFloat4(target, "position", clip);
-                    break;
-                case "rotation":
-                    var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler]);
-                    layer = new HX.AnimationLayerQuat(target, "rotation", clip);
-                    break;
-                case "scale":
-                    var clip = this._parseSampler(data, animDef.samplers[channelDef.sampler], false);
-                    layer = new HX.AnimationLayerFloat4(target, "scale", clip);
-                    break;
-                default:
-                    throw new Error("Unknown channel path!");
-            }
-
+            var layer = this._parseAnimationChannel(animDef.channels[j], animDef.samplers);
             animation.addLayer(layer);
         }
 
-        animation.play();
+        animation.name = animDef.name || "animation_" + i;
+        this._target.animations[animation.name] = animation;
     }
+};
+
+GLTF.prototype._parseAnimationChannel = function(channelDef, samplers)
+{
+    var target = this._nodes[channelDef.target.node];
+    var layer;
+
+    if (target._jointIndex !== undefined)
+        target = target._skeletonPose._jointPoses[target._jointIndex];
+
+    switch (channelDef.target.path) {
+        case "translation":
+            var clip = this._parseAnimationSampler(samplers[channelDef.sampler], true);
+            layer = new HX.AnimationLayerFloat4(target, "position", clip);
+            break;
+        case "rotation":
+            var clip = this._parseAnimationSampler(samplers[channelDef.sampler], true);
+            layer = new HX.AnimationLayerQuat(target, "rotation", clip);
+            break;
+        case "scale":
+            var clip = this._parseAnimationSampler(samplers[channelDef.sampler], false);
+            layer = new HX.AnimationLayerFloat4(target, "scale", clip);
+            break;
+        default:
+            throw new Error("Unknown channel path!");
+    }
+    return layer;
+};
+
+GLTF.prototype._playAnimations = function()
+{
+    var anims = this._target.animations;
+    HX.ArrayUtils.forEach(anims, function(anim) {
+        anim.play();
+    });
+};
+
+GLTF.prototype._readFloat3 = function(dataView, offset)
+{
+    var f = new HX.Float4();
+    f.x = dataView.getFloat32(offset, true);
+    f.y = dataView.getFloat32(offset + 4, true);
+    f.z = dataView.getFloat32(offset + 8, true);
+    return f;
+};
+
+GLTF.prototype._readQuat = function(dataView, offset)
+{
+    var q = new HX.Quaternion();
+    q.x = dataView.getFloat32(offset, true);
+    q.y = dataView.getFloat32(offset + 4, true);
+    q.z = dataView.getFloat32(offset + 8, true);
+    q.w = dataView.getFloat32(offset + 12, true);
+    return q;
+};
+
+GLTF.prototype._readFloat = function(dataView, offset)
+{
+    return dataView.getFloat32(offset, true);
+};
+
+GLTF.prototype._readMatrix4x4 = function(dataView, offset)
+{
+    var m = [];
+    for (var j = 0; j < 16; ++j) {
+        m[j] = dataView.getFloat32(offset, true);
+        offset += 4;
+    }
+    return new HX.Matrix4x4(m);
 };
 
 export {GLTF, GLTFData};

@@ -5,6 +5,7 @@ import {Texture2D} from "../texture/Texture2D";
 import {JPG} from "./JPG_PNG";
 import {Importer} from "./Importer";
 import {AssetLibrary} from "./AssetLibrary";
+import {ArrayUtils} from "../utils/ArrayUtils";
 
 /**
  * @classdesc
@@ -74,11 +75,9 @@ HMT.prototype._processMaterial = function(data, material)
 {
     var defines = "";
     if (this.options.defines) {
-        for (var key in this.options.defines) {
-            if (this.options.defines.hasOwnProperty(key)) {
-                defines += "#define " + key + " " + this.options.defines[key] + "\n";
-            }
-        }
+        ArrayUtils.forEach(this.options.defines, (function(obj, key) {
+            defines += "#define " + key + " " + obj + "\n";
+        }).bind(this));
     }
 
     var geometryVertex = defines + this._shaderLibrary.get(this._correctURL(data.geometry.vertexShader));

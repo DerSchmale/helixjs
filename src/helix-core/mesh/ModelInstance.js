@@ -83,7 +83,7 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
     skeletonMatrices: {
         get: function()
         {
-            return this._skeletonPose? this._skeletonPose.getSkeletonMatrices(this._model._skeleton) : null;
+            return this._skeletonPose? this._skeletonPose.getBindMatrices(this._model._skeleton) : null;
         }
     },
 

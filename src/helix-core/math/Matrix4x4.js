@@ -410,8 +410,7 @@ Matrix4x4.prototype =
             z = x.z;
             x = x.x;
         }
-
-        if (y === undefined)
+        else if (y === undefined)
             y = z = x;
 
         var m = this._m;
@@ -937,8 +936,7 @@ Matrix4x4.prototype =
             z = x.z;
             x = x.x;
         }
-
-        if (y === undefined)
+        else if (y === undefined)
             y = z = x;
 
         var m = this._m;
@@ -961,7 +959,12 @@ Matrix4x4.prototype =
      */
     prependScale: function (x, y, z)
     {
-        if (y === undefined)
+        if (x instanceof Float4) {
+            y = x.y;
+            z = x.z;
+            x = x.x;
+        }
+        else if (y === undefined)
             y = z = x;
 
         var m = this._m;
@@ -1295,9 +1298,8 @@ Matrix4x4.prototype =
      */
     compose: function(transform)
     {
-        this.fromQuaternion(transform.rotation);
-        var scale = transform.scale;
-        this.prependScale(scale.x, scale.y, scale.z);
+        this.fromScale(transform.scale)
+        this.appendQuaternion(transform.rotation);
         this.appendTranslation(transform.position);
     },
 
@@ -1353,7 +1355,7 @@ Matrix4x4.prototype =
         cm[10] *= rcpZ;
 
         quat.fromMatrix(clone);
-        pos.copyFrom(this.getColumn(3));
+        this.getColumn(3, pos)
 
         return targetOrPos;
     },

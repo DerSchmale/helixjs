@@ -17,7 +17,9 @@ function SkeletonPose()
     this._jointPoses = [];
 
     this._skinningTexture = null;
-    this._globalSkeletonPose = null;
+    // "global" is in fact model space
+    this._globalMatrices = null;
+    this._bindMatrices = null;
     this._skeletonMatricesInvalid = true;
 }
 
@@ -130,57 +132,14 @@ SkeletonPose.prototype = {
     /**
      * @ignore
      */
-    globalFromLocal: function (local, skeleton)
-    {
-        var numJoints = skeleton.numJoints;
-        var rootPose = local._jointPoses;
-        var globalPose = this._jointPoses;
-
-        var m = new HX.Matrix4x4();
-        var p = new HX.Matrix4x4();
-
-        for (var i = 0; i < numJoints; ++i) {
-            var localJointPose = rootPose[i];
-            var globalJointPose = globalPose[i];
-            var joint = skeleton.getJoint(i);
-
-            if (joint.parentIndex < 0)
-                globalJointPose.copyFrom(localJointPose);
-            else {
-                var parentPose = globalPose[joint.parentIndex];
-
-                // TODO: replace this again, just for debugging
-                p.compose(parentPose);
-                m.compose(localJointPose);
-                m.append(p);
-                m.decompose(globalJointPose);
-
-                /*var gTr = globalJointPose.position;
-                var ptr = parentPose.position;
-                var pQuad = parentPose.rotation;
-                pQuad.rotate(localJointPose.position, gTr);
-                gTr.x += ptr.x;
-                gTr.y += ptr.y;
-                gTr.z += ptr.z;
-                globalJointPose.rotation.multiply(pQuad, localJointPose.rotation);
-                globalJointPose.scale.x = parentPose.scale.x * localJointPose.scale.x;
-                globalJointPose.scale.y = parentPose.scale.y * localJointPose.scale.y;
-                globalJointPose.scale.z = parentPose.scale.z * localJointPose.scale.z;*/
-            }
-        }
-    },
-
-    /**
-     * @ignore
-     */
-    getSkeletonMatrices: function(skeleton)
+    getBindMatrices: function(skeleton)
     {
         if (this._skeletonMatricesInvalid || this._skeleton !== skeleton)
             this._updateSkeletonMatrices(skeleton);
 
         this._skeleton = skeleton;
 
-        return this._skinningTexture || this._skeletonMatrices;
+        return this._skinningTexture || this._bindMatrices;
     },
 
     /**
@@ -189,13 +148,15 @@ SkeletonPose.prototype = {
     _generateDefault: function (skeleton)
     {
         if (META.OPTIONS.useSkinningTexture) {
-            this._skeletonMatrices = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
+            this._skinningTexture = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
             return;
         }
 
-        this._skeletonMatrices = [];
+        this._globalMatrices = [];
+        this._bindMatrices = [];
         for (var i = 0; i < skeleton.numJoints; ++i) {
-            this._skeletonMatrices[i] = new Matrix4x4();
+            this._globalMatrices[i] = new Matrix4x4();
+            this._bindMatrices[i] = new Matrix4x4();
         }
     },
 
@@ -204,30 +165,32 @@ SkeletonPose.prototype = {
      */
     _updateSkeletonMatrices: function (skeleton)
     {
-        var globals = this._skeletonMatrices;
+        var globals;
+        var binds;
+
         if (!globals || globals.length !== skeleton.numJoints) {
             this._generateGlobalSkeletonData(skeleton);
-            globals = this._skeletonMatrices;
+            globals = this._globalMatrices;
+            binds = this._bindMatrices;
         }
 
-        this._globalSkeletonPose.globalFromLocal(this, skeleton);
-
-
         var len = skeleton.numJoints;
-        var poses = this._globalSkeletonPose._jointPoses;
 
         for (var i = 0; i < len; ++i) {
-            var pose = poses[i];
-            var mtx = globals[i];
-            if (skeleton._applyInverseBindPose)
-                mtx.copyFrom(skeleton.getJoint(i).inverseBindPose);
-            else
-                mtx.copyFrom(Matrix4x4.IDENTITY);
+            var pose = this._jointPoses[i];
+            var global = globals[i];
+            var joint = skeleton.getJoint(i);
+            var parentIndex = joint.parentIndex;
 
-            var sc = pose.scale;
-            mtx.appendScale(sc.x, sc.y, sc.z);
-            mtx.appendQuaternion(pose.rotation);
-            mtx.appendTranslation(pose.position);
+            global.compose(pose);
+
+            if (parentIndex !== -1)
+                global.append(globals[parentIndex]);
+
+            if (skeleton._applyInverseBindPose)
+                binds[i].multiplyAffine(global, joint.inverseBindPose);
+            else
+                binds[i].copyFrom(global);
         }
 
         if (META.OPTIONS.useSkinningTexture)
@@ -240,11 +203,12 @@ SkeletonPose.prototype = {
      */
     _generateGlobalSkeletonData: function (skeleton)
     {
-        this._skeletonMatrices = [];
-        this._globalSkeletonPose = new SkeletonPose();
+        this._globalMatrices = [];
+        this._bindMatrices = [];
+
         for (var i = 0; i < skeleton.numJoints; ++i) {
-            this._skeletonMatrices[i] = new Matrix4x4();
-            this._globalSkeletonPose.setJointPose(i, new SkeletonJointPose());
+            this._globalMatrices[i] = new Matrix4x4();
+            this._bindMatrices[i] = new Matrix4x4();
         }
 
         if (META.OPTIONS.useSkinningTexture) {
@@ -261,7 +225,7 @@ SkeletonPose.prototype = {
     _updateSkinningTexture: function ()
     {
         var data = [];
-        var globals = this._skeletonMatrices;
+        var globals = this._bindMatrices;
         var len = globals.length;
 
         for (var r = 0; r < 3; ++r) {

@@ -3,6 +3,12 @@ import {Signal} from "../core/Signal";
 /**
  * AsyncTaskQueue allows queueing a bunch of functions which are executed "whenever", in order.
  *
+ * TODO: Allow dynamically adding tasks while running
+ *  -> should we have a AsyncTaskQueue.runChildQueue() which pushed that into a this._childQueues array.
+ *  _executeImpl would then first process these.
+ *  The queue itself can just be passed along the regular queued function parameters if the child methods need access to
+ *  add child queues hierarchically.
+ *
  * @classdesc
  *
  * @ignore
@@ -12,6 +18,7 @@ import {Signal} from "../core/Signal";
 function AsyncTaskQueue()
 {
     this.onComplete = new Signal();
+    this.onProgress = new Signal();
     this._queue = [];
     this._currentIndex = 0;
     this._isRunning = false;
@@ -47,6 +54,8 @@ AsyncTaskQueue.prototype = {
 
     _executeImpl: function()
     {
+        this.onProgress.dispatch(this._currentIndex / this._queue.length);
+
         if (this._queue.length === this._currentIndex) {
             this.onComplete.dispatch();
         }

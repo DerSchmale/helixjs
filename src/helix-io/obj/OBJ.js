@@ -58,12 +58,9 @@ OBJ.prototype._finish = function(mtlLib)
         queue.queue(this._translateObject.bind(this), i, mtlLib);
     }
 
-    queue.onComplete.bind(function() {
-        this._notifyComplete(this._target);
-    }, this);
+    // actually, we don't need to bind to the queue's onComplete signal, can just add the notification last
+    queue.queue(this._notifyComplete.bind(this), this._target);
     queue.runAll();
-
-
 };
 
 OBJ.prototype._loadMTLLib = function(filename)

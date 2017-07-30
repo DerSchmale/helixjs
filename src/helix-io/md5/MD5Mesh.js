@@ -177,6 +177,13 @@ MD5Mesh.prototype._translateMesh = function()
         vertices[v] = x;
         vertices[v + 1] = y;
         vertices[v + 2] = z;
+        vertices[v + 3] = 0;
+        vertices[v + 4] = 0;
+        vertices[v + 5] = 1;
+        vertices[v + 6] = 1;
+        vertices[v + 7] = 0;
+        vertices[v + 8] = 0;
+        vertices[v + 9] = 1;
         vertices[v + 10] = vertData.u;
         vertices[v + 11] = 1.0 - vertData.v;
 
@@ -194,8 +201,7 @@ MD5Mesh.prototype._translateMesh = function()
     mesh.setIndexData(this._meshData.indices);
 
     var generator = new HX.NormalTangentGenerator();
-    generator.generate(mesh);
-    mesh.setVertexData(vertices, 0);
+    generator.generate(mesh, HX.NormalTangentGenerator.MODE_NORMALS | HX.NormalTangentGenerator.MODE_TANGENTS);
     this._model.addMesh(mesh);
 };
 

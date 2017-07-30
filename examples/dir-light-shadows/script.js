@@ -36,14 +36,14 @@ window.onload = function ()
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("skybox-specular", "textures/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("skybox-irradiance", "textures/skybox/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("metal-albedo", "textures/Tarnished_Metal_01_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("metal-normals", "textures/Tarnished_Metal_01_normal.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("metal-specular", "textures/Tarnished_Metal_01_specular.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("floor-albedo", "textures/Sponza_Ceiling_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("floor-normals", "textures/Sponza_Ceiling_normal.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("floor-specular", "textures/Sponza_Ceiling_roughness.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("skybox-specular", "skyboxes/field-mips/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("skybox-irradiance", "skyboxes/field-mips/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("floor-albedo", "crytek-sponza/textures_pbr/Sponza_Ceiling_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("floor-normals", "crytek-sponza/textures_pbr/Sponza_Ceiling_normal.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("floor-specular", "crytek-sponza/textures_pbr/Sponza_Ceiling_roughness.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("metal-albedo", "textures/Tarnished_Metal_01/Tarnished_Metal_01_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("metal-normals", "textures/Tarnished_Metal_01/Tarnished_Metal_01_normal.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("metal-specular", "textures/Tarnished_Metal_01/Tarnished_Metal_01_specular.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
 };
 
 project.onInit = function()

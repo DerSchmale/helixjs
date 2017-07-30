@@ -5,7 +5,7 @@
 function SimpleProject()
 {
     this._initialized = false;
-    this._assetLibrary = new HX.AssetLibrary();
+    this._assetLibrary = new HX.AssetLibrary("../assets/");
 }
 
 SimpleProject.prototype =

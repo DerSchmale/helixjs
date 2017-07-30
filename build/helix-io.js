@@ -123,7 +123,6 @@ GLTF.prototype._continueParsing = function()
     queue.queue(this._notifyComplete.bind(this), this._target);
 
     queue.onProgress.bind((function(ratio) {
-        console.log(ratio);
         this._notifyProgress(.8 + .2 * ratio);
     }).bind(this));
 
@@ -897,6 +896,13 @@ MD5Mesh.prototype._translateMesh = function()
         vertices[v] = x;
         vertices[v + 1] = y;
         vertices[v + 2] = z;
+        vertices[v + 3] = 0;
+        vertices[v + 4] = 0;
+        vertices[v + 5] = 1;
+        vertices[v + 6] = 1;
+        vertices[v + 7] = 0;
+        vertices[v + 8] = 0;
+        vertices[v + 9] = 1;
         vertices[v + 10] = vertData.u;
         vertices[v + 11] = 1.0 - vertData.v;
 
@@ -914,8 +920,7 @@ MD5Mesh.prototype._translateMesh = function()
     mesh.setIndexData(this._meshData.indices);
 
     var generator = new HX$1.NormalTangentGenerator();
-    generator.generate(mesh);
-    mesh.setVertexData(vertices, 0);
+    generator.generate(mesh, HX$1.NormalTangentGenerator.MODE_NORMALS | HX$1.NormalTangentGenerator.MODE_TANGENTS);
     this._model.addMesh(mesh);
 };
 
@@ -1196,6 +1201,12 @@ Signal.prototype =
 
 /**
  * AsyncTaskQueue allows queueing a bunch of functions which are executed "whenever", in order.
+ *
+ * TODO: Allow dynamically adding tasks while running
+ *  -> should we have a AsyncTaskQueue.runChildQueue() which pushed that into a this._childQueues array.
+ *  _executeImpl would then first process these.
+ *  The queue itself can just be passed along the regular queued function parameters if the child methods need access to
+ *  add child queues hierarchically.
  *
  * @classdesc
  *

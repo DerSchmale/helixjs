@@ -6,25 +6,26 @@ var project = new DemoProject();
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("skybox-specular", "textures/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("floor-albedo", "textures/Sponza_Ceiling_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("floor-normals", "textures/Sponza_Ceiling_normal.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("floor-specular", "textures/Sponza_Ceiling_roughness.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("body-albedo", "model/bob_body.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("body-specular", "model/bob_body_s.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("body-normals", "model/bob_body_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("head-albedo", "model/bob_head.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("head-specular", "model/bob_head_s.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("head-normals", "model/bob_head_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("helmet-albedo", "model/bob_helmet.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("helmet-specular", "model/bob_helmet_s.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("helmet-local", "model/bob_helmet_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("lantern-albedo", "model/lantern.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("lantern-normals", "model/lantern_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("lantern-top-albedo", "model/lantern_top.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("lantern-bottom-albedo", "model/lantern_top_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("model", "model/bob_lamp_update.md5mesh", HX.AssetLibrary.Type.ASSET, HX.MD5Mesh);
-    assetLibrary.queueAsset("animation-clip", "model/bob_lamp_update.md5anim", HX.AssetLibrary.Type.ASSET, HX.MD5Anim);
+    assetLibrary.queueAsset("skybox-specular", "skyboxes/river_rocks/river_rocks_1k.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
+    assetLibrary.queueAsset("skybox-irradiance", "skyboxes/river_rocks/river_rocks_irradiance.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
+    assetLibrary.queueAsset("floor-albedo", "crytek-sponza/textures_pbr/Sponza_Ceiling_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("floor-normals", "crytek-sponza/textures_pbr/Sponza_Ceiling_normal.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("floor-specular", "crytek-sponza/textures_pbr/Sponza_Ceiling_roughness.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("body-albedo", "bob-md5/bob_body.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("body-specular", "bob-md5/bob_body_s.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("body-normals", "bob-md5/bob_body_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("head-albedo", "bob-md5/bob_head.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("head-specular", "bob-md5/bob_head_s.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("head-normals", "bob-md5/bob_head_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("helmet-albedo", "bob-md5/bob_helmet.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("helmet-specular", "bob-md5/bob_helmet_s.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("helmet-local", "bob-md5/bob_helmet_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("lantern-albedo", "bob-md5/lantern.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("lantern-normals", "bob-md5/lantern_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("lantern-top-albedo", "bob-md5/lantern_top.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("lantern-bottom-albedo", "bob-md5/lantern_top_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("model", "bob-md5/bob_lamp_update.md5mesh", HX.AssetLibrary.Type.ASSET, HX.MD5Mesh);
+    assetLibrary.queueAsset("animation-clip", "bob-md5/bob_lamp_update.md5anim", HX.AssetLibrary.Type.ASSET, HX.MD5Anim);
 };
 
 project.onInit = function()
@@ -38,6 +39,7 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.maxSkeletonJoints = 39;
     options.useSkinningTexture = true;
+    options.defaultLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -76,10 +78,19 @@ function initScene(scene, assetLibrary)
     scene.attach(floorInstance);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
+    var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
+
+    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
+    scene.attach(lightProbe);
+
+    var light = new HX.DirectionalLight();
+    scene.attach(light);
 
     // top level of specular texture is the original skybox texture
     var skybox = new HX.Skybox(skyboxSpecularTexture);
     scene.skybox = skybox;
+
+    var lights = [lightProbe, light];
 
     var materialBody = new HX.BasicMaterial();
     var materialHead = new HX.BasicMaterial();
@@ -90,25 +101,30 @@ function initScene(scene, assetLibrary)
     materialBody.colorMap = assetLibrary.get("body-albedo");
     materialBody.specularMap = assetLibrary.get("body-specular");
     materialBody.normalMap = assetLibrary.get("body-normals");
+    materialBody.lights = lights;
 
     materialHead.colorMap = assetLibrary.get("head-albedo");
     materialHead.specularMap = assetLibrary.get("head-specular");
     materialHead.normalMap = assetLibrary.get("head-normals");
+    materialHead.lights = lights;
 
     materialHelmet.colorMap = assetLibrary.get("helmet-albedo");
     materialHelmet.specularMap = assetLibrary.get("helmet-specular");
     materialHelmet.normalMap = assetLibrary.get("helmet-normals");
     materialHelmet.metallicness = 1.0;
     materialHelmet.doubleSided = true;
+    materialHelmet.lights = lights;
 
     materialLantern.colorMap = assetLibrary.get("lantern-albedo");
     materialLantern.normalMap = assetLibrary.get("lantern-normals");
     materialLantern.metallicness = 1.0;
+    materialLantern.lights = lights;
 
     materialLanternTop.colorMap = assetLibrary.get("lantern-top-albedo");
     materialLanternTop.normalMap = assetLibrary.get("lantern-top-normals");
     materialLanternTop.metallicness = 1.0;
     materialLanternTop.doubleSided = true;
+    materialLanternTop.lights = lights;
 
     var model = assetLibrary.get("model");
     var modelInstance = new HX.ModelInstance(model, [materialBody, materialHead, materialHelmet, materialLantern, materialLanternTop]);

@@ -122,7 +122,7 @@ GLTF.prototype._continueParsing = function()
         this._notifyProgress(.8 + .2 * ratio);
     }).bind(this));
 
-    queue.runAll();
+    queue.execute();
 };
 
 GLTF.prototype._getAccessor = function(index)

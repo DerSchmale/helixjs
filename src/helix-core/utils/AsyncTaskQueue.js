@@ -20,6 +20,7 @@ function AsyncTaskQueue()
     this.onComplete = new Signal();
     this.onProgress = new Signal();
     this._queue = [];
+    this._childQueues = [];
     this._currentIndex = 0;
     this._isRunning = false;
 }
@@ -36,7 +37,14 @@ AsyncTaskQueue.prototype = {
         });
     },
 
-    runAll: function()
+    // this allows adding more subtasks to tasks while running
+    // No need to call "execute" on child queues
+    addChildQueue: function(queue)
+    {
+        this._childQueues.push(queue);
+    },
+
+    execute: function()
     {
         if (this._isRunning)
             throw new Error("Already running!");
@@ -56,7 +64,12 @@ AsyncTaskQueue.prototype = {
     {
         this.onProgress.dispatch(this._currentIndex / this._queue.length);
 
-        if (this._queue.length === this._currentIndex) {
+        if (this._childQueues.length > 0) {
+            var queue = this._childQueues.shift();
+            queue.onComplete.bind(this._executeImpl, this);
+            queue.execute();
+        }
+        else if (this._queue.length === this._currentIndex) {
             this.onComplete.dispatch();
         }
         else {

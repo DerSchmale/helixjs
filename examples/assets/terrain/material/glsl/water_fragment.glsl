@@ -29,7 +29,7 @@ HX_GeometryData hx_geometry()
 
     float depth = hx_decodeLinearDepth(normalDepth);
     float absViewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
-    vec3 backPos = -viewPos / viewPos.z * absViewZ;
+    vec3 backPos = viewPos / viewPos.z * absViewZ;
     float dist = distance(viewPos, backPos);
 
     vec3 viewDir = normalize(viewPos);

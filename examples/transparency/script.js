@@ -6,7 +6,7 @@ var project = new DemoProject();
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("skybox", "textures/skybox/river_rocks_1k.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
+    assetLibrary.queueAsset("skybox", "skyboxes/river_rocks/river_rocks_1k.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
 };
 
 project.onInit = function()
@@ -66,5 +66,6 @@ function initScene(scene, assetLibrary)
     material.lightingModel = HX.LightingModel.GGX;
     material.renderOrder = 50;  // be sure the render after first layer
     material.roughness = .01;
+
     scene.attach(new HX.ModelInstance(primitive, material));
 }

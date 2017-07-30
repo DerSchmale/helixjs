@@ -15,11 +15,9 @@ project.queueAssets = function(assetLibrary)
         "Muro_head_sm.tga": "Muro_head_sm.jpg"
     };
 
-    assetLibrary.queueAsset("skybox-specular", "textures/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("floor-albedo", "textures/Sponza_Ceiling_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("floor-normals", "textures/Sponza_Ceiling_normal.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("floor-specular", "textures/Sponza_Ceiling_roughness.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("model", "model/muro.fbx", HX.AssetLibrary.Type.ASSET, HX.FBX);
+    assetLibrary.queueAsset("skybox-specular", "skyboxes/river_rocks/river_rocks_1k.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
+    assetLibrary.queueAsset("floor-albedo", "crytek-sponza/textures_pbr/Sponza_Ceiling_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("model", "muro/muro.fbx", HX.AssetLibrary.Type.ASSET, HX.FBX);
 };
 
 project.onInit = function()
@@ -51,8 +49,6 @@ function initScene(scene, assetLibrary)
     // textures are from http://www.alexandre-pestana.com/pbr-textures-sponza/
     var material = new HX.BasicMaterial();
     material.colorMap = assetLibrary.get("floor-albedo");
-    material.normalMap = assetLibrary.get("floor-normals");
-    material.specularMap = assetLibrary.get("floor-specular");
 
     var primitive = new HX.PlanePrimitive(
         {

@@ -29,6 +29,7 @@ function RenderCollector()
     this._shadowCasters = null;
     this._effects = null;
     this._needsNormalDepth = false;
+    this._needsForwardPath = false;
     this._needsBackbuffer = false;
 }
 
@@ -39,6 +40,10 @@ RenderCollector.prototype = Object.create(SceneVisitor.prototype, {
 
     needsNormalDepth: {
         get: function() { return this._needsNormalDepth; }
+    },
+
+    needsForwardPath: {
+        get: function() { return this._needsForwardPath; }
     },
 
     needsBackbuffer: {
@@ -79,6 +84,13 @@ RenderCollector.prototype.collect = function(camera, scene)
             this._effects.push(effect);
         }
     }
+
+    // allows optimizing the render loop, skipping the entire forward path (which rerenders the light accumulation)
+    // if no forward is needed
+    this._needsForwardPath =
+        this._transparents.length > 0 ||
+        this._opaques[RenderPath.FORWARD_FIXED].length > 0 ||
+        this._opaques[RenderPath.FORWARD_DYNAMIC].length > 0;
 };
 
 RenderCollector.prototype.qualifies = function(object)

@@ -1,4 +1,5 @@
 import * as HX from 'helix';
+import {AsyncTaskQueue} from "../../helix-core/utils/AsyncTaskQueue";
 
 function OBJ()
 /**
@@ -50,8 +51,16 @@ OBJ.prototype.parse = function(data, target)
 
 OBJ.prototype._finish = function(mtlLib)
 {
-    this._translate(mtlLib);
-    this._notifyComplete(this._target);
+    var queue = new AsyncTaskQueue();
+    var numObjects = this._objects.length;
+
+    for (var i = 0; i < numObjects; ++i) {
+        queue.queue(this._translateObject.bind(this), i, mtlLib);
+    }
+
+    // actually, we don't need to bind to the queue's onComplete signal, can just add the notification last
+    queue.queue(this._notifyComplete.bind(this), this._target);
+    queue.execute();
 };
 
 OBJ.prototype._loadMTLLib = function(filename)
@@ -66,7 +75,7 @@ OBJ.prototype._loadMTLLib = function(filename)
 
     loader.onProgress = function(ratio)
     {
-        self._notifyProgress(ratio);
+        self._notifyProgress(ratio * .8);
     };
 
     loader.onFail = function (message)
@@ -178,16 +187,9 @@ OBJ.prototype._parseFaceData = function(tokens)
     this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
 };
 
-OBJ.prototype._translate = function(mtlLib)
+OBJ.prototype._translateObject = function(objectIndex, mtlLib)
 {
-    var numObjects = this._objects.length;
-    for (var i = 0; i < numObjects; ++i) {
-        this._translateObject(this._objects[i], mtlLib);
-    }
-};
-
-OBJ.prototype._translateObject = function(object, mtlLib)
-{
+    var object = this._objects[objectIndex];
     var numGroups = object.groups.length;
     if (numGroups === 0) return;
     var materials = [];
@@ -213,6 +215,8 @@ OBJ.prototype._translateObject = function(object, mtlLib)
     var modelInstance = new HX.ModelInstance(model, materials);
     modelInstance.name = object.name;
     this._target.attach(modelInstance);
+
+    this._notifyProgress(.8 + (objectIndex + 1) / this._objects.length * .2);
 };
 
 OBJ.prototype._translateMesh = function(group)
@@ -277,7 +281,7 @@ OBJ.prototype._translateMesh = function(group)
     mesh.setIndexData(indices);
 
     var mode = HX.NormalTangentGenerator.MODE_TANGENTS;
-    mode = mode | HX.NormalTangentGenerator.MODE_NORMALS;
+    if (!this._hasNormals) mode = mode | HX.NormalTangentGenerator.MODE_NORMALS;
     var generator = new HX.NormalTangentGenerator();
     generator.generate(mesh, mode, true);
     return mesh;

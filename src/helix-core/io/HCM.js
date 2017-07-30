@@ -50,6 +50,7 @@ HCM.prototype._loadFaces = function(urls, target)
 
     var onLoad = function()
     {
+        self._notifyProgress(this.nextID / 6);
         images[this.nextID].src = self.path + urls[this.nextID];
     };
 
@@ -113,11 +114,16 @@ HCM.prototype._loadMipChain = function(urls, target)
 
     function loadTheRest()
     {
+        var progressRatios = [];
         var len = numMips * 6;
+        var r = 1, totalRatio = 0;
         for (var i = 1; i < numMips; ++i) {
             for (var j = 0; j < 6; ++j) {
                 realURLs.push(urls[j].replace("%m", i.toString()));
+                progressRatios.push(r);
+                totalRatio += r;
             }
+            r *= .5;
         }
 
         var onError = function ()
@@ -127,6 +133,7 @@ HCM.prototype._loadMipChain = function(urls, target)
 
         var onLoad = function ()
         {
+            self._notifyProgress(progressRatios[this.nextID] / totalRatio);
             images[this.nextID].src = self.path + realURLs[this.nextID];
         };
 

@@ -16,8 +16,8 @@ window.onload = function ()
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("scene", "BoxAnimated/BoxAnimated.gltf", HX.AssetLibrary.Type.ASSET, HX.GLTF);
-    assetLibrary.queueAsset("skybox", "textures/river_rocks_1k.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
-    assetLibrary.queueAsset("irradiance", "textures/river_rocks_irradiance.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
+    assetLibrary.queueAsset("skybox", "skyboxes/river_rocks/river_rocks_1k.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
+    assetLibrary.queueAsset("irradiance", "skyboxes/river_rocks/river_rocks_irradiance.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
 };
 
 project.onInit = function()

@@ -6,14 +6,19 @@ var project = new DemoProject();
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("skybox-specular", "textures/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("skybox-irradiance", "textures/skybox/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("skybox-specular", "skyboxes/field-mips/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("skybox-irradiance", "skyboxes/field-mips/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
 };
 
 project.onInit = function()
 {
     initCamera(this.camera);
     initScene(this.scene, this.assetLibrary);
+};
+
+project.onUpdate = function()
+{
+    console.log(HX.Profiler.getTime("Shader::init"));
 };
 
 window.onload = function ()
@@ -63,6 +68,7 @@ function initScene(scene, assetLibrary)
 
     var numX = 10;
     var numY = 7;
+
     for (var x = 0; x < numX; ++x) {
         for (var y = 0; y < numY; ++y) {
             var material = new HX.BasicMaterial();

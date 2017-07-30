@@ -101,7 +101,7 @@ GLTF.prototype.parse = function(file, target)
 
     // load dependencies first
     this._assetLibrary.onComplete.bind(function() { this._continueParsing(); }, this);
-    this._assetLibrary.onProgress.bind(function(ratio) { this._notifyProgress(ratio); }, this);
+    this._assetLibrary.onProgress.bind(function(ratio) { this._notifyProgress(.8 * ratio); }, this);
     this._assetLibrary.load();
 };
 
@@ -113,13 +113,20 @@ GLTF.prototype._continueParsing = function()
     if (gltf.hasOwnProperty("scene"))
         this._defaultSceneIndex = gltf.scene;
 
-    this._parseMaterials();
-    this._parseMeshes();
-    this._parseNodes();
-    this._parseScenes();
-    this._parseAnimations();
-    this._playAnimations();
-    this._notifyComplete();
+    var queue = new HX$1.AsyncTaskQueue();
+    queue.queue(this._parseMaterials.bind(this));
+    queue.queue(this._parseMeshes.bind(this));
+    queue.queue(this._parseNodes.bind(this));
+    queue.queue(this._parseScenes.bind(this));
+    queue.queue(this._parseAnimations.bind(this));
+    queue.queue(this._playAnimations.bind(this));
+    queue.queue(this._notifyComplete.bind(this), this._target);
+
+    queue.onProgress.bind((function(ratio) {
+        this._notifyProgress(.8 + .2 * ratio);
+    }).bind(this));
+
+    queue.runAll();
 };
 
 GLTF.prototype._getAccessor = function(index)
@@ -889,6 +896,13 @@ MD5Mesh.prototype._translateMesh = function()
         vertices[v] = x;
         vertices[v + 1] = y;
         vertices[v + 2] = z;
+        vertices[v + 3] = 0;
+        vertices[v + 4] = 0;
+        vertices[v + 5] = 1;
+        vertices[v + 6] = 1;
+        vertices[v + 7] = 0;
+        vertices[v + 8] = 0;
+        vertices[v + 9] = 1;
         vertices[v + 10] = vertData.u;
         vertices[v + 11] = 1.0 - vertData.v;
 
@@ -906,8 +920,7 @@ MD5Mesh.prototype._translateMesh = function()
     mesh.setIndexData(this._meshData.indices);
 
     var generator = new HX$1.NormalTangentGenerator();
-    generator.generate(mesh);
-    mesh.setVertexData(vertices, 0);
+    generator.generate(mesh, HX$1.NormalTangentGenerator.MODE_NORMALS | HX$1.NormalTangentGenerator.MODE_TANGENTS);
     this._model.addMesh(mesh);
 };
 
@@ -1119,6 +1132,141 @@ MD5Anim._FrameData = function()
     this.components = [];
 };
 
+/**
+ * @classdesc
+ * <p>Signal provides an implementation of the Observer pattern. Functions can be bound to the Signal, and they will be
+ * called when the Signal is dispatched. This implementation allows for keeping scope.</p>
+ * <p>When dispatch has an object passed to it, this is called the "payload" and will be passed as a parameter to the
+ * listener functions</p>
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function Signal()
+{
+    this._listeners = [];
+    this._lookUp = {};
+}
+
+/**
+ * Signals keep "this" of the caller, because having this refer to the signal itself would be silly
+ */
+Signal.prototype =
+{
+    /**
+     * Binds a function as a listener to the Signal
+     * @param {function(*):void} listener A function to be called when the function is dispatched.
+     * @param {Object} [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
+     *
+     * @example
+     * signal.bind(this.methodFunction, this);
+     */
+    bind: function(listener, thisRef)
+    {
+        this._lookUp[listener] = this._listeners.length;
+        var callback = thisRef? listener.bind(thisRef) : listener;
+        this._listeners.push(callback);
+    },
+
+    /**
+     * Removes a function as a listener.
+     */
+    unbind: function(listener)
+    {
+        var index = this._lookUp[listener];
+        this._listeners.splice(index, 1);
+        delete this._lookUp[listener];
+    },
+
+    /**
+     * Dispatches the signal, causing all the listening functions to be called.
+     * @param [payload] An optional object to be passed in as a parameter to the listening functions. Can be used to provide data.
+     */
+    dispatch: function(payload)
+    {
+        var len = this._listeners.length;
+        for (var i = 0; i < len; ++i)
+            this._listeners[i](payload);
+    },
+
+    /**
+     * Returns whether there are any functions bound to the Signal or not.
+     */
+    get hasListeners()
+    {
+        return this._listeners.length > 0;
+    }
+};
+
+/**
+ * AsyncTaskQueue allows queueing a bunch of functions which are executed "whenever", in order.
+ *
+ * TODO: Allow dynamically adding tasks while running
+ *  -> should we have a AsyncTaskQueue.runChildQueue() which pushed that into a this._childQueues array.
+ *  _executeImpl would then first process these.
+ *  The queue itself can just be passed along the regular queued function parameters if the child methods need access to
+ *  add child queues hierarchically.
+ *
+ * @classdesc
+ *
+ * @ignore
+ *
+ * @constructor
+ */
+function AsyncTaskQueue$1()
+{
+    this.onComplete = new Signal();
+    this.onProgress = new Signal();
+    this._queue = [];
+    this._currentIndex = 0;
+    this._isRunning = false;
+}
+
+AsyncTaskQueue$1.prototype = {
+    queue: function(func, rest)
+    {
+        // V8 engine doesn't perform well if not copying the array first before slicing
+        var args = (arguments.length === 1 ? [arguments[0]] : Array.apply(null, arguments));
+
+        this._queue.push({
+            func: func,
+            args: args.slice(1)
+        });
+    },
+
+    runAll: function()
+    {
+        if (this._isRunning)
+            throw new Error("Already running!");
+
+        this._isRunning = true;
+        this._currentIndex = 0;
+
+        this._executeTask();
+    },
+
+    _executeTask: function()
+    {
+        setTimeout(this._executeImpl.bind(this));
+    },
+
+    _executeImpl: function()
+    {
+        this.onProgress.dispatch(this._currentIndex / this._queue.length);
+
+        if (this._queue.length === this._currentIndex) {
+            this.onComplete.dispatch();
+        }
+        else {
+            var elm = this._queue[this._currentIndex];
+            elm.func.apply(this, elm.args);
+            ++this._currentIndex;
+            this._executeTask();
+        }
+    }
+};
+
 function OBJ()
 /**
  * @classdesc
@@ -1169,8 +1317,16 @@ OBJ.prototype.parse = function(data, target)
 
 OBJ.prototype._finish = function(mtlLib)
 {
-    this._translate(mtlLib);
-    this._notifyComplete(this._target);
+    var queue = new AsyncTaskQueue$1();
+    var numObjects = this._objects.length;
+
+    for (var i = 0; i < numObjects; ++i) {
+        queue.queue(this._translateObject.bind(this), i, mtlLib);
+    }
+
+    // actually, we don't need to bind to the queue's onComplete signal, can just add the notification last
+    queue.queue(this._notifyComplete.bind(this), this._target);
+    queue.runAll();
 };
 
 OBJ.prototype._loadMTLLib = function(filename)
@@ -1185,7 +1341,7 @@ OBJ.prototype._loadMTLLib = function(filename)
 
     loader.onProgress = function(ratio)
     {
-        self._notifyProgress(ratio);
+        self._notifyProgress(ratio * .8);
     };
 
     loader.onFail = function (message)
@@ -1297,16 +1453,9 @@ OBJ.prototype._parseFaceData = function(tokens)
     this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
 };
 
-OBJ.prototype._translate = function(mtlLib)
+OBJ.prototype._translateObject = function(objectIndex, mtlLib)
 {
-    var numObjects = this._objects.length;
-    for (var i = 0; i < numObjects; ++i) {
-        this._translateObject(this._objects[i], mtlLib);
-    }
-};
-
-OBJ.prototype._translateObject = function(object, mtlLib)
-{
+    var object = this._objects[objectIndex];
     var numGroups = object.groups.length;
     if (numGroups === 0) return;
     var materials = [];
@@ -1332,6 +1481,8 @@ OBJ.prototype._translateObject = function(object, mtlLib)
     var modelInstance = new HX$1.ModelInstance(model, materials);
     modelInstance.name = object.name;
     this._target.attach(modelInstance);
+
+    this._notifyProgress(.8 + (objectIndex + 1) / this._objects.length * .2);
 };
 
 OBJ.prototype._translateMesh = function(group)
@@ -1396,7 +1547,7 @@ OBJ.prototype._translateMesh = function(group)
     mesh.setIndexData(indices);
 
     var mode = HX$1.NormalTangentGenerator.MODE_TANGENTS;
-    mode = mode | HX$1.NormalTangentGenerator.MODE_NORMALS;
+    if (!this._hasNormals) mode = mode | HX$1.NormalTangentGenerator.MODE_NORMALS;
     var generator = new HX$1.NormalTangentGenerator();
     generator.generate(mesh, mode, true);
     return mesh;

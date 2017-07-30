@@ -5,16 +5,16 @@ var project = new DemoProject();
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("skybox-specular", "textures/skybox/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("skybox-irradiance", "textures/skybox/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
-    assetLibrary.queueAsset("model-sword", "model/Rapier.fbx", HX.AssetLibrary.Type.ASSET, HX.FBX);
-    assetLibrary.queueAsset("model-sheath", "model/Rapier_Sheath.fbx", HX.AssetLibrary.Type.ASSET, HX.FBX);
-    assetLibrary.queueAsset("handle-albedo", "model/Rapier_RapierHandle_BaseColor.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("handle-specular", "model/Rapier_RapierHandle_Specular.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("handle-normals", "model/Rapier_RapierHandle_NormalDX.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("blade-sheath-albedo", "model/Rapier_RapierBlandeAndSheath_BaseColor.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("blade-sheath-specular", "model/Rapier_RapierBlandeAndSheath_Specular.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
-    assetLibrary.queueAsset("blade-sheath-normals", "model/Rapier_RapierBlandeAndSheath_NormalDX.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("skybox-specular", "skyboxes/field-mips/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("skybox-irradiance", "skyboxes/field-mips/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
+    assetLibrary.queueAsset("model-sword", "rapier/Rapier.fbx", HX.AssetLibrary.Type.ASSET, HX.FBX);
+    assetLibrary.queueAsset("model-sheath", "rapier/Rapier_Sheath.fbx", HX.AssetLibrary.Type.ASSET, HX.FBX);
+    assetLibrary.queueAsset("handle-albedo", "rapier/Rapier_RapierHandle_BaseColor.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("handle-specular", "rapier/Rapier_RapierHandle_Specular.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("handle-normals", "rapier/Rapier_RapierHandle_NormalDX.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("blade-sheath-albedo", "rapier/Rapier_RapierBlandeAndSheath_BaseColor.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("blade-sheath-specular", "rapier/Rapier_RapierBlandeAndSheath_Specular.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+    assetLibrary.queueAsset("blade-sheath-normals", "rapier/Rapier_RapierBlandeAndSheath_NormalDX.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
 };
 
 project.onInit = function()

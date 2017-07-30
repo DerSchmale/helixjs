@@ -21,7 +21,9 @@ export {Quaternion} from "./math/Quaternion";
 export {Ray} from "./math/Ray";
 export {Transform} from "./math/Transform";
 
+export {Debug} from "./debug/Debug";
 export {DebugBoundsComponent} from "./debug/DebugBoundsComponent";
+export {Profiler} from "./debug/Profiler";
 
 export {BoundingVolume} from "./scene/BoundingVolume";
 export {BoundingAABB} from "./scene/BoundingAABB";
@@ -146,6 +148,7 @@ export {TextureCube} from "./texture/TextureCube";
 export {TextureUtils} from "./texture/TextureUtils";
 export {WriteOnlyDepthBuffer} from "./texture/WriteOnlyDepthBuffer";
 
+export {AsyncTaskQueue} from "./utils/AsyncTaskQueue";
 export {ArrayUtils} from "./utils/ArrayUtils";
 export {EquirectangularTexture} from "./utils/EquirectangularTexture";
 export {HeightMap} from "./utils/HeightMap";

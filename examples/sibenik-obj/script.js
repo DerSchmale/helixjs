@@ -25,7 +25,7 @@ window.onload = function ()
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("model", "resources/sibenik/sibenik.obj", HX.AssetLibrary.Type.ASSET, HX.OBJ);
+    assetLibrary.queueAsset("model", "sibenik/sibenik.obj", HX.AssetLibrary.Type.ASSET, HX.OBJ);
 };
 
 project.onInit = function()

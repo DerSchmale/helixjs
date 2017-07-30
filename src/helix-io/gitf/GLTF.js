@@ -97,7 +97,7 @@ GLTF.prototype.parse = function(file, target)
 
     // load dependencies first
     this._assetLibrary.onComplete.bind(function() { this._continueParsing(); }, this);
-    this._assetLibrary.onProgress.bind(function(ratio) { this._notifyProgress(ratio); }, this);
+    this._assetLibrary.onProgress.bind(function(ratio) { this._notifyProgress(.8 * ratio); }, this);
     this._assetLibrary.load();
 };
 
@@ -109,13 +109,20 @@ GLTF.prototype._continueParsing = function()
     if (gltf.hasOwnProperty("scene"))
         this._defaultSceneIndex = gltf.scene;
 
-    this._parseMaterials();
-    this._parseMeshes();
-    this._parseNodes();
-    this._parseScenes();
-    this._parseAnimations();
-    this._playAnimations();
-    this._notifyComplete();
+    var queue = new HX.AsyncTaskQueue();
+    queue.queue(this._parseMaterials.bind(this));
+    queue.queue(this._parseMeshes.bind(this));
+    queue.queue(this._parseNodes.bind(this));
+    queue.queue(this._parseScenes.bind(this));
+    queue.queue(this._parseAnimations.bind(this));
+    queue.queue(this._playAnimations.bind(this));
+    queue.queue(this._notifyComplete.bind(this), this._target);
+
+    queue.onProgress.bind((function(ratio) {
+        this._notifyProgress(.8 + .2 * ratio);
+    }).bind(this));
+
+    queue.execute();
 };
 
 GLTF.prototype._getAccessor = function(index)

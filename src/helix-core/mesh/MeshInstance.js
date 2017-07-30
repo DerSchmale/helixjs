@@ -102,7 +102,6 @@ MeshInstance.prototype = {
         if (this._meshMaterialLinkInvalid)
             this._linkMeshWithMaterial();
 
-
         var vertexBuffers = this._mesh._vertexBuffers;
         this._mesh._indexBuffer.bind();
 

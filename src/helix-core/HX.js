@@ -21,7 +21,9 @@ export {Quaternion} from "./math/Quaternion";
 export {Ray} from "./math/Ray";
 export {Transform} from "./math/Transform";
 
+export {Debug} from "./debug/Debug";
 export {DebugBoundsComponent} from "./debug/DebugBoundsComponent";
+export {Profiler} from "./debug/Profiler";
 
 export {BoundingVolume} from "./scene/BoundingVolume";
 export {BoundingAABB} from "./scene/BoundingAABB";

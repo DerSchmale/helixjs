@@ -18,6 +18,8 @@ import {ApplyGBufferPass} from "./passes/ApplyGBufferPass";
 import {RenderPath} from "../render/RenderPath";
 import {SpotShadowPass} from "./passes/SpotShadowPass";
 import {PointShadowPass} from "./passes/PointShadowPass";
+import {Debug} from "../debug/Debug";
+import {Profiler} from "../debug/Profiler";
 
 /**
  * @ignore

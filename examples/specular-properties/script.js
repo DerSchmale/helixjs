@@ -16,6 +16,11 @@ project.onInit = function()
     initScene(this.scene, this.assetLibrary);
 };
 
+project.onUpdate = function()
+{
+    console.log(HX.Profiler.getTime("Shader::init"));
+};
+
 window.onload = function ()
 {
     var options = new HX.InitOptions();
@@ -63,6 +68,7 @@ function initScene(scene, assetLibrary)
 
     var numX = 10;
     var numY = 7;
+
     for (var x = 0; x < numX; ++x) {
         for (var y = 0; y < numY; ++y) {
             var material = new HX.BasicMaterial();

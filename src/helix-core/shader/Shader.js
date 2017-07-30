@@ -11,6 +11,7 @@ import { GL } from '../core/GL';
 import { META } from '../Helix';
 import {UniformSetter} from "./UniformSetter";
 import {Debug} from "../debug/Debug";
+import {Profiler} from "../debug/Profiler";
 
 function Shader(vertexShaderCode, fragmentShaderCode)
 {
@@ -70,7 +71,7 @@ Shader.prototype = {
         gl.attachShader(this._program, this._fragmentShader);
         gl.linkProgram(this._program);
 
-        if (!gl.getProgramParameter(this._program, gl.LINK_STATUS)) {
+        if (META.OPTIONS.debug && !gl.getProgramParameter(this._program, gl.LINK_STATUS)) {
             var log = gl.getProgramInfoLog(this._program);
             this.dispose();
 
@@ -88,6 +89,8 @@ Shader.prototype = {
         }
 
         this._ready = true;
+
+        Profiler.stopTiming("Shader::init");
 
         this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
         this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
@@ -116,7 +119,7 @@ Shader.prototype = {
         gl.compileShader(shader);
 
         // Check the compile status, return an error if failed
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        if (META.OPTIONS.debug && !gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
             console.warn(gl.getShaderInfoLog(shader));
             Debug.printShaderCode(code);
             return false;
@@ -149,9 +152,9 @@ Shader.prototype = {
 
     _processShaderCode: function(code)
     {
-        code = this._processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
-        code = this._processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
-        code = this._processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
+        code = this._processExtensions(code, /^\s*#derivatives\s*$/m, "GL_OES_standard_derivatives");
+        code = this._processExtensions(code, /^\s*#texturelod\s*$/m, "GL_EXT_shader_texture_lod");
+        code = this._processExtensions(code, /^\s*#drawbuffers\s*$/m, "GL_EXT_draw_buffers");
         code = this._guard(code, /^\s*uniform\s+\w+\s+hx_\w+(\[\w+])?\s*;/gm);
         code = this._guard(code, /^\s*attribute\s+\w+\s+hx_\w+\s*;/gm);
         return code;
@@ -167,6 +170,7 @@ Shader.prototype = {
     },
 
     // this makes sure reserved uniforms are only used once, makes it easier to combine several snippets
+    // it's quite slow, tho
     _guard: function(code, regEx)
     {
         var result = code.match(regEx) || [];
@@ -176,14 +180,9 @@ Shader.prototype = {
         for (var i = 0; i < result.length; ++i) {
             var occ = result[i];
             occ = occ.replace(/(\r|\n)/g, "");
-            if (occ.charCodeAt(0) === 10) {
-                occ = occ.substring(1);
-            }
 
-            var arr = [];
-            for (var s = 0; s < occ.length; ++s) {
-                arr[s] = occ.charCodeAt(s);
-            }
+            if (occ.charCodeAt(0) === 10)
+                occ = occ.substring(1);
 
             var start = occ.indexOf("hx_");
             var end = occ.indexOf(";");

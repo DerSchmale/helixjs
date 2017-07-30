@@ -360,6 +360,12 @@ export function InitOptions()
 
     // debug stuff
     /**
+     * This enables some error-checking (such as on shader compilation). This has a big performance impact on shader
+     * initialisation.
+     */
+    this.debug = false;
+
+    /**
      * Ignore any supported extensions.
      */
     this.ignoreAllExtensions = false;

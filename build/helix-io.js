@@ -1119,6 +1119,132 @@ MD5Anim._FrameData = function()
     this.components = [];
 };
 
+/**
+ * @classdesc
+ * <p>Signal provides an implementation of the Observer pattern. Functions can be bound to the Signal, and they will be
+ * called when the Signal is dispatched. This implementation allows for keeping scope.</p>
+ * <p>When dispatch has an object passed to it, this is called the "payload" and will be passed as a parameter to the
+ * listener functions</p>
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function Signal()
+{
+    this._listeners = [];
+    this._lookUp = {};
+}
+
+/**
+ * Signals keep "this" of the caller, because having this refer to the signal itself would be silly
+ */
+Signal.prototype =
+{
+    /**
+     * Binds a function as a listener to the Signal
+     * @param {function(*):void} listener A function to be called when the function is dispatched.
+     * @param {Object} [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
+     *
+     * @example
+     * signal.bind(this.methodFunction, this);
+     */
+    bind: function(listener, thisRef)
+    {
+        this._lookUp[listener] = this._listeners.length;
+        var callback = thisRef? listener.bind(thisRef) : listener;
+        this._listeners.push(callback);
+    },
+
+    /**
+     * Removes a function as a listener.
+     */
+    unbind: function(listener)
+    {
+        var index = this._lookUp[listener];
+        this._listeners.splice(index, 1);
+        delete this._lookUp[listener];
+    },
+
+    /**
+     * Dispatches the signal, causing all the listening functions to be called.
+     * @param [payload] An optional object to be passed in as a parameter to the listening functions. Can be used to provide data.
+     */
+    dispatch: function(payload)
+    {
+        var len = this._listeners.length;
+        for (var i = 0; i < len; ++i)
+            this._listeners[i](payload);
+    },
+
+    /**
+     * Returns whether there are any functions bound to the Signal or not.
+     */
+    get hasListeners()
+    {
+        return this._listeners.length > 0;
+    }
+};
+
+/**
+ * AsyncTaskQueue allows queueing a bunch of functions which are executed "whenever", in order.
+ *
+ * @classdesc
+ *
+ * @ignore
+ *
+ * @constructor
+ */
+function AsyncTaskQueue()
+{
+    this.onComplete = new Signal();
+    this._queue = [];
+    this._currentIndex = 0;
+    this._isRunning = false;
+}
+
+AsyncTaskQueue.prototype = {
+    queue: function(func, rest)
+    {
+        // V8 engine doesn't perform well if not copying the array first before slicing
+        var args = (arguments.length === 1 ? [arguments[0]] : Array.apply(null, arguments));
+
+        this._queue.push({
+            func: func,
+            args: args.slice(1)
+        });
+    },
+
+    runAll: function()
+    {
+        if (this._isRunning)
+            throw new Error("Already running!");
+
+        this._isRunning = true;
+        this._currentIndex = 0;
+
+        this._executeTask();
+    },
+
+    _executeTask: function()
+    {
+        setTimeout(this._executeImpl.bind(this));
+    },
+
+    _executeImpl: function()
+    {
+        if (this._queue.length === this._currentIndex) {
+            this.onComplete.dispatch();
+        }
+        else {
+            var elm = this._queue[this._currentIndex];
+            elm.func.apply(this, elm.args);
+            ++this._currentIndex;
+            this._executeTask();
+        }
+    }
+};
+
 function OBJ()
 /**
  * @classdesc
@@ -1169,8 +1295,19 @@ OBJ.prototype.parse = function(data, target)
 
 OBJ.prototype._finish = function(mtlLib)
 {
-    this._translate(mtlLib);
-    this._notifyComplete(this._target);
+    var queue = new AsyncTaskQueue();
+    var numObjects = this._objects.length;
+
+    for (var i = 0; i < numObjects; ++i) {
+        queue.queue(this._translateObject.bind(this), i, mtlLib);
+    }
+
+    queue.onComplete.bind(function() {
+        this._notifyComplete(this._target);
+    }, this);
+    queue.runAll();
+
+
 };
 
 OBJ.prototype._loadMTLLib = function(filename)
@@ -1185,7 +1322,7 @@ OBJ.prototype._loadMTLLib = function(filename)
 
     loader.onProgress = function(ratio)
     {
-        self._notifyProgress(ratio);
+        self._notifyProgress(ratio * .8);
     };
 
     loader.onFail = function (message)
@@ -1297,16 +1434,9 @@ OBJ.prototype._parseFaceData = function(tokens)
     this._activeSubGroup.numIndices += tokens.length === 4 ? 3 : 6;
 };
 
-OBJ.prototype._translate = function(mtlLib)
+OBJ.prototype._translateObject = function(objectIndex, mtlLib)
 {
-    var numObjects = this._objects.length;
-    for (var i = 0; i < numObjects; ++i) {
-        this._translateObject(this._objects[i], mtlLib);
-    }
-};
-
-OBJ.prototype._translateObject = function(object, mtlLib)
-{
+    var object = this._objects[objectIndex];
     var numGroups = object.groups.length;
     if (numGroups === 0) return;
     var materials = [];
@@ -1332,6 +1462,8 @@ OBJ.prototype._translateObject = function(object, mtlLib)
     var modelInstance = new HX$1.ModelInstance(model, materials);
     modelInstance.name = object.name;
     this._target.attach(modelInstance);
+
+    this._notifyProgress(.8 + (objectIndex + 1) / this._objects.length * .2);
 };
 
 OBJ.prototype._translateMesh = function(group)
@@ -1396,7 +1528,7 @@ OBJ.prototype._translateMesh = function(group)
     mesh.setIndexData(indices);
 
     var mode = HX$1.NormalTangentGenerator.MODE_TANGENTS;
-    mode = mode | HX$1.NormalTangentGenerator.MODE_NORMALS;
+    if (!this._hasNormals) mode = mode | HX$1.NormalTangentGenerator.MODE_NORMALS;
     var generator = new HX$1.NormalTangentGenerator();
     generator.generate(mesh, mode, true);
     return mesh;

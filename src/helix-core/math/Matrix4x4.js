@@ -152,6 +152,8 @@ Matrix4x4.prototype =
         m[13] = mm[13];
         m[14] = mm[14];
         m[15] = mm[15];
+
+        return this;
     },
 
     /**
@@ -178,6 +180,7 @@ Matrix4x4.prototype =
         m[13] = 0;
         m[14] = 0;
         m[15] = 1;
+        return this;
     },
 
     /**
@@ -215,6 +218,7 @@ Matrix4x4.prototype =
         m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23 + a_m13 * b_m33;
         m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23 + a_m23 * b_m33;
         m[15] = a_m30 * b_m03 + a_m31 * b_m13 + a_m32 * b_m23 + a_m33 * b_m33;
+        return this;
     },
 
     /**
@@ -251,6 +255,7 @@ Matrix4x4.prototype =
         m[12] = a_m00 * b_m03 + a_m01 * b_m13 + a_m02 * b_m23 + a_m03;
         m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23 + a_m13;
         m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23 + a_m23;
+        return this;
 
     },
 
@@ -287,6 +292,7 @@ Matrix4x4.prototype =
         m[13] = 0;
         m[14] = 0;
         m[15] = 1;
+        return this;
     },
 
 
@@ -320,6 +326,7 @@ Matrix4x4.prototype =
         m[13] = 0;
         m[14] = 0;
         m[15] = 1;
+        return this;
     },
 
     /**
@@ -363,6 +370,7 @@ Matrix4x4.prototype =
         m[13] = 0;
         m[14] = 0;
         m[15] = 1;
+        return this;
     },
 
     /**
@@ -395,6 +403,7 @@ Matrix4x4.prototype =
         m[13] = y;
         m[14] = z;
         m[15] = 1;
+        return this;
     },
 
     /**
@@ -430,6 +439,7 @@ Matrix4x4.prototype =
         m[13] = 0;
         m[14] = 0;
         m[15] = 1;
+        return this;
     },
 
     /**
@@ -465,6 +475,7 @@ Matrix4x4.prototype =
         m[13] = 0;
         m[14] = 2 * nearDistance * farDistance * rcpFrustumDepth;
         m[15] = 0;
+        return this;
     },
 
     /**
@@ -502,6 +513,7 @@ Matrix4x4.prototype =
         m[13] = -(top + bottom) * rcpHeight;
         m[14] = (farDistance + nearDistance) * rcpDepth;
         m[15] = 1;
+        return this;
     },
 
     /**
@@ -537,6 +549,7 @@ Matrix4x4.prototype =
         m[13] = 0.0;
         m[14] = (farDistance + nearDistance) * rcpDepth;
         m[15] = 1;
+        return this;
     },
 
     /**
@@ -575,6 +588,7 @@ Matrix4x4.prototype =
         m[12] = m3;
         m[13] = m7;
         m[14] = m11;
+        return this;
     },
 
     /**
@@ -599,6 +613,8 @@ Matrix4x4.prototype =
         return      m[c1 | r1] * (m22 * m33 - m23 * m32)
             - m[c2 | r1] * (m21 * m33 - m23 * m31)
             + m[c3 | r1] * (m21 * m32 - m22 * m31);
+
+        return this;
     },
 
     /**
@@ -691,6 +707,7 @@ Matrix4x4.prototype =
         m[13] = m13;
         m[14] = m14;
         m[15] = m15;
+        return this;
     },
 
     /**
@@ -733,6 +750,7 @@ Matrix4x4.prototype =
         m[13] = -n1 * m12 - n5 * m13 - n9 * m14;
         m[14] = -n2 * m12 - n6 * m13 - n10 * m14;
         m[15] = 1;
+        return this;
     },
 
     /**
@@ -797,7 +815,7 @@ Matrix4x4.prototype =
      */
     invert: function ()
     {
-        this.inverseOf(this);
+        return this.inverseOf(this);
     },
 
     /**
@@ -805,7 +823,7 @@ Matrix4x4.prototype =
      */
     invertAffine: function ()
     {
-        this.inverseAffineOf(this);
+        return this.inverseAffineOf(this);
     },
 
     /**
@@ -813,7 +831,7 @@ Matrix4x4.prototype =
      */
     append: function (m)
     {
-        this.multiply(m, this);
+        return this.multiply(m, this);
     },
 
     /**
@@ -821,7 +839,7 @@ Matrix4x4.prototype =
      */
     prepend: function (m)
     {
-        this.multiply(this, m);
+        return this.multiply(this, m);
     },
 
     /**
@@ -829,7 +847,7 @@ Matrix4x4.prototype =
      */
     appendAffine: function (m)
     {
-        this.multiplyAffine(m, this);
+        return this.multiplyAffine(m, this);
     },
 
     /**
@@ -837,7 +855,7 @@ Matrix4x4.prototype =
      */
     prependAffine: function (m)
     {
-        this.multiplyAffine(this, m);
+        return this.multiplyAffine(this, m);
     },
 
     /**
@@ -863,6 +881,7 @@ Matrix4x4.prototype =
         m[13] += mm[13];
         m[14] += mm[14];
         m[15] += mm[15];
+        return this;
     },
 
     /**
@@ -881,6 +900,7 @@ Matrix4x4.prototype =
         m[8] += mm[8];
         m[9] += mm[9];
         m[10] += mm[10];
+        return this;
     },
 
     /**
@@ -906,6 +926,7 @@ Matrix4x4.prototype =
         m[13] -= mm[13];
         m[14] -= mm[14];
         m[15] -= mm[15];
+        return this;
     },
 
     /**
@@ -924,6 +945,7 @@ Matrix4x4.prototype =
         m[8] -= mm[8];
         m[9] -= mm[9];
         m[10] -= mm[10];
+        return this;
     },
 
     /**
@@ -952,6 +974,7 @@ Matrix4x4.prototype =
         m[12] *= x;
         m[13] *= y;
         m[14] *= z;
+        return this;
     },
 
     /**
@@ -980,6 +1003,7 @@ Matrix4x4.prototype =
         m[9] *= z;
         m[10] *= z;
         m[11] *= z;
+        return this;
     },
 
     /**
@@ -991,6 +1015,7 @@ Matrix4x4.prototype =
         m[12] += v.x;
         m[13] += v.y;
         m[14] += v.z;
+        return this;
     },
 
     /**
@@ -1004,6 +1029,7 @@ Matrix4x4.prototype =
         m[13] += m[1] * x + m[5] * y + m[9] * z;
         m[14] += m[2] * x + m[6] * y + m[10] * z;
         m[15] += m[3] * x + m[7] * y + m[11] * z;
+        return this;
     },
 
     /**
@@ -1037,6 +1063,7 @@ Matrix4x4.prototype =
         m[12] = a_m00 * b_m03 + a_m01 * b_m13 + a_m02 * b_m23;
         m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23;
         m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23;
+        return this;
     },
 
     /**
@@ -1065,6 +1092,7 @@ Matrix4x4.prototype =
         m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
         m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
         m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
+        return this;
     },
 
     /**
@@ -1104,6 +1132,7 @@ Matrix4x4.prototype =
         m[12] = a_m00 * b_m03 + a_m01 * b_m13 + a_m02 * b_m23;
         m[13] = a_m10 * b_m03 + a_m11 * b_m13 + a_m12 * b_m23;
         m[14] = a_m20 * b_m03 + a_m21 * b_m13 + a_m22 * b_m23;
+        return this;
     },
 
     /**
@@ -1138,6 +1167,7 @@ Matrix4x4.prototype =
         m[8] = a_m00 * b_m02 + a_m01 * b_m12 + a_m02 * b_m22;
         m[9] = a_m10 * b_m02 + a_m11 * b_m12 + a_m12 * b_m22;
         m[10] = a_m20 * b_m02 + a_m21 * b_m12 + a_m22 * b_m22;
+        return this;
     },
 
     /**
@@ -1168,6 +1198,7 @@ Matrix4x4.prototype =
         m[index | 4] = v.y;
         m[index | 8] = v.z;
         m[index | 12] = v.w;
+        return this;
     },
 
     /**
@@ -1189,6 +1220,7 @@ Matrix4x4.prototype =
     setElement: function(row, col, value)
     {
         this._m[row | (col << 2)] = value;
+        return this;
     },
 
     /**
@@ -1221,6 +1253,7 @@ Matrix4x4.prototype =
         m[index | 1] = v.y;
         m[index | 2] = v.z;
         m[index | 3] = v.w;
+        return this;
     },
 
     /**
@@ -1237,6 +1270,7 @@ Matrix4x4.prototype =
         m1[index | 1] = m2[index | 1];
         m1[index | 2] = m2[index | 2];
         m1[index | 3] = m2[index | 3];
+        return this;
     },
 
     /**
@@ -1290,6 +1324,8 @@ Matrix4x4.prototype =
             m[13] = eye.y;
             m[14] = eye.z;
             m[15] = 1.0;
+
+            return this;
         }
     }(),
 
@@ -1298,9 +1334,10 @@ Matrix4x4.prototype =
      */
     compose: function(transform)
     {
-        this.fromScale(transform.scale)
+        this.fromScale(transform.scale);
         this.appendQuaternion(transform.rotation);
         this.appendTranslation(transform.position);
+        return this;
     },
 
     /**
@@ -1381,6 +1418,7 @@ Matrix4x4.prototype =
         m[j | 1] = y;
         m[j | 2] = z;
         m[j | 3] = w;
+        return this;
     },
 
     /**

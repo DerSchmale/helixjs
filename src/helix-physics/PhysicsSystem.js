@@ -1,12 +1,15 @@
 import * as CANNON from "cannon";
 import * as HX from "helix";
 
-import {RigidBodyComponent} from "./component/RigidBodyComponent";
+import {RigidBody} from "./components/RigidBody";
 
 /**
+ * PhysicsSystem is an {@linkcode EntitySystem} allowing physics simulations (based on cannonjs).
  *
  * @property fixedTimeStep If 0, it uses the frame delta times which is not recommended for stability reasons.
  * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function PhysicsSystem()
 {
@@ -56,7 +59,7 @@ PhysicsSystem.prototype = Object.create(HX.EntitySystem.prototype, {
 
 PhysicsSystem.prototype.onStarted = function()
 {
-    this._colliders = this.getEntitySet([RigidBodyComponent]);
+    this._colliders = this.getEntitySet([RigidBody]);
     this._colliders.onEntityAdded.bind(this._onEntityAdded, this);
     this._colliders.onEntityRemoved.bind(this._onEntityRemoved, this);
 
@@ -75,7 +78,7 @@ PhysicsSystem.prototype.onStopped = function()
 
 PhysicsSystem.prototype._onEntityAdded = function(entity)
 {
-    var component = entity.getFirstComponentByType(RigidBodyComponent);
+    var component = entity.getFirstComponentByType(RigidBody);
     // for faster access
     this._components.push(component);
 
@@ -84,7 +87,7 @@ PhysicsSystem.prototype._onEntityAdded = function(entity)
 
 PhysicsSystem.prototype._onEntityRemoved = function()
 {
-    var component = entity.getFirstComponentByType(RigidBodyComponent);
+    var component = entity.getFirstComponentByType(RigidBody);
     this._world.removeBody(component.body);
     var index = this._components.indexOf(component);
     this._components.splice(index, 1);

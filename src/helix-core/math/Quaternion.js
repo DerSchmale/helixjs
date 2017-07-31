@@ -31,6 +31,7 @@ Quaternion.prototype =
         this.y = axis.y * factor;
         this.z = axis.z * factor;
         this.w = Math.cos(halfAngle);
+        return this;
     },
 
     /**
@@ -42,6 +43,7 @@ Quaternion.prototype =
         // wasteful. improve.
         mtx.fromRotationPitchYawRoll(pitch, yaw, roll);
         this.fromMatrix(mtx);
+        return this;
     },
 
     /**
@@ -56,6 +58,7 @@ Quaternion.prototype =
         this.y = cx*sy*cz - sx*cy*sz;
         this.z = cx*cy*sz + sx*sy*cz;
         this.w = cx*cy*cz - sx*sy*sz;
+        return this;
     },
 
     /**
@@ -124,6 +127,7 @@ Quaternion.prototype =
 
         // this is to prevent non-normalized due to rounding errors
         this.normalize();
+        return this;
     },
 
     /**
@@ -160,6 +164,7 @@ Quaternion.prototype =
         this.y = -this.y;
         this.z = -this.z;
         this.w = -this.w;
+        return this;
     },
 
     /**
@@ -171,6 +176,7 @@ Quaternion.prototype =
         this.y = y;
         this.z = z;
         this.w = w;
+        return this;
     },
 
     /**
@@ -182,6 +188,7 @@ Quaternion.prototype =
         this.y = b.y;
         this.z = b.z;
         this.w = b.w;
+        return this;
     },
 
     /**
@@ -210,6 +217,7 @@ Quaternion.prototype =
         this.y *= rcpNorm;
         this.z *= rcpNorm;
         this.w *= rcpNorm;
+        return this;
     },
 
     /**
@@ -217,9 +225,10 @@ Quaternion.prototype =
      */
     conjugate: function()
     {
-        this.x = -q.x;
-        this.y = -q.y;
-        this.z = -q.z;
+        this.x = -this.x;
+        this.y = -this.y;
+        this.z = -this.z;
+        return this;
     },
 
     /**
@@ -233,6 +242,7 @@ Quaternion.prototype =
         this.y = -y*rcpSqrNorm;
         this.z = -z*rcpSqrNorm;
         this.w = w*rcpSqrNorm;
+        return this;
     },
 
     /**
@@ -247,6 +257,7 @@ Quaternion.prototype =
         this.y = w1*y2 - x1*z2 + y1*w2 + z1*x2;
         this.z = w1*z2 + x1*y2 - y1*x2 + z1*w2;
         this.w = w1*w2 - x1*x2 - y1*y2 - z1*z2;
+        return this;
     },
 
     /**
@@ -254,7 +265,7 @@ Quaternion.prototype =
      */
     append: function(q)
     {
-        this.multiply(q, this);
+        return this.multiply(q, this);
     },
 
     /**
@@ -262,7 +273,7 @@ Quaternion.prototype =
      */
     prepend: function(q)
     {
-        this.multiply(this, q);
+        return this.multiply(this, q);
     },
 
     /**
@@ -290,6 +301,7 @@ Quaternion.prototype =
         this.w = w1 + factor * (w2 - w1);
 
         this.normalize();
+        return this;
     },
 
     /**

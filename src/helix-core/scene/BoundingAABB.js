@@ -154,9 +154,9 @@ BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
         var y = sourceBound._center.y;
         var z = sourceBound._center.z;
 
-        this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
-        this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
-        this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
+        var cx = this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
+        var cy = this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
+        var cz = this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
 
         if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
         if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
@@ -165,17 +165,16 @@ BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
         y = sourceBound._halfExtentY;
         z = sourceBound._halfExtentZ;
 
-        this._halfExtentX = m00 * x + m01 * y + m02 * z;
-        this._halfExtentY = m10 * x + m11 * y + m12 * z;
-        this._halfExtentZ = m20 * x + m21 * y + m22 * z;
+        var hx = this._halfExtentX = m00 * x + m01 * y + m02 * z;
+        var hy = this._halfExtentY = m10 * x + m11 * y + m12 * z;
+        var hz = this._halfExtentZ = m20 * x + m21 * y + m22 * z;
 
-
-        this._minimumX = this._center.x - this._halfExtentX;
-        this._minimumY = this._center.y - this._halfExtentY;
-        this._minimumZ = this._center.z - this._halfExtentZ;
-        this._maximumX = this._center.x + this._halfExtentX;
-        this._maximumY = this._center.y + this._halfExtentY;
-        this._maximumZ = this._center.z + this._halfExtentZ;
+        this._minimumX = cx - hx;
+        this._minimumY = cy - hy;
+        this._minimumZ = cz - hz;
+        this._maximumX = cx + hx;
+        this._maximumY = cy + hy;
+        this._maximumZ = cz + hz;
         this._expanse = sourceBound._expanse;
     }
     else {

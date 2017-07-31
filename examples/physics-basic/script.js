@@ -35,7 +35,7 @@ window.onload = function ()
 function initCamera(camera)
 {
     camera.nearDistance = .3;
-    camera.farDistance = 20.0;
+    camera.farDistance = 100.0;
 
     var orbitController = new HX.OrbitController();
     orbitController.lookAtTarget.y = 1.2;
@@ -54,6 +54,7 @@ function initScene(scene, assetLibrary)
     scene.attach(lightProbe);
 
     var light = new HX.DirectionalLight();
+    light.intensity = 1.5;
     scene.attach(light);
 
     var lights = [lightProbe, light];
@@ -76,9 +77,9 @@ function initScene(scene, assetLibrary)
         });
 
     var floorInstance = new HX.ModelInstance(primitive, material);
-    var collider = new HX.RigidBodyComponent(HX.RigidBodyComponent.TYPE_INFINITE_PLANE);
-    collider.mass = 0;
-    floorInstance.addComponent(collider);
+    var rigidBody = new HX.RigidBody(new HX.InfinitePlaneCollider());
+    rigidBody.mass = 0;
+    floorInstance.addComponent(rigidBody);
     scene.attach(floorInstance);
 
 
@@ -96,12 +97,12 @@ function initScene(scene, assetLibrary)
             for (var z = -1; z <= 1; ++z) {
                 var modelInstance = new HX.ModelInstance(primitive, material);
 
-                modelInstance.position.set(x + Math.random() - .5, 1.0 + y * 2.0, z + Math.random() - .5);
+                modelInstance.position.set(x + (Math.random() - .5) * .3, 1.0 + y * 2.0, z + (Math.random() - .5) * .3);
 
-                collider = new HX.RigidBodyComponent();
-                collider.linearDamping = .2;
-                collider.angularDamping = .2;
-                modelInstance.addComponent(collider);
+                rigidBody = new HX.RigidBody();
+                rigidBody.linearDamping = .2;
+                rigidBody.angularDamping = .2;
+                modelInstance.addComponent(rigidBody);
 
                 scene.attach(modelInstance);
             }

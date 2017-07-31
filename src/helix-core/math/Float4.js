@@ -121,6 +121,7 @@ Float4.prototype =
         this.y = y;
         this.z = z;
         this.w = w === undefined? this.w : w;
+        return this;
     },
 
     /**
@@ -148,6 +149,7 @@ Float4.prototype =
         this.x *= rcpLength;
         this.y *= rcpLength;
         this.z *= rcpLength;
+        return this;
     },
 
     /**
@@ -160,6 +162,7 @@ Float4.prototype =
         this.y *= rcpLength;
         this.z *= rcpLength;
         this.w *= rcpLength;
+        return this;
     },
 
     /**
@@ -179,6 +182,7 @@ Float4.prototype =
         this.y += v.y;
         this.z += v.z;
         this.w += v.w;
+        return this;
     },
 
     /**
@@ -192,6 +196,7 @@ Float4.prototype =
         this.y += v.y * s;
         this.z += v.z * s;
         this.w += v.w * s;
+        return this;
     },
 
     /**
@@ -203,6 +208,7 @@ Float4.prototype =
         this.y -= v.y;
         this.z -= v.z;
         this.w -= v.w;
+        return this;
     },
 
     /**
@@ -213,7 +219,7 @@ Float4.prototype =
         this.x *= s;
         this.y *= s;
         this.z *= s;
-        //this.w *= s;
+        return this;
     },
 
     /**
@@ -225,6 +231,7 @@ Float4.prototype =
         this.y *= s;
         this.z *= s;
         this.w *= s;
+        return this;
     },
 
     /**
@@ -236,6 +243,7 @@ Float4.prototype =
         this.y = -this.y;
         this.z = -this.z;
         this.w = -this.w;
+        return this;
     },
 
     /**
@@ -247,6 +255,7 @@ Float4.prototype =
         this.y = -a.y;
         this.z = -a.z;
         this.w = -a.w;
+        return this;
     },
 
     /**
@@ -259,6 +268,7 @@ Float4.prototype =
         this.y *= rcpW;
         this.z *= rcpW;
         this.w = 1.0;
+        return this;
     },
 
     /**
@@ -270,6 +280,7 @@ Float4.prototype =
         this.y = Math.abs(this.y);
         this.z = Math.abs(this.z);
         this.w = Math.abs(this.w);
+        return this;
     },
 
     /**
@@ -284,6 +295,7 @@ Float4.prototype =
         this.y = radius*Math.cos(polarAngle);
         this.z = radius*Math.sin(polarAngle)*Math.sin(azimuthalAngle);
         this.w = 0.0;
+        return this;
     },
 
     /**
@@ -295,6 +307,7 @@ Float4.prototype =
         this.y = b.y;
         this.z = b.z;
         this.w = b.w;
+        return this;
     },
 
     /**
@@ -306,6 +319,7 @@ Float4.prototype =
         if (b.y > this.y) this.y = b.y;
         if (b.z > this.z) this.z = b.z;
         if (b.w > this.w) this.w = b.w;
+        return this;
     },
 
     /**
@@ -316,6 +330,7 @@ Float4.prototype =
         if (b.x > this.x) this.x = b.x;
         if (b.y > this.y) this.y = b.y;
         if (b.z > this.z) this.z = b.z;
+        return this;
     },
 
     /**
@@ -327,6 +342,7 @@ Float4.prototype =
         if (b.y < this.y) this.y = b.y;
         if (b.z < this.z) this.z = b.z;
         if (b.w < this.w) this.w = b.w;
+        return this;
     },
 
     /**
@@ -337,6 +353,7 @@ Float4.prototype =
         if (b.x < this.x) this.x = b.x;
         if (b.y < this.y) this.y = b.y;
         if (b.z < this.z) this.z = b.z;
+        return this;
     },
 
     /**
@@ -351,6 +368,7 @@ Float4.prototype =
         this.y = ny;
         this.z = nz;
         this.w = -(point.x * nx + point.y * ny + point.z * nz);
+        return this;
     },
 
     /**
@@ -430,6 +448,7 @@ Float4.prototype =
         this.y = ay + (b.y - ay) * factor;
         this.z = az + (b.z - az) * factor;
         this.w = aw + (b.w - aw) * factor;
+        return this;
     },
 
     /**

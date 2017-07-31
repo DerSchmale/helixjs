@@ -58,7 +58,7 @@ gulp.task('main', ['core', 'io', 'physics']);
 
 gulp.task('minimize', ['main'], function ()
 {
-    gulp.src(['./build/helix.js', './build/helix-io.js'], {base: './build/'})
+    gulp.src(['./build/helix.js', './build/helix-io.js', './build/helix-physics.js'], {base: './build/'})
         .pipe(uglify())
         .pipe(rename({suffix: '.min'}))
         .pipe(gulp.dest('./build/'));

@@ -15,10 +15,14 @@ function PhysicsSystem()
     this._world = new CANNON.World();
     this._gravity = -9.81; // m/s²
     this._world.gravity.set(0, this._gravity, 0);
-    this._world.solver.tolerance = .01;
+    this._world.solver.tolerance = .001;
+    this._world.solver.iterations = 10;
     this._fixedTimeStep = 1000/60;
-    this._maxIterations = 5;
-    // this._world.broadphase = new CANNON.NaiveBroadphase();
+    this._friction = 0.0;
+    this._world.broadphase = new CANNON.SAPBroadphase(this._world);
+
+    this._world.quatNormalizeFast = true;
+    this._world.quatNormalizeSkip = 8;
 
     this._components = [];
 }
@@ -89,7 +93,7 @@ PhysicsSystem.prototype._onEntityRemoved = function()
 // we're updating here to enforce order of updates
 PhysicsSystem.prototype.onUpdate = function(dt)
 {
-    this._world.step(this._fixedTimeStep * .001, dt * .001, this._maxIterations);
+    this._world.step(this._fixedTimeStep * .001);
 
     var len = this._components.length;
     for (var i = 0; i < len; ++i) {

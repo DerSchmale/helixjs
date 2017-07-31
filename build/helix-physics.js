@@ -1,5 +1,8 @@
-import * as CANNON from "cannon";
-import * as HX from "helix";
+(function (global, factory) {
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('cannon'), require('helix')) :
+	typeof define === 'function' && define.amd ? define('HX', ['exports', 'cannon', 'helix'], factory) :
+	(factory((global.HX = global.HX || {}),global.CANNON,global.HX));
+}(this, (function (exports,CANNON,HX) { 'use strict';
 
 // TODO: Rename to RigidBodyComponent?
 
@@ -12,8 +15,8 @@ function RigidBodyComponent(colliderType, mass)
     if (colliderType === RigidBodyComponent.TYPE_INFINITE_PLANE)
         this._mass = 0;
 
-    this._linearDamping = 0.01;
-    this._angularDamping = 0.01;
+    this._linearDamping = 0.5;
+    this._angularDamping = 0.5;
 
     this._mass = mass;
     // the offset of the scene graph position to the center of mass
@@ -153,4 +156,107 @@ RigidBodyComponent.prototype._createBody = function()
         this._body.quaternion.copy(entity.rotation);
 };
 
-export {RigidBodyComponent};
+/**
+ *
+ * @property fixedTimeStep If 0, it uses the frame delta times which is not recommended for stability reasons.
+ * @constructor
+ */
+function PhysicsSystem()
+{
+    HX.EntitySystem.call(this);
+
+    this._world = new CANNON.World();
+    this._gravity = -9.81; // m/s²
+    this._world.gravity.set(0, this._gravity, 0);
+    this._world.solver.tolerance = .001;
+    this._world.solver.iterations = 10;
+    this._fixedTimeStep = 1000/60;
+    this._friction = 0.0;
+    this._world.broadphase = new CANNON.SAPBroadphase(this._world);
+
+    this._world.quatNormalizeFast = true;
+    this._world.quatNormalizeSkip = 8;
+
+    this._components = [];
+}
+
+PhysicsSystem.prototype = Object.create(HX.EntitySystem.prototype, {
+    gravity: {
+        get: function() {
+            return this._gravity;
+        },
+
+        set: function(value) {
+            this._gravity = value;
+
+            if (value instanceof HX.Float4)
+                this._world.gravity.set(value.x, value.y, value.z);
+            else
+                this._world.gravity.set(0, value, 0);
+        }
+    },
+
+    fixedTimeStep: {
+        get: function() {
+            return this._fixedTimeStep;
+        },
+
+        set: function(value) {
+            this._fixedTimeStep = value;
+        }
+    }
+});
+
+PhysicsSystem.prototype.onStarted = function()
+{
+    this._colliders = this.getEntitySet([RigidBodyComponent]);
+    this._colliders.onEntityAdded.bind(this._onEntityAdded, this);
+    this._colliders.onEntityRemoved.bind(this._onEntityRemoved, this);
+
+    var len = this._colliders.numEntities;
+    for (var i = 0; i < len; ++i) {
+        var entity = this._colliders.getEntity(i);
+        this._onEntityAdded(entity);
+    }
+};
+
+PhysicsSystem.prototype.onStopped = function()
+{
+    this._colliders.onEntityAdded.unbind(this._onEntityAdded);
+    this._colliders.onEntityRemoved.unbind(this._onEntityRemoved);
+};
+
+PhysicsSystem.prototype._onEntityAdded = function(entity)
+{
+    var component = entity.getFirstComponentByType(RigidBodyComponent);
+    // for faster access
+    this._components.push(component);
+
+    this._world.addBody(component.body);
+};
+
+PhysicsSystem.prototype._onEntityRemoved = function()
+{
+    var component = entity.getFirstComponentByType(RigidBodyComponent);
+    this._world.removeBody(component.body);
+    var index = this._components.indexOf(component);
+    this._components.splice(index, 1);
+};
+
+// we're updating here to enforce order of updates
+PhysicsSystem.prototype.onUpdate = function(dt)
+{
+    this._world.step(this._fixedTimeStep * .001);
+
+    var len = this._components.length;
+    for (var i = 0; i < len; ++i) {
+        this._components[i].applyTransform();
+    }
+};
+
+exports.PhysicsSystem = PhysicsSystem;
+exports.RigidBodyComponent = RigidBodyComponent;
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+})));

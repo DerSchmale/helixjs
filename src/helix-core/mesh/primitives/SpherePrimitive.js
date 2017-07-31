@@ -1,4 +1,5 @@
 import {Primitive} from "./Primitive";
+import {BoundingSphere} from "../../scene/BoundingSphere";
 
 /**
  * @classdesc
@@ -89,6 +90,11 @@ SpherePrimitive.prototype._generate = function(target, definition)
             }
         }
     }
+};
+
+SpherePrimitive.prototype._getBounds = function()
+{
+    return new BoundingSphere();
 };
 
 export { SpherePrimitive };

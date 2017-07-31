@@ -48,6 +48,11 @@ ModelInstance.prototype = Object.create(Entity.prototype, {
             get: function() { return this._model; }
         },
 
+    localBounds:
+        {
+            get: function() { return this._model.localBounds; }
+        },
+
     castShadows: {
         get: function()
         {

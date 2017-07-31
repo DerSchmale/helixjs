@@ -74,6 +74,12 @@ Model.prototype =
             return this._localBounds;
         },
 
+        set localBounds(value)
+        {
+            this._localBounds = value;
+            this._localBoundsInvalid = true;
+        },
+
         /**
          * The {@linkcode Skeleton} used for skinning animations.
          */

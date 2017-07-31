@@ -47,22 +47,6 @@ function initCamera(camera)
 
 function initScene(scene, assetLibrary)
 {
-    // textures are from http://www.alexandre-pestana.com/pbr-textures-sponza/
-    var material = new HX.BasicMaterial();
-    material.colorMap = assetLibrary.get("floor-albedo");
-    material.normalMap = assetLibrary.get("floor-normals");
-    material.specularMap = assetLibrary.get("floor-specular");
-
-    var primitive = new HX.PlanePrimitive(
-        {
-            numSegmentsW: 10,
-            numSegmentsH: 10,
-            width: 50,
-            height: 50,
-            scaleU: 50,
-            scaleV: 50
-        });
-
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
     var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
 
@@ -74,8 +58,24 @@ function initScene(scene, assetLibrary)
 
     var lights = [lightProbe, light];
 
-    var floorInstance = new HX.ModelInstance(primitive, material);
+    // textures are from http://www.alexandre-pestana.com/pbr-textures-sponza/
+    var material = new HX.BasicMaterial();
+    material.colorMap = assetLibrary.get("floor-albedo");
+    material.normalMap = assetLibrary.get("floor-normals");
+    material.specularMap = assetLibrary.get("floor-specular");
     material.fixedLights = lights;
+
+    var primitive = new HX.PlanePrimitive(
+        {
+            numSegmentsW: 10,
+            numSegmentsH: 10,
+            width: 50,
+            height: 50,
+            scaleU: 50,
+            scaleV: 50
+        });
+
+    var floorInstance = new HX.ModelInstance(primitive, material);
     var collider = new HX.RigidBodyComponent(HX.RigidBodyComponent.TYPE_INFINITE_PLANE);
     collider.mass = 0;
     floorInstance.addComponent(collider);
@@ -89,15 +89,20 @@ function initScene(scene, assetLibrary)
 
     material = new HX.BasicMaterial();
     material.fixedLights = lights;
-    var boxGeom = new HX.BoxPrimitive({width: .5});
+    primitive = new HX.SpherePrimitive({radius: .25});
 
     for (var x = -1; x <= 1; ++x) {
         for (var y = 0; y < 10; ++y) {
             for (var z = -1; z <= 1; ++z) {
-                var modelInstance = new HX.ModelInstance(boxGeom, material);
+                var modelInstance = new HX.ModelInstance(primitive, material);
+
                 modelInstance.position.set(x + Math.random() - .5, 1.0 + y * 2.0, z + Math.random() - .5);
-                collider = new HX.RigidBodyComponent(HX.RigidBodyComponent.TYPE_BOX);
+
+                collider = new HX.RigidBodyComponent();
+                collider.linearDamping = .2;
+                collider.angularDamping = .2;
                 modelInstance.addComponent(collider);
+
                 scene.attach(modelInstance);
             }
         }

@@ -1,7 +1,8 @@
 import * as CANNON from "cannon";
 import * as HX from "helix";
 
-// TODO: Rename to RigidBodyComponent?
+// TODO: should replace colliderType with custom bounds
+// so we could pass in SphereBounds
 
 function RigidBodyComponent(colliderType, mass)
 {
@@ -16,8 +17,6 @@ function RigidBodyComponent(colliderType, mass)
     this._angularDamping = 0.01;
 
     this._mass = mass;
-    // the offset of the scene graph position to the center of mass
-    this._COMOffset = new HX.Float4();
 }
 
 RigidBodyComponent.TYPE_BOX = 1;
@@ -89,24 +88,19 @@ RigidBodyComponent.prototype.applyTransform = function()
 
     var entity = this._entity;
     var body = this._body;
-    var matrix = entity.matrix;
 
-    // TODO: These should be transformed to local space instead of world space
-    matrix.fromQuaternion(body.quaternion);
-    matrix.appendTranslation(body.position);
-    entity.matrix = matrix;
+    entity.position = body.position;
+    entity.rotation = body.quaternion;
 };
 
 RigidBodyComponent.prototype._createBody = function()
 {
     var entity = this._entity;
 
-    // TODO: Should probably use local bounds if available, and then set the world transform properties
-    var bounds = entity.worldBounds;
+    var bounds = entity.localBounds;
 
     var shape;
     var type = this._type;
-
 
     if (type === RigidBodyComponent.TYPE_AUTO)
         type = bounds instanceof HX.BoundingAABB? RigidBodyComponent.TYPE_BOX : RigidBodyComponent.TYPE_SPHERE;
@@ -135,15 +129,14 @@ RigidBodyComponent.prototype._createBody = function()
             throw new Error("Invalid enum!");
     }
 
-    var centerOfMass = bounds.center;
     this._body = new CANNON.Body({
-        mass: this._mass,
-        linearDamping: this._linearDamping,
-        angularDamping: this._angularDamping,
+        mass: this._mass
     });
 
-    var COMOffset = HX.Float4.subtract(centerOfMass, entity.position);
-    this._body.addShape(shape, COMOffset);
+    this._body.linearDamping = this._linearDamping;
+    this._body.angularDamping = this._angularDamping;
+
+    this._body.addShape(shape, bounds.center);
 
     this._body.position.copy(entity.position);
 

@@ -1,6 +1,7 @@
 import {Model} from "../Model";
 import {NormalTangentGenerator} from "../../utils/NormalTangentGenerator";
 import {Mesh} from "../Mesh";
+import {BoundingAABB} from "../../scene/BoundingAABB";
 
 /**
  * @ignore
@@ -15,6 +16,7 @@ function Primitive(definition)
 {
     definition = definition || {};
     Model.call(this, this._createMesh(definition));
+    this.localBounds = this._getBounds();
 }
 
 Primitive._ATTRIBS = function()
@@ -117,6 +119,11 @@ Primitive.prototype._createMesh = function(definition)
     }
 
     return mesh;
+};
+
+Primitive.prototype._getBounds = function()
+{
+    return new BoundingAABB();
 };
 
 export {Primitive };

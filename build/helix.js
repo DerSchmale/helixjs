@@ -35,10 +35,6 @@ var ShaderLibrary = {
     }
 };
 
-ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
-
-ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
-
 ShaderLibrary._files['deferred_ambient_light_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef HX_SSAO\nuniform sampler2D hx_ssao;\n#endif\n\nuniform vec3 hx_ambientColor;\n\n\nvoid main()\n{\n// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    gl_FragColor.xyz = hx_ambientColor * data.geometry.color.xyz * data.geometry.occlusion;\n\n#ifdef HX_SSAO\n    gl_FragColor.xyz *= texture2D(hx_ssao, uv).x;\n#endif\n\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['deferred_dir_light_fragment.glsl'] = 'varying vec2 uv;\nvarying vec3 viewDir;\n\nuniform HX_DirectionalLight hx_directionalLight;\n\nuniform sampler2D hx_gbufferAlbedo;\nuniform sampler2D hx_gbufferNormalDepth;\nuniform sampler2D hx_gbufferSpecular;\n\n#ifdef HX_SHADOW_MAP\nuniform sampler2D hx_shadowMap;\n#endif\n\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\n\n\nvoid main()\n{\n// TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method\n    HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);\n\n    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;\n	vec3 viewPosition = viewDir * absViewZ;\n    vec3 viewVector = normalize(viewPosition);\n    vec3 diffuse, specular;\n\n    hx_calculateLight(hx_directionalLight, data.geometry, viewVector, viewPosition, data.normalSpecularReflectance, diffuse, specular);\n\n    gl_FragColor.xyz = diffuse * data.geometry.color.xyz + specular;\n    gl_FragColor.w = 1.0;\n\n    #ifdef HX_SHADOW_MAP\n        gl_FragColor.xyz *= hx_calculateShadows(hx_directionalLight, hx_shadowMap, viewPosition);\n    #endif\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
@@ -57,13 +53,9 @@ ShaderLibrary._files['deferred_spot_light_fragment.glsl'] = 'varying vec2 uv;\nv
 
 ShaderLibrary._files['deferred_spot_light_vertex.glsl'] = 'attribute vec4 hx_position;\n\n#ifdef HX_CONE_MESH\nuniform HX_SpotLight hx_spotLight;\nuniform mat4 hx_viewProjectionMatrix;\nuniform mat4 hx_projectionMatrix;\nuniform mat4 hx_spotLightWorldMatrix;\n#else\n\nattribute vec2 hx_texCoord;\n#endif\n\nvarying vec2 uv;\nvarying vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n#ifdef HX_CONE_MESH\n    vec3 localPos = hx_position.xyz;\n    // need to flip z, but also another axis to keep windedness\n    localPos.xz = -localPos.xz;\n    // align to origin, with height 1\n    localPos.z += .5;\n    // adapt to correct radius\n    localPos.xyz *= hx_spotLight.radius;\n    // make sure the base is correctly sized\n    localPos.xy *= hx_spotLight.sinOuterAngle;\n\n    // this just rotates, it does not translate\n    vec4 worldPos = hx_spotLightWorldMatrix * vec4(localPos, 1.0);\n    gl_Position = hx_viewProjectionMatrix * worldPos;\n    gl_Position /= gl_Position.w;\n    uv = gl_Position.xy / gl_Position.w * .5 + .5;\n    viewDir = hx_getLinearDepthViewVector(gl_Position.xy / gl_Position.w, hx_inverseProjectionMatrix);\n#else\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n#endif\n}';
 
-ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.z < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_dir_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when modelInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.z > light.maxShadowDistance));\n}';
+ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    gl_FragColor = color;\n}';
 
-ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
-
-ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, samplerCube shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    dir = mat3(light.shadowMapMatrix) * dir;\n    return hx_point_readShadow(shadowMap, dir, light.rcpRadius, light.depthBias);\n}\n#endif';
-
-ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n    float sinOuterAngle;    // only used in deferred, hence separate\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    return hx_spot_readShadow(shadowMap, viewPos, light.shadowMapMatrix, light.depthBias);\n}\n#endif';
+ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
 ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
 
@@ -134,6 +126,14 @@ ShaderLibrary._files['material_spot_shadow_fragment.glsl'] = 'void main()\n{\n  
 ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    gl_FragColor = data.color;\n    gl_FragColor.xyz += data.emission;\n\n\n    #ifdef HX_GAMMA_CORRECT_LIGHTS\n        gl_FragColor = hx_linearToGamma(gl_FragColor);\n    #endif\n}';
 
 ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
+
+ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.z < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_dir_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when modelInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.z > light.maxShadowDistance));\n}';
+
+ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #ifdef HX_TEXTURE_LOD\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
+
+ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, samplerCube shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    dir = mat3(light.shadowMapMatrix) * dir;\n    return hx_point_readShadow(shadowMap, dir, light.rcpRadius, light.depthBias);\n}\n#endif';
+
+ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n    float sinOuterAngle;    // only used in deferred, hence separate\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    return hx_spot_readShadow(shadowMap, viewPos, light.shadowMapMatrix, light.depthBias);\n}\n#endif';
 
 ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
@@ -320,7 +320,7 @@ Signal.prototype =
     {
         var len = this._listeners.length;
         for (var i = 0; i < len; ++i)
-            this._listeners[i].apply(null, arguments);
+            this._listeners[i](payload);
     },
 
     /**
@@ -7840,12 +7840,6 @@ Ray.prototype =
  * <p>If it implements an onUpdate(dt) function, the update method will be called every frame.</p>
  * <p>A single Component instance is unique to an Entity and cannot be shared!</p>
  *
- * Instead of using Object.create, Component subclasses need to be extended using
- *
- * <pre><code>
- * Component.create(SubComponentClass, props);
- * </pre></code>
- *
  * @see {@linkcode Entity}
  *
  * @author derschmale <http://www.derschmale.com>
@@ -7855,19 +7849,6 @@ function Component()
     // this allows notifying entities about bound changes (useful for sized components)
     this._entity = null;
 }
-
-Component.COMPONENT_ID = 0;
-
-Component.create = (function(constrFunction, props)
-{
-    var COUNTER = 0;
-
-    return function(constrFunction, props) {
-        constrFunction.prototype = Object.create(Component.prototype, props);
-        constrFunction.COMPONENT_ID = ++COUNTER;
-        constrFunction.prototype.COMPONENT_ID = constrFunction.COMPONENT_ID;
-    };
-}());
 
 Component.prototype =
 {
@@ -9290,11 +9271,6 @@ BoundingAABB.prototype.getRadius = function()
     return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
 };
 
-BoundingAABB.prototype.getHalfExtents = function()
-{
-    return new Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0);
-};
-
 /**
  * @ignore
  */
@@ -9341,8 +9317,6 @@ function SceneNode()
     this._debugBounds = null;
     this._visible = true;
     this._children = [];
-
-    this.onWorldBoundsInvalid = new HX.Signal();
 
     // used to determine sorting index for the render loop
     // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
@@ -9637,122 +9611,6 @@ SceneNode.prototype.applyFunction = function(func, thisRef)
 };
 
 /**
- * Bitfield is a bitfield that allows more than 32 bits.
- *
- * @ignore
- * @constructor
- */
-
-
-function Bitfield()
-{
-    this._hash = [];
-}
-
-Bitfield.prototype = {
-    isBitSet: function(index) {
-        var i = index >> 5; // divide by 32 gives the array index for each overshoot of 32 bits
-        index &= ~(i << 5); // clear the bits used to find the array index
-
-        return this._hash[i] & (1 << index);
-    },
-
-    setBit: function(index) {
-        var hash = this._hash;
-        var i = index >> 5;
-        index &= ~(i << 5);
-        hash[i] = (hash[i] || 0) | (1 << index);
-    },
-
-    clearBit: function(index) {
-        var hash = this._hash;
-        var i = index >> 5;
-        index &= ~(i << 5);
-        hash[i] = (hash[i] || 0) & ~(1 << index);
-    },
-
-    zero: function() {
-        var hash = this._hash;
-        var l = hash.length;
-        for (var i = 0; i < l; ++i)
-            hash[i] = 0;
-    },
-
-    OR: function(b) {
-        var hash = this._hash;
-        b = b._hash;
-
-        var l = Math.max(hash.length, b.length);
-
-        for (var i = 0; i < l; ++i)
-            hash[i] = (hash[i] || 0) | (b[i] || 0);
-    },
-
-    AND: function(b) {
-        var hash = this._hash;
-        b = b._hash;
-
-        var l = Math.max(hash.length, b.length);
-
-        for (var i = 0; i < l; ++i)
-            hash[i] = (hash[i] || 0) & (b[i] || 0);
-    },
-
-    NOT: function() {
-        var hash = this._hash;
-        var l = hash.length;
-        for (var i = 0; i < l; ++i)
-            hash[i] = ~(hash[i] || 0);
-    },
-
-    /**
-     * Checks if all bits of b are also set in this
-     */
-    contains: function(b) {
-        var hash = this._hash;
-        var b = b._hash;
-        var l = b.length;
-
-        for (var i = 0; i < l; ++i) {
-            var bi = b[i];
-            if ((hash[i] & bi) !== bi)
-                return false;
-        }
-
-        return true;
-    },
-
-    clone: function()
-    {
-        var b = new Bitfield();
-        var l = this._hash.length;
-
-        for (var i = 0; i < l; ++i)
-            b._hash[i] = this._hash[i];
-
-        return b;
-    },
-
-    toString: function() {
-        var str = "";
-
-        var hash = this._hash;
-        var l = hash.length;
-
-        if (l === 0) return "0b0";
-
-        for (var i = 0; i < l; ++i) {
-            var s = (hash[i] || 0).toString(2);
-            while (s.length < 32)
-                s = "0" + s;
-            str = s + str;
-        }
-
-        return "0b" + str;
-    }
-};
-
-/**
  * @classdesc
  * Entity represents a node in the Scene graph that can have {@linkcode Component} objects added to it, which can
  * define its behavior in a modular way.
@@ -9766,10 +9624,9 @@ function Entity()
     SceneNode.call(this);
 
     // components
-    this._componentHash = new Bitfield();
     this._components = null;
     this._requiresUpdates = false;
-    this._onComponentsChange = new Signal();
+    this._onRequireUpdatesChange = new Signal();
 
     // are managed by effect components, but need to be collectable unlike others
     this._effects = null;
@@ -9786,20 +9643,14 @@ Entity.prototype.addComponent = function(component)
     if (component._entity)
         throw new Error("Component already added to an entity!");
 
-    var oldHash = this._componentHash;
-    this._componentHash = this._componentHash.clone();
-
     this._components = this._components || [];
 
     this._components.push(component);
-    this._componentHash.setBit(component.COMPONENT_ID);
 
-    this._requiresUpdates = this._requiresUpdates || (!!component.onUpdate);
+    this._updateRequiresUpdates(this._requiresUpdates || (!!component.onUpdate));
 
     component._entity = this;
     component.onAdded();
-
-    this._onComponentsChange.dispatch(this, oldHash);
 };
 
 /**
@@ -9807,13 +9658,12 @@ Entity.prototype.addComponent = function(component)
  */
 Entity.prototype.removeComponent = function(component)
 {
+    component.onRemoved();
+
     var requiresUpdates = false;
     var len = this._components.length;
     var j = 0;
     var newComps = [];
-
-    var oldHash = this._componentHash;
-    this._componentHash = new Bitfield();
 
     // not splicing since we need to regenerate _requiresUpdates anyway by looping
     for (var i = 0; i < len; ++i) {
@@ -9821,18 +9671,12 @@ Entity.prototype.removeComponent = function(component)
         if (c !== component) {
             newComps[j++] = c;
             requiresUpdates = requiresUpdates || !!component.onUpdate;
-            this._componentHash.setBit(c.COMPONENT_ID);
         }
     }
 
-    this._requiresUpdates = requiresUpdates;
-
-    this._onComponentsChange.dispatch(this, oldHash);
-
     this._components = j === 0? null : newComps;
     component._entity = null;
-
-    component.onRemoved();
+    this._updateRequiresUpdates(requiresUpdates);
 };
 
 /**
@@ -9867,17 +9711,6 @@ Entity.prototype.hasComponentType = function(type)
     }
 };
 
-Entity.prototype.getFirstComponentByType = function(type)
-{
-    if (!this._components) return null;
-    for (var i = 0; i < this._components.length; ++i) {
-        var comp = this._components[i];
-        if (comp instanceof type)
-            return comp;
-    }
-    return null;
-};
-
 /**
  * Returns an array of all Components with a given type.
  */
@@ -9890,6 +9723,18 @@ Entity.prototype.getComponentsByType = function(type)
         if (comp instanceof type) collection.push(comp);
     }
     return collection;
+};
+
+/**
+ * @ignore
+ * @private
+ */
+Entity.prototype._updateRequiresUpdates = function(value)
+{
+    if (value !== this._requiresUpdates) {
+        this._requiresUpdates = value;
+        this._onRequireUpdatesChange.dispatch(this);
+    }
 };
 
 /**
@@ -15932,8 +15777,8 @@ SkeletonPose.prototype = {
      */
     _updateSkeletonMatrices: function (skeleton)
     {
-        var globals;
-        var binds;
+        var globals = this._globalMatrices;
+        var binds = this._bindMatrices;
 
         if (!globals || globals.length !== skeleton.numJoints) {
             this._generateGlobalSkeletonData(skeleton);
@@ -15991,24 +15836,36 @@ SkeletonPose.prototype = {
      */
     _updateSkinningTexture: function ()
     {
-        var data = [];
-        var globals = this._bindMatrices;
-        var len = globals.length;
+        var data;
 
-        for (var r = 0; r < 3; ++r) {
-            for (var i = 0; i < len; ++i) {
-                var m = globals[i]._m;
+        return function()
+        {
+            data = data || new Float32Array(META.OPTIONS.maxSkeletonJoints * 3 * 4);
+            var globals = this._bindMatrices;
+            var len = globals.length;
+            var j = 0;
 
-                data.push(m[r], m[r + 4], m[r + 8], m[r + 12]);
+            for (var r = 0; r < 3; ++r) {
+                for (var i = 0; i < len; ++i) {
+                    var m = globals[i]._m;
+
+                    data[j++] = m[r];
+                    data[j++] = m[r + 4];
+                    data[j++] = m[r + 8];
+                    data[j++] = m[r + 12];
+                }
+
+                for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
+                    data[j++] = 0.0;
+                    data[j++] = 0.0;
+                    data[j++] = 0.0;
+                    data[j++] = 0.0;
+                }
             }
 
-            for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
-                data.push(0, 0, 0, 0);
-            }
+            this._skinningTexture.uploadData(data, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
         }
-
-        this._skinningTexture.uploadData(new Float32Array(data), META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
-    }
+    }()
 };
 
 /**
@@ -16343,7 +16200,7 @@ function DebugBoundsComponent(color)
         this._material.color = color;
 }
 
-Component.create(DebugBoundsComponent, {
+DebugBoundsComponent.prototype = Object.create(Component.prototype, {
     color: {
         get: function ()
         {
@@ -16411,92 +16268,6 @@ DebugBoundsComponent.prototype._initModelInstance = function()
 };
 
 /**
- * EntitySet provides a way to keep collections of entities based on their Components. Collections should always
- * be retrieved via {@linkcode EntitySystem}!
- *
- * @property {Signal} onEntityAdded Dispatched whenever an entity is added to the collection.
- * @property {Signal} onEntityRemoved Dispatched whenever an entity is removed from the collection.
- *
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function EntitySet(hash)
-{
-    this.onEntityAdded = new Signal();
-    this.onEntityRemoved = new Signal();
-    this.onDisposed = new Signal();
-
-    this._hash = hash;
-    this._entities = [];
-    this._usageCount = 0;
-}
-
-EntitySet.prototype =
-{
-    /**
-     * The number of entities currently in the set.
-     */
-    get numEntities()
-    {
-        return this._entities.length;
-    },
-
-    /**
-     * Returns the entity at the given index.
-     */
-    getEntity: function(index)
-    {
-        return this._entities[index];
-    },
-
-
-    /**
-     * @ignore
-     */
-    _containsComponentHash: function(bitfield)
-    {
-        this._hash.contains(bitfield);
-    },
-
-    /**
-     * @ignore
-     */
-    _add: function(entity)
-    {
-        this._entities.push(entity);
-        this.onEntityAdded.dispatch(entity);
-    },
-
-    /**
-     * @ignore
-     */
-    _remove: function(entity)
-    {
-        this.onEntityRemoved.dispatch(entity);
-        var index = this._entities.indexOf(entity);
-        this._entities.splice(index, 1);
-    },
-
-    /**
-     * @ignore
-     */
-    _increaseUsage: function()
-    {
-        ++this._usageCount;
-    },
-
-    /**
-     * @ignore
-     */
-    free: function()
-    {
-        if (--this._usageCount === 0)
-            this.onDisposed.dispatch();
-    }
-};
-
-/**
  * @classdesc
  * Keeps track and updates entities
  *
@@ -16509,122 +16280,42 @@ EntitySet.prototype =
 function EntityEngine()
 {
     this._updateableEntities = [];
-    this._entities = [];
-    this._entitySets = {};
-    this._systems = [];
-
-    // TODO: This would update the entity engine even if the current scene is not actually used!
     onPreFrame.bind(this._update, this);
 }
 
 EntityEngine.prototype =
 {
-    startSystem: function(system)
-    {
-        if (this._systems.indexOf(system) >= 0)
-            throw new Error("System already running!");
-
-        this._systems.push(system);
-        system._onStarted(this);
-    },
-
-    stopSystem: function(system)
-    {
-        var index = this._systems.push(system);
-
-        if (index < 0)
-            throw new Error("System not running!");
-
-        this._systems.splice(index, 1);
-        system.onStopped();
-    },
-
-    getEntitySet: function(componentTypes)
-    {
-        var hash = new Bitfield();
-        var len = componentTypes.length;
-        for (var i = 0; i < len; ++i)
-            hash.setBit(componentTypes[i].COMPONENT_ID);
-
-        var str = hash.toString();
-        var set = this._entitySets[str];
-
-        if (!set) {
-            set = new EntitySet(hash);
-            this._entitySets[str] = set;
-
-            len = this._entities.length;
-            for (var i = 0; i < len; ++i) {
-                var entity = this._entities[i];
-                if (entity._componentHash.contains(hash))
-                    set._add(entity);
-            }
-        }
-
-        set._increaseUsage();
-        return set;
-    },
-
     registerEntity: function(entity)
     {
-        this._entities.push(entity);
-        entity._onComponentsChange.bind(this._onEntityComponentsChange, this);
+        entity._onRequireUpdatesChange.bind(this._onEntityUpdateChange, this);
         if (entity._requiresUpdates)
             this._addUpdatableEntity(entity);
-
-        ArrayUtils.forEach(this._entitySets, function(set) {
-            if (entity._componentHash.contains(set._hash))
-                set._add(entity);
-        });
     },
 
     unregisterEntity: function(entity)
     {
-        var index = this._entities.indexOf(entity);
-        this._entities.splice(index);
-
-        entity._onComponentsChange.unbind(this);
+        entity._onRequireUpdatesChange.unbind(this);
         if (entity._requiresUpdates)
             this._removeUpdatableEntity(entity);
-
-        ArrayUtils.forEach(this._entitySets, function(set) {
-            if (entity._componentHash.contains(set._hash))
-                set._remove(entity);
-        });
     },
 
-    _onEntityComponentsChange: function(entity, oldHash)
+    _onEntityUpdateChange: function(entity)
     {
         if (entity._requiresUpdates)
             this._addUpdatableEntity(entity);
         else
             this._removeUpdatableEntity(entity);
-
-        // careful, the component is still in the entity components list, so EntitySets can dispatch onRemoved while
-        // it's still available (important to undo its state in a System).
-
-        ArrayUtils.forEach(this._entitySets, function(set) {
-            var containedOld = oldHash.contains(set._hash);
-            var containedNew = entity._componentHash.contains(set._hash);
-
-            if (!containedOld && containedNew)
-                set._add(entity);
-            else if (containedOld && !containedNew)
-                set._remove(entity);
-        });
     },
 
     _addUpdatableEntity: function(entity)
     {
-        if (this._updateableEntities.indexOf(entity) < 0)
-            this._updateableEntities.push(entity);
+        this._updateableEntities.push(entity);
     },
 
     _removeUpdatableEntity: function(entity)
     {
         var index = this._updateableEntities.indexOf(entity);
-        if (index >= 0)
-            this._updateableEntities.splice(index, 1);
+        this._updateableEntities.splice(index, 1);
     },
 
     _update: function(dt)
@@ -16633,11 +16324,6 @@ EntityEngine.prototype =
         var len = entities.length;
         for (var i = 0; i < len; ++i)
             entities[i].update(dt);
-
-        var systems = this._systems;
-        len = systems.length;
-        for (i = 0; i < len; ++i)
-            systems[i].onUpdate(dt);
     }
 };
 
@@ -16746,23 +16432,6 @@ Scene.prototype = {
     get entityEngine()
     {
         return this._entityEngine;
-    },
-
-    /**
-     * Starts a {@linkcode EntitySystem}. These are systems that allow adding more complex behaviours using components.
-     * The order of updates happen in the order they're added.
-     */
-    startSystem: function(system)
-    {
-        this._entityEngine.startSystem(system);
-    },
-
-    /**
-     * Stops a {@linkcode EntitySystem}.
-     */
-    stopSystem: function(system)
-    {
-        this._entityEngine.stopSystem(system);
     },
 
     /**
@@ -17134,85 +16803,6 @@ Terrain.prototype._updateWorldBounds = function ()
 
 /**
  * @classdesc
- *
- * EntitySystems allow for more complex component-based logic. Using getEntitySet, all entities with a certain component
- * can be retrieved. so they can update with knowledge of each-other, or of other components. (for example a
- * HunterComponent vs PreyComponent). Other uses are if an external engine (physics, or so) needs to be updated.
- * EntitySystems need to be started through {@linkcode Scene#startSystem}, where a strict order of updates is enforced.
- * Systems are always updated in the order they were added, and after regular components have been updated.
- *
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function EntitySystem()
-{
-    this._entityEngine = null;
-    this._sets = [];
-}
-
-EntitySystem.prototype =
-{
-    /**
-     * Called when a system is started.
-     */
-    onStarted: function()
-    {
-
-    },
-
-    /**
-     * Called when a system is stopped. Anything changed by the system should be undone here.
-     */
-    onStopped: function()
-    {
-
-    },
-
-    /**
-     * Called when a system needs to update.
-     * @param dt The time in milliseconds since last update.
-     */
-    onUpdate: function(dt)
-    {
-
-    },
-
-    /**
-     * Retrieves an {@linkcode EntitySet} containing entities matching the given components.
-     * @param components An Array of component types.
-     */
-    getEntitySet: function(components)
-    {
-        var set = this._entityEngine.getEntitySet(components);
-        this._sets.push(set);
-        return set;
-    },
-
-    /**
-     * @ignore
-     */
-    _onStarted: function(entityEngine)
-    {
-        this._entityEngine = entityEngine;
-        this.onStarted();
-    },
-
-    /**
-     * @ignore
-     */
-    _onStopped: function()
-    {
-        for (var i = 0; i < this._sets; ++i) {
-            this._sets[i].free();
-        }
-
-        this._sets = [];
-    }
-};
-
-/**
- * @classdesc
  * CompositeComponent is a {@linkcode Component} that can be used to group together multiple Components. It's usually
  * subclassed to provide easy building blocks for certain combinations of Components.
  *
@@ -17228,7 +16818,7 @@ function CompositeComponent()
     this._subs = [];
 }
 
-Component.create(CompositeComponent);
+CompositeComponent.prototype = Object.create(Component.prototype);
 
 /**
  * Adds a {@linkcode Component} to the composite. Usually called in the constructor of the subclass.
@@ -17967,7 +17557,7 @@ function MorphAnimation(targets)
     }
 }
 
-Component.create(MorphAnimation,
+MorphAnimation.prototype = Object.create(Component.prototype,
     {
         numMorphTargets: {
             get: function() { return this._morphPose.numMorphTargets; }
@@ -18415,7 +18005,7 @@ function SkeletonAnimation(rootNode)
     this._blendTree = new SkeletonBlendTree(rootNode);
 }
 
-Component.create(SkeletonAnimation,
+SkeletonAnimation.prototype = Object.create(Component.prototype,
     {
         transferRootJoint: {
             get: function()
@@ -18819,7 +18409,7 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
 {
     var len = this._children.length;
 
-    // we're still fading if len > 1
+    // still fading if len > 1
     var updated = len > 1 && dt > 0;
 
     // update weights and remove any node that's become unused
@@ -18906,7 +18496,7 @@ function FloatController()
     this._onKeyUp = null;
 }
 
-Component.create(FloatController, {
+FloatController.prototype = Object.create(Component.prototype, {
     speed: {
         get: function()
         {
@@ -19162,7 +18752,7 @@ function OrbitController(lookAtTarget)
     this._isDown = false;
 }
 
-Component.create(OrbitController,
+OrbitController.prototype = Object.create(Component.prototype,
     {
         radius: {
             get: function() { return this._coords.z; },
@@ -19769,7 +19359,7 @@ function Effect()
     this._needsNormalDepth = false;
 }
 
-Component.create(Effect,
+Effect.prototype = Object.create(Component.prototype,
     {
         needsNormalDepth: {
             get: function() { return this._needsNormalDepth; },
@@ -20657,7 +20247,7 @@ HBAO.prototype._initDitherTexture = function()
  */
 function SSAO(numSamples)
 {
-    numSamples = numSamples || 16;
+    numSamples = numSamples || 8;
     if (numSamples > 64) numSamples = 64;
 
     this._numSamples = numSamples;
@@ -24727,8 +24317,6 @@ exports.SceneVisitor = SceneVisitor;
 exports.Skybox = Skybox;
 exports.Terrain = Terrain;
 exports.Entity = Entity;
-exports.EntitySystem = EntitySystem;
-exports.EntitySet = EntitySet;
 exports.Component = Component;
 exports.CompositeComponent = CompositeComponent;
 exports.KeyFrame = KeyFrame;

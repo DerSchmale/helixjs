@@ -160,7 +160,7 @@ var GL = {
      */
     setClearColor: function (color)
     {
-        color = isNaN(color) ? color : new Color(color);
+        color = color instanceof Color ? color : new Color(color);
         gl.clearColor(color.r, color.g, color.b, color.a);
     },
 

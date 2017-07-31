@@ -56,7 +56,7 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
 {
     var len = this._children.length;
 
-    // still fading if len > 1
+    // we're still fading if len > 1
     var updated = len > 1 && dt > 0;
 
     // update weights and remove any node that's become unused

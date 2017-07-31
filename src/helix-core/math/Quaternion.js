@@ -322,7 +322,11 @@ Quaternion.prototype =
             var y = y2 - y1*dot;
             var z = z2 - z1*dot;
             var w = w2 - w1*dot;
-            this.normalize();
+            var rcpNorm = 1.0/Math.sqrt(x*x + y*y + z*z + w*w);
+            x *= rcpNorm;
+            y *= rcpNorm;
+            z *= rcpNorm;
+            w *= rcpNorm;
 
             var cos = Math.cos(interpolatedAngle);
             var sin = Math.sin(interpolatedAngle);

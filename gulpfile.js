@@ -38,8 +38,23 @@ gulp.task('io', [], function ()
         .pipe(gulp.dest('./build/'));
 });
 
+gulp.task('physics', [], function ()
+{
+    return gulp.src(['./src/helix-physics/HX_Physics.js'])
+        .pipe(rollup({
+            moduleName: 'HX',
+            globals: {
+                'helix': 'HX',
+                'cannon': 'CANNON'
+            },
+            external: [ 'helix', 'cannon' ]
+        }, 'umd'))
+        .pipe(rename('helix-physics.js'))
+        .pipe(gulp.dest('./build/'));
+});
+
 // main compiles everything, including optionals
-gulp.task('main', ['core', 'io']);
+gulp.task('main', ['core', 'io', 'physics']);
 
 gulp.task('minimize', ['main'], function ()
 {

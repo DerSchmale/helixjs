@@ -16,7 +16,7 @@ concepts from DirectX (blend/stencil states, vertex layouts, ...) stayed in beca
 you're coming from an old-school Flash background, you may also run into approaches that are similar to the original
 Away3D "Broomstick" prototype that I developed back in 2010 before it became 4.0.
 
-*(DirectX 10+ is absolutely awesome, I don't care what your friendly local GL-only fanboi says)*
+*(DirectX 10+ is absolutely awesome, I don't care what your friendly local GL-only fanboy says)*
 
 In any case, I think it's worth making things open source. There may always be things to learn and teach doing so.
 

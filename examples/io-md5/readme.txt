@@ -1,1 +1,0 @@
-Model from https://www.katsbits.com/download/models/

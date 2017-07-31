@@ -26,7 +26,7 @@ function Effect()
     this._needsNormalDepth = false;
 }
 
-Effect.prototype = Object.create(Component.prototype,
+Component.create(Effect,
     {
         needsNormalDepth: {
             get: function() { return this._needsNormalDepth; },

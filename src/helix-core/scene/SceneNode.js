@@ -42,6 +42,8 @@ function SceneNode()
     this._visible = true;
     this._children = [];
 
+    this.onWorldBoundsInvalid = new HX.Signal();
+
     // used to determine sorting index for the render loop
     // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
     // intersection with near plane, etc

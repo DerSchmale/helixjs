@@ -9,6 +9,12 @@
  * <p>If it implements an onUpdate(dt) function, the update method will be called every frame.</p>
  * <p>A single Component instance is unique to an Entity and cannot be shared!</p>
  *
+ * Instead of using Object.create, Component subclasses need to be extended using
+ *
+ * <pre><code>
+ * Component.create(SubComponentClass, props);
+ * </pre></code>
+ *
  * @see {@linkcode Entity}
  *
  * @author derschmale <http://www.derschmale.com>
@@ -18,6 +24,19 @@ function Component()
     // this allows notifying entities about bound changes (useful for sized components)
     this._entity = null;
 }
+
+Component.COMPONENT_ID = 0;
+
+Component.create = (function(constrFunction, props)
+{
+    var COUNTER = 0;
+
+    return function(constrFunction, props) {
+        constrFunction.prototype = Object.create(Component.prototype, props);
+        constrFunction.COMPONENT_ID = ++COUNTER;
+        constrFunction.prototype.COMPONENT_ID = constrFunction.COMPONENT_ID;
+    };
+}());
 
 Component.prototype =
 {

@@ -25,7 +25,7 @@ function DebugBoundsComponent(color)
         this._material.color = color;
 }
 
-DebugBoundsComponent.prototype = Object.create(Component.prototype, {
+Component.create(DebugBoundsComponent, {
     color: {
         get: function ()
         {

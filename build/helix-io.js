@@ -126,7 +126,7 @@ GLTF.prototype._continueParsing = function()
         this._notifyProgress(.8 + .2 * ratio);
     }).bind(this));
 
-    queue.runAll();
+    queue.execute();
 };
 
 GLTF.prototype._getAccessor = function(index)
@@ -1187,7 +1187,7 @@ Signal.prototype =
     {
         var len = this._listeners.length;
         for (var i = 0; i < len; ++i)
-            this._listeners[i](payload);
+            this._listeners[i].apply(null, arguments);
     },
 
     /**
@@ -1219,6 +1219,7 @@ function AsyncTaskQueue$1()
     this.onComplete = new Signal();
     this.onProgress = new Signal();
     this._queue = [];
+    this._childQueues = [];
     this._currentIndex = 0;
     this._isRunning = false;
 }
@@ -1235,7 +1236,14 @@ AsyncTaskQueue$1.prototype = {
         });
     },
 
-    runAll: function()
+    // this allows adding more subtasks to tasks while running
+    // No need to call "execute" on child queues
+    addChildQueue: function(queue)
+    {
+        this._childQueues.push(queue);
+    },
+
+    execute: function()
     {
         if (this._isRunning)
             throw new Error("Already running!");
@@ -1255,7 +1263,12 @@ AsyncTaskQueue$1.prototype = {
     {
         this.onProgress.dispatch(this._currentIndex / this._queue.length);
 
-        if (this._queue.length === this._currentIndex) {
+        if (this._childQueues.length > 0) {
+            var queue = this._childQueues.shift();
+            queue.onComplete.bind(this._executeImpl, this);
+            queue.execute();
+        }
+        else if (this._queue.length === this._currentIndex) {
             this.onComplete.dispatch();
         }
         else {
@@ -1326,7 +1339,7 @@ OBJ.prototype._finish = function(mtlLib)
 
     // actually, we don't need to bind to the queue's onComplete signal, can just add the notification last
     queue.queue(this._notifyComplete.bind(this), this._target);
-    queue.runAll();
+    queue.execute();
 };
 
 OBJ.prototype._loadMTLLib = function(filename)

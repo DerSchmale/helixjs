@@ -1,6 +1,7 @@
 import {BoundingVolume} from "./BoundingVolume";
 import {PlaneSide} from "../math/PlaneSide";
 import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
+import {Float4} from "../math/Float4";
 
 /**
  * @classdesc
@@ -351,6 +352,11 @@ BoundingAABB.prototype._updateCenterAndExtent = function()
 BoundingAABB.prototype.getRadius = function()
 {
     return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
+};
+
+BoundingAABB.prototype.getHalfExtents = function()
+{
+    return new Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0);
 };
 
 /**

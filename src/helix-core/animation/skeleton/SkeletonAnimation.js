@@ -35,7 +35,7 @@ function SkeletonAnimation(rootNode)
     this._blendTree = new SkeletonBlendTree(rootNode);
 };
 
-SkeletonAnimation.prototype = Object.create(Component.prototype,
+Component.create(SkeletonAnimation,
     {
         transferRootJoint: {
             get: function()

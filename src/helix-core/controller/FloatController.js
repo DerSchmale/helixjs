@@ -41,7 +41,7 @@ function FloatController()
     this._onKeyUp = null;
 }
 
-FloatController.prototype = Object.create(Component.prototype, {
+Component.create(FloatController, {
     speed: {
         get: function()
         {

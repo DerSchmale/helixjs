@@ -13,7 +13,7 @@ AnimateOrbitComponent = function()
     this._originalMatrix = null;
 };
 
-AnimateOrbitComponent.prototype = Object.create(HX.Component.prototype);
+HX.Component.create(AnimateOrbitComponent);
 
 AnimateOrbitComponent.prototype.onAdded = function()
 {

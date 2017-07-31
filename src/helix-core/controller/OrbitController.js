@@ -38,7 +38,7 @@ function OrbitController(lookAtTarget)
     this._isDown = false;
 }
 
-OrbitController.prototype = Object.create(Component.prototype,
+Component.create(OrbitController,
     {
         radius: {
             get: function() { return this._coords.z; },

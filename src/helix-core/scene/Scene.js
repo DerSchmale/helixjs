@@ -109,6 +109,23 @@ Scene.prototype = {
     },
 
     /**
+     * Starts a {@linkcode EntitySystem}. These are systems that allow adding more complex behaviours using components.
+     * The order of updates happen in the order they're added.
+     */
+    startSystem: function(system)
+    {
+        this._entityEngine.startSystem(system);
+    },
+
+    /**
+     * Stops a {@linkcode EntitySystem}.
+     */
+    stopSystem: function(system)
+    {
+        this._entityEngine.stopSystem(system);
+    },
+
+    /**
      * The bounding volume for the entire scene in world coordinates.
      */
     get worldBounds()

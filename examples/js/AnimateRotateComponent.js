@@ -9,7 +9,7 @@ AnimateRotateComponent = function()
     this._axis = HX.Float4.Y_AXIS.clone();
 };
 
-AnimateRotateComponent.prototype = Object.create(HX.Component.prototype,
+HX.Component.create(AnimateRotateComponent,
     {
         axis: {
             get: function ()

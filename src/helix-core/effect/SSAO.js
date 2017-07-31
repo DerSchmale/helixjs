@@ -29,7 +29,7 @@ import {Effect} from "./Effect";
  */
 function SSAO(numSamples)
 {
-    numSamples = numSamples || 8;
+    numSamples = numSamples || 16;
     if (numSamples > 64) numSamples = 64;
 
     this._numSamples = numSamples;

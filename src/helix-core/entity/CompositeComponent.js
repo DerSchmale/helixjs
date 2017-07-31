@@ -17,7 +17,7 @@ function CompositeComponent()
     this._subs = [];
 }
 
-CompositeComponent.prototype = Object.create(Component.prototype);
+Component.create(CompositeComponent);
 
 /**
  * Adds a {@linkcode Component} to the composite. Usually called in the constructor of the subclass.

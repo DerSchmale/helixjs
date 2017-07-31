@@ -33,7 +33,7 @@ function MorphAnimation(targets)
     }
 }
 
-MorphAnimation.prototype = Object.create(Component.prototype,
+Component.create(MorphAnimation,
     {
         numMorphTargets: {
             get: function() { return this._morphPose.numMorphTargets; }

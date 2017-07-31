@@ -1,5 +1,6 @@
 import {SceneNode} from "../scene/SceneNode";
 import {Signal} from "../core/Signal";
+import {Bitfield} from "../core/Bitfield";
 
 /**
  * @classdesc
@@ -15,9 +16,10 @@ function Entity()
     SceneNode.call(this);
 
     // components
+    this._componentHash = new Bitfield();
     this._components = null;
     this._requiresUpdates = false;
-    this._onRequireUpdatesChange = new Signal();
+    this._onComponentsChange = new Signal();
 
     // are managed by effect components, but need to be collectable unlike others
     this._effects = null;
@@ -34,14 +36,20 @@ Entity.prototype.addComponent = function(component)
     if (component._entity)
         throw new Error("Component already added to an entity!");
 
+    var oldHash = this._componentHash;
+    this._componentHash = this._componentHash.clone();
+
     this._components = this._components || [];
 
     this._components.push(component);
+    this._componentHash.setBit(component.COMPONENT_ID);
 
-    this._updateRequiresUpdates(this._requiresUpdates || (!!component.onUpdate));
+    this._requiresUpdates = this._requiresUpdates || (!!component.onUpdate);
 
     component._entity = this;
     component.onAdded();
+
+    this._onComponentsChange.dispatch(this, oldHash);
 };
 
 /**
@@ -49,12 +57,13 @@ Entity.prototype.addComponent = function(component)
  */
 Entity.prototype.removeComponent = function(component)
 {
-    component.onRemoved();
-
     var requiresUpdates = false;
     var len = this._components.length;
     var j = 0;
     var newComps = [];
+
+    var oldHash = this._componentHash;
+    this._componentHash = new Bitfield();
 
     // not splicing since we need to regenerate _requiresUpdates anyway by looping
     for (var i = 0; i < len; ++i) {
@@ -62,12 +71,18 @@ Entity.prototype.removeComponent = function(component)
         if (c !== component) {
             newComps[j++] = c;
             requiresUpdates = requiresUpdates || !!component.onUpdate;
+            this._componentHash.setBit(c.COMPONENT_ID);
         }
     }
 
+    this._requiresUpdates = requiresUpdates;
+
+    this._onComponentsChange.dispatch(this, oldHash);
+
     this._components = j === 0? null : newComps;
     component._entity = null;
-    this._updateRequiresUpdates(requiresUpdates);
+
+    component.onRemoved();
 };
 
 /**
@@ -102,6 +117,17 @@ Entity.prototype.hasComponentType = function(type)
     }
 };
 
+Entity.prototype.getFirstComponentByType = function(type)
+{
+    if (!this._components) return null;
+    for (var i = 0; i < this._components.length; ++i) {
+        var comp = this._components[i];
+        if (comp instanceof type)
+            return comp;
+    }
+    return null;
+};
+
 /**
  * Returns an array of all Components with a given type.
  */
@@ -114,18 +140,6 @@ Entity.prototype.getComponentsByType = function(type)
         if (comp instanceof type) collection.push(comp);
     }
     return collection;
-};
-
-/**
- * @ignore
- * @private
- */
-Entity.prototype._updateRequiresUpdates = function(value)
-{
-    if (value !== this._requiresUpdates) {
-        this._requiresUpdates = value;
-        this._onRequireUpdatesChange.dispatch(this);
-    }
 };
 
 /**

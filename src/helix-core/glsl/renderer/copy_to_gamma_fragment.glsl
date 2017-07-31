@@ -4,5 +4,5 @@ uniform sampler2D sampler;
 
 void main()
 {
-   gl_FragColor = vec4(hx_linearToGamma(texture2D(sampler, uv).xyz), 1.0);
+   gl_FragColor = hx_linearToGamma(texture2D(sampler, uv));
 }

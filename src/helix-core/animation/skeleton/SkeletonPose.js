@@ -165,8 +165,8 @@ SkeletonPose.prototype = {
      */
     _updateSkeletonMatrices: function (skeleton)
     {
-        var globals;
-        var binds;
+        var globals = this._globalMatrices;
+        var binds = this._bindMatrices;
 
         if (!globals || globals.length !== skeleton.numJoints) {
             this._generateGlobalSkeletonData(skeleton);
@@ -224,24 +224,36 @@ SkeletonPose.prototype = {
      */
     _updateSkinningTexture: function ()
     {
-        var data = [];
-        var globals = this._bindMatrices;
-        var len = globals.length;
+        var data;
 
-        for (var r = 0; r < 3; ++r) {
-            for (var i = 0; i < len; ++i) {
-                var m = globals[i]._m;
+        return function()
+        {
+            data = data || new Float32Array(META.OPTIONS.maxSkeletonJoints * 3 * 4);
+            var globals = this._bindMatrices;
+            var len = globals.length;
+            var j = 0;
 
-                data.push(m[r], m[r + 4], m[r + 8], m[r + 12]);
+            for (var r = 0; r < 3; ++r) {
+                for (var i = 0; i < len; ++i) {
+                    var m = globals[i]._m;
+
+                    data[j++] = m[r];
+                    data[j++] = m[r + 4];
+                    data[j++] = m[r + 8];
+                    data[j++] = m[r + 12];
+                }
+
+                for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
+                    data[j++] = 0.0;
+                    data[j++] = 0.0;
+                    data[j++] = 0.0;
+                    data[j++] = 0.0;
+                }
             }
 
-            for (i = len; i < META.OPTIONS.maxSkeletonJoints; ++i) {
-                data.push(0, 0, 0, 0);
-            }
+            this._skinningTexture.uploadData(data, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
         }
-
-        this._skinningTexture.uploadData(new Float32Array(data), META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
-    }
+    }()
 };
 
 export {SkeletonPose};

@@ -14,7 +14,8 @@ function VertexLayout(mesh, pass)
 {
     var shader = pass.getShader();
     this.attributes = [];
-    this.morphAttributes = [];
+    this.morphPositionAttributes = [];
+    this.morphNormalAttributes = [];
 
     this._numAttributes = -1;
 
@@ -35,8 +36,13 @@ function VertexLayout(mesh, pass)
         };
 
         // morph attributes are handled differently because their associated vertex buffers change dynamically
-        if (attribute.name.indexOf("hx_morph") === 0) {
-            this.morphAttributes.push(attrib);
+        if (attribute.name.indexOf("hx_morphPosition") === 0) {
+            this.morphPositionAttributes.push(attrib);
+            attrib.external = true;
+        }
+
+        if (attribute.name.indexOf("hx_morphNormal") === 0) {
+            this.morphNormalAttributes.push(attrib);
             attrib.external = true;
         }
 

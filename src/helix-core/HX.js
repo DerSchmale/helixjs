@@ -48,6 +48,7 @@ export {LayeredAnimation} from "./animation/layered/LayeredAnimation";
 export {AnimationLayer} from "./animation/layered/AnimationLayer";
 export {AnimationLayerFloat4} from "./animation/layered/AnimationLayerFloat4";
 export {AnimationLayerQuat} from "./animation/layered/AnimationLayerQuat";
+export {AnimationLayerMorphTarget} from "./animation/layered/AnimationLayerMorphTarget";
 
 export {MorphAnimation} from "./animation/morph/MorphAnimation";
 export {MorphPose} from "./animation/morph/MorphPose";

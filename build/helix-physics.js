@@ -99,6 +99,8 @@ BoxCollider.prototype.createShape = function(sceneBounds)
  * @constructor
  *
  * @param {number} [radius] The radius of the sphere. If omitted, will use the object bounds.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function SphereCollider(radius, center)
 {
@@ -127,7 +129,8 @@ SphereCollider.prototype.createShape = function(sceneBounds)
 /**
  * @classdesc
  * RigidBody is a component allowing a scene graph object to have physics simulations applied to it. Requires
- * {@linkcode PhysicsSystem}.
+ * {@linkcode PhysicsSystem}. At this point, entities using RigidBody need to be added to the root of the scenegraph (or
+ * have parents without transformations)!
  *
  * @constructor
  * @param collider The Collider type describing the shape of how to object interacts with the world. If omitted, it will
@@ -269,8 +272,8 @@ function PhysicsSystem()
     this._friction = 0.0;
     this._world.broadphase = new CANNON$1.SAPBroadphase(this._world);
 
-    this._world.quatNormalizeFast = true;
-    this._world.quatNormalizeSkip = 8;
+    // this._world.quatNormalizeFast = true;
+    // this._world.quatNormalizeSkip = 8;
 
     this._components = [];
 }
@@ -3056,7 +3059,9 @@ Quaternion.prototype =
  *
  * @constructor
  *
- * @param {number} [radius] The radius of the sphere. If omitted, will use the object bounds.
+ * @param {number} [height] The height of the sphere. If omitted, will use the object bounds.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function InfinitePlaneCollider(height)
 {

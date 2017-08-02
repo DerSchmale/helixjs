@@ -4,6 +4,329 @@
 	(factory((global.HX = global.HX || {}),global.HX,global.pako));
 }(this, (function (exports,HX$1,pako) { 'use strict';
 
+/**
+ * @abstract
+ *
+ * @constructor
+ *
+ * @classdesc
+ * <p>A Component is an object that can be added to an {@linkcode Entity} to add behavior to it in a modular fashion.
+ * This can be useful to create small pieces of functionality that can be reused often and without extra boilerplate code.</p>
+ * <p>If it implements an onUpdate(dt) function, the update method will be called every frame.</p>
+ * <p>A single Component instance is unique to an Entity and cannot be shared!</p>
+ *
+ * Instead of using Object.create, Component subclasses need to be extended using
+ *
+ * <pre><code>
+ * Component.create(SubComponentClass, props);
+ * </pre></code>
+ *
+ * @see {@linkcode Entity}
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function Component()
+{
+    // this allows notifying entities about bound changes (useful for sized components)
+    this._entity = null;
+}
+
+Component.COMPONENT_ID = 0;
+
+Component.create = (function(constrFunction, props)
+{
+    var COUNTER = 0;
+
+    return function(constrFunction, props) {
+        constrFunction.prototype = Object.create(Component.prototype, props);
+        constrFunction.COMPONENT_ID = ++COUNTER;
+        constrFunction.prototype.COMPONENT_ID = constrFunction.COMPONENT_ID;
+    };
+}());
+
+Component.prototype =
+{
+    /**
+     * Called when this component is added to an Entity.
+     */
+    onAdded: function() {},
+
+    /**
+     * Called when this component is removed from an Entity.
+     */
+    onRemoved: function() {},
+
+    /**
+     * If provided, this method will be called every frame, allowing updating the entity.
+     * @param [Number] dt The amount of milliseconds passed since last frame.
+     */
+    onUpdate: null,
+
+    /**
+     * The target entity.
+     */
+    get entity()
+    {
+        return this._entity;
+    }
+};
+
+/**
+ * @classdesc
+ * <p>Signal provides an implementation of the Observer pattern. Functions can be bound to the Signal, and they will be
+ * called when the Signal is dispatched. This implementation allows for keeping scope.</p>
+ * <p>When dispatch has an object passed to it, this is called the "payload" and will be passed as a parameter to the
+ * listener functions</p>
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function Signal()
+{
+    this._listeners = [];
+    this._lookUp = {};
+}
+
+/**
+ * Signals keep "this" of the caller, because having this refer to the signal itself would be silly
+ */
+Signal.prototype =
+{
+    /**
+     * Binds a function as a listener to the Signal
+     * @param {function(*):void} listener A function to be called when the function is dispatched.
+     * @param {Object} [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
+     *
+     * @example
+     * signal.bind(this.methodFunction, this);
+     */
+    bind: function(listener, thisRef)
+    {
+        this._lookUp[listener] = this._listeners.length;
+        var callback = thisRef? listener.bind(thisRef) : listener;
+        this._listeners.push(callback);
+    },
+
+    /**
+     * Removes a function as a listener.
+     */
+    unbind: function(listener)
+    {
+        var index = this._lookUp[listener];
+        this._listeners.splice(index, 1);
+        delete this._lookUp[listener];
+    },
+
+    /**
+     * Dispatches the signal, causing all the listening functions to be called.
+     * @param [payload] An optional object to be passed in as a parameter to the listening functions. Can be used to provide data.
+     */
+    dispatch: function(payload)
+    {
+        var len = this._listeners.length;
+        for (var i = 0; i < len; ++i)
+            this._listeners[i].apply(null, arguments);
+    },
+
+    /**
+     * Returns whether there are any functions bound to the Signal or not.
+     */
+    get hasListeners()
+    {
+        return this._listeners.length > 0;
+    }
+};
+
+/**
+ * @classdesc
+ * MorphPose defines a certain configuration for blending several morph targets. While this can be used to directly
+ * assign to a {@linkcode ModelInstance}, it's usually controlled through a component such as {@MorphAnimation}. Other
+ * components could use several MorphPose objects in keyframes and tween between them over a timeline.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function MorphPose$1()
+{
+    this._targets = [];
+    this._weights = {};
+    this._stateInvalid = true;
+    this.onChange = new Signal();
+}
+
+MorphPose$1.prototype =
+{
+    /**
+     * Gets the morph target as sorted by weight in update()
+     * @param {number} index The index of the {@linkcode MorphTarget}
+     * @returns {MorphTarget}
+     */
+    getMorphTarget: function(index)
+    {
+        return this._targets[index];
+    },
+
+    /**
+     * The amount of morph targets used in this pose.
+     * @returns {Number}
+     */
+    get numMorphTargets()
+    {
+        return this._targets.length;
+    },
+
+    /**
+     * Adds a MorphTarget object to the pose.
+     * @param {MorphTarget} morphTarget
+     */
+    addMorphTarget: function(morphTarget)
+    {
+        this._targets.push(morphTarget);
+        this._weights[morphTarget.name] = 0.0;
+        this._stateInvalid = true;
+    },
+
+    /**
+     * Gets the weight of a morph target with the given name.
+     * @param {string} name The name of the morph target.
+     * @returns {number}
+     */
+    getWeight: function(name)
+    {
+        return this._weights[name];
+    },
+
+    /**
+     * Sets the weight of a morph target with the given name.
+     * @param {string} name The name of the morph target.
+     * @param {number} value The new weight.
+     */
+    setWeight: function(id, value)
+    {
+        if (this._weights[id] !== value)
+            this._stateInvalid = true;
+
+        this._weights[id] = value;
+    },
+
+    /**
+     * Updates the morph pose given the current weights. Usually called by a wrapping component. If no component is used,
+     * update needs to be called manually.
+     */
+    update: function()
+    {
+        if (!this._stateInvalid) return;
+
+        var w = this._weights;
+        // sort by weights
+        this._targets.sort(function(a, b) {
+            return w[b.name] - w[a.name];
+        });
+
+        this._stateInvalid = false;
+
+        this.onChange.dispatch();
+    }
+};
+
+/**
+ * @classdesc
+ * MorphAnimation is a {@linkcode Component} that can be added to ModelInstances to control morph target animations. The Mesh objects
+ * used by the ModelInstance's Model must contain morph data generated with {@linkcode Mesh#generateMorphData}.
+ * Up to 8 morph targets can be active at a time. If more morph targets have a weight assigned to them, only those with
+ * the highest weight are used.
+ *
+ * @property {number} numMorphTargets The amount of morph targets in total (active and non-active).
+ *
+ *
+ * @param {Array} [targets] An Array of {@linkcode MorphTarget} objects. If omitted, it will use the morph pose already
+ * assigned to the entity (if any).
+ * @constructor
+ *
+ * @see {@linkcode MorphPose}
+ * @see {@linkcode MorphTarget}
+ * @see {@linkcode Mesh#generateMorphData}
+ *
+ * @extends Component
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function MorphAnimation(targets)
+{
+    Component.call(this);
+
+    // TODO: some day, morph pose could also become a tree using and generating poses?
+    // for now, it's really just a Component-shaped wrapper for ModelInstance.morphPose
+    if (targets) {
+        this._hasOwn = true;
+        this._morphPose = new MorphPose$1();
+        for (var i = 0; i < targets.length; ++i) {
+            this._morphPose.addMorphTarget(targets[i]);
+        }
+    }
+    else
+        this._hasOwn = false;
+}
+
+Component.create(MorphAnimation,
+    {
+        numMorphTargets: {
+            get: function() { return this._morphPose.numMorphTargets; }
+        }
+    }
+);
+
+/**
+ * Retrieves the morph target at the given index, as sorted by weight.
+ * @param {Number} index The index of the morph target.
+ * @returns {MorphTarget}
+ */
+MorphAnimation.prototype.getMorphTarget = function(index)
+{
+    return this._morphPose.getMorphTarget(index);
+};
+
+
+/**
+ * Sets the weight of the morph target with the given name.
+ * @param {string} name The name of the morph target to influence.
+ * @param {number} value The new weight of the morph target.
+ */
+MorphAnimation.prototype.setWeight = function(name, value)
+{
+    this._morphPose.setWeight(name, value);
+};
+
+/**
+ * @ignore
+ */
+MorphAnimation.prototype.onAdded = function()
+{
+    if (this._hasOwn)
+        this.entity.morphPose = this._morphPose;
+    else
+        this._morphPose = this.entity.morphPose;
+};
+
+/**
+ * @ignore
+ */
+MorphAnimation.prototype.onRemoved = function()
+{
+    if (this._hasOwn)
+        this.entity.morphPose = null;
+};
+
+/**
+ * @ignore
+ */
+MorphAnimation.prototype.onUpdate = function(dt)
+{
+    this._morphPose.update(dt);
+};
+
 // https://www.khronos.org/files/gltf20-reference-guide.pdf
 
 /**
@@ -133,18 +456,41 @@ GLTF.prototype._getAccessor = function(index)
 {
     var accessorDef = this._gltf.accessors[index];
 
-    var bufferView = this._getBufferView(accessorDef.bufferView);
+    var bufferView;
+    if (accessorDef.bufferView !== undefined)
+         bufferView = this._getBufferView(accessorDef.bufferView);
     var f = {
         dataType: accessorDef.componentType,
         numComponents: this._numComponentLookUp[accessorDef.type],
         type: accessorDef.type,
-        data: bufferView.data,
+        data: bufferView? bufferView.data : null,
         min: accessorDef.min,
         max: accessorDef.max,
         byteOffset: bufferView.byteOffset + (accessorDef.byteOffset || 0),
         dataType: accessorDef.componentType,
-        count: accessorDef.count
+        count: accessorDef.count,
+        isSparse: false
     };
+
+    if (accessorDef.sparse) {
+        f.isSparse = true;
+        f.sparseCount = accessorDef.sparse.count;
+        f.sparseOffsets = [];
+
+        var indexBufferView = this._getBufferView(accessorDef.sparse.indices.bufferView);
+        var valuesBufferView = this._getBufferView(accessorDef.sparse.values.bufferView);
+
+        f.sparseIndices = {
+            data: indexBufferView.data,
+            byteOffset: accessorDef.sparse.indices.byteOffset,
+            dataType: accessorDef.componentType
+        };
+
+        f.sparseValues = {
+            data: valuesBufferView.data,
+            byteOffset: accessorDef.values.indices.byteOffset
+        };
+    }
 
     return f;
 };
@@ -267,69 +613,225 @@ GLTF.prototype._parseMeshes = function()
         var meshDef = meshDefs[i];
         var model = new HX$1.Model();
         var materials = [];
+        var targets = null;
+        var numTargets = 0;
+        var hasMorphNormals = false;
 
-        for (var j = 0; j < meshDef.primitives.length; ++j)
-            this._parsePrimitive(meshDef.primitives[j], model, materials);
+        for (var j = 0; j < meshDef.primitives.length; ++j) {
+            var primDef = meshDef.primitives[j];
+
+            // a bit messy, eh?
+            if (primDef.targets) {
+                numTargets = primDef.targets.length;
+                targets = [];
+                for (var k = 0; k < numTargets; ++k) {
+                    targets[k] = new HX$1.MorphTarget();
+                    targets[k].name = "morphTarget_" + i;
+                }
+
+                if (primDef.targets[0].NORMAL) {
+                    hasMorphNormals = true;
+                }
+                break;
+            }
+        }
+
+        for (j = 0; j < meshDef.primitives.length; ++j) {
+            primDef = meshDef.primitives[j];
+            this._parsePrimitive(primDef, model, materials, numTargets > 0, hasMorphNormals);
+
+            if (primDef.targets)
+                this._parseMorphTargets(primDef.targets, j, targets);
+        }
 
         model.name = meshDef.name;
 
         var modelInstance = new HX$1.ModelInstance(model, materials);
+
+        if (numTargets > 0) {
+            var morphPose = new HX$1.MorphPose();
+
+            for (j = 0; j < numTargets; ++j)
+                morphPose.addMorphTarget(targets[j]);
+
+            modelInstance.morphPose = morphPose;
+
+            if (meshDef.weights) {
+                for (j = 0; j < numTargets; ++j) {
+                    morphPose.setWeight("morphTarget_" + j, meshDef.weights[j]);
+                }
+            }
+        }
+
         this._modelInstances[i] = modelInstance;
         this._target.models[model.name] = model;
     }
 };
 
+GLTF.prototype._parseMorphTargets = function(targetDefs, meshIndex, targets)
+{
+    for (var i = 0; i < targetDefs.length; ++i) {
+        var attribs = targetDefs[i];
+        var morphTarget = targets[i];
+        var positionAcc = this._getAccessor(attribs.POSITION);
+        var normalAcc = attribs.NORMAL !== undefined? this._getAccessor(attribs.NORMAL) : null;
 
-GLTF.prototype._readVertexDataVec4 = function(target, offset, accessor, stride, flipZ)
+        // tangent morphing not supported in Helix!
+        // var tangentAcc = attribs.TANGENT !== undefined? this._getAccessor(attribs.TANGENT) : null;
+
+        var positionData = new Float32Array(positionAcc.count * 3);
+        this._readVertexData(positionData, 0, positionAcc, 3, true);
+
+        if (normalAcc) {
+            var normalData = new Float32Array(normalAcc.count * 3);
+            this._readVertexData(normalData, 0, normalAcc, 3, true);
+        }
+
+        morphTarget.init(meshIndex, positionData, normalData);
+    }
+};
+
+
+GLTF.prototype._parsePrimitive = function(primDef, model, materials, morphs, morphNormals)
+{
+    var mesh = HX$1.Mesh.createDefaultEmpty();
+    var attribs = primDef.attributes;
+    var positionAcc = this._getAccessor(attribs.POSITION);
+    var normalAcc = attribs.NORMAL !== undefined? this._getAccessor(attribs.NORMAL) : null;
+    var tangentAcc = attribs.TANGENT !== undefined? this._getAccessor(attribs.TANGENT) : null;
+    var texCoordAcc = attribs.TEXCOORD_0 !== undefined? this._getAccessor(attribs.TEXCOORD_0) : null;
+    var jointIndexAcc = attribs.JOINTS_0 !== undefined? this._getAccessor(attribs.JOINTS_0) : null;
+    var jointWeightsAcc = attribs.WEIGHTS_0 !== undefined? this._getAccessor(attribs.WEIGHTS_0) : null;
+
+    var normalGenMode = 0;
+
+    var stride = mesh.getVertexStride(0);
+    var vertexData = new Float32Array(positionAcc.count * stride);
+
+    this._readVertexData(vertexData, 0, positionAcc, 3, stride, true);
+
+    if (normalAcc)
+        this._readVertexData(vertexData, 3, normalAcc, 3, stride, true);
+    else
+        normalGenMode = HX$1.NormalTangentGenerator.MODE_NORMALS;
+
+    if (tangentAcc)
+        this._readVertexData(vertexData, 6, tangentAcc, 4, stride, true);
+    else if (texCoordAcc)
+        normalGenMode = normalGenMode | HX$1.NormalTangentGenerator.MODE_TANGENTS;
+
+    if (texCoordAcc)
+        this._readUVData(vertexData, 10, texCoordAcc, stride);
+
+    mesh.setVertexData(vertexData, 0);
+
+    var indexAcc = this._getAccessor(primDef.indices);
+    mesh.setIndexData(this._readIndices(indexAcc));
+
+    if (normalGenMode) {
+        var normalGen = new HX$1.NormalTangentGenerator();
+        normalGen.generate(mesh);
+    }
+
+    if (jointIndexAcc) {
+        mesh.addVertexAttribute("hx_jointIndices", 4, 1);
+        mesh.addVertexAttribute("hx_jointWeights", 4, 1);
+        stride = mesh.getVertexStride(1);
+
+        var jointData = new Float32Array(jointIndexAcc.count * stride);
+        this._readVertexData(jointData, 0, jointIndexAcc, 4, stride);
+        this._readVertexData(jointData, 4, jointWeightsAcc, 4, stride);
+        mesh.setVertexData(jointData, 1);
+    }
+
+    if (morphs)
+        mesh.generateMorphData(morphNormals);
+
+    model.addMesh(mesh);
+    materials.push(this._materials[primDef.material]);
+};
+
+GLTF.prototype._readVertexData = function(target, offset, accessor, numComponents, stride, flipZ)
 {
     var p = offset;
     var o = accessor.byteOffset;
+    var i;
     var len = accessor.count;
     var src = accessor.data;
     var readFnc;
     var elmSize;
 
-    if (accessor.dataType === HX$1.DataType.FLOAT) {
-        readFnc = src.getFloat32;
-        elmSize = 4;
-    }
-    else if (accessor.dataType === HX$1.DataType.UNSIGNED_SHORT) {
-        readFnc = src.getUint16;
-        elmSize = 2;
-    }
-    else if (accessor.dataType === HX$1.DataType.UNSIGNED_INT) {
-        readFnc = src.getUint32;
-        elmSize = 4;
-    }
+    if (src) {
+        if (accessor.dataType === HX$1.DataType.FLOAT) {
+            readFnc = src.getFloat32;
+            elmSize = 4;
+        }
+        else if (accessor.dataType === HX$1.DataType.UNSIGNED_SHORT) {
+            readFnc = src.getUint16;
+            elmSize = 2;
+        }
+        else if (accessor.dataType === HX$1.DataType.UNSIGNED_INT) {
+            readFnc = src.getUint32;
+            elmSize = 4;
+        }
 
-    var flipSign = flipZ? -1 : 1;
+        for (i = 0; i < len; ++i) {
+            for (var j = 0; j < numComponents; ++j) {
+                target[p + j] = readFnc.call(src, o, true);
+                o += elmSize;
+            }
 
-    for (var i = 0; i < len; ++i) {
-        target[p] = readFnc.call(src, o, true);
-        target[p + 1] = readFnc.call(src, o + elmSize, true);
-        target[p + 2] = readFnc.call(src, o + elmSize * 2, true) * flipSign;
-        target[p + 3] = readFnc.call(src, o + elmSize * 3, true);
-        o += elmSize * 4;
+            p += stride;
+        }
+    }
+    else {
+        for (i = 0; i < len; ++i) {
+            for (var j = 0; j < numComponents; ++j) {
+                target[p + j] = 0.0;
+            }
+        }
         p += stride;
+    }
+
+    if (accessor.isSparse)
+        this._applySparseAccessor(target, accessor, numComponents, stride, readFnc, elmSize);
+
+    if (flipZ) {
+        p = offset + 2;
+        for (i = 0; i < len; ++i) {
+            target[p] = -target[p];
+            p += stride;
+        }
     }
 };
 
-GLTF.prototype._readVertexDataVec3 = function(target, offset, accessor, stride, flipZ)
+GLTF.prototype._applySparseAccessor = function(target, accessor, numComponents, stride, valueReadFunc, valueElmSize)
 {
-    var p = offset;
-    var o = accessor.byteOffset;
-    var len = accessor.count;
-    var src = accessor.data;
+    var len = accessor.sparseCount;
+    var indexData = accessor.sparseIndices.data;
+    var valueData = accessor.sparseValues.data;
+    var id = accessor.sparseIndices.byteOffset;
+    var o = accessor.sparseValues.byteOffset;
+    var readIndexFnc, idSize;
 
-    var flipSign = flipZ? -1 : 1;
+    if (accessor.dataType === HX$1.DataType.UNSIGNED_SHORT) {
+        readIndexFnc = indexData.getUint16;
+        idSize = 2;
+    }
+    else if (accessor.dataType === HX$1.DataType.UNSIGNED_INT) {
+        readIndexFnc = indexData.getUint32;
+        idSize = 4;
+    }
 
     for (var i = 0; i < len; ++i) {
-        target[p] = src.getFloat32(o, true);
-        target[p + 1] = src.getFloat32(o + 4, true);
-        target[p + 2] = src.getFloat32(o + 8, true) * flipSign;
-        o += 12;
+        var index = readIndexFnc.call(indexData, id) * stride;
 
-        p += stride;
+        for (var j = 0; j < numComponents; ++j) {
+            var value = valueReadFunc.call(valueData, o, true);
+            o += valueElmSize;
+            target[index + j] = value;
+        }
+        id += idSize;
     }
 };
 
@@ -375,63 +877,6 @@ GLTF.prototype._readIndices = function(accessor)
         o += elmSize;
     }
     return indexData;
-};
-
-
-GLTF.prototype._parsePrimitive = function(primDef, model, materials)
-{
-    var mesh = HX$1.Mesh.createDefaultEmpty();
-    var attribs = primDef.attributes;
-    var positionAcc = this._getAccessor(attribs.POSITION);
-    var normalAcc = attribs.NORMAL !== undefined? this._getAccessor(attribs.NORMAL) : null;
-    var tangentAcc = attribs.TANGENT !== undefined? this._getAccessor(attribs.TANGENT) : null;
-    var texCoordAcc = attribs.TEXCOORD_0 !== undefined? this._getAccessor(attribs.TEXCOORD_0) : null;
-    var jointIndexAcc = attribs.JOINTS_0 !== undefined? this._getAccessor(attribs.JOINTS_0) : null;
-    var jointWeightsAcc = attribs.WEIGHTS_0 !== undefined? this._getAccessor(attribs.WEIGHTS_0) : null;
-
-    var normalGenMode = 0;
-
-    var stride = mesh.getVertexStride(0);
-    var vertexData = new Float32Array(positionAcc.count * stride);
-
-    this._readVertexDataVec3(vertexData, 0, positionAcc, stride, true);
-
-    if (normalAcc)
-        this._readVertexDataVec3(vertexData, 3, normalAcc, stride, true);
-    else
-        normalGenMode = HX$1.NormalTangentGenerator.MODE_NORMALS;
-
-    if (tangentAcc)
-        this._readVertexDataVec4(vertexData, 6, tangentAcc, stride, true);
-    else if (texCoordAcc)
-        normalGenMode = normalGenMode | HX$1.NormalTangentGenerator.MODE_TANGENTS;
-
-    if (texCoordAcc)
-        this._readUVData(vertexData, 10, texCoordAcc, stride);
-
-    mesh.setVertexData(vertexData, 0);
-
-    var indexAcc = this._getAccessor(primDef.indices);
-    mesh.setIndexData(this._readIndices(indexAcc));
-
-    if (normalGenMode) {
-        var normalGen = new HX$1.NormalTangentGenerator();
-        normalGen.generate(mesh);
-    }
-
-    if (jointIndexAcc) {
-        mesh.addVertexAttribute("hx_jointIndices", 4, 1);
-        mesh.addVertexAttribute("hx_jointWeights", 4, 1);
-        stride = mesh.getVertexStride(1);
-
-        var jointData = new Float32Array(jointIndexAcc.count * stride);
-        this._readVertexDataVec4(jointData, 0, jointIndexAcc, stride);
-        this._readVertexDataVec4(jointData, 4, jointWeightsAcc, stride);
-        mesh.setVertexData(jointData, 1);
-    }
-
-    model.addMesh(mesh);
-    materials.push(this._materials[primDef.material]);
 };
 
 GLTF.prototype._parseSkin = function(nodeDef, target)
@@ -593,14 +1038,32 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipZ)
     var valueSrc = valuesAcc.data;
     var t = timesAcc.byteOffset;
     var v = valuesAcc.byteOffset;
-    var clip = new HX$1.AnimationClip();
     var m = new HX$1.Matrix4x4();
+
+    // in the case of weights
+    var elmCount = valuesAcc.count / timesAcc.count;
+
+    var clips = [];
+
+    if (elmCount === 1)
+        var clip = clips[0] = new HX$1.AnimationClip();
+    else {
+        for (var i = 0; i < elmCount; ++i) {
+            clips[i] = new HX$1.AnimationClip();
+        }
+    }
+
+    // valuesAcc can be a multiple of timesAcc, if it contains more weights
 
     for (var k = 0; k < timesAcc.count; ++k) {
         var value;
 
         switch(valuesAcc.numComponents) {
-            // TODO: Might need a scalar for morph weights
+            case 1:
+                value = [];
+                for (i = 0; i < elmCount; ++i)
+                    value[i] = this._readFloat(valueSrc, v);
+                break;
             case 3:
                 value = this._readFloat3(valueSrc, v);
                 if (flipZ) value.z = -value.z;
@@ -619,14 +1082,24 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipZ)
         }
 
         var time = this._readFloat(timeSrc, t) * 1000.0;
-        var keyFrame = new HX$1.KeyFrame(time, value);
-        clip.addKeyFrame(keyFrame);
+        var keyFrame;
+
+        if (elmCount === 1) {
+            keyFrame = new HX$1.KeyFrame(time, value);
+            clip.addKeyFrame(keyFrame);
+        }
+        else {
+            for (var i = 0; i < elmCount; ++i) {
+                keyFrame = new HX$1.KeyFrame(time, value[i]);
+                clips[i].addKeyFrame(keyFrame);
+            }
+        }
 
         v += valuesAcc.numComponents * 4;
         t += 4;
     }
 
-    return clip;
+    return clips;
 };
 
 
@@ -641,8 +1114,9 @@ GLTF.prototype._parseAnimations = function()
         var animation = new HX$1.LayeredAnimation();
 
         for (var j = 0; j < animDef.channels.length; ++j) {
-            var layer = this._parseAnimationChannel(animDef.channels[j], animDef.samplers);
-            animation.addLayer(layer);
+            var layers = this._parseAnimationChannel(animDef.channels[j], animDef.samplers);
+            for (var k = 0; k < layers.length; ++k)
+                animation.addLayer(layers[k]);
         }
 
         animation.name = animDef.name || "animation_" + i;
@@ -653,28 +1127,37 @@ GLTF.prototype._parseAnimations = function()
 GLTF.prototype._parseAnimationChannel = function(channelDef, samplers)
 {
     var target = this._nodes[channelDef.target.node];
-    var layer;
+    var layers = [];
 
     if (target._jointIndex !== undefined)
         target = target._skeletonPose._jointPoses[target._jointIndex];
 
     switch (channelDef.target.path) {
         case "translation":
-            var clip = this._parseAnimationSampler(samplers[channelDef.sampler], true);
-            layer = new HX$1.AnimationLayerFloat4(target, "position", clip);
+            var clips = this._parseAnimationSampler(samplers[channelDef.sampler], true);
+            layers = [ new HX$1.AnimationLayerFloat4(target, "position", clips[0]) ];
             break;
         case "rotation":
-            var clip = this._parseAnimationSampler(samplers[channelDef.sampler], true);
-            layer = new HX$1.AnimationLayerQuat(target, "rotation", clip);
+            var clips = this._parseAnimationSampler(samplers[channelDef.sampler], true);
+            layers = [ new HX$1.AnimationLayerQuat(target, "rotation", clips[0]) ] ;
             break;
         case "scale":
-            var clip = this._parseAnimationSampler(samplers[channelDef.sampler], false);
-            layer = new HX$1.AnimationLayerFloat4(target, "scale", clip);
+            var clips = this._parseAnimationSampler(samplers[channelDef.sampler], false);
+            layers = [ new HX$1.AnimationLayerFloat4(target, "scale", clips[0]) ];
+            break;
+        case "weights":
+            var clips = this._parseAnimationSampler(samplers[channelDef.sampler], false);
+
+            layers = [];
+
+            for (var i = 0; i < clips.length; ++i)
+                layers.push(new HX$1.AnimationLayerMorphTarget(target.morphPose, "morphTarget_" + i, clips[i]));
+
             break;
         default:
             throw new Error("Unknown channel path!");
     }
-    return layer;
+    return layers;
 };
 
 GLTF.prototype._playAnimations = function()
@@ -1130,73 +1613,6 @@ MD5Anim._BaseFrameData = function()
 MD5Anim._FrameData = function()
 {
     this.components = [];
-};
-
-/**
- * @classdesc
- * <p>Signal provides an implementation of the Observer pattern. Functions can be bound to the Signal, and they will be
- * called when the Signal is dispatched. This implementation allows for keeping scope.</p>
- * <p>When dispatch has an object passed to it, this is called the "payload" and will be passed as a parameter to the
- * listener functions</p>
- *
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function Signal()
-{
-    this._listeners = [];
-    this._lookUp = {};
-}
-
-/**
- * Signals keep "this" of the caller, because having this refer to the signal itself would be silly
- */
-Signal.prototype =
-{
-    /**
-     * Binds a function as a listener to the Signal
-     * @param {function(*):void} listener A function to be called when the function is dispatched.
-     * @param {Object} [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
-     *
-     * @example
-     * signal.bind(this.methodFunction, this);
-     */
-    bind: function(listener, thisRef)
-    {
-        this._lookUp[listener] = this._listeners.length;
-        var callback = thisRef? listener.bind(thisRef) : listener;
-        this._listeners.push(callback);
-    },
-
-    /**
-     * Removes a function as a listener.
-     */
-    unbind: function(listener)
-    {
-        var index = this._lookUp[listener];
-        this._listeners.splice(index, 1);
-        delete this._lookUp[listener];
-    },
-
-    /**
-     * Dispatches the signal, causing all the listening functions to be called.
-     * @param [payload] An optional object to be passed in as a parameter to the listening functions. Can be used to provide data.
-     */
-    dispatch: function(payload)
-    {
-        var len = this._listeners.length;
-        for (var i = 0; i < len; ++i)
-            this._listeners[i].apply(null, arguments);
-    },
-
-    /**
-     * Returns whether there are any functions bound to the Signal or not.
-     */
-    get hasListeners()
-    {
-        return this._listeners.length > 0;
-    }
 };
 
 /**

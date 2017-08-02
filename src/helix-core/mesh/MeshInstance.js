@@ -25,7 +25,11 @@ function MeshInstance(mesh, material)
     mesh.onLayoutChanged.bind(this._onMaterialOrMeshChange, this);
 
     if (mesh.hasMorphData) {
-        this._morphTargets = [];
+        this._morphPositions = [];
+
+        if (mesh.hasMorphNormals)
+            this._morphNormals = [];
+
         var w = [];
         for (var i = 0; i < capabilities.NUM_MORPH_TARGETS; ++i) {
             w[i] = 0;
@@ -61,10 +65,12 @@ MeshInstance.prototype = {
     /**
      * @ignore
      */
-    setMorphTarget: function(targetIndex, vertexBuffer, weight)
+    setMorphTarget: function(targetIndex, positionBuffer, normalBuffer, weight)
     {
-        this._morphTargets[targetIndex] = vertexBuffer;
-        this._morphWeights[targetIndex] = vertexBuffer? weight : 0.0;
+        this._morphPositions[targetIndex] = positionBuffer;
+        if (normalBuffer && this._morphNormals)
+            this._morphNormals[targetIndex] = normalBuffer;
+        this._morphWeights[targetIndex] = positionBuffer? weight : 0.0;
     },
 
     /**
@@ -106,16 +112,30 @@ MeshInstance.prototype = {
         this._mesh._indexBuffer.bind();
 
         var layout = this._vertexLayouts[passType];
-        var morphAttributes = layout.morphAttributes;
-        var len = morphAttributes.length;
+        var morphPosAttributes = layout.morphPositionAttributes;
+        var morphNormalAttributes = layout.morphNormalAttributes;
         var attribute;
         var gl = GL.gl;
 
+        var len = morphPosAttributes.length;
+
         for (var i = 0; i < len; ++i) {
-            attribute = morphAttributes[i];
-            var buffer = this._morphTargets[i] || this._mesh._defaultMorphTarget;
+            attribute = morphPosAttributes[i];
+            var buffer = this._morphPositions[i] || this._mesh._defaultMorphTarget;
             buffer.bind();
+
             gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+        }
+
+        if (this._morphNormals) {
+            len = morphNormalAttributes.length;
+            for (i = 0; i < len; ++i) {
+                attribute = morphNormalAttributes[i];
+                var buffer = this._morphNormals[i] || this._mesh._defaultMorphTarget;
+                buffer.bind();
+
+                gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+            }
         }
 
         var attributes = layout.attributes;

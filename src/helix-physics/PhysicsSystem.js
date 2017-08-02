@@ -24,8 +24,8 @@ function PhysicsSystem()
     this._friction = 0.0;
     this._world.broadphase = new CANNON.SAPBroadphase(this._world);
 
-    this._world.quatNormalizeFast = true;
-    this._world.quatNormalizeSkip = 8;
+    // this._world.quatNormalizeFast = true;
+    // this._world.quatNormalizeSkip = 8;
 
     this._components = [];
 }

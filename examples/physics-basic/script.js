@@ -90,7 +90,8 @@ function initScene(scene, assetLibrary)
 
     material = new HX.BasicMaterial();
     material.fixedLights = lights;
-    primitive = new HX.SpherePrimitive({radius: .25});
+    material.roughness = .1;
+    primitive = new HX.SpherePrimitive({radius: .25, numSegmentsW:32, numSegmentsH: 20});
 
     for (var x = -1; x <= 1; ++x) {
         for (var y = 0; y < 10; ++y) {

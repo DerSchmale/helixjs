@@ -258,7 +258,9 @@ ModelInstance.prototype._onMorphChanged = function()
             var weight = this._morphPose.getWeight(target.name);
             for (var i = 0; i < numMeshes; ++i) {
                 var meshInstance = this._meshInstances[i];
-                meshInstance.setMorphTarget(t, target.getVertexBuffer(i), weight);
+                var pos = target.getPositionBuffer(i);
+                var normal = target.hasNormals? target.getNormalBuffer(i) : null;
+                meshInstance.setMorphTarget(t, pos, normal, weight);
             }
         }
         else {

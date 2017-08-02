@@ -5,7 +5,8 @@ import {SphereCollider} from "../collider/SphereCollider";
 /**
  * @classdesc
  * RigidBody is a component allowing a scene graph object to have physics simulations applied to it. Requires
- * {@linkcode PhysicsSystem}.
+ * {@linkcode PhysicsSystem}. At this point, entities using RigidBody need to be added to the root of the scenegraph (or
+ * have parents without transformations)!
  *
  * @constructor
  * @param collider The Collider type describing the shape of how to object interacts with the world. If omitted, it will

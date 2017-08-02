@@ -44,6 +44,7 @@ function Mesh(vertexUsage, indexUsage)
     this._vertexAttributesLookUp = {};
     this._indexBuffer = new IndexBuffer();
     this._defaultMorphTarget = null;
+    this._hasMorphNormals = false;
 
     this._renderOrderHint = ++Mesh_ID_COUNTER;
 }
@@ -84,6 +85,11 @@ Mesh.prototype = {
     get hasMorphData()
     {
         return !!this._defaultMorphTarget;
+    },
+
+    get hasMorphNormals()
+    {
+        return this._hasMorphNormals;
     },
 
     /**
@@ -233,12 +239,17 @@ Mesh.prototype = {
     /**
      * Generates the required data to support morph target animations.
      */
-    generateMorphData: function()
+    generateMorphData: function(supportNormals)
     {
         for (i = 0; i < capabilities.NUM_MORPH_TARGETS; ++i) {
             // these will never have data assigned to them!
             // append these each as a different stream
             this.addVertexAttribute("hx_morphPosition" + i, 3, this._numStreams);
+
+            if (supportNormals) {
+                this.addVertexAttribute("hx_morphNormal" + i, 3, this._numStreams);
+                this._hasMorphNormals = true;
+            }
         }
 
         var data = [];
@@ -247,6 +258,7 @@ Mesh.prototype = {
             data.push(0, 0, 0);
         }
 
+        // this is used for both positions and normals (if needed)
         this._defaultMorphTarget = new VertexBuffer();
         this._defaultMorphTarget.uploadData(new Float32Array(data), BufferUsage.STATIC_DRAW);
     },

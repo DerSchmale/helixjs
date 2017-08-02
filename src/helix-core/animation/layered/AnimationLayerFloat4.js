@@ -28,6 +28,7 @@ AnimationLayerFloat4.prototype = Object.create(AnimationLayer.prototype);
 AnimationLayerFloat4.prototype.update = function (dt)
 {
     var playhead = this._playhead;
+
     if (playhead.update(dt)) {
         this._targetObject[this._propertyName].lerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
         if (this._skeletonPose) this._skeletonPose.invalidateGlobalPose();

@@ -11,7 +11,8 @@ import {MorphPose} from "./MorphPose";
  * @property {number} numMorphTargets The amount of morph targets in total (active and non-active).
  *
  *
- * @param {Array} targets An Array of {@linkcode MorphTarget} objects.
+ * @param {Array} [targets] An Array of {@linkcode MorphTarget} objects. If omitted, it will use the morph pose already
+ * assigned to the entity (if any).
  * @constructor
  *
  * @see {@linkcode MorphPose}
@@ -26,11 +27,17 @@ function MorphAnimation(targets)
 {
     Component.call(this);
 
-    // some day, morph pose could also become a tree using and generating poses?
-    this._morphPose = new MorphPose();
-    for (var i = 0; i < targets.length; ++i) {
-        this._morphPose.addMorphTarget(targets[i]);
+    // TODO: some day, morph pose could also become a tree using and generating poses?
+    // for now, it's really just a Component-shaped wrapper for ModelInstance.morphPose
+    if (targets) {
+        this._hasOwn = true;
+        this._morphPose = new MorphPose();
+        for (var i = 0; i < targets.length; ++i) {
+            this._morphPose.addMorphTarget(targets[i]);
+        }
     }
+    else
+        this._hasOwn = false;
 }
 
 Component.create(MorphAnimation,
@@ -67,7 +74,10 @@ MorphAnimation.prototype.setWeight = function(name, value)
  */
 MorphAnimation.prototype.onAdded = function()
 {
-    this.entity.morphPose = this._morphPose;
+    if (this._hasOwn)
+        this.entity.morphPose = this._morphPose;
+    else
+        this._morphPose = this.entity.morphPose;
 };
 
 /**
@@ -75,7 +85,8 @@ MorphAnimation.prototype.onAdded = function()
  */
 MorphAnimation.prototype.onRemoved = function()
 {
-    this.entity.morphPose = null;
+    if (this._hasOwn)
+        this.entity.morphPose = null;
 };
 
 /**

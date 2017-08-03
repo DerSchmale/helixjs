@@ -241,15 +241,23 @@ Mesh.prototype = {
      */
     generateMorphData: function(supportNormals)
     {
-        for (i = 0; i < capabilities.NUM_MORPH_TARGETS; ++i) {
+        var count;
+
+        if (supportNormals) {
+            this._hasMorphNormals = true;
+            count = 4;
+        }
+        else {
+            count = 8;
+        }
+
+        for (i = 0; i < count; ++i) {
             // these will never have data assigned to them!
             // append these each as a different stream
             this.addVertexAttribute("hx_morphPosition" + i, 3, this._numStreams);
 
-            if (supportNormals) {
+            if (supportNormals)
                 this.addVertexAttribute("hx_morphNormal" + i, 3, this._numStreams);
-                this._hasMorphNormals = true;
-            }
         }
 
         var data = [];

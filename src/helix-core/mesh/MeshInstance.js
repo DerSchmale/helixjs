@@ -27,14 +27,18 @@ function MeshInstance(mesh, material)
     if (mesh.hasMorphData) {
         this._morphPositions = [];
 
-        if (mesh.hasMorphNormals)
-            this._morphNormals = [];
+        var numMorphs = 8;
 
-        var w = [];
-        for (var i = 0; i < capabilities.NUM_MORPH_TARGETS; ++i) {
-            w[i] = 0;
+        if (mesh.hasMorphNormals) {
+            this._morphNormals = [];
+            numMorphs = 4;
         }
-        this._morphWeights = new Float32Array(w);
+
+        this._morphWeights = new Float32Array(numMorphs);
+
+        for (var i = 0; i < numMorphs; ++i) {
+            this._morphWeights[i] = 0;
+        }
     }
 
     this.material = material;
@@ -67,9 +71,12 @@ MeshInstance.prototype = {
      */
     setMorphTarget: function(targetIndex, positionBuffer, normalBuffer, weight)
     {
+        if (targetIndex >= this._morphWeights.length) return;
+
         this._morphPositions[targetIndex] = positionBuffer;
         if (normalBuffer && this._morphNormals)
             this._morphNormals[targetIndex] = normalBuffer;
+
         this._morphWeights[targetIndex] = positionBuffer? weight : 0.0;
     },
 
@@ -91,8 +98,11 @@ MeshInstance.prototype = {
         if (this._material) {
             this._material.onChange.bind(this._onMaterialOrMeshChange, this);
 
-            this._material._setUseSkinning(this._material._useSkinning || !!this._mesh._model.skeleton);
-            this._material._setUseMorphing(this._material._useMorphing || this._mesh.hasMorphData);
+            this._material._setUseSkinning(/*this._material._useSkinning || */!!this._mesh._model.skeleton);
+            this._material._setUseMorphing(
+                /*this._material._useMorphing || */this._mesh.hasMorphData,
+                /*this._material._useNormalMorphing || */this._mesh.hasMorphNormals
+            );
         }
 
         this._meshMaterialLinkInvalid = true;

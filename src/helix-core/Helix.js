@@ -98,7 +98,6 @@ export var capabilities =
         EXT_ELEMENT_INDEX_UINT: null,
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
-        NUM_MORPH_TARGETS: 0,
         GBUFFER_MRT: false,
         HDR_FORMAT: 0,
         HALF_FLOAT_FBO: false
@@ -595,9 +594,6 @@ export function init(canvas, options)
 
         _initDefaultSkinningTexture();
     }
-
-    // this cannot be defined by the user
-    capabilities.NUM_MORPH_TARGETS = 8;
 
     Texture2D._initDefault();
     TextureCube._initDefault();

@@ -395,7 +395,9 @@ BasicMaterial.prototype._generateDefines = function()
     if (this._useSkinning) defines.HX_USE_SKINNING = 1;
     if (this._useMorphing) {
         defines.HX_USE_MORPHING = 1;
-        defines.HX_NUM_MORPH_TARGETS = capabilities.NUM_MORPH_TARGETS;
+
+        if (this._useNormalMorphing)
+            defines.HX_USE_NORMAL_MORPHING = 1;
     }
 
     switch (this._specularMapMode) {

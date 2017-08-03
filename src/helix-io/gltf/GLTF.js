@@ -1,5 +1,4 @@
 import * as HX from "helix";
-import {MorphAnimation} from "../../helix-core/animation/morph/MorphAnimation";
 
 // https://www.khronos.org/files/gltf20-reference-guide.pdf
 
@@ -300,7 +299,7 @@ GLTF.prototype._parseMeshes = function()
                 targets = [];
                 for (var k = 0; k < numTargets; ++k) {
                     targets[k] = new HX.MorphTarget();
-                    targets[k].name = "morphTarget_" + i;
+                    targets[k].name = "morphTarget_" + k;
                 }
 
                 if (primDef.targets[0].NORMAL) {
@@ -323,18 +322,15 @@ GLTF.prototype._parseMeshes = function()
         var modelInstance = new HX.ModelInstance(model, materials);
 
         if (numTargets > 0) {
-            var morphPose = new HX.MorphPose();
-
-            for (j = 0; j < numTargets; ++j)
-                morphPose.addMorphTarget(targets[j]);
-
-            modelInstance.morphPose = morphPose;
+            var morphComponent = new HX.MorphAnimation(targets);
 
             if (meshDef.weights) {
                 for (j = 0; j < numTargets; ++j) {
-                    morphPose.setWeight("morphTarget_" + j, meshDef.weights[j]);
+                    morphComponent.setWeight("morphTarget_" + j, meshDef.weights[j]);
                 }
             }
+
+            modelInstance.addComponent(morphComponent);
         }
 
         this._modelInstances[i] = modelInstance;
@@ -354,11 +350,11 @@ GLTF.prototype._parseMorphTargets = function(targetDefs, meshIndex, targets)
         // var tangentAcc = attribs.TANGENT !== undefined? this._getAccessor(attribs.TANGENT) : null;
 
         var positionData = new Float32Array(positionAcc.count * 3);
-        this._readVertexData(positionData, 0, positionAcc, 3, true);
+        this._readVertexData(positionData, 0, positionAcc, 3, 3, true);
 
         if (normalAcc) {
             var normalData = new Float32Array(normalAcc.count * 3);
-            this._readVertexData(normalData, 0, normalAcc, 3, true);
+            this._readVertexData(normalData, 0, normalAcc, 3, 3, true);
         }
 
         morphTarget.init(meshIndex, positionData, normalData);
@@ -375,7 +371,7 @@ GLTF.prototype._parsePrimitive = function(primDef, model, materials, morphs, mor
     var tangentAcc = attribs.TANGENT !== undefined? this._getAccessor(attribs.TANGENT) : null;
     var texCoordAcc = attribs.TEXCOORD_0 !== undefined? this._getAccessor(attribs.TEXCOORD_0) : null;
     var jointIndexAcc = attribs.JOINTS_0 !== undefined? this._getAccessor(attribs.JOINTS_0) : null;
-    var jointWeightsAcc = attribs.WEIGHTS_0 !== undefined? this._getAccessor(attribs.WEIGHTS_0) : null
+    var jointWeightsAcc = attribs.WEIGHTS_0 !== undefined? this._getAccessor(attribs.WEIGHTS_0) : null;
 
     var normalGenMode = 0;
 
@@ -550,6 +546,7 @@ GLTF.prototype._readIndices = function(accessor)
         indexData[i] = readFnc.call(src, o, true);
         o += elmSize;
     }
+
     return indexData;
 };
 
@@ -736,7 +733,7 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipZ)
             case 1:
                 value = [];
                 for (i = 0; i < elmCount; ++i)
-                    value[i] = this._readFloat(valueSrc, v);
+                    value[i] = this._readFloat(valueSrc, v + i * 4);
                 break;
             case 3:
                 value = this._readFloat3(valueSrc, v);
@@ -769,7 +766,7 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipZ)
             }
         }
 
-        v += valuesAcc.numComponents * 4;
+        v += valuesAcc.numComponents * elmCount * 4;
         t += 4;
     }
 
@@ -825,7 +822,7 @@ GLTF.prototype._parseAnimationChannel = function(channelDef, samplers)
             layers = [];
 
             for (var i = 0; i < clips.length; ++i)
-                layers.push(new HX.AnimationLayerMorphTarget(target.morphPose, "morphTarget_" + i, clips[i]));
+                layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation), "morphTarget_" + i, clips[i]));
 
             break;
         default:

@@ -18,8 +18,6 @@ import {ApplyGBufferPass} from "./passes/ApplyGBufferPass";
 import {RenderPath} from "../render/RenderPath";
 import {SpotShadowPass} from "./passes/SpotShadowPass";
 import {PointShadowPass} from "./passes/PointShadowPass";
-import {Debug} from "../debug/Debug";
-import {Profiler} from "../debug/Profiler";
 
 /**
  * @ignore
@@ -56,6 +54,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._uniforms = {};
     this._fixedLights = null;
     this._useMorphing = false;
+    this._useNormalMorphing = false;
     this._useSkinning = false;
 
     this._name = null;
@@ -468,9 +467,10 @@ Material.prototype =
     /**
      * @ignore
      */
-    _setUseMorphing: function(value)
+    _setUseMorphing: function(value, normals)
     {
         this._useMorphing = value;
+        this._useNormalMorphing = normals;
     },
 
     /**

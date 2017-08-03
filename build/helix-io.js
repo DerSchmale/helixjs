@@ -4,329 +4,6 @@
 	(factory((global.HX = global.HX || {}),global.HX,global.pako));
 }(this, (function (exports,HX$1,pako) { 'use strict';
 
-/**
- * @abstract
- *
- * @constructor
- *
- * @classdesc
- * <p>A Component is an object that can be added to an {@linkcode Entity} to add behavior to it in a modular fashion.
- * This can be useful to create small pieces of functionality that can be reused often and without extra boilerplate code.</p>
- * <p>If it implements an onUpdate(dt) function, the update method will be called every frame.</p>
- * <p>A single Component instance is unique to an Entity and cannot be shared!</p>
- *
- * Instead of using Object.create, Component subclasses need to be extended using
- *
- * <pre><code>
- * Component.create(SubComponentClass, props);
- * </pre></code>
- *
- * @see {@linkcode Entity}
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function Component()
-{
-    // this allows notifying entities about bound changes (useful for sized components)
-    this._entity = null;
-}
-
-Component.COMPONENT_ID = 0;
-
-Component.create = (function(constrFunction, props)
-{
-    var COUNTER = 0;
-
-    return function(constrFunction, props) {
-        constrFunction.prototype = Object.create(Component.prototype, props);
-        constrFunction.COMPONENT_ID = ++COUNTER;
-        constrFunction.prototype.COMPONENT_ID = constrFunction.COMPONENT_ID;
-    };
-}());
-
-Component.prototype =
-{
-    /**
-     * Called when this component is added to an Entity.
-     */
-    onAdded: function() {},
-
-    /**
-     * Called when this component is removed from an Entity.
-     */
-    onRemoved: function() {},
-
-    /**
-     * If provided, this method will be called every frame, allowing updating the entity.
-     * @param [Number] dt The amount of milliseconds passed since last frame.
-     */
-    onUpdate: null,
-
-    /**
-     * The target entity.
-     */
-    get entity()
-    {
-        return this._entity;
-    }
-};
-
-/**
- * @classdesc
- * <p>Signal provides an implementation of the Observer pattern. Functions can be bound to the Signal, and they will be
- * called when the Signal is dispatched. This implementation allows for keeping scope.</p>
- * <p>When dispatch has an object passed to it, this is called the "payload" and will be passed as a parameter to the
- * listener functions</p>
- *
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function Signal()
-{
-    this._listeners = [];
-    this._lookUp = {};
-}
-
-/**
- * Signals keep "this" of the caller, because having this refer to the signal itself would be silly
- */
-Signal.prototype =
-{
-    /**
-     * Binds a function as a listener to the Signal
-     * @param {function(*):void} listener A function to be called when the function is dispatched.
-     * @param {Object} [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
-     *
-     * @example
-     * signal.bind(this.methodFunction, this);
-     */
-    bind: function(listener, thisRef)
-    {
-        this._lookUp[listener] = this._listeners.length;
-        var callback = thisRef? listener.bind(thisRef) : listener;
-        this._listeners.push(callback);
-    },
-
-    /**
-     * Removes a function as a listener.
-     */
-    unbind: function(listener)
-    {
-        var index = this._lookUp[listener];
-        this._listeners.splice(index, 1);
-        delete this._lookUp[listener];
-    },
-
-    /**
-     * Dispatches the signal, causing all the listening functions to be called.
-     * @param [payload] An optional object to be passed in as a parameter to the listening functions. Can be used to provide data.
-     */
-    dispatch: function(payload)
-    {
-        var len = this._listeners.length;
-        for (var i = 0; i < len; ++i)
-            this._listeners[i].apply(null, arguments);
-    },
-
-    /**
-     * Returns whether there are any functions bound to the Signal or not.
-     */
-    get hasListeners()
-    {
-        return this._listeners.length > 0;
-    }
-};
-
-/**
- * @classdesc
- * MorphPose defines a certain configuration for blending several morph targets. While this can be used to directly
- * assign to a {@linkcode ModelInstance}, it's usually controlled through a component such as {@MorphAnimation}. Other
- * components could use several MorphPose objects in keyframes and tween between them over a timeline.
- *
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function MorphPose$1()
-{
-    this._targets = [];
-    this._weights = {};
-    this._stateInvalid = true;
-    this.onChange = new Signal();
-}
-
-MorphPose$1.prototype =
-{
-    /**
-     * Gets the morph target as sorted by weight in update()
-     * @param {number} index The index of the {@linkcode MorphTarget}
-     * @returns {MorphTarget}
-     */
-    getMorphTarget: function(index)
-    {
-        return this._targets[index];
-    },
-
-    /**
-     * The amount of morph targets used in this pose.
-     * @returns {Number}
-     */
-    get numMorphTargets()
-    {
-        return this._targets.length;
-    },
-
-    /**
-     * Adds a MorphTarget object to the pose.
-     * @param {MorphTarget} morphTarget
-     */
-    addMorphTarget: function(morphTarget)
-    {
-        this._targets.push(morphTarget);
-        this._weights[morphTarget.name] = 0.0;
-        this._stateInvalid = true;
-    },
-
-    /**
-     * Gets the weight of a morph target with the given name.
-     * @param {string} name The name of the morph target.
-     * @returns {number}
-     */
-    getWeight: function(name)
-    {
-        return this._weights[name];
-    },
-
-    /**
-     * Sets the weight of a morph target with the given name.
-     * @param {string} name The name of the morph target.
-     * @param {number} value The new weight.
-     */
-    setWeight: function(id, value)
-    {
-        if (this._weights[id] !== value)
-            this._stateInvalid = true;
-
-        this._weights[id] = value;
-    },
-
-    /**
-     * Updates the morph pose given the current weights. Usually called by a wrapping component. If no component is used,
-     * update needs to be called manually.
-     */
-    update: function()
-    {
-        if (!this._stateInvalid) return;
-
-        var w = this._weights;
-        // sort by weights
-        this._targets.sort(function(a, b) {
-            return w[b.name] - w[a.name];
-        });
-
-        this._stateInvalid = false;
-
-        this.onChange.dispatch();
-    }
-};
-
-/**
- * @classdesc
- * MorphAnimation is a {@linkcode Component} that can be added to ModelInstances to control morph target animations. The Mesh objects
- * used by the ModelInstance's Model must contain morph data generated with {@linkcode Mesh#generateMorphData}.
- * Up to 8 morph targets can be active at a time. If more morph targets have a weight assigned to them, only those with
- * the highest weight are used.
- *
- * @property {number} numMorphTargets The amount of morph targets in total (active and non-active).
- *
- *
- * @param {Array} [targets] An Array of {@linkcode MorphTarget} objects. If omitted, it will use the morph pose already
- * assigned to the entity (if any).
- * @constructor
- *
- * @see {@linkcode MorphPose}
- * @see {@linkcode MorphTarget}
- * @see {@linkcode Mesh#generateMorphData}
- *
- * @extends Component
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function MorphAnimation(targets)
-{
-    Component.call(this);
-
-    // TODO: some day, morph pose could also become a tree using and generating poses?
-    // for now, it's really just a Component-shaped wrapper for ModelInstance.morphPose
-    if (targets) {
-        this._hasOwn = true;
-        this._morphPose = new MorphPose$1();
-        for (var i = 0; i < targets.length; ++i) {
-            this._morphPose.addMorphTarget(targets[i]);
-        }
-    }
-    else
-        this._hasOwn = false;
-}
-
-Component.create(MorphAnimation,
-    {
-        numMorphTargets: {
-            get: function() { return this._morphPose.numMorphTargets; }
-        }
-    }
-);
-
-/**
- * Retrieves the morph target at the given index, as sorted by weight.
- * @param {Number} index The index of the morph target.
- * @returns {MorphTarget}
- */
-MorphAnimation.prototype.getMorphTarget = function(index)
-{
-    return this._morphPose.getMorphTarget(index);
-};
-
-
-/**
- * Sets the weight of the morph target with the given name.
- * @param {string} name The name of the morph target to influence.
- * @param {number} value The new weight of the morph target.
- */
-MorphAnimation.prototype.setWeight = function(name, value)
-{
-    this._morphPose.setWeight(name, value);
-};
-
-/**
- * @ignore
- */
-MorphAnimation.prototype.onAdded = function()
-{
-    if (this._hasOwn)
-        this.entity.morphPose = this._morphPose;
-    else
-        this._morphPose = this.entity.morphPose;
-};
-
-/**
- * @ignore
- */
-MorphAnimation.prototype.onRemoved = function()
-{
-    if (this._hasOwn)
-        this.entity.morphPose = null;
-};
-
-/**
- * @ignore
- */
-MorphAnimation.prototype.onUpdate = function(dt)
-{
-    this._morphPose.update(dt);
-};
-
 // https://www.khronos.org/files/gltf20-reference-guide.pdf
 
 /**
@@ -626,7 +303,7 @@ GLTF.prototype._parseMeshes = function()
                 targets = [];
                 for (var k = 0; k < numTargets; ++k) {
                     targets[k] = new HX$1.MorphTarget();
-                    targets[k].name = "morphTarget_" + i;
+                    targets[k].name = "morphTarget_" + k;
                 }
 
                 if (primDef.targets[0].NORMAL) {
@@ -649,18 +326,15 @@ GLTF.prototype._parseMeshes = function()
         var modelInstance = new HX$1.ModelInstance(model, materials);
 
         if (numTargets > 0) {
-            var morphPose = new HX$1.MorphPose();
-
-            for (j = 0; j < numTargets; ++j)
-                morphPose.addMorphTarget(targets[j]);
-
-            modelInstance.morphPose = morphPose;
+            var morphComponent = new HX$1.MorphAnimation(targets);
 
             if (meshDef.weights) {
                 for (j = 0; j < numTargets; ++j) {
-                    morphPose.setWeight("morphTarget_" + j, meshDef.weights[j]);
+                    morphComponent.setWeight("morphTarget_" + j, meshDef.weights[j]);
                 }
             }
+
+            modelInstance.addComponent(morphComponent);
         }
 
         this._modelInstances[i] = modelInstance;
@@ -680,11 +354,12 @@ GLTF.prototype._parseMorphTargets = function(targetDefs, meshIndex, targets)
         // var tangentAcc = attribs.TANGENT !== undefined? this._getAccessor(attribs.TANGENT) : null;
 
         var positionData = new Float32Array(positionAcc.count * 3);
-        this._readVertexData(positionData, 0, positionAcc, 3, true);
+        this._readVertexData(positionData, 0, positionAcc, 3, 3, true);
 
         if (normalAcc) {
             var normalData = new Float32Array(normalAcc.count * 3);
-            this._readVertexData(normalData, 0, normalAcc, 3, true);
+            this._readVertexData(normalData, 0, normalAcc, 3, 3, true);
+            console.log(normalData.join(","));
         }
 
         morphTarget.init(meshIndex, positionData, normalData);
@@ -876,6 +551,7 @@ GLTF.prototype._readIndices = function(accessor)
         indexData[i] = readFnc.call(src, o, true);
         o += elmSize;
     }
+
     return indexData;
 };
 
@@ -1062,7 +738,7 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipZ)
             case 1:
                 value = [];
                 for (i = 0; i < elmCount; ++i)
-                    value[i] = this._readFloat(valueSrc, v);
+                    value[i] = this._readFloat(valueSrc, v + i * 4);
                 break;
             case 3:
                 value = this._readFloat3(valueSrc, v);
@@ -1095,7 +771,7 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipZ)
             }
         }
 
-        v += valuesAcc.numComponents * 4;
+        v += valuesAcc.numComponents * elmCount * 4;
         t += 4;
     }
 
@@ -1151,7 +827,7 @@ GLTF.prototype._parseAnimationChannel = function(channelDef, samplers)
             layers = [];
 
             for (var i = 0; i < clips.length; ++i)
-                layers.push(new HX$1.AnimationLayerMorphTarget(target.morphPose, "morphTarget_" + i, clips[i]));
+                layers.push(new HX$1.AnimationLayerMorphTarget(target.getFirstComponentByType(HX$1.MorphAnimation), "morphTarget_" + i, clips[i]));
 
             break;
         default:
@@ -1613,6 +1289,73 @@ MD5Anim._BaseFrameData = function()
 MD5Anim._FrameData = function()
 {
     this.components = [];
+};
+
+/**
+ * @classdesc
+ * <p>Signal provides an implementation of the Observer pattern. Functions can be bound to the Signal, and they will be
+ * called when the Signal is dispatched. This implementation allows for keeping scope.</p>
+ * <p>When dispatch has an object passed to it, this is called the "payload" and will be passed as a parameter to the
+ * listener functions</p>
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function Signal()
+{
+    this._listeners = [];
+    this._lookUp = {};
+}
+
+/**
+ * Signals keep "this" of the caller, because having this refer to the signal itself would be silly
+ */
+Signal.prototype =
+{
+    /**
+     * Binds a function as a listener to the Signal
+     * @param {function(*):void} listener A function to be called when the function is dispatched.
+     * @param {Object} [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
+     *
+     * @example
+     * signal.bind(this.methodFunction, this);
+     */
+    bind: function(listener, thisRef)
+    {
+        this._lookUp[listener] = this._listeners.length;
+        var callback = thisRef? listener.bind(thisRef) : listener;
+        this._listeners.push(callback);
+    },
+
+    /**
+     * Removes a function as a listener.
+     */
+    unbind: function(listener)
+    {
+        var index = this._lookUp[listener];
+        this._listeners.splice(index, 1);
+        delete this._lookUp[listener];
+    },
+
+    /**
+     * Dispatches the signal, causing all the listening functions to be called.
+     * @param [payload] An optional object to be passed in as a parameter to the listening functions. Can be used to provide data.
+     */
+    dispatch: function(payload)
+    {
+        var len = this._listeners.length;
+        for (var i = 0; i < len; ++i)
+            this._listeners[i].apply(null, arguments);
+    },
+
+    /**
+     * Returns whether there are any functions bound to the Signal or not.
+     */
+    get hasListeners()
+    {
+        return this._listeners.length > 0;
+    }
 };
 
 /**

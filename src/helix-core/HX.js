@@ -97,7 +97,7 @@ export {AssetLibrary} from "./io/AssetLibrary";
 export {AssetLoader} from "./io/AssetLoader";
 export {URLLoader} from "./io/URLLoader";
 export {HCM} from "./io/HCM";
-export {HMT} from "./io/HMT";
+export {HMAT} from "./io/HMAT";
 export {Importer} from "./io/Importer";
 export {JPG_EQUIRECTANGULAR, PNG_EQUIRECTANGULAR} from "./io/JPG_EQUIRECTANGULAR";
 export {JPG_HEIGHTMAP, PNG_HEIGHTMAP} from "./io/JPG_HEIGHTMAP";

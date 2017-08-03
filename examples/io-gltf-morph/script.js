@@ -9,7 +9,6 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.hdr = true;
     options.defaultLightingModel = HX.LightingModel.GGX_FULL;
-    options.deferredLightingModel = HX.LightingModel.GGX_FULL;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -24,7 +23,6 @@ project.onInit = function()
 {
     this.gltf = this.assetLibrary.get("scene");
     this.scene = this.gltf.defaultScene;
-    this.renderer.debugMode = HX.Renderer.DebugMode.GBUFFER_NORMAL_DEPTH;
 
     this.camera.nearDistance = .1;
     this.camera.farDistance = 3000.0;

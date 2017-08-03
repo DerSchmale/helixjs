@@ -359,7 +359,6 @@ GLTF.prototype._parseMorphTargets = function(targetDefs, meshIndex, targets)
         if (normalAcc) {
             var normalData = new Float32Array(normalAcc.count * 3);
             this._readVertexData(normalData, 0, normalAcc, 3, 3, true);
-            console.log(normalData.join(","));
         }
 
         morphTarget.init(meshIndex, positionData, normalData);

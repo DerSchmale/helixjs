@@ -17,21 +17,21 @@ import {ArrayUtils} from "../utils/ArrayUtils";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function HMT()
+function HMAT()
 {
     Importer.call(this, Material);
-    HMT._initPropertyMap();
+    HMAT._initPropertyMap();
 }
 
-HMT.prototype = Object.create(Importer.prototype);
+HMAT.prototype = Object.create(Importer.prototype);
 
-HMT.prototype.parse = function(data, target)
+HMAT.prototype.parse = function(data, target)
 {
     data = JSON.parse(data);
     this._loadShaders(data, target);
 };
 
-HMT.prototype._gatherShaderFiles = function(data)
+HMAT.prototype._gatherShaderFiles = function(data)
 {
     var files = [];
     var geometry = data.geometry;
@@ -46,7 +46,7 @@ HMT.prototype._gatherShaderFiles = function(data)
     return files;
 };
 
-HMT.prototype._loadShaders = function(data, material)
+HMAT.prototype._loadShaders = function(data, material)
 {
     // urls will already be correctURL'ed
     var shaderFiles = this._gatherShaderFiles(data);
@@ -71,7 +71,7 @@ HMT.prototype._loadShaders = function(data, material)
 };
 
 
-HMT.prototype._processMaterial = function(data, material)
+HMAT.prototype._processMaterial = function(data, material)
 {
     var defines = "";
     if (this.options.defines) {
@@ -93,10 +93,10 @@ HMT.prototype._processMaterial = function(data, material)
     this._applyUniforms(data, material);
 
     if (data.hasOwnProperty("elementType"))
-        material.elementType = HMT._PROPERTY_MAP[data.elementType];
+        material.elementType = HMAT._PROPERTY_MAP[data.elementType];
 
     if (data.hasOwnProperty("cullMode"))
-        material.cullMode = HMT._PROPERTY_MAP[data.cullMode];
+        material.cullMode = HMAT._PROPERTY_MAP[data.cullMode];
 
     if (data.hasOwnProperty("writeDepth"))
         material.writeDepth = data.writeDepth;
@@ -106,19 +106,19 @@ HMT.prototype._processMaterial = function(data, material)
         var blend = data.blend;
 
         if (blend.hasOwnProperty("source"))
-            blendState.srcFactor = HMT._PROPERTY_MAP[blend.source];
+            blendState.srcFactor = HMAT._PROPERTY_MAP[blend.source];
 
         if (blend.hasOwnProperty("destination"))
-            blendState.dstFactor = HMT._PROPERTY_MAP[blend.destination];
+            blendState.dstFactor = HMAT._PROPERTY_MAP[blend.destination];
 
         if (blend.hasOwnProperty("operator"))
-            blendState.operator = HMT._PROPERTY_MAP[blend.operator];
+            blendState.operator = HMAT._PROPERTY_MAP[blend.operator];
 
         material.blendState = blendState;
     }
 };
 
-HMT.prototype._applyUniforms = function(data, material)
+HMAT.prototype._applyUniforms = function(data, material)
 {
     if (!data.uniforms) return;
 
@@ -138,7 +138,7 @@ HMT.prototype._applyUniforms = function(data, material)
     }
 };
 
-HMT.prototype._loadTextures = function(data, material)
+HMAT.prototype._loadTextures = function(data, material)
 {
     var files = [];
 
@@ -174,10 +174,10 @@ HMT.prototype._loadTextures = function(data, material)
 };
 
 
-HMT._PROPERTY_MAP = null;
+HMAT._PROPERTY_MAP = null;
 
-HMT._initPropertyMap = function() {
-    HMT._PROPERTY_MAP = HMT._PROPERTY_MAP || {
+HMAT._initPropertyMap = function() {
+    HMAT._PROPERTY_MAP = HMAT._PROPERTY_MAP || {
         back: CullMode.BACK,
         front: CullMode.FRONT,
         both: CullMode.ALL,
@@ -212,4 +212,4 @@ HMT._initPropertyMap = function() {
     };
 };
 
-export { HMT };
+export { HMAT };

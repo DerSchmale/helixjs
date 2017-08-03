@@ -19,9 +19,9 @@ var settings = {
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("sunMaterial", "blue-marble/materials/sunMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
-    assetLibrary.queueAsset("earthMaterial", "blue-marble/materials/earthMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
-    assetLibrary.queueAsset("atmosMaterial", "blue-marble/materials/atmosphereMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
+    assetLibrary.queueAsset("sunMaterial", "blue-marble/materials/sunMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+    assetLibrary.queueAsset("earthMaterial", "blue-marble/materials/earthMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+    assetLibrary.queueAsset("atmosMaterial", "blue-marble/materials/atmosphereMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
     assetLibrary.queueAsset("moon-albedo", "blue-marble/textures/moon/albedo.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
     assetLibrary.queueAsset("moon-normals", "blue-marble/textures/moon/normals.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
     assetLibrary.queueAsset("skybox", "blue-marble/textures/skybox/milkyway.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);

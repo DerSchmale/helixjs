@@ -1,9 +1,3 @@
-import {SkeletonPose} from "./SkeletonPose";
-import {Texture2D} from "../../texture/Texture2D";
-import {META, DataType, TextureWrapMode, TextureFilter, TextureFormat} from "../../Helix";
-import {Matrix4x4} from "../../math/Matrix4x4";
-import {SkeletonJointPose} from "./SkeletonJointPose";
-
 /**
  * @classdesc
  * A SkeletonBlendTree is used by {@linkcode SkeletonAnimation} internally to blend complex animation setups. Using this,
@@ -43,11 +37,6 @@ SkeletonBlendTree.prototype =
     get rootNode() { return this._rootNode; },
     set rootNode(value) { this._rootNode = value; },
 
-    setValue: function(id, value)
-    {
-        this._rootNode.setValue(id, value);
-    },
-
     update: function(dt)
     {
         var updated = this._rootNode.update(dt, this._transferRootJoint);
@@ -55,6 +44,14 @@ SkeletonBlendTree.prototype =
             this._rootNode._pose.invalidateGlobalPose();
 
         return updated;
+    },
+
+    /**
+     * Gets a node in the tree with the given name.
+     */
+    getNode: function(name)
+    {
+        return this._rootNode.findNode(name);
     }
 };
 

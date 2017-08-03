@@ -25,6 +25,7 @@ function SkeletonClipNode(clip)
     this._playhead = new AnimationPlayhead(clip);
     this._rootPosition = new Float4();
 
+    this._name = clip.name;
     this._numJoints = clip.getKeyFrame(0).value._jointPoses.length;
 
     var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value._jointPoses[0].position;
@@ -114,12 +115,10 @@ SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
     rootJointPos.set(0.0, 0.0, 0.0);
 };
 
-/**
- * @ignore
- */
-SkeletonClipNode.prototype._applyValue = function(value)
+SkeletonClipNode.prototype._queryChildren = function(name)
 {
-    this.time = value * this._clip.duration;
+    // this is a leaf node
+    return null;
 };
 
 export { SkeletonClipNode };

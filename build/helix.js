@@ -135,6 +135,18 @@ ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_G
 
 ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
+ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
+
+ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\n attribute vec2 hx_texCoord;\n\n varying vec2 uv;\n\n void main()\n {\n     uv = hx_texCoord;\n     gl_Position = hx_position;\n }';
+
+ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
+
+ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
 ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	gl_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'attribute vec4 hx_position;\nattribute vec2 hx_texCoord;\n\nvarying vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -164,18 +176,6 @@ ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec4 co
 ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	gl_FragColor = vec4(l, l, l, 1.0);\n}';
 
 ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	gl_FragColor = color / (1.0 + lum);\n}';
-
-ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-ShaderLibrary._files['copy_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   gl_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   gl_FragColor.a = 1.0;\n#endif\n}\n';
-
-ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   gl_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-ShaderLibrary._files['copy_vertex.glsl'] = 'attribute vec4 hx_position;\n attribute vec2 hx_texCoord;\n\n varying vec2 uv;\n\n void main()\n {\n     uv = hx_texCoord;\n     gl_Position = hx_position;\n }';
-
-ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   gl_FragColor = vec4(1.0);\n}\n';
-
-ShaderLibrary._files['null_vertex.glsl'] = 'attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 ShaderLibrary._files['dir_shadow_esm.glsl'] = 'vec4 hx_dir_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_dir_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
 
@@ -18396,28 +18396,41 @@ Skeleton.prototype =
 function SkeletonBlendNode()
 {
     this._rootJointDeltaPosition = new Float4();
-    this._valueID = null;
     this._pose = new SkeletonPose();
+    this._name = null;
 }
 
 SkeletonBlendNode.prototype =
 {
+    /**
+     * The name of the node, by which it can be retrieved from {@linkcode SkeletonBlendTree} and {@linkcode SkeletonAnimation}
+     */
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
+
+
+    /**
+     * @ignore
+     */
+    findNode: function(name)
+    {
+        if (this._name === name) return this;
+        return this._queryChildren(name);
+    },
+
     /**
      * @ignore
      */
     update: function(dt, transferRootJoint)
     {
     },
-
-    /**
-     * @ignore
-     */
-    setValue: function(id, value)
-    {
-        if (this._valueID === id) {
-            this._applyValue(value);
-        }
-    },   // a node can have a value associated with it, either time, interpolation value, directional value, ...
 
     /**
      * @ignore
@@ -18430,14 +18443,12 @@ SkeletonBlendNode.prototype =
     get numJoints() { return -1; },
 
     /**
-     * The value ID linked to this node. The meaning is context dependent.
-     *
-     * @deprecated
+     * @ignore
      */
-    get valueID() { return this._valueID; },
-    set valueID(value) { this._valueID = value; },
-
-    _applyValue: function(value) {}
+    _queryChildren: function(name)
+    {
+        throw new Error("Abstract method called!");
+    }
 };
 
 /**
@@ -18463,6 +18474,7 @@ function SkeletonClipNode(clip)
     this._playhead = new AnimationPlayhead(clip);
     this._rootPosition = new Float4();
 
+    this._name = clip.name;
     this._numJoints = clip.getKeyFrame(0).value._jointPoses.length;
 
     var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value._jointPoses[0].position;
@@ -18552,12 +18564,10 @@ SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
     rootJointPos.set(0.0, 0.0, 0.0);
 };
 
-/**
- * @ignore
- */
-SkeletonClipNode.prototype._applyValue = function(value)
+SkeletonClipNode.prototype._queryChildren = function(name)
 {
-    this.time = value * this._clip.duration;
+    // this is a leaf node
+    return null;
 };
 
 /**
@@ -18599,11 +18609,6 @@ SkeletonBlendTree.prototype =
     get rootNode() { return this._rootNode; },
     set rootNode(value) { this._rootNode = value; },
 
-    setValue: function(id, value)
-    {
-        this._rootNode.setValue(id, value);
-    },
-
     update: function(dt)
     {
         var updated = this._rootNode.update(dt, this._transferRootJoint);
@@ -18611,6 +18616,14 @@ SkeletonBlendTree.prototype =
             this._rootNode._pose.invalidateGlobalPose();
 
         return updated;
+    },
+
+    /**
+     * Gets a node in the tree with the given name.
+     */
+    getNode: function(name)
+    {
+        return this._rootNode.findNode(name);
     }
 };
 
@@ -18719,6 +18732,14 @@ SkeletonAnimation.prototype.onUpdate = function(dt)
         this._entity.matrix = matrix;
         this._entity.skeletonPose = this._blendTree.skeletonPose;
     }
+};
+
+/**
+ * Gets a node in the tree with the given name.
+ */
+SkeletonAnimation.prototype.getNode = function(name)
+{
+    return this._blendTree.getNode(name);
 };
 
 /**
@@ -18847,22 +18868,9 @@ SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
     return updated;
 };
 
-/**
- * @ignore
- */
-SkeletonBinaryLerpNode.prototype._applyValue = function(value)
+SkeletonBinaryLerpNode.prototype._queryChildren = function(name)
 {
-    this.value = value;
-};
-
-/**
- * @ignore
- */
-SkeletonBinaryLerpNode.prototype.setValue = function(id, value)
-{
-    SkeletonBlendNode.prototype.setValue.call(this, id, value);
-    this._child1.setValue(id, value);
-    this._child2.setValue(id, value);
+    return this._child1.findNode(name) || this._child2.findNode(name);
 };
 
 /**
@@ -18958,6 +18966,12 @@ SkeletonFreePoseNode.prototype._getJointPose = function(indexOrName)
         return this._pose._jointPoses[indexOrName];
 };
 
+SkeletonFreePoseNode.prototype._queryChildren = function(name)
+{
+    // this is a leaf node
+    return null;
+};
+
 /**
  * @classdesc
  * SkeletonJoint describes a single joint in a {@linkcode Skeleton}.
@@ -19018,7 +19032,7 @@ SkeletonXFadeNode.prototype = Object.create(SkeletonBlendNode.prototype, {
      * @ignore
      */
     numJoints: {
-        get: function() {return this._numJoints; }
+        get: function() { return this._numJoints; }
     }
 });
 
@@ -19095,6 +19109,13 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
     }
 
     return true;
+};
+
+SkeletonClipNode.prototype._queryChildren = function(name)
+{
+    // this is a leaf node
+    // (actually, internally it uses child nodes, but those are of no business to the user)
+    return null;
 };
 
 /**
@@ -22158,6 +22179,8 @@ HMODEL.prototype.parse = function(data, target)
         target.addMesh(mesh);
     }
 
+    target.skeleton = this._parseSkeleton(stream);
+
     this._notifyComplete(target);
 };
 
@@ -22194,6 +22217,26 @@ HMODEL.prototype._parseMesh = function(stream)
     }
 
     return mesh;
+};
+
+HMODEL.prototype._parseSkeleton = function(stream)
+{
+    var numJoints = stream.getUint8();
+    if (numJoints === 0) return null;
+
+    var skeleton = new Skeleton();
+    for (var i = 0; i < numJoints; ++i) {
+        var joint = new SkeletonJoint();
+        var nameLen = stream.getUint8();
+        joint.name = stream.getString(nameLen);
+        var parentIndex = stream.getUint8();
+        joint.parentIndex = parentIndex === 0xff? -1 : parentIndex;
+        for (var j = 0; j < 16; ++j)
+            joint.inverseBindPose._m[j] = stream.getFloat32();
+        skeleton.addJoint(joint);
+    }
+
+    return skeleton;
 };
 
 /**

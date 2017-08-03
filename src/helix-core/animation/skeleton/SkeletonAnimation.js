@@ -76,20 +76,6 @@ Component.create(SkeletonAnimation,
 );
 
 /**
- * If a node somewhere in the tree has registered with a given ID, it's "value" (node-dependent) can be changed through here.
- *
- * @deprecated
- *
- * @param id
- * @param value
- */
-SkeletonAnimation.prototype.setValue = function(id, value)
-{
-    // if any of the nodes in the animation blend tree has a value id assigned, it can be controlled here from the root.
-    this._blendTree.setValue(id, value);
-};
-
-/**
  * @ignore
  */
 SkeletonAnimation.prototype.onAdded = function()
@@ -110,6 +96,14 @@ SkeletonAnimation.prototype.onUpdate = function(dt)
         this._entity.matrix = matrix;
         this._entity.skeletonPose = this._blendTree.skeletonPose;
     }
+};
+
+/**
+ * Gets a node in the tree with the given name.
+ */
+SkeletonAnimation.prototype.getNode = function(name)
+{
+    return this._blendTree.getNode(name);
 };
 
 export { SkeletonAnimation };

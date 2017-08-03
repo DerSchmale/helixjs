@@ -29,6 +29,14 @@ import {DataOutputStream} from "../core/DataOutputStream";
  *          unsigned int: length (redundant, but much easier to parse)
  *          float[length]: vertex data
  *
+ * <SKELETON DATA>:
+ * numJoints: unsigned byte (if 0, there's no skeleton)
+ *
+ *      <JOINT DATA> #numJoints
+ *      unsigned byte: nameLength (can be 0)
+ *      char[nameLength]: name
+ *      parentIndex: unsigned byte   (0xff is to be interpreted as -1)
+ *      float[16]: inverseBindPose
  *
  * @constructor
  *
@@ -62,6 +70,8 @@ ModelExporter.prototype =
         for (var i = 0; i < numMeshes; ++i)
             this._writeMeshData(dataStream, model.getMesh(i));
 
+        this._writeSkeleton(dataStream, model.skeleton);
+
         return buffer;
     },
 
@@ -94,6 +104,26 @@ ModelExporter.prototype =
             var data = mesh.getVertexData(j);
             dataStream.writeUint32(data.length);
             dataStream.writeFloat32Array(data);
+        }
+    },
+
+    _writeSkeleton: function(dataStream, skeleton)
+    {
+        var numJoints = skeleton? skeleton.numJoints : 0;
+
+        dataStream.writeUint8(numJoints);
+
+        for (var i = 0; i < numJoints; ++i) {
+            var joint = skeleton.getJoint(i);
+            if (joint.name) {
+                dataStream.writeUint8(joint.name.length);
+                dataStream.writeString(joint.name);
+            }
+            else {
+                dataStream.writeUint8(0);
+            }
+            dataStream.writeUint8(joint.parentIndex === -1? 0xff : joint.parentIndex);
+            dataStream.writeFloat32Array(joint.inverseBindPose._m);
         }
     },
 
@@ -134,6 +164,16 @@ ModelExporter.prototype =
             }
         }
 
+        size += 1;  // numJoints
+        var numJoints = model.skeleton? model.skeleton.numJoints : 0;
+
+        for (i = 0; i < numJoints; ++i) {
+            var joint = model.skeleton.getJoint(i);
+            size += 1;  // name length
+            size += joint.name? joint.name.length : 0;  // name
+            size += 1; // parentIndex
+            size += 16 * 4; // inverseBindPose
+        }
         return size;
     }
 };

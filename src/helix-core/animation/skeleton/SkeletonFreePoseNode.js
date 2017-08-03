@@ -93,4 +93,10 @@ SkeletonFreePoseNode.prototype._getJointPose = function(indexOrName)
         return this._pose._jointPoses[indexOrName];
 };
 
+SkeletonFreePoseNode.prototype._queryChildren = function(name)
+{
+    // this is a leaf node
+    return null;
+};
+
 export { SkeletonFreePoseNode};

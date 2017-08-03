@@ -26,7 +26,7 @@ SkeletonXFadeNode.prototype = Object.create(SkeletonBlendNode.prototype, {
      * @ignore
      */
     numJoints: {
-        get: function() {return this._numJoints; }
+        get: function() { return this._numJoints; }
     }
 });
 
@@ -103,6 +103,13 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
     }
 
     return true;
+};
+
+SkeletonClipNode.prototype._queryChildren = function(name)
+{
+    // this is a leaf node
+    // (actually, internally it uses child nodes, but those are of no business to the user)
+    return null;
 };
 
 export { SkeletonXFadeNode };

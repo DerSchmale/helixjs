@@ -3,6 +3,8 @@ import {URLLoader} from "./URLLoader";
 import {DataStream} from "../core/DataStream";
 import {Mesh} from "../mesh/Mesh";
 import {Model} from "../mesh/Model";
+import {Skeleton} from "../animation/skeleton/Skeleton";
+import {SkeletonJoint} from "../animation/skeleton/SkeletonJoint";
 
 /**
  * @classdesc
@@ -42,6 +44,8 @@ HMODEL.prototype.parse = function(data, target)
         target.addMesh(mesh);
     }
 
+    target.skeleton = this._parseSkeleton(stream);
+
     this._notifyComplete(target);
 };
 
@@ -78,6 +82,26 @@ HMODEL.prototype._parseMesh = function(stream)
     }
 
     return mesh;
+};
+
+HMODEL.prototype._parseSkeleton = function(stream)
+{
+    var numJoints = stream.getUint8();
+    if (numJoints === 0) return null;
+
+    var skeleton = new Skeleton();
+    for (var i = 0; i < numJoints; ++i) {
+        var joint = new SkeletonJoint();
+        var nameLen = stream.getUint8();
+        joint.name = stream.getString(nameLen);
+        var parentIndex = stream.getUint8();
+        joint.parentIndex = parentIndex === 0xff? -1 : parentIndex;
+        for (var j = 0; j < 16; ++j)
+            joint.inverseBindPose._m[j] = stream.getFloat32();
+        skeleton.addJoint(joint);
+    }
+
+    return skeleton;
 };
 
 export { HMODEL };

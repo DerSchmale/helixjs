@@ -16,6 +16,7 @@ function SkeletonXFadeNode()
     SkeletonBlendNode.call(this);
     this._children = [];
     this._numJoints = 0;
+    this._clips = {};
 
     // TODO: Add the possibility to sync times, useful for syncing walk -> run!
     // in this case, the clips should have their timesteps recalculated
@@ -31,14 +32,24 @@ SkeletonXFadeNode.prototype = Object.create(SkeletonBlendNode.prototype, {
 });
 
 /**
+ * This adds a clip that can be triggered by name in fadeTo.
+ */
+SkeletonXFadeNode.prototype.addClip = function(clip)
+{
+    this._clips[clip.name] = clip;
+};
+
+/**
  * @classdesc
  * Cross-fades the animation to a new target animation.
- * @param node A {@linkcode SkeletonBlendTreeNode} or an {@linkcode AnimationClip}.
+ * @param node A {@linkcode SkeletonBlendTreeNode}, an {@linkcode AnimationClip}, or a string with the name of a clip.
+ * If using a string, the clip has to be added using {@linkcode addClip}.
  * @param time The time the fade takes in milliseconds.
  */
 SkeletonXFadeNode.prototype.fadeTo = function(node, time)
 {
-    if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
+    if (node instanceof String) node = new SkeletonClipNode(this._clips[node]);
+    else if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
 
     this._numJoints = node.numJoints;
     // put the new one in front, it makes the update loop more efficient

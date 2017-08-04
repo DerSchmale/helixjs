@@ -1,5 +1,4 @@
 import {BoundingAABB} from "../scene/BoundingAABB";
-import {capabilities} from "../Helix";
 import {MeshInstance} from "./MeshInstance";
 import {Entity} from "../entity/Entity";
 import {SkeletonPose} from "../animation/skeleton/SkeletonPose";

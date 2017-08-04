@@ -7,4 +7,5 @@ export { MD5Anim } from './md5/MD5Anim';
 export { OBJ } from './obj/OBJ';
 export { MTL } from './obj/MTL';
 export { FBX } from './fbx/FBX';
+export { AnimationClipExporter } from './exporter/AnimationClipExporter';
 export { ModelExporter } from './exporter/ModelExporter';

@@ -96,6 +96,7 @@ export {ReinhardToneMapping} from "./effect/ReinhardToneMapping";
 export {AssetLibrary} from "./io/AssetLibrary";
 export {AssetLoader} from "./io/AssetLoader";
 export {URLLoader} from "./io/URLLoader";
+export {HCLIP} from "./io/HCLIP";
 export {HCM} from "./io/HCM";
 export {HMAT} from "./io/HMAT";
 export {HMODEL} from "./io/HMODEL";

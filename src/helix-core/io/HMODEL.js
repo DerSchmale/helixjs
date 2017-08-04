@@ -34,8 +34,9 @@ HMODEL.prototype.parse = function(data, target)
         throw new Error("Invalid file hash!");
 
     var version = stream.getUint16Array(3).join(".");
-    if (version !== HMODEL.VERSION)
-        throw new Error("Unsupported file version!");
+    // pointless to check this now, only know when to support which versions in the future
+    // if (version !== HMODEL.VERSION)
+    //     throw new Error("Unsupported file version!");
 
     var numMeshes = stream.getUint16();
 
@@ -93,11 +94,14 @@ HMODEL.prototype._parseSkeleton = function(stream)
     for (var i = 0; i < numJoints; ++i) {
         var joint = new SkeletonJoint();
         var nameLen = stream.getUint8();
-        joint.name = stream.getString(nameLen);
+        if (nameLen !== 0)
+            joint.name = stream.getString(nameLen);
         var parentIndex = stream.getUint8();
         joint.parentIndex = parentIndex === 0xff? -1 : parentIndex;
+
         for (var j = 0; j < 16; ++j)
             joint.inverseBindPose._m[j] = stream.getFloat32();
+
         skeleton.addJoint(joint);
     }
 

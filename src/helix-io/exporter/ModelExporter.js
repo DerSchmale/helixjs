@@ -51,7 +51,7 @@ ModelExporter.VERSION = "0.1.0";
 
 ModelExporter.prototype =
 {
-    // returns a Blob object
+    // returns an ArrayBuffer object
     export: function(model)
     {
         var size = this._calculateFileSize(model);

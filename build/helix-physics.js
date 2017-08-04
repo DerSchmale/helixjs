@@ -2693,13 +2693,13 @@ Matrix4x4$1.ZERO = new Matrix4x4$1(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function Quaternion()
+function Quaternion(x, y, z, w)
 {
     // x, y, z, w allowed to be accessed publicly for simplicity, changing this does not violate invariant. Ever.
-    this.x = 0;
-    this.y = 0;
-    this.z = 0;
-    this.w = 1;
+    this.x = x || 0;
+    this.y = y || 0;
+    this.z = z || 0;
+    this.w = w === undefined? 1 : w;
 }
 
 Quaternion.prototype =

@@ -41,5 +41,5 @@ function doExport()
     var exporter = new HX.ModelExporter();
     var data = exporter.export(primitive);
     var blob = new Blob([data], {type: "application/octet-stream"});
-    saveAs(blob, "sphere.hmodel");
+
 }

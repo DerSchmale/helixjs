@@ -27,7 +27,7 @@ SkeletonPose.prototype = {
     /**
      * The number of joint poses.
      */
-    numJoints: function()
+    get numJoints()
     {
         return this._jointPoses.length;
     },
@@ -147,6 +147,18 @@ SkeletonPose.prototype = {
      */
     _generateDefault: function (skeleton)
     {
+        this._skeletonMatricesInvalid = false;
+        this._skeleton = skeleton;
+
+        this._initJointPoses(skeleton.numJoints);
+
+        var m = new HX.Matrix4x4();
+
+        for (var i = 0; i < this._jointPoses.length; ++i) {
+            m.inverseOf(skeleton.getJoint(i).inverseBindPose);
+            m.decompose(this._jointPoses[i]);
+        }
+
         if (META.OPTIONS.useSkinningTexture) {
             this._skinningTexture = DEFAULTS.DEFAULT_SKINNING_TEXTURE;
             return;

@@ -94,7 +94,7 @@ RayCaster.prototype.visitModelInstance = function (modelInstance, worldMatrix)
     // this is not required for the order, but when testing the intersection distances
     ex -= origin.x;
     ey -= origin.y;
-    ex -= origin.z;
+    ez -= origin.z;
 
     // the closest projected point on the ray is the order
     potential.closestDistanceSqr = ex * dirX + ey * dirY + ez * dirZ;
@@ -163,9 +163,9 @@ RayCaster.prototype._testMesh = function(ray, mesh, hitData)
         var dx2 = x2 - x0, dy2 = y2 - y0, dz2 = z2 - z0;
 
         // unnormalized normal
-        var nx = dy1*dz2 - dz1*dy2;
-        var ny = dz1*dx2 - dx1*dz2;
-        var nz = dx1*dy2 - dy1*dx2;
+        var nx = dz1*dy2 - dy1*dz2;
+        var ny = dx1*dz2 - dz1*dx2;
+        var nz = dy1*dx2 - dx1*dy2;
         // var rcpLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
         // nx *= rcpLen;
         // ny *= rcpLen;

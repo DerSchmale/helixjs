@@ -70,7 +70,6 @@ HMAT.prototype._applyClass = function(className, target)
     for (var i = 0; i < names.length; ++i) {
         var name = names[i];
         var desc =  Object.getOwnPropertyDescriptor(matClass.prototype, name);
-        console.log(name, desc);
         Object.defineProperty(target, name, desc);
     }
     // call the constructor

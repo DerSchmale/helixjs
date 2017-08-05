@@ -86,6 +86,11 @@ var MathX = {
     estimateGaussianRadius: function (variance, epsilon)
     {
         return Math.sqrt(-2.0 * variance * Math.log(epsilon));
+    },
+
+    fract: function(value)
+    {
+        return value - Math.floor(value);
     }
 };
 

@@ -48,7 +48,7 @@ SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
         },
 
         time: {
-            get: function() { return this._playhead; },
+            get: function() { return this._playhead.time; },
             set: function(value)
             {
                 this._playhead.time = value;

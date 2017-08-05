@@ -6,6 +6,10 @@ import {JPG} from "./JPG_PNG";
 import {Importer} from "./Importer";
 import {AssetLibrary} from "./AssetLibrary";
 import {ArrayUtils} from "../utils/ArrayUtils";
+import {BasicMaterial} from "../material/BasicMaterial";
+import {Color} from "../core/Color";
+import {Float2} from "../math/Float2";
+import {Float4} from "../math/Float4";
 
 /**
  * @classdesc
@@ -28,19 +32,64 @@ HMAT.prototype = Object.create(Importer.prototype);
 HMAT.prototype.parse = function(data, target)
 {
     data = JSON.parse(data);
+
+    if (data.class) {
+        this._isClass = true;
+        // TODO: We already have a constructed Material
+        this._applyClass(data.class, target);
+    }
+    else
+        this._isClass = false;
+
     this._loadShaders(data, target);
+};
+
+HMAT.prototype._applyClass = function(className, target)
+{
+    var matClass;
+    switch (className) {
+        case "BasicMaterial":
+            matClass = BasicMaterial;
+            break;
+        default:
+            throw new Error("Unknown material class!");
+    }
+
+    // adds the required properties
+    // Object assign does NOT copy getters/setters, just assigns the values returned by the getter!
+    // it's a pretty dirty thing to do, but it works and makes the API much friendlier
+    Object.assign(target, matClass.prototype);
+
+    for (var key in matClass.prototype) {
+        if (Object.prototype.hasOwnProperty.call(matClass.prototype, key)) {
+            target[key] = matClass.prototype[key];
+        }
+    }
+
+    var names = Object.getOwnPropertyNames(matClass.prototype);
+    for (var i = 0; i < names.length; ++i) {
+        var name = names[i];
+        var desc =  Object.getOwnPropertyDescriptor(matClass.prototype, name);
+        console.log(name, desc);
+        Object.defineProperty(target, name, desc);
+    }
+    // call the constructor
+    matClass.call(target);
 };
 
 HMAT.prototype._gatherShaderFiles = function(data)
 {
     var files = [];
-    var geometry = data.geometry;
+    if (!this._isClass) {
+        var geometry = data.geometry;
 
-    var vertex = geometry.vertexShader;
-    var fragment = geometry.fragmentShader;
+        var vertex = geometry.vertexShader;
+        var fragment = geometry.fragmentShader;
+        if (files.indexOf(vertex) < 0) files.push(this._correctURL(vertex));
+        if (files.indexOf(fragment) < 0) files.push(this._correctURL(fragment));
+    }
     var lighting = data.lightingModel;
-    if (files.indexOf(vertex) < 0) files.push(this._correctURL(vertex));
-    if (files.indexOf(fragment) < 0) files.push(this._correctURL(fragment));
+
     if (lighting && files.indexOf(lighting) < 0) files.push(this._correctURL(lighting));
 
     return files;
@@ -74,23 +123,28 @@ HMAT.prototype._loadShaders = function(data, material)
 HMAT.prototype._processMaterial = function(data, material)
 {
     var defines = "";
-    if (this.options.defines) {
-        ArrayUtils.forEach(this.options.defines, (function(obj, key) {
-            defines += "#define " + key + " " + obj + "\n";
-        }).bind(this));
+
+    if (!this._isClass) {
+        if (this.options.defines) {
+            ArrayUtils.forEach(this.options.defines, (function(obj, key) {
+                defines += "#define " + key + " " + obj + "\n";
+            }).bind(this));
+        }
+
+        var geometryVertex = defines + this._shaderLibrary.get(this._correctURL(data.geometry.vertexShader));
+        var geometryFragment = defines + this._shaderLibrary.get(this._correctURL(data.geometry.fragmentShader));
+
+        material._geometryVertexShader = geometryVertex;
+        material._geometryFragmentShader = geometryFragment;
+        material.init();
     }
-
-    var geometryVertex = defines + this._shaderLibrary.get(this._correctURL(data.geometry.vertexShader));
-    var geometryFragment = defines + this._shaderLibrary.get(this._correctURL(data.geometry.fragmentShader));
-
-    material._geometryVertexShader = geometryVertex;
-    material._geometryFragmentShader = geometryFragment;
-    material.init();
 
     if (data.lightingModel)
         material.lightingModel = this._shaderLibrary.get(this._correctURL(data.lightingModel));
 
     this._applyUniforms(data, material);
+    if (this._isClass)
+        this._applyProperties(data, material);
 
     if (data.hasOwnProperty("elementType"))
         material.elementType = HMAT._PROPERTY_MAP[data.elementType];
@@ -115,6 +169,29 @@ HMAT.prototype._processMaterial = function(data, material)
             blendState.operator = HMAT._PROPERTY_MAP[blend.operator];
 
         material.blendState = blendState;
+    }
+};
+
+HMAT.prototype._applyProperties = function(data, material)
+{
+    if (!data.properties) return;
+
+    // how to know which type of properties to assign?
+    for (var key in data.properties) {
+        if (!data.properties.hasOwnProperty(key)) continue;
+
+        var value = data.properties[key];
+        var type = typeof material[key];
+        if (type === "number" || type === "boolean")
+            material[key] = value;
+        else if (material[key] instanceof Color)
+            material[key] = new Color(value[0], value[1], value[2], value[3]);
+        else if (material[key] instanceof Float2)
+            material[key] = new Color(value[0], value[1]);
+        else if (material[key] instanceof Float4)
+            material[key] = new Float4(value[0], value[1], value[2], value[3]);
+        else
+            throw new Error("Unsupport property format!");
     }
 };
 
@@ -160,15 +237,15 @@ HMAT.prototype._loadTextures = function(data, material)
     {
         for (var key in data.textures) {
             if (data.textures.hasOwnProperty(key)) {
-                material.setTexture(key, this._textureLibrary.get(this._correctURL(data.textures[key])));
+                // if it's a class, the textures need to be setters
+                if (this._isClass)
+                    material[key] = this._textureLibrary.get(this._correctURL(data.textures[key]));
+                else
+                    material.setTexture(key, this._textureLibrary.get(this._correctURL(data.textures[key])));
             }
         }
         this._notifyComplete(material);
     }, this);
-    // bulkLoader.onFail = function(message)
-    // {
-    //     self._notifyFailure(message);
-    // };
 
     this._textureLibrary.load();
 };

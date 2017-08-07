@@ -47,10 +47,12 @@ SkeletonXFadeNode.prototype.addClip = function(clip)
  * If using a string, the clip has to be added using {@linkcode addClip}.
  * @param time The time the fade takes in milliseconds.
  * @param [sync] An optional flag to make clips sync to eachother. All clips with sync = true will be synced, others will
- * run independently.
+ * run independently. This only works if node is a (name of a) clip.
  */
 SkeletonXFadeNode.prototype.fadeTo = function(node, time, sync)
 {
+    // So what if we have a clip that doesn't loop?
+
     if (node instanceof String) node = new SkeletonClipNode(this._clips[node]);
     else if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
 
@@ -75,7 +77,7 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
     var totalWeight = 0;
     var refChild = undefined;
     for (i = len - 1; i >= 0; --i) {
-        var child = this._children[last];
+        var child = this._children[i];
         var childNode = child.node;
         if (child.sync) {
             // the oldest clip defines the playhead position
@@ -108,9 +110,24 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
         else
             updated = childNode.update(dt, transferRootJoint) || updated;
 
+        // handle one-shots:
         var w = child.weight + dt * child.fadeSpeed;
+        if (childNode.looping === false) {
+            // need to fade out a one-shot at the end
+            var f = (childNode.duration - childNode.time) * child.fadeSpeed;
+            if (f <= 1) {
+                w *= f;
+                // delete one-shot when it's done, but ONLY if there's other clips to be played
+                if (f < .001 && len !== 1) {
+                    // the next index will be i again
+                    --len;
+                    this._children.splice(i--, 1);
+                }
+            }
+        }
 
-        if (w > .999) {
+        // if looping === undefined, it's a node, and it's considered "endless"
+        if (w > .999 && childNode.looping !== false) {
             child.weight = 1.0;
             // we can safely remove any of the following child nodes, because their values will be lerped away
             this._children.splice(i + 1);

@@ -651,7 +651,13 @@ function _initDefaultSkinningTexture()
 
     var data = [];
     for (var i = 0; i < META.OPTIONS.maxSkeletonJoints; ++i)
-        data.push(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
+        data.push(1, 0, 0, 0);
+
+    for (i = 0; i < META.OPTIONS.maxSkeletonJoints; ++i)
+        data.push(0, 1, 0, 0);
+
+    for (i = 0; i < META.OPTIONS.maxSkeletonJoints; ++i)
+        data.push(0, 0, 1, 0);
 
     DEFAULTS.DEFAULT_SKINNING_TEXTURE.uploadData(new Float32Array(data), META.OPTIONS.maxSkeletonJoints, 3, false, gl.RGBA, gl.FLOAT);
     DEFAULTS.DEFAULT_SKINNING_TEXTURE.filter = TextureFilter.NEAREST_NOMIP;

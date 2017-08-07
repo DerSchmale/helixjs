@@ -42,6 +42,22 @@ SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
             get: function() { return this._numJoints; }
         },
 
+        /**
+         * Determines whether the animation should loop or not. By default, it uses the value determined by the
+         * AnimationClip, but can be overridden.
+         */
+        looping: {
+            get: function() { return this._playhead._looping; },
+            set: function(value) { this._playhead.looping = value; }
+        },
+
+        /**
+         * The duration of the clip.
+         */
+        duration: {
+            get: function() { return this._clip.duration; }
+        },
+
         timeScale: {
             get: function() { return this._playhead.timeScale; },
             set: function(value) { this._playhead.timeScale = value; }

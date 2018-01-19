@@ -85,7 +85,7 @@ DirectionalLight.prototype = Object.create(Light.prototype,
             get: function()
             {
                 var dir = this._direction;
-                this.worldMatrix.getColumn(2, dir);
+                this.worldMatrix.getColumn(1, dir);
                 return dir;
             },
 
@@ -94,7 +94,7 @@ DirectionalLight.prototype = Object.create(Light.prototype,
                 var matrix = new Matrix4x4();
                 var position = this.worldMatrix.getColumn(3);
                 var target = Float4.add(value, position);
-                matrix.lookAt(target, position, Float4.Y_AXIS);
+                matrix.lookAt(target, position);
                 this.matrix = matrix;
             }
         }

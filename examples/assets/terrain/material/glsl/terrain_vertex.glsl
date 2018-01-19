@@ -19,11 +19,11 @@ void hx_geometry()
 
     vec4 worldPos = hx_worldMatrix * hx_position;
     // snap to cell size is required to not get a floating interpolated landscape
-    worldPos.xz = floor(worldPos.xz / hx_cellSize) * hx_cellSize;
-    uv = .5 + worldPos.xz / worldSize;
+    worldPos.xy = floor(worldPos.xy / hx_cellSize) * hx_cellSize;
+    uv = .5 + worldPos.xy / worldSize;
 
-    float offsetY = hx_RGBA8ToFloat(texture2D(heightMap, uv));
-    worldPos.y += offsetY * hx_elevationScale + hx_elevationOffset;
+    float offsetZ = hx_RGBA8ToFloat(texture2D(heightMap, uv));
+    worldPos.z += offsetZ * hx_elevationScale + hx_elevationOffset;
 // TODO: We could figure out clip map level based on hx_cellSize and texture size as an improvement if LOD is supported!
 
     viewPosition = (hx_viewMatrix * worldPos).xyz;

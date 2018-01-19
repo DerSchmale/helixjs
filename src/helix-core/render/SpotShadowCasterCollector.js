@@ -16,7 +16,7 @@ function SpotShadowCasterCollector()
     this._frustumPlanes = null;
     this._renderList = [];
     this._renderItemPool = new ObjectPool(RenderItem);
-    this._cameraZAxis = new Float4();
+    this._cameraYAxis = new Float4();
 };
 
 SpotShadowCasterCollector.prototype = Object.create(SceneVisitor.prototype);
@@ -27,7 +27,7 @@ SpotShadowCasterCollector.prototype.collect = function(camera, scene)
 {
     this._camera = camera;
     this._renderList = [];
-    camera.worldMatrix.getColumn(2, this._cameraZAxis);
+    camera.worldMatrix.getColumn(1, this._cameraYAxis);
     this._frustumPlanes = camera.frustum._planes;
     this._renderItemPool.reset();
 
@@ -41,8 +41,8 @@ SpotShadowCasterCollector.prototype.visitModelInstance = function (modelInstance
     if (!modelInstance._castShadows) return;
 
     var numMeshes = modelInstance.numMeshInstances;
-    var cameraZAxis = this._cameraZAxis;
-    var cameraZ_X = cameraZAxis.x, cameraZ_Y = cameraZAxis.y, cameraZ_Z = cameraZAxis.z;
+    var cameraYAxis = this._cameraYAxis;
+    var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
     var skeleton = modelInstance.skeleton;
     var skeletonMatrices = modelInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
@@ -63,7 +63,7 @@ SpotShadowCasterCollector.prototype.visitModelInstance = function (modelInstance
         renderItem.skeletonMatrices = skeletonMatrices;
         // distance along Z axis:
         var center = worldBounds._center;
-        renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
+        renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
         renderItem.worldMatrix = worldMatrix;
         renderItem.camera = camera;
         renderItem.worldBounds = worldBounds;

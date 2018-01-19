@@ -284,7 +284,7 @@ Float4.prototype =
     },
 
     /**
-     * Sets the euclidian coordinates based on spherical coordinates
+     * Sets the euclidian coordinates based on spherical coordinates.
      * @param radius The radius coordinate
      * @param azimuthalAngle The azimuthal coordinate
      * @param polarAngle The polar coordinate
@@ -292,9 +292,9 @@ Float4.prototype =
     fromSphericalCoordinates: function(radius, azimuthalAngle, polarAngle)
     {
         this.x = radius*Math.sin(polarAngle)*Math.cos(azimuthalAngle);
-        this.y = radius*Math.cos(polarAngle);
-        this.z = radius*Math.sin(polarAngle)*Math.sin(azimuthalAngle);
-        this.w = 0.0;
+        this.y = radius*Math.sin(polarAngle)*Math.sin(azimuthalAngle);
+        this.z = radius*Math.cos(polarAngle);
+        this.w = 1.0;
         return this;
     },
 

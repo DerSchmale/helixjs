@@ -64,10 +64,10 @@ SpherePrimitive.prototype._generate = function(target, definition)
             var normalZ = Math.sin(phi) * segmentUnitRadius * flipSign;
 
             // position
-            positions.push(normalX*radius, normalY*radius, normalZ*radius);
+            positions.push(normalX*radius, normalZ*radius, normalY*radius);
 
             if (normals)
-                normals.push(normalX * flipSign, normalY * flipSign, normalZ * flipSign);
+                normals.push(normalX * flipSign, normalZ * flipSign, normalY * flipSign);
 
             if (uvs)
                 uvs.push(ratioU, ratioV);

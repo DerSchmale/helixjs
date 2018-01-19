@@ -3,7 +3,7 @@ import {ShaderLibrary} from "../shader/ShaderLibrary";
 import {TextureCube} from "../texture/TextureCube";
 import {GL} from "../core/GL";
 import {FrameBuffer} from "../texture/FrameBuffer";
-import {capabilities, TextureFilter} from "../Helix";
+import {capabilities, CubeFace, TextureFilter} from "../Helix";
 import {VertexBuffer} from "../core/VertexBuffer";
 import {IndexBuffer} from "../core/IndexBuffer";
 
@@ -38,7 +38,7 @@ export var EquirectangularTexture =
         var gl = GL.gl;
         target = target || new TextureCube();
         target.initEmpty(size, source.format, source.dataType);
-        var faces = [ gl.TEXTURE_CUBE_MAP_POSITIVE_X, gl.TEXTURE_CUBE_MAP_NEGATIVE_X, gl.TEXTURE_CUBE_MAP_POSITIVE_Y, gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Z, gl.TEXTURE_CUBE_MAP_NEGATIVE_Z ];
+        var faces = [ CubeFace.POSITIVE_X, CubeFace.NEGATIVE_X, CubeFace.POSITIVE_Y, CubeFace.NEGATIVE_Y, CubeFace.POSITIVE_Z, CubeFace.NEGATIVE_Z ];
 
         EquirectangularTexture._EQUI_TO_CUBE_SHADER.updatePassRenderState();
 
@@ -94,28 +94,28 @@ export var EquirectangularTexture =
             1.0, -1.0, -1.0, 1.0, 1.0,
 
             // pos Y
-            -1.0, -1.0, -1.0, 1.0, -1.0,
-            1.0, -1.0, 1.0, 1.0, -1.0,
-            1.0, 1.0, 1.0, 1.0, 1.0,
-            -1.0, 1.0, -1.0, 1.0, 1.0,
-
-            // neg Y
-            -1.0, -1.0, -1.0, -1.0, 1.0,
-            1.0, -1.0, 1.0, -1.0, 1.0,
-            1.0, 1.0, 1.0, -1.0, -1.0,
-            -1.0, 1.0, -1.0, -1.0, -1.0,
-
-            // pos Z
             1.0, 1.0, 1.0, -1.0, 1.0,
             -1.0, 1.0, -1.0, -1.0, 1.0,
             -1.0, -1.0, -1.0, 1.0, 1.0,
             1.0, -1.0, 1.0, 1.0, 1.0,
 
-            // neg Z
+            // neg Y
             1.0, 1.0, -1.0, -1.0, -1.0,
             -1.0, 1.0, 1.0, -1.0, -1.0,
             -1.0, -1.0, 1.0, 1.0, -1.0,
-            1.0, -1.0, -1.0, 1.0, -1.0
+            1.0, -1.0, -1.0, 1.0, -1.0,
+
+            // pos Z
+            -1.0, -1.0, -1.0, 1.0, -1.0,
+            1.0, -1.0, 1.0, 1.0, -1.0,
+            1.0, 1.0, 1.0, 1.0, 1.0,
+            -1.0, 1.0, -1.0, 1.0, 1.0,
+
+            // neg Z
+            -1.0, -1.0, -1.0, -1.0, 1.0,
+            1.0, -1.0, 1.0, -1.0, 1.0,
+            1.0, 1.0, 1.0, -1.0, -1.0,
+            -1.0, 1.0, -1.0, -1.0, -1.0
         ];
         var indices = [
             0, 1, 2, 0, 2, 3,

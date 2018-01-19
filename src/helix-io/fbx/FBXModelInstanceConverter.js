@@ -220,8 +220,8 @@ FBXModelInstanceConverter.prototype =
 
                     var indices = this._perMaterialData[v2.materialIndex].indices;
                     indices[j] = realIndex0;
-                    indices[j + 1] = realIndex2;
-                    indices[j + 2] = realIndex1;
+                    indices[j + 1] = realIndex1;
+                    indices[j + 2] = realIndex2;
 
                     j += 3;
                     realIndex1 = realIndex2;

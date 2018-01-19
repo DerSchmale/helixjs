@@ -94,11 +94,11 @@ function initScene(scene, assetLibrary)
     primitive = new HX.SpherePrimitive({radius: .25, numSegmentsW:32, numSegmentsH: 20});
 
     for (var x = -1; x <= 1; ++x) {
-        for (var y = 0; y < 10; ++y) {
-            for (var z = -1; z <= 1; ++z) {
+        for (var z = 0; z < 10; ++z) {
+            for (var y = -1; y <= 1; ++y) {
                 var modelInstance = new HX.ModelInstance(primitive, material);
 
-                modelInstance.position.set(x + (Math.random() - .5) * .3, 1.0 + y * 2.0, z + (Math.random() - .5) * .3);
+                modelInstance.position.set(x + (Math.random() - .5) * .3, y + (Math.random() - .5) * .3, 1.0 + z * 2.0);
 
                 rigidBody = new HX.RigidBody();
                 rigidBody.linearDamping = .2;

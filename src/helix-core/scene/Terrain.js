@@ -76,18 +76,18 @@ Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
 
     var w = numSegments + 1;
 
-    for (var zi = 0; zi <= numZ; ++zi) {
-        var z = (zi*rcpNumSegments - .5) * size;
+    for (var yi = 0; yi <= numZ; ++yi) {
+        var y = (yi*rcpNumSegments - .5) * size;
 
         for (var xi = 0; xi <= numSegments; ++xi) {
             var x = (xi*rcpNumSegments - .5) * size;
 
             // the one corner that attaches to higher resolution neighbours needs to snap like them
-            var s = !lastLevel && xi === numSegments && zi === numSegments? halfCellSize : cellSize;
-            vertices.push(x, 0, z, 0, 1, 0, s);
+            var s = !lastLevel && xi === numSegments && yi === numSegments? halfCellSize : cellSize;
+            vertices.push(x, y, 0, 0, 0, 1, s);
 
-            if (xi !== numSegments && zi !== numZ) {
-                var base = xi + zi * w;
+            if (xi !== numSegments && yi !== numZ) {
+                var base = xi + yi * w;
 
                 indices.push(base, base + w + 1, base + w);
                 indices.push(base, base + 1, base + w + 1);
@@ -98,15 +98,15 @@ Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
     var highIndexX = vertices.length / 7;
 
     if (subDiv) {
-        z = (numSegments * rcpNumSegments - .5) * size;
+        y = (numSegments * rcpNumSegments - .5) * size;
         for (xi = 0; xi <= numSegments; ++xi) {
             x = (xi*rcpNumSegments - .5) * size;
-            vertices.push(x, 0, z, 0, 1, 0);
+            vertices.push(x, y, 0, 0, 0, 1);
             vertices.push(halfCellSize);
 
             if (xi !== numSegments) {
                 base = xi + numZ * w;
-                vertices.push(x + halfCellSize, 0, z, 0, 1, 0, halfCellSize);
+                vertices.push(x + halfCellSize, y, 0, 0, 0, 1, halfCellSize);
                 indices.push(base, highIndexX + xi * 2 + 1, highIndexX + xi * 2);
                 indices.push(base + 1, highIndexX + xi * 2 + 1, base);
                 indices.push(highIndexX + xi * 2 + 2, highIndexX + xi * 2 + 1, base + 1);
@@ -118,7 +118,7 @@ Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
     mesh.setIndexData(indices);
 
     var model = new Model(mesh);
-    model.localBounds.growToIncludeMinMax(new Float4(0, this._minElevation, 0), new Float4(0, this._maxElevation, 0));
+    model.localBounds.growToIncludeMinMax(new Float4(0, 0, this._minElevation), new Float4(0, 0, this._maxElevation));
     return model;
 };
 
@@ -210,8 +210,8 @@ Terrain.prototype._initTree = function()
 Terrain.prototype._addModel = function(x, y, level, rotation, mode)
 {
     var modelInstance = new ModelInstance(this._models[level][mode], this._material);
-    modelInstance.position.set(x, 0, y);
-    modelInstance.rotation.fromAxisAngle(Float4.Y_AXIS, rotation * Math.PI * .5);
+    modelInstance.position.set(x, y, 0);
+    modelInstance.rotation.fromAxisAngle(Float4.Z_AXIS, -rotation * Math.PI * .5);
     this.attach(modelInstance);
 };
 
@@ -296,7 +296,7 @@ Terrain.prototype.acceptVisitor = function(visitor)
     if (visitor instanceof RenderCollector) {
         var pos = visitor._camera.position;
         this.position.x = Math.floor(pos.x / this._snapSize) * this._snapSize;
-        this.position.z = Math.floor(pos.z / this._snapSize) * this._snapSize;
+        this.position.y = Math.floor(pos.y / this._snapSize) * this._snapSize;
     }
 
     SceneNode.prototype.acceptVisitor.call(this, visitor);

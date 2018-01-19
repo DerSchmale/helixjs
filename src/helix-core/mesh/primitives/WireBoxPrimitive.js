@@ -36,15 +36,15 @@ WireBoxPrimitive.prototype._generate = function(target, definition)
     var positions = target.positions;
     var indices = target.indices;
 
-    positions.push(-halfW, -halfH, -halfD);
-    positions.push(halfW, -halfH, -halfD);
-    positions.push(-halfW, halfH, -halfD);
-    positions.push(halfW, halfH, -halfD);
+    positions.push(-halfW, -halfD, -halfH);
+    positions.push(halfW, -halfD, -halfH);
+    positions.push(-halfW, -halfD, halfH);
+    positions.push(halfW, -halfD, halfH);
 
-    positions.push(-halfW, -halfH, halfD);
-    positions.push(halfW, -halfH, halfD);
-    positions.push(-halfW, halfH, halfD);
-    positions.push(halfW, halfH, halfD);
+    positions.push(-halfW, halfD, -halfH);
+    positions.push(halfW, halfD, -halfH);
+    positions.push(-halfW, halfD, halfH);
+    positions.push(halfW, halfD, halfH);
 
     indices.push(0, 1);
     indices.push(2, 3);

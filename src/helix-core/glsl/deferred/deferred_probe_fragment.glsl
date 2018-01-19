@@ -35,8 +35,8 @@ void main()
     reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
 
 #ifdef HX_LOCAL_PROBE
-    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;
-    vec3 viewPosition = viewDir * absViewZ;
+    float absViewY = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;
+    vec3 viewPosition = viewDir * absViewY;
     vec3 worldPosition = mat3(hx_cameraWorldMatrix) * viewPosition;
 #endif
 

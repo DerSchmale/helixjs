@@ -43,7 +43,7 @@ project.onInit = function()
 project.onUpdate = function(dt)
 {
     time += dt;
-    earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, time * .00001 + 1.0, 0.0);
+    earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, 0.0, time * .00001 + 1.0);
 
     var v = this.camera.viewMatrix.transformVector(sunLight.direction);
     earthMaterial.setUniform("sunViewDirection", v);
@@ -93,8 +93,8 @@ function initLDRSettings()
 function initCamera(camera)
 {
     camera.position.x = -0.014656872488558292;
-    camera.position.y = 0.001973972423002124;
-    camera.position.z = -0.00644469540566206;
+    camera.position.y = -0.00644469540566206;
+    camera.position.z = 0.001973972423002124;
 
     camera.lookAt(HX.Float4.ORIGIN_POINT);
     // earth sun distance ~150
@@ -116,8 +116,8 @@ function initSun(container, assetLibrary)
 {
     var distanceToSun = 150;    // same as with moon, we're bringing it 5x closer than it is
     var sunPosX = 0;
-    var sunPosY = 8;
-    var sunPosZ = 15;
+    var sunPosY = 15;
+    var sunPosZ = 8;
 
     sunLight = new HX.DirectionalLight();
     // sunlight actually has more green in its spectrum, but it's filtered out by the atmosphere
@@ -161,7 +161,7 @@ function initEarth(container, assetLibrary)
     var atmosphereRadius = earthRadius * atmosphereScale;
     var atmosphereTickness = atmosphereRadius - earthRadius;
 
-    var lightDir = sunLight.worldMatrix.getColumn(2);
+    var lightDir = sunLight.worldMatrix.getColumn(1);
 
     earthMaterial = assetLibrary.get("earthMaterial");
     earthMaterial.setUniform("lightDir", lightDir);
@@ -187,7 +187,7 @@ function initEarth(container, assetLibrary)
     atmosMaterial.setUniform("lightDir", lightDir);
     atmosMaterial.lightingModel = HX.LightingModel.Unlit;
 
-    earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, 1.0, 0.0);
+    earth.rotation.fromEuler(-23.5 * Math.PI / 180.0, 0.0, 1.0);
 
     container.attach(earth);
 }
@@ -215,7 +215,7 @@ function initMoon(container, assetLibrary)
 
     var moon = new HX.ModelInstance(moonSpherePrimitive, moonMaterial);
 
-    var dir = new HX.Float4(5.0,2.0,1.0);
+    var dir = new HX.Float4(5.0,1.0,2.0);
     dir.normalize();
     dir.scale(distanceToEarth);
     moon.position.copyFrom(dir);
@@ -228,7 +228,7 @@ function initScene(scene, assetLibrary)
 {
     // rotate everything so the skybox is oriented
     var container = new HX.SceneNode();
-    container.rotation.fromEuler(0, 0, .6);
+    container.rotation.fromEuler(0, .6, 0);
     scene.attach(container);
     initSun(container, assetLibrary);
     initEarth(container, assetLibrary);

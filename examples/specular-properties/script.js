@@ -80,8 +80,8 @@ function initScene(scene, assetLibrary)
 
             var modelInstance = new HX.ModelInstance(primitive, material);
             modelInstance.position.x = ((x + .5) / numX - .5) * 3.0;
-            modelInstance.position.y = -((y + .5) / numY - .5) * 1.5;
-            modelInstance.position.z = 0.0;
+            modelInstance.position.y = 0.0;
+            modelInstance.position.z = -((y + .5) / numY - .5) * 1.5;
             scene.attach(modelInstance);
         }
     }

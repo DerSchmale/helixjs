@@ -6,7 +6,7 @@ AnimateRotateComponent = function()
     HX.Component.call(this);
     this._radians = 0;
     this._speed = 1.0; // radians per second
-    this._axis = HX.Float4.Y_AXIS.clone();
+    this._axis = HX.Float4.Z_AXIS.clone();
 };
 
 HX.Component.create(AnimateRotateComponent,

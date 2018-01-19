@@ -20,7 +20,7 @@ project.onInit = function()
 {
     this.camera.addComponent(new HX.OrbitController());
     this.camera.nearDistance = .1;
-    this.camera.farDistance = 1.0;
+    this.camera.farDistance = 10.0;
 
     initScene(this.scene, this.assetLibrary);
 };
@@ -28,7 +28,7 @@ project.onInit = function()
 function initScene(scene, assetLibrary)
 {
     var light = new HX.DirectionalLight();
-    light.direction = new HX.Float4(-1.0, -1.0, -1.0, 0.0);
+    light.direction = new HX.Float4(-1.0, 1.0, -1.0, 0.0);
     light.intensity = 5.0;
     scene.attach(light);
 

@@ -388,8 +388,10 @@ function GLTF()
         MAT4: 16
     };
 
-    this._invertZ = new HX$1.Matrix4x4();
-    this._invertZ.fromScale(1, 1, -1);
+    this._flipCoord = new HX$1.Matrix4x4();
+    this._flipCoord.setColumn(0, new HX$1.Float4(-1, 0, 0, 0));
+    this._flipCoord.setColumn(1, new HX$1.Float4(0, 0, 1, 0));
+    this._flipCoord.setColumn(2, new HX$1.Float4(0, 1, 0, 0));
 }
 
 GLTF.prototype = Object.create(HX$1.Importer.prototype);
@@ -751,7 +753,7 @@ GLTF.prototype._parsePrimitive = function(primDef, model, materials, morphs, mor
     materials.push(this._materials[primDef.material]);
 };
 
-GLTF.prototype._readVertexData = function(target, offset, accessor, numComponents, stride, flipZ)
+GLTF.prototype._readVertexData = function(target, offset, accessor, numComponents, stride, flipCoords)
 {
     var p = offset;
     var o = accessor.byteOffset;
@@ -796,10 +798,13 @@ GLTF.prototype._readVertexData = function(target, offset, accessor, numComponent
     if (accessor.isSparse)
         this._applySparseAccessor(target, accessor, numComponents, stride, readFnc, elmSize);
 
-    if (flipZ) {
-        p = offset + 2;
+    if (flipCoords) {
+        p = offset;
         for (i = 0; i < len; ++i) {
+            var tmp = target[p + 1];
             target[p] = -target[p];
+            target[p + 1] = target[p + 2];
+            target[p + 2] = tmp;
             p += stride;
         }
     }
@@ -904,8 +909,8 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
         joint.inverseBindPose = this._readMatrix4x4(src, o);
         o += 64;
 
-        joint.inverseBindPose.prepend(this._invertZ);
-        joint.inverseBindPose.append(this._invertZ);
+        joint.inverseBindPose.prepend(this._flipCoord);
+        joint.inverseBindPose.append(this._flipCoord);
 
         skeleton.addJoint(joint);
 
@@ -963,8 +968,8 @@ GLTF.prototype._parseNodes = function()
         if (nodeDef.rotation) {
             node.rotation.set(nodeDef.rotation[0], nodeDef.rotation[1], nodeDef.rotation[2], nodeDef.rotation[3]);
             m.fromQuaternion(node.rotation);
-            m.prepend(this._invertZ);
-            m.append(this._invertZ);
+            m.prepend(this._flipCoord);
+            m.append(this._flipCoord);
             node.rotation.fromMatrix(m);
         }
 
@@ -976,8 +981,8 @@ GLTF.prototype._parseNodes = function()
 
         if (nodeDef.matrix) {
             node.matrix = new HX$1.Matrix4x4(nodeDef.matrix);
-            node.matrix.prepend(this._invertZ);
-            node.matrix.append(this._invertZ);
+            node.matrix.prepend(this._flipCoord);
+            node.matrix.append(this._flipCoord);
         }
 
         this._nodes[i] = node;
@@ -1030,7 +1035,7 @@ GLTF.prototype._parseScenes = function()
     }
 };
 
-GLTF.prototype._parseAnimationSampler = function(samplerDef, flipZ)
+GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords)
 {
     var timesAcc = this._getAccessor(samplerDef.input);
     var valuesAcc = this._getAccessor(samplerDef.output);
@@ -1066,14 +1071,19 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipZ)
                 break;
             case 3:
                 value = this._readFloat3(valueSrc, v);
-                if (flipZ) value.z = -value.z;
+                if (flipCoords) {
+                    value.x = -value.x;
+                    var tmp = value.y;
+                    value.y = value.z;
+                    value.z = tmp;
+                }
                 break;
             case 4:
                 value = this._readQuat(valueSrc, v);
-                if (flipZ) {
+                if (flipCoords) {
                     m.fromQuaternion(value);
-                    m.prepend(this._invertZ);
-                    m.append(this._invertZ);
+                    m.prepend(this._flipCoord);
+                    m.append(this._flipCoord);
                     value.fromMatrix(m);
                 }
                 break;
@@ -1213,9 +1223,6 @@ function MD5Mesh()
     this._meshData = null;
     this._jointData = null;
     this._skeleton = null;
-
-    this._correctionQuad = new HX$1.Quaternion();
-    this._correctionQuad.fromAxisAngle(HX$1.Float4.X_AXIS, -Math.PI *.5);
 }
 
 MD5Mesh.prototype = Object.create(HX$1.Importer.prototype);
@@ -1277,7 +1284,6 @@ MD5Mesh.prototype._parseJoint = function(tokens)
     pos.x = parseFloat(tokens[3]);
     pos.y = parseFloat(tokens[4]);
     pos.z = parseFloat(tokens[5]);
-    this._correctionQuad.rotate(jointData.pos, jointData.pos);
     quat.x = parseFloat(tokens[8]);
     quat.y = parseFloat(tokens[9]);
     quat.z = parseFloat(tokens[10]);
@@ -1285,7 +1291,6 @@ MD5Mesh.prototype._parseJoint = function(tokens)
     if (quat.w < 0.0) quat.w = 0.0;
     else quat.w = -Math.sqrt(quat.w);
 
-    quat.multiply(this._correctionQuad, quat);
     this._jointData.push(jointData);
 
     var joint = new HX$1.SkeletonJoint();
@@ -1305,7 +1310,7 @@ MD5Mesh.prototype._parseMesh = function(tokens)
         case "numWeights":
             break;
         case "tri":
-            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[3]), parseInt(tokens[4]));
+            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[4]), parseInt(tokens[3]));
             break;
         case "vert":
             this._parseVert(tokens);
@@ -1445,9 +1450,6 @@ function MD5Anim()
     this._activeFrame = null;
     this._numJoints = 0;
     this._frameRate = 0;
-
-    this._correctionQuad = new HX$1.Quaternion();
-    this._correctionQuad.fromAxisAngle(HX$1.Float4.X_AXIS, -Math.PI *.5);
 }
 
 MD5Anim.prototype = Object.create(HX$1.Importer.prototype);
@@ -1580,14 +1582,8 @@ MD5Anim.prototype._translateFrame = function()
         quat.w = w < 0.0 ? 0.0 : -Math.sqrt(w);
 
         // transform root joints only
-        if (hierarchy.parent < 0) {
-            pose.rotation.multiply(this._correctionQuad, quat);
-            pose.position = this._correctionQuad.rotate(pos);
-        }
-        else {
-            pose.rotation.copyFrom(quat);
-            pose.position.copyFrom(pos);
-        }
+        pose.rotation.copyFrom(quat);
+        pose.position.copyFrom(pos);
 
         skeletonPose.setJointPose(i, pose);
     }
@@ -1795,13 +1791,13 @@ OBJ.prototype._parseLine = function(line)
             this._setActiveSubGroup(tokens[1]);
             break;
         case "v":
-            this._vertices.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+            this._vertices.push(parseFloat(tokens[1]), parseFloat(tokens[3]), parseFloat(tokens[2]));
             break;
         case "vt":
             this._uvs.push(parseFloat(tokens[1]), parseFloat(tokens[2]));
             break;
         case "vn":
-            this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+            this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[3]), parseFloat(tokens[2]));
             break;
         case "o":
             this._pushNewObject(tokens[1]);
@@ -3835,8 +3831,8 @@ FBXModelInstanceConverter.prototype =
 
                     var indices = this._perMaterialData[v2.materialIndex].indices;
                     indices[j] = realIndex0;
-                    indices[j + 1] = realIndex2;
-                    indices[j + 2] = realIndex1;
+                    indices[j + 1] = realIndex1;
+                    indices[j + 2] = realIndex2;
 
                     j += 3;
                     realIndex1 = realIndex2;

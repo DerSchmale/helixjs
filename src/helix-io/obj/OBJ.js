@@ -100,13 +100,13 @@ OBJ.prototype._parseLine = function(line)
             this._setActiveSubGroup(tokens[1]);
             break;
         case "v":
-            this._vertices.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+            this._vertices.push(parseFloat(tokens[1]), parseFloat(tokens[3]), parseFloat(tokens[2]));
             break;
         case "vt":
             this._uvs.push(parseFloat(tokens[1]), parseFloat(tokens[2]));
             break;
         case "vn":
-            this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+            this._normals.push(parseFloat(tokens[1]), parseFloat(tokens[3]), parseFloat(tokens[2]));
             break;
         case "o":
             this._pushNewObject(tokens[1]);

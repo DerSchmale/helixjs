@@ -22,7 +22,7 @@ import {META} from "../Helix";
 function OrbitController(lookAtTarget)
 {
     Component.call(this);
-    this._coords = new Float4(Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
+    this._coords = new Float4(-Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
     this._localAcceleration = new Float4(0.0, 0.0, 0.0, 0.0);
     this._localVelocity = new Float4(0.0, 0.0, 0.0, 0.0);
 
@@ -172,8 +172,9 @@ OrbitController.prototype.onUpdate = function(dt)
     var matrix = this.entity.matrix;
     var pos = new Float4();
     pos.fromSphericalCoordinates(this._coords.z, this._coords.x, this._coords.y);
+    pos.w = 0.0;
     pos.add(this.lookAtTarget);
-    matrix.lookAt(this.lookAtTarget, pos, Float4.Y_AXIS);
+    matrix.lookAt(this.lookAtTarget, pos);
     this.entity.matrix = matrix;
 };
 

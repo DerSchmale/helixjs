@@ -19,10 +19,10 @@ void main()
 {
 #ifdef HX_CONE_MESH
     vec3 localPos = hx_position.xyz;
-    // need to flip z, but also another axis to keep windedness
-    localPos.xz = -localPos.xz;
+    // need to flip y, but also another axis to keep windedness
+    localPos.xy = -localPos.xy;
     // align to origin, with height 1
-    localPos.z += .5;
+    localPos.y += .5;
     // adapt to correct radius
     localPos.xyz *= hx_spotLight.radius;
     // make sure the base is correctly sized

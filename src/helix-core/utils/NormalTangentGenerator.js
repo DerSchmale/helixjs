@@ -101,9 +101,9 @@ NormalTangentGenerator.prototype =
 
             if (this._faceNormals) {
                 if (this._flip)
-                    Float4.cross(v1, v2, temp);
-                else
                     Float4.cross(v2, v1, temp);
+                else
+                    Float4.cross(v1, v2, temp);
 
                 if (!useFaceWeights) temp.normalize();
 
@@ -243,7 +243,7 @@ NormalTangentGenerator.prototype =
                 bitangent.x = bitangents[bitangentIndex];
                 bitangent.y = bitangents[bitangentIndex + 1];
                 bitangent.z = bitangents[bitangentIndex + 2];
-                Float4.cross(tangent, normal, cross);
+                Float4.cross(normal, tangent, cross);
 
                 tangentData[tangentIndex] = tangent.x;
                 tangentData[tangentIndex + 1] = tangent.y;

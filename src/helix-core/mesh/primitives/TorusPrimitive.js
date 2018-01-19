@@ -27,8 +27,8 @@ function TorusPrimitive(definition)
 
 TorusPrimitive.prototype = Object.create(Primitive.prototype);
 
-TorusPrimitive.ALIGN_XZ = 1;
-TorusPrimitive.ALIGN_XY = 2;
+TorusPrimitive.ALIGN_XY = 1;
+TorusPrimitive.ALIGN_XZ = 2;
 TorusPrimitive.ALIGN_YZ = 3;
 
 TorusPrimitive.prototype._generate = function(target, definition)
@@ -38,7 +38,7 @@ TorusPrimitive.prototype._generate = function(target, definition)
     var numSegmentsH = definition.numSegmentsH || 20;
     var radius = definition.radius || .5;
     var tubeRadius = definition.tubeRadius || .1;
-    var alignment = definition.alignment || TorusPrimitive.ALIGN_XZ;
+    var alignment = definition.alignment || TorusPrimitive.ALIGN_XY;
 
     var doubleSided = definition.doubleSided === undefined? false : definition.doubleSided;
 
@@ -64,23 +64,23 @@ TorusPrimitive.prototype._generate = function(target, definition)
 
             switch(alignment) {
                 case TorusPrimitive.ALIGN_XZ:
-                    positions.push(tx * rad, py  * tubeRadius, tz * rad);
+                    positions.push(tx * rad, -py  * tubeRadius, tz * rad);
 
                     if (normals)
-                        normals.push(tx * px, py, tz * px);
+                        normals.push(tx * px, -py, tz * px);
 
                     break;
                 case TorusPrimitive.ALIGN_XY:
-                    positions.push(-tx * rad, tz * rad, py  * tubeRadius);
+                    positions.push(tx * rad, tz * rad, py  * tubeRadius);
 
                     if (normals)
-                        normals.push(-tx * px, tz * px, py);
+                        normals.push(tx * px, tz * px, py);
                     break;
                 case TorusPrimitive.ALIGN_YZ:
-                    positions.push(py  * tubeRadius, -tx * rad, tz * rad);
+                    positions.push(py  * tubeRadius, tx * rad, tz * rad);
 
                     if (normals)
-                        normals.push(py, -tx * px, tz * px);
+                        normals.push(py, tx * px, tz * px);
                     break;
 
                 default:

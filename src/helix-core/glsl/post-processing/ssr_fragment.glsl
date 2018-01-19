@@ -118,19 +118,19 @@ void main()
 
     // step for every pixel
 
-    float absViewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
-    vec3 viewSpacePos = absViewZ * viewDir;
+    float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
+    vec3 viewSpacePos = absViewY * viewDir;
 
-    float hitZ = 0.0;
+    float hitY = 0.0;
     vec2 hitUV;
-    float amount = raytrace(viewSpacePos, reflDir, hitZ, hitUV);
+    float amount = raytrace(viewSpacePos, reflDir, hitY, hitUV);
     float fadeFactor = 1.0 - clamp(reflDir.z * 2.0, 0.0, 1.0);
 
     vec2 borderFactors = abs(hitUV * 2.0 - 1.0);
     borderFactors = (1.0 - borderFactors) * 10.0;
     fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);
 
-    float diff = viewSpacePos.z - hitZ;
+    float diff = viewSpacePos.y - hitY;
     fadeFactor *= hx_linearStep(-1.0, 0.0, diff);
     fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);
 

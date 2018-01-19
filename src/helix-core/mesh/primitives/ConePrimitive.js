@@ -36,7 +36,7 @@ ConePrimitive.ALIGN_Z = 3;
 ConePrimitive.prototype._generate = function(target, definition)
 {
     definition = definition || {};
-    var alignment = definition.alignment || ConePrimitive.ALIGN_Y;
+    var alignment = definition.alignment || ConePrimitive.ALIGN_Z;
     var numSegmentsH = definition.numSegmentsH || 1;
     var numSegmentsW = definition.numSegmentsW || 16;
     var radius = definition.radius || 1;
@@ -67,17 +67,17 @@ ConePrimitive.prototype._generate = function(target, definition)
 
             switch (alignment) {
                 case ConePrimitive.ALIGN_X:
-                    positions.push(-h, cx, -cy);
-                    if (normals) normals.push(0, nx, -ny);
+                    positions.push(h, cy, cx);
+                    if (normals) normals.push(0, ny, nx);
                     break;
                 case ConePrimitive.ALIGN_Z:
-                    positions.push(cx, cy, h);
-                    if (normals) normals.push(nx, ny, 0);
+                    positions.push(cx, -cy, h);
+                    if (normals) normals.push(nx, -ny, 0);
                     break;
                 default:
                     // Y
-                    positions.push(cx, h, -cy);
-                    if (normals) normals.push(nx, 0, -ny);
+                    positions.push(cx, h, cy);
+                    if (normals) normals.push(nx, 0, ny);
                     break;
             }
 
@@ -119,18 +119,18 @@ ConePrimitive.prototype._generate = function(target, definition)
 
         switch (alignment) {
             case ConePrimitive.ALIGN_X:
-                positions.push(halfH, cx, -cy);
-                if (normals) normals.push(1, 0, 0);
+                positions.push(-halfH, cy, cx);
+                if (normals) normals.push(-1, 0, 0);
                 if (uvs) uvs.push(v, 1.0 - u);
                 break;
 
             case ConePrimitive.ALIGN_Z:
-                positions.push(cx, cy, -halfH);
+                positions.push(cx, -cy, -halfH);
                 if (normals) normals.push(0, 0, -1);
                 if (uvs) uvs.push(u, v);
                 break;
             default:
-                positions.push(cx, -halfH, -cy);
+                positions.push(cx, -halfH, cy);
                 if (normals) normals.push(0, -1, 0);
                 if (uvs) uvs.push(u, v);
                 break;

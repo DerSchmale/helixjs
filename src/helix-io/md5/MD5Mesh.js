@@ -11,9 +11,6 @@ function MD5Mesh()
     this._meshData = null;
     this._jointData = null;
     this._skeleton = null;
-
-    this._correctionQuad = new HX.Quaternion();
-    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
 }
 
 MD5Mesh.prototype = Object.create(HX.Importer.prototype);
@@ -75,7 +72,6 @@ MD5Mesh.prototype._parseJoint = function(tokens)
     pos.x = parseFloat(tokens[3]);
     pos.y = parseFloat(tokens[4]);
     pos.z = parseFloat(tokens[5]);
-    this._correctionQuad.rotate(jointData.pos, jointData.pos);
     quat.x = parseFloat(tokens[8]);
     quat.y = parseFloat(tokens[9]);
     quat.z = parseFloat(tokens[10]);
@@ -83,7 +79,6 @@ MD5Mesh.prototype._parseJoint = function(tokens)
     if (quat.w < 0.0) quat.w = 0.0;
     else quat.w = -Math.sqrt(quat.w);
 
-    quat.multiply(this._correctionQuad, quat);
     this._jointData.push(jointData);
 
     var joint = new HX.SkeletonJoint();
@@ -103,7 +98,7 @@ MD5Mesh.prototype._parseMesh = function(tokens)
         case "numWeights":
             break;
         case "tri":
-            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[3]), parseInt(tokens[4]));
+            this._meshData.indices.push(parseInt(tokens[2]), parseInt(tokens[4]), parseInt(tokens[3]));
             break;
         case "vert":
             this._parseVert(tokens);

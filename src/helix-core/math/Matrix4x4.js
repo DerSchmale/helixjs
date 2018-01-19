@@ -341,13 +341,13 @@ Matrix4x4.prototype =
         var sinY = Math.sin(-yaw);
         var sinR = Math.sin(roll);
 
-        var zAxisX = -sinY * cosP;
-        var zAxisY = -sinP;
-        var zAxisZ = cosY * cosP;
+        var yAxisX = -sinY * cosP;
+        var yAxisY = cosY * cosP;
+        var yAxisZ = -sinP;
 
-        var yAxisX = -cosY * sinR - sinY * sinP * cosR;
-        var yAxisY = cosP * cosR;
-        var yAxisZ = -sinY * sinR + sinP * cosR * cosY;
+        var zAxisX = -cosY * sinR - sinY * sinP * cosR;
+        var zAxisY = -sinY * sinR + sinP * cosR * cosY;
+        var zAxisZ = cosP * cosR;
 
         var xAxisX = yAxisY * zAxisZ - yAxisZ * zAxisY;
         var xAxisY = yAxisZ * zAxisX - yAxisX * zAxisZ;
@@ -443,7 +443,7 @@ Matrix4x4.prototype =
     },
 
     /**
-     * Initializes as a perspective projection matrix (left-handed!).
+     * Initializes as a perspective projection matrix (from right-handed Y-up to left-handed NDC!).
      * @param vFOV The vertical field of view in radians.
      * @param aspectRatio The aspect ratio
      * @param nearDistance The near plane distance
@@ -451,25 +451,25 @@ Matrix4x4.prototype =
      */
     fromPerspectiveProjection: function (vFOV, aspectRatio, nearDistance, farDistance)
     {
-        var yMax = 1.0 / Math.tan(vFOV * .5);
-        var xMax = yMax / aspectRatio;
+        var vMax = 1.0 / Math.tan(vFOV * .5);
+        var hMax = vMax / aspectRatio;
         var rcpFrustumDepth = 1.0 / (nearDistance - farDistance);
 
         var m = this._m;
-        m[0] = xMax;
+        m[0] = hMax;
         m[1] = 0;
         m[2] = 0;
         m[3] = 0;
 
         m[4] = 0;
-        m[5] = yMax;
-        m[6] = 0;
-        m[7] = 0;
+        m[5] = 0;
+        m[6] = -(farDistance + nearDistance) * rcpFrustumDepth;
+        m[7] = 1;
 
         m[8] = 0;
-        m[9] = 0;
-        m[10] = -(farDistance + nearDistance) * rcpFrustumDepth;
-        m[11] = 1;
+        m[9] = vMax;
+        m[10] = 0;
+        m[11] = 0;
 
         m[12] = 0;
         m[13] = 0;
@@ -500,13 +500,13 @@ Matrix4x4.prototype =
         m[3] = 0;
 
         m[4] = 0;
-        m[5] = 2.0 * rcpHeight;
-        m[6] = 0;
+        m[5] = 0;
+        m[6] = -2.0 * rcpDepth;
         m[7] = 0;
 
         m[8] = 0;
-        m[9] = 0;
-        m[10] = -2.0 * rcpDepth;
+        m[9] = 2.0 * rcpHeight;
+        m[10] = 0;
         m[11] = 0;
 
         m[12] = -(left + right) * rcpWidth;
@@ -536,13 +536,13 @@ Matrix4x4.prototype =
         m[3] = 0;
 
         m[4] = 0;
-        m[5] = 2.0 * rcpHeight;
-        m[6] = 0;
+        m[5] = 0;
+        m[6] = 2.0 * rcpDepth;
         m[7] = 0;
 
         m[8] = 0;
-        m[9] = 0;
-        m[10] = 2.0 * rcpDepth;
+        m[9] = 2.0 * rcpHeight;
+        m[10] = 0;
         m[11] = 0;
 
         m[12] = 0.0;
@@ -1277,7 +1277,7 @@ Matrix4x4.prototype =
      * Initializes as a "lookAt" matrix at the given eye position oriented toward a target
      * @param {Float4} target The target position to look at.
      * @param {Float4} eye The target position the matrix should "be" at
-     * @param {Float4} up The world-up vector. Must be unit length (usually Float4.Y_AXIS)
+     * @param {Float4} up The world-up vector. Must be unit length (usually Float4.Z_AXIS)
      */
     lookAt: function (target, eye, up)
     {
@@ -1287,25 +1287,27 @@ Matrix4x4.prototype =
 
         return function(target, eye, up)
         {
-            Float4.subtract(target, eye, zAxis);
-            zAxis.normalize();
+            up = up || Float4.Z_AXIS;
+            // Y axis is forward
+            Float4.subtract(target, eye, yAxis);
+            yAxis.normalize();
 
-            Float4.cross(up, zAxis, xAxis);
+            Float4.cross(yAxis, up, xAxis);
 
             if (Math.abs(xAxis.lengthSqr) > .0001) {
                 xAxis.normalize();
             }
             else {
                 var altUp = new Float4(up.x, up.z, up.y, 0.0);
-                Float4.cross(altUp, zAxis, xAxis);
+                Float4.cross(yAxis, altUp, xAxis);
                 if (Math.abs(xAxis.lengthSqr) <= .0001) {
                     altUp.set(up.z, up.y, up.z, 0.0);
-                    Float4.cross(altUp, zAxis, xAxis);
+                    Float4.cross(yAxis, altUp, xAxis);
                 }
                 xAxis.normalize();
             }
 
-            Float4.cross(zAxis, xAxis, yAxis);
+            Float4.cross(xAxis, yAxis, zAxis);
 
             var m = this._m;
             m[0] = xAxis.x;

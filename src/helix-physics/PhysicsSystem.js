@@ -17,7 +17,7 @@ function PhysicsSystem()
 
     this._world = new CANNON.World();
     this._gravity = -9.81; // m/s²
-    this._world.gravity.set(0, this._gravity, 0);
+    this._world.gravity.set(0, 0, this._gravity);
     this._world.solver.tolerance = .001;
     this._world.solver.iterations = 10;
     this._fixedTimeStep = 1000/60;

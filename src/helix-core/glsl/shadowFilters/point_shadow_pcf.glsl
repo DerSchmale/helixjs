@@ -34,7 +34,7 @@ float hx_point_readShadow(samplerCube shadowMap, vec3 worldDir, float rcpRadius,
         offset.x = dot(dither.xy, hx_poissonDisk[i]);
         offset.y = dot(dither.zw, hx_poissonDisk[i]);
         vec3 coord = worldDir + xDir * offset.x + yDir * offset.y;
-        float shadowSample = hx_RGBA8ToFloat(textureCube(shadowMap, coord));
+        float shadowSample = hx_RGBA8ToFloat(textureCube(shadowMap, coord.xzy));
         float diff = dist * rcpRadius - shadowSample - depthBias;
         shadowTest += float(diff < 0.0);
     }

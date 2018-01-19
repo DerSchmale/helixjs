@@ -28,7 +28,7 @@ window.onload = function ()
     }
 
     options.defaultLightingModel = HX.LightingModel.GGX;
-    // options.deferredLightingModel = HX.LightingModel.GGX;
+    options.deferredLightingModel = HX.LightingModel.GGX;
 
     project.init(document.getElementById('webglContainer'), options);
 };
@@ -64,7 +64,7 @@ function initCamera(camera)
     camera.farDistance = 50.0;
 
     if (HX.META.OPTIONS.hdr) {
-        var bloom = new HX.Bloom(200, 1);
+        var bloom = new HX.Bloom(50, 1);
         bloom.thresholdLuminance = .25;
         camera.addComponent(bloom);
 
@@ -77,7 +77,7 @@ function initCamera(camera)
     orbitController.radius = 5.0;
     orbitController.minRadius = .3;
     orbitController.maxRadius = 20.0;
-    orbitController.lookAtTarget.y = .25;
+    orbitController.lookAtTarget.z = .25;
     camera.addComponent(orbitController);
 }
 
@@ -85,14 +85,14 @@ function initScene(scene, assetLibrary)
 {
     var light = new HX.DirectionalLight();
     light.color = new HX.Color(1.0, .95, .9);
-    light.direction = new HX.Float4(0.0, -0.8, -1.0, 0.0);
+    light.direction = new HX.Float4(0.0, 0.8, -1.0, 0.0);
     light.castShadows = true;
     light.intensity = 3.0;
     // no need for the cascades to reach all the way back
-    if (HX.META.OPTIONS.numShadowCascades === 2)
-        light.setCascadeRatios(.25,.5);
-    else
-        light.setCascadeRatios(.5);
+    // if (HX.META.OPTIONS.numShadowCascades === 2)
+    //     light.setCascadeRatios(.25,.5);
+    // else
+    //     light.setCascadeRatios(.5);
     scene.attach(light);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
@@ -127,12 +127,12 @@ function initScene(scene, assetLibrary)
 
 
     for (var x = -8; x <= 8; ++x) {
-        for (var z = -8; z <= 8; ++z) {
+        for (var y = -8; y <= 8; ++y) {
             var material = opaqueMaterial;
             var modelInstance = new HX.ModelInstance(primitive, material);
             modelInstance.position.x = x * 2.0;
-            modelInstance.position.z = z * 2.0;
-            modelInstance.position.y = (Math.sin(x *.5 + 1) + Math.cos(z *.5 +.5)) * .5 + .75;
+            modelInstance.position.y = y * 2.0;
+            modelInstance.position.z = (Math.sin(x *.5 + 1) + Math.cos(y *.5 +.5)) * .5 + .75;
             scene.attach(modelInstance);
         }
     }
@@ -142,7 +142,7 @@ function initScene(scene, assetLibrary)
     material.colorMap = assetLibrary.get("floor-albedo");
     material.normalMap = assetLibrary.get("floor-normals");
     material.specularMap = assetLibrary.get("floor-specular");
-    material.roughness = .3;
+    material.roughness = .8;
     material.lightingModel = HX.LightingModel.GGX;
 
     primitive = new HX.PlanePrimitive(
@@ -159,6 +159,6 @@ function initScene(scene, assetLibrary)
         });
 
     var modelInstance = new HX.ModelInstance(primitive, material);
-    modelInstance.position.y = -.25;
+    modelInstance.position.z = -.25;
     scene.attach(modelInstance);
 }

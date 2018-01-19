@@ -159,7 +159,7 @@ DemoProject.prototype.init = function(canvas, initOptions)
 function MultiViewProject()
 {
     this._initialized = false;
-    this._assetLibrary = new HX.AssetLibrary();
+    this._assetLibrary = new HX.AssetLibrary("../assets/");
 }
 
 MultiViewProject.prototype =

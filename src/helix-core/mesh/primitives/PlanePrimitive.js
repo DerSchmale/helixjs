@@ -33,7 +33,7 @@ PlanePrimitive.ALIGN_YZ = 3;
 PlanePrimitive.prototype._generate = function(target, definition)
 {
     definition = definition || {};
-    var alignment = definition.alignment || PlanePrimitive.ALIGN_XZ;
+    var alignment = definition.alignment || PlanePrimitive.ALIGN_XY;
     var numSegmentsW = definition.numSegmentsW || 1;
     var numSegmentsH = definition.numSegmentsH || 1;
     var width = definition.width || 1;
@@ -52,7 +52,7 @@ PlanePrimitive.prototype._generate = function(target, definition)
     var uvU = 0, uvV = 0;
 
     if (alignment === PlanePrimitive.ALIGN_XY)
-        normalZ = -1;
+        normalZ = 1;
     else if (alignment === PlanePrimitive.ALIGN_XZ)
         normalY = 1;
     else
@@ -77,8 +77,8 @@ PlanePrimitive.prototype._generate = function(target, definition)
                 uvV = yi*rcpNumSegmentsH;
             }
             else {
-                posY = y;
-                posZ = x;
+                posY = x;
+                posZ = y;
                 uvU = 1.0 - xi*rcpNumSegmentsW;
                 uvV = yi*rcpNumSegmentsH;
             }

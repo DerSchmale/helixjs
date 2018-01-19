@@ -280,7 +280,7 @@ ForwardFixedLitPass.prototype._assignSpotLights = function (camera) {
             gl.uniform1f(locs.rcpRadius, 1.0 / light._radius);
             gl.uniform2f(locs.angleData, light._cosOuter, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001));
 
-            worldMatrix.getColumn(2, pos);
+            worldMatrix.getColumn(1, pos);
             viewMatrix.transformVector(pos, pos);
             gl.uniform3f(locs.direction, pos.x, pos.y, pos.z);
         }
@@ -314,7 +314,7 @@ ForwardFixedLitPass.prototype._assignSpotLightCasters = function (camera) {
             gl.uniform1f(locs.rcpRadius, 1.0 / light._radius);
             gl.uniform2f(locs.angleData, light._cosOuter, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001));
 
-            worldMatrix.getColumn(2, pos);
+            worldMatrix.getColumn(1, pos);
             viewMatrix.transformVector(pos, pos);
             gl.uniform3f(locs.direction, pos.x, pos.y, pos.z);
 

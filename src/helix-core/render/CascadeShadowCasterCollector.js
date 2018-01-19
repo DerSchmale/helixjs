@@ -17,7 +17,7 @@ function CascadeShadowCasterCollector()
 {
     SceneVisitor.call(this);
     this._renderCameras = null;
-    this._cameraZAxis = new Float4();
+    this._cameraYAxis = new Float4();
     this._bounds = new BoundingAABB();
     this._cullPlanes = null;
     // this._splitPlanes = null;
@@ -33,7 +33,7 @@ CascadeShadowCasterCollector.prototype.getRenderList = function(index) { return 
 CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 {
     this._collectorCamera = camera;
-    camera.worldMatrix.getColumn(2, this._cameraZAxis);
+    camera.worldMatrix.getColumn(1, this._cameraYAxis);
     this._bounds.clear();
     this._renderItemPool.reset();
 
@@ -81,8 +81,8 @@ CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInsta
     var numMeshes = modelInstance.numMeshInstances;
     var skeleton = modelInstance.skeleton;
     var skeletonMatrices = modelInstance.skeletonMatrices;
-    var cameraZAxis = this._cameraZAxis;
-    var cameraZ_X = cameraZAxis.x, cameraZ_Y = cameraZAxis.y, cameraZ_Z = cameraZAxis.z;
+    var cameraYAxis = this._cameraYAxis;
+    var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
 
     for (var cascade = 0; cascade < numCascades; ++cascade) {
         var renderList = this._renderList[cascade];
@@ -105,7 +105,7 @@ CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInsta
                     renderItem.skeleton = skeleton;
                     renderItem.skeletonMatrices = skeletonMatrices;
                     var center = worldBounds._center;
-                    renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
+                    renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
 
                     renderList.push(renderItem);
                 }

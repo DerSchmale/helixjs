@@ -12,7 +12,7 @@ var HX_PROBE_SCALE = 1.0 / maxMipFactor
 
 vec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)
 {
-	return hx_gammaToLinear(textureCube(texture, normal).xyz);
+	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);
 }
 
 vec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)
@@ -23,9 +23,9 @@ vec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 ref
         float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;
 //        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));
         float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));
-        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir, mipLevel);
+        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);
     #else
-        vec4 specProbeSample = textureCube(texture, reflectedViewDir);
+        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);
     #endif
 	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;
 }

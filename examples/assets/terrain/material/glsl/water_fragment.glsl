@@ -21,22 +21,22 @@ HX_GeometryData hx_geometry()
 {
     vec2 screenCoord = proj.xy / proj.w * .5 + .5;
     vec4 normalDepth = texture2D(hx_gbufferNormalDepth, screenCoord);
-    vec3 normal1 = texture2D(waveMap, uv1).xzy - .5;
-    vec3 normal2 = texture2D(waveMap, uv2).xzy - .5;
+    vec3 normal1 = texture2D(waveMap, uv1).xyz - .5;
+    vec3 normal2 = texture2D(waveMap, uv2).xyz - .5;
     vec3 normal = normal1 + normal2 * .5;
-    normal.y *= 5.0;
+    normal.z *= 5.0;
     normal = mat3(hx_viewMatrix) * normalize(normal);
 
     float depth = hx_decodeLinearDepth(normalDepth);
-    float absViewZ = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
-    vec3 backPos = viewPos / viewPos.z * absViewZ;
+    float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
+    vec3 backPos = viewPos / viewPos.y * absViewY;
     float dist = distance(viewPos, backPos);
 
     vec3 viewDir = normalize(viewPos);
 
     vec3 refractDir = refract(viewDir, normal, 1.0 / indexOfRefraction);
 // cannot clamp, as this would make any deep region have the same offset, which looks weird
-    vec2 offset = refractDir.xy / max(proj.w, 1.0) * min(dist, 3.0);
+    vec2 offset = refractDir.xz / max(proj.w, 1.0) * min(dist, 3.0);
 
     screenCoord += offset;
 

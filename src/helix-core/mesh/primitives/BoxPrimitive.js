@@ -68,12 +68,12 @@ BoxPrimitive.prototype._generate = function(target, definition)
             if (flipSign < 0) ratioU = 1.0 - ratioU;
 
             // front and back
-            positions.push(x*flipSign, y*flipSign, halfD*flipSign);
-            positions.push(-x*flipSign, y*flipSign, -halfD*flipSign);
+            positions.push(x*flipSign, halfD*flipSign, y*flipSign);
+            positions.push(-x*flipSign, -halfD*flipSign, y*flipSign);
 
             if (normals) {
-                normals.push(0, 0, 1);
-                normals.push(0, 0, -1);
+                normals.push(0, 1, 0);
+                normals.push(0, -1, 0);
             }
 
             if (uvs) {
@@ -92,8 +92,8 @@ BoxPrimitive.prototype._generate = function(target, definition)
             z = depth * ratioU - halfD;
 
             // left and right
-            positions.push(-halfW, y, z*flipSign);
-            positions.push(halfW, y, -z*flipSign);
+            positions.push(-halfW, z*flipSign, y);
+            positions.push(halfW, -z*flipSign, y);
 
             if (normals) {
                 normals.push(-flipSign, 0, 0);
@@ -116,12 +116,12 @@ BoxPrimitive.prototype._generate = function(target, definition)
             x = width * ratioU - halfW;
 
             // top and bottom
-            positions.push(x, halfH, -z*flipSign);
-            positions.push(x, -halfH, z*flipSign);
+            positions.push(x, -z*flipSign, halfH);
+            positions.push(x, z*flipSign, -halfH);
 
             if (normals) {
-                normals.push(0, flipSign, 0);
-                normals.push(0, -flipSign, 0);
+                normals.push(0, 0, flipSign);
+                normals.push(0, 0, -flipSign);
             }
 
             if (uvs) {

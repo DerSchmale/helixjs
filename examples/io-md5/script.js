@@ -24,8 +24,14 @@ project.queueAssets = function(assetLibrary)
     assetLibrary.queueAsset("lantern-normals", "bob-md5/lantern_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
     assetLibrary.queueAsset("lantern-top-albedo", "bob-md5/lantern_top.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
     assetLibrary.queueAsset("lantern-bottom-albedo", "bob-md5/lantern_top_local.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
+
+
     assetLibrary.queueAsset("model", "bob-md5/bob_lamp_update.md5mesh", HX.AssetLibrary.Type.ASSET, HX.MD5Mesh);
     assetLibrary.queueAsset("animation-clip", "bob-md5/bob_lamp_update.md5anim", HX.AssetLibrary.Type.ASSET, HX.MD5Anim);
+
+    // There's also the helix-custom file format
+    // assetLibrary.queueAsset("model", "hmodel/bob.hmodel", HX.AssetLibrary.Type.ASSET, HX.HMODEL);
+    // assetLibrary.queueAsset("animation-clip", "hmodel/bob.hclip", HX.AssetLibrary.Type.ASSET, HX.HCLIP);
 };
 
 project.onInit = function()

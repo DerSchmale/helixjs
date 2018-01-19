@@ -32,6 +32,7 @@ AnimationLayerMorphTarget.prototype.update = function (dt)
     if (playhead.update(dt)) {
         var value = MathX.lerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
         this._targetObject.setWeight(this._propertyName, value);
+
     }
 };
 

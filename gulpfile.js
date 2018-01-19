@@ -7,6 +7,8 @@ var del = require('del');
 var rollup = require('gulp-better-rollup');
 var jsdoc = require("gulp-jsdoc3");
 
+// TODO: For the IO module, would be useful if we could have a target that allows picking a few exporters
+
 gulp.task('package', ['glsl', 'main', 'clean']);
 
 gulp.task('default', ['glsl', 'minimize', 'clean']);

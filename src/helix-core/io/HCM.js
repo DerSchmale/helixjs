@@ -1,4 +1,4 @@
-    import {TextureCube} from "../texture/TextureCube";
+import {TextureCube} from "../texture/TextureCube";
 import {Importer} from "./Importer";
 import {MathX} from "../math/MathX";
 

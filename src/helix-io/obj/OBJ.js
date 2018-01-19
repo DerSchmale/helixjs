@@ -1,7 +1,9 @@
 import * as HX from 'helix';
 import {AsyncTaskQueue} from "../../helix-core/utils/AsyncTaskQueue";
+import {MTL} from "./MTL";
 
 function OBJ()
+
 /**
  * @classdesc
  * OBJ is an importer for the Wavefront OBJ format.
@@ -65,7 +67,7 @@ OBJ.prototype._finish = function(mtlLib)
 
 OBJ.prototype._loadMTLLib = function(filename)
 {
-    var loader = new HX.AssetLoader(HX.MTL);
+    var loader = new HX.AssetLoader(MTL);
     var self = this;
 
     loader.onComplete = function (asset)

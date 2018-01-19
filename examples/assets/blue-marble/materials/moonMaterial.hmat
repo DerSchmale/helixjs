@@ -1,0 +1,14 @@
+{
+  "version": "0.2",
+
+  "class": "BasicMaterial",
+
+  "properties": {
+      "roughness": 0.99
+  },
+
+  "textures": {
+    "colorMap": "../textures/moon/albedo.jpg",
+    "normalMap": "../textures/moon/normals.png"
+  }
+}

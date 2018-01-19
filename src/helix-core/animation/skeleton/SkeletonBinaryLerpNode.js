@@ -127,22 +127,9 @@ SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
     return updated;
 };
 
-/**
- * @ignore
- */
-SkeletonBinaryLerpNode.prototype._applyValue = function(value)
+SkeletonBinaryLerpNode.prototype._queryChildren = function(name)
 {
-    this.value = value;
-};
-
-/**
- * @ignore
- */
-SkeletonBinaryLerpNode.prototype.setValue = function(id, value)
-{
-    SkeletonBlendNode.prototype.setValue.call(this, id, value);
-    this._child1.setValue(id, value);
-    this._child2.setValue(id, value);
+    return this._child1.findNode(name) || this._child2.findNode(name);
 };
 
 export { SkeletonBinaryLerpNode };

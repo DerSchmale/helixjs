@@ -1,5 +1,5 @@
 import {Color} from "../core/Color";
-import {capabilities, CullMode} from "../Helix";
+import {CullMode} from "../Helix";
 import {Material} from "./Material";
 import {MathX} from "../math/MathX";
 import {ShaderLibrary} from "../shader/ShaderLibrary";
@@ -392,11 +392,6 @@ BasicMaterial.prototype._generateDefines = function()
     if (this._emissionMap) defines.EMISSION_MAP = 1;
     if (this._maskMap) defines.MASK_MAP = 1;
     if (this._alphaThreshold < 1.0) defines.ALPHA_THRESHOLD = 1;
-    if (this._useSkinning) defines.HX_USE_SKINNING = 1;
-    if (this._useMorphing) {
-        defines.HX_USE_MORPHING = 1;
-        defines.HX_NUM_MORPH_TARGETS = capabilities.NUM_MORPH_TARGETS;
-    }
 
     switch (this._specularMapMode) {
         case BasicMaterial.SPECULAR_MAP_ROUGHNESS_ONLY:
@@ -412,22 +407,10 @@ BasicMaterial.prototype._generateDefines = function()
             defines.NORMAL_ROUGHNESS_MAP = 1;
     }
 
-    if (this._doubleSided) {
+    if (this._doubleSided)
         defines.DOUBLE_SIDED = 1;
-    }
 
     return defines;
-};
-
-/**
- * @ignore
- */
-BasicMaterial.prototype._setUseSkinning = function(value)
-{
-    if (this._useSkinning !== value)
-        this._invalidate();
-
-    this._useSkinning = value;
 };
 
 export { BasicMaterial };

@@ -19,11 +19,10 @@ var settings = {
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("sunMaterial", "blue-marble/materials/sunMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
-    assetLibrary.queueAsset("earthMaterial", "blue-marble/materials/earthMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
-    assetLibrary.queueAsset("atmosMaterial", "blue-marble/materials/atmosphereMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
-    assetLibrary.queueAsset("moon-albedo", "blue-marble/textures/moon/albedo.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("moon-normals", "blue-marble/textures/moon/normals.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("sunMaterial", "blue-marble/materials/sunMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+    assetLibrary.queueAsset("earthMaterial", "blue-marble/materials/earthMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+    assetLibrary.queueAsset("atmosMaterial", "blue-marble/materials/atmosphereMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+    assetLibrary.queueAsset("moon-material", "blue-marble/materials/moonMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
     assetLibrary.queueAsset("skybox", "blue-marble/textures/skybox/milkyway.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
 };
 
@@ -205,14 +204,7 @@ function initMoon(container, assetLibrary)
         }
     );
 
-    var colorMap = assetLibrary.get("moon-albedo");
-    var normalMap = assetLibrary.get("moon-normals");
-
-    var moonMaterial = new HX.BasicMaterial();
-    moonMaterial.colorMap = colorMap;
-    moonMaterial.normalMap = normalMap;
-    moonMaterial.roughness = .99;
-
+    var moonMaterial = assetLibrary.get("moon-material");
     var moon = new HX.ModelInstance(moonSpherePrimitive, moonMaterial);
 
     var dir = new HX.Float4(5.0,1.0,2.0);

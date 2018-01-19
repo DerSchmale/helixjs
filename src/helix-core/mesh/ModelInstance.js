@@ -1,5 +1,4 @@
 import {BoundingAABB} from "../scene/BoundingAABB";
-import {capabilities} from "../Helix";
 import {MeshInstance} from "./MeshInstance";
 import {Entity} from "../entity/Entity";
 import {SkeletonPose} from "../animation/skeleton/SkeletonPose";
@@ -233,12 +232,11 @@ ModelInstance.prototype._onModelChange = function()
  */
 ModelInstance.prototype._clearMorph = function()
 {
-    var numTargets = capabilities.NUM_MORPH_TARGETS;
     var numMeshes = this._meshInstances.length;
 
-    for (var t = 0; t < numTargets; ++t) {
-        for (var i = 0; i < numMeshes; ++i) {
-            this._meshInstances[i].setMorphTarget(t, null, 0);
+    for (var i = 0; i < numMeshes; ++i) {
+        for (var t = 0; t < 8; ++t) {
+            this._meshInstances[i].setMorphTarget(t, null, null, 0);
         }
     }
 };
@@ -249,13 +247,13 @@ ModelInstance.prototype._clearMorph = function()
  */
 ModelInstance.prototype._onMorphChanged = function()
 {
-    var numTargets = capabilities.NUM_MORPH_TARGETS;
     var numMeshes = this._meshInstances.length;
 
-    for (var t = 0; t < numTargets; ++t) {
+    for (var t = 0; t < 8; ++t) {
         var target = this._morphPose.getMorphTarget(t);
         if (target) {
             var weight = this._morphPose.getWeight(target.name);
+
             for (var i = 0; i < numMeshes; ++i) {
                 var meshInstance = this._meshInstances[i];
                 var pos = target.getPositionBuffer(i);
@@ -265,7 +263,7 @@ ModelInstance.prototype._onMorphChanged = function()
         }
         else {
             for (i = 0; i < numMeshes; ++i) {
-                this._meshInstances[i].setMorphTarget(t, null, 0.0);
+                this._meshInstances[i].setMorphTarget(t, null, null, 0.0);
             }
         }
     }

@@ -18,8 +18,6 @@ import {ApplyGBufferPass} from "./passes/ApplyGBufferPass";
 import {RenderPath} from "../render/RenderPath";
 import {SpotShadowPass} from "./passes/SpotShadowPass";
 import {PointShadowPass} from "./passes/PointShadowPass";
-import {Debug} from "../debug/Debug";
-import {Profiler} from "../debug/Profiler";
 
 /**
  * @ignore
@@ -56,6 +54,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._uniforms = {};
     this._fixedLights = null;
     this._useMorphing = false;
+    this._useNormalMorphing = false;
     this._useSkinning = false;
 
     this._name = null;
@@ -85,48 +84,61 @@ Material.prototype =
         this._needsNormalDepth = false;
         this._needsBackbuffer = false;
 
+        var vertex = this._geometryVertexShader;
+        var fragment = this._geometryFragmentShader;
+
+        if (this._useSkinning)
+            vertex = "#define HX_USE_SKINNING\n" + vertex;
+
+        if (this._useMorphing) {
+            vertex = "#define HX_USE_MORPHING\n" + vertex;
+
+            if (this._useNormalMorphing)
+                vertex = "#define HX_USE_NORMAL_MORPHING\n" + vertex;
+        }
+
         if (!this._lightingModel) {
             this._renderPath = RenderPath.FORWARD_FIXED;
-            this.setPass(MaterialPass.BASE_PASS, new UnlitPass(this._geometryVertexShader, this._geometryFragmentShader));
+            this.setPass(MaterialPass.BASE_PASS, new UnlitPass(vertex, fragment));
         }
         else if (this._fixedLights) {
             this._renderPath = RenderPath.FORWARD_FIXED;
-            this.setPass(MaterialPass.BASE_PASS, new ForwardFixedLitPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, this._fixedLights));
+            this.setPass(MaterialPass.BASE_PASS, new ForwardFixedLitPass(vertex, fragment, this._lightingModel, this._fixedLights));
         }
         else if (this._lightingModel !== META.OPTIONS.deferredLightingModel || this._blendState) {
             this._renderPath = RenderPath.FORWARD_DYNAMIC;
 
-            this.setPass(MaterialPass.BASE_PASS, new ForwardLitBasePass(this._geometryVertexShader, this._geometryFragmentShader));
+            this.setPass(MaterialPass.BASE_PASS, new ForwardLitBasePass(vertex, fragment));
 
-            this.setPass(MaterialPass.DIR_LIGHT_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
-            this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new ForwardLitDirPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
-            this.setPass(MaterialPass.POINT_LIGHT_PASS, new ForwardLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
-            this.setPass(MaterialPass.POINT_LIGHT_SHADOW_PASS, new ForwardLitPointPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
-            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new ForwardLitSpotPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, false));
-            this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_PASS, new ForwardLitSpotPass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel, true));
-            this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(this._geometryVertexShader, this._geometryFragmentShader, this._lightingModel));
+            this.setPass(MaterialPass.DIR_LIGHT_PASS, new ForwardLitDirPass(vertex, fragment, this._lightingModel, false));
+            this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new ForwardLitDirPass(vertex, fragment, this._lightingModel, true));
+            this.setPass(MaterialPass.POINT_LIGHT_PASS, new ForwardLitPointPass(vertex, fragment, this._lightingModel, false));
+            this.setPass(MaterialPass.POINT_LIGHT_SHADOW_PASS, new ForwardLitPointPass(vertex, fragment, this._lightingModel, true));
+            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new ForwardLitSpotPass(vertex, fragment, this._lightingModel, false));
+            this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_PASS, new ForwardLitSpotPass(vertex, fragment, this._lightingModel, true));
+            this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(vertex, fragment, this._lightingModel));
         }
         else {
             this._renderPath = RenderPath.DEFERRED;
-            this.setPass(MaterialPass.BASE_PASS, new ApplyGBufferPass(this._geometryVertexShader, this._geometryFragmentShader));
+            this.setPass(MaterialPass.BASE_PASS, new ApplyGBufferPass(vertex, fragment));
 
             // only deferred needs these passes:
             if (!capabilities.GBUFFER_MRT) {
-                this.setPass(MaterialPass.GBUFFER_ALBEDO_PASS, new GBufferAlbedoPass(this._geometryVertexShader, this._geometryFragmentShader));
-                this.setPass(MaterialPass.GBUFFER_SPECULAR_PASS, new GBufferSpecularPass(this._geometryVertexShader, this._geometryFragmentShader));
+                this.setPass(MaterialPass.GBUFFER_ALBEDO_PASS, new GBufferAlbedoPass(vertex, fragment));
+                this.setPass(MaterialPass.GBUFFER_SPECULAR_PASS, new GBufferSpecularPass(vertex, fragment));
             }
         }
 
-        this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
-        this.setPass(MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, new PointShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
-        this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS, new SpotShadowPass(this._geometryVertexShader, this._geometryFragmentShader));
+        this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(vertex, fragment));
+        this.setPass(MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, new PointShadowPass(vertex, fragment));
+        this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS, new SpotShadowPass(vertex, fragment));
 
         // always may need these passes for AO
         if (capabilities.GBUFFER_MRT)
-            this.setPass(MaterialPass.GBUFFER_PASS, new GBufferFullPass(this._geometryVertexShader, this._geometryFragmentShader));
+            this.setPass(MaterialPass.GBUFFER_PASS, new GBufferFullPass(vertex, fragment));
 
         // may need this even with MRT, if no deferred materials are selected
-        this.setPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, new GBufferNormalDepthPass(this._geometryVertexShader, this._geometryFragmentShader));
+        this.setPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, new GBufferNormalDepthPass(vertex, fragment));
 
         this._initialized = true;
     },
@@ -462,15 +474,22 @@ Material.prototype =
      */
     _setUseSkinning: function(value)
     {
+        if (this._useSkinning !== value)
+            this._invalidate();
+
         this._useSkinning = value;
     },
 
     /**
      * @ignore
      */
-    _setUseMorphing: function(value)
+    _setUseMorphing: function(positions, normals)
     {
-        this._useMorphing = value;
+        if (this._useSkinning !== positions || this._useNormalMorphing !== normals)
+            this._invalidate();
+
+        this._useMorphing = positions;
+        this._useNormalMorphing = normals;
     },
 
     /**

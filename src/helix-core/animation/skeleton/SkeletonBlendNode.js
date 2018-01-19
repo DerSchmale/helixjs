@@ -13,28 +13,41 @@ import {SkeletonPose} from "./SkeletonPose";
 function SkeletonBlendNode()
 {
     this._rootJointDeltaPosition = new Float4();
-    this._valueID = null;
     this._pose = new SkeletonPose();
+    this._name = null;
 }
 
 SkeletonBlendNode.prototype =
 {
+    /**
+     * The name of the node, by which it can be retrieved from {@linkcode SkeletonBlendTree} and {@linkcode SkeletonAnimation}
+     */
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
+
+
+    /**
+     * @ignore
+     */
+    findNode: function(name)
+    {
+        if (this._name === name) return this;
+        return this._queryChildren(name);
+    },
+
     /**
      * @ignore
      */
     update: function(dt, transferRootJoint)
     {
     },
-
-    /**
-     * @ignore
-     */
-    setValue: function(id, value)
-    {
-        if (this._valueID === id) {
-            this._applyValue(value);
-        }
-    },   // a node can have a value associated with it, either time, interpolation value, directional value, ...
 
     /**
      * @ignore
@@ -47,14 +60,12 @@ SkeletonBlendNode.prototype =
     get numJoints() { return -1; },
 
     /**
-     * The value ID linked to this node. The meaning is context dependent.
-     *
-     * @deprecated
+     * @ignore
      */
-    get valueID() { return this._valueID; },
-    set valueID(value) { this._valueID = value; },
-
-    _applyValue: function(value) {}
+    _queryChildren: function(name)
+    {
+        throw new Error("Abstract method called!");
+    }
 };
 
 export { SkeletonBlendNode };

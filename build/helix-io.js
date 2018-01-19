@@ -4,329 +4,6 @@
 	(factory((global.HX = global.HX || {}),global.HX,global.pako));
 }(this, (function (exports,HX$1,pako) { 'use strict';
 
-/**
- * @abstract
- *
- * @constructor
- *
- * @classdesc
- * <p>A Component is an object that can be added to an {@linkcode Entity} to add behavior to it in a modular fashion.
- * This can be useful to create small pieces of functionality that can be reused often and without extra boilerplate code.</p>
- * <p>If it implements an onUpdate(dt) function, the update method will be called every frame.</p>
- * <p>A single Component instance is unique to an Entity and cannot be shared!</p>
- *
- * Instead of using Object.create, Component subclasses need to be extended using
- *
- * <pre><code>
- * Component.create(SubComponentClass, props);
- * </pre></code>
- *
- * @see {@linkcode Entity}
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function Component()
-{
-    // this allows notifying entities about bound changes (useful for sized components)
-    this._entity = null;
-}
-
-Component.COMPONENT_ID = 0;
-
-Component.create = (function(constrFunction, props)
-{
-    var COUNTER = 0;
-
-    return function(constrFunction, props) {
-        constrFunction.prototype = Object.create(Component.prototype, props);
-        constrFunction.COMPONENT_ID = ++COUNTER;
-        constrFunction.prototype.COMPONENT_ID = constrFunction.COMPONENT_ID;
-    };
-}());
-
-Component.prototype =
-{
-    /**
-     * Called when this component is added to an Entity.
-     */
-    onAdded: function() {},
-
-    /**
-     * Called when this component is removed from an Entity.
-     */
-    onRemoved: function() {},
-
-    /**
-     * If provided, this method will be called every frame, allowing updating the entity.
-     * @param [Number] dt The amount of milliseconds passed since last frame.
-     */
-    onUpdate: null,
-
-    /**
-     * The target entity.
-     */
-    get entity()
-    {
-        return this._entity;
-    }
-};
-
-/**
- * @classdesc
- * <p>Signal provides an implementation of the Observer pattern. Functions can be bound to the Signal, and they will be
- * called when the Signal is dispatched. This implementation allows for keeping scope.</p>
- * <p>When dispatch has an object passed to it, this is called the "payload" and will be passed as a parameter to the
- * listener functions</p>
- *
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function Signal()
-{
-    this._listeners = [];
-    this._lookUp = {};
-}
-
-/**
- * Signals keep "this" of the caller, because having this refer to the signal itself would be silly
- */
-Signal.prototype =
-{
-    /**
-     * Binds a function as a listener to the Signal
-     * @param {function(*):void} listener A function to be called when the function is dispatched.
-     * @param {Object} [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
-     *
-     * @example
-     * signal.bind(this.methodFunction, this);
-     */
-    bind: function(listener, thisRef)
-    {
-        this._lookUp[listener] = this._listeners.length;
-        var callback = thisRef? listener.bind(thisRef) : listener;
-        this._listeners.push(callback);
-    },
-
-    /**
-     * Removes a function as a listener.
-     */
-    unbind: function(listener)
-    {
-        var index = this._lookUp[listener];
-        this._listeners.splice(index, 1);
-        delete this._lookUp[listener];
-    },
-
-    /**
-     * Dispatches the signal, causing all the listening functions to be called.
-     * @param [payload] An optional object to be passed in as a parameter to the listening functions. Can be used to provide data.
-     */
-    dispatch: function(payload)
-    {
-        var len = this._listeners.length;
-        for (var i = 0; i < len; ++i)
-            this._listeners[i].apply(null, arguments);
-    },
-
-    /**
-     * Returns whether there are any functions bound to the Signal or not.
-     */
-    get hasListeners()
-    {
-        return this._listeners.length > 0;
-    }
-};
-
-/**
- * @classdesc
- * MorphPose defines a certain configuration for blending several morph targets. While this can be used to directly
- * assign to a {@linkcode ModelInstance}, it's usually controlled through a component such as {@MorphAnimation}. Other
- * components could use several MorphPose objects in keyframes and tween between them over a timeline.
- *
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function MorphPose$1()
-{
-    this._targets = [];
-    this._weights = {};
-    this._stateInvalid = true;
-    this.onChange = new Signal();
-}
-
-MorphPose$1.prototype =
-{
-    /**
-     * Gets the morph target as sorted by weight in update()
-     * @param {number} index The index of the {@linkcode MorphTarget}
-     * @returns {MorphTarget}
-     */
-    getMorphTarget: function(index)
-    {
-        return this._targets[index];
-    },
-
-    /**
-     * The amount of morph targets used in this pose.
-     * @returns {Number}
-     */
-    get numMorphTargets()
-    {
-        return this._targets.length;
-    },
-
-    /**
-     * Adds a MorphTarget object to the pose.
-     * @param {MorphTarget} morphTarget
-     */
-    addMorphTarget: function(morphTarget)
-    {
-        this._targets.push(morphTarget);
-        this._weights[morphTarget.name] = 0.0;
-        this._stateInvalid = true;
-    },
-
-    /**
-     * Gets the weight of a morph target with the given name.
-     * @param {string} name The name of the morph target.
-     * @returns {number}
-     */
-    getWeight: function(name)
-    {
-        return this._weights[name];
-    },
-
-    /**
-     * Sets the weight of a morph target with the given name.
-     * @param {string} name The name of the morph target.
-     * @param {number} value The new weight.
-     */
-    setWeight: function(id, value)
-    {
-        if (this._weights[id] !== value)
-            this._stateInvalid = true;
-
-        this._weights[id] = value;
-    },
-
-    /**
-     * Updates the morph pose given the current weights. Usually called by a wrapping component. If no component is used,
-     * update needs to be called manually.
-     */
-    update: function()
-    {
-        if (!this._stateInvalid) return;
-
-        var w = this._weights;
-        // sort by weights
-        this._targets.sort(function(a, b) {
-            return w[b.name] - w[a.name];
-        });
-
-        this._stateInvalid = false;
-
-        this.onChange.dispatch();
-    }
-};
-
-/**
- * @classdesc
- * MorphAnimation is a {@linkcode Component} that can be added to ModelInstances to control morph target animations. The Mesh objects
- * used by the ModelInstance's Model must contain morph data generated with {@linkcode Mesh#generateMorphData}.
- * Up to 8 morph targets can be active at a time. If more morph targets have a weight assigned to them, only those with
- * the highest weight are used.
- *
- * @property {number} numMorphTargets The amount of morph targets in total (active and non-active).
- *
- *
- * @param {Array} [targets] An Array of {@linkcode MorphTarget} objects. If omitted, it will use the morph pose already
- * assigned to the entity (if any).
- * @constructor
- *
- * @see {@linkcode MorphPose}
- * @see {@linkcode MorphTarget}
- * @see {@linkcode Mesh#generateMorphData}
- *
- * @extends Component
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function MorphAnimation(targets)
-{
-    Component.call(this);
-
-    // TODO: some day, morph pose could also become a tree using and generating poses?
-    // for now, it's really just a Component-shaped wrapper for ModelInstance.morphPose
-    if (targets) {
-        this._hasOwn = true;
-        this._morphPose = new MorphPose$1();
-        for (var i = 0; i < targets.length; ++i) {
-            this._morphPose.addMorphTarget(targets[i]);
-        }
-    }
-    else
-        this._hasOwn = false;
-}
-
-Component.create(MorphAnimation,
-    {
-        numMorphTargets: {
-            get: function() { return this._morphPose.numMorphTargets; }
-        }
-    }
-);
-
-/**
- * Retrieves the morph target at the given index, as sorted by weight.
- * @param {Number} index The index of the morph target.
- * @returns {MorphTarget}
- */
-MorphAnimation.prototype.getMorphTarget = function(index)
-{
-    return this._morphPose.getMorphTarget(index);
-};
-
-
-/**
- * Sets the weight of the morph target with the given name.
- * @param {string} name The name of the morph target to influence.
- * @param {number} value The new weight of the morph target.
- */
-MorphAnimation.prototype.setWeight = function(name, value)
-{
-    this._morphPose.setWeight(name, value);
-};
-
-/**
- * @ignore
- */
-MorphAnimation.prototype.onAdded = function()
-{
-    if (this._hasOwn)
-        this.entity.morphPose = this._morphPose;
-    else
-        this._morphPose = this.entity.morphPose;
-};
-
-/**
- * @ignore
- */
-MorphAnimation.prototype.onRemoved = function()
-{
-    if (this._hasOwn)
-        this.entity.morphPose = null;
-};
-
-/**
- * @ignore
- */
-MorphAnimation.prototype.onUpdate = function(dt)
-{
-    this._morphPose.update(dt);
-};
-
 // https://www.khronos.org/files/gltf20-reference-guide.pdf
 
 /**
@@ -628,7 +305,7 @@ GLTF.prototype._parseMeshes = function()
                 targets = [];
                 for (var k = 0; k < numTargets; ++k) {
                     targets[k] = new HX$1.MorphTarget();
-                    targets[k].name = "morphTarget_" + i;
+                    targets[k].name = "morphTarget_" + k;
                 }
 
                 if (primDef.targets[0].NORMAL) {
@@ -651,18 +328,15 @@ GLTF.prototype._parseMeshes = function()
         var modelInstance = new HX$1.ModelInstance(model, materials);
 
         if (numTargets > 0) {
-            var morphPose = new HX$1.MorphPose();
-
-            for (j = 0; j < numTargets; ++j)
-                morphPose.addMorphTarget(targets[j]);
-
-            modelInstance.morphPose = morphPose;
+            var morphComponent = new HX$1.MorphAnimation(targets);
 
             if (meshDef.weights) {
                 for (j = 0; j < numTargets; ++j) {
-                    morphPose.setWeight("morphTarget_" + j, meshDef.weights[j]);
+                    morphComponent.setWeight("morphTarget_" + j, meshDef.weights[j]);
                 }
             }
+
+            modelInstance.addComponent(morphComponent);
         }
 
         this._modelInstances[i] = modelInstance;
@@ -682,11 +356,11 @@ GLTF.prototype._parseMorphTargets = function(targetDefs, meshIndex, targets)
         // var tangentAcc = attribs.TANGENT !== undefined? this._getAccessor(attribs.TANGENT) : null;
 
         var positionData = new Float32Array(positionAcc.count * 3);
-        this._readVertexData(positionData, 0, positionAcc, 3, true);
+        this._readVertexData(positionData, 0, positionAcc, 3, 3, true);
 
         if (normalAcc) {
             var normalData = new Float32Array(normalAcc.count * 3);
-            this._readVertexData(normalData, 0, normalAcc, 3, true);
+            this._readVertexData(normalData, 0, normalAcc, 3, 3, true);
         }
 
         morphTarget.init(meshIndex, positionData, normalData);
@@ -881,6 +555,7 @@ GLTF.prototype._readIndices = function(accessor)
         indexData[i] = readFnc.call(src, o, true);
         o += elmSize;
     }
+
     return indexData;
 };
 
@@ -1067,7 +742,7 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords)
             case 1:
                 value = [];
                 for (i = 0; i < elmCount; ++i)
-                    value[i] = this._readFloat(valueSrc, v);
+                    value[i] = this._readFloat(valueSrc, v + i * 4);
                 break;
             case 3:
                 value = this._readFloat3(valueSrc, v);
@@ -1105,7 +780,7 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords)
             }
         }
 
-        v += valuesAcc.numComponents * 4;
+        v += valuesAcc.numComponents * elmCount * 4;
         t += 4;
     }
 
@@ -1161,7 +836,7 @@ GLTF.prototype._parseAnimationChannel = function(channelDef, samplers)
             layers = [];
 
             for (var i = 0; i < clips.length; ++i)
-                layers.push(new HX$1.AnimationLayerMorphTarget(target.morphPose, "morphTarget_" + i, clips[i]));
+                layers.push(new HX$1.AnimationLayerMorphTarget(target.getFirstComponentByType(HX$1.MorphAnimation), "morphTarget_" + i, clips[i]));
 
             break;
         default:
@@ -1612,6 +1287,73 @@ MD5Anim._FrameData = function()
 };
 
 /**
+ * @classdesc
+ * <p>Signal provides an implementation of the Observer pattern. Functions can be bound to the Signal, and they will be
+ * called when the Signal is dispatched. This implementation allows for keeping scope.</p>
+ * <p>When dispatch has an object passed to it, this is called the "payload" and will be passed as a parameter to the
+ * listener functions</p>
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function Signal()
+{
+    this._listeners = [];
+    this._lookUp = {};
+}
+
+/**
+ * Signals keep "this" of the caller, because having this refer to the signal itself would be silly
+ */
+Signal.prototype =
+{
+    /**
+     * Binds a function as a listener to the Signal
+     * @param {function(*):void} listener A function to be called when the function is dispatched.
+     * @param {Object} [thisRef] If provided, the object that will become "this" in the function. Used in a class as such:
+     *
+     * @example
+     * signal.bind(this.methodFunction, this);
+     */
+    bind: function(listener, thisRef)
+    {
+        this._lookUp[listener] = this._listeners.length;
+        var callback = thisRef? listener.bind(thisRef) : listener;
+        this._listeners.push(callback);
+    },
+
+    /**
+     * Removes a function as a listener.
+     */
+    unbind: function(listener)
+    {
+        var index = this._lookUp[listener];
+        this._listeners.splice(index, 1);
+        delete this._lookUp[listener];
+    },
+
+    /**
+     * Dispatches the signal, causing all the listening functions to be called.
+     * @param [payload] An optional object to be passed in as a parameter to the listening functions. Can be used to provide data.
+     */
+    dispatch: function(payload)
+    {
+        var len = this._listeners.length;
+        for (var i = 0; i < len; ++i)
+            this._listeners[i].apply(null, arguments);
+    },
+
+    /**
+     * Returns whether there are any functions bound to the Signal or not.
+     */
+    get hasListeners()
+    {
+        return this._listeners.length > 0;
+    }
+};
+
+/**
  * AsyncTaskQueue allows queueing a bunch of functions which are executed "whenever", in order.
  *
  * TODO: Allow dynamically adding tasks while running
@@ -1692,7 +1434,116 @@ AsyncTaskQueue$1.prototype = {
     }
 };
 
+/**
+ * MTL is an importer for .mtl files accompanying .obj files. Rarely needed by itself.
+ * @constructor
+ */
+function MTL()
+{
+    HX$1.Importer.call(this, Object, HX$1.URLLoader.DATA_TEXT);
+    this._textures = [];
+    this._texturesToLoad = [];
+    this._activeMaterial = null;
+}
+
+MTL.prototype = Object.create(HX$1.Importer.prototype);
+
+MTL.prototype.parse = function(data, target)
+{
+    var lines = data.split("\n");
+    var numLines = lines.length;
+
+    for (var i = 0; i < numLines; ++i) {
+        var line = lines[i].replace(/^\s+|\s+$/g, "");
+        this._parseLine(line, target);
+    }
+
+    this._loadTextures(target);
+};
+
+MTL.prototype._parseLine = function(line, target)
+{
+    // skip line
+    if (line.length === 0 || line.charAt(0) === "#") return;
+    var tokens = line.split(/\s+/);
+
+    switch (tokens[0].toLowerCase()) {
+        case "newmtl":
+            this._activeMaterial = new HX$1.BasicMaterial();
+            this._activeMaterial.name = tokens[1];
+            target[tokens[1]] = this._activeMaterial;
+            break;
+        case "ns":
+            var specularPower = parseFloat(tokens[1]);
+            this._activeMaterial.roughness = HX$1.BasicMaterial.roughnessFromShininess(specularPower);
+            this._activeMaterial.roughnessRange = this._activeMaterial.roughness;
+            break;
+        case "kd":
+            this._activeMaterial.color = new HX$1.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
+            break;
+        case "map_kd":
+            this._activeMaterial.colorMap = this._getTexture(tokens[1]);
+            break;
+        case "map_d":
+            this._activeMaterial.maskMap = this._getTexture(tokens[1]);
+            this._activeMaterial.alphaThreshold = .5;
+            break;
+        case "map_ns":
+            this._activeMaterial.specularMap = this._getTexture(tokens[1]);
+            break;
+        case "map_bump":
+        case "bump":
+            this._activeMaterial.normalMap = this._getTexture(tokens[1]);
+            break;
+        default:
+        //console.log("MTL tag ignored or unsupported: " + tokens[0]);
+    }
+};
+
+MTL.prototype._getTexture = function(url)
+{
+    if (!this._textures[url]) {
+        var tex = new HX$1.Texture2D();
+        this._textures[url] = tex;
+
+        this._texturesToLoad.push({
+            file: this._correctURL(url),
+            importer: HX$1.JPG,
+            target: tex
+        });
+    }
+    return this._textures[url];
+};
+
+MTL.prototype._loadTextures = function(lib)
+{
+    var library = new HX$1.AssetLibrary(null, this.options.crossOrigin);
+    library.fileMap = this.fileMap;
+    var files = this._texturesToLoad;
+    var len = files.length;
+    if (len === 0) {
+        this._notifyComplete(lib);
+        return;
+    }
+
+    for (var i = 0; i < files.length; ++i) {
+        library.queueAsset(files[i].file, files[i].file, HX$1.AssetLibrary.Type.ASSET, files[i].importer, this.options, files[i].target);
+    }
+
+
+    library.onComplete.bind(function() {
+        this._notifyComplete(lib);
+    }, this);
+
+    library.onProgress.bind(function(ratio) {
+        this._notifyProgress(ratio);
+    }, this);
+
+    library.load(files);
+};
+
 function OBJ()
+
 /**
  * @classdesc
  * OBJ is an importer for the Wavefront OBJ format.
@@ -1756,7 +1607,7 @@ OBJ.prototype._finish = function(mtlLib)
 
 OBJ.prototype._loadMTLLib = function(filename)
 {
-    var loader = new HX$1.AssetLoader(HX$1.MTL);
+    var loader = new HX$1.AssetLoader(MTL);
     var self = this;
 
     loader.onComplete = function (asset)
@@ -2026,114 +1877,6 @@ OBJ._ObjectData = function()
     this.name = "";
     this.groups = [];
     this._activeGroup = null;
-};
-
-/**
- * MTL is an importer for .mtl files accompanying .obj files. Rarely needed by itself.
- * @constructor
- */
-function MTL$1()
-{
-    HX$1.Importer.call(this, Object, HX$1.URLLoader.DATA_TEXT);
-    this._textures = [];
-    this._texturesToLoad = [];
-    this._activeMaterial = null;
-}
-
-MTL$1.prototype = Object.create(HX$1.Importer.prototype);
-
-MTL$1.prototype.parse = function(data, target)
-{
-    var lines = data.split("\n");
-    var numLines = lines.length;
-
-    for (var i = 0; i < numLines; ++i) {
-        var line = lines[i].replace(/^\s+|\s+$/g, "");
-        this._parseLine(line, target);
-    }
-
-    this._loadTextures(target);
-};
-
-MTL$1.prototype._parseLine = function(line, target)
-{
-    // skip line
-    if (line.length === 0 || line.charAt(0) === "#") return;
-    var tokens = line.split(/\s+/);
-
-    switch (tokens[0].toLowerCase()) {
-        case "newmtl":
-            this._activeMaterial = new HX$1.BasicMaterial();
-            this._activeMaterial.name = tokens[1];
-            target[tokens[1]] = this._activeMaterial;
-            break;
-        case "ns":
-            var specularPower = parseFloat(tokens[1]);
-            this._activeMaterial.roughness = HX$1.BasicMaterial.roughnessFromShininess(specularPower);
-            this._activeMaterial.roughnessRange = this._activeMaterial.roughness;
-            break;
-        case "kd":
-            this._activeMaterial.color = new HX$1.Color(parseFloat(tokens[1]), parseFloat(tokens[2]), parseFloat(tokens[3]));
-            break;
-        case "map_kd":
-            this._activeMaterial.colorMap = this._getTexture(tokens[1]);
-            break;
-        case "map_d":
-            this._activeMaterial.maskMap = this._getTexture(tokens[1]);
-            this._activeMaterial.alphaThreshold = .5;
-            break;
-        case "map_ns":
-            this._activeMaterial.specularMap = this._getTexture(tokens[1]);
-            break;
-        case "map_bump":
-        case "bump":
-            this._activeMaterial.normalMap = this._getTexture(tokens[1]);
-            break;
-        default:
-        //console.log("MTL tag ignored or unsupported: " + tokens[0]);
-    }
-};
-
-MTL$1.prototype._getTexture = function(url)
-{
-    if (!this._textures[url]) {
-        var tex = new HX$1.Texture2D();
-        this._textures[url] = tex;
-
-        this._texturesToLoad.push({
-            file: this._correctURL(url),
-            importer: HX$1.JPG,
-            target: tex
-        });
-    }
-    return this._textures[url];
-};
-
-MTL$1.prototype._loadTextures = function(lib)
-{
-    var library = new HX$1.AssetLibrary(null, this.options.crossOrigin);
-    library.fileMap = this.fileMap;
-    var files = this._texturesToLoad;
-    var len = files.length;
-    if (len === 0) {
-        this._notifyComplete(lib);
-        return;
-    }
-
-    for (var i = 0; i < files.length; ++i) {
-        library.queueAsset(files[i].file, files[i].file, HX$1.AssetLibrary.Type.ASSET, files[i].importer, this.options, files[i].target);
-    }
-
-
-    library.onComplete.bind(function() {
-        this._notifyComplete(lib);
-    }, this);
-
-    library.onProgress.bind(function(ratio) {
-        this._notifyProgress(ratio);
-    }, this);
-
-    library.load(files);
 };
 
 // this is used to represent the file contents itself, not translated to connected nodes yet
@@ -4366,6 +4109,511 @@ FBX.prototype._loadTextures = function(tokens, map, target)
     this._textureLibrary.load();
 };
 
+// Note: this is not in core because no exporter or stream output functionality is not essential to rendering
+
+/**
+ * @classdesc
+ * DataOutputStream is a wrapper for DataView which allows writing the data as a linear stream of data.
+ * @param dataView the DataView object to write to.
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function DataOutputStream(dataView)
+{
+    this._dataView = dataView;
+    this._offset = 0;
+    this._endian = DataOutputStream.LITTLE_ENDIAN;
+}
+
+/**
+ * Little Endian encoding
+ */
+DataOutputStream.LITTLE_ENDIAN = true;
+
+/**
+ * Big Endian encoding
+ */
+DataOutputStream.BIG_ENDIAN = false;
+
+DataOutputStream.prototype = {
+    /**
+     * The current byte offset into the file.
+     */
+    get offset() { return this._offset; },
+    set offset(value) { this._offset = value; },
+
+    /**
+     * The endianness used by the data.
+     */
+    get endian() { return this._endian; },
+    set endian(value) { this._endian = value; },
+
+    /**
+     * The size of the data view in bytes.
+     */
+    get byteLength () { return this._dataView.byteLength; },
+
+    /**
+     * The amount of bytes still left in the file until EOF.
+     */
+    get bytesAvailable() { return this._dataView.byteLength - this._offset; },
+
+    writeChar: function(v)
+    {
+        return this.writeUint8(v.charCodeAt(0));
+    },
+
+    writeUint8: function(v)
+    {
+        return this._dataView.setUint8(this._offset++, v);
+    },
+
+    writeUint16: function(v)
+    {
+        var data = this._dataView.setUint16(this._offset, v, this._endian);
+        this._offset += 2;
+        return data;
+    },
+
+    writeUint32: function(v)
+    {
+        var data = this._dataView.setUint32(this._offset, v, this._endian);
+        this._offset += 4;
+        return data;
+    },
+
+    writeInt8: function(v)
+    {
+        return this._dataView.setInt8(this._offset++, v);
+    },
+
+    writeInt16: function(v)
+    {
+        var data = this._dataView.setInt16(this._offset, v, this._endian);
+        this._offset += 2;
+        return data;
+    },
+
+    writeInt32: function(v)
+    {
+        var data = this._dataView.setInt32(this._offset, v, this._endian);
+        this._offset += 4;
+        return data;
+    },
+
+    writeFloat32: function(v)
+    {
+        var data = this._dataView.setFloat32(this._offset, v, this._endian);
+        this._offset += 4;
+        return data;
+    },
+
+    writeFloat64: function(v)
+    {
+        var data = this._dataView.setFloat64(this._offset, v, this._endian);
+        this._offset += 8;
+        return data;
+    },
+
+    writeString: function(v)
+    {
+        var len = v.length;
+        for (var i = 0; i < len; ++i)
+            this.writeUint8(v.charCodeAt(i));
+    },
+
+    writeUint8Array: function(v)
+    {
+        this._writeArray(v, this.writeUint8);
+    },
+
+    writeUint16Array: function(v)
+    {
+        this._writeArray(v, this.writeUint16);
+    },
+
+    writeUint32Array: function(v)
+    {
+        this._writeArray(v, this.writeUint32);
+    },
+
+    // I'm actually not sure why JS cares about whether or not the value is signed when writing...
+
+    writeInt8Array: function(v)
+    {
+        this._writeArray(v, this.writeInt8);
+    },
+
+    writeInt16Array: function(v)
+    {
+        this._writeArray(v, this.writeInt16);
+    },
+
+    writeInt32Array: function(v)
+    {
+        this._writeArray(v, this.writeInt32);
+    },
+
+    writeFloat32Array: function(v)
+    {
+        this._writeArray(v, this.writeFloat32);
+    },
+
+    writeFloat64Array: function(v)
+    {
+        this._writeArray(v, this.writeFloat64);
+    },
+
+    /**
+     * @ignore
+     */
+    _writeArray: function(val, func)
+    {
+        var len = val.length;
+        for (var i = 0; i < len; ++i)
+            func.call(this, val[i]);
+    }
+};
+
+/**
+ * @classdesc
+ * AnimationClipExporter exports to Helix's own .hclip format.
+ *
+ * File format:
+ *
+ * <HEADER>
+ * file hash "HX_ANIM" as string (7 bytes)
+ * version data: 3 unsigned shorts (major, minor, patch)
+ * unsigned byte: valueType (1 = SkeletonPose)
+ * unsigned int: numFrames
+ *
+ * <valueType dependent data>
+ *     SkeletonPose:
+ *      - unsigned byte: numJoints
+ *
+ * <FRAMES> #numFrames block of data
+ *     unsigned int: time (ms)
+ *     any data[varying]: depends on value-type, for SkeletonPose: numJoints triplets of float3, float4, float3 for
+ *     translation (3 floats), rotation (4 floats), scale (3 floats).
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function AnimationClipExporter()
+{
+
+}
+
+AnimationClipExporter.VERSION = "0.1.0";
+
+AnimationClipExporter.VALUE_TYPE_SKELETON_POSE = 1;
+AnimationClipExporter.VALUE_TYPE_NUMBER = 2;
+AnimationClipExporter.VALUE_TYPE_FLOAT3 = 3;
+AnimationClipExporter.VALUE_TYPE_QUATERNION = 4;
+
+AnimationClipExporter.prototype =
+{
+    // returns an ArrayBuffer object
+    // TODO: support layered animations in some way
+    export: function(clip)
+    {
+        var valueType = this._getValueType(clip);
+        var size = this._calculateFileSize(clip, valueType);
+        var buffer = new ArrayBuffer(size);
+        var dataView = new DataView(buffer);
+        var dataStream = new DataOutputStream(dataView);
+
+        var version = AnimationClipExporter.VERSION.split(".");
+        dataStream.writeString("HX_CLIP");
+        dataStream.writeUint16Array(version);
+
+        dataStream.writeUint8(valueType);
+
+        var numFrames = clip.numKeyFrames;
+        dataStream.writeUint32(numFrames);
+
+        if (valueType === AnimationClipExporter.VALUE_TYPE_SKELETON_POSE) {
+            var keyFrame = clip.getKeyFrame(0);
+            var value = keyFrame.value;
+            dataStream.writeUint8(value.numJoints);
+        }
+        else {
+            // reserve some data for the future
+            dataStream.writeUint8(0);
+        }
+
+        for (var i = 0; i < numFrames; ++i) {
+            var keyFrame = clip.getKeyFrame(i);
+            dataStream.writeUint32(keyFrame.time);
+            this._writeValue(dataStream, valueType, keyFrame.value);
+        }
+
+        return buffer;
+    },
+
+    _getValueType: function(clip)
+    {
+        var keyFrame = clip.getKeyFrame(0);
+        var value = keyFrame.value;
+
+        if (value instanceof HX.SkeletonPose)
+            return AnimationClipExporter.VALUE_TYPE_SKELETON_POSE;
+        if (value instanceof HX.Float4)
+            return AnimationClipExporter.VALUE_TYPE_FLOAT3;
+        if (value instanceof HX.Quaternion)
+            return AnimationClipExporter.VALUE_TYPE_QUATERNION;
+        if (typeof value === "number")
+            return AnimationClipExporter.VALUE_TYPE_NUMBER;
+
+
+        throw new Error("Unsupported animation clip");
+    },
+
+    _writeValue: function(dataStream, type, value)
+    {
+        if (type === AnimationClipExporter.VALUE_TYPE_SKELETON_POSE) {
+            var len = value.numJoints;
+            for (var i = 0; i < len; ++i) {
+                var pose = value.getJointPose(i);
+                dataStream.writeFloat32(pose.position.x);
+                dataStream.writeFloat32(pose.position.y);
+                dataStream.writeFloat32(pose.position.z);
+                dataStream.writeFloat32(pose.rotation.x);
+                dataStream.writeFloat32(pose.rotation.y);
+                dataStream.writeFloat32(pose.rotation.z);
+                dataStream.writeFloat32(pose.rotation.w);
+                dataStream.writeFloat32(pose.scale.x);
+                dataStream.writeFloat32(pose.scale.y);
+                dataStream.writeFloat32(pose.scale.z);
+            }
+        }
+        else if (type === AnimationClipExporter.VALUE_TYPE_FLOAT3) {
+            dataStream.writeFloat32(value.x);
+            dataStream.writeFloat32(value.y);
+            dataStream.writeFloat32(value.z);
+        }
+        else if (type === AnimationClipExporter.VALUE_TYPE_QUATERNION) {
+            dataStream.writeFloat32(value.x);
+            dataStream.writeFloat32(value.y);
+            dataStream.writeFloat32(value.z);
+            dataStream.writeFloat32(value.w);
+        }
+        else if (type === AnimationClipExporter.VALUE_TYPE_NUMBER) {
+            dataStream.writeFloat32(value);
+        }
+    },
+
+    _calculateFileSize: function(clip, valueType)
+    {
+        var size = 7;   // hash "HX_CLIP"
+        size += 2 * 3;  // version (3 shorts)
+        size += 1;      // value type
+        size += 4;      // numFrames
+        size += 1;      // meta
+
+        var keyFrameSize = this._calculateKeyFrameSize(valueType, clip);
+        size += clip.numKeyFrames * keyFrameSize;
+        return size;
+    },
+
+    _calculateKeyFrameSize: function(type, clip)
+    {
+        var size = 4;   // time;
+
+        if (type === AnimationClipExporter.VALUE_TYPE_SKELETON_POSE) {
+            var numJoints = clip.getKeyFrame(0).value.numJoints;
+            size += numJoints * 10 * 4;     // 10 floats per joint
+        }
+        else if (type === AnimationClipExporter.VALUE_TYPE_FLOAT3)
+            size += 3 * 4;  // 3 floats
+        else if (type === AnimationClipExporter.VALUE_TYPE_QUATERNION)
+            size += 4 * 4;  // 4 floats
+        else if (type === AnimationClipExporter.VALUE_TYPE_NUMBER)
+            size += 4;      // 1 float
+        return size;
+    }
+};
+
+/**
+ * @classdesc
+ * ModelExporter exports to Helix's own .hmodel format.
+ *
+ * File format:
+ *
+ * <HEADER>
+ * file hash "HX_MODEL" as string (8 bytes)
+ * version data: 3 unsigned shorts (major, minor, patch)
+ * unsigned short: numMeshes
+ *
+ * <MESH DATA> : #numMeshes blocks of mesh definitions
+ * unsigned int: numIndices
+ * unsigned byte: index size (16 or 32)
+ * unsigned short/int[numIndices] (depending on index size): face indices
+ * unsigned int: numVertices
+ * unsigned byte: numAttributes
+ *
+ *      <ATTRIBUTE DATA> #numAttributes blocks of vertex attributes
+ *          unsigned byte: nameLength
+ *          char[nameLength]: name (hx_position etc) of length nameLength
+ *          unsigned byte: stream index
+ *          unsigned byte: numComponents
+ *
+ * unsigned byte: numStreams (redundant, but much easier to parse)
+ *      <STREAM DATA>    #max(stream index)
+ *          unsigned int: length (redundant, but much easier to parse)
+ *          float[length]: vertex data
+ *
+ * <SKELETON DATA>:
+ * numJoints: unsigned byte (if 0, there's no skeleton)
+ *
+ *      <JOINT DATA> #numJoints
+ *      unsigned byte: nameLength (can be 0)
+ *      char[nameLength]: name
+ *      parentIndex: unsigned byte   (0xff is to be interpreted as -1)
+ *      float[16]: inverseBindPose
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function ModelExporter()
+{
+
+}
+
+ModelExporter.VERSION = "0.1.0";
+
+ModelExporter.prototype =
+{
+    // returns an ArrayBuffer object
+    export: function(model)
+    {
+        var size = this._calculateFileSize(model);
+        var buffer = new ArrayBuffer(size);
+        var dataView = new DataView(buffer);
+        var dataStream = new DataOutputStream(dataView);
+
+        var version = ModelExporter.VERSION.split(".");
+        dataStream.writeString("HX_MODEL");
+        dataStream.writeUint16Array(version);
+
+        var numMeshes = model.numMeshes;
+
+        dataStream.writeUint16(numMeshes);
+
+        for (var i = 0; i < numMeshes; ++i)
+            this._writeMeshData(dataStream, model.getMesh(i));
+
+        this._writeSkeleton(dataStream, model.skeleton);
+
+        return buffer;
+    },
+
+    _writeMeshData: function(dataStream, mesh)
+    {
+        dataStream.writeUint32(mesh.numIndices);
+
+        if (mesh._indexType === HX.DataType.UNSIGNED_INT) {
+            dataStream.writeUint8(32);
+            dataStream.writeUint32Array(mesh.getIndexData());
+        }
+        else {
+            dataStream.writeUint8(16);
+            dataStream.writeUint16Array(mesh.getIndexData());
+        }
+
+        dataStream.writeUint32(mesh.numVertices);
+        dataStream.writeUint8(mesh.numVertexAttributes);
+
+        for (var j = 0; j < mesh.numVertexAttributes; ++j) {
+            var attrib = mesh.getVertexAttributeByIndex(j);
+            dataStream.writeUint8(attrib.name.length);
+            dataStream.writeString(attrib.name);
+            dataStream.writeUint8(attrib.streamIndex);
+            dataStream.writeUint8(attrib.numComponents);
+        }
+
+        dataStream.writeUint8(mesh.numStreams);
+        for (j = 0; j < mesh.numStreams; ++j) {
+            var data = mesh.getVertexData(j);
+            dataStream.writeUint32(data.length);
+            dataStream.writeFloat32Array(data);
+        }
+    },
+
+    _writeSkeleton: function(dataStream, skeleton)
+    {
+        var numJoints = skeleton? skeleton.numJoints : 0;
+
+        dataStream.writeUint8(numJoints);
+
+        for (var i = 0; i < numJoints; ++i) {
+            var joint = skeleton.getJoint(i);
+            if (joint.name) {
+                dataStream.writeUint8(joint.name.length);
+                dataStream.writeString(joint.name);
+            }
+            else {
+                dataStream.writeUint8(0);
+            }
+            dataStream.writeUint8(joint.parentIndex === -1? 0xff : joint.parentIndex);
+            dataStream.writeFloat32Array(joint.inverseBindPose._m);
+        }
+    },
+
+    _calculateFileSize: function(model)
+    {
+        var size = 8;   // hash "HX_MODEL"
+        size += 2 * 3;  // version (3 shorts)
+        size += 2;      // numMeshes
+
+        var numMeshes = model.numMeshes;
+        for (var i = 0; i < numMeshes; ++i) {
+            var mesh = model.getMesh(i);
+            size += 4; // numIndices
+            size += 1; // index size
+            var indexSize;
+            if (mesh._indexType === HX.DataType.UNSIGNED_INT)
+                indexSize = 4;
+            else
+                indexSize = 2;
+
+            size += indexSize * mesh.numIndices;    // indices
+            size += 4;  // numVertices (int in case of int index type)
+            size += 1;  // numAttributes
+
+            for (var j = 0; j < mesh.numVertexAttributes; ++j) {
+                var attrib = mesh.getVertexAttributeByIndex(j);
+                size += 1;      // nameLength
+                size += attrib.name.length; // name
+                size += 1;  // stream index
+                size += 1;  // num components
+            }
+
+            size += 1;  // num streams
+
+            for (j = 0; j < mesh.numStreams; ++j) {
+                size += 4;  // stream length
+                size += 4 * mesh.getVertexData(j).length;   // float per data element
+            }
+        }
+
+        size += 1;  // numJoints
+        var numJoints = model.skeleton? model.skeleton.numJoints : 0;
+
+        for (i = 0; i < numJoints; ++i) {
+            var joint = model.skeleton.getJoint(i);
+            size += 1;  // name length
+            size += joint.name? joint.name.length : 0;  // name
+            size += 1; // parentIndex
+            size += 16 * 4; // inverseBindPose
+        }
+        return size;
+    }
+};
+
 // could we make things switchable based on a config file, so people can generate a file with only the importers they
 // need?
 
@@ -4374,8 +4622,10 @@ exports.GLTFData = GLTFData;
 exports.MD5Mesh = MD5Mesh;
 exports.MD5Anim = MD5Anim;
 exports.OBJ = OBJ;
-exports.MTL = MTL$1;
+exports.MTL = MTL;
 exports.FBX = FBX;
+exports.AnimationClipExporter = AnimationClipExporter;
+exports.ModelExporter = ModelExporter;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 

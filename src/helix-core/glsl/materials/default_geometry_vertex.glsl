@@ -6,14 +6,25 @@ attribute vec3 hx_morphPosition0;
 attribute vec3 hx_morphPosition1;
 attribute vec3 hx_morphPosition2;
 attribute vec3 hx_morphPosition3;
-#if HX_NUM_MORPH_TARGETS > 4
+
+#ifdef HX_USE_NORMAL_MORPHING
+    #ifndef HX_SKIP_NORMALS
+    attribute vec3 hx_morphNormal0;
+    attribute vec3 hx_morphNormal1;
+    attribute vec3 hx_morphNormal2;
+    attribute vec3 hx_morphNormal3;
+    #endif
+
+uniform float hx_morphWeights[4];
+#else
 attribute vec3 hx_morphPosition4;
 attribute vec3 hx_morphPosition5;
 attribute vec3 hx_morphPosition6;
 attribute vec3 hx_morphPosition7;
+
+uniform float hx_morphWeights[8];
 #endif
 
-uniform float hx_morphWeights[HX_NUM_MORPH_TARGETS];
 #endif
 
 #ifdef HX_USE_SKINNING
@@ -68,7 +79,14 @@ void hx_geometry()
     morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];
     morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];
     morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];
-    #if HX_NUM_MORPH_TARGETS > 4
+    #ifdef HX_USE_NORMAL_MORPHING
+        #ifndef HX_SKIP_NORMALS
+        morphedNormal += hx_morphNormal0 * hx_morphWeights[0];
+        morphedNormal += hx_morphNormal1 * hx_morphWeights[1];
+        morphedNormal += hx_morphNormal2 * hx_morphWeights[2];
+        morphedNormal += hx_morphNormal3 * hx_morphWeights[3];
+        #endif
+    #else
         morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];
         morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];
         morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];

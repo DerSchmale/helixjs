@@ -24,15 +24,16 @@ project.onInit = function()
     this.gltf = this.assetLibrary.get("scene");
     this.scene = this.gltf.defaultScene;
 
-    this.camera.nearDistance = .001;
-    this.camera.farDistance = 30.0;
+    this.camera.nearDistance = .1;
+    this.camera.farDistance = 3000.0;
 
     var orbitController = new HX.OrbitController();
     orbitController.azimuth = 1.3;
     orbitController.minRadius = .02;
+    orbitController.maxRadius = 5000;
     orbitController.zoomSpeed = .1;
     orbitController.touchZoomSpeed = .01;
-    orbitController.radius = .03;
+    orbitController.radius = 3;
     this.camera.addComponent(orbitController);
 
     var dirLight = new HX.DirectionalLight();

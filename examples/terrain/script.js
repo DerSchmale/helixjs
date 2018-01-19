@@ -18,8 +18,8 @@ project.queueAssets = function(assetLibrary)
     assetLibrary.queueAsset("skybox-irradiance", "skyboxes/daylight-mips/skybox_irradiance.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
     assetLibrary.queueAsset("heightMap", "terrain/textures/heightMap.png", HX.AssetLibrary.Type.ASSET, HX.JPG_HEIGHTMAP);
     assetLibrary.queueAsset("terrainMap", "terrain/textures/terrainMap.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("terrain-material", "terrain/material/terrainMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
-    assetLibrary.queueAsset("water-material", "terrain/material/waterMaterial.hmt", HX.AssetLibrary.Type.ASSET, HX.HMT);
+    assetLibrary.queueAsset("terrain-material", "terrain/material/terrainMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
+    assetLibrary.queueAsset("water-material", "terrain/material/waterMaterial.hmat", HX.AssetLibrary.Type.ASSET, HX.HMAT);
 };
 
 project.onInit = function()

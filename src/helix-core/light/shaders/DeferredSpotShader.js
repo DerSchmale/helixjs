@@ -28,7 +28,7 @@ function DeferredSpotShader(useCone, shadows)
             // overshoot a bit
             radius: 1.1,
             numSegmentsH: 1,
-            alignment: ConePrimitive.ALIGN_Z
+            alignment: ConePrimitive.ALIGN_Y
         });
         this._mesh = primitive.getMesh(0);
         defines.HX_CONE_MESH = 1;
@@ -111,7 +111,7 @@ DeferredSpotShader.prototype.execute = function(renderer, light)
         gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
         gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
 
-        worldMatrix.getColumn(2, pos);
+        worldMatrix.getColumn(1, pos);
         camera.viewMatrix.transformVector(pos, pos);
         gl.uniform3f(this._dirLocation, pos.x, pos.y, pos.z);
         gl.uniform1f(this._radiusLocation, light._radius);

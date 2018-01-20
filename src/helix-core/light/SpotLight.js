@@ -44,7 +44,7 @@ function SpotLight()
     this._cosOuter = Math.cos(this._outerAngle * .5);
     this._sinOuter = Math.sin(this._outerAngle * .5);
     this.intensity = 3.1415;
-    this.lookAt(new Float4(0, -1, 0));
+    this.lookAt(new Float4(0, 0, -1));
     this._localBoundsInvalid = true;
 
     this.depthBias = .0;

@@ -9,7 +9,7 @@ float hx_point_readShadow(samplerCube shadowMap, vec3 worldDir, float rcpRadius,
 
     float dist = length(worldDir);
     worldDir /= dist;
-    float shadowSample = hx_RGBA8ToFloat(textureCube(shadowMap, worldDir));
+    float shadowSample = hx_RGBA8ToFloat(textureCube(shadowMap, worldDir.xzy));
     float diff = dist * rcpRadius - shadowSample - depthBias;
     return float(diff < 0.0);
 }

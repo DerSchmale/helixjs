@@ -76,7 +76,7 @@ Transform.prototype =
      */
     lookAt: function(target)
     {
-        this._matrix.lookAt(target, this._position, Float4.Y_AXIS);
+        this._matrix.lookAt(target, this._position);
         this._matrix.appendScale(this._scale);
         this._applyMatrix();
     },

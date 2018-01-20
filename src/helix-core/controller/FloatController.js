@@ -235,7 +235,7 @@ FloatController.prototype.onUpdate = function(dt)
  */
 FloatController.prototype._setForwardForce = function(ratio)
 {
-    this._localAcceleration.z = ratio * this._maxAcceleration;
+    this._localAcceleration.y = ratio * this._maxAcceleration;
 };
 
 /**

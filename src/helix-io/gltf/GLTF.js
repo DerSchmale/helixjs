@@ -61,8 +61,10 @@ function GLTF()
         MAT4: 16
     };
 
-    this._invertZ = new HX.Matrix4x4();
-    this._invertZ.fromScale(1, 1, -1);
+    this._flipCoord = new HX.Matrix4x4();
+    this._flipCoord.setColumn(0, new HX.Float4(-1, 0, 0, 0));
+    this._flipCoord.setColumn(1, new HX.Float4(0, 0, 1, 0));
+    this._flipCoord.setColumn(2, new HX.Float4(0, 1, 0, 0));
 }
 
 GLTF.prototype = Object.create(HX.Importer.prototype);
@@ -421,7 +423,7 @@ GLTF.prototype._parsePrimitive = function(primDef, model, materials, morphs, mor
     materials.push(this._materials[primDef.material]);
 };
 
-GLTF.prototype._readVertexData = function(target, offset, accessor, numComponents, stride, flipZ)
+GLTF.prototype._readVertexData = function(target, offset, accessor, numComponents, stride, flipCoords)
 {
     var p = offset;
     var o = accessor.byteOffset;
@@ -466,10 +468,13 @@ GLTF.prototype._readVertexData = function(target, offset, accessor, numComponent
     if (accessor.isSparse)
         this._applySparseAccessor(target, accessor, numComponents, stride, readFnc, elmSize);
 
-    if (flipZ) {
-        p = offset + 2;
+    if (flipCoords) {
+        p = offset;
         for (i = 0; i < len; ++i) {
+            var tmp = target[p + 1];
             target[p] = -target[p];
+            target[p + 1] = target[p + 2];
+            target[p + 2] = tmp;
             p += stride;
         }
     }
@@ -575,8 +580,8 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
         joint.inverseBindPose = this._readMatrix4x4(src, o);
         o += 64;
 
-        joint.inverseBindPose.prepend(this._invertZ);
-        joint.inverseBindPose.append(this._invertZ);
+        joint.inverseBindPose.prepend(this._flipCoord);
+        joint.inverseBindPose.append(this._flipCoord);
 
         skeleton.addJoint(joint);
 
@@ -634,8 +639,8 @@ GLTF.prototype._parseNodes = function()
         if (nodeDef.rotation) {
             node.rotation.set(nodeDef.rotation[0], nodeDef.rotation[1], nodeDef.rotation[2], nodeDef.rotation[3]);
             m.fromQuaternion(node.rotation);
-            m.prepend(this._invertZ);
-            m.append(this._invertZ);
+            m.prepend(this._flipCoord);
+            m.append(this._flipCoord);
             node.rotation.fromMatrix(m);
         }
 
@@ -647,8 +652,8 @@ GLTF.prototype._parseNodes = function()
 
         if (nodeDef.matrix) {
             node.matrix = new HX.Matrix4x4(nodeDef.matrix);
-            node.matrix.prepend(this._invertZ);
-            node.matrix.append(this._invertZ);
+            node.matrix.prepend(this._flipCoord);
+            node.matrix.append(this._flipCoord);
         }
 
         this._nodes[i] = node;
@@ -701,7 +706,7 @@ GLTF.prototype._parseScenes = function()
     }
 };
 
-GLTF.prototype._parseAnimationSampler = function(samplerDef, flipZ)
+GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords)
 {
     var timesAcc = this._getAccessor(samplerDef.input);
     var valuesAcc = this._getAccessor(samplerDef.output);
@@ -737,14 +742,19 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipZ)
                 break;
             case 3:
                 value = this._readFloat3(valueSrc, v);
-                if (flipZ) value.z = -value.z;
+                if (flipCoords) {
+                    value.x = -value.x;
+                    var tmp = value.y;
+                    value.y = value.z;
+                    value.z = tmp;
+                }
                 break;
             case 4:
                 value = this._readQuat(valueSrc, v);
-                if (flipZ) {
+                if (flipCoords) {
                     m.fromQuaternion(value);
-                    m.prepend(this._invertZ);
-                    m.append(this._invertZ);
+                    m.prepend(this._flipCoord);
+                    m.append(this._flipCoord);
                     value.fromMatrix(m);
                 }
                 break;

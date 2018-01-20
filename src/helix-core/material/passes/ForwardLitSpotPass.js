@@ -54,7 +54,7 @@ ForwardLitSpotPass.prototype.updatePassRenderState = function(camera, renderer, 
         gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
         gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
 
-        worldMatrix.getColumn(2, pos);
+        worldMatrix.getColumn(1, pos);
         viewMatrix.transformVector(pos, pos);
         gl.uniform3f(this._dirLocation, pos.x, pos.y, pos.z);
 

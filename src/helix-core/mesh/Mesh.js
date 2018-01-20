@@ -2,6 +2,7 @@ import {capabilities, BufferUsage, DataType} from "../Helix";
 import {IndexBuffer} from "../core/IndexBuffer";
 import {VertexBuffer} from "../core/VertexBuffer";
 import {Signal} from "../core/Signal";
+import {Float4} from "../math/Float4";
 
 /**
  * @ignore
@@ -341,6 +342,28 @@ Mesh.prototype = {
             mesh.setIndexData(this._indexData);
 
         return mesh;
+    },
+
+    translate: function(x, y, z)
+    {
+        if (x instanceof Float4) {
+            y = x.y;
+            z = x.z;
+            x = x.x;
+        }
+
+        var attrib = this.getVertexAttributeByName("hx_position");
+        if (!attrib) return;
+
+        var stride = this.getVertexStride(attrib);
+        var data = this.getVertexData(attrib.streamIndex);
+        for (var i = attrib.offset; i < data.length; i += stride) {
+            data[i] += x;
+            data[i + 1] += x;
+            data[i + 2] += x;
+        }
+
+        this._vertexBuffers[attrib.streamIndex].uploadData(this._vertexData[attrib.streamIndex], this._vertexUsage);
     }
 };
 

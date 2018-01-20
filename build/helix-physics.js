@@ -265,7 +265,7 @@ function PhysicsSystem()
 
     this._world = new CANNON$1.World();
     this._gravity = -9.81; // m/s²
-    this._world.gravity.set(0, this._gravity, 0);
+    this._world.gravity.set(0, 0, this._gravity);
     this._world.solver.tolerance = .001;
     this._world.solver.iterations = 10;
     this._fixedTimeStep = 1000/60;
@@ -638,7 +638,7 @@ Float4$1.prototype =
     },
 
     /**
-     * Sets the euclidian coordinates based on spherical coordinates
+     * Sets the euclidian coordinates based on spherical coordinates.
      * @param radius The radius coordinate
      * @param azimuthalAngle The azimuthal coordinate
      * @param polarAngle The polar coordinate
@@ -646,9 +646,9 @@ Float4$1.prototype =
     fromSphericalCoordinates: function(radius, azimuthalAngle, polarAngle)
     {
         this.x = radius*Math.sin(polarAngle)*Math.cos(azimuthalAngle);
-        this.y = radius*Math.cos(polarAngle);
-        this.z = radius*Math.sin(polarAngle)*Math.sin(azimuthalAngle);
-        this.w = 0.0;
+        this.y = radius*Math.sin(polarAngle)*Math.sin(azimuthalAngle);
+        this.z = radius*Math.cos(polarAngle);
+        this.w = 1.0;
         return this;
     },
 
@@ -1173,7 +1173,7 @@ Transform.prototype =
      */
     lookAt: function(target)
     {
-        this._matrix.lookAt(target, this._position, Float4$1.Y_AXIS);
+        this._matrix.lookAt(target, this._position);
         this._matrix.appendScale(this._scale);
         this._applyMatrix();
     },
@@ -1577,13 +1577,13 @@ Matrix4x4$1.prototype =
         var sinY = Math.sin(-yaw);
         var sinR = Math.sin(roll);
 
-        var zAxisX = -sinY * cosP;
-        var zAxisY = -sinP;
-        var zAxisZ = cosY * cosP;
+        var yAxisX = -sinY * cosP;
+        var yAxisY = cosY * cosP;
+        var yAxisZ = -sinP;
 
-        var yAxisX = -cosY * sinR - sinY * sinP * cosR;
-        var yAxisY = cosP * cosR;
-        var yAxisZ = -sinY * sinR + sinP * cosR * cosY;
+        var zAxisX = -cosY * sinR - sinY * sinP * cosR;
+        var zAxisY = -sinY * sinR + sinP * cosR * cosY;
+        var zAxisZ = cosP * cosR;
 
         var xAxisX = yAxisY * zAxisZ - yAxisZ * zAxisY;
         var xAxisY = yAxisZ * zAxisX - yAxisX * zAxisZ;
@@ -1679,7 +1679,7 @@ Matrix4x4$1.prototype =
     },
 
     /**
-     * Initializes as a perspective projection matrix (left-handed!).
+     * Initializes as a perspective projection matrix (from right-handed Y-up to left-handed NDC!).
      * @param vFOV The vertical field of view in radians.
      * @param aspectRatio The aspect ratio
      * @param nearDistance The near plane distance
@@ -1687,25 +1687,25 @@ Matrix4x4$1.prototype =
      */
     fromPerspectiveProjection: function (vFOV, aspectRatio, nearDistance, farDistance)
     {
-        var yMax = 1.0 / Math.tan(vFOV * .5);
-        var xMax = yMax / aspectRatio;
+        var vMax = 1.0 / Math.tan(vFOV * .5);
+        var hMax = vMax / aspectRatio;
         var rcpFrustumDepth = 1.0 / (nearDistance - farDistance);
 
         var m = this._m;
-        m[0] = xMax;
+        m[0] = hMax;
         m[1] = 0;
         m[2] = 0;
         m[3] = 0;
 
         m[4] = 0;
-        m[5] = yMax;
-        m[6] = 0;
-        m[7] = 0;
+        m[5] = 0;
+        m[6] = -(farDistance + nearDistance) * rcpFrustumDepth;
+        m[7] = 1;
 
         m[8] = 0;
-        m[9] = 0;
-        m[10] = -(farDistance + nearDistance) * rcpFrustumDepth;
-        m[11] = 1;
+        m[9] = vMax;
+        m[10] = 0;
+        m[11] = 0;
 
         m[12] = 0;
         m[13] = 0;
@@ -1736,13 +1736,13 @@ Matrix4x4$1.prototype =
         m[3] = 0;
 
         m[4] = 0;
-        m[5] = 2.0 * rcpHeight;
-        m[6] = 0;
+        m[5] = 0;
+        m[6] = -2.0 * rcpDepth;
         m[7] = 0;
 
         m[8] = 0;
-        m[9] = 0;
-        m[10] = -2.0 * rcpDepth;
+        m[9] = 2.0 * rcpHeight;
+        m[10] = 0;
         m[11] = 0;
 
         m[12] = -(left + right) * rcpWidth;
@@ -1772,13 +1772,13 @@ Matrix4x4$1.prototype =
         m[3] = 0;
 
         m[4] = 0;
-        m[5] = 2.0 * rcpHeight;
-        m[6] = 0;
+        m[5] = 0;
+        m[6] = 2.0 * rcpDepth;
         m[7] = 0;
 
         m[8] = 0;
-        m[9] = 0;
-        m[10] = 2.0 * rcpDepth;
+        m[9] = 2.0 * rcpHeight;
+        m[10] = 0;
         m[11] = 0;
 
         m[12] = 0.0;
@@ -2513,7 +2513,7 @@ Matrix4x4$1.prototype =
      * Initializes as a "lookAt" matrix at the given eye position oriented toward a target
      * @param {Float4} target The target position to look at.
      * @param {Float4} eye The target position the matrix should "be" at
-     * @param {Float4} up The world-up vector. Must be unit length (usually Float4.Y_AXIS)
+     * @param {Float4} up The world-up vector. Must be unit length (usually Float4.Z_AXIS)
      */
     lookAt: function (target, eye, up)
     {
@@ -2523,25 +2523,27 @@ Matrix4x4$1.prototype =
 
         return function(target, eye, up)
         {
-            Float4$1.subtract(target, eye, zAxis);
-            zAxis.normalize();
+            up = up || Float4$1.Z_AXIS;
+            // Y axis is forward
+            Float4$1.subtract(target, eye, yAxis);
+            yAxis.normalize();
 
-            Float4$1.cross(up, zAxis, xAxis);
+            Float4$1.cross(yAxis, up, xAxis);
 
             if (Math.abs(xAxis.lengthSqr) > .0001) {
                 xAxis.normalize();
             }
             else {
                 var altUp = new Float4$1(up.x, up.z, up.y, 0.0);
-                Float4$1.cross(altUp, zAxis, xAxis);
+                Float4$1.cross(yAxis, altUp, xAxis);
                 if (Math.abs(xAxis.lengthSqr) <= .0001) {
                     altUp.set(up.z, up.y, up.z, 0.0);
-                    Float4$1.cross(altUp, zAxis, xAxis);
+                    Float4$1.cross(yAxis, altUp, xAxis);
                 }
                 xAxis.normalize();
             }
 
-            Float4$1.cross(zAxis, xAxis, yAxis);
+            Float4$1.cross(xAxis, yAxis, zAxis);
 
             var m = this._m;
             m[0] = xAxis.x;
@@ -3072,8 +3074,8 @@ function InfinitePlaneCollider(height)
 {
     Collider.call(this);
     if (height) this._center = new HX.Float4(0, height, 0);
-    this._orientation = new Quaternion();
-    this._orientation.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI * .5);
+    // this._orientation = new Quaternion();
+    // this._orientation.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI * .5);
 }
 
 InfinitePlaneCollider.prototype = Object.create(Collider.prototype);

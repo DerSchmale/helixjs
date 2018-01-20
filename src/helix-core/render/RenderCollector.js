@@ -22,7 +22,7 @@ function RenderCollector()
     this._opaques = [];
     this._transparents = null;
     this._camera = null;
-    this._cameraZAxis = new Float4();
+    this._cameraYAxis = new Float4();
     this._frustumPlanes = null;
     this._lights = null;
     this._ambientColor = new Color();
@@ -60,7 +60,7 @@ RenderCollector.prototype.getEffects = function() { return this._effects; };
 RenderCollector.prototype.collect = function(camera, scene)
 {
     this._camera = camera;
-    camera.worldMatrix.getColumn(2, this._cameraZAxis);
+    camera.worldMatrix.getColumn(1, this._cameraYAxis);
     this._frustumPlanes = camera.frustum._planes;
     this._reset();
 
@@ -119,8 +119,8 @@ RenderCollector.prototype.visitEffects = function(effects)
 RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
 {
     var numMeshes = modelInstance.numMeshInstances;
-    var cameraZAxis = this._cameraZAxis;
-    var cameraZ_X = cameraZAxis.x, cameraZ_Y = cameraZAxis.y, cameraZ_Z = cameraZAxis.z;
+    var cameraYAxis = this._cameraYAxis;
+    var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
     var skeleton = modelInstance.skeleton;
     var skeletonMatrices = modelInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
@@ -148,7 +148,7 @@ RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMat
         renderItem.skeletonMatrices = skeletonMatrices;
         // distance along Z axis:
         var center = worldBounds._center;
-        renderItem.renderOrderHint = center.x * cameraZ_X + center.y * cameraZ_Y + center.z * cameraZ_Z;
+        renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
         renderItem.worldMatrix = worldMatrix;
         renderItem.camera = camera;
         renderItem.worldBounds = worldBounds;

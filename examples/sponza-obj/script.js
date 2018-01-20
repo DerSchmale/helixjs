@@ -9,10 +9,10 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
 
-    var ssao = new HX.SSAO(25);
+    var ssao = new HX.HBAO(5, 5);
     ssao.strength = 2.0;
-    ssao.sampleRadius = 4.0;
-    ssao.fallOffDistance = 8.0;
+    ssao.sampleRadius = 2.0;
+    ssao.fallOffDistance = 4.0;
     options.ambientOcclusion = ssao;
 
     options.hdr = true;
@@ -21,6 +21,7 @@ window.onload = function ()
     options.directionalShadowFilter.useHalfFloat = false;
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.deferredLightingModel = HX.LightingModel.GGX;
+
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -63,7 +64,7 @@ function initScene(scene, assetLibrary)
 {
     var dirLight = new HX.DirectionalLight();
     dirLight.color = new HX.Color(1.0, .95, .9);
-    dirLight.direction = new HX.Float4(3.0, -5.0, 1.0);
+    dirLight.direction = new HX.Float4(3.0, 1.0, -5.0);
     dirLight.intensity = 1.0;
     dirLight.castShadows = true;
 

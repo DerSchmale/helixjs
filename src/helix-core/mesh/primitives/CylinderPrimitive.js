@@ -40,7 +40,7 @@ CylinderPrimitive.ALIGN_Z = 3;
 CylinderPrimitive.prototype._generate = function(target, definition)
 {
     definition = definition || {};
-    var alignment = definition.alignment || CylinderPrimitive.ALIGN_Y;
+    var alignment = definition.alignment || CylinderPrimitive.ALIGN_Z;
     var numSegmentsH = definition.numSegmentsH || 1;
     var numSegmentsW = definition.numSegmentsW || 16;
     var radius = definition.radius || 1;
@@ -70,16 +70,16 @@ CylinderPrimitive.prototype._generate = function(target, definition)
 
             switch (alignment) {
                 case CylinderPrimitive.ALIGN_X:
-                    positions.push(-h, cx, -cy);
-                    if (normals) normals.push(0, nx, -ny);
+                    positions.push(-h, cx, cy);
+                    if (normals) normals.push(0, nx, ny);
                     break;
                 case CylinderPrimitive.ALIGN_Z:
-                    positions.push(cx, cy, h);
+                    positions.push(cx, cy, -h);
                     if (normals) normals.push(nx, ny, 0);
                     break;
                 default:
-                    positions.push(cx, h, -cy);
-                    if (normals) normals.push(nx, 0, -ny);
+                    positions.push(cx, h, cy);
+                    if (normals) normals.push(nx, 0, ny);
                     break;
             }
 
@@ -118,8 +118,8 @@ CylinderPrimitive.prototype._generate = function(target, definition)
 
         switch (alignment) {
             case CylinderPrimitive.ALIGN_X:
-                positions.push(halfH, cx, -cy);
-                positions.push(-halfH, cx, -cy);
+                positions.push(halfH, cx, cy);
+                positions.push(-halfH, cx, cy);
 
                 if (normals) {
                     normals.push(1, 0, 0);
@@ -133,12 +133,12 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                 break;
 
             case CylinderPrimitive.ALIGN_Z:
-                positions.push(cx, cy, -halfH);
                 positions.push(cx, cy, halfH);
+                positions.push(cx, cy, -halfH);
 
                 if (normals) {
-                    normals.push(0, 0, -1);
                     normals.push(0, 0, 1);
+                    normals.push(0, 0, -1);
                 }
 
                 if (uvs) {
@@ -147,8 +147,8 @@ CylinderPrimitive.prototype._generate = function(target, definition)
                 }
                 break;
             default:
-                positions.push(cx, -halfH, -cy);
-                positions.push(cx, halfH, -cy);
+                positions.push(cx, -halfH, cy);
+                positions.push(cx, halfH, cy);
 
                 if (normals) {
                     normals.push(0, -1, 0);

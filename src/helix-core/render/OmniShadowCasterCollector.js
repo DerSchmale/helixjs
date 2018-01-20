@@ -3,7 +3,6 @@ import {SceneVisitor} from "../scene/SceneVisitor";
 import {RenderItem} from "./RenderItem";
 import {RenderSortFunctions} from "./RenderSortFunctions";
 import {Float4} from "../math/Float4";
-import {CubeFace} from "../Helix";
 
 /**
  * @ignore
@@ -17,7 +16,6 @@ function OmniShadowCasterCollector()
     this._lightBounds = null;
     this._renderLists = [];
     this._renderItemPool = new ObjectPool(RenderItem);
-    this._cameraZAxis = new Float4();
     this._octantPlanes = [];
     this._cameraPos = new Float4();
 

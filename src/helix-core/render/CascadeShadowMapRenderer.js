@@ -44,7 +44,7 @@ function CascadeShadowMapRenderer(light, shadowMapSize)
     this._splitDistances = null;
     this._shadowMapCameras = null;
     this._collectorCamera = new OrthographicOffCenterCamera();
-    this._maxZ = 0;
+    this._maxY = 0;
     this._numCullPlanes = 0;
     this._cullPlanes = [];
     this._localBounds = new BoundingAABB();
@@ -123,26 +123,24 @@ CascadeShadowMapRenderer.prototype =
             max.maximize(tmp);
         }
 
-        this._maxZ = max.z;
+        this._maxY = max.y;
 
         this._collectorCamera.matrix.copyFrom(this._light.worldMatrix);
         this._collectorCamera._invalidateWorldMatrix();
-        this._collectorCamera.setBounds(min.x, max.x + 1, max.y + 1, min.y);
+        this._collectorCamera.setBounds(min.x, max.x + 1, max.z + 1, min.z);
         this._collectorCamera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
     },
 
     _updateSplits: function(viewCamera)
     {
-        return function(viewCamera) {
-            var nearDist = viewCamera.nearDistance;
-            var frustumRange = viewCamera.farDistance - nearDist;
-            var numCascades = META.OPTIONS.numShadowCascades;
+        var nearDist = viewCamera.nearDistance;
+        var frustumRange = viewCamera.farDistance - nearDist;
+        var numCascades = META.OPTIONS.numShadowCascades;
 
-            for (var i = 0; i < numCascades; ++i) {
-                this._splitDistances[i] = nearDist + this._splitRatios[i] * frustumRange;
-            }
+        for (var i = 0; i < numCascades; ++i) {
+            this._splitDistances[i] = nearDist + this._splitRatios[i] * frustumRange;
         }
-    }(),
+    },
 
     _updateCascadeCameras: function(viewCamera, bounds)
     {
@@ -207,12 +205,12 @@ CascadeShadowMapRenderer.prototype =
             nearRatio = farRatio;
 
             // do not render beyond range of view camera or scene depth
-            max.z = Math.min(this._maxZ, max.z);
+            max.y = Math.min(this._maxY, max.y);
 
             var left = Math.max(min.x, minBound.x);
             var right = Math.min(max.x, maxBound.x);
-            var bottom = Math.max(min.y, minBound.y);
-            var top = Math.min(max.y, maxBound.y);
+            var bottom = Math.max(min.z, minBound.z);
+            var top = Math.min(max.z, maxBound.z);
 
             var width = right - left;
             var height = top - bottom;
@@ -223,11 +221,11 @@ CascadeShadowMapRenderer.prototype =
             height = Math.max(height, scaleSnap);
 
             // snap to pixels
-            var offsetSnapX = this._shadowMap._width / width * .5;
-            var offsetSnapY = this._shadowMap._height / height * .5;
+            var offsetSnapH = this._shadowMap._width / width * .5;
+            var offsetSnapV = this._shadowMap._height / height * .5;
 
-            left = Math.floor(left * offsetSnapX) / offsetSnapX;
-            bottom = Math.floor(bottom * offsetSnapY) / offsetSnapY;
+            left = Math.floor(left * offsetSnapH) / offsetSnapH;
+            bottom = Math.floor(bottom * offsetSnapV) / offsetSnapV;
             right = left + width;
             top = bottom + height;
 
@@ -236,8 +234,8 @@ CascadeShadowMapRenderer.prototype =
             camera.setBounds(left - softness, right + softness, top + softness, bottom - softness);
 
             // cannot clip nearDistance to frustum, because casters in front may cast into this frustum
-            camera.nearDistance = minBound.z;
-            camera.farDistance = max.z;
+            camera.nearDistance = minBound.y;
+            camera.farDistance = max.y;
 
             camera._setRenderTargetResolution(this._shadowMap._width, this._shadowMap._height);
 

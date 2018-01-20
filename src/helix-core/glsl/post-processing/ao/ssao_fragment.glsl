@@ -23,13 +23,16 @@ void main()
     vec3 dither = texture2D(ditherTexture, uv * ditherScale).xyz;
     vec3 randomPlaneNormal = normalize(dither - .5);
     float w = hx_cameraNearPlaneDistance + centerDepth * hx_cameraFrustumRange;
+    float centerY = centerDepth * hx_cameraFrustumRange;    // can ignore nearDist
     vec3 sampleRadii;
-    sampleRadii.xy = sampleRadius * .5 / w * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][1]);
+    sampleRadii.xy = sampleRadius * .5 / w * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][2]);
     sampleRadii.z = sampleRadius;
 
     for (int i = 0; i < NUM_SAMPLES; ++i) {
         vec3 sampleOffset = reflect(samples[i], randomPlaneNormal);
         vec3 normOffset = normalize(sampleOffset);
+
+        // mirror sample position to the positive side of the plane
         float cosFactor = dot(normOffset, centerNormal);
         float sign = sign(cosFactor);
         sampleOffset *= sign;
@@ -42,12 +45,15 @@ void main()
         float occluderDepth = hx_decodeLinearDepth(normalDepth);
 
         // can ignore nearDist
-        float occluderZ = hx_cameraFrustumRange * occluderDepth;
-        float sampleZ = centerDepth * hx_cameraFrustumRange + scaledOffset.z;
+        float occluderY = hx_cameraFrustumRange * occluderDepth;
+        float sampleY = centerY + scaledOffset.z;
 
-        float distanceFactor = 1.0 - (sampleZ - occluderZ) * rcpFallOffDistance;
+        float distanceFactor = max(1.0 - (sampleY - occluderY) * rcpFallOffDistance, 0.0);
 
-        float sampleOcclusion = float(occluderZ < sampleZ);
+        // at this point, occlusion really means occlusion, and not the output "colour" (ie 1 = completely occluded)
+        float sampleOcclusion = float(occluderY < sampleY);
+
+        // if cosFactor = 0, the sample is coplanar, and occludes less
         totalOcclusion += sampleOcclusion * distanceFactor * cosFactor;
     }
     gl_FragColor = vec4(vec3(1.0 - totalOcclusion * strengthPerSample), 1.0);

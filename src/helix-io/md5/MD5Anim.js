@@ -8,9 +8,6 @@ function MD5Anim()
     this._activeFrame = null;
     this._numJoints = 0;
     this._frameRate = 0;
-
-    this._correctionQuad = new HX.Quaternion();
-    this._correctionQuad.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI *.5);
 }
 
 MD5Anim.prototype = Object.create(HX.Importer.prototype);
@@ -143,14 +140,8 @@ MD5Anim.prototype._translateFrame = function()
         quat.w = w < 0.0 ? 0.0 : -Math.sqrt(w);
 
         // transform root joints only
-        if (hierarchy.parent < 0) {
-            pose.rotation.multiply(this._correctionQuad, quat);
-            pose.position = this._correctionQuad.rotate(pos);
-        }
-        else {
-            pose.rotation.copyFrom(quat);
-            pose.position.copyFrom(pos);
-        }
+        pose.rotation.copyFrom(quat);
+        pose.position.copyFrom(pos);
 
         skeletonPose.setJointPose(i, pose);
     }

@@ -59,8 +59,8 @@ window.onload = function ()
 function initCamera(camera)
 {
     camera.position.x = (1680 / 2048 - .5) * worldSize;
-    camera.position.y = waterLevel + .18;
-    camera.position.z = -(1814 / 2048 - .5) * worldSize;
+    camera.position.y = -(1814 / 2048 - .5) * worldSize;
+    camera.position.z = waterLevel + .18;
 
     camera.nearDistance = 0.1;
     camera.farDistance = 2000.0;
@@ -74,15 +74,15 @@ function initCamera(camera)
     fog = new HX.Fog(0.00025, new HX.Color(0x1155ff), 0.0005, 100);
     camera.addComponent(fog);
 
-    var tonemap = new HX.ACESToneMapping();
-    tonemap.exposure = 0.0;
-    camera.addComponent(tonemap);
+    // var tonemap = new HX.ACESToneMapping();
+    // tonemap.exposure = 0.0;
+    // camera.addComponent(tonemap);
 }
 
 function initScene(scene, assetLibrary)
 {
     var sun = new HX.DirectionalLight();
-    sun.direction = new HX.Float4(-0.3, -.3, -1.0, 0.0);
+    sun.direction = new HX.Float4(-0.3, -1.0, -.3, 0.0);
     sun.intensity = 3;
     sun.castShadows = true;
     sun.depthBias = .01;
@@ -119,7 +119,7 @@ function initScene(scene, assetLibrary)
     var terrain = new HX.Terrain(4000, -100, 200, 5, terrainMaterial, 64);
 
     var water = new HX.Terrain(4000, 0, 1, 3, waterMaterial, 16);
-    water.position.y = waterLevel;
+    water.position.z = waterLevel;
 
     scene.attach(terrain);
     scene.attach(water);

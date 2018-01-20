@@ -22,7 +22,7 @@ void hx_geometry()
     vec4 worldPos = hx_worldMatrix * hx_position;
     viewPos = (hx_viewMatrix * worldPos).xyz;
     // snap to cell size is required to not get a floating interpolated landscape
-    uv1 = (worldPos.xz + normalOffset1) * normalScale1;
-    uv2 = (worldPos.xz + normalOffset2) * normalScale2;
+    uv1 = (worldPos.xy + normalOffset1) * normalScale1;
+    uv2 = (worldPos.xy + normalOffset2) * normalScale2;
     gl_Position = proj = hx_viewProjectionMatrix * worldPos;
 }

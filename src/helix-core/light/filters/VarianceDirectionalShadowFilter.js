@@ -1,7 +1,7 @@
 import { ShaderLibrary } from '../../shader/ShaderLibrary';
 import { ShadowFilter } from './ShadowFilter';
 import { VSMBlurShader } from '../shaders/VSMBlurShader';
-import {capabilities, DataType, TextureFormat} from "../../Helix";
+import {capabilities, CullMode, DataType, TextureFormat} from "../../Helix";
 
 
 /**
@@ -27,9 +27,10 @@ function VarianceDirectionalShadowFilter()
 {
     ShadowFilter.call(this);
     this._blurRadius = 2;
-    this._lightBleedReduction = .35;
+    this._lightBleedReduction = .5;
     this._minVariance = .001;
     this._useHalfFloat = true;
+    this._cullMode = CullMode.BACK;
 }
 
 VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,

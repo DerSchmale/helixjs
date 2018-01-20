@@ -76,20 +76,20 @@ HX_GeometryData hx_geometry()
     float height = hx_RGBA8ToFloat(texture2D(heightMap, uv));
     float stepSize = max(max(fwidth(uv.x), fwidth(uv.y)), 1.0 / heightMapSize);
     vec3 tangentX = vec3(stepSize * worldSize, 0.0, 0.0);
-    vec3 tangentZ = vec3(0.0, 0.0, stepSize * worldSize);
+    vec3 tangentY = vec3(0.0, stepSize * worldSize, 0.0);
 
-    tangentX.y = (hx_RGBA8ToFloat(texture2D(heightMap, uv + vec2(stepSize, 0.0))) - height) * hx_elevationScale;
-    tangentZ.y = (hx_RGBA8ToFloat(texture2D(heightMap, uv + vec2(0.0, stepSize))) - height) * hx_elevationScale;
+    tangentX.z = (hx_RGBA8ToFloat(texture2D(heightMap, uv + vec2(stepSize, 0.0))) - height) * hx_elevationScale;
+    tangentY.z = (hx_RGBA8ToFloat(texture2D(heightMap, uv + vec2(0.0, stepSize))) - height) * hx_elevationScale;
 
     tangentX = normalize(tangentX);
-    tangentZ = normalize(tangentZ);
+    tangentY = normalize(tangentY);
 
-    float grassRoughness = .65;
-    float rockRoughness = .5;
+    float grassRoughness = .85;
+    float rockRoughness = .7;
     float snowRoughness = .2;
 
-    vec3 normal = cross(tangentZ, tangentX);
-    mat3 TBN = mat3(tangentX, tangentZ, normal);
+    vec3 normal = cross(tangentX, tangentY);
+    mat3 TBN = mat3(tangentX, tangentY, normal);
 
     HX_GeometryData data;
     vec4 terrain = texture2D(terrainMap, uv);

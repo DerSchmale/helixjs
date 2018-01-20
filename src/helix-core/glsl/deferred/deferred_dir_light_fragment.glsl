@@ -20,8 +20,8 @@ void main()
 // TODO: move this to snippets_deferred file, along with the hx_decodeGBufferSpecular method
     HX_GBufferData data = hx_parseGBuffer(hx_gbufferAlbedo, hx_gbufferNormalDepth, hx_gbufferSpecular, uv);
 
-    float absViewZ = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;
-	vec3 viewPosition = viewDir * absViewZ;
+    float absViewY = hx_cameraNearPlaneDistance + data.linearDepth * hx_cameraFrustumRange;
+	vec3 viewPosition = viewDir * absViewY;
     vec3 viewVector = normalize(viewPosition);
     vec3 diffuse, specular;
 

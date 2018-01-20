@@ -19,7 +19,7 @@ mat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)
     #if HX_NUM_SHADOW_CASCADES > 1
         // not very efficient :(
         for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {
-            if (viewPos.z < light.splitDistances[i])
+            if (viewPos.y < light.splitDistances[i])
                 return light.shadowMapMatrices[i];
         }
         return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];
@@ -39,5 +39,5 @@ float hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 v
     if (isOutside) shadow = 1.0;
 
     // this makes sure that anything beyond the last cascade is unshadowed
-    return max(shadow, float(viewPos.z > light.maxShadowDistance));
+    return max(shadow, float(viewPos.y > light.maxShadowDistance));
 }

@@ -798,12 +798,13 @@ function _initGLProperties()
     BufferUsage.STATIC_DRAW = gl.STATIC_DRAW;
     BufferUsage.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;
 
+    // notice that cube face has Y and Z flipped to match with Helix' RH Z-up coordinate system
     CubeFace.POSITIVE_X = gl.TEXTURE_CUBE_MAP_POSITIVE_X;
     CubeFace.NEGATIVE_X = gl.TEXTURE_CUBE_MAP_NEGATIVE_X;
-    CubeFace.POSITIVE_Y = gl.TEXTURE_CUBE_MAP_POSITIVE_Y;
-    CubeFace.NEGATIVE_Y = gl.TEXTURE_CUBE_MAP_NEGATIVE_Y;
-    CubeFace.POSITIVE_Z = gl.TEXTURE_CUBE_MAP_POSITIVE_Z;
-    CubeFace.NEGATIVE_Z = gl.TEXTURE_CUBE_MAP_NEGATIVE_Z;
+    CubeFace.POSITIVE_Y = gl.TEXTURE_CUBE_MAP_POSITIVE_Z;
+    CubeFace.NEGATIVE_Y = gl.TEXTURE_CUBE_MAP_NEGATIVE_Z;
+    CubeFace.POSITIVE_Z = gl.TEXTURE_CUBE_MAP_POSITIVE_Y;
+    CubeFace.NEGATIVE_Z = gl.TEXTURE_CUBE_MAP_NEGATIVE_Y;
 }
 
 function _tryFBO(dataType)

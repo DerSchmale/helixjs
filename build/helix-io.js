@@ -2392,7 +2392,7 @@ FbxNode.prototype = Object.create(FbxObject.prototype,
                         // for now there will be problems with this if several geometric transformations are used on the same geometry
                         if (this.GeometricRotation) {
                             var quat = new HX.Quaternion();
-                            quat.fromEuler(this.GeometricRotation.x * HX.DEG_TO_RAD, this.GeometricRotation.y * HX.DEG_TO_RAD, this.GeometricRotation.z * HX.DEG_TO_RAD);
+                            quat.fromEuler(this.GeometricRotation.x * HX.MathX.DEG_TO_RAD, this.GeometricRotation.y * HX.MathX.DEG_TO_RAD, this.GeometricRotation.z * HX.MathX.DEG_TO_RAD);
                             transform.rotation = quat;
                         }
                         if (this.GeometricScaling) transform.scale = this.GeometricScaling;
@@ -2484,7 +2484,7 @@ FbxNode.prototype.connectObject = function(obj)
 FbxNode.prototype._convertRotation = function(v)
 {
     var quat = new HX.Quaternion();
-    quat.fromEuler(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
+    quat.fromEuler(v.x * HX.MathX.DEG_TO_RAD, v.y * HX.MathX.DEG_TO_RAD, v.z * HX.MathX.DEG_TO_RAD);
     return quat;
 };
 
@@ -3031,9 +3031,9 @@ FBXAnimationConverter.prototype =
             this._assignJointBinding(cluster, jointData.index);
         }
 
-        var fakeJoint = new HX.SkeletonJoint();
-        this._fakeJointIndex = this._skeleton.numJoints;
-        this._skeleton.addJoint(fakeJoint);
+        // var fakeJoint = new HX.SkeletonJoint();
+        // this._fakeJointIndex = this._skeleton.numJoints;
+        // this._skeleton.addJoint(fakeJoint);
 
         // are joint poses local perhaps?
         /*for (var i = this._skeleton.numJoints - 1; i >= 0; --i) {
@@ -3268,9 +3268,9 @@ FBXAnimationConverter.prototype =
             pose["Lcl Translation"].copyFrom(transform.position);
             transform.rotation.toEuler(pose["Lcl Rotation"]);
 
-            pose["Lcl Rotation"].x *= HX.RAD_TO_DEG;
-            pose["Lcl Rotation"].y *= HX.RAD_TO_DEG;
-            pose["Lcl Rotation"].z *= HX.RAD_TO_DEG;
+            pose["Lcl Rotation"].x *= HX.MathX.RAD_TO_DEG;
+            pose["Lcl Rotation"].y *= HX.MathX.RAD_TO_DEG;
+            pose["Lcl Rotation"].z *= HX.MathX.RAD_TO_DEG;
             pose["Lcl Scaling"].copyFrom(transform.scale);
 
             tempJointPoses[i] = pose;
@@ -3307,6 +3307,8 @@ FBXAnimationConverter.prototype =
                     case "d|Z":
                         target.z = value;
                         break;
+                    default:
+                        throw new Error("Unknown target " + key);
                 }
             }
         }
@@ -3324,7 +3326,8 @@ FBXAnimationConverter.prototype =
             // not supporting non-uniform scaling at this point
             jointPose.scale.copyFrom(tempJointPose["Lcl Scaling"]);
             var rot = tempJointPose["Lcl Rotation"];
-            jointPose.rotation.fromEuler(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
+            jointPose.rotation.fromEuler(rot.x * HX.MathX.DEG_TO_RAD, rot.y * HX.MathX.DEG_TO_RAD, rot.z * HX.MathX.DEG_TO_RAD);
+
             skeletonPose.setJointPose(i, jointPose);
         }
         return skeletonPose;
@@ -3389,10 +3392,12 @@ FBXModelInstanceConverter.prototype =
         var modelInstance = new HX.ModelInstance(this._model, expandedMaterials);
         var clips = this._animationConverter.animationClips;
         if (clips) {
-            // if (clips.length === 1)
-            //     modelInstance.addComponent(new HX.SkeletonAnimation(clips[0]));
-            // else
-            //     throw new Error("TODO! Implement blend node");
+            var blendNode = new HX.SkeletonXFadeNode();
+            for (i = 0; i < clips.length; ++i)
+                blendNode.addClip(clips[i]);
+
+            modelInstance.addComponent(new HX.SkeletonAnimation(blendNode));
+            blendNode.fadeTo(clips[0], 0, false);
         }
 
         return modelInstance;

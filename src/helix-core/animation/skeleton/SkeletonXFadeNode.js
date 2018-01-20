@@ -51,7 +51,10 @@ SkeletonXFadeNode.prototype.addClip = function(clip)
  */
 SkeletonXFadeNode.prototype.fadeTo = function(node, time, sync)
 {
-    // So what if we have a clip that doesn't loop?
+    // immediately replace
+    if (time === 0 && node.looping === false) {
+        this._children = [];
+    }
 
     if (node instanceof String) node = new SkeletonClipNode(this._clips[node]);
     else if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
@@ -60,8 +63,9 @@ SkeletonXFadeNode.prototype.fadeTo = function(node, time, sync)
     // put the new one in front, it makes the update loop more efficient
     this._children.unshift({
         node: node,
-        weight: 0.0,
-        fadeSpeed: 1 / time,
+        // make sure that these are immediately replaced
+        weight: time === 0? 1.0 : 0.0,
+        fadeSpeed: time === 0? 10000.0 : 1 / time,
         sync: sync
     });
 };
@@ -89,8 +93,10 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
     if (totalWeight !== 0.0)
         syncedDuration /= totalWeight;
 
-    var syncedTimeScale = refChild.duration / syncedDuration;
-    var syncRatio = (refChild.time + dt * syncedTimeScale) / refChild.duration;
+    if (refChild) {
+        var syncedTimeScale = refChild.duration / syncedDuration;
+        var syncRatio = (refChild.time + dt * syncedTimeScale) / refChild.duration;
+    }
 
     // we're still fading if len > 1
     var updated = len > 1 && dt > 0;

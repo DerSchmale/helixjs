@@ -57,7 +57,7 @@ FbxNode.prototype = Object.create(FbxObject.prototype,
                         // for now there will be problems with this if several geometric transformations are used on the same geometry
                         if (this.GeometricRotation) {
                             var quat = new HX.Quaternion();
-                            quat.fromEuler(this.GeometricRotation.x * HX.DEG_TO_RAD, this.GeometricRotation.y * HX.DEG_TO_RAD, this.GeometricRotation.z * HX.DEG_TO_RAD);
+                            quat.fromEuler(this.GeometricRotation.x * HX.MathX.DEG_TO_RAD, this.GeometricRotation.y * HX.MathX.DEG_TO_RAD, this.GeometricRotation.z * HX.MathX.DEG_TO_RAD);
                             transform.rotation = quat;
                         }
                         if (this.GeometricScaling) transform.scale = this.GeometricScaling;
@@ -149,7 +149,7 @@ FbxNode.prototype.connectObject = function(obj)
 FbxNode.prototype._convertRotation = function(v)
 {
     var quat = new HX.Quaternion();
-    quat.fromEuler(v.x * HX.DEG_TO_RAD, v.y * HX.DEG_TO_RAD, v.z * HX.DEG_TO_RAD);
+    quat.fromEuler(v.x * HX.MathX.DEG_TO_RAD, v.y * HX.MathX.DEG_TO_RAD, v.z * HX.MathX.DEG_TO_RAD);
     return quat;
 };
 

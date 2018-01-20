@@ -50,9 +50,9 @@ FBXAnimationConverter.prototype =
             this._assignJointBinding(cluster, jointData.index);
         }
 
-        var fakeJoint = new HX.SkeletonJoint();
-        this._fakeJointIndex = this._skeleton.numJoints;
-        this._skeleton.addJoint(fakeJoint);
+        // var fakeJoint = new HX.SkeletonJoint();
+        // this._fakeJointIndex = this._skeleton.numJoints;
+        // this._skeleton.addJoint(fakeJoint);
 
         // are joint poses local perhaps?
         /*for (var i = this._skeleton.numJoints - 1; i >= 0; --i) {
@@ -287,9 +287,9 @@ FBXAnimationConverter.prototype =
             pose["Lcl Translation"].copyFrom(transform.position);
             transform.rotation.toEuler(pose["Lcl Rotation"]);
 
-            pose["Lcl Rotation"].x *= HX.RAD_TO_DEG;
-            pose["Lcl Rotation"].y *= HX.RAD_TO_DEG;
-            pose["Lcl Rotation"].z *= HX.RAD_TO_DEG;
+            pose["Lcl Rotation"].x *= HX.MathX.RAD_TO_DEG;
+            pose["Lcl Rotation"].y *= HX.MathX.RAD_TO_DEG;
+            pose["Lcl Rotation"].z *= HX.MathX.RAD_TO_DEG;
             pose["Lcl Scaling"].copyFrom(transform.scale);
 
             tempJointPoses[i] = pose;
@@ -326,6 +326,8 @@ FBXAnimationConverter.prototype =
                     case "d|Z":
                         target.z = value;
                         break;
+                    default:
+                        throw new Error("Unknown target " + key);
                 }
             }
         }
@@ -343,7 +345,8 @@ FBXAnimationConverter.prototype =
             // not supporting non-uniform scaling at this point
             jointPose.scale.copyFrom(tempJointPose["Lcl Scaling"]);
             var rot = tempJointPose["Lcl Rotation"];
-            jointPose.rotation.fromEuler(rot.x * HX.DEG_TO_RAD, rot.y * HX.DEG_TO_RAD, rot.z * HX.DEG_TO_RAD);
+            jointPose.rotation.fromEuler(rot.x * HX.MathX.DEG_TO_RAD, rot.y * HX.MathX.DEG_TO_RAD, rot.z * HX.MathX.DEG_TO_RAD);
+
             skeletonPose.setJointPose(i, jointPose);
         }
         return skeletonPose;

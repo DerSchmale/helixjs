@@ -191,6 +191,7 @@ SkeletonPose.prototype = {
         for (var i = 0; i < len; ++i) {
             var pose = this._jointPoses[i];
             var global = globals[i];
+
             var joint = skeleton.getJoint(i);
             var parentIndex = joint.parentIndex;
 

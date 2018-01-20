@@ -23,6 +23,7 @@ export {Transform} from "./math/Transform";
 
 export {Debug} from "./debug/Debug";
 export {DebugBoundsComponent} from "./debug/DebugBoundsComponent";
+export {DebugSkeletonComponent} from "./debug/DebugSkeletonComponent";
 export {Profiler} from "./debug/Profiler";
 
 export {BoundingVolume} from "./scene/BoundingVolume";

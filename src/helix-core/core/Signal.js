@@ -46,6 +46,15 @@ Signal.prototype =
     },
 
     /**
+     * Unbinds all bound functions.
+     */
+    unbindAll: function()
+    {
+        this._listeners = [];
+        this._lookUp = {};
+    },
+
+    /**
      * Dispatches the signal, causing all the listening functions to be called.
      * @param [payload] An optional object to be passed in as a parameter to the listening functions. Can be used to provide data.
      */

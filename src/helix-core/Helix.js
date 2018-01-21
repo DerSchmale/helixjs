@@ -431,7 +431,6 @@ export function init(canvas, options)
 {
     if (META.INITIALIZED) throw new Error("Can only initialize Helix once!");
 
-
     META.TARGET_CANVAS = canvas;
 
     canvas.width = canvas.clientWidth;
@@ -626,6 +625,18 @@ function _onFrameTick(dt)
     _clearGLStats();
     onFrame.dispatch(dt);
     frameTime = (performance || Date).now() - startTime;
+}
+
+/**
+ * This destroys Helix. Any resources created will become invalid.
+ */
+export function destroy()
+{
+    stop();
+    META.INITIALIZED = false;
+    onFrame.unbindAll();
+    onPreFrame.unbindAll();
+    GL._setGL(null);
 }
 
 /**

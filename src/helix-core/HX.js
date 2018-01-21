@@ -3,7 +3,7 @@ export {ShaderLibrary} from "./shader/ShaderLibrary";
 import "./../../build/tmp/shaderlib.js";
 
 export {
-    init, start, stop,
+    init, destroy, start, stop,
     META, capabilities,
     onPreFrame, onFrame,
     TextureFilter, CullMode, StencilOp, Comparison, ElementType, BlendFactor, BlendOperation, ClearMask, InitOptions, TextureFormat, DataType, BufferUsage, CubeFace

@@ -17,6 +17,7 @@ function Scene(rootNode)
     // the default partition is a BVH node
     //  -> or this may need to become an infinite bound node?
     this._rootNode = rootNode || new SceneNode();
+	this._rootNode.name = "Root";
     this._rootNode._setScene(this);
     this._skybox = null;
     this._entityEngine = new EntityEngine();

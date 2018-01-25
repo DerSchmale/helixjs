@@ -69,7 +69,7 @@ RayCaster.prototype.cast = function(ray, scene)
  */
 RayCaster.prototype.qualifies = function(object)
 {
-    return object.visible && object.worldBounds.intersectsRay(this._ray);
+    return object.raycast && object.visible && object.worldBounds.intersectsRay(this._ray);
 };
 
 /**

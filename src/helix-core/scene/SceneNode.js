@@ -16,6 +16,7 @@ import {BoundingAABB} from "./BoundingAABB";
  * @property {SceneNode} parent The parent of this node in the scene hierarchy.
  * @property {number} numChildren The amount of children attached to this node.
  * @property {boolean} visible Defines whether or not this and any children attached to this node should be rendered or not.
+ * @property {boolean} raycast Defines whether or not this and any children attached to this node should be tested when raycasting.
  * @property {BoundingVolume} worldBounds The bounding volume for this node and its children in world coordinates.
  * @property {Matrix4x4} worldMatrix The matrix transforming from the node's local space to world space.
  *
@@ -40,6 +41,7 @@ function SceneNode()
     this._worldBounds = this._createBoundingVolume();
     this._debugBounds = null;
     this._visible = true;
+    this._raycast = true;
     this._children = [];
 
     // used to determine sorting index for the render loop
@@ -79,6 +81,17 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         set: function(value)
         {
             this._visible = value;
+        }
+    },
+
+    raycast: {
+        get: function()
+        {
+            return this._raycast;
+        },
+        set: function(value)
+        {
+            this._raycast = value;
         }
     },
 

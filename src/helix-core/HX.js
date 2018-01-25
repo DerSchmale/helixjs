@@ -143,6 +143,8 @@ export {ConePrimitive} from "./mesh/primitives/ConePrimitive";
 export {CylinderPrimitive} from "./mesh/primitives/CylinderPrimitive";
 export {PlanePrimitive} from "./mesh/primitives/PlanePrimitive";
 export {TorusPrimitive} from "./mesh/primitives/TorusPrimitive";
+export {WireBoxPrimitive} from "./mesh/primitives/WireBoxPrimitive";
+export {WirePlanePrimitive} from "./mesh/primitives/WirePlanePrimitive";
 
 export {BlendState} from "./render/BlendState";
 export {Renderer} from "./render/Renderer";

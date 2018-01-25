@@ -2,7 +2,7 @@ import {Primitive} from "./Primitive";
 
 /**
  * @classdesc
- * WireWireBoxPrimitive provides a primitive box {@linkcode Model} to use with line types, useful for debugging.
+ * WireBoxPrimitive provides a primitive box {@linkcode Model} to use with line types, useful for debugging.
  *
  * @constructor
  * @param definition An object containing the following (optional) parameters:

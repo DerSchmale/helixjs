@@ -150,6 +150,21 @@ SceneNode.prototype.detach = function(child)
 SceneNode.prototype.getChild = function(index) { return this._children[index]; };
 
 /**
+ * Removes the scene node from the scene and destroys it and all of its children.
+ */
+SceneNode.prototype.destroy = function()
+{
+    if (this._parent)
+	    this._parent.detach(this);
+
+	var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+		this._children[i].destroy();
+};
+
+
+
+/**
  * @ignore
  * @private
  */

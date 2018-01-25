@@ -67,6 +67,14 @@ Scene.prototype = {
         this._rootNode.detach(child);
     },
 
+	/**
+     * Destroys the scene and all its children
+	 */
+	destroy: function()
+    {
+        this._rootNode.destroy();
+    },
+
     /**
      * The amount of children in the scene root node.
      */

@@ -4,7 +4,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width">
-	<title>Documentation Class: DebugBoundsComponent</title>
+	<title>Documentation Class: WirePlanePrimitive</title>
 
 	<!--[if lt IE 9]>
 	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -79,16 +79,16 @@
 		<div id="main">
 			
 
-	<h1 class="page-title">Class: DebugBoundsComponent</h1>
+	<h1 class="page-title">Class: WirePlanePrimitive</h1>
 <section>
 
 <header>
     
         <h2>
-        DebugBoundsComponent
+        WirePlanePrimitive
         </h2>
         
-            <div class="class-description"><p>DebugBoundsComponent is a component that allows rendering the world-space bounds of scene objects.</p></div>
+            <div class="class-description"><p>WirePlanePrimitive provides a primitive plane <a href="Model.html"><code>Model</code></a> to use with line types, useful for debugging.</p></div>
         
     
 </header>
@@ -100,7 +100,7 @@
         
 <hr>
 <dt>
-    <h4 class="name" id="DebugBoundsComponent"><span class="type-signature"></span>new DebugBoundsComponent(color)</h4>
+    <h4 class="name" id="WirePlanePrimitive"><span class="type-signature"></span>new WirePlanePrimitive(definition)</h4>
     
     
 </dt>
@@ -139,16 +139,10 @@
 
         <tr>
             
-                <td class="name"><code>color</code></td>
+                <td class="name"><code>definition</code></td>
             
 
             <td class="type">
-            
-                
-<span class="param-type"><a href="Color.html">Color</a></span>
-
-
-
             
             </td>
 
@@ -156,7 +150,14 @@
 
             
 
-            <td class="description last"><p>The color used to render the debug bounds.</p></td>
+            <td class="description last"><p>An object containing the following (optional) parameters:</p>
+<ul>
+    <li>numSegmentsW: The amount of horizontal segments</li>
+    <li>numSegmentsH: The amount of vertical segments </li>
+    <li>width: The width of the plane</li>
+    <li>height: The height of the plane</li>
+    <li>alignment: The axes along which to orient the plane. One of <code>WirePlanePrimitive#ALIGN_XZ</code>, <code>WirePlanePrimitive#ALIGN_XY</code>, <code>WirePlanePrimitive#ALIGN_YZ</code></li>
+</ul></td>
         </tr>
 
     
@@ -169,63 +170,413 @@
 <dl class="details">
     
 
-    <h5 class="subsection-title">Properties:</h5>
+	
 
-    <dl>
+	
 
-<table class="props table table-striped">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>color</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type"><a href="Color.html">Color</a></span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>The color used to render the debug bounds.</p></td>
-        </tr>
+	
 
     
-    </tbody>
-</table>
+
+    
+
+    
+
+    
+
+	
+
+	
+	<dt class="tag-author method-doc-label method-doc-details-label">Author:</dt>
+	<dd class="tag-author">
+		<ul>
+			<li>derschmale &lt;http://www.derschmale.com></li>
+			</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
 </dl>
 
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
+    
+    </div>
+
+    
+        <h3 class="subsection-title">Extends</h3>
+
+        
+
+
+    <ul>
+        <li><a href="Primitive.html">Primitive</a></li>
+    </ul>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Members</h3>
+
+        <dl>
+            
+<hr>
+<dt class="name" id="localBounds">
+    <h4 id="localBounds"><span class="type-signature"></span>localBounds<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The object-space bounding box.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
     
 
 	
 
 	
 
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Model.html#localBounds">Model#localBounds</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="name">
+    <h4 id="name"><span class="type-signature"></span>name<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The name of the Model.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Model.html#name">Model#name</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="numMeshes">
+    <h4 id="numMeshes"><span class="type-signature"></span>numMeshes<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The amount of <a href="Mesh.html"><code>Mesh</code></a> objects in this Model.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Model.html#numMeshes">Model#numMeshes</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="skeleton">
+    <h4 id="skeleton"><span class="type-signature"></span>skeleton<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The <a href="Skeleton.html"><code>Skeleton</code></a> used for skinning animations.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Model.html#skeleton">Model#skeleton</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        </dl>
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        <dl>
+            
+<hr>
+<dt>
+    <h4 class="name" id="addMesh"><span class="type-signature"></span>addMesh()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Adds a Mesh to the Model</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Model.html#addMesh">Model#addMesh</a>
+			</li>
+		</ul>
+	</dd>
 	
 
     
@@ -273,8 +624,77 @@
     
 </dd>
 
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="getMesh"><span class="type-signature"></span>getMesh()</h4>
     
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Retrieves the <a href="Mesh.html"><code>Mesh</code></a> at the given index.</p>
     </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Model.html#getMesh">Model#getMesh</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
 
     
 
@@ -288,6 +708,97 @@
 
     
 
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="removeMesh"><span class="type-signature"></span>removeMesh()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Removes a Mesh from the Model.</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Model.html#removeMesh">Model#removeMesh</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
+        </dl>
     
 
     
@@ -337,7 +848,7 @@
 <span class="jsdoc-message">
 	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a>
 	
-		on January 26th 2018, 7:24:50 pm
+		on January 26th 2018, 7:24:51 pm
 	
 	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
 </span>

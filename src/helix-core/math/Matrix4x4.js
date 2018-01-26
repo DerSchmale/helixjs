@@ -1414,6 +1414,11 @@ Matrix4x4.prototype =
         scale.x = flipSign * Math.sqrt(m0 * m0 + m1 * m1 + m2 * m2);
         scale.y = flipSign * Math.sqrt(m4 * m4 + m5 * m5 + m6 * m6);
         scale.z = flipSign * Math.sqrt(m8 * m8 + m9 * m9 + m10 * m10);
+
+        if (scale.x > 0.999 && scale.x < 1.001) scale.x = 1.0;
+        if (scale.y > 0.999 && scale.y < 1.001) scale.y = 1.0;
+        if (scale.z > 0.999 && scale.z < 1.001) scale.z = 1.0;
+
         var clone = this.clone();
 
         var rcpX = 1.0 / scale.x, rcpY = 1.0 / scale.y, rcpZ = 1.0 / scale.z;

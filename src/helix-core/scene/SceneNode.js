@@ -131,8 +131,10 @@ SceneNode.prototype.attach = function(child)
         return;
     }
 
-    if (child._parent)
-        throw new Error("Child is already parented!");
+    if (child._parent) {
+        // remove child from existing parent
+        child._parent.detach(child);
+	}
 
     child._parent = this;
     child._setScene(this._scene);
@@ -140,6 +142,63 @@ SceneNode.prototype.attach = function(child)
     this._children.push(child);
     this._invalidateWorldBounds();
 };
+
+/**
+ * Attaches a child SceneNode to this node.
+ *
+ * @param {SceneNode} child The child to be attached.
+ * @param {SceneNode} refChild The scene node after which to add the new child.
+ */
+SceneNode.prototype.attachAfter = function(child, refChild)
+{
+    if (refChild._parent !== this)
+        throw new Error("Reference child not a child of the scene node");
+
+	if (child._parent) {
+		// remove child from existing parent
+		child._parent.detach(child);
+	}
+
+	child._parent = this;
+	child._setScene(this._scene);
+
+	var index = this._children.indexOf(refChild);
+	this._children.splice(index + 1, 0, child);
+	this._invalidateWorldBounds();
+};
+
+/**
+ * Returns whether or not this scene node is contained by a parent. This works recursively.
+ */
+SceneNode.prototype.isContainedIn = function(parent)
+{
+    var p = this._parent;
+
+    while (p) {
+		if (p === parent) return true;
+		p = p._parent;
+    }
+
+    return false;
+};
+
+/**
+ * Returns whether or not a child is contained in a parent. This works recursively!
+ */
+SceneNode.prototype.contains = function(child)
+{
+    var index = this._children.indexOf(child);
+    if (index >= 0) return true;
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        if (this._children[i].contains(child))
+            return true;
+    }
+
+    return false;
+};
+
 
 /**
  * Removes a child SceneNode from this node.

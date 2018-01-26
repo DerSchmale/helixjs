@@ -8,6 +8,7 @@ function IntersectionData()
 {
     this.object = null;
     this.point = new Float4();
+    this.faceNormal = new Float4();
     this.t = Infinity;
 }
 
@@ -131,8 +132,11 @@ RayCaster.prototype._findClosest = function()
 
     }
 
-    if (hitData.object)
-        hitData.object.worldMatrix.transformPoint(hitData.point, hitData.point);
+    if (hitData.object) {
+        var worldMatrix = hitData.object.worldMatrix;
+		worldMatrix.transformPoint(hitData.point, hitData.point);
+		worldMatrix.transformNormal(hitData.faceNormal, hitData.faceNormal);
+	}
 
     return hitData;
 };
@@ -162,10 +166,10 @@ RayCaster.prototype._testMesh = function(ray, mesh, hitData)
         var dx1 = x1 - x0, dy1 = y1 - y0, dz1 = z1 - z0;
         var dx2 = x2 - x0, dy2 = y2 - y0, dz2 = z2 - z0;
 
-        // unnormalized normal
-        var nx = dz1*dy2 - dy1*dz2;
-        var ny = dx1*dz2 - dz1*dx2;
-        var nz = dy1*dx2 - dx1*dy2;
+        // unnormalized face normal
+        var nx = dy1*dz2 - dz1*dy2;
+        var ny = dz1*dx2 - dx1*dz2;
+        var nz = dx1*dy2 - dy1*dx2;
         // var rcpLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
         // nx *= rcpLen;
         // ny *= rcpLen;
@@ -208,12 +212,14 @@ RayCaster.prototype._testMesh = function(ray, mesh, hitData)
         var v = (dot11 * dotp2 - dot12 * dotp1) * rcpDenom;
 
         if ((u >= 0) && (v >= 0) && (u + v <= 1.0)) {
+            hitData.faceNormal.set(nx, ny, nz, 0.0);
             hitData.point.set(px, py, pz, 1.0);
             hitData.t = t;
             updated = true;
         }
     }
 
+	hitData.faceNormal.normalize();
     return updated;
 };
 

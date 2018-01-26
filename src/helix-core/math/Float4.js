@@ -107,6 +107,7 @@ Float4.cross = function(a, b, target)
     target.x = ay*bz - az*by;
     target.y = az*bx - ax*bz;
     target.z = ax*by - ay*bx;
+    target.w = 0;
     return target;
 };
 
@@ -463,6 +464,7 @@ Float4.prototype =
         this.x = ay*bz - az*by;
         this.y = az*bx - ax*bz;
         this.z = ax*by - ay*bx;
+        this.w = 0.0;
         return this;
     },
 

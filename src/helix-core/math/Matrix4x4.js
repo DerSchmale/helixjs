@@ -81,8 +81,46 @@ Matrix4x4.prototype =
         return target;
     },
 
-    /**
-     * Transforms a Float4 object, treating it as a vector (ie: disregarding translation). Slightly faster than transform for vectors.
+	/**
+	 * Transforms a Float4 object, treating it as a normal vector.
+	 *
+	 * @param v The Float4 object to transform.
+	 * @param [target] An optional target. If not provided, a new object will be created and returned.
+	 */
+	transformNormal: function (v, target)
+	{
+	    // calculate inverse
+	    var m = this._m;
+		var m0 = m[0], m1 = m[1], m2 = m[2];
+		var m4 = m[4], m5 = m[5], m6 = m[6];
+		var m8 = m[8], m9 = m[9], m10 = m[10];
+		var determinant = m0 * (m5 * m10 - m9 * m6) - m4 * (m1 * m10 - m9 * m2) + m8 * (m1 * m6 - m5 * m2);
+		var rcpDet = 1.0 / determinant;
+
+		var n0 = (m5 * m10 - m9 * m6) * rcpDet;
+		var n1 = (m9 * m2 - m1 * m10) * rcpDet;
+		var n2 = (m1 * m6 - m5 * m2) * rcpDet;
+		var n4 = (m8 * m6 - m4 * m10) * rcpDet;
+		var n5 = (m0 * m10 - m8 * m2) * rcpDet;
+		var n6 = (m4 * m2 - m0 * m6) * rcpDet;
+		var n8 = (m4 * m9 - m8 * m5) * rcpDet;
+		var n9 = (m8 * m1 - m0 * m9) * rcpDet;
+		var n10 = (m0 * m5 - m4 * m1) * rcpDet;
+
+		target = target || new Float4();
+		var x = v.x, y = v.y, z = v.z;
+
+		// multiply with transpose of that inverse
+		target.x = n0 * x + n1 * y + n2 * z;
+		target.y = n4 * x + n5 * y + n6 * z;
+		target.z = n8 * x + n9 * y + n10 * z;
+		target.w = 0.0;
+
+		return target;
+	},
+
+	/**
+	 * Transforms a Float4 object, treating it as a vector (ie: disregarding translation). Slightly faster than transform for vectors.
      *
      * @param v The Float4 object to transform.
      * @param [target] An optional target. If not provided, a new object will be created and returned.
@@ -1294,20 +1332,18 @@ Matrix4x4.prototype =
 
             Float4.cross(yAxis, up, xAxis);
 
-            if (Math.abs(xAxis.lengthSqr) > .0001) {
-                xAxis.normalize();
-            }
-            else {
+            if (Math.abs(xAxis.lengthSqr) < .0001) {
                 var altUp = new Float4(up.x, up.z, up.y, 0.0);
                 Float4.cross(yAxis, altUp, xAxis);
                 if (Math.abs(xAxis.lengthSqr) <= .0001) {
                     altUp.set(up.z, up.y, up.z, 0.0);
                     Float4.cross(yAxis, altUp, xAxis);
                 }
-                xAxis.normalize();
             }
 
-            Float4.cross(xAxis, yAxis, zAxis);
+			xAxis.normalize();
+
+			Float4.cross(xAxis, yAxis, zAxis);
 
             var m = this._m;
             m[0] = xAxis.x;

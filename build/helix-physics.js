@@ -818,6 +818,7 @@ Float4$1.prototype =
         this.x = ay*bz - az*by;
         this.y = az*bx - ax*bz;
         this.z = ax*by - ay*bx;
+        this.w = 0.0;
         return this;
     },
 

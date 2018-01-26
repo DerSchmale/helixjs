@@ -112,7 +112,8 @@ Entity.prototype.removeComponents = function(components)
 Entity.prototype.destroy = function()
 {
     SceneNode.prototype.destroy.call(this);
-	this.removeComponents(this._components);
+    if (this._components)
+	    this.removeComponents(this._components);
 };
 
 

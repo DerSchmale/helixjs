@@ -170,9 +170,8 @@ SceneNode.prototype.destroy = function()
     if (this._parent)
 	    this._parent.detach(this);
 
-	var len = this._children.length;
-    for (var i = 0; i < len; ++i)
-		this._children[i].destroy();
+    while(this._children.length)
+		this._children[0].destroy();
 };
 
 

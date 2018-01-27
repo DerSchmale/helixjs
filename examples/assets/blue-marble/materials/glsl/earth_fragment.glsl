@@ -12,9 +12,6 @@ uniform sampler2D specularMap;
 uniform sampler2D cloudMap;
 uniform sampler2D emissionMap;
 
-uniform float hx_transparencyMode;
-uniform vec2 hx_rcpRenderTargetResolution;
-
 uniform float normalSpecularReflectance;
 uniform float minRoughness;
 uniform float maxRoughness;

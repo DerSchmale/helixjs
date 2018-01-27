@@ -33,7 +33,6 @@ function ModelInstance(model, materials)
     this._model = null;
     this._meshInstances = [];
     this._castShadows = true;
-    this._skeletonMatrices = null;
     this._morphPose = null;
     this._meshInstancesInvalid = false;
     this._skeletonPose = null;

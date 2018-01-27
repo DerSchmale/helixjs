@@ -10,6 +10,7 @@ import {BasicMaterial} from "../material/BasicMaterial";
 import {Color} from "../core/Color";
 import {Float2} from "../math/Float2";
 import {Float4} from "../math/Float4";
+import {LightingModel} from "../render/LightingModel";
 
 /**
  * @classdesc
@@ -89,7 +90,7 @@ HMAT.prototype._gatherShaderFiles = function(data)
     }
     var lighting = data.lightingModel;
 
-    if (lighting && files.indexOf(lighting) < 0) files.push(this._correctURL(lighting));
+    if (lighting && lighting !== "unlit" && files.indexOf(lighting) < 0) files.push(this._correctURL(lighting));
 
     return files;
 };
@@ -138,7 +139,9 @@ HMAT.prototype._processMaterial = function(data, material)
         material.init();
     }
 
-    if (data.lightingModel)
+    if (data.lightingModel === "unlit")
+		material.lightingModel = LightingModel.Unlit;
+	else if (data.lightingModel)
         material.lightingModel = this._shaderLibrary.get(this._correctURL(data.lightingModel));
 
     this._applyUniforms(data, material);

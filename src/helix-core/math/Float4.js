@@ -397,7 +397,7 @@ Float4.prototype =
 
 			// must be traveling in opposite directions
 			if (Math.abs(denom) > 0.00001) {
-				var t = this.w - this.dot3(ray.origin) / denom;
+				var t = -(this.dot3(ray.origin) + this.w) / denom;
 				if (t > 0) {
 					target.copyFrom(ray.origin);
 					target.addScaled(ray.direction, t);

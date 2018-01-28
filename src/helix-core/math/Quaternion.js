@@ -51,6 +51,11 @@ Quaternion.prototype =
      */
     fromEuler: function(x, y, z)
     {
+    	if (y === undefined) {
+    		y = x.y;
+    		z = x.z;
+    		x = x.x;
+		}
         var cx = Math.cos(x * 0.5), cy = Math.cos(y * 0.5), cz = Math.cos(z * 0.5);
         var sx = Math.sin(x * 0.5), sy = Math.sin(y * 0.5), sz = Math.sin(z * 0.5);
 

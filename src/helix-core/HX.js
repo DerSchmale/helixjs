@@ -152,6 +152,7 @@ export {LightingModel} from "./render/LightingModel";
 export {View, MultiRenderer} from "./render/MultiRenderer";
 export {StencilState} from "./render/StencilState";
 
+export {FrameBuffer} from "./texture/FrameBuffer";
 export {Texture2D} from "./texture/Texture2D";
 export {TextureCube} from "./texture/TextureCube";
 export {TextureUtils} from "./texture/TextureUtils";

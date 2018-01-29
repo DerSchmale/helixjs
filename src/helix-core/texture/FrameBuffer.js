@@ -1,4 +1,4 @@
-import {capabilities} from "../Helix";
+import {capabilities, DataType, TextureFormat} from "../Helix";
 import {GL} from "../core/GL";
 import {Texture2D} from "./Texture2D";
 
@@ -108,7 +108,43 @@ FrameBuffer.prototype = {
         }
 
         return status === gl.FRAMEBUFFER_COMPLETE;
+    },
+
+	/**
+     * Retrieves pixel data from this FBO. Not recommended, as it can be slow.
+	 */
+	readPixels: function()
+    {
+		var gl = GL.gl;
+		var texture = this._colorTextures[0];
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
+
+		var numComponents;
+		var pixels;
+		switch(texture.format) {
+            case TextureFormat.RGB:
+				numComponents = 3;
+				break;
+            case TextureFormat.RGBA:
+				numComponents = 4;
+				break;
+		}
+
+		var len = this.width * this.height * numComponents;
+		switch(texture.dataType) {
+            case DataType.FLOAT:
+            case DataType.HALF_FLOAT:
+				pixels = new Float32Array(len);
+                break;
+            case DataType.UNSIGNED_BYTE:
+				pixels = new Uint8Array(len);
+				break;
+        }
+		gl.readPixels(0, 0, this.width, this.height, texture.format, texture.dataType, pixels);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return pixels;
     }
+
 };
 
 export { FrameBuffer };

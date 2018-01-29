@@ -222,6 +222,13 @@ SceneNode.prototype.detach = function(child)
 SceneNode.prototype.getChild = function(index) { return this._children[index]; };
 
 /**
+ * Returns the index of a child SceneNode.
+ * @param child
+ * @returns {*}
+ */
+SceneNode.prototype.getChildIndex = function(child) { return this._children.indexOf(child); };
+
+/**
  * Removes the scene node from the scene and destroys it and all of its children.
  */
 SceneNode.prototype.destroy = function()

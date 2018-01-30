@@ -31,6 +31,7 @@ import {BoundingAABB} from "./BoundingAABB";
 function SceneNode()
 {
     Transform.call(this);
+    this.meta = {};
     this._name = null;
     this._worldMatrix = new Matrix4x4();
     this._worldBoundsInvalid = true;

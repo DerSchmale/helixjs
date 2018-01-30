@@ -114,18 +114,18 @@ AssetLibrary.prototype =
     /**
      * Adds an asset to the loading queue.
      * @param {string} id The ID that will be used to retrieve the asset when loaded.
-     * @param {string} filename The filename relative to the base path provided in the constructor.
+     * @param {string} file Either a File object or a filename relative to the base path provided in the constructor.
      * @param {AssetLibrary.Type} type The type of asset to be loaded.
      * @param parser The parser used to parse the loaded data.
      * @param [options] An optional options object (importer-dependent)
      * @param [target] An optional empty target to contain the parsed asset. This allows lazy loading.
      * @see {@linkcode AssetLibrary#Type}
      */
-    queueAsset: function(id, filename, type, parser, options, target)
+    queueAsset: function(id, file, type, parser, options, target)
     {
         this._queue.push({
             id: id,
-            filename: this._basePath + filename,
+            file: (file instanceof Blob)? file : this._basePath + file,
             type: type,
             parser: parser,
             options: options,
@@ -148,16 +148,16 @@ AssetLibrary.prototype =
 
         switch (asset.type) {
             case AssetLibrary.Type.JSON:
-                this._json(asset.filename, asset.id);
+                this._json(asset.file, asset.id);
                 break;
             case AssetLibrary.Type.PLAIN_TEXT:
-                this._plainText(asset.filename, asset.id);
+                this._plainText(asset.file, asset.id);
                 break;
             case AssetLibrary.Type.RAW_BINARY:
-                this._rawBinary(asset.filename, asset.id);
+                this._rawBinary(asset.file, asset.id);
                 break;
             case AssetLibrary.Type.ASSET:
-                this._asset(asset.filename, asset.id, asset.parser, asset.options, asset.target);
+                this._asset(asset.file, asset.id, asset.parser, asset.options, asset.target);
                 break;
             default:
                 throw new Error("Unknown asset type " + asset.type + "!");
@@ -197,48 +197,69 @@ AssetLibrary.prototype =
     _json: function(file, id)
     {
         var self = this;
-        var loader = new XMLHttpRequest();
-        loader.overrideMimeType("application/json");
-        loader.open('GET', file, true);
-        loader.onreadystatechange = function()
-        {
-            if (loader.readyState === 4 && loader.status === 200) {
-                self._assets[id] = JSON.parse(loader.responseText);
-                self._onAssetLoaded();
-            }
-        };
-        loader.send(null);
+
+        this._loadText(file, function(result) {
+			self._assets[id] = JSON.parse(result);
+			self._onAssetLoaded();
+        });
+
     },
 
     _plainText: function(file, id)
     {
         var self = this;
-        var loader = new XMLHttpRequest();
-        loader.overrideMimeType("application/json");
-        loader.open('GET', file, true);
-        loader.onreadystatechange = function()
-        {
-            if (loader.readyState === 4 && loader.status === 200) {
-                self._assets[id] = loader.responseText;
-                self._onAssetLoaded();
-            }
-        };
 
-        loader.send(null);
+        this._loadText(file, function(result) {
+			self._assets[id] = result;
+			self._onAssetLoaded();
+        });
     },
+
+	_loadText: function(file, callback)
+	{
+		if (file instanceof Blob) {
+			var reader = new FileReader();
+			reader.onload = function() {
+				callback(reader.result);
+			};
+			reader.readAsText(file);
+		}
+		else {
+			var loader = new XMLHttpRequest();
+			loader.overrideMimeType("application/json");
+			loader.open('GET', file, true);
+			loader.onreadystatechange = function()
+			{
+				if (loader.readyState === 4 && loader.status === 200) {
+					callback(loader.responseText);
+				}
+			};
+			loader.send(null);
+		}
+	},
 
     _rawBinary: function(file, id)
     {
         var self = this;
-        var loader = new URLLoader();
-        loader.type = URLLoader.DATA_BINARY;
-        loader.onComplete = function (data)
-        {
-            self._assets[id] = data;
-            self._onAssetLoaded();
-        };
+        if (file instanceof Blob) {
+			var reader = new FileReader();
+			reader.onload = function() {
+				self._assets[id] = data;
+				self._onAssetLoaded();
+			};
+			reader.readAsArrayBuffer(file);
+        }
+        else {
+			var loader = new URLLoader();
+			loader.type = URLLoader.DATA_BINARY;
+			loader.onComplete = function (data)
+			{
+				self._assets[id] = data;
+				self._onAssetLoaded();
+			};
 
-        loader.load(file);
+			loader.load(file);
+		}
     },
 
     _asset: function(file, id, parser, options, target)

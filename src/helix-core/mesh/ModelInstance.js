@@ -37,7 +37,8 @@ function ModelInstance(model, materials)
     this._meshInstancesInvalid = false;
     this._skeletonPose = null;
 
-    this.init(model, materials);
+    if (model && materials)
+        this.init(model, materials);
 }
 
 ModelInstance.prototype = Object.create(Entity.prototype, {

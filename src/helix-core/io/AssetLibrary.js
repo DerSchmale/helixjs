@@ -140,7 +140,7 @@ AssetLibrary.prototype =
     load: function()
     {
         if (this._queue.length === 0) {
-            this.onComplete.dispatch();
+            this.onComplete.dispatch(this);
             return;
         }
 

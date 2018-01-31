@@ -279,6 +279,7 @@ AssetLibrary.prototype =
         }, this);
 
         this._assets[id] = loader.load(file, target);
+		this._assets[id].name = id;
     },
 
     _onAssetLoaded: function()

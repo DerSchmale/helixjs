@@ -1,4 +1,4 @@
-import {Light} from "./Light";
+import {DirectLight} from "./DirectLight";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {DeferredPointShader} from "./shaders/DeferredPointShader";
 import {Float4} from "../math/Float4";
@@ -16,13 +16,13 @@ import {OmniShadowMapRenderer} from "../render/OmniShadowMapRenderer";
  *
  * @constructor
  *
- * @extends Light
+ * @extends DirectLight
  *
  * @author derschmale <http://www.derschmale.com>
  */
 function PointLight()
 {
-    Light.call(this);
+	DirectLight.call(this);
 
     if (!PointLight._deferredShaderSphere && META.OPTIONS.deferredLightingModel) {
         PointLight._deferredShaderSphere = new DeferredPointShader(true, false);
@@ -38,7 +38,7 @@ function PointLight()
     this._shadowMapRenderer = null;
 }
 
-PointLight.prototype = Object.create(Light.prototype,
+PointLight.prototype = Object.create(DirectLight.prototype,
     {
         castShadows: {
             get: function()

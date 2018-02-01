@@ -110,6 +110,7 @@ export {JPG, PNG} from "./io/JPG_PNG";
 export {AmbientLight} from "./light/AmbientLight";
 export {DirectionalLight} from "./light/DirectionalLight";
 export {Light} from "./light/Light";
+export {DirectLight} from "./light/DirectLight";
 export {LightProbe} from "./light/LightProbe";
 export {DynamicLightProbe} from "./light/DynamicLightProbe";
 export {PointLight} from "./light/PointLight";

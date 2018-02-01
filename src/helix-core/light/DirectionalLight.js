@@ -1,4 +1,4 @@
-import {Light} from "./Light";
+import {DirectLight} from "../light/DirectLight";
 import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {BoundingVolume} from "../scene/BoundingVolume";
@@ -22,7 +22,7 @@ import {META} from "../Helix";
  */
 function DirectionalLight()
 {
-    Light.call(this);
+	DirectLight.call(this);
 
     if (!DirectionalLight._deferredShader && META.OPTIONS.deferredLightingModel)
         DirectionalLight._initDeferredShaders();
@@ -45,7 +45,7 @@ DirectionalLight._initDeferredShaders = function()
     DirectionalLight._deferredShadowShader = new DeferredDirectionalShader(true);
 };
 
-DirectionalLight.prototype = Object.create(Light.prototype,
+DirectionalLight.prototype = Object.create(DirectLight.prototype,
     {
         castShadows: {
             get: function()

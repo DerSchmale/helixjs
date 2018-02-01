@@ -17,7 +17,7 @@ function OBJ()
  * @author derschmale <http://www.derschmale.com>
  */
 {
-    HX.Importer.call(this, HX.SceneNode);
+    HX.Importer.call(this, HX.Entity);
     this._objects = [];
     this._vertices = [];
     this._normals = [];

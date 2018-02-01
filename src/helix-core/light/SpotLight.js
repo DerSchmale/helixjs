@@ -1,4 +1,4 @@
-import {Light} from "./Light";
+import {DirectLight} from "./DirectLight";
 import {Float4} from "../math/Float4";
 import {META} from "../Helix";
 import {MathX} from "../math/MathX";
@@ -21,13 +21,13 @@ import {SpotShadowMapRenderer} from "../render/SpotShadowMapRenderer";
  *
  * @constructor
  *
- * @extends Light
+ * @extends DirectLight
  *
  * @author derschmale <http://www.derschmale.com>
  */
 function SpotLight()
 {
-    Light.call(this);
+	DirectLight.call(this);
 
     if (!SpotLight._deferredShaderSphere && META.OPTIONS.deferredLightingModel) {
         SpotLight._deferredShaderCone = new DeferredSpotShader(true, false);
@@ -52,7 +52,7 @@ function SpotLight()
     this._shadowMapRenderer = null;
 }
 
-SpotLight.prototype = Object.create(Light.prototype,
+SpotLight.prototype = Object.create(DirectLight.prototype,
     {
         castShadows: {
             get: function()

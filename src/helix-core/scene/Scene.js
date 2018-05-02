@@ -16,13 +16,28 @@ function Scene(rootNode)
 {
     // the default partition is a BVH node
     //  -> or this may need to become an infinite bound node?
+    this._name = null;
     this._rootNode = rootNode || new SceneNode();
+	this._rootNode.name = "Root";
     this._rootNode._setScene(this);
     this._skybox = null;
     this._entityEngine = new EntityEngine();
 }
 
 Scene.prototype = {
+	/**
+     * The name of the scene.
+	 */
+    get name()
+    {
+        return this._name;
+    },
+
+    set name(value)
+    {
+        this._name = value;
+    },
+
     /**
      * The rootnode of the scene.
      */
@@ -64,6 +79,14 @@ Scene.prototype = {
     detach: function(child)
     {
         this._rootNode.detach(child);
+    },
+
+	/**
+     * Destroys the scene and all its children
+	 */
+	destroy: function()
+    {
+        this._rootNode.destroy();
     },
 
     /**

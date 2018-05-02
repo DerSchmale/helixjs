@@ -2,7 +2,6 @@ import { onPreFrame } from '../Helix';
 import {EntitySet} from "./EntitySet";
 import {ArrayUtils} from "../utils/ArrayUtils";
 import {Bitfield} from "../core/Bitfield";
-import {Debug} from "../debug/Debug";
 
 /**
  * @classdesc

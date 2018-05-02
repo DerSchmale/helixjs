@@ -107,6 +107,17 @@ Entity.prototype.removeComponents = function(components)
 };
 
 /**
+ * @inheritDoc
+ */
+Entity.prototype.destroy = function()
+{
+    SceneNode.prototype.destroy.call(this);
+    if (this._components)
+	    this.removeComponents(this._components);
+};
+
+
+/**
  * Returns whether or not the Entity has a component of a given type assigned to it.
  */
 Entity.prototype.hasComponentType = function(type)
@@ -203,6 +214,5 @@ Entity.prototype._setScene = function(scene)
 
     SceneNode.prototype._setScene.call(this, scene);
 };
-
 
 export { Entity };

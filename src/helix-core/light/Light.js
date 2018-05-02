@@ -1,16 +1,18 @@
 import {Color} from "../core/Color";
 import {Entity} from "../entity/Entity";
+import {BoundingVolume} from "../scene/BoundingVolume";
 import {META} from "../Helix";
+import {PropertyListener} from "../core/PropertyListener";
+import {DirectLight} from "./DirectLight";
 
 /**
  * @classdesc
- * Light forms a base class for lights.
+ * Light is a base class for light objects.
  *
- * @property {number} intensity The intensity of the light.
- * @property {Color} color The color of the light.
+ * @property {Color} color The color of the ambient light.
+ * @property {number} intensity The intensity of the ambient light.
  *
  * @abstract
- *
  * @constructor
  *
  * @extends Entity
@@ -19,72 +21,70 @@ import {META} from "../Helix";
  */
 function Light()
 {
-    Entity.call(this);
-    //this._type = this.getTypeID();
-    this._intensity = 3.1415;
-    this._color = new Color(1.0, 1.0, 1.0);
-    this._scaledIrradiance = new Color();
-    this._castShadows = false;
-    this._updateScaledIrradiance();
+	// TODO: Refactor, all the light code is generally the same as for HX.Light and HX.AmbientLight
+	// AMBIENT LIGHT IS NOT ACTUALLY A REAL LIGHT OBJECT
+	Entity.call(this);
+	this._scaledIrradiance = new Color();
+	this._intensity = .2;
+	this._color = new Color(1, 1, 1);
+
+	this._colorChangeListener = new PropertyListener();
+	this._colorChangeListener.add(this._color, "r");
+	this._colorChangeListener.add(this._color, "g");
+	this._colorChangeListener.add(this._color, "b");
+	this._colorChangeListener.onChange.bind(this._updateScaledIrradiance, this);
+
+	this._scaledIrradiance = new Color();
+	this._updateScaledIrradiance();
 }
 
 Light.prototype = Object.create(Entity.prototype, {
-    intensity: {
-        get: function ()
-        {
-            return this._intensity;
-        },
+	color: {
+		get: function() { return this._color; },
+		set: function(value)
+		{
+			this._colorChangeListener.enabled = false;
+			if (isNaN(value))
+				this._color.copyFrom(value);
+			else
+				this._color.set(value);
+			this._colorChangeListener.enabled = true;
+			this._updateScaledIrradiance();
+		}
+	},
 
-        set: function (value)
-        {
-            this._intensity = value;
-            this._updateScaledIrradiance();
-        }
-    },
-
-    color: {
-        get: function ()
-        {
-            return this._color;
-        },
-
-        /**
-         * Value can be hex or
-         * @param value
-         */
-        set: function (value)
-        {
-            this._color = isNaN(value) ? value : new Color(value);
-            this._updateScaledIrradiance();
-        }
-    }
+	intensity: {
+		get: function() { return this._intensity; },
+		set: function(value)
+		{
+			this._intensity = value;
+			this._updateScaledIrradiance();
+		},
+	}
 });
 
-Light.prototype.acceptVisitor = function (visitor)
-{
-    Entity.prototype.acceptVisitor.call(this, visitor);
-    visitor.visitLight(this);
-};
-
+/**
+ * Calculates the luminance of the light (color * intensity).
+ */
 Light.prototype.luminance = function ()
 {
-    return this._color.luminance() * this._intensity;
+	return this._color.luminance() * this._intensity;
 };
 
-Light.prototype._updateScaledIrradiance = function ()
+/**
+ * @ignore
+ */
+Light.prototype._updateScaledIrradiance = function()
 {
-    // this includes 1/PI radiance->irradiance factor
-    var scale = this._intensity / Math.PI;
+	// do not scale by 1/PI. It feels weird to control for general lights.
+	if (META.OPTIONS.useGammaCorrection)
+		this._color.gammaToLinear(this._scaledIrradiance);
+	else
+		this._scaledIrradiance.copyFrom(this._color);
 
-    if (META.OPTIONS.useGammaCorrection)
-        this._color.gammaToLinear(this._scaledIrradiance);
-    else
-        this._scaledIrradiance.copyFrom(this._color);
-
-    this._scaledIrradiance.r *= scale;
-    this._scaledIrradiance.g *= scale;
-    this._scaledIrradiance.b *= scale;
-    this._invalidateWorldBounds();
+	this._scaledIrradiance.r *= this._intensity;
+	this._scaledIrradiance.g *= this._intensity;
+	this._scaledIrradiance.b *= this._intensity;
 };
 
 export { Light };

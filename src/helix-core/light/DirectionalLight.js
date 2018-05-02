@@ -1,4 +1,4 @@
-import {Light} from "./Light";
+import {DirectLight} from "../light/DirectLight";
 import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {BoundingVolume} from "../scene/BoundingVolume";
@@ -20,7 +20,7 @@ import {CascadeShadowMapRenderer} from "../render/CascadeShadowMapRenderer";
  */
 function DirectionalLight()
 {
-    Light.call(this);
+	DirectLight.call(this);
 
     this.depthBias = .0;
     this._shadowMapSize = 1024;

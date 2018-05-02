@@ -564,7 +564,7 @@ export function init(canvas, options)
         console.warn("Half float FBOs not supported");
     }
 
-    if (capabilities.EXT_FLOAT_TEXTURES && _tryFBO(HX.FLOAT)) {
+    if (capabilities.EXT_FLOAT_TEXTURES && _tryFBO(DataType.FLOAT)) {
         capabilities.FLOAT_FBO = true;
     } else {
         capabilities.FLOAT_FBO = false;

@@ -16,6 +16,7 @@ import {BoundingAABB} from "./BoundingAABB";
  * @property {SceneNode} parent The parent of this node in the scene hierarchy.
  * @property {number} numChildren The amount of children attached to this node.
  * @property {boolean} visible Defines whether or not this and any children attached to this node should be rendered or not.
+ * @property {boolean} raycast Defines whether or not this and any children attached to this node should be tested when raycasting.
  * @property {BoundingVolume} worldBounds The bounding volume for this node and its children in world coordinates.
  * @property {Matrix4x4} worldMatrix The matrix transforming from the node's local space to world space.
  *
@@ -30,6 +31,7 @@ import {BoundingAABB} from "./BoundingAABB";
 function SceneNode()
 {
     Transform.call(this);
+    this.meta = {};
     this._name = null;
     this._worldMatrix = new Matrix4x4();
     this._worldBoundsInvalid = true;
@@ -40,9 +42,8 @@ function SceneNode()
     this._worldBounds = this._createBoundingVolume();
     this._debugBounds = null;
     this._visible = true;
+    this._raycast = true;
     this._children = [];
-
-    this.onWorldBoundsInvalid = new HX.Signal();
 
     // used to determine sorting index for the render loop
     // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
@@ -84,6 +85,17 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         }
     },
 
+    raycast: {
+        get: function()
+        {
+            return this._raycast;
+        },
+        set: function(value)
+        {
+            this._raycast = value;
+        }
+    },
+
     worldBounds: {
         get: function()
         {
@@ -120,8 +132,10 @@ SceneNode.prototype.attach = function(child)
         return;
     }
 
-    if (child._parent)
-        throw new Error("Child is already parented!");
+    if (child._parent) {
+        // remove child from existing parent
+        child._parent.detach(child);
+	}
 
     child._parent = this;
     child._setScene(this._scene);
@@ -129,6 +143,63 @@ SceneNode.prototype.attach = function(child)
     this._children.push(child);
     this._invalidateWorldBounds();
 };
+
+/**
+ * Attaches a child SceneNode to this node.
+ *
+ * @param {SceneNode} child The child to be attached.
+ * @param {SceneNode} refChild The scene node after which to add the new child.
+ */
+SceneNode.prototype.attachAfter = function(child, refChild)
+{
+    if (refChild._parent !== this)
+        throw new Error("Reference child not a child of the scene node");
+
+	if (child._parent) {
+		// remove child from existing parent
+		child._parent.detach(child);
+	}
+
+	child._parent = this;
+	child._setScene(this._scene);
+
+	var index = this._children.indexOf(refChild);
+	this._children.splice(index + 1, 0, child);
+	this._invalidateWorldBounds();
+};
+
+/**
+ * Returns whether or not this scene node is contained by a parent. This works recursively.
+ */
+SceneNode.prototype.isContainedIn = function(parent)
+{
+    var p = this._parent;
+
+    while (p) {
+		if (p === parent) return true;
+		p = p._parent;
+    }
+
+    return false;
+};
+
+/**
+ * Returns whether or not a child is contained in a parent. This works recursively!
+ */
+SceneNode.prototype.contains = function(child)
+{
+    var index = this._children.indexOf(child);
+    if (index >= 0) return true;
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i) {
+        if (this._children[i].contains(child))
+            return true;
+    }
+
+    return false;
+};
+
 
 /**
  * Removes a child SceneNode from this node.
@@ -150,6 +221,27 @@ SceneNode.prototype.detach = function(child)
  * Retrieves a child SceneNode with the given index.
  */
 SceneNode.prototype.getChild = function(index) { return this._children[index]; };
+
+/**
+ * Returns the index of a child SceneNode.
+ * @param child
+ * @returns {*}
+ */
+SceneNode.prototype.getChildIndex = function(child) { return this._children.indexOf(child); };
+
+/**
+ * Removes the scene node from the scene and destroys it and all of its children.
+ */
+SceneNode.prototype.destroy = function()
+{
+    if (this._parent)
+	    this._parent.detach(this);
+
+    while(this._children.length)
+		this._children[0].destroy();
+};
+
+
 
 /**
  * @ignore

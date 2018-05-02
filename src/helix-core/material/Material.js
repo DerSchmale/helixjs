@@ -411,7 +411,7 @@ Material.prototype =
      * Sets a uniform value to the shaders.
      * @param name The uniform name as it appears in the shader code.
      * @param value The uniform value. For vectors, this can be a {@linkcode Float2}, {@linkcode Float4}, or an Array
-     * @param overwrite (Optional) If the value was already set, ignore the new value.
+     * @param [overwrite] If the value was already set, ignore the new value. Defaults to true.
      */
     setUniform: function(name, value, overwrite)
     {

@@ -1329,8 +1329,10 @@ Signal.prototype =
     unbind: function(listener)
     {
         var index = this._lookUp[listener];
-        this._listeners.splice(index, 1);
-        delete this._lookUp[listener];
+        if (index !== undefined) {
+			this._listeners.splice(index, 1);
+			delete this._lookUp[listener];
+		}
     },
 
     /**
@@ -1566,7 +1568,7 @@ function OBJ()
  * @author derschmale <http://www.derschmale.com>
  */
 {
-    HX$1.Importer.call(this, HX$1.SceneNode);
+    HX$1.Importer.call(this, HX$1.Entity);
     this._objects = [];
     this._vertices = [];
     this._normals = [];

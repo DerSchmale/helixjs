@@ -41,8 +41,10 @@ Signal.prototype =
     unbind: function(listener)
     {
         var index = this._lookUp[listener];
-        this._listeners.splice(index, 1);
-        delete this._lookUp[listener];
+        if (index !== undefined) {
+			this._listeners.splice(index, 1);
+			delete this._lookUp[listener];
+		}
     },
 
     /**

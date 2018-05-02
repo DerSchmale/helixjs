@@ -1,4 +1,4 @@
-import {Light} from "./Light";
+import {DirectLight} from "./DirectLight";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {Float4} from "../math/Float4";
 import {META} from "../Helix";
@@ -15,13 +15,13 @@ import {OmniShadowMapRenderer} from "../render/OmniShadowMapRenderer";
  *
  * @constructor
  *
- * @extends Light
+ * @extends DirectLight
  *
  * @author derschmale <http://www.derschmale.com>
  */
 function PointLight()
 {
-    Light.call(this);
+	DirectLight.call(this);
 
     this._radius = 100.0;
     this.intensity = 3.1415;
@@ -30,7 +30,7 @@ function PointLight()
     this._shadowMapRenderer = null;
 }
 
-PointLight.prototype = Object.create(Light.prototype,
+PointLight.prototype = Object.create(DirectLight.prototype,
     {
         castShadows: {
             get: function()

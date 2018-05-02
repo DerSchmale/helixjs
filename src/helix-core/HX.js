@@ -110,6 +110,7 @@ export {JPG, PNG} from "./io/JPG_PNG";
 export {AmbientLight} from "./light/AmbientLight";
 export {DirectionalLight} from "./light/DirectionalLight";
 export {Light} from "./light/Light";
+export {DirectLight} from "./light/DirectLight";
 export {LightProbe} from "./light/LightProbe";
 export {DynamicLightProbe} from "./light/DynamicLightProbe";
 export {PointLight} from "./light/PointLight";
@@ -143,6 +144,8 @@ export {ConePrimitive} from "./mesh/primitives/ConePrimitive";
 export {CylinderPrimitive} from "./mesh/primitives/CylinderPrimitive";
 export {PlanePrimitive} from "./mesh/primitives/PlanePrimitive";
 export {TorusPrimitive} from "./mesh/primitives/TorusPrimitive";
+export {WireBoxPrimitive} from "./mesh/primitives/WireBoxPrimitive";
+export {WirePlanePrimitive} from "./mesh/primitives/WirePlanePrimitive";
 
 export {BlendState} from "./render/BlendState";
 export {Renderer} from "./render/Renderer";
@@ -150,6 +153,7 @@ export {LightingModel} from "./render/LightingModel";
 export {View, MultiRenderer} from "./render/MultiRenderer";
 export {StencilState} from "./render/StencilState";
 
+export {FrameBuffer} from "./texture/FrameBuffer";
 export {Texture2D} from "./texture/Texture2D";
 export {TextureCube} from "./texture/TextureCube";
 export {TextureUtils} from "./texture/TextureUtils";

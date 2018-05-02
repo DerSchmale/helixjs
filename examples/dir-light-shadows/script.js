@@ -28,7 +28,6 @@ window.onload = function ()
     }
 
     options.defaultLightingModel = HX.LightingModel.GGX;
-    options.deferredLightingModel = HX.LightingModel.GGX;
 
     project.init(document.getElementById('webglContainer'), options);
 };

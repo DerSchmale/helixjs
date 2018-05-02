@@ -1,6 +1,5 @@
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Entity} from "../entity/Entity";
-import {DeferredLightProbeShader} from "./shaders/DeferredLightProbeShader";
 import {META} from "../Helix";
 import {Float4} from "../math/Float4";
 
@@ -30,9 +29,6 @@ function LightProbe(diffuseTexture, specularTexture)
     this._specularTexture = specularTexture;
     this._diffuseTexture = diffuseTexture;
     this._size = undefined;
-
-    if (META.OPTIONS.deferredLightingModel)
-        this._deferredShader = new DeferredLightProbeShader(this);
 }
 
 // conversion range for spec power to mip. Lys style.
@@ -55,14 +51,9 @@ LightProbe.prototype = Object.create(Entity.prototype,
             set: function(value)
             {
                 if (this._size === value) return;
-                var deferredInvalid = false;
-                if (META.OPTIONS.deferredLightingModel && (this._size === undefined || value === undefined))
-                    deferredInvalid = true;
 
                 this._size = value;
                 this._invalidateWorldBounds();
-
-                if (deferredInvalid) this._deferredShader = new DeferredLightProbeShader(this);
             },
         }
     });
@@ -100,14 +91,6 @@ LightProbe.prototype.acceptVisitor = function (visitor)
 {
     Entity.prototype.acceptVisitor.call(this, visitor);
     visitor.visitLight(this);
-};
-
-/**
- * ignore
- */
-LightProbe.prototype.renderDeferredLighting = function(renderer)
-{
-    this._deferredShader.execute(renderer);
 };
 
 export { LightProbe };

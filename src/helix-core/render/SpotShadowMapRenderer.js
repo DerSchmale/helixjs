@@ -1,22 +1,12 @@
 import {Color} from "../core/Color";
-import {RenderCollector} from "./RenderCollector";
-import {ApplyGammaShader, CopyChannelsShader} from "./UtilShaders";
 import {Texture2D} from "../texture/Texture2D";
 import {MaterialPass} from "../material/MaterialPass";
 import {RectMesh} from "../mesh/RectMesh";
-import {_HX_, TextureFormat, TextureFilter, TextureWrapMode, META, capabilities, Comparison} from "../Helix";
+import {META, TextureFilter, TextureWrapMode} from "../Helix";
 import {FrameBuffer} from "../texture/FrameBuffer";
 import {GL} from "../core/GL";
 import {RenderUtils} from "./RenderUtils";
 import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
-import {DirectionalLight} from "../light/DirectionalLight";
-import {PointLight} from "../light/PointLight";
-import {LightProbe} from "../light/LightProbe";
-import {GBuffer} from "./GBuffer";
-import {BlendState} from "./BlendState";
-import {DeferredAmbientShader} from "../light/shaders/DeferredAmbientShader";
-import {RenderPath} from "./RenderPath";
-import {SpotLight} from "../light/SpotLight";
 import {PerspectiveCamera} from "../camera/PerspectiveCamera";
 import {SpotShadowCasterCollector} from "./SpotShadowCasterCollector";
 

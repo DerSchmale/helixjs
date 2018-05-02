@@ -10,12 +10,12 @@ uniform float hx_cameraFrustumRange;
 uniform float hx_cameraNearPlaneDistance;
 uniform vec3 hx_cameraWorldPosition;
 
-uniform sampler2D hx_gbufferNormalDepth;
+uniform sampler2D hx_normalDepthBuffer;
 uniform sampler2D hx_backbuffer;
 
 void main()
 {
-    vec4 normalDepth = texture2D(hx_gbufferNormalDepth, uv);
+    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);
 	vec4 color = texture2D(hx_backbuffer, uv);
 	float depth = hx_decodeLinearDepth(normalDepth);
 	// do not fog up skybox

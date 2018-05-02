@@ -6,10 +6,10 @@ var RenderPath = {
     FORWARD_DYNAMIC: 0,
     // forward with fixed assigned set of lights
     FORWARD_FIXED: 1,
-    // deferred lighting
-    DEFERRED: 2,
 
-    NUM_PATHS: 3
+    // WebGL 2 could use a separate render path supporting dynamic loops
+
+    NUM_PATHS: 2
 };
 
 export { RenderPath };

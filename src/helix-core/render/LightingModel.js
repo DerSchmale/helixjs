@@ -2,9 +2,7 @@ import { ShaderLibrary } from '../shader/ShaderLibrary';
 
 /**
  * <p>LightingModel defines a lighting model to be used by a {@Material}. A default lighting model can be assigned to
- * {@linkcode InitOptions#defaultLightingModel}, which will mean any material will use it by default. In addition,
- * any material using the deferred lighting model without a {@linkcode BlendState} will use the deferred rendering path,
- * potentially increasing the performance for heavily lit scenes.</p>
+ * {@linkcode InitOptions#defaultLightingModel}, which will mean any material will use it by default. </p>
  *
  * <p>You can add pass your own lighting models as a string into a material, as long as the glsl code contains the
  * hx_brdf function</p>

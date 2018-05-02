@@ -10,11 +10,7 @@ import {ForwardLitPointPass} from "./passes/ForwardLitPointPass";
 import {ForwardLitSpotPass} from "./passes/ForwardLitSpotPass";
 import {ForwardLitProbePass} from "./passes/ForwardLitProbePass";
 import {ForwardFixedLitPass} from "./passes/ForwardFixedLitPass";
-import {GBufferAlbedoPass} from "./passes/GBufferAlbedoPass";
-import {GBufferNormalDepthPass} from "./passes/GBufferNormalDepthPass";
-import {GBufferSpecularPass} from "./passes/GBufferSpecularPass";
-import {GBufferFullPass} from "./passes/GBufferFullPass";
-import {ApplyGBufferPass} from "./passes/ApplyGBufferPass";
+import {NormalDepthPass} from "./passes/NormalDepthPass";
 import {RenderPath} from "../render/RenderPath";
 import {SpotShadowPass} from "./passes/SpotShadowPass";
 import {PointShadowPass} from "./passes/PointShadowPass";
@@ -105,7 +101,7 @@ Material.prototype =
             this._renderPath = RenderPath.FORWARD_FIXED;
             this.setPass(MaterialPass.BASE_PASS, new ForwardFixedLitPass(vertex, fragment, this._lightingModel, this._fixedLights));
         }
-        else if (this._lightingModel !== META.OPTIONS.deferredLightingModel || this._blendState) {
+        else {
             this._renderPath = RenderPath.FORWARD_DYNAMIC;
 
             this.setPass(MaterialPass.BASE_PASS, new ForwardLitBasePass(vertex, fragment));
@@ -118,27 +114,12 @@ Material.prototype =
             this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_PASS, new ForwardLitSpotPass(vertex, fragment, this._lightingModel, true));
             this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(vertex, fragment, this._lightingModel));
         }
-        else {
-            this._renderPath = RenderPath.DEFERRED;
-            this.setPass(MaterialPass.BASE_PASS, new ApplyGBufferPass(vertex, fragment));
-
-            // only deferred needs these passes:
-            if (!capabilities.GBUFFER_MRT) {
-                this.setPass(MaterialPass.GBUFFER_ALBEDO_PASS, new GBufferAlbedoPass(vertex, fragment));
-                this.setPass(MaterialPass.GBUFFER_SPECULAR_PASS, new GBufferSpecularPass(vertex, fragment));
-            }
-        }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(vertex, fragment));
         this.setPass(MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, new PointShadowPass(vertex, fragment));
         this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS, new SpotShadowPass(vertex, fragment));
 
-        // always may need these passes for AO
-        if (capabilities.GBUFFER_MRT)
-            this.setPass(MaterialPass.GBUFFER_PASS, new GBufferFullPass(vertex, fragment));
-
-        // may need this even with MRT, if no deferred materials are selected
-        this.setPass(MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, new GBufferNormalDepthPass(vertex, fragment));
+        this.setPass(MaterialPass.NORMAL_DEPTH_PASS, new NormalDepthPass(vertex, fragment));
 
         this._initialized = true;
     },
@@ -203,8 +184,7 @@ Material.prototype =
     },
 
     /**
-     * The {@options LightingModel} used to light this material. If this is set to {@linkcode InitOptions#deferredLightingModel}
-     * and no blendState is assigned, this material will be rendered using the deferred render path.
+     * The {@options LightingModel} used to light this material.
      */
     get lightingModel()
     {
@@ -259,10 +239,10 @@ Material.prototype =
     {
         this._writeDepth = value;
 
-        if (!value && this._passes[MaterialPass.GBUFFER_NORMAL_DEPTH_PASS]) {
-            this._passes[MaterialPass.GBUFFER_NORMAL_DEPTH_PASS] = null;
+        if (!value && this._passes[MaterialPass.NORMAL_DEPTH_PASS]) {
+            this._passes[MaterialPass.NORMAL_DEPTH_PASS] = null;
         }
-        else if (value && !this._passes[MaterialPass.GBUFFER_NORMAL_DEPTH_PASS])
+        else if (value && !this._passes[MaterialPass.NORMAL_DEPTH_PASS])
             this._invalidate();
 
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
@@ -357,7 +337,7 @@ Material.prototype =
             if (type === MaterialPass.BASE_PASS)
                 pass.blendState = this._blendState;
 
-            if (pass.getTextureSlot("hx_gbufferNormalDepth"))
+            if (pass.getTextureSlot("hx_normalDepthBuffer"))
                 this._needsNormalDepth = true;
 
             if (pass.getTextureSlot("hx_backbuffer"))

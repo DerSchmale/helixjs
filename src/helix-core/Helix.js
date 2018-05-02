@@ -98,7 +98,7 @@ export var capabilities =
         EXT_ELEMENT_INDEX_UINT: null,
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
-        GBUFFER_MRT: false,
+        MRT: false,
         HDR_FORMAT: 0,
         HALF_FLOAT_FBO: false
     };
@@ -345,11 +345,6 @@ export function InitOptions()
      * The default {@codelink LightingModel} to use.
      */
     this.defaultLightingModel = LightingModel.Unlit;
-    /**
-     * The lighting model {@codelink LightingModel} to use in the deferred lighting path, which may improve lighting
-     * performance. Usually you'd want this to be either null or the same as defaulyt
-     */
-    this.deferredLightingModel = null;
 
     /**
      * The amount of shadow cascades to use. Cascades split up the view frustum into areas with their own shadow maps,
@@ -370,7 +365,7 @@ export function InitOptions()
     this.ignoreAllExtensions = false;
 
     /**
-     * Ignore the draw buffer extension. Forces multiple passes for the deferred GBuffer rendering.
+     * Ignore the draw buffer extension.
      */
     this.ignoreDrawBuffersExtension = false;
 
@@ -481,11 +476,8 @@ export function init(canvas, options)
     if (!options.ignoreDrawBuffersExtension)
         capabilities.EXT_DRAW_BUFFERS = _getExtension('WEBGL_draw_buffers');
 
-    if (capabilities.EXT_DRAW_BUFFERS && capabilities.EXT_DRAW_BUFFERS.MAX_DRAW_BUFFERS_WEBGL >= 3) {
-        capabilities.GBUFFER_MRT = true;
-        // remove the last (individual) gbuffer pass
-        --MaterialPass.NUM_PASS_TYPES;
-    }
+    if (capabilities.EXT_DRAW_BUFFERS)
+        capabilities.MRT = true;
 
     if (!options.ignoreFloatTextureExtension)
         capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');

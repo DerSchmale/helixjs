@@ -12,9 +12,6 @@ import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
 import {DirectionalLight} from "../light/DirectionalLight";
 import {PointLight} from "../light/PointLight";
 import {LightProbe} from "../light/LightProbe";
-import {GBuffer} from "./GBuffer";
-import {BlendState} from "./BlendState";
-import {DeferredAmbientShader} from "../light/shaders/DeferredAmbientShader";
 import {RenderPath} from "./RenderPath";
 import {SpotLight} from "../light/SpotLight";
 
@@ -42,11 +39,14 @@ function Renderer()
     this._hdrBack = new Renderer.HDRBuffers(this._depthBuffer);
     this._hdrFront = new Renderer.HDRBuffers(this._depthBuffer);
     this._renderCollector = new RenderCollector();
-    this._gbuffer = new GBuffer(this._depthBuffer);
+    this._normalDepthBuffer = new Texture2D();
+    this._normalDepthBuffer.filter = TextureFilter.BILINEAR_NOMIP;
+    this._normalDepthBuffer.wrapMode = TextureWrapMode.CLAMP;
+    this._normalDepthFBO = new FrameBuffer(this._normalDepthBuffer, this._depthBuffer);
+
     this._backgroundColor = Color.BLACK.clone();
     //this._previousViewProjection = new Matrix4x4();
     this._debugMode = Renderer.DebugMode.NONE;
-    this._renderAmbientShader = new DeferredAmbientShader();
     this._ssaoTexture = null;
 }
 
@@ -57,11 +57,7 @@ function Renderer()
 Renderer.DebugMode = {
     NONE: 0,
     SSAO: 1,
-    GBUFFER_ALBEDO: 2,
-    // TODO: Put back normal, depth, roughness, metallicness, normalSpecular back in
-    GBUFFER_NORMAL_DEPTH: 3,
-    GBUFFER_SPECULAR: 4,
-    LIGHT_ACCUMULATION: 5
+    NORMAL_DEPTH: 2
 };
 
 /**
@@ -153,34 +149,20 @@ Renderer.prototype =
         GL.setDepthMask(true);
         GL.setColorMask(true);
 
-        this._renderGBuffer();
+        this._renderNormalDepth();
         this._renderAO();
 
-        this._renderDeferredLighting();
+        GL.setRenderTarget(this._hdrFront.fboDepth);
+        GL.setClearColor(this._backgroundColor);
+        GL.clear();
 
+        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
 
-        if (this._renderCollector.needsForwardPath ||
-            this._debugMode !== Renderer.DebugMode.LIGHT_ACCUMULATION) {
-            GL.setRenderTarget(this._hdrFront.fboDepth);
-            GL.setClearColor(this._backgroundColor);
-            GL.clear();
+        this._renderOpaque();
+        this._renderTransparent();
 
-            RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
-            // render applied gbuffer too:
-            RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.DEFERRED));
-
-            this._renderForwardDynamicLit();
-
-            // THIS IS EXTREMELY INEFFICIENT ON SOME (TILED HIERARCHY) PLATFORMS
-            if (this._renderCollector.needsBackbuffer)
-                this._copyToBackBuffer();
-
-            this._renderForwardTransparent();
-
-            this._swapHDRFrontAndBack();
-            this._renderEffects(dt);
-
-        }
+        this._swapHDRFrontAndBack();
+        this._renderEffects(dt);
 
         GL.setColorMask(true);
 
@@ -197,7 +179,7 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _renderForwardDynamicLit: function()
+    _renderOpaque: function()
     {
         var list = this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC);
         if (list.length === 0) return;
@@ -234,7 +216,7 @@ Renderer.prototype =
         }
     },
 
-    _renderForwardTransparent: function()
+    _renderTransparent: function()
     {
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
@@ -316,99 +298,20 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _renderGBuffer: function(list)
+    _renderNormalDepth: function()
     {
         var rc = this._renderCollector;
-        var deferred = rc.getOpaqueRenderList(RenderPath.DEFERRED);
         var dynamic = rc.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC);
         var fixed = rc.getOpaqueRenderList(RenderPath.FORWARD_FIXED);
 
-        if (deferred.length > 0) {
-            if (capabilities.GBUFFER_MRT) {
-                GL.setRenderTarget(this._gbuffer.mrt);
-                // this is just so the linear depth value will be correct
-                GL.setClearColor(Color.BLUE);
-                GL.clear();
-
-                RenderUtils.renderPass(this, MaterialPass.GBUFFER_PASS, deferred);
-
-                // need to render all to gbuffer (can't switch fbos without clear on mobile)
-                if (rc.needsNormalDepth) {
-                    RenderUtils.renderPass(this, MaterialPass.GBUFFER_PASS, dynamic);
-                    RenderUtils.renderPass(this, MaterialPass.GBUFFER_PASS, fixed);
-                }
-            }
-            else {
-                this._renderGBufferPlane(deferred, GBuffer.ALBEDO, MaterialPass.GBUFFER_ALBEDO_PASS, Color.BLACK);
-                this._renderGBufferPlane(deferred, GBuffer.SPECULAR, MaterialPass.GBUFFER_SPECULAR_PASS, Color.BLACK);
-
-                GL.setRenderTarget(this._gbuffer.fbos[GBuffer.NORMAL_DEPTH]);
-                GL.setClearColor(Color.BLUE);
-                GL.clear();
-                RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, deferred);
-
-                // need to render all to normal depth
-                if (rc.needsNormalDepth) {
-                    RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, dynamic);
-                    RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, fixed);
-                }
-
-            }
-            GL.setClearColor(Color.BLACK);
-        }
-        else if (rc.needsNormalDepth) {
-            GL.setRenderTarget(this._gbuffer.fbos[GBuffer.NORMAL_DEPTH]);
+        if (rc.needsNormalDepth) {
+            GL.setRenderTarget(this._normalDepthFBO);
             GL.setClearColor(Color.BLUE);
             GL.clear();
-            RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, deferred);
-            RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, dynamic);
-            RenderUtils.renderPass(this, MaterialPass.GBUFFER_NORMAL_DEPTH_PASS, fixed);
+            RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, dynamic);
+            RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, fixed);
             GL.setClearColor(Color.BLACK);
         }
-    },
-
-    /**
-     * @ignore
-     * @private
-     */
-    _renderGBufferPlane: function(list, plane, passType, clearColor)
-    {
-        GL.setRenderTarget(this._gbuffer.fbos[plane]);
-        // furthest depth and alpha must be 1, the rest 0
-        GL.setClearColor(clearColor);
-        GL.clear();
-        RenderUtils.renderPass(this, passType, list);
-    },
-
-    /**
-     * @ignore
-     * @private
-     */
-    _renderDeferredLighting: function()
-    {
-        if (this._renderCollector.getOpaqueRenderList(RenderPath.DEFERRED).length === 0)
-            return;
-
-        var lights = this._renderCollector.getLights();
-        var numLights = lights.length;
-
-        // for some reason, this doesn't get cleared?
-        GL.setRenderTarget(this._hdrFront.fbo);
-        GL.clear();
-        GL.setBlendState(BlendState.ADD);
-        GL.setDepthTest(Comparison.DISABLED);
-
-        var ambient =  this._ambientColor;
-        if (ambient.r !== 0 || ambient.g !== 0 || ambient.b !== 0) {
-            this._renderAmbientShader.execute(this, ambient);
-        }
-
-        for (var i = 0; i < numLights; ++i) {
-            lights[i].renderDeferredLighting(this);
-        }
-
-        this._swapHDRFrontAndBack();
-        GL.setBlendState();
     },
 
     /**
@@ -459,20 +362,11 @@ Renderer.prototype =
         if (this._debugMode) {
             var tex;
             switch (this._debugMode) {
-                case Renderer.DebugMode.GBUFFER_ALBEDO:
-                    tex = this._gbuffer.textures[0];
-                    break;
-                case Renderer.DebugMode.GBUFFER_NORMAL_DEPTH:
-                    tex = this._gbuffer.textures[1];
-                    break;
-                case Renderer.DebugMode.GBUFFER_SPECULAR:
-                    tex = this._gbuffer.textures[2];
+                case Renderer.DebugMode.NORMAL_DEPTH:
+                    tex = this._normalDepthBuffer;
                     break;
                 case Renderer.DebugMode.SSAO:
                     tex = this._ssaoTexture;
-                    break;
-                case Renderer.DebugMode.LIGHT_ACCUMULATION:
-                    tex = this._hdrBack.texture;
                     break;
                 default:
                     // nothing
@@ -529,7 +423,8 @@ Renderer.prototype =
             this._depthBuffer.init(this._width, this._height, true);
             this._hdrBack.resize(this._width, this._height);
             this._hdrFront.resize(this._width, this._height);
-            this._gbuffer.resize(this._width, this._height);
+            this._normalDepthBuffer.initEmpty(width, height);
+            this._normalDepthFBO.init();
         }
     },
 
@@ -556,19 +451,6 @@ Renderer.prototype =
         }
         else {*/
             return new WriteOnlyDepthBuffer();
-    },
-
-    /**
-     * @ignore
-     * @private
-     */
-    _copyToBackBuffer: function()
-    {
-        GL.setRenderTarget(this._hdrBack.fbo);
-        GL.clear();
-        this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrFront.texture);
-        GL.setRenderTarget(this._hdrFront.fboDepth);
-        // DO NOT CLEAR. This can be very slow on tiled gpu architectures such as PowerVR
     }
 };
 

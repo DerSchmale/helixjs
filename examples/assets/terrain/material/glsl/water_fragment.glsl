@@ -1,6 +1,6 @@
 uniform sampler2D waveMap;
 
-uniform sampler2D hx_gbufferNormalDepth;
+uniform sampler2D hx_normalDepthBuffer;
 uniform sampler2D hx_backbuffer;
 
 uniform mat4 hx_viewMatrix;
@@ -20,7 +20,7 @@ varying vec3 viewPos;
 HX_GeometryData hx_geometry()
 {
     vec2 screenCoord = proj.xy / proj.w * .5 + .5;
-    vec4 normalDepth = texture2D(hx_gbufferNormalDepth, screenCoord);
+    vec4 normalDepth = texture2D(hx_normalDepthBuffer, screenCoord);
     vec3 normal1 = texture2D(waveMap, uv1).xyz - .5;
     vec3 normal2 = texture2D(waveMap, uv2).xyz - .5;
     vec3 normal = normal1 + normal2 * .5;

@@ -6,8 +6,6 @@ var project = new DemoProject();
 
 window.onload = function ()
 {
-    var options = new HX.InitOptions();
-    options.deferredLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById('webglContainer'));
 };
 

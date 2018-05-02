@@ -87,9 +87,4 @@ Light.prototype._updateScaledIrradiance = function ()
     this._invalidateWorldBounds();
 };
 
-Light.prototype.renderDeferredLighting = function(renderer)
-{
-    // To implement by concrete subclasses
-};
-
 export { Light };

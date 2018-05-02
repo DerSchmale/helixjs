@@ -53,7 +53,6 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.hdr = !HX.Platform.isMobile;
     options.defaultLightingModel = HX.LightingModel.GGX;
-    options.deferredLightingModel = HX.LightingModel.GGX;
     project.init(document.getElementById("webglContainer"), options);
 };
 

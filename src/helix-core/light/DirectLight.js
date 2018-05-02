@@ -46,12 +46,4 @@ DirectLight.prototype._updateScaledIrradiance = function ()
     this._invalidateWorldBounds();
 };
 
-/**
- * @private
- */
-DirectLight.prototype.renderDeferredLighting = function(renderer)
-{
-    // To implement by concrete subclasses
-};
-
 export { DirectLight };

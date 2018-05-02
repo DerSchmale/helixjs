@@ -30,7 +30,7 @@ function DirectionalLight()
     this._direction = new Float4();
 }
 
-DirectionalLight.prototype = Object.create(Light.prototype,
+DirectionalLight.prototype = Object.create(DirectLight.prototype,
     {
         castShadows: {
             get: function()

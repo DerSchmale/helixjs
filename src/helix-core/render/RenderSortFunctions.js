@@ -21,8 +21,8 @@ export var RenderSortFunctions = {
 
     sortLights: function(a, b)
     {
-        return  a._type === b._type?
-            a._castShadows? 1 : -1 :
-            a._type - b._type;
+        return  /*a._type === b._type?*/
+            a._castShadows? 1 : -1 /*:
+            a._type - b._type*/;
     }
 };

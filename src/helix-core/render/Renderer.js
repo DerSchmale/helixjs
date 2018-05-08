@@ -28,6 +28,7 @@ function Renderer()
     this._width = 0;
     this._height = 0;
 
+    this._depthPrePass = false;
     this._gammaApplied = false;
 
     this._copyTextureShader = new CopyChannelsShader("xyzw", true);
@@ -98,6 +99,20 @@ Renderer.prototype =
     },
 
     /**
+     * Defines whether or not a depth pre-pass needs to be performed when rendering. This may improve rendering by
+     * spending less time calculating lighting on invisible fragments.
+     */
+    get depthPrepass()
+    {
+        return this._depthPrepass;
+    },
+
+    set depthPrepass(value)
+    {
+        this._depthPrepass = value;
+    },
+
+    /**
      * The background {@linkcode Color}.
      */
     get backgroundColor()
@@ -156,7 +171,12 @@ Renderer.prototype =
         GL.setClearColor(this._backgroundColor);
         GL.clear();
 
-        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+        if (this._depthPrepass) {
+            GL.setColorMask(false);
+            RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+            RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
+            GL.setColorMask(true);
+        }
 
         this._renderOpaque();
         this._renderTransparent();
@@ -181,6 +201,8 @@ Renderer.prototype =
      */
     _renderOpaque: function()
     {
+        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+
         var list = this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC);
         if (list.length === 0) return;
 

@@ -1,10 +1,10 @@
 // position to write to
-attribute vec4 hx_position;
+vertex_attribute vec4 hx_position;
 
 // the corner of the cube map
-attribute vec3 corner;
+vertex_attribute vec3 corner;
 
-varying vec3 direction;
+varying_out vec3 direction;
 
 void main()
 {

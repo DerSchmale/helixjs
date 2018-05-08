@@ -1,4 +1,4 @@
-varying float hx_linearDepth;
+varying_out float hx_linearDepth;
 
 uniform float hx_rcpCameraFrustumRange;
 uniform float hx_cameraNearPlaneDistance;

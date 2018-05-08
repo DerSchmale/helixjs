@@ -1,4 +1,4 @@
-varying vec2 uv;
+varying_in vec2 uv;
 
 uniform sampler2D hx_backbuffer;
 uniform vec2 hx_rcpRenderTargetResolution;
@@ -42,5 +42,5 @@ void main()
 	float fxaaLum = luminanceHint(fxaa);
 	if ((fxaaLum < minLum) || (fxaaLum > maxLum))
 		fxaa = tap1 * .5;
-	gl_FragColor = mix(center, fxaa, applyFXAA);
+	hx_FragColor = mix(center, fxaa, applyFXAA);
 }

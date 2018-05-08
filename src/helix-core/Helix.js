@@ -13,7 +13,6 @@ import {BlendState} from "./render/BlendState";
 import {PoissonDisk} from "./math/PoissonDisk";
 import {PoissonSphere} from "./math/PoissonSphere";
 import {Color} from "./core/Color";
-import {MaterialPass} from "./material/MaterialPass";
 import {FrameBuffer} from "./texture/FrameBuffer";
 import {HardSpotShadowFilter} from "./light/filters/HardSpotShadowFilter";
 import {HardPointShadowFilter} from "./light/filters/HardPointShadowFilter";
@@ -85,6 +84,8 @@ export var DEFAULTS =
  */
 export var capabilities =
     {
+        WEBGL_2: false,
+
         // extensions:
         EXT_DRAW_BUFFERS: null,
         EXT_FLOAT_TEXTURES: null,
@@ -96,17 +97,12 @@ export var capabilities =
         EXT_SHADER_TEXTURE_LOD: null,
         EXT_TEXTURE_FILTER_ANISOTROPIC: null,
         EXT_ELEMENT_INDEX_UINT: null,
+        EXT_COLOR_BUFFER_FLOAT: null,
+        EXT_COLOR_BUFFER_HALF_FLOAT: null,
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
-        MRT: false,
-        HDR_FORMAT: 0,
-        HALF_FLOAT_FBO: false
+        HDR_FORMAT: 0
     };
-
-// internal options
-export var _HX_ = {
-    GAMMA_CORRECT_LIGHTS: false
-};
 
 /**
  * TextureFilter contains texture filtering presets.
@@ -312,6 +308,11 @@ export var CubeFace = {};
 export function InitOptions()
 {
     /**
+     * Use WebGL 2 if available.
+     */
+    this.webgl2 = false;
+
+    /**
      * The maximum supported number of joints for skinning animations.
      */
     this.maxSkeletonJoints = 64;
@@ -360,35 +361,6 @@ export function InitOptions()
     this.debug = false;
 
     /**
-     * Ignore any supported extensions.
-     */
-    this.ignoreAllExtensions = false;
-
-    /**
-     * Ignore the draw buffer extension.
-     */
-    this.ignoreDrawBuffersExtension = false;
-
-    /**
-     * Ignore the depth textures extension.
-     */
-    this.ignoreDepthTexturesExtension = false;
-
-    /**
-     * Ignores the texture LOD extension
-     */
-    this.ignoreTextureLODExtension = false;
-
-    /**
-     * Ignores the half float texture format extension
-     */
-    this.ignoreHalfFloatTextureExtension = false;     // forces storing depth info explicitly
-    /**
-     * Ignores the float texture format extension
-     */
-    this.ignoreFloatTextureExtension = false;     // forces storing depth info explicitly
-
-    /**
      * Throws errors when shaders fail to compile.
      */
     this.throwOnShaderError = false;
@@ -431,7 +403,7 @@ export function init(canvas, options)
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
 
-    META.OPTIONS = options || new InitOptions();
+    META.OPTIONS = options = options || new InitOptions();
 
     var webglFlags = {
         antialias: false,   // we're rendering to texture by default, so native AA has no effect
@@ -443,7 +415,22 @@ export function init(canvas, options)
         preserveDrawingBuffer: false
     };
 
-    var gl = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
+    var defines = "";
+    var gl;
+
+    if (options.webgl2)
+        gl = canvas.getContext('webgl2', webglFlags);
+
+    if (gl) {
+        capabilities.WEBGL_2 = true;
+        console.log("WebGL 2 supported!");
+        GLSLIncludes.VERSION = "#version 300 es\n";
+        defines += "#define HX_GLSL_300_ES\n";
+    }
+    else {
+        gl = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
+    }
+
     if (!gl) throw new Error("WebGL not supported");
     GL._setGL(gl);
 
@@ -453,132 +440,77 @@ export function init(canvas, options)
 
     function _getExtension(name)
     {
-        return glExtensions.indexOf(name) >= 0 ? gl.getExtension(name) : null;
+
+        var ext = glExtensions.indexOf(name) >= 0 ? gl.getExtension(name) : null;
+        if (!ext) console.warn(name + ' extension not supported!');
+        return ext;
     }
 
     // shortcuts
     _initGLProperties();
 
-    var options = META.OPTIONS;
-    var defines = "";
     if (options.useGammaCorrection !== false)
         defines += META.OPTIONS.usePreciseGammaCorrection ? "#define HX_GAMMA_CORRECTION_PRECISE\n" : "#define HX_GAMMA_CORRECTION_FAST\n";
 
     defines += "#define HX_NUM_SHADOW_CASCADES " + META.OPTIONS.numShadowCascades + "\n";
     defines += "#define HX_MAX_SKELETON_JOINTS " + META.OPTIONS.maxSkeletonJoints + "\n";
 
-    options.ignoreDrawBuffersExtension = options.ignoreDrawBuffersExtension || options.ignoreAllExtensions;
-    options.ignoreDepthTexturesExtension = options.ignoreDepthTexturesExtension || options.ignoreAllExtensions;
-    options.ignoreTextureLODExtension = options.ignoreTextureLODExtension || options.ignoreAllExtensions;
-    options.ignoreHalfFloatTextureExtension = options.ignoreHalfFloatTextureExtension || options.ignoreAllExtensions;
-    options.ignoreFloatTextureExtension = options.ignoreHalfFloatTextureExtension || options.ignoreAllExtensions;
-
-    if (!options.ignoreDrawBuffersExtension)
-        capabilities.EXT_DRAW_BUFFERS = _getExtension('WEBGL_draw_buffers');
-
-    if (capabilities.EXT_DRAW_BUFFERS)
-        capabilities.MRT = true;
-
-    if (!options.ignoreFloatTextureExtension)
-        capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
+    capabilities.EXT_DRAW_BUFFERS = _getExtension('WEBGL_draw_buffers');
+    // can assume this exists
+    capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
+    capabilities.EXT_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_float_linear');
+    capabilities.EXT_HALF_FLOAT_TEXTURES = _getExtension('OES_texture_half_float');
+    capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_half_float_linear');
+    capabilities.EXT_COLOR_BUFFER_FLOAT = _getExtension("EXT_color_buffer_float") || _getExtension('WEBGL_color_buffer_float');
+    capabilities.EXT_COLOR_BUFFER_HALF_FLOAT = _getExtension('EXT_color_buffer_half_float');
+    capabilities.EXT_DEPTH_TEXTURE = _getExtension('WEBGL_depth_texture');
+    capabilities.EXT_STANDARD_DERIVATIVES = _getExtension('OES_standard_derivatives');
+    capabilities.EXT_SHADER_TEXTURE_LOD = _getExtension('EXT_shader_texture_lod');
+    capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension('EXT_texture_filter_anisotropic');
+    capabilities.EXT_ELEMENT_INDEX_UINT = _getExtension('OES_element_index_uint');
+    capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY = capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC ? gl.getParameter(capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
 
     if (capabilities.EXT_FLOAT_TEXTURES)
         defines += "#define HX_FLOAT_TEXTURES\n";
-    else {
-        console.warn('OES_texture_float extension not supported!');
-        options.useSkinningTexture = false;
-    }
-
-    if (!options.ignoreHalfFloatTextureExtension)
-        capabilities.EXT_HALF_FLOAT_TEXTURES = _getExtension('OES_texture_half_float');
-
-    if (capabilities.EXT_HALF_FLOAT_TEXTURES)
-        defines += "#define HX_HALF_FLOAT_TEXTURES\n";
     else
-        console.warn('OES_texture_half_float extension not supported!');
+        options.useSkinningTexture = false;
 
-    if (capabilities.EXT_FLOAT_TEXTURES) {
-        capabilities.EXT_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_float_linear');
-        if (capabilities.EXT_FLOAT_TEXTURES_LINEAR)
-            defines += "#define HX_FLOAT_TEXTURES_LINEAR\n";
-        else
-            console.warn('OES_texture_float_linear extension not supported!');
-    }
+    if (capabilities.EXT_FLOAT_TEXTURES_LINEAR)
+        defines += "#define HX_FLOAT_TEXTURES_LINEAR\n";
 
     if (capabilities.EXT_HALF_FLOAT_TEXTURES) {
-        capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_half_float_linear');
-        if (capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR) {
-            defines += "#define HX_HALF_FLOAT_TEXTURES_LINEAR\n";
-            DataType.HALF_FLOAT = capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES;
-        }
-        else
-            console.warn('OES_texture_half_float_linear extension not supported!');
+        defines += "#define HX_HALF_FLOAT_TEXTURES\n";
+        DataType.HALF_FLOAT = capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES;
     }
 
-    // these SHOULD be implemented, but are not by Chrome
-    //EXT_COLOR_BUFFER_FLOAT = _getExtension('WEBGL_color_buffer_float');
-    //if (!EXT_COLOR_BUFFER_FLOAT) console.warn('WEBGL_color_buffer_float extension not supported!');
+    if (capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR)
+        defines += "#define HX_HALF_FLOAT_TEXTURES_LINEAR\n";
+    else
+        options.hdr = false;
 
-    //EXT_COLOR_BUFFER_HALF_FLOAT = _getExtension('EXT_color_buffer_half_float');
-    //if (!EXT_COLOR_BUFFER_HALF_FLOAT) console.warn('EXT_color_buffer_half_float extension not supported!');
+    // Common WebGL 1 bug, where EXT_COLOR_BUFFER_FLOAT is false, but float render targets are in fact supported
+    if (!capabilities.EXT_COLOR_BUFFER_FLOAT) {
+        capabilities.EXT_COLOR_BUFFER_FLOAT = _tryFBO(DataType.FLOAT);
+        if (!capabilities.EXT_COLOR_BUFFER_FLOAT)
+            console.warn("Float FBOs not supported");
+    }
 
-    if (!options.ignoreDepthTexturesExtension)
-        capabilities.EXT_DEPTH_TEXTURE = _getExtension('WEBGL_depth_texture');
+    if (!capabilities.EXT_COLOR_BUFFER_HALF_FLOAT) {
+        capabilities.EXT_COLOR_BUFFER_HALF_FLOAT = _tryFBO(DataType.HALF_FLOAT);
+        if (!capabilities.EXT_COLOR_BUFFER_HALF_FLOAT)
+            console.warn("HalfFloat FBOs not supported");
+    }
 
-    if (!capabilities.EXT_DEPTH_TEXTURE) {
-        console.warn('WEBGL_depth_texture extension not supported!');
+    if (!capabilities.EXT_DEPTH_TEXTURE)
         defines += "#define HX_NO_DEPTH_TEXTURES\n";
-    }
-
-    capabilities.EXT_STANDARD_DERIVATIVES = _getExtension('OES_standard_derivatives');
-    if (!capabilities.EXT_STANDARD_DERIVATIVES) console.warn('OES_standard_derivatives extension not supported!');
-
-    if (!options.ignoreTextureLODExtension)
-        capabilities.EXT_SHADER_TEXTURE_LOD = _getExtension('EXT_shader_texture_lod');
 
     if (capabilities.EXT_SHADER_TEXTURE_LOD)
         defines += "#define HX_TEXTURE_LOD\n";
-    else
-        console.warn('EXT_shader_texture_lod extension not supported!');
-
-    capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC = _getExtension('EXT_texture_filter_anisotropic');
-    if (!capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC) console.warn('EXT_texture_filter_anisotropic extension not supported!');
-
-    capabilities.EXT_ELEMENT_INDEX_UINT = _getExtension('OES_element_index_uint');
-    if (!capabilities.EXT_ELEMENT_INDEX_UINT) console.warn('OES_element_index_uint extension not supported!');
 
     //EXT_SRGB = _getExtension('EXT_sRGB');
     //if (!EXT_SRGB) console.warn('EXT_sRGB extension not supported!');
 
-    capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY = capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC ? gl.getParameter(capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 0;
-
-    if (!capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR || !capabilities.EXT_HALF_FLOAT_TEXTURES)
-        options.hdr = false;
-
-    if (capabilities.EXT_HALF_FLOAT_TEXTURES && _tryFBO(capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES)) {
-        capabilities.HALF_FLOAT_FBO = true;
-    }
-    else {
-        options.hdr = false;
-        capabilities.HALF_FLOAT_FBO = false;
-        console.warn("Half float FBOs not supported");
-    }
-
-    if (capabilities.EXT_FLOAT_TEXTURES && _tryFBO(DataType.FLOAT)) {
-        capabilities.FLOAT_FBO = true;
-    } else {
-        capabilities.FLOAT_FBO = false;
-        console.warn("Half float FBOs not supported");
-    }
-
-    capabilities.HDR_FORMAT = options.hdr ? capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;
-
-    // this causes lighting accumulation to happen in gamma space (only accumulation of lights within the same pass is linear)
-    // This yields an incorrect gamma correction to be applied, but looks much better due to encoding limitation (otherwise there would be banding)
-    // if (options.useGammaCorrection && !options.hdr) {
-        // _HX_.GAMMA_CORRECT_LIGHTS = true;
-        // defines += "#define HX_GAMMA_CORRECT_LIGHTS\n";
-    // }
+    capabilities.HDR_FORMAT = options.hdr ? DataType.HALF_FLOAT : gl.UNSIGNED_BYTE;
 
     if (options.useSkinningTexture) {
         defines += "#define HX_USE_SKINNING_TEXTURE\n";
@@ -593,9 +525,6 @@ export function init(canvas, options)
     PoissonDisk._initDefault();
     PoissonSphere._initDefault();
 
-    // default copy shader
-    DEFAULTS.COPY_SHADER = new CopyChannelsShader();
-
     _init2DDitherTexture(32, 32);
 
     if (options.ambientOcclusion) {
@@ -604,6 +533,10 @@ export function init(canvas, options)
     }
 
     GLSLIncludes.GENERAL = defines + GLSLIncludes.GENERAL;
+
+    // default copy shader
+    // TODO: Provide a default copy mechanic, can be replaced with blit in WebGL 2.0
+    DEFAULTS.COPY_SHADER = new CopyChannelsShader();
 
     GL.setClearColor(Color.BLACK);
 
@@ -700,14 +633,14 @@ function _init2DDitherTexture(width, height)
     DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.wrapMode = TextureWrapMode.REPEAT;
 
     if (capabilities.EXT_FLOAT_TEXTURES)
-        DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, gl.RGBA, gl.FLOAT);
+        DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Float32Array(data), width, height, false, TextureFormat.RGBA, DataType.FLOAT);
     else {
         len = data.length;
 
         for (i = 0; i < len; ++i)
             data[i] = Math.round((data[i] * .5 + .5) * 0xff);
 
-        DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Uint8Array(data), width, height, false, gl.RGBA, gl.UNSIGNED_BYTE);
+        DEFAULTS.DEFAULT_2D_DITHER_TEXTURE.uploadData(new Uint8Array(data), width, height, false, TextureFormat.RGBA, DataType.UNSIGNED_BYTE);
     }
 
     // this one is used when dynamic light probes passes need to disable a map

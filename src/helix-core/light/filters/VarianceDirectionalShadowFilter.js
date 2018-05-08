@@ -96,13 +96,13 @@ VarianceDirectionalShadowFilter.prototype.getGLSL = function()
 
 VarianceDirectionalShadowFilter.prototype.getShadowMapFormat = function()
 {
-    return capabilities.HALF_FLOAT_FBO || capabilities.FLOAT_FBO? TextureFormat.RGB : TextureFormat.RGBA;
+    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT || capabilities.EXT_COLOR_BUFFER_FLOAT? TextureFormat.RGB : TextureFormat.RGBA;
 };
 
 VarianceDirectionalShadowFilter.prototype.getShadowMapDataType = function()
 {
-    return capabilities.HALF_FLOAT_FBO && this._useHalfFloat? DataType.HALF_FLOAT :
-            capabilities.FLOAT_FBO? DataType.FLOAT : DataType.UNSIGNED_BYTE;
+    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT && this._useHalfFloat? DataType.HALF_FLOAT :
+            capabilities.EXT_COLOR_BUFFER_FLOAT? DataType.FLOAT : DataType.UNSIGNED_BYTE;
 };
 
 /**

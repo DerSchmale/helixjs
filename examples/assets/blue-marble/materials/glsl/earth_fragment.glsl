@@ -1,10 +1,10 @@
-varying vec3 normal;
-varying vec3 tangent;
-varying vec3 bitangent;
-varying vec2 uv;
-varying float linearDepth;
-varying vec3 scatterColor0;
-varying vec3 scatterColor1;
+varying_in vec3 normal;
+varying_in vec3 tangent;
+varying_in vec3 bitangent;
+varying_in vec2 uv;
+varying_in float linearDepth;
+varying_in vec3 scatterColor0;
+varying_in vec3 scatterColor1;
 
 uniform sampler2D colorMap;
 uniform sampler2D normalMap;

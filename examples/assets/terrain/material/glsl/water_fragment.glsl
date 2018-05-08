@@ -12,10 +12,10 @@ uniform vec3 absorbDensity;
 uniform float inScatterDensity;
 uniform vec3 color;
 
-varying vec2 uv1;
-varying vec2 uv2;
-varying vec4 proj;
-varying vec3 viewPos;
+varying_in vec2 uv1;
+varying_in vec2 uv2;
+varying_in vec4 proj;
+varying_in vec3 viewPos;
 
 HX_GeometryData hx_geometry()
 {

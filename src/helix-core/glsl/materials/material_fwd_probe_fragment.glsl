@@ -1,5 +1,5 @@
-varying vec3 hx_viewPosition;
-varying vec3 hx_worldPosition;
+varying_in vec3 hx_viewPosition;
+varying_in vec3 hx_worldPosition;
 
 uniform samplerCube hx_diffuseProbeMap;
 uniform samplerCube hx_specularProbeMap;
@@ -37,14 +37,10 @@ void main()
     vec3 diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, diffRay);
     vec3 specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, specRay, fresnel, data.roughness);
 
-    gl_FragColor = vec4((diffuse * data.color.xyz + specular) * data.occlusion, data.color.w);
+    hx_FragColor = vec4((diffuse * data.color.xyz + specular) * data.occlusion, data.color.w);
 
     #ifdef HX_SSAO
     vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;
-    gl_FragColor.xyz *= texture2D(hx_ssao, screenUV).x;
-    #endif
-
-    #ifdef HX_GAMMA_CORRECT_LIGHTS
-        gl_FragColor = hx_linearToGamma(gl_FragColor);
+    hx_FragColor.xyz *= texture2D(hx_ssao, screenUV).x;
     #endif
 }

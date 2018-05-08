@@ -1,4 +1,4 @@
-varying vec3 hx_viewPosition;
+varying_in vec3 hx_viewPosition;
 
 uniform HX_PointLight hx_pointLight;
 
@@ -18,13 +18,9 @@ void main()
 
     hx_calculateLight(hx_pointLight, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
 
-    gl_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);
+    hx_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);
 
     #ifdef HX_SHADOW_MAP
-        gl_FragColor.xyz *= hx_calculateShadows(hx_pointLight, hx_shadowMap, hx_viewPosition);
-    #endif
-
-    #ifdef HX_GAMMA_CORRECT_LIGHTS
-        gl_FragColor = hx_linearToGamma(gl_FragColor);
+        hx_FragColor.xyz *= hx_calculateShadows(hx_pointLight, hx_shadowMap, hx_viewPosition);
     #endif
 }

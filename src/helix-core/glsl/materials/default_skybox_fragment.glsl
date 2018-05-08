@@ -1,4 +1,4 @@
-varying vec3 viewWorldDir;
+varying_in vec3 viewWorldDir;
 
 uniform samplerCube hx_skybox;
 

@@ -31,7 +31,7 @@ function ToneMapEffect(adaptive)
 {
     this._adaptive = adaptive === undefined? false : adaptive;
 
-    if (this._adaptive && (!capabilities.EXT_SHADER_TEXTURE_LOD || !capabilities.HALF_FLOAT_FBO)) {
+    if (this._adaptive && (!capabilities.EXT_SHADER_TEXTURE_LOD || !capabilities.EXT_COLOR_BUFFER_HALF_FLOAT)) {
         console.log("Warning: adaptive tone mapping not supported, using non-adaptive");
         this._adaptive = false;
         return;

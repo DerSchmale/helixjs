@@ -13,9 +13,9 @@ uniform sampler2D hx_normalDepthBuffer;
 uniform sampler2D sampleDirTexture;
 uniform sampler2D ditherTexture;
 
-varying vec2 uv;
-varying vec3 viewDir;
-varying vec3 frustumCorner;
+varying_in vec2 uv;
+varying_in vec3 viewDir;
+varying_in vec3 frustumCorner;
 
 vec3 getViewPos(vec2 sampleUV)
 {
@@ -110,5 +110,5 @@ void main()
     }
 
     totalOcclusion = 1.0 - clamp(strengthPerRay * totalOcclusion, 0.0, 1.0);
-    gl_FragColor = vec4(vec3(totalOcclusion), 1.0);
+    hx_FragColor = vec4(vec3(totalOcclusion), 1.0);
 }

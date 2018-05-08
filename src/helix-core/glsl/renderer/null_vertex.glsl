@@ -1,4 +1,4 @@
-attribute vec4 hx_position;
+vertex_attribute vec4 hx_position;
 
 void main()
 {

@@ -10,8 +10,8 @@ uniform vec2 hx_renderTargetResolution;
 
 uniform sampler2D hx_frontbuffer;
 
-varying vec2 uv;
-varying vec3 viewDir;
+varying_in vec2 uv;
+varying_in vec3 viewDir;
 
 uniform vec2 ditherTextureScale;
 uniform float hx_cameraNearPlaneDistance;
@@ -138,6 +138,6 @@ void main()
     vec4 reflColor = texture2D(hx_frontbuffer, hitUV);
 
     float amountUsed = amount * fadeFactor;
-    gl_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);
+    hx_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);
 }
 

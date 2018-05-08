@@ -1,18 +1,18 @@
 #define NUM_SAMPLES 2
 
-attribute vec4 hx_position;
-attribute vec3 hx_normal;
-attribute vec4 hx_tangent;
-attribute vec2 hx_texCoord;
+vertex_attribute vec4 hx_position;
+vertex_attribute vec3 hx_normal;
+vertex_attribute vec4 hx_tangent;
+vertex_attribute vec2 hx_texCoord;
 
-varying vec2 uv;
-varying vec3 normal;
-varying vec3 tangent;
-varying vec3 bitangent;
-varying float linearDepth;
-varying vec3 scatterColor0;
-varying vec3 scatterColor1;
-varying vec3 viewDir;
+varying_out vec2 uv;
+varying_out vec3 normal;
+varying_out vec3 tangent;
+varying_out vec3 bitangent;
+varying_out float linearDepth;
+varying_out vec3 scatterColor0;
+varying_out vec3 scatterColor1;
+varying_out vec3 viewDir;
 
 uniform mat4 hx_wvpMatrix;
 uniform mat4 hx_worldViewMatrix;

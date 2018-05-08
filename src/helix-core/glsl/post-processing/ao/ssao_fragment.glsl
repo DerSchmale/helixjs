@@ -12,7 +12,7 @@ uniform vec3 samples[NUM_SAMPLES]; // w contains bias
 uniform sampler2D ditherTexture;
 uniform sampler2D hx_normalDepthBuffer;
 
-varying vec2 uv;
+varying_in vec2 uv;
 
 void main()
 {
@@ -56,5 +56,5 @@ void main()
         // if cosFactor = 0, the sample is coplanar, and occludes less
         totalOcclusion += sampleOcclusion * distanceFactor * cosFactor;
     }
-    gl_FragColor = vec4(vec3(1.0 - totalOcclusion * strengthPerSample), 1.0);
+    hx_FragColor = vec4(vec3(1.0 - totalOcclusion * strengthPerSample), 1.0);
 }

@@ -1,6 +1,6 @@
 uniform sampler2D hx_gbufferSpecular;
 
-varying vec2 uv;
+varying_in vec2 uv;
 
 uniform float maxRoughness;
 

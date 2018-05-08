@@ -1,4 +1,4 @@
-varying vec2 uv;
+varying_in vec2 uv;
 
 uniform sampler2D reference;    // the source (8 bit) texture
 uniform sampler2D source;
@@ -33,6 +33,6 @@ void main()
         total += (heightLeft * currentWeightL + heightRight * currentWeightR) *  gauss[i + 1];
     }
 
-    gl_FragColor = hx_floatToRGBA8(total / totalWeight);
-//    gl_FragColor = hx_floatToRGBA8(refHeight);
+    hx_FragColor = hx_floatToRGBA8(total / totalWeight);
+//    hx_FragColor = hx_floatToRGBA8(refHeight);
 }

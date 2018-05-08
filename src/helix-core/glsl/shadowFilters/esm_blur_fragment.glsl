@@ -1,4 +1,4 @@
-varying vec2 uv;
+varying_in vec2 uv;
 
 uniform sampler2D source;
 uniform vec2 direction; // this is 1/pixelSize
@@ -19,6 +19,6 @@ void main()
 		total += readValue(uv + offset) + readValue(uv - offset);
 	}
 
-//	gl_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);
-	gl_FragColor = vec4(total * RCP_NUM_SAMPLES);
+//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);
+	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);
 }

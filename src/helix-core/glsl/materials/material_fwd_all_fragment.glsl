@@ -1,4 +1,4 @@
-varying vec3 hx_viewPosition;
+varying_in vec3 hx_viewPosition;
 
 uniform vec3 hx_ambientColor;
 
@@ -150,9 +150,5 @@ void main()
     }
     #endif
 
-    gl_FragColor = vec4((diffuseAccum + hx_ambientColor * ao) * data.color.xyz + specularAccum + data.emission, data.color.w);
-
-    #ifdef HX_GAMMA_CORRECT_LIGHTS
-        gl_FragColor = hx_linearToGamma(gl_FragColor);
-    #endif
+    hx_FragColor = vec4((diffuseAccum + hx_ambientColor * ao) * data.color.xyz + specularAccum + data.emission, data.color.w);
 }

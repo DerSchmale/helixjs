@@ -1,4 +1,4 @@
-varying vec3 hx_viewPosition;
+varying_out vec3 hx_viewPosition;
 uniform mat4 hx_inverseProjectionMatrix;
 
 void main()

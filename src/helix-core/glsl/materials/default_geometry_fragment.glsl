@@ -3,7 +3,7 @@ uniform vec3 emissiveColor;
 uniform float alpha;
 
 #if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)
-varying vec2 texCoords;
+varying_in vec2 texCoords;
 #endif
 
 #ifdef COLOR_MAP
@@ -23,11 +23,11 @@ uniform sampler2D maskMap;
 #endif
 
 #ifndef HX_SKIP_NORMALS
-    varying vec3 normal;
+    varying_in vec3 normal;
 
     #ifdef NORMAL_MAP
-    varying vec3 tangent;
-    varying vec3 bitangent;
+    varying_in vec3 tangent;
+    varying_in vec3 bitangent;
 
     uniform sampler2D normalMap;
     #endif
@@ -50,7 +50,7 @@ uniform float alphaThreshold;
 #endif
 
 #ifdef VERTEX_COLORS
-varying vec3 vertexColor;
+varying_in vec3 vertexColor;
 #endif
 
 HX_GeometryData hx_geometry()

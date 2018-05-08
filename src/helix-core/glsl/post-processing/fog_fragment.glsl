@@ -1,5 +1,5 @@
-varying vec2 uv;
-varying vec3 viewDir;
+varying_in vec2 uv;
+varying_in vec3 viewDir;
 
 uniform vec3 tint;
 uniform float density;
@@ -31,5 +31,5 @@ void main()
 
 	float fog = clamp(exp(-fogFactor * density), 0.0, 1.0);
 	color.xyz = mix(tint, color.xyz, fog);
-	gl_FragColor = color;
+	hx_FragColor = color;
 }

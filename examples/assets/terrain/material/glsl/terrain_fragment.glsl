@@ -14,8 +14,8 @@ uniform sampler2D terrainNormals;
 uniform float hx_elevationScale;
 uniform mat4 hx_viewMatrix;
 
-varying vec3 viewPosition;
-varying vec2 uv;
+varying_in vec3 viewPosition;
+varying_in vec2 uv;
 
 uniform float terrainNormalsDistance;
 uniform float terrainNormalsFade;

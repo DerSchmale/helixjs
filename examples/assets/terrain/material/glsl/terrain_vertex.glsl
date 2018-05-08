@@ -1,5 +1,5 @@
-attribute vec4 hx_position;
-attribute float hx_cellSize;
+vertex_attribute vec4 hx_position;
+vertex_attribute float hx_cellSize;
 
 uniform mat4 hx_worldMatrix;
 uniform mat4 hx_viewMatrix;
@@ -10,8 +10,8 @@ uniform float worldSize;
 
 uniform sampler2D heightMap;
 
-varying vec3 viewPosition;
-varying vec2 uv;
+varying_out vec3 viewPosition;
+varying_out vec2 uv;
 
 void hx_geometry()
 {

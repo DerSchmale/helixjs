@@ -1,4 +1,4 @@
-varying vec2 uv;
+varying_in vec2 uv;
 
 uniform sampler2D hx_backbuffer;
 
@@ -9,5 +9,5 @@ void main()
         vec4 color = texture2D(hx_backbuffer, uv);
         float originalLuminance = .05 + hx_luminance(color);
         float targetLuminance = max(originalLuminance - threshold, 0.0);
-        gl_FragColor = color * targetLuminance / originalLuminance;
+        hx_FragColor = color * targetLuminance / originalLuminance;
 }

@@ -208,7 +208,6 @@ Texture2D.prototype =
         this.bind();
 
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-
         gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, format, dataType, data);
 
         if (generateMips)

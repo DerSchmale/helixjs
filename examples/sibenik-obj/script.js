@@ -17,7 +17,6 @@ window.onload = function ()
     options.spotShadowFilter.dither = true;
 
     options.defaultLightingModel = HX.LightingModel.GGX;
-    // options.deferredLightingModel = HX.LightingModel.GGX;
     options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
 };

@@ -1,4 +1,4 @@
-attribute vec4 hx_position;
+vertex_attribute vec4 hx_position;
 
 uniform mat4 hx_worldMatrix;
 uniform mat4 hx_viewProjectionMatrix;
@@ -6,10 +6,10 @@ uniform mat4 hx_viewMatrix;
 uniform float hx_cameraNearPlaneDistance;
 uniform float hx_rcpCameraFrustumRange;
 
-varying vec2 uv1;
-varying vec2 uv2;
-varying vec4 proj;
-varying vec3 viewPos;
+varying_out vec2 uv1;
+varying_out vec2 uv2;
+varying_out vec4 proj;
+varying_out vec3 viewPos;
 
 
 uniform float normalScale1;

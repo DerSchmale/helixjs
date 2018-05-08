@@ -1,4 +1,4 @@
-varying vec2 uv;
+varying_in vec2 uv;
 
 uniform sampler2D sourceTexture;
 
@@ -17,5 +17,5 @@ void main()
 		total += s * gaussianWeights[i];
 	}
 
-	gl_FragColor = total;
+	hx_FragColor = total;
 }

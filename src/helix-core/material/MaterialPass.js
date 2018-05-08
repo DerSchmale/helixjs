@@ -50,15 +50,9 @@ MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 8;
 MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS = 9;
 MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS = 10;
 
-// used if MRT is supported:
-MaterialPass.GBUFFER_PASS = 11;
+MaterialPass.NORMAL_DEPTH_PASS = 11;
 
-// used if MRT is not supported
-MaterialPass.GBUFFER_ALBEDO_PASS = 11;
-MaterialPass.GBUFFER_NORMAL_DEPTH_PASS = 12;
-MaterialPass.GBUFFER_SPECULAR_PASS = 13;
-
-MaterialPass.NUM_PASS_TYPES = 14;
+MaterialPass.NUM_PASS_TYPES = 12;
 
 MaterialPass.prototype =
 {

@@ -1,26 +1,26 @@
-attribute vec4 hx_position;
+vertex_attribute vec4 hx_position;
 
 // morph positions are offsets re the base position!
 #ifdef HX_USE_MORPHING
-attribute vec3 hx_morphPosition0;
-attribute vec3 hx_morphPosition1;
-attribute vec3 hx_morphPosition2;
-attribute vec3 hx_morphPosition3;
+vertex_attribute vec3 hx_morphPosition0;
+vertex_attribute vec3 hx_morphPosition1;
+vertex_attribute vec3 hx_morphPosition2;
+vertex_attribute vec3 hx_morphPosition3;
 
 #ifdef HX_USE_NORMAL_MORPHING
     #ifndef HX_SKIP_NORMALS
-    attribute vec3 hx_morphNormal0;
-    attribute vec3 hx_morphNormal1;
-    attribute vec3 hx_morphNormal2;
-    attribute vec3 hx_morphNormal3;
+    vertex_attribute vec3 hx_morphNormal0;
+    vertex_attribute vec3 hx_morphNormal1;
+    vertex_attribute vec3 hx_morphNormal2;
+    vertex_attribute vec3 hx_morphNormal3;
     #endif
 
 uniform float hx_morphWeights[4];
 #else
-attribute vec3 hx_morphPosition4;
-attribute vec3 hx_morphPosition5;
-attribute vec3 hx_morphPosition6;
-attribute vec3 hx_morphPosition7;
+vertex_attribute vec3 hx_morphPosition4;
+vertex_attribute vec3 hx_morphPosition5;
+vertex_attribute vec3 hx_morphPosition6;
+vertex_attribute vec3 hx_morphPosition7;
 
 uniform float hx_morphWeights[8];
 #endif
@@ -28,8 +28,8 @@ uniform float hx_morphWeights[8];
 #endif
 
 #ifdef HX_USE_SKINNING
-attribute vec4 hx_jointIndices;
-attribute vec4 hx_jointWeights;
+vertex_attribute vec4 hx_jointIndices;
+vertex_attribute vec4 hx_jointWeights;
 
 // WebGL doesn't support mat4x3 and I don't want to split the uniform either
 #ifdef HX_USE_SKINNING_TEXTURE
@@ -43,25 +43,25 @@ uniform mat4 hx_wvpMatrix;
 uniform mat4 hx_worldViewMatrix;
 
 #if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)
-attribute vec2 hx_texCoord;
-varying vec2 texCoords;
+vertex_attribute vec2 hx_texCoord;
+varying_out vec2 texCoords;
 #endif
 
 #ifdef VERTEX_COLORS
-attribute vec3 hx_vertexColor;
-varying vec3 vertexColor;
+vertex_attribute vec3 hx_vertexColor;
+varying_out vec3 vertexColor;
 #endif
 
 #ifndef HX_SKIP_NORMALS
-attribute vec3 hx_normal;
-varying vec3 normal;
+vertex_attribute vec3 hx_normal;
+varying_out vec3 normal;
 
 uniform mat3 hx_normalWorldViewMatrix;
 #ifdef NORMAL_MAP
-attribute vec4 hx_tangent;
+vertex_attribute vec4 hx_tangent;
 
-varying vec3 tangent;
-varying vec3 bitangent;
+varying_out vec3 tangent;
+varying_out vec3 bitangent;
 #endif
 #endif
 

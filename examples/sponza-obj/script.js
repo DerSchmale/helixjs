@@ -20,7 +20,6 @@ window.onload = function ()
     options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
     options.directionalShadowFilter.useHalfFloat = false;
     options.defaultLightingModel = HX.LightingModel.GGX;
-    options.deferredLightingModel = HX.LightingModel.GGX;
 
     project.init(document.getElementById('webglContainer'), options);
 };

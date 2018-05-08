@@ -29,7 +29,6 @@ function RenderCollector()
     this._shadowCasters = null;
     this._effects = null;
     this._needsNormalDepth = false;
-    this._needsForwardPath = false;
     this._needsBackbuffer = false;
 }
 
@@ -40,10 +39,6 @@ RenderCollector.prototype = Object.create(SceneVisitor.prototype, {
 
     needsNormalDepth: {
         get: function() { return this._needsNormalDepth; }
-    },
-
-    needsForwardPath: {
-        get: function() { return this._needsForwardPath; }
     },
 
     needsBackbuffer: {

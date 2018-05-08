@@ -30,7 +30,6 @@ geometry code that.
 * Some aspects may or may not be supported by the device (hdr rendering). The engine will catch this automatically, but 
 in most cases it's good to provide alternative solutions. Lack of HDR support or adaptive tone mapping may require a 
 different lighting setup.
-* The engine is built with both deferred and forward rendering paths.
 * "Bones" (used in skinned animations) are *always* named "joints". It's more correct, and I'm a pedant. There!
 * More pedantry: adding and removing children to a scene graph node is called "attaching" and "detaching". I feel it
 describes more accurately what the relationship between child/parent is.

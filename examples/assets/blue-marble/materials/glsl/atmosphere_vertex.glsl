@@ -2,15 +2,15 @@
 
 #define NUM_SAMPLES 2
 
-attribute vec4 hx_position;
+vertex_attribute vec4 hx_position;
 
 uniform vec3 hx_cameraWorldPosition;
 uniform mat4 hx_wvpMatrix;
 uniform mat4 hx_worldMatrix;
 
-varying vec3 viewDir;
-varying vec3 color0;
-varying vec3 color1;
+varying_out vec3 viewDir;
+varying_out vec3 color0;
+varying_out vec3 color1;
 
 uniform vec3 lightDir;
 uniform float atmosphereRadius;

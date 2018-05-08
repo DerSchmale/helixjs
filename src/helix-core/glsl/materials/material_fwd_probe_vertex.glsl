@@ -1,5 +1,5 @@
-varying vec3 hx_viewPosition;
-varying vec3 hx_worldPosition;
+varying_out vec3 hx_viewPosition;
+varying_out vec3 hx_worldPosition;
 uniform mat4 hx_inverseProjectionMatrix;
 uniform mat4 hx_worldMatrix;
 

@@ -3,7 +3,6 @@ import {Float4} from "../math/Float4";
 import {META} from "../Helix";
 import {MathX} from "../math/MathX";
 import {BoundingAABB} from "../scene/BoundingAABB";
-import {DeferredSpotShader} from "./shaders/DeferredSpotShader";
 import {Frustum} from "../camera/Frustum";
 import {PlaneSide} from "../math/PlaneSide";
 import {SpotShadowMapRenderer} from "../render/SpotShadowMapRenderer";
@@ -28,13 +27,6 @@ import {SpotShadowMapRenderer} from "../render/SpotShadowMapRenderer";
 function SpotLight()
 {
 	DirectLight.call(this);
-
-    if (!SpotLight._deferredShaderSphere && META.OPTIONS.deferredLightingModel) {
-        SpotLight._deferredShaderCone = new DeferredSpotShader(true, false);
-        SpotLight._deferredShaderRect = new DeferredSpotShader(false, false);
-        SpotLight._deferredShaderConeShadows = new DeferredSpotShader(true, true);
-        SpotLight._deferredShaderRectShadows = new DeferredSpotShader(false, true);
-    }
 
     this._localBounds = new BoundingAABB();
     this._radius = 50.0;
@@ -149,32 +141,6 @@ SpotLight.prototype._updateWorldBounds = function()
 
     this._worldBounds.transformFrom(this._localBounds, this.worldMatrix);
 };
-
-/**
- * @ignore
- */
-SpotLight.prototype.renderDeferredLighting = function(renderer)
-{
-    var camPos = new Float4();
-    var thisPos = new Float4();
-
-    return function(renderer) {
-
-        var camera = renderer._camera;
-        // distance camera vs light to estimate projected size
-        camera.worldMatrix.getColumn(3, camPos);
-        this.worldMatrix.getColumn(3, thisPos);
-        var side = this.worldBounds.classifyAgainstPlane(camera.frustum.planes[Frustum.PLANE_NEAR]);
-
-        var shader;
-        if (side === PlaneSide.FRONT)
-            shader = this._castShadows? SpotLight._deferredShaderConeShadows : SpotLight._deferredShaderCone;
-        else
-            shader = this._castShadows? SpotLight._deferredShaderRectShadows : SpotLight._deferredShaderRect;
-
-        shader.execute(renderer, this);
-    }
-}();
 
 /**
  * @ignore

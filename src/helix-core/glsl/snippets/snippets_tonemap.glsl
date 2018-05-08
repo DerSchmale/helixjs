@@ -1,4 +1,4 @@
-varying vec2 uv;
+varying_in vec2 uv;
 
 #ifdef HX_ADAPTIVE
 uniform sampler2D hx_luminanceMap;

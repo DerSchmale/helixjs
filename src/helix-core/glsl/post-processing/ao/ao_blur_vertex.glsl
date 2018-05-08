@@ -1,10 +1,10 @@
-attribute vec4 hx_position;
-attribute vec2 hx_texCoord;
+vertex_attribute vec4 hx_position;
+vertex_attribute vec2 hx_texCoord;
 
-varying vec2 uv1;
-varying vec2 uv2;
-varying vec2 uv3;
-varying vec2 uv4;
+varying_out vec2 uv1;
+varying_out vec2 uv2;
+varying_out vec2 uv3;
+varying_out vec2 uv4;
 
 uniform vec2 pixelSize;
 

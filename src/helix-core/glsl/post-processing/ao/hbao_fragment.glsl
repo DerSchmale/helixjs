@@ -9,17 +9,17 @@ uniform float bias;
 uniform float rcpFallOffDistance;
 uniform vec2 ditherScale;
 
-uniform sampler2D hx_gbufferNormalDepth;
+uniform sampler2D hx_normalDepthBuffer;
 uniform sampler2D sampleDirTexture;
 uniform sampler2D ditherTexture;
 
-varying vec2 uv;
-varying vec3 viewDir;
-varying vec3 frustumCorner;
+varying_in vec2 uv;
+varying_in vec3 viewDir;
+varying_in vec3 frustumCorner;
 
 vec3 getViewPos(vec2 sampleUV)
 {
-    vec4 smp = texture2D(hx_gbufferNormalDepth, sampleUV);
+    vec4 smp = texture2D(hx_normalDepthBuffer, sampleUV);
     float depth = hx_decodeLinearDepth(smp);
     float viewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;
     vec3 viewPos = frustumCorner * vec3(sampleUV.x * 2.0 - 1.0, 1.0, sampleUV.y * 2.0 - 1.0);
@@ -87,7 +87,7 @@ float getRayOcclusion(vec2 direction, float jitter, vec2 projectedRadii, vec3 ce
 
 void main()
 {
-    vec4 normalDepth = texture2D(hx_gbufferNormalDepth, uv);
+    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);
     vec3 centerNormal = hx_decodeNormal(normalDepth);
     float centerDepth = hx_decodeLinearDepth(normalDepth);
     float viewY = hx_cameraNearPlaneDistance + centerDepth * hx_cameraFrustumRange;
@@ -110,5 +110,5 @@ void main()
     }
 
     totalOcclusion = 1.0 - clamp(strengthPerRay * totalOcclusion, 0.0, 1.0);
-    gl_FragColor = vec4(vec3(totalOcclusion), 1.0);
+    hx_FragColor = vec4(vec3(totalOcclusion), 1.0);
 }

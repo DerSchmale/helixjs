@@ -1,5 +1,5 @@
-varying vec2 uv;
-varying vec3 viewDir;
+varying_in vec2 uv;
+varying_in vec3 viewDir;
 
 uniform vec3 tint;
 uniform float density;
@@ -10,12 +10,12 @@ uniform float hx_cameraFrustumRange;
 uniform float hx_cameraNearPlaneDistance;
 uniform vec3 hx_cameraWorldPosition;
 
-uniform sampler2D hx_gbufferNormalDepth;
+uniform sampler2D hx_normalDepthBuffer;
 uniform sampler2D hx_backbuffer;
 
 void main()
 {
-    vec4 normalDepth = texture2D(hx_gbufferNormalDepth, uv);
+    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);
 	vec4 color = texture2D(hx_backbuffer, uv);
 	float depth = hx_decodeLinearDepth(normalDepth);
 	// do not fog up skybox
@@ -31,5 +31,5 @@ void main()
 
 	float fog = clamp(exp(-fogFactor * density), 0.0, 1.0);
 	color.xyz = mix(tint, color.xyz, fog);
-	gl_FragColor = color;
+	hx_FragColor = color;
 }

@@ -4,7 +4,7 @@ void main()
 	vec3 x = max(vec3(0.0), color.xyz - 0.004);
 
 	// this has pow 2.2 gamma included, not valid if using fast gamma correction
-	//gl_FragColor = vec4((x * (6.2 * x + .5))/(x * (6.2 * x + 1.7) + 0.06), 1.0);
+	//hx_FragColor = vec4((x * (6.2 * x + .5))/(x * (6.2 * x + 1.7) + 0.06), 1.0);
 
     #ifdef HX_ACES
     // ACES -> this desaturates less
@@ -21,5 +21,5 @@ void main()
         float d = 1.7;
         float e = 0.06;
     #endif
-	gl_FragColor = vec4(clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0), 1.0);
+	hx_FragColor = vec4(clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0), 1.0);
 }

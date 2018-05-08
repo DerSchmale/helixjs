@@ -1,6 +1,6 @@
 #define RECIPROCAL_PI2 0.15915494
 
-varying vec3 direction;
+varying_in vec3 direction;
 
 uniform sampler2D source;
 
@@ -10,5 +10,5 @@ void main()
     vec2 uv;
     uv.x = atan( dir.z, dir.x ) * RECIPROCAL_PI2 + 0.5;
 	uv.y = dir.y * 0.5 + 0.5;
-    gl_FragColor = texture2D(source, uv);
+    hx_FragColor = texture2D(source, uv);
 }

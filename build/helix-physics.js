@@ -1996,8 +1996,6 @@ Matrix4x4$1.prototype =
         return      m[c1 | r1] * (m22 * m33 - m23 * m32)
             - m[c2 | r1] * (m21 * m33 - m23 * m31)
             + m[c3 | r1] * (m21 * m32 - m22 * m31);
-
-        return this;
     },
 
     /**

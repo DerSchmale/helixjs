@@ -1,4 +1,3 @@
-import {GBuffer} from "../render/GBuffer";
 /**
  * @ignore
  * @author derschmale <http://www.derschmale.com>
@@ -40,9 +39,7 @@ export var TextureSetter = {
         TextureSetter._passTable = {};
         TextureSetter._instanceTable = {};
 
-        TextureSetter._passTable.hx_gbufferAlbedo = GBufferAlbedoSetter;
-        TextureSetter._passTable.hx_gbufferNormalDepth = GBufferNormalDepthSetter;
-        TextureSetter._passTable.hx_gbufferSpecular = GBufferSpecularSetter;
+        TextureSetter._passTable.hx_normalDepthBuffer = NormalDepthBufferSetter;
         TextureSetter._passTable.hx_backbuffer = BackbufferSetter;
         TextureSetter._passTable.hx_frontbuffer = FrontbufferSetter;
         TextureSetter._passTable.hx_lightAccumulation = LightAccumulationSetter;
@@ -56,36 +53,13 @@ export var TextureSetter = {
 // Texture setters can be either per pass or per instance. The execute method gets passed eithter the renderer or the
 // render item, respectively.
 
-function GBufferAlbedoSetter()
+function NormalDepthBufferSetter()
 {
 }
 
-GBufferAlbedoSetter.prototype.execute = function (renderer)
+NormalDepthBufferSetter.prototype.execute = function (renderer)
 {
-    if (renderer._gbuffer)
-        this.slot.texture = renderer._gbuffer.textures[GBuffer.ALBEDO];
-};
-
-
-function GBufferNormalDepthSetter()
-{
-}
-
-GBufferNormalDepthSetter.prototype.execute = function (renderer)
-{
-    if (renderer._gbuffer)
-        this.slot.texture = renderer._gbuffer.textures[GBuffer.NORMAL_DEPTH];
-};
-
-
-function GBufferSpecularSetter()
-{
-}
-
-GBufferSpecularSetter.prototype.execute = function (renderer)
-{
-    if (renderer._gbuffer)
-        this.slot.texture = renderer._gbuffer.textures[GBuffer.SPECULAR];
+    this.slot.texture = renderer._normalDepthBuffer;
 };
 
 

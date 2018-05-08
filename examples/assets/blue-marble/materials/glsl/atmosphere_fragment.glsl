@@ -1,6 +1,6 @@
-varying vec3 viewDir;
-varying vec3 color0;
-varying vec3 color1;
+varying_in vec3 viewDir;
+varying_in vec3 color0;
+varying_in vec3 color1;
 
 uniform vec3 lightDir;
 uniform float mieG;

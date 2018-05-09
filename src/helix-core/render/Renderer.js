@@ -14,6 +14,10 @@ import {PointLight} from "../light/PointLight";
 import {LightProbe} from "../light/LightProbe";
 import {RenderPath} from "./RenderPath";
 import {SpotLight} from "../light/SpotLight";
+import {BasicMaterial} from "../material/BasicMaterial";
+import {LightingModel} from "./LightingModel";
+import {Float4} from "../math/Float4";
+import {Matrix4x4} from "../math/Matrix4x4";
 
 /**
  * @classdesc
@@ -49,6 +53,14 @@ function Renderer()
     //this._previousViewProjection = new Matrix4x4();
     this._debugMode = Renderer.DebugMode.NONE;
     this._ssaoTexture = null;
+
+    if (capabilities.WEBGL_2) {
+        // TODO: This needs to come from a dummy material
+        var material = new BasicMaterial({ lightingModel: LightingModel.GGX });
+        var pass = material.getPass(MaterialPass.BASE_PASS);
+        this._lightingUniformBuffer = pass.createUniformBufferFromShader("hx_lights");
+        console.log(this._lightingUniformBuffer);
+    }
 }
 
 /**
@@ -171,20 +183,19 @@ Renderer.prototype =
         GL.setClearColor(this._backgroundColor);
         GL.clear();
 
-        if (this._depthPrepass) {
-            GL.setColorMask(false);
-            RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
-            RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
-            GL.setColorMask(true);
-        }
+        this._renderDepthPrepass();
 
-        this._renderOpaque();
-        this._renderTransparent();
+        if (capabilities.WEBGL_2)
+            this._renderClustered();
+        else {
+            this._renderForwardOpaque();
+            this._renderForwardTransparent();
+        }
 
         this._swapHDRFrontAndBack();
         this._renderEffects(dt);
 
-        GL.setColorMask(true);
+        GL.setColorMask(true, false);
 
         this._renderToScreen(renderTarget);
 
@@ -199,13 +210,148 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _renderOpaque: function()
+    _renderDepthPrepass: function ()
+    {
+        if (!this._depthPrepass) return;
+
+        GL.lockColorMask(false);
+        RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+        RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
+        GL.unlockColorMask(true);
+    },
+
+    _renderClustered: function()
+    {
+        var lights = this._renderCollector.getLights();
+        var numLights = lights.length;
+        var arr = new ArrayBuffer(this._lightingUniformBuffer.size);
+        var data = new DataView(arr);
+        var camera = this._camera;
+        var dirLightOffset = 16;
+        var dirLightStride = 320;
+        var numDirLights = 0;
+        var numDirCasters = 0;
+
+        for (var i = 0; i < numLights; ++i) {
+            var light = lights[i];
+
+            if (light instanceof DirectionalLight) {
+                // TODO: Implement shadow mapping later
+                this.writeDirectionalLight(light, camera, data, dirLightOffset, numDirCasters);
+
+                /*if (light.castShadows) {
+                    shadowMaps[numDirCasters] = light._shadowMap;
+                    ++numDirCasters;
+                }*/
+
+                dirLightOffset += dirLightStride;
+                ++numDirLights;
+            }
+        }
+
+        data.setInt32(0, numDirLights, true);
+
+        this._lightingUniformBuffer.uploadData(arr);
+
+        // TODO: Should we do something like clustered forward rendering?
+        // put ALL lights in a single massive list of uniforms (or possibly in a texture?), using a uniform buffer since
+        // this is only allowed in WebGL 2
+
+        // (directionals + probes are global)
+        // points + spots can possibly be merged (isSpot + extra spot params)
+
+        // divide screen into tiles / or frustum into cells (NUM_CELLS = X * Y * Z)
+        // loop through ALL point/spot lights
+        // determine which cells they overlap, and append their index to the cells list (layout see shader info below)
+
+        // MAX_LIGHTS need not be all *that* high (100 is already cool)
+
+        // Shaders have uniforms:
+        // PointOrSpotLight hx_lights[MAX_LIGHTS];
+        // int hx_lightingCells[NUM_CELLS * (MAX_LIGHTS + 1)]; --> ints: numLights followed by numLights indices into the hx_lights buffer
+        // in the shader: cell = getCellForFragment();
+        // cellOffset = cell * MAX_LIGHTS;
+        // numLights = hx_lightingCells[cell];
+        // for (i = 1; i <= numLights; ++i) {
+        //    lightIndex = hx_lightingCells[cell + i];
+        //    light = hx_lights[lightIndex];
+        // }
+
+        // the uniforms can be assigned using the usual per pass setters
+
+        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
+        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_FIXED));
+        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC));
+
+    },
+
+    /**
+     * @ignore
+     * @private
+     */
+    writeDirectionalLight: function(light, camera, target, offset, shadowMapIndex)
+    {
+        var dir = new Float4();
+        var matrix = new Matrix4x4();
+        return function(light, camera, target, offset, shadowMapIndex)
+        {
+            var col = light._scaledIrradiance;
+            target.setFloat32(offset, col.r, true);
+            target.setFloat32(offset + 4, col.g, true);
+            target.setFloat32(offset + 8, col.b, true);
+
+            camera.viewMatrix.transformVector(light.direction, dir);
+            target.setFloat32(offset + 16, dir.x, true);
+            target.setFloat32(offset + 20, dir.y, true);
+            target.setFloat32(offset + 24, dir.z, true);
+
+            if (light.castShadows) {
+                var shadowRenderer = light._shadowMapRenderer;
+                var numCascades = META.OPTIONS.numShadowCascades;
+                var splits = shadowRenderer._splitDistances;
+
+                var m = matrix._m;
+                var o = offset + 32;
+
+                for (var j = 0; j < numCascades; ++j) {
+                    matrix.multiply(shadowRenderer.getShadowMatrix(j), camera.worldMatrix);
+
+                    for (var l = 0; l < 16; ++l) {
+                        target.setFloat32(o, m[l], true);
+                        o += 4;
+                    }
+                }
+
+                target.setFloat32(offset + 288, splits[0], true);
+                target.setFloat32(offset + 292, splits[1], true);
+                target.setFloat32(offset + 296, splits[2], true);
+                target.setFloat32(offset + 300, splits[3], true);
+                target.setFloat32(offset + 304, light.depthBias, true);
+                target.setFloat32(offset + 308, splits[numCascades - 1], true);
+                target.setInt32(offset + 312, shadowMapIndex, true);
+            }
+            else
+                target.setInt32(offset + 308, -1, true);
+        }
+    }(),
+
+    /**
+     * @ignore
+     * @private
+     */
+    _renderForwardOpaque: function()
     {
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
 
         var list = this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC);
         if (list.length === 0) return;
 
+        this._renderOpaqueDynamicMultipass(list);
+    },
+
+    _renderOpaqueDynamicMultipass: function(list)
+    {
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, list);
 
         var lights = this._renderCollector.getLights();
@@ -238,7 +384,7 @@ Renderer.prototype =
         }
     },
 
-    _renderTransparent: function()
+    _renderForwardTransparent: function()
     {
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
@@ -251,7 +397,7 @@ Renderer.prototype =
 
             var renderItem = list[r];
 
-            this._renderSingleItem(MaterialPass.BASE_PASS, renderItem);
+            this._renderSingleItemSingleLight(MaterialPass.BASE_PASS, renderItem);
 
             var material = renderItem.material;
 
@@ -264,12 +410,12 @@ Renderer.prototype =
                 // I don't like type checking, but lighting support is such a core thing...
                 // maybe we can work in a more plug-in like light system
                 if (light instanceof LightProbe) {
-                    this._renderSingleItem(MaterialPass.LIGHT_PROBE_PASS, renderItem, light);
+                    this._renderSingleItemSingleLight(MaterialPass.LIGHT_PROBE_PASS, renderItem, light);
                 }
                 else if (light instanceof DirectionalLight) {
                     // if non-global, do intersection tests
                     var passType = light.castShadows? MaterialPass.DIR_LIGHT_SHADOW_PASS : MaterialPass.DIR_LIGHT_PASS;
-                    this._renderSingleItem(passType, renderItem, light);
+                    this._renderSingleItemSingleLight(passType, renderItem, light);
                 }
                 else if (light instanceof PointLight) {
                     // cannot just use renderPass, need to do intersection tests
@@ -300,11 +446,11 @@ Renderer.prototype =
             if (!pass) continue;
 
             if (lightBound.intersectsBound(renderItem.worldBounds))
-                this._renderSingleItem(passType, renderItem, light);
+                this._renderSingleItemSingleLight(passType, renderItem, light);
         }
     },
 
-    _renderSingleItem: function(passType, renderItem, light)
+    _renderSingleItemSingleLight: function(passType, renderItem, light)
     {
         var pass = renderItem.material.getPass(passType);
         if (!pass) return;
@@ -353,13 +499,13 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _renderShadowCasters: function ()
+    _renderShadowCasters: function()
     {
         var casters = this._renderCollector._shadowCasters;
         var len = casters.length;
 
         for (var i = 0; i < len; ++i)
-            casters[i].render(this._camera, this._scene)
+            casters[i].render(this._camera, this._scene);
     },
 
     /**

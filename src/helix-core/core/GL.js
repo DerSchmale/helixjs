@@ -7,6 +7,7 @@ import { Color } from '../core/Color.js';
 var _numActiveAttributes = 0;
 var _depthMask = true;
 var _colorMask = true;
+var _lockColorMask = false;
 var _cullMode = null;
 var _invertCullMode = false;
 var _depthTest = null;
@@ -105,9 +106,31 @@ var GL = {
      */
     setColorMask: function(value)
     {
-        if (value === _colorMask) return;
+        if (_lockColorMask || value === _colorMask) return;
         _colorMask = value;
         gl.colorMask(value, value, value, value);
+    },
+
+    /**
+     * Specifies any calls to setColorMask or states defined by material will have no effect until the first call to unlockColorMask
+     */
+    lockColorMask: function(state)
+    {
+        if (state !== undefined) {
+            GL.setColorMask(state);
+        }
+        _lockColorMask = true;
+    },
+
+    /**
+     * Specifies any calls to setColorMask or states defined by material will be applied.
+     */
+    unlockColorMask: function(state)
+    {
+        if (state !== undefined) {
+            GL.setColorMask(state);
+        }
+        _lockColorMask = false;
     },
 
     /**
@@ -343,7 +366,7 @@ var GL = {
             gl.depthMask(_depthMask);
         }
 
-        if (colorMask !== _colorMask) {
+        if (!_lockColorMask && colorMask !== _colorMask) {
             _colorMask = colorMask;
             gl.colorMask(colorMask, colorMask, colorMask, colorMask);
         }

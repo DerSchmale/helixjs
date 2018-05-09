@@ -3,6 +3,7 @@ import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {Shader} from "../../shader/Shader";
 
 /**
+ * The base pass for dynamic lighting
  * @ignore
  * @param geometryVertex
  * @param geometryFragment
@@ -10,14 +11,14 @@ import {Shader} from "../../shader/Shader";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function ForwardLitBasePass(geometryVertex, geometryFragment)
+function DynamicLitBasePass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
 }
 
-ForwardLitBasePass.prototype = Object.create(MaterialPass.prototype);
+DynamicLitBasePass.prototype = Object.create(MaterialPass.prototype);
 
-ForwardLitBasePass.prototype._generateShader = function(geometryVertex, geometryFragment)
+DynamicLitBasePass.prototype._generateShader = function(geometryVertex, geometryFragment)
 {
     // no normals or specular are needed
     var defines =   "#define HX_SKIP_NORMALS\n" +
@@ -27,4 +28,4 @@ ForwardLitBasePass.prototype._generateShader = function(geometryVertex, geometry
     return new Shader(vertexShader, fragmentShader);
 };
 
-export { ForwardLitBasePass };
+export { DynamicLitBasePass };

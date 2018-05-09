@@ -76,8 +76,6 @@ function initScene(scene, assetLibrary)
     var material2 = new HX.BasicMaterial();
     material2.colorMap = assetLibrary.get("albedo");
     material2.roughness = 0.2;
-    // use non-default lighting model to cause forward lighting
-    material2.lightingModel = HX.LightingModel.BlinnPhong;
 
     var primitive = new HX.SpherePrimitive(
         {

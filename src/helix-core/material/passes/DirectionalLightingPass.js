@@ -17,7 +17,7 @@ import {META} from "../../Helix";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function ForwardLitDirPass(geometryVertex, geometryFragment, lightingModel, shadows)
+function DirectionalLightingPass(geometryVertex, geometryFragment, lightingModel, shadows)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
 
@@ -33,10 +33,10 @@ function ForwardLitDirPass(geometryVertex, geometryFragment, lightingModel, shad
     }
 }
 
-ForwardLitDirPass.prototype = Object.create(MaterialPass.prototype);
+DirectionalLightingPass.prototype = Object.create(MaterialPass.prototype);
 
 // the light is passed in as data
-ForwardLitDirPass.prototype.updatePassRenderState = function(camera, renderer, light)
+DirectionalLightingPass.prototype.updatePassRenderState = function(camera, renderer, light)
 {
     var dir = new Float4();
     var matrix = new Matrix4x4();
@@ -79,7 +79,7 @@ ForwardLitDirPass.prototype.updatePassRenderState = function(camera, renderer, l
     }
 }();
 
-ForwardLitDirPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
+DirectionalLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
 {
     var defines = {};
 
@@ -99,4 +99,4 @@ ForwardLitDirPass.prototype._generateShader = function(geometryVertex, geometryF
     return new Shader(vertexShader, fragmentShader);
 };
 
-export { ForwardLitDirPass };
+export { DirectionalLightingPass };

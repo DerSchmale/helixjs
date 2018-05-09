@@ -14,7 +14,7 @@ import {capabilities, DEFAULTS} from "../../Helix";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel)
+function ProbeLightingPass(geometryVertex, geometryFragment, lightingModel)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
     this._diffuseSlot = this.getTextureSlot("hx_diffuseProbeMap");
@@ -25,10 +25,10 @@ function ForwardLitProbePass(geometryVertex, geometryFragment, lightingModel)
     this._positionLocation = this.getUniformLocation("hx_probePosition");
 }
 
-ForwardLitProbePass.prototype = Object.create(MaterialPass.prototype);
+ProbeLightingPass.prototype = Object.create(MaterialPass.prototype);
 
 // the light is passed in as data
-ForwardLitProbePass.prototype.updatePassRenderState = function(camera, renderer, probe)
+ProbeLightingPass.prototype.updatePassRenderState = function(camera, renderer, probe)
 {
     var gl = GL.gl;
     gl.useProgram(this._shader._program);
@@ -46,7 +46,7 @@ ForwardLitProbePass.prototype.updatePassRenderState = function(camera, renderer,
     MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
 };
 
-ForwardLitProbePass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
+ProbeLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
 {
     var extensions = "";
     if (capabilities.EXT_SHADER_TEXTURE_LOD) {
@@ -65,4 +65,4 @@ ForwardLitProbePass.prototype._generateShader = function(geometryVertex, geometr
     return new Shader(vertexShader, fragmentShader);
 };
 
-export { ForwardLitProbePass };
+export { ProbeLightingPass };

@@ -4,12 +4,13 @@ import {MaterialPass} from "./MaterialPass";
 import {UnlitPass} from "./passes/UnlitPass";
 import {DirectionalShadowPass} from "./passes/DirectionalShadowPass";
 import {BlendState} from "../render/BlendState";
-import {ForwardLitBasePass} from "./passes/ForwardLitBasePass";
-import {ForwardLitDirPass} from "./passes/ForwardLitDirPass";
-import {ForwardLitPointPass} from "./passes/ForwardLitPointPass";
-import {ForwardLitSpotPass} from "./passes/ForwardLitSpotPass";
-import {ForwardLitProbePass} from "./passes/ForwardLitProbePass";
-import {ForwardFixedLitPass} from "./passes/ForwardFixedLitPass";
+import {DirectionalLightingPass} from "./passes/DirectionalLightingPass";
+import {ClusteredLitPass} from "./passes/ClusteredLitPass";
+import {DynamicLitBasePass} from "./passes/DynamicLitBasePass";
+import {FixedLitPass} from "./passes/FixedLitPass";
+import {PointLightingPass} from "./passes/PointLightingPass";
+import {ProbeLightingPass} from "./passes/ProbeLightingPass";
+import {SpotLightingPass} from "./passes/SpotLightingPass";
 import {NormalDepthPass} from "./passes/NormalDepthPass";
 import {RenderPath} from "../render/RenderPath";
 import {SpotShadowPass} from "./passes/SpotShadowPass";
@@ -99,20 +100,25 @@ Material.prototype =
         }
         else if (this._fixedLights) {
             this._renderPath = RenderPath.FORWARD_FIXED;
-            this.setPass(MaterialPass.BASE_PASS, new ForwardFixedLitPass(vertex, fragment, this._lightingModel, this._fixedLights));
+            this.setPass(MaterialPass.BASE_PASS, new FixedLitPass(vertex, fragment, this._lightingModel, this._fixedLights));
+        }
+        else if (capabilities.WEBGL_2) {
+            this._renderPath = RenderPath.FORWARD_DYNAMIC;
+
+            this.setPass(MaterialPass.BASE_PASS, new ClusteredLitPass(vertex, fragment, this._lightingModel, null));
         }
         else {
             this._renderPath = RenderPath.FORWARD_DYNAMIC;
 
-            this.setPass(MaterialPass.BASE_PASS, new ForwardLitBasePass(vertex, fragment));
+            this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(vertex, fragment));
 
-            this.setPass(MaterialPass.DIR_LIGHT_PASS, new ForwardLitDirPass(vertex, fragment, this._lightingModel, false));
-            this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new ForwardLitDirPass(vertex, fragment, this._lightingModel, true));
-            this.setPass(MaterialPass.POINT_LIGHT_PASS, new ForwardLitPointPass(vertex, fragment, this._lightingModel, false));
-            this.setPass(MaterialPass.POINT_LIGHT_SHADOW_PASS, new ForwardLitPointPass(vertex, fragment, this._lightingModel, true));
-            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new ForwardLitSpotPass(vertex, fragment, this._lightingModel, false));
-            this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_PASS, new ForwardLitSpotPass(vertex, fragment, this._lightingModel, true));
-            this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ForwardLitProbePass(vertex, fragment, this._lightingModel));
+            this.setPass(MaterialPass.DIR_LIGHT_PASS, new DirectionalLightingPass(vertex, fragment, this._lightingModel, false));
+            this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new DirectionalLightingPass(vertex, fragment, this._lightingModel, true));
+            this.setPass(MaterialPass.POINT_LIGHT_PASS, new PointLightingPass(vertex, fragment, this._lightingModel, false));
+            this.setPass(MaterialPass.POINT_LIGHT_SHADOW_PASS, new PointLightingPass(vertex, fragment, this._lightingModel, true));
+            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new SpotLightingPass(vertex, fragment, this._lightingModel, false));
+            this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_PASS, new SpotLightingPass(vertex, fragment, this._lightingModel, true));
+            this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ProbeLightingPass(vertex, fragment, this._lightingModel));
         }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(vertex, fragment));

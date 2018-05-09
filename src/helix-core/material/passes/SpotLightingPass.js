@@ -15,7 +15,7 @@ import {META} from "../../Helix";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function ForwardLitSpotPass(geometryVertex, geometryFragment, lightingModel, shadows)
+function SpotLightingPass(geometryVertex, geometryFragment, lightingModel, shadows)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
 
@@ -33,10 +33,10 @@ function ForwardLitSpotPass(geometryVertex, geometryFragment, lightingModel, sha
     }
 }
 
-ForwardLitSpotPass.prototype = Object.create(MaterialPass.prototype);
+SpotLightingPass.prototype = Object.create(MaterialPass.prototype);
 
 // the light is passed in as data
-ForwardLitSpotPass.prototype.updatePassRenderState = function(camera, renderer, light)
+SpotLightingPass.prototype.updatePassRenderState = function(camera, renderer, light)
 {
     var pos = new Float4();
     var matrix = new Matrix4x4();
@@ -75,7 +75,7 @@ ForwardLitSpotPass.prototype.updatePassRenderState = function(camera, renderer, 
     }
 }();
 
-ForwardLitSpotPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
+SpotLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
 {
     var defines = {};
 
@@ -95,4 +95,4 @@ ForwardLitSpotPass.prototype._generateShader = function(geometryVertex, geometry
     return new Shader(vertexShader, fragmentShader);
 };
 
-export { ForwardLitSpotPass };
+export { SpotLightingPass };

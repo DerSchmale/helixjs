@@ -24,7 +24,8 @@ import {SpotLight} from "../../light/SpotLight";
  * @param lights
  * @constructor
  */
-function ForwardFixedLitPass(geometryVertex, geometryFragment, lightingModel, lights) {
+function FixedLitPass(geometryVertex, geometryFragment, lightingModel, lights)
+{
     this._dirLights = null;
     this._dirLightCasters = null;
     this._pointLights = null;
@@ -42,9 +43,10 @@ function ForwardFixedLitPass(geometryVertex, geometryFragment, lightingModel, li
     this._assignLightProbes();
 }
 
-ForwardFixedLitPass.prototype = Object.create(MaterialPass.prototype);
+FixedLitPass.prototype = Object.create(MaterialPass.prototype);
 
-ForwardFixedLitPass.prototype.updatePassRenderState = function (camera, renderer) {
+FixedLitPass.prototype.updatePassRenderState = function (camera, renderer)
+{
     GL.gl.useProgram(this._shader._program);
     this._assignDirLights(camera);
     this._assignDirLightCasters(camera);
@@ -57,7 +59,8 @@ ForwardFixedLitPass.prototype.updatePassRenderState = function (camera, renderer
     MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
 };
 
-ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragment, lightingModel, lights) {
+FixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragment, lightingModel, lights)
+{
     this._dirLights = [];
     this._dirLightCasters = [];
     this._pointLights = [];
@@ -115,7 +118,7 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
         extensions += "#texturelod\n";
     }
 
-    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_all_vertex.glsl", defines);
+    var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_fixed_vertex.glsl", defines);
 
     var fragmentShader =
         extensions +
@@ -129,15 +132,17 @@ ForwardFixedLitPass.prototype._generateShader = function (geometryVertex, geomet
         ShaderLibrary.get("spot_light.glsl") + "\n" +
         ShaderLibrary.get("light_probe.glsl") + "\n" +
         geometryFragment + "\n" +
-        ShaderLibrary.get("material_fwd_all_fragment.glsl");
+        ShaderLibrary.get("material_fwd_fixed_fragment.glsl");
 
     return new Shader(vertexShader, fragmentShader);
 };
 
-ForwardFixedLitPass.prototype._assignDirLights = function (camera) {
+FixedLitPass.prototype._assignDirLights = function (camera)
+{
     var dir = new Float4();
 
-    return function(camera) {
+    return function (camera)
+    {
         var lights = this._dirLights;
         if (!lights) return;
 
@@ -156,12 +161,14 @@ ForwardFixedLitPass.prototype._assignDirLights = function (camera) {
     }
 }();
 
-ForwardFixedLitPass.prototype._assignDirLightCasters = function (camera) {
+FixedLitPass.prototype._assignDirLightCasters = function (camera)
+{
     var dir = new Float4();
     var matrix = new Matrix4x4();
     var matrixData = new Float32Array(64);
 
-    return function(camera) {
+    return function (camera)
+    {
         var lights = this._dirLightCasters;
         if (!lights) return;
 
@@ -199,10 +206,12 @@ ForwardFixedLitPass.prototype._assignDirLightCasters = function (camera) {
     }
 }();
 
-ForwardFixedLitPass.prototype._assignPointLights = function (camera) {
+FixedLitPass.prototype._assignPointLights = function (camera)
+{
     var pos = new Float4();
 
-    return function(camera) {
+    return function (camera)
+    {
         var lights = this._pointLights;
         if (!lights) return;
 
@@ -225,10 +234,12 @@ ForwardFixedLitPass.prototype._assignPointLights = function (camera) {
     }
 }();
 
-ForwardFixedLitPass.prototype._assignPointLightCasters = function (camera) {
+FixedLitPass.prototype._assignPointLightCasters = function (camera)
+{
     var pos = new Float4();
 
-    return function(camera) {
+    return function (camera)
+    {
         var lights = this._pointLightCasters;
         if (!lights) return;
 
@@ -254,10 +265,12 @@ ForwardFixedLitPass.prototype._assignPointLightCasters = function (camera) {
     }
 }();
 
-ForwardFixedLitPass.prototype._assignSpotLights = function (camera) {
+FixedLitPass.prototype._assignSpotLights = function (camera)
+{
     var pos = new Float4();
 
-    return function(camera) {
+    return function (camera)
+    {
         var lights = this._spotLights;
         if (!lights) return;
 
@@ -287,11 +300,13 @@ ForwardFixedLitPass.prototype._assignSpotLights = function (camera) {
     }
 }();
 
-ForwardFixedLitPass.prototype._assignSpotLightCasters = function (camera) {
+FixedLitPass.prototype._assignSpotLightCasters = function (camera)
+{
     var pos = new Float4();
     var matrix = new Matrix4x4();
 
-    return function(camera) {
+    return function (camera)
+    {
         var lights = this._spotLightCasters;
         if (!lights) return;
 
@@ -326,7 +341,8 @@ ForwardFixedLitPass.prototype._assignSpotLightCasters = function (camera) {
     }
 }();
 
-ForwardFixedLitPass.prototype._assignShadowMaps = function () {
+FixedLitPass.prototype._assignShadowMaps = function ()
+{
     var lights = this._dirLightCasters;
     var len = lights.length;
     if (len > 0) {
@@ -370,7 +386,8 @@ ForwardFixedLitPass.prototype._assignShadowMaps = function () {
     }
 };
 
-ForwardFixedLitPass.prototype._assignLightProbes = function () {
+FixedLitPass.prototype._assignLightProbes = function ()
+{
     var diffuseMaps = [];
     var specularMaps = [];
 
@@ -394,7 +411,7 @@ ForwardFixedLitPass.prototype._assignLightProbes = function () {
     }
 };
 
-ForwardFixedLitPass.prototype._getUniformLocations = function()
+FixedLitPass.prototype._getUniformLocations = function ()
 {
     this._dirLocations = [];
     this._dirCasterLocations = [];
@@ -465,4 +482,4 @@ ForwardFixedLitPass.prototype._getUniformLocations = function()
     }
 };
 
-export {ForwardFixedLitPass};
+export {FixedLitPass};

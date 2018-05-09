@@ -5,8 +5,11 @@ struct HX_DirectionalLight
 
     mat4 shadowMapMatrices[4];
     vec4 splitDistances;
+
+    // interspersing these with vec3s results in same block size, so let's keep it organised
     float depthBias;
     float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]
+    int shadowMapIndex;         // used for
 };
 
 void hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)

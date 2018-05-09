@@ -16,6 +16,7 @@ import {Color} from "./core/Color";
 import {FrameBuffer} from "./texture/FrameBuffer";
 import {HardSpotShadowFilter} from "./light/filters/HardSpotShadowFilter";
 import {HardPointShadowFilter} from "./light/filters/HardPointShadowFilter";
+import {MaterialPass} from "./material/MaterialPass";
 
 /**
  * META contains some data about the Helix engine, such as the options it was initialized with.
@@ -318,6 +319,16 @@ export function InitOptions()
     this.maxSkeletonJoints = 64;
 
     /**
+     * Maximum number of directional lights inside a dynamic WebGL 2.0 shader.
+     */
+    this.maxDirLights = 3;
+
+    /**
+     * Maximum number of light probes inside a dynamic WebGL 2.0 shader.
+     */
+    this.maxLightProbes = 1;
+
+    /**
      * Allows applying ambient occlusion ({@linkcode SSAO} or {@linkcode HBAO}) to the scene.
      */
     this.ambientOcclusion = null;
@@ -426,6 +437,9 @@ export function init(canvas, options)
         console.log("WebGL 2 supported!");
         GLSLIncludes.VERSION = "#version 300 es\n";
         defines += "#define HX_GLSL_300_ES\n";
+
+        // throw away all the dynamic passes
+        MaterialPass.NUM_PASS_TYPES = 5;
     }
     else {
         gl = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);

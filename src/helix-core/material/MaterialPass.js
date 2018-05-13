@@ -38,21 +38,17 @@ MaterialPass.BASE_PASS = 0;  // used for unlit or for predefined lights
 
 // dynamic lighting passes
 MaterialPass.DIR_LIGHT_PASS = 1;
-MaterialPass.DIR_LIGHT_SHADOW_PASS = 2;
-MaterialPass.POINT_LIGHT_PASS = 3;
-MaterialPass.POINT_LIGHT_SHADOW_PASS = 4;
-MaterialPass.SPOT_LIGHT_PASS = 5;
-MaterialPass.SPOT_LIGHT_SHADOW_PASS = 6;
-MaterialPass.LIGHT_PROBE_PASS = 7;
+MaterialPass.POINT_LIGHT_PASS = 2;
+MaterialPass.SPOT_LIGHT_PASS = 3;
+MaterialPass.LIGHT_PROBE_PASS = 4;
 
 // shadow map generation
-MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 8;
-MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS = 9;
-MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS = 10;
+MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 5;
+MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS = 6;   // also used for spot lights
 
-MaterialPass.NORMAL_DEPTH_PASS = 11;
+MaterialPass.NORMAL_DEPTH_PASS = 7;
 
-MaterialPass.NUM_PASS_TYPES = 12;
+MaterialPass.NUM_PASS_TYPES = 8;
 
 MaterialPass.prototype =
 {

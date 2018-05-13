@@ -1,11 +1,9 @@
 import {DirectLight} from "./DirectLight";
 import {Float4} from "../math/Float4";
-import {META} from "../Helix";
 import {MathX} from "../math/MathX";
 import {BoundingAABB} from "../scene/BoundingAABB";
-import {Frustum} from "../camera/Frustum";
-import {PlaneSide} from "../math/PlaneSide";
-import {SpotShadowMapRenderer} from "../render/SpotShadowMapRenderer";
+import {Matrix4x4} from "../math/Matrix4x4";
+import {Float2} from "../math/Float2";
 
 /**
  * @classdesc
@@ -16,7 +14,6 @@ import {SpotShadowMapRenderer} from "../render/SpotShadowMapRenderer";
  * @property {number} innerAngle The angle of the spot light where it starts attenuating outwards. In radians!
  * @property {number} outerAngle The maximum angle of the spot light's reach. In radians!
  * @property {boolean} castShadows Defines whether or not this light casts shadows.
- * @property {number} shadowMapSize The shadow map size used by this light.
  *
  * @constructor
  *
@@ -40,12 +37,17 @@ function SpotLight()
     this._localBoundsInvalid = true;
 
     this.depthBias = .0;
-    this._shadowMapSize = 256;
-    this._shadowMapRenderer = null;
+    this.shadowQualityBias = 1;
+    this._shadowMatrix = null;
+    this._shadowTile = null;    // xy = scale, zw = offset
 }
 
 SpotLight.prototype = Object.create(DirectLight.prototype,
     {
+        numAtlasPlanes: {
+            get: function() { return 1; }
+        },
+
         castShadows: {
             get: function()
             {
@@ -59,24 +61,27 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
                 this._castShadows = value;
 
                 if (value) {
-                    this._shadowMapRenderer = new SpotShadowMapRenderer(this, this._shadowMapSize);
+                    this._shadowMatrix = new Matrix4x4();
+                    this._shadowTile = new Float4();
                 }
                 else {
-                    this._shadowMapRenderer = null;
+                    this._shadowMatrix = null;
+                    this._shadowTile = null;
                 }
             }
         },
 
-        shadowMapSize: {
+        shadowMatrix: {
             get: function()
             {
-                return this._shadowMapSize;
-            },
+                return this._shadowMatrix;
+            }
+        },
 
-            set: function(value)
+        shadowTile: {
+            get: function()
             {
-                this._shadowMapSize = value;
-                if (this._shadowMapRenderer) this._shadowMapRenderer.shadowMapSize = value;
+                return this._shadowTile;
             }
         },
 

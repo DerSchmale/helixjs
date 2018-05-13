@@ -117,14 +117,10 @@ export {PointLight} from "./light/PointLight";
 export {SpotLight} from "./light/SpotLight";
 
 export {ShadowFilter} from "./light/filters/ShadowFilter";
-export {ExponentialDirectionalShadowFilter} from "./light/filters/ExponentialDirectionalShadowFilter";
-export {HardDirectionalShadowFilter} from "./light/filters/HardDirectionalShadowFilter";
-export {PCFDirectionalShadowFilter} from "./light/filters/PCFDirectionalShadowFilter";
-export {VarianceDirectionalShadowFilter} from "./light/filters/VarianceDirectionalShadowFilter";
-export {HardSpotShadowFilter} from "./light/filters/HardSpotShadowFilter";
-export {PCFSpotShadowFilter} from "./light/filters/PCFSpotShadowFilter";
-export {HardPointShadowFilter} from "./light/filters/HardPointShadowFilter";
-export {PCFPointShadowFilter} from "./light/filters/PCFPointShadowFilter";
+export {ExponentialShadowFilter} from "./light/filters/ExponentialShadowFilter";
+export {HardShadowFilter} from "./light/filters/HardShadowFilter";
+export {PCFShadowFilter} from "./light/filters/PCFShadowFilter";
+export {VarianceShadowFilter} from "./light/filters/VarianceShadowFilter";
 
 export {MaterialPass} from "./material/MaterialPass";
 export {Material} from "./material/Material";

@@ -1,13 +1,13 @@
 import { ShaderLibrary } from '../../shader/ShaderLibrary';
 import { ShadowFilter } from './ShadowFilter';
 import { VSMBlurShader } from '../shaders/VSMBlurShader';
-import {capabilities, CullMode, DataType, TextureFormat} from "../../Helix";
+import {capabilities, CullMode, DataType, TextureFilter, TextureFormat} from "../../Helix";
 
 
 /**
  * @classdesc
- * VarianceDirectionalShadowFilter is a shadow filter for directional lights that provides variance soft shadow mapping.
- * The implementation is highly experimental at this point.
+ * VarianceShadowFilter is a shadow filter that provides variance soft shadow mapping. The implementation is highly
+ * experimental at this point.
  *
  * @property {Number} blurRadius The blur radius for the soft shadows.
  * @property {Number} lightBleedReduction A value to counter light bleeding, an artifact of the technique.
@@ -15,7 +15,7 @@ import {capabilities, CullMode, DataType, TextureFormat} from "../../Helix";
  * @property {Boolean} useHalfFloat Uses half float textures for the shadow map, if available. This may result in
  * performance improvements, but also precision artifacts. Defaults to true.
  *
- * @see {@linkcode InitOptions#directionalShadowFilter}
+ * @see {@linkcode InitOptions#shadowFilter}
  *
  * @constructor
  *
@@ -23,7 +23,7 @@ import {capabilities, CullMode, DataType, TextureFormat} from "../../Helix";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function VarianceDirectionalShadowFilter()
+function VarianceShadowFilter()
 {
     ShadowFilter.call(this);
     this._blurRadius = 2;
@@ -33,8 +33,14 @@ function VarianceDirectionalShadowFilter()
     this._cullMode = CullMode.BACK;
 }
 
-VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
+VarianceShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
+        shadowMapFilter: {
+            get: function() {
+                return TextureFilter.BILINEAR_NOMIP;
+            }
+        },
+
         minVariance: {
             get: function()
             {
@@ -88,18 +94,18 @@ VarianceDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype
 /**
  * @ignore
  */
-VarianceDirectionalShadowFilter.prototype.getGLSL = function()
+VarianceShadowFilter.prototype.getGLSL = function()
 {
     var defines = this._getDefines();
-    return ShaderLibrary.get("dir_shadow_vsm.glsl", defines);
+    return ShaderLibrary.get("shadow_vsm.glsl", defines);
 };
 
-VarianceDirectionalShadowFilter.prototype.getShadowMapFormat = function()
+VarianceShadowFilter.prototype.getShadowMapFormat = function()
 {
     return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT || capabilities.EXT_COLOR_BUFFER_FLOAT? TextureFormat.RGB : TextureFormat.RGBA;
 };
 
-VarianceDirectionalShadowFilter.prototype.getShadowMapDataType = function()
+VarianceShadowFilter.prototype.getShadowMapDataType = function()
 {
     return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT && this._useHalfFloat? DataType.HALF_FLOAT :
             capabilities.EXT_COLOR_BUFFER_FLOAT? DataType.FLOAT : DataType.UNSIGNED_BYTE;
@@ -108,7 +114,7 @@ VarianceDirectionalShadowFilter.prototype.getShadowMapDataType = function()
 /**
  * @ignore
  */
-VarianceDirectionalShadowFilter.prototype._createBlurShader = function()
+VarianceShadowFilter.prototype._createBlurShader = function()
 {
     return new VSMBlurShader(this._blurRadius);
 };
@@ -116,15 +122,15 @@ VarianceDirectionalShadowFilter.prototype._createBlurShader = function()
 /**
  * @ignore
  */
-VarianceDirectionalShadowFilter.prototype._getDefines = function()
+VarianceShadowFilter.prototype._getDefines = function()
 {
     var range = 1.0 - this._lightBleedReduction;
     return {
-        HX_DIR_VSM_MIN_VARIANCE: "float(" + this._minVariance + ")",
-        HX_DIR_VSM_LIGHT_BLEED_REDUCTION: "float(" + this._lightBleedReduction + ")",
-        HX_DIR_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE: "float(" + (1.0 / range) + ")"
+        HX_VSM_MIN_VARIANCE: "float(" + this._minVariance + ")",
+        HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + this._lightBleedReduction + ")",
+        HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE: "float(" + (1.0 / range) + ")"
     };
 };
 
 
-export { VarianceDirectionalShadowFilter };
+export { VarianceShadowFilter };

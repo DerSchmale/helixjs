@@ -2,35 +2,18 @@ varying_in vec3 hx_viewPosition;
 
 uniform vec3 hx_ambientColor;
 
+uniform sampler2D hx_shadowMap;
+
 #if HX_NUM_DIR_LIGHTS > 0
 uniform HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];
-#endif
-
-#if HX_NUM_DIR_LIGHT_CASTERS > 0
-uniform HX_DirectionalLight hx_directionalLightCasters[HX_NUM_DIR_LIGHT_CASTERS];
-
-uniform sampler2D hx_directionalShadowMaps[HX_NUM_DIR_LIGHT_CASTERS];
 #endif
 
 #if HX_NUM_POINT_LIGHTS > 0
 uniform HX_PointLight hx_pointLights[HX_NUM_POINT_LIGHTS];
 #endif
 
-
-#if HX_NUM_POINT_LIGHT_CASTERS > 0
-uniform HX_PointLight hx_pointLightCasters[HX_NUM_POINT_LIGHT_CASTERS];
-
-uniform samplerCube hx_pointShadowMaps[HX_NUM_POINT_LIGHT_CASTERS];
-#endif
-
 #if HX_NUM_SPOT_LIGHTS > 0
 uniform HX_SpotLight hx_spotLights[HX_NUM_SPOT_LIGHTS];
-#endif
-
-#if HX_NUM_SPOT_LIGHT_CASTERS > 0
-uniform HX_SpotLight hx_spotLightCasters[HX_NUM_SPOT_LIGHT_CASTERS];
-
-uniform sampler2D hx_spotShadowMaps[HX_NUM_SPOT_LIGHT_CASTERS];
 #endif
 
 #if HX_NUM_DIFFUSE_PROBES > 0 || HX_NUM_SPECULAR_PROBES > 0
@@ -76,38 +59,31 @@ void main()
     for (int i = 0; i < HX_NUM_DIR_LIGHTS; ++i) {
         vec3 diffuse, specular;
         hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
+
+        if (hx_directionalLights[i].castShadows) {
+            float shadow = hx_calculateShadows(hx_directionalLights[i], hx_shadowMap, hx_viewPosition);
+            diffuse *= shadow;
+            specular *= shadow;
+        }
+
         diffuseAccum += diffuse;
         specularAccum += specular;
     }
     #endif
-
-    #if HX_NUM_DIR_LIGHT_CASTERS > 0
-    for (int i = 0; i < HX_NUM_DIR_LIGHT_CASTERS; ++i) {
-        vec3 diffuse, specular;
-        hx_calculateLight(hx_directionalLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
-        float shadow = hx_calculateShadows(hx_directionalLightCasters[i], hx_directionalShadowMaps[i], hx_viewPosition);
-        diffuseAccum += diffuse * shadow;
-        specularAccum += specular * shadow;
-    }
-    #endif
-
 
     #if HX_NUM_POINT_LIGHTS > 0
     for (int i = 0; i < HX_NUM_POINT_LIGHTS; ++i) {
         vec3 diffuse, specular;
         hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
+
+        if (hx_pointLights[i].castShadows) {
+            float shadow = hx_calculateShadows(hx_pointLights[i], hx_shadowMap, hx_viewPosition);
+            diffuse *= shadow;
+            specular *= shadow;
+        }
+
         diffuseAccum += diffuse;
         specularAccum += specular;
-    }
-    #endif
-
-    #if HX_NUM_POINT_LIGHT_CASTERS > 0
-    for (int i = 0; i < HX_NUM_POINT_LIGHT_CASTERS; ++i) {
-        vec3 diffuse, specular;
-        hx_calculateLight(hx_pointLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
-        float shadow = hx_calculateShadows(hx_pointLightCasters[i], hx_pointShadowMaps[i], hx_viewPosition);
-        diffuseAccum += diffuse * shadow;
-        specularAccum += specular * shadow;
     }
     #endif
 
@@ -115,18 +91,15 @@ void main()
     for (int i = 0; i < HX_NUM_SPOT_LIGHTS; ++i) {
         vec3 diffuse, specular;
         hx_calculateLight(hx_spotLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
+
+        if (hx_spotLights[i].castShadows) {
+            float shadow = hx_calculateShadows(hx_spotLights[i], hx_shadowMap, hx_viewPosition);
+            diffuse *= shadow;
+            specular *= shadow;
+        }
+
         diffuseAccum += diffuse;
         specularAccum += specular;
-    }
-    #endif
-
-    #if HX_NUM_SPOT_LIGHT_CASTERS > 0
-    for (int i = 0; i < HX_NUM_SPOT_LIGHT_CASTERS; ++i) {
-        vec3 diffuse, specular;
-        hx_calculateLight(hx_spotLightCasters[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
-        float shadow = hx_calculateShadows(hx_spotLightCasters[i], hx_spotShadowMaps[i], hx_viewPosition);
-        diffuseAccum += diffuse * shadow;
-        specularAccum += specular * shadow;
     }
     #endif
 

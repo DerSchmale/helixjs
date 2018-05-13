@@ -19,10 +19,8 @@ export var RenderSortFunctions = {
         return b.renderOrderHint - a.renderOrderHint;
     },
 
-    sortLights: function(a, b)
+    sortShadowCasters: function(a, b)
     {
-        return  a._type === b._type?
-            a._castShadows? 1 : -1 :
-            a._type - b._type;
+        return a.shadowQualityBias - b.shadowQualityBias;
     }
 };

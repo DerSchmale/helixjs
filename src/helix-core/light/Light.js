@@ -1,9 +1,7 @@
 import {Color} from "../core/Color";
 import {Entity} from "../entity/Entity";
-import {BoundingVolume} from "../scene/BoundingVolume";
 import {META} from "../Helix";
 import {PropertyListener} from "../core/PropertyListener";
-import {DirectLight} from "./DirectLight";
 
 /**
  * @classdesc

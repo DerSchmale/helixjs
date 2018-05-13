@@ -5,6 +5,7 @@ struct HX_DirectionalLight
 
     mat4 shadowMapMatrices[4];
     vec4 splitDistances;
+    bool castShadows;
     float depthBias;
     float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]
 };
@@ -32,7 +33,7 @@ float hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 v
 {
     mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);
     vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);
-    float shadow = hx_dir_readShadow(shadowMap, shadowMapCoord, light.depthBias);
+    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);
 
     // this can occur when modelInstance.castShadows = false, or using inherited bounds
     bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;

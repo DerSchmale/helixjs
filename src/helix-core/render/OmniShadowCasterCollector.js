@@ -17,7 +17,7 @@ function OmniShadowCasterCollector()
     this._renderLists = [];
     this._renderItemPool = new ObjectPool(RenderItem);
     this._octantPlanes = [];
-    this._cameraPos = new Float4();
+    this._cameraPos = null;
 
     this._octantPlanes[0] = new Float4(0.0, 1.0, -1.0, 0.0);
     this._octantPlanes[1] = new Float4(1.0, 0.0, -1.0, 0.0);
@@ -45,7 +45,8 @@ OmniShadowCasterCollector.prototype.collect = function(cameras, scene)
     this._cameras = cameras;
     this._renderLists = [];
 
-    var pos = this._cameraPos;
+    var pos = this._cameraPos = cameras[0].position;
+
     for (var i = 0; i < 6; ++i) {
         var plane = this._octantPlanes[i];
         plane.w = -(pos.x * plane.x + pos.y * plane.y + pos.z * plane.z);

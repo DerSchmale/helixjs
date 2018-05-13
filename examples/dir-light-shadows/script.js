@@ -8,22 +8,23 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
 
-    var ssao = new HX.SSAO(16);
+    var ssao = new HX.SSAO(24);
     ssao.strength = 3.0;
     ssao.sampleRadius = 1.0;
     ssao.fallOffDistance = 2.5;
     options.ambientOcclusion = ssao;
+    // options.debug = true;
 
     if (HX.Platform.isMobile) {
         options.numShadowCascades = 1;
-        options.directionalShadowFilter = new HX.PCFDirectionalShadowFilter();
-        options.directionalShadowFilter.dither = true;
-        options.directionalShadowFilter.softness = .001;
+        options.shadowFilter = new HX.PCFShadowFilter();
+        options.shadowFilter.dither = true;
+        options.shadowFilter.softness = .001;
         options.hdr = false;
     }
     else {
         options.numShadowCascades = 2;
-        options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
+        options.shadowFilter = new HX.VarianceShadowFilter();
         options.hdr = true;
     }
 
@@ -49,6 +50,7 @@ project.onInit = function()
 {
     initCamera(this.camera);
     initScene(this.scene, this.assetLibrary);
+    // this.renderer.debugMode = HX.Renderer.DebugMode.SSAO;
 };
 
 project.onUpdate = function(dt)

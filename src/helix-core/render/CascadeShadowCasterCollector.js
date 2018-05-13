@@ -20,7 +20,6 @@ function CascadeShadowCasterCollector()
     this._cameraYAxis = new Float4();
     this._bounds = new BoundingAABB();
     this._cullPlanes = null;
-    // this._splitPlanes = null;
     this._numCullPlanes = 0;
     this._renderList = [];
     this._renderItemPool = new ObjectPool(RenderItem);
@@ -63,11 +62,6 @@ CascadeShadowCasterCollector.prototype.setCullPlanes = function(cullPlanes, numP
     this._cullPlanes = cullPlanes;
     this._numCullPlanes = numPlanes;
 };
-
-// CascadeShadowCasterCollector.prototype.setSplitPlanes = function(splitPlanes)
-// {
-//     this._splitPlanes = splitPlanes;
-// };
 
 CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
 {

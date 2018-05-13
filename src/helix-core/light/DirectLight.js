@@ -1,4 +1,3 @@
-import {Color} from "../core/Color";
 import {Entity} from "../entity/Entity";
 import {Light} from "./Light";
 
@@ -6,8 +5,8 @@ import {Light} from "./Light";
  * @classdesc
  * DirectLight forms a base class for direct lights.
  *
- * @property {number} intensity The intensity of the light.
- * @property {Color} color The color of the light.
+ * @property {boolean} castShadows Defines whether or not this light casts shadows.
+ * @property {number} shadowQualityBias Shifts the priority of the shadow quality. Higher values will mean lower quality.
  *
  * @abstract
  *
@@ -22,6 +21,7 @@ function DirectLight()
     Light.call(this);
     this.intensity = 3.1415;
     this._castShadows = false;
+    this.shadowQualityBias = 0;
 }
 
 DirectLight.prototype = Object.create(Light.prototype);

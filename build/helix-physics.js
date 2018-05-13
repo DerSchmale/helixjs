@@ -2390,22 +2390,33 @@ Matrix4x4$1.prototype =
     /**
      * Post-multiplies a translation
      */
-    appendTranslation: function (v)
+    appendTranslation: function (x, y, z)
     {
+        if (x instanceof Float4$1) {
+            y = x.y;
+            z = x.z;
+            x = x.x;
+        }
+
         var m = this._m;
-        m[12] += v.x;
-        m[13] += v.y;
-        m[14] += v.z;
+        m[12] += x;
+        m[13] += y;
+        m[14] += z;
         return this;
     },
 
     /**
      * Pre-multiplies a translation
      */
-    prependTranslation: function (v)
+    prependTranslation: function (x, y, z)
     {
+        if (x instanceof Float4$1) {
+            y = x.y;
+            z = x.z;
+            x = x.x;
+        }
+
         var m = this._m;
-        var x = v.x, y = v.y, z = v.z;
         m[12] += m[0] * x + m[4] * y + m[8] * z;
         m[13] += m[1] * x + m[5] * y + m[9] * z;
         m[14] += m[2] * x + m[6] * y + m[10] * z;

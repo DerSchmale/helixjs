@@ -25,8 +25,8 @@ void main()
     float w = hx_cameraNearPlaneDistance + centerDepth * hx_cameraFrustumRange;
     float centerY = centerDepth * hx_cameraFrustumRange;    // can ignore nearDist
     vec3 sampleRadii;
-    sampleRadii.xy = sampleRadius * .5 / w * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][2]);
-    sampleRadii.z = sampleRadius;
+    sampleRadii.xz = sampleRadius * .5 / w * vec2(hx_projectionMatrix[0][0], hx_projectionMatrix[1][2]);
+    sampleRadii.y = sampleRadius;
 
     for (int i = 0; i < NUM_SAMPLES; ++i) {
         vec3 sampleOffset = reflect(samples[i], randomPlaneNormal);
@@ -40,13 +40,13 @@ void main()
 
         vec3 scaledOffset = sampleOffset * sampleRadii;
 
-        vec2 samplePos = uv + scaledOffset.xy;
+        vec2 samplePos = uv + scaledOffset.xz;
         normalDepth = texture2D(hx_normalDepthBuffer, samplePos);
         float occluderDepth = hx_decodeLinearDepth(normalDepth);
 
         // can ignore nearDist
         float occluderY = hx_cameraFrustumRange * occluderDepth;
-        float sampleY = centerY + scaledOffset.z;
+        float sampleY = centerY + scaledOffset.y;
 
         float distanceFactor = max(1.0 - (sampleY - occluderY) * rcpFallOffDistance, 0.0);
 

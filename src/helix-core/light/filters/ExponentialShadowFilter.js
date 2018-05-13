@@ -1,18 +1,18 @@
 import {ShadowFilter} from "./ShadowFilter";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
-import {DataType, TextureFormat} from "../../Helix";
+import {DataType, TextureFilter, TextureFormat} from "../../Helix";
 import {ESMBlurShader} from "../shaders/ESMBlurShader";
 
 /**
  * @classdesc
- * ExponentialDirectionalShadowFilter is a shadow filter for directional lights that provides exponential soft shadow
+ * ExponentialShadowFilter is a shadow filter for directional lights that provides exponential soft shadow
  * mapping. The implementation is highly experimental at this point.
  *
  * @property {number} blurRadius The blur radius for the soft shadows.
  * @property {number} darkeningFactor A darkening factor of the shadows. Counters some artifacts of the technique.
  * @property {number} expScaleFactor The exponential scale factor. Probably you shouldn't touch this.
  *
- * @see {@linkcode InitOptions#directionalShadowFilter}
+ * @see {@linkcode InitOptions#shadowFilter}
  *
  * @constructor
  *
@@ -20,7 +20,7 @@ import {ESMBlurShader} from "../shaders/ESMBlurShader";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function ExponentialDirectionalShadowFilter()
+function ExponentialShadowFilter()
 {
     ShadowFilter.call(this);
     this._expScaleFactor = 80;
@@ -29,8 +29,14 @@ function ExponentialDirectionalShadowFilter()
 }
 
 
-ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.prototype,
+ExponentialShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
+        shadowMapFilter: {
+            get: function() {
+                return TextureFilter.BILINEAR_NOMIP;
+            }
+        },
+
         blurRadius: {
             get: function()
             {
@@ -72,7 +78,7 @@ ExponentialDirectionalShadowFilter.prototype = Object.create(ShadowFilter.protot
 /**
  * @ignore
  */
-ExponentialDirectionalShadowFilter.prototype.getShadowMapFormat = function()
+ExponentialShadowFilter.prototype.getShadowMapFormat = function()
 {
     return TextureFormat.RGB;
 };
@@ -80,7 +86,7 @@ ExponentialDirectionalShadowFilter.prototype.getShadowMapFormat = function()
 /**
  * @ignore
  */
-ExponentialDirectionalShadowFilter.prototype.getShadowMapDataType = function()
+ExponentialShadowFilter.prototype.getShadowMapDataType = function()
 {
     return DataType.FLOAT;
 };
@@ -88,16 +94,16 @@ ExponentialDirectionalShadowFilter.prototype.getShadowMapDataType = function()
 /**
  * @ignore
  */
-ExponentialDirectionalShadowFilter.prototype.getGLSL = function()
+ExponentialShadowFilter.prototype.getGLSL = function()
 {
     var defines = this._getDefines();
-    return ShaderLibrary.get("dir_shadow_esm.glsl", defines);
+    return ShaderLibrary.get("shadow_esm.glsl", defines);
 };
 
 /**
  * @ignore
  */
-ExponentialDirectionalShadowFilter.prototype._getDefines = function()
+ExponentialShadowFilter.prototype._getDefines = function()
 {
     return {
         HX_ESM_CONSTANT: "float(" + this._expScaleFactor + ")",
@@ -108,9 +114,9 @@ ExponentialDirectionalShadowFilter.prototype._getDefines = function()
 /**
  * @ignore
  */
-ExponentialDirectionalShadowFilter.prototype._createBlurShader = function()
+ExponentialShadowFilter.prototype._createBlurShader = function()
 {
     return new ESMBlurShader(this._blurRadius);
 };
 
-export { ExponentialDirectionalShadowFilter };
+export { ExponentialShadowFilter };

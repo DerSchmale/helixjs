@@ -112,18 +112,14 @@ Material.prototype =
 
             this.setPass(MaterialPass.BASE_PASS, new DynamicLitBasePass(vertex, fragment));
 
-            this.setPass(MaterialPass.DIR_LIGHT_PASS, new DirectionalLightingPass(vertex, fragment, this._lightingModel, false));
-            this.setPass(MaterialPass.DIR_LIGHT_SHADOW_PASS, new DirectionalLightingPass(vertex, fragment, this._lightingModel, true));
-            this.setPass(MaterialPass.POINT_LIGHT_PASS, new PointLightingPass(vertex, fragment, this._lightingModel, false));
-            this.setPass(MaterialPass.POINT_LIGHT_SHADOW_PASS, new PointLightingPass(vertex, fragment, this._lightingModel, true));
-            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new SpotLightingPass(vertex, fragment, this._lightingModel, false));
-            this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_PASS, new SpotLightingPass(vertex, fragment, this._lightingModel, true));
+            this.setPass(MaterialPass.DIR_LIGHT_PASS, new DirectionalLightingPass(vertex, fragment, this._lightingModel));
+            this.setPass(MaterialPass.POINT_LIGHT_PASS, new PointLightingPass(vertex, fragment, this._lightingModel));
+            this.setPass(MaterialPass.SPOT_LIGHT_PASS, new SpotLightingPass(vertex, fragment, this._lightingModel));
             this.setPass(MaterialPass.LIGHT_PROBE_PASS, new ProbeLightingPass(vertex, fragment, this._lightingModel));
         }
 
         this.setPass(MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS, new DirectionalShadowPass(vertex, fragment));
         this.setPass(MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, new PointShadowPass(vertex, fragment));
-        this.setPass(MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS, new SpotShadowPass(vertex, fragment));
 
         this.setPass(MaterialPass.NORMAL_DEPTH_PASS, new NormalDepthPass(vertex, fragment));
 
@@ -289,7 +285,6 @@ Material.prototype =
         this._cullMode = value;
         for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
             if (i !== MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS  &&
-                i !== MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS &&
                 i !== MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS &&
                 this._passes[i])
                 this._passes[i].cullMode = value;
@@ -323,12 +318,9 @@ Material.prototype =
         this._passes[type] = pass;
 
         if (pass) {
-            if(type === MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS)
-                pass.cullMode = META.OPTIONS.directionalShadowFilter.cullMode;
-            else if(type === MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS)
-                pass.cullMode = META.OPTIONS.spotShadowFilter.cullMode;
-            else if(type === MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS)
-                pass.cullMode = META.OPTIONS.pointShadowFilter.cullMode;
+
+            if(type === MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS || type === MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS)
+                pass.cullMode = META.OPTIONS.shadowFilter.cullMode;
             else
                 pass.cullMode = this._cullMode;
 

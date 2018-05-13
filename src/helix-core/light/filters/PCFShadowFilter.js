@@ -1,18 +1,17 @@
-import { CullMode } from '../../Helix';
-import { ShaderLibrary } from '../../shader/ShaderLibrary';
-import { ShadowFilter } from './ShadowFilter';
+import {ShaderLibrary} from '../../shader/ShaderLibrary';
+import {ShadowFilter} from './ShadowFilter';
 import {MathX} from "../../math/MathX";
 
 /**
  * @classdesc
- * PCFSpotShadowFilter is a shadow filter for spot lights that provides percentage closer soft shadow mapping. However,
- * WebGL does not support shadow test interpolations, so the results aren't as great as its GL/DX counterpart.
+ * PCFShadowFilter is a shadow filter that provides percentage closer soft shadow mapping. However, WebGL does not
+ * support shadow test interpolations, so the results aren't as great as its GL/DX counterpart.
  *
  * @property {number} softness The softness of the shadows in shadow map space.
  * @property {number} numShadowSamples The amount of shadow samples to take.
  * @property {boolean} dither Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
  *
- * @see {@linkcode InitOptions#spotShadowFilter}
+ * @see {@linkcode InitOptions#shadowFilter}
  *
  * @constructor
  *
@@ -20,23 +19,23 @@ import {MathX} from "../../math/MathX";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function PCFSpotShadowFilter()
+function PCFShadowFilter()
 {
     ShadowFilter.call(this);
-    this._softness = .003;
+    this._softness = .001;
     this._numShadowSamples = 6;
     this._dither = false;
 }
 
-PCFSpotShadowFilter.prototype = Object.create(ShadowFilter.prototype,
+PCFShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
         softness: {
-            get: function()
+            get: function ()
             {
                 return this._softness;
             },
 
-            set: function(value)
+            set: function (value)
             {
                 if (this._softness !== value) {
                     this._softness = value;
@@ -45,12 +44,12 @@ PCFSpotShadowFilter.prototype = Object.create(ShadowFilter.prototype,
         },
 
         numShadowSamples: {
-            get: function()
+            get: function ()
             {
                 return this._numShadowSamples;
             },
 
-            set: function(value)
+            set: function (value)
             {
                 value = MathX.clamp(value, 1, 32);
                 if (this._numShadowSamples !== value) {
@@ -60,12 +59,12 @@ PCFSpotShadowFilter.prototype = Object.create(ShadowFilter.prototype,
         },
 
         dither: {
-            get: function()
+            get: function ()
             {
                 return this._dither;
             },
 
-            set: function(value)
+            set: function (value)
             {
                 if (this._dither !== value) {
                     this._dither = value;
@@ -78,18 +77,18 @@ PCFSpotShadowFilter.prototype = Object.create(ShadowFilter.prototype,
 /**
  * @ignore
  */
-PCFSpotShadowFilter.prototype.getGLSL = function()
+PCFShadowFilter.prototype.getGLSL = function ()
 {
     var defines = {
-        HX_SPOT_PCF_NUM_SHADOW_SAMPLES: this._numShadowSamples,
-        HX_SPOT_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + ( 1.0 / this._numShadowSamples ) + ")",
-        HX_SPOT_PCF_SOFTNESS: this._softness
+        HX_PCF_NUM_SHADOW_SAMPLES: this._numShadowSamples,
+        HX_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + (1.0 / this._numShadowSamples) + ")",
+        HX_PCF_SOFTNESS: this._softness
     };
 
     if (this._dither)
-        defines.HX_SPOT_PCF_DITHER_SHADOWS = 1;
+        defines.HX_PCF_DITHER_SHADOWS = 1;
 
-    return ShaderLibrary.get("spot_shadow_pcf.glsl", defines);
+    return ShaderLibrary.get("shadow_pcf.glsl", defines);
 };
 
-export { PCFSpotShadowFilter };
+export {PCFShadowFilter};

@@ -11,6 +11,8 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
+    // this.renderer.debugMode = HX.Renderer.DebugMode.SHADOW_MAP;
+    this.renderer.shadowMapSize = 4096;
     initCamera(this.camera);
     initScene(this.scene, this.assetLibrary);
 };
@@ -18,10 +20,12 @@ project.onInit = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    options.webgl2 = true;
+    // options.webgl2 = true;
     options.hdr = true;
-    options.debug = true;
+    // options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
+    options.shadowFilter = new HX.VarianceShadowFilter();
+    options.numShadowCascades = 4;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -40,10 +44,11 @@ function initScene(scene, assetLibrary)
 {
     // TODO: Do this dynamically
     var lights = [ ];
-    for (var i = 0; i < 200; ++i) {
+    for (var i = 0; i < 10; ++i) {
         var light = new HX.PointLight();
-        light.radius = 5;
-        scene.attach(light);
+        light.radius = 20;
+        light.castShadows = true;
+
         light.position.set(
             (Math.random() - .5) * 20,
             (Math.random() - .5) * 20,
@@ -55,13 +60,16 @@ function initScene(scene, assetLibrary)
             Math.random(),
             Math.random()
         );
-        light.intensity = 3.1415;
+        light.intensity = 3.1415 * 50.0;
         lights.push(light);
+
+        scene.attach(light);
     }
 
     // TODO: Should num cascades be initialized as a Helix option?
     // that way, things can be optimized in the shader
     var dirLight = new HX.DirectionalLight();
+    dirLight.castShadows = true;
     dirLight.intensity = .1;
     dirLight.direction = new HX.Float4(-1.0, -1.0, -1.0);
     lights.push(dirLight);
@@ -105,5 +113,6 @@ function initScene(scene, assetLibrary)
             scaleV: 20
         });
     var instance = new HX.ModelInstance(primitive, material);
+    instance.castShadows = false;
     scene.attach(instance);
 }

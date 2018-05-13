@@ -14,6 +14,10 @@ import {PointLight} from "../light/PointLight";
 import {LightProbe} from "../light/LightProbe";
 import {RenderPath} from "./RenderPath";
 import {SpotLight} from "../light/SpotLight";
+import {ShadowAtlas} from "./ShadowAtlas";
+import {CascadeShadowMapRenderer} from "./CascadeShadowMapRenderer";
+import {OmniShadowMapRenderer} from "./OmniShadowMapRenderer";
+import {SpotShadowMapRenderer} from "./SpotShadowMapRenderer";
 import {BasicMaterial} from "../material/BasicMaterial";
 import {LightingModel} from "./LightingModel";
 import {Float4} from "../math/Float4";
@@ -54,6 +58,12 @@ function Renderer()
     this._debugMode = Renderer.DebugMode.NONE;
     this._ssaoTexture = null;
 
+    this._cascadeShadowRenderer = new CascadeShadowMapRenderer();
+    this._omniShadowRenderer = new OmniShadowMapRenderer();
+    this._spotShadowRenderer = new SpotShadowMapRenderer();
+    this._shadowAtlas = new ShadowAtlas(!!META.OPTIONS.shadowFilter.blurShader);
+    this._shadowAtlas.resize(2048, 2048);
+
     if (capabilities.WEBGL_2) {
         // TODO: This needs to come from a dummy material
         var material = new BasicMaterial({ lightingModel: LightingModel.GGX });
@@ -70,7 +80,8 @@ function Renderer()
 Renderer.DebugMode = {
     NONE: 0,
     SSAO: 1,
-    NORMAL_DEPTH: 2
+    NORMAL_DEPTH: 2,
+    SHADOW_MAP: 3
 };
 
 /**
@@ -108,6 +119,19 @@ Renderer.prototype =
     set debugMode(value)
     {
         this._debugMode = value;
+    },
+
+    /**
+     * The size of the shadow atlas texture.
+     */
+    get shadowMapSize()
+    {
+        return this._shadowAtlas.width;
+    },
+
+    set shadowMapSize(value)
+    {
+        this._shadowAtlas.resize(value, value);
     },
 
     /**
@@ -171,8 +195,6 @@ Renderer.prototype =
 
         this._renderShadowCasters();
 
-        GL.setClearColor(Color.BLACK);
-
         GL.setDepthMask(true);
         GL.setColorMask(true);
 
@@ -195,7 +217,7 @@ Renderer.prototype =
         this._swapHDRFrontAndBack();
         this._renderEffects(dt);
 
-        GL.setColorMask(true, false);
+        GL.setColorMask(true);
 
         this._renderToScreen(renderTarget);
 
@@ -366,20 +388,15 @@ Renderer.prototype =
                 RenderUtils.renderPass(this, MaterialPass.LIGHT_PROBE_PASS, list, light);
             }
             else if (light instanceof DirectionalLight) {
-                // if non-global, do intersection tests
-                var passType = light.castShadows? MaterialPass.DIR_LIGHT_SHADOW_PASS : MaterialPass.DIR_LIGHT_PASS;
-
                 // PASS IN LIGHT AS DATA, so the material can update it
-                RenderUtils.renderPass(this, passType, list, light);
+                RenderUtils.renderPass(this, MaterialPass.DIR_LIGHT_PASS, list, light);
             }
             else if (light instanceof PointLight) {
                 // cannot just use renderPass, need to do intersection tests
-                var passType = light.castShadows? MaterialPass.POINT_LIGHT_SHADOW_PASS : MaterialPass.POINT_LIGHT_PASS;
-                this._renderLightPassIfIntersects(light, passType, list);
+                this._renderLightPassIfIntersects(light, MaterialPass.POINT_LIGHT_PASS, list);
             }
             else if (light instanceof SpotLight) {
-                var passType = light.castShadows? MaterialPass.SPOT_LIGHT_SHADOW_PASS : MaterialPass.SPOT_LIGHT_PASS;
-                this._renderLightPassIfIntersects(light, passType, list);
+                this._renderLightPassIfIntersects(light, MaterialPass.SPOT_LIGHT_PASS, list);
             }
         }
     },
@@ -478,7 +495,6 @@ Renderer.prototype =
             GL.clear();
             RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, dynamic);
             RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, fixed);
-            GL.setClearColor(Color.BLACK);
         }
     },
 
@@ -501,11 +517,32 @@ Renderer.prototype =
      */
     _renderShadowCasters: function()
     {
+        this._shadowAtlas.initRects(this._renderCollector.shadowPlaneBuckets, this._renderCollector.numShadowPlanes);
+
         var casters = this._renderCollector._shadowCasters;
         var len = casters.length;
 
-        for (var i = 0; i < len; ++i)
-            casters[i].render(this._camera, this._scene);
+        GL.setRenderTarget(this._shadowAtlas.fbo);
+        GL.setClearColor(Color.WHITE);
+        GL.clear();
+
+        for (var i = 0; i < len; ++i) {
+            var light = casters[i];
+
+            // TODO: Reintroduce light types, use lookup
+
+            if (light instanceof DirectionalLight) {
+                this._cascadeShadowRenderer.render(light, this._shadowAtlas, this._camera, this._scene);
+            }
+            else if (light instanceof PointLight) {
+                this._omniShadowRenderer.render(light, this._shadowAtlas, this._camera, this._scene);
+            }
+            else if (light instanceof SpotLight) {
+                this._spotShadowRenderer.render(light, this._shadowAtlas, this._camera, this._scene);
+            }
+        }
+
+        this._shadowAtlas.blur();
     },
 
     /**
@@ -532,6 +569,9 @@ Renderer.prototype =
             switch (this._debugMode) {
                 case Renderer.DebugMode.NORMAL_DEPTH:
                     tex = this._normalDepthBuffer;
+                    break;
+                case Renderer.DebugMode.SHADOW_MAP:
+                    tex = this._shadowAtlas.texture;
                     break;
                 case Renderer.DebugMode.SSAO:
                     tex = this._ssaoTexture;

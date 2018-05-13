@@ -50,8 +50,8 @@ window.onload = function ()
     options.numShadowCascades = 3;
     options.hdr = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
-    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
-    options.directionalShadowFilter.softness = .002;
+    options.shadowFilter = new HX.VarianceShadowFilter();
+    options.shadowFilter.softness = .002;
     project.init(document.getElementById('webglContainer'), options);
 };
 

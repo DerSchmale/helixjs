@@ -14,20 +14,18 @@ import {META} from "../../Helix";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function PointLightingPass(geometryVertex, geometryFragment, lightingModel, shadows)
+function PointLightingPass(geometryVertex, geometryFragment, lightingModel)
 {
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
 
     this._colorLocation = this.getUniformLocation("hx_pointLight.color");
     this._posLocation = this.getUniformLocation("hx_pointLight.position");
     this._radiusLocation = this.getUniformLocation("hx_pointLight.radius");
     this._rcpRadiusLocation = this.getUniformLocation("hx_pointLight.rcpRadius");
-
-    if (shadows) {
-        this._depthBiasLocation = this.getUniformLocation("hx_pointLight.depthBias");
-        this._shadowMatrixLocation = this.getUniformLocation("hx_pointLight.shadowMapMatrix");
-        this._shadowMapSlot = this.getTextureSlot("hx_shadowMap");
-    }
+    this._castShadowsLocation = this.getUniformLocation("hx_pointLight.castShadows");
+    this._depthBiasLocation = this.getUniformLocation("hx_pointLight.depthBias");
+    this._shadowMatrixLocation = this.getUniformLocation("hx_pointLight.shadowMapMatrix");
+    this._shadowTilesLocation = this.getUniformLocation("hx_pointLight.shadowTiles[0]");
 }
 
 PointLightingPass.prototype = Object.create(MaterialPass.prototype);
@@ -36,6 +34,7 @@ PointLightingPass.prototype = Object.create(MaterialPass.prototype);
 PointLightingPass.prototype.updatePassRenderState = function(camera, renderer, light)
 {
     var pos = new Float4();
+    var tiles = new Float32Array(24);
 
     return function(camera, renderer, light) {
         var gl = GL.gl;
@@ -49,33 +48,36 @@ PointLightingPass.prototype.updatePassRenderState = function(camera, renderer, l
         gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
         gl.uniform1f(this._radiusLocation, light._radius);
         gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
-
-        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+        gl.uniform1i(this._castShadowsLocation, light.castShadows);
 
         if (light.castShadows) {
-            var shadowRenderer = light._shadowMapRenderer;
+            var j = 0;
+            for (var i = 0; i < 6; ++i) {
+                var t = light._shadowTiles[i];
+                tiles[j++] = t.x;
+                tiles[j++] = t.y;
+                tiles[j++] = t.z;
+                tiles[j++] = t.w;
+            }
+            gl.uniform4fv(this._shadowTilesLocation, tiles);
             gl.uniform1f(this._depthBiasLocation, light.depthBias);
-            this._shadowMapSlot.texture = shadowRenderer._shadowMap;
-
             gl.uniformMatrix4fv(this._shadowMatrixLocation, false, camera.worldMatrix._m);
         }
+
+        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
     }
 }();
 
-PointLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
+PointLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
 {
     var defines = {};
-
-    if (shadows) {
-        defines.HX_SHADOW_MAP = 1;
-    }
 
     var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_point_vertex.glsl", defines);
 
     var fragmentShader =
         ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
         lightingModel + "\n\n\n" +
-        META.OPTIONS.pointShadowFilter.getGLSL() + "\n" +
+        META.OPTIONS.shadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("point_light.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_fwd_point_fragment.glsl");

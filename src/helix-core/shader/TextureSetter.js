@@ -44,6 +44,7 @@ export var TextureSetter = {
         TextureSetter._passTable.hx_frontbuffer = FrontbufferSetter;
         TextureSetter._passTable.hx_lightAccumulation = LightAccumulationSetter;
         TextureSetter._passTable.hx_ssao = SSAOSetter;
+        TextureSetter._passTable.hx_shadowMap = ShadowMapSetter;
 
         TextureSetter._instanceTable.hx_skinningTexture = SkinningTextureSetter;
     }
@@ -101,6 +102,15 @@ function SSAOSetter()
 SSAOSetter.prototype.execute = function (renderer)
 {
     this.slot.texture = renderer._ssaoTexture;
+};
+
+function ShadowMapSetter()
+{
+}
+
+ShadowMapSetter.prototype.execute = function (renderer)
+{
+    this.slot.texture = renderer._shadowAtlas.texture;
 };
 
 function SkinningTextureSetter()

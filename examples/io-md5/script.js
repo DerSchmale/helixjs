@@ -107,30 +107,30 @@ function initScene(scene, assetLibrary)
     materialBody.colorMap = assetLibrary.get("body-albedo");
     materialBody.specularMap = assetLibrary.get("body-specular");
     materialBody.normalMap = assetLibrary.get("body-normals");
-    materialBody.lights = lights;
+    materialBody.fixedLights = lights;
 
     materialHead.colorMap = assetLibrary.get("head-albedo");
     materialHead.specularMap = assetLibrary.get("head-specular");
     materialHead.normalMap = assetLibrary.get("head-normals");
-    materialHead.lights = lights;
+    materialHead.fixedLights = lights;
 
     materialHelmet.colorMap = assetLibrary.get("helmet-albedo");
     materialHelmet.specularMap = assetLibrary.get("helmet-specular");
     materialHelmet.normalMap = assetLibrary.get("helmet-normals");
     materialHelmet.metallicness = 1.0;
     materialHelmet.doubleSided = true;
-    materialHelmet.lights = lights;
+    materialHelmet.fixedLights = lights;
 
     materialLantern.colorMap = assetLibrary.get("lantern-albedo");
     materialLantern.normalMap = assetLibrary.get("lantern-normals");
     materialLantern.metallicness = 1.0;
-    materialLantern.lights = lights;
+    materialLantern.fixedLights = lights;
 
     materialLanternTop.colorMap = assetLibrary.get("lantern-top-albedo");
     materialLanternTop.normalMap = assetLibrary.get("lantern-top-normals");
     materialLanternTop.metallicness = 1.0;
     materialLanternTop.doubleSided = true;
-    materialLanternTop.lights = lights;
+    materialLanternTop.fixedLights = lights;
 
     var model = assetLibrary.get("model");
     var modelInstance = new HX.ModelInstance(model, [materialBody, materialHead, materialHelmet, materialLantern, materialLanternTop]);

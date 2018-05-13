@@ -1,7 +1,7 @@
 import {ArrayUtils} from './utils/ArrayUtils';
 import {FrameTicker} from './utils/FrameTicker';
 import {_clearGLStats, GL} from './core/GL';
-import {HardDirectionalShadowFilter} from './light/filters/HardDirectionalShadowFilter';
+import {HardShadowFilter} from './light/filters/HardShadowFilter';
 import {LightingModel} from './render/LightingModel';
 import {Signal} from './core/Signal';
 import {GLSLIncludes} from "./shader/GLSLIncludes";
@@ -14,9 +14,6 @@ import {PoissonDisk} from "./math/PoissonDisk";
 import {PoissonSphere} from "./math/PoissonSphere";
 import {Color} from "./core/Color";
 import {FrameBuffer} from "./texture/FrameBuffer";
-import {HardSpotShadowFilter} from "./light/filters/HardSpotShadowFilter";
-import {HardPointShadowFilter} from "./light/filters/HardPointShadowFilter";
-import {MaterialPass} from "./material/MaterialPass";
 
 /**
  * META contains some data about the Helix engine, such as the options it was initialized with.
@@ -379,17 +376,7 @@ export function InitOptions()
     /**
      * The shadow filter to use when rendering directional light shadows.
      */
-    this.directionalShadowFilter = new HardDirectionalShadowFilter();
-
-    /**
-     * The shadow filter to use when rendering spot light shadows.
-     */
-    this.spotShadowFilter = new HardSpotShadowFilter();
-
-    /**
-     * The shadow filter to use when rendering point light shadows.
-     */
-    this.pointShadowFilter = new HardPointShadowFilter();
+    this.shadowFilter = new HardShadowFilter();
 
     /**
      * Indicates whether the back buffer should support transparency.

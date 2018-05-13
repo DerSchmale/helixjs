@@ -15,9 +15,9 @@ import {META} from "../../Helix";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function SpotLightingPass(geometryVertex, geometryFragment, lightingModel, shadows)
+function SpotLightingPass(geometryVertex, geometryFragment, lightingModel)
 {
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, shadows));
+    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel));
 
     this._colorLocation = this.getUniformLocation("hx_spotLight.color");
     this._posLocation = this.getUniformLocation("hx_spotLight.position");
@@ -25,12 +25,10 @@ function SpotLightingPass(geometryVertex, geometryFragment, lightingModel, shado
     this._anglesLocation = this.getUniformLocation("hx_spotLight.angleData");
     this._dirLocation = this.getUniformLocation("hx_spotLight.direction");
     this._rcpRadiusLocation = this.getUniformLocation("hx_spotLight.rcpRadius");
-
-    if (shadows) {
-        this._depthBiasLocation = this.getUniformLocation("hx_spotLight.depthBias");
-        this._shadowMatrixLocation = this.getUniformLocation("hx_spotLight.shadowMapMatrix");
-        this._shadowMapSlot = this.getTextureSlot("hx_shadowMap");
-    }
+    this._castShadowsLocation = this.getUniformLocation("hx_spotLight.castShadows");
+    this._depthBiasLocation = this.getUniformLocation("hx_spotLight.depthBias");
+    this._shadowMatrixLocation = this.getUniformLocation("hx_spotLight.shadowMapMatrix");
+    this._shadowTileLocation = this.getUniformLocation("hx_spotLight.shadowTile");
 }
 
 SpotLightingPass.prototype = Object.create(MaterialPass.prototype);
@@ -61,34 +59,30 @@ SpotLightingPass.prototype.updatePassRenderState = function(camera, renderer, li
         gl.uniform1f(this._radiusLocation, light._radius);
         gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
         gl.uniform2f(this._anglesLocation, light._cosOuter, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001));
+        gl.uniform1i(this._castShadowsLocation, light.castShadows);
 
         if (light.castShadows) {
-            var shadowRenderer = light._shadowMapRenderer;
+            var tile = light._shadowTile;
             gl.uniform1f(this._depthBiasLocation, light.depthBias);
-            matrix.multiply(shadowRenderer.shadowMatrix, camera.worldMatrix);
+            gl.uniform4f(this._shadowTileLocation, tile.x, tile.y, tile.z, tile.w);
+            matrix.multiply(light._shadowMatrix, camera.worldMatrix);
             gl.uniformMatrix4fv(this._shadowMatrixLocation, false, matrix._m);
-
-            this._shadowMapSlot.texture = shadowRenderer._shadowMap;
         }
 
         MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
     }
 }();
 
-SpotLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel, shadows)
+SpotLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)
 {
     var defines = {};
-
-    if (shadows) {
-        defines.HX_SHADOW_MAP = 1;
-    }
 
     var vertexShader = geometryVertex + "\n" + ShaderLibrary.get("material_fwd_spot_vertex.glsl", defines);
 
     var fragmentShader =
         ShaderLibrary.get("snippets_geometry.glsl", defines) + "\n" +
         lightingModel + "\n\n\n" +
-        META.OPTIONS.spotShadowFilter.getGLSL() + "\n" +
+        META.OPTIONS.shadowFilter.getGLSL() + "\n" +
         ShaderLibrary.get("spot_light.glsl") + "\n" +
         geometryFragment + "\n" +
         ShaderLibrary.get("material_fwd_spot_fragment.glsl");

@@ -8,5 +8,5 @@ void main()
     // hopefully the compiler optimizes the rest out for us
     HX_GeometryData data = hx_geometry();
 
-    hx_FragColor = hx_point_getShadowMapValue(length(hx_viewPosition) * hx_rcpRadius);
+    hx_FragColor = hx_getShadowMapValue(length(hx_viewPosition) * hx_rcpRadius);
 }

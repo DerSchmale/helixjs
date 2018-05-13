@@ -2,9 +2,7 @@ varying_in vec3 hx_viewPosition;
 
 uniform HX_PointLight hx_pointLight;
 
-#ifdef HX_SHADOW_MAP
-uniform samplerCube hx_shadowMap;
-#endif
+uniform sampler2D hx_shadowMap;
 
 void main()
 {
@@ -20,7 +18,6 @@ void main()
 
     hx_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);
 
-    #ifdef HX_SHADOW_MAP
+    if (hx_pointLight.castShadows)
         hx_FragColor.xyz *= hx_calculateShadows(hx_pointLight, hx_shadowMap, hx_viewPosition);
-    #endif
 }

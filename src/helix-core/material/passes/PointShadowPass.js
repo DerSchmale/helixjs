@@ -31,7 +31,7 @@ PointShadowPass.prototype._generateShader = function(geometryVertex, geometryFra
     var defines =
         "#define HX_SKIP_NORMALS\n" +
         "#define HX_SKIP_SPECULAR\n";
-    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + META.OPTIONS.pointShadowFilter.getGLSL() + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_point_shadow_fragment.glsl");
+    var fragmentShader = defines + ShaderLibrary.get("snippets_geometry.glsl") + "\n" + META.OPTIONS.shadowFilter.getGLSL() + "\n" + geometryFragment + "\n" + ShaderLibrary.get("material_point_shadow_fragment.glsl");
     var vertexShader = defines + geometryVertex + "\n" + ShaderLibrary.get("material_point_shadow_vertex.glsl")
     return new Shader(vertexShader, fragmentShader);
 };

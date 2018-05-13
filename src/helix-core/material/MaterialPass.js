@@ -42,21 +42,17 @@ MaterialPass.BASE_PASS = 0;  // used for unlit, for predefined lights, or for We
 
 MaterialPass.NORMAL_DEPTH_PASS = 1;
 
-// shadow map generation.
+// shadow map generation
 MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS = 2;
 MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS = 3;
-MaterialPass.SPOT_LIGHT_SHADOW_MAP_PASS = 4;
 
-// dynamic lighting passes. Only needed for WebGL 1.
-MaterialPass.DIR_LIGHT_PASS = 5;
-MaterialPass.DIR_LIGHT_SHADOW_PASS = 6;
-MaterialPass.POINT_LIGHT_PASS = 7;
-MaterialPass.POINT_LIGHT_SHADOW_PASS = 8;
-MaterialPass.SPOT_LIGHT_PASS = 9;
-MaterialPass.SPOT_LIGHT_SHADOW_PASS = 10;
-MaterialPass.LIGHT_PROBE_PASS = 11;
+// dynamic lighting passes
+MaterialPass.DIR_LIGHT_PASS = 4;
+MaterialPass.POINT_LIGHT_PASS = 5;
+MaterialPass.SPOT_LIGHT_PASS = 6;
+MaterialPass.LIGHT_PROBE_PASS = 7;
 
-MaterialPass.NUM_PASS_TYPES = 12;
+MaterialPass.NUM_PASS_TYPES = 8;
 
 MaterialPass.prototype =
     {

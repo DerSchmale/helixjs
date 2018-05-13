@@ -1,6 +1,6 @@
 #derivatives
 
-vec4 hx_dir_getShadowMapValue(float depth)
+vec4 hx_getShadowMapValue(float depth)
 {
     float dx = dFdx(depth);
     float dy = dFdy(depth);
@@ -13,7 +13,7 @@ vec4 hx_dir_getShadowMapValue(float depth)
     #endif
 }
 
-float hx_dir_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)
+float hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)
 {
     vec4 s = texture2D(shadowMap, shadowMapCoord.xy);
     #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)
@@ -24,7 +24,7 @@ float hx_dir_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBia
     shadowMapCoord.z += depthBias;
 
     float variance = moments.y - moments.x * moments.x;
-    variance = max(variance, HX_DIR_VSM_MIN_VARIANCE);
+    variance = max(variance, HX_VSM_MIN_VARIANCE);
 
     float diff = shadowMapCoord.z - moments.x;
     float upperBound = 1.0;
@@ -33,5 +33,5 @@ float hx_dir_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBia
     if (diff > 0.0)
         upperBound = variance / (variance + diff*diff);
 
-    return saturate((upperBound - HX_DIR_VSM_LIGHT_BLEED_REDUCTION) * HX_DIR_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);
+    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) * HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);
 }

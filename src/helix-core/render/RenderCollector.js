@@ -30,9 +30,21 @@ function RenderCollector()
     this._effects = null;
     this._needsNormalDepth = false;
     this._needsBackbuffer = false;
+    this._numShadowPlanes = 0;
+    this._shadowPlaneBuckets = null;
 }
 
+RenderCollector.MAX_SHADOW_QUALITY_BUCKETS = 4;
+
 RenderCollector.prototype = Object.create(SceneVisitor.prototype, {
+    numShadowPlanes: {
+        get: function() { return this._numShadowPlanes; }
+    },
+
+    shadowPlaneBuckets: {
+        get: function() { return this._shadowPlaneBuckets; }
+    },
+
     ambientColor: {
         get: function() { return this._ambientColor; }
     },
@@ -66,7 +78,8 @@ RenderCollector.prototype.collect = function(camera, scene)
 
     this._transparents.sort(RenderSortFunctions.sortTransparents);
 
-    this._lights.sort(RenderSortFunctions.sortLights);
+    // Do lights still require sorting?
+    this._shadowCasters.sort(RenderSortFunctions.sortShadowCasters);
 
     var effects = this._camera._effects;
     // add camera effects at the end
@@ -164,7 +177,13 @@ RenderCollector.prototype.visitAmbientLight = function(light)
 RenderCollector.prototype.visitLight = function(light)
 {
     this._lights.push(light);
-    if (light._castShadows) this._shadowCasters.push(light._shadowMapRenderer);
+    if (light._castShadows) {
+        this._shadowCasters.push(light);
+        this._numShadowPlanes += light.numAtlasPlanes;
+
+        var bucketIndex = light.shadowQualityBias;
+        this._shadowPlaneBuckets[bucketIndex] += light.numAtlasPlanes;
+    }
 };
 
 RenderCollector.prototype._reset = function()
@@ -181,6 +200,13 @@ RenderCollector.prototype._reset = function()
     this._effects = [];
     this._needsNormalDepth = META.OPTIONS.ambientOcclusion;
     this._ambientColor.set(0, 0, 0, 1);
+    this._numShadowPlanes = 0;
+    this._shadowPlaneBuckets = [];
+
+    for (i = 0; i < RenderCollector.MAX_SHADOW_QUALITY_BUCKETS; ++i) {
+        this._shadowPlaneBuckets[i] = 0;
+    }
+
 };
 
 export { RenderCollector };

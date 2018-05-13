@@ -10,6 +10,9 @@ struct HX_SpotLight
 
     mat4 shadowMapMatrix;
     float depthBias;
+    bool castShadows;
+
+    vec4 shadowTile;    // xy = scale, zw = offset
 };
 
 void hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)
@@ -31,6 +34,11 @@ void hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVe
 #ifdef HX_FRAGMENT_SHADER
 float hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)
 {
-    return hx_spot_readShadow(shadowMap, viewPos, light.shadowMapMatrix, light.depthBias);
+    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);
+    shadowMapCoord /= shadowMapCoord.w;
+    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)
+    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;
+    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;
+    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);
 }
 #endif

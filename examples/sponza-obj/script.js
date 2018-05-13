@@ -17,8 +17,8 @@ window.onload = function ()
 
     options.hdr = true;
     options.numShadowCascades = 3;
-    options.directionalShadowFilter = new HX.VarianceDirectionalShadowFilter();
-    options.directionalShadowFilter.useHalfFloat = false;
+    options.shadowFilter = new HX.VarianceShadowFilter();
+    options.shadowFilter.useHalfFloat = false;
     options.defaultLightingModel = HX.LightingModel.GGX;
 
     project.init(document.getElementById('webglContainer'), options);

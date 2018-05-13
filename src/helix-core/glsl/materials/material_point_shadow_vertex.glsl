@@ -6,4 +6,7 @@ void main()
 {
     hx_geometry();
     hx_viewPosition = (hx_inverseProjectionMatrix * gl_Position).xyz;
+
+    // this shrinks it down to leave some room for filtering
+    gl_Position.xy *= .95;
 }

@@ -1,8 +1,8 @@
 import {DirectLight} from "./DirectLight";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {Float4} from "../math/Float4";
-import {META} from "../Helix";
-import {OmniShadowMapRenderer} from "../render/OmniShadowMapRenderer";
+import {RenderCollector} from "../render/RenderCollector";
+import {MathX} from "../math/MathX";
 
 /**
  * @classdesc
@@ -11,7 +11,6 @@ import {OmniShadowMapRenderer} from "../render/OmniShadowMapRenderer";
  *
  * @property {number} radius The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a given area for performance.
  * @property {boolean} castShadows Defines whether or not this light casts shadows.
- * @property {number} shadowMapSize The shadow map size used by this light.
  *
  * @constructor
  *
@@ -26,12 +25,16 @@ function PointLight()
     this._radius = 100.0;
     this.intensity = 3.1415;
     this.depthBias = .0;
-    this._shadowMapSize = 256;
-    this._shadowMapRenderer = null;
+    this.shadowQualityBias = 2;
+    this._shadowTiles = null;
 }
 
 PointLight.prototype = Object.create(DirectLight.prototype,
     {
+        numAtlasPlanes: {
+            get: function() { return 6; }
+        },
+
         castShadows: {
             get: function()
             {
@@ -40,29 +43,16 @@ PointLight.prototype = Object.create(DirectLight.prototype,
 
             set: function(value)
             {
-                if (this._castShadows === value) return;
-
                 this._castShadows = value;
 
                 if (value) {
-                    this._shadowMapRenderer = new OmniShadowMapRenderer(this, this._shadowMapSize);
+                    this._shadowTiles = [];
+                    for (var i = 0; i < 6; ++i)
+                        this._shadowTiles[i] = new Float4();
                 }
                 else {
-                    this._shadowMapRenderer = null;
+                    this._shadowTiles = null;
                 }
-            }
-        },
-
-        shadowMapSize: {
-            get: function()
-            {
-                return this._shadowMapSize;
-            },
-
-            set: function(value)
-            {
-                this._shadowMapSize = value;
-                if (this._shadowMapRenderer) this._shadowMapRenderer.shadowMapSize = value;
             }
         },
 

@@ -1,4 +1,4 @@
-import { CullMode, DataType, TextureFormat } from '../../Helix';
+import {CullMode, DataType, TextureFilter, TextureFormat} from '../../Helix';
 
 /**
  * @ignore
@@ -14,6 +14,10 @@ function ShadowFilter()
 
 ShadowFilter.prototype =
 {
+    get shadowMapFilter() {
+        return TextureFilter.NEAREST_NOMIP
+    },
+
     get cullMode() {
         return this._cullMode;
     },

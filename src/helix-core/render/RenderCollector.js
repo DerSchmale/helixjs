@@ -92,13 +92,6 @@ RenderCollector.prototype.collect = function(camera, scene)
             this._effects.push(effect);
         }
     }
-
-    // allows optimizing the render loop, skipping the entire forward path (which rerenders the light accumulation)
-    // if no forward is needed
-    this._needsForwardPath =
-        this._transparents.length > 0 ||
-        this._opaques[RenderPath.FORWARD_FIXED].length > 0 ||
-        this._opaques[RenderPath.FORWARD_DYNAMIC].length > 0;
 };
 
 RenderCollector.prototype.qualifies = function(object)

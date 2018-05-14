@@ -22,6 +22,8 @@ import {BasicMaterial} from "../material/BasicMaterial";
 import {LightingModel} from "./LightingModel";
 import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
+import {MathX} from "../math/MathX";
+import {TextureCube} from "../texture/TextureCube";
 
 /**
  * @classdesc
@@ -65,10 +67,11 @@ function Renderer()
     this._shadowAtlas.resize(2048, 2048);
 
     if (capabilities.WEBGL_2) {
-        // TODO: This needs to come from a dummy material
         var material = new BasicMaterial({ lightingModel: LightingModel.GGX });
         var pass = material.getPass(MaterialPass.BASE_PASS);
         this._lightingUniformBuffer = pass.createUniformBufferFromShader("hx_lights");
+        this._diffuseProbeArray = [];
+        this._specularProbeArray = [];
         console.log(this._lightingUniformBuffer);
     }
 }
@@ -251,72 +254,80 @@ Renderer.prototype =
         var camera = this._camera;
         var dirLightOffset = 16;
         var dirLightStride = 320;
+        var probeStride = 16;
+        var maxDirLights = META.OPTIONS.maxDirLights;
+        var maxProbes = META.OPTIONS.maxLightProbes;
+        var probeOffset = maxDirLights * dirLightStride + dirLightOffset;
         var numDirLights = 0;
-        var numDirCasters = 0;
+        var numProbes = 0;
+
+        for (var i = 0; i < maxProbes; ++i) {
+            this._diffuseProbeArray[i] = TextureCube.DEFAULT;
+            this._specularProbeArray[i] = TextureCube.DEFAULT;
+        }
 
         for (var i = 0; i < numLights; ++i) {
             var light = lights[i];
 
-            if (light instanceof DirectionalLight) {
-                // TODO: Implement shadow mapping later
-                this.writeDirectionalLight(light, camera, data, dirLightOffset, numDirCasters);
-
-                /*if (light.castShadows) {
-                    shadowMaps[numDirCasters] = light._shadowMap;
-                    ++numDirCasters;
-                }*/
+            if (light instanceof DirectionalLight && numDirLights < maxDirLights) {
+                this.writeDirectionalLight(light, camera, data, dirLightOffset);
 
                 dirLightOffset += dirLightStride;
                 ++numDirLights;
             }
+            else if (light instanceof LightProbe && numProbes < maxProbes) {
+                this.writeLightProbe(light, data, probeOffset);
+
+                if (light.diffuseTexture)
+                    this._diffuseProbeArray[numProbes] = light.diffuseTexture;
+
+                if (light.specularTexture)
+                    this._specularProbeArray[numProbes] = light.specularTexture;
+
+                probeOffset += probeStride;
+                ++numProbes;
+            }
         }
 
         data.setInt32(0, numDirLights, true);
+        data.setInt32(4, numProbes, true);
 
         this._lightingUniformBuffer.uploadData(arr);
-
-        // TODO: Should we do something like clustered forward rendering?
-        // put ALL lights in a single massive list of uniforms (or possibly in a texture?), using a uniform buffer since
-        // this is only allowed in WebGL 2
-
-        // (directionals + probes are global)
-        // points + spots can possibly be merged (isSpot + extra spot params)
-
-        // divide screen into tiles / or frustum into cells (NUM_CELLS = X * Y * Z)
-        // loop through ALL point/spot lights
-        // determine which cells they overlap, and append their index to the cells list (layout see shader info below)
-
-        // MAX_LIGHTS need not be all *that* high (100 is already cool)
-
-        // Shaders have uniforms:
-        // PointOrSpotLight hx_lights[MAX_LIGHTS];
-        // int hx_lightingCells[NUM_CELLS * (MAX_LIGHTS + 1)]; --> ints: numLights followed by numLights indices into the hx_lights buffer
-        // in the shader: cell = getCellForFragment();
-        // cellOffset = cell * MAX_LIGHTS;
-        // numLights = hx_lightingCells[cell];
-        // for (i = 1; i <= numLights; ++i) {
-        //    lightIndex = hx_lightingCells[cell + i];
-        //    light = hx_lights[lightIndex];
-        // }
-
-        // the uniforms can be assigned using the usual per pass setters
 
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_FIXED));
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC));
-
     },
 
     /**
      * @ignore
      * @private
      */
-    writeDirectionalLight: function(light, camera, target, offset, shadowMapIndex)
+    writeLightProbe: function(light, target, offset)
+    {
+        target.setInt32(offset, light.diffuseTexture? 1: 0, true);
+
+        var specularTex = light.specularTexture;
+        if (specularTex) {
+            target.setInt32(offset + 4, 1, true);
+            var numMips = Math.floor(MathX.log2(specularTex.size));
+            target.setFloat32(offset + 8, numMips, true);
+        }
+        else {
+            target.setInt32(offset + 4, 0, true);
+        }
+    },
+
+    /**
+     * @ignore
+     * @private
+     */
+    writeDirectionalLight: function(light, camera, target, offset)
     {
         var dir = new Float4();
         var matrix = new Matrix4x4();
-        return function(light, camera, target, offset, shadowMapIndex)
+        return function(light, camera, target, offset)
         {
             var col = light._scaledIrradiance;
             target.setFloat32(offset, col.r, true);
@@ -328,16 +339,17 @@ Renderer.prototype =
             target.setFloat32(offset + 20, dir.y, true);
             target.setFloat32(offset + 24, dir.z, true);
 
+            target.setInt32(offset + 28, light.castShadows);
+
             if (light.castShadows) {
-                var shadowRenderer = light._shadowMapRenderer;
                 var numCascades = META.OPTIONS.numShadowCascades;
-                var splits = shadowRenderer._splitDistances;
+                var splits = light._cascadeSplitDistances;
 
                 var m = matrix._m;
                 var o = offset + 32;
 
                 for (var j = 0; j < numCascades; ++j) {
-                    matrix.multiply(shadowRenderer.getShadowMatrix(j), camera.worldMatrix);
+                    matrix.multiply(light.getShadowMatrix(j), camera.worldMatrix);
 
                     for (var l = 0; l < 16; ++l) {
                         target.setFloat32(o, m[l], true);
@@ -351,10 +363,7 @@ Renderer.prototype =
                 target.setFloat32(offset + 300, splits[3], true);
                 target.setFloat32(offset + 304, light.depthBias, true);
                 target.setFloat32(offset + 308, splits[numCascades - 1], true);
-                target.setInt32(offset + 312, shadowMapIndex, true);
             }
-            else
-                target.setInt32(offset + 308, -1, true);
         }
     }(),
 
@@ -519,7 +528,7 @@ Renderer.prototype =
     {
         this._shadowAtlas.initRects(this._renderCollector.shadowPlaneBuckets, this._renderCollector.numShadowPlanes);
 
-        var casters = this._renderCollector._shadowCasters;
+        var casters = this._renderCollector.getShadowCasters();
         var len = casters.length;
 
         GL.setRenderTarget(this._shadowAtlas.fbo);
@@ -595,7 +604,7 @@ Renderer.prototype =
      */
     _renderEffects: function (dt)
     {
-        var effects = this._renderCollector._effects;
+        var effects = this._renderCollector.getEffects();
         if (!effects) return;
 
         var len = effects.length;

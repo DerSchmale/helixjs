@@ -30,10 +30,6 @@ float hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos
     float dist = length(dir);
     dir = mat3(light.shadowMapMatrix) * dir;
 
-    /*float shadowSample = hx_RGBA8ToFloat(textureCube(shadowMap, worldDir.xzy));
-    float diff = dist * light.rcpRadius - shadowSample - depthBias;
-    return float(diff < 0.0);*/
-
     // swizzle to opengl cube map space
     dir = dir.xzy;
 

@@ -1,7 +1,6 @@
 import {MaterialPass} from "../MaterialPass";
 import {ShaderLibrary} from "../../shader/ShaderLibrary";
 import {Shader} from "../../shader/Shader";
-import {DirectionalLight} from "../../light/DirectionalLight";
 import {GL} from "../../core/GL";
 import {Float4} from "../../math/Float4";
 import {Matrix4x4} from "../../math/Matrix4x4";

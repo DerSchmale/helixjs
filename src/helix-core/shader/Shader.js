@@ -1,3 +1,9 @@
+import { GLSLIncludes } from './GLSLIncludes';
+import { GL } from '../core/GL';
+import { META } from '../Helix';
+import {UniformSetter} from "./UniformSetter";
+import {Debug} from "../debug/Debug";
+
 /**
  * @ignore
  * @param vertexShaderCode
@@ -6,13 +12,6 @@
  *
  * @author derschmale <http://www.derschmale.com>
  */
-import { GLSLIncludes } from './GLSLIncludes';
-import { GL } from '../core/GL';
-import { META } from '../Helix';
-import {UniformSetter} from "./UniformSetter";
-import {Debug} from "../debug/Debug";
-import {Profiler} from "../debug/Profiler";
-
 function Shader(vertexShaderCode, fragmentShaderCode)
 {
     this._ready = false;
@@ -36,8 +35,8 @@ Shader.prototype = {
     init: function(vertexShaderCode, fragmentShaderCode)
     {
         var gl = GL.gl;
-        vertexShaderCode = GLSLIncludes.VERSION + "#define HX_VERTEX_SHADER\n" + GLSLIncludes.GENERAL + vertexShaderCode;
-        fragmentShaderCode = GLSLIncludes.VERSION + "#define HX_FRAGMENT_SHADER\n" + GLSLIncludes.GENERAL + fragmentShaderCode;
+        vertexShaderCode = "#define HX_VERTEX_SHADER\n" + GLSLIncludes.GENERAL + vertexShaderCode;
+        fragmentShaderCode = "#define HX_FRAGMENT_SHADER\n" + GLSLIncludes.GENERAL + fragmentShaderCode;
 
         vertexShaderCode = this._processShaderCode(vertexShaderCode);
         fragmentShaderCode = this._processShaderCode(fragmentShaderCode);
@@ -90,7 +89,7 @@ Shader.prototype = {
 
         this._ready = true;
 
-        Profiler.stopTiming("Shader::init");
+        // Profiler.stopTiming("Shader::init");
 
         this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
         this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
@@ -157,6 +156,7 @@ Shader.prototype = {
         code = this._processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
         code = this._guard(code, /^\s*uniform\s+\w+\s+hx_\w+(\[\w+])?\s*;/gm);
         code = this._guard(code, /^\s*attribute\s+\w+\s+hx_\w+\s*;/gm);
+        code = GLSLIncludes.VERSION + code;
         return code;
     },
 

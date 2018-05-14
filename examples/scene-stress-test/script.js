@@ -20,9 +20,9 @@ project.onInit = function()
 window.onload = function ()
 {
     var options = new HX.InitOptions();
-    // options.webgl2 = true;
+    options.webgl2 = true;
     options.hdr = true;
-    // options.debug = true;
+    options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.shadowFilter = new HX.VarianceShadowFilter();
     options.numShadowCascades = 4;

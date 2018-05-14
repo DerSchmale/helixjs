@@ -14,6 +14,7 @@ import {PoissonDisk} from "./math/PoissonDisk";
 import {PoissonSphere} from "./math/PoissonSphere";
 import {Color} from "./core/Color";
 import {FrameBuffer} from "./texture/FrameBuffer";
+import {MaterialPass} from "./material/MaterialPass";
 
 /**
  * META contains some data about the Helix engine, such as the options it was initialized with.
@@ -426,7 +427,7 @@ export function init(canvas, options)
         defines += "#define HX_GLSL_300_ES\n";
 
         // throw away all the dynamic passes
-        MaterialPass.NUM_PASS_TYPES = 5;
+        MaterialPass.NUM_PASS_TYPES = 4;
     }
     else {
         gl = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);

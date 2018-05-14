@@ -29,6 +29,7 @@ export var TextureSetter = {
             var setter = new table[slotName]();
             setters.push(setter);
             setter.slot = slot;
+            setter.pass = materialPass;
         }
 
         return setters;
@@ -45,8 +46,23 @@ export var TextureSetter = {
         TextureSetter._passTable.hx_lightAccumulation = LightAccumulationSetter;
         TextureSetter._passTable.hx_ssao = SSAOSetter;
         TextureSetter._passTable.hx_shadowMap = ShadowMapSetter;
+        TextureSetter._passTable["hx_diffuseProbes[0]"] = DiffuseProbesSetter;
+        TextureSetter._passTable["hx_specularProbes[0]"] = SpecularProbesSetter;
 
         TextureSetter._instanceTable.hx_skinningTexture = SkinningTextureSetter;
+    },
+
+    setArray: function(pass, firstSlot, textures)
+    {
+        var len = textures.length;
+        var location = firstSlot.location;
+
+        for (var i = 0; i < len; ++i) {
+            var slot = pass._textureSlots[firstSlot.index + i];
+            // make sure we're not overshooting the array and writing to another element (larger arrays are allowed analogous to uniform arrays)
+            if (!slot || slot.location !== location) return;
+            slot.texture = textures[i];
+        }
     }
 };
 
@@ -111,6 +127,24 @@ function ShadowMapSetter()
 ShadowMapSetter.prototype.execute = function (renderer)
 {
     this.slot.texture = renderer._shadowAtlas.texture;
+};
+
+function DiffuseProbesSetter()
+{
+}
+
+DiffuseProbesSetter.prototype.execute = function (renderer)
+{
+    TextureSetter.setArray(this.pass, this.slot, renderer._diffuseProbeArray);
+};
+
+function SpecularProbesSetter()
+{
+}
+
+SpecularProbesSetter.prototype.execute = function (renderer)
+{
+    TextureSetter.setArray(this.pass, this.slot, renderer._specularProbeArray);
 };
 
 function SkinningTextureSetter()

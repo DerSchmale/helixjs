@@ -3,9 +3,11 @@ struct HX_DirectionalLight
     vec3 color;
     vec3 direction; // in view space?
 
+    bool castShadows;
+
     mat4 shadowMapMatrices[4];
     vec4 splitDistances;
-    bool castShadows;
+
     float depthBias;
     float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]
 };

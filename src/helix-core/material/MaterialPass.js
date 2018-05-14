@@ -1,4 +1,4 @@
-import {Comparison, CullMode, DEFAULTS, ElementType} from "../Helix";
+import {capabilities, Comparison, CullMode, DEFAULTS, ElementType} from "../Helix";
 import {TextureSetter} from "../shader/TextureSetter";
 import {GL} from "../core/GL";
 import {TextureSlot} from "./TextureSlot";
@@ -30,8 +30,11 @@ function MaterialPass(shader)
     this._storeUniforms();
     this._textureSettersPass = TextureSetter.getSettersPerPass(this);
     this._textureSettersInstance = TextureSetter.getSettersPerInstance(this);
-    this._uniformBufferSettersPass = UniformBufferSetter.getSettersPerPass(this);
-    this._uniformBufferSettersInstance = UniformBufferSetter.getSettersPerInstance(this);
+
+    if (capabilities.WEBGL_2) {
+        this._uniformBufferSettersPass = UniformBufferSetter.getSettersPerPass(this);
+        this._uniformBufferSettersInstance = UniformBufferSetter.getSettersPerInstance(this);
+    }
 
     this.setTexture("hx_dither2D", DEFAULTS.DEFAULT_2D_DITHER_TEXTURE);
 }
@@ -135,10 +138,12 @@ MaterialPass.prototype =
                 this._textureSettersInstance[i].execute(renderItem);
             }
 
-            len = this._uniformBufferSettersInstance.length;
+            if (this._uniformBufferSettersInstance) {
+                len = this._uniformBufferSettersInstance.length;
 
-            for (i = 0; i < len; ++i) {
-                this._uniformBufferSettersInstance[i].execute(renderItem);
+                for (i = 0; i < len; ++i) {
+                    this._uniformBufferSettersInstance[i].execute(renderItem);
+                }
             }
 
             this._shader.updateInstanceRenderState(camera, renderItem);
@@ -155,9 +160,11 @@ MaterialPass.prototype =
                 this._textureSettersPass[i].execute(renderer);
             }
 
-            len = this._uniformBufferSettersPass.length;
-            for (i = 0; i < len; ++i) {
-                this._uniformBufferSettersPass[i].execute(renderer);
+            if (this._uniformBufferSettersPass) {
+                len = this._uniformBufferSettersPass.length;
+                for (i = 0; i < len; ++i) {
+                    this._uniformBufferSettersPass[i].execute(renderer);
+                }
             }
 
             len = this._textureSlots.length;

@@ -1,8 +1,6 @@
 import {DirectLight} from "./DirectLight";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {Float4} from "../math/Float4";
-import {RenderCollector} from "../render/RenderCollector";
-import {MathX} from "../math/MathX";
 
 /**
  * @classdesc

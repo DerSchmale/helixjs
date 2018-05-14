@@ -107,7 +107,7 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
                 this._outerAngle = MathX.clamp(this._outerAngle, this._innerAngle, Math.PI);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-                this._sinOuter = Math.cos(this._sinOuter * .5);
+                this._sinOuter = Math.sin(this._outerAngle * .5);
                 this._invalidateLocalBounds();
             }
         },
@@ -122,7 +122,7 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
                 this._innerAngle = MathX.clamp(this._innerAngle, 0, this._outerAngle);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-                this._sinOuter = Math.cos(this._sinOuter * .5);
+                this._sinOuter = Math.sin(this._outerAngle * .5);
                 this._invalidateLocalBounds();
             }
         }

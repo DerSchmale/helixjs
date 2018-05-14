@@ -72,7 +72,6 @@ function Renderer()
         this._lightingUniformBuffer = pass.createUniformBufferFromShader("hx_lights");
         this._diffuseProbeArray = [];
         this._specularProbeArray = [];
-        console.log(this._lightingUniformBuffer);
     }
 }
 
@@ -252,13 +251,17 @@ Renderer.prototype =
         var arr = new ArrayBuffer(this._lightingUniformBuffer.size);
         var data = new DataView(arr);
         var camera = this._camera;
+        var maxDirLights = META.OPTIONS.maxDirLights;
+        var maxProbes = META.OPTIONS.maxLightProbes;
+        var maxPoints = META.OPTIONS.maxPointSpotLights;
         var dirLightOffset = 16;
         var dirLightStride = 320;
         var probeStride = 16;
-        var maxDirLights = META.OPTIONS.maxDirLights;
-        var maxProbes = META.OPTIONS.maxLightProbes;
         var probeOffset = maxDirLights * dirLightStride + dirLightOffset;
+        var pointOffset = maxProbes * probeStride + probeOffset;
+        var pointStride = 224;
         var numDirLights = 0;
+        var numPointLights = 0;
         var numProbes = 0;
 
         for (var i = 0; i < maxProbes; ++i) {
@@ -287,10 +290,23 @@ Renderer.prototype =
                 probeOffset += probeStride;
                 ++numProbes;
             }
+            else if (light instanceof PointLight && numPointLights < maxPoints) {
+                this.writePointSpotLight(light, camera, data, pointOffset, false);
+
+                pointOffset += pointStride;
+                ++numPointLights;
+            }
+            else if (light instanceof SpotLight && numPointLights < maxPoints) {
+                this.writePointSpotLight(light, camera, data, pointOffset, true);
+
+                pointOffset += pointStride;
+                ++numPointLights;
+            }
         }
 
         data.setInt32(0, numDirLights, true);
         data.setInt32(4, numProbes, true);
+        data.setInt32(8, numPointLights, true);
 
         this._lightingUniformBuffer.uploadData(arr);
 
@@ -299,6 +315,89 @@ Renderer.prototype =
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_FIXED));
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC));
     },
+
+    /**
+     * @ignore
+     * @private
+     */
+    writePointSpotLight: function(light, camera, target, offset, isSpot)
+    {
+        var pos = new Float4();
+        var matrix = new Matrix4x4();
+        return function(light, camera, target, offset, isSpot)
+        {
+            var o;
+            var col = light._scaledIrradiance;
+            target.setFloat32(offset, col.r, true);
+            target.setFloat32(offset + 4, col.g, true);
+            target.setFloat32(offset + 8, col.b, true);
+
+            target.setFloat32(offset + 12, light.radius, true);
+
+            light.worldMatrix.getColumn(3, pos);
+            camera.viewMatrix.transformPoint(pos, pos);
+            target.setFloat32(offset + 16, pos.x, true);
+            target.setFloat32(offset + 20, pos.y, true);
+            target.setFloat32(offset + 24, pos.z, true);
+
+            target.setFloat32(offset + 28, 1.0 / light.radius, true);
+
+            light.worldMatrix.getColumn(1, pos);
+            camera.viewMatrix.transformVector(pos, pos);
+            target.setFloat32(offset + 32, pos.x, true);
+            target.setFloat32(offset + 36, pos.y, true);
+            target.setFloat32(offset + 40, pos.z, true);
+
+            if (isSpot) {
+                target.setInt32(offset + 112, 1, true);
+                target.setFloat32(offset + 120, light._cosOuter, true);
+                target.setFloat32(offset + 124, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001), true);
+            }
+            else {
+                target.setInt32(offset + 112, 0, true);
+            }
+
+            target.setFloat32(offset + 116, light.castShadows, true);
+
+            if (light.castShadows) {
+                target.setFloat32(offset + 44, light.depthBias, true);
+
+                var m;
+
+                if (isSpot) {
+                    matrix.multiply(light._shadowMatrix, camera.worldMatrix);
+                    m = matrix._m;
+
+                    var tile = light._shadowTile;
+                    target.setFloat32(offset + 128, tile.x, true);
+                    target.setFloat32(offset + 132, tile.y, true);
+                    target.setFloat32(offset + 136, tile.z, true);
+                    target.setFloat32(offset + 140, tile.w, true);
+                }
+                else {
+                    m = camera.worldMatrix._m;
+
+                    o = offset + 128;
+                    for (var face = 0; face < 6; ++face) {
+                        var tile = light._shadowTiles[face];
+                        target.setFloat32(o, tile.x, true);
+                        target.setFloat32(o + 4, tile.y, true);
+                        target.setFloat32(o + 8, tile.z, true);
+                        target.setFloat32(o + 12, tile.w, true);
+                        o += 16;
+                    }
+                }
+
+                o = offset + 48;
+
+                for (var l = 0; l < 16; ++l) {
+                    target.setFloat32(o, m[l], true);
+                    o += 4;
+                }
+
+            }
+        }
+    }(),
 
     /**
      * @ignore

@@ -322,6 +322,11 @@ export function InitOptions()
     this.maxDirLights = 3;
 
     /**
+     * Maximum number of point / spot lights inside a dynamic WebGL 2.0 shader.
+     */
+    this.maxPointSpotLights = 20;
+
+    /**
      * Maximum number of light probes inside a dynamic WebGL 2.0 shader.
      */
     this.maxLightProbes = 1;

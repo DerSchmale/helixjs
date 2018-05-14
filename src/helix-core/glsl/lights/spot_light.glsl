@@ -5,8 +5,8 @@ struct HX_SpotLight
     vec3 direction;
     float radius;
     float rcpRadius;
+
     vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))
-    float sinOuterAngle;    // only used in deferred, hence separate
 
     mat4 shadowMapMatrix;
     float depthBias;

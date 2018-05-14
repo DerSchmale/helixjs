@@ -1,3 +1,63 @@
+struct HX_PointSpotLight
+{
+// the order here is ordered in function of packing
+    vec3 color;
+    float radius;
+
+    vec3 position;
+    float rcpRadius;
+
+    vec3 direction; // spot only
+    float depthBias;
+
+    mat4 shadowMapMatrix;
+
+    bool isSpot;
+    bool castShadows;
+    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))
+
+    vec4 shadowTile;    // xy = scale, zw = offset
+
+    // points only
+    // the 5 missing tiles, share the first one with spots!
+    vec4 shadowTiles[5];    // for each cube face
+};
+
+HX_SpotLight hx_asSpotLight(HX_PointSpotLight light)
+{
+    HX_SpotLight spot;
+    spot.color = light.color;
+    spot.position = light.position;
+    spot.radius = light.radius;
+    spot.direction = light.direction;
+    spot.rcpRadius = light.rcpRadius;
+    spot.angleData = light.angleData;
+    spot.shadowMapMatrix = light.shadowMapMatrix;
+    spot.depthBias = light.depthBias;
+    spot.castShadows = light.castShadows;
+    spot.shadowTile = light.shadowTile;
+    return spot;
+}
+
+HX_PointLight hx_asPointLight(HX_PointSpotLight light)
+{
+    HX_PointLight point;
+    point.color = light.color;
+    point.position = light.position;
+    point.radius = light.radius;
+    point.rcpRadius = light.rcpRadius;
+    point.shadowMapMatrix = light.shadowMapMatrix;
+    point.depthBias = light.depthBias;
+    point.castShadows = light.castShadows;
+    point.shadowTiles[0] = light.shadowTile;
+    point.shadowTiles[1] = light.shadowTiles[0];
+    point.shadowTiles[2] = light.shadowTiles[1];
+    point.shadowTiles[3] = light.shadowTiles[2];
+    point.shadowTiles[4] = light.shadowTiles[3];
+    point.shadowTiles[5] = light.shadowTiles[4];
+    return point;
+}
+
 varying_in vec3 hx_viewPosition;
 
 uniform vec3 hx_ambientColor;
@@ -14,6 +74,7 @@ uniform hx_lights
 {
     int hx_numDirLights;
     int hx_numLightProbes;
+    int hx_numPointSpotLights;
 
 #if HX_NUM_DIR_LIGHTS > 0
     HX_DirectionalLight hx_directionalLights[HX_NUM_DIR_LIGHTS];
@@ -22,6 +83,11 @@ uniform hx_lights
 #if HX_NUM_LIGHT_PROBES > 0
     HX_Probe hx_probes[HX_NUM_LIGHT_PROBES];
 #endif
+
+#if HX_NUM_POINT_SPOT_LIGHTS > 0
+    HX_PointSpotLight hx_pointSpotLights[HX_NUM_POINT_SPOT_LIGHTS];
+#endif
+
 };
 
 #if HX_NUM_LIGHT_PROBES > 0
@@ -80,6 +146,29 @@ void main()
                 if (hx_probes[i].hasSpecular)
                     specularAccum += hx_calculateSpecularProbeLight(hx_specularProbes[i], hx_probes[i].numMipLevels, reflectedViewDir, fresnel, data.roughness) * ao;
             }
+        }
+    #endif
+
+    #if HX_NUM_POINT_SPOT_LIGHTS > 0
+        for (int i = 0; i < hx_numPointSpotLights; ++i) {
+            vec3 diffuse, specular;
+            float shadow = 1.0;;
+
+            if (hx_pointSpotLights[i].isSpot) {
+                HX_SpotLight spot = hx_asSpotLight(hx_pointSpotLights[i]);
+                hx_calculateLight(spot, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
+                if (spot.castShadows)
+                    shadow = hx_calculateShadows(spot, hx_shadowMap, hx_viewPosition);
+            }
+            else {
+                HX_PointLight point = hx_asPointLight(hx_pointSpotLights[i]);
+                hx_calculateLight(point, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
+                if (point.castShadows)
+                    shadow = hx_calculateShadows(point, hx_shadowMap, hx_viewPosition);
+            }
+
+            diffuseAccum += diffuse * shadow;
+            specularAccum += specular * shadow;
         }
     #endif
 

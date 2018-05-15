@@ -60,7 +60,7 @@ void main()
         vec3 diffuse, specular;
         hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
 
-        if (hx_directionalLights[i].castShadows) {
+        if (hx_directionalLights[i].castShadows == 1) {
             float shadow = hx_calculateShadows(hx_directionalLights[i], hx_shadowMap, hx_viewPosition);
             diffuse *= shadow;
             specular *= shadow;
@@ -76,7 +76,7 @@ void main()
         vec3 diffuse, specular;
         hx_calculateLight(hx_pointLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
 
-        if (hx_pointLights[i].castShadows) {
+        if (hx_pointLights[i].castShadows == 1) {
             float shadow = hx_calculateShadows(hx_pointLights[i], hx_shadowMap, hx_viewPosition);
             diffuse *= shadow;
             specular *= shadow;
@@ -92,7 +92,7 @@ void main()
         vec3 diffuse, specular;
         hx_calculateLight(hx_spotLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
 
-        if (hx_spotLights[i].castShadows) {
+        if (hx_spotLights[i].castShadows == 1) {
             float shadow = hx_calculateShadows(hx_spotLights[i], hx_shadowMap, hx_viewPosition);
             diffuse *= shadow;
             specular *= shadow;

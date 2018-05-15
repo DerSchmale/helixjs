@@ -82,10 +82,10 @@ function Renderer()
 
 
 		// if we want to test the layout of the uniform buffer as defined in the shader:
-		var material = new BasicMaterial({ lightingModel: LightingModel.GGX });
-		var pass = material.getPass(MaterialPass.BASE_PASS);
-		this._lightingUniformBuffer = pass.createUniformBufferFromShader("hx_lights");
-		console.log(this._lightingUniformBuffer);
+		// var material = new BasicMaterial({ lightingModel: LightingModel.GGX });
+		// var pass = material.getPass(MaterialPass.BASE_PASS);
+		// this._lightingUniformBuffer = pass.createUniformBufferFromShader("hx_lights");
+		// console.log(this._lightingUniformBuffer);
     }
 }
 

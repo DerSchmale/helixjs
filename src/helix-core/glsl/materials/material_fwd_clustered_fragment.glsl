@@ -118,11 +118,12 @@ void main()
 
     #if HX_NUM_DIR_LIGHTS > 0
         for (int i = 0; i < hx_numDirLights; ++i) {
+            HX_DirectionalLight light = hx_directionalLights[i];
             vec3 diffuse, specular;
-            hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
+            hx_calculateLight(light, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
 
-            if (hx_directionalLights[i].castShadows == 1) {
-                float shadow = hx_calculateShadows(hx_directionalLights[i], hx_shadowMap, hx_viewPosition);
+            if (light.castShadows == 1) {
+                float shadow = hx_calculateShadows(light, hx_shadowMap, hx_viewPosition);
                 diffuse *= shadow;
                 specular *= shadow;
             }

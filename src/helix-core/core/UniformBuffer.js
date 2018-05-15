@@ -33,7 +33,7 @@ UniformBuffer.prototype = {
             usageHint = gl.DYNAMIC_DRAW;
 
         this.bind();
-        gl.bufferData(gl.UNIFORM_BUFFER, data, usageHint, 0, this._size);
+        gl.bufferData(gl.UNIFORM_BUFFER, data, usageHint);
     },
 
     registerUniform: function(name, offset, size, type)

@@ -22,6 +22,8 @@ window.onload = function ()
     var options = new HX.InitOptions();
     options.webgl2 = true;
     options.hdr = true;
+    options.maxDirLights = 1;
+    options.maxPointSpotLights = 100;
     // options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.shadowFilter = new HX.VarianceShadowFilter();
@@ -42,11 +44,10 @@ function initCamera(camera)
 
 function initScene(scene, assetLibrary)
 {
-    // TODO: Do this dynamically
     var lights = [ ];
-    for (var i = 0; i < 10; ++i) {
+    for (var i = 0; i < 100; ++i) {
         var light = new HX.PointLight();
-        light.radius = 20;
+        light.radius = 5;
         // light.castShadows = true;
 
         light.position.set(

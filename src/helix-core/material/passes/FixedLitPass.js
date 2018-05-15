@@ -134,7 +134,7 @@ FixedLitPass.prototype._assignDirLights = function (camera)
             var col = light._scaledIrradiance;
             gl.uniform3f(locs.color, col.r, col.g, col.b);
             gl.uniform3f(locs.direction, dir.x, dir.y, dir.z);
-            gl.uniform1i(locs.castShadows, light.castShadows);
+            gl.uniform1i(locs.castShadows, light.castShadows? 1 : 0);
 
             if (light.castShadows) {
                 var numCascades = META.OPTIONS.numShadowCascades;
@@ -184,7 +184,7 @@ FixedLitPass.prototype._assignPointLights = function (camera) {
             gl.uniform1f(locs.radius, light._radius);
             gl.uniform1f(locs.rcpRadius, 1.0 / light._radius);
 
-            gl.uniform1i(locs.castShadows, light.castShadows);
+            gl.uniform1i(locs.castShadows, light.castShadows? 1 : 0);
 
             if (light.castShadows) {
                 gl.uniformMatrix4fv(locs.matrix, false, camera.worldMatrix._m);
@@ -240,7 +240,7 @@ FixedLitPass.prototype._assignSpotLights = function (camera)
             viewMatrix.transformVector(pos, pos);
             gl.uniform3f(locs.direction, pos.x, pos.y, pos.z);
 
-            gl.uniform1i(locs.castShadows, light.castShadows);
+            gl.uniform1i(locs.castShadows, light.castShadows? 1 : 0);
 
             if (light.castShadows) {
                 matrix.multiply(light.shadowMatrix, camera.worldMatrix);

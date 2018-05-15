@@ -18,6 +18,6 @@ void main()
 
     hx_FragColor = vec4(diffuse * data.color.xyz + specular, data.color.w);
 
-    if (hx_directionalLight.castShadows)
+    if (hx_directionalLight.castShadows == 1)
         hx_FragColor.xyz *= hx_calculateShadows(hx_directionalLight, hx_shadowMap, hx_viewPosition);
 }

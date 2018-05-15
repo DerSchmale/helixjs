@@ -48,7 +48,7 @@ PointLightingPass.prototype.updatePassRenderState = function(camera, renderer, l
         gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);
         gl.uniform1f(this._radiusLocation, light._radius);
         gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
-        gl.uniform1i(this._castShadowsLocation, light.castShadows);
+        gl.uniform1i(this._castShadowsLocation, light.castShadows? 1 : 0);
 
         if (light.castShadows) {
             var j = 0;

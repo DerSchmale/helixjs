@@ -12,8 +12,8 @@ struct HX_PointSpotLight
 
     mat4 shadowMapMatrix;
 
-    bool isSpot;
-    bool castShadows;
+    int isSpot;
+    int castShadows;
     vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))
 
     vec4 shadowTile;    // xy = scale, zw = offset
@@ -121,7 +121,7 @@ void main()
             vec3 diffuse, specular;
             hx_calculateLight(hx_directionalLights[i], data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
 
-            if (hx_directionalLights[i].castShadows) {
+            if (hx_directionalLights[i].castShadows == 1) {
                 float shadow = hx_calculateShadows(hx_directionalLights[i], hx_shadowMap, hx_viewPosition);
                 diffuse *= shadow;
                 specular *= shadow;
@@ -140,10 +140,10 @@ void main()
         for (int i = 0; i < HX_NUM_LIGHT_PROBES; ++i) {
             // this is a bit icky, but since the cube textures need to indexed using a literal, we can't loop over hx_numLightProbes
             if (i < hx_numLightProbes) {
-                if (hx_probes[i].hasDiffuse)
+                if (hx_probes[i].hasDiffuse == 1)
                     diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbes[i], worldNormal) * ao;
 
-                if (hx_probes[i].hasSpecular)
+                if (hx_probes[i].hasSpecular == 1)
                     specularAccum += hx_calculateSpecularProbeLight(hx_specularProbes[i], hx_probes[i].numMipLevels, reflectedViewDir, fresnel, data.roughness) * ao;
             }
         }
@@ -154,16 +154,16 @@ void main()
             vec3 diffuse, specular;
             float shadow = 1.0;;
 
-            if (hx_pointSpotLights[i].isSpot) {
+            if (hx_pointSpotLights[i].isSpot == 1) {
                 HX_SpotLight spot = hx_asSpotLight(hx_pointSpotLights[i]);
                 hx_calculateLight(spot, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
-                if (spot.castShadows)
+                if (spot.castShadows == 1)
                     shadow = hx_calculateShadows(spot, hx_shadowMap, hx_viewPosition);
             }
             else {
                 HX_PointLight point = hx_asPointLight(hx_pointSpotLights[i]);
                 hx_calculateLight(point, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
-                if (point.castShadows)
+                if (point.castShadows == 1)
                     shadow = hx_calculateShadows(point, hx_shadowMap, hx_viewPosition);
             }
 

@@ -4,8 +4,8 @@
 // really only used for clustered
 struct HX_Probe
 {
-    bool hasDiffuse;
-    bool hasSpecular;
+    int hasDiffuse;
+    int hasSpecular;
     float numMipLevels;
 };
 

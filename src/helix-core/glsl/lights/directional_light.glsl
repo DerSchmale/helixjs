@@ -3,7 +3,7 @@ struct HX_DirectionalLight
     vec3 color;
     vec3 direction; // in view space?
 
-    bool castShadows;
+    int castShadows;
 
     mat4 shadowMapMatrices[4];
     vec4 splitDistances;

@@ -47,7 +47,7 @@ function initScene(scene, assetLibrary)
     for (var i = 0; i < 10; ++i) {
         var light = new HX.PointLight();
         light.radius = 20;
-        light.castShadows = true;
+        // light.castShadows = true;
 
         light.position.set(
             (Math.random() - .5) * 20,

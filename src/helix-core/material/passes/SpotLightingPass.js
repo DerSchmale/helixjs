@@ -59,7 +59,7 @@ SpotLightingPass.prototype.updatePassRenderState = function(camera, renderer, li
         gl.uniform1f(this._radiusLocation, light._radius);
         gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
         gl.uniform2f(this._anglesLocation, light._cosOuter, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001));
-        gl.uniform1i(this._castShadowsLocation, light.castShadows);
+        gl.uniform1i(this._castShadowsLocation, light.castShadows? 1 : 0);
 
         if (light.castShadows) {
             var tile = light._shadowTile;

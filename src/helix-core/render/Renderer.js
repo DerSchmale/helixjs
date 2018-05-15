@@ -24,6 +24,7 @@ import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {MathX} from "../math/MathX";
 import {TextureCube} from "../texture/TextureCube";
+import {UniformBuffer} from "../core/UniformBuffer";
 
 /**
  * @classdesc
@@ -67,11 +68,24 @@ function Renderer()
     this._shadowAtlas.resize(2048, 2048);
 
     if (capabilities.WEBGL_2) {
-        var material = new BasicMaterial({ lightingModel: LightingModel.GGX });
-        var pass = material.getPass(MaterialPass.BASE_PASS);
-        this._lightingUniformBuffer = pass.createUniformBufferFromShader("hx_lights");
-        this._diffuseProbeArray = [];
-        this._specularProbeArray = [];
+		var size = 16 + META.OPTIONS.maxDirLights * 320 + META.OPTIONS.maxLightProbes * 16 + META.OPTIONS.maxPointSpotLights * 224;
+		this._diffuseProbeArray = [];
+		this._specularProbeArray = [];
+		this._lightingUniformBuffer = new UniformBuffer(size);
+
+		this._lightingData = new ArrayBuffer(size);
+		this._lightingDataView = new DataView(this._lightingData);
+
+		var i = 0;
+		for (var i = 0; i < size; ++i)
+		    this._lightingDataView.setInt8(i, 0);
+
+
+		// if we want to test the layout of the uniform buffer as defined in the shader:
+		var material = new BasicMaterial({ lightingModel: LightingModel.GGX });
+		var pass = material.getPass(MaterialPass.BASE_PASS);
+		this._lightingUniformBuffer = pass.createUniformBufferFromShader("hx_lights");
+		console.log(this._lightingUniformBuffer);
     }
 }
 
@@ -248,8 +262,7 @@ Renderer.prototype =
     {
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
-        var arr = new ArrayBuffer(this._lightingUniformBuffer.size);
-        var data = new DataView(arr);
+        var data = this._lightingDataView;
         var camera = this._camera;
         var maxDirLights = META.OPTIONS.maxDirLights;
         var maxProbes = META.OPTIONS.maxLightProbes;
@@ -308,7 +321,7 @@ Renderer.prototype =
         data.setInt32(4, numProbes, true);
         data.setInt32(8, numPointLights, true);
 
-        this._lightingUniformBuffer.uploadData(arr);
+        this._lightingUniformBuffer.uploadData(this._lightingDataView);
 
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
@@ -349,15 +362,15 @@ Renderer.prototype =
             target.setFloat32(offset + 40, pos.z, true);
 
             if (isSpot) {
-                target.setInt32(offset + 112, 1, true);
+                target.setUint32(offset + 112, 1, true);
                 target.setFloat32(offset + 120, light._cosOuter, true);
                 target.setFloat32(offset + 124, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001), true);
             }
             else {
-                target.setInt32(offset + 112, 0, true);
+                target.setUint32(offset + 112, 0, true);
             }
 
-            target.setFloat32(offset + 116, light.castShadows, true);
+            target.setUint32(offset + 116, light.castShadows? 1 : 0, true);
 
             if (light.castShadows) {
                 target.setFloat32(offset + 44, light.depthBias, true);
@@ -405,16 +418,16 @@ Renderer.prototype =
      */
     writeLightProbe: function(light, target, offset)
     {
-        target.setInt32(offset, light.diffuseTexture? 1: 0, true);
+        target.setUint32(offset, light.diffuseTexture? 1: 0, true);
 
         var specularTex = light.specularTexture;
         if (specularTex) {
-            target.setInt32(offset + 4, 1, true);
+            target.setUint32(offset + 4, 1, true);
             var numMips = Math.floor(MathX.log2(specularTex.size));
             target.setFloat32(offset + 8, numMips, true);
         }
         else {
-            target.setInt32(offset + 4, 0, true);
+            target.setUint32(offset + 4, 0, true);
         }
     },
 
@@ -438,7 +451,7 @@ Renderer.prototype =
             target.setFloat32(offset + 20, dir.y, true);
             target.setFloat32(offset + 24, dir.z, true);
 
-            target.setInt32(offset + 28, light.castShadows);
+            target.setUint32(offset + 28, light.castShadows? 1 : 0, true);
 
             if (light.castShadows) {
                 var numCascades = META.OPTIONS.numShadowCascades;

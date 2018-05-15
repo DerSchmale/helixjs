@@ -7,7 +7,7 @@ struct HX_PointLight
 
     float depthBias;
     mat4 shadowMapMatrix;
-    bool castShadows;
+    int castShadows;
     vec4 shadowTiles[6];    // for each cube face
 };
 

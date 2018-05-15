@@ -48,7 +48,7 @@ DirectionalLightingPass.prototype.updatePassRenderState = function(camera, rende
         camera.viewMatrix.transformVector(light.direction, dir);
         gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
         gl.uniform3f(this._dirLocation, dir.x, dir.y, dir.z);
-        gl.uniform1i(this._castShadowsLocation, light.castShadows);
+        gl.uniform1i(this._castShadowsLocation, light.castShadows? 1 : 0);
 
         if (light.castShadows) {
             var numCascades = META.OPTIONS.numShadowCascades;

@@ -10,7 +10,7 @@ struct HX_SpotLight
 
     mat4 shadowMapMatrix;
     float depthBias;
-    bool castShadows;
+    int castShadows;
 
     vec4 shadowTile;    // xy = scale, zw = offset
 };

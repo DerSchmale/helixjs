@@ -61,14 +61,19 @@ HX_PointLight hx_asPointLight(HX_PointSpotLight light)
 varying_in vec3 hx_viewPosition;
 
 uniform vec3 hx_ambientColor;
-
+uniform vec2 hx_rcpRenderTargetResolution;
 uniform sampler2D hx_shadowMap;
 
 #ifdef HX_SSAO
 uniform sampler2D hx_ssao;
-
-uniform vec2 hx_rcpRenderTargetResolution;
 #endif
+
+uniform hx_lightingCells
+{
+    // std140 layout specification dictates arrays of scalars have strides rounded up to the alignment of vec4
+    // meaning the array would be 4 times as big when using floats. Hence the use of vec4s.
+    ivec4 hx_cells[HX_CELL_ARRAY_LEN];
+};
 
 uniform hx_lights
 {
@@ -97,6 +102,11 @@ uniform samplerCube hx_diffuseProbes[HX_NUM_LIGHT_PROBES];
 uniform samplerCube hx_specularProbes[HX_NUM_LIGHT_PROBES];
 #endif
 
+ivec2 getCurrentCell(vec2 screenUV)
+{
+    return ivec2(screenUV * vec2(float(HX_NUM_CELLS_X), float(HX_NUM_CELLS_Y)));
+}
+
 void main()
 {
     HX_GeometryData data = hx_geometry();
@@ -110,9 +120,9 @@ void main()
     vec3 viewVector = normalize(hx_viewPosition);
 
     float ao = data.occlusion;
+    vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;
 
     #ifdef HX_SSAO
-        vec2 screenUV = gl_FragCoord.xy * hx_rcpRenderTargetResolution;
         ao = texture2D(hx_ssao, screenUV).x;
     #endif
 
@@ -151,18 +161,31 @@ void main()
     #endif
 
     #if HX_NUM_POINT_SPOT_LIGHTS > 0
-        for (int i = 0; i < hx_numPointSpotLights; ++i) {
+        ivec2 cell = getCurrentCell(screenUV);
+        int cellIndex = HX_CELL_STRIDE * (HX_NUM_CELLS_X * cell.y + cell.x);
+        int cellElm = cellIndex / 4;
+        int comp = cellIndex - cellElm * 4;
+
+        int numLights = hx_cells[cellElm][comp];
+
+//        specularAccum += float(numLights) / 5.0;
+
+        for (int i = 1; i <= numLights; ++i) {
             vec3 diffuse, specular;
             float shadow = 1.0;;
+            int lightIndex = cellIndex + i;
+            int cellElm = lightIndex / 4;
+            int comp = lightIndex - cellElm * 4;
+            lightIndex = hx_cells[cellElm][comp];
 
-            if (hx_pointSpotLights[i].isSpot == 1) {
-                HX_SpotLight spot = hx_asSpotLight(hx_pointSpotLights[i]);
+            if (hx_pointSpotLights[lightIndex].isSpot == 1) {
+                HX_SpotLight spot = hx_asSpotLight(hx_pointSpotLights[lightIndex]);
                 hx_calculateLight(spot, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
                 if (spot.castShadows == 1)
                     shadow = hx_calculateShadows(spot, hx_shadowMap, hx_viewPosition);
             }
             else {
-                HX_PointLight point = hx_asPointLight(hx_pointSpotLights[i]);
+                HX_PointLight point = hx_asPointLight(hx_pointSpotLights[lightIndex]);
                 hx_calculateLight(point, data, viewVector, hx_viewPosition, specularColor, diffuse, specular);
                 if (point.castShadows == 1)
                     shadow = hx_calculateShadows(point, hx_shadowMap, hx_viewPosition);

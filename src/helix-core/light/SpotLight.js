@@ -157,6 +157,8 @@ SpotLight.prototype._updateLocalBounds = function()
     var max = new Float4();
 
     return function() {
+        // TODO: Use bounding sphere with center at center of cone
+
         // spotlight points in posZ direction, with range [0, radius]
         max.z = this._radius;
 

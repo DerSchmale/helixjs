@@ -3,6 +3,8 @@ import {Matrix4x4} from "../math/Matrix4x4";
 import {Frustum} from "./Frustum";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Ray} from "../math/Ray";
+import {META} from "../Helix";
+import {Float4} from "../math/Float4";
 
 /**
  * @classdesc
@@ -35,6 +37,7 @@ function Camera()
     this._projectionMatrix = new Matrix4x4();
     this._viewMatrix = new Matrix4x4();
     this._projectionMatrixDirty = true;
+	this._clusterPlanesDirty = true;
     this._nearDistance = .1;
     this._farDistance = 1000;
     this._frustum = new Frustum();
@@ -64,6 +67,32 @@ Camera.prototype = Object.create(Entity.prototype, {
             if (this._farDistance === value) return;
             this._farDistance = value;
             this._invalidateProjectionMatrix();
+        }
+    },
+
+    // all x's are positive (point to the right)
+    clusterPlanesW: {
+        get: function() {
+			if (this._viewProjectionMatrixInvalid)
+				this._updateViewProjectionMatrix();
+
+            if (this._clusterPlanesDirty)
+                this._updateClusterPlanes();
+
+            return this._clusterPlanesW;
+        }
+    },
+
+	// all z's are positive
+    clusterPlanesH: {
+        get: function() {
+            if (this._projectionMatrixDirty)
+				this._updateProjectionMatrix();
+
+            if (this._clusterPlanesDirty)
+                this._updateClusterPlanes();
+
+            return this._clusterPlanesH;
         }
     },
 
@@ -193,6 +222,7 @@ Camera.prototype._updateViewProjectionMatrix = function()
 Camera.prototype._invalidateProjectionMatrix = function()
 {
     this._projectionMatrixDirty = true;
+    this._clusterPlanesDirty = true;
     this._invalidateViewProjectionMatrix();
 };
 
@@ -219,5 +249,82 @@ Camera.prototype.toString = function()
 {
     return "[Camera(name=" + this._name + ")]";
 };
+
+/**
+ * @ignore
+ * @private
+ */
+Camera.prototype._initClusterPlanes = function()
+{
+	this._clusterPlanesW = [];
+	this._clusterPlanesH = [];
+
+	for (var i = 0; i <= META.OPTIONS.numLightingCellsX; ++i) {
+		this._clusterPlanesW[i] = new Float4();
+    }
+
+	for (i = 0; i <= META.OPTIONS.numLightingCellsY; ++i) {
+		this._clusterPlanesH[i] = new Float4();
+	}
+};
+
+/**
+ * @ignore
+ * @private
+ */
+Camera.prototype._updateClusterPlanes = function()
+{
+	var v1 = new Float4();
+	var v2 = new Float4();
+	var v3 = new Float4();
+
+    return function() {
+        if (!this._clusterPlanesDirty) return;
+
+        var ex = 2.0 / META.OPTIONS.numLightingCellsX;
+        var ey = 2.0 / META.OPTIONS.numLightingCellsY;
+
+        var p;
+
+        if (!this._clusterPlanesW)
+            this._initClusterPlanes();
+
+        var unproj = this._inverseProjectionMatrix;
+
+		var x = -1.0;
+        for (var i = 0; i <= META.OPTIONS.numLightingCellsX; ++i) {
+            v1.set(x, 0.0, 0.0, 1.0);
+            v2.set(x, 0.0, 1.0, 1.0);
+            v3.set(x, 1.0, 0.0, 1.0);
+
+			unproj.projectPoint(v1, v1);
+			unproj.projectPoint(v2, v2);
+			unproj.projectPoint(v3, v3);
+
+            this._clusterPlanesW[i].planeFromPoints(v1, v2, v3);
+
+			x += ex;
+        }
+
+        var y = -1.0;
+        for (i = 0; i <= META.OPTIONS.numLightingCellsY; ++i) {
+			p = this._clusterPlanesH[i];
+
+			v1.set(0.0, y, 0.0, 1.0);
+			v2.set(1.0, y, 0.0, 1.0);
+			v3.set(0.0, y, 1.0, 1.0);
+
+			unproj.projectPoint(v1, v1);
+			unproj.projectPoint(v2, v2);
+			unproj.projectPoint(v3, v3);
+
+			this._clusterPlanesH[i].planeFromPoints(v1, v2, v3);
+
+			y += ey;
+		}
+
+		this._clusterPlanesDirty = false;
+    }
+}();
 
 export { Camera };

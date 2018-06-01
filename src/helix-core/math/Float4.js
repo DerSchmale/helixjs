@@ -386,6 +386,25 @@ Float4.prototype =
 		},
 
 		/**
+		 * Generates a plane representation from 3 contained points.
+		 * @param p1 A point contained in the plane.
+		 * @param p2 A point contained in the plane.
+		 * @param p3 A point contained in the plane.
+		 */
+		planeFromPoints: function (p1, p2, p3)
+		{
+			var v1 = new Float4();
+			var v2 = new Float4();
+
+			return function(p1, p2, p3)
+			{
+				Float4.subtract(p1, p3, v1);
+				Float4.subtract(p2, p3, v2);
+				this.planeFromVectorsAndPoint(v1, v2, p3);
+			}
+		}(),
+
+		/**
 		 * Calculates the intersection with a ray (if any)
 		 */
 		planeIntersectRay: function(ray, target)

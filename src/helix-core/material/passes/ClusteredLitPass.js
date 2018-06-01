@@ -28,8 +28,12 @@ ClusteredLitPass.prototype._generateShader = function (geometryVertex, geometryF
     var extensions = "#derivatives\n";
     var defines = {
         HX_NUM_DIR_LIGHTS: META.OPTIONS.maxDirLights,
+		HX_NUM_POINT_SPOT_LIGHTS: META.OPTIONS.maxPointSpotLights,
         HX_NUM_LIGHT_PROBES: META.OPTIONS.maxLightProbes,
-        HX_NUM_POINT_SPOT_LIGHTS: META.OPTIONS.maxPointSpotLights
+        HX_CELL_STRIDE: META.OPTIONS.maxPointSpotLights + 1,
+        HX_NUM_CELLS_X: META.OPTIONS.numLightingCellsX,
+        HX_NUM_CELLS_Y: META.OPTIONS.numLightingCellsY,
+		HX_CELL_ARRAY_LEN: Math.ceil(META.OPTIONS.numLightingCellsX * META.OPTIONS.numLightingCellsY * (META.OPTIONS.maxPointSpotLights + 1) / 4)
     };
 
     if (capabilities.EXT_SHADER_TEXTURE_LOD) {

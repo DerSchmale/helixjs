@@ -61,6 +61,29 @@ Matrix4x4.prototype =
         return target;
     },
 
+	/**
+	 * Transforms a Float4 point (assuming its w component is 1) and divides by the resulting w
+	 *
+	 * @param v The Float4 object to transform.
+	 * @param [target] An optional target. If not provided, a new object will be created and returned.
+	 */
+    projectPoint: function(v, target)
+    {
+		target = target || new Float4();
+		var x = v.x, y = v.y, z = v.z;
+		var m = this._m;
+
+		var rcpW = 1.0 / (m[3] * x + m[7] * y + m[11] * z + m[15]);
+
+		target.x = (m[0] * x + m[4] * y + m[8] * z + m[12]) * rcpW;
+		target.y = (m[1] * x + m[5] * y + m[9] * z + m[13]) * rcpW;
+		target.z = (m[2] * x + m[6] * y + m[10] * z + m[14]) * rcpW;
+		target.w = 1.0;
+
+
+		return target;
+    },
+
     /**
      * Transforms a Float4 object, treating it as a point. Slightly faster than transform for points.
      *

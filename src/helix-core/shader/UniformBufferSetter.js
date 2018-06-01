@@ -1,3 +1,6 @@
+import {GL} from "../core/GL";
+import {UniformSetter} from "./UniformSetter";
+
 /**
  * @ignore
  * @author derschmale <http://www.derschmale.com>
@@ -40,6 +43,7 @@ export var UniformBufferSetter = {
         UniformBufferSetter._instanceTable = {};
 
         UniformBufferSetter._passTable.hx_lights = LightsSetter;
+		UniformBufferSetter._passTable.hx_lightingCells = LightingCellsSetter;
     }
 };
 
@@ -51,3 +55,13 @@ LightsSetter.prototype.execute = function (renderer)
 {
     this.slot.buffer = renderer._lightingUniformBuffer;
 };
+
+function LightingCellsSetter()
+{
+}
+
+LightingCellsSetter.prototype.execute = function (renderer)
+{
+	this.slot.buffer = renderer._lightingCellsUniformBuffer;
+};
+

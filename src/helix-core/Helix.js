@@ -326,6 +326,16 @@ export function InitOptions()
      */
     this.maxPointSpotLights = 20;
 
+	/**
+     * Number of cells for clustered rendering in WebGL 2.0
+	 */
+	this.numLightingCellsX = 16;
+
+	/**
+	 * Number of cells for clustered rendering in WebGL 2.0
+	 */
+	this.numLightingCellsY = 9;
+
     /**
      * Maximum number of light probes inside a dynamic WebGL 2.0 shader.
      */

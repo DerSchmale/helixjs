@@ -72,20 +72,25 @@ function Renderer()
 		this._diffuseProbeArray = [];
 		this._specularProbeArray = [];
 		this._lightingUniformBuffer = new UniformBuffer(size);
+		this._lightingDataView = new DataView(new ArrayBuffer(size));
+		// these will contain all the indices into the light buffer
+        // reserve space for every cell AND the count inside them!
+		this._numCells = META.OPTIONS.numLightingCellsX * META.OPTIONS.numLightingCellsY;
+		this._cellStride = META.OPTIONS.maxPointSpotLights + 1;
 
-		this._lightingData = new ArrayBuffer(size);
-		this._lightingDataView = new DataView(this._lightingData);
+		// this throws errors
+		this._lightingCellsUniformBuffer = new UniformBuffer(this._numCells * this._cellStride * 4);
+		this._cellData = new Int32Array(this._numCells * this._cellStride);
 
-		var i = 0;
 		for (var i = 0; i < size; ++i)
 		    this._lightingDataView.setInt8(i, 0);
 
-
 		// if we want to test the layout of the uniform buffer as defined in the shader:
-		// var material = new BasicMaterial({ lightingModel: LightingModel.GGX });
-		// var pass = material.getPass(MaterialPass.BASE_PASS);
-		// this._lightingUniformBuffer = pass.createUniformBufferFromShader("hx_lights");
-		// console.log(this._lightingUniformBuffer);
+		/*var material = new BasicMaterial({ lightingModel: LightingModel.GGX });
+		var pass = material.getPass(MaterialPass.BASE_PASS);
+		this._lightingUniformBuffer = pass.createUniformBufferFromShader("hx_lights");
+		this._lightingCellsUniformBuffer = pass.createUniformBufferFromShader("hx_lightingCells");
+		console.log(this._lightingCellsUniformBuffer);*/
     }
 }
 
@@ -202,6 +207,8 @@ Renderer.prototype =
         this._camera = camera;
         this._scene = scene;
 
+        this._camera._updateClusterPlanes();
+
         this._updateSize(renderTarget);
 
         camera._setRenderTargetResolution(this._width, this._height);
@@ -263,26 +270,29 @@ Renderer.prototype =
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
         var data = this._lightingDataView;
+        var cells = this._cellData;
         var camera = this._camera;
-        var maxDirLights = META.OPTIONS.maxDirLights;
-        var maxProbes = META.OPTIONS.maxLightProbes;
-        var maxPoints = META.OPTIONS.maxPointSpotLights;
-        var dirLightOffset = 16;
-        var dirLightStride = 320;
-        var probeStride = 16;
-        var probeOffset = maxDirLights * dirLightStride + dirLightOffset;
-        var pointOffset = maxProbes * probeStride + probeOffset;
-        var pointStride = 224;
-        var numDirLights = 0;
-        var numPointLights = 0;
-        var numProbes = 0;
+        var maxDirLights = META.OPTIONS.maxDirLights, maxProbes = META.OPTIONS.maxLightProbes, maxPoints = META.OPTIONS.maxPointSpotLights;
+		var dirLightStride = 320, probeStride = 16, pointStride = 224;
+		var dirLightOffset = 16;
+		var probeOffset = maxDirLights * dirLightStride + dirLightOffset;
+		var pointOffset = maxProbes * probeStride + probeOffset;
+        var numDirLights = 0, numPointLights = 0, numProbes = 0;
+        var numCells = META.OPTIONS.numLightingCellsX * META.OPTIONS.numLightingCellsY;
+        var cellStride = this._cellStride;
+        var i;
 
-        for (var i = 0; i < maxProbes; ++i) {
+        for (i = 0; i < numCells; ++i) {
+            // reset light counts to 0
+			cells[i * cellStride] = 0;
+		}
+
+        for (i = 0; i < maxProbes; ++i) {
             this._diffuseProbeArray[i] = TextureCube.DEFAULT;
             this._specularProbeArray[i] = TextureCube.DEFAULT;
         }
 
-        for (var i = 0; i < numLights; ++i) {
+        for (i = 0; i < numLights; ++i) {
             var light = lights[i];
 
             if (light instanceof DirectionalLight && numDirLights < maxDirLights) {
@@ -304,13 +314,13 @@ Renderer.prototype =
                 ++numProbes;
             }
             else if (light instanceof PointLight && numPointLights < maxPoints) {
-                this.writePointSpotLight(light, camera, data, pointOffset, false);
+                this.writePointSpotLight(light, camera, data, pointOffset, false, cells, numPointLights);
 
                 pointOffset += pointStride;
                 ++numPointLights;
             }
             else if (light instanceof SpotLight && numPointLights < maxPoints) {
-                this.writePointSpotLight(light, camera, data, pointOffset, true);
+                this.writePointSpotLight(light, camera, data, pointOffset, true, cells, numPointLights);
 
                 pointOffset += pointStride;
                 ++numPointLights;
@@ -322,6 +332,7 @@ Renderer.prototype =
         data.setInt32(8, numPointLights, true);
 
         this._lightingUniformBuffer.uploadData(this._lightingDataView);
+        this._lightingCellsUniformBuffer.uploadData(this._cellData);
 
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
@@ -333,11 +344,12 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    writePointSpotLight: function(light, camera, target, offset, isSpot)
+    writePointSpotLight: function(light, camera, target, offset, isSpot, cells, index)
     {
         var pos = new Float4();
+        var dir = new Float4();
         var matrix = new Matrix4x4();
-        return function(light, camera, target, offset, isSpot)
+        return function(light, camera, target, offset, isSpot, cells, index)
         {
             var o;
             var col = light._scaledIrradiance;
@@ -347,21 +359,20 @@ Renderer.prototype =
 
             target.setFloat32(offset + 12, light.radius, true);
 
-            light.worldMatrix.getColumn(3, pos);
-            camera.viewMatrix.transformPoint(pos, pos);
+            camera.viewMatrix.transformPoint(light.worldBounds.center, pos);
             target.setFloat32(offset + 16, pos.x, true);
             target.setFloat32(offset + 20, pos.y, true);
             target.setFloat32(offset + 24, pos.z, true);
 
             target.setFloat32(offset + 28, 1.0 / light.radius, true);
 
-            light.worldMatrix.getColumn(1, pos);
-            camera.viewMatrix.transformVector(pos, pos);
-            target.setFloat32(offset + 32, pos.x, true);
-            target.setFloat32(offset + 36, pos.y, true);
-            target.setFloat32(offset + 40, pos.z, true);
-
             if (isSpot) {
+				light.worldMatrix.getColumn(1, dir);
+				camera.viewMatrix.transformVector(dir, dir);
+				target.setFloat32(offset + 32, dir.x, true);
+				target.setFloat32(offset + 36, dir.y, true);
+				target.setFloat32(offset + 40, dir.z, true);
+
                 target.setUint32(offset + 112, 1, true);
                 target.setFloat32(offset + 120, light._cosOuter, true);
                 target.setFloat32(offset + 124, 1.0 / Math.max((light._cosInner - light._cosOuter), .00001), true);
@@ -409,7 +420,76 @@ Renderer.prototype =
                 }
 
             }
-        }
+
+            this.assignToCells(light, camera, index, pos, cells, isSpot? dir : null);
+		}
+    }(),
+
+	assignToCells: function(light, camera, index, viewPos, cells, dir)
+    {
+    	var distX = [];
+    	var distY = [];
+    	var p = new Float4();
+    	return function(light, camera, index, viewPos, cells, dir) {
+			var cellStride = this._cellStride;
+			var bounds = light.worldBounds;
+			var radius = bounds.getRadius();
+
+			var nx = META.OPTIONS.numLightingCellsX;
+			var ny = META.OPTIONS.numLightingCellsY;
+
+			var planesW = camera._clusterPlanesW;
+			var planesH = camera._clusterPlanesH;
+
+			// should we project viewPos to NDC to figure out which frustum we're in?
+			// then we don't need to calculate all of the above, only until it's considered "outside"
+			camera.projectionMatrix.projectPoint(viewPos, p);
+
+			var fX = Math.floor((p.x * .5 + .5) * nx);
+			var fY = Math.floor((p.y * .5 + .5) * ny);
+			if (fX < 0) fX = 0;
+			else if (fX >= nx) fX = nx - 1;
+			if (fY < 0) fY = 0;
+			else if (fY >= ny) fY = ny - 1;
+
+			// left and right plane distances1
+			var minX = fX, maxX = fX;
+
+			for (var x = fX; x >= 0; --x) {
+				minX = x;
+				if (planesW[x].dot4(viewPos) > radius) break;
+			}
+
+			for (x = fX + 1; x < nx; ++x) {
+				maxX = x;
+				if (-planesW[x + 1].dot4(viewPos) > radius) break;
+			}
+
+			var i, pi, c;
+			for (var y = fY; y >= 0; --y) {
+				for (x = minX; x <= maxX; ++x) {
+					// TODO: Another test to check if the nearest corner actually falls inside the sphere
+					i = x + y * nx;
+					pi = i * cellStride;
+					c = ++cells[pi];
+					cells[pi + c] = index;
+				}
+
+				if (planesH[y].dot4(viewPos) > radius) break;
+			}
+
+			for (y = fY + 1; y < ny; ++y) {
+				for (x = minX; x <= maxX; ++x) {
+					// TODO: Another test to check if the nearest corner actually falls inside the sphere
+					i = x + y * nx;
+					pi = i * cellStride;
+					c = ++cells[pi];
+					cells[pi + c] = index;
+				}
+
+				if (-planesH[y + 1].dot4(viewPos) > radius) break;
+			}
+    	}
     }(),
 
     /**

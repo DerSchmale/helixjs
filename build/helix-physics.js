@@ -740,6 +740,25 @@ Float4$1.prototype =
 		},
 
 		/**
+		 * Generates a plane representation from 3 contained points.
+		 * @param p1 A point contained in the plane.
+		 * @param p2 A point contained in the plane.
+		 * @param p3 A point contained in the plane.
+		 */
+		planeFromPoints: function (p1, p2, p3)
+		{
+			var v1 = new Float4$1();
+			var v2 = new Float4$1();
+
+			return function(p1, p2, p3)
+			{
+				Float4$1.subtract(p1, p3, v1);
+				Float4$1.subtract(p2, p3, v2);
+				this.planeFromVectorsAndPoint(v1, v2, p3);
+			}
+		}(),
+
+		/**
 		 * Calculates the intersection with a ray (if any)
 		 */
 		planeIntersectRay: function(ray, target)
@@ -1404,6 +1423,29 @@ Matrix4x4$1.prototype =
         target.w = m[3] * x + m[7] * y + m[11] * z + m[15] * w;
 
         return target;
+    },
+
+	/**
+	 * Transforms a Float4 point (assuming its w component is 1) and divides by the resulting w
+	 *
+	 * @param v The Float4 object to transform.
+	 * @param [target] An optional target. If not provided, a new object will be created and returned.
+	 */
+    projectPoint: function(v, target)
+    {
+		target = target || new Float4$1();
+		var x = v.x, y = v.y, z = v.z;
+		var m = this._m;
+
+		var rcpW = 1.0 / (m[3] * x + m[7] * y + m[11] * z + m[15]);
+
+		target.x = (m[0] * x + m[4] * y + m[8] * z + m[12]) * rcpW;
+		target.y = (m[1] * x + m[5] * y + m[9] * z + m[13]) * rcpW;
+		target.z = (m[2] * x + m[6] * y + m[10] * z + m[14]) * rcpW;
+		target.w = 1.0;
+
+
+		return target;
     },
 
     /**

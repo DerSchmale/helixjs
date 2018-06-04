@@ -1,6 +1,7 @@
 import {DirectLight} from "./DirectLight";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {Float4} from "../math/Float4";
+import {SceneNode} from "../scene/SceneNode";
 
 /**
  * @classdesc
@@ -61,7 +62,7 @@ PointLight.prototype = Object.create(DirectLight.prototype,
 
             set: function(value) {
                 this._radius = value;
-                this._updateWorldBounds();
+				this._invalidateWorldBounds();
             }
         }
     });
@@ -79,7 +80,17 @@ PointLight.prototype._createBoundingVolume = function()
  */
 PointLight.prototype._updateWorldBounds = function()
 {
-    this._worldBounds.setExplicit(this.worldMatrix.getColumn(3), this._radius);
+    var c = this._worldBounds._center;
+    this._worldBounds.setExplicit(this.worldMatrix.getColumn(3, c), this._radius);
 };
+
+/**
+ * @ignore
+ */
+PointLight.prototype.toString = function()
+{
+	return "[PointLight(name=" + this._name + ")]";
+};
+
 
 export { PointLight };

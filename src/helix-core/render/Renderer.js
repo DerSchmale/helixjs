@@ -359,7 +359,8 @@ Renderer.prototype =
 
             target.setFloat32(offset + 12, light.radius, true);
 
-            camera.viewMatrix.transformPoint(light.worldBounds.center, pos);
+			light.worldMatrix.getColumn(3, pos);
+			camera.viewMatrix.transformPoint(pos, pos);
             target.setFloat32(offset + 16, pos.x, true);
             target.setFloat32(offset + 20, pos.y, true);
             target.setFloat32(offset + 24, pos.z, true);
@@ -420,6 +421,9 @@ Renderer.prototype =
                 }
 
             }
+
+            if (isSpot)
+				camera.viewMatrix.transformPoint(light.worldBounds.center, pos);
 
             this.assignToCells(light, camera, index, pos, cells, isSpot? dir : null);
 		}

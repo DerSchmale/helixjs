@@ -145,8 +145,12 @@ var GL = {
         if (target) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, target._fbo);
 
-            if (target._numColorTextures > 1)
-                capabilities.EXT_DRAW_BUFFERS.drawBuffersWEBGL(target._drawBuffers);
+            if (target._numColorTextures > 1) {
+                if (capabilities.WEBGL_2)
+                    gl.drawBuffers(target._drawBuffers);
+                else
+                    capabilities.EXT_DRAW_BUFFERS.drawBuffersWEBGL(target._drawBuffers);
+			}
         }
         else
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);

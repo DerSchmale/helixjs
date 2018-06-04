@@ -149,12 +149,13 @@ TextureCube.prototype =
         this.bind();
 
         var gl = GL.gl;
-        gl.texImage2D(CubeFace.POSITIVE_X, 0, format, size, size, 0, format, dataType, null);
-        gl.texImage2D(CubeFace.NEGATIVE_X, 0, format, size, size, 0, format, dataType, null);
-        gl.texImage2D(CubeFace.POSITIVE_Y, 0, format, size, size, 0, format, dataType, null);
-        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, format, size, size, 0, format, dataType, null);
-        gl.texImage2D(CubeFace.POSITIVE_Z, 0, format, size, size, 0, format, dataType, null);
-        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, format, size, size, 0, format, dataType, null);
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+		gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
+        gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
+        gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
+        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
+        gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
+        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
 
         this._isReady = true;
 
@@ -182,12 +183,13 @@ TextureCube.prototype =
         var gl = GL.gl;
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
 
-        gl.texImage2D(CubeFace.POSITIVE_X, 0, format, size, size, 0, format, dataType, data[0]);
-        gl.texImage2D(CubeFace.NEGATIVE_X, 0, format, size, size, 0, format, dataType, data[1]);
-        gl.texImage2D(CubeFace.POSITIVE_Y, 0, format, size, size, 0, format, dataType, data[2]);
-        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, format, size, size, 0, format, dataType, data[3]);
-        gl.texImage2D(CubeFace.POSITIVE_Z, 0, format, size, size, 0, format, dataType, data[4]);
-        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, format, size, size, 0, format, dataType, data[5]);
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+        gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, data[0]);
+        gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, data[1]);
+        gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, 0, format, dataType, data[2]);
+        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, 0, format, dataType, data[3]);
+        gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, 0, format, dataType, data[4]);
+        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, 0, format, dataType, data[5]);
 
         if (generateMips)
             gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
@@ -244,12 +246,13 @@ TextureCube.prototype =
 
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
 
-        gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, format, format, dataType, images[0]);
-        gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, format, format, dataType, images[1]);
-        gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, format, format, dataType, images[2]);
-        gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, format, format, dataType, images[3]);
-        gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, format, format, dataType, images[4]);
-        gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, format, format, dataType, images[5]);
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+        gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, format, dataType, images[0]);
+        gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, format, dataType, images[1]);
+        gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, format, dataType, images[2]);
+        gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, format, dataType, images[3]);
+        gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, format, dataType, images[4]);
+        gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, format, dataType, images[5]);
 
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     },

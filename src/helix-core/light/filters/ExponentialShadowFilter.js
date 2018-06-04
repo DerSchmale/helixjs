@@ -80,7 +80,7 @@ ExponentialShadowFilter.prototype = Object.create(ShadowFilter.prototype,
  */
 ExponentialShadowFilter.prototype.getShadowMapFormat = function()
 {
-    return TextureFormat.RGB;
+    return TextureFormat.RG || TextureFormat.RGB;
 };
 
 /**

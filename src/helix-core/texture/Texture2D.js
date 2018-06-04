@@ -175,7 +175,8 @@ Texture2D.prototype =
         this._width = width;
         this._height = height;
 
-        gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, format, dataType, null);
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, dataType, null);
 
         this._isReady = true;
 
@@ -195,7 +196,7 @@ Texture2D.prototype =
     {
         var gl = GL.gl;
 
-        if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES)
+        if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT)
             data = TextureUtils.encodeToFloat16Array(data);
 
         this._width = width;
@@ -208,7 +209,9 @@ Texture2D.prototype =
         this.bind();
 
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-        gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, format, dataType, data);
+
+        var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, dataType, data);
 
         if (generateMips)
             gl.generateMipmap(gl.TEXTURE_2D);
@@ -245,7 +248,8 @@ Texture2D.prototype =
         if (image)
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
 
-        gl.texImage2D(gl.TEXTURE_2D, 0, format, format, dataType, image);
+		var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, format, dataType, image);
 
         if (generateMips)
             gl.generateMipmap(gl.TEXTURE_2D);

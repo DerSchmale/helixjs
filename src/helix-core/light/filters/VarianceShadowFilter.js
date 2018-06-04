@@ -102,7 +102,7 @@ VarianceShadowFilter.prototype.getGLSL = function()
 
 VarianceShadowFilter.prototype.getShadowMapFormat = function()
 {
-    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT || capabilities.EXT_COLOR_BUFFER_FLOAT? TextureFormat.RGB : TextureFormat.RGBA;
+    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT || capabilities.EXT_COLOR_BUFFER_FLOAT? TextureFormat.RG || TextureFormat.RGB : TextureFormat.RGBA;
 };
 
 VarianceShadowFilter.prototype.getShadowMapDataType = function()

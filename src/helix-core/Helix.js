@@ -252,7 +252,38 @@ export var ClearMask = {};
  * @property RGBA A 4-channel color texture
  * @property RGB A 3-channel color texture (no alpha)
  */
-export var TextureFormat = {};
+export var TextureFormat = {
+	/**
+     * This is mainly for WebGL 2 compatibility and floating point textures.
+     * @ignore
+	 */
+	getDefaultInternalFormat: function(format, dataType)
+    {
+        if (!capabilities.WEBGL_2)
+            return format;
+
+        if (dataType === DataType.FLOAT) {
+            if (format === TextureFormat.RGBA)
+                return GL.gl.RGBA32F;
+            if (format === TextureFormat.RGB)
+                return GL.gl.RGB32F;
+            if (format === TextureFormat.RG)
+                return GL.gl.RG32F;
+        }
+
+        if (dataType === DataType.HALF_FLOAT) {
+            if (format === TextureFormat.RGBA)
+                return GL.gl.RGBA16F;
+            if (format === TextureFormat.RGB)
+                return GL.gl.RGB16F;
+			if (format === TextureFormat.RG)
+				return GL.gl.RG16F;
+        }
+
+        return format;
+    }
+
+};
 
 /**
  * DataType represents the data type used by a gpu buffer (vertex buffer, index buffer, textures)
@@ -472,14 +503,16 @@ export function init(canvas, options)
     defines += "#define HX_NUM_SHADOW_CASCADES " + META.OPTIONS.numShadowCascades + "\n";
     defines += "#define HX_MAX_SKELETON_JOINTS " + META.OPTIONS.maxSkeletonJoints + "\n";
 
-    capabilities.EXT_DRAW_BUFFERS = _getExtension('WEBGL_draw_buffers');
+    capabilities.EXT_DRAW_BUFFERS = capabilities.WEBGL_2? true : _getExtension('WEBGL_draw_buffers');
     // can assume this exists
-    capabilities.EXT_FLOAT_TEXTURES = _getExtension('OES_texture_float');
+    capabilities.EXT_FLOAT_TEXTURES = capabilities.WEBGL_2? true : _getExtension('OES_texture_float');
     capabilities.EXT_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_float_linear');
-    capabilities.EXT_HALF_FLOAT_TEXTURES = _getExtension('OES_texture_half_float');
+    capabilities.EXT_HALF_FLOAT_TEXTURES = capabilities.WEBGL_2? true : _getExtension('OES_texture_half_float');
     capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR = _getExtension('OES_texture_half_float_linear');
+
+    // try webgl 2 extension first (will return null if no webgl 2 context is present anyway)
     capabilities.EXT_COLOR_BUFFER_FLOAT = _getExtension("EXT_color_buffer_float") || _getExtension('WEBGL_color_buffer_float');
-    capabilities.EXT_COLOR_BUFFER_HALF_FLOAT = _getExtension('EXT_color_buffer_half_float');
+    capabilities.EXT_COLOR_BUFFER_HALF_FLOAT = _getExtension('EXT_color_buffer_float') || _getExtension('EXT_color_buffer_half_float');
     capabilities.EXT_DEPTH_TEXTURE = _getExtension('WEBGL_depth_texture');
     capabilities.EXT_STANDARD_DERIVATIVES = _getExtension('OES_standard_derivatives');
     capabilities.EXT_SHADER_TEXTURE_LOD = _getExtension('EXT_shader_texture_lod');
@@ -497,10 +530,10 @@ export function init(canvas, options)
 
     if (capabilities.EXT_HALF_FLOAT_TEXTURES) {
         defines += "#define HX_HALF_FLOAT_TEXTURES\n";
-        DataType.HALF_FLOAT = capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES;
+        DataType.HALF_FLOAT = capabilities.WEBGL_2? gl.HALF_FLOAT : capabilities.EXT_HALF_FLOAT_TEXTURES.HALF_FLOAT_OES;
     }
 
-    if (capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR)
+    if (capabilities.WEBGL_2 || capabilities.EXT_HALF_FLOAT_TEXTURES_LINEAR)
         defines += "#define HX_HALF_FLOAT_TEXTURES_LINEAR\n";
     else
         options.hdr = false;
@@ -599,7 +632,6 @@ export function stop()
 
 function _initDefaultSkinningTexture()
 {
-    var gl = GL.gl;
     DEFAULTS.DEFAULT_SKINNING_TEXTURE = new Texture2D();
 
     var data = [];
@@ -612,7 +644,7 @@ function _initDefaultSkinningTexture()
     for (i = 0; i < META.OPTIONS.maxSkeletonJoints; ++i)
         data.push(0, 0, 1, 0);
 
-    DEFAULTS.DEFAULT_SKINNING_TEXTURE.uploadData(new Float32Array(data), META.OPTIONS.maxSkeletonJoints, 3, false, gl.RGBA, gl.FLOAT);
+    DEFAULTS.DEFAULT_SKINNING_TEXTURE.uploadData(new Float32Array(data), META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
     DEFAULTS.DEFAULT_SKINNING_TEXTURE.filter = TextureFilter.NEAREST_NOMIP;
     DEFAULTS.DEFAULT_SKINNING_TEXTURE.wrapMode = TextureWrapMode.CLAMP;
 }
@@ -741,12 +773,13 @@ function _initGLProperties()
 
     TextureFormat.RGBA = gl.RGBA;
     TextureFormat.RGB = gl.RGB;
+    TextureFormat.RG = gl.RG;   // only assigned if available (WebGL 2)
 
     DataType.UNSIGNED_BYTE = gl.UNSIGNED_BYTE;
     DataType.UNSIGNED_SHORT = gl.UNSIGNED_SHORT;
     DataType.UNSIGNED_INT = gl.UNSIGNED_INT;
     DataType.FLOAT = gl.FLOAT;
-    DataType.HALF_FLOAT = undefined;    // possibly set later, if supported
+    DataType.HALF_FLOAT = gl.HALF_FLOAT;    // possibly set later, if supported
 
     BufferUsage.STATIC_DRAW = gl.STATIC_DRAW;
     BufferUsage.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;

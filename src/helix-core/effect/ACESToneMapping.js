@@ -16,7 +16,7 @@ import {EffectPass} from "./EffectPass";
 function ACESToneMapping(adaptive)
 {
     ToneMapEffect.call(this, adaptive);
-    this._outputsGamma = true;
+    this._outputsGamma = false;
 
 }
 

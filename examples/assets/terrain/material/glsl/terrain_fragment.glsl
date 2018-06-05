@@ -107,6 +107,7 @@ HX_GeometryData hx_geometry()
     float rockAlpha = clamp((terrain.y - rock.x) / .5, 0.0, 1.0);
     color = mix(color, rock, rockAlpha);
     color = mix(color, sand, terrain.x);
+    color = hx_gammaToLinear(color);
 
     float roughness = mix(grassRoughness, snowRoughness, terrain.z);
     roughness = mix(roughness, rockRoughness, terrain.y);

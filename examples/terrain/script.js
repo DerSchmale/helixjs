@@ -47,6 +47,7 @@ project.onUpdate = function(dt)
 window.onload = function ()
 {
     var options = new HX.InitOptions();
+    // options.webgl2 = true;
     options.numShadowCascades = 3;
     options.hdr = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
@@ -57,9 +58,9 @@ window.onload = function ()
 
 function initCamera(camera)
 {
-    camera.position.x = (1680 / 2048 - .5) * worldSize;
-    camera.position.y = -(1814 / 2048 - .5) * worldSize;
-    camera.position.z = waterLevel + .18;
+    camera.position.x = 1397;
+    camera.position.y = -1676;
+    camera.position.z = -13;
 
     camera.nearDistance = 0.1;
     camera.farDistance = 2000.0;
@@ -70,7 +71,7 @@ function initCamera(camera)
     controller.yaw = Math.PI;
     camera.addComponent(controller);
 
-    fog = new HX.Fog(0.00025, new HX.Color(0x1155ff), 0.0005, 100);
+    fog = new HX.Fog(0.0005, new HX.Color(0x1155ff), 0.0005, 100);
     camera.addComponent(fog);
 
     // var tonemap = new HX.ACESToneMapping();

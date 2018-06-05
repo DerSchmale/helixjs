@@ -233,8 +233,7 @@ Renderer.prototype =
         if (capabilities.WEBGL_2)
             this._renderClustered();
         else {
-            this._renderForwardOpaque();
-            this._renderForwardTransparent();
+            this._renderForward();
         }
 
         this._swapHDRFrontAndBack();
@@ -336,6 +335,10 @@ Renderer.prototype =
 
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
+
+		if (this._renderCollector.needsBackbuffer)
+			this._copyBackbuffer();
+
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_FIXED));
         RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC));
     },
@@ -563,7 +566,33 @@ Renderer.prototype =
         }
     }(),
 
+	/**
+	 * @ignore
+	 * @private
+	 */
+	_copyBackbuffer: function()
+	{
+		GL.setRenderTarget(this._hdrBack.fbo);
+		GL.clear();
+		this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrFront.texture);
+		GL.setRenderTarget(this._hdrFront.fboDepth);
+	},
+
     /**
+     * @ignore
+     * @private
+     */
+    _renderForward: function()
+    {
+		this._renderForwardOpaque();
+
+		if (this._renderCollector.needsBackbuffer)
+			this._copyBackbuffer();
+
+		this._renderForwardTransparent();
+	},
+
+	/**
      * @ignore
      * @private
      */

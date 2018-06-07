@@ -13,7 +13,6 @@ import {ProbeLightingPass} from "./passes/ProbeLightingPass";
 import {SpotLightingPass} from "./passes/SpotLightingPass";
 import {NormalDepthPass} from "./passes/NormalDepthPass";
 import {RenderPath} from "../render/RenderPath";
-import {SpotShadowPass} from "./passes/SpotShadowPass";
 import {PointShadowPass} from "./passes/PointShadowPass";
 
 /**

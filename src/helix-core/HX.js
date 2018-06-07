@@ -157,6 +157,7 @@ export {WriteOnlyDepthBuffer} from "./texture/WriteOnlyDepthBuffer";
 
 export {AsyncTaskQueue} from "./utils/AsyncTaskQueue";
 export {ArrayUtils} from "./utils/ArrayUtils";
+export {BlitTexture} from "./utils/BlitTexture";
 export {EquirectangularTexture} from "./utils/EquirectangularTexture";
 export {HeightMap} from "./utils/HeightMap";
 export {ImageData} from "./utils/ImageData";

@@ -24,7 +24,7 @@ export var HeightMap =
      */
     from8BitTexture: function(texture, generateMipmaps, target)
     {
-        var gl = GL.gl
+        var gl = GL.gl;
         generateMipmaps = generateMipmaps || true;
         var tex1 = target || new Texture2D();
         tex1.initEmpty(texture.width, texture.height);

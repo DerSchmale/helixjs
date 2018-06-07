@@ -18,11 +18,11 @@ function PhysicsSystem()
     this._world = new CANNON.World();
     this._gravity = -9.81; // m/s²
     this._world.gravity.set(0, 0, this._gravity);
-    this._world.solver.tolerance = .001;
+    this._world.solver.tolerance = .0001;
     this._world.solver.iterations = 10;
     this._fixedTimeStep = 1000/60;
-    this._friction = 0.0;
-    this._world.broadphase = new CANNON.SAPBroadphase(this._world);
+    // this._world.broadphase = new CANNON.SAPBroadphase(this._world);
+    this._world.broadphase = new CANNON.NaiveBroadphase(this._world);
 
     // this._world.quatNormalizeFast = true;
     // this._world.quatNormalizeSkip = 8;
@@ -85,7 +85,7 @@ PhysicsSystem.prototype._onEntityAdded = function(entity)
     this._world.addBody(component.body);
 };
 
-PhysicsSystem.prototype._onEntityRemoved = function()
+PhysicsSystem.prototype._onEntityRemoved = function(entity)
 {
     var component = entity.getFirstComponentByType(RigidBody);
     this._world.removeBody(component.body);
@@ -96,10 +96,15 @@ PhysicsSystem.prototype._onEntityRemoved = function()
 // we're updating here to enforce order of updates
 PhysicsSystem.prototype.onUpdate = function(dt)
 {
+	var len = this._components.length;
+
+	for (var i = 0; i < len; ++i) {
+		this._components[i].prepTransform();
+	}
+
     this._world.step(this._fixedTimeStep * .001);
 
-    var len = this._components.length;
-    for (var i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         this._components[i].applyTransform();
     }
 };

@@ -7,7 +7,6 @@ import * as HX from 'helix';
 function MD5Mesh()
 {
     HX.Importer.call(this, HX.Model);
-    this._target = null;
     this._meshData = null;
     this._jointData = null;
     this._skeleton = null;

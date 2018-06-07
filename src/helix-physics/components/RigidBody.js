@@ -76,6 +76,16 @@ HX.Component.create(RigidBody, {
     }
 });
 
+RigidBody.prototype.addImpulse = function(v, pos)
+{
+    this._body.applyImpulse(v, pos || this._body.position);
+};
+
+RigidBody.prototype.addForce = function(v, pos)
+{
+    this._body.applyForce(v, pos || this._body.position);
+};
+
 RigidBody.prototype.onAdded = function()
 {
     this._createBody();
@@ -83,6 +93,25 @@ RigidBody.prototype.onAdded = function()
 
 RigidBody.prototype.onRemoved = function()
 {
+};
+
+RigidBody.prototype.prepTransform = function()
+{
+	var entity = this._entity;
+	var body = this._body;
+
+	var p = entity.position;
+	var q = entity.rotation;
+
+	var offs = this._collider._positionOffset;
+	if (offs)
+		body.position.set(p.x + offs.x, p.y + offs.y, p.z + offs.z);
+	else
+		body.position.set(p.x, p.y, p.z);
+
+	body.quaternion.set(q.x, q.y, q.z, q.w);
+
+
 };
 
 RigidBody.prototype.applyTransform = function()
@@ -93,8 +122,14 @@ RigidBody.prototype.applyTransform = function()
     var entity = this._entity;
     var body = this._body;
 
-    entity.position = body.position;
+	if (this._collider._positionOffset)
+		HX.Float4.subtract(body.position, this._collider._positionOffset, entity.position);
+    else
+        entity.position = body.position;
+
     entity.rotation = body.quaternion;
+
+
 };
 
 RigidBody.prototype._createBody = function()

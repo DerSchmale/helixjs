@@ -7,6 +7,7 @@ uniform mat4 hx_viewProjectionMatrix;
 uniform float hx_elevationOffset;
 uniform float hx_elevationScale;
 uniform float worldSize;
+uniform float heightMapSize;
 
 uniform sampler2D heightMap;
 
@@ -20,7 +21,7 @@ void hx_geometry()
     vec4 worldPos = hx_worldMatrix * hx_position;
     // snap to cell size is required to not get a floating interpolated landscape
     worldPos.xy = floor(worldPos.xy / hx_cellSize) * hx_cellSize;
-    uv = .5 + worldPos.xy / worldSize;
+    uv = worldPos.xy / worldSize + .5;
 
     float offsetZ = hx_RGBA8ToFloat(texture2D(heightMap, uv));
     worldPos.z += offsetZ * hx_elevationScale + hx_elevationOffset;

@@ -894,7 +894,6 @@ GLTF.prototype._readMatrix4x4 = function(dataView, offset)
 function MD5Mesh()
 {
     HX$1.Importer.call(this, HX$1.Model);
-    this._target = null;
     this._meshData = null;
     this._jointData = null;
     this._skeleton = null;

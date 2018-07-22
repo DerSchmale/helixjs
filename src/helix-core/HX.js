@@ -87,7 +87,6 @@ export {CopyTexturePass} from "./effect/CommonPasses";
 export {Effect} from "./effect/Effect";
 export {EffectPass} from "./effect/EffectPass";
 export {FilmicToneMapping} from "./effect/FilmicToneMapping";
-export {ACESToneMapping} from "./effect/ACESToneMapping";
 export {Fog} from "./effect/Fog";
 export {FXAA} from "./effect/FXAA";
 export {GaussianBlurPass} from "./effect/GaussianBlurPass";

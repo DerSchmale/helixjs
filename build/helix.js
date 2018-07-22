@@ -45,14 +45,6 @@ ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData g
 
 ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
 
-ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when modelInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
-
-ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n// really only used for clustered\nstruct HX_Probe\n{\n    int hasDiffuse;\n    int hasSpecular;\n    float numMipLevels;\n};\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
-
-ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n    int castShadows;\n    vec4 shadowTiles[6];    // for each cube face\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    float dist = length(dir);\n    dir = mat3(light.shadowMapMatrix) * dir;\n\n    // swizzle to opengl cube map space\n    dir = dir.xzy;\n\n    vec3 absDir = abs(dir);\n    float maxDir = max(max(absDir.x, absDir.y), absDir.z);\n    vec2 uv;\n    vec4 tile;\n    if (absDir.x == maxDir) {\n        tile = dir.x > 0.0? light.shadowTiles[0]: light.shadowTiles[1];\n        // signs are important (hence division by either dir or absDir\n        uv = vec2(-dir.z / dir.x, -dir.y / absDir.x);\n    }\n    else if (absDir.y == maxDir) {\n        tile = dir.y > 0.0? light.shadowTiles[4]: light.shadowTiles[5];\n        uv = vec2(dir.x / absDir.y, dir.z / dir.y);\n    }\n    else {\n        tile = dir.z > 0.0? light.shadowTiles[2]: light.shadowTiles[3];\n        uv = vec2(dir.x / dir.z, -dir.y / absDir.z);\n    }\n\n    // match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    uv *= .95;\n\n    vec4 shadowMapCoord;\n    shadowMapCoord.xy = uv * tile.xy + tile.zw;\n    shadowMapCoord.z = dist * light.rcpRadius;\n    shadowMapCoord.w = 1.0;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
-
-ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
-
 ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvarying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef OCCLUSION_MAP\nuniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\nuniform sampler2D emissionMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying_in vec3 tangent;\n    varying_in vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n\n          #ifdef METALLIC_ROUGHNESS_MAP\n              roughnessOut -= roughnessRange * (specSample.y - .5);\n              metallicnessOut *= specSample.z;\n\n          #else\n              roughnessOut -= roughnessRange * (specSample.x - .5);\n\n              #ifdef SPECULAR_MAP\n                  specNormalReflOut *= specSample.y;\n                  metallicnessOut *= specSample.z;\n              #endif\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    emission *= texture2D(emissionMap, texCoords).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
 ShaderLibrary._files['default_geometry_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\n// morph positions are offsets re the base position!\n#ifdef HX_USE_MORPHING\nvertex_attribute vec3 hx_morphPosition0;\nvertex_attribute vec3 hx_morphPosition1;\nvertex_attribute vec3 hx_morphPosition2;\nvertex_attribute vec3 hx_morphPosition3;\n\n#ifdef HX_USE_NORMAL_MORPHING\n    #ifndef HX_SKIP_NORMALS\n    vertex_attribute vec3 hx_morphNormal0;\n    vertex_attribute vec3 hx_morphNormal1;\n    vertex_attribute vec3 hx_morphNormal2;\n    vertex_attribute vec3 hx_morphNormal3;\n    #endif\n\nuniform float hx_morphWeights[4];\n#else\nvertex_attribute vec3 hx_morphPosition4;\nvertex_attribute vec3 hx_morphPosition5;\nvertex_attribute vec3 hx_morphPosition6;\nvertex_attribute vec3 hx_morphPosition7;\n\nuniform float hx_morphWeights[8];\n#endif\n\n#endif\n\n#ifdef HX_USE_SKINNING\nvertex_attribute vec4 hx_jointIndices;\nvertex_attribute vec4 hx_jointWeights;\n\n// WebGL doesn\'t support mat4x3 and I don\'t want to split the uniform either\n#ifdef HX_USE_SKINNING_TEXTURE\nuniform sampler2D hx_skinningTexture;\n#else\nuniform vec4 hx_skinningMatrices[HX_MAX_SKELETON_JOINTS * 3];\n#endif\n#endif\n\nuniform mat4 hx_wvpMatrix;\nuniform mat4 hx_worldViewMatrix;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvertex_attribute vec2 hx_texCoord;\nvarying_out vec2 texCoords;\n#endif\n\n#ifdef VERTEX_COLORS\nvertex_attribute vec3 hx_vertexColor;\nvarying_out vec3 vertexColor;\n#endif\n\n#ifndef HX_SKIP_NORMALS\nvertex_attribute vec3 hx_normal;\nvarying_out vec3 normal;\n\nuniform mat3 hx_normalWorldViewMatrix;\n#ifdef NORMAL_MAP\nvertex_attribute vec4 hx_tangent;\n\nvarying_out vec3 tangent;\nvarying_out vec3 bitangent;\n#endif\n#endif\n\nvoid hx_geometry()\n{\n    vec4 morphedPosition = hx_position;\n\n    #ifndef HX_SKIP_NORMALS\n    vec3 morphedNormal = hx_normal;\n    #endif\n\n// TODO: Abstract this in functions for easier reuse in other materials\n#ifdef HX_USE_MORPHING\n    morphedPosition.xyz += hx_morphPosition0 * hx_morphWeights[0];\n    morphedPosition.xyz += hx_morphPosition1 * hx_morphWeights[1];\n    morphedPosition.xyz += hx_morphPosition2 * hx_morphWeights[2];\n    morphedPosition.xyz += hx_morphPosition3 * hx_morphWeights[3];\n    #ifdef HX_USE_NORMAL_MORPHING\n        #ifndef HX_SKIP_NORMALS\n        morphedNormal += hx_morphNormal0 * hx_morphWeights[0];\n        morphedNormal += hx_morphNormal1 * hx_morphWeights[1];\n        morphedNormal += hx_morphNormal2 * hx_morphWeights[2];\n        morphedNormal += hx_morphNormal3 * hx_morphWeights[3];\n        #endif\n    #else\n        morphedPosition.xyz += hx_morphPosition4 * hx_morphWeights[4];\n        morphedPosition.xyz += hx_morphPosition5 * hx_morphWeights[5];\n        morphedPosition.xyz += hx_morphPosition6 * hx_morphWeights[6];\n        morphedPosition.xyz += hx_morphPosition7 * hx_morphWeights[7];\n    #endif\n#endif\n\n#ifdef HX_USE_SKINNING\n    mat4 skinningMatrix = hx_getSkinningMatrix(0);\n\n    vec4 animPosition = morphedPosition * skinningMatrix;\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal * mat3(skinningMatrix);\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz * mat3(skinningMatrix);\n        #endif\n    #endif\n#else\n    vec4 animPosition = morphedPosition;\n\n    #ifndef HX_SKIP_NORMALS\n        vec3 animNormal = morphedNormal;\n\n        #ifdef NORMAL_MAP\n        vec3 animTangent = hx_tangent.xyz;\n        #endif\n    #endif\n#endif\n\n    // TODO: Should gl_position be handled by the shaders if we only return local position?\n    gl_Position = hx_wvpMatrix * animPosition;\n\n#ifndef HX_SKIP_NORMALS\n    normal = normalize(hx_normalWorldViewMatrix * animNormal);\n\n    #ifdef NORMAL_MAP\n        tangent = mat3(hx_worldViewMatrix) * animTangent;\n        bitangent = cross(tangent, normal) * hx_tangent.w;\n    #endif\n#endif\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\n    texCoords = hx_texCoord;\n#endif\n\n#ifdef VERTEX_COLORS\n    vertexColor = hx_vertexColor;\n#endif\n}';
@@ -103,6 +95,14 @@ ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_G
 
 ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
+ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when modelInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
+
+ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n// really only used for clustered\nstruct HX_Probe\n{\n    int hasDiffuse;\n    int hasSpecular;\n    float numMipLevels;\n};\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
+
+ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n    int castShadows;\n    vec4 shadowTiles[6];    // for each cube face\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    float dist = length(dir);\n    dir = mat3(light.shadowMapMatrix) * dir;\n\n    // swizzle to opengl cube map space\n    dir = dir.xzy;\n\n    vec3 absDir = abs(dir);\n    float maxDir = max(max(absDir.x, absDir.y), absDir.z);\n    vec2 uv;\n    vec4 tile;\n    if (absDir.x == maxDir) {\n        tile = dir.x > 0.0? light.shadowTiles[0]: light.shadowTiles[1];\n        // signs are important (hence division by either dir or absDir\n        uv = vec2(-dir.z / dir.x, -dir.y / absDir.x);\n    }\n    else if (absDir.y == maxDir) {\n        tile = dir.y > 0.0? light.shadowTiles[4]: light.shadowTiles[5];\n        uv = vec2(dir.x / absDir.y, dir.z / dir.y);\n    }\n    else {\n        tile = dir.z > 0.0? light.shadowTiles[2]: light.shadowTiles[3];\n        uv = vec2(dir.x / dir.z, -dir.y / absDir.z);\n    }\n\n    // match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    uv *= .95;\n\n    vec4 shadowMapCoord;\n    shadowMapCoord.xy = uv * tile.xy + tile.zw;\n    shadowMapCoord.z = dist * light.rcpRadius;\n    shadowMapCoord.w = 1.0;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
+
+ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
+
 ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
 
 ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
@@ -139,7 +139,7 @@ ShaderLibrary._files['ssr_fragment.glsl'] = '#derivatives\n\n// TODO: This won\'
 
 ShaderLibrary._files['ssr_stencil_fragment.glsl'] = 'uniform sampler2D hx_gbufferSpecular;\n\nvarying_in vec2 uv;\n\nuniform float maxRoughness;\n\nvoid main()\n{\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    if (specularSample.x > maxRoughness)\n        discard;\n}\n\n';
 
-ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	vec3 x = max(vec3(0.0), color.xyz - 0.004);\n\n	// this has pow 2.2 gamma included, not valid if using fast gamma correction\n	//hx_FragColor = vec4((x * (6.2 * x + .5))/(x * (6.2 * x + 1.7) + 0.06), 1.0);\n\n    #ifdef HX_ACES\n    // ACES -> this desaturates less\n    	float a = 2.51;\n        float b = 0.03;\n        float c = 2.43;\n        float d = 0.59;\n        float e = 0.14;\n    #else\n    // Jim Hejl and Richard Burgess-Dawson\n        float a = 6.2;\n        float b = .5;\n        float c = 6.2;\n        float d = 1.7;\n        float e = 0.06;\n    #endif\n	hx_FragColor = vec4(clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0), 1.0);\n}';
+ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x = hx_getToneMapScaledColor().xyz * 16.0;\n\n    // Uncharted 2 tonemapping (http://filmicworlds.com/blog/filmic-tonemapping-operators/)\n\n	float A = 0.15;\n    float B = 0.50;\n    float C = 0.10;\n    float D = 0.20;\n    float E = 0.02;\n    float F = 0.30;\n    float W = 11.2;\n\n    hx_FragColor.xyz = hx_gammaToLinear(((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F);\n    hx_FragColor.w = 1.0;\n}';
 
 ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
@@ -11818,6 +11818,141 @@ DirectLight.prototype._updateScaledIrradiance = function ()
 
 /**
  * @classdesc
+ * DirectionalLight represents a light source that is "infinitely far away", used as an approximation for sun light where
+ * locally all sun rays appear to be parallel.
+ *
+ * @property {number} shadowMapSize The shadow map size used by this light.
+ * @property {Float4} direction The direction in *world space* of the light rays. This cannot be set per component but
+ * needs to be assigned as a whole Float4.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function DirectionalLight()
+{
+	DirectLight.call(this);
+
+    this.depthBias = .0;
+    this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
+    // this is just a storage vector
+    this._direction = new Float4();
+    this._cascadeSplitRatios = [];
+    this._cascadeSplitDistances = [];
+    this._initCascadeSplitProperties();
+}
+
+DirectionalLight.prototype = Object.create(DirectLight.prototype,
+    {
+        numAtlasPlanes: {
+            get: function() { return META.OPTIONS.numShadowCascades; }
+        },
+
+        castShadows: {
+            get: function()
+            {
+                return this._castShadows;
+            },
+
+            set: function(value)
+            {
+                if (this._castShadows === value) return;
+
+                this._castShadows = value;
+                if (value) {
+                    this._shadowMatrices = value? [ new Matrix4x4(), new Matrix4x4(), new Matrix4x4(), new Matrix4x4() ] : null;
+                }
+                else {
+                    this._shadowMatrices = null;
+                }
+            }
+        },
+
+        direction: {
+            get: function()
+            {
+                var dir = this._direction;
+                this.worldMatrix.getColumn(1, dir);
+                return dir;
+            },
+
+            set: function(value)
+            {
+                var matrix = new Matrix4x4();
+                var position = this.worldMatrix.getColumn(3);
+                var target = Float4.add(value, position);
+                matrix.lookAt(target, position);
+                this.matrix = matrix;
+            }
+        },
+
+        cascadeSplitDistances: {
+            get: function ()
+            {
+                return this._cascadeSplitDistances;
+            }
+        }
+    });
+
+/**
+ * The ratios that define every cascade's split distance. 1 is at the far plane, 0 is at the near plane.
+ * @param r1
+ * @param r2
+ * @param r3
+ * @param r4
+ */
+DirectionalLight.prototype.setCascadeRatios = function(r1, r2, r3, r4)
+{
+    this._cascadeSplitRatios[0] = r1;
+    this._cascadeSplitRatios[1] = r2;
+    this._cascadeSplitRatios[2] = r3;
+    this._cascadeSplitRatios[3] = r4;
+};
+
+/**
+ * @private
+ * @ignore
+ */
+DirectionalLight.prototype._updateWorldBounds = function()
+{
+    this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
+};
+
+/**
+ * @private
+ * @ignore
+ */
+DirectionalLight.prototype._initCascadeSplitProperties = function()
+{
+    var ratio = 1.0;
+
+    for (var i = META.OPTIONS.numShadowCascades - 1; i >= 0; --i)
+    {
+        this._cascadeSplitRatios[i] = ratio;
+        this._cascadeSplitDistances[i] = 0;
+        ratio *= .5;
+    }
+};
+
+/**
+ * @private
+ * @ignore
+ */
+DirectionalLight.prototype.getShadowMatrix = function(cascade)
+{
+    return this._shadowMatrices[cascade];
+};
+
+/**
+ * @ignore
+ */
+DirectionalLight.prototype.toString = function()
+{
+	return "[DirectionalLight(name=" + this._name + ")]";
+};
+
+/**
+ * @classdesc
  * SpherePrimitive provides a primitive cylinder {@linkcode Model}.
  *
  * @constructor
@@ -12254,313 +12389,6 @@ BoundingSphere.prototype.createDebugModel = function()
 
 /**
  * @classdesc
- * SpotLight represents an light source with a single point as origin and a conical range. The light strength falls off
- * according to the inverse square rule.
- *
- * @property {number} radius The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a given area for performance.
- * @property {number} innerAngle The angle of the spot light where it starts attenuating outwards. In radians!
- * @property {number} outerAngle The maximum angle of the spot light's reach. In radians!
- * @property {boolean} castShadows Defines whether or not this light casts shadows.
- *
- * @constructor
- *
- * @extends DirectLight
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function SpotLight()
-{
-	DirectLight.call(this);
-
-    this._radius = 50.0;
-    this._innerAngle = 1.2;
-    this._outerAngle = 1.3;
-    this._cosInner = Math.cos(this._innerAngle * .5);
-    this._cosOuter = Math.cos(this._outerAngle * .5);
-    this.intensity = 3.1415;
-    this.lookAt(new Float4(0, 0, -1));
-
-    this.depthBias = .0;
-    this.shadowQualityBias = 1;
-    this._shadowMatrix = null;
-    this._shadowTile = null;    // xy = scale, zw = offset
-}
-
-SpotLight.prototype = Object.create(DirectLight.prototype,
-    {
-        numAtlasPlanes: {
-            get: function() { return 1; }
-        },
-
-        castShadows: {
-            get: function()
-            {
-                return this._castShadows;
-            },
-
-            set: function(value)
-            {
-                if (this._castShadows === value) return;
-
-                this._castShadows = value;
-
-                if (value) {
-                    this._shadowMatrix = new Matrix4x4();
-                    this._shadowTile = new Float4();
-                }
-                else {
-                    this._shadowMatrix = null;
-                    this._shadowTile = null;
-                }
-            }
-        },
-
-        shadowMatrix: {
-            get: function()
-            {
-                return this._shadowMatrix;
-            }
-        },
-
-        shadowTile: {
-            get: function()
-            {
-                return this._shadowTile;
-            }
-        },
-
-        radius: {
-            get: function() {
-                return this._radius;
-            },
-
-            set: function(value) {
-                this._radius = value;
-                this._invalidateWorldBounds();
-            }
-        },
-
-        innerAngle: {
-            get: function() {
-                return this._innerAngle;
-            },
-
-            set: function(value) {
-                this._innerAngle = MathX.clamp(value, 0, Math.PI);
-                this._outerAngle = MathX.clamp(this._outerAngle, this._innerAngle, Math.PI);
-                this._cosInner = Math.cos(this._innerAngle * .5);
-                this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._invalidateWorldBounds();
-            }
-        },
-
-        outerAngle: {
-            get: function() {
-                return this._outerAngle;
-            },
-
-            set: function(value) {
-                this._outerAngle = MathX.clamp(value, 0, Math.PI);
-                this._innerAngle = MathX.clamp(this._innerAngle, 0, this._outerAngle);
-                this._cosInner = Math.cos(this._innerAngle * .5);
-                this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._invalidateWorldBounds();
-            }
-        }
-    });
-
-/**
- * @ignore
- */
-SpotLight.prototype._createBoundingVolume = function()
-{
-    return new BoundingSphere();
-};
-
-/**
- * @ignore
- */
-SpotLight.prototype._updateWorldBounds = function()
-{
-    // think in 2D, with the X axis aligned to the spot's Y (forward) vector
-    // form a right-angled triangle with hypothenuse between 0 and Q = (l, h) = (r cosA, r sinA)
-    // find the point P on the base line (2D X axis) where |P - O| = |P - Q|
-    // Since on the base line: P = (x, 0) and |P - O| = x
-
-    // then apply x to the 3D Y axis to find the center of the bounding sphere, with radius |P - O|
-
-    // another right-angled triangle forms with hypothenuse |P - Q| and h, so:
-    // |P - Q|^2 = (l - x)^2 + h^2
-
-    // |P - O| = |P - Q|
-    // x = |P - Q|
-    // x^2 = |P - Q|^2
-    // x^2 = (l - x)^2 + h^2
-    // x^2 = l^2 - 2lx + x^2 + h^2
-    // x = (l^2 + h^2)/2l
-    // x = r^2 * (cos2 A + sin2 A) / 2l
-    //           (cos2 A + sin2 A = 1)
-    // x = r^2 / 2l = r^2 / 2rcosA
-    // x = r / 2cos(A)
-
-    var y = new Float4();
-    var p = new Float4();
-    return function() {
-		var x = this._radius / (2.0 * this._cosOuter);
-		var m = this.worldMatrix;
-
-		m.getColumn(3, p);  // position
-        m.getColumn(1, y);  // forward
-		p.addScaled(y, x);  // move center sphere forward by x * fwd
-		this._worldBounds.setExplicit(p, x);
-	};
-}();
-
-/**
- * @ignore
- */
-SpotLight.prototype.toString = function()
-{
-	return "[SpotLight(name=" + this._name + ")]";
-};
-
-/**
- * @classdesc
- * DirectionalLight represents a light source that is "infinitely far away", used as an approximation for sun light where
- * locally all sun rays appear to be parallel.
- *
- * @property {number} shadowMapSize The shadow map size used by this light.
- * @property {Float4} direction The direction in *world space* of the light rays. This cannot be set per component but
- * needs to be assigned as a whole Float4.
- *
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function DirectionalLight()
-{
-	DirectLight.call(this);
-
-    this.depthBias = .0;
-    this.direction = new Float4(-1.0, -1.0, -1.0, 0.0);
-    // this is just a storage vector
-    this._direction = new Float4();
-    this._cascadeSplitRatios = [];
-    this._cascadeSplitDistances = [];
-    this._initCascadeSplitProperties();
-}
-
-DirectionalLight.prototype = Object.create(DirectLight.prototype,
-    {
-        numAtlasPlanes: {
-            get: function() { return META.OPTIONS.numShadowCascades; }
-        },
-
-        castShadows: {
-            get: function()
-            {
-                return this._castShadows;
-            },
-
-            set: function(value)
-            {
-                if (this._castShadows === value) return;
-
-                this._castShadows = value;
-                if (value) {
-                    this._shadowMatrices = value? [ new Matrix4x4(), new Matrix4x4(), new Matrix4x4(), new Matrix4x4() ] : null;
-                }
-                else {
-                    this._shadowMatrices = null;
-                }
-            }
-        },
-
-        direction: {
-            get: function()
-            {
-                var dir = this._direction;
-                this.worldMatrix.getColumn(1, dir);
-                return dir;
-            },
-
-            set: function(value)
-            {
-                var matrix = new Matrix4x4();
-                var position = this.worldMatrix.getColumn(3);
-                var target = Float4.add(value, position);
-                matrix.lookAt(target, position);
-                this.matrix = matrix;
-            }
-        },
-
-        cascadeSplitDistances: {
-            get: function ()
-            {
-                return this._cascadeSplitDistances;
-            }
-        }
-    });
-
-/**
- * The ratios that define every cascade's split distance. 1 is at the far plane, 0 is at the near plane.
- * @param r1
- * @param r2
- * @param r3
- * @param r4
- */
-DirectionalLight.prototype.setCascadeRatios = function(r1, r2, r3, r4)
-{
-    this._cascadeSplitRatios[0] = r1;
-    this._cascadeSplitRatios[1] = r2;
-    this._cascadeSplitRatios[2] = r3;
-    this._cascadeSplitRatios[3] = r4;
-};
-
-/**
- * @private
- * @ignore
- */
-DirectionalLight.prototype._updateWorldBounds = function()
-{
-    this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
-};
-
-/**
- * @private
- * @ignore
- */
-DirectionalLight.prototype._initCascadeSplitProperties = function()
-{
-    var ratio = 1.0;
-
-    for (var i = META.OPTIONS.numShadowCascades - 1; i >= 0; --i)
-    {
-        this._cascadeSplitRatios[i] = ratio;
-        this._cascadeSplitDistances[i] = 0;
-        ratio *= .5;
-    }
-};
-
-/**
- * @private
- * @ignore
- */
-DirectionalLight.prototype.getShadowMatrix = function(cascade)
-{
-    return this._shadowMatrices[cascade];
-};
-
-/**
- * @ignore
- */
-DirectionalLight.prototype.toString = function()
-{
-	return "[DirectionalLight(name=" + this._name + ")]";
-};
-
-/**
- * @classdesc
  * PointLight represents an omnidirectional light source with a single point as origin. The light strength falls off
  * according to the inverse square rule.
  *
@@ -12736,6 +12564,178 @@ LightProbe.prototype.acceptVisitor = function (visitor)
 {
     Entity.prototype.acceptVisitor.call(this, visitor);
     visitor.visitLight(this);
+};
+
+/**
+ * @classdesc
+ * SpotLight represents an light source with a single point as origin and a conical range. The light strength falls off
+ * according to the inverse square rule.
+ *
+ * @property {number} radius The maximum reach of the light. While this is physically incorrect, it's necessary to limit the lights to a given area for performance.
+ * @property {number} innerAngle The angle of the spot light where it starts attenuating outwards. In radians!
+ * @property {number} outerAngle The maximum angle of the spot light's reach. In radians!
+ * @property {boolean} castShadows Defines whether or not this light casts shadows.
+ *
+ * @constructor
+ *
+ * @extends DirectLight
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function SpotLight()
+{
+	DirectLight.call(this);
+
+    this._radius = 50.0;
+    this._innerAngle = 1.2;
+    this._outerAngle = 1.3;
+    this._cosInner = Math.cos(this._innerAngle * .5);
+    this._cosOuter = Math.cos(this._outerAngle * .5);
+    this.intensity = 3.1415;
+    this.lookAt(new Float4(0, 0, -1));
+
+    this.depthBias = .0;
+    this.shadowQualityBias = 1;
+    this._shadowMatrix = null;
+    this._shadowTile = null;    // xy = scale, zw = offset
+}
+
+SpotLight.prototype = Object.create(DirectLight.prototype,
+    {
+        numAtlasPlanes: {
+            get: function() { return 1; }
+        },
+
+        castShadows: {
+            get: function()
+            {
+                return this._castShadows;
+            },
+
+            set: function(value)
+            {
+                if (this._castShadows === value) return;
+
+                this._castShadows = value;
+
+                if (value) {
+                    this._shadowMatrix = new Matrix4x4();
+                    this._shadowTile = new Float4();
+                }
+                else {
+                    this._shadowMatrix = null;
+                    this._shadowTile = null;
+                }
+            }
+        },
+
+        shadowMatrix: {
+            get: function()
+            {
+                return this._shadowMatrix;
+            }
+        },
+
+        shadowTile: {
+            get: function()
+            {
+                return this._shadowTile;
+            }
+        },
+
+        radius: {
+            get: function() {
+                return this._radius;
+            },
+
+            set: function(value) {
+                this._radius = value;
+                this._invalidateWorldBounds();
+            }
+        },
+
+        innerAngle: {
+            get: function() {
+                return this._innerAngle;
+            },
+
+            set: function(value) {
+                this._innerAngle = MathX.clamp(value, 0, Math.PI);
+                this._outerAngle = MathX.clamp(this._outerAngle, this._innerAngle, Math.PI);
+                this._cosInner = Math.cos(this._innerAngle * .5);
+                this._cosOuter = Math.cos(this._outerAngle * .5);
+				this._invalidateWorldBounds();
+            }
+        },
+
+        outerAngle: {
+            get: function() {
+                return this._outerAngle;
+            },
+
+            set: function(value) {
+                this._outerAngle = MathX.clamp(value, 0, Math.PI);
+                this._innerAngle = MathX.clamp(this._innerAngle, 0, this._outerAngle);
+                this._cosInner = Math.cos(this._innerAngle * .5);
+                this._cosOuter = Math.cos(this._outerAngle * .5);
+				this._invalidateWorldBounds();
+            }
+        }
+    });
+
+/**
+ * @ignore
+ */
+SpotLight.prototype._createBoundingVolume = function()
+{
+    return new BoundingSphere();
+};
+
+/**
+ * @ignore
+ */
+SpotLight.prototype._updateWorldBounds = function()
+{
+    // think in 2D, with the X axis aligned to the spot's Y (forward) vector
+    // form a right-angled triangle with hypothenuse between 0 and Q = (l, h) = (r cosA, r sinA)
+    // find the point P on the base line (2D X axis) where |P - O| = |P - Q|
+    // Since on the base line: P = (x, 0) and |P - O| = x
+
+    // then apply x to the 3D Y axis to find the center of the bounding sphere, with radius |P - O|
+
+    // another right-angled triangle forms with hypothenuse |P - Q| and h, so:
+    // |P - Q|^2 = (l - x)^2 + h^2
+
+    // |P - O| = |P - Q|
+    // x = |P - Q|
+    // x^2 = |P - Q|^2
+    // x^2 = (l - x)^2 + h^2
+    // x^2 = l^2 - 2lx + x^2 + h^2
+    // x = (l^2 + h^2)/2l
+    // x = r^2 * (cos2 A + sin2 A) / 2l
+    //           (cos2 A + sin2 A = 1)
+    // x = r^2 / 2l = r^2 / 2rcosA
+    // x = r / 2cos(A)
+
+    var y = new Float4();
+    var p = new Float4();
+    return function() {
+		var x = this._radius / (2.0 * this._cosOuter);
+		var m = this.worldMatrix;
+
+		m.getColumn(3, p);  // position
+        m.getColumn(1, y);  // forward
+		p.addScaled(y, x);  // move center sphere forward by x * fwd
+		this._worldBounds.setExplicit(p, x);
+	};
+}();
+
+/**
+ * @ignore
+ */
+SpotLight.prototype.toString = function()
+{
+	return "[SpotLight(name=" + this._name + ")]";
 };
 
 /**
@@ -19513,48 +19513,6 @@ FilmicToneMapping.prototype._createToneMapPass = function()
 
 /**
  * @classdesc
- * ACESToneMapping is an {@linkcode Effect} added to the Camera that applies filmic tone mapping with the ACES parameters.
- *
- * @constructor
- * @param adaptive Whether or not the brightness should adapt to the average brightness of the scene. If not supported, it will disable.
- *
- * @extends ToneMapping
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function ACESToneMapping(adaptive)
-{
-    ToneMapEffect.call(this, adaptive);
-    this._outputsGamma = false;
-
-}
-
-ACESToneMapping.prototype = Object.create(ToneMapEffect.prototype);
-
-/**
- * @ignore
- */
-ACESToneMapping.prototype._createToneMapPass = function()
-{
-    var defines = {
-        HX_ACES: 1
-    };
-    var extensions = "";
-
-    if (this._adaptive) {
-        defines.HX_ADAPTIVE = 1;
-
-        extensions = "#texturelod\n";
-    }
-
-    return new EffectPass(
-        null,
-        extensions + ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" + ShaderLibrary.get("tonemap_filmic_fragment.glsl")
-    );
-};
-
-/**
- * @classdesc
  * Fog is an {@linkcode Effect} added to the Camera that applies a fog effect to the scene.
  *
  * @property {number} density The "thickness" of the fog. Keep it tiny.
@@ -25501,7 +25459,6 @@ exports.CopyTexturePass = CopyTexturePass;
 exports.Effect = Effect;
 exports.EffectPass = EffectPass;
 exports.FilmicToneMapping = FilmicToneMapping;
-exports.ACESToneMapping = ACESToneMapping;
 exports.Fog = Fog;
 exports.FXAA = FXAA;
 exports.GaussianBlurPass = GaussianBlurPass;

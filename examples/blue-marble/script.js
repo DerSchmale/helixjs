@@ -69,8 +69,8 @@ function initHDRSettings()
 
     // TODO: Implement pseudo lens flare
 
-    var tonemap = new HX.ACESToneMapping(false);
-    tonemap.exposure = 0;
+    var tonemap = new HX.FilmicToneMapping(true);
+    tonemap.exposure = -1.0;
 
     settings.effects = [bloom1, bloom2, bloom3, tonemap];
     settings.sunIntensity = 10.0;

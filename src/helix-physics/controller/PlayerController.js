@@ -27,6 +27,7 @@ HX.Component.create(PlayerController, {
 
 		set: function(value)
 		{
+			this._movementForce = value;
 			this._walkForce = value;
 		}
 	},

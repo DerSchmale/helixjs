@@ -2,8 +2,6 @@ import * as HX from 'helix';
 import {AsyncTaskQueue} from "../../helix-core/utils/AsyncTaskQueue";
 import {MTL} from "./MTL";
 
-function OBJ()
-
 /**
  * @classdesc
  * OBJ is an importer for the Wavefront OBJ format.
@@ -16,6 +14,7 @@ function OBJ()
  *
  * @author derschmale <http://www.derschmale.com>
  */
+function OBJ()
 {
     HX.Importer.call(this, HX.Entity);
     this._objects = [];

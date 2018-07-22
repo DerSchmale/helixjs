@@ -420,7 +420,7 @@ Float4.prototype =
 				if (t > 0) {
 					target.copyFrom(ray.origin);
 					target.addScaled(ray.direction, t);
-					return target;
+					return true;
 				}
 			}
 

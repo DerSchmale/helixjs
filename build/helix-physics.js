@@ -269,7 +269,6 @@ function PhysicsSystem()
     this._world.solver.tolerance = .001;
     this._world.solver.iterations = 10;
     this._fixedTimeStep = 1000/60;
-    this._friction = 0.0;
     this._world.broadphase = new CANNON$1.SAPBroadphase(this._world);
 
     // this._world.quatNormalizeFast = true;
@@ -774,7 +773,7 @@ Float4$1.prototype =
 				if (t > 0) {
 					target.copyFrom(ray.origin);
 					target.addScaled(ray.direction, t);
-					return target;
+					return true;
 				}
 			}
 

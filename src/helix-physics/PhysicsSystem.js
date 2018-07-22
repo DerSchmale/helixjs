@@ -21,7 +21,6 @@ function PhysicsSystem()
     this._world.solver.tolerance = .001;
     this._world.solver.iterations = 10;
     this._fixedTimeStep = 1000/60;
-    this._friction = 0.0;
     this._world.broadphase = new CANNON.SAPBroadphase(this._world);
 
     // this._world.quatNormalizeFast = true;

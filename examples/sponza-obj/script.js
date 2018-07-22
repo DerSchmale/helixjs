@@ -39,7 +39,7 @@ project.onInit = function()
 
 function initCamera(camera)
 {
-    camera.position.set(0.0, 1.80, 0.0);
+    camera.position.set(0.0, 0.0, 1.80);
     camera.nearDistance = .1;
     camera.farDistance = 100.0;
 

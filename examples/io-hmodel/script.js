@@ -13,8 +13,8 @@ project.queueAssets = function(assetLibrary)
 project.onInit = function()
 {
     this.camera.addComponent(new HX.OrbitController());
-    this.camera.nearDistance = .1;
-    this.camera.farDistance = 1.0;
+    this.camera.nearDistance = .01;
+    this.camera.farDistance = 10.0;
     initScene(this.scene, this.assetLibrary);
 };
 

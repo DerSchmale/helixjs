@@ -15,12 +15,9 @@ project.queueAssets = function(assetLibrary)
     assetLibrary.queueAsset("hellknight-specular", "hellknight/hellknight_specular.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
     assetLibrary.queueAsset("hellknight-normals", "hellknight/hellknight_normals.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
 
+    // These models are not available freely
     assetLibrary.queueAsset("model", "hellknight/hellknight.md5mesh", HX.AssetLibrary.Type.ASSET, HX.MD5Mesh);
     assetLibrary.queueAsset("animation-clip", "hellknight/idle2.md5anim", HX.AssetLibrary.Type.ASSET, HX.MD5Anim);
-
-    // There's also the helix-custom file format
-    // assetLibrary.queueAsset("model", "hmodel/bob.hmodel", HX.AssetLibrary.Type.ASSET, HX.HMODEL);
-    // assetLibrary.queueAsset("animation-clip", "hmodel/bob.hclip", HX.AssetLibrary.Type.ASSET, HX.HCLIP);
 };
 
 project.onInit = function()
@@ -44,7 +41,7 @@ function initCamera(camera)
     camera.farDistance = 20.0;
 
     var orbitController = new HX.OrbitController();
-    orbitController.lookAtTarget.y = 1.2;
+    orbitController.lookAtTarget.z = 1.2;
     orbitController.speed = 10.0;
     orbitController.radius = 2.0;
     orbitController.maxRadius = 100.0;

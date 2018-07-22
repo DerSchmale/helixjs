@@ -38,7 +38,7 @@ function initCamera(camera)
     camera.farDistance = 20.0;
 
     var orbitController = new HX.OrbitController();
-    orbitController.lookAtTarget.y = 1.2;
+    orbitController.lookAtTarget.z = 1.2;
     orbitController.speed = 10.0;
     orbitController.radius = 2.0;
     orbitController.maxRadius = 100.0;
@@ -87,6 +87,8 @@ function initScene(scene, assetLibrary)
     model.position.y = -model.worldBounds.minimum.y;
 
     scene.attach(model);
+
+    // TODO: Fix FBX animations
 
     // something wrong with this fbx file in that the textures aren't connected to the material
 

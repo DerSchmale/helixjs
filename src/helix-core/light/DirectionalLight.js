@@ -3,7 +3,6 @@ import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {META} from "../Helix";
-import {SpotLight} from "./SpotLight";
 
 /**
  * @classdesc

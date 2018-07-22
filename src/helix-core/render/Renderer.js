@@ -18,8 +18,6 @@ import {ShadowAtlas} from "./ShadowAtlas";
 import {CascadeShadowMapRenderer} from "./CascadeShadowMapRenderer";
 import {OmniShadowMapRenderer} from "./OmniShadowMapRenderer";
 import {SpotShadowMapRenderer} from "./SpotShadowMapRenderer";
-import {BasicMaterial} from "../material/BasicMaterial";
-import {LightingModel} from "./LightingModel";
 import {Float4} from "../math/Float4";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {MathX} from "../math/MathX";

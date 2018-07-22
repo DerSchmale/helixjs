@@ -24,7 +24,6 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
-	this.scene.startSystem(new HX.PhysicsSystem());
     initCamera(this.camera);
     initScene(this.scene, this.assetLibrary);
 
@@ -43,10 +42,6 @@ project.onUpdate = function(dt)
     time += dt;
     waterMaterial.setUniform("normalOffset1", [ -time * 0.0004, -time * 0.0005 ]);
     waterMaterial.setUniform("normalOffset2", [ time * 0.0001, time * 0.0002 ]);
-
-    var pos = this.camera.position;
-    pos.x = HX.MathX.clamp(pos.x, -1900, 1900);
-    pos.y = HX.MathX.clamp(pos.y, -1900, 1900);
 };
 
 window.onload = function ()
@@ -65,24 +60,16 @@ function initCamera(camera)
 {
     camera.position.x = 1397;
     camera.position.y = -1676;
-    camera.position.z = waterLevel + 5;
+    camera.position.z = -13;
 
     camera.nearDistance = 0.1;
     camera.farDistance = 2000.0;
 
-    var controller = new HX.PlayerController();
-    controller.walkForce = 50.0;
-    controller.runForce = 200.0;
-    controller.jumpForce = 1000.0;
+    var controller = new HX.FloatController();
+    controller.speed = 1.7;
+    controller.shiftMultiplier = 100.0;
     controller.yaw = Math.PI;
     camera.addComponent(controller);
-
-	var rigidBody = new HX.RigidBody(new HX.CapsuleCollider(.5, 2, new HX.Float4(0, 0, -.9)));
-	// TODO: Need to add friction instead of this strong linearDamping
-	rigidBody.linearDamping = .9;
-	rigidBody.angularDamping = 1.0; // disable rotational physics
-	rigidBody.mass = 70;
-	camera.addComponent(rigidBody);
 
     fog = new HX.Fog(0.0005, new HX.Color(0x1155ff), 0.0005, 100);
     camera.addComponent(fog);
@@ -129,16 +116,9 @@ function initScene(scene, assetLibrary)
 
     waterMaterial = assetLibrary.get("water-material");
 
-    var terrain = new HX.Terrain(4000, -100, 200, 4, terrainMaterial, 32);
+    var terrain = new HX.Terrain(4000, -100, 200, 5, terrainMaterial, 64);
 
-	var rigidBody = new HX.RigidBody(
-	    new HX.HeightfieldCollider(heightMap, worldSize, -100, 200, true),
-        0
-    );
-	terrain.addComponent(rigidBody);
-
-	// this is definitely overkill:
-	var water = new HX.Terrain(4000, 0, 1, 2, waterMaterial, 2);
+    var water = new HX.Terrain(4000, 0, 1, 3, waterMaterial, 16);
     water.position.z = waterLevel;
 
     scene.attach(terrain);

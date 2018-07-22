@@ -1,10 +1,11 @@
-import {SceneNode} from "./SceneNode";
 import {Model} from "../mesh/Model";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Float4} from "../math/Float4";
 import {ModelInstance} from "../mesh/ModelInstance";
 import {RenderCollector} from "../render/RenderCollector";
 import {Mesh} from "../mesh/Mesh";
+import {Entity} from "../entity/Entity";
+import {SceneNode} from "./SceneNode";
 
 /**
  * Terrain provides a paged terrain engine with dynamic LOD. The heightmapping itself happens in the Material.
@@ -25,12 +26,16 @@ import {Mesh} from "../mesh/Mesh";
  */
 function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, detail)
 {
-    SceneNode.call(this);
+    Entity.call(this);
 
     this._terrainSize = terrainSize || 512;
     this._minElevation = minElevation;
     this._maxElevation = maxElevation;
     this._numLevels = numLevels || 4;
+    // this container will move along with the "player"
+    // we use the extra container so the Terrain.position remains constant, so we can reliably translate and use rigid body components
+    this._container = new SceneNode();
+    this._container._parent = this;
     detail = detail || 32;
     var gridSize = Math.ceil(detail * .5) * 2.0; // round off to 2
 
@@ -46,7 +51,7 @@ function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, d
 }
 
 // TODO: Allow setting material
-Terrain.prototype = Object.create(SceneNode.prototype, {
+Terrain.prototype = Object.create(Entity.prototype, {
     terrainSize: {
         get: function() {
             return this._terrainSize;
@@ -211,8 +216,9 @@ Terrain.prototype._addModel = function(x, y, level, rotation, mode)
 {
     var modelInstance = new ModelInstance(this._models[level][mode], this._material);
     modelInstance.position.set(x, y, 0);
+    // this rotation aligns the higher triangle strips
     modelInstance.rotation.fromAxisAngle(Float4.Z_AXIS, -rotation * Math.PI * .5);
-    this.attach(modelInstance);
+    this._container.attach(modelInstance);
 };
 
 /**
@@ -295,11 +301,12 @@ Terrain.prototype.acceptVisitor = function(visitor)
     // typechecking isn't nice, but it does what we want
     if (visitor instanceof RenderCollector) {
         var pos = visitor._camera.position;
-        this.position.x = Math.floor(pos.x / this._snapSize) * this._snapSize;
-        this.position.y = Math.floor(pos.y / this._snapSize) * this._snapSize;
+        this._container.position.x = Math.floor(pos.x / this._snapSize) * this._snapSize - this.position.x;
+        this._container.position.y = Math.floor(pos.y / this._snapSize) * this._snapSize - this.position.y;
     }
 
-    SceneNode.prototype.acceptVisitor.call(this, visitor);
+    Entity.prototype.acceptVisitor.call(this, visitor);
+    this._container.acceptVisitor(visitor);
 };
 
 /**
@@ -308,6 +315,18 @@ Terrain.prototype.acceptVisitor = function(visitor)
 Terrain.prototype._updateWorldBounds = function ()
 {
     this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
+};
+
+Terrain.prototype._invalidateWorldMatrix = function ()
+{
+    Entity.prototype._invalidateWorldMatrix.call(this);
+    this._container._invalidateWorldMatrix();
+};
+
+Terrain.prototype._setScene = function(scene)
+{
+	Entity.prototype._setScene.call(this, scene);
+	this._container._setScene(scene);
 };
 
 export { Terrain };

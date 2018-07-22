@@ -40,19 +40,20 @@ project.onUpdate = function()
 
 function initCamera(camera)
 {
-    // camera.position.set(0.0, 0.0, 0.0);
+    camera.position.set(-10.0, 0.0, -10.0);
     camera.nearDistance = .1;
     camera.farDistance = 200.0;
 
     var floatController = new HX.FloatController();
     floatController.speed = 10.0;
+	floatController.yaw = Math.PI * .5;
     camera.addComponent(floatController);
 }
 
 function initScene(scene, camera, assetLibrary)
 {
     var ambientLight = new HX.AmbientLight();
-    ambientLight.intensity = .1;
+    ambientLight.intensity = .02;
 
     spotLight = new HX.SpotLight();
     spotLight.castShadows = true;
@@ -62,14 +63,11 @@ function initScene(scene, camera, assetLibrary)
     spotLight.position.x = .5;
     spotLight.lookAt(new HX.Float4(0.0, 4.0, 0.0));
     spotLight.innerAngle = 0.2;
-    spotLight.radius = 20;
+    spotLight.radius = 50;
     spotLight.outerAngle = 1.0;
 
     camera.attach(spotLight);
     scene.attach(ambientLight);
 
     scene.attach(assetLibrary.get("model"));
-
-    var axes = new HX.DebugAxes();
-    scene.attach(axes);
 }

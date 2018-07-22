@@ -9614,7 +9614,7 @@ function Trimesh(vertices, indices) {
      * @property vertices
      * @type {Array}
      */
-    this.vertices = new Float32Array(vertices);
+    this.vertices = new Floatpo32Array(vertices);
 
     /**
      * Array of integers, indicating which vertices each triangle consists of. The length of this array is thus 3 times the number of triangles.

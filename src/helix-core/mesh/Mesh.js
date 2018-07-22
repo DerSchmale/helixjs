@@ -1,4 +1,4 @@
-import {capabilities, BufferUsage, DataType} from "../Helix";
+import {BufferUsage, DataType} from "../Helix";
 import {IndexBuffer} from "../core/IndexBuffer";
 import {VertexBuffer} from "../core/VertexBuffer";
 import {Signal} from "../core/Signal";

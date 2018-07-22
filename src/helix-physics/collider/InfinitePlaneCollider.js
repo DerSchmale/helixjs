@@ -1,5 +1,4 @@
 import {Collider} from "./Collider";
-import {Quaternion} from "../../helix-core/math/Quaternion";
 
 /**
  * @classdesc
@@ -15,9 +14,7 @@ import {Quaternion} from "../../helix-core/math/Quaternion";
 function InfinitePlaneCollider(height)
 {
     Collider.call(this);
-    if (height) this._center = new HX.Float4(0, height, 0);
-    // this._orientation = new Quaternion();
-    // this._orientation.fromAxisAngle(HX.Float4.X_AXIS, -Math.PI * .5);
+    if (height) this._center = new HX.Float4(0, 0, height);
 }
 
 InfinitePlaneCollider.prototype = Object.create(Collider.prototype);

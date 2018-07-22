@@ -12,6 +12,19 @@ var worldSize = 5000;
 var waterLevel = -15;
 var fog;
 
+function CenterAtComponent(camera)
+{
+    HX.Component.call(this);
+
+    this.onUpdate = function (dt)
+    {
+        this.entity.position.x = camera.position.x;
+        this.entity.position.y = camera.position.y;
+    }
+}
+
+HX.Component.create(CenterAtComponent);
+
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("skybox-specular", "skyboxes/daylight-mips/skybox_specular.hcm", HX.AssetLibrary.Type.ASSET, HX.HCM);
@@ -25,7 +38,7 @@ project.queueAssets = function(assetLibrary)
 project.onInit = function()
 {
     initCamera(this.camera);
-    initScene(this.scene, this.assetLibrary);
+    initScene(this.scene, this.camera, this.assetLibrary);
 
     /*var ssao = new HX.HBAO();
     ssao.radius = 50.0;
@@ -79,7 +92,7 @@ function initCamera(camera)
     // camera.addComponent(tonemap);
 }
 
-function initScene(scene, assetLibrary)
+function initScene(scene, camera, assetLibrary)
 {
     var sun = new HX.DirectionalLight();
     sun.direction = new HX.Float4(-0.3, -1.0, -.3, 0.0);
@@ -118,8 +131,10 @@ function initScene(scene, assetLibrary)
 
     var terrain = new HX.Terrain(4000, -100, 200, 5, terrainMaterial, 64);
 
-    var water = new HX.Terrain(4000, 0, 1, 3, waterMaterial, 16);
+    var plane = new HX.PlanePrimitive({width: 4000, height: 4000, numSegmentsW: 20, numSegmentsH: 20});
+    var water = new HX.ModelInstance(plane, waterMaterial, 16);
     water.position.z = waterLevel;
+    water.addComponent(new CenterAtComponent(camera));
 
     scene.attach(terrain);
     scene.attach(water);

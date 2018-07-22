@@ -21,15 +21,16 @@ Away3D "Broomstick" prototype that I developed back in 2010 before it became 4.0
 In any case, I think it's worth making things open source. There may always be things to learn and teach doing so.
 
 Some aspects of note:
-* The 3D engine uses a left-handed system, where X points "right", Y "up", and Z **into** the screen. This may be the 
-opposite of most GL-based systems, but it allows for a consistent notion where positive Z means forward. Always.
-* The engine is built using the Entity/Component model. This means objects in the Scene are Entities that can have
-Components registered to them, defining modular behaviour. More information on this in the documentation. 
+* The 3D engine uses a right-handed system, where X points "right", Y into the screen / "forward", and Z "up". This may 
+be different from most Javascript libraries, but it allows for a consistent notion where positive Y means forward.
+Always. It's also the most common convention in mathematics/physics.
+* The engine is built using the Entity/Component/System model. This means objects in the Scene are Entities that can 
+have Components registered to them, defining modular behaviour. More information on this in the documentation.  
 * Materials are strictly split up in "geometry" code and "lighting model" code. You can focus on writing uncluttered 
-geometry code that.
-* Some aspects may or may not be supported by the device (hdr rendering). The engine will catch this automatically, but 
-in most cases it's good to provide alternative solutions. Lack of HDR support or adaptive tone mapping may require a 
-different lighting setup.
+geometry code.
+* Some aspects may or may not be supported by the device (hdr rendering, WebGL 2 support). The engine will catch this 
+automatically, but in most cases it's good to provide alternative solutions. Lack of HDR support or adaptive tone 
+mapping may require a different lighting setup.
 * "Bones" (used in skinned animations) are *always* named "joints". It's more correct, and I'm a pedant. There!
 * More pedantry: adding and removing children to a scene graph node is called "attaching" and "detaching". I feel it
 describes more accurately what the relationship between child/parent is.

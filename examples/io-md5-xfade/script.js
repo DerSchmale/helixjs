@@ -94,7 +94,7 @@ function initScene(scene, assetLibrary)
     material.normalMap = assetLibrary.get("hellknight-normals");
     material.roughness = .3;
     material.roughnessRange = .32;
-    material.lights = lights;
+    material.fixedLights = lights;
 
     var model = assetLibrary.get("model");
     var modelInstance = new HX.ModelInstance(model, material);

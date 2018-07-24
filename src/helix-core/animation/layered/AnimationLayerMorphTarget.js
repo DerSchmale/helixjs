@@ -1,7 +1,4 @@
 import {AnimationLayer} from "./AnimationLayer";
-import {Debug} from "../../debug/Debug";
-import {Quaternion} from "../../math/Quaternion";
-import {SkeletonJointPose} from "../skeleton/SkeletonJointPose";
 import {MathX} from "../../math/MathX";
 
 /**

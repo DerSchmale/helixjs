@@ -139,7 +139,7 @@ ShaderLibrary._files['ssr_fragment.glsl'] = '#derivatives\n\n// TODO: This won\'
 
 ShaderLibrary._files['ssr_stencil_fragment.glsl'] = 'uniform sampler2D hx_gbufferSpecular;\n\nvarying_in vec2 uv;\n\nuniform float maxRoughness;\n\nvoid main()\n{\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    if (specularSample.x > maxRoughness)\n        discard;\n}\n\n';
 
-ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x = hx_getToneMapScaledColor().xyz * 16.0;\n\n    // Uncharted 2 tonemapping (http://filmicworlds.com/blog/filmic-tonemapping-operators/)\n\n	float A = 0.15;\n    float B = 0.50;\n    float C = 0.10;\n    float D = 0.20;\n    float E = 0.02;\n    float F = 0.30;\n    float W = 11.2;\n\n    hx_FragColor.xyz = hx_gammaToLinear(((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F);\n    hx_FragColor.w = 1.0;\n}';
+ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x = hx_getToneMapScaledColor().xyz;\n\n    // Uncharted 2 tonemapping (http://filmicworlds.com/blog/filmic-tonemapping-operators/)\n\n	float A = 0.15;\n    float B = 0.50;\n    float C = 0.10;\n    float D = 0.20;\n    float E = 0.02;\n    float F = 0.30;\n    float W = 11.2;\n\n    hx_FragColor.xyz = hx_gammaToLinear(\n    (((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F) / ((W*(A*x+C*B)+D*E)/(W*(A*x+B)+D*F))-E/F\n    );\n    hx_FragColor.w = 1.0;\n}';
 
 ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 

@@ -26,7 +26,7 @@ project.onInit = function()
 window.onload = function ()
 {
     var initOptions = new HX.InitOptions();
-    initOptions.hdr = !HX.Platform.isMobile;
+    initOptions.hdr = false; !HX.Platform.isMobile;
     project.init(document.getElementById('webglContainer'), initOptions);
 };
 

@@ -306,9 +306,12 @@ RigidBody.prototype.prepTransform = function()
 	else
 		body.position.set(p.x, p.y, p.z);
 
-	if (!this._ignoreRotation) {
-        var q = entity.rotation;
-        body.quaternion.set(q.x, q.y, q.z, q.w);
+	if (this._ignoreRotation) {
+		body.quaternion.set(0, 0, 0, 1);
+	}
+	else {
+		var q = entity.rotation;
+		body.quaternion.set(q.x, q.y, q.z, q.w);
 	}
 };
 

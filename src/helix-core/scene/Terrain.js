@@ -153,7 +153,6 @@ Terrain.prototype._initModels = function(gridSize)
         }
 
         modelSize *= .5;
-
     }
 };
 

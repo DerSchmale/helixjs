@@ -41,13 +41,6 @@ project.onInit = function()
     initCamera(this.camera);
     initScene(this.scene, this.camera, this.assetLibrary);
 
-    /*var ssao = new HX.HBAO();
-    ssao.radius = 50.0;
-    ssao.strength = 3.14;
-    ssao.fallOffDistance = 100.0;
-    ssao.bias = 0.1;
-    this.renderer.ambientOcclusion = ssao;*/
-
     time = 0;
 };
 
@@ -102,10 +95,6 @@ function initCamera(camera)
 
     fog = new HX.Fog(0.0005, new HX.Color(0x1155ff), 0.0005, 100);
     camera.addComponent(fog);
-
-    // var tonemap = new HX.FilmicToneMapping();
-    // tonemap.exposure = 0.0;
-    // camera.addComponent(tonemap);
 }
 
 function initScene(scene, camera, assetLibrary)
@@ -141,7 +130,6 @@ function initScene(scene, camera, assetLibrary)
     terrainMaterial.setTexture("terrainMap", terrainMap);
     terrainMaterial.setUniform("heightMapSize", 2048);
     terrainMaterial.setUniform("worldSize", worldSize);
-    // terrainMaterial.ssao = true;
 
     waterMaterial = assetLibrary.get("water-material");
 

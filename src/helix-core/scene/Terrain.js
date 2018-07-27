@@ -12,7 +12,7 @@ import {SceneNode} from "./SceneNode";
  *
  * @property {number} terrainSize The world size for the entire terrain.
  *
- * @param terrainSize The world size for the entire terrain.
+ * @param terrainSize The world size for the entire terrain's geometry. Generally smaller than the total world size of the height map.
  * @param minElevation The minimum elevation for the terrain (maps to heightmap value 0)
  * @param maxElevation The maximum elevation for the terrain (maps to heightmap value 1)
  * @param numLevels The amount of levels the page tree should contain. More levels means more(!) triangles.

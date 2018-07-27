@@ -522,16 +522,22 @@ function HeightfieldCollider(heightData, worldSize, minHeight, maxHeight, rgbaEn
 {
 	Collider.call(this);
 
-	if (heightData instanceof HX.Texture2D)
-		this._heightData = this._convertHeightMap(heightData, minHeight || 0, maxHeight || 1, rgbaEnc);
-	else
+	if (heightData instanceof HX.Texture2D) {
+		if (maxHeight === undefined) maxHeight = 1;
+		if (minHeight === undefined) minHeight = 0;
+
+		this._heightData = this._convertHeightMap(heightData, maxHeight - minHeight, rgbaEnc);
+	}
+	else {
 		this._heightData = heightData;
+		minHeight = this._shiftHeightData();
+	}
 
 	this._heightMapWidth = this._heightData.length;
 	this._heightMapHeight = this._heightData[0].length;
 	this._worldSize = worldSize;
 	this._elementSize = this._worldSize / (this._heightMapWidth - 1);
-	this._positionOffset = new HX.Float4(-this._elementSize * this._heightMapWidth * .5, -this._elementSize * this._heightMapHeight * .5, 0, 0);
+	this._positionOffset = new HX.Float4(-this._elementSize * this._heightMapWidth * .5, -this._elementSize * this._heightMapHeight * .5, minHeight, 0);
 }
 
 HeightfieldCollider.prototype = Object.create(Collider.prototype);
@@ -552,7 +558,7 @@ HeightfieldCollider.prototype.createShape = function (sceneBounds)
  * @private
  * @ignore
  */
-HeightfieldCollider.prototype._convertHeightMap = function (map, minHeight, maxHeight, rgbaEnc)
+HeightfieldCollider.prototype._convertHeightMap = function (map, scale, rgbaEnc)
 {
 	var w = map.width;
 	var h = map.height;
@@ -577,9 +583,8 @@ HeightfieldCollider.prototype._convertHeightMap = function (map, minHeight, maxH
 	HX.GL.gl.readPixels(0, 0, w, h, HX.TextureFormat.RGBA, map.dataType, data);
 
 	var arr = [];
-	var sc = maxHeight - minHeight;
 
-	if (rgbaEnc) sc /= 255.0;
+	if (rgbaEnc) scale /= 255.0;
 
 	for (var x = 0; x < w; ++x) {
 		arr[x] = [];
@@ -592,11 +597,38 @@ HeightfieldCollider.prototype._convertHeightMap = function (map, minHeight, maxH
 			if (rgbaEnc)
 				val += data[i + 1] / 255.0 + data[i + 2] / 65025.0 + data[i + 3] / 16581375.0;
 
-			arr[x][y] = minHeight + val * sc;
+			arr[x][y] = val * scale;
 		}
 	}
 
 	return arr;
+};
+
+HeightfieldCollider.prototype._shiftHeightData = function()
+{
+	var data = this._heightData;
+	var w = data.width;
+	var h = data.height;
+
+	var minZ = 0.0;
+
+	for (var x = 0; x < w; ++x) {
+		for (var y = 0; y < h; ++y) {
+			if (data[x][y] < minZ) {
+				minZ = data[x][y];
+			}
+		}
+	}
+
+	if (minZ === 0.0) return;
+
+	for (var x = 0; x < w; ++x) {
+		for (var y = 0; y < h; ++y) {
+			data[x][y] += minZ;
+		}
+	}
+
+	return minZ;
 };
 
 function PlayerController()

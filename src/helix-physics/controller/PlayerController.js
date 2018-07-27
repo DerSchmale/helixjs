@@ -204,11 +204,16 @@ PlayerController.prototype.onUpdate = function(dt)
 		y.normalize();
 		p.x = (this._move.x * x.x + this._move.y * y.x) * this._movementForce;
 		p.y = (this._move.x * x.y + this._move.y * y.y) * this._movementForce;
-		p.z = this._jump;
+		p.z = 0.0;
+		this._rigidBody.addForce(p);
 
-		this._jump = 0;
-
-		this._rigidBody.addImpulse(p);
+		if (this._jump) {
+			p.x = 0;
+			p.y = 0;
+			p.z = this._jump;
+			this._rigidBody.addImpulse(p);
+			this._jump = 0;
+		}
 	}
 }();
 

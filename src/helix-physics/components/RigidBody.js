@@ -12,6 +12,8 @@ import {SphereCollider} from "../collider/SphereCollider";
  * @param collider The Collider type describing the shape of how to object interacts with the world. If omitted, it will
  * take a shape based on the type of bounds assigned to the target object.
  * @param mass The mass of the target object. If omitted, it will venture a guess based on the bounding volume.*
+ * @param ignoreRotation When set to true, the rigid body does not take on the rotation of its entity. This is useful
+ * for a player controller camera.
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -20,6 +22,7 @@ function RigidBody(collider, mass)
     HX.Component.call(this);
     this._collider = collider;
     this._body = null;
+    this._ignoreRotation = false;
 
     this._mass = mass;
 
@@ -29,6 +32,18 @@ function RigidBody(collider, mass)
 
 
 HX.Component.create(RigidBody, {
+	ignoreRotation: {
+        get: function()
+        {
+            return this._ignoreRotation;
+        },
+
+        set: function(value)
+        {
+			this._ignoreRotation = value;
+        }
+    },
+
     body: {
         get: function() {
             return this._body;
@@ -78,12 +93,29 @@ HX.Component.create(RigidBody, {
 
 RigidBody.prototype.addImpulse = function(v, pos)
 {
-    this._body.applyImpulse(v, pos || this._body.position);
+    // if no position is set, just
+	if (pos) {
+		this._body.applyImpulse(v, pos);
+	}
+	else {
+		var vel = this._body.velocity;
+		vel.x += v.x;
+		vel.y += v.y;
+		vel.z += v.z;
+	}
 };
 
 RigidBody.prototype.addForce = function(v, pos)
 {
-    this._body.applyForce(v, pos || this._body.position);
+    if (pos) {
+		this._body.applyForce(v, pos);
+	}
+	else {
+        var f = this._body.force;
+        f.x += v.x;
+        f.y += v.y;
+        f.z += v.z;
+    }
 };
 
 RigidBody.prototype.onAdded = function()
@@ -101,7 +133,6 @@ RigidBody.prototype.prepTransform = function()
 	var body = this._body;
 
 	var p = entity.position;
-	var q = entity.rotation;
 
 	var offs = this._collider._positionOffset;
 	if (offs)
@@ -109,9 +140,13 @@ RigidBody.prototype.prepTransform = function()
 	else
 		body.position.set(p.x, p.y, p.z);
 
-	body.quaternion.set(q.x, q.y, q.z, q.w);
-
-
+	if (this._ignoreRotation) {
+		body.quaternion.set(0, 0, 0, 1);
+	}
+	else {
+		var q = entity.rotation;
+		body.quaternion.set(q.x, q.y, q.z, q.w);
+	}
 };
 
 RigidBody.prototype.applyTransform = function()
@@ -127,9 +162,8 @@ RigidBody.prototype.applyTransform = function()
     else
         entity.position = body.position;
 
-    entity.rotation = body.quaternion;
-
-
+    if (!this._ignoreRotation)
+        entity.rotation = body.quaternion;
 };
 
 RigidBody.prototype._createBody = function()
@@ -159,7 +193,9 @@ RigidBody.prototype._createBody = function()
     this._body.angularDamping = this._angularDamping;
 
     this._body.position.copy(entity.position);
-    this._body.quaternion.copy(entity.rotation);
+
+    if (!this._ignoreRotation)
+        this._body.quaternion.copy(entity.rotation);
 };
 
 export {RigidBody};

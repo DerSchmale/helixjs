@@ -66,7 +66,7 @@ window.onload = function ()
     options.webgl2 = true;
     options.numShadowCascades = 3;
     options.hdr = true;
-    options.defaultLightingModel = HX.LightingModel.GGX;
+    options.defaultLightingModel = HX.LightingModel.GGX_FULL;
     options.shadowFilter = new HX.VarianceShadowFilter();
     options.shadowFilter.softness = .002;
     project.init(document.getElementById('webglContainer'), options);
@@ -91,7 +91,7 @@ function initCamera(camera)
 	var rigidBody = new HX.RigidBody(
 	    new HX.CapsuleCollider(1.0, 2, new HX.Float4(0, 0, -.9)),
         undefined,
-		new HX.PhysicsMaterial(0.14, 0.0)
+		new HX.PhysicsMaterial(0.12, 0.0)
     );
 
 	rigidBody.linearDamping = 0.8;
@@ -145,7 +145,7 @@ function initScene(scene, camera, assetLibrary)
     var rigidBody = new HX.RigidBody(
 		new HX.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight, true),
         0,
-        new HX.PhysicsMaterial(0.14, 0.0)
+        new HX.PhysicsMaterial(0.12, 0.0)
     );
 	terrain.addComponent(rigidBody);
 

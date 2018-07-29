@@ -53,7 +53,7 @@ project.onUpdate = function(dt)
     var pos = this.camera.position;
     pos.x = HX.MathX.clamp(pos.x, -1900, 1900);
     pos.y = HX.MathX.clamp(pos.y, -1900, 1900);
-    pos.z = Math.max(pos.z, waterLevel + 1.5);
+    // pos.z = Math.max(pos.z, waterLevel + 1.5);
 };
 
 window.onload = function ()
@@ -78,16 +78,19 @@ function initCamera(camera)
     camera.farDistance = 2000.0;
 
     var controller = new HX.PlayerController();
-    controller.walkForce = 1000.0;
+    controller.walkForce = 2000.0;
     controller.runForce = 20000.0;
-    controller.jumpForce = 10.0;
+    controller.jumpForce = 5.0;
     controller.yaw = Math.PI;
     camera.addComponent(controller);
 
-	var rigidBody = new HX.RigidBody(new HX.CapsuleCollider(.5, 2, new HX.Float4(0, 0, -.9)));
-	// TODO: Need to add friction instead of this strong linearDamping
-	rigidBody.linearDamping = .9;
-	rigidBody.angularDamping = 1.0; // disable rotational physics
+	var rigidBody = new HX.RigidBody(
+	    new HX.CapsuleCollider(.5, 2, new HX.Float4(0, 0, -.9)),
+        undefined,
+		new HX.PhysicsMaterial(0.14, 0.0)
+    );
+
+	rigidBody.linearDamping = 0.8;
 	rigidBody.mass = 70;
 	// important so the player capsule does not rotate along with the "head"
 	rigidBody.ignoreRotation = true;
@@ -136,9 +139,9 @@ function initScene(scene, camera, assetLibrary)
     var terrain = new HX.Terrain(4000, -100, 200, 4, terrainMaterial, 32);
 
     var rigidBody = new HX.RigidBody(
-		// new HX.HeightfieldCollider(heightData, worldSize, -100, 200, true),
-	    new HX.HeightfieldCollider(heightMap, worldSize, -100, 200, true),
-        0
+		new HX.HeightfieldCollider(heightMap, worldSize, -100, 200, true),
+        0,
+        new HX.PhysicsMaterial(0.14, 0.0)
     );
 	terrain.addComponent(rigidBody);
 

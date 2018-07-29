@@ -8,16 +8,22 @@ import {SphereCollider} from "../collider/SphereCollider";
  * {@linkcode PhysicsSystem}. At this point, entities using RigidBody need to be added to the root of the scenegraph (or
  * have parents without transformations)!
  *
+ * @property {boolean} ignoreRotation When set to true, the rigid body does not take on the rotation of its entity. This is useful
+ * for a player controller camera.
+ * @property {Number} ignoreRotation The mass of the target object.
+ * @property {Number} linearDamping How much an object linear movement slows down over time
+ * @property {Number} angularDamping How much an object rotational movement slows down over time
+ * @property {PhysicsMaterial} material The PhysicsMaterial defining friction and restitution.
+ *
  * @constructor
  * @param collider The Collider type describing the shape of how to object interacts with the world. If omitted, it will
  * take a shape based on the type of bounds assigned to the target object.
  * @param mass The mass of the target object. If omitted, it will venture a guess based on the bounding volume.*
- * @param ignoreRotation When set to true, the rigid body does not take on the rotation of its entity. This is useful
- * for a player controller camera.
+ * @param material An optional PhysicsMaterial defining the friction and restitution parameters of the surface
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function RigidBody(collider, mass)
+function RigidBody(collider, mass, material)
 {
     HX.Component.call(this);
     this._collider = collider;
@@ -28,6 +34,7 @@ function RigidBody(collider, mass)
 
     this._linearDamping = 0.01;
     this._angularDamping = 0.01;
+	this._material = material;
 }
 
 
@@ -41,6 +48,11 @@ HX.Component.create(RigidBody, {
         set: function(value)
         {
 			this._ignoreRotation = value;
+
+			// disable rotational physics altogether
+			if (this._body)
+				this._body.fixedRotation = value;
+			// 	this._body.angularDamping = value? 1.0 : this._angularDamping;
         }
     },
 
@@ -59,8 +71,10 @@ HX.Component.create(RigidBody, {
         set: function(value)
         {
             this._mass = value;
-            if (this._body)
-                this._body.mass = value;
+            if (this._body) {
+				this._body.mass = value;
+				this._body.updateMassProperties();
+			}
         }
     },
 
@@ -86,7 +100,25 @@ HX.Component.create(RigidBody, {
         set: function(value)
         {
             this._angularDamping = value;
-            if (this._body) this._body.angularDamping = value;
+
+			// disable rotational physics altogether if ignoreRotation is set
+			// if (this._body)
+            	// this._body.angularDamping = this._ignoreRotation? 1.0 : value;
+        }
+    },
+
+    material: {
+	    get: function()
+        {
+            return this._material;
+        },
+
+        set: function(value)
+        {
+            this._material = value;
+
+            if (this._body)
+            	this._body.material = value? value._cannonMaterial : null;
         }
     }
 });
@@ -189,13 +221,19 @@ RigidBody.prototype._createBody = function()
     if (this._mass !== undefined)
         this._body.mass = this._mass;
 
+    if (this._material !== undefined)
+		this._body.material = this._material._cannonMaterial;
+
     this._body.linearDamping = this._linearDamping;
     this._body.angularDamping = this._angularDamping;
 
     this._body.position.copy(entity.position);
 
+	this._body.fixedRotation = this._ignoreRotation;
     if (!this._ignoreRotation)
         this._body.quaternion.copy(entity.rotation);
+
+	this._body.updateMassProperties();
 };
 
 export {RigidBody};

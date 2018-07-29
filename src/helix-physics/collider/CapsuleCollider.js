@@ -42,8 +42,9 @@ CapsuleCollider.prototype.createShape = function(sceneBounds)
 	var cylHeight = this._height - 2 * this._radius;
     this._radius = this._radius || sceneBounds.getRadius();
     var shape = new CompoundShape();
-	shape.addShape(new CANNON.Sphere(this._radius), new HX.Float4(0, 0, -cylHeight * .5));
-	shape.addShape(new CANNON.Sphere(this._radius), new HX.Float4(0, 0, cylHeight * .5));
+    var sphere = new CANNON.Sphere(this._radius);
+	shape.addShape(sphere, new HX.Float4(0, 0, -cylHeight * .5));
+	shape.addShape(sphere, new HX.Float4(0, 0, cylHeight * .5));
 	shape.addShape(new CANNON.Cylinder(this._radius, this._radius, cylHeight, 10));
     return shape;
 };

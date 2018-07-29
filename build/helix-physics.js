@@ -77,8 +77,8 @@ Collider.prototype = {
         return body;
     },
 
-    /**
-     * @ignore
+	/**
+	 * @ignore
      */
     createShape: function(sceneBounds)
     {
@@ -111,8 +111,8 @@ function BoxCollider(min, max)
 {
     Collider.call(this);
     if (min && max) {
-        this._halfExtents = HX.Float.subtract(max, min).scale(.5);
-        this._center = HX.Float.add(max, min).scale(.5);
+        this._halfExtents = HX.Float4.subtract(max, min).scale(.5);
+        this._center = HX.Float4.add(max, min).scale(.5);
     }
 }
 
@@ -174,16 +174,22 @@ SphereCollider.prototype.createShape = function(sceneBounds)
  * {@linkcode PhysicsSystem}. At this point, entities using RigidBody need to be added to the root of the scenegraph (or
  * have parents without transformations)!
  *
+ * @property {boolean} ignoreRotation When set to true, the rigid body does not take on the rotation of its entity. This is useful
+ * for a player controller camera.
+ * @property {Number} ignoreRotation The mass of the target object.
+ * @property {Number} linearDamping How much an object linear movement slows down over time
+ * @property {Number} angularDamping How much an object rotational movement slows down over time
+ * @property {PhysicsMaterial} material The PhysicsMaterial defining friction and restitution.
+ *
  * @constructor
  * @param collider The Collider type describing the shape of how to object interacts with the world. If omitted, it will
  * take a shape based on the type of bounds assigned to the target object.
  * @param mass The mass of the target object. If omitted, it will venture a guess based on the bounding volume.*
- * @param ignoreRotation When set to true, the rigid body does not take on the rotation of its entity. This is useful
- * for a player controller camera.
+ * @param material An optional PhysicsMaterial defining the friction and restitution parameters of the surface
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function RigidBody(collider, mass)
+function RigidBody(collider, mass, material)
 {
     HX$1.Component.call(this);
     this._collider = collider;
@@ -194,6 +200,7 @@ function RigidBody(collider, mass)
 
     this._linearDamping = 0.01;
     this._angularDamping = 0.01;
+	this._material = material;
 }
 
 
@@ -207,6 +214,11 @@ HX$1.Component.create(RigidBody, {
         set: function(value)
         {
 			this._ignoreRotation = value;
+
+			// disable rotational physics altogether
+			if (this._body)
+				this._body.fixedRotation = value;
+			// 	this._body.angularDamping = value? 1.0 : this._angularDamping;
         }
     },
 
@@ -225,8 +237,10 @@ HX$1.Component.create(RigidBody, {
         set: function(value)
         {
             this._mass = value;
-            if (this._body)
-                this._body.mass = value;
+            if (this._body) {
+				this._body.mass = value;
+				this._body.updateMassProperties();
+			}
         }
     },
 
@@ -252,7 +266,25 @@ HX$1.Component.create(RigidBody, {
         set: function(value)
         {
             this._angularDamping = value;
-            if (this._body) this._body.angularDamping = value;
+
+			// disable rotational physics altogether if ignoreRotation is set
+			// if (this._body)
+            	// this._body.angularDamping = this._ignoreRotation? 1.0 : value;
+        }
+    },
+
+    material: {
+	    get: function()
+        {
+            return this._material;
+        },
+
+        set: function(value)
+        {
+            this._material = value;
+
+            if (this._body)
+            	this._body.material = value? value._cannonMaterial : null;
         }
     }
 });
@@ -355,13 +387,19 @@ RigidBody.prototype._createBody = function()
     if (this._mass !== undefined)
         this._body.mass = this._mass;
 
+    if (this._material !== undefined)
+		this._body.material = this._material._cannonMaterial;
+
     this._body.linearDamping = this._linearDamping;
     this._body.angularDamping = this._angularDamping;
 
     this._body.position.copy(entity.position);
 
+	this._body.fixedRotation = this._ignoreRotation;
     if (!this._ignoreRotation)
         this._body.quaternion.copy(entity.rotation);
+
+	this._body.updateMassProperties();
 };
 
 /**
@@ -382,11 +420,11 @@ function PhysicsSystem()
     this._world.solver.tolerance = .0001;
     this._world.solver.iterations = 10;
     this._fixedTimeStep = 1000/60;
-    // this._world.broadphase = new CANNON.SAPBroadphase(this._world);
-    this._world.broadphase = new CANNON$1.NaiveBroadphase(this._world);
+    this._world.broadphase = new CANNON$1.SAPBroadphase(this._world);
+    // this._world.broadphase = new CANNON.NaiveBroadphase(this._world);
 
     // this._world.quatNormalizeFast = true;
-    // this._world.quatNormalizeSkip = 8;
+    // this._world.quatNormalizeSkip = 2;
 
     this._components = [];
 }
@@ -510,8 +548,9 @@ CapsuleCollider.prototype.createShape = function(sceneBounds)
 	var cylHeight = this._height - 2 * this._radius;
     this._radius = this._radius || sceneBounds.getRadius();
     var shape = new CompoundShape();
-	shape.addShape(new CANNON$1.Sphere(this._radius), new HX.Float4(0, 0, -cylHeight * .5));
-	shape.addShape(new CANNON$1.Sphere(this._radius), new HX.Float4(0, 0, cylHeight * .5));
+    var sphere = new CANNON$1.Sphere(this._radius);
+	shape.addShape(sphere, new HX.Float4(0, 0, -cylHeight * .5));
+	shape.addShape(sphere, new HX.Float4(0, 0, cylHeight * .5));
 	shape.addShape(new CANNON$1.Cylinder(this._radius, this._radius, cylHeight, 10));
     return shape;
 };
@@ -665,6 +704,48 @@ HeightfieldCollider.prototype._shiftHeightData = function()
 	}
 
 	return minZ;
+};
+
+/**
+ * PhysicsMaterial represents the physical "material" a RigidBody is made of, defining friction and restitution ("bounciness").
+ * @param friction Defines how hard it is to move an object resting on this material.
+ * @param restitution Defines how much an object that hits the material bounces.
+ * @constructor
+ */
+function PhysicsMaterial(friction, restitution)
+{
+	this._cannonMaterial = new CANNON.Material({
+		friction: friction,
+		restitution: restitution
+	});
+}
+
+PhysicsMaterial.prototype = {
+	/**
+	 * Defines how hard it is to move an object resting on this material.
+	 */
+	get friction()
+	{
+		return this._cannonMaterial.friction;
+	},
+
+	set friction(value)
+	{
+		this._cannonMaterial.friction = value;
+	},
+
+	/**
+	 * The "bounciness" of this material.
+	 */
+	get restitution()
+	{
+		return this._cannonMaterial.restitution;
+	},
+
+	set restitution(value)
+	{
+		this._cannonMaterial.restitution = value;
+	}
 };
 
 function PlayerController()
@@ -923,6 +1004,7 @@ exports.CapsuleCollider = CapsuleCollider;
 exports.SphereCollider = SphereCollider;
 exports.InfinitePlaneCollider = InfinitePlaneCollider;
 exports.HeightfieldCollider = HeightfieldCollider;
+exports.PhysicsMaterial = PhysicsMaterial;
 exports.PlayerController = PlayerController;
 
 Object.defineProperty(exports, '__esModule', { value: true });

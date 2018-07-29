@@ -17,8 +17,8 @@ function BoxCollider(min, max)
 {
     Collider.call(this);
     if (min && max) {
-        this._halfExtents = HX.Float.subtract(max, min).scale(.5);
-        this._center = HX.Float.add(max, min).scale(.5);
+        this._halfExtents = HX.Float4.subtract(max, min).scale(.5);
+        this._center = HX.Float4.add(max, min).scale(.5);
     }
 }
 

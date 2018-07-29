@@ -11821,6 +11821,7 @@ Narrowphase.prototype.createFrictionFromAverage = function(numContacts){
     f2.rj.copy(f1.rj);
     averageNormal.normalize();
     averageNormal.tangents(f1.t, f2.t);
+
     // return eq;
 };
 

@@ -21,11 +21,11 @@ function PhysicsSystem()
     this._world.solver.tolerance = .0001;
     this._world.solver.iterations = 10;
     this._fixedTimeStep = 1000/60;
-    // this._world.broadphase = new CANNON.SAPBroadphase(this._world);
-    this._world.broadphase = new CANNON.NaiveBroadphase(this._world);
+    this._world.broadphase = new CANNON.SAPBroadphase(this._world);
+    // this._world.broadphase = new CANNON.NaiveBroadphase(this._world);
 
     // this._world.quatNormalizeFast = true;
-    // this._world.quatNormalizeSkip = 8;
+    // this._world.quatNormalizeSkip = 2;
 
     this._components = [];
 }

@@ -53,8 +53,8 @@ Collider.prototype = {
         return body;
     },
 
-    /**
-     * @ignore
+	/**
+	 * @ignore
      */
     createShape: function(sceneBounds)
     {

@@ -5,4 +5,5 @@ export { CapsuleCollider } from "./collider/CapsuleCollider";
 export { SphereCollider } from "./collider/SphereCollider";
 export { InfinitePlaneCollider } from "./collider/InfinitePlaneCollider";
 export { HeightfieldCollider } from "./collider/HeightfieldCollider";
+export { PhysicsMaterial } from "./material/PhysicsMaterial";
 export { PlayerController } from "./controller/PlayerController";

@@ -1,4 +1,5 @@
 /**
+/**
  * @author derschmale <http://www.derschmale.com>
  */
 
@@ -8,8 +9,10 @@ var waterMaterial;
 var time = 0;
 
 // 1 = 10m
-var worldSize = 5000;
+var worldSize = 20000;
 var waterLevel = -15;
+var minHeight = -100;
+var maxHeight = 1000;
 var fog;
 
 function CenterAtComponent(camera)
@@ -51,8 +54,9 @@ project.onUpdate = function(dt)
     waterMaterial.setUniform("normalOffset2", [ time * 0.0001, time * 0.0002 ]);
 
     var pos = this.camera.position;
-    pos.x = HX.MathX.clamp(pos.x, -1900, 1900);
-    pos.y = HX.MathX.clamp(pos.y, -1900, 1900);
+    var bound = worldSize * .5 - 100;
+    pos.x = HX.MathX.clamp(pos.x, -bound, bound);
+    pos.y = HX.MathX.clamp(pos.y, -bound, bound);
     pos.z = Math.max(pos.z, waterLevel + 0.5);
 };
 
@@ -70,9 +74,9 @@ window.onload = function ()
 
 function initCamera(camera)
 {
-    camera.position.x = 1397;
-    camera.position.y = -1676;
-    camera.position.z = waterLevel + 5;
+    camera.position.x = 1397 * 4;
+    camera.position.y = -1676 * 4;
+    camera.position.z = 221;
 
     camera.nearDistance = 0.05;
     camera.farDistance = 2000.0;
@@ -85,7 +89,7 @@ function initCamera(camera)
     camera.addComponent(controller);
 
 	var rigidBody = new HX.RigidBody(
-	    new HX.CapsuleCollider(.5, 2, new HX.Float4(0, 0, -.9)),
+	    new HX.CapsuleCollider(1.0, 2, new HX.Float4(0, 0, -.9)),
         undefined,
 		new HX.PhysicsMaterial(0.14, 0.0)
     );
@@ -136,10 +140,10 @@ function initScene(scene, camera, assetLibrary)
 
     waterMaterial = assetLibrary.get("water-material");
 
-    var terrain = new HX.Terrain(4000, -100, 200, 4, terrainMaterial, 32);
+    var terrain = new HX.Terrain(4000, minHeight, maxHeight, 4, terrainMaterial, 32);
 
     var rigidBody = new HX.RigidBody(
-		new HX.HeightfieldCollider(heightMap, worldSize, -100, 200, true),
+		new HX.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight, true),
         0,
         new HX.PhysicsMaterial(0.14, 0.0)
     );

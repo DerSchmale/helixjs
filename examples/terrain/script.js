@@ -53,7 +53,7 @@ project.onUpdate = function(dt)
     var pos = this.camera.position;
     pos.x = HX.MathX.clamp(pos.x, -1900, 1900);
     pos.y = HX.MathX.clamp(pos.y, -1900, 1900);
-    // pos.z = Math.max(pos.z, waterLevel + 1.5);
+    pos.z = Math.max(pos.z, waterLevel + 0.5);
 };
 
 window.onload = function ()

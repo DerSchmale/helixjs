@@ -79,7 +79,7 @@ function initCamera(camera)
     camera.position.z = 221;
 
     camera.nearDistance = 0.05;
-    camera.farDistance = 2000.0;
+    camera.farDistance = 8000.0;
 
     var controller = new HX.PlayerController();
     controller.walkForce = 2000.0;
@@ -100,7 +100,7 @@ function initCamera(camera)
 	rigidBody.ignoreRotation = true;
 	camera.addComponent(rigidBody);
 
-    fog = new HX.Fog(0.0005, new HX.Color(0x1155ff), 0.0005, 100);
+    fog = new HX.Fog(0.0004, new HX.Color(0x1155ff), 0.0005, 100);
     camera.addComponent(fog);
 }
 
@@ -140,7 +140,7 @@ function initScene(scene, camera, assetLibrary)
 
     waterMaterial = assetLibrary.get("water-material");
 
-    var terrain = new HX.Terrain(4000, minHeight, maxHeight, 4, terrainMaterial, 32);
+    var terrain = new HX.Terrain(16000, minHeight, maxHeight, 4, terrainMaterial, 32);
 
     var rigidBody = new HX.RigidBody(
 		new HX.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight, true),
@@ -150,7 +150,8 @@ function initScene(scene, camera, assetLibrary)
 	terrain.addComponent(rigidBody);
 
 	// this is definitely overkill:
-	var water = new HX.Terrain(4000, 0, 1, 2, waterMaterial, 2);
+	var plane = new HX.PlanePrimitive({width: 4000, height: 4000, numSegmentsW: 20, numSegmentsH: 20});
+	var water = new HX.ModelInstance(plane, waterMaterial, 16);
     water.position.z = waterLevel;
     water.addComponent(new CenterAtComponent(camera));
 

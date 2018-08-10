@@ -421,6 +421,7 @@ function PhysicsSystem()
     this._world.solver.iterations = 10;
     this._fixedTimeStep = 1000/60;
     this._world.broadphase = new CANNON$1.SAPBroadphase(this._world);
+    this._world.allowSleep = true;
     // this._world.broadphase = new CANNON.NaiveBroadphase(this._world);
 
     // this._world.quatNormalizeFast = true;

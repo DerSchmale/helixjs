@@ -64,16 +64,6 @@ function initCamera(camera)
     camera.nearDistance = .01;
     camera.farDistance = 50.0;
 
-    if (HX.META.OPTIONS.hdr) {
-        var bloom = new HX.Bloom(50, 1);
-        bloom.thresholdLuminance = .25;
-        camera.addComponent(bloom);
-
-        var tonemap = new HX.FilmicToneMapping();
-        tonemap.exposure = -0.5;
-        camera.addComponent(tonemap);
-    }
-
     var orbitController = new HX.OrbitController();
     orbitController.radius = 5.0;
     orbitController.minRadius = .3;

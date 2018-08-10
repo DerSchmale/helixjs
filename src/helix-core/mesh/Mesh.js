@@ -28,7 +28,7 @@ var Mesh_ID_COUNTER = 0;
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function Mesh(vertexUsage, indexUsage)
+function Mesh()
 {
     this.onLayoutChanged = new Signal();
     this._model = null;
@@ -36,8 +36,8 @@ function Mesh(vertexUsage, indexUsage)
     this._vertexStrides = [];
     this._vertexData = [];
     this._indexData = undefined;
-    this._vertexUsage = vertexUsage || BufferUsage.STATIC_DRAW;
-    this._indexUsage = indexUsage || BufferUsage.STATIC_DRAW;
+    this._vertexUsage = BufferUsage.STATIC_DRAW;
+    this._indexUsage = BufferUsage.STATIC_DRAW;
     this._numStreams = 0;
     this._numVertices = 0;
 
@@ -94,36 +94,6 @@ Mesh.prototype = {
     },
 
     /**
-     * A usage hint for the vertex buffer.
-     *
-     * @see {@linkcode BufferUsage}
-     */
-    get vertexUsage()
-    {
-        return this._vertexUsage;
-    },
-
-    set vertexUsage(value)
-    {
-        this._vertexUsage = value;
-    },
-
-    /**
-     * A usage hint for the index buffer.
-     *
-     * @see {@linkcode BufferUsage}
-     */
-    get indexUsage()
-    {
-        return this._indexUsage;
-    },
-
-    set indexUsage(value)
-    {
-        this._indexUsage = value;
-    },
-
-    /**
      * Returns whether or not vertex data was uploaded to the given stream index.
      */
     hasVertexData: function (streamIndex)
@@ -144,9 +114,11 @@ Mesh.prototype = {
      * has been finalized using setVertexAttribute calls. The data in the stream should be an interleaved array of
      * floats, with each attribute data in the order specified with the setVertexAttribute calls.
      */
-    setVertexData: function (data, streamIndex)
+    setVertexData: function (data, streamIndex, usageHint)
     {
         streamIndex = streamIndex || 0;
+
+        this._vertexUsage = usageHint || BufferUsage.STATIC_DRAW;
 
         this._vertexData[streamIndex] = data instanceof Float32Array? data : new Float32Array(data);
         this._vertexBuffers[streamIndex] = this._vertexBuffers[streamIndex] || new VertexBuffer();
@@ -167,8 +139,10 @@ Mesh.prototype = {
     /**
      * Uploads index data from an Array or a Uint16Array
      */
-    setIndexData: function (data)
+    setIndexData: function (data, usageHint)
     {
+        this._indexUsage = usageHint || BufferUsage.STATIC_DRAW;
+
         if (data instanceof Uint16Array) {
             this._indexData = data;
             this._indexType = DataType.UNSIGNED_SHORT;
@@ -325,7 +299,7 @@ Mesh.prototype = {
      */
     clone: function()
     {
-        var mesh = new Mesh(this._vertexUsage, this._indexUsage);
+        var mesh = new Mesh();
         var numAttribs = this._vertexAttributes.length;
 
         for (var i = 0; i < numAttribs; ++i) {
@@ -335,11 +309,11 @@ Mesh.prototype = {
 
         for (i = 0; i < this._numStreams; ++i) {
             if (this._vertexData[i])
-                mesh.setVertexData(this._vertexData[i], i);
+                mesh.setVertexData(this._vertexData[i], i, this._vertexUsage);
         }
 
         if (this._indexData)
-            mesh.setIndexData(this._indexData);
+            mesh.setIndexData(this._indexData, this._indexUsage);
 
         return mesh;
     },

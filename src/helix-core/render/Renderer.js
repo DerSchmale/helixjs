@@ -32,8 +32,9 @@ import {UniformBuffer} from "../core/UniformBuffer";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function Renderer()
+function Renderer(renderTarget)
 {
+    this._renderTarget = renderTarget || null;
     this._width = 0;
     this._height = 0;
 
@@ -167,6 +168,16 @@ Renderer.prototype =
         this._depthPrepass = value;
     },
 
+    get renderTarget()
+    {
+        return this._renderTarget;
+    },
+
+    set renderTarget(value)
+    {
+        this._renderTarget = value;
+    },
+
     /**
      * The background {@linkcode Color}.
      */
@@ -197,9 +208,8 @@ Renderer.prototype =
      * @param camera The {@linkcode Camera} from which to view the scene.
      * @param scene The {@linkcode Scene} to render.
      * @param dt The milliseconds passed since last frame.
-     * @param [renderTarget] An optional {@linkcode FrameBuffer} object to render to.
      */
-    render: function (camera, scene, dt, renderTarget)
+    render: function (camera, scene, dt)
     {
         this._gammaApplied = false;
         this._camera = camera;
@@ -207,7 +217,7 @@ Renderer.prototype =
 
         this._camera._updateClusterPlanes();
 
-        this._updateSize(renderTarget);
+        this._updateSize(this._renderTarget);
 
         camera._setRenderTargetResolution(this._width, this._height);
         this._renderCollector.collect(camera, scene);
@@ -239,7 +249,7 @@ Renderer.prototype =
 
         GL.setColorMask(true);
 
-        this._renderToScreen(renderTarget);
+        this._renderToScreen();
 
         GL.setBlendState();
         GL.setDepthMask(true);
@@ -791,9 +801,9 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _renderToScreen: function (renderTarget)
+    _renderToScreen: function ()
     {
-        GL.setRenderTarget(renderTarget);
+        GL.setRenderTarget(this._renderTarget);
         GL.clear();
 
         if (this._debugMode) {
@@ -845,12 +855,12 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _updateSize: function (renderTarget)
+    _updateSize: function ()
     {
         var width, height;
-        if (renderTarget) {
-            width = renderTarget.width;
-            height = renderTarget.height;
+        if (this._renderTarget) {
+            width = this._renderTarget.width;
+            height = this._renderTarget.height;
         }
         else {
             width = META.TARGET_CANVAS.width;

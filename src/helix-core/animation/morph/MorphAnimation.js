@@ -1,63 +1,49 @@
 import {Component} from "../../entity/Component";
 import {MorphPose} from "./MorphPose";
+import {MeshInstance} from "../../mesh/MeshInstance";
 
 /**
  * @classdesc
- * MorphAnimation is a {@linkcode Component} that can be added to ModelInstances to control morph target animations. The Mesh objects
- * used by the ModelInstance's Model must contain morph data generated with {@linkcode Mesh#generateMorphData}.
- * Up to 8 morph targets can be active at a time. If more morph targets have a weight assigned to them, only those with
- * the highest weight are used.
+ * MorphAnimation is a {@linkcode Component} that can be added to an Entity to control morph target animations. The Mesh
+ * objects used by the Entity's MeshInstance components must contain morph targets assigned with
+ * {@linkcode Mesh#addMorphTarget}. Up to 8 morph targets can be active at a time. If more morph targets have a weight
+ * assigned to them, only those with the highest weights are used.
  *
- * @property {number} numMorphTargets The amount of morph targets in total (active and non-active).
- *
- *
- * @param {Array} [targets] An Array of {@linkcode MorphTarget} objects. If omitted, it will use the morph pose already
- * assigned to the entity (if any).
  * @constructor
+ *
+ * @param [morphPose] An optional MorphPose. This allows sharing poses across entities.
  *
  * @see {@linkcode MorphPose}
  * @see {@linkcode MorphTarget}
- * @see {@linkcode Mesh#generateMorphData}
  *
  * @extends Component
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function MorphAnimation(targets)
+function MorphAnimation(morphPose)
 {
     Component.call(this);
 
-    // TODO: some day, morph pose could also become a tree using and generating poses?
-    // for now, it's really just a Component-shaped wrapper for ModelInstance.morphPose
-    if (targets) {
-        this._hasOwn = true;
-        this._morphPose = new MorphPose();
-        for (var i = 0; i < targets.length; ++i) {
-            this._morphPose.addMorphTarget(targets[i]);
-        }
-    }
-    else
-        this._hasOwn = false;
+    if (morphPose) {
+        this._morphPose = morphPose;
+	}
+	else {
+		this._morphPose = new MorphPose();
+	}
+	this._meshInstance = null;
 }
 
 Component.create(MorphAnimation,
     {
-        numMorphTargets: {
-            get: function() { return this._morphPose.numMorphTargets; }
+        morphPose: {
+            get: function() { return this._morphPose; },
+            set: function(value) {
+                this._morphPose = value;
+                this._assignMorphPose(value);
+            }
         }
     }
 );
-
-/**
- * Retrieves the morph target at the given index, as sorted by weight.
- * @param {Number} index The index of the morph target.
- * @returns {MorphTarget}
- */
-MorphAnimation.prototype.getMorphTarget = function(index)
-{
-    return this._morphPose.getMorphTarget(index);
-};
-
 
 /**
  * Sets the weight of the morph target with the given name.
@@ -74,10 +60,7 @@ MorphAnimation.prototype.setWeight = function(name, value)
  */
 MorphAnimation.prototype.onAdded = function()
 {
-    if (this._hasOwn)
-        this.entity.morphPose = this._morphPose;
-    else
-        this._morphPose = this.entity.morphPose;
+    this._assignMorphPose(this._morphPose);
 };
 
 /**
@@ -85,8 +68,7 @@ MorphAnimation.prototype.onAdded = function()
  */
 MorphAnimation.prototype.onRemoved = function()
 {
-    if (this._hasOwn)
-        this.entity.morphPose = null;
+    this._assignMorphPose(null);
 };
 
 /**
@@ -94,7 +76,19 @@ MorphAnimation.prototype.onRemoved = function()
  */
 MorphAnimation.prototype.onUpdate = function(dt)
 {
-    this._morphPose.update(dt);
+    this._morphPose.update();
+};
+
+/**
+ * @ignore
+ */
+
+MorphAnimation.prototype._assignMorphPose = function(pose)
+{
+	var meshInstances = this.entity.getComponentsByType(MeshInstance);
+	for (var i = 0, len = meshInstances.length; i < len; ++i) {
+		meshInstances[i].morphPose = pose;
+    }
 };
 
 export { MorphAnimation };

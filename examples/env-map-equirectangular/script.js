@@ -55,6 +55,6 @@ function initScene(scene, assetLibrary)
             scaleV: 2,
         });
 
-    var modelInstance = new HX.ModelInstance(primitive, material);
+    var modelInstance = new HX.Entity(new HX.MeshInstance(primitive, material));
     scene.attach(modelInstance);
 }

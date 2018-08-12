@@ -2,7 +2,8 @@ import {SkyboxMaterial} from "../material/SkyboxMaterial";
 import {Material} from "../material/Material";
 import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
 import {BoundingVolume} from "../scene/BoundingVolume";
-import {ModelInstance} from "../mesh/ModelInstance";
+import {Entity} from "../entity/Entity";
+import {MeshInstance} from "../mesh/MeshInstance";
 
 
 /**
@@ -17,15 +18,19 @@ import {ModelInstance} from "../mesh/ModelInstance";
  */
 function Skybox(materialOrTexture)
 {
+    Entity.call(this);
     if (!(materialOrTexture instanceof Material))
         materialOrTexture = new SkyboxMaterial(materialOrTexture);
 
     //var model = new HX.PlanePrimitive({alignment: HX.PlanePrimitive.ALIGN_XY, width: 2, height: 2});
-    var model = new BoxPrimitive({width: 1, invert: true});
-    model.localBounds.clear(BoundingVolume.EXPANSE_INFINITE);
-    this._modelInstance = new ModelInstance(model, materialOrTexture);
+    var mesh = new BoxPrimitive({width: 1, invert: true});
+	mesh.bounds.clear(BoundingVolume.EXPANSE_INFINITE);
+	mesh._boundsInvalid = false;
+
+    this._meshInstance = new MeshInstance(mesh, materialOrTexture);
+    this.addComponent(this._meshInstance);
 }
 
-Skybox.prototype = {};
+Skybox.prototype = Object.create(Entity.prototype);
 
 export { Skybox };

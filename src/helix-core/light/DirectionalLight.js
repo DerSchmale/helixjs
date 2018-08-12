@@ -101,9 +101,9 @@ DirectionalLight.prototype.setCascadeRatios = function(r1, r2, r3, r4)
  * @private
  * @ignore
  */
-DirectionalLight.prototype._updateWorldBounds = function()
+DirectionalLight.prototype._updateBounds = function()
 {
-    this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
+    this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
 /**

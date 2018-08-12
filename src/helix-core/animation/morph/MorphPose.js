@@ -4,7 +4,7 @@ import {Signal} from "../../core/Signal";
 /**
  * @classdesc
  * MorphPose defines a certain configuration for blending several morph targets. While this can be used to directly
- * assign to a {@linkcode ModelInstance}, it's usually controlled through a component such as {@MorphAnimation}. Other
+ * assign to a {@linkcode MeshInstance}, it's usually controlled through a component such as {@MorphAnimation}. Other
  * components could use several MorphPose objects in keyframes and tween between them over a timeline.
  *
  * @constructor
@@ -13,44 +13,14 @@ import {Signal} from "../../core/Signal";
  */
 function MorphPose()
 {
-    this._targets = [];
     this._weights = {};
     this._stateInvalid = true;
+    this._knownTargets = [];
     this.onChange = new Signal();
 }
 
 MorphPose.prototype =
 {
-    /**
-     * Gets the morph target as sorted by weight in update()
-     * @param {number} index The index of the {@linkcode MorphTarget}
-     * @returns {MorphTarget}
-     */
-    getMorphTarget: function(index)
-    {
-        return this._targets[index];
-    },
-
-    /**
-     * The amount of morph targets used in this pose.
-     * @returns {Number}
-     */
-    get numMorphTargets()
-    {
-        return this._targets.length;
-    },
-
-    /**
-     * Adds a MorphTarget object to the pose.
-     * @param {MorphTarget} morphTarget
-     */
-    addMorphTarget: function(morphTarget)
-    {
-        this._targets.push(morphTarget);
-        this._weights[morphTarget.name] = 0.0;
-        this._stateInvalid = true;
-    },
-
     /**
      * Gets the weight of a morph target with the given name.
      * @param {string} name The name of the morph target.
@@ -61,15 +31,29 @@ MorphPose.prototype =
         return this._weights[name];
     },
 
-    /**
-     * Sets the weight of a morph target with the given name.
+	/**
+     * Gets the morph target name at the given index. The targets are sorted by importance.
+	 */
+	getMorphTargetName: function(index)
+    {
+        return this._knownTargets[index];
+    },
+
+	/**
+	 * Sets the weight of a morph target with the given name.
      * @param {string} name The name of the morph target.
      * @param {number} value The new weight.
      */
     setWeight: function(id, value)
     {
-        if (this._weights[id] !== value)
-            this._stateInvalid = true;
+        var v = this._weights[id];
+
+        if (v === value) return;
+
+        if (v === undefined)
+            this._knownTargets.push(id);
+
+        this._stateInvalid = true;
 
         this._weights[id] = value;
     },
@@ -83,13 +67,13 @@ MorphPose.prototype =
         if (!this._stateInvalid) return;
 
         var w = this._weights;
+
         // sort by weights
-        this._targets.sort(function(a, b) {
+		this._knownTargets.sort(function(a, b) {
             return w[b.name] - w[a.name];
         });
 
         this._stateInvalid = false;
-
         this.onChange.dispatch();
     }
 };

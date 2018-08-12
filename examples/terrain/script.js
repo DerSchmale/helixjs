@@ -140,7 +140,8 @@ function initScene(scene, camera, assetLibrary)
 
     waterMaterial = assetLibrary.get("water-material");
 
-    var terrain = new HX.Terrain(16000, minHeight, maxHeight, 4, terrainMaterial, 32);
+    var terrain = new HX.Entity();
+	terrain.addComponent(new HX.Terrain(16000, minHeight, maxHeight, 4, terrainMaterial, 32));
 
     var rigidBody = new HX.RigidBody(
 		new HX.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight, true),
@@ -151,9 +152,10 @@ function initScene(scene, camera, assetLibrary)
 
 	// this is definitely overkill:
 	var plane = new HX.PlanePrimitive({width: 4000, height: 4000, numSegmentsW: 20, numSegmentsH: 20});
-	var water = new HX.ModelInstance(plane, waterMaterial, 16);
+	var water = new HX.Entity();
     water.position.z = waterLevel;
-    water.addComponent(new CenterAtComponent(camera));
+	water.addComponent(new HX.MeshInstance(plane, waterMaterial, 16));
+	water.addComponent(new CenterAtComponent(camera));
 
     scene.attach(terrain);
     scene.attach(water);

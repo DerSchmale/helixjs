@@ -36,9 +36,9 @@ AmbientLight.prototype.acceptVisitor = function (visitor)
 /**
  * @ignore
  */
-AmbientLight.prototype._updateWorldBounds = function()
+AmbientLight.prototype._updateBounds = function()
 {
-    this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
+    this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
 export { AmbientLight };

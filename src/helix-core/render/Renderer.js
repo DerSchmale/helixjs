@@ -415,7 +415,7 @@ Renderer.prototype =
 
                     o = offset + 128;
                     for (var face = 0; face < 6; ++face) {
-                        var tile = light._shadowTiles[face];
+                        tile = light._shadowTiles[face];
                         target.setFloat32(o, tile.x, true);
                         target.setFloat32(o + 4, tile.y, true);
                         target.setFloat32(o + 8, tile.z, true);
@@ -716,7 +716,7 @@ Renderer.prototype =
         var meshInstance = renderItem.meshInstance;
         pass.updatePassRenderState(renderItem.camera, this, light);
         pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
-        meshInstance.updateRenderState(passType);
+		meshInstance.updateRenderState(passType);
         var mesh = meshInstance._mesh;
         GL.drawElements(pass._elementType, mesh._numIndices, 0, mesh._indexType);
     },

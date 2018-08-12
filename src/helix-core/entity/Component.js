@@ -23,6 +23,7 @@ function Component()
 {
     // this allows notifying entities about bound changes (useful for sized components)
     this._entity = null;
+	this._enabled = true;
 }
 
 Component.COMPONENT_ID = 0;
@@ -40,6 +41,11 @@ Component.create = (function(constrFunction, props)
 
 Component.prototype =
 {
+	/**
+     * If a Component has a scene presence, it can have bounds
+	 */
+	getBounds: function() { return null; },
+
     /**
      * Called when this component is added to an Entity.
      */
@@ -62,7 +68,32 @@ Component.prototype =
     get entity()
     {
         return this._entity;
-    }
+    },
+
+	/**
+     * Defines whether or not this component should be enabled.
+	 */
+	get enabled()
+    {
+        return this._enabled;
+    },
+
+    set enabled(value)
+    {
+        if (this._entity) {
+            if (value)
+                this.onAdded();
+            else
+                this.onRemoved();
+		}
+        this._enabled = value;
+    },
+
+	/**
+	 * If provided, this method will be called by the scene partition traverser, allowing collection by the renderer.
+	 */
+	acceptVisitor: null
 };
+
 
 export { Component };

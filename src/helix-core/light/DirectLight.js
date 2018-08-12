@@ -43,7 +43,7 @@ DirectLight.prototype._updateScaledIrradiance = function ()
     this._scaledIrradiance.g *= scale;
     this._scaledIrradiance.b *= scale;
 
-    this._invalidateWorldBounds();
+    this._invalidateBounds();
 };
 
 export { DirectLight };

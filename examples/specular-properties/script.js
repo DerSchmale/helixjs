@@ -78,7 +78,8 @@ function initScene(scene, assetLibrary)
             material.metallicness = y / (numY - 1.0);
             // material.fixedLights = [ light, lightProbe ];
 
-            var modelInstance = new HX.ModelInstance(primitive, material);
+            var modelInstance = new HX.Entity();
+            modelInstance.addComponent(new HX.MeshInstance(primitive, material));
             modelInstance.position.x = ((x + .5) / numX - .5) * 3.0;
             modelInstance.position.y = 0.0;
             modelInstance.position.z = -((y + .5) / numY - .5) * 1.5;

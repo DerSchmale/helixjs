@@ -78,10 +78,11 @@ function initScene(scene, assetLibrary)
         numSegmentsW: 10
     });
 
-    var modelInstance = new HX.ModelInstance(primitive, material);
-    modelInstance.position.x = -.3;
-    modelInstance.position.y = .3;
-    scene.attach(modelInstance);
+    var entity = new HX.Entity();
+    entity.position.x = -.3;
+    entity.position.y = .3;
+	entity.addComponent(new HX.MeshInstance(primitive, material));
+    scene.attach(entity);
 
     primitive = new HX.ConePrimitive(
         {
@@ -91,20 +92,22 @@ function initScene(scene, assetLibrary)
             numSegmentsW: 20
         });
 
-    modelInstance = new HX.ModelInstance(primitive, material);
-    modelInstance.position.x = .3;
-    modelInstance.position.y = .3;
-    scene.attach(modelInstance);
+	entity = new HX.Entity();
+    entity.position.x = .3;
+    entity.position.y = .3;
+	entity.addComponent(new HX.MeshInstance(primitive, material));
+    scene.attach(entity);
 
     primitive = new HX.BoxPrimitive(
         {
             width:.5
         });
 
-    modelInstance = new HX.ModelInstance(primitive, material);
-    modelInstance.position.x = -.3;
-    modelInstance.position.y = -.3;
-    scene.attach(modelInstance);
+	entity = new HX.Entity();
+    entity.position.x = -.3;
+    entity.position.y = -.3;
+	entity.addComponent(new HX.MeshInstance(primitive, material));
+    scene.attach(entity);
 
     primitive = new HX.TorusPrimitive(
         {
@@ -116,8 +119,9 @@ function initScene(scene, assetLibrary)
             numSegmentsW: 30
         });
 
-    modelInstance = new HX.ModelInstance(primitive, material);
-    modelInstance.position.x = .3;
-    modelInstance.position.y = -.3;
-    scene.attach(modelInstance);
+	entity = new HX.Entity();
+    entity.position.x = .3;
+    entity.position.y = -.3;
+	entity.addComponent(new HX.MeshInstance(primitive, material));
+    scene.attach(entity);
 }

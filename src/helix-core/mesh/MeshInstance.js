@@ -1,211 +1,384 @@
-import {capabilities} from "../Helix";
-import {MaterialPass} from "../material/MaterialPass";
+import {BoundingAABB} from "../scene/BoundingAABB";
 import {GL} from "../core/GL";
 import {VertexLayout} from "./VertexLayout";
+import {MaterialPass} from "../material/MaterialPass";
+import {Component} from "../entity/Component";
 
 /**
  * @classdesc
  * MeshInstance allows bundling a {@linkcode Mesh} with a {@linkcode Material} for rendering, allowing both the geometry
- * and materials to be shared regardless of the combination of both. MeshInstance is managed by {@linkcode ModelInstance}
- * internally and should never be created manually.
+ * and materials to be shared regardless of the combination of both.
  *
- * @constructor
+ * @property {boolean} castShadows Defines whether or not this MeshInstance should cast shadows.
+ * @property mesh The {@linkcode Mesh} providing the geometry for this instance.
+ * @property material The {@linkcode Material} to use to render the given Mesh.
+ *
  * @param mesh The {@linkcode Mesh} providing the geometry for this instance.
  * @param material The {@linkcode Material} to use to render the given Mesh.
- *
- * @author derschmale <http://www.derschmale.com>
+ * @constructor
  */
 function MeshInstance(mesh, material)
 {
-    this._mesh = mesh;
-    this._meshMaterialLinkInvalid = false;
-    this._vertexLayouts = null;
-    this._visible = true;
+	Component.call(this);
 
-    mesh.onLayoutChanged.bind(this._onMaterialOrMeshChange, this);
+	this._morphPositions = null;
+	this._morphNormals = null;
+	this._morphWeights = null;
+	this.mesh = mesh;
+	this._meshMaterialLinkInvalid = true;
+	this._vertexLayouts = null;
+	this._castShadows = true;
+	this._skeletonPose = null;
+	this._morphPose = null;
+	this.material = material;
 
-    if (mesh.hasMorphData) {
-        this._morphPositions = [];
-
-        var numMorphs = 8;
-
-        if (mesh.hasMorphNormals) {
-            this._morphNormals = [];
-            numMorphs = 4;
-        }
-
-        this._morphWeights = new Float32Array(numMorphs);
-
-        for (var i = 0; i < numMorphs; ++i) {
-            this._morphWeights[i] = 0;
-        }
-    }
-
-    this.material = material;
 }
 
-MeshInstance.prototype = {
-    /**
-     * Defines whether this MeshInstance should be rendered or not.
-     */
-    get visible()
-    {
-        return this._visible;
-    },
+Component.create(MeshInstance, {
+	castShadows: {
+		get: function()
+		{
+			return this._castShadows;
+		},
 
-    set visible(value)
-    {
-        this._visible = value;
-    },
+		set: function(value)
+		{
+			this._castShadows = value;
+		}
+	},
 
-    /**
-     * The {@linkcode Mesh} providing the geometry for this instance
-     */
-    get mesh()
-    {
-        return this._mesh;
-    },
+	skeleton: {
+		get: function()
+		{
+			return this._mesh.skeleton;
+		}
+	},
 
-    /**
-     * @ignore
-     */
-    setMorphTarget: function(targetIndex, positionBuffer, normalBuffer, weight)
-    {
-        if (targetIndex >= this._morphWeights.length) return;
+	/**
+	 * The global matrices defining the skeleton pose. This could be a Float32Array with flat matrix data, or a texture
+	 * containing the data (depending on the capabilities). This is usually set by {@linkcode SkeletonAnimation}, and
+	 * should not be handled manually.
+	 *
+	 * @ignore
+	 */
+	skeletonMatrices: {
+		get: function()
+		{
+			return this._skeletonPose? this._skeletonPose.getBindMatrices(this._mesh._skeleton) : null;
+		}
+	},
 
-        this._morphPositions[targetIndex] = positionBuffer;
-        if (normalBuffer && this._morphNormals)
-            this._morphNormals[targetIndex] = normalBuffer;
+	skeletonPose: {
+		get: function()
+		{
+			return this._skeletonPose;
+		},
 
-        this._morphWeights[targetIndex] = positionBuffer? weight : 0.0;
-    },
+		set: function(value)
+		{
+			this._skeletonPose = value;
+		}
 
-    /**
-     * The {@linkcode Material} used to render the Mesh.
-     */
-    get material()
-    {
-        return this._material;
-    },
+	},
 
-    set material(value)
-    {
-        if (this._material)
-            this._material.onChange.unbind(this._onMaterialOrMeshChange);
+	morphPose: {
+		get: function() {
+			return this._morphPose;
+		},
 
-        this._material = value;
+		set: function(value) {
+			if (this._morphPose)
+				this._morphPose.onChange.unbind(this._onMorphChanged);
 
-        if (this._material) {
-            this._material.onChange.bind(this._onMaterialOrMeshChange, this);
+			this._morphPose = value;
 
-            this._material._setUseSkinning(/*this._material._useSkinning || */!!this._mesh._model.skeleton);
-            this._material._setUseMorphing(
-                /*this._material._useMorphing || */this._mesh.hasMorphData,
-                /*this._material._useNormalMorphing || */this._mesh.hasMorphNormals
-            );
-        }
+			if (this._morphPose) {
+				this._morphPose.onChange.bind(this._onMorphChanged, this);
+				this._onMorphChanged();
+			}
+			else
+				this._clearMorph();
+		}
+	},
 
-        this._meshMaterialLinkInvalid = true;
-    },
+	mesh: {
+		get: function()
+		{
+			return this._mesh;
+		},
 
-    /**
-     * Sets state for this mesh/material combination.
-     * @param passType
-     * @ignore
-     */
-    updateRenderState: function(passType)
-    {
-        if (this._meshMaterialLinkInvalid)
-            this._linkMeshWithMaterial();
+		set: function(mesh)
+		{
+			if (this._mesh === mesh) return;
 
-        var vertexBuffers = this._mesh._vertexBuffers;
-        this._mesh._indexBuffer.bind();
+			if (this._mesh) {
+				this._mesh.onLayoutChanged.unbind(this._onMaterialOrMeshChange);
+				this._mesh.onBoundsChanged.unbind(this._onBoundsChanged);
+				this._mesh.onMorphDataCreated.unbind(this._initMorphData);
+				this._mesh.onSkeletonChange.unbind(this._onSkeletonChange);
+			}
 
-        var layout = this._vertexLayouts[passType];
-        var morphPosAttributes = layout.morphPositionAttributes;
-        var morphNormalAttributes = layout.morphNormalAttributes;
-        var attribute;
-        var gl = GL.gl;
+			this._mesh = mesh;
 
-        var len = morphPosAttributes.length;
+			mesh.onLayoutChanged.bind(this._onMaterialOrMeshChange, this);
+			mesh.onBoundsChanged.bind(this._onBoundsChanged, this);
+			mesh.onMorphDataCreated.bind(this._initMorphData, this);
+			mesh.onSkeletonChange.bind(this._onSkeletonChange, this);
 
-        for (var i = 0; i < len; ++i) {
-            attribute = morphPosAttributes[i];
-            var buffer = this._morphPositions[i] || this._mesh._defaultMorphTarget;
-            buffer.bind();
+			this._initMorphData();
 
-            gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
-        }
+			this._meshMaterialLinkInvalid = true;
+		}
+	},
 
-        if (this._morphNormals) {
-            len = morphNormalAttributes.length;
-            for (i = 0; i < len; ++i) {
-                attribute = morphNormalAttributes[i];
-                var buffer = this._morphNormals[i] || this._mesh._defaultMorphTarget;
-                buffer.bind();
+	/**
+	 * The {@linkcode Material} used to render the Mesh.
+	 */
+	material: {
+		get: function()
+		{
+			return this._material;
+		},
 
-                gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
-            }
-        }
+		set: function(value)
+		{
+			if (this._material)
+				this._material.onChange.unbind(this._onMaterialOrMeshChange);
 
-        var attributes = layout.attributes;
-        len = layout._numAttributes;
+			this._material = value;
 
-        GL.enableAttributes(layout._numAttributes);
+			if (this._material) {
+				this._material.onChange.bind(this._onMaterialOrMeshChange, this);
 
-        for (i = 0; i < len; ++i) {
-            attribute = attributes[i];
+				// TODO: Should this be set explicitly on the material by the user?
+				this._material._setUseSkinning(!!this._mesh.skeleton);
+				this._material._setUseMorphing(
+					this._mesh.hasMorphData,
+					this._mesh.hasMorphNormals
+				);
+			}
 
-            if (attribute) {
-                // external = in case of morph targets etc
-                if (!attribute.external) {
-                    vertexBuffers[attribute.streamIndex].bind();
-                    gl.vertexAttribPointer(i, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
-                }
-            }
-            else {
-                GL.gl.disableVertexAttribArray(i);
-                // there seem to be some bugs in ANGLE with disabling vertex attribute arrays, so bind a dummy instead
-                // vertexBuffers[0].bind();
-                // gl.vertexAttribPointer(i, 1, gl.FLOAT, false, 4, 0);
-            }
-        }
-    },
+			this._meshMaterialLinkInvalid = true;
+		}
+	}
+});
 
-    /**
-     * @ignore
-     * @private
-     */
-    _initVertexLayouts: function()
-    {
-        this._vertexLayouts = new Array(MaterialPass.NUM_PASS_TYPES);
-        for (var type = 0; type < MaterialPass.NUM_PASS_TYPES; ++type) {
-            var pass = this._material.getPass(type);
-            if (pass)
-                this._vertexLayouts[type] = new VertexLayout(this._mesh, pass);
-        }
-    },
-
-    /**
-     * @ignore
-     * @private
-     */
-    _linkMeshWithMaterial: function()
-    {
-        this._initVertexLayouts();
-
-        this._meshMaterialLinkInvalid = false;
-    },
-
-    /**
-     * @ignore
-     * @private
-     */
-    _onMaterialOrMeshChange: function()
-    {
-        this._meshMaterialLinkInvalid = true;
-    }
+MeshInstance.prototype.getBounds = function()
+{
+	// just return something if there are no bounds
+	return this._mesh.bounds || new BoundingAABB();
 };
 
+/**
+ * Sets state for this mesh/material combination.
+ * @param passType
+ * @ignore
+ */
+MeshInstance.prototype.updateRenderState = function(passType)
+{
+	if (this._meshMaterialLinkInvalid)
+		this._linkMeshWithMaterial();
+
+	var vertexBuffers = this._mesh._vertexBuffers;
+	this._mesh._indexBuffer.bind();
+
+	var layout = this._vertexLayouts[passType];
+	var morphPosAttributes = layout.morphPositionAttributes;
+	var morphNormalAttributes = layout.morphNormalAttributes;
+	var attribute;
+	var gl = GL.gl;
+
+	var len = morphPosAttributes.length;
+
+	for (var i = 0; i < len; ++i) {
+		attribute = morphPosAttributes[i];
+		var buffer = this._morphPositions[i] || this._mesh._defaultMorphTarget;
+		buffer.bind();
+
+		gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+	}
+
+	if (this._morphNormals) {
+		len = morphNormalAttributes.length;
+		for (i = 0; i < len; ++i) {
+			attribute = morphNormalAttributes[i];
+			buffer = this._morphNormals[i] || this._mesh._defaultMorphTarget;
+			buffer.bind();
+
+			gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+		}
+	}
+
+	var attributes = layout.attributes;
+	len = layout._numAttributes;
+
+	GL.enableAttributes(layout._numAttributes);
+
+	for (i = 0; i < len; ++i) {
+		attribute = attributes[i];
+
+		if (attribute) {
+			// external = in case of morph targets etc
+			if (!attribute.external) {
+				vertexBuffers[attribute.streamIndex].bind();
+				gl.vertexAttribPointer(i, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+			}
+		}
+		else {
+			GL.gl.disableVertexAttribArray(i);
+			// there seem to be some bugs in ANGLE with disabling vertex attribute arrays, so bind a dummy instead
+			// vertexBuffers[0].bind();
+			// gl.vertexAttribPointer(i, 1, gl.FLOAT, false, 4, 0);
+		}
+	}
+};
+
+/**
+ * @ignore
+ * @private
+ */
+MeshInstance.prototype._initVertexLayouts = function()
+{
+	this._vertexLayouts = new Array(MaterialPass.NUM_PASS_TYPES);
+	for (var type = 0; type < MaterialPass.NUM_PASS_TYPES; ++type) {
+		var pass = this._material.getPass(type);
+		if (pass)
+			this._vertexLayouts[type] = new VertexLayout(this._mesh, pass);
+	}
+};
+
+/**
+ * @ignore
+ * @private
+ */
+MeshInstance.prototype._linkMeshWithMaterial = function()
+{
+	this._initVertexLayouts();
+
+	this._meshMaterialLinkInvalid = false;
+};
+
+/**
+ * @ignore
+ * @private
+ */
+MeshInstance.prototype._onMaterialOrMeshChange = function()
+{
+	this._meshMaterialLinkInvalid = true;
+};
+
+/**
+ * @ignore
+ * @private
+ */
+MeshInstance.prototype._onBoundsChanged = function()
+{
+	if (this._entity)
+		this._entity._invalidateBounds();
+};
+
+
+/**
+ * @ignore
+ */
+MeshInstance.prototype.toString = function()
+{
+	return "[MeshInstance(mesh=" + this._mesh.name + ")]";
+};
+
+/**
+ * @ignore
+ */
+MeshInstance.prototype.acceptVisitor = function(visitor)
+{
+	visitor.visitMeshInstance(this, this._entity);
+};
+
+/**
+ * @ignore
+ * @private
+ */
+MeshInstance.prototype._onMorphChanged = function()
+{
+	for (var t = 0; t < 8; ++t) {
+		var name = this._morphPose.getMorphTargetName(t);
+		var target = null;
+
+		if (name)
+			target = this._mesh.getMorphTarget(name);
+
+		if (target) {
+			var weight = this._morphPose.getWeight(name);
+
+			var pos = target.positionBuffer;
+			var normal = target.hasNormals? target.normalBuffer : null;
+
+			this._setMorphTarget(t, pos, normal, weight);
+		}
+		else {
+			this._setMorphTarget(t, null, null, 0.0);
+		}
+	}
+};
+
+/**
+ * @ignore
+ * @private
+ */
+MeshInstance.prototype._clearMorph = function()
+{
+	for (var t = 0; t < 8; ++t) {
+		this._setMorphTarget(t, null, null, 0);
+	}
+};
+
+/**
+ * @ignore
+ */
+MeshInstance.prototype._setMorphTarget = function(targetIndex, positionBuffer, normalBuffer, weight)
+{
+	if (targetIndex >= this._morphWeights.length) return;
+
+	this._morphPositions[targetIndex] = positionBuffer;
+	if (normalBuffer && this._morphNormals)
+		this._morphNormals[targetIndex] = normalBuffer;
+
+	this._morphWeights[targetIndex] = positionBuffer? weight : 0.0;
+};
+
+MeshInstance.prototype._onSkeletonChange = function()
+{
+	console.log(this._mesh.skeleton);
+	this._material._setUseSkinning(!!this._mesh.skeleton);
+};
+
+MeshInstance.prototype._initMorphData = function()
+{
+	this._morphPositions = null;
+	this._morphNormals = null;
+	this._morphWeights = null;
+
+	if (!this._mesh.hasMorphData) return;
+
+	this._morphPositions = [];
+
+	var numMorphs = 8;
+
+	if (this._mesh.hasMorphNormals) {
+		this._morphNormals = [];
+		numMorphs = 4;
+	}
+
+	this._morphWeights = new Float32Array(numMorphs);
+
+	for (var i = 0; i < numMorphs; ++i) {
+		this._morphWeights[i] = 0;
+	}
+
+	this._material._setUseMorphing(
+		this._mesh.hasMorphData,
+		this._mesh.hasMorphNormals
+	);
+};
 
 export { MeshInstance };

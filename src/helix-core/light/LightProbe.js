@@ -2,6 +2,7 @@ import {BoundingVolume} from "../scene/BoundingVolume";
 import {Entity} from "../entity/Entity";
 import {META} from "../Helix";
 import {Float4} from "../math/Float4";
+import {BoundingSphere} from "../scene/BoundingSphere";
 
 /**
  * @classdesc
@@ -53,7 +54,7 @@ LightProbe.prototype = Object.create(Entity.prototype,
                 if (this._size === value) return;
 
                 this._size = value;
-                this._invalidateWorldBounds();
+                this._invalidateBounds();
             },
         }
     });
@@ -61,28 +62,22 @@ LightProbe.prototype = Object.create(Entity.prototype,
 /**
  * @ignore
  */
-LightProbe.prototype._updateWorldBounds = function()
+LightProbe.prototype._updateBounds = function()
 {
-    var min = new Float4();
-    var max = new Float4();
-    return function()
-    {
-        if (!this._size)
-            this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
-        else {
-            this.worldMatrix.getColumn(3, min);
-            this.worldMatrix.getColumn(3, max);
-            var rad = this._size * .5;
-            min.x -= rad;
-            min.y -= rad;
-            min.z -= rad;
-            max.x += rad;
-            max.y += rad;
-            max.z += rad;
-            this._worldBounds.setExplicit(min, max);
-        }
+    if (!this._size)
+        this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
+    else {
+        this._bounds.setExplicit(Float4.ORIGIN_POINT, this._size);
     }
-}();
+};
+
+/**
+ * ignore
+ */
+LightProbe.prototype._createBoundingVolume = function ()
+{
+    return new BoundingSphere();
+};
 
 /**
  * ignore

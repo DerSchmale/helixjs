@@ -24,14 +24,9 @@ function GLTFData()
     this.materials = {};
 
     /**
-     * The loaded models (these are "meshes" in GLTF).
+     * The loaded entities (these are "nodes" containing a "mesh" in GLTF).
      */
-    this.models = {};
-
-    /**
-     * The loaded model instances (these are "nodes" containing a "mesh" in GLTF).
-     */
-    this.modelInstances = {};
+    this.entities = {};
 
     /**
      * The animations. Skinned animations cannot be parsed as SkeletonAnimation, since GLTF has no concept of animation
@@ -142,7 +137,6 @@ GLTF.prototype._getAccessor = function(index)
         min: accessorDef.min,
         max: accessorDef.max,
         byteOffset: bufferView.byteOffset + (accessorDef.byteOffset || 0),
-        dataType: accessorDef.componentType,
         count: accessorDef.count,
         isSparse: false
     };
@@ -283,68 +277,45 @@ GLTF.prototype._parseMeshes = function()
     if (!meshDefs) return;
 
     // locally stored by index, using gltf nomenclature (actually contains model instances)
-    this._modelInstances = [];
+    this._entities = [];
     for (var i = 0; i < meshDefs.length; ++i) {
         var meshDef = meshDefs[i];
-        var model = new HX.Model();
-        var materials = [];
-        var targets = null;
-        var numTargets = 0;
-        var hasMorphNormals = false;
+		var entity = new HX.Entity();
 
         for (var j = 0; j < meshDef.primitives.length; ++j) {
             var primDef = meshDef.primitives[j];
-
-            // a bit messy, eh?
-            if (primDef.targets) {
-                numTargets = primDef.targets.length;
-                targets = [];
-                for (var k = 0; k < numTargets; ++k) {
-                    targets[k] = new HX.MorphTarget();
-                    targets[k].name = "morphTarget_" + k;
-                }
-
-                if (primDef.targets[0].NORMAL) {
-                    hasMorphNormals = true;
-                }
-                break;
-            }
-        }
-
-        for (j = 0; j < meshDef.primitives.length; ++j) {
-            primDef = meshDef.primitives[j];
-            this._parsePrimitive(primDef, model, materials, numTargets > 0, hasMorphNormals);
-
-            if (primDef.targets)
-                this._parseMorphTargets(primDef.targets, j, targets);
-        }
-
-        model.name = meshDef.name;
-
-        var modelInstance = new HX.ModelInstance(model, materials);
-
-        if (numTargets > 0) {
-            var morphComponent = new HX.MorphAnimation(targets);
-
+            this._parsePrimitive(primDef, entity);
             if (meshDef.weights) {
-                for (j = 0; j < numTargets; ++j) {
-                    morphComponent.setWeight("morphTarget_" + j, meshDef.weights[j]);
-                }
+                this._parseMorphWeights(meshDef.weights, entity);
             }
-
-            modelInstance.addComponent(morphComponent);
         }
 
-        this._modelInstances[i] = modelInstance;
-        this._target.models[model.name] = model;
+		entity.name = meshDef.name;
+
+        this._entities[i] = entity;
     }
 };
 
-GLTF.prototype._parseMorphTargets = function(targetDefs, meshIndex, targets)
+GLTF.prototype._parseMorphWeights = function(morphWeights, entity)
+{
+	var morphComponent = new HX.MorphAnimation();
+
+	if (morphWeights) {
+		for (var i = 0, len = morphWeights.length; i < len; ++i) {
+			morphComponent.setWeight("morphTarget_" + i, morphWeights[i]);
+		}
+	}
+
+	entity.addComponent(morphComponent);
+}
+GLTF.prototype._parseMorphTargets = function(targetDefs, mesh)
 {
     for (var i = 0; i < targetDefs.length; ++i) {
         var attribs = targetDefs[i];
-        var morphTarget = targets[i];
+        var morphTarget = new HX.MorphTarget();
+
+		morphTarget.name = "morphTarget_" + i;
+
         var positionAcc = this._getAccessor(attribs.POSITION);
         var normalAcc = attribs.NORMAL !== undefined? this._getAccessor(attribs.NORMAL) : null;
 
@@ -359,12 +330,14 @@ GLTF.prototype._parseMorphTargets = function(targetDefs, meshIndex, targets)
             this._readVertexData(normalData, 0, normalAcc, 3, 3, true);
         }
 
-        morphTarget.init(meshIndex, positionData, normalData);
+        morphTarget.init(positionData, normalData);
+
+		mesh.addMorphTarget(morphTarget);
     }
 };
 
 
-GLTF.prototype._parsePrimitive = function(primDef, model, materials, morphs, morphNormals)
+GLTF.prototype._parsePrimitive = function(primDef, entity)
 {
     var mesh = HX.Mesh.createDefaultEmpty();
     var attribs = primDef.attributes;
@@ -416,11 +389,10 @@ GLTF.prototype._parsePrimitive = function(primDef, model, materials, morphs, mor
         mesh.setVertexData(jointData, 1);
     }
 
-    if (morphs)
-        mesh.generateMorphData(morphNormals);
+	entity.addComponent(new HX.MeshInstance(mesh, this._materials[primDef.material]));
 
-    model.addMesh(mesh);
-    materials.push(this._materials[primDef.material]);
+	if (primDef.targets && primDef.targets.length > 0)
+		this._parseMorphTargets(primDef.targets, mesh);
 };
 
 GLTF.prototype._readVertexData = function(target, offset, accessor, numComponents, stride, flipCoords)
@@ -458,7 +430,7 @@ GLTF.prototype._readVertexData = function(target, offset, accessor, numComponent
     }
     else {
         for (i = 0; i < len; ++i) {
-            for (var j = 0; j < numComponents; ++j) {
+            for (j = 0; j < numComponents; ++j) {
                 target[p + j] = 0.0;
             }
         }
@@ -600,14 +572,18 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
     }
 
     for (i = 0; i < skinDef.joints.length; ++i) {
-        var nodeIndex = skinDef.joints[i];
-        var node = this._nodes[nodeIndex];
-        var joint = skeleton.getJoint(i);
+        nodeIndex = skinDef.joints[i];
+        node = this._nodes[nodeIndex];
+        joint = skeleton.getJoint(i);
         joint.parentIndex = node !== skelNode && node.parent? node.parent._jointIndex : -1;
     }
 
-    target.model.skeleton = skeleton;
-    target.skeletonPose = pose;
+    var instances = target.getComponentsByType(HX.MeshInstance);
+    for (i = 0; i < instances.length; ++i) {
+		var instance = instances[i];
+		instance.mesh.skeleton = skeleton;
+		instance.skeletonPose = pose;
+	}
 };
 
 // TODO: The whole nodes 6 animation parsing thing is messy. Clean up
@@ -627,11 +603,11 @@ GLTF.prototype._parseNodes = function()
         var node;
 
         if (nodeDef.hasOwnProperty("mesh")) {
-            node = this._modelInstances[nodeDef.mesh];
+            node = this._entities[nodeDef.mesh];
             // if the node has a specific name, use that.
             // otherwise (for model instances possible), use the model name, or assign a unique one
-            node.name = nodeDef.name || node.model.name || ("node_" + i);
-            this._target.modelInstances[node.name] = node;
+            node.name = nodeDef.name || ("node_" + i);
+            this._target.entities[node.name] = node;
         }
         else
             node = new HX.SceneNode();
@@ -770,7 +746,7 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords)
             clip.addKeyFrame(keyFrame);
         }
         else {
-            for (var i = 0; i < elmCount; ++i) {
+            for (i = 0; i < elmCount; ++i) {
                 keyFrame = new HX.KeyFrame(time, value[i]);
                 clips[i].addKeyFrame(keyFrame);
             }
@@ -819,15 +795,15 @@ GLTF.prototype._parseAnimationChannel = function(channelDef, samplers)
             layers = [ new HX.AnimationLayerFloat4(target, "position", clips[0]) ];
             break;
         case "rotation":
-            var clips = this._parseAnimationSampler(samplers[channelDef.sampler], true);
+            clips = this._parseAnimationSampler(samplers[channelDef.sampler], true);
             layers = [ new HX.AnimationLayerQuat(target, "rotation", clips[0]) ] ;
             break;
         case "scale":
-            var clips = this._parseAnimationSampler(samplers[channelDef.sampler], false);
+            clips = this._parseAnimationSampler(samplers[channelDef.sampler], false);
             layers = [ new HX.AnimationLayerFloat4(target, "scale", clips[0]) ];
             break;
         case "weights":
-            var clips = this._parseAnimationSampler(samplers[channelDef.sampler], false);
+            clips = this._parseAnimationSampler(samplers[channelDef.sampler], false);
 
             layers = [];
 

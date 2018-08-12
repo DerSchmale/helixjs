@@ -120,11 +120,11 @@ function initScene(scene, assetLibrary)
     for (var x = -8; x <= 8; ++x) {
         for (var y = -8; y <= 8; ++y) {
             var material = opaqueMaterial;
-            var modelInstance = new HX.ModelInstance(primitive, material);
-            modelInstance.position.x = x * 2.0;
-            modelInstance.position.y = y * 2.0;
-            modelInstance.position.z = (Math.sin(x *.5 + 1) + Math.cos(y *.5 +.5)) * .5 + .75;
-            scene.attach(modelInstance);
+            var entity = new HX.Entity(new HX.MeshInstance(primitive, material));
+            entity.position.x = x * 2.0;
+            entity.position.y = y * 2.0;
+            entity.position.z = (Math.sin(x *.5 + 1) + Math.cos(y *.5 +.5)) * .5 + .75;
+            scene.attach(entity);
         }
     }
 
@@ -149,7 +149,7 @@ function initScene(scene, assetLibrary)
             doubleSided: true
         });
 
-    var modelInstance = new HX.ModelInstance(primitive, material);
+    var modelInstance = new HX.Entity(new HX.MeshInstance(primitive, material));
     modelInstance.position.z = -.25;
     scene.attach(modelInstance);
 }

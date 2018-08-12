@@ -88,7 +88,7 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
 
             set: function(value) {
                 this._radius = value;
-                this._invalidateWorldBounds();
+                this._invalidateBounds();
             }
         },
 
@@ -102,7 +102,7 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
                 this._outerAngle = MathX.clamp(this._outerAngle, this._innerAngle, Math.PI);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._invalidateWorldBounds();
+				this._invalidateBounds();
             }
         },
 
@@ -116,7 +116,7 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
                 this._innerAngle = MathX.clamp(this._innerAngle, 0, this._outerAngle);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._invalidateWorldBounds();
+				this._invalidateBounds();
             }
         }
     });
@@ -132,39 +132,14 @@ SpotLight.prototype._createBoundingVolume = function()
 /**
  * @ignore
  */
-SpotLight.prototype._updateWorldBounds = function()
+SpotLight.prototype._updateBounds = function()
 {
-    // think in 2D, with the X axis aligned to the spot's Y (forward) vector
-    // form a right-angled triangle with hypothenuse between 0 and Q = (l, h) = (r cosA, r sinA)
-    // find the point P on the base line (2D X axis) where |P - O| = |P - Q|
-    // Since on the base line: P = (x, 0) and |P - O| = x
-
-    // then apply x to the 3D Y axis to find the center of the bounding sphere, with radius |P - O|
-
-    // another right-angled triangle forms with hypothenuse |P - Q| and h, so:
-    // |P - Q|^2 = (l - x)^2 + h^2
-
-    // |P - O| = |P - Q|
-    // x = |P - Q|
-    // x^2 = |P - Q|^2
-    // x^2 = (l - x)^2 + h^2
-    // x^2 = l^2 - 2lx + x^2 + h^2
-    // x = (l^2 + h^2)/2l
-    // x = r^2 * (cos2 A + sin2 A) / 2l
-    //           (cos2 A + sin2 A = 1)
-    // x = r^2 / 2l = r^2 / 2rcosA
-    // x = r / 2cos(A)
-
-    var y = new Float4();
     var p = new Float4();
     return function() {
+        // find the center of the sphere that contains both the origin as well as the outer points
 		var x = this._radius / (2.0 * this._cosOuter);
-		var m = this.worldMatrix;
-
-		m.getColumn(3, p);  // position
-        m.getColumn(1, y);  // forward
-		p.addScaled(y, x);  // move center sphere forward by x * fwd
-		this._worldBounds.setExplicit(p, x);
+		p.set(0, x, 0);
+		this._bounds.setExplicit(p, x);
 	};
 }();
 

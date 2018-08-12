@@ -3,6 +3,7 @@
  */
 
 var project = new DemoProject();
+var primitive;
 
 project.queueAssets = function(assetLibrary)
 {
@@ -11,6 +12,7 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
+    document.getElementById("exportInfo").style.display = "block";
     this.camera.addComponent(new HX.OrbitController());
     initScene(this.scene, this.assetLibrary);
 };
@@ -25,12 +27,19 @@ function initScene(scene, assetLibrary)
     var material = new HX.BasicMaterial();
     material.colorMap = assetLibrary.get("albedo");
 
-    var primitive = new HX.SpherePrimitive(
+    primitive = new HX.SpherePrimitive(
         {
             radius:.25
         });
 
-    var entity = new HX.Entity();
-    entity.addComponent(new HX.MeshInstance(primitive, material));
-    scene.attach(entity);
+    scene.attach(new HX.Entity(new HX.MeshInstance(primitive, material)));
+}
+
+function doExport()
+{
+
+    var exporter = new HX.MeshExporter();
+    var data = exporter.export(primitive);
+    var blob = new Blob([data], {type: "application/octet-stream"});
+    saveAs(blob, "model.hmesh");
 }

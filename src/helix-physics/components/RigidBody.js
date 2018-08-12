@@ -128,6 +128,7 @@ RigidBody.prototype.addImpulse = function(v, pos)
     // if no position is set, just
 	if (pos) {
 		this._body.applyImpulse(v, pos);
+		this._body.wakeUp();
 	}
 	else {
 		var vel = this._body.velocity;
@@ -141,6 +142,7 @@ RigidBody.prototype.addForce = function(v, pos)
 {
     if (pos) {
 		this._body.applyForce(v, pos);
+		this._body.wakeUp();
 	}
 	else {
         var f = this._body.force;
@@ -202,16 +204,11 @@ RigidBody.prototype._createBody = function()
 {
     var entity = this._entity;
 
-    var bounds;
-    if (entity instanceof HX.ModelInstance) {
-        bounds = entity.localBounds;
-    }
-    else {
-        var matrix = new HX.Matrix4x4();
-        matrix.inverseAffineOf(entity.worldMatrix);
-        bounds = new HX.BoundingAABB();
-        bounds.transformFrom(entity.worldBounds, matrix);
-    }
+    var meshInstances = entity.getComponentsByType(HX.MeshInstance);
+    var numMeshes = meshInstances.length;
+
+    // use the same bounding type if it's the only mesh
+	var bounds = numMeshes === 1? meshInstances[0].mesh.bounds : entity.bounds;
 
     if (!this._collider)
         this._collider = bounds instanceof HX.BoundingAABB? new BoxCollider() : new SphereCollider();

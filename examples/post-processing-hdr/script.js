@@ -90,7 +90,8 @@ function initScene(scene, assetLibrary)
             numSegmentsW: 30
         });
 
-    var modelInstance = new HX.ModelInstance(primitive, material);
-    modelInstance.addComponent(new AnimateRotateComponent());
-    scene.attach(modelInstance);
+    var entity = new HX.Entity();
+    entity.addComponent(new HX.MeshInstance(primitive, material));
+    entity.addComponent(new AnimateRotateComponent());
+    scene.attach(entity);
 }

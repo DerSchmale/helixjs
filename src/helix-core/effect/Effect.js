@@ -101,4 +101,9 @@ Effect.prototype._swapHDRFrontAndBack = function()
     this._renderer._swapHDRFrontAndBack();
 };
 
+Effect.prototype.acceptVisitor = function(visitor)
+{
+	visitor.visitEffect(this);
+};
+
 export { Effect };

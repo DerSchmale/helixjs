@@ -133,7 +133,7 @@ function initSun(container, assetLibrary)
     var sunMaterial = assetLibrary.get("sunMaterial");
     sunMaterial.lightingModel = HX.LightingModel.Unlit;
 
-    var sun = new HX.ModelInstance(sunSpherePrimitive, sunMaterial);
+    var sun = new HX.Entity(new HX.MeshInstance(sunSpherePrimitive, sunMaterial));
     // not heliocentric, apparently ;)
     // let's put the sun away and the earth at 0, so camera animation is easier
     var len = distanceToSun / Math.sqrt(sunPosX * sunPosX + sunPosY * sunPosY + sunPosZ * sunPosZ);
@@ -169,11 +169,11 @@ function initEarth(container, assetLibrary)
     earthMaterial.setUniform("rcpThicknessOverScaleDepth", 1.0 / atmosphereTickness / avgDensityHeight);
     earthMaterial.setUniform("expThicknessOverScaleDepth", Math.exp((earthRadius - atmosphereRadius) / avgDensityHeight));
 
-    var globe = new HX.ModelInstance(earthSpherePrimitive, earthMaterial);
+    var globe = new HX.Entity(new HX.MeshInstance(earthSpherePrimitive, earthMaterial));
     earth.attach(globe);
 
     var atmosMaterial = assetLibrary.get("atmosMaterial");
-    var atmosphere = new HX.ModelInstance(earthSpherePrimitive, atmosMaterial);
+    var atmosphere = new HX.Entity(new HX.MeshInstance(earthSpherePrimitive, atmosMaterial));
 
     atmosphere.scale.set(atmosphereScale, atmosphereScale, atmosphereScale);
     earth.attach(atmosphere);
@@ -204,7 +204,7 @@ function initMoon(container, assetLibrary)
     );
 
     var moonMaterial = assetLibrary.get("moon-material");
-    var moon = new HX.ModelInstance(moonSpherePrimitive, moonMaterial);
+    var moon = new HX.Entity(new HX.MeshInstance(moonSpherePrimitive, moonMaterial));
 
     var dir = new HX.Float4(5.0,1.0,2.0);
     dir.normalize();

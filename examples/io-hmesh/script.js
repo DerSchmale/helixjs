@@ -4,29 +4,29 @@
 
 var project = new DemoProject();
 
-window.onload = function ()
-{
-    project.init(document.getElementById('webglContainer'));
-};
-
 project.queueAssets = function(assetLibrary)
 {
+    assetLibrary.queueAsset("model", "hmesh/sphere.hmesh", HX.AssetLibrary.Type.ASSET, HX.HMESH);
     assetLibrary.queueAsset("albedo", "textures/marble_tiles/marbletiles_diffuse_white.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
 };
 
 project.onInit = function()
 {
     this.camera.addComponent(new HX.OrbitController());
-    this.camera.nearDistance = .1;
+    this.camera.nearDistance = .01;
     this.camera.farDistance = 10.0;
-
     initScene(this.scene, this.assetLibrary);
+};
+
+window.onload = function ()
+{
+    project.init(document.getElementById('webglContainer'));
 };
 
 function initScene(scene, assetLibrary)
 {
     var light = new HX.DirectionalLight();
-    light.direction = new HX.Float4(-1.0, 1.0, -1.0, 0.0);
+    light.direction = new HX.Float4(-1.0, -1.0, -1.0, 0.0);
     light.intensity = 5.0;
     scene.attach(light);
 
@@ -38,14 +38,7 @@ function initScene(scene, assetLibrary)
     material.colorMap = assetLibrary.get("albedo");
     material.lightingModel = HX.LightingModel.GGX;
 
-    var primitive = new HX.SpherePrimitive(
-        {
-            radius:.25,
-            numSegmentsH: 20,
-            numSegmentsW: 30
-        });
-
-    var entity = new HX.Entity();
-    entity.addComponent(new HX.MeshInstance(primitive, material));
-    scene.attach(entity);
+    var model = assetLibrary.get("model");
+    var modelInstance = new HX.Entity(new HX.MeshInstance(model, material));
+    scene.attach(modelInstance);
 }

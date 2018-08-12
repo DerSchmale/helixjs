@@ -58,7 +58,7 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
     this._diffuseScene.skybox = new Skybox(specular);
 
     var cubeFaces = [ CubeFace.POSITIVE_X, CubeFace.NEGATIVE_X, CubeFace.POSITIVE_Y, CubeFace.NEGATIVE_Y, CubeFace.POSITIVE_Z, CubeFace.NEGATIVE_Z ];
-    for (var i = 0; i < 6; ++i) {
+    for (i = 0; i < 6; ++i) {
         var camera = new PerspectiveCamera();
         camera.nearDistance = near;
         camera.farDistance = far;

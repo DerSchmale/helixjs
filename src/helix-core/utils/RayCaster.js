@@ -6,7 +6,8 @@ import {Matrix4x4} from "../math/Matrix4x4";
 
 function IntersectionData()
 {
-    this.object = null;
+    this.entity = null;
+    this.component = null;
     this.point = new Float4();
     this.faceNormal = new Float4();
     this.t = Infinity;
@@ -14,7 +15,7 @@ function IntersectionData()
 
 function Potential()
 {
-    this.modelInstance = null;
+    this.meshInstance = null;
     this.closestDistanceSqr = 0;
     this.objectMatrix = new Matrix4x4();
 
@@ -59,10 +60,9 @@ RayCaster.prototype.cast = function(ray, scene)
     this._potentials.sort(this._sortPotentialFunc);
     var hitData = this._findClosest();
 
-    // TODO: Provide modelInstance.interactionProxy Mesh.
-    //          -> if set, ignore meshes
+    // TODO: Provide MeshInstance.rayCastProxy
 
-    return hitData.object? hitData : null;
+    return hitData.entity? hitData : null;
 };
 
 /**
@@ -76,14 +76,15 @@ RayCaster.prototype.qualifies = function(object)
 /**
  * @ignore
  */
-RayCaster.prototype.visitModelInstance = function (modelInstance, worldMatrix)
+RayCaster.prototype.visitMeshInstance = function (meshInstance)
 {
+    var entity = meshInstance._entity;
     var potential = this._potentialPool.getItem();
-    potential.modelInstance = modelInstance;
+    potential.meshInstance = meshInstance;
     var dir = this._ray.direction;
     var dirX = dir.x, dirY = dir.y, dirZ = dir.z;
     var origin = this._ray.origin;
-    var bounds = modelInstance.worldBounds;
+    var bounds = entity.worldBounds;
     var center = bounds.center;
     var ex = bounds._halfExtentX;
     var ey = bounds._halfExtentY;
@@ -99,7 +100,7 @@ RayCaster.prototype.visitModelInstance = function (modelInstance, worldMatrix)
 
     // the closest projected point on the ray is the order
     potential.closestDistanceSqr = ex * dirX + ey * dirY + ez * dirZ;
-    potential.objectMatrix.inverseAffineOf(modelInstance.worldMatrix);
+    potential.objectMatrix.inverseAffineOf(entity.worldMatrix);
 
     this._potentials.push(potential);
 };
@@ -121,19 +122,15 @@ RayCaster.prototype._findClosest = function()
 
         localRay.transformFrom(worldRay, elm.objectMatrix);
 
-        var model = elm.modelInstance.model;
-        var numMeshes = model.numMeshes;
-
-        for (var m = 0; m < numMeshes; ++m) {
-            if (this._testMesh(localRay, model.getMesh(m), hitData)) {
-                hitData.object = elm.modelInstance;
-            }
+        if (this._testMesh(localRay, elm.meshInstance.mesh, hitData)) {
+            hitData.entity = elm.meshInstance.entity;
+            hitData.component = elm.meshInstance;
         }
 
     }
 
-    if (hitData.object) {
-        var worldMatrix = hitData.object.worldMatrix;
+    if (hitData.entity) {
+        var worldMatrix = hitData.entity.worldMatrix;
 		worldMatrix.transformPoint(hitData.point, hitData.point);
 		worldMatrix.transformNormal(hitData.faceNormal, hitData.faceNormal);
 	}

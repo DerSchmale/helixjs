@@ -237,9 +237,9 @@ Camera.prototype._updateProjectionMatrix = function()
 /**
  * @ignore
  */
-Camera.prototype._updateWorldBounds = function()
+Camera.prototype._updateBounds = function()
 {
-    this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
+    this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
 /**

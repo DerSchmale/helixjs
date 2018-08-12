@@ -191,7 +191,7 @@ FixedLitPass.prototype._assignPointLights = function (camera) {
                 gl.uniform1f(locs.depthBias, light.depthBias);
 
                 var j = 0;
-                for (var i = 0; i < 6; ++i) {
+                for (i = 0; i < 6; ++i) {
                     var t = light._shadowTiles[i];
                     tiles[j++] = t.x;
                     tiles[j++] = t.y;

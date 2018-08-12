@@ -82,7 +82,7 @@ OmniShadowMapRenderer.prototype =
         rotations[4].fromAxisAngle(Float4.X_AXIS, Math.PI * .5);
         rotations[5].fromAxisAngle(Float4.X_AXIS, -Math.PI * .5);
 
-        for (var i = 0; i < 6; ++i) {
+        for (i = 0; i < 6; ++i) {
             var camera = new PerspectiveCamera();
             camera.nearDistance = 0.01;
             camera.verticalFOV = Math.PI * .5;

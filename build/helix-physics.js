@@ -294,6 +294,7 @@ RigidBody.prototype.addImpulse = function(v, pos)
     // if no position is set, just
 	if (pos) {
 		this._body.applyImpulse(v, pos);
+		this._body.wakeUp();
 	}
 	else {
 		var vel = this._body.velocity;
@@ -307,6 +308,7 @@ RigidBody.prototype.addForce = function(v, pos)
 {
     if (pos) {
 		this._body.applyForce(v, pos);
+		this._body.wakeUp();
 	}
 	else {
         var f = this._body.force;
@@ -368,16 +370,11 @@ RigidBody.prototype._createBody = function()
 {
     var entity = this._entity;
 
-    var bounds;
-    if (entity instanceof HX$1.ModelInstance) {
-        bounds = entity.localBounds;
-    }
-    else {
-        var matrix = new HX$1.Matrix4x4();
-        matrix.inverseAffineOf(entity.worldMatrix);
-        bounds = new HX$1.BoundingAABB();
-        bounds.transformFrom(entity.worldBounds, matrix);
-    }
+    var meshInstances = entity.getComponentsByType(HX$1.MeshInstance);
+    var numMeshes = meshInstances.length;
+
+    // use the same bounding type if it's the only mesh
+	var bounds = numMeshes === 1? meshInstances[0].mesh.bounds : entity.bounds;
 
     if (!this._collider)
         this._collider = bounds instanceof HX$1.BoundingAABB? new BoxCollider() : new SphereCollider();
@@ -698,8 +695,8 @@ HeightfieldCollider.prototype._shiftHeightData = function()
 
 	if (minZ === 0.0) return;
 
-	for (var x = 0; x < w; ++x) {
-		for (var y = 0; y < h; ++y) {
+	for (x = 0; x < w; ++x) {
+		for (y = 0; y < h; ++y) {
 			data[x][y] += minZ;
 		}
 	}

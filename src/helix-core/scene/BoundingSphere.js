@@ -1,7 +1,6 @@
 import {BoundingVolume} from "./BoundingVolume";
 import {BoundingAABB} from "./BoundingAABB";
 import {PlaneSide} from "../math/PlaneSide";
-import {SpherePrimitive} from "../mesh/primitives/SpherePrimitive";
 
 /**
  * @classdesc
@@ -335,12 +334,5 @@ BoundingSphere.prototype.intersectsRay = function(ray)
     return sqrDist <= radius * radius;
 };
 
-/**
- * @ignore
- */
-BoundingSphere.prototype.createDebugModel = function()
-{
-    return new SpherePrimitive({doubleSided:true});
-};
 
 export {BoundingSphere };

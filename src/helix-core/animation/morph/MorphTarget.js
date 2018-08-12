@@ -16,12 +16,10 @@ import {VertexBuffer} from "../../core/VertexBuffer";
  */
 function MorphTarget()
 {
-    // So basically, every morph pose is a list of vertex buffers, one for each Mesh in the Model
-    // the Mesh objects will have their hx_morphPositionN overwritten depending on their weights
     this.name = null;
-    this._positionBuffers = [];
-    this._normalBuffers = null;
-    this._numVertices = [];
+    this._positionBuffer = null;
+    this._normalBuffer = null;
+    this._numVertices = 0;
 }
 
 MorphTarget.prototype =
@@ -32,51 +30,49 @@ MorphTarget.prototype =
      */
     get hasNormals()
     {
-        return !!this._normalBuffers;
+        return !!this._normalBuffer;
     },
 
     /**
      * @ignore
      */
-    getNumVertices: function(meshIndex)
+    get numVertices()
     {
-        return this._numVertices[meshIndex];
+        return this._numVertices;
     },
 
     /**
      * @ignore
      */
-    getPositionBuffer: function(meshIndex)
+    get positionBuffer()
     {
-        return this._positionBuffers[meshIndex];
+        return this._positionBuffer;
     },
 
     /**
      * @ignore
      */
-    getNormalBuffer: function(meshIndex)
+    get normalBuffer()
     {
-        return this._normalBuffers[meshIndex];
+        return this._normalBuffer;
     },
 
     /**
      * Initializes the current MorphTarget object.
-     * @param {number} meshIndex The meshIndex for which to assign the vertices.
      * @param {Array} positions An Array of 3 floats per vertex (x, y, z), containing the displacement vectors. The size must match the vertex count of the target Mesh.
      * @param {Array} normals An Array of 3 floats per vertex (x, y, z), containing the normal offset vectors. The size must match the vertex count of the target Mesh.
      *
      */
-    init: function(meshIndex, positions, normals)
+    init: function(positions, normals)
     {
-        this._numVertices[meshIndex] = positions.length / 3;
+        this._numVertices = positions.length / 3;
 
-        this._positionBuffers[meshIndex] = new VertexBuffer();
-        this._positionBuffers[meshIndex].uploadData(new Float32Array(positions));
+        this._positionBuffer = new VertexBuffer();
+        this._positionBuffer.uploadData(new Float32Array(positions));
 
         if (normals) {
-            if (!this._normalBuffers) this._normalBuffers = [];
-            this._normalBuffers[meshIndex] = new VertexBuffer();
-            this._normalBuffers[meshIndex].uploadData(new Float32Array(normals));
+            this._normalBuffer = new VertexBuffer();
+            this._normalBuffer.uploadData(new Float32Array(normals));
         }
     }
 };

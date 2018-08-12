@@ -1,23 +1,19 @@
 // basic version is non-hierarchical, for use with lights etc
 import {Matrix4x4} from "../math/Matrix4x4";
-import {MaterialQueryVisitor} from "./MaterialQueryVisitor";
 import {Transform} from "../math/Transform";
-import {BoundingAABB} from "./BoundingAABB";
 
 /**
  * @classdesc
  * <p>SceneNode is an empty hierarchical container for the scene graph. It can be attached to other SceneNode objects and
  * have SceneNode objects attached to itself.</p>
  *
- * <p>SceneNode also functions as the base class for other scene graph objects, such as entities ({@linkcode ModelInstance},
- * lights, camera, ...).
+ * <p>SceneNode also functions as the base class for other scene graph objects, such as {@linkcode Entity}</p>
  *
- * @property {string} name The name of te scene node.
+ * @property {string} name The name of the scene node.
  * @property {SceneNode} parent The parent of this node in the scene hierarchy.
  * @property {number} numChildren The amount of children attached to this node.
  * @property {boolean} visible Defines whether or not this and any children attached to this node should be rendered or not.
  * @property {boolean} raycast Defines whether or not this and any children attached to this node should be tested when raycasting.
- * @property {BoundingVolume} worldBounds The bounding volume for this node and its children in world coordinates.
  * @property {Matrix4x4} worldMatrix The matrix transforming from the node's local space to world space.
  *
  * @see {@linkcode Scene}
@@ -32,16 +28,14 @@ function SceneNode()
 {
     Transform.call(this);
     this.meta = {};
-    this._name = null;
-    this._worldMatrix = new Matrix4x4();
-    this._worldBoundsInvalid = true;
+    this._name = "";
     this._matrixInvalid = true;
+	this._worldMatrix = new Matrix4x4();
     this._worldMatrixInvalid = true;
     this._parent = null;
     this._scene = null;
-    this._worldBounds = this._createBoundingVolume();
-    this._debugBounds = null;
     this._visible = true;
+    this._ancestorsVisible = true;
     this._raycast = true;
     this._children = [];
 
@@ -82,6 +76,17 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         set: function(value)
         {
             this._visible = value;
+
+            for (var i = 0, len = this._children.length; i < len; ++i) {
+                this._children[i]._updateAncestorsVisible(value && this._ancestorsVisible);
+            }
+        }
+    },
+
+    hierarchyVisible: {
+        get: function()
+        {
+            return this._visible && this._ancestorsVisible
         }
     },
 
@@ -93,18 +98,6 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         set: function(value)
         {
             this._raycast = value;
-        }
-    },
-
-    worldBounds: {
-        get: function()
-        {
-            if (this._worldBoundsInvalid) {
-                this._updateWorldBounds();
-                this._worldBoundsInvalid = false;
-            }
-
-            return this._worldBounds;
         }
     },
 
@@ -139,9 +132,9 @@ SceneNode.prototype.attach = function(child)
 
     child._parent = this;
     child._setScene(this._scene);
+    child._updateAncestorsVisible(this._visible && this._ancestorsVisible);
 
     this._children.push(child);
-    this._invalidateWorldBounds();
 };
 
 /**
@@ -165,7 +158,6 @@ SceneNode.prototype.attachAfter = function(child, refChild)
 
 	var index = this._children.indexOf(refChild);
 	this._children.splice(index + 1, 0, child);
-	this._invalidateWorldBounds();
 };
 
 /**
@@ -212,9 +204,9 @@ SceneNode.prototype.detach = function(child)
         throw new Error("Trying to remove a scene object that is not a child");
 
     child._parent = null;
+    child._updateAncestorsVisible(true);
 
     this._children.splice(index, 1);
-    this._invalidateWorldBounds();
 };
 
 /**
@@ -242,7 +234,6 @@ SceneNode.prototype.destroy = function()
 };
 
 
-
 /**
  * @ignore
  * @private
@@ -251,16 +242,6 @@ SceneNode.prototype._applyMatrix = function()
 {
     Transform.prototype._applyMatrix.call(this);
     this._invalidateWorldMatrix();
-};
-
-/**
- * Finds a material with the given name somewhere in this node's children.
- */
-SceneNode.prototype.findMaterialByName = function(name)
-{
-    var visitor = new MaterialQueryVisitor(name);
-    this.acceptVisitor(visitor);
-    return visitor.foundMaterial;
 };
 
 /**
@@ -275,6 +256,19 @@ SceneNode.prototype.findNodeByName = function(name)
         var node = this._children[i].findNodeByName(name);
         if (node) return node;
     }
+};
+
+
+/**
+ * Queries the scene graph for a material with the given name
+ * @param name The name of the Material
+ */
+SceneNode.prototype.findMaterialByName = function(name)
+{
+	for (var i = 0, len = this._children.length; i < len; ++i) {
+		var material = this._children[i].findMaterialByName(name);
+		if (material) return material;
+	}
 };
 
 /**
@@ -293,23 +287,6 @@ SceneNode.prototype._setScene = function(scene)
 /**
  * @ignore
  */
-SceneNode.prototype.acceptVisitor = function(visitor)
-{
-    if (this._debugBounds)
-        this._debugBounds.acceptVisitor(visitor);
-
-    var len = this._children.length;
-    for (var i = 0; i < len; ++i) {
-        var child = this._children[i];
-
-        if (visitor.qualifies(child))
-            child.acceptVisitor(visitor);
-    }
-};
-
-/**
- * @ignore
- */
 SceneNode.prototype._invalidateMatrix = function ()
 {
     Transform.prototype._invalidateMatrix.call(this);
@@ -322,63 +299,10 @@ SceneNode.prototype._invalidateMatrix = function ()
 SceneNode.prototype._invalidateWorldMatrix = function ()
 {
     this._worldMatrixInvalid = true;
-    this._invalidateWorldBounds();
 
     var len = this._children.length;
     for (var i = 0; i < len; ++i)
         this._children[i]._invalidateWorldMatrix();
-};
-
-/**
- * @ignore
- */
-SceneNode.prototype._invalidateWorldBounds = function ()
-{
-    if (this._worldBoundsInvalid) return;
-
-    this._worldBoundsInvalid = true;
-
-    if (this._parent)
-        this._parent._invalidateWorldBounds();
-};
-
-/**
- * @ignore
- */
-SceneNode.prototype._updateWorldBounds = function ()
-{
-    var len = this._children.length;
-
-    this._worldBounds.clear();
-
-    for (var i = 0; i < len; ++i) {
-        this._worldBounds.growToIncludeBound(this._children[i].worldBounds);
-    }
-
-    if (this._debugBounds)
-        this._updateDebugBounds();
-};
-
-/**
- * @ignore
- */
-SceneNode.prototype._updateDebugBounds = function()
-{
-    var matrix = this._debugBounds.matrix;
-    var bounds = this._worldBounds;
-
-    matrix.fromScale(bounds._halfExtentX * 2.0, bounds._halfExtentY * 2.0, bounds._halfExtentZ * 2.0);
-    matrix.appendTranslation(bounds._center);
-    this._debugBounds.matrix = matrix;
-};
-
-/**
- * @ignore
- */
-SceneNode.prototype._updateMatrix = function()
-{
-    Transform.prototype._updateMatrix.call(this);
-    this._invalidateWorldBounds();
 };
 
 /**
@@ -392,14 +316,6 @@ SceneNode.prototype._updateWorldMatrix = function()
         this._worldMatrix.copyFrom(this.matrix);
 
     this._worldMatrixInvalid = false;
-};
-
-/**
- * @ignore
- */
-SceneNode.prototype._createBoundingVolume = function()
-{
-    return new BoundingAABB();
 };
 
 /**
@@ -426,6 +342,19 @@ SceneNode.prototype.applyFunction = function(func, thisRef)
     var len = this._children.length;
     for (var i = 0; i < len; ++i)
         this._children[i].applyFunction(func, thisRef);
+};
+
+/**
+ * @private
+ * @ignore
+ */
+SceneNode.prototype._updateAncestorsVisible = function(value)
+{
+    this._ancestorsVisible = value;
+
+    for (var i = 0, len = this._children.length; i < len; ++i) {
+		this._children[i]._updateAncestorsVisible(value);
+    }
 };
 
 export { SceneNode };

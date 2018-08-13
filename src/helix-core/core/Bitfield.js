@@ -72,11 +72,11 @@ Bitfield.prototype = {
      */
     contains: function(b) {
         var hash = this._hash;
-        var b = b._hash;
-        var l = b.length;
+        var bHash = b._hash;
+        var l = bHash.length;
 
         for (var i = 0; i < l; ++i) {
-            var bi = b[i];
+            var bi = bHash[i];
             if ((hash[i] & bi) !== bi)
                 return false;
         }

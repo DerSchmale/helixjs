@@ -43,7 +43,7 @@ CascadeShadowCasterCollector.prototype.collect = function(camera, scene)
 
     scene.acceptVisitor(this);
 
-    for (var i = 0; i < numCascades; ++i)
+    for (i = 0; i < numCascades; ++i)
         this._renderList[i].sort(RenderSortFunctions.sortOpaques);
 };
 
@@ -63,18 +63,18 @@ CascadeShadowCasterCollector.prototype.setCullPlanes = function(cullPlanes, numP
     this._numCullPlanes = numPlanes;
 };
 
-CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
+CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-    if (modelInstance._castShadows === false) return;
+    if (!meshInstance._castShadows || !meshInstance.enabled) return;
 
+    var skeleton = meshInstance.skeleton;
+	var skeletonMatrices = meshInstance.skeletonMatrices;
+    var entity = meshInstance._entity;
+    var worldBounds = entity.worldBounds;
     this._bounds.growToIncludeBound(worldBounds);
 
     var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
-
-    var numCascades = META.OPTIONS.numShadowCascades;
-    var numMeshes = modelInstance.numMeshInstances;
-    var skeleton = modelInstance.skeleton;
-    var skeletonMatrices = modelInstance.skeletonMatrices;
+    var numCascades = META.OPTIONS.numShadowCascades;1
     var cameraYAxis = this._cameraYAxis;
     var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
 
@@ -85,24 +85,21 @@ CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInsta
         var contained = worldBounds.intersectsConvexSolid(renderCamera.frustum.planes, 4);
 
         if (contained) {
-            for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
-                var meshInstance = modelInstance.getMeshInstance(meshIndex);
-                var material = meshInstance.material;
+            var material = meshInstance.material;
 
-                if (material.hasPass(passIndex)) {
-                    var renderItem = this._renderItemPool.getItem();
-                    renderItem.pass = material.getPass(passIndex);
-                    renderItem.meshInstance = meshInstance;
-                    renderItem.worldMatrix = worldMatrix;
-                    renderItem.camera = renderCamera;
-                    renderItem.material = material;
-                    renderItem.skeleton = skeleton;
-                    renderItem.skeletonMatrices = skeletonMatrices;
-                    var center = worldBounds._center;
-                    renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+            if (material.hasPass(passIndex)) {
+                var renderItem = this._renderItemPool.getItem();
+                renderItem.pass = material.getPass(passIndex);
+                renderItem.meshInstance = meshInstance;
+                renderItem.worldMatrix = entity.worldMatrix;
+                renderItem.camera = renderCamera;
+                renderItem.material = material;
+                renderItem.skeleton = skeleton;
+                renderItem.skeletonMatrices = skeletonMatrices;
+                var center = worldBounds._center;
+                renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
 
-                    renderList.push(renderItem);
-                }
+                renderList.push(renderItem);
             }
         }
     }
@@ -110,7 +107,7 @@ CascadeShadowCasterCollector.prototype.visitModelInstance = function (modelInsta
 
 CascadeShadowCasterCollector.prototype.qualifies = function(object)
 {
-    return object.visible && object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
+        return object.hierarchyVisible && object.worldBounds.intersectsConvexSolid(this._cullPlanes, this._numCullPlanes);
 };
 
 export { CascadeShadowCasterCollector };

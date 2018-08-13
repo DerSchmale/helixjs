@@ -128,7 +128,6 @@ MaterialPass.prototype =
 
         /**
          * Called per render item.
-         * TODO: Could separate UniformSetters per pass / instance as well
          */
         updateInstanceRenderState: function(camera, renderItem)
         {
@@ -187,7 +186,7 @@ MaterialPass.prototype =
             len = this._uniformBufferSlots.length;
 
             for (i = 0; i < len; ++i) {
-                var slot = this._uniformBufferSlots[i];
+                slot = this._uniformBufferSlots[i];
                 var buffer = slot.buffer;
                 buffer.bind(i);
             }

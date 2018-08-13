@@ -39,7 +39,7 @@ export var RenderUtils =
             pass.updateInstanceRenderState(renderItem.camera, renderItem, data);
 
             if (lastMesh !== meshInstance._mesh) {
-                meshInstance.updateRenderState(passType);
+				meshInstance.updateRenderState(passType);
                 lastMesh = meshInstance._mesh;
             }
 

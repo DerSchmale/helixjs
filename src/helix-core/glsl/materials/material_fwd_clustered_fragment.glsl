@@ -148,6 +148,8 @@ void main()
         vec3 reflectedViewDir = reflect(viewVector, data.normal);
         vec3 fresnel = hx_fresnelProbe(specularColor, reflectedViewDir, data.normal, data.roughness);
 
+        reflectedViewDir = mat3(hx_cameraWorldMatrix) * reflectedViewDir;
+
         for (int i = 0; i < HX_NUM_LIGHT_PROBES; ++i) {
             // this is a bit icky, but since the cube textures need to indexed using a literal, we can't loop over hx_numLightProbes
             if (i < hx_numLightProbes) {

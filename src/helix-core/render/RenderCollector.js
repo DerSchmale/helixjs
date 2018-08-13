@@ -81,82 +81,66 @@ RenderCollector.prototype.collect = function(camera, scene)
     // Do lights still require sorting?
     this._shadowCasters.sort(RenderSortFunctions.sortShadowCasters);
 
-    var effects = this._camera._effects;
-    // add camera effects at the end
-    if (effects) {
-        var len = effects.length;
-
-        for (var i = 0; i < len; ++i) {
-            var effect = effects[i];
-            this._needsNormalDepth = this._needsNormalDepth || effect._needsNormalDepth;
-            this._effects.push(effect);
-        }
-    }
+	// add camera effects at the end
+	this._camera.acceptVisitorPost(this);
 };
 
 RenderCollector.prototype.qualifies = function(object)
 {
-    return object.visible && object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6);
+    return object.hierarchyVisible && object.worldBounds.intersectsConvexSolid(this._frustumPlanes, 6);
 };
 
 RenderCollector.prototype.visitScene = function (scene)
 {
     var skybox = scene._skybox;
     if (skybox)
-        this.visitModelInstance(skybox._modelInstance, scene._rootNode.worldMatrix, scene._rootNode.worldBounds);
+        this.visitMeshInstance(skybox._meshInstance);
 };
 
-RenderCollector.prototype.visitEffects = function(effects)
+RenderCollector.prototype.visitEffect = function(effect)
 {
-    // camera does not pass effects
-    //if (ownerNode === this._camera) return;
-    var len = effects.length;
-
-    for (var i = 0; i < len; ++i) {
-        this._effects.push(effects[i]);
-    }
+	this._needsNormalDepth = this._needsNormalDepth || effect._needsNormalDepth;
+    this._effects.push(effect);
 };
 
-RenderCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
+RenderCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-    var numMeshes = modelInstance.numMeshInstances;
+	if (!meshInstance.enabled) return;
+
+	var entity = meshInstance.entity;
+	var worldBounds = entity.worldBounds;
     var cameraYAxis = this._cameraYAxis;
     var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
-    var skeleton = modelInstance.skeleton;
-    var skeletonMatrices = modelInstance.skeletonMatrices;
+    var skeleton = meshInstance.skeleton;
+    var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
     var camera = this._camera;
     var opaqueLists = this._opaques;
     var transparentList = this._transparents;
 
-    for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
-        var meshInstance = modelInstance.getMeshInstance(meshIndex);
-        if (!meshInstance.visible) continue;
+    var material = meshInstance.material;
 
-        var material = meshInstance.material;
+    var path = material.renderPath;
 
-        var path = material.renderPath;
+    // only required for the default lighting model (if not unlit)
+    this._needsNormalDepth = this._needsNormalDepth || material._needsNormalDepth;
+    this._needsBackbuffer = this._needsBackbuffer || material._needsBackbuffer;
 
-        // only required for the default lighting model (if not unlit)
-        this._needsNormalDepth = this._needsNormalDepth || material._needsNormalDepth;
-        this._needsBackbuffer = this._needsBackbuffer || material._needsBackbuffer;
+    var renderItem = renderPool.getItem();
 
-        var renderItem = renderPool.getItem();
+    renderItem.material = material;
+    renderItem.meshInstance = meshInstance;
+    renderItem.skeleton = skeleton;
+    renderItem.skeletonMatrices = skeletonMatrices;
+    // distance along Z axis:
+    var center = worldBounds._center;
+    renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+    renderItem.worldMatrix = entity.worldMatrix;
+    renderItem.camera = camera;
+    renderItem.worldBounds = worldBounds;
 
-        renderItem.material = material;
-        renderItem.meshInstance = meshInstance;
-        renderItem.skeleton = skeleton;
-        renderItem.skeletonMatrices = skeletonMatrices;
-        // distance along Z axis:
-        var center = worldBounds._center;
-        renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
-        renderItem.worldMatrix = worldMatrix;
-        renderItem.camera = camera;
-        renderItem.worldBounds = worldBounds;
-
-        var bucket = (material.blendState || material._needsBackbuffer)? transparentList : opaqueLists[path];
-        bucket.push(renderItem);
-    }
+    var bucket = (material.blendState || material._needsBackbuffer)? transparentList : opaqueLists[path];
+    bucket.push(renderItem);
 };
 
 RenderCollector.prototype.visitAmbientLight = function(light)

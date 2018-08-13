@@ -33,7 +33,7 @@ function SkeletonAnimation(rootNode)
     if (rootNode instanceof AnimationClip)
         rootNode = new SkeletonClipNode(rootNode);
     this._blendTree = new SkeletonBlendTree(rootNode);
-};
+}
 
 Component.create(SkeletonAnimation,
     {
@@ -104,6 +104,17 @@ SkeletonAnimation.prototype.onUpdate = function(dt)
 SkeletonAnimation.prototype.getNode = function(name)
 {
     return this._blendTree.getNode(name);
+};
+
+/**
+ * @inheritDoc
+ */
+SkeletonAnimation.prototype.clone = function()
+{
+    var clone = new SkeletonAnimation(this._blendTree.rootNode);
+    clone.transferRootJoint = this.transferRootJoint;
+    clone.applyInverseBindPose = this.applyInverseBindPose;
+    return clone;
 };
 
 export { SkeletonAnimation };

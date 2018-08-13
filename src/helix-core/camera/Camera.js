@@ -237,9 +237,9 @@ Camera.prototype._updateProjectionMatrix = function()
 /**
  * @ignore
  */
-Camera.prototype._updateWorldBounds = function()
+Camera.prototype._updateBounds = function()
 {
-    this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
+    this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
 /**
@@ -326,5 +326,30 @@ Camera.prototype._updateClusterPlanes = function()
 		this._clusterPlanesDirty = false;
     }
 }();
+
+/**
+ * @ignore
+ */
+Camera.prototype.copyTo = function(target)
+{
+	Entity.prototype.copyTo.call(this, target);
+	target.nearDistance = this.nearDistance;
+	target.farDistance = this.farDistance;
+};
+
+/**
+ * @ignore
+ */
+Camera.prototype.acceptVisitorPost = function(visitor)
+{
+    Entity.prototype.acceptVisitor.call(this, visitor);
+};
+
+// don't want effects etc to be added unless it's the render camera (which is handled by acceptVisitorPost)
+Camera.prototype.acceptVisitor = function(visitor)
+{
+    return;
+};
+
 
 export { Camera };

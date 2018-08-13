@@ -39,12 +39,16 @@ function initScene(scene, assetLibrary)
     scene.skybox = skybox;
 
     var lightProbe = new HX.LightProbe(null, skyboxTexture);
-    scene.attach(lightProbe);
+    scene.attach(new HX.Entity(lightProbe));
 
     var light = new HX.DirectionalLight();
     light.intensity = .15;
+
+	light = new HX.Entity(light);
+    light.lookAt(new HX.Float4(-1.0, -1.0, -1.0));
     scene.attach(light);
 
+	var entity = new HX.Entity();
     var primitive = new HX.SpherePrimitive(
         {
             numSegmentsH: 20,
@@ -57,7 +61,7 @@ function initScene(scene, assetLibrary)
     material.color = new HX.Color(.5,.1,.1);
     material.lightingModel = HX.LightingModel.Unlit;
 
-    scene.attach(new HX.ModelInstance(primitive, material));
+	entity.addComponent(new HX.MeshInstance(primitive, material));
 
     // the second layer forms the reflective layer
     material = new HX.BasicMaterial();
@@ -67,5 +71,6 @@ function initScene(scene, assetLibrary)
     material.renderOrder = 50;  // be sure the render after first layer
     material.roughness = .01;
 
-    scene.attach(new HX.ModelInstance(primitive, material));
+	entity.addComponent(new HX.MeshInstance(primitive, material));
+    scene.attach(entity);
 }

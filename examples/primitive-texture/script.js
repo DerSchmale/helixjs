@@ -30,5 +30,7 @@ function initScene(scene, assetLibrary)
             radius:.25
         });
 
-    scene.attach(new HX.ModelInstance(primitive, material));
+    var entity = new HX.Entity();
+    entity.addComponent(new HX.MeshInstance(primitive, material));
+    scene.attach(entity);
 }

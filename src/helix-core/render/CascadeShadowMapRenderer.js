@@ -35,7 +35,7 @@ CascadeShadowMapRenderer.prototype =
 {
     render: function(light, atlas, viewCamera, scene)
     {
-        this._inverseLightMatrix.inverseAffineOf(light.worldMatrix);
+        this._inverseLightMatrix.inverseAffineOf(light.entity.worldMatrix);
         this._updateCollectorCamera(light, viewCamera);
         this._updateSplits(light, viewCamera);
         this._updateCullPlanes(light, viewCamera);
@@ -86,7 +86,7 @@ CascadeShadowMapRenderer.prototype =
 
         this._maxY = max.y;
 
-        this._collectorCamera.matrix.copyFrom(light.worldMatrix);
+        this._collectorCamera.matrix.copyFrom(light.entity.worldMatrix);
         this._collectorCamera._invalidateWorldMatrix();
         this._collectorCamera.setBounds(min.x, max.x + 1, max.z + 1, min.z);
     },
@@ -128,7 +128,7 @@ CascadeShadowMapRenderer.prototype =
             var farRatio = light._cascadeSplitRatios[cascade];
             var camera = this._shadowMapCameras[cascade];
 
-            camera.matrix = light.worldMatrix;
+            camera.matrix = light.entity.worldMatrix;
 
             // figure out frustum bound
             for (var i = 0; i < 4; ++i) {

@@ -1,4 +1,6 @@
 import {Camera} from "./Camera";
+import {Entity} from "../entity/Entity";
+import {SceneNode} from "../scene/SceneNode";
 
 /**
  * @extends Camera
@@ -63,6 +65,26 @@ PerspectiveCamera.prototype._updateProjectionMatrix = function()
 {
     this._projectionMatrix.fromPerspectiveProjection(this._vFOV, this._aspectRatio, this._nearDistance, this._farDistance);
     this._projectionMatrixDirty = false;
+};
+
+
+/**
+ * @ignore
+ */
+PerspectiveCamera.prototype.copyTo = function(target)
+{
+	Camera.prototype.copyTo.call(this, target);
+	target.verticalFOV = this.verticalFOV;
+};
+
+/**
+ * @inheritDoc
+ */
+PerspectiveCamera.prototype.clone = function()
+{
+	var clone = new PerspectiveCamera();
+	this.copyTo(clone);
+	return clone;
 };
 
 export { PerspectiveCamera };

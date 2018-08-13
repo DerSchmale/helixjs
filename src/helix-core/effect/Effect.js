@@ -82,7 +82,6 @@ Effect.prototype._drawPass = function(pass)
  */
 Effect.prototype.onAdded = function()
 {
-    this._entity._registerEffect(this);
 };
 
 /**
@@ -90,7 +89,6 @@ Effect.prototype.onAdded = function()
  */
 Effect.prototype.onRemoved = function()
 {
-    this._entity._unregisterEffect(this);
 };
 
 /**
@@ -99,6 +97,11 @@ Effect.prototype.onRemoved = function()
 Effect.prototype._swapHDRFrontAndBack = function()
 {
     this._renderer._swapHDRFrontAndBack();
+};
+
+Effect.prototype.acceptVisitor = function(visitor)
+{
+	visitor.visitEffect(this);
 };
 
 export { Effect };

@@ -36,40 +36,36 @@ SpotShadowCasterCollector.prototype.collect = function(camera, scene)
     this._renderList.sort(RenderSortFunctions.sortOpaques);
 };
 
-SpotShadowCasterCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
+SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-    if (!modelInstance._castShadows) return;
+    if (!meshInstance._castShadows || !meshInstance.enabled) return;
 
-    var numMeshes = modelInstance.numMeshInstances;
+    var entity = meshInstance.entity;
+    var worldBounds = entity.worldBounds;
     var cameraYAxis = this._cameraYAxis;
     var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
-    var skeleton = modelInstance.skeleton;
-    var skeletonMatrices = modelInstance.skeletonMatrices;
+    var skeleton = meshInstance.skeleton;
+    var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
     var camera = this._camera;
     var renderList = this._renderList;
 
-    for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
-        var meshInstance = modelInstance.getMeshInstance(meshIndex);
-        if (!meshInstance.visible) continue;
+    var material = meshInstance.material;
 
-        var material = meshInstance.material;
+    var renderItem = renderPool.getItem();
 
-        var renderItem = renderPool.getItem();
+    renderItem.material = material;
+    renderItem.meshInstance = meshInstance;
+    renderItem.skeleton = skeleton;
+    renderItem.skeletonMatrices = skeletonMatrices;
+    // distance along Z axis:
+    var center = worldBounds._center;
+    renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
+    renderItem.worldMatrix = entity.worldMatrix;
+    renderItem.camera = camera;
+    renderItem.worldBounds = worldBounds;
 
-        renderItem.material = material;
-        renderItem.meshInstance = meshInstance;
-        renderItem.skeleton = skeleton;
-        renderItem.skeletonMatrices = skeletonMatrices;
-        // distance along Z axis:
-        var center = worldBounds._center;
-        renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
-        renderItem.worldMatrix = worldMatrix;
-        renderItem.camera = camera;
-        renderItem.worldBounds = worldBounds;
-
-        renderList.push(renderItem);
-    }
+    renderList.push(renderItem);
 };
 
 SpotShadowCasterCollector.prototype.qualifies = function(object)

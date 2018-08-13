@@ -1,13 +1,13 @@
 /**
  * Just spins an object around an axis.
  */
-AnimateRotateComponent = function()
+function AnimateRotateComponent()
 {
     HX.Component.call(this);
     this._radians = 0;
     this._speed = 1.0; // radians per second
     this._axis = HX.Float4.Z_AXIS.clone();
-};
+}
 
 HX.Component.create(AnimateRotateComponent,
     {
@@ -43,4 +43,13 @@ AnimateRotateComponent.prototype.onUpdate = function(dt)
     matrix.setColumn(3, position);
 
     this.entity.matrix = matrix;
+};
+
+AnimateRotateComponent.prototype.clone = function()
+{
+	var clone = new AnimateRotateComponent();
+	clone.axis = this.axis.clone();
+	clone.radians = this.radians;
+	clone.speed = this.speed; // radians per second
+	return clone;
 };

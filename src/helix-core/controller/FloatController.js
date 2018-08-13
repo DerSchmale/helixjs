@@ -262,4 +262,15 @@ FloatController.prototype._addYaw = function(value)
     this._yaw += value;
 };
 
+FloatController.prototype.clone = function()
+{
+    var clone = new FloatController();
+    clone.speed = this.speed;
+    clone.shiftMultiplier = this.shiftMultiplier;
+    clone.pitch = this.pitch;
+    clone.yaw = this.yaw;
+    clone.friction = this.friction;
+    return clone;
+};
+
 export {FloatController };

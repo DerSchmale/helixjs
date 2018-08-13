@@ -217,4 +217,20 @@ OrbitController.prototype._updateMove = function(x, y)
     this._oldMouseY = y;
 };
 
+OrbitController.prototype.clone = function()
+{
+	var clone = new OrbitController();
+	clone.radius = this.radius;
+	clone.azimuth = this.azimuth;
+	clone.polar = this.polar;
+	clone.touchZoomSpeed = this.touchZoomSpeed;
+	clone.zoomSpeed = this.zoomSpeed;
+	clone.maxRadius = this.maxRadius;
+	clone.minRadius = this.minRadius;
+	clone.dampen = this.dampen;
+	clone.lookAtTarget = this.lookAtTarget.clone();
+	return clone;
+};
+
+
 export { OrbitController };

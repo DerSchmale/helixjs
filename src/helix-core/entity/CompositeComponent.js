@@ -76,4 +76,16 @@ CompositeComponent.prototype.onUpdate = function(dt)
     }
 };
 
+/**
+ * @inheritDoc
+ */
+CompositeComponent.prototype.clone = function()
+{
+    var clone = new CompositeComponent();
+    for (var i = 0; i < this._subs.length; ++i) {
+        clone.addComponent(this._subs[i].clone());
+    }
+    return clone;
+};
+
 export { CompositeComponent };

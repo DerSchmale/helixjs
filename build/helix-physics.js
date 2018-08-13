@@ -291,7 +291,6 @@ HX$1.Component.create(RigidBody, {
 
 RigidBody.prototype.addImpulse = function(v, pos)
 {
-    // if no position is set, just
 	if (pos) {
 		this._body.applyImpulse(v, pos);
 	}
@@ -301,6 +300,8 @@ RigidBody.prototype.addImpulse = function(v, pos)
 		vel.y += v.y;
 		vel.z += v.z;
 	}
+
+	this._body.wakeUp();
 };
 
 RigidBody.prototype.addForce = function(v, pos)
@@ -314,6 +315,8 @@ RigidBody.prototype.addForce = function(v, pos)
         f.y += v.y;
         f.z += v.z;
     }
+
+	this._body.wakeUp();
 };
 
 RigidBody.prototype.onAdded = function()
@@ -368,16 +371,11 @@ RigidBody.prototype._createBody = function()
 {
     var entity = this._entity;
 
-    var bounds;
-    if (entity instanceof HX$1.ModelInstance) {
-        bounds = entity.localBounds;
-    }
-    else {
-        var matrix = new HX$1.Matrix4x4();
-        matrix.inverseAffineOf(entity.worldMatrix);
-        bounds = new HX$1.BoundingAABB();
-        bounds.transformFrom(entity.worldBounds, matrix);
-    }
+    var meshInstances = entity.getComponentsByType(HX$1.MeshInstance);
+    var numMeshes = meshInstances.length;
+
+    // use the same bounding type if it's the only mesh
+	var bounds = numMeshes === 1? meshInstances[0].mesh.bounds : entity.bounds;
 
     if (!this._collider)
         this._collider = bounds instanceof HX$1.BoundingAABB? new BoxCollider() : new SphereCollider();
@@ -402,6 +400,14 @@ RigidBody.prototype._createBody = function()
 	this._body.updateMassProperties();
 };
 
+RigidBody.prototype.clone = function()
+{
+	var clone = new RigidBody(this._collider, this._mass, this._material);
+	clone.linearDamping = this.linearDamping;
+	clone.angularDamping = this.angularDamping;
+	return clone;
+};
+
 /**
  * PhysicsSystem is an {@linkcode EntitySystem} allowing physics simulations (based on cannonjs).
  *
@@ -421,6 +427,7 @@ function PhysicsSystem()
     this._world.solver.iterations = 10;
     this._fixedTimeStep = 1000/60;
     this._world.broadphase = new CANNON$1.SAPBroadphase(this._world);
+    this._world.allowSleep = true;
     // this._world.broadphase = new CANNON.NaiveBroadphase(this._world);
 
     // this._world.quatNormalizeFast = true;
@@ -473,6 +480,8 @@ PhysicsSystem.prototype.onStopped = function()
 {
     this._colliders.onEntityAdded.unbind(this._onEntityAdded);
     this._colliders.onEntityRemoved.unbind(this._onEntityRemoved);
+	this._colliders.free();
+	this._colliders = null;
 };
 
 PhysicsSystem.prototype._onEntityAdded = function(entity)
@@ -697,8 +706,8 @@ HeightfieldCollider.prototype._shiftHeightData = function()
 
 	if (minZ === 0.0) return;
 
-	for (var x = 0; x < w; ++x) {
-		for (var y = 0; y < h; ++y) {
+	for (x = 0; x < w; ++x) {
+		for (y = 0; y < h; ++y) {
 			data[x][y] += minZ;
 		}
 	}
@@ -748,7 +757,7 @@ PhysicsMaterial.prototype = {
 	}
 };
 
-function PlayerController()
+function FPSController()
 {
 	HX.Component.call(this);
 	this._move = new HX.Float2();
@@ -766,7 +775,7 @@ function PlayerController()
 	this._onKeyUp = null;
 }
 
-HX.Component.create(PlayerController, {
+HX.Component.create(FPSController, {
 	walkForce: {
 		get: function()
 		{
@@ -832,7 +841,7 @@ HX.Component.create(PlayerController, {
 /**
  * @ignore
  */
-PlayerController.prototype.onAdded = function(dt)
+FPSController.prototype.onAdded = function(dt)
 {
 	var self = this;
 
@@ -915,7 +924,7 @@ PlayerController.prototype.onAdded = function(dt)
 /**
  * @ignore
  */
-PlayerController.prototype.onRemoved = function(dt)
+FPSController.prototype.onRemoved = function(dt)
 {
 	document.removeEventListener("keydown", this._onKeyDown);
 	document.removeEventListener("keyup", this._onKeyUp);
@@ -927,7 +936,7 @@ PlayerController.prototype.onRemoved = function(dt)
 /**
  * @ignore
  */
-PlayerController.prototype.onUpdate = function(dt)
+FPSController.prototype.onUpdate = function(dt)
 {
 	var x = new HX.Float2();
 	var y = new HX.Float2();
@@ -968,7 +977,7 @@ PlayerController.prototype.onUpdate = function(dt)
 /**
  * @ignore
  */
-PlayerController.prototype._setForward = function(ratio)
+FPSController.prototype._setForward = function(ratio)
 {
 	this._move.y = ratio;
 };
@@ -976,7 +985,7 @@ PlayerController.prototype._setForward = function(ratio)
 /**
  * @ignore
  */
-PlayerController.prototype._setStride = function(ratio)
+FPSController.prototype._setStride = function(ratio)
 {
 	this._move.x = ratio;
 };
@@ -984,7 +993,7 @@ PlayerController.prototype._setStride = function(ratio)
 /**
  * @ignore
  */
-PlayerController.prototype._addPitch = function(value)
+FPSController.prototype._addPitch = function(value)
 {
 	this._pitch += value;
 };
@@ -992,9 +1001,23 @@ PlayerController.prototype._addPitch = function(value)
 /**
  * @ignore
  */
-PlayerController.prototype._addYaw = function(value)
+FPSController.prototype._addYaw = function(value)
 {
 	this._yaw += value;
+};
+
+/**
+ * @inheritDoc
+ */
+FPSController.prototype.clone = function()
+{
+	var clone = new FPSController();
+	clone.walkForce = this.walkForce;
+	clone.runForce = this.runForce;
+	clone.jumpForce = this.jumpForce;
+	clone.pitch = this.pitch;
+	clone.yaw = this.yaw;
+	return clone;
 };
 
 exports.PhysicsSystem = PhysicsSystem;
@@ -1005,7 +1028,7 @@ exports.SphereCollider = SphereCollider;
 exports.InfinitePlaneCollider = InfinitePlaneCollider;
 exports.HeightfieldCollider = HeightfieldCollider;
 exports.PhysicsMaterial = PhysicsMaterial;
-exports.PlayerController = PlayerController;
+exports.FPSController = FPSController;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 

@@ -45,7 +45,7 @@ SpotLightingPass.prototype.updatePassRenderState = function(camera, renderer, li
 
         gl.useProgram(this._shader._program);
 
-        var worldMatrix = light.worldMatrix;
+        var worldMatrix = light.entity.worldMatrix;
         var viewMatrix = camera.viewMatrix;
         worldMatrix.getColumn(3, pos);
         viewMatrix.transformPoint(pos, pos);

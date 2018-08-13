@@ -20,6 +20,7 @@ function DirectLight()
 {
     Light.call(this);
     this.intensity = 3.1415;
+	this.depthBias = .0;
     this._castShadows = false;
     this.shadowQualityBias = 0;
 }
@@ -28,7 +29,6 @@ DirectLight.prototype = Object.create(Light.prototype);
 
 DirectLight.prototype.acceptVisitor = function (visitor)
 {
-    Light.prototype.acceptVisitor.call(this, visitor);
     visitor.visitLight(this);
 };
 
@@ -42,8 +42,19 @@ DirectLight.prototype._updateScaledIrradiance = function ()
     this._scaledIrradiance.r *= scale;
     this._scaledIrradiance.g *= scale;
     this._scaledIrradiance.b *= scale;
+};
 
-    this._invalidateWorldBounds();
+
+
+/**
+ * @ignore
+ */
+DirectLight.prototype.copyTo = function(target)
+{
+	Light.prototype.copyTo.call(this, target);
+	target.shadowQualityBias = this.shadowQualityBias;
+	target.castShadows = this.castShadows;
+	target.depthBias = this.depthBias;
 };
 
 export { DirectLight };

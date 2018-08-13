@@ -42,7 +42,7 @@ PointLightingPass.prototype.updatePassRenderState = function(camera, renderer, l
 
         gl.useProgram(this._shader._program);
 
-        light.worldMatrix.getColumn(3, pos);
+        light.entity.worldMatrix.getColumn(3, pos);
         camera.viewMatrix.transformPoint(pos, pos);
         gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
         gl.uniform3f(this._posLocation, pos.x, pos.y, pos.z);

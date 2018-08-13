@@ -58,10 +58,11 @@ EntityEngine.prototype =
 
         if (!set) {
             set = new EntitySet(hash);
+			set.onDisposed.bind(this._onSetDisposed, this);
             this._entitySets[str] = set;
 
             len = this._entities.length;
-            for (var i = 0; i < len; ++i) {
+            for (i = 0; i < len; ++i) {
                 var entity = this._entities[i];
                 if (entity._componentHash.contains(hash))
                     set._add(entity);
@@ -75,6 +76,7 @@ EntityEngine.prototype =
     registerEntity: function(entity)
     {
         this._entities.push(entity);
+
         entity._onComponentsChange.bind(this._onEntityComponentsChange, this);
         if (entity._requiresUpdates)
             this._addUpdatableEntity(entity);
@@ -138,6 +140,7 @@ EntityEngine.prototype =
     {
         var entities = this._updateableEntities;
         var len = entities.length;
+
         for (var i = 0; i < len; ++i)
             entities[i].update(dt);
 
@@ -145,6 +148,11 @@ EntityEngine.prototype =
         len = systems.length;
         for (i = 0; i < len; ++i)
             systems[i].onUpdate(dt);
+    },
+
+	_onSetDisposed: function(set)
+    {
+        delete this._entitySets[set._hash];
     }
 };
 

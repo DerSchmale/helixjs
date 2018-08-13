@@ -3,6 +3,7 @@ import {Float4} from "../math/Float4";
 import {MathX} from "../math/MathX";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {BoundingSphere} from "../scene/BoundingSphere";
+import {Component} from "../entity/Component";
 
 /**
  * @classdesc
@@ -30,15 +31,15 @@ function SpotLight()
     this._cosInner = Math.cos(this._innerAngle * .5);
     this._cosOuter = Math.cos(this._outerAngle * .5);
     this.intensity = 3.1415;
-    this.lookAt(new Float4(0, 0, -1));
 
-    this.depthBias = .0;
     this.shadowQualityBias = 1;
     this._shadowMatrix = null;
     this._shadowTile = null;    // xy = scale, zw = offset
+
+    this._bounds = new BoundingSphere();
 }
 
-SpotLight.prototype = Object.create(DirectLight.prototype,
+Component.create(SpotLight,
     {
         numAtlasPlanes: {
             get: function() { return 1; }
@@ -88,7 +89,7 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
 
             set: function(value) {
                 this._radius = value;
-                this._invalidateWorldBounds();
+				this._invalidateBounds();
             }
         },
 
@@ -102,7 +103,7 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
                 this._outerAngle = MathX.clamp(this._outerAngle, this._innerAngle, Math.PI);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._invalidateWorldBounds();
+				this._invalidateBounds();
             }
         },
 
@@ -116,55 +117,24 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
                 this._innerAngle = MathX.clamp(this._innerAngle, 0, this._outerAngle);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._invalidateWorldBounds();
+				this._invalidateBounds();
             }
         }
-    });
+    },
+	DirectLight
+);
 
 /**
  * @ignore
  */
-SpotLight.prototype._createBoundingVolume = function()
+SpotLight.prototype._updateBounds = function()
 {
-    return new BoundingSphere();
-};
-
-/**
- * @ignore
- */
-SpotLight.prototype._updateWorldBounds = function()
-{
-    // think in 2D, with the X axis aligned to the spot's Y (forward) vector
-    // form a right-angled triangle with hypothenuse between 0 and Q = (l, h) = (r cosA, r sinA)
-    // find the point P on the base line (2D X axis) where |P - O| = |P - Q|
-    // Since on the base line: P = (x, 0) and |P - O| = x
-
-    // then apply x to the 3D Y axis to find the center of the bounding sphere, with radius |P - O|
-
-    // another right-angled triangle forms with hypothenuse |P - Q| and h, so:
-    // |P - Q|^2 = (l - x)^2 + h^2
-
-    // |P - O| = |P - Q|
-    // x = |P - Q|
-    // x^2 = |P - Q|^2
-    // x^2 = (l - x)^2 + h^2
-    // x^2 = l^2 - 2lx + x^2 + h^2
-    // x = (l^2 + h^2)/2l
-    // x = r^2 * (cos2 A + sin2 A) / 2l
-    //           (cos2 A + sin2 A = 1)
-    // x = r^2 / 2l = r^2 / 2rcosA
-    // x = r / 2cos(A)
-
-    var y = new Float4();
     var p = new Float4();
     return function() {
+        // find the center of the sphere that contains both the origin as well as the outer points
 		var x = this._radius / (2.0 * this._cosOuter);
-		var m = this.worldMatrix;
-
-		m.getColumn(3, p);  // position
-        m.getColumn(1, y);  // forward
-		p.addScaled(y, x);  // move center sphere forward by x * fwd
-		this._worldBounds.setExplicit(p, x);
+		p.set(0, x, 0);
+		this._bounds.setExplicit(p, x);
 	};
 }();
 
@@ -174,6 +144,21 @@ SpotLight.prototype._updateWorldBounds = function()
 SpotLight.prototype.toString = function()
 {
 	return "[SpotLight(name=" + this._name + ")]";
+};
+
+SpotLight.prototype.copyTo = function(target)
+{
+    DirectLight.prototype.copyTo.call(this, target);
+	target.radius = this.radius;
+	target.innerAngle = this.innerAngle;
+	target.outerAngle = this.outerAngle;
+};
+
+SpotLight.prototype.clone = function()
+{
+	var clone = new SpotLight();
+	this.copyTo(clone);
+	return clone;
 };
 
 

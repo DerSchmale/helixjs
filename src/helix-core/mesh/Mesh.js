@@ -3,6 +3,8 @@ import {IndexBuffer} from "../core/IndexBuffer";
 import {VertexBuffer} from "../core/VertexBuffer";
 import {Signal} from "../core/Signal";
 import {Float4} from "../math/Float4";
+import {BoundingAABB} from "../scene/BoundingAABB";
+import {MorphTarget} from "../animation/morph/MorphTarget";
 
 /**
  * @ignore
@@ -12,9 +14,8 @@ var Mesh_ID_COUNTER = 0;
 /**
  * @classdesc
  *
- * <p>Mesh contains the actual geometry of a renderable object. A {@linkcode Model} can contain several Mesh objects. The
- * {@linkcode Model} is used by {@linkcode ModelInstance}, which links materials to the meshes, and provides them a
- * place in the scene graph.</p>
+ * <p>Mesh contains the geometry of a renderable object. A {@linkcode MeshInstance} component is used to combine a Mesh
+ * with a Material for rendering.
  *
  * <p>A Mesh can have vertex attributes spread out over several "streams". Every stream means a separate vertex buffer will be used.</p>
  *
@@ -28,24 +29,34 @@ var Mesh_ID_COUNTER = 0;
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function Mesh(vertexUsage, indexUsage)
+function Mesh()
 {
+    this.onBoundsChanged = new Signal();
     this.onLayoutChanged = new Signal();
-    this._model = null;
+    this.onMorphDataCreated = new Signal();
+	this.onSkeletonChange = new Signal();
+	this._name = "";
+	this._bounds = new BoundingAABB();
+	this._boundsInvalid = true;
+	this._dynamicBounds = true;
     this._vertexBuffers = [];
     this._vertexStrides = [];
     this._vertexData = [];
     this._indexData = undefined;
-    this._vertexUsage = vertexUsage || BufferUsage.STATIC_DRAW;
-    this._indexUsage = indexUsage || BufferUsage.STATIC_DRAW;
+    this._vertexUsage = BufferUsage.STATIC_DRAW;
+    this._indexUsage = BufferUsage.STATIC_DRAW;
     this._numStreams = 0;
     this._numVertices = 0;
 
     this._vertexAttributes = [];
     this._vertexAttributesLookUp = {};
     this._indexBuffer = new IndexBuffer();
-    this._defaultMorphTarget = null;
-    this._hasMorphNormals = false;
+
+    this._morphTargets = {};
+	this._hasMorphNormals = false;
+	this._defaultMorphTarget = null;
+
+	this._skeleton = null;
 
     this._renderOrderHint = ++Mesh_ID_COUNTER;
 }
@@ -67,18 +78,68 @@ Mesh.ID_COUNTER = 0;
 /**
  * Creates an empty Mesh with a default layout.
  */
-Mesh.createDefaultEmpty = function()
+Mesh.createDefaultEmpty = function(target)
 {
-    var data = new Mesh();
-    data.addVertexAttribute("hx_position", 3);
-    data.addVertexAttribute("hx_normal", 3);
-    data.addVertexAttribute("hx_tangent", 4);
-    data.addVertexAttribute("hx_texCoord", 2);
-    return data;
+	target = target || new Mesh();
+	target.addVertexAttribute("hx_position", 3);
+	target.addVertexAttribute("hx_normal", 3);
+	target.addVertexAttribute("hx_tangent", 4);
+	target.addVertexAttribute("hx_texCoord", 2);
+    return target;
 };
 
 
 Mesh.prototype = {
+	/**
+	 * The object-space bounding volume. Setting this value only changes the type of volume.
+	 */
+	get bounds()
+	{
+		if (this._boundsInvalid) this._updateBounds();
+		return this._bounds;
+	},
+
+	set bounds(value)
+	{
+		this._bounds = value;
+		this._invalidateBounds();
+	},
+
+	/**
+	 * The object-space bounding volume. Setting this value only changes the type of volume.
+	 */
+	get dynamicBounds()
+	{
+		return this._dynamicBounds;
+	},
+
+	set dynamicBounds(value)
+	{
+		if (value === this._dynamicBounds)
+			return;
+
+		this._dynamicBounds = value;
+
+		if (value)
+			this._invalidateBounds();
+		else
+			this._boundsInvalid = false;
+	},
+
+	/**
+	 * The {@linkcode Skeleton} used for skinning animations.
+	 */
+	get skeleton()
+	{
+		return this._skeleton;
+	},
+
+	set skeleton(value)
+	{
+		this._skeleton = value;
+		this.onSkeletonChange.dispatch();
+	},
+
     /**
      * Whether or not this Mesh supports morph target animations. This is the case if {@linkcode Mesh#generateMorphData}
      * was called.
@@ -91,36 +152,6 @@ Mesh.prototype = {
     get hasMorphNormals()
     {
         return this._hasMorphNormals;
-    },
-
-    /**
-     * A usage hint for the vertex buffer.
-     *
-     * @see {@linkcode BufferUsage}
-     */
-    get vertexUsage()
-    {
-        return this._vertexUsage;
-    },
-
-    set vertexUsage(value)
-    {
-        this._vertexUsage = value;
-    },
-
-    /**
-     * A usage hint for the index buffer.
-     *
-     * @see {@linkcode BufferUsage}
-     */
-    get indexUsage()
-    {
-        return this._indexUsage;
-    },
-
-    set indexUsage(value)
-    {
-        this._indexUsage = value;
     },
 
     /**
@@ -144,9 +175,11 @@ Mesh.prototype = {
      * has been finalized using setVertexAttribute calls. The data in the stream should be an interleaved array of
      * floats, with each attribute data in the order specified with the setVertexAttribute calls.
      */
-    setVertexData: function (data, streamIndex)
+    setVertexData: function (data, streamIndex, usageHint)
     {
         streamIndex = streamIndex || 0;
+
+        this._vertexUsage = usageHint || BufferUsage.STATIC_DRAW;
 
         this._vertexData[streamIndex] = data instanceof Float32Array? data : new Float32Array(data);
         this._vertexBuffers[streamIndex] = this._vertexBuffers[streamIndex] || new VertexBuffer();
@@ -154,6 +187,8 @@ Mesh.prototype = {
 
         if (streamIndex === 0)
             this._numVertices = data.length / this._vertexStrides[0];
+
+		this._invalidateBounds();
     },
 
     /**
@@ -167,8 +202,10 @@ Mesh.prototype = {
     /**
      * Uploads index data from an Array or a Uint16Array
      */
-    setIndexData: function (data)
+    setIndexData: function (data, usageHint)
     {
+        this._indexUsage = usageHint || BufferUsage.STATIC_DRAW;
+
         if (data instanceof Uint16Array) {
             this._indexData = data;
             this._indexType = DataType.UNSIGNED_SHORT;
@@ -270,6 +307,9 @@ Mesh.prototype = {
         // this is used for both positions and normals (if needed)
         this._defaultMorphTarget = new VertexBuffer();
         this._defaultMorphTarget.uploadData(new Float32Array(data), BufferUsage.STATIC_DRAW);
+
+		this.onMorphDataCreated.dispatch();
+		this.onLayoutChanged.dispatch();
     },
 
     /**
@@ -320,12 +360,41 @@ Mesh.prototype = {
         return this._vertexAttributes[index];
     },
 
+	/**
+	 * Adds a MorphTarget object for animators to work with.
+	 */
+    addMorphTarget: function(morphTarget)
+	{
+		this._morphTargets[morphTarget.name] = morphTarget;
+
+		if (!this._defaultMorphTarget)
+		    this.generateMorphData();
+	},
+
+	/**
+	 * Adds a MorphTarget object for animators to work with.
+	 */
+    removeMorphTarget: function(morphTarget)
+	{
+		delete this._morphTargets[morphTarget.name];
+	},
+
+	/**
+	 * Gets the morph target by name.
+	 * @param {name} index The name of the {@linkcode MorphTarget}
+	 * @returns {MorphTarget}
+	 */
+	getMorphTarget: function(name)
+	{
+		return this._morphTargets[name];
+	},
+
     /**
      * Returns a duplicate of this Mesh.
      */
     clone: function()
     {
-        var mesh = new Mesh(this._vertexUsage, this._indexUsage);
+        var mesh = new Mesh();
         var numAttribs = this._vertexAttributes.length;
 
         for (var i = 0; i < numAttribs; ++i) {
@@ -335,11 +404,11 @@ Mesh.prototype = {
 
         for (i = 0; i < this._numStreams; ++i) {
             if (this._vertexData[i])
-                mesh.setVertexData(this._vertexData[i], i);
+                mesh.setVertexData(this._vertexData[i], i, this._vertexUsage);
         }
 
         if (this._indexData)
-            mesh.setIndexData(this._indexData);
+            mesh.setIndexData(this._indexData, this._indexUsage);
 
         return mesh;
     },
@@ -364,6 +433,29 @@ Mesh.prototype = {
         }
 
         this._vertexBuffers[attrib.streamIndex].uploadData(this._vertexData[attrib.streamIndex], this._vertexUsage);
+    },
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	_updateBounds: function()
+	{
+		this._bounds.clear();
+		this._bounds.growToIncludeMesh(this);
+		this._boundsInvalid = false;
+	},
+
+	/**
+     * @ignore
+	 * @private
+	 */
+	_invalidateBounds: function()
+    {
+    	if (this._dynamicBounds) {
+			this._boundsInvalid = true;
+			this.onBoundsChanged.dispatch();
+		}
     }
 };
 

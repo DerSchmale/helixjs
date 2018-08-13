@@ -10,6 +10,7 @@ import {Quaternion} from "../math/Quaternion";
 import {Scene} from "../scene/Scene";
 import {Skybox} from "../scene/Skybox";
 import {GL} from "../core/GL";
+import {Component} from "../entity/Component";
 
 /**
  * @classdesc
@@ -58,7 +59,7 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
     this._diffuseScene.skybox = new Skybox(specular);
 
     var cubeFaces = [ CubeFace.POSITIVE_X, CubeFace.NEGATIVE_X, CubeFace.POSITIVE_Y, CubeFace.NEGATIVE_Y, CubeFace.POSITIVE_Z, CubeFace.NEGATIVE_Z ];
-    for (var i = 0; i < 6; ++i) {
+    for (i = 0; i < 6; ++i) {
         var camera = new PerspectiveCamera();
         camera.nearDistance = near;
         camera.farDistance = far;
@@ -79,7 +80,7 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
     this._renderer = new Renderer();
 }
 
-DynamicLightProbe.prototype = Object.create(LightProbe.prototype);
+Component.create(DynamicLightProbe, {}, LightProbe);
 
 /**
  * Triggers an update of the light probe.
@@ -92,13 +93,14 @@ DynamicLightProbe.prototype.render = function()
     this._specularTexture = DEFAULTS.DARK_CUBE_TEXTURE;
     this._diffuseTexture = DEFAULTS.DARK_CUBE_TEXTURE;
 
-    var pos = this.worldMatrix.getColumn(3);
+    var pos = this._entity.worldMatrix.getColumn(3);
+    var scene = this._entity._scene;
 
     GL.setInvertCulling(true);
 
     for (var i = 0; i < 6; ++i) {
         this._cameras[i].position.copyFrom(pos);
-        this._renderer.render(this._cameras[i], this._scene, 0, this._specularFBOs[i]);
+        this._renderer.render(this._cameras[i], scene, 0, this._specularFBOs[i]);
     }
 
     specularTexture.generateMipmap();
@@ -112,6 +114,13 @@ DynamicLightProbe.prototype.render = function()
 
     this._diffuseTexture = diffuseTexture;
     this._specularTexture = specularTexture;
+};
+
+DynamicLightProbe.prototype.clone = function()
+{
+	var clone = new DynamicLightProbe(this._diffuseTexture.size, this._diffuseTexture.dataType, this._cameras[0].nearDistance, this._cameras[0].farDistance);
+	clone.size = this.size;
+	return clone;
 };
 
 export {DynamicLightProbe};

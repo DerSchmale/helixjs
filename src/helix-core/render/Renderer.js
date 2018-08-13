@@ -32,8 +32,9 @@ import {UniformBuffer} from "../core/UniformBuffer";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function Renderer()
+function Renderer(renderTarget)
 {
+    this._renderTarget = renderTarget || null;
     this._width = 0;
     this._height = 0;
 
@@ -167,6 +168,16 @@ Renderer.prototype =
         this._depthPrepass = value;
     },
 
+    get renderTarget()
+    {
+        return this._renderTarget;
+    },
+
+    set renderTarget(value)
+    {
+        this._renderTarget = value;
+    },
+
     /**
      * The background {@linkcode Color}.
      */
@@ -197,9 +208,8 @@ Renderer.prototype =
      * @param camera The {@linkcode Camera} from which to view the scene.
      * @param scene The {@linkcode Scene} to render.
      * @param dt The milliseconds passed since last frame.
-     * @param [renderTarget] An optional {@linkcode FrameBuffer} object to render to.
      */
-    render: function (camera, scene, dt, renderTarget)
+    render: function (camera, scene, dt)
     {
         this._gammaApplied = false;
         this._camera = camera;
@@ -207,7 +217,7 @@ Renderer.prototype =
 
         this._camera._updateClusterPlanes();
 
-        this._updateSize(renderTarget);
+        this._updateSize(this._renderTarget);
 
         camera._setRenderTargetResolution(this._width, this._height);
         this._renderCollector.collect(camera, scene);
@@ -239,7 +249,7 @@ Renderer.prototype =
 
         GL.setColorMask(true);
 
-        this._renderToScreen(renderTarget);
+        this._renderToScreen();
 
         GL.setBlendState();
         GL.setDepthMask(true);
@@ -354,14 +364,16 @@ Renderer.prototype =
         {
             var o;
             var col = light._scaledIrradiance;
+            var lightMatrix = light.entity.worldMatrix;
+            var viewMatrix = camera.viewMatrix;
             target.setFloat32(offset, col.r, true);
             target.setFloat32(offset + 4, col.g, true);
             target.setFloat32(offset + 8, col.b, true);
 
             target.setFloat32(offset + 12, light.radius, true);
 
-			light.worldMatrix.getColumn(3, pos);
-			camera.viewMatrix.transformPoint(pos, pos);
+			lightMatrix.getColumn(3, pos);
+			viewMatrix.transformPoint(pos, pos);
             target.setFloat32(offset + 16, pos.x, true);
             target.setFloat32(offset + 20, pos.y, true);
             target.setFloat32(offset + 24, pos.z, true);
@@ -369,8 +381,8 @@ Renderer.prototype =
             target.setFloat32(offset + 28, 1.0 / light.radius, true);
 
             if (isSpot) {
-				light.worldMatrix.getColumn(1, dir);
-				camera.viewMatrix.transformVector(dir, dir);
+				lightMatrix.getColumn(1, dir);
+				viewMatrix.transformVector(dir, dir);
 				target.setFloat32(offset + 32, dir.x, true);
 				target.setFloat32(offset + 36, dir.y, true);
 				target.setFloat32(offset + 40, dir.z, true);
@@ -405,7 +417,7 @@ Renderer.prototype =
 
                     o = offset + 128;
                     for (var face = 0; face < 6; ++face) {
-                        var tile = light._shadowTiles[face];
+                        tile = light._shadowTiles[face];
                         target.setFloat32(o, tile.x, true);
                         target.setFloat32(o + 4, tile.y, true);
                         target.setFloat32(o + 8, tile.z, true);
@@ -424,7 +436,7 @@ Renderer.prototype =
             }
 
             if (isSpot)
-				camera.viewMatrix.transformPoint(light.worldBounds.center, pos);
+				viewMatrix.transformPoint(light.entity.worldBounds.center, pos);
 
             this.assignToCells(light, camera, index, pos, cells, isSpot? dir : null);
 		}
@@ -432,12 +444,10 @@ Renderer.prototype =
 
 	assignToCells: function(light, camera, index, viewPos, cells, dir)
     {
-    	var distX = [];
-    	var distY = [];
     	var p = new Float4();
     	return function(light, camera, index, viewPos, cells, dir) {
 			var cellStride = this._cellStride;
-			var bounds = light.worldBounds;
+			var bounds = light.entity.worldBounds;
 			var radius = bounds.getRadius();
 
 			var nx = META.OPTIONS.numLightingCellsX;
@@ -686,7 +696,7 @@ Renderer.prototype =
      */
     _renderLightPassIfIntersects: function(light, passType, renderList)
     {
-        var lightBound = light.worldBounds;
+        var lightBound = light.entity.worldBounds;
         var len = renderList.length;
         for (var r = 0; r < len; ++r) {
             var renderItem = renderList[r];
@@ -706,7 +716,7 @@ Renderer.prototype =
         var meshInstance = renderItem.meshInstance;
         pass.updatePassRenderState(renderItem.camera, this, light);
         pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
-        meshInstance.updateRenderState(passType);
+		meshInstance.updateRenderState(passType);
         var mesh = meshInstance._mesh;
         GL.drawElements(pass._elementType, mesh._numIndices, 0, mesh._indexType);
     },
@@ -791,9 +801,9 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _renderToScreen: function (renderTarget)
+    _renderToScreen: function ()
     {
-        GL.setRenderTarget(renderTarget);
+        GL.setRenderTarget(this._renderTarget);
         GL.clear();
 
         if (this._debugMode) {
@@ -845,12 +855,12 @@ Renderer.prototype =
      * @ignore
      * @private
      */
-    _updateSize: function (renderTarget)
+    _updateSize: function ()
     {
         var width, height;
-        if (renderTarget) {
-            width = renderTarget.width;
-            height = renderTarget.height;
+        if (this._renderTarget) {
+            width = this._renderTarget.width;
+            height = this._renderTarget.height;
         }
         else {
             width = META.TARGET_CANVAS.width;

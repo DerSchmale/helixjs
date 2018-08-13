@@ -1,7 +1,7 @@
 import {DirectLight} from "./DirectLight";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {Float4} from "../math/Float4";
-import {SceneNode} from "../scene/SceneNode";
+import {Component} from "../entity/Component";
 
 /**
  * @classdesc
@@ -23,12 +23,12 @@ function PointLight()
 
     this._radius = 100.0;
     this.intensity = 3.1415;
-    this.depthBias = .0;
     this.shadowQualityBias = 2;
     this._shadowTiles = null;
+    this._bounds = new BoundingSphere();
 }
 
-PointLight.prototype = Object.create(DirectLight.prototype,
+Component.create(PointLight,
     {
         numAtlasPlanes: {
             get: function() { return 6; }
@@ -62,26 +62,20 @@ PointLight.prototype = Object.create(DirectLight.prototype,
 
             set: function(value) {
                 this._radius = value;
-				this._invalidateWorldBounds();
+                this._invalidateBounds();
             }
         }
-    });
+    },
+	DirectLight
+);
 
 /**
  * @ignore
+ * @private
  */
-PointLight.prototype._createBoundingVolume = function()
+PointLight.prototype._updateBounds = function()
 {
-    return new BoundingSphere();
-};
-
-/**
- * @ignore
- */
-PointLight.prototype._updateWorldBounds = function()
-{
-    var c = this._worldBounds._center;
-    this._worldBounds.setExplicit(this.worldMatrix.getColumn(3, c), this._radius);
+	this._bounds.setExplicit(Float4.ORIGIN_POINT, this._radius);
 };
 
 /**
@@ -92,5 +86,17 @@ PointLight.prototype.toString = function()
 	return "[PointLight(name=" + this._name + ")]";
 };
 
+PointLight.prototype.copyTo = function(target)
+{
+	DirectLight.prototype.copyTo.call(this, target);
+	target.radius = this.radius;
+};
+
+PointLight.prototype.clone = function()
+{
+	var clone = new PointLight();
+	this.copyTo(clone);
+	return clone;
+};
 
 export { PointLight };

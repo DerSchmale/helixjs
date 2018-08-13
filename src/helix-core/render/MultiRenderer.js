@@ -77,11 +77,11 @@ MultiRenderer.prototype =
      */
     addView: function (view)
     {
-        view._renderer = new Renderer();
         view._texture = new Texture2D();
         view._texture.filter = TextureFilter.BILINEAR_NOMIP;
         view._texture.wrapMode = TextureWrapMode.CLAMP;
         view._fbo = new FrameBuffer(view._texture);
+        view._renderer = new Renderer(view._fbo);
         this._views.push(view);
     },
 
@@ -117,7 +117,7 @@ MultiRenderer.prototype =
                 view._fbo.init();
             }
 
-            view._renderer.render(view.camera, view.scene, dt, view._fbo);
+            view._renderer.render(view.camera, view.scene, dt);
         }
 
         GL.setRenderTarget(renderTarget);

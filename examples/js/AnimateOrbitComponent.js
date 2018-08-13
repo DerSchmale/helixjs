@@ -1,7 +1,7 @@
 /**
  * Just spins an object around an axis.
  */
-AnimateOrbitComponent = function()
+function AnimateOrbitComponent()
 {
     HX.Component.call(this);
     this.pivotPoint = new HX.Float4();
@@ -11,7 +11,7 @@ AnimateOrbitComponent = function()
     this.speed = 1.0; // radians per second
 
     this._originalMatrix = null;
-};
+}
 
 HX.Component.create(AnimateOrbitComponent);
 
@@ -37,4 +37,15 @@ AnimateOrbitComponent.prototype.onUpdate = function(dt)
     matrix.appendTranslation(this.pivotPoint);
 
     this.entity.matrix = matrix;
+};
+
+AnimateOrbitComponent.prototype.clone = function()
+{
+    var clone = new AnimateOrbitComponent();
+	clone.pivotPoint = this.pivotPoint.clone();
+	clone.radius = this.radius = 1.0;
+	clone.axis = this.axis.clone();
+	clone.radians = this.radians;
+	clone.speed = this.speed; // radians per second
+    return clone;
 };

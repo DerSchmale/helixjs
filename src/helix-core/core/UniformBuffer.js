@@ -60,20 +60,20 @@ UniformBuffer.prototype = {
                 data = arr;
                 break;
             case gl.FLOAT_VEC2:
-                var arr = new Float32Array(2);
+                arr = new Float32Array(2);
                 arr[0] = value.x || value[0] || 0;
                 arr[1] = value.y || value[1] || 0;
                 data = arr;
                 break;
             case gl.FLOAT_VEC3:
-                var arr = new Float32Array(3);
+                arr = new Float32Array(3);
                 arr[0] = value.x || value[0] || 0;
                 arr[1] = value.y || value[1] || 0;
                 arr[2] = value.z || value[2] || 0;
                 data = arr;
                 break;
             case gl.FLOAT_VEC4:
-                var arr = new Float32Array(4);
+                arr = new Float32Array(4);
                 arr[0] = value.x || value[0] || 0;
                 arr[1] = value.y || value[1] || 0;
                 arr[2] = value.z || value[2] || 0;
@@ -82,20 +82,20 @@ UniformBuffer.prototype = {
                 break;
             case gl.INT:
             case gl.BOOL:
-                var arr = new Int32Array(1);
+                arr = new Int32Array(1);
                 arr[0] = value;
                 data = arr;
                 break;
             case gl.INT_VEC2:
             case gl.BOOL_VEC2:
-                var arr = new Int32Array(2);
+                arr = new Int32Array(2);
                 arr[0] = value.x || value[0] || 0;
                 arr[1] = value.y || value[1] || 0;
                 data = arr;
                 break;
             case gl.INT_VEC3:
             case gl.BOOL_VEC3:
-                var arr = new Int32Array(3);
+                arr = new Int32Array(3);
                 arr[0] = value.x || value[0] || 0;
                 arr[1] = value.y || value[1] || 0;
                 arr[2] = value.z || value[2] || 0;
@@ -103,7 +103,7 @@ UniformBuffer.prototype = {
                 break;
             case gl.INT_VEC4:
             case gl.BOOL_VEC4:
-                var arr = new Int32Array(4);
+                arr = new Int32Array(4);
                 arr[0] = value.x || value[0] || 0;
                 arr[1] = value.y || value[1] || 0;
                 arr[2] = value.z || value[2] || 0;

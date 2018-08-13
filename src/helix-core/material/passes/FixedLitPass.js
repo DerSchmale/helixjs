@@ -175,7 +175,7 @@ FixedLitPass.prototype._assignPointLights = function (camera) {
         for (var i = 0; i < len; ++i) {
             var locs = this._pointLocations[i];
             var light = lights[i];
-            light.worldMatrix.getColumn(3, pos);
+            light.entity.worldMatrix.getColumn(3, pos);
             camera.viewMatrix.transformPoint(pos, pos);
 
             var col = light._scaledIrradiance;
@@ -191,7 +191,7 @@ FixedLitPass.prototype._assignPointLights = function (camera) {
                 gl.uniform1f(locs.depthBias, light.depthBias);
 
                 var j = 0;
-                for (var i = 0; i < 6; ++i) {
+                for (i = 0; i < 6; ++i) {
                     var t = light._shadowTiles[i];
                     tiles[j++] = t.x;
                     tiles[j++] = t.y;

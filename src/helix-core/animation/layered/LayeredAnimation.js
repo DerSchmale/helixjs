@@ -2,7 +2,8 @@ import {onPreFrame} from "../../Helix";
 
 /**
  * LayeredAnimation combines a bunch of AnimationLayer objects into a single manageable animation. This acts globally,
- * so it's not a {@linkcode Component} belonging to an {@linkcode Entity}
+ * so it's not a {@linkcode Component} belonging to an {@linkcode Entity}. It can be seen as a global keyframe animation
+ * system.
  *
  * @constructor
  */

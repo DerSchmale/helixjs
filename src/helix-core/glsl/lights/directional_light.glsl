@@ -38,7 +38,7 @@ float hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 v
     vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);
     float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);
 
-    // this can occur when modelInstance.castShadows = false, or using inherited bounds
+    // this can occur when meshInstance.castShadows = false, or using inherited bounds
     bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;
     if (isOutside) shadow = 1.0;
 

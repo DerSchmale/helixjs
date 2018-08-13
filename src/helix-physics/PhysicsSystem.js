@@ -22,6 +22,7 @@ function PhysicsSystem()
     this._world.solver.iterations = 10;
     this._fixedTimeStep = 1000/60;
     this._world.broadphase = new CANNON.SAPBroadphase(this._world);
+    this._world.allowSleep = true;
     // this._world.broadphase = new CANNON.NaiveBroadphase(this._world);
 
     // this._world.quatNormalizeFast = true;
@@ -74,6 +75,8 @@ PhysicsSystem.prototype.onStopped = function()
 {
     this._colliders.onEntityAdded.unbind(this._onEntityAdded);
     this._colliders.onEntityRemoved.unbind(this._onEntityRemoved);
+	this._colliders.free();
+	this._colliders = null;
 };
 
 PhysicsSystem.prototype._onEntityAdded = function(entity)

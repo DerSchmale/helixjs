@@ -1,12 +1,13 @@
-import {ModelInstance} from "../mesh/ModelInstance";
 import {CylinderPrimitive} from "../mesh/primitives/CylinderPrimitive";
 import {BasicMaterial} from "../material/BasicMaterial";
 import {LightingModel} from "../render/LightingModel";
 import {SceneNode} from "../scene/SceneNode";
+import {Entity} from "../entity/Entity";
+import {MeshInstance} from "../mesh/MeshInstance";
 
 function DebugAxes()
 {
-    SceneNode.call(this);
+    Entity.call(this);
 
     var primitiveX = new CylinderPrimitive({
         height: 1.0,
@@ -24,21 +25,17 @@ function DebugAxes()
         alignment: CylinderPrimitive.ALIGN_Z
     });
 
+	primitiveX.translate(.5, 0, 0);
+	primitiveY.translate(0, .5, 0);
+	primitiveZ.translate(0, 0, .5);
+
     var materialX = new BasicMaterial({color: 0xff0000, lightingModel: LightingModel.Unlit});
     var materialY = new BasicMaterial({color: 0x00ff00, lightingModel: LightingModel.Unlit});
     var materialZ = new BasicMaterial({color: 0x0000ff, lightingModel: LightingModel.Unlit});
 
-    var modelInstanceX = new ModelInstance(primitiveX, materialX);
-    var modelInstanceY = new ModelInstance(primitiveY, materialY);
-    var modelInstanceZ = new ModelInstance(primitiveZ, materialZ);
-
-    modelInstanceX.position.x = .5;
-    modelInstanceY.position.y = .5;
-    modelInstanceZ.position.z = .5;
-
-    this.attach(modelInstanceX);
-    this.attach(modelInstanceY);
-    this.attach(modelInstanceZ);
+    this.addComponent(new MeshInstance(primitiveX, materialX));
+    this.addComponent(new MeshInstance(primitiveY, materialY));
+    this.addComponent(new MeshInstance(primitiveZ, materialZ));
 }
 
 

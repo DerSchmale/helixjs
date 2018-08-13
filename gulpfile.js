@@ -12,7 +12,7 @@ var jsdoc = require("gulp-jsdoc3");
 gulp.task('package', ['glsl', 'main', 'clean']);
 
 gulp.task('default', ['glsl', 'minimize', 'clean']);
-gulp.task('docs', ['docs-core', 'docs-io']);
+gulp.task('docs', ['docs-core', 'docs-io', 'docs-physics']);
 
 // core only compiles the core game engine
 gulp.task('core', ['glsl'], function ()
@@ -87,7 +87,13 @@ gulp.task('docs-core', function (cb) {
 
 gulp.task('docs-io', function(cb) {
     var config = require('./jsdoc-io.json');
-    gulp.src(['README.md', './src/helix-io/*.js'], {read: false})
+    gulp.src(['README.md', './src/helix-io/**/*.js'], {read: false})
+        .pipe(jsdoc(config, cb));
+});
+
+gulp.task('docs-physics', function(cb) {
+    var config = require('./jsdoc-physics.json');
+    gulp.src(['README.md', './src/helix-physics/**/*.js'], {read: false})
         .pipe(jsdoc(config, cb));
 });
 

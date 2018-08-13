@@ -23,7 +23,12 @@ function CenterAtComponent(camera)
     {
         this.entity.position.x = camera.position.x;
         this.entity.position.y = camera.position.y;
-    }
+    };
+
+    this.clone = function()
+    {
+        return new CenterAtComponent(camera);
+    };
 }
 
 HX.Component.create(CenterAtComponent);

@@ -266,7 +266,14 @@ SkeletonPose.prototype = {
 
             this._skinningTexture.uploadData(data, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
         }
-    }()
+    }(),
+
+    clone: function()
+    {
+        var clone = new SkeletonPose();
+        clone.copyFrom(this);
+        return clone;
+    }
 };
 
 export {SkeletonPose};

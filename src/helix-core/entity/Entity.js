@@ -3,6 +3,7 @@ import {Signal} from "../core/Signal";
 import {Bitfield} from "../core/Bitfield";
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {MeshInstance} from "../mesh/MeshInstance";
+import {Transform} from "../math/Transform";
 
 /**
  * @classdesc
@@ -25,9 +26,6 @@ function Entity(components)
 	this._components = [];
 	this._requiresUpdates = false;
 	this._onComponentsChange = new Signal();
-
-	// are managed by effect components, but need to be collectable unlike others
-	this._effects = null;
 
 	this._boundsInvalid = true;
 	this._worldBoundsInvalid = true;
@@ -276,26 +274,6 @@ Entity.prototype.update = function(dt)
 /**
  * @ignore
  */
-Entity.prototype._registerEffect = function(effect)
-{
-	this._effects = this._effects || [];
-	this._effects.push(effect);
-};
-
-/**
- * @ignore
- */
-Entity.prototype._unregisterEffect = function(effect)
-{
-	var index = this._effects.indexOf(effect);
-	this._effects.splice(index, 1);
-	if (this._effects.length === 0)
-		this._effects = null;
-};
-
-/**
- * @ignore
- */
 Entity.prototype._setScene = function(scene)
 {
 	if (this._scene) {
@@ -346,6 +324,28 @@ Entity.prototype._invalidateWorldMatrix = function()
 
 	if (this._scene)
 		this._scene._partitioning.markEntityForUpdate(this);
+};
+
+/**
+ * @ignore
+ */
+Entity.prototype.copyTo = function(target)
+{
+	SceneNode.prototype.copyTo.call(this, target);
+
+	for (var i = 0, len = this._components.length; i < len; ++i) {
+		target.addComponent(this._components[i].clone());
+	}
+};
+
+/**
+ * @inheritDoc
+ */
+Entity.prototype.clone = function()
+{
+	var clone = new Entity();
+	this.copyTo(clone);
+	return clone;
 };
 
 export { Entity };

@@ -86,4 +86,13 @@ Light.prototype._updateScaledIrradiance = function()
 	this._scaledIrradiance.b *= this._intensity;
 };
 
+/**
+ * @ignore
+ */
+Light.prototype.copyTo = function(target)
+{
+	target.color = this.color;
+	target.intensity = this.intensity;
+};
+
 export { Light };

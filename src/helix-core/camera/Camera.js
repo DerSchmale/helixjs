@@ -327,4 +327,15 @@ Camera.prototype._updateClusterPlanes = function()
     }
 }();
 
+/**
+ * @ignore
+ */
+Camera.prototype.copyTo = function(target)
+{
+	Entity.prototype.copyTo.call(this, target);
+	target.nearDistance = this.nearDistance;
+	target.farDistance = this.farDistance;
+};
+
+
 export { Camera };

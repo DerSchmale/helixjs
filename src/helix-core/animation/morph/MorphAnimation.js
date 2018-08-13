@@ -30,7 +30,6 @@ function MorphAnimation(morphPose)
 	else {
 		this._morphPose = new MorphPose();
 	}
-	this._meshInstance = null;
 }
 
 Component.create(MorphAnimation,
@@ -89,6 +88,12 @@ MorphAnimation.prototype._assignMorphPose = function(pose)
 	for (var i = 0, len = meshInstances.length; i < len; ++i) {
 		meshInstances[i].morphPose = pose;
     }
+};
+
+MorphAnimation.prototype.clone = function()
+{
+	var clone = new MorphAnimation(this._morphPose.clone());
+	return clone;
 };
 
 export { MorphAnimation };

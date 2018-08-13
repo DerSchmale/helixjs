@@ -38,4 +38,14 @@ AmbientLight.prototype._updateBounds = function()
 	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
+/**
+ * @ignore
+ */
+AmbientLight.prototype.clone = function()
+{
+	var clone = new AmbientLight();
+	this.copyTo(clone);
+	return clone;
+};
+
 export { AmbientLight };

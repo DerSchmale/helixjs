@@ -234,4 +234,12 @@ RigidBody.prototype._createBody = function()
 	this._body.updateMassProperties();
 };
 
+RigidBody.prototype.clone = function()
+{
+	var clone = new RigidBody(this._collider, this._mass, this._material);
+	clone.linearDamping = this.linearDamping;
+	clone.angularDamping = this.angularDamping;
+	return clone;
+};
+
 export {RigidBody};

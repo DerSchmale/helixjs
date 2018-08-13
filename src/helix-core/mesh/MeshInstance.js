@@ -373,4 +373,12 @@ MeshInstance.prototype._initMorphData = function()
 	);
 };
 
+MeshInstance.prototype.clone = function()
+{
+	var clone = new MeshInstance(this._mesh, this._material);
+	clone.castShadows = this.castShadows;
+	clone.skeletonPose = this._skeletonPose.clone();
+	return clone;
+};
+
 export { MeshInstance };

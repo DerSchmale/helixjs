@@ -119,6 +119,14 @@ Component.prototype =
 
 			if (this._entity)
 				this._entity._invalidateBounds();
+		},
+
+		/**
+		 * Creates a duplicate of this Component.
+		 */
+		clone: function()
+		{
+			throw new Error("Abstract method called!");
 		}
 	};
 

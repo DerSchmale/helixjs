@@ -4,6 +4,8 @@ import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Entity} from "../entity/Entity";
 import {MeshInstance} from "../mesh/MeshInstance";
+import {PerspectiveCamera} from "../camera/PerspectiveCamera";
+import {Camera} from "../camera/Camera";
 
 
 /**
@@ -19,6 +21,7 @@ import {MeshInstance} from "../mesh/MeshInstance";
 function Skybox(materialOrTexture)
 {
     Entity.call(this);
+
     if (!(materialOrTexture instanceof Material))
         materialOrTexture = new SkyboxMaterial(materialOrTexture);
 
@@ -32,5 +35,18 @@ function Skybox(materialOrTexture)
 }
 
 Skybox.prototype = Object.create(Entity.prototype);
+
+Skybox.prototype.copyTo = function(target)
+{
+	Entity.prototype.copyTo.call(this, target);
+
+};
+
+Skybox.prototype.clone = function()
+{
+	var clone = new Skybox(this._meshInstance.material);
+	this.copyTo(clone);
+	return clone;
+};
 
 export { Skybox };

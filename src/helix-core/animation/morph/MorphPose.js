@@ -75,6 +75,20 @@ MorphPose.prototype =
 
         this._stateInvalid = false;
         this.onChange.dispatch();
+    },
+
+	/**
+     * Creates a copy of this MorphPose object
+	 */
+	clone: function()
+    {
+        var clone = new MorphPose();
+
+        for (var name in this._weights) {
+            clone.setWeight(name, this._weights[name]);
+        }
+
+        return clone;
     }
 };
 

@@ -357,4 +357,30 @@ SceneNode.prototype._updateAncestorsVisible = function(value)
     }
 };
 
+/**
+ * @ignore
+ */
+SceneNode.prototype.copyTo = function(target)
+{
+    Transform.prototype.copyTo.call(this, target);
+
+    target.name = this.name;
+    target.visible = this.visible;
+    target.raycast = this.raycast;
+
+	for (var i = 0, len = this._children.length; i < len; ++i) {
+		target.attach(this._children[i].clone());
+	}
+};
+
+/**
+ * @inheritDoc
+ */
+SceneNode.prototype.clone = function()
+{
+    var clone = new SceneNode();
+	this.copyTo(clone);
+    return clone;
+};
+
 export { SceneNode };

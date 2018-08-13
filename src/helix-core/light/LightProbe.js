@@ -75,4 +75,11 @@ LightProbe.prototype.acceptVisitor = function (visitor)
     visitor.visitLight(this);
 };
 
+LightProbe.prototype.clone = function()
+{
+	var clone = new LightProbe(this._diffuseTexture, this._specularTexture);
+	clone.size = this.size;
+	return clone;
+};
+
 export { LightProbe };

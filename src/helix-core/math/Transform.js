@@ -198,7 +198,25 @@ Transform.prototype =
         this._changeListener.enabled = true;
         this._rotationChangeListener.enabled = true;
         this._eulerInvalid = true;
-    }
+    },
+
+	/**
+	 * Creates a copy of the object.
+ 	 */
+	clone: function()
+	{
+		var clone = new Transform();
+		this.copyTo(clone);
+		return clone;
+	},
+
+	/**
+	 * @ignore
+	 */
+	copyTo: function(target)
+	{
+		target.matrix = this.target;
+	}
 };
 
 export { Transform };

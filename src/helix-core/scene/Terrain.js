@@ -37,11 +37,11 @@ function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, d
     // this container will move along with the "player"
     // we use the extra container so the Terrain.position remains constant, so we can reliably translate and use rigid body components
     this._container = new SceneNode();
-    detail = detail || 32;
-    var gridSize = Math.ceil(detail * .5) * 2.0; // round off to 2
+    this._detail = detail || 32;
+    var gridSize = Math.ceil(this._detail * .5) * 2.0; // round off to 2
 
     // cannot bitshift because we need floating point result
-    this._snapSize = (this._terrainSize / detail) / Math.pow(2, this._numLevels);
+    this._snapSize = (this._terrainSize / this._detail) / Math.pow(2, this._numLevels);
 
     this._material = material;
     material.setUniform("hx_elevationOffset", minElevation);
@@ -331,6 +331,14 @@ Terrain.prototype.acceptVisitor = function(visitor)
     if (visitor instanceof RenderCollector) {
 		this._camera = visitor._camera;
     }
+};
+
+/**
+ * @inheritDoc
+ */
+Terrain.prototype.clone = function()
+{
+    return new Terrain(this._terrainSize, this._minElevation, this._maxElevation, this._numLevels, this._material, this._detail);
 };
 
 export { Terrain };

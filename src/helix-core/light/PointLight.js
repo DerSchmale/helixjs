@@ -23,7 +23,6 @@ function PointLight()
 
     this._radius = 100.0;
     this.intensity = 3.1415;
-    this.depthBias = .0;
     this.shadowQualityBias = 2;
     this._shadowTiles = null;
     this._bounds = new BoundingSphere();
@@ -87,5 +86,17 @@ PointLight.prototype.toString = function()
 	return "[PointLight(name=" + this._name + ")]";
 };
 
+PointLight.prototype.copyTo = function(target)
+{
+	DirectLight.prototype.copyTo.call(this, target);
+	target.radius = this.radius;
+};
+
+PointLight.prototype.clone = function()
+{
+	var clone = new PointLight();
+	this.copyTo(clone);
+	return clone;
+};
 
 export { PointLight };

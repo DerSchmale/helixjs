@@ -35,15 +35,15 @@ var ShaderLibrary = {
     }
 };
 
+ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
+
+ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
+
 ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
 
 ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
 
 ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
-
-ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
-
-ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
 ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
 
@@ -103,18 +103,6 @@ ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_G
 
 ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
-ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
 ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -144,6 +132,18 @@ ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x 
 ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
+
+ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
@@ -3007,7 +3007,25 @@ Transform.prototype =
         this._changeListener.enabled = true;
         this._rotationChangeListener.enabled = true;
         this._eulerInvalid = true;
-    }
+    },
+
+	/**
+	 * Creates a copy of the object.
+ 	 */
+	clone: function()
+	{
+		var clone = new Transform();
+		this.copyTo(clone);
+		return clone;
+	},
+
+	/**
+	 * @ignore
+	 */
+	copyTo: function(target)
+	{
+		target.matrix = this.target;
+	}
 };
 
 /**
@@ -10220,6 +10238,32 @@ SceneNode.prototype._updateAncestorsVisible = function(value)
 };
 
 /**
+ * @ignore
+ */
+SceneNode.prototype.copyTo = function(target)
+{
+    Transform.prototype.copyTo.call(this, target);
+
+    target.name = this.name;
+    target.visible = this.visible;
+    target.raycast = this.raycast;
+
+	for (var i = 0, len = this._children.length; i < len; ++i) {
+		target.attach(this._children[i].clone());
+	}
+};
+
+/**
+ * @inheritDoc
+ */
+SceneNode.prototype.clone = function()
+{
+    var clone = new SceneNode();
+	this.copyTo(clone);
+    return clone;
+};
+
+/**
  * Bitfield is a bitfield that allows more than 32 bits.
  *
  * @ignore
@@ -10512,6 +10556,14 @@ Component.prototype =
 
 			if (this._entity)
 				this._entity._invalidateBounds();
+		},
+
+		/**
+		 * Creates a duplicate of this Component.
+		 */
+		clone: function()
+		{
+			throw new Error("Abstract method called!");
 		}
 	};
 
@@ -10884,6 +10936,14 @@ MeshInstance.prototype._initMorphData = function()
 	);
 };
 
+MeshInstance.prototype.clone = function()
+{
+	var clone = new MeshInstance(this._mesh, this._material);
+	clone.castShadows = this.castShadows;
+	clone.skeletonPose = this._skeletonPose.clone();
+	return clone;
+};
+
 /**
  * @classdesc
  * Entity represents a node in the Scene graph that can have {@linkcode Component} objects added to it, which can
@@ -10905,9 +10965,6 @@ function Entity(components)
 	this._components = [];
 	this._requiresUpdates = false;
 	this._onComponentsChange = new Signal();
-
-	// are managed by effect components, but need to be collectable unlike others
-	this._effects = null;
 
 	this._boundsInvalid = true;
 	this._worldBoundsInvalid = true;
@@ -11156,26 +11213,6 @@ Entity.prototype.update = function(dt)
 /**
  * @ignore
  */
-Entity.prototype._registerEffect = function(effect)
-{
-	this._effects = this._effects || [];
-	this._effects.push(effect);
-};
-
-/**
- * @ignore
- */
-Entity.prototype._unregisterEffect = function(effect)
-{
-	var index = this._effects.indexOf(effect);
-	this._effects.splice(index, 1);
-	if (this._effects.length === 0)
-		this._effects = null;
-};
-
-/**
- * @ignore
- */
 Entity.prototype._setScene = function(scene)
 {
 	if (this._scene) {
@@ -11226,6 +11263,28 @@ Entity.prototype._invalidateWorldMatrix = function()
 
 	if (this._scene)
 		this._scene._partitioning.markEntityForUpdate(this);
+};
+
+/**
+ * @ignore
+ */
+Entity.prototype.copyTo = function(target)
+{
+	SceneNode.prototype.copyTo.call(this, target);
+
+	for (var i = 0, len = this._components.length; i < len; ++i) {
+		target.addComponent(this._components[i].clone());
+	}
+};
+
+/**
+ * @inheritDoc
+ */
+Entity.prototype.clone = function()
+{
+	var clone = new Entity();
+	this.copyTo(clone);
+	return clone;
 };
 
 /**
@@ -11311,6 +11370,15 @@ Light.prototype._updateScaledIrradiance = function()
 };
 
 /**
+ * @ignore
+ */
+Light.prototype.copyTo = function(target)
+{
+	target.color = this.color;
+	target.intensity = this.intensity;
+};
+
+/**
  * @classdesc
  * DirectLight forms a base class for direct lights.
  *
@@ -11329,6 +11397,7 @@ function DirectLight()
 {
     Light.call(this);
     this.intensity = 3.1415;
+	this.depthBias = .0;
     this._castShadows = false;
     this.shadowQualityBias = 0;
 }
@@ -11352,6 +11421,19 @@ DirectLight.prototype._updateScaledIrradiance = function ()
     this._scaledIrradiance.b *= scale;
 };
 
+
+
+/**
+ * @ignore
+ */
+DirectLight.prototype.copyTo = function(target)
+{
+	Light.prototype.copyTo.call(this, target);
+	target.shadowQualityBias = this.shadowQualityBias;
+	target.castShadows = this.castShadows;
+	target.depthBias = this.depthBias;
+};
+
 /**
  * @classdesc
  * DirectionalLight represents a light source that is "infinitely far away", used as an approximation for sun light where
@@ -11370,7 +11452,6 @@ function DirectionalLight()
 {
 	DirectLight.call(this);
 
-    this.depthBias = .0;
     this._direction = new Float4();
     this._cascadeSplitRatios = [];
     this._cascadeSplitDistances = [];
@@ -11479,6 +11560,13 @@ DirectionalLight.prototype._updateBounds = function()
 DirectionalLight.prototype.toString = function()
 {
 	return "[DirectionalLight(name=" + this._name + ")]";
+};
+
+DirectionalLight.prototype.clone = function()
+{
+	var clone = new DirectionalLight();
+	this.copyTo(clone);
+	return clone;
 };
 
 /**
@@ -11833,7 +11921,6 @@ function PointLight()
 
     this._radius = 100.0;
     this.intensity = 3.1415;
-    this.depthBias = .0;
     this.shadowQualityBias = 2;
     this._shadowTiles = null;
     this._bounds = new BoundingSphere();
@@ -11895,6 +11982,19 @@ PointLight.prototype._updateBounds = function()
 PointLight.prototype.toString = function()
 {
 	return "[PointLight(name=" + this._name + ")]";
+};
+
+PointLight.prototype.copyTo = function(target)
+{
+	DirectLight.prototype.copyTo.call(this, target);
+	target.radius = this.radius;
+};
+
+PointLight.prototype.clone = function()
+{
+	var clone = new PointLight();
+	this.copyTo(clone);
+	return clone;
 };
 
 /**
@@ -11967,6 +12067,13 @@ LightProbe.prototype.acceptVisitor = function (visitor)
     visitor.visitLight(this);
 };
 
+LightProbe.prototype.clone = function()
+{
+	var clone = new LightProbe(this._diffuseTexture, this._specularTexture);
+	clone.size = this.size;
+	return clone;
+};
+
 /**
  * @classdesc
  * SpotLight represents an light source with a single point as origin and a conical range. The light strength falls off
@@ -11994,7 +12101,6 @@ function SpotLight()
     this._cosOuter = Math.cos(this._outerAngle * .5);
     this.intensity = 3.1415;
 
-    this.depthBias = .0;
     this.shadowQualityBias = 1;
     this._shadowMatrix = null;
     this._shadowTile = null;    // xy = scale, zw = offset
@@ -12107,6 +12213,21 @@ SpotLight.prototype._updateBounds = function()
 SpotLight.prototype.toString = function()
 {
 	return "[SpotLight(name=" + this._name + ")]";
+};
+
+SpotLight.prototype.copyTo = function(target)
+{
+    DirectLight.prototype.copyTo.call(this, target);
+	target.radius = this.radius;
+	target.innerAngle = this.innerAngle;
+	target.outerAngle = this.outerAngle;
+};
+
+SpotLight.prototype.clone = function()
+{
+	var clone = new SpotLight();
+	this.copyTo(clone);
+	return clone;
 };
 
 /**
@@ -14341,6 +14462,572 @@ BoxPrimitive.prototype._generate = function(target, definition)
 
 /**
  * @classdesc
+ * Frustum (a truncated pyramid) describes the set of planes bounding the camera's visible area.
+ *
+ * @constructor
+ *
+ * @ignore
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function Frustum()
+{
+    this._planes = new Array(6);
+    this._corners = new Array(8);
+
+    for (var i = 0; i < 6; ++i)
+        this._planes[i] = new Float4();
+
+    for (i = 0; i < 8; ++i)
+        this._corners[i] = new Float4();
+}
+
+/**
+ * The index for the left plane.
+ */
+Frustum.PLANE_LEFT = 0;
+
+/**
+ * The index for the right plane.
+ */
+Frustum.PLANE_RIGHT = 1;
+
+/**
+ * The index for the bottom plane.
+ */
+Frustum.PLANE_BOTTOM = 2;
+
+/**
+ * The index for the top plane.
+ */
+Frustum.PLANE_TOP = 3;
+
+/**
+ * The index for the near plane.
+ */
+Frustum.PLANE_NEAR = 4;
+
+/**
+ * The index for the far plane.
+ */
+Frustum.PLANE_FAR = 5;
+
+/**
+ * @ignore
+ */
+Frustum.CLIP_SPACE_CORNERS = [
+    new Float4(-1.0, -1.0, -1.0, 1.0),
+    new Float4(1.0, -1.0, -1.0, 1.0),
+    new Float4(1.0, 1.0, -1.0, 1.0),
+    new Float4(-1.0, 1.0, -1.0, 1.0),
+    new Float4(-1.0, -1.0, 1.0, 1.0),
+    new Float4(1.0, -1.0, 1.0, 1.0),
+    new Float4(1.0, 1.0, 1.0, 1.0),
+    new Float4(-1.0, 1.0, 1.0, 1.0)
+];
+
+Frustum.prototype =
+    {
+        /**
+         * An Array of planes describing the frustum. The planes are in world space and point outwards.
+         */
+        get planes() { return this._planes; },
+
+        /**
+         * An array containing the 8 vertices of the frustum, in world space.
+         */
+        get corners() { return this._corners; },
+
+        /**
+         * @ignore
+         */
+        update: function(projection, inverseProjection)
+        {
+            this._updatePlanes(projection);
+            this._updateCorners(inverseProjection);
+        },
+
+        _updatePlanes: function(projection)
+        {
+            var m = projection._m;
+
+            var left = this._planes[Frustum.PLANE_LEFT];
+            var right = this._planes[Frustum.PLANE_RIGHT];
+            var top = this._planes[Frustum.PLANE_TOP];
+            var bottom = this._planes[Frustum.PLANE_BOTTOM];
+            var near = this._planes[Frustum.PLANE_NEAR];
+            var far = this._planes[Frustum.PLANE_FAR];
+
+            var r1x = m[0], r1y = m[4], r1z = m[8], r1w = m[12];
+            var r2x = m[1], r2y = m[5], r2z = m[9], r2w = m[13];
+            var r3x = m[2], r3y = m[6], r3z = m[10], r3w = m[14];
+            var r4x = m[3], r4y = m[7], r4z = m[11], r4w = m[15];
+
+            left.x = -(r4x + r1x);
+            left.y = -(r4y + r1y);
+            left.z = -(r4z + r1z);
+            left.w = -(r4w + r1w);
+            left.normalizeAsPlane();
+
+            right.x = r1x - r4x;
+            right.y = r1y - r4y;
+            right.z = r1z - r4z;
+            right.w = r1w - r4w;
+            right.normalizeAsPlane();
+
+            bottom.x = -(r4x + r2x);
+            bottom.y = -(r4y + r2y);
+            bottom.z = -(r4z + r2z);
+            bottom.w = -(r4w + r2w);
+            bottom.normalizeAsPlane();
+
+            top.x = r2x - r4x;
+            top.y = r2y - r4y;
+            top.z = r2z - r4z;
+            top.w = r2w - r4w;
+            top.normalizeAsPlane();
+
+            near.x = -(r4x + r3x);
+            near.y = -(r4y + r3y);
+            near.z = -(r4z + r3z);
+            near.w = -(r4w + r3w);
+            near.normalizeAsPlane();
+
+            far.x = r3x - r4x;
+            far.y = r3y - r4y;
+            far.z = r3z - r4z;
+            far.w = r3w - r4w;
+            far.normalizeAsPlane();
+        },
+
+        _updateCorners: function(inverseProjection)
+        {
+            for (var i = 0; i < 8; ++i) {
+                var corner = this._corners[i];
+                inverseProjection.transform(Frustum.CLIP_SPACE_CORNERS[i], corner);
+                corner.scale(1.0 / corner.w);
+            }
+        }
+    };
+
+/**
+ * @classdesc
+ * Camera is an abstract base class for camera objects.
+ *
+ * @constructor
+ *
+ * @property {number} nearDistance The minimum distance to be able to render. Anything closer gets cut off.
+ * @property {number} farDistance The maximum distance to be able to render. Anything farther gets cut off.
+ * @property {Matrix4x4} viewProjectionMatrix The matrix transforming coordinates from world space to the camera's homogeneous projective space.
+ * @property {Matrix4x4} viewMatrix The matrix transforming coordinates from world space to the camera's local coordinate system (eye space).
+ * @property {Matrix4x4} projectionMatrix The matrix transforming coordinates from eye space to the camera's homogeneous projective space.
+ * @property {Matrix4x4} inverseViewProjectionMatrix The matrix that transforms from the homogeneous projective space to world space.
+ * @property {Matrix4x4} inverseProjectionMatrix The matrix that transforms from the homogeneous projective space to view space.
+ *
+ * @see {@linkcode PerspectiveCamera}
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function Camera()
+{
+    Entity.call(this);
+
+    this._renderTargetWidth = 0;
+    this._renderTargetHeight = 0;
+    this._viewProjectionMatrixInvalid = true;
+    this._viewProjectionMatrix = new Matrix4x4();
+    this._inverseProjectionMatrix = new Matrix4x4();
+    this._inverseViewProjectionMatrix = new Matrix4x4();
+    this._projectionMatrix = new Matrix4x4();
+    this._viewMatrix = new Matrix4x4();
+    this._projectionMatrixDirty = true;
+	this._clusterPlanesDirty = true;
+    this._nearDistance = .1;
+    this._farDistance = 1000;
+    this._frustum = new Frustum();
+
+    this.position.set(0.0, -1.0, 0.0);
+}
+
+Camera.prototype = Object.create(Entity.prototype, {
+    nearDistance: {
+        get: function() {
+            return this._nearDistance;
+        },
+
+        set: function(value) {
+            if (this._nearDistance === value) return;
+            this._nearDistance = value;
+            this._invalidateProjectionMatrix();
+        }
+    },
+
+    farDistance: {
+        get: function() {
+            return this._farDistance;
+        },
+
+        set: function(value) {
+            if (this._farDistance === value) return;
+            this._farDistance = value;
+            this._invalidateProjectionMatrix();
+        }
+    },
+
+    // all x's are positive (point to the right)
+    clusterPlanesW: {
+        get: function() {
+			if (this._viewProjectionMatrixInvalid)
+				this._updateViewProjectionMatrix();
+
+            if (this._clusterPlanesDirty)
+                this._updateClusterPlanes();
+
+            return this._clusterPlanesW;
+        }
+    },
+
+	// all z's are positive
+    clusterPlanesH: {
+        get: function() {
+            if (this._projectionMatrixDirty)
+				this._updateProjectionMatrix();
+
+            if (this._clusterPlanesDirty)
+                this._updateClusterPlanes();
+
+            return this._clusterPlanesH;
+        }
+    },
+
+    viewProjectionMatrix: {
+        get: function() {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._viewProjectionMatrix;
+        }
+    },
+
+    viewMatrix: {
+        get: function()
+        {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._viewMatrix;
+        }
+    },
+
+    projectionMatrix: {
+        get: function()
+        {
+            if (this._projectionMatrixDirty)
+                this._updateProjectionMatrix();
+
+            return this._projectionMatrix;
+        }
+    },
+
+    inverseViewProjectionMatrix: {
+        get: function()
+        {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._inverseViewProjectionMatrix;
+        }
+    },
+
+    inverseProjectionMatrix: {
+        get: function()
+        {
+            if (this._projectionMatrixDirty)
+                this._updateProjectionMatrix();
+
+            return this._inverseProjectionMatrix;
+        }
+    },
+
+    frustum: {
+        get: function()
+        {
+            if (this._viewProjectionMatrixInvalid)
+                this._updateViewProjectionMatrix();
+
+            return this._frustum;
+        }
+    }
+});
+
+/**
+ * Returns a ray in world space at the given coordinates.
+ * @param x The x-coordinate in NDC [-1, 1] range.
+ * @param y The y-coordinate in NDC [-1, 1] range.
+ */
+Camera.prototype.getRay = function(x, y)
+{
+    var ray = new Ray();
+    var dir = ray.direction;
+    dir.set(x, y, 1, 1);
+    this.inverseProjectionMatrix.transform(dir, dir);
+    dir.homogeneousProject();
+    this.worldMatrix.transformVector(dir, dir);
+    dir.normalize();
+    this.worldMatrix.getColumn(3, ray.origin);
+    return ray;
+};
+
+/**
+ * @ignore
+ * @param width
+ * @param height
+ * @private
+ */
+Camera.prototype._setRenderTargetResolution = function(width, height)
+{
+    this._renderTargetWidth = width;
+    this._renderTargetHeight = height;
+};
+
+/**
+ * @ignore
+ */
+Camera.prototype._invalidateViewProjectionMatrix = function()
+{
+    this._viewProjectionMatrixInvalid = true;
+};
+
+/**
+ * @ignore
+ */
+Camera.prototype._invalidateWorldMatrix = function()
+{
+    Entity.prototype._invalidateWorldMatrix.call(this);
+    this._invalidateViewProjectionMatrix();
+};
+
+/**
+ * @ignore
+ */
+Camera.prototype._updateViewProjectionMatrix = function()
+{
+    this._viewMatrix.inverseAffineOf(this.worldMatrix);
+    this._viewProjectionMatrix.multiply(this.projectionMatrix, this._viewMatrix);
+    this._inverseProjectionMatrix.inverseOf(this._projectionMatrix);
+    this._inverseViewProjectionMatrix.inverseOf(this._viewProjectionMatrix);
+    this._frustum.update(this._viewProjectionMatrix, this._inverseViewProjectionMatrix);
+    this._viewProjectionMatrixInvalid = false;
+};
+
+/**
+ * @ignore
+ */
+Camera.prototype._invalidateProjectionMatrix = function()
+{
+    this._projectionMatrixDirty = true;
+    this._clusterPlanesDirty = true;
+    this._invalidateViewProjectionMatrix();
+};
+
+/**
+ * @ignore
+ */
+Camera.prototype._updateProjectionMatrix = function()
+{
+    throw new Error("Abstract method!");
+};
+
+/**
+ * @ignore
+ */
+Camera.prototype._updateBounds = function()
+{
+    this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
+};
+
+/**
+ * @ignore
+ */
+Camera.prototype.toString = function()
+{
+    return "[Camera(name=" + this._name + ")]";
+};
+
+/**
+ * @ignore
+ * @private
+ */
+Camera.prototype._initClusterPlanes = function()
+{
+	this._clusterPlanesW = [];
+	this._clusterPlanesH = [];
+
+	for (var i = 0; i <= META.OPTIONS.numLightingCellsX; ++i) {
+		this._clusterPlanesW[i] = new Float4();
+    }
+
+	for (i = 0; i <= META.OPTIONS.numLightingCellsY; ++i) {
+		this._clusterPlanesH[i] = new Float4();
+	}
+};
+
+/**
+ * @ignore
+ * @private
+ */
+Camera.prototype._updateClusterPlanes = function()
+{
+	var v1 = new Float4();
+	var v2 = new Float4();
+	var v3 = new Float4();
+
+    return function() {
+        if (!this._clusterPlanesDirty) return;
+
+        var ex = 2.0 / META.OPTIONS.numLightingCellsX;
+        var ey = 2.0 / META.OPTIONS.numLightingCellsY;
+
+        var p;
+
+        if (!this._clusterPlanesW)
+            this._initClusterPlanes();
+
+        var unproj = this._inverseProjectionMatrix;
+
+		var x = -1.0;
+        for (var i = 0; i <= META.OPTIONS.numLightingCellsX; ++i) {
+            v1.set(x, 0.0, 0.0, 1.0);
+            v2.set(x, 0.0, 1.0, 1.0);
+            v3.set(x, 1.0, 0.0, 1.0);
+
+			unproj.projectPoint(v1, v1);
+			unproj.projectPoint(v2, v2);
+			unproj.projectPoint(v3, v3);
+
+            this._clusterPlanesW[i].planeFromPoints(v1, v2, v3);
+
+			x += ex;
+        }
+
+        var y = -1.0;
+        for (i = 0; i <= META.OPTIONS.numLightingCellsY; ++i) {
+			p = this._clusterPlanesH[i];
+
+			v1.set(0.0, y, 0.0, 1.0);
+			v2.set(1.0, y, 0.0, 1.0);
+			v3.set(0.0, y, 1.0, 1.0);
+
+			unproj.projectPoint(v1, v1);
+			unproj.projectPoint(v2, v2);
+			unproj.projectPoint(v3, v3);
+
+			this._clusterPlanesH[i].planeFromPoints(v1, v2, v3);
+
+			y += ey;
+		}
+
+		this._clusterPlanesDirty = false;
+    }
+}();
+
+/**
+ * @ignore
+ */
+Camera.prototype.copyTo = function(target)
+{
+	Entity.prototype.copyTo.call(this, target);
+	target.nearDistance = this.nearDistance;
+	target.farDistance = this.farDistance;
+};
+
+/**
+ * @extends Camera
+ *
+ * @classdesc
+ * PerspectiveCamera is a Camera used for rendering with perspective.
+ *
+ * @property {number} verticalFOV The vertical field of view in radians.
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
+function PerspectiveCamera()
+{
+    Camera.call(this);
+
+    this._vFOV = 1.047198;  // radians!
+    this._aspectRatio = 1;
+}
+
+
+PerspectiveCamera.prototype = Object.create(Camera.prototype, {
+    verticalFOV: {
+        get: function()
+        {
+            return this._vFOV;
+        },
+        set: function(value)
+        {
+            if (this._vFOV === value) return;
+            this._vFOV = value;
+            this._invalidateProjectionMatrix();
+        }
+    }
+});
+
+/**
+ * @ignore
+ */
+PerspectiveCamera.prototype._setAspectRatio = function(value)
+{
+    if (this._aspectRatio === value) return;
+
+    this._aspectRatio = value;
+    this._invalidateProjectionMatrix();
+};
+
+/**
+ * @ignore
+ */
+PerspectiveCamera.prototype._setRenderTargetResolution = function(width, height)
+{
+    Camera.prototype._setRenderTargetResolution.call(this, width, height);
+    this._setAspectRatio(width / height);
+};
+
+/**
+ * @ignore
+ */
+PerspectiveCamera.prototype._updateProjectionMatrix = function()
+{
+    this._projectionMatrix.fromPerspectiveProjection(this._vFOV, this._aspectRatio, this._nearDistance, this._farDistance);
+    this._projectionMatrixDirty = false;
+};
+
+
+/**
+ * @ignore
+ */
+PerspectiveCamera.prototype.copyTo = function(target)
+{
+	Camera.prototype.copyTo.call(this, target);
+	target.verticalFOV = this.verticalFOV;
+};
+
+/**
+ * @inheritDoc
+ */
+PerspectiveCamera.prototype.clone = function()
+{
+	var clone = new PerspectiveCamera();
+	this.copyTo(clone);
+	return clone;
+};
+
+/**
+ * @classdesc
  * Skybox provides a backdrop "at infinity" for the scene.
  *
  * @param materialOrTexture Either a {@linkcode TextureCube} or a {@linkcode Material} used to render the skybox. If a
@@ -14352,6 +15039,7 @@ BoxPrimitive.prototype._generate = function(target, definition)
 function Skybox(materialOrTexture)
 {
     Entity.call(this);
+
     if (!(materialOrTexture instanceof Material))
         materialOrTexture = new SkyboxMaterial(materialOrTexture);
 
@@ -14365,6 +15053,19 @@ function Skybox(materialOrTexture)
 }
 
 Skybox.prototype = Object.create(Entity.prototype);
+
+Skybox.prototype.copyTo = function(target)
+{
+	Entity.prototype.copyTo.call(this, target);
+
+};
+
+Skybox.prototype.clone = function()
+{
+	var clone = new Skybox(this._meshInstance.material);
+	this.copyTo(clone);
+	return clone;
+};
 
 /**
  *
@@ -14669,11 +15370,11 @@ function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, d
     // this container will move along with the "player"
     // we use the extra container so the Terrain.position remains constant, so we can reliably translate and use rigid body components
     this._container = new SceneNode();
-    detail = detail || 32;
-    var gridSize = Math.ceil(detail * .5) * 2.0; // round off to 2
+    this._detail = detail || 32;
+    var gridSize = Math.ceil(this._detail * .5) * 2.0; // round off to 2
 
     // cannot bitshift because we need floating point result
-    this._snapSize = (this._terrainSize / detail) / Math.pow(2, this._numLevels);
+    this._snapSize = (this._terrainSize / this._detail) / Math.pow(2, this._numLevels);
 
     this._material = material;
     material.setUniform("hx_elevationOffset", minElevation);
@@ -14966,6 +15667,14 @@ Terrain.prototype.acceptVisitor = function(visitor)
 };
 
 /**
+ * @inheritDoc
+ */
+Terrain.prototype.clone = function()
+{
+    return new Terrain(this._terrainSize, this._minElevation, this._maxElevation, this._numLevels, this._material, this._detail);
+};
+
+/**
  * @classdesc
  *
  * EntitySystems allow for more complex component-based logic. Using getEntitySet, all entities with a certain component
@@ -15118,6 +15827,18 @@ CompositeComponent.prototype.onUpdate = function(dt)
         var comp = this._subs[i];
         comp.onUpdate(dt);
     }
+};
+
+/**
+ * @inheritDoc
+ */
+CompositeComponent.prototype.clone = function()
+{
+    var clone = new CompositeComponent();
+    for (var i = 0; i < this._subs.length; ++i) {
+        clone.addComponent(this._subs[i].clone());
+    }
+    return clone;
 };
 
 /**
@@ -15817,6 +16538,20 @@ MorphPose.prototype =
 
         this._stateInvalid = false;
         this.onChange.dispatch();
+    },
+
+	/**
+     * Creates a copy of this MorphPose object
+	 */
+	clone: function()
+    {
+        var clone = new MorphPose();
+
+        for (var name in this._weights) {
+            clone.setWeight(name, this._weights[name]);
+        }
+
+        return clone;
     }
 };
 
@@ -15848,7 +16583,6 @@ function MorphAnimation(morphPose)
 	else {
 		this._morphPose = new MorphPose();
 	}
-	this._meshInstance = null;
 }
 
 Component.create(MorphAnimation,
@@ -15907,6 +16641,12 @@ MorphAnimation.prototype._assignMorphPose = function(pose)
 	for (var i = 0, len = meshInstances.length; i < len; ++i) {
 		meshInstances[i].morphPose = pose;
     }
+};
+
+MorphAnimation.prototype.clone = function()
+{
+	var clone = new MorphAnimation(this._morphPose.clone());
+	return clone;
 };
 
 /**
@@ -16252,7 +16992,14 @@ SkeletonPose.prototype = {
 
             this._skinningTexture.uploadData(data, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
         }
-    }()
+    }(),
+
+    clone: function()
+    {
+        var clone = new SkeletonPose();
+        clone.copyFrom(this);
+        return clone;
+    }
 };
 
 /**
@@ -16612,6 +17359,17 @@ SkeletonAnimation.prototype.onUpdate = function(dt)
 SkeletonAnimation.prototype.getNode = function(name)
 {
     return this._blendTree.getNode(name);
+};
+
+/**
+ * @inheritDoc
+ */
+SkeletonAnimation.prototype.clone = function()
+{
+    var clone = new SkeletonAnimation(this._blendTree.rootNode);
+    clone.transferRootJoint = this.transferRootJoint;
+    clone.applyInverseBindPose = this.applyInverseBindPose;
+    return clone;
 };
 
 /**
@@ -17057,542 +17815,6 @@ SkeletonClipNode.prototype._queryChildren = function(name)
 
 /**
  * @classdesc
- * Frustum (a truncated pyramid) describes the set of planes bounding the camera's visible area.
- *
- * @constructor
- *
- * @ignore
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function Frustum()
-{
-    this._planes = new Array(6);
-    this._corners = new Array(8);
-
-    for (var i = 0; i < 6; ++i)
-        this._planes[i] = new Float4();
-
-    for (i = 0; i < 8; ++i)
-        this._corners[i] = new Float4();
-}
-
-/**
- * The index for the left plane.
- */
-Frustum.PLANE_LEFT = 0;
-
-/**
- * The index for the right plane.
- */
-Frustum.PLANE_RIGHT = 1;
-
-/**
- * The index for the bottom plane.
- */
-Frustum.PLANE_BOTTOM = 2;
-
-/**
- * The index for the top plane.
- */
-Frustum.PLANE_TOP = 3;
-
-/**
- * The index for the near plane.
- */
-Frustum.PLANE_NEAR = 4;
-
-/**
- * The index for the far plane.
- */
-Frustum.PLANE_FAR = 5;
-
-/**
- * @ignore
- */
-Frustum.CLIP_SPACE_CORNERS = [
-    new Float4(-1.0, -1.0, -1.0, 1.0),
-    new Float4(1.0, -1.0, -1.0, 1.0),
-    new Float4(1.0, 1.0, -1.0, 1.0),
-    new Float4(-1.0, 1.0, -1.0, 1.0),
-    new Float4(-1.0, -1.0, 1.0, 1.0),
-    new Float4(1.0, -1.0, 1.0, 1.0),
-    new Float4(1.0, 1.0, 1.0, 1.0),
-    new Float4(-1.0, 1.0, 1.0, 1.0)
-];
-
-Frustum.prototype =
-    {
-        /**
-         * An Array of planes describing the frustum. The planes are in world space and point outwards.
-         */
-        get planes() { return this._planes; },
-
-        /**
-         * An array containing the 8 vertices of the frustum, in world space.
-         */
-        get corners() { return this._corners; },
-
-        /**
-         * @ignore
-         */
-        update: function(projection, inverseProjection)
-        {
-            this._updatePlanes(projection);
-            this._updateCorners(inverseProjection);
-        },
-
-        _updatePlanes: function(projection)
-        {
-            var m = projection._m;
-
-            var left = this._planes[Frustum.PLANE_LEFT];
-            var right = this._planes[Frustum.PLANE_RIGHT];
-            var top = this._planes[Frustum.PLANE_TOP];
-            var bottom = this._planes[Frustum.PLANE_BOTTOM];
-            var near = this._planes[Frustum.PLANE_NEAR];
-            var far = this._planes[Frustum.PLANE_FAR];
-
-            var r1x = m[0], r1y = m[4], r1z = m[8], r1w = m[12];
-            var r2x = m[1], r2y = m[5], r2z = m[9], r2w = m[13];
-            var r3x = m[2], r3y = m[6], r3z = m[10], r3w = m[14];
-            var r4x = m[3], r4y = m[7], r4z = m[11], r4w = m[15];
-
-            left.x = -(r4x + r1x);
-            left.y = -(r4y + r1y);
-            left.z = -(r4z + r1z);
-            left.w = -(r4w + r1w);
-            left.normalizeAsPlane();
-
-            right.x = r1x - r4x;
-            right.y = r1y - r4y;
-            right.z = r1z - r4z;
-            right.w = r1w - r4w;
-            right.normalizeAsPlane();
-
-            bottom.x = -(r4x + r2x);
-            bottom.y = -(r4y + r2y);
-            bottom.z = -(r4z + r2z);
-            bottom.w = -(r4w + r2w);
-            bottom.normalizeAsPlane();
-
-            top.x = r2x - r4x;
-            top.y = r2y - r4y;
-            top.z = r2z - r4z;
-            top.w = r2w - r4w;
-            top.normalizeAsPlane();
-
-            near.x = -(r4x + r3x);
-            near.y = -(r4y + r3y);
-            near.z = -(r4z + r3z);
-            near.w = -(r4w + r3w);
-            near.normalizeAsPlane();
-
-            far.x = r3x - r4x;
-            far.y = r3y - r4y;
-            far.z = r3z - r4z;
-            far.w = r3w - r4w;
-            far.normalizeAsPlane();
-        },
-
-        _updateCorners: function(inverseProjection)
-        {
-            for (var i = 0; i < 8; ++i) {
-                var corner = this._corners[i];
-                inverseProjection.transform(Frustum.CLIP_SPACE_CORNERS[i], corner);
-                corner.scale(1.0 / corner.w);
-            }
-        }
-    };
-
-/**
- * @classdesc
- * Camera is an abstract base class for camera objects.
- *
- * @constructor
- *
- * @property {number} nearDistance The minimum distance to be able to render. Anything closer gets cut off.
- * @property {number} farDistance The maximum distance to be able to render. Anything farther gets cut off.
- * @property {Matrix4x4} viewProjectionMatrix The matrix transforming coordinates from world space to the camera's homogeneous projective space.
- * @property {Matrix4x4} viewMatrix The matrix transforming coordinates from world space to the camera's local coordinate system (eye space).
- * @property {Matrix4x4} projectionMatrix The matrix transforming coordinates from eye space to the camera's homogeneous projective space.
- * @property {Matrix4x4} inverseViewProjectionMatrix The matrix that transforms from the homogeneous projective space to world space.
- * @property {Matrix4x4} inverseProjectionMatrix The matrix that transforms from the homogeneous projective space to view space.
- *
- * @see {@linkcode PerspectiveCamera}
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function Camera()
-{
-    Entity.call(this);
-
-    this._renderTargetWidth = 0;
-    this._renderTargetHeight = 0;
-    this._viewProjectionMatrixInvalid = true;
-    this._viewProjectionMatrix = new Matrix4x4();
-    this._inverseProjectionMatrix = new Matrix4x4();
-    this._inverseViewProjectionMatrix = new Matrix4x4();
-    this._projectionMatrix = new Matrix4x4();
-    this._viewMatrix = new Matrix4x4();
-    this._projectionMatrixDirty = true;
-	this._clusterPlanesDirty = true;
-    this._nearDistance = .1;
-    this._farDistance = 1000;
-    this._frustum = new Frustum();
-
-    this.position.set(0.0, -1.0, 0.0);
-}
-
-Camera.prototype = Object.create(Entity.prototype, {
-    nearDistance: {
-        get: function() {
-            return this._nearDistance;
-        },
-
-        set: function(value) {
-            if (this._nearDistance === value) return;
-            this._nearDistance = value;
-            this._invalidateProjectionMatrix();
-        }
-    },
-
-    farDistance: {
-        get: function() {
-            return this._farDistance;
-        },
-
-        set: function(value) {
-            if (this._farDistance === value) return;
-            this._farDistance = value;
-            this._invalidateProjectionMatrix();
-        }
-    },
-
-    // all x's are positive (point to the right)
-    clusterPlanesW: {
-        get: function() {
-			if (this._viewProjectionMatrixInvalid)
-				this._updateViewProjectionMatrix();
-
-            if (this._clusterPlanesDirty)
-                this._updateClusterPlanes();
-
-            return this._clusterPlanesW;
-        }
-    },
-
-	// all z's are positive
-    clusterPlanesH: {
-        get: function() {
-            if (this._projectionMatrixDirty)
-				this._updateProjectionMatrix();
-
-            if (this._clusterPlanesDirty)
-                this._updateClusterPlanes();
-
-            return this._clusterPlanesH;
-        }
-    },
-
-    viewProjectionMatrix: {
-        get: function() {
-            if (this._viewProjectionMatrixInvalid)
-                this._updateViewProjectionMatrix();
-
-            return this._viewProjectionMatrix;
-        }
-    },
-
-    viewMatrix: {
-        get: function()
-        {
-            if (this._viewProjectionMatrixInvalid)
-                this._updateViewProjectionMatrix();
-
-            return this._viewMatrix;
-        }
-    },
-
-    projectionMatrix: {
-        get: function()
-        {
-            if (this._projectionMatrixDirty)
-                this._updateProjectionMatrix();
-
-            return this._projectionMatrix;
-        }
-    },
-
-    inverseViewProjectionMatrix: {
-        get: function()
-        {
-            if (this._viewProjectionMatrixInvalid)
-                this._updateViewProjectionMatrix();
-
-            return this._inverseViewProjectionMatrix;
-        }
-    },
-
-    inverseProjectionMatrix: {
-        get: function()
-        {
-            if (this._projectionMatrixDirty)
-                this._updateProjectionMatrix();
-
-            return this._inverseProjectionMatrix;
-        }
-    },
-
-    frustum: {
-        get: function()
-        {
-            if (this._viewProjectionMatrixInvalid)
-                this._updateViewProjectionMatrix();
-
-            return this._frustum;
-        }
-    }
-});
-
-/**
- * Returns a ray in world space at the given coordinates.
- * @param x The x-coordinate in NDC [-1, 1] range.
- * @param y The y-coordinate in NDC [-1, 1] range.
- */
-Camera.prototype.getRay = function(x, y)
-{
-    var ray = new Ray();
-    var dir = ray.direction;
-    dir.set(x, y, 1, 1);
-    this.inverseProjectionMatrix.transform(dir, dir);
-    dir.homogeneousProject();
-    this.worldMatrix.transformVector(dir, dir);
-    dir.normalize();
-    this.worldMatrix.getColumn(3, ray.origin);
-    return ray;
-};
-
-/**
- * @ignore
- * @param width
- * @param height
- * @private
- */
-Camera.prototype._setRenderTargetResolution = function(width, height)
-{
-    this._renderTargetWidth = width;
-    this._renderTargetHeight = height;
-};
-
-/**
- * @ignore
- */
-Camera.prototype._invalidateViewProjectionMatrix = function()
-{
-    this._viewProjectionMatrixInvalid = true;
-};
-
-/**
- * @ignore
- */
-Camera.prototype._invalidateWorldMatrix = function()
-{
-    Entity.prototype._invalidateWorldMatrix.call(this);
-    this._invalidateViewProjectionMatrix();
-};
-
-/**
- * @ignore
- */
-Camera.prototype._updateViewProjectionMatrix = function()
-{
-    this._viewMatrix.inverseAffineOf(this.worldMatrix);
-    this._viewProjectionMatrix.multiply(this.projectionMatrix, this._viewMatrix);
-    this._inverseProjectionMatrix.inverseOf(this._projectionMatrix);
-    this._inverseViewProjectionMatrix.inverseOf(this._viewProjectionMatrix);
-    this._frustum.update(this._viewProjectionMatrix, this._inverseViewProjectionMatrix);
-    this._viewProjectionMatrixInvalid = false;
-};
-
-/**
- * @ignore
- */
-Camera.prototype._invalidateProjectionMatrix = function()
-{
-    this._projectionMatrixDirty = true;
-    this._clusterPlanesDirty = true;
-    this._invalidateViewProjectionMatrix();
-};
-
-/**
- * @ignore
- */
-Camera.prototype._updateProjectionMatrix = function()
-{
-    throw new Error("Abstract method!");
-};
-
-/**
- * @ignore
- */
-Camera.prototype._updateBounds = function()
-{
-    this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
-};
-
-/**
- * @ignore
- */
-Camera.prototype.toString = function()
-{
-    return "[Camera(name=" + this._name + ")]";
-};
-
-/**
- * @ignore
- * @private
- */
-Camera.prototype._initClusterPlanes = function()
-{
-	this._clusterPlanesW = [];
-	this._clusterPlanesH = [];
-
-	for (var i = 0; i <= META.OPTIONS.numLightingCellsX; ++i) {
-		this._clusterPlanesW[i] = new Float4();
-    }
-
-	for (i = 0; i <= META.OPTIONS.numLightingCellsY; ++i) {
-		this._clusterPlanesH[i] = new Float4();
-	}
-};
-
-/**
- * @ignore
- * @private
- */
-Camera.prototype._updateClusterPlanes = function()
-{
-	var v1 = new Float4();
-	var v2 = new Float4();
-	var v3 = new Float4();
-
-    return function() {
-        if (!this._clusterPlanesDirty) return;
-
-        var ex = 2.0 / META.OPTIONS.numLightingCellsX;
-        var ey = 2.0 / META.OPTIONS.numLightingCellsY;
-
-        var p;
-
-        if (!this._clusterPlanesW)
-            this._initClusterPlanes();
-
-        var unproj = this._inverseProjectionMatrix;
-
-		var x = -1.0;
-        for (var i = 0; i <= META.OPTIONS.numLightingCellsX; ++i) {
-            v1.set(x, 0.0, 0.0, 1.0);
-            v2.set(x, 0.0, 1.0, 1.0);
-            v3.set(x, 1.0, 0.0, 1.0);
-
-			unproj.projectPoint(v1, v1);
-			unproj.projectPoint(v2, v2);
-			unproj.projectPoint(v3, v3);
-
-            this._clusterPlanesW[i].planeFromPoints(v1, v2, v3);
-
-			x += ex;
-        }
-
-        var y = -1.0;
-        for (i = 0; i <= META.OPTIONS.numLightingCellsY; ++i) {
-			p = this._clusterPlanesH[i];
-
-			v1.set(0.0, y, 0.0, 1.0);
-			v2.set(1.0, y, 0.0, 1.0);
-			v3.set(0.0, y, 1.0, 1.0);
-
-			unproj.projectPoint(v1, v1);
-			unproj.projectPoint(v2, v2);
-			unproj.projectPoint(v3, v3);
-
-			this._clusterPlanesH[i].planeFromPoints(v1, v2, v3);
-
-			y += ey;
-		}
-
-		this._clusterPlanesDirty = false;
-    }
-}();
-
-/**
- * @extends Camera
- *
- * @classdesc
- * PerspectiveCamera is a Camera used for rendering with perspective.
- *
- * @property {number} verticalFOV The vertical field of view in radians.
- *
- * @constructor
- *
- * @author derschmale <http://www.derschmale.com>
- */
-function PerspectiveCamera()
-{
-    Camera.call(this);
-
-    this._vFOV = 1.047198;  // radians!
-    this._aspectRatio = 1;
-}
-
-
-PerspectiveCamera.prototype = Object.create(Camera.prototype, {
-    verticalFOV: {
-        get: function()
-        {
-            return this._vFOV;
-        },
-        set: function(value)
-        {
-            if (this._vFOV === value) return;
-            this._vFOV = value;
-            this._invalidateProjectionMatrix();
-        }
-    }
-});
-
-/**
- * @ignore
- */
-PerspectiveCamera.prototype._setAspectRatio = function(value)
-{
-    if (this._aspectRatio === value) return;
-
-    this._aspectRatio = value;
-    this._invalidateProjectionMatrix();
-};
-
-/**
- * @ignore
- */
-PerspectiveCamera.prototype._setRenderTargetResolution = function(width, height)
-{
-    Camera.prototype._setRenderTargetResolution.call(this, width, height);
-    this._setAspectRatio(width / height);
-};
-
-/**
- * @ignore
- */
-PerspectiveCamera.prototype._updateProjectionMatrix = function()
-{
-    this._projectionMatrix.fromPerspectiveProjection(this._vFOV, this._aspectRatio, this._nearDistance, this._farDistance);
-    this._projectionMatrixDirty = false;
-};
-
-/**
- * @classdesc
  * Only used for things like shadow map rendering.
  *
  * @ignore
@@ -17624,6 +17846,25 @@ OrthographicOffCenterCamera.prototype._updateProjectionMatrix = function()
 {
     this._projectionMatrix.fromOrthographicOffCenterProjection(this._left, this._right, this._top, this._bottom, this._nearDistance, this._farDistance);
     this._projectionMatrixDirty = false;
+};
+
+/**
+ * @ignore
+ */
+OrthographicOffCenterCamera.prototype.copyTo = function(target)
+{
+	Camera.prototype.copyTo.call(this, target);
+	target.setBounds(this._left, this._right, this._top, this._bottom);
+};
+
+/**
+ * @inheritDoc
+ */
+OrthographicOffCenterCamera.prototype.clone = function()
+{
+	var clone = new OrthographicOffCenterCamera();
+	this.copyTo(clone);
+	return clone;
 };
 
 /**
@@ -17885,6 +18126,17 @@ FloatController.prototype._addYaw = function(value)
     this._yaw += value;
 };
 
+FloatController.prototype.clone = function()
+{
+    var clone = new FloatController();
+    clone.speed = this.speed;
+    clone.shiftMultiplier = this.shiftMultiplier;
+    clone.pitch = this.pitch;
+    clone.yaw = this.yaw;
+    clone.friction = this.friction;
+    return clone;
+};
+
 /**
  * @classdesc
  * FloatController is a {@linkcode Component} that allows moving an object (usually a camera) using mouse or touch around a central point.
@@ -18097,6 +18349,21 @@ OrbitController.prototype._updateMove = function(x, y)
     }
     this._oldMouseX = x;
     this._oldMouseY = y;
+};
+
+OrbitController.prototype.clone = function()
+{
+	var clone = new OrbitController();
+	clone.radius = this.radius;
+	clone.azimuth = this.azimuth;
+	clone.polar = this.polar;
+	clone.touchZoomSpeed = this.touchZoomSpeed;
+	clone.zoomSpeed = this.zoomSpeed;
+	clone.maxRadius = this.maxRadius;
+	clone.minRadius = this.minRadius;
+	clone.dampen = this.dampen;
+	clone.lookAtTarget = this.lookAtTarget.clone();
+	return clone;
 };
 
 /**
@@ -18584,7 +18851,6 @@ Effect.prototype._drawPass = function(pass)
  */
 Effect.prototype.onAdded = function()
 {
-    this._entity._registerEffect(this);
 };
 
 /**
@@ -18592,7 +18858,6 @@ Effect.prototype.onAdded = function()
  */
 Effect.prototype.onRemoved = function()
 {
-    this._entity._unregisterEffect(this);
 };
 
 /**
@@ -21218,6 +21483,16 @@ AmbientLight.prototype._updateBounds = function()
 };
 
 /**
+ * @ignore
+ */
+AmbientLight.prototype.clone = function()
+{
+	var clone = new AmbientLight();
+	this.copyTo(clone);
+	return clone;
+};
+
+/**
  * @classdesc
  * WriteOnlyDepthBuffer is a depth buffer that can be used with {@linkcode FrameBuffer} as a depth buffer if read-backs
  * are not required.
@@ -23128,6 +23403,13 @@ DynamicLightProbe.prototype.render = function()
 
     this._diffuseTexture = diffuseTexture;
     this._specularTexture = specularTexture;
+};
+
+DynamicLightProbe.prototype.clone = function()
+{
+	var clone = new DynamicLightProbe(this._diffuseTexture.size, this._diffuseTexture.dataType, this._cameras[0].nearDistance, this._cameras[0].farDistance);
+	clone.size = this.size;
+	return clone;
 };
 
 /**

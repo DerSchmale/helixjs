@@ -78,14 +78,14 @@ function initScene(scene, assetLibrary)
     var skybox = new HX.Skybox(skyboxSpecularTexture);
     scene.skybox = skybox;
 
+	sponza = assetLibrary.get("model");
+	sponza.scale.set(1.0/40.0, 1.0/40.0, 1.0/40.0);
+	scene.attach(sponza);
+
+	processMaterials();
+
     var dummyLightProbe = new HX.Entity(new HX.LightProbe(skyboxIrradianceTexture));
     scene.attach(dummyLightProbe);
-
-    sponza = assetLibrary.get("model");
-    sponza.scale.set(1.0/40.0, 1.0/40.0, 1.0/40.0);
-    scene.attach(sponza);
-
-    processMaterials();
 
     var dynLightProbe = new HX.DynamicLightProbe(512, HX.capabilities.HDR_FORMAT);
     dynLightProbe.size = 30.0;
@@ -97,7 +97,7 @@ function initScene(scene, assetLibrary)
     scene.detach(dynLightProbeEntity);
     scene.detach(dummyLightProbe);
 
-    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, dynLightProbe.specularTexture);
+    var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
     scene.attach(new HX.Entity(lightProbe));
 }
 

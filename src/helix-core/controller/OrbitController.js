@@ -2,6 +2,7 @@ import {Component} from "../entity/Component";
 import {Float4} from "../math/Float4";
 import {MathX} from "../math/MathX";
 import {META} from "../Helix";
+import {FloatController} from "./FloatController";
 
 /**
  * @classdesc
@@ -216,5 +217,21 @@ OrbitController.prototype._updateMove = function(x, y)
     this._oldMouseX = x;
     this._oldMouseY = y;
 };
+
+OrbitController.prototype.clone = function()
+{
+	var clone = new OrbitController();
+	clone.radius = this.radius;
+	clone.azimuth = this.azimuth;
+	clone.polar = this.polar;
+	clone.touchZoomSpeed = this.touchZoomSpeed;
+	clone.zoomSpeed = this.zoomSpeed;
+	clone.maxRadius = this.maxRadius;
+	clone.minRadius = this.minRadius;
+	clone.dampen = this.dampen;
+	clone.lookAtTarget = this.lookAtTarget.clone();
+	return clone;
+};
+
 
 export { OrbitController };

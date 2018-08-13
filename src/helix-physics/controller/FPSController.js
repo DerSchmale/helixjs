@@ -249,4 +249,18 @@ FPSController.prototype._addYaw = function(value)
 	this._yaw += value;
 };
 
+/**
+ * @inheritDoc
+ */
+FPSController.prototype.clone = function()
+{
+	var clone = new FPSController();
+	clone.walkForce = this.walkForce;
+	clone.runForce = this.runForce;
+	clone.jumpForce = this.jumpForce;
+	clone.pitch = this.pitch;
+	clone.yaw = this.yaw;
+	return clone;
+};
+
 export {FPSController };

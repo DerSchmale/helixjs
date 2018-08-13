@@ -24,7 +24,6 @@ function DirectionalLight()
 {
 	DirectLight.call(this);
 
-    this.depthBias = .0;
     this._direction = new Float4();
     this._cascadeSplitRatios = [];
     this._cascadeSplitDistances = [];
@@ -133,6 +132,13 @@ DirectionalLight.prototype._updateBounds = function()
 DirectionalLight.prototype.toString = function()
 {
 	return "[DirectionalLight(name=" + this._name + ")]";
+};
+
+DirectionalLight.prototype.clone = function()
+{
+	var clone = new DirectionalLight();
+	this.copyTo(clone);
+	return clone;
 };
 
 

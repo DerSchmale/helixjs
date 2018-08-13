@@ -1,4 +1,5 @@
 import {Camera} from "./Camera";
+import {PerspectiveCamera} from "./PerspectiveCamera";
 
 /**
  * @classdesc
@@ -35,6 +36,23 @@ OrthographicOffCenterCamera.prototype._updateProjectionMatrix = function()
     this._projectionMatrixDirty = false;
 };
 
+/**
+ * @ignore
+ */
+OrthographicOffCenterCamera.prototype.copyTo = function(target)
+{
+	Camera.prototype.copyTo.call(this, target);
+	target.setBounds(this._left, this._right, this._top, this._bottom);
+};
 
+/**
+ * @inheritDoc
+ */
+OrthographicOffCenterCamera.prototype.clone = function()
+{
+	var clone = new OrthographicOffCenterCamera();
+	this.copyTo(clone);
+	return clone;
+};
 
 export { OrthographicOffCenterCamera };

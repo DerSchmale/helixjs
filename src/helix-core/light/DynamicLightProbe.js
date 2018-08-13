@@ -116,4 +116,11 @@ DynamicLightProbe.prototype.render = function()
     this._specularTexture = specularTexture;
 };
 
+DynamicLightProbe.prototype.clone = function()
+{
+	var clone = new DynamicLightProbe(this._diffuseTexture.size, this._diffuseTexture.dataType, this._cameras[0].nearDistance, this._cameras[0].farDistance);
+	clone.size = this.size;
+	return clone;
+};
+
 export {DynamicLightProbe};

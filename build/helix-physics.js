@@ -400,6 +400,14 @@ RigidBody.prototype._createBody = function()
 	this._body.updateMassProperties();
 };
 
+RigidBody.prototype.clone = function()
+{
+	var clone = new RigidBody(this._collider, this._mass, this._material);
+	clone.linearDamping = this.linearDamping;
+	clone.angularDamping = this.angularDamping;
+	return clone;
+};
+
 /**
  * PhysicsSystem is an {@linkcode EntitySystem} allowing physics simulations (based on cannonjs).
  *
@@ -994,6 +1002,20 @@ FPSController.prototype._addPitch = function(value)
 FPSController.prototype._addYaw = function(value)
 {
 	this._yaw += value;
+};
+
+/**
+ * @inheritDoc
+ */
+FPSController.prototype.clone = function()
+{
+	var clone = new FPSController();
+	clone.walkForce = this.walkForce;
+	clone.runForce = this.runForce;
+	clone.jumpForce = this.jumpForce;
+	clone.pitch = this.pitch;
+	clone.yaw = this.yaw;
+	return clone;
 };
 
 exports.PhysicsSystem = PhysicsSystem;

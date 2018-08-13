@@ -32,7 +32,6 @@ function SpotLight()
     this._cosOuter = Math.cos(this._outerAngle * .5);
     this.intensity = 3.1415;
 
-    this.depthBias = .0;
     this.shadowQualityBias = 1;
     this._shadowMatrix = null;
     this._shadowTile = null;    // xy = scale, zw = offset
@@ -145,6 +144,21 @@ SpotLight.prototype._updateBounds = function()
 SpotLight.prototype.toString = function()
 {
 	return "[SpotLight(name=" + this._name + ")]";
+};
+
+SpotLight.prototype.copyTo = function(target)
+{
+    DirectLight.prototype.copyTo.call(this, target);
+	target.radius = this.radius;
+	target.innerAngle = this.innerAngle;
+	target.outerAngle = this.outerAngle;
+};
+
+SpotLight.prototype.clone = function()
+{
+	var clone = new SpotLight();
+	this.copyTo(clone);
+	return clone;
 };
 
 

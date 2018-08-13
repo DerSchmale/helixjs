@@ -38,7 +38,6 @@ function SpotLight()
     this._shadowTile = null;    // xy = scale, zw = offset
 
     this._bounds = new BoundingSphere();
-	this._updateBounds();
 }
 
 Component.create(SpotLight,
@@ -91,7 +90,7 @@ Component.create(SpotLight,
 
             set: function(value) {
                 this._radius = value;
-				this._updateBounds();
+				this._invalidateBounds();
             }
         },
 
@@ -105,7 +104,7 @@ Component.create(SpotLight,
                 this._outerAngle = MathX.clamp(this._outerAngle, this._innerAngle, Math.PI);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._updateBounds();
+				this._invalidateBounds();
             }
         },
 
@@ -119,7 +118,7 @@ Component.create(SpotLight,
                 this._innerAngle = MathX.clamp(this._innerAngle, 0, this._outerAngle);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._updateBounds();
+				this._invalidateBounds();
             }
         }
     },

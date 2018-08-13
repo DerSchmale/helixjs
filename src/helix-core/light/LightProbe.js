@@ -1,8 +1,9 @@
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Entity} from "../entity/Entity";
-import {META} from "../Helix";
 import {Float4} from "../math/Float4";
 import {BoundingSphere} from "../scene/BoundingSphere";
+import {Component} from "../entity/Component";
+import {BoundingAABB} from "../scene/BoundingAABB";
 
 /**
  * @classdesc
@@ -26,17 +27,19 @@ import {BoundingSphere} from "../scene/BoundingSphere";
  */
 function LightProbe(diffuseTexture, specularTexture)
 {
-    Entity.call(this);
+    Component.call(this);
     this._specularTexture = specularTexture;
     this._diffuseTexture = diffuseTexture;
     this._size = undefined;
+    this._bounds = new BoundingAABB();
+	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 }
 
 // conversion range for spec power to mip. Lys style.
 LightProbe.powerRange0 = .00098;
 LightProbe.powerRange1 = .9921;
 
-LightProbe.prototype = Object.create(Entity.prototype,
+Component.create(LightProbe,
     {
         specularTexture: {
             get: function() { return this._specularTexture; }
@@ -54,37 +57,21 @@ LightProbe.prototype = Object.create(Entity.prototype,
                 if (this._size === value) return;
 
                 this._size = value;
-                this._invalidateBounds();
-            },
+
+				if (value)
+					this._bounds.setExplicit(Float4.ORIGIN_POINT, value);
+				else
+					this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
+			},
         }
     });
 
-/**
- * @ignore
- */
-LightProbe.prototype._updateBounds = function()
-{
-    if (!this._size)
-        this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
-    else {
-        this._bounds.setExplicit(Float4.ORIGIN_POINT, this._size);
-    }
-};
-
-/**
- * ignore
- */
-LightProbe.prototype._createBoundingVolume = function ()
-{
-    return new BoundingSphere();
-};
 
 /**
  * ignore
  */
 LightProbe.prototype.acceptVisitor = function (visitor)
 {
-    Entity.prototype.acceptVisitor.call(this, visitor);
     visitor.visitLight(this);
 };
 

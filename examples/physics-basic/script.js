@@ -51,7 +51,7 @@ function initScene(scene, assetLibrary)
     var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
 
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
-    scene.attach(lightProbe);
+    scene.attach(new HX.Entity(lightProbe));
 
     var light = new HX.DirectionalLight();
     light.intensity = 1.5;

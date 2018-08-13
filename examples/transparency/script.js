@@ -39,7 +39,7 @@ function initScene(scene, assetLibrary)
     scene.skybox = skybox;
 
     var lightProbe = new HX.LightProbe(null, skyboxTexture);
-    scene.attach(lightProbe);
+    scene.attach(new HX.Entity(lightProbe));
 
     var light = new HX.DirectionalLight();
     light.intensity = .15;

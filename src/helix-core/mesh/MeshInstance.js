@@ -114,22 +114,23 @@ Component.create(MeshInstance, {
 
 			if (this._mesh) {
 				this._mesh.onLayoutChanged.unbind(this._onMaterialOrMeshChange);
-				this._mesh.onBoundsChanged.unbind(this._onBoundsChanged);
+				this._mesh.onBoundsChanged.unbind(this._invalidateBounds);
 				this._mesh.onMorphDataCreated.unbind(this._initMorphData);
 				this._mesh.onSkeletonChange.unbind(this._onSkeletonChange);
 			}
 
 			this._mesh = mesh;
-			this._bounds = mesh.bounds;
 
 			mesh.onLayoutChanged.bind(this._onMaterialOrMeshChange, this);
-			mesh.onBoundsChanged.bind(this._onBoundsChanged, this);
+			mesh.onBoundsChanged.bind(this._invalidateBounds, this);
 			mesh.onMorphDataCreated.bind(this._initMorphData, this);
 			mesh.onSkeletonChange.bind(this._onSkeletonChange, this);
 
 			this._initMorphData();
 
 			this._meshMaterialLinkInvalid = true;
+
+			this._invalidateBounds();
 		}
 	},
 
@@ -263,16 +264,6 @@ MeshInstance.prototype._onMaterialOrMeshChange = function()
 	this._meshMaterialLinkInvalid = true;
 };
 
-/**
- * @ignore
- * @private
- */
-MeshInstance.prototype._onBoundsChanged = function()
-{
-	if (this._entity)
-		this._entity._invalidateBounds();
-};
-
 
 /**
  * @ignore
@@ -346,6 +337,11 @@ MeshInstance.prototype._onSkeletonChange = function()
 {
 	console.log(this._mesh.skeleton);
 	this._material._setUseSkinning(!!this._mesh.skeleton);
+};
+
+MeshInstance.prototype._updateBounds = function()
+{
+	this._bounds = this._mesh.bounds;
 };
 
 MeshInstance.prototype._initMorphData = function()

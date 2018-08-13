@@ -41,7 +41,7 @@ ProbeLightingPass.prototype.updatePassRenderState = function(camera, renderer, p
     gl.uniform1f(this._numMipsLocation, Math.floor(MathX.log2(specularTex.size)));
     gl.uniform1f(this._localLocation, probe._size? 1.0 : 0.0);
     gl.uniform1f(this._sizeLocation, probe._size || 0.0);
-    var m = probe.worldMatrix._m;
+    var m = probe.entity.worldMatrix._m;
     gl.uniform3f(this._positionLocation, m[12], m[13], m[14]);
     MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
 };

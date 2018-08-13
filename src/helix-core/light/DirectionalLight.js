@@ -31,7 +31,6 @@ function DirectionalLight()
     this._initCascadeSplitProperties();
 
 	this._bounds = new BoundingAABB();
-	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 }
 
 Component.create(DirectionalLight,
@@ -118,6 +117,14 @@ DirectionalLight.prototype._initCascadeSplitProperties = function()
 DirectionalLight.prototype.getShadowMatrix = function(cascade)
 {
     return this._shadowMatrices[cascade];
+};
+
+/**
+ * @ignore
+ */
+DirectionalLight.prototype._updateBounds = function()
+{
+	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
 /**

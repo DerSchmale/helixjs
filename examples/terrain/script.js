@@ -124,7 +124,7 @@ function initScene(scene, camera, assetLibrary)
     scene.skybox = skybox;
 
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
-    scene.attach(lightProbe);
+    scene.attach(new HX.Entity(lightProbe));
 
     var heightMap = assetLibrary.get("heightMap");
     var terrainMap = assetLibrary.get("terrainMap");

@@ -10,6 +10,7 @@ import {Quaternion} from "../math/Quaternion";
 import {Scene} from "../scene/Scene";
 import {Skybox} from "../scene/Skybox";
 import {GL} from "../core/GL";
+import {Component} from "../entity/Component";
 
 /**
  * @classdesc
@@ -79,7 +80,7 @@ function DynamicLightProbe(textureSize, textureDataType, near, far)
     this._renderer = new Renderer();
 }
 
-DynamicLightProbe.prototype = Object.create(LightProbe.prototype);
+Component.create(DynamicLightProbe, {}, LightProbe);
 
 /**
  * Triggers an update of the light probe.
@@ -92,13 +93,14 @@ DynamicLightProbe.prototype.render = function()
     this._specularTexture = DEFAULTS.DARK_CUBE_TEXTURE;
     this._diffuseTexture = DEFAULTS.DARK_CUBE_TEXTURE;
 
-    var pos = this.worldMatrix.getColumn(3);
+    var pos = this._entity.worldMatrix.getColumn(3);
+    var scene = this._entity._scene;
 
     GL.setInvertCulling(true);
 
     for (var i = 0; i < 6; ++i) {
         this._cameras[i].position.copyFrom(pos);
-        this._renderer.render(this._cameras[i], this._scene, 0, this._specularFBOs[i]);
+        this._renderer.render(this._cameras[i], scene, 0, this._specularFBOs[i]);
     }
 
     specularTexture.generateMipmap();

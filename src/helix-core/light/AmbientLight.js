@@ -21,7 +21,6 @@ function AmbientLight()
 {
 	Light.call(this);
 	this._bounds = new BoundingAABB();
-	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 }
 
 Component.create(AmbientLight, {}, Light);
@@ -32,6 +31,11 @@ Component.create(AmbientLight, {}, Light);
 AmbientLight.prototype.acceptVisitor = function (visitor)
 {
     visitor.visitAmbientLight(this);
+};
+
+AmbientLight.prototype._updateBounds = function()
+{
+	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
 export { AmbientLight };

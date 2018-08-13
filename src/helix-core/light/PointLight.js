@@ -27,7 +27,6 @@ function PointLight()
     this.shadowQualityBias = 2;
     this._shadowTiles = null;
     this._bounds = new BoundingSphere();
-	this._bounds.setExplicit(Float4.ORIGIN_POINT, this._radius);
 }
 
 Component.create(PointLight,
@@ -64,12 +63,21 @@ Component.create(PointLight,
 
             set: function(value) {
                 this._radius = value;
-				this._bounds.setExplicit(Float4.ORIGIN_POINT, this._radius);
+                this._invalidateBounds();
             }
         }
     },
 	DirectLight
 );
+
+/**
+ * @ignore
+ * @private
+ */
+PointLight.prototype._updateBounds = function()
+{
+	this._bounds.setExplicit(Float4.ORIGIN_POINT, this._radius);
+};
 
 /**
  * @ignore

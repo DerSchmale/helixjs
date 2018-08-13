@@ -60,7 +60,7 @@ function initScene(scene, assetLibrary)
     var skybox = new HX.Skybox(skyboxSpecularTexture);
     scene.skybox = skybox;
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
-    scene.attach(lightProbe);
+    scene.attach(new HX.Entity(lightProbe));
 
     var primitive = new HX.SpherePrimitive(
         {

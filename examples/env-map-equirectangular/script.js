@@ -36,7 +36,6 @@ function initScene(scene, assetLibrary)
 
     // use the same texture as environment map
     var lightProbe = new HX.LightProbe(null, skyboxTexture);
-    scene.attach(lightProbe);
 
     var material = new HX.BasicMaterial();
     material.normalMap = assetLibrary.get("metal-normals");
@@ -45,6 +44,8 @@ function initScene(scene, assetLibrary)
     material.roughnessRange = -.1;  // invert roughness by making range negative
     material.metallicness = 1.0;
     material.lightingModel = HX.LightingModel.GGX;
+
+	scene.attach(new HX.Entity(lightProbe));
 
     var primitive = new HX.TorusPrimitive(
         {

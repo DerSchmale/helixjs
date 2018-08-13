@@ -30,7 +30,7 @@ function Component()
 
 Component.COMPONENT_ID = 0;
 
-Component.create = (function (constrFunction, props, baseClass)
+Component.create = (function (constructor, props, baseClass)
 {
 	var COUNTER = 0;
 

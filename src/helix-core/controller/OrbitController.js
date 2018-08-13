@@ -2,7 +2,6 @@ import {Component} from "../entity/Component";
 import {Float4} from "../math/Float4";
 import {MathX} from "../math/MathX";
 import {META} from "../Helix";
-import {FloatController} from "./FloatController";
 
 /**
  * @classdesc

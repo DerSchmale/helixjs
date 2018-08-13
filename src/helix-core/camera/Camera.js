@@ -337,5 +337,19 @@ Camera.prototype.copyTo = function(target)
 	target.farDistance = this.farDistance;
 };
 
+/**
+ * @ignore
+ */
+Camera.prototype.acceptVisitorPost = function(visitor)
+{
+    Entity.prototype.acceptVisitor.call(this, visitor);
+};
+
+// don't want effects etc to be added unless it's the render camera (which is handled by acceptVisitorPost)
+Camera.prototype.acceptVisitor = function(visitor)
+{
+    return;
+};
+
 
 export { Camera };

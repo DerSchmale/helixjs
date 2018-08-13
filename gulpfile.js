@@ -18,9 +18,14 @@ gulp.task('docs', ['docs-core', 'docs-io', 'docs-physics']);
 gulp.task('core', ['glsl'], function ()
 {
     return gulp.src(['./src/helix-core/HX.js'])
-        .pipe(rollup({
-            moduleName: 'HX',
-        }, 'umd'))
+        .pipe(rollup(
+            {
+			},
+			{
+				name: 'HX',
+				format: 'umd'
+			}
+		))
         .pipe(rename('helix.js'))
         .pipe(gulp.dest('./build/'));
 });
@@ -28,14 +33,19 @@ gulp.task('core', ['glsl'], function ()
 gulp.task('io', [], function ()
 {
     return gulp.src(['./src/helix-io/HX_IO.js'])
-        .pipe(rollup({
-            moduleName: 'HX',
-            globals: {
-                'helix': 'HX',
-                'pako': 'pako'
-            },
-            external: [ 'helix', 'pako' ]
-        }, 'umd'))
+        .pipe(rollup(
+        	{
+				external: [ 'helix', 'pako' ]
+        	},
+			{
+				name: 'HX_IO',
+				globals: {
+					'helix': 'HX',
+					'pako': 'pako'
+				},
+				format: 'umd'
+			}
+		))
         .pipe(rename('helix-io.js'))
         .pipe(gulp.dest('./build/'));
 });
@@ -43,14 +53,19 @@ gulp.task('io', [], function ()
 gulp.task('physics', [], function ()
 {
     return gulp.src(['./src/helix-physics/HX_Physics.js'])
-        .pipe(rollup({
-            moduleName: 'HX',
-            globals: {
-                'helix': 'HX',
-                'cannon': 'CANNON'
-            },
-            external: [ 'helix', 'cannon' ]
-        }, 'umd'))
+        .pipe(rollup(
+			{
+				external: ['helix', 'cannon']
+			},
+			{
+				name: 'HX_PHYS',
+				globals: {
+					'helix': 'HX',
+					'cannon': 'CANNON'
+				},
+				format: 'umd'
+			}
+        ))
         .pipe(rename('helix-physics.js'))
         .pipe(gulp.dest('./build/'));
 });

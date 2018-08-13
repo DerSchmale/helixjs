@@ -15,7 +15,7 @@ import {ArrayUtils} from "../utils/ArrayUtils";
  *
  * @example
  * var assetLibrary = new HX.AssetLibrary("assets/");
- * assetLibrary.queueAsset("some-model", "models/some-model.obj", HX.AssetLibrary.Type.ASSET, HX.OBJ);
+ * assetLibrary.queueAsset("some-model", "models/some-model.obj", HX.AssetLibrary.Type.ASSET, HX_IO.OBJ);
  * assetLibrary.queueAsset("some-texture", "textures/some_texture.png", HX.AssetLibrary.Type.ASSET, HX.PNG);
  * assetLibrary.onComplete.bind(onAssetsLoaded);
  * assetLibrary.onProgress.bind(onAssetsProgress);

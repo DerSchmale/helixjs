@@ -16,7 +16,7 @@ window.onload = function ()
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("scene", "Monster/Monster.gltf", HX.AssetLibrary.Type.ASSET, HX.GLTF);
+    assetLibrary.queueAsset("scene", "Monster/Monster.gltf", HX.AssetLibrary.Type.ASSET, HX_IO.GLTF);
     assetLibrary.queueAsset("irradiance", "skyboxes/river_rocks/river_rocks_irradiance.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG_EQUIRECTANGULAR);
 };
 

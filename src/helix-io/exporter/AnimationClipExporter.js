@@ -1,3 +1,4 @@
+import * as HX from "helix";
 import {DataOutputStream} from "../core/DataOutputStream";
 
 /**

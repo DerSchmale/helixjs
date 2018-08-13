@@ -15,7 +15,7 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
-    this.scene.startSystem(new HX.PhysicsSystem());
+    this.scene.startSystem(new HX_PHYS.PhysicsSystem());
     initCamera(this.camera);
     initScene(this.scene, this.assetLibrary);
 };
@@ -80,7 +80,7 @@ function initScene(scene, assetLibrary)
         });
 
     var floorInstance = new HX.Entity(new HX.MeshInstance(primitive, material));
-    var rigidBody = new HX.RigidBody(new HX.InfinitePlaneCollider());
+    var rigidBody = new HX_PHYS.RigidBody(new HX_PHYS.InfinitePlaneCollider());
     rigidBody.mass = 0;
     floorInstance.addComponent(rigidBody);
     scene.attach(floorInstance);
@@ -103,7 +103,7 @@ function initScene(scene, assetLibrary)
 
                 modelInstance.position.set(x + (Math.random() - .5) * .3, y + (Math.random() - .5) * .3, 1.0 + z * 2.0);
 
-                rigidBody = new HX.RigidBody();
+                rigidBody = new HX_PHYS.RigidBody();
                 rigidBody.linearDamping = .2;
                 rigidBody.angularDamping = .2;
                 modelInstance.addComponent(rigidBody);

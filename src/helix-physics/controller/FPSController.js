@@ -1,3 +1,4 @@
+import * as HX from "helix";
 import {RigidBody} from "../components/RigidBody";
 
 function FPSController()

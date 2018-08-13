@@ -1,3 +1,4 @@
+import * as HX from "helix";
 import * as CANNON from "cannon";
 import {Collider} from "./Collider";
 

@@ -1,5 +1,5 @@
-import * as CANNON from "cannon";
 import * as HX from "helix";
+import * as CANNON from "cannon";
 
 import {RigidBody} from "./components/RigidBody";
 

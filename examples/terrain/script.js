@@ -45,7 +45,7 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
-	this.scene.startSystem(new HX.PhysicsSystem());
+	this.scene.startSystem(new HX_PHYS.PhysicsSystem());
     initCamera(this.camera);
     initScene(this.scene, this.camera, this.assetLibrary);
 
@@ -86,17 +86,17 @@ function initCamera(camera)
     camera.nearDistance = 0.05;
     camera.farDistance = 8000.0;
 
-    var controller = new HX.FPSController();
+    var controller = new HX_PHYS.FPSController();
     controller.walkForce = 2000.0;
     controller.runForce = 20000.0;
     controller.jumpForce = 5.0;
     controller.yaw = Math.PI;
     camera.addComponent(controller);
 
-	var rigidBody = new HX.RigidBody(
-	    new HX.CapsuleCollider(1.0, 2, new HX.Float4(0, 0, -.9)),
+	var rigidBody = new HX_PHYS.RigidBody(
+	    new HX_PHYS.CapsuleCollider(1.0, 2, new HX.Float4(0, 0, -.9)),
         undefined,
-		new HX.PhysicsMaterial(0.12, 0.0)
+		new HX_PHYS.PhysicsMaterial(0.12, 0.0)
     );
 
 	rigidBody.linearDamping = 0.8;
@@ -150,10 +150,10 @@ function initScene(scene, camera, assetLibrary)
     var terrain = new HX.Entity();
 	terrain.addComponent(new HX.Terrain(16000, minHeight, maxHeight, 4, terrainMaterial, 32));
 
-    var rigidBody = new HX.RigidBody(
-		new HX.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight, true),
+    var rigidBody = new HX_PHYS.RigidBody(
+		new HX_PHYS.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight, true),
         0,
-        new HX.PhysicsMaterial(0.12, 0.0)
+        new HX_PHYS.PhysicsMaterial(0.12, 0.0)
     );
 	terrain.addComponent(rigidBody);
 

@@ -1,3 +1,5 @@
+import * as HX from "helix";
+
 /**
  * @classdesc
  *
@@ -7,7 +9,7 @@
  */
 function THREEBufferGeometry()
 {
-    HX.Importer.call(this, HX.Model);
+    HX.Importer.call(this, HX.Mesh);
 }
 
 THREEBufferGeometry.prototype = Object.create(HX.Importer.prototype);
@@ -16,18 +18,18 @@ THREEBufferGeometry.prototype.parse = function(data, target)
 {
     var json = JSON.parse(data);
     if (json.type !== "BufferGeometry") throw new Error("JSON does not contain correct BufferGeometry data! (type property is not BufferGeometry)");
-    var mesh = HX.Mesh.createDefaultEmpty();
+    HX.Mesh.createDefaultEmpty(target);
 
-    this.parseAttributes(json.data.attributes, mesh);
-    this.parseIndices(json.data.index, mesh);
+    this.parseAttributes(json.data.attributes, target);
+    this.parseIndices(json.data.index, target);
 
     var flags = json.data.attributes.normal? HX.NormalTangentGenerator.MODE_NORMALS : 0;
     flags |= json.data.attributes.tangent? HX.NormalTangentGenerator.MODE_TANGENTS : 0;
     if (flags) {
         var gen = new HX.NormalTangentGenerator();
-        gen.generate(mesh, flags);
+        gen.generate(target, flags);
     }
-    target.addMesh(mesh);
+
     this._notifyComplete(target);
 };
 

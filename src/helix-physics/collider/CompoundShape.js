@@ -1,3 +1,5 @@
+import * as HX from "helix";
+
 function SubShape(shape, offset, orientation)
 {
 	this.shape = shape;

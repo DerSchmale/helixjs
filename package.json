@@ -1,16 +1,18 @@
 {
   "name": "helix3d",
-  "version": "0.3.0",
+  "version": "0.3.1",
+  "description": "JavaScript 3D game engine",
+  "main": "build/helix.js",
   "devDependencies": {
-    "del": "^1.2.0",
+    "del": "^3.0.0",
     "gulp": "^3.9.1",
-    "gulp-better-rollup": "^1.1.1",
-    "gulp-concat": "^2.5.2",
+    "gulp-better-rollup": "^3.3.0",
+    "gulp-concat": "^2.6.1",
     "gulp-concat-callback": "^2.4.1",
     "gulp-insert": "^0.5.0",
-    "gulp-jsdoc3": "^1.0.1",
-    "gulp-rename": "^1.2.0",
-    "gulp-uglify": "^1.1.0"
+    "gulp-jsdoc3": "^2.0.0",
+    "gulp-rename": "^1.4.0",
+    "gulp-uglify": "^3.0.1"
   },
   "dependencies": {
     "cannon": "^0.6.2",
@@ -20,5 +22,6 @@
     "type": "git",
     "url": "https://github.com/DerSchmale/helixjs.git"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "homepage": "https://derschmale.github.io/helixjs/"
 }

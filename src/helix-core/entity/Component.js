@@ -30,16 +30,16 @@ function Component()
 
 Component.COMPONENT_ID = 0;
 
-Component.create = (function (constrFunction, props, baseClass)
+Component.create = (function (constructor, props, baseClass)
 {
 	var COUNTER = 0;
 
-	return function (constrFunction, props, baseClass)
+	return function (constructor, props, baseClass)
 	{
 		baseClass = baseClass || Component;
-		constrFunction.prototype = Object.create(baseClass.prototype, props);
-		constrFunction.COMPONENT_ID = ++COUNTER;
-		constrFunction.prototype.COMPONENT_ID = constrFunction.COMPONENT_ID;
+		constructor.prototype = Object.create(baseClass.prototype, props);
+		constructor.COMPONENT_ID = ++COUNTER;
+		constructor.prototype.COMPONENT_ID = constructor.COMPONENT_ID;
 	};
 }());
 

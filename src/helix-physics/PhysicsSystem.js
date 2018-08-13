@@ -75,6 +75,8 @@ PhysicsSystem.prototype.onStopped = function()
 {
     this._colliders.onEntityAdded.unbind(this._onEntityAdded);
     this._colliders.onEntityRemoved.unbind(this._onEntityRemoved);
+	this._colliders.free();
+	this._colliders = null;
 };
 
 PhysicsSystem.prototype._onEntityAdded = function(entity)

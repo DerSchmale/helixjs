@@ -58,6 +58,7 @@ EntityEngine.prototype =
 
         if (!set) {
             set = new EntitySet(hash);
+			set.onDisposed.bind(this._onSetDisposed, this);
             this._entitySets[str] = set;
 
             len = this._entities.length;
@@ -147,6 +148,11 @@ EntityEngine.prototype =
         len = systems.length;
         for (i = 0; i < len; ++i)
             systems[i].onUpdate(dt);
+    },
+
+	_onSetDisposed: function(set)
+    {
+        delete this._entitySets[set._hash];
     }
 };
 

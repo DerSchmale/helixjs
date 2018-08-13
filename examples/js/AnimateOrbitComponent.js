@@ -1,7 +1,7 @@
 /**
  * Just spins an object around an axis.
  */
-AnimateOrbitComponent = function()
+function AnimateOrbitComponent()
 {
     HX.Component.call(this);
     this.pivotPoint = new HX.Float4();
@@ -11,7 +11,7 @@ AnimateOrbitComponent = function()
     this.speed = 1.0; // radians per second
 
     this._originalMatrix = null;
-};
+}
 
 HX.Component.create(AnimateOrbitComponent);
 

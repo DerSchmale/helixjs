@@ -1,3 +1,5 @@
+import {Signal} from "../core/Signal";
+
 /**
  * EntitySet provides a way to keep collections of entities based on their Components. Collections should always
  * be retrieved via {@linkcode EntitySystem}!
@@ -9,8 +11,6 @@
  *
  * @author derschmale <http://www.derschmale.com>
  */
-import {Signal} from "../core/Signal";
-
 function EntitySet(hash)
 {
     this.onEntityAdded = new Signal();
@@ -82,7 +82,7 @@ EntitySet.prototype =
     free: function()
     {
         if (--this._usageCount === 0)
-            this.onDisposed.dispatch();
+            this.onDisposed.dispatch(this);
     }
 };
 

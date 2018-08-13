@@ -54,7 +54,7 @@ function initScene(scene, assetLibrary)
     scene.attach(new HX.Entity(lightProbe));
 
     var light = new HX.DirectionalLight();
-    light.intensity = 1.5;
+    // light.intensity = 4.5;
 
 	var lightEntity = new HX.Entity(light);
 	lightEntity.lookAt(new HX.Float4(1, 1, -1));

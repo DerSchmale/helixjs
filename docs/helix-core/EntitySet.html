@@ -4,7 +4,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width">
-	<title>Documentation Class: HCLIP</title>
+	<title>Documentation Class: EntitySet</title>
 
 	<!--[if lt IE 9]>
 	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -79,16 +79,14 @@
 		<div id="main">
 			
 
-	<h1 class="page-title">Class: HCLIP</h1>
+	<h1 class="page-title">Class: EntitySet</h1>
 <section>
 
 <header>
     
         <h2>
-        HCLIP
+        EntitySet
         </h2>
-        
-            <div class="class-description"><p>HCLIP is an Importer for Helix' (binary) animation clip format. Yields an <a href="AnimationClip.html"><code>AnimationClip</code></a> object.</p></div>
         
     
 </header>
@@ -100,12 +98,17 @@
         
 <hr>
 <dt>
-    <h4 class="name" id="HCLIP"><span class="type-signature"></span>new HCLIP()</h4>
+    <h4 class="name" id="EntitySet"><span class="type-signature"></span>new EntitySet()</h4>
     
     
 </dt>
 <dd>
 
+    
+    <div class="description">
+        <p>EntitySet provides a way to keep collections of entities based on their Components. Collections should always
+be retrieved via <a href="EntitySystem.html"><code>EntitySystem</code></a>!</p>
+    </div>
     
 
     
@@ -117,6 +120,83 @@
 
     
 <dl class="details">
+    
+
+    <h5 class="subsection-title">Properties:</h5>
+
+    <dl>
+
+<table class="props table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>onEntityAdded</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="Signal.html">Signal</a></span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Dispatched whenever an entity is added to the collection.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>onEntityRemoved</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="Signal.html">Signal</a></span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Dispatched whenever an entity is removed from the collection.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+</dl>
+
     
 
 	
@@ -181,14 +261,145 @@
     </div>
 
     
-        <h3 class="subsection-title">Extends</h3>
 
-        
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Members</h3>
+
+        <dl>
+            
+<hr>
+<dt class="name" id="numEntities">
+    <h4 id="numEntities"><span class="type-signature"></span>numEntities<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The number of entities currently in the set.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
 
 
-    <ul>
-        <li>Importer</li>
-    </ul>
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        </dl>
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        <dl>
+            
+<hr>
+<dt>
+    <h4 class="name" id="getEntity"><span class="type-signature"></span>getEntity()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Returns the entity at the given index.</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
 
 
     
@@ -203,6 +414,10 @@
 
     
 
+    
+</dd>
+
+        </dl>
     
 
     

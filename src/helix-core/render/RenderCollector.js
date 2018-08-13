@@ -81,17 +81,8 @@ RenderCollector.prototype.collect = function(camera, scene)
     // Do lights still require sorting?
     this._shadowCasters.sort(RenderSortFunctions.sortShadowCasters);
 
-    var effects = this._camera._effects;
-    // add camera effects at the end
-    if (effects) {
-        var len = effects.length;
-
-        for (i = 0; i < len; ++i) {
-            var effect = effects[i];
-            this._needsNormalDepth = this._needsNormalDepth || effect._needsNormalDepth;
-            this._effects.push(effect);
-        }
-    }
+	// add camera effects at the end
+	this._camera.acceptVisitorPost(this);
 };
 
 RenderCollector.prototype.qualifies = function(object)
@@ -108,6 +99,7 @@ RenderCollector.prototype.visitScene = function (scene)
 
 RenderCollector.prototype.visitEffect = function(effect)
 {
+	this._needsNormalDepth = this._needsNormalDepth || effect._needsNormalDepth;
     this._effects.push(effect);
 };
 

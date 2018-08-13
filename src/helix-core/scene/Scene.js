@@ -126,6 +126,14 @@ Scene.prototype = {
         this._partitioning.acceptVisitor(visitor);
     },
 
+	/**
+     *
+	 */
+	getEntitySet: function(components)
+    {
+        return this._entityEngine.getEntitySet(components);
+    },
+
     /**
      * @ignore
      */

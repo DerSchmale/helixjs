@@ -38,3 +38,14 @@ AnimateOrbitComponent.prototype.onUpdate = function(dt)
 
     this.entity.matrix = matrix;
 };
+
+AnimateOrbitComponent.prototype.clone = function()
+{
+    var clone = new AnimateOrbitComponent();
+	clone.pivotPoint = this.pivotPoint.clone();
+	clone.radius = this.radius = 1.0;
+	clone.axis = this.axis.clone();
+	clone.radians = this.radians;
+	clone.speed = this.speed; // radians per second
+    return clone;
+};

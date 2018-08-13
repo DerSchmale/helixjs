@@ -1,6 +1,5 @@
 import {BoundingVolume} from "./BoundingVolume";
 import {PlaneSide} from "../math/PlaneSide";
-import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
 import {Float4} from "../math/Float4";
 
 /**
@@ -356,14 +355,6 @@ BoundingAABB.prototype.getRadius = function()
 BoundingAABB.prototype.getHalfExtents = function()
 {
     return new Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0);
-};
-
-/**
- * @ignore
- */
-BoundingAABB.prototype.createDebugModel = function()
-{
-    return new BoxPrimitive();
 };
 
 

@@ -694,7 +694,7 @@ function _init2DDitherTexture(width, height)
 
     // this one is used when dynamic light probes passes need to disable a map
     DEFAULTS.DARK_CUBE_TEXTURE = new TextureCube();
-    var data = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
+    data = new Uint8Array([0x00, 0x00, 0x00, 0x00]);
     data = [ data, data, data, data, data, data ];
     DEFAULTS.DARK_CUBE_TEXTURE.uploadData(data, 1, true);
 }

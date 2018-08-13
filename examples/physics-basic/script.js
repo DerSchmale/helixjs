@@ -51,11 +51,14 @@ function initScene(scene, assetLibrary)
     var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
 
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
-    scene.attach(lightProbe);
+    scene.attach(new HX.Entity(lightProbe));
 
     var light = new HX.DirectionalLight();
     light.intensity = 1.5;
-    scene.attach(light);
+
+	var lightEntity = new HX.Entity(light);
+	lightEntity.lookAt(new HX.Float4(1, 1, -1));
+	scene.attach(lightEntity);
 
     var lights = [lightProbe, light];
 
@@ -76,7 +79,7 @@ function initScene(scene, assetLibrary)
             scaleV: 50
         });
 
-    var floorInstance = new HX.ModelInstance(primitive, material);
+    var floorInstance = new HX.Entity(new HX.MeshInstance(primitive, material));
     var rigidBody = new HX.RigidBody(new HX.InfinitePlaneCollider());
     rigidBody.mass = 0;
     floorInstance.addComponent(rigidBody);
@@ -91,12 +94,12 @@ function initScene(scene, assetLibrary)
     material = new HX.BasicMaterial();
     material.fixedLights = lights;
     material.roughness = .1;
-    primitive = new HX.SpherePrimitive({radius: .25, numSegmentsW:32, numSegmentsH: 20});
+    primitive = new HX.BoxPrimitive({width: .25});
 
     for (var x = -1; x <= 1; ++x) {
         for (var z = 0; z < 10; ++z) {
             for (var y = -1; y <= 1; ++y) {
-                var modelInstance = new HX.ModelInstance(primitive, material);
+                var modelInstance = new HX.Entity(new HX.MeshInstance(primitive, material));
 
                 modelInstance.position.set(x + (Math.random() - .5) * .3, y + (Math.random() - .5) * .3, 1.0 + z * 2.0);
 

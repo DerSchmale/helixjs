@@ -50,19 +50,21 @@ function initScene(scene, assetLibrary)
         light.radius = 5;
         // light.castShadows = true;
 
-        light.position.set(
-            (Math.random() - .5) * 20,
-            (Math.random() - .5) * 20,
-            (Math.random() - .5) * 20
-        );
-
         light.color.set(
             Math.random(),
             Math.random(),
             Math.random()
         );
         light.intensity = 3.1415 * 50.0;
-        lights.push(light);
+
+		lights.push(light);
+
+		light = new HX.Entity(light);
+		light.position.set(
+			(Math.random() - .5) * 20,
+			(Math.random() - .5) * 20,
+			(Math.random() - .5) * 20
+		);
 
         scene.attach(light);
     }
@@ -72,8 +74,10 @@ function initScene(scene, assetLibrary)
     var dirLight = new HX.DirectionalLight();
     dirLight.castShadows = true;
     dirLight.intensity = .1;
-    dirLight.direction = new HX.Float4(-1.0, -1.0, -1.0);
-    lights.push(dirLight);
+	lights.push(dirLight);
+
+	dirLight = new HX.Entity(dirLight);
+    dirLight.lookAt(new HX.Float4(-1.0, -1.0, -1.0));
 
     scene.attach(dirLight);
 
@@ -97,7 +101,8 @@ function initScene(scene, assetLibrary)
     for (var x = -5; x <= 5; ++x) {
         for (var y = -5; y <= 5; ++y) {
             for (var z = -5; z <= 5; ++z) {
-                var instance = new HX.ModelInstance(primitive, material);
+                var instance = new HX.Entity();
+                instance.addComponent(new HX.MeshInstance(primitive, material));
                 instance.position.set(x + Math.random() *.5 -.25, y + Math.random() *.5 -.25, z + Math.random() *.5 -.25);
                 instance.position.scale(spacing);
                 scene.attach(instance);
@@ -113,7 +118,9 @@ function initScene(scene, assetLibrary)
             scaleU: 20,
             scaleV: 20
         });
-    var instance = new HX.ModelInstance(primitive, material);
-    instance.castShadows = false;
-    scene.attach(instance);
+    var instance = new HX.Entity();
+    var meshInstance = new HX.MeshInstance(primitive, material);
+	meshInstance.castShadows = false;
+	instance.addComponent(meshInstance);
+	scene.attach(instance);
 }

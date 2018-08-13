@@ -65,7 +65,8 @@ function initCamera(camera)
     camera.farDistance = 50.0;
 
     var orbitController = new HX.OrbitController();
-    orbitController.radius = 5.0;
+    orbitController.radius = 10.0;
+    orbitController.polar = 1.0;
     orbitController.minRadius = .3;
     orbitController.maxRadius = 20.0;
     orbitController.lookAtTarget.z = .25;
@@ -76,7 +77,6 @@ function initScene(scene, assetLibrary)
 {
     var light = new HX.DirectionalLight();
     light.color = new HX.Color(1.0, .95, .9);
-    light.direction = new HX.Float4(0.0, 0.8, -1.0, 0.0);
     light.castShadows = true;
     light.intensity = 3.0;
     // no need for the cascades to reach all the way back
@@ -84,7 +84,10 @@ function initScene(scene, assetLibrary)
     //     light.setCascadeRatios(.25,.5);
     // else
     //     light.setCascadeRatios(.5);
-    scene.attach(light);
+	var lightEntity = new HX.Entity(light);
+	lightEntity.lookAt(new HX.Float4(0.0, 0.8, -1.0, 0.0));
+
+    scene.attach(lightEntity);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
     var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
@@ -94,7 +97,7 @@ function initScene(scene, assetLibrary)
     scene.skybox = skybox;
 
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
-    scene.attach(lightProbe);
+    scene.attach(new HX.Entity(lightProbe));
 
     // textures from http://kay-vriend.blogspot.be/2014/04/tarnished-metal-first-steps-in-pbr-and.html
     var opaqueMaterial = new HX.BasicMaterial();
@@ -120,11 +123,11 @@ function initScene(scene, assetLibrary)
     for (var x = -8; x <= 8; ++x) {
         for (var y = -8; y <= 8; ++y) {
             var material = opaqueMaterial;
-            var modelInstance = new HX.ModelInstance(primitive, material);
-            modelInstance.position.x = x * 2.0;
-            modelInstance.position.y = y * 2.0;
-            modelInstance.position.z = (Math.sin(x *.5 + 1) + Math.cos(y *.5 +.5)) * .5 + .75;
-            scene.attach(modelInstance);
+            var entity = new HX.Entity(new HX.MeshInstance(primitive, material));
+            entity.position.x = x * 2.0;
+            entity.position.y = y * 2.0;
+            entity.position.z = (Math.sin(x *.5 + 1) + Math.cos(y *.5 +.5)) * .5 + .75;
+            scene.attach(entity);
         }
     }
 
@@ -149,7 +152,7 @@ function initScene(scene, assetLibrary)
             doubleSided: true
         });
 
-    var modelInstance = new HX.ModelInstance(primitive, material);
+    var modelInstance = new HX.Entity(new HX.MeshInstance(primitive, material));
     modelInstance.position.z = -.25;
     scene.attach(modelInstance);
 }

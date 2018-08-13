@@ -55,7 +55,7 @@ function initScene(scene)
         });
 
 
-    var instance = new HX.ModelInstance(primitive, material);
+    var instance = new HX.Entity(new HX.MeshInstance(primitive, material));
     instance.name = "Sphere";
     instance.rotation.fromEuler(Math.random() * 3, Math.random() * 3, Math.random() * 3);
     scene.attach(instance);
@@ -69,7 +69,7 @@ function initScene(scene)
             radius: .01
         });
 
-    indicator = new HX.ModelInstance(primitive, material);
+    indicator = new HX.Entity(new HX.MeshInstance(primitive, material));
     indicator.visible = false;
     indicator.name = "Indicator";
     scene.attach(indicator);

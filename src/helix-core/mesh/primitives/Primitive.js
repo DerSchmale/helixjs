@@ -1,4 +1,3 @@
-import {Model} from "../Model";
 import {NormalTangentGenerator} from "../../utils/NormalTangentGenerator";
 import {Mesh} from "../Mesh";
 import {BoundingAABB} from "../../scene/BoundingAABB";
@@ -8,15 +7,18 @@ import {BoundingAABB} from "../../scene/BoundingAABB";
  * @param definition
  * @constructor
  *
- * @extends Model
+ * @extends Mesh
  *
  * @author derschmale <http://www.derschmale.com>
  */
 function Primitive(definition)
 {
-    definition = definition || {};
-    Model.call(this, this._createMesh(definition));
-    this.localBounds = this._getBounds();
+	Mesh.call(this);
+
+	definition = definition || {};
+	this._createMesh(definition);
+
+    this.bounds = this._getBounds();
 }
 
 Primitive._ATTRIBS = function()
@@ -28,7 +30,7 @@ Primitive._ATTRIBS = function()
     this.indices = [];
 };
 
-Primitive.prototype = Object.create(Model.prototype);
+Primitive.prototype = Object.create(Mesh.prototype);
 
 Primitive.prototype._generate = function(target, definition)
 {
@@ -43,19 +45,18 @@ Primitive.prototype._createMesh = function(definition)
     var tangents = definition.tangents === undefined? true : definition.tangents;
     // depends on the primitive type
 
-    var mesh = new Mesh();
-    mesh.addVertexAttribute('hx_position', 3);
+    this.addVertexAttribute('hx_position', 3);
 
     if (normals) {
-        mesh.addVertexAttribute('hx_normal', 3);
+		this.addVertexAttribute('hx_normal', 3);
         attribs.normals = [];
     }
 
     if (tangents)
-        mesh.addVertexAttribute('hx_tangent', 4);
+		this.addVertexAttribute('hx_tangent', 4);
 
     if (uvs) {
-        mesh.addVertexAttribute('hx_texCoord', 2);
+		this.addVertexAttribute('hx_texCoord', 2);
         attribs.uvs = [];
     }
 
@@ -63,7 +64,7 @@ Primitive.prototype._createMesh = function(definition)
 
     var vertexColors = attribs.vertexColors;
     if (vertexColors) {
-        mesh.addVertexAttribute('hx_vertexColor', 3);
+		this.addVertexAttribute('hx_vertexColor', 3);
     }
 
     var scaleU = definition.scaleU || 1;
@@ -101,8 +102,8 @@ Primitive.prototype._createMesh = function(definition)
         v3 += 3;
     }
 
-    mesh.setVertexData(vertices, 0);
-    mesh.setIndexData(attribs.indices);
+	this.setVertexData(vertices, 0);
+	this.setIndexData(attribs.indices);
 
     var mode = 0;
 
@@ -115,10 +116,8 @@ Primitive.prototype._createMesh = function(definition)
 
     if (mode) {
         var generator = new NormalTangentGenerator();
-        generator.generate(mesh, mode);
+        generator.generate(this, mode);
     }
-
-    return mesh;
 };
 
 Primitive.prototype._getBounds = function()

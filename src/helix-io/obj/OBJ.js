@@ -7,7 +7,7 @@ import {MTL} from "./MTL";
  * OBJ is an importer for the Wavefront OBJ format.
  * The options property supports the following settings:
  * <ul>
- * <li>groupsAsObjects: Specifies whether group tags should be treated as separate scene graph objects (true) or as separate Mesh objects (false). Defaults to true.</li>
+ * <li>groupsAsObjects: Specifies whether group tags should be treated as separate scene graph objects (true) or as separate MeshInstance components (false). Defaults to true.</li>
  * </ul>
  *
  * @constructor
@@ -194,7 +194,7 @@ OBJ.prototype._translateObject = function(objectIndex, mtlLib)
     var numGroups = object.groups.length;
     if (numGroups === 0) return;
     var materials = [];
-    var model = new HX.Model();
+    var entity = new HX.Entity();
 
     for (var i = 0; i < numGroups; ++i) {
         var group = object.groups[i];
@@ -204,18 +204,19 @@ OBJ.prototype._translateObject = function(objectIndex, mtlLib)
             if (group.subgroups.hasOwnProperty(key)) {
                 var subgroup = group.subgroups[key];
                 if (subgroup.numIndices === 0) continue;
-                model.addMesh(this._translateMesh(subgroup));
 
                 var material = mtlLib? mtlLib[key] : null;
                 material = material || this._defaultMaterial;
-                materials.push(material);
+
+                var mesh = this._translateMesh(subgroup);
+                var meshInstance = new HX.MeshInstance(mesh, material);
+				entity.addComponent(meshInstance);
             }
         }
     }
 
-    var modelInstance = new HX.ModelInstance(model, materials);
-    modelInstance.name = object.name;
-    this._target.attach(modelInstance);
+	entity.name = object.name;
+    this._target.attach(entity);
 
     this._notifyProgress(.8 + (objectIndex + 1) / this._objects.length * .2);
 };
@@ -258,7 +259,7 @@ OBJ.prototype._translateMesh = function(group)
 
     var vertices = new Array(numVertices * HX.Mesh.DEFAULT_VERTEX_SIZE);
 
-    for (var hash in realIndices) {
+    for (hash in realIndices) {
         if (!realIndices.hasOwnProperty(hash)) continue;
         var data = realIndices[hash];
         var vertex = data.vertex;

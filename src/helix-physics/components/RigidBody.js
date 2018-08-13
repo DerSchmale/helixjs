@@ -125,7 +125,6 @@ HX.Component.create(RigidBody, {
 
 RigidBody.prototype.addImpulse = function(v, pos)
 {
-    // if no position is set, just
 	if (pos) {
 		this._body.applyImpulse(v, pos);
 	}
@@ -135,6 +134,8 @@ RigidBody.prototype.addImpulse = function(v, pos)
 		vel.y += v.y;
 		vel.z += v.z;
 	}
+
+	this._body.wakeUp();
 };
 
 RigidBody.prototype.addForce = function(v, pos)
@@ -148,6 +149,8 @@ RigidBody.prototype.addForce = function(v, pos)
         f.y += v.y;
         f.z += v.z;
     }
+
+	this._body.wakeUp();
 };
 
 RigidBody.prototype.onAdded = function()
@@ -202,16 +205,11 @@ RigidBody.prototype._createBody = function()
 {
     var entity = this._entity;
 
-    var bounds;
-    if (entity instanceof HX.ModelInstance) {
-        bounds = entity.localBounds;
-    }
-    else {
-        var matrix = new HX.Matrix4x4();
-        matrix.inverseAffineOf(entity.worldMatrix);
-        bounds = new HX.BoundingAABB();
-        bounds.transformFrom(entity.worldBounds, matrix);
-    }
+    var meshInstances = entity.getComponentsByType(HX.MeshInstance);
+    var numMeshes = meshInstances.length;
+
+    // use the same bounding type if it's the only mesh
+	var bounds = numMeshes === 1? meshInstances[0].mesh.bounds : entity.bounds;
 
     if (!this._collider)
         this._collider = bounds instanceof HX.BoundingAABB? new BoxCollider() : new SphereCollider();
@@ -234,6 +232,14 @@ RigidBody.prototype._createBody = function()
         this._body.quaternion.copy(entity.rotation);
 
 	this._body.updateMassProperties();
+};
+
+RigidBody.prototype.clone = function()
+{
+	var clone = new RigidBody(this._collider, this._mass, this._material);
+	clone.linearDamping = this.linearDamping;
+	clone.angularDamping = this.angularDamping;
+	return clone;
 };
 
 export {RigidBody};

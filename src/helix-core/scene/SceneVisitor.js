@@ -15,9 +15,9 @@ SceneVisitor.prototype =
     qualifies: function(object) {},
     visitLight: function(light) {},
     visitAmbientLight: function(light) {},
-    visitModelInstance: function (modelInstance, worldMatrix) {},
+	visitMeshInstance: function (meshInstance) {},
     visitScene: function (scene) {},
-    visitEffects: function(effects, ownerNode) {}
+    visitEffect: function(effect) {}
 };
 
 export { SceneVisitor };

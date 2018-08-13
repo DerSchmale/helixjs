@@ -166,7 +166,7 @@ SkeletonPose.prototype = {
 
         this._globalMatrices = [];
         this._bindMatrices = [];
-        for (var i = 0; i < skeleton.numJoints; ++i) {
+        for (i = 0; i < skeleton.numJoints; ++i) {
             this._globalMatrices[i] = new Matrix4x4();
             this._bindMatrices[i] = new Matrix4x4();
         }
@@ -266,7 +266,14 @@ SkeletonPose.prototype = {
 
             this._skinningTexture.uploadData(data, META.OPTIONS.maxSkeletonJoints, 3, false, TextureFormat.RGBA, DataType.FLOAT);
         }
-    }()
+    }(),
+
+    clone: function()
+    {
+        var clone = new SkeletonPose();
+        clone.copyFrom(this);
+        return clone;
+    }
 };
 
 export {SkeletonPose};

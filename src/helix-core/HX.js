@@ -23,8 +23,6 @@ export {Transform} from "./math/Transform";
 
 export {Debug} from "./debug/Debug";
 export {DebugAxes} from "./debug/DebugAxes";
-export {DebugBoundsComponent} from "./debug/DebugBoundsComponent";
-export {DebugSkeletonComponent} from "./debug/DebugSkeletonComponent";
 export {Profiler} from "./debug/Profiler";
 
 export {BoundingVolume} from "./scene/BoundingVolume";
@@ -100,7 +98,7 @@ export {URLLoader} from "./io/URLLoader";
 export {HCLIP} from "./io/HCLIP";
 export {HCM} from "./io/HCM";
 export {HMAT} from "./io/HMAT";
-export {HMODEL} from "./io/HMODEL";
+export {HMESH} from "./io/HMESH";
 export {Importer} from "./io/Importer";
 export {JPG_EQUIRECTANGULAR, PNG_EQUIRECTANGULAR} from "./io/JPG_EQUIRECTANGULAR";
 export {JPG_HEIGHTMAP, PNG_HEIGHTMAP} from "./io/JPG_HEIGHTMAP";
@@ -126,10 +124,7 @@ export {Material} from "./material/Material";
 export {BasicMaterial} from "./material/BasicMaterial";
 export {SkyboxMaterial} from "./material/SkyboxMaterial";
 
-export {ModelInstance} from "./mesh/ModelInstance";
-export {Model} from "./mesh/Model";
 export {Mesh} from "./mesh/Mesh";
-export {MeshBatch} from "./mesh/MeshBatch";
 export {MeshInstance} from "./mesh/MeshInstance";
 
 export {SpherePrimitive} from "./mesh/primitives/SpherePrimitive";

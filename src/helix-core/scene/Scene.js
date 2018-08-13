@@ -1,10 +1,11 @@
 import {EntityEngine} from "../entity/EntityEngine";
 import {SceneNode} from "./SceneNode";
+import {FlatPartitioning} from "./FlatPartitioning";
 
 /**
  * @classdesc
  * Scene forms the base to contain the entire scene graph. It contains a hierarchical structure including
- * {@linknode ModelInstance}, lights, cameras, etc.
+ * {@linknode Entity}, lights, cameras, etc.
  *
  * @param {SceneNode} [rootNode] An optional scene node to use as a root. Useful if an entire scene hierarchy was already loaded.
  *
@@ -22,6 +23,7 @@ function Scene(rootNode)
     this._rootNode._setScene(this);
     this._skybox = null;
     this._entityEngine = new EntityEngine();
+	this._partitioning = new FlatPartitioning();
 }
 
 Scene.prototype = {
@@ -119,8 +121,9 @@ Scene.prototype = {
     acceptVisitor: function(visitor)
     {
         visitor.visitScene(this);
+
         // assume root node will always qualify
-        this._rootNode.acceptVisitor(visitor);
+        this._partitioning.acceptVisitor(visitor);
     },
 
     /**
@@ -129,6 +132,14 @@ Scene.prototype = {
     get entityEngine()
     {
         return this._entityEngine;
+    },
+
+	/**
+     * @ignore
+	 */
+	get partitioning()
+    {
+         return this._partitioning;
     },
 
     /**

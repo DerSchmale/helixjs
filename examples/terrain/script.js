@@ -23,7 +23,12 @@ function CenterAtComponent(camera)
     {
         this.entity.position.x = camera.position.x;
         this.entity.position.y = camera.position.y;
-    }
+    };
+
+    this.clone = function()
+    {
+        return new CenterAtComponent(camera);
+    };
 }
 
 HX.Component.create(CenterAtComponent);
@@ -81,7 +86,7 @@ function initCamera(camera)
     camera.nearDistance = 0.05;
     camera.farDistance = 8000.0;
 
-    var controller = new HX.PlayerController();
+    var controller = new HX.FPSController();
     controller.walkForce = 2000.0;
     controller.runForce = 20000.0;
     controller.jumpForce = 5.0;
@@ -106,11 +111,13 @@ function initCamera(camera)
 
 function initScene(scene, camera, assetLibrary)
 {
-    var sun = new HX.DirectionalLight();
-    sun.direction = new HX.Float4(-0.3, -1.0, -.3, 0.0);
-    sun.intensity = 3;
-    sun.castShadows = true;
-    sun.depthBias = .01;
+    var dirLight = new HX.DirectionalLight();
+    dirLight.intensity = 3;
+    dirLight.castShadows = true;
+    dirLight.depthBias = .01;
+
+    var sun = new HX.Entity(dirLight);
+	sun.lookAt(new HX.Float4(-0.3, -1.0, -.3, 0.0));
     scene.attach(sun);
 
     // TODO: Add procedural skybox
@@ -122,7 +129,7 @@ function initScene(scene, camera, assetLibrary)
     scene.skybox = skybox;
 
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
-    scene.attach(lightProbe);
+    scene.attach(new HX.Entity(lightProbe));
 
     var heightMap = assetLibrary.get("heightMap");
     var terrainMap = assetLibrary.get("terrainMap");
@@ -140,7 +147,8 @@ function initScene(scene, camera, assetLibrary)
 
     waterMaterial = assetLibrary.get("water-material");
 
-    var terrain = new HX.Terrain(16000, minHeight, maxHeight, 4, terrainMaterial, 32);
+    var terrain = new HX.Entity();
+	terrain.addComponent(new HX.Terrain(16000, minHeight, maxHeight, 4, terrainMaterial, 32));
 
     var rigidBody = new HX.RigidBody(
 		new HX.HeightfieldCollider(heightMap, worldSize, minHeight, maxHeight, true),
@@ -151,9 +159,10 @@ function initScene(scene, camera, assetLibrary)
 
 	// this is definitely overkill:
 	var plane = new HX.PlanePrimitive({width: 4000, height: 4000, numSegmentsW: 20, numSegmentsH: 20});
-	var water = new HX.ModelInstance(plane, waterMaterial, 16);
+	var water = new HX.Entity();
     water.position.z = waterLevel;
-    water.addComponent(new CenterAtComponent(camera));
+	water.addComponent(new HX.MeshInstance(plane, waterMaterial, 16));
+	water.addComponent(new CenterAtComponent(camera));
 
     scene.attach(terrain);
     scene.attach(water);

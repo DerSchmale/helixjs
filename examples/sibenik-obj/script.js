@@ -53,21 +53,24 @@ function initCamera(camera)
 function initScene(scene, camera, assetLibrary)
 {
     var ambientLight = new HX.AmbientLight();
-    ambientLight.intensity = .02;
+	ambientLight.intensity = .02;
+	var ambientEntity = new HX.Entity(ambientLight);
 
     spotLight = new HX.SpotLight();
     spotLight.castShadows = true;
     spotLight.color = new HX.Color(.6,.8, 1.0);
     spotLight.intensity = 300.0;
-    spotLight.position.z = 1;
-    spotLight.position.x = .5;
-    spotLight.lookAt(new HX.Float4(0.0, 4.0, 0.0));
-    spotLight.innerAngle = 0.2;
-    spotLight.radius = 50;
-    spotLight.outerAngle = 1.0;
+	spotLight.innerAngle = 0.2;
+	spotLight.radius = 50;
+	spotLight.outerAngle = 1.0;
 
-    camera.attach(spotLight);
-    scene.attach(ambientLight);
+	var spotEntity = new HX.Entity(spotLight);
+    spotEntity.position.z = 1;
+	spotEntity.position.x = .5;
+	spotEntity.lookAt(new HX.Float4(0.0, 4.0, 0.0));
+
+    camera.attach(spotEntity);
+    scene.attach(ambientEntity);
 
     scene.attach(assetLibrary.get("model"));
 }

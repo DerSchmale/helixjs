@@ -1,11 +1,11 @@
-import {Model} from "../mesh/Model";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Float4} from "../math/Float4";
-import {ModelInstance} from "../mesh/ModelInstance";
 import {RenderCollector} from "../render/RenderCollector";
 import {Mesh} from "../mesh/Mesh";
 import {Entity} from "../entity/Entity";
 import {SceneNode} from "./SceneNode";
+import {Component} from "../entity/Component";
+import {BoundingAABB} from "./BoundingAABB";
 
 /**
  * Terrain provides a paged terrain engine with dynamic LOD. The heightmapping itself happens in the Material.
@@ -26,8 +26,10 @@ import {SceneNode} from "./SceneNode";
  */
 function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, detail)
 {
-    Entity.call(this);
+    Component.call(this);
 
+    this._bounds = new BoundingAABB();
+    this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
     this._terrainSize = terrainSize || 512;
     this._minElevation = minElevation;
     this._maxElevation = maxElevation;
@@ -35,23 +37,22 @@ function Terrain(terrainSize, minElevation, maxElevation, numLevels, material, d
     // this container will move along with the "player"
     // we use the extra container so the Terrain.position remains constant, so we can reliably translate and use rigid body components
     this._container = new SceneNode();
-    this._container._parent = this;
-    detail = detail || 32;
-    var gridSize = Math.ceil(detail * .5) * 2.0; // round off to 2
+    this._detail = detail || 32;
+    var gridSize = Math.ceil(this._detail * .5) * 2.0; // round off to 2
 
     // cannot bitshift because we need floating point result
-    this._snapSize = (this._terrainSize / detail) / Math.pow(2, this._numLevels);
+    this._snapSize = (this._terrainSize / this._detail) / Math.pow(2, this._numLevels);
 
     this._material = material;
     material.setUniform("hx_elevationOffset", minElevation);
     material.setUniform("hx_elevationScale", maxElevation - minElevation);
 
-    this._initModels(gridSize);
+    this._initMeshes(gridSize);
     this._initTree();
 }
 
 // TODO: Allow setting material
-Terrain.prototype = Object.create(Entity.prototype, {
+Component.create(Terrain, {
     terrainSize: {
         get: function() {
             return this._terrainSize;
@@ -61,9 +62,25 @@ Terrain.prototype = Object.create(Entity.prototype, {
 
 /**
  * @ignore
+ */
+Terrain.prototype.onAdded = function()
+{
+    this._entity.attach(this._container);
+};
+
+/**
+ * @ignore
+ */
+Terrain.prototype.onRemoved = function()
+{
+	this._entity.detach(this._container);
+};
+
+/**
+ * @ignore
  * @private
  */
-Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
+Terrain.prototype._createMesh = function(size, numSegments, subDiv, lastLevel)
 {
     var rcpNumSegments = 1.0 / numSegments;
     var mesh = new Mesh();
@@ -121,38 +138,38 @@ Terrain.prototype._createModel = function(size, numSegments, subDiv, lastLevel)
 
     mesh.setVertexData(vertices, 0);
     mesh.setIndexData(indices);
-
-    var model = new Model(mesh);
-    model.localBounds.growToIncludeMinMax(new Float4(0, 0, this._minElevation), new Float4(0, 0, this._maxElevation));
-    return model;
+	mesh.dynamicBounds = false;
+	mesh.bounds.clear();
+	mesh.bounds.growToIncludeMinMax(new Float4(-size, -size, this._minElevation), new Float4(size, size, this._maxElevation));
+    return mesh;
 };
 
 /**
  * @ignore
  * @private
  */
-Terrain.prototype._initModels = function(gridSize)
+Terrain.prototype._initMeshes = function(gridSize)
 {
-    this._models = [];
-    var modelSize = this._terrainSize * .25;
+    this._meshes = [];
+    var meshSize = this._terrainSize * .25;
 
     for (var level = 0; level < this._numLevels; ++level) {
         if (level === this._numLevels - 1) {
             // do not subdivide max detail
-            var model = this._createModel(modelSize, gridSize, false, true);
-            this._models[level] = {
-                edge: model,
-                corner: model
+            var mesh = this._createMesh(meshSize, gridSize, false, true);
+            this._meshes[level] = {
+                edge: mesh,
+                corner: mesh
             };
         }
         else {
-            this._models[level] = {
-                edge: this._createModel(modelSize, gridSize, true, false),
-                corner: this._createModel(modelSize, gridSize, false, false)
+            this._meshes[level] = {
+                edge: this._createMesh(meshSize, gridSize, true, false),
+                corner: this._createMesh(meshSize, gridSize, false, false)
             };
         }
 
-        modelSize *= .5;
+        meshSize *= .5;
     }
 };
 
@@ -201,7 +218,7 @@ Terrain.prototype._initTree = function()
                     if (xi === 0) rotation = 1;
                 }
                 if (add)
-                    this._addModel(x, y, level, rotation, mode);
+                    this._addMesh(x, y, level, rotation, mode);
             }
         }
     }
@@ -211,13 +228,15 @@ Terrain.prototype._initTree = function()
  * @ignore
  * @private
  */
-Terrain.prototype._addModel = function(x, y, level, rotation, mode)
+Terrain.prototype._addMesh = function(x, y, level, rotation, mode)
 {
-    var modelInstance = new ModelInstance(this._models[level][mode], this._material);
-    modelInstance.position.set(x, y, 0);
+    var entity = new Entity();
+    var meshInstance = new HX.MeshInstance(this._meshes[level][mode], this._material);
+    entity.addComponent(meshInstance);
+    entity.position.set(x, y, 0);
     // this rotation aligns the higher triangle strips
-    modelInstance.rotation.fromAxisAngle(Float4.Z_AXIS, -rotation * Math.PI * .5);
-    this._container.attach(modelInstance);
+    entity.rotation.fromAxisAngle(Float4.Z_AXIS, -rotation * Math.PI * .5);
+    this._container.attach(entity);
 };
 
 /**
@@ -283,7 +302,7 @@ Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
                         rotation = -1;
                 }
 
-                this._addModel(x + size * xi, y + size * yi, level, rotation, mode);
+                this._addMesh(x + size * xi, y + size * yi, level, rotation, mode);
             }
         }
     }
@@ -292,6 +311,17 @@ Terrain.prototype._subDivide = function(x, y, subX, subY, level, size)
         this._subDivide(x + size * subX, y + size * subY, subX, subY, level + 1, size);
 };
 
+Terrain.prototype.onUpdate = function()
+{
+    if (this._camera) {
+        var cameraPos = this._camera.position;
+        var containerPos = this._container.position;
+        var entityPosition = this._entity.position;
+        containerPos.x = Math.round(cameraPos.x / this._snapSize) * this._snapSize - entityPosition.x;
+        containerPos.y = Math.round(cameraPos.y / this._snapSize) * this._snapSize - entityPosition.y;
+	}
+}
+
 /**
  * @ignore
  */
@@ -299,33 +329,16 @@ Terrain.prototype.acceptVisitor = function(visitor)
 {
     // typechecking isn't nice, but it does what we want
     if (visitor instanceof RenderCollector) {
-        var pos = visitor._camera.position;
-        this._container.position.x = Math.floor(pos.x / this._snapSize) * this._snapSize - this.position.x;
-        this._container.position.y = Math.floor(pos.y / this._snapSize) * this._snapSize - this.position.y;
+		this._camera = visitor._camera;
     }
-
-    Entity.prototype.acceptVisitor.call(this, visitor);
-    this._container.acceptVisitor(visitor);
 };
 
 /**
- * @ignore
+ * @inheritDoc
  */
-Terrain.prototype._updateWorldBounds = function ()
+Terrain.prototype.clone = function()
 {
-    this._worldBounds.clear(BoundingVolume.EXPANSE_INFINITE);
-};
-
-Terrain.prototype._invalidateWorldMatrix = function ()
-{
-    Entity.prototype._invalidateWorldMatrix.call(this);
-    this._container._invalidateWorldMatrix();
-};
-
-Terrain.prototype._setScene = function(scene)
-{
-	Entity.prototype._setScene.call(this, scene);
-	this._container._setScene(scene);
+    return new Terrain(this._terrainSize, this._minElevation, this._maxElevation, this._numLevels, this._material, this._detail);
 };
 
 export { Terrain };

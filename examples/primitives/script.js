@@ -41,6 +41,12 @@ function initScene(scene, assetLibrary)
     light2.color = 0x2020ff;
     light3.color = 0x20ff20;
 
+	// convert to entity
+	ambientLight = new HX.Entity(ambientLight);
+	light1 = new HX.Entity(light1);
+	light2 = new HX.Entity(light2);
+	light3 = new HX.Entity(light3);
+
     scene.attach(ambientLight);
     scene.attach(light1);
     scene.attach(light2);
@@ -78,10 +84,11 @@ function initScene(scene, assetLibrary)
         numSegmentsW: 10
     });
 
-    var modelInstance = new HX.ModelInstance(primitive, material);
-    modelInstance.position.x = -.3;
-    modelInstance.position.y = .3;
-    scene.attach(modelInstance);
+    var entity = new HX.Entity();
+    entity.position.x = -.3;
+    entity.position.y = .3;
+	entity.addComponent(new HX.MeshInstance(primitive, material));
+    scene.attach(entity);
 
     primitive = new HX.ConePrimitive(
         {
@@ -91,20 +98,22 @@ function initScene(scene, assetLibrary)
             numSegmentsW: 20
         });
 
-    modelInstance = new HX.ModelInstance(primitive, material);
-    modelInstance.position.x = .3;
-    modelInstance.position.y = .3;
-    scene.attach(modelInstance);
+	entity = new HX.Entity();
+    entity.position.x = .3;
+    entity.position.y = .3;
+	entity.addComponent(new HX.MeshInstance(primitive, material));
+    scene.attach(entity);
 
     primitive = new HX.BoxPrimitive(
         {
             width:.5
         });
 
-    modelInstance = new HX.ModelInstance(primitive, material);
-    modelInstance.position.x = -.3;
-    modelInstance.position.y = -.3;
-    scene.attach(modelInstance);
+	entity = new HX.Entity();
+    entity.position.x = -.3;
+    entity.position.y = -.3;
+	entity.addComponent(new HX.MeshInstance(primitive, material));
+    scene.attach(entity);
 
     primitive = new HX.TorusPrimitive(
         {
@@ -116,8 +125,9 @@ function initScene(scene, assetLibrary)
             numSegmentsW: 30
         });
 
-    modelInstance = new HX.ModelInstance(primitive, material);
-    modelInstance.position.x = .3;
-    modelInstance.position.y = -.3;
-    scene.attach(modelInstance);
+	entity = new HX.Entity();
+    entity.position.x = .3;
+    entity.position.y = -.3;
+	entity.addComponent(new HX.MeshInstance(primitive, material));
+    scene.attach(entity);
 }

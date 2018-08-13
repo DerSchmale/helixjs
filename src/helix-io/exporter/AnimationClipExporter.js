@@ -69,7 +69,7 @@ AnimationClipExporter.prototype =
         }
 
         for (var i = 0; i < numFrames; ++i) {
-            var keyFrame = clip.getKeyFrame(i);
+            keyFrame = clip.getKeyFrame(i);
             dataStream.writeUint32(keyFrame.time);
             this._writeValue(dataStream, valueType, keyFrame.value);
         }

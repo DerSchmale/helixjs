@@ -61,10 +61,13 @@ OmniShadowCasterCollector.prototype.collect = function(cameras, scene)
         this._renderLists[i].sort(RenderSortFunctions.sortOpaques);
 };
 
-OmniShadowCasterCollector.prototype.visitModelInstance = function (modelInstance, worldMatrix, worldBounds)
+OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-    if (!modelInstance._castShadows) return;
+	if (!meshInstance._castShadows || !meshInstance.enabled) return;
 
+	var entity = meshInstance.entity;
+	var worldBounds = entity.worldBounds;
+	var worldMatrix = entity.worldMatrix;
     // basically, this does 6 frustum tests at once
     var planes = this._octantPlanes;
     var side0 = worldBounds.classifyAgainstPlane(planes[0]);
@@ -75,64 +78,58 @@ OmniShadowCasterCollector.prototype.visitModelInstance = function (modelInstance
     var side5 = worldBounds.classifyAgainstPlane(planes[5]);
 
     if (side1 >= 0 && side2 <= 0 && side4 >= 0 && side5 <= 0)
-        this._addTo(modelInstance, 0, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 0, worldBounds, worldMatrix);
 
     if (side1 <= 0 && side2 >= 0 && side4 <= 0 && side5 >= 0)
-        this._addTo(modelInstance, 1, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 1, worldBounds, worldMatrix);
 
     if (side0 >= 0 && side3 <= 0 && side4 >= 0 && side5 >= 0)
-        this._addTo(modelInstance, 2, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 2, worldBounds, worldMatrix);
 
     if (side0 <= 0 && side3 >= 0 && side4 <= 0 && side5 <= 0)
-        this._addTo(modelInstance, 3, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 3, worldBounds, worldMatrix);
 
     if (side0 <= 0 && side1 <= 0 && side2 <= 0 && side3 <= 0)
-        this._addTo(modelInstance, 4, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 4, worldBounds, worldMatrix);
 
     if (side0 >= 0 && side1 >= 0 && side2 >= 0 && side3 >= 0)
-        this._addTo(modelInstance, 5, worldBounds, worldMatrix);
+        this._addTo(meshInstance, 5, worldBounds, worldMatrix);
 };
 
-OmniShadowCasterCollector.prototype._addTo = function(modelInstance, cubeFace, worldBounds, worldMatrix)
+OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, worldBounds, worldMatrix)
 {
-    var numMeshes = modelInstance.numMeshInstances;
-    var skeleton = modelInstance.skeleton;
-    var skeletonMatrices = modelInstance.skeletonMatrices;
+    var skeleton = meshInstance.skeleton;
+    var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
     var camPos = this._cameraPos;
     var camPosX = camPos.x, camPosY = camPos.y, camPosZ = camPos.z;
     var renderList = this._renderLists[cubeFace];
     var camera = this._cameras[cubeFace];
 
-    for (var meshIndex = 0; meshIndex < numMeshes; ++meshIndex) {
-        var meshInstance = modelInstance.getMeshInstance(meshIndex);
-        if (!meshInstance.visible) continue;
+    var material = meshInstance.material;
 
-        var material = meshInstance.material;
+    var renderItem = renderPool.getItem();
 
-        var renderItem = renderPool.getItem();
+    renderItem.material = material;
+    renderItem.meshInstance = meshInstance;
+    renderItem.skeleton = skeleton;
+    renderItem.skeletonMatrices = skeletonMatrices;
+    var center = worldBounds._center;
+    var dx = camPosX - center.x;
+    var dy = camPosY - center.y;
+    var dz = camPosZ - center.z;
+    renderItem.renderOrderHint = dx * dx + dy * dy + dz * dz;
+    renderItem.worldMatrix = worldMatrix;
+    renderItem.camera = camera;
+    renderItem.worldBounds = worldBounds;
 
-        renderItem.material = material;
-        renderItem.meshInstance = meshInstance;
-        renderItem.skeleton = skeleton;
-        renderItem.skeletonMatrices = skeletonMatrices;
-        var center = worldBounds._center;
-        var dx = camPosX - center.x;
-        var dy = camPosY - center.y;
-        var dz = camPosZ - center.z;
-        renderItem.renderOrderHint = dx * dx + dy * dy + dz * dz;
-        renderItem.worldMatrix = worldMatrix;
-        renderItem.camera = camera;
-        renderItem.worldBounds = worldBounds;
-
-        renderList.push(renderItem);
-    }
+    renderList.push(renderItem);
 };
 
 OmniShadowCasterCollector.prototype.qualifies = function(object)
 {
     // for now, only interested if it intersects the point light volume at all
-    return object.visible && object.worldBounds.intersectsBound(this._lightBounds);
+    return object.hierarchyVisible && object.worldBounds.intersectsBound(this._lightBounds);
 };
 
 export { OmniShadowCasterCollector };

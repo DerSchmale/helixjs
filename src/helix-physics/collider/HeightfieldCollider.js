@@ -114,8 +114,8 @@ HeightfieldCollider.prototype._shiftHeightData = function()
 
 	if (minZ === 0.0) return;
 
-	for (var x = 0; x < w; ++x) {
-		for (var y = 0; y < h; ++y) {
+	for (x = 0; x < w; ++x) {
+		for (y = 0; y < h; ++y) {
 			data[x][y] += minZ;
 		}
 	}

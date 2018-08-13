@@ -2,6 +2,7 @@ import {Color} from "../core/Color";
 import {Entity} from "../entity/Entity";
 import {META} from "../Helix";
 import {PropertyListener} from "../core/PropertyListener";
+import {Component} from "../entity/Component";
 
 /**
  * @classdesc
@@ -21,7 +22,7 @@ function Light()
 {
 	// TODO: Refactor, all the light code is generally the same as for HX.Light and HX.AmbientLight
 	// AMBIENT LIGHT IS NOT ACTUALLY A REAL LIGHT OBJECT
-	Entity.call(this);
+	Component.call(this);
 	this._scaledIrradiance = new Color();
 	this._intensity = .2;
 	this._color = new Color(1, 1, 1);
@@ -36,7 +37,7 @@ function Light()
 	this._updateScaledIrradiance();
 }
 
-Light.prototype = Object.create(Entity.prototype, {
+Light.prototype = Object.create(Component.prototype, {
 	color: {
 		get: function() { return this._color; },
 		set: function(value)

@@ -50,19 +50,21 @@ function initScene(scene, assetLibrary)
         light.radius = 5;
         // light.castShadows = true;
 
-        light.position.set(
-            (Math.random() - .5) * 20,
-            (Math.random() - .5) * 20,
-            (Math.random() - .5) * 20
-        );
-
         light.color.set(
             Math.random(),
             Math.random(),
             Math.random()
         );
         light.intensity = 3.1415 * 50.0;
-        lights.push(light);
+
+		lights.push(light);
+
+		light = new HX.Entity(light);
+		light.position.set(
+			(Math.random() - .5) * 20,
+			(Math.random() - .5) * 20,
+			(Math.random() - .5) * 20
+		);
 
         scene.attach(light);
     }
@@ -72,8 +74,10 @@ function initScene(scene, assetLibrary)
     var dirLight = new HX.DirectionalLight();
     dirLight.castShadows = true;
     dirLight.intensity = .1;
-    dirLight.direction = new HX.Float4(-1.0, -1.0, -1.0);
-    lights.push(dirLight);
+	lights.push(dirLight);
+
+	dirLight = new HX.Entity(dirLight);
+    dirLight.lookAt(new HX.Float4(-1.0, -1.0, -1.0));
 
     scene.attach(dirLight);
 

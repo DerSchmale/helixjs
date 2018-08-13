@@ -1,6 +1,8 @@
 import {Color} from "../core/Color";
 import {Light} from "../light/Light";
 import {BoundingVolume} from "../scene/BoundingVolume";
+import {Component} from "../entity/Component";
+import {BoundingAABB} from "../scene/BoundingAABB";
 
 /**
  * @classdesc
@@ -17,28 +19,19 @@ import {BoundingVolume} from "../scene/BoundingVolume";
  */
 function AmbientLight()
 {
-	// TODO: Refactor, all the light code is generally the same as for HX.Light and HX.AmbientLight
-	// AMBIENT LIGHT IS NOT ACTUALLY A REAL LIGHT OBJECT
 	Light.call(this);
+	this._bounds = new BoundingAABB();
+	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 }
 
-AmbientLight.prototype = Object.create(Light.prototype);
+Component.create(AmbientLight, {}, Light);
 
 /**
  * @ignore
  */
 AmbientLight.prototype.acceptVisitor = function (visitor)
 {
-    Light.prototype.acceptVisitor.call(this, visitor);
     visitor.visitAmbientLight(this);
-};
-
-/**
- * @ignore
- */
-AmbientLight.prototype._updateBounds = function()
-{
-    this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 };
 
 export { AmbientLight };

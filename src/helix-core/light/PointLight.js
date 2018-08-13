@@ -1,6 +1,7 @@
 import {DirectLight} from "./DirectLight";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {Float4} from "../math/Float4";
+import {Component} from "../entity/Component";
 
 /**
  * @classdesc
@@ -25,9 +26,11 @@ function PointLight()
     this.depthBias = .0;
     this.shadowQualityBias = 2;
     this._shadowTiles = null;
+    this._bounds = new BoundingSphere();
+	this._bounds.setExplicit(Float4.ORIGIN_POINT, this._radius);
 }
 
-PointLight.prototype = Object.create(DirectLight.prototype,
+Component.create(PointLight,
     {
         numAtlasPlanes: {
             get: function() { return 6; }
@@ -61,26 +64,12 @@ PointLight.prototype = Object.create(DirectLight.prototype,
 
             set: function(value) {
                 this._radius = value;
-				this._invalidateBounds();
+				this._bounds.setExplicit(Float4.ORIGIN_POINT, this._radius);
             }
         }
-    });
-
-/**
- * @ignore
- */
-PointLight.prototype._createBoundingVolume = function()
-{
-    return new BoundingSphere();
-};
-
-/**
- * @ignore
- */
-PointLight.prototype._updateBounds = function()
-{
-    this._bounds.setExplicit(Float4.ORIGIN_POINT, this._radius);
-};
+    },
+	DirectLight
+);
 
 /**
  * @ignore

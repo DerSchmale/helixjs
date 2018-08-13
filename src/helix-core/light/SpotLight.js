@@ -3,6 +3,7 @@ import {Float4} from "../math/Float4";
 import {MathX} from "../math/MathX";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {BoundingSphere} from "../scene/BoundingSphere";
+import {Component} from "../entity/Component";
 
 /**
  * @classdesc
@@ -30,15 +31,17 @@ function SpotLight()
     this._cosInner = Math.cos(this._innerAngle * .5);
     this._cosOuter = Math.cos(this._outerAngle * .5);
     this.intensity = 3.1415;
-    this.lookAt(new Float4(0, 0, -1));
 
     this.depthBias = .0;
     this.shadowQualityBias = 1;
     this._shadowMatrix = null;
     this._shadowTile = null;    // xy = scale, zw = offset
+
+    this._bounds = new BoundingSphere();
+	this._updateBounds();
 }
 
-SpotLight.prototype = Object.create(DirectLight.prototype,
+Component.create(SpotLight,
     {
         numAtlasPlanes: {
             get: function() { return 1; }
@@ -88,7 +91,7 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
 
             set: function(value) {
                 this._radius = value;
-                this._invalidateBounds();
+				this._updateBounds();
             }
         },
 
@@ -102,7 +105,7 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
                 this._outerAngle = MathX.clamp(this._outerAngle, this._innerAngle, Math.PI);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._invalidateBounds();
+				this._updateBounds();
             }
         },
 
@@ -116,18 +119,12 @@ SpotLight.prototype = Object.create(DirectLight.prototype,
                 this._innerAngle = MathX.clamp(this._innerAngle, 0, this._outerAngle);
                 this._cosInner = Math.cos(this._innerAngle * .5);
                 this._cosOuter = Math.cos(this._outerAngle * .5);
-				this._invalidateBounds();
+				this._updateBounds();
             }
         }
-    });
-
-/**
- * @ignore
- */
-SpotLight.prototype._createBoundingVolume = function()
-{
-    return new BoundingSphere();
-};
+    },
+	DirectLight
+);
 
 /**
  * @ignore

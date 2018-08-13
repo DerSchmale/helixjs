@@ -25,7 +25,7 @@ SpotShadowMapRenderer.prototype =
 		{
 			this._camera.verticalFOV = light.outerAngle;
 			this._camera.farDistance = light._radius;
-			this._camera.matrix.copyFrom(light.worldMatrix);
+			this._camera.matrix.copyFrom(light.entity.worldMatrix);
 			this._camera._invalidateWorldMatrix();
 
 			this._casterCollector.collect(this._camera, scene);

@@ -333,13 +333,4 @@ Terrain.prototype.acceptVisitor = function(visitor)
     }
 };
 
-/**
- * @ignore
- */
-Terrain.prototype.getBounds = function ()
-{
-    return this._bounds;
-};
-
-
 export { Terrain };

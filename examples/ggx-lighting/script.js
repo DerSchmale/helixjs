@@ -35,6 +35,12 @@ function initScene(scene, assetLibrary)
     light2.color = 0x2020ff;
     light3.color = 0x20ff20;
 
+    // convert to entity
+	ambientLight = new HX.Entity(ambientLight);
+    light1 = new HX.Entity(light1);
+    light2 = new HX.Entity(light2);
+    light3 = new HX.Entity(light3);
+
     scene.attach(ambientLight);
     scene.attach(light1);
     scene.attach(light2);

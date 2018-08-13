@@ -50,6 +50,7 @@ function initScene(scene, assetLibrary)
 {
     var ambientLight = new HX.AmbientLight();
     ambientLight.color = new HX.Color(.1, .1,.1);
+
     var light1 = new HX.PointLight();
     var light2 = new HX.PointLight();
     var light3 = new HX.PointLight();
@@ -60,6 +61,12 @@ function initScene(scene, assetLibrary)
     light1.intensity = 20.0;
     light2.intensity = 20.0;
     light3.intensity = 20.0;
+
+	// convert to entity
+	ambientLight = new HX.Entity(ambientLight);
+	light1 = new HX.Entity(light1);
+	light2 = new HX.Entity(light2);
+	light3 = new HX.Entity(light3);
 
     scene.attach(ambientLight);
     scene.attach(light1);

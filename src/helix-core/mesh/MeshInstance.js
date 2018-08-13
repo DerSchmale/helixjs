@@ -21,15 +21,16 @@ function MeshInstance(mesh, material)
 {
 	Component.call(this);
 
+	this._bounds = new BoundingAABB();
 	this._morphPositions = null;
 	this._morphNormals = null;
 	this._morphWeights = null;
-	this.mesh = mesh;
 	this._meshMaterialLinkInvalid = true;
 	this._vertexLayouts = null;
 	this._castShadows = true;
 	this._skeletonPose = null;
 	this._morphPose = null;
+	this.mesh = mesh;
 	this.material = material;
 
 }
@@ -119,6 +120,7 @@ Component.create(MeshInstance, {
 			}
 
 			this._mesh = mesh;
+			this._bounds = mesh.bounds;
 
 			mesh.onLayoutChanged.bind(this._onMaterialOrMeshChange, this);
 			mesh.onBoundsChanged.bind(this._onBoundsChanged, this);
@@ -162,12 +164,6 @@ Component.create(MeshInstance, {
 		}
 	}
 });
-
-MeshInstance.prototype.getBounds = function()
-{
-	// just return something if there are no bounds
-	return this._mesh.bounds || new BoundingAABB();
-};
 
 /**
  * Sets state for this mesh/material combination.

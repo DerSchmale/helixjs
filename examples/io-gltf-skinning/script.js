@@ -30,7 +30,8 @@ project.onInit = function()
 
     var orbitController = new HX.OrbitController();
     orbitController.azimuth = Math.PI * .5;
-    orbitController.radius = 700.0;
+    orbitController.radius = 3000.0;
     orbitController.maxRadius = 5000.0;
+	orbitController.lookAtTarget.x = -1000.0;
     this.camera.addComponent(orbitController);
 };

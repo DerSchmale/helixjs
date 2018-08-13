@@ -76,7 +76,6 @@ function initScene(scene, assetLibrary)
 {
     var light = new HX.DirectionalLight();
     light.color = new HX.Color(1.0, .95, .9);
-    light.direction = new HX.Float4(0.0, 0.8, -1.0, 0.0);
     light.castShadows = true;
     light.intensity = 3.0;
     // no need for the cascades to reach all the way back
@@ -84,7 +83,10 @@ function initScene(scene, assetLibrary)
     //     light.setCascadeRatios(.25,.5);
     // else
     //     light.setCascadeRatios(.5);
-    scene.attach(light);
+	var lightEntity = new HX.Entity(light);
+	lightEntity.lookAt(new HX.Float4(0.0, 0.8, -1.0, 0.0));
+
+    scene.attach(lightEntity);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
     var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");

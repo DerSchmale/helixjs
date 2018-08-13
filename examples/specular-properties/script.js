@@ -46,9 +46,12 @@ function initScene(scene, assetLibrary)
 {
     var light = new HX.DirectionalLight();
     light.color = new HX.Color(1.0,.8,.6);
-    light.direction = new HX.Float4(0.0, -0.3, -1.0, 0.0);
     light.intensity = .3;
-    scene.attach(light);
+
+    // convert component to entity
+	light = new HX.Entity(light);
+    light.lookAt(new HX.Float4(0.0, -0.3, -1.0, 0.0));
+	scene.attach(light);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
     var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");

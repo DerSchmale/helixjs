@@ -33,7 +33,7 @@ function initCamera(camera)
     //camera.addComponent(new HX.FXAA());
 
     var bloom = new HX.Bloom(128, 1.0);
-    bloom.thresholdLuminance = 1.0;
+    bloom.thresholdLuminance = .5;
     camera.addComponent(bloom);
 
     camera.addComponent(new HX.FilmicToneMapping());
@@ -48,13 +48,19 @@ function initScene(scene, assetLibrary)
     var light2 = new HX.PointLight();
     var light3 = new HX.PointLight();
 
-    light1.intensity = 30;
-    light2.intensity = 40;
-    light3.intensity = 20;
+    light1.intensity = 120;
+    light2.intensity = 160;
+    light3.intensity = 160;
 
     light1.color = 0xff2020;
     light2.color = 0x2020ff;
     light3.color = 0x20ff20;
+
+	// convert to entity
+	ambientLight = new HX.Entity(ambientLight);
+	light1 = new HX.Entity(light1);
+	light2 = new HX.Entity(light2);
+	light3 = new HX.Entity(light3);
 
     scene.attach(ambientLight);
     scene.attach(light1);

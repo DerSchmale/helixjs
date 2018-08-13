@@ -34,9 +34,9 @@ project.onInit = function()
 
     this.camera.addComponent(orbitController);
 
-    var dirLight = new HX.DirectionalLight();
-    dirLight.direction = new HX.Float4(-1.0, -1.0, 1.0);
-    this.scene.attach(dirLight);
+	var dirLight = new HX.Entity(new HX.DirectionalLight());
+	dirLight.lookAt(new HX.Float4(-1, -1, 1));
+	this.scene.attach(dirLight);
 
     var skyboxTexture = this.assetLibrary.get("skybox");
     var irradianceTexture = this.assetLibrary.get("irradiance");

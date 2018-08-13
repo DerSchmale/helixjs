@@ -81,7 +81,7 @@ function initCamera(camera)
     camera.nearDistance = 0.05;
     camera.farDistance = 8000.0;
 
-    var controller = new HX.PlayerController();
+    var controller = new HX.FPSController();
     controller.walkForce = 2000.0;
     controller.runForce = 20000.0;
     controller.jumpForce = 5.0;
@@ -106,11 +106,13 @@ function initCamera(camera)
 
 function initScene(scene, camera, assetLibrary)
 {
-    var sun = new HX.DirectionalLight();
-    sun.direction = new HX.Float4(-0.3, -1.0, -.3, 0.0);
-    sun.intensity = 3;
-    sun.castShadows = true;
-    sun.depthBias = .01;
+    var dirLight = new HX.DirectionalLight();
+    dirLight.intensity = 3;
+    dirLight.castShadows = true;
+    dirLight.depthBias = .01;
+
+    var sun = new HX.Entity(dirLight);
+	sun.lookAt(new HX.Float4(-0.3, -1.0, -.3, 0.0));
     scene.attach(sun);
 
     // TODO: Add procedural skybox

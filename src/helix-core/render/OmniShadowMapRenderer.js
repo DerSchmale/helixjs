@@ -28,7 +28,8 @@ OmniShadowMapRenderer.prototype =
         var pos = new Float4();
         return function(light, atlas, viewCamera, scene)
         {
-            light.worldMatrix.getColumn(3, pos);
+            var entity = light.entity;
+            entity.worldMatrix.getColumn(3, pos);
 
             for (var i = 0; i < 6; ++i) {
                 var cam = this._cameras[i];
@@ -37,7 +38,7 @@ OmniShadowMapRenderer.prototype =
                 cam.position.copyFrom(pos);
             }
 
-            this._casterCollector.setLightBounds(light.worldBounds);
+            this._casterCollector.setLightBounds(entity.worldBounds);
             this._casterCollector.collect(this._cameras, scene);
 
             GL.setInvertCulling(true);

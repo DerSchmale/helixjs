@@ -175,7 +175,7 @@ FixedLitPass.prototype._assignPointLights = function (camera) {
         for (var i = 0; i < len; ++i) {
             var locs = this._pointLocations[i];
             var light = lights[i];
-            light.worldMatrix.getColumn(3, pos);
+            light.entity.worldMatrix.getColumn(3, pos);
             camera.viewMatrix.transformPoint(pos, pos);
 
             var col = light._scaledIrradiance;

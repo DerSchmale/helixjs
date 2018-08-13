@@ -25,14 +25,20 @@ project.onInit = function()
 
 function initScene(scene, assetLibrary)
 {
-    var light = new HX.DirectionalLight();
-    light.direction = new HX.Float4(-1.0, 1.0, -1.0, 0.0);
-    light.intensity = 5.0;
-    scene.attach(light);
+    var light = new HX.Entity();
+    light.lookAt(new HX.Float4(-1.0, 1.0, -1.0, 0.0));
 
+    var dirLight = new HX.DirectionalLight();
+	dirLight.intensity = 5.0;
+
+	light.addComponent(dirLight);
+
+	scene.attach(light);
+
+	// we're assigning the ambient to the dir light, considering it as the "bounce" coming from this one
     var ambientLight = new HX.AmbientLight();
     ambientLight.intensity = .02;
-    scene.attach(ambientLight);
+    light.addComponent(ambientLight);
 
     var material = new HX.BasicMaterial();
     material.colorMap = assetLibrary.get("albedo");

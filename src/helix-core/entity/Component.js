@@ -24,16 +24,18 @@ function Component()
     // this allows notifying entities about bound changes (useful for sized components)
     this._entity = null;
 	this._enabled = true;
+	this._bounds = null;
 }
 
 Component.COMPONENT_ID = 0;
 
-Component.create = (function(constrFunction, props)
+Component.create = (function(constrFunction, props, baseClass)
 {
     var COUNTER = 0;
 
-    return function(constrFunction, props) {
-        constrFunction.prototype = Object.create(Component.prototype, props);
+    return function(constrFunction, props, baseClass) {
+		baseClass = baseClass || Component;
+        constrFunction.prototype = Object.create(baseClass.prototype, props);
         constrFunction.COMPONENT_ID = ++COUNTER;
         constrFunction.prototype.COMPONENT_ID = constrFunction.COMPONENT_ID;
     };
@@ -44,7 +46,7 @@ Component.prototype =
 	/**
      * If a Component has a scene presence, it can have bounds
 	 */
-	getBounds: function() { return null; },
+	get bounds() { return this._bounds; },
 
     /**
      * Called when this component is added to an Entity.

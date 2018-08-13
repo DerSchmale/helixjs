@@ -100,7 +100,7 @@ Entity.prototype.addComponent = function(component)
 	if (component.enabled)
 		component.onAdded();
 
-	if (component.getBounds())
+	if (component.bounds)
 		this._invalidateBounds();
 
 	this._onComponentsChange.dispatch(this, oldHash);
@@ -150,7 +150,7 @@ Entity.prototype._updateBounds = function ()
 	this._bounds.clear();
 
 	for (var i = 0, len = components.length; i < len; ++i) {
-		var bounds = components[i].getBounds();
+		var bounds = components[i].bounds;
 
 		if (bounds)
 			this._bounds.growToIncludeBound(bounds);
@@ -190,7 +190,7 @@ Entity.prototype.removeComponent = function(component)
 	if (component.enabled)
 		component.onRemoved();
 
-	if (component.getBounds())
+	if (component.bounds)
 		this._invalidateBounds();
 };
 

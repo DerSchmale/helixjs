@@ -291,10 +291,8 @@ HX$1.Component.create(RigidBody, {
 
 RigidBody.prototype.addImpulse = function(v, pos)
 {
-    // if no position is set, just
 	if (pos) {
 		this._body.applyImpulse(v, pos);
-		this._body.wakeUp();
 	}
 	else {
 		var vel = this._body.velocity;
@@ -302,13 +300,14 @@ RigidBody.prototype.addImpulse = function(v, pos)
 		vel.y += v.y;
 		vel.z += v.z;
 	}
+
+	this._body.wakeUp();
 };
 
 RigidBody.prototype.addForce = function(v, pos)
 {
     if (pos) {
 		this._body.applyForce(v, pos);
-		this._body.wakeUp();
 	}
 	else {
         var f = this._body.force;
@@ -316,6 +315,8 @@ RigidBody.prototype.addForce = function(v, pos)
         f.y += v.y;
         f.z += v.z;
     }
+
+	this._body.wakeUp();
 };
 
 RigidBody.prototype.onAdded = function()
@@ -746,7 +747,7 @@ PhysicsMaterial.prototype = {
 	}
 };
 
-function PlayerController()
+function FPSController()
 {
 	HX.Component.call(this);
 	this._move = new HX.Float2();
@@ -764,7 +765,7 @@ function PlayerController()
 	this._onKeyUp = null;
 }
 
-HX.Component.create(PlayerController, {
+HX.Component.create(FPSController, {
 	walkForce: {
 		get: function()
 		{
@@ -830,7 +831,7 @@ HX.Component.create(PlayerController, {
 /**
  * @ignore
  */
-PlayerController.prototype.onAdded = function(dt)
+FPSController.prototype.onAdded = function(dt)
 {
 	var self = this;
 
@@ -913,7 +914,7 @@ PlayerController.prototype.onAdded = function(dt)
 /**
  * @ignore
  */
-PlayerController.prototype.onRemoved = function(dt)
+FPSController.prototype.onRemoved = function(dt)
 {
 	document.removeEventListener("keydown", this._onKeyDown);
 	document.removeEventListener("keyup", this._onKeyUp);
@@ -925,7 +926,7 @@ PlayerController.prototype.onRemoved = function(dt)
 /**
  * @ignore
  */
-PlayerController.prototype.onUpdate = function(dt)
+FPSController.prototype.onUpdate = function(dt)
 {
 	var x = new HX.Float2();
 	var y = new HX.Float2();
@@ -966,7 +967,7 @@ PlayerController.prototype.onUpdate = function(dt)
 /**
  * @ignore
  */
-PlayerController.prototype._setForward = function(ratio)
+FPSController.prototype._setForward = function(ratio)
 {
 	this._move.y = ratio;
 };
@@ -974,7 +975,7 @@ PlayerController.prototype._setForward = function(ratio)
 /**
  * @ignore
  */
-PlayerController.prototype._setStride = function(ratio)
+FPSController.prototype._setStride = function(ratio)
 {
 	this._move.x = ratio;
 };
@@ -982,7 +983,7 @@ PlayerController.prototype._setStride = function(ratio)
 /**
  * @ignore
  */
-PlayerController.prototype._addPitch = function(value)
+FPSController.prototype._addPitch = function(value)
 {
 	this._pitch += value;
 };
@@ -990,7 +991,7 @@ PlayerController.prototype._addPitch = function(value)
 /**
  * @ignore
  */
-PlayerController.prototype._addYaw = function(value)
+FPSController.prototype._addYaw = function(value)
 {
 	this._yaw += value;
 };
@@ -1003,7 +1004,7 @@ exports.SphereCollider = SphereCollider;
 exports.InfinitePlaneCollider = InfinitePlaneCollider;
 exports.HeightfieldCollider = HeightfieldCollider;
 exports.PhysicsMaterial = PhysicsMaterial;
-exports.PlayerController = PlayerController;
+exports.FPSController = FPSController;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 

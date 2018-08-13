@@ -364,14 +364,16 @@ Renderer.prototype =
         {
             var o;
             var col = light._scaledIrradiance;
+            var lightMatrix = light.entity.worldMatrix;
+            var viewMatrix = camera.viewMatrix;
             target.setFloat32(offset, col.r, true);
             target.setFloat32(offset + 4, col.g, true);
             target.setFloat32(offset + 8, col.b, true);
 
             target.setFloat32(offset + 12, light.radius, true);
 
-			light.worldMatrix.getColumn(3, pos);
-			camera.viewMatrix.transformPoint(pos, pos);
+			lightMatrix.getColumn(3, pos);
+			viewMatrix.transformPoint(pos, pos);
             target.setFloat32(offset + 16, pos.x, true);
             target.setFloat32(offset + 20, pos.y, true);
             target.setFloat32(offset + 24, pos.z, true);
@@ -379,8 +381,8 @@ Renderer.prototype =
             target.setFloat32(offset + 28, 1.0 / light.radius, true);
 
             if (isSpot) {
-				light.worldMatrix.getColumn(1, dir);
-				camera.viewMatrix.transformVector(dir, dir);
+				lightMatrix.getColumn(1, dir);
+				viewMatrix.transformVector(dir, dir);
 				target.setFloat32(offset + 32, dir.x, true);
 				target.setFloat32(offset + 36, dir.y, true);
 				target.setFloat32(offset + 40, dir.z, true);
@@ -434,7 +436,7 @@ Renderer.prototype =
             }
 
             if (isSpot)
-				camera.viewMatrix.transformPoint(light.worldBounds.center, pos);
+				viewMatrix.transformPoint(light.entity.worldBounds.center, pos);
 
             this.assignToCells(light, camera, index, pos, cells, isSpot? dir : null);
 		}
@@ -442,12 +444,10 @@ Renderer.prototype =
 
 	assignToCells: function(light, camera, index, viewPos, cells, dir)
     {
-    	var distX = [];
-    	var distY = [];
     	var p = new Float4();
     	return function(light, camera, index, viewPos, cells, dir) {
 			var cellStride = this._cellStride;
-			var bounds = light.worldBounds;
+			var bounds = light.entity.worldBounds;
 			var radius = bounds.getRadius();
 
 			var nx = META.OPTIONS.numLightingCellsX;
@@ -696,7 +696,7 @@ Renderer.prototype =
      */
     _renderLightPassIfIntersects: function(light, passType, renderList)
     {
-        var lightBound = light.worldBounds;
+        var lightBound = light.entity.worldBounds;
         var len = renderList.length;
         for (var r = 0; r < len; ++r) {
             var renderItem = renderList[r];

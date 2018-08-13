@@ -28,7 +28,7 @@ project.onInit = function()
     this.camera.farDistance = 3000.0;
 
     var orbitController = new HX.OrbitController();
-    orbitController.azimuth = 1.3;
+    orbitController.azimuth = -0.5;
     orbitController.minRadius = .02;
     orbitController.maxRadius = 5000;
     orbitController.zoomSpeed = .1;
@@ -36,8 +36,8 @@ project.onInit = function()
     orbitController.radius = 3;
     this.camera.addComponent(orbitController);
 
-    var dirLight = new HX.DirectionalLight();
-    this.scene.attach(dirLight);
+	var dirLight = new HX.Entity(new HX.DirectionalLight());
+	this.scene.attach(dirLight);
 
     var skyboxTexture = this.assetLibrary.get("skybox");
     var irradianceTexture = this.assetLibrary.get("irradiance");

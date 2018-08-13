@@ -25,14 +25,17 @@ window.onload = function ()
 
 function initScene(scene, assetLibrary)
 {
-    var light = new HX.DirectionalLight();
-    light.direction = new HX.Float4(-1.0, -1.0, -1.0, 0.0);
-    light.intensity = 5.0;
-    scene.attach(light);
+    var mainLight = new HX.DirectionalLight();
+    mainLight.intensity = 5.0;
 
     var ambientLight = new HX.AmbientLight();
     ambientLight.intensity = .02;
-    scene.attach(ambientLight);
+
+	var lightEntity = new HX.Entity();
+	lightEntity.addComponents([mainLight, ambientLight]);
+	lightEntity.lookAt(new HX.Float4(-1.0, 1.0, -1.0, 0.0));
+
+	scene.attach(lightEntity);
 
     var material = new HX.BasicMaterial();
     material.colorMap = assetLibrary.get("albedo");

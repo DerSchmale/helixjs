@@ -1,6 +1,6 @@
 import {RigidBody} from "../components/RigidBody";
 
-function PlayerController()
+function FPSController()
 {
 	HX.Component.call(this);
 	this._move = new HX.Float2();
@@ -18,7 +18,7 @@ function PlayerController()
 	this._onKeyUp = null;
 }
 
-HX.Component.create(PlayerController, {
+HX.Component.create(FPSController, {
 	walkForce: {
 		get: function()
 		{
@@ -84,7 +84,7 @@ HX.Component.create(PlayerController, {
 /**
  * @ignore
  */
-PlayerController.prototype.onAdded = function(dt)
+FPSController.prototype.onAdded = function(dt)
 {
 	var self = this;
 
@@ -167,7 +167,7 @@ PlayerController.prototype.onAdded = function(dt)
 /**
  * @ignore
  */
-PlayerController.prototype.onRemoved = function(dt)
+FPSController.prototype.onRemoved = function(dt)
 {
 	document.removeEventListener("keydown", this._onKeyDown);
 	document.removeEventListener("keyup", this._onKeyUp);
@@ -179,7 +179,7 @@ PlayerController.prototype.onRemoved = function(dt)
 /**
  * @ignore
  */
-PlayerController.prototype.onUpdate = function(dt)
+FPSController.prototype.onUpdate = function(dt)
 {
 	var x = new HX.Float2();
 	var y = new HX.Float2();
@@ -220,7 +220,7 @@ PlayerController.prototype.onUpdate = function(dt)
 /**
  * @ignore
  */
-PlayerController.prototype._setForward = function(ratio)
+FPSController.prototype._setForward = function(ratio)
 {
 	this._move.y = ratio;
 };
@@ -228,7 +228,7 @@ PlayerController.prototype._setForward = function(ratio)
 /**
  * @ignore
  */
-PlayerController.prototype._setStride = function(ratio)
+FPSController.prototype._setStride = function(ratio)
 {
 	this._move.x = ratio;
 };
@@ -236,7 +236,7 @@ PlayerController.prototype._setStride = function(ratio)
 /**
  * @ignore
  */
-PlayerController.prototype._addPitch = function(value)
+FPSController.prototype._addPitch = function(value)
 {
 	this._pitch += value;
 };
@@ -244,9 +244,9 @@ PlayerController.prototype._addPitch = function(value)
 /**
  * @ignore
  */
-PlayerController.prototype._addYaw = function(value)
+FPSController.prototype._addYaw = function(value)
 {
 	this._yaw += value;
 };
 
-export {PlayerController };
+export {FPSController };

@@ -28,7 +28,6 @@ DirectLight.prototype = Object.create(Light.prototype);
 
 DirectLight.prototype.acceptVisitor = function (visitor)
 {
-    Light.prototype.acceptVisitor.call(this, visitor);
     visitor.visitLight(this);
 };
 
@@ -42,8 +41,6 @@ DirectLight.prototype._updateScaledIrradiance = function ()
     this._scaledIrradiance.r *= scale;
     this._scaledIrradiance.g *= scale;
     this._scaledIrradiance.b *= scale;
-
-    this._invalidateBounds();
 };
 
 export { DirectLight };

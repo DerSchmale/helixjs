@@ -125,10 +125,8 @@ HX.Component.create(RigidBody, {
 
 RigidBody.prototype.addImpulse = function(v, pos)
 {
-    // if no position is set, just
 	if (pos) {
 		this._body.applyImpulse(v, pos);
-		this._body.wakeUp();
 	}
 	else {
 		var vel = this._body.velocity;
@@ -136,13 +134,14 @@ RigidBody.prototype.addImpulse = function(v, pos)
 		vel.y += v.y;
 		vel.z += v.z;
 	}
+
+	this._body.wakeUp();
 };
 
 RigidBody.prototype.addForce = function(v, pos)
 {
     if (pos) {
 		this._body.applyForce(v, pos);
-		this._body.wakeUp();
 	}
 	else {
         var f = this._body.force;
@@ -150,6 +149,8 @@ RigidBody.prototype.addForce = function(v, pos)
         f.y += v.y;
         f.z += v.z;
     }
+
+	this._body.wakeUp();
 };
 
 RigidBody.prototype.onAdded = function()

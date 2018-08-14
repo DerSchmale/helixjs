@@ -16,7 +16,7 @@ export var RenderUtils =
      * @returns The index for the first unrendered renderItem in the list
      * @private
      */
-    renderPass: function (renderer, passType, renderItems, data)
+    renderPass: function (renderer, camera, passType, renderItems, data, forceCamera)
     {
         var len = renderItems.length;
         var activePass = null;
@@ -30,13 +30,13 @@ export var RenderUtils =
             var meshInstance = renderItem.meshInstance;
 
             if (pass !== activePass) {
-                pass.updatePassRenderState(renderItem.camera, renderer, data);
+                pass.updatePassRenderState(camera, renderer, data);
                 activePass = pass;
                 lastMesh = null;    // need to reset mesh data too
             }
 
             // make sure renderstate is propagated
-            pass.updateInstanceRenderState(renderItem.camera, renderItem, data);
+            pass.updateInstanceRenderState(camera, renderItem, data);
 
             if (lastMesh !== meshInstance._mesh) {
 				meshInstance.updateRenderState(passType);

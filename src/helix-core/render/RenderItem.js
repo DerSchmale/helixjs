@@ -11,7 +11,6 @@ export function RenderItem()
     this.skeleton = null;
     this.skeletonMatrices = null;
     this.material = null;
-    this.camera = null;
     this.renderOrderHint = 0;
     this.worldBounds = null;
 

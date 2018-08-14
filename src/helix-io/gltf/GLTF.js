@@ -112,7 +112,11 @@ GLTF.prototype._continueParsing = function()
     queue.queue(this._parseScenes.bind(this));
     queue.queue(this._parseAnimations.bind(this));
     queue.queue(this._playAnimations.bind(this));
-    queue.queue(this._notifyComplete.bind(this), this._target);
+    // queue.queue(this._notifyComplete.bind(this), this._target);
+
+    queue.onComplete.bind((function() {
+        this._notifyComplete(this._target);
+    }).bind(this));
 
     queue.onProgress.bind((function(ratio) {
         this._notifyProgress(.8 + .2 * ratio);

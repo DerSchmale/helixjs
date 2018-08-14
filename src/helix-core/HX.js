@@ -6,6 +6,7 @@ export {
     init, destroy, start, stop,
     META, capabilities,
     onPreFrame, onFrame,
+    enableVR, disableVR,
     TextureFilter, CullMode, StencilOp, Comparison, ElementType, BlendFactor, BlendOperation, ClearMask, InitOptions, TextureFormat, DataType, BufferUsage, CubeFace
 } from "./Helix.js";
 
@@ -139,6 +140,7 @@ export {WirePlanePrimitive} from "./mesh/primitives/WirePlanePrimitive";
 
 export {BlendState} from "./render/BlendState";
 export {Renderer} from "./render/Renderer";
+export {VRRenderer} from "./render/VRRenderer";
 export {LightingModel} from "./render/LightingModel";
 export {View, MultiRenderer} from "./render/MultiRenderer";
 export {StencilState} from "./render/StencilState";

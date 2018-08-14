@@ -45,6 +45,7 @@ function Renderer(renderTarget)
     this._applyGamma = new ApplyGammaShader();
 
     this._camera = null;
+    this._activeCamera = null;
     this._scene = null;
     this._depthBuffer = this._createDepthBuffer();
     this._hdrBack = new Renderer.HDRBuffers(this._depthBuffer);
@@ -211,20 +212,34 @@ Renderer.prototype =
      */
     render: function (camera, scene, dt)
     {
-        this._gammaApplied = false;
         this._camera = camera;
         this._scene = scene;
 
-        this._camera._updateClusterPlanes();
-
         this._updateSize(this._renderTarget);
-
         camera._setRenderTargetResolution(this._width, this._height);
+
         this._renderCollector.collect(camera, scene);
 
         this._ambientColor = this._renderCollector._ambientColor;
 
         this._renderShadowCasters();
+
+        this._renderView(camera, scene, dt);
+
+        this._renderToScreen();
+
+        GL.setBlendState();
+        GL.setDepthMask(true);
+    },
+
+    _renderView: function(camera, scene, dt)
+    {
+        this._gammaApplied = false;
+        this._activeCamera = camera;
+        this._scene = scene;
+
+        if (capabilities.WEBGL_2)
+            camera._updateClusterPlanes();
 
         GL.setDepthMask(true);
         GL.setColorMask(true);
@@ -249,11 +264,6 @@ Renderer.prototype =
 
         GL.setColorMask(true);
 
-        this._renderToScreen();
-
-        GL.setBlendState();
-        GL.setDepthMask(true);
-
         // for the future, if we ever need back-projection
         //this._previousViewProjection.copyFrom(this._camera.viewProjectionMatrix);
     },
@@ -267,8 +277,8 @@ Renderer.prototype =
         if (!this._depthPrepass) return;
 
         GL.lockColorMask(false);
-        RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
-        RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
+        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
         GL.unlockColorMask(true);
     },
 
@@ -341,14 +351,14 @@ Renderer.prototype =
         this._lightingUniformBuffer.uploadData(this._lightingDataView);
         this._lightingCellsUniformBuffer.uploadData(this._cellData);
 
-        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
-        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
+        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
 
 		if (this._renderCollector.needsBackbuffer)
 			this._copyBackbuffer();
 
-        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_FIXED));
-        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC));
+        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_FIXED));
+        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC));
     },
 
     /**
@@ -606,7 +616,7 @@ Renderer.prototype =
      */
     _renderForwardOpaque: function()
     {
-        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
 
         var list = this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC);
         if (list.length === 0) return;
@@ -616,7 +626,7 @@ Renderer.prototype =
 
     _renderOpaqueDynamicMultipass: function(list)
     {
-        RenderUtils.renderPass(this, MaterialPass.BASE_PASS, list);
+        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, list);
 
         var lights = this._renderCollector.getLights();
         var numLights = lights.length;
@@ -627,11 +637,11 @@ Renderer.prototype =
             // I don't like type checking, but lighting support is such a core thing...
             // maybe we can work in a more plug-in like light system
             if (light instanceof LightProbe) {
-                RenderUtils.renderPass(this, MaterialPass.LIGHT_PROBE_PASS, list, light);
+                RenderUtils.renderPass(this, this._activeCamera, MaterialPass.LIGHT_PROBE_PASS, list, light);
             }
             else if (light instanceof DirectionalLight) {
                 // PASS IN LIGHT AS DATA, so the material can update it
-                RenderUtils.renderPass(this, MaterialPass.DIR_LIGHT_PASS, list, light);
+                RenderUtils.renderPass(this, this._activeCamera, MaterialPass.DIR_LIGHT_PASS, list, light);
             }
             else if (light instanceof PointLight) {
                 // cannot just use renderPass, need to do intersection tests
@@ -698,6 +708,7 @@ Renderer.prototype =
     {
         var lightBound = light.entity.worldBounds;
         var len = renderList.length;
+
         for (var r = 0; r < len; ++r) {
             var renderItem = renderList[r];
             var material = renderItem.material;
@@ -714,8 +725,8 @@ Renderer.prototype =
         var pass = renderItem.material.getPass(passType);
         if (!pass) return;
         var meshInstance = renderItem.meshInstance;
-        pass.updatePassRenderState(renderItem.camera, this, light);
-        pass.updateInstanceRenderState(renderItem.camera, renderItem, light);
+        pass.updatePassRenderState(this._activeCamera, this, light);
+        pass.updateInstanceRenderState(this._activeCamera, renderItem, light);
 		meshInstance.updateRenderState(passType);
         var mesh = meshInstance._mesh;
         GL.drawElements(pass._elementType, mesh._numIndices, 0, mesh._indexType);
@@ -735,8 +746,8 @@ Renderer.prototype =
             GL.setRenderTarget(this._normalDepthFBO);
             GL.setClearColor(Color.BLUE);
             GL.clear();
-            RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, dynamic);
-            RenderUtils.renderPass(this, MaterialPass.NORMAL_DEPTH_PASS, fixed);
+            RenderUtils.renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, dynamic, null);
+            RenderUtils.renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, fixed, null);
         }
     },
 
@@ -825,6 +836,15 @@ Renderer.prototype =
             return;
         }
 
+        this._present();
+    },
+
+    /**
+     * I know, it's not actual blitting.
+     * @ignore
+     */
+    _present: function()
+    {
         if (this._gammaApplied)
             this._copyTextureShader.execute(RectMesh.DEFAULT, this._hdrBack.texture);
         else

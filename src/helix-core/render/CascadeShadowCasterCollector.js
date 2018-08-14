@@ -92,7 +92,6 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstanc
                 renderItem.pass = material.getPass(passIndex);
                 renderItem.meshInstance = meshInstance;
                 renderItem.worldMatrix = entity.worldMatrix;
-                renderItem.camera = renderCamera;
                 renderItem.material = material;
                 renderItem.skeleton = skeleton;
                 renderItem.skeletonMatrices = skeletonMatrices;

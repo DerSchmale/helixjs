@@ -335,7 +335,6 @@ MeshInstance.prototype._setMorphTarget = function(targetIndex, positionBuffer, n
 
 MeshInstance.prototype._onSkeletonChange = function()
 {
-	console.log(this._mesh.skeleton);
 	this._material._setUseSkinning(!!this._mesh.skeleton);
 };
 

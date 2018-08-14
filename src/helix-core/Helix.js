@@ -39,7 +39,12 @@ export var META =
         /**
          * The canvas used to contain the to-screen renders.
          */
-        TARGET_CANVAS: null
+        TARGET_CANVAS: null,
+
+        /**
+         * The WebVR display (if enabled) used for rendering
+         */
+        VR_DISPLAY: null,
     };
 
 /**
@@ -100,7 +105,9 @@ export var capabilities =
         EXT_COLOR_BUFFER_HALF_FLOAT: null,
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
-        HDR_FORMAT: 0
+        HDR_FORMAT: 0,
+
+        VR_CAN_PRESENT: false
     };
 
 /**
@@ -599,6 +606,8 @@ function _onFrameTick(dt)
     onPreFrame.dispatch(dt);
     _clearGLStats();
     onFrame.dispatch(dt);
+    if (META.VR_DISPLAY && META.VR_DISPLAY.isPresenting)
+        META.VR_DISPLAY.submitFrame();
     frameTime = (performance || Date).now() - startTime;
 }
 
@@ -628,6 +637,37 @@ export function start()
 export function stop()
 {
     frameTicker.stop();
+}
+
+/**
+ * Turns on a VR display
+ */
+export function enableVR(display, onFail)
+{
+    if (META.VR_DISPLAY)
+        throw new Error("VR already enabled!");
+
+    META.VR_DISPLAY = display;
+
+    capabilities.VR_CAN_PRESENT = display.capabilities.canPresent;
+
+    if (capabilities.VR_CAN_PRESENT)
+        META.VR_DISPLAY.requestPresent([{
+            source: META.TARGET_CANVAS
+        }]).then(undefined, onFail);
+
+    console.log("Starting VR on " + display.displayName);
+}
+
+export function disableVR()
+{
+    if (!META.VR_DISPLAY) return;
+
+    if (capabilities.VR_CAN_PRESENT)
+        META.VR_DISPLAY.exitPresent();
+
+    capabilities.VR_CAN_PRESENT = false;
+    META.VR_DISPLAY = null;
 }
 
 function _initDefaultSkinningTexture()

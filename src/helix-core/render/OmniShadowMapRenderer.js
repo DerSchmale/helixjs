@@ -47,6 +47,7 @@ OmniShadowMapRenderer.prototype =
 
             for (i = 0; i < 6; ++i) {
                 var rect = atlas.getNextRect();
+                var camera = this._cameras[i];
                 GL.setViewport(rect);
 
                 var sx = rect.width * atlasSize;
@@ -56,7 +57,7 @@ OmniShadowMapRenderer.prototype =
 
                 light._shadowTiles[i].set(.5 * sx, .5 * sy, .5 * sx + tx, .5 * sy + ty);
 
-                RenderUtils.renderPass(this, MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, this._casterCollector.getRenderList(i), light);
+                RenderUtils.renderPass(this, camera, MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, this._casterCollector.getRenderList(i), light);
             }
 
             GL.setInvertCulling(false);

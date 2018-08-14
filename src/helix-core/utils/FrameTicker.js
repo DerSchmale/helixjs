@@ -1,4 +1,5 @@
 import { Signal } from '../core/Signal';
+import {capabilities, META} from "../Helix";
 
 /**
  * Encapsulates behaviour to handle frames and time differences.
@@ -27,7 +28,8 @@ FrameTicker.prototype = {
         if (this._isRunning) return;
         this._currentTime = 0;
         this._isRunning = true;
-        requestAnimationFrame(this._tickFunc);
+
+        this._requestAnimationFrame();
     },
 
     /**
@@ -49,7 +51,7 @@ FrameTicker.prototype = {
     _tick: function(time) {
         if (!this._isRunning) return;
 
-        requestAnimationFrame(this._tickFunc);
+        this._requestAnimationFrame();
 
         // difference with previous currentTime
         // var currentTime = (performance || Date).now();
@@ -61,6 +63,17 @@ FrameTicker.prototype = {
         this._currentTime = time;
 
         this.onTick.dispatch(this._dt);
+    },
+
+    /**
+     * @private
+     */
+    _requestAnimationFrame: function()
+    {
+        if (capabilities.VR_CAN_PRESENT)
+            META.VR_DISPLAY.requestAnimationFrame(this._tickFunc);
+        else
+            requestAnimationFrame(this._tickFunc);
     }
 };
 

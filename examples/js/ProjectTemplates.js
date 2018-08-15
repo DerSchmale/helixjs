@@ -19,7 +19,12 @@ SimpleProject.prototype =
         {
             if (this._initialized) throw new Error("Already initialized project!");
 
-            HX.init(canvas, initOptions);
+            try {
+				HX.init(canvas, initOptions);
+			}
+			catch (err) {
+                this.showError("It seems WebGL is not supported on this device.")
+            }
 
             this._canvas = canvas;
 
@@ -111,6 +116,13 @@ SimpleProject.prototype =
                 this._scene.attach(this._camera);
             else if (this._camera._scene !== this._scene)
                 throw new Error("Camera attached to a different scene!");
+        },
+
+		showError: function(message)
+        {
+            console.log(document.getElementById("errorContainer"));
+            document.getElementById("errorContainer").classList.remove("hidden");
+            document.getElementById("errorMessage").innerHTML = message;
         },
 
         _initRenderers: function()

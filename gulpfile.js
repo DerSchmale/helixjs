@@ -5,6 +5,8 @@ var insert = require('gulp-insert');
 var concatCallback = require('gulp-concat-callback');
 var del = require('del');
 var rollup = require('gulp-better-rollup');
+var commonjs = require("rollup-plugin-commonjs");
+var nodeResolve = require("rollup-plugin-node-resolve");
 var jsdoc = require("gulp-jsdoc3");
 
 // TODO: For the IO module, would be useful if we could have a target that allows picking a few exporters
@@ -20,6 +22,15 @@ gulp.task('core', ['glsl'], function ()
     return gulp.src(['./src/helix-core/HX.js'])
         .pipe(rollup(
             {
+				plugins: [
+					nodeResolve({
+						jsnext: true,
+						main: true
+					}),
+					commonjs({
+						include: 'node_modules/**'
+					})
+				]
 			},
 			{
 				name: 'HX',

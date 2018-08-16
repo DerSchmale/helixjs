@@ -45,7 +45,17 @@ export var META =
          * The WebVR display (if enabled) used for rendering
          */
         VR_DISPLAY: null,
-    };
+
+		/**
+         * The WebVR left eye parameters (if enabled)
+		 */
+		VR_LEFT_EYE_PARAMS: null,
+
+        /**
+         * The WebVR right eye parameters (if enabled)
+		 */
+		VR_RIGHT_EYE_PARAMS: null
+	};
 
 /**
  * The {@linkcode Signal} that dispatched before a frame renders.
@@ -651,10 +661,13 @@ export function enableVR(display, onFail)
 
     capabilities.VR_CAN_PRESENT = display.capabilities.canPresent;
 
-    if (capabilities.VR_CAN_PRESENT)
-        META.VR_DISPLAY.requestPresent([{
-            source: META.TARGET_CANVAS
-        }]).then(undefined, onFail);
+	if (capabilities.VR_CAN_PRESENT) {
+		META.VR_LEFT_EYE_PARAMS = display.getEyeParameters();
+		META.VR_RIGHT_EYE_PARAMS = display.getEyeParameters();
+		META.VR_DISPLAY.requestPresent([{
+			source: META.TARGET_CANVAS
+		}]).then(undefined, onFail);
+	}
 
     console.log("Starting VR on " + display.displayName);
 }
@@ -668,6 +681,8 @@ export function disableVR()
 
     capabilities.VR_CAN_PRESENT = false;
     META.VR_DISPLAY = null;
+    META.VR_LEFT_EYE_PARAMS = null;
+    META.VR_RIGHT_EYE_PARAMS = null;
 }
 
 function _initDefaultSkinningTexture()

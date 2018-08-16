@@ -73,15 +73,19 @@ VRRenderer.prototype._updateSize = function()
 {
     var width, height;
     if (this._renderTarget) {
-        width = this._renderTarget.width;
+        width = this._renderTarget.width * .5;
         height = this._renderTarget.height;
     }
-    else {
-        width = META.TARGET_CANVAS.width;
+    else if (META.VR_LEFT_EYE_PARAMS) {
+		width = Math.max(META.VR_LEFT_EYE_PARAMS.renderWidth, META.VR_RIGHT_EYE_PARAMS.renderWidth);
+		height = Math.max(META.VR_LEFT_EYE_PARAMS.renderHeight, META.VR_RIGHT_EYE_PARAMS.renderHeight);
+	}
+	else {
+        width = META.TARGET_CANVAS.width * .5;
         height = META.TARGET_CANVAS.height;
     }
 
-    width *= .5;
+
 
     if (this._width !== width || this._height !== height) {
         this._width = width;

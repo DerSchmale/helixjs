@@ -7,7 +7,7 @@ var project = new VRProject();
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("albedo", "textures/marble_tiles/marbletiles_diffuse_white.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("boombox", "BoomBox/BoomBox.gltf", HX.AssetLibrary.Type.ASSET, HX_IO.GLTF);
+    assetLibrary.queueAsset("boombox", "boombox/BoomBox.gltf", HX.AssetLibrary.Type.ASSET, HX_IO.GLTF);
 };
 
 project.onInit = function()

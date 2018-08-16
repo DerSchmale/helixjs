@@ -354,6 +354,11 @@ export var CubeFace = {};
  */
 export function InitOptions()
 {
+    /*
+     * The pixel ratio for the canvas to use. This also allows scaling the canvas resolution.
+     */
+    this.pixelRatio = window.devicePixelRatio || 1;
+
     /**
      * Use WebGL 2 if available.
      */
@@ -615,10 +620,34 @@ function _onFrameTick(dt)
     var startTime = (performance || Date).now();
     onPreFrame.dispatch(dt);
     _clearGLStats();
+
+    if (!META.VR_DISPLAY)
+		_updateCanvasSize();
+
     onFrame.dispatch(dt);
+
     if (META.VR_DISPLAY && META.VR_DISPLAY.isPresenting)
         META.VR_DISPLAY.submitFrame();
+
     frameTime = (performance || Date).now() - startTime;
+}
+
+function _updateCanvasSize()
+{
+    // helix does NOT adapt the size automatically, so you can have complete control over the resolution
+    var dpr = META.OPTIONS.pixelRatio;
+
+    var canvas = META.TARGET_CANVAS;
+    var rect = canvas.getBoundingClientRect();
+
+    var w = Math.round(rect.width * dpr);
+    var h = Math.round(rect.height * dpr);
+
+    if (canvas.width !== w || canvas.height !== h) {
+		console.log(rect);
+        canvas.width = w;
+        canvas.height = h;
+	}
 }
 
 /**
@@ -662,11 +691,14 @@ export function enableVR(display, onFail)
     capabilities.VR_CAN_PRESENT = display.capabilities.canPresent;
 
 	if (capabilities.VR_CAN_PRESENT) {
-		META.VR_LEFT_EYE_PARAMS = display.getEyeParameters();
-		META.VR_RIGHT_EYE_PARAMS = display.getEyeParameters();
+		META.VR_LEFT_EYE_PARAMS = display.getEyeParameters("left");
+		META.VR_RIGHT_EYE_PARAMS = display.getEyeParameters("right");
 		META.VR_DISPLAY.requestPresent([{
 			source: META.TARGET_CANVAS
 		}]).then(undefined, onFail);
+
+		META.TARGET_CANVAS.width = Math.max(META.VR_LEFT_EYE_PARAMS.renderWidth, META.VR_RIGHT_EYE_PARAMS.renderWidth);
+		META.TARGET_CANVAS.height = Math.max(META.VR_LEFT_EYE_PARAMS.renderHeight, META.VR_RIGHT_EYE_PARAMS.renderHeight);
 	}
 
     console.log("Starting VR on " + display.displayName);

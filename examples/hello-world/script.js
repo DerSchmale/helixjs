@@ -42,22 +42,7 @@ window.onload = function()
     this._stats = new HX.StatsDisplay();
 };
 
-window.onresize = function()
-{
-    resizeCanvas();
-};
-
 function update(dt)
 {
     renderer.render(camera, scene, dt);
-}
-
-function resizeCanvas()
-{
-    // helix does NOT adapt the size automatically, so you can have complete control over the resolution
-    var dpr = window.devicePixelRatio || 1;
-
-    var canvas = document.getElementById("webglContainer");
-    canvas.width = Math.round(window.innerWidth * dpr);
-    canvas.height = Math.round(window.innerHeight * dpr);
 }

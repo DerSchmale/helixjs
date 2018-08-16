@@ -1,6 +1,6 @@
-import * as WebVRPolyfill from "webvr-polyfill";
+import WebVRPolyfill from "webvr-polyfill";
 
-window.VRFrameData = window.VRFrameData || WebVRPolyfill.default.VRFrameData;
+var webvrPolyFill = new WebVRPolyfill();
 
 export {ShaderLibrary} from "./shader/ShaderLibrary";
 

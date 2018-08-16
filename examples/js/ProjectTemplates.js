@@ -46,19 +46,10 @@ SimpleProject.prototype =
             var preloader = document.getElementById("preloader");
             document.body.removeChild(preloader);
 
-            this._resizeCanvas();
-
             this._scene = new HX.Scene();
             this._camera = new HX.PerspectiveCamera();
             this._scene.attach(this._camera);
             this._initRenderers();
-
-            var self = this;
-
-            window.addEventListener('resize', function()
-            {
-                self._resizeCanvas();
-            });
 
             this.onInit();
             this._initialized = true;
@@ -135,18 +126,6 @@ SimpleProject.prototype =
             this.onUpdate(dt);
 
             this._renderer.render(this._camera, this._scene, dt);
-        },
-
-        _resizeCanvas: function()
-        {
-            var pixelRatio = window.devicePixelRatio || 1.0;
-            var w = window.innerWidth;
-            var h = window.innerHeight;
-            this._canvas.width = Math.round(w * pixelRatio);
-            this._canvas.height = Math.round(h * pixelRatio);
-
-            this._canvas.style.width = w + "px";
-            this._canvas.style.height = h + "px";
         }
     };
 

@@ -621,6 +621,12 @@ function _onFrameTick(dt)
     onPreFrame.dispatch(dt);
     _clearGLStats();
 
+    // VR stopped presenting (present change event doesn't seem reliable)
+    if (isVRPresenting && !META.VR_DISPLAY.isPresenting) {
+        console.log("VR device stopped presenting, disabling VR");
+		disableVR();
+	}
+
     if (!META.VR_DISPLAY)
 		_updateCanvasSize();
 
@@ -644,7 +650,6 @@ function _updateCanvasSize()
     var h = Math.round(rect.height * dpr);
 
     if (canvas.width !== w || canvas.height !== h) {
-		console.log(rect);
         canvas.width = w;
         canvas.height = h;
 	}
@@ -678,6 +683,9 @@ export function stop()
     frameTicker.stop();
 }
 
+
+var isVRPresenting = false;
+
 /**
  * Turns on a VR display
  */
@@ -688,6 +696,7 @@ export function enableVR(display, onFail)
 
     META.VR_DISPLAY = display;
 
+    console.log(display.capabilities.canPresent);
     capabilities.VR_CAN_PRESENT = display.capabilities.canPresent;
 
 	if (capabilities.VR_CAN_PRESENT) {
@@ -695,7 +704,9 @@ export function enableVR(display, onFail)
 		META.VR_RIGHT_EYE_PARAMS = display.getEyeParameters("right");
 		META.VR_DISPLAY.requestPresent([{
 			source: META.TARGET_CANVAS
-		}]).then(undefined, onFail);
+		}]).then(function() {
+			isVRPresenting = true;
+        }, onFail);
 
 		META.TARGET_CANVAS.width = Math.max(META.VR_LEFT_EYE_PARAMS.renderWidth, META.VR_RIGHT_EYE_PARAMS.renderWidth);
 		META.TARGET_CANVAS.height = Math.max(META.VR_LEFT_EYE_PARAMS.renderHeight, META.VR_RIGHT_EYE_PARAMS.renderHeight);
@@ -708,7 +719,9 @@ export function disableVR()
 {
     if (!META.VR_DISPLAY) return;
 
-    if (capabilities.VR_CAN_PRESENT)
+	isVRPresenting = false;
+
+    if (META.VR_DISPLAY.isPresenting)
         META.VR_DISPLAY.exitPresent();
 
     capabilities.VR_CAN_PRESENT = false;

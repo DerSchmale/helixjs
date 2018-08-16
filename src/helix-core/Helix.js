@@ -696,7 +696,6 @@ export function enableVR(display, onFail)
 
     META.VR_DISPLAY = display;
 
-    console.log(display.capabilities.canPresent);
     capabilities.VR_CAN_PRESENT = display.capabilities.canPresent;
 
 	if (capabilities.VR_CAN_PRESENT) {

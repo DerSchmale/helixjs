@@ -6,8 +6,8 @@ import {Matrix4x4} from "../math/Matrix4x4";
 
 var swapMatrix = new Matrix4x4(
     [
-        0, 0, 1, 0,
         1, 0, 0, 0,
+        0, 0, -1, 0,
         0, 1, 0, 0,
         0, 0, 0, 1
     ]);

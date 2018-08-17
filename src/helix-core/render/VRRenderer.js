@@ -37,7 +37,6 @@ VRRenderer.prototype.render = function(camera, scene, dt)
     this._renderShadowCasters();
 
     // TODO: Can we set _activeCamera instead of keeping renderItem.camera?
-    this._activeCamera = this._vrCamera.cameraLeft;
     this._renderView(this._vrCamera.cameraLeft, scene, dt);
 
     // swap buffers so leftTarget contains the left target
@@ -45,7 +44,6 @@ VRRenderer.prototype.render = function(camera, scene, dt)
     this._leftTarget = this._hdrBack;
     this._hdrBack = tmp;
 
-    this._activeCamera = this._vrCamera.cameraRight;
     this._renderView(this._vrCamera.cameraRight, scene, dt);
 
     this._renderToScreen();

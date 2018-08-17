@@ -421,6 +421,13 @@ GLTF.prototype._readVertexData = function(target, offset, accessor, numComponent
             readFnc = src.getUint32;
             elmSize = 4;
         }
+        else if (accessor.dataType === HX.DataType.UNSIGNED_BYTE) {
+            readFnc = src.getUint8;
+            elmSize = 1;
+        }
+        else {
+            throw new Error("Unknown data type " + accessor.dataType)
+        }
 
         for (i = 0; i < len; ++i) {
             for (var j = 0; j < numComponents; ++j) {

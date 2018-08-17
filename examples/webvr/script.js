@@ -3,17 +3,16 @@
  */
 
 var project = new VRProject();
+var vrDisplays;
 
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("albedo", "textures/marble_tiles/marbletiles_diffuse_white.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
-    assetLibrary.queueAsset("boombox", "boombox/BoomBox.gltf", HX.AssetLibrary.Type.ASSET, HX_IO.GLTF);
 };
 
 project.onInit = function()
 {
-    // this.renderer.debugMode = HX.Renderer.DebugMode.SHADOW_MAP;
-    this.renderer.shadowMapSize = 4096;
+    this.renderer.shadowMapSize = 1024;
 
     initCamera(this.camera);
     initScene(this.scene, this.assetLibrary);
@@ -31,15 +30,23 @@ window.onload = function ()
     options.hdr = true;
     options.maxDirLights = 1;
     options.defaultLightingModel = HX.LightingModel.GGX;
+    // allow mirroring the VR display
+    options.preserveDrawingBuffer = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 
 function toggleVR()
 {
-    if (HX.META.VR_DISPLAY)
+    var select = document.getElementById("displaySelection");
+
+    if (HX.META.VR_DISPLAY) {
         HX.disableVR();
-    else
-        HX.enableVR(project.vrDisplay);
+        select.disabled = false;
+    }
+    else {
+        HX.enableVR(vrDisplays[select.selectedIndex]);
+        select.disabled = true;
+    }
 }
 
 function initVR()
@@ -50,25 +57,30 @@ function initVR()
     }
 
     navigator.getVRDisplays().then(displays => {
+        vrDisplays = displays;
         if (displays.length === 0) {
             project.showError("It seems like you don't have any compatible VR devices.")
             return;
         }
 
-        project.vrDisplay = displays[0];
+        var select = document.getElementById("displaySelection");
+
+        for (var i = 0, len = displays.length; i < len; ++i) {
+            var option = document.createElement("option");
+            option.innerHTML = displays[i].displayName;
+            select.appendChild(option);
+        }
+        select.selectedIndex = 0;
+
         project.vrButton.classList.remove("hidden");
     });
 }
 
 function initCamera(camera)
 {
-    camera.position.set(0.0, 0.0, 0.0);
-    camera.nearDistance = .1;
+    camera.position.set(0.0, 0.0, -9.2);
+    camera.nearDistance = .03;
     camera.farDistance = 100.0;
-
-    // var floatController = new HX.FloatController();
-    // floatController.speed = 5.0;
-    // camera.addComponent(floatController);
 }
 
 function initScene(scene, assetLibrary)
@@ -79,7 +91,7 @@ function initScene(scene, assetLibrary)
 	lights.push(dirLight);
 
 	dirLight = new HX.Entity(dirLight);
-    dirLight.lookAt(new HX.Float4(-1.0, -1.0, -1.0));
+    dirLight.lookAt(new HX.Float4(-1.0, 1.0, -1.0));
 
     scene.attach(dirLight);
 
@@ -104,9 +116,9 @@ function initScene(scene, assetLibrary)
         });
 
     var spacing = 4;
-    for (var x = -5; x <= 5; ++x) {
-        for (var y = -5; y <= 5; ++y) {
-            for (var z = -5; z <= 5; ++z) {
+    for (var x = -2; x <= 2; ++x) {
+        for (var y = -2; y <= 2; ++y) {
+            for (var z = -2; z <= 2; ++z) {
                 var instance = new HX.Entity();
                 instance.addComponent(new HX.MeshInstance(primitive, material));
                 instance.position.set(x + Math.random() *.5 -.25, y + Math.random() *.5 -.25, z + Math.random() *.5 -.25);
@@ -130,10 +142,4 @@ function initScene(scene, assetLibrary)
     meshInstance.castShadows = false;
 	instance.addComponent(meshInstance);
 	scene.attach(instance);
-
-	// temporary, to figure out orientation
-    var gltf = assetLibrary.get("boombox");
-    gltf.defaultScene.rootNode.scale.set(100, 100, 100);
-    gltf.defaultScene.rootNode.position.y = 3;
-    scene.attach(gltf.defaultScene.rootNode);
 }

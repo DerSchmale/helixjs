@@ -354,10 +354,10 @@ export var CubeFace = {};
  */
 export function InitOptions()
 {
-    /*
-     * The pixel ratio for the canvas to use. This also allows scaling the canvas resolution.
+    /**
+     * Whether or not the drawing buffer is cleared or not between frames. Set this to true for VR mirroring.
      */
-    this.pixelRatio = window.devicePixelRatio || 1;
+    this.preserveDrawingBuffer = false;
 
     /**
      * Use WebGL 2 if available.
@@ -467,8 +467,7 @@ export function init(canvas, options)
 
     META.TARGET_CANVAS = canvas;
 
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
+    _updateCanvasSize();
 
     META.OPTIONS = options = options || new InitOptions();
 
@@ -479,7 +478,7 @@ export function init(canvas, options)
         depth: false,
         stencil: false,
         premultipliedAlpha: false,
-        preserveDrawingBuffer: false
+        preserveDrawingBuffer: META.OPTIONS.preserveDrawingBuffer
     };
 
     var defines = "";
@@ -641,13 +640,12 @@ function _onFrameTick(dt)
 function _updateCanvasSize()
 {
     // helix does NOT adapt the size automatically, so you can have complete control over the resolution
-    var dpr = META.OPTIONS.pixelRatio;
+    var dpr = window.devicePixelRatio || 1;
 
     var canvas = META.TARGET_CANVAS;
-    var rect = canvas.getBoundingClientRect();
 
-    var w = Math.round(rect.width * dpr);
-    var h = Math.round(rect.height * dpr);
+    var w = Math.round(canvas.clientWidth * dpr);
+    var h = Math.round(canvas.clientHeight * dpr);
 
     if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
@@ -701,6 +699,7 @@ export function enableVR(display, onFail)
 	if (capabilities.VR_CAN_PRESENT) {
 		META.VR_LEFT_EYE_PARAMS = display.getEyeParameters("left");
 		META.VR_RIGHT_EYE_PARAMS = display.getEyeParameters("right");
+
 		META.VR_DISPLAY.requestPresent([{
 			source: META.TARGET_CANVAS
 		}]).then(function() {

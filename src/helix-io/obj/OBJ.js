@@ -215,7 +215,9 @@ OBJ.prototype._translateObject = function(objectIndex, mtlLib)
         }
     }
 
-	entity.name = object.name;
+    if (object.name)
+	    entity.name = object.name;
+
     this._target.attach(entity);
 
     this._notifyProgress(.8 + (objectIndex + 1) / this._objects.length * .2);
@@ -228,6 +230,9 @@ OBJ.prototype._translateMesh = function(group)
     var indices = new Array(group.numIndices);
     var numVertices = 0;
     var currentIndex = 0;
+
+    if (group.name)
+        mesh.name = group.name;
 
     var faces = group.faces;
     var numFaces = faces.length;
@@ -328,13 +333,13 @@ OBJ._SubGroupData = function()
 OBJ._GroupData = function()
 {
     this.subgroups = [];
-    this.name = "";    // <FaceData>
+    this.name = null;
     this._activeMaterial = null;
 };
 
 OBJ._ObjectData = function()
 {
-    this.name = "";
+    this.name = null;
     this.groups = [];
     this._activeGroup = null;
 };

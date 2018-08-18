@@ -1,6 +1,9 @@
+import {Entity} from "../entity/Entity";
 import {EntityEngine} from "../entity/EntityEngine";
 import {SceneNode} from "./SceneNode";
 import {FlatPartitioning} from "./FlatPartitioning";
+
+var nameCounter = 0;
 
 /**
  * @classdesc
@@ -15,15 +18,13 @@ import {FlatPartitioning} from "./FlatPartitioning";
  */
 function Scene(rootNode)
 {
-    // the default partition is a BVH node
-    //  -> or this may need to become an infinite bound node?
-    this._name = null;
-    this._rootNode = rootNode || new SceneNode();
-	this._rootNode.name = "Root";
-    this._rootNode._setScene(this);
-    this._skybox = null;
-    this._entityEngine = new EntityEngine();
+	this._name = "hx_scene_" + (nameCounter++);
+	this._entityEngine = new EntityEngine();
 	this._partitioning = new FlatPartitioning();
+	this._rootNode = rootNode || new Entity();
+	this._rootNode.name = "Root";
+	this._skybox = null;
+	this._rootNode._setScene(this);
 }
 
 Scene.prototype = {

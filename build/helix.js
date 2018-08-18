@@ -3560,15 +3560,15 @@
 	    }
 	};
 
+	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
+
+	ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
+
 	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
 
 	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
 
 	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
-
-	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
-
-	ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
 	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
 
@@ -3658,24 +3658,6 @@
 
 	ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
-
-	ShaderLibrary._files['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    float occlusion;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)\n};';
-
-	ShaderLibrary._files['snippets_tonemap.glsl'] = 'varying_in vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    #ifdef HX_GLSL_300_ES\n    float referenceLuminance = textureLod(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #else\n    float referenceLuminance = texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #endif\n    referenceLuminance = exp(referenceLuminance) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
-
 	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
 	ShaderLibrary._files['shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
@@ -3688,6 +3670,18 @@
 
 	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
 
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
 	ShaderLibrary._files['2d_to_cube_vertex.glsl'] = '// position to write to\nvertex_attribute vec4 hx_position;\n\n// the corner of the cube map\nvertex_attribute vec3 corner;\n\nvarying_out vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
 
 	ShaderLibrary._files['equirectangular_to_cube_fragment.glsl'] = '#define RECIPROCAL_PI2 0.15915494\n\nvarying_in vec3 direction;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    vec3 dir = normalize(direction);\n    vec2 uv;\n    uv.x = atan( dir.z, dir.x ) * RECIPROCAL_PI2 + 0.5;\n	uv.y = dir.y * 0.5 + 0.5;\n    hx_FragColor = texture2D(source, uv);\n}\n';
@@ -3695,6 +3689,12 @@
 	ShaderLibrary._files['greyscale_to_rgba8.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    hx_FragColor = hx_floatToRGBA8(texture2D(source, uv).x);\n}\n';
 
 	ShaderLibrary._files['smooth_heightmap_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D reference;    // the source (8 bit) texture\nuniform sampler2D source;\n\nuniform vec2 stepSize;\n\nvoid main()\n{\n    float gauss[4];\n    gauss[0] = 0.201788613113303;\n    gauss[1] = 0.17755834971394;\n    gauss[2] = 0.120969095455128;\n    gauss[3] = 0.063811162332456;\n    float refHeight = texture2D(reference, uv).x;\n    float total = hx_RGBA8ToFloat(texture2D(source, uv)) * gauss[0];\n    float totalWeight = gauss[0];\n    float currentWeightL = 1.0;\n    float currentWeightR = 1.0;\n    vec2 offset = vec2(0.0);\n\n\n    for (int i = 0; i < 3; ++i) {\n        offset += stepSize;\n        float refLeft = texture2D(reference, uv - offset).x;\n        float refRight = texture2D(reference, uv + offset).x;\n        float heightLeft = hx_RGBA8ToFloat(texture2D(source, uv - offset));\n        float heightRight = hx_RGBA8ToFloat(texture2D(source, uv + offset));\n        // smooth out over N pixels that have the same reference height in the source image\n        currentWeightL = max(currentWeightL - abs(refLeft - refHeight) * 5.0, 0.0);\n        currentWeightR = max(currentWeightR - abs(refRight - refHeight) * 5.0, 0.0);\n        totalWeight += (currentWeightL + currentWeightR) * gauss[i + 1];\n        total += (heightLeft * currentWeightL + heightRight * currentWeightR) *  gauss[i + 1];\n    }\n\n    hx_FragColor = hx_floatToRGBA8(total / totalWeight);\n//    hx_FragColor = hx_floatToRGBA8(refHeight);\n}\n';
+
+	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
+
+	ShaderLibrary._files['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    float occlusion;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)\n};';
+
+	ShaderLibrary._files['snippets_tonemap.glsl'] = 'varying_in vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    #ifdef HX_GLSL_300_ES\n    float referenceLuminance = textureLod(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #else\n    float referenceLuminance = texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #endif\n    referenceLuminance = exp(referenceLuminance) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
 
 	ShaderLibrary._files['ao_blur_fragment.glsl'] = 'varying_in vec2 uv1;\nvarying_in vec2 uv2;\nvarying_in vec2 uv3;\nvarying_in vec2 uv4;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    vec4 total = texture2D(source, uv1) + texture2D(source, uv2) + texture2D(source, uv3) + texture2D(source, uv4);\n	hx_FragColor = total * .25;\n}';
 
@@ -6561,7 +6561,7 @@
 		 */
 		copyTo: function(target)
 		{
-			target.matrix = this.target;
+			target.matrix = this.matrix;
 		}
 	};
 
@@ -9567,7 +9567,7 @@
 	/**
 	 * @ignore
 	 */
-	var Mesh_ID_COUNTER = 0;
+	var MESH_ID_COUNTER = 0;
 
 	/**
 	 * @classdesc
@@ -9593,7 +9593,7 @@
 	    this.onLayoutChanged = new Signal();
 	    this.onMorphDataCreated = new Signal();
 		this.onSkeletonChange = new Signal();
-		this._name = "";
+		this._name = "hx_mesh_" + MESH_ID_COUNTER;
 		this._bounds = new BoundingAABB();
 		this._boundsInvalid = true;
 		this._dynamicBounds = true;
@@ -9616,7 +9616,7 @@
 
 		this._skeleton = null;
 
-	    this._renderOrderHint = ++Mesh_ID_COUNTER;
+	    this._renderOrderHint = ++MESH_ID_COUNTER;
 	}
 
 	/**
@@ -10143,6 +10143,8 @@
 	    }
 	};
 
+	var nameCounter = 0;
+
 	/**
 	 * @classdesc
 	 * Texture2D represents a 2D texture.
@@ -10153,7 +10155,7 @@
 	 */
 	function Texture2D()
 	{
-	    this._name = null;
+	    this._name = "hx_texture2d_" + (nameCounter++);
 	    this._default = Texture2D.DEFAULT;
 	    this._texture = GL.gl.createTexture();
 	    this._width = 0;
@@ -10429,6 +10431,8 @@
 	    }
 	};
 
+	var nameCounter$1 = 0;
+
 	//       +-----+
 	//       |  +Z |
 	// +-----+-----+-----+-----+
@@ -10447,7 +10451,7 @@
 	 */
 	function TextureCube()
 	{
-	    this._name = null;
+		this._name = "hx_texturecube_" + (nameCounter$1++);
 	    this._default = TextureCube.DEFAULT;
 	    this._texture = GL.gl.createTexture();
 	    this._size = 0;
@@ -13547,6 +13551,9 @@
 
 	// basic version is non-hierarchical, for use with lights etc
 
+
+	var nameCounter$2 = 0;
+
 	/**
 	 * @classdesc
 	 * <p>SceneNode is an empty hierarchical container for the scene graph. It can be attached to other SceneNode objects and
@@ -13573,7 +13580,7 @@
 	{
 	    Transform.call(this);
 	    this.meta = {};
-	    this._name = "";
+	    this._name = "hx_scenenode_" + (nameCounter$2++);
 	    this._matrixInvalid = true;
 		this._worldMatrix = new Matrix4x4();
 	    this._worldMatrixInvalid = true;
@@ -13883,6 +13890,27 @@
 	    else
 	    // Heehee, this line amuses me:
 	        func(this);
+
+	    var len = this._children.length;
+	    for (var i = 0; i < len; ++i)
+	        this._children[i].applyFunction(func, thisRef);
+	};
+
+	/**
+	 * Applies a function recursively to all child nodes while the passed function returns true
+	 * @param func The function to call (using the traversed node as argument)
+	 * @param [thisRef] Optional reference to "this" in the calling function, to keep the scope of "this" in the called method.
+	 */
+	SceneNode.prototype.applyFunctionConditional = function(func, thisRef)
+	{
+	    var result;
+	    if (thisRef)
+			result = func.call(thisRef, this);
+	    else
+	    // Heehee, this line amuses me:
+			result = func(this);
+
+	    if (!result) return;
 
 	    var len = this._children.length;
 	    for (var i = 0; i < len; ++i)
@@ -14232,6 +14260,8 @@
 			}
 		};
 
+	var nameCounter$3 = 0;
+
 	/**
 	 * @classdesc
 	 * MeshInstance allows bundling a {@linkcode Mesh} with a {@linkcode Material} for rendering, allowing both the geometry
@@ -14249,6 +14279,7 @@
 	{
 		Component.call(this);
 
+		this._name = "hx_meshinstance_" + (nameCounter$3++);
 		this._bounds = new BoundingAABB();
 		this._morphPositions = null;
 		this._morphNormals = null;
@@ -14594,17 +14625,20 @@
 			this._morphWeights[i] = 0;
 		}
 
-		this._material._setUseMorphing(
-			this._mesh.hasMorphData,
-			this._mesh.hasMorphNormals
-		);
+		if (this._material) {
+			this._material._setUseMorphing(
+				this._mesh.hasMorphData,
+				this._mesh.hasMorphNormals
+			);
+		}
 	};
 
 	MeshInstance.prototype.clone = function()
 	{
 		var clone = new MeshInstance(this._mesh, this._material);
 		clone.castShadows = this.castShadows;
-		clone.skeletonPose = this._skeletonPose.clone();
+		if (this._skeletonPose)
+			clone.skeletonPose = this._skeletonPose.clone();
 		return clone;
 	};
 
@@ -16521,6 +16555,7 @@
 	    // dispatched when the material's code changed and a link with a mesh may have become invalid
 	    this.onChange = new Signal();
 
+		this._name = "hx_material_" + MATERIAL_ID_COUNTER;
 	    this._elementType = ElementType.TRIANGLES;
 	    this._cullMode = CullMode.BACK;
 	    this._writeDepth = true;
@@ -16537,7 +16572,6 @@
 	    this._useNormalMorphing = false;
 	    this._useSkinning = false;
 
-	    this._name = null;
 	    this._geometryVertexShader = geometryVertexShader;
 	    this._geometryFragmentShader = geometryFragmentShader;
 	    this._lightingModel = lightingModel || META.OPTIONS.defaultLightingModel;
@@ -17731,6 +17765,8 @@
 		}
 	};
 
+	var nameCounter$4 = 0;
+
 	/**
 	 * @classdesc
 	 * Scene forms the base to contain the entire scene graph. It contains a hierarchical structure including
@@ -17744,15 +17780,13 @@
 	 */
 	function Scene(rootNode)
 	{
-	    // the default partition is a BVH node
-	    //  -> or this may need to become an infinite bound node?
-	    this._name = null;
-	    this._rootNode = rootNode || new SceneNode();
-		this._rootNode.name = "Root";
-	    this._rootNode._setScene(this);
-	    this._skybox = null;
-	    this._entityEngine = new EntityEngine();
+		this._name = "hx_scene_" + (nameCounter$4++);
+		this._entityEngine = new EntityEngine();
 		this._partitioning = new FlatPartitioning();
+		this._rootNode = rootNode || new Entity();
+		this._rootNode.name = "Root";
+		this._skybox = null;
+		this._rootNode._setScene(this);
 	}
 
 	Scene.prototype = {
@@ -19536,6 +19570,8 @@
 	    this.value = value;
 	}
 
+	var nameCounter$5 = 0;
+
 	/**
 	 * @classdesc
 	 * AnimationClip is a resource that contains key frames (time / value pairs). AnimationClip itself has no playback state,
@@ -19551,7 +19587,7 @@
 	 */
 	function AnimationClip()
 	{
-	    this._name = null;
+		this._name = "hx_animationclip_" + (nameCounter$5++);
 	    this._keyFrames = [];
 	    this._duration = 0;
 	    this._looping = true;
@@ -19812,338 +19848,6 @@
 	    };
 
 	/**
-	 * LayeredAnimation combines a bunch of AnimationLayer objects into a single manageable animation. This acts globally,
-	 * so it's not a {@linkcode Component} belonging to an {@linkcode Entity}. It can be seen as a global keyframe animation
-	 * system.
-	 *
-	 * @constructor
-	 */
-	function LayeredAnimation()
-	{
-	    this._layers = [];
-	    this._time = 0;
-	    this._timeScale = 1;
-	    this._name = null;
-	    this._looping = true;
-	}
-
-	LayeredAnimation.prototype = {
-	    /**
-	     * The name of the animation.
-	     */
-	    get name()
-	    {
-	        return this._name;
-	    },
-
-	    set name(value)
-	    {
-	        this._name = value;
-	    },
-
-	    /**
-	     * A value to control the playback speed.
-	     */
-	    get timeScale()
-	    {
-	        return this._timeScale;
-	    },
-	    set timeScale(value)
-	    {
-	        this._timeScale = value;
-	    },
-
-	    /**
-	     * The current time in milliseconds of the play head.
-	     */
-	    get time()
-	    {
-	        return this._time;
-	    },
-	    set time(value)
-	    {
-	        this._time = value;
-	        for (var i = 0; i < this._layers.length; ++i) {
-	            this._layers[i].time = value;
-	        }
-	    },
-
-	    /**
-	     * Determines whether the animation should loop or not. By default, it uses the value determined by the
-	     * AnimationClip, but can be overridden.
-	     */
-	    get looping()
-	    {
-	        return this._looping;
-	    },
-	    set looping(value)
-	    {
-	        this._looping = value;
-	        for (var i = 0; i < this._layers.length; ++i) {
-	            this._layers[i].looping = true;
-	        }
-	    },
-
-	    /**
-	     * Adds a layer to the animation
-	     * @param layer
-	     */
-	    addLayer: function (layer)
-	    {
-	        this._layers.push(layer);
-	        layer.time = this._time;
-	        layer.looping = this._looping;
-	    },
-
-	    /**
-	     * Removes a layer from the animation
-	     * @param layer
-	     */
-	    removeLayer: function (layer)
-	    {
-	        var index = this._layers.indexOf(layer);
-	        if (index >= 0)
-	            this._layers.splice(index, 1);
-	    },
-
-	    /**
-	     * Starts playback of the animation
-	     */
-	    play: function ()
-	    {
-	        onPreFrame.bind(this._update, this);
-	    },
-
-	    /**
-	     * Stops playback of the animation
-	     */
-	    stop: function ()
-	    {
-	        onPreFrame.unbind(this._update);
-	    },
-
-	    /**
-	     * This needs to be called every frame.
-	     * @param dt The time passed since last frame in milliseconds.
-	     */
-	    _update: function (dt)
-	    {
-	        dt *= this._timeScale;
-
-	        this._time += dt;
-
-	        var len = this._layers.length;
-	        for (var i = 0; i < len; ++i) {
-	            this._layers[i].update(dt);
-	        }
-	    }
-	};
-
-	/**
-	 * @classdesc
-	 * AnimationLayer is a wrapper for a clip and a playhead that targets a specific object and that can be used in
-	 * LayeredAnimation.
-	 *
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function AnimationLayer(targetObject, propertyName, clip)
-	{
-	    this._name = null;
-	    this._clip = clip;
-	    this._playhead = new AnimationPlayhead(clip);
-	    this._targetObject = targetObject;
-	    this._propertyName = propertyName;
-	}
-
-	AnimationLayer.prototype =
-	{
-	    /**
-	     * Defines whether this layer should repeat or not.
-	     */
-	    get looping()
-	    {
-	        return this._playhead.looping;
-	    },
-
-	    set looping(value)
-	    {
-	        this._playhead.looping = value;
-	    },
-
-	    /**
-	     * The current time in milliseconds of the play head.
-	     */
-	    get time() { return this._playhead.time; },
-	    set time(value) { this._playhead.time = value; },
-
-	    /**
-	     * The total duration of the layer, in milliseconds.
-	     */
-	    get duration()
-	    {
-	        return this._clip.duration;
-	    },
-
-	    /**
-	     * Returns the key frame with the given index.
-	     */
-	    getKeyFrame: function(index)
-	    {
-	        return this._clip.getKeyFrame(index);
-	    },
-
-	    /**
-	     * This needs to be called every frame.
-	     * @param dt The time passed since last frame in milliseconds.
-	     * @returns {boolean} Whether or not the playhead moved. This can be used to spare further calculations if the old state is kept.
-	     */
-	    update: function(dt)
-	    {
-	        // this._playhead.update(dt);
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    toString: function()
-	    {
-	        return "[AnimationLayer(name=" + this.name + ")";
-	    }
-	};
-
-	/**
-	 * @classdesc
-	 * SkeletonJointPose represents the translation, rotation, and scale for a joint to have. Used by {@linkcode SkeletonPose}.
-	 * Generally not of interest to casual users.
-	 *
-	 * @constructor
-	 *
-	 * @see {@linkcode SkeletonPose}
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function SkeletonJointPose()
-	{
-	    this.position = new Float4();
-	    this.rotation = new Quaternion();
-	    this.scale = new Float4(1, 1, 1);
-	    this.skeletonPose = null;
-	}
-
-	SkeletonJointPose.prototype =
-	    {
-	        copyFrom: function(a)
-	        {
-	            this.rotation.copyFrom(a.rotation);
-	            this.position.copyFrom(a.position);
-	            this.scale.copyFrom(a.scale);
-	        },
-
-	        toString: function()
-	        {
-	            return "[SkeletonJointPose]";
-	        }
-	    };
-
-	/**
-	 * @classdesc
-	 * AnimationLayerFloat4 is an {@linkcode AnimationLayer} targeting {@linkcode Float4} objects
-	 *
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function AnimationLayerFloat4(targetObject, propertyName, clip)
-	{
-	    Debug.assert(targetObject[propertyName] instanceof Float4, "Type mismatch!");
-	    AnimationLayer.call(this, targetObject, propertyName, clip);
-	    this._skeletonPose = targetObject instanceof SkeletonJointPose? targetObject.skeletonPose : null;
-	}
-
-	AnimationLayerFloat4.prototype = Object.create(AnimationLayer.prototype);
-
-	/**
-	 * This needs to be called every frame.
-	 * @param dt The time passed since last frame in milliseconds.
-	 * @returns {boolean} Whether or not the playhead moved. This can be used to spare further calculations if the old state is kept.
-	 */
-	AnimationLayerFloat4.prototype.update = function (dt)
-	{
-	    var playhead = this._playhead;
-
-	    if (playhead.update(dt)) {
-	        this._targetObject[this._propertyName].lerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
-	        if (this._skeletonPose) this._skeletonPose.invalidateGlobalPose();
-	    }
-	};
-
-	/**
-	 * @classdesc
-	 * AnimationLayerQuat is an {@linkcode AnimationLayer} targeting {@linkcode Quaternion} objects
-	 *
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function AnimationLayerQuat(targetObject, propertyName, clip)
-	{
-	    Debug.assert(targetObject[propertyName] instanceof Quaternion, "Type mismatch!");
-	    AnimationLayer.call(this, targetObject, propertyName, clip);
-	    this._skeletonPose = targetObject instanceof SkeletonJointPose? targetObject.skeletonPose : null;
-	}
-
-	AnimationLayerQuat.prototype = Object.create(AnimationLayer.prototype);
-
-	/**
-	 * This needs to be called every frame.
-	 * @param dt The time passed since last frame in milliseconds.
-	 * @returns {boolean} Whether or not the playhead moved. This can be used to spare further calculations if the old state is kept.
-	 */
-	AnimationLayerQuat.prototype.update = function (dt)
-	{
-	    var playhead = this._playhead;
-
-	    if (playhead.update(dt)) {
-	        this._targetObject[this._propertyName].slerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
-	        if (this._skeletonPose) this._skeletonPose.invalidateGlobalPose();
-	    }
-	};
-
-	/**
-	 * @classdesc
-	 * AnimationLayerMorphPose is an {@linkcode AnimationLayer} targeting {@linkcode MorphPose} objects
-	 *
-	 * @constructor
-	 *
-	 * @param targetObject The MorphPose to be targeted
-	 * @param morphTargetName The name of the morph target to be played
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function AnimationLayerMorphTarget(targetObject, morphTargetName, clip)
-	{
-	    AnimationLayer.call(this, targetObject, morphTargetName, clip);
-	}
-
-	AnimationLayerMorphTarget.prototype = Object.create(AnimationLayer.prototype);
-
-	/**
-	 * @inheritDoc
-	 */
-	AnimationLayerMorphTarget.prototype.update = function (dt)
-	{
-	    var playhead = this._playhead;
-
-	    if (playhead.update(dt)) {
-	        var value = MathX.lerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
-	        this._targetObject.setWeight(this._propertyName, value);
-
-	    }
-	};
-
-	/**
 	 * @classdesc
 	 * MorphPose defines a certain configuration for blending several morph targets. While this can be used to directly
 	 * assign to a {@linkcode MeshInstance}, it's usually controlled through a component such as {@MorphAnimation}. Other
@@ -20234,6 +19938,8 @@
 	    }
 	};
 
+	var nameCounter$6 = 0;
+
 	/**
 	 * @classdesc
 	 * MorphAnimation is a {@linkcode Component} that can be added to an Entity to control morph target animations. The Mesh
@@ -20255,6 +19961,8 @@
 	function MorphAnimation(morphPose)
 	{
 	    Component.call(this);
+
+		this._name = "hx_morphanimation_" + (nameCounter$6++);
 
 	    if (morphPose) {
 	        this._morphPose = morphPose;
@@ -20325,7 +20033,497 @@
 	MorphAnimation.prototype.clone = function()
 	{
 		var clone = new MorphAnimation(this._morphPose.clone());
+		clone._name = this._name;
 		return clone;
+	};
+
+	var nameCounter$7 = 0;
+
+	/**
+	 * LayeredAnimation combines a bunch of AnimationLayer objects into a single manageable animation. This acts globally,
+	 * so it's not a {@linkcode Component} belonging to an {@linkcode Entity}. When added to the Scene's root node, it can
+	 * be seen as a global keyframe animation system.
+	 *
+	 * @constructor
+	 *
+	 * @property name The name of the animation.
+	 * @property timeScale A value to control the playback speed.
+	 * @property time The current time in milliseconds of the play head.
+	 * @property looping Determines whether the animation should loop or not. By default, it uses the value determined by
+	 * the AnimationClip, but can be overridden.
+	 */
+	function LayeredAnimation()
+	{
+		Component.call(this);
+		this._layers = [];
+		this._time = 0;
+		this._timeScale = 1;
+		this._name = "hx_layeredanimation_" + (nameCounter$7++);
+		this._looping = true;
+	}
+
+	Component.create(LayeredAnimation, {
+		name: {
+			get: function()
+			{
+				return this._name;
+			},
+
+			set: function(value)
+			{
+				this._name = value;
+			}
+		},
+
+		timeScale: {
+			get: function()
+			{
+				return this._timeScale;
+			},
+
+			set: function(value)
+			{
+				this._timeScale = value;
+			}
+		},
+
+		time: {
+			get: function()
+			{
+				return this._time;
+			},
+
+			set: function(value)
+			{
+				this._time = value;
+				for (var i = 0; i < this._layers.length; ++i) {
+					this._layers[i].time = value;
+				}
+			}
+		},
+
+		looping: {
+			get: function()
+			{
+				return this._looping;
+			},
+
+			set: function(value)
+			{
+				this._looping = value;
+				for (var i = 0; i < this._layers.length; ++i) {
+					this._layers[i].looping = true;
+				}
+			}
+		}
+	});
+
+	/**
+	 * Adds a layer to the animation
+	 * @param layer
+	 */
+	LayeredAnimation.prototype.addLayer = function(layer)
+	{
+		this._layers.push(layer);
+		layer.time = this._time;
+		layer.looping = this._looping;
+	};
+
+	/**
+	 * Removes a layer from the animation
+	 * @param layer
+	 */
+	LayeredAnimation.prototype.removeLayer = function(layer)
+	{
+		var index = this._layers.indexOf(layer);
+		if (index >= 0)
+			this._layers.splice(index, 1);
+	};
+
+	LayeredAnimation.prototype.onAdded = function()
+	{
+		var lookups = this._collectPotentialTargets();
+
+		for (var i = 0, len = this._layers.length; i < len; ++i) {
+			this._layers[i].resolveTarget(lookups);
+		}
+	};
+
+	LayeredAnimation.prototype.onRemoved = function()
+	{
+		for (var i = 0, len = this._layers.length; i < len; ++i) {
+			this._layers[i].resolveTarget(null);
+		}
+	};
+
+	LayeredAnimation.prototype.onUpdate = function(dt)
+	{
+		dt *= this._timeScale;
+
+		this._time += dt;
+
+		var len = this._layers.length;
+		for (var i = 0; i < len; ++i) {
+			this._layers[i].update(dt);
+		}
+	};
+
+	LayeredAnimation.prototype.clone = function()
+	{
+		var clone = new LayeredAnimation();
+		clone.name = this.name;
+		clone.looping = this.looping;
+		clone.timeScale = this.timeScale;
+		clone.time = this.time;
+
+		for (var i = 0, len = this._layers.length; i < len; ++i) {
+			var layer = this._layers[i];
+			clone.addLayer(layer.clone());
+		}
+
+		return clone;
+	};
+
+	LayeredAnimation.prototype._collectPotentialTargets = function()
+	{
+		var targets = {};
+		this._entity.applyFunction(function(node) {
+			targets[node._name] = node;
+
+			if (node instanceof Entity) {
+				var meshInstances = node.getComponentsByType(MeshInstance);
+
+				for (var i = 0, len = meshInstances.length; i < len; ++i) {
+					targets[meshInstances[i].name] = meshInstances[i];
+					this._collectPotentialJoints(meshInstances[i], targets);
+				}
+
+				var morphAnimations = node.getComponentsByType(MorphAnimation);
+				for (i = 0, len = morphAnimations.length; i < len; ++i) {
+					targets[morphAnimations[i].name] = morphAnimations[i];
+				}
+			}
+		}, this);
+
+		return targets;
+	};
+
+	/**
+	 * @private
+	 * @ignore
+	 */
+	LayeredAnimation.prototype._collectPotentialJoints = function(meshInstance, targets)
+	{
+		var skeleton = meshInstance.skeleton;
+
+		if (!skeleton) return;
+
+		for (var i = 0, len = skeleton.numJoints; i < len; ++i) {
+			targets[skeleton.getJoint(i).name] = meshInstance.skeletonPose.getJointPose(i);
+		}
+
+		return false;
+	};
+
+	var nameCounter$8 = 0;
+
+	/**
+	 * @classdesc
+	 * AnimationLayer is a wrapper for a clip and a playhead that targets a specific object and that can be used in
+	 * LayeredAnimation.
+	 *
+	 * @param targetName The name of the target object. The name must match the name of an Entity, a MorphAnimation, a MeshInstance, or a SkeletonJoinr somewhere in the hierarchy of the animation's owning Entity
+	 * @param propertyName The name of the target object's animated property. Usually 'position', 'rotation', 'scale' or the name of a morph target.
+	 * @param clip The clip containing the keyframes for the animation
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function AnimationLayer(targetName, propertyName, clip)
+	{
+	    this._name = "hx_animationlayer_" + (nameCounter$8++);
+	    this._clip = clip;
+	    this._playhead = new AnimationPlayhead(clip);
+	    this._targetName = targetName;
+	    this._targetObject = null;
+	    this._propertyName = propertyName;
+	}
+
+	AnimationLayer.prototype =
+	{
+	    /**
+	     * Defines whether this layer should repeat or not.
+	     */
+	    get looping()
+	    {
+	        return this._playhead.looping;
+	    },
+
+	    set looping(value)
+	    {
+	        this._playhead.looping = value;
+	    },
+
+	    /**
+	     * The current time in milliseconds of the play head.
+	     */
+	    get time() { return this._playhead.time; },
+	    set time(value) { this._playhead.time = value; },
+
+	    /**
+	     * The total duration of the layer, in milliseconds.
+	     */
+	    get duration()
+	    {
+	        return this._clip.duration;
+	    },
+
+	    /**
+	     * Returns the key frame with the given index.
+	     */
+	    getKeyFrame: function(index)
+	    {
+	        return this._clip.getKeyFrame(index);
+	    },
+
+	    /**
+	     * This needs to be called every frame.
+	     * @param dt The time passed since last frame in milliseconds.
+	     * @returns {boolean} Whether or not the playhead moved. This can be used to spare further calculations if the old state is kept.
+	     */
+	    update: function(dt)
+	    {
+	        // this._playhead.update(dt);
+	    },
+
+		/**
+	     * This finds the concrete objects belonging to the layers
+	     * @ignore
+		 */
+		resolveTarget: function(targets)
+	    {
+	        if (targets === null) {
+	            this._targetObject = null;
+	            return;
+	        }
+
+	        this._targetObject = targets[this._targetName];
+	        if (!this._targetObject) console.warn("Animation target '" + this._targetName + "' not found");
+	        this._verifyTarget();
+	    },
+
+		/**
+	     * Allows testing whether the target is of the correct type for this layer.
+	     * @ignore
+		 * @private
+		 */
+		_verifyTarget: function()
+	    {
+
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    toString: function()
+	    {
+	        return "[AnimationLayer(name=" + this.name + ")";
+	    },
+
+		/**
+		 * Creates a copy of this AnimationLayer object.
+		 */
+		clone: function()
+	    {
+	        throw new Error("Abstract method called!");
+	    }
+	};
+
+	/**
+	 * @classdesc
+	 * SkeletonJointPose represents the translation, rotation, and scale for a joint to have. Used by {@linkcode SkeletonPose}.
+	 * Generally not of interest to casual users.
+	 *
+	 * @constructor
+	 *
+	 * @see {@linkcode SkeletonPose}
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function SkeletonJointPose()
+	{
+	    this.position = new Float4();
+	    this.rotation = new Quaternion();
+	    this.scale = new Float4(1, 1, 1);
+	    this.skeletonPose = null;
+	}
+
+	SkeletonJointPose.prototype =
+	    {
+	        copyFrom: function(a)
+	        {
+	            this.rotation.copyFrom(a.rotation);
+	            this.position.copyFrom(a.position);
+	            this.scale.copyFrom(a.scale);
+	        },
+
+	        toString: function()
+	        {
+	            return "[SkeletonJointPose]";
+	        }
+	    };
+
+	/**
+	 * @classdesc
+	 * AnimationLayerFloat4 is an {@linkcode AnimationLayer} targeting {@linkcode Float4} objects
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function AnimationLayerFloat4(targetName, propertyName, clip)
+	{
+	    AnimationLayer.call(this, targetName, propertyName, clip);
+	}
+
+	AnimationLayerFloat4.prototype = Object.create(AnimationLayer.prototype);
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	AnimationLayerFloat4.prototype._verifyTarget = function()
+	{
+		Debug.assert(this._targetObject[this._propertyName] instanceof Float4, "Type mismatch!");
+
+		this._skeletonPose = this._targetObject instanceof SkeletonJointPose? this._targetObject.skeletonPose : null;
+	};
+
+	/**
+	 * This needs to be called every frame.
+	 * @param dt The time passed since last frame in milliseconds.
+	 * @returns {boolean} Whether or not the playhead moved. This can be used to spare further calculations if the old state is kept.
+	 */
+	AnimationLayerFloat4.prototype.update = function (dt)
+	{
+	    var playhead = this._playhead;
+
+	    if (playhead.update(dt)) {
+	        this._targetObject[this._propertyName].lerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
+	        if (this._skeletonPose) this._skeletonPose.invalidateGlobalPose();
+	    }
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	AnimationLayerFloat4.prototype.clone = function()
+	{
+		return new AnimationLayerFloat4(this._targetName, this._propertyName, this._clip);
+	};
+
+	/**
+	 * @classdesc
+	 * AnimationLayerQuat is an {@linkcode AnimationLayer} targeting {@linkcode Quaternion} objects
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function AnimationLayerQuat(targetName, propertyName, clip)
+	{
+	    AnimationLayer.call(this, targetName, propertyName, clip);
+	}
+
+	AnimationLayerQuat.prototype = Object.create(AnimationLayer.prototype);
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	AnimationLayerQuat.prototype._verifyTarget = function()
+	{
+		Debug.assert(this._targetObject[this._propertyName] instanceof Quaternion, "Type mismatch!");
+		this._skeletonPose = this._targetObject instanceof SkeletonJointPose? this._targetObject.skeletonPose : null;
+	};
+
+
+
+	/**
+	 * This needs to be called every frame.
+	 * @param dt The time passed since last frame in milliseconds.
+	 * @returns {boolean} Whether or not the playhead moved. This can be used to spare further calculations if the old state is kept.
+	 */
+	AnimationLayerQuat.prototype.update = function (dt)
+	{
+	    var playhead = this._playhead;
+
+	    if (playhead.update(dt)) {
+	        this._targetObject[this._propertyName].slerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
+	        if (this._skeletonPose) this._skeletonPose.invalidateGlobalPose();
+	    }
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	AnimationLayerQuat.prototype.clone = function()
+	{
+		return new AnimationLayerQuat(this._targetName, this._propertyName, this._clip);
+	};
+
+	/**
+	 * @classdesc
+	 * AnimationLayerMorphPose is an {@linkcode AnimationLayer} targeting {@linkcode MorphPose} objects
+	 *
+	 * @constructor
+	 *
+	 * @param targetName The MorphPose to be targeted
+	 * @param morphTargetName The name of the morph target to be played
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function AnimationLayerMorphTarget(targetName, morphTargetName, clip)
+	{
+	    AnimationLayer.call(this, targetName, morphTargetName, clip);
+	}
+
+	AnimationLayerMorphTarget.prototype = Object.create(AnimationLayer.prototype);
+
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	AnimationLayerMorphTarget.prototype._verifyTarget = function()
+	{
+	    if (this._targetObject instanceof MeshInstance)
+			this._targetObject = this._targetObject.morphPose;
+		else
+	        Debug.assert(this._targetObject instanceof MorphAnimation, "Type mismatch!");
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	AnimationLayerMorphTarget.prototype.update = function (dt)
+	{
+	    var playhead = this._playhead;
+
+	    if (playhead.update(dt)) {
+	        var value = MathX.lerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
+	        this._targetObject.setWeight(this._propertyName, value);
+
+	    }
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	AnimationLayerMorphTarget.prototype.clone = function()
+	{
+		return new AnimationLayerMorphTarget(this._targetName, this._propertyName, this._clip);
 	};
 
 	/**
@@ -21281,6 +21479,8 @@
 	    return null;
 	};
 
+	var nameCounter$a = 0;
+
 	/**
 	 * @classdesc
 	 * SkeletonJoint describes a single joint in a {@linkcode Skeleton}.
@@ -21295,7 +21495,7 @@
 	    /**
 	     * The name of the joint.
 	     */
-	    this.name = null;
+	    this.name = "hx_joint_" + (nameCounter$a++);
 
 	    /**
 	     * The index in the Skeleton of the parent joint.

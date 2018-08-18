@@ -215,7 +215,7 @@ Transform.prototype =
 	 */
 	copyTo: function(target)
 	{
-		target.matrix = this.target;
+		target.matrix = this.matrix;
 	}
 };
 

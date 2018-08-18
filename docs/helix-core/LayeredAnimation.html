@@ -47,7 +47,7 @@
 			<li class="dropdown">
 				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="global.html#capabilities">capabilities</a></li><li><a href="global.html#destroy">destroy</a></li><li><a href="global.html#duration">duration</a></li><li><a href="global.html#frameTime">frameTime</a></li><li><a href="global.html#init">init</a></li><li><a href="global.html#looping">looping</a></li><li><a href="global.html#material">material</a></li><li><a href="global.html#onFrame">onFrame</a></li><li><a href="global.html#onPreFrame">onPreFrame</a></li><li><a href="global.html#start">start</a></li><li><a href="global.html#stop">stop</a></li>
+					<li><a href="global.html#capabilities">capabilities</a></li><li><a href="global.html#destroy">destroy</a></li><li><a href="global.html#duration">duration</a></li><li><a href="global.html#enableVR">enableVR</a></li><li><a href="global.html#frameTime">frameTime</a></li><li><a href="global.html#init">init</a></li><li><a href="global.html#looping">looping</a></li><li><a href="global.html#material">material</a></li><li><a href="global.html#onFrame">onFrame</a></li><li><a href="global.html#onPreFrame">onPreFrame</a></li><li><a href="global.html#start">start</a></li><li><a href="global.html#stop">stop</a></li>
 				</ul>
 			</li>
 			
@@ -106,9 +106,10 @@
 
     
     <div class="description">
-        <p>LayeredAnimation combines a bunch of AnimationLayer objects into a single manageable animation. This acts globally,
-so it's not a <a href="Component.html"><code>Component</code></a> belonging to an <a href="Entity.html"><code>Entity</code></a>. It can be seen as a global keyframe animation
-system.</p>
+        <p>LayeredAnimation is a Component that combines a set of AnimationLayer objects into a single manageable animation.
+The layer animations can act on any object, joint pose or morph pose in the hierarchy of the <a href="Entity.html"><code>Entity</code></a> to
+which the Component was assigned. When added to the Scene's root node, it can be seen as a global keyframe animation
+system for the given scene.</p>
     </div>
     
 
@@ -121,6 +122,108 @@ system.</p>
 
     
 <dl class="details">
+    
+
+    <h5 class="subsection-title">Properties:</h5>
+
+    <dl>
+
+<table class="props table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The name of the animation.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>timeScale</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>A value to control the playback speed.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>time</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The current time in milliseconds of the play head.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>looping</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Determines whether the animation should loop or not. By default, it uses the value determined by
+the AnimationClip, but can be overridden.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+</dl>
+
     
 
 	
@@ -176,6 +279,17 @@ system.</p>
 
     
     </div>
+
+    
+        <h3 class="subsection-title">Extends</h3>
+
+        
+
+
+    <ul>
+        <li><a href="Component.html">Component</a></li>
+    </ul>
+
 
     
 
@@ -193,16 +307,15 @@ system.</p>
         <dl>
             
 <hr>
-<dt class="name" id="looping">
-    <h4 id="looping"><span class="type-signature"></span>looping<span class="type-signature"></span></h4>
+<dt class="name" id="acceptVisitor">
+    <h4 id="acceptVisitor"><span class="type-signature"></span>acceptVisitor<span class="type-signature"></span></h4>
 
     
 </dt>
 <dd>
     
     <div class="description">
-        <p>Determines whether the animation should loop or not. By default, it uses the value determined by the
-AnimationClip, but can be overridden.</p>
+        <p>If provided, this method will be called by the scene partition traverser, allowing collection by the renderer.</p>
     </div>
     
 
@@ -216,6 +329,15 @@ AnimationClip, but can be overridden.</p>
 
 	
 
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Component.html#acceptVisitor">Component#acceptVisitor</a>
+			</li>
+		</ul>
+	</dd>
 	
 
     
@@ -254,15 +376,15 @@ AnimationClip, but can be overridden.</p>
         
             
 <hr>
-<dt class="name" id="name">
-    <h4 id="name"><span class="type-signature"></span>name<span class="type-signature"></span></h4>
+<dt class="name" id="bounds">
+    <h4 id="bounds"><span class="type-signature"></span>bounds<span class="type-signature"></span></h4>
 
     
 </dt>
 <dd>
     
     <div class="description">
-        <p>The name of the animation.</p>
+        <p>If a Component has a scene presence, it can have bounds</p>
     </div>
     
 
@@ -276,6 +398,15 @@ AnimationClip, but can be overridden.</p>
 
 	
 
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Component.html#bounds">Component#bounds</a>
+			</li>
+		</ul>
+	</dd>
 	
 
     
@@ -314,15 +445,15 @@ AnimationClip, but can be overridden.</p>
         
             
 <hr>
-<dt class="name" id="time">
-    <h4 id="time"><span class="type-signature"></span>time<span class="type-signature"></span></h4>
+<dt class="name" id="enabled">
+    <h4 id="enabled"><span class="type-signature"></span>enabled<span class="type-signature"></span></h4>
 
     
 </dt>
 <dd>
     
     <div class="description">
-        <p>The current time in milliseconds of the play head.</p>
+        <p>Defines whether or not this component should be enabled.</p>
     </div>
     
 
@@ -336,6 +467,15 @@ AnimationClip, but can be overridden.</p>
 
 	
 
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Component.html#enabled">Component#enabled</a>
+			</li>
+		</ul>
+	</dd>
 	
 
     
@@ -374,15 +514,15 @@ AnimationClip, but can be overridden.</p>
         
             
 <hr>
-<dt class="name" id="timeScale">
-    <h4 id="timeScale"><span class="type-signature"></span>timeScale<span class="type-signature"></span></h4>
+<dt class="name" id="entity">
+    <h4 id="entity"><span class="type-signature"></span>entity<span class="type-signature"></span></h4>
 
     
 </dt>
 <dd>
     
     <div class="description">
-        <p>A value to control the playback speed.</p>
+        <p>The target entity.</p>
     </div>
     
 
@@ -397,7 +537,90 @@ AnimationClip, but can be overridden.</p>
 	
 
 	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Component.html#entity">Component#entity</a>
+			</li>
+		</ul>
+	</dd>
+	
 
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="onUpdate">
+    <h4 id="onUpdate"><span class="type-signature"></span>onUpdate<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>If provided, this method will be called every frame, allowing updating the entity.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Component.html#onUpdate">Component#onUpdate</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+    
+    <dt class="tag-overrides">Overrides:</dt>
+    <dd class="tag-overrides"><ul class="dummy"><li>
+        <a href="Component.html#onUpdate">Component#onUpdate</a>
+    </li></ul></dd>
     
 
     
@@ -438,128 +661,6 @@ AnimationClip, but can be overridden.</p>
         <h3 class="subsection-title">Methods</h3>
 
         <dl>
-            
-<hr>
-<dt>
-    <h4 class="name" id="_update"><span class="type-signature"></span>_update(dt)</h4>
-    
-    
-</dt>
-<dd>
-
-    
-    <div class="description">
-        <p>This needs to be called every frame.</p>
-    </div>
-    
-
-    
-
-    
-
-    
-    
-        <h5>Parameters:</h5>
-        
-
-<table class="params table table-striped">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>dt</code></td>
-            
-
-            <td class="type">
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>The time passed since last frame in milliseconds.</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-    
-
-    
-<dl class="details">
-    
-
-	
-
-	
-
-	
-
-    
-
-    
-
-    
-
-    
-
-	
-
-	
-
-	
-
-	
-
-	
-
-
-
-	
-
-	
-
-	
-
-	
-</dl>
-
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dd>
-
-        
             
 <hr>
 <dt>
@@ -685,7 +786,7 @@ AnimationClip, but can be overridden.</p>
             
 <hr>
 <dt>
-    <h4 class="name" id="play"><span class="type-signature"></span>play()</h4>
+    <h4 class="name" id="clone"><span class="type-signature"></span>clone()</h4>
     
     
 </dt>
@@ -693,7 +794,7 @@ AnimationClip, but can be overridden.</p>
 
     
     <div class="description">
-        <p>Starts playback of the animation</p>
+        <p>Creates a duplicate of this Component.</p>
     </div>
     
 
@@ -713,7 +814,205 @@ AnimationClip, but can be overridden.</p>
 	
 
 	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Component.html#clone">Component#clone</a>
+			</li>
+		</ul>
+	</dd>
+	
 
+    
+    <dt class="tag-overrides">Overrides:</dt>
+    <dd class="tag-overrides"><ul class="dummy"><li>
+        <a href="Component.html#clone">Component#clone</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="onAdded"><span class="type-signature"></span>onAdded()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Called when this component is added to an Entity.</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Component.html#onAdded">Component#onAdded</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+    
+    <dt class="tag-overrides">Overrides:</dt>
+    <dd class="tag-overrides"><ul class="dummy"><li>
+        <a href="Component.html#onAdded">Component#onAdded</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
+    <h4 class="name" id="onRemoved"><span class="type-signature"></span>onRemoved()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Called when this component is removed from an Entity.</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+	<dt class="inherited-from method-doc-label method-doc-details-label">Inherited From:</dt>
+	<dd class="inherited-from">
+		<ul class="dummy">
+			<li>
+				<a href="Component.html#onRemoved">Component#onRemoved</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+    
+    <dt class="tag-overrides">Overrides:</dt>
+    <dd class="tag-overrides"><ul class="dummy"><li>
+        <a href="Component.html#onRemoved">Component#onRemoved</a>
+    </li></ul></dd>
     
 
     
@@ -881,84 +1180,6 @@ AnimationClip, but can be overridden.</p>
     
 </dd>
 
-        
-            
-<hr>
-<dt>
-    <h4 class="name" id="stop"><span class="type-signature"></span>stop()</h4>
-    
-    
-</dt>
-<dd>
-
-    
-    <div class="description">
-        <p>Stops playback of the animation</p>
-    </div>
-    
-
-    
-
-    
-
-    
-    
-
-    
-<dl class="details">
-    
-
-	
-
-	
-
-	
-
-    
-
-    
-
-    
-
-    
-
-	
-
-	
-
-	
-
-	
-
-	
-
-
-
-	
-
-	
-
-	
-
-	
-</dl>
-
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dd>
-
         </dl>
     
 
@@ -1009,7 +1230,7 @@ AnimationClip, but can be overridden.</p>
 <span class="jsdoc-message">
 	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a>
 	
-		on August 13th 2018, 6:48:52 pm
+		on August 18th 2018, 5:05:21 pm
 	
 	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
 </span>

@@ -1,5 +1,7 @@
 import {Matrix4x4} from "../../math/Matrix4x4";
 
+var nameCounter = 0;
+
 /**
  * @classdesc
  * SkeletonJoint describes a single joint in a {@linkcode Skeleton}.
@@ -14,7 +16,7 @@ function SkeletonJoint()
     /**
      * The name of the joint.
      */
-    this.name = null;
+    this.name = "hx_joint_" + (nameCounter++);
 
     /**
      * The index in the Skeleton of the parent joint.

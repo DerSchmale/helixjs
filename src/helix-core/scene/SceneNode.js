@@ -2,6 +2,9 @@
 import {Matrix4x4} from "../math/Matrix4x4";
 import {Transform} from "../math/Transform";
 
+
+var nameCounter = 0;
+
 /**
  * @classdesc
  * <p>SceneNode is an empty hierarchical container for the scene graph. It can be attached to other SceneNode objects and
@@ -28,7 +31,7 @@ function SceneNode()
 {
     Transform.call(this);
     this.meta = {};
-    this._name = "";
+    this._name = "hx_scenenode_" + (nameCounter++);
     this._matrixInvalid = true;
 	this._worldMatrix = new Matrix4x4();
     this._worldMatrixInvalid = true;
@@ -338,6 +341,27 @@ SceneNode.prototype.applyFunction = function(func, thisRef)
     else
     // Heehee, this line amuses me:
         func(this);
+
+    var len = this._children.length;
+    for (var i = 0; i < len; ++i)
+        this._children[i].applyFunction(func, thisRef);
+};
+
+/**
+ * Applies a function recursively to all child nodes while the passed function returns true
+ * @param func The function to call (using the traversed node as argument)
+ * @param [thisRef] Optional reference to "this" in the calling function, to keep the scope of "this" in the called method.
+ */
+SceneNode.prototype.applyFunctionConditional = function(func, thisRef)
+{
+    var result;
+    if (thisRef)
+		result = func.call(thisRef, this);
+    else
+    // Heehee, this line amuses me:
+		result = func(this);
+
+    if (!result) return;
 
     var len = this._children.length;
     for (var i = 0; i < len; ++i)

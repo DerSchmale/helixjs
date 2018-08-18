@@ -21,22 +21,6 @@
          * The loaded scenes.
          */
         this.scenes = {};
-
-        /**
-         * The loaded materials.
-         */
-        this.materials = {};
-
-        /**
-         * The loaded entities (these are "nodes" containing a "mesh" in GLTF).
-         */
-        this.entities = {};
-
-        /**
-         * The animations. Skinned animations cannot be parsed as SkeletonAnimation, since GLTF has no concept of animation
-         * groups.
-         */
-        this.animations = {};
     }
 
     /**
@@ -76,6 +60,10 @@
         var asset = this._gltf.asset;
 
         this._target = target;
+        // maps the animation targets to their closest scene graph objects (the targets can be the scene graph entity
+        // itself, a MorphAnimation, a SkeletonJointPose)
+    	this._animationTargetNodes = {};
+    	this._animations = [];
 
         if (asset.hasOwnProperty("minVersion")){
             var minVersion = asset.minVersion.split(".");
@@ -116,7 +104,7 @@
         queue.queue(this._parseNodes.bind(this));
         queue.queue(this._parseScenes.bind(this));
         queue.queue(this._parseAnimations.bind(this));
-        queue.queue(this._playAnimations.bind(this));
+        queue.queue(this._assignAnimations.bind(this));
         // queue.queue(this._notifyComplete.bind(this), this._target);
 
         queue.onComplete.bind((function() {
@@ -275,7 +263,6 @@
             }
 
             this._materials[i] = mat;
-            this._target.materials[mat.name] = mat;
         }
     };
 
@@ -296,6 +283,7 @@
         for (var i = 0; i < meshDefs.length; ++i) {
             var meshDef = meshDefs[i];
     		var entity = new HX.Entity();
+    		entity.name = meshDef.name;
 
             for (var j = 0; j < meshDef.primitives.length; ++j) {
                 var primDef = meshDef.primitives[j];
@@ -304,8 +292,6 @@
                     this._parseMorphWeights(meshDef.weights, entity);
                 }
             }
-
-    		entity.name = meshDef.name;
 
             this._entities[i] = entity;
         }
@@ -322,6 +308,8 @@
     	}
 
     	entity.addComponent(morphComponent);
+
+    	this._animationTargetNodes[morphComponent.name] = entity;
     };
 
     GLTF.prototype._parseMorphTargets = function(targetDefs, mesh)
@@ -563,6 +551,8 @@
         var skinIndex = nodeDef.skin;
         var skinDef = this._gltf.skins[skinIndex];
 
+    	skinDef.name = skinDef.name || "skin ";
+
         var invBinAcc = this._getAccessor(skinDef.inverseBindMatrices);
 
         var src = invBinAcc.data;
@@ -594,14 +584,22 @@
             if (node._jointIndex !== undefined) {
                 throw new Error("Adding one node to multiple skeletons!");
             }
+
+            // we use this to keep a mapping when assigning target animations
             node._jointIndex = i;
             node._skeletonPose = pose;
+            node._skeleton = skeleton;
+
+            if (skinDef.name)
+                joint.name = skinDef.name + "_joint_" + i;
 
             var jointPose = new HX.SkeletonJointPose();
             jointPose.position.copyFrom(node.position);
             jointPose.rotation.copyFrom(node.rotation);
             jointPose.scale.copyFrom(node.scale);
             pose.setJointPose(i, jointPose);
+
+            this._animationTargetNodes[joint.name] = target;
         }
 
         for (i = 0; i < skinDef.joints.length; ++i) {
@@ -638,12 +636,13 @@
             if (nodeDef.hasOwnProperty("mesh")) {
                 node = this._entities[nodeDef.mesh];
                 // if the node has a specific name, use that.
-                // otherwise (for model instances possible), use the model name, or assign a unique one
-                node.name = nodeDef.name || ("node_" + i);
-                this._target.entities[node.name] = node;
+                if (nodeDef.name)
+                    node.name = nodeDef.name;
             }
-            else
-                node = new HX.SceneNode();
+            else {
+    			node = new HX.SceneNode();
+    		}
+    		this._animationTargetNodes[node.name] = node;
 
             if (nodeDef.rotation) {
                 node.rotation.set(nodeDef.rotation[0], nodeDef.rotation[1], nodeDef.rotation[2], nodeDef.rotation[3]);
@@ -814,30 +813,37 @@
             }
 
             animation.name = animDef.name || "animation_" + i;
-            this._target.animations[animation.name] = animation;
+            this._animations.push(animation);
         }
     };
 
     GLTF.prototype._parseAnimationChannel = function(channelDef, samplers)
     {
         var target = this._nodes[channelDef.target.node];
+        var targetName;
         var layers = [];
 
-        if (target._jointIndex !== undefined)
-            target = target._skeletonPose._jointPoses[target._jointIndex];
+        // gltf targets a node, but we need to target the joint pose
+        if (target._jointIndex !== undefined) {
+    		targetName = target._skeleton.getJoint(target._jointIndex).name;
+    		target = target._skeletonPose._jointPoses[target._jointIndex];
+    	}
+    	else {
+    		targetName = target.name;
+        }
 
         switch (channelDef.target.path) {
             case "translation":
                 var clips = this._parseAnimationSampler(samplers[channelDef.sampler], true);
-                layers = [ new HX.AnimationLayerFloat4(target, "position", clips[0]) ];
+                layers = [ new HX.AnimationLayerFloat4(targetName, "position", clips[0]) ];
                 break;
             case "rotation":
                 clips = this._parseAnimationSampler(samplers[channelDef.sampler], true);
-                layers = [ new HX.AnimationLayerQuat(target, "rotation", clips[0]) ] ;
+                layers = [ new HX.AnimationLayerQuat(targetName, "rotation", clips[0]) ] ;
                 break;
             case "scale":
                 clips = this._parseAnimationSampler(samplers[channelDef.sampler], false);
-                layers = [ new HX.AnimationLayerFloat4(target, "scale", clips[0]) ];
+                layers = [ new HX.AnimationLayerFloat4(targetName, "scale", clips[0]) ];
                 break;
             case "weights":
                 clips = this._parseAnimationSampler(samplers[channelDef.sampler], false);
@@ -845,7 +851,7 @@
                 layers = [];
 
                 for (var i = 0; i < clips.length; ++i)
-                    layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation), "morphTarget_" + i, clips[i]));
+                    layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation).name, "morphTarget_" + i, clips[i]));
 
                 break;
             default:
@@ -854,12 +860,16 @@
         return layers;
     };
 
-    GLTF.prototype._playAnimations = function()
+    GLTF.prototype._assignAnimations = function()
     {
-        var anims = this._target.animations;
-        HX.ArrayUtils.forEach(anims, function(anim) {
-            anim.play();
-        });
+        var anims = this._animations;
+        for (var i = 0, len = anims.length; i < len; ++i) {
+            var anim = anims[i];
+    			// this expects separate animations to target separate scenes:
+            var entity = this._animationTargetNodes[anim._layers[0]._targetName];
+            var rootNode = entity._scene.rootNode;
+            rootNode.addComponent(anim);
+    	}
     };
 
     GLTF.prototype._readFloat3 = function(dataView, offset)
@@ -1375,7 +1385,9 @@
             }
         }
 
-    	entity.name = object.name;
+        if (object.name)
+    	    entity.name = object.name;
+
         this._target.attach(entity);
 
         this._notifyProgress(.8 + (objectIndex + 1) / this._objects.length * .2);
@@ -1388,6 +1400,9 @@
         var indices = new Array(group.numIndices);
         var numVertices = 0;
         var currentIndex = 0;
+
+        if (group.name)
+            mesh.name = group.name;
 
         var faces = group.faces;
         var numFaces = faces.length;
@@ -1488,13 +1503,13 @@
     OBJ._GroupData = function()
     {
         this.subgroups = [];
-        this.name = "";    // <FaceData>
+        this.name = null;
         this._activeMaterial = null;
     };
 
     OBJ._ObjectData = function()
     {
-        this.name = "";
+        this.name = null;
         this.groups = [];
         this._activeGroup = null;
     };

@@ -26,7 +26,7 @@ project.onInit = function()
     this.gltf = this.assetLibrary.get("scene");
     this.scene = this.gltf.defaultScene;
 
-    this.camera.farDistance = 10000;
+	this.camera.farDistance = 10000;
 
     var orbitController = new HX.OrbitController();
     orbitController.azimuth = Math.PI * .5;

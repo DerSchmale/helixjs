@@ -2,6 +2,8 @@ import {Component} from "../../entity/Component";
 import {MorphPose} from "./MorphPose";
 import {MeshInstance} from "../../mesh/MeshInstance";
 
+var nameCounter = 0;
+
 /**
  * @classdesc
  * MorphAnimation is a {@linkcode Component} that can be added to an Entity to control morph target animations. The Mesh
@@ -23,6 +25,8 @@ import {MeshInstance} from "../../mesh/MeshInstance";
 function MorphAnimation(morphPose)
 {
     Component.call(this);
+
+	this._name = "hx_morphanimation_" + (nameCounter++);
 
     if (morphPose) {
         this._morphPose = morphPose;
@@ -93,6 +97,7 @@ MorphAnimation.prototype._assignMorphPose = function(pose)
 MorphAnimation.prototype.clone = function()
 {
 	var clone = new MorphAnimation(this._morphPose.clone());
+	clone._name = this._name;
 	return clone;
 };
 

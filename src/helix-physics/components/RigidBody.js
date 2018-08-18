@@ -29,6 +29,7 @@ function RigidBody(collider, mass, material)
     this._collider = collider;
     this._body = null;
     this._ignoreRotation = false;
+    this._isKinematic = false;
 
     this._mass = mass;
 
@@ -39,6 +40,20 @@ function RigidBody(collider, mass, material)
 
 
 HX.Component.create(RigidBody, {
+	isKinematic: {
+		get: function()
+		{
+			return this._isKinematic;
+		},
+
+		set: function(value)
+		{
+			this._isKinematic = value;
+
+			if (this._body)
+				this._body.type = CANNON.Body.KINEMATIC;
+		}
+	},
 	ignoreRotation: {
         get: function()
         {
@@ -216,6 +231,9 @@ RigidBody.prototype._createBody = function()
 
     this._body = this._collider.createRigidBody(bounds);
 
+    if (this._isKinematic)
+		this._body.type = CANNON.Body.KINEMATIC;
+
     if (this._mass !== undefined)
         this._body.mass = this._mass;
 
@@ -239,6 +257,7 @@ RigidBody.prototype.clone = function()
 	var clone = new RigidBody(this._collider, this._mass, this._material);
 	clone.linearDamping = this.linearDamping;
 	clone.angularDamping = this.angularDamping;
+	clone.isKinematic = this._isKinematic;
 	return clone;
 };
 

@@ -3,7 +3,6 @@ import {Signal} from "../core/Signal";
 import {Bitfield} from "../core/Bitfield";
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {MeshInstance} from "../mesh/MeshInstance";
-import {Transform} from "../math/Transform";
 
 /**
  * @classdesc

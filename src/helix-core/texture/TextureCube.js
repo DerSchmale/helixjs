@@ -1,6 +1,7 @@
 import {GL} from "../core/GL";
 import {DataType, TextureFormat, TextureFilter, capabilities, CubeFace} from "../Helix";
 
+var nameCounter = 0;
 
 //       +-----+
 //       |  +Z |
@@ -20,7 +21,7 @@ import {DataType, TextureFormat, TextureFilter, capabilities, CubeFace} from "..
  */
 function TextureCube()
 {
-    this._name = null;
+	this._name = "hx_texturecube_" + (nameCounter++);
     this._default = TextureCube.DEFAULT;
     this._texture = GL.gl.createTexture();
     this._size = 0;

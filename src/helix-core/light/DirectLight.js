@@ -49,12 +49,12 @@ DirectLight.prototype._updateScaledIrradiance = function ()
 /**
  * @ignore
  */
-DirectLight.prototype.copyTo = function(target)
+DirectLight.prototype.copyFrom = function(src)
 {
-	Light.prototype.copyTo.call(this, target);
-	target.shadowQualityBias = this.shadowQualityBias;
-	target.castShadows = this.castShadows;
-	target.depthBias = this.depthBias;
+	Light.prototype.copyFrom.call(this, src);
+	this.shadowQualityBias = src.shadowQualityBias;
+	this.castShadows = src.castShadows;
+	this.depthBias = src.depthBias;
 };
 
 export { DirectLight };

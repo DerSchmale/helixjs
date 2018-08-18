@@ -328,12 +328,12 @@ Entity.prototype._invalidateWorldMatrix = function()
 /**
  * @ignore
  */
-Entity.prototype.copyTo = function(target)
+Entity.prototype.copyFrom = function(src)
 {
-	SceneNode.prototype.copyTo.call(this, target);
+	SceneNode.prototype.copyFrom.call(this, src);
 
-	for (var i = 0, len = this._components.length; i < len; ++i) {
-		target.addComponent(this._components[i].clone());
+	for (var i = 0, len = src._components.length; i < len; ++i) {
+		this.addComponent(src._components[i].clone());
 	}
 };
 
@@ -343,7 +343,7 @@ Entity.prototype.copyTo = function(target)
 Entity.prototype.clone = function()
 {
 	var clone = new Entity();
-	this.copyTo(clone);
+	clone.copyFrom(this);
 	return clone;
 };
 

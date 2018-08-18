@@ -39,10 +39,10 @@ OrthographicOffCenterCamera.prototype._updateProjectionMatrix = function()
 /**
  * @ignore
  */
-OrthographicOffCenterCamera.prototype.copyTo = function(target)
+OrthographicOffCenterCamera.prototype.copyFrom = function(src)
 {
-	Camera.prototype.copyTo.call(this, target);
-	target.setBounds(this._left, this._right, this._top, this._bottom);
+	Camera.prototype.copyFrom.call(this, src);
+	this.setBounds(src._left, src._right, src._top, src._bottom);
 };
 
 /**
@@ -51,7 +51,7 @@ OrthographicOffCenterCamera.prototype.copyTo = function(target)
 OrthographicOffCenterCamera.prototype.clone = function()
 {
 	var clone = new OrthographicOffCenterCamera();
-	this.copyTo(clone);
+	clone.copyFrom(this);
 	return clone;
 };
 

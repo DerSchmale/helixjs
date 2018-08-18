@@ -330,11 +330,11 @@ Camera.prototype._updateClusterPlanes = function()
 /**
  * @ignore
  */
-Camera.prototype.copyTo = function(target)
+Camera.prototype.copyFrom = function(src)
 {
-	Entity.prototype.copyTo.call(this, target);
-	target.nearDistance = this.nearDistance;
-	target.farDistance = this.farDistance;
+	Entity.prototype.copyFrom.call(this, src);
+	this.nearDistance = src.nearDistance;
+	this.farDistance = src.farDistance;
 };
 
 /**

@@ -71,10 +71,10 @@ PerspectiveCamera.prototype._updateProjectionMatrix = function()
 /**
  * @ignore
  */
-PerspectiveCamera.prototype.copyTo = function(target)
+PerspectiveCamera.prototype.copyFrom = function(src)
 {
-	Camera.prototype.copyTo.call(this, target);
-	target.verticalFOV = this.verticalFOV;
+	Camera.prototype.copyFrom.call(this, src);
+	this.verticalFOV = src.verticalFOV;
 };
 
 /**
@@ -83,7 +83,7 @@ PerspectiveCamera.prototype.copyTo = function(target)
 PerspectiveCamera.prototype.clone = function()
 {
 	var clone = new PerspectiveCamera();
-	this.copyTo(clone);
+	clone.copyFrom(this);
 	return clone;
 };
 

@@ -44,7 +44,7 @@ AmbientLight.prototype._updateBounds = function()
 AmbientLight.prototype.clone = function()
 {
 	var clone = new AmbientLight();
-	this.copyTo(clone);
+	clone.copyFrom(this);
 	return clone;
 };
 

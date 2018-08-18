@@ -206,16 +206,16 @@ Transform.prototype =
 	clone: function()
 	{
 		var clone = new Transform();
-		this.copyTo(clone);
+		clone.copyFrom(this);
 		return clone;
 	},
 
 	/**
 	 * @ignore
 	 */
-	copyTo: function(target)
+	copyFrom: function(src)
 	{
-		target.matrix = this.matrix;
+		this.matrix = src.matrix;
 	}
 };
 

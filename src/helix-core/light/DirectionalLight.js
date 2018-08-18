@@ -137,7 +137,7 @@ DirectionalLight.prototype.toString = function()
 DirectionalLight.prototype.clone = function()
 {
 	var clone = new DirectionalLight();
-	this.copyTo(clone);
+	clone.copyFrom(this);
 	return clone;
 };
 

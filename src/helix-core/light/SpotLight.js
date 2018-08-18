@@ -146,18 +146,24 @@ SpotLight.prototype.toString = function()
 	return "[SpotLight(name=" + this._name + ")]";
 };
 
-SpotLight.prototype.copyTo = function(target)
+/**
+ * @ignore
+ */
+SpotLight.prototype.copyFrom = function(src)
 {
-    DirectLight.prototype.copyTo.call(this, target);
-	target.radius = this.radius;
-	target.innerAngle = this.innerAngle;
-	target.outerAngle = this.outerAngle;
+    DirectLight.prototype.copyFrom.call(this, src);
+	this.radius = src.radius;
+	this.innerAngle = src.innerAngle;
+	this.outerAngle = src.outerAngle;
 };
 
+/**
+ * @inheritDoc
+ */
 SpotLight.prototype.clone = function()
 {
 	var clone = new SpotLight();
-	this.copyTo(clone);
+	clone.copyFrom(this);
 	return clone;
 };
 

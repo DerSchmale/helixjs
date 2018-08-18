@@ -36,16 +36,22 @@ function Skybox(materialOrTexture)
 
 Skybox.prototype = Object.create(Entity.prototype);
 
-Skybox.prototype.copyTo = function(target)
+/**
+ * @ignore
+ */
+Skybox.prototype.copyFrom = function(src)
 {
-	Entity.prototype.copyTo.call(this, target);
+	Entity.prototype.copyFrom.call(this, src);
 
 };
 
+/**
+ * @inheritDoc
+ */
 Skybox.prototype.clone = function()
 {
 	var clone = new Skybox(this._meshInstance.material);
-	this.copyTo(clone);
+	clone.copyFrom(this);
 	return clone;
 };
 

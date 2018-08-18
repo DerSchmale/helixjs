@@ -86,16 +86,22 @@ PointLight.prototype.toString = function()
 	return "[PointLight(name=" + this._name + ")]";
 };
 
-PointLight.prototype.copyTo = function(target)
+/**
+ * @ignore
+ */
+PointLight.prototype.copyFrom = function(src)
 {
-	DirectLight.prototype.copyTo.call(this, target);
-	target.radius = this.radius;
+	DirectLight.prototype.copyFrom.call(this, src);
+	this.radius = src.radius;
 };
 
+/**
+ * @inheritDoc
+ */
 PointLight.prototype.clone = function()
 {
 	var clone = new PointLight();
-	this.copyTo(clone);
+	clone.copyFrom(this);
 	return clone;
 };
 

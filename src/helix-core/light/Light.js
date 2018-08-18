@@ -89,10 +89,10 @@ Light.prototype._updateScaledIrradiance = function()
 /**
  * @ignore
  */
-Light.prototype.copyTo = function(target)
+Light.prototype.copyFrom = function(src)
 {
-	target.color = this.color;
-	target.intensity = this.intensity;
+	this.color = src.color;
+	this.intensity = src.intensity;
 };
 
 export { Light };

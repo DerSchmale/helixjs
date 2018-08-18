@@ -7,16 +7,18 @@
     "del": "^3.0.0",
     "gulp": "^3.9.1",
     "gulp-better-rollup": "^3.3.0",
-    "gulp-concat": "^2.6.1",
     "gulp-concat-callback": "^2.4.1",
     "gulp-insert": "^0.5.0",
     "gulp-jsdoc3": "^2.0.0",
     "gulp-rename": "^1.4.0",
-    "gulp-uglify": "^3.0.1"
+    "gulp-uglify": "^3.0.1",
+    "rollup-plugin-commonjs": "^9.1.5",
+    "rollup-plugin-node-resolve": "^3.3.0"
   },
   "dependencies": {
     "cannon": "^0.6.2",
-    "pako": "^1.0.5"
+    "pako": "^1.0.5",
+    "webvr-polyfill": "^0.10.6"
   },
   "repository": {
     "type": "git",

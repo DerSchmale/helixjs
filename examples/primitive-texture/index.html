@@ -16,7 +16,7 @@
         Canvas tag not supported by the browser!
     </canvas>
 
-    <div id="preloader" class="preloader">
+    <div id="preloader" class="vAlignContainer">
         <div id="preloaderBar" class="vAligned">
             Loading...
             <div class="preloaderBorder">
@@ -24,9 +24,12 @@
                 </div>
             </div>
         </div>
-        <div id="errorContainer" class="vAligned hidden">
+    </div>
+
+    <div id="errorContainer" class="vAlignContainer hidden">
+        <div class="vAligned">
             <h1>Sorry!</h1>
-            <p>It seems your browser doesn't support WebGL!</p>
+            <p id="errorMessage"></p>
         </div>
     </div>
 

@@ -52,7 +52,8 @@ CascadeShadowMapRenderer.prototype =
             GL.setViewport(rect);
 
             var m = light._shadowMatrices[c];
-            m.copyFrom(this._shadowMapCameras[c].viewProjectionMatrix);
+            var camera = this._shadowMapCameras[c];
+            m.copyFrom(camera.viewProjectionMatrix);
 
             // can probably optimize all the calls above into a simpler multiplication/translation
             // TODO: Do the math
@@ -64,7 +65,7 @@ CascadeShadowMapRenderer.prototype =
             m.appendScale(rect.width * atlasSize, rect.height * atlasSize, 1.0);
             m.appendTranslation(rect.x * atlasSize, rect.y * atlasSize, 0.0);
 
-            RenderUtils.renderPass(this, passType, this._casterCollector.getRenderList(c));
+            RenderUtils.renderPass(this, camera, passType, this._casterCollector.getRenderList(c));
         }
     },
 

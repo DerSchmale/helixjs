@@ -14,33 +14,41 @@ import {Transform} from './Transform';
  */
 function Matrix4x4(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
 {
-    if (m00 !== undefined && isNaN(m00)) {
-        this._m = new Float32Array(m00);
-    }
-    else {
-        var m = this._m = new Float32Array(16);
-
-        m[0] = m00 === undefined ? 1 : 0;
-        m[1] = m10 || 0;
-        m[2] = m20 || 0;
-        m[3] = m30 || 0;
-        m[4] = m01 || 0;
-        m[5] = m11 === undefined ? 1 : 0;
-        m[6] = m21 || 0;
-        m[7] = m31 || 0;
-        m[8] = m02 || 0;
-        m[9] = m12 || 0;
-        m[10] = m22 === undefined ? 1 : 0;
-        m[11] = m32 || 0;
-        m[12] = m03 || 0;
-        m[13] = m13 || 0;
-        m[14] = m23 || 0;
-        m[15] = m33 === undefined ? 1 : 0;
-    }
+    this.set(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33);
 }
 
 Matrix4x4.prototype =
 {
+    /**
+     * Sets the values of the matrix directly.
+     */
+    set: function(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33)
+    {
+        if (m00 !== undefined && isNaN(m00)) {
+            this._m = new Float32Array(m00);
+        }
+        else {
+            var m = this._m = new Float32Array(16);
+
+            m[0] = m00 === undefined ? 1 : 0;
+            m[1] = m10 || 0;
+            m[2] = m20 || 0;
+            m[3] = m30 || 0;
+            m[4] = m01 || 0;
+            m[5] = m11 === undefined ? 1 : 0;
+            m[6] = m21 || 0;
+            m[7] = m31 || 0;
+            m[8] = m02 || 0;
+            m[9] = m12 || 0;
+            m[10] = m22 === undefined ? 1 : 0;
+            m[11] = m32 || 0;
+            m[12] = m03 || 0;
+            m[13] = m13 || 0;
+            m[14] = m23 || 0;
+            m[15] = m33 === undefined ? 1 : 0;
+        }
+    },
+
     /**
      * Transforms a Float4 object (use for homogeneous general case of Float4, perspective or when "type" (w) of Float4 is unknown)
      *

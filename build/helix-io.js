@@ -117,7 +117,11 @@
         queue.queue(this._parseScenes.bind(this));
         queue.queue(this._parseAnimations.bind(this));
         queue.queue(this._playAnimations.bind(this));
-        queue.queue(this._notifyComplete.bind(this), this._target);
+        // queue.queue(this._notifyComplete.bind(this), this._target);
+
+        queue.onComplete.bind((function() {
+            this._notifyComplete(this._target);
+        }).bind(this));
 
         queue.onProgress.bind((function(ratio) {
             this._notifyProgress(.8 + .2 * ratio);
@@ -141,6 +145,7 @@
             min: accessorDef.min,
             max: accessorDef.max,
             byteOffset: bufferView.byteOffset + (accessorDef.byteOffset || 0),
+            byteStride: bufferView.byteStride,
             count: accessorDef.count,
             isSparse: false
         };
@@ -179,7 +184,8 @@
         return {
             data: this._assetLibrary.get(buffer.assetID),
             byteOffset: byteOffset,
-            byteLength: bufferView.byteLength
+            byteLength: bufferView.byteLength,
+            byteStride: bufferView.byteStride
         };
     };
 
@@ -235,6 +241,10 @@
             mat.occlusionMap = this._getTexture(matDef.occlusionTexture);
             mat.emissionMap = this._getTexture(matDef.emissiveTexture);
 
+            if (matDef.doubleSided) {
+                mat.cullMode = HX.CullMode.NONE;
+            }
+
             if (matDef.emissiveFactor) {
                 var emission = new HX.Color(matDef.emissiveFactor[0], matDef.emissiveFactor[1], matDef.emissiveFactor[2], 1.0);
                 mat.emissiveColor = emission.linearToGamma();   // BasicMaterial expects gamma values
@@ -261,7 +271,7 @@
                     mat.roughnessRange = -mat.roughness;
                 }
 
-                // TODO: There can also be a texCoord property with the textures, are those texCoord indices?
+                // TODO: There can also be a texCoord property with the textures, but secondary uvs are not supported yet in the default material
             }
 
             this._materials[i] = mat;
@@ -271,7 +281,7 @@
 
     GLTF.prototype._getTexture = function(textureDef)
     {
-        return textureDef? this._assetLibrary.get("hx_image_" + textureDef.index) : null;
+        return textureDef? this._assetLibrary.get("hx_image_" + this._gltf.textures[textureDef.index].source) : null;
     };
 
     GLTF.prototype._parseMeshes = function()
@@ -282,6 +292,7 @@
 
         // locally stored by index, using gltf nomenclature (actually contains model instances)
         this._entities = [];
+
         for (var i = 0; i < meshDefs.length; ++i) {
             var meshDef = meshDefs[i];
     		var entity = new HX.Entity();
@@ -312,6 +323,7 @@
 
     	entity.addComponent(morphComponent);
     };
+
     GLTF.prototype._parseMorphTargets = function(targetDefs, mesh)
     {
         for (var i = 0; i < targetDefs.length; ++i) {
@@ -390,6 +402,7 @@
             var jointData = new Float32Array(jointIndexAcc.count * stride);
             this._readVertexData(jointData, 0, jointIndexAcc, 4, stride);
             this._readVertexData(jointData, 4, jointWeightsAcc, 4, stride);
+
             mesh.setVertexData(jointData, 1);
         }
 
@@ -406,6 +419,7 @@
         var i;
         var len = accessor.count;
         var src = accessor.data;
+        var srcStride = accessor.byteStride || 0;
         var readFnc;
         var elmSize;
 
@@ -422,14 +436,27 @@
                 readFnc = src.getUint32;
                 elmSize = 4;
             }
+            else if (accessor.dataType === HX.DataType.UNSIGNED_BYTE) {
+                readFnc = src.getUint8;
+                elmSize = 1;
+            }
+            else {
+                throw new Error("Unknown data type " + accessor.dataType)
+            }
+
 
             for (i = 0; i < len; ++i) {
+                var or = o;
+
                 for (var j = 0; j < numComponents; ++j) {
                     target[p + j] = readFnc.call(src, o, true);
                     o += elmSize;
                 }
 
                 p += stride;
+
+                if (srcStride)
+                    o = or + srcStride;
             }
         }
         else {
@@ -545,6 +572,7 @@
         var pose = new HX.SkeletonPose();
 
         var skelNode = this._nodes[skinDef.skeleton];
+        var invWorldMatrix = new HX.Matrix4x4();
 
         // no need for it to end up in the scene graph
         if (skelNode.parent) skelNode.parent.detach(skelNode);
@@ -558,6 +586,7 @@
 
             joint.inverseBindPose.prepend(this._flipCoord);
             joint.inverseBindPose.append(this._flipCoord);
+            joint.inverseBindPose.append(invWorldMatrix);
 
             skeleton.addJoint(joint);
 
@@ -625,10 +654,14 @@
             }
 
             if (nodeDef.translation)
-                node.position.set(nodeDef.translation[0], nodeDef.translation[1], -nodeDef.translation[2], 1.0);
+                node.position.set(-nodeDef.translation[0], nodeDef.translation[2], nodeDef.translation[1], 1.0);
 
-            if (nodeDef.scale)
-                node.scale.set(nodeDef.scale[0], nodeDef.scale[1], nodeDef.scale[2], 1.0);
+            if (nodeDef.scale) {
+                m.fromScale(nodeDef.scale[0], nodeDef.scale[1], nodeDef.scale[2]);
+                m.prepend(this._flipCoord);
+                m.append(this._flipCoord);
+                node.scale.set(m.getColumn(0).length, m.getColumn(1).length, m.getColumn(2).length);
+            }
 
             if (nodeDef.matrix) {
                 node.matrix = new HX.Matrix4x4(nodeDef.matrix);

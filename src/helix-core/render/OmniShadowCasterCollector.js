@@ -120,7 +120,6 @@ OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, wo
     var dz = camPosZ - center.z;
     renderItem.renderOrderHint = dx * dx + dy * dy + dz * dz;
     renderItem.worldMatrix = worldMatrix;
-    renderItem.camera = camera;
     renderItem.worldBounds = worldBounds;
 
     renderList.push(renderItem);

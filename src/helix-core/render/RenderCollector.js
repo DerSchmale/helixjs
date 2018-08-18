@@ -136,7 +136,6 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
     var center = worldBounds._center;
     renderItem.renderOrderHint = center.x * cameraY_X + center.y * cameraY_Y + center.z * cameraY_Z;
     renderItem.worldMatrix = entity.worldMatrix;
-    renderItem.camera = camera;
     renderItem.worldBounds = worldBounds;
 
     var bucket = (material.blendState || material._needsBackbuffer)? transparentList : opaqueLists[path];

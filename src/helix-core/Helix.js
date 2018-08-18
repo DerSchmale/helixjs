@@ -39,8 +39,23 @@ export var META =
         /**
          * The canvas used to contain the to-screen renders.
          */
-        TARGET_CANVAS: null
-    };
+        TARGET_CANVAS: null,
+
+        /**
+         * The WebVR display (if enabled) used for rendering
+         */
+        VR_DISPLAY: null,
+
+		/**
+         * The WebVR left eye parameters (if enabled)
+		 */
+		VR_LEFT_EYE_PARAMS: null,
+
+        /**
+         * The WebVR right eye parameters (if enabled)
+		 */
+		VR_RIGHT_EYE_PARAMS: null
+	};
 
 /**
  * The {@linkcode Signal} that dispatched before a frame renders.
@@ -100,7 +115,9 @@ export var capabilities =
         EXT_COLOR_BUFFER_HALF_FLOAT: null,
 
         DEFAULT_TEXTURE_MAX_ANISOTROPY: 0,
-        HDR_FORMAT: 0
+        HDR_FORMAT: 0,
+
+        VR_CAN_PRESENT: false
     };
 
 /**
@@ -338,6 +355,11 @@ export var CubeFace = {};
 export function InitOptions()
 {
     /**
+     * Whether or not the drawing buffer is cleared or not between frames. Set this to true for VR mirroring.
+     */
+    this.preserveDrawingBuffer = false;
+
+    /**
      * Use WebGL 2 if available.
      */
     this.webgl2 = false;
@@ -445,8 +467,7 @@ export function init(canvas, options)
 
     META.TARGET_CANVAS = canvas;
 
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
+    _updateCanvasSize();
 
     META.OPTIONS = options = options || new InitOptions();
 
@@ -457,7 +478,7 @@ export function init(canvas, options)
         depth: false,
         stencil: false,
         premultipliedAlpha: false,
-        preserveDrawingBuffer: false
+        preserveDrawingBuffer: META.OPTIONS.preserveDrawingBuffer
     };
 
     var defines = "";
@@ -598,8 +619,38 @@ function _onFrameTick(dt)
     var startTime = (performance || Date).now();
     onPreFrame.dispatch(dt);
     _clearGLStats();
+
+    // VR stopped presenting (present change event doesn't seem reliable)
+    if (isVRPresenting && !META.VR_DISPLAY.isPresenting) {
+        console.log("VR device stopped presenting, disabling VR");
+		disableVR();
+	}
+
+    if (!META.VR_DISPLAY)
+		_updateCanvasSize();
+
     onFrame.dispatch(dt);
+
+    if (META.VR_DISPLAY && META.VR_DISPLAY.isPresenting)
+        META.VR_DISPLAY.submitFrame();
+
     frameTime = (performance || Date).now() - startTime;
+}
+
+function _updateCanvasSize()
+{
+    // helix does NOT adapt the size automatically, so you can have complete control over the resolution
+    var dpr = window.devicePixelRatio || 1;
+
+    var canvas = META.TARGET_CANVAS;
+
+    var w = Math.round(canvas.clientWidth * dpr);
+    var h = Math.round(canvas.clientHeight * dpr);
+
+    if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+	}
 }
 
 /**
@@ -628,6 +679,53 @@ export function start()
 export function stop()
 {
     frameTicker.stop();
+}
+
+
+var isVRPresenting = false;
+
+/**
+ * Turns on a VR display
+ */
+export function enableVR(display, onFail)
+{
+    if (META.VR_DISPLAY)
+        throw new Error("VR already enabled!");
+
+    META.VR_DISPLAY = display;
+
+    capabilities.VR_CAN_PRESENT = display.capabilities.canPresent;
+
+	if (capabilities.VR_CAN_PRESENT) {
+		META.VR_LEFT_EYE_PARAMS = display.getEyeParameters("left");
+		META.VR_RIGHT_EYE_PARAMS = display.getEyeParameters("right");
+
+		META.VR_DISPLAY.requestPresent([{
+			source: META.TARGET_CANVAS
+		}]).then(function() {
+			isVRPresenting = true;
+        }, onFail);
+
+		META.TARGET_CANVAS.width = Math.max(META.VR_LEFT_EYE_PARAMS.renderWidth, META.VR_RIGHT_EYE_PARAMS.renderWidth);
+		META.TARGET_CANVAS.height = Math.max(META.VR_LEFT_EYE_PARAMS.renderHeight, META.VR_RIGHT_EYE_PARAMS.renderHeight);
+	}
+
+    console.log("Starting VR on " + display.displayName);
+}
+
+export function disableVR()
+{
+    if (!META.VR_DISPLAY) return;
+
+	isVRPresenting = false;
+
+    if (META.VR_DISPLAY.isPresenting)
+        META.VR_DISPLAY.exitPresent();
+
+    capabilities.VR_CAN_PRESENT = false;
+    META.VR_DISPLAY = null;
+    META.VR_LEFT_EYE_PARAMS = null;
+    META.VR_RIGHT_EYE_PARAMS = null;
 }
 
 function _initDefaultSkinningTexture()

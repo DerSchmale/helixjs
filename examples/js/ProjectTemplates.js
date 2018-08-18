@@ -19,7 +19,12 @@ SimpleProject.prototype =
         {
             if (this._initialized) throw new Error("Already initialized project!");
 
-            HX.init(canvas, initOptions);
+            try {
+				HX.init(canvas, initOptions);
+			}
+			catch (err) {
+                this.showError("It seems WebGL is not supported on this device.")
+            }
 
             this._canvas = canvas;
 
@@ -41,19 +46,10 @@ SimpleProject.prototype =
             var preloader = document.getElementById("preloader");
             document.body.removeChild(preloader);
 
-            this._resizeCanvas();
-
             this._scene = new HX.Scene();
             this._camera = new HX.PerspectiveCamera();
             this._scene.attach(this._camera);
-            this._renderer = new HX.Renderer();
-
-            var self = this;
-
-            window.addEventListener('resize', function()
-            {
-                self._resizeCanvas();
-            });
+            this._initRenderers();
 
             this.onInit();
             this._initialized = true;
@@ -113,23 +109,23 @@ SimpleProject.prototype =
                 throw new Error("Camera attached to a different scene!");
         },
 
+		showError: function(message)
+        {
+            console.log(document.getElementById("errorContainer"));
+            document.getElementById("errorContainer").classList.remove("hidden");
+            document.getElementById("errorMessage").innerHTML = message;
+        },
+
+        _initRenderers: function()
+        {
+            this._renderer = new HX.Renderer();
+        },
+
         _update: function(dt)
         {
             this.onUpdate(dt);
 
             this._renderer.render(this._camera, this._scene, dt);
-        },
-
-        _resizeCanvas: function()
-        {
-            var pixelRatio = window.devicePixelRatio || 1.0;
-            var w = window.innerWidth;
-            var h = window.innerHeight;
-            this._canvas.width = Math.round(w * pixelRatio);
-            this._canvas.height = Math.round(h * pixelRatio);
-
-            this._canvas.style.width = w + "px";
-            this._canvas.style.height = h + "px";
         }
     };
 
@@ -158,110 +154,51 @@ DemoProject.prototype.init = function(canvas, initOptions)
  */
 function MultiViewProject()
 {
-    this._initialized = false;
-    this._assetLibrary = new HX.AssetLibrary("../assets/");
+    SimpleProject.call(this);
 }
 
-MultiViewProject.prototype =
-    {
-        //override or assign these
-        onInit: function() {},
-        onUpdate: function(dt) {},
+MultiViewProject.prototype = Object.create(SimpleProject.prototype);
 
-        // automatically starts as well
-        init: function(canvas, initOptions)
-        {
-            if (this._initialized) throw new Error("Already initialized project!");
+MultiViewProject.prototype._initRenderers = function()
+{
+    this._renderer = new HX.MultiRenderer();
+};
 
-            HX.init(canvas, initOptions);
+MultiViewProject.prototype.addView = function(view)
+{
+    this._renderer.addView(view);
+};
 
-            this._canvas = document.getElementById('webglContainer');
+MultiViewProject.prototype.removeView = function(view)
+{
+    this._renderer.removeView(view);
+};
 
-            this.queueAssets(this._assetLibrary);
 
-            this._assetLibrary.onComplete.bind(this._onAssetsLoaded, this);
-            this._assetLibrary.onProgress.bind(this._onAssetsProgress, this);
-            this._assetLibrary.load();
-        },
 
-        _onAssetsProgress: function(ratio)
-        {
-            var preloader = document.getElementById("preloaderProgress");
-            preloader.style.width = Math.floor(ratio * 100) + "%";
-        },
+/**
+ * MultiViewProject is a project template for the simple multi-view set-ups
+ * @constructor
+ */
+function VRProject()
+{
+    SimpleProject.call(this);
+}
 
-        _onAssetsLoaded: function()
-        {
-            var preloader = document.getElementById("preloader");
-            preloader.style.display = "none";
+VRProject.prototype = Object.create(SimpleProject.prototype);
 
-            this._resizeCanvas();
+VRProject.prototype._initRenderers = function()
+{
+    this._renderer = new HX.Renderer();
+    this._vrRenderer = new HX.VRRenderer();
+};
 
-            this._renderer = new HX.MultiRenderer();
+VRProject.prototype._update = function(dt)
+{
+    this.onUpdate(dt);
 
-            var self = this;
-
-            window.addEventListener('resize', function()
-            {
-                self._resizeCanvas();
-            });
-
-            this.onInit();
-            this._initialized = true;
-            this.start();
-        },
-
-        queueAssets: function(assetLibrary)
-        {
-
-        },
-
-        addView: function(view)
-        {
-            this._renderer.addView(view);
-        },
-
-        removeView: function(view)
-        {
-            this._renderer.removeView(view);
-        },
-
-        start: function()
-        {
-            HX.onFrame.bind(this._update, this);
-        },
-
-        stop: function()
-        {
-            HX.onFrame.unbind(this._update);
-        },
-
-        get renderer()
-        {
-            return this._renderer;
-        },
-
-        get assetLibrary()
-        {
-            return this._assetLibrary;
-        },
-
-        _update: function(dt)
-        {
-            this.onUpdate(dt);
-
-            this._renderer.render(dt);
-        },
-
-        _resizeCanvas: function()
-        {
-            var pixelRatio = window.devicePixelRatio || 1.0;
-            var w = window.innerWidth;
-            var h = window.innerHeight;
-            this._canvas.width = Math.round(w * pixelRatio);
-            this._canvas.height = Math.round(h * pixelRatio);
-
-            this._canvas.style.width = w + "px";
-            this._canvas.style.height = h + "px";
-        }
-    };
+    if (HX.META.VR_DISPLAY)
+        this._vrRenderer.render(this._camera, this._scene, dt);
+    else
+        this._renderer.render(this._camera, this._scene, dt);
+};

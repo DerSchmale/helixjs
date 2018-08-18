@@ -45,7 +45,7 @@ SpotShadowMapRenderer.prototype =
 			var ty = rect.y * atlasSize;
 			light._shadowTile.set(.5 * sx, .5 * sy, .5 * sx + tx, .5 * sy + ty);
 
-			RenderUtils.renderPass(this, MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, this._casterCollector.getRenderList(), light);
+			RenderUtils.renderPass(this, this._camera, MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, this._casterCollector.getRenderList(), light);
 		}
 	};
 

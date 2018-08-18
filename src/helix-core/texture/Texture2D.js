@@ -2,6 +2,8 @@ import {GL} from "../core/GL";
 import {DataType, TextureFormat, TextureFilter, TextureWrapMode, capabilities} from "../Helix";
 import {TextureUtils} from "./TextureUtils";
 
+var nameCounter = 0;
+
 /**
  * @classdesc
  * Texture2D represents a 2D texture.
@@ -12,7 +14,7 @@ import {TextureUtils} from "./TextureUtils";
  */
 function Texture2D()
 {
-    this._name = null;
+    this._name = "hx_texture2d_" + (nameCounter++);
     this._default = Texture2D.DEFAULT;
     this._texture = GL.gl.createTexture();
     this._width = 0;

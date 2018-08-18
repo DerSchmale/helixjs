@@ -4,6 +4,8 @@ import {VertexLayout} from "./VertexLayout";
 import {MaterialPass} from "../material/MaterialPass";
 import {Component} from "../entity/Component";
 
+var nameCounter = 0;
+
 /**
  * @classdesc
  * MeshInstance allows bundling a {@linkcode Mesh} with a {@linkcode Material} for rendering, allowing both the geometry
@@ -21,6 +23,7 @@ function MeshInstance(mesh, material)
 {
 	Component.call(this);
 
+	this._name = "hx_meshinstance_" + (nameCounter++);
 	this._bounds = new BoundingAABB();
 	this._morphPositions = null;
 	this._morphNormals = null;
@@ -366,17 +369,20 @@ MeshInstance.prototype._initMorphData = function()
 		this._morphWeights[i] = 0;
 	}
 
-	this._material._setUseMorphing(
-		this._mesh.hasMorphData,
-		this._mesh.hasMorphNormals
-	);
+	if (this._material) {
+		this._material._setUseMorphing(
+			this._mesh.hasMorphData,
+			this._mesh.hasMorphNormals
+		);
+	}
 };
 
 MeshInstance.prototype.clone = function()
 {
 	var clone = new MeshInstance(this._mesh, this._material);
 	clone.castShadows = this.castShadows;
-	clone.skeletonPose = this._skeletonPose.clone();
+	if (this._skeletonPose)
+		clone.skeletonPose = this._skeletonPose.clone();
 	return clone;
 };
 

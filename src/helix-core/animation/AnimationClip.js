@@ -1,3 +1,5 @@
+var nameCounter = 0;
+
 /**
  * @classdesc
  * AnimationClip is a resource that contains key frames (time / value pairs). AnimationClip itself has no playback state,
@@ -13,7 +15,7 @@
  */
 function AnimationClip()
 {
-    this._name = null;
+	this._name = "hx_animationclip_" + (nameCounter++);
     this._keyFrames = [];
     this._duration = 0;
     this._looping = true;

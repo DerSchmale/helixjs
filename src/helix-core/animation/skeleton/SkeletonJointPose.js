@@ -1,6 +1,8 @@
 import {Quaternion} from "../../math/Quaternion";
 import {Float4} from "../../math/Float4";
 
+var nameCounter = 0;
+
 /**
  * @classdesc
  * SkeletonJointPose represents the translation, rotation, and scale for a joint to have. Used by {@linkcode SkeletonPose}.

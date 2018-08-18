@@ -37,6 +37,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     // dispatched when the material's code changed and a link with a mesh may have become invalid
     this.onChange = new Signal();
 
+	this._name = "hx_material_" + MATERIAL_ID_COUNTER;
     this._elementType = ElementType.TRIANGLES;
     this._cullMode = CullMode.BACK;
     this._writeDepth = true;
@@ -53,7 +54,6 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._useNormalMorphing = false;
     this._useSkinning = false;
 
-    this._name = null;
     this._geometryVertexShader = geometryVertexShader;
     this._geometryFragmentShader = geometryFragmentShader;
     this._lightingModel = lightingModel || META.OPTIONS.defaultLightingModel;

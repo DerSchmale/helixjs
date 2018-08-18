@@ -11,14 +11,23 @@ import {SkeletonJointPose} from "../skeleton/SkeletonJointPose";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function AnimationLayerFloat4(targetObject, propertyName, clip)
+function AnimationLayerFloat4(targetName, propertyName, clip)
 {
-    Debug.assert(targetObject[propertyName] instanceof Float4, "Type mismatch!");
-    AnimationLayer.call(this, targetObject, propertyName, clip);
-    this._skeletonPose = targetObject instanceof SkeletonJointPose? targetObject.skeletonPose : null;
+    AnimationLayer.call(this, targetName, propertyName, clip);
 }
 
 AnimationLayerFloat4.prototype = Object.create(AnimationLayer.prototype);
+
+/**
+ * @ignore
+ * @private
+ */
+AnimationLayerFloat4.prototype._verifyTarget = function()
+{
+	Debug.assert(this._targetObject[this._propertyName] instanceof Float4, "Type mismatch!");
+
+	this._skeletonPose = this._targetObject instanceof SkeletonJointPose? this._targetObject.skeletonPose : null;
+};
 
 /**
  * This needs to be called every frame.
@@ -33,6 +42,14 @@ AnimationLayerFloat4.prototype.update = function (dt)
         this._targetObject[this._propertyName].lerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
         if (this._skeletonPose) this._skeletonPose.invalidateGlobalPose();
     }
+};
+
+/**
+ * @inheritDoc
+ */
+AnimationLayerFloat4.prototype.clone = function()
+{
+	return new AnimationLayerFloat4(this._targetName, this._propertyName, this._clip);
 };
 
 export {AnimationLayerFloat4};

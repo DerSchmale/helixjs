@@ -6,10 +6,11 @@ import {Float4} from "../math/Float4";
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {MorphTarget} from "../animation/morph/MorphTarget";
 
+
 /**
  * @ignore
  */
-var Mesh_ID_COUNTER = 0;
+var MESH_ID_COUNTER = 0;
 
 /**
  * @classdesc
@@ -35,7 +36,7 @@ function Mesh()
     this.onLayoutChanged = new Signal();
     this.onMorphDataCreated = new Signal();
 	this.onSkeletonChange = new Signal();
-	this._name = "";
+	this._name = "hx_mesh_" + MESH_ID_COUNTER;
 	this._bounds = new BoundingAABB();
 	this._boundsInvalid = true;
 	this._dynamicBounds = true;
@@ -58,7 +59,7 @@ function Mesh()
 
 	this._skeleton = null;
 
-    this._renderOrderHint = ++Mesh_ID_COUNTER;
+    this._renderOrderHint = ++MESH_ID_COUNTER;
 }
 
 /**

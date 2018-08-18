@@ -2,7 +2,6 @@ import {Component} from "../../entity/Component";
 import {AnimationClip} from "./../AnimationClip";
 import {SkeletonClipNode} from "./SkeletonClipNode";
 import {SkeletonBlendTree} from "./SkeletonBlendTree";
-import {META} from "../../Helix";
 
 
 /**

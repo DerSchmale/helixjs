@@ -1,131 +1,197 @@
-import {onPreFrame} from "../../Helix";
+import {Component} from "../../entity/Component";
+import {Entity} from "../../entity/Entity";
+import {MeshInstance} from "../../mesh/MeshInstance";
+import {MorphAnimation} from "../morph/MorphAnimation";
+
+var nameCounter = 0;
 
 /**
- * LayeredAnimation combines a bunch of AnimationLayer objects into a single manageable animation. This acts globally,
- * so it's not a {@linkcode Component} belonging to an {@linkcode Entity}. It can be seen as a global keyframe animation
- * system.
+ * LayeredAnimation is a Component that combines a set of AnimationLayer objects into a single manageable animation.
+ * The layer animations can act on any object, joint pose or morph pose in the hierarchy of the {@linkcode Entity} to
+ * which the Component was assigned. When added to the Scene's root node, it can be seen as a global keyframe animation
+ * system for the given scene.
  *
  * @constructor
+ *
+ * @extends Component
+ *
+ * @property name The name of the animation.
+ * @property timeScale A value to control the playback speed.
+ * @property time The current time in milliseconds of the play head.
+ * @property looping Determines whether the animation should loop or not. By default, it uses the value determined by
+ * the AnimationClip, but can be overridden.
  */
 function LayeredAnimation()
 {
-    this._layers = [];
-    this._time = 0;
-    this._timeScale = 1;
-    this._name = null;
-    this._looping = true;
+	Component.call(this);
+	this._layers = [];
+	this._time = 0;
+	this._timeScale = 1;
+	this._name = "hx_layeredanimation_" + (nameCounter++);
+	this._looping = true;
 }
 
-LayeredAnimation.prototype = {
-    /**
-     * The name of the animation.
-     */
-    get name()
-    {
-        return this._name;
-    },
+Component.create(LayeredAnimation, {
+	name: {
+		get: function()
+		{
+			return this._name;
+		},
 
-    set name(value)
-    {
-        this._name = value;
-    },
+		set: function(value)
+		{
+			this._name = value;
+		}
+	},
 
-    /**
-     * A value to control the playback speed.
-     */
-    get timeScale()
-    {
-        return this._timeScale;
-    },
-    set timeScale(value)
-    {
-        this._timeScale = value;
-    },
+	timeScale: {
+		get: function()
+		{
+			return this._timeScale;
+		},
 
-    /**
-     * The current time in milliseconds of the play head.
-     */
-    get time()
-    {
-        return this._time;
-    },
-    set time(value)
-    {
-        this._time = value;
-        for (var i = 0; i < this._layers.length; ++i) {
-            this._layers[i].time = value;
-        }
-    },
+		set: function(value)
+		{
+			this._timeScale = value;
+		}
+	},
 
-    /**
-     * Determines whether the animation should loop or not. By default, it uses the value determined by the
-     * AnimationClip, but can be overridden.
-     */
-    get looping()
-    {
-        return this._looping;
-    },
-    set looping(value)
-    {
-        this._looping = value
-        for (var i = 0; i < this._layers.length; ++i) {
-            this._layers[i].looping = true;
-        }
-    },
+	time: {
+		get: function()
+		{
+			return this._time;
+		},
 
-    /**
-     * Adds a layer to the animation
-     * @param layer
-     */
-    addLayer: function (layer)
-    {
-        this._layers.push(layer);
-        layer.time = this._time;
-        layer.looping = this._looping;
-    },
+		set: function(value)
+		{
+			this._time = value;
+			for (var i = 0; i < this._layers.length; ++i) {
+				this._layers[i].time = value;
+			}
+		}
+	},
 
-    /**
-     * Removes a layer from the animation
-     * @param layer
-     */
-    removeLayer: function (layer)
-    {
-        var index = this._layers.indexOf(layer);
-        if (index >= 0)
-            this._layers.splice(index, 1);
-    },
+	looping: {
+		get: function()
+		{
+			return this._looping;
+		},
 
-    /**
-     * Starts playback of the animation
-     */
-    play: function ()
-    {
-        onPreFrame.bind(this._update, this);
-    },
+		set: function(value)
+		{
+			this._looping = value;
+			for (var i = 0; i < this._layers.length; ++i) {
+				this._layers[i].looping = true;
+			}
+		}
+	}
+});
 
-    /**
-     * Stops playback of the animation
-     */
-    stop: function ()
-    {
-        onPreFrame.unbind(this._update);
-    },
-
-    /**
-     * This needs to be called every frame.
-     * @param dt The time passed since last frame in milliseconds.
-     */
-    _update: function (dt)
-    {
-        dt *= this._timeScale;
-
-        this._time += dt;
-
-        var len = this._layers.length;
-        for (var i = 0; i < len; ++i) {
-            this._layers[i].update(dt);
-        }
-    }
+/**
+ * Adds a layer to the animation
+ * @param layer
+ */
+LayeredAnimation.prototype.addLayer = function(layer)
+{
+	this._layers.push(layer);
+	layer.time = this._time;
+	layer.looping = this._looping;
 };
 
-export { LayeredAnimation }
+/**
+ * Removes a layer from the animation
+ * @param layer
+ */
+LayeredAnimation.prototype.removeLayer = function(layer)
+{
+	var index = this._layers.indexOf(layer);
+	if (index >= 0)
+		this._layers.splice(index, 1);
+};
+
+LayeredAnimation.prototype.onAdded = function()
+{
+	var lookups = this._collectPotentialTargets();
+
+	for (var i = 0, len = this._layers.length; i < len; ++i) {
+		this._layers[i].resolveTarget(lookups);
+	}
+};
+
+LayeredAnimation.prototype.onRemoved = function()
+{
+	for (var i = 0, len = this._layers.length; i < len; ++i) {
+		this._layers[i].resolveTarget(null);
+	}
+};
+
+LayeredAnimation.prototype.onUpdate = function(dt)
+{
+	dt *= this._timeScale;
+
+	this._time += dt;
+
+	var len = this._layers.length;
+	for (var i = 0; i < len; ++i) {
+		this._layers[i].update(dt);
+	}
+};
+
+LayeredAnimation.prototype.clone = function()
+{
+	var clone = new LayeredAnimation();
+	clone.name = this.name;
+	clone.looping = this.looping;
+	clone.timeScale = this.timeScale;
+	clone.time = this.time;
+
+	for (var i = 0, len = this._layers.length; i < len; ++i) {
+		var layer = this._layers[i];
+		clone.addLayer(layer.clone());
+	}
+
+	return clone;
+};
+
+LayeredAnimation.prototype._collectPotentialTargets = function()
+{
+	var targets = {};
+	this._entity.applyFunction(function(node) {
+		targets[node._name] = node;
+
+		if (node instanceof Entity) {
+			var meshInstances = node.getComponentsByType(MeshInstance);
+
+			for (var i = 0, len = meshInstances.length; i < len; ++i) {
+				targets[meshInstances[i].name] = meshInstances[i];
+				this._collectPotentialJoints(meshInstances[i], targets);
+			}
+
+			var morphAnimations = node.getComponentsByType(MorphAnimation);
+			for (i = 0, len = morphAnimations.length; i < len; ++i) {
+				targets[morphAnimations[i].name] = morphAnimations[i];
+			}
+		}
+	}, this);
+
+	return targets;
+};
+
+/**
+ * @private
+ * @ignore
+ */
+LayeredAnimation.prototype._collectPotentialJoints = function(meshInstance, targets)
+{
+	var skeleton = meshInstance.skeleton;
+
+	if (!skeleton) return;
+
+	for (var i = 0, len = skeleton.numJoints; i < len; ++i) {
+		targets[skeleton.getJoint(i).name] = meshInstance.skeletonPose.getJointPose(i);
+	}
+
+	return false;
+};
+
+export {LayeredAnimation}

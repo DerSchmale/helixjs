@@ -11,14 +11,24 @@ import {SkeletonJointPose} from "../skeleton/SkeletonJointPose";
  *
  * @author derschmale <http://www.derschmale.com>
  */
-function AnimationLayerQuat(targetObject, propertyName, clip)
+function AnimationLayerQuat(targetName, propertyName, clip)
 {
-    Debug.assert(targetObject[propertyName] instanceof Quaternion, "Type mismatch!");
-    AnimationLayer.call(this, targetObject, propertyName, clip);
-    this._skeletonPose = targetObject instanceof SkeletonJointPose? targetObject.skeletonPose : null;
+    AnimationLayer.call(this, targetName, propertyName, clip);
 }
 
 AnimationLayerQuat.prototype = Object.create(AnimationLayer.prototype);
+
+/**
+ * @ignore
+ * @private
+ */
+AnimationLayerQuat.prototype._verifyTarget = function()
+{
+	Debug.assert(this._targetObject[this._propertyName] instanceof Quaternion, "Type mismatch!");
+	this._skeletonPose = this._targetObject instanceof SkeletonJointPose? this._targetObject.skeletonPose : null;
+};
+
+
 
 /**
  * This needs to be called every frame.
@@ -33,6 +43,14 @@ AnimationLayerQuat.prototype.update = function (dt)
         this._targetObject[this._propertyName].slerp(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
         if (this._skeletonPose) this._skeletonPose.invalidateGlobalPose();
     }
+};
+
+/**
+ * @inheritDoc
+ */
+AnimationLayerQuat.prototype.clone = function()
+{
+	return new AnimationLayerQuat(this._targetName, this._propertyName, this._clip);
 };
 
 export {AnimationLayerQuat};

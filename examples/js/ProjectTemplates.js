@@ -185,7 +185,21 @@ function VRProject()
     SimpleProject.call(this);
 }
 
-VRProject.prototype = Object.create(SimpleProject.prototype);
+VRProject.prototype = Object.create(SimpleProject.prototype, {
+	vrRenderer: {
+	    get: function()
+		{
+			return this._vrRenderer;
+		}
+	}
+});
+
+VRProject.prototype.init = function(canvas, initOptions)
+{
+	SimpleProject.prototype.init.call(this, canvas, initOptions);
+
+	this._stats = new HX.StatsDisplay();
+};
 
 VRProject.prototype._initRenderers = function()
 {

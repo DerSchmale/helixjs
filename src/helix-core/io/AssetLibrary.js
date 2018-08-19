@@ -58,7 +58,7 @@ AssetLibrary.Type = {
     JSON: 0,
 
     /**
-     * An asset.
+     * A Helix-based asset.
      */
     ASSET: 1,
 

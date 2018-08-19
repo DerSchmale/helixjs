@@ -14,7 +14,8 @@ var swapMatrix = new Matrix4x4(
 
 /**
  * @ignore
- * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function VRDummyCamera()
 {

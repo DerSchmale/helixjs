@@ -72,6 +72,10 @@ export {SkeletonJointPose} from "./animation/skeleton/SkeletonJointPose";
 export {SkeletonPose} from "./animation/skeleton/SkeletonPose";
 export {SkeletonXFadeNode} from "./animation/skeleton/SkeletonXFadeNode";
 
+export {AudioClip} from "./audio/AudioClip";
+export {AudioEmitter} from "./audio/AudioEmitter";
+export {AudioListener} from "./audio/AudioListener";
+
 export {Camera} from "./camera/Camera";
 export {Frustum} from "./camera/Frustum";
 export {PerspectiveCamera} from "./camera/PerspectiveCamera";
@@ -100,6 +104,7 @@ export {ReinhardToneMapping} from "./effect/ReinhardToneMapping";
 
 export {AssetLibrary} from "./io/AssetLibrary";
 export {AssetLoader} from "./io/AssetLoader";
+export {AudioFile} from "./io/AudioFile";
 export {URLLoader} from "./io/URLLoader";
 export {HCLIP} from "./io/HCLIP";
 export {HCM} from "./io/HCM";

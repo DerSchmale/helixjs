@@ -54,7 +54,12 @@ export var META =
         /**
          * The WebVR right eye parameters (if enabled)
 		 */
-		VR_RIGHT_EYE_PARAMS: null
+		VR_RIGHT_EYE_PARAMS: null,
+
+		/**
+         * The Audio Context used for audio playback
+		 */
+		AUDIO_CONTEXT: null
 	};
 
 /**
@@ -466,6 +471,7 @@ export function init(canvas, options)
     if (META.INITIALIZED) throw new Error("Can only initialize Helix once!");
 
     META.TARGET_CANVAS = canvas;
+    META.AUDIO_CONTEXT = new (window.AudioContext || window.webkitAudioContext)();
 
     _updateCanvasSize();
 

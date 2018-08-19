@@ -4,6 +4,7 @@ import * as CANNON from "cannon";
 import {RigidBody} from "./components/RigidBody";
 
 /**
+ * @classdesc
  * PhysicsSystem is an {@linkcode EntitySystem} allowing physics simulations (based on cannonjs).
  *
  * @property fixedTimeStep If 0, it uses the frame delta times which is not recommended for stability reasons.

@@ -28,6 +28,8 @@ import {UniformBuffer} from "../core/UniformBuffer";
  * @classdesc
  * Renderer performs the actual rendering of a {@linkcode Scene} as viewed by a {@linkcode Camera} to the screen.
  *
+ * @param {RenderTarget} [renderTarget] An optional render target for the Renderer to draw to.
+ *
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -840,8 +842,8 @@ Renderer.prototype =
     },
 
     /**
-     * I know, it's not actual blitting.
      * @ignore
+	 * @private
      */
     _present: function()
     {

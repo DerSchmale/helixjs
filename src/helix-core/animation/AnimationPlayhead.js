@@ -15,7 +15,7 @@ function AnimationPlayhead(clip)
 {
     this._clip = clip;
     this._time = 0;
-    this._timeScale = 1.0;
+    this._playbackRate = 1.0;
     this._isPlaying = true;
     this._currentFrameIndex = 0;
     this._timeChanged = true;
@@ -52,8 +52,8 @@ AnimationPlayhead.prototype =
         /**
          * A value to control the playback speed.
          */
-        get timeScale() { return this._timeScale; },
-        set timeScale(value) { this._timeScale = value; },
+        get playbackRate() { return this._playbackRate; },
+        set playbackRate(value) { this._playbackRate = value; },
 
         /**
          * Determines whether the animation should loop or not. By default, it uses the value determined by the
@@ -106,7 +106,7 @@ AnimationPlayhead.prototype =
             this._timeChanged = false;
 
             if (this._isPlaying) {
-                dt *= this._timeScale;
+                dt *= this._playbackRate;
                 this._time += dt;
             }
 

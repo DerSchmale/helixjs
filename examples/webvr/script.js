@@ -86,11 +86,8 @@ function initCamera(camera)
 
 function initScene(scene)
 {
-    var lights = [];
     var dirLight = new HX.DirectionalLight();
     dirLight.castShadows = true;
-	lights.push(dirLight);
-
 	dirLight = new HX.Entity(dirLight);
     dirLight.lookAt(new HX.Float4(-1.0, 1.0, -1.0));
 

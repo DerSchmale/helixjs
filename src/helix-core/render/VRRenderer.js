@@ -5,6 +5,14 @@ import {RectMesh} from "../mesh/RectMesh";
 import {Rect} from "../core/Rect";
 import {GL} from "../core/GL";
 
+/**
+ * @classdesc
+ * VRRenderer is a renderer to WebVR. This can only be used if `HX.enableVR` is called
+ *
+ * @constructor
+ *
+ * @author derschmale <http://www.derschmale.com>
+ */
 function VRRenderer()
 {
     Renderer.call(this);
@@ -16,6 +24,9 @@ function VRRenderer()
 
 VRRenderer.prototype = Object.create(Renderer.prototype);
 
+/**
+ * @inheritDoc
+ */
 VRRenderer.prototype.render = function(camera, scene, dt)
 {
     // TODO: Render to two intermediate renderTargets
@@ -49,6 +60,9 @@ VRRenderer.prototype.render = function(camera, scene, dt)
     this._renderToScreen();
 };
 
+/**
+ * @ignore
+ */
 VRRenderer.prototype._present = function()
 {
     if (this._gammaApplied) {
@@ -67,6 +81,9 @@ VRRenderer.prototype._present = function()
     GL.setViewport();
 };
 
+/**
+ * @ignore
+ */
 VRRenderer.prototype._updateSize = function()
 {
     var width, height;

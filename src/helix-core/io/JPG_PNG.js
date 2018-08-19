@@ -1,6 +1,5 @@
 import {Texture2D} from "../texture/Texture2D";
 import {Importer} from "./Importer";
-import {TextureWrapMode} from "../Helix";
 
 /**
  * @classdesc

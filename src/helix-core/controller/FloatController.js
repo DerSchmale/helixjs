@@ -108,7 +108,7 @@ Component.create(FloatController, {
 /**
  * @ignore
  */
-FloatController.prototype.onAdded = function(dt)
+FloatController.prototype.onAdded = function()
 {
     var self = this;
     this._onKeyDown = function(event) {
@@ -189,7 +189,7 @@ FloatController.prototype.onAdded = function(dt)
 /**
  * @ignore
  */
-FloatController.prototype.onRemoved = function(dt)
+FloatController.prototype.onRemoved = function()
 {
     document.removeEventListener("keydown", this._onKeyDown);
     document.removeEventListener("keyup", this._onKeyUp);

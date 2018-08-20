@@ -21,7 +21,7 @@ BounceComponent.prototype.onAdded = function()
 
 BounceComponent.prototype.onUpdate = function(dt)
 {
-	var pos = this.entity.position;
+    var pos = this.entity.position;
 	pos.addScaled(this._velocity, dt / 1000);
 
 	var hit = false;

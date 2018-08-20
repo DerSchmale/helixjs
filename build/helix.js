@@ -3717,6 +3717,12 @@
 
 	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
+	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
+
+	ShaderLibrary._files['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    float occlusion;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)\n};';
+
+	ShaderLibrary._files['snippets_tonemap.glsl'] = 'varying_in vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    #ifdef HX_GLSL_300_ES\n    float referenceLuminance = textureLod(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #else\n    float referenceLuminance = texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #endif\n    referenceLuminance = exp(referenceLuminance) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
+
 	ShaderLibrary._files['2d_to_cube_vertex.glsl'] = '// position to write to\nvertex_attribute vec4 hx_position;\n\n// the corner of the cube map\nvertex_attribute vec3 corner;\n\nvarying_out vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
 
 	ShaderLibrary._files['equirectangular_to_cube_fragment.glsl'] = '#define RECIPROCAL_PI2 0.15915494\n\nvarying_in vec3 direction;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    vec3 dir = normalize(direction);\n    vec2 uv;\n    uv.x = atan( dir.z, dir.x ) * RECIPROCAL_PI2 + 0.5;\n	uv.y = dir.y * 0.5 + 0.5;\n    hx_FragColor = texture2D(source, uv);\n}\n';
@@ -3724,12 +3730,6 @@
 	ShaderLibrary._files['greyscale_to_rgba8.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    hx_FragColor = hx_floatToRGBA8(texture2D(source, uv).x);\n}\n';
 
 	ShaderLibrary._files['smooth_heightmap_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D reference;    // the source (8 bit) texture\nuniform sampler2D source;\n\nuniform vec2 stepSize;\n\nvoid main()\n{\n    float gauss[4];\n    gauss[0] = 0.201788613113303;\n    gauss[1] = 0.17755834971394;\n    gauss[2] = 0.120969095455128;\n    gauss[3] = 0.063811162332456;\n    float refHeight = texture2D(reference, uv).x;\n    float total = hx_RGBA8ToFloat(texture2D(source, uv)) * gauss[0];\n    float totalWeight = gauss[0];\n    float currentWeightL = 1.0;\n    float currentWeightR = 1.0;\n    vec2 offset = vec2(0.0);\n\n\n    for (int i = 0; i < 3; ++i) {\n        offset += stepSize;\n        float refLeft = texture2D(reference, uv - offset).x;\n        float refRight = texture2D(reference, uv + offset).x;\n        float heightLeft = hx_RGBA8ToFloat(texture2D(source, uv - offset));\n        float heightRight = hx_RGBA8ToFloat(texture2D(source, uv + offset));\n        // smooth out over N pixels that have the same reference height in the source image\n        currentWeightL = max(currentWeightL - abs(refLeft - refHeight) * 5.0, 0.0);\n        currentWeightR = max(currentWeightR - abs(refRight - refHeight) * 5.0, 0.0);\n        totalWeight += (currentWeightL + currentWeightR) * gauss[i + 1];\n        total += (heightLeft * currentWeightL + heightRight * currentWeightR) *  gauss[i + 1];\n    }\n\n    hx_FragColor = hx_floatToRGBA8(total / totalWeight);\n//    hx_FragColor = hx_floatToRGBA8(refHeight);\n}\n';
-
-	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
-
-	ShaderLibrary._files['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    float occlusion;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)\n};';
-
-	ShaderLibrary._files['snippets_tonemap.glsl'] = 'varying_in vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    #ifdef HX_GLSL_300_ES\n    float referenceLuminance = textureLod(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #else\n    float referenceLuminance = texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #endif\n    referenceLuminance = exp(referenceLuminance) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
 
 	ShaderLibrary._files['ao_blur_fragment.glsl'] = 'varying_in vec2 uv1;\nvarying_in vec2 uv2;\nvarying_in vec2 uv3;\nvarying_in vec2 uv4;\n\nuniform sampler2D source;\n\nvoid main()\n{\n    vec4 total = texture2D(source, uv1) + texture2D(source, uv2) + texture2D(source, uv3) + texture2D(source, uv4);\n	hx_FragColor = total * .25;\n}';
 
@@ -3924,6 +3924,8 @@
 
 	        this._currentTime = time;
 
+	        // this happens when switching to VR
+	        if (this._dt < 0) this._dt = 0;
 	        this.onTick.dispatch(this._dt);
 	    },
 
@@ -6615,6 +6617,26 @@
 	    this.set(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33);
 	}
 
+	/**
+	 * Adds two matrices together
+	 */
+	Matrix4x4.add = function(m1, m2, target)
+	{
+	    target = target || new Matrix4x4();
+	    target.copyFrom(m1);
+	    return target.add(m2);
+	};
+
+	/**
+	 * Multiplies two matrices. The order of the parameters are the order of the multiplication. M1 is appended to M2
+	 */
+	Matrix4x4.multiply = function(m1, m2, target)
+	{
+	    target = target || new Matrix4x4();
+	    target.copyFrom(m1);
+	    return target.prepend(m2);
+	};
+
 	Matrix4x4.prototype =
 	{
 	    /**
@@ -7330,12 +7352,16 @@
 	    },
 
 	    /**
-	     * Initializes as the inverse of the given matrix.
+	     * Initializes as the inverse of the given matrix. If the matrix is not invertible, the method returns null and the
+	     * matrix remains unchanged. Otherwise, it returns itself.
 	     */
 	    inverseOf: function (matrix)
 	    {
+	        var determinant = matrix.determinant();
+	        if (determinant === 0.0) return null;
+
 	        // this can be much more efficient, but I'd like to keep it readable for now. The full inverse is not required often anyway.
-	        var rcpDet = 1.0 / matrix.determinant();
+	        var rcpDet = 1.0 / determinant;
 
 	        // needs to be self-assignment-proof
 	        var m0 = rcpDet * matrix.cofactor(0, 0);
@@ -7377,6 +7403,7 @@
 
 	    /**
 	     * Initializes as the inverse of the given matrix, assuming it is affine. It's faster than regular inverse.
+	     * If the matrix is not invertible, the method returns null and the matrix remains unchanged.
 	     */
 	    inverseAffineOf: function (a)
 	    {
@@ -7386,6 +7413,9 @@
 	        var m8 = mm[8], m9 = mm[9], m10 = mm[10];
 	        var m12 = mm[12], m13 = mm[13], m14 = mm[14];
 	        var determinant = m0 * (m5 * m10 - m9 * m6) - m4 * (m1 * m10 - m9 * m2) + m8 * (m1 * m6 - m5 * m2);
+
+	        if (determinant === 0.0) return null;
+
 	        var rcpDet = 1.0 / determinant;
 
 	        var n0 = (m5 * m10 - m9 * m6) * rcpDet;
@@ -7476,7 +7506,8 @@
 	    },
 
 	    /**
-	     * Inverts the matrix.
+	     * Inverts the matrix. If the matrix is not invertible, the method returns null and the matrix remains unchanged.
+	     * Otherwise, it returns itself.
 	     */
 	    invert: function ()
 	    {
@@ -7484,7 +7515,8 @@
 	    },
 
 	    /**
-	     * Inverts the matrix, assuming it's affine (faster than regular inverse)
+	     * Inverts the matrix, assuming it's affine (faster than regular inverse). If the matrix is not invertible, the
+	     * method returns null and the matrix remains unchanged. Otherwise, it returns itself.
 	     */
 	    invertAffine: function ()
 	    {
@@ -22150,30 +22182,63 @@
 
 	AudioListener.prototype.onRemoved = function()
 	{
+	    if (listener.positionX) {
+	        listener.positionX.value = 0;
+	        listener.positionY.value = 0;
+	        listener.positionZ.value = 0;
+	        listener.forwardX.value = 0;
+	        listener.forwardY.value = 0;
+	        listener.forwardZ.value = 1;
+	        listener.upX.value = 0;
+	        listener.upY.value = 1;
+	        listener.upZ.value = 0;
+	    }
+	    else {
+	        listener.setPosition(0, 0, 0);
+	        listener.setOrientation(0, 0, 1, 0, 1, 0);
+	    }
+
 		listener = null;
 	};
 
 	AudioListener.prototype.onUpdate = function(dt)
 	{
-		var time = META.AUDIO_CONTEXT.currentTime;
-		var m = this._entity.worldMatrix._m;
+	    var vrMatrix;
 
-		if (listener.positionX) {
-	        listener.positionX.setValueAtTime(m[12], time);
-	        listener.positionY.setValueAtTime(m[13], time);
-	        listener.positionZ.setValueAtTime(m[14], time);
-	        listener.forwardX.setValueAtTime(m[4], time);
-	        listener.forwardY.setValueAtTime(m[5], time);
-	        listener.forwardZ.setValueAtTime(m[6], time);
-	        listener.upX.setValueAtTime(m[8], time);
-	        listener.upY.setValueAtTime(m[9], time);
-	        listener.upZ.setValueAtTime(m[10], time);
+	    return function()
+	    {
+	        var time = META.AUDIO_CONTEXT.currentTime;
+	        var m;
+
+	        // Check it it's a VRCamera, so we need to provide a different matrix
+	        if (this._entity.worldMatrixLeft) {
+	            vrMatrix = Matrix4x4.add(this._entity.worldMatrixLeft, this._entity.worldMatrixRight, vrMatrix);
+	            m = vrMatrix._m;
+	            m[12] *= .5;
+	            m[13] *= .5;
+	            m[14] *= .5;
+	        }
+	        else {
+	            m = this._entity.worldMatrix._m;
+	        }
+
+	        if (listener.positionX) {
+	            listener.positionX.setValueAtTime(m[12], time);
+	            listener.positionY.setValueAtTime(m[13], time);
+	            listener.positionZ.setValueAtTime(m[14], time);
+	            listener.forwardX.setValueAtTime(m[4], time);
+	            listener.forwardY.setValueAtTime(m[5], time);
+	            listener.forwardZ.setValueAtTime(m[6], time);
+	            listener.upX.setValueAtTime(m[8], time);
+	            listener.upY.setValueAtTime(m[9], time);
+	            listener.upZ.setValueAtTime(m[10], time);
+	        }
+	        else {
+	            listener.setPosition(m[12], m[13], m[14]);
+	            listener.setOrientation(m[4], m[5], m[6], m[8], m[9], m[10]);
+	        }
 	    }
-	    else {
-	        listener.setPosition(m[12], m[13], m[14]);
-	        listener.setOrientation(m[4], m[5], m[6], m[8], m[9], m[10]);
-		}
-	};
+	}();
 
 	/**
 	 * @classdesc
@@ -22227,6 +22292,121 @@
 		var clone = new OrthographicOffCenterCamera();
 		clone.copyFrom(this);
 		return clone;
+	};
+
+	var swapMatrix = new Matrix4x4(
+	    [
+	        1, 0, 0, 0,
+	        0, 0, -1, 0,
+	        0, 1, 0, 0,
+	        0, 0, 0, 1
+	    ]);
+
+	/**
+	 * @ignore
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function VRDummyCamera()
+	{
+	    Camera.call(this);
+	    this._projectionMatrixDirty = false;
+	}
+
+	VRDummyCamera.prototype = Object.create(Camera.prototype);
+
+	VRDummyCamera.prototype._updateProjectionMatrix = function() {};
+	VRDummyCamera.prototype._invalidateProjectionMatrix = function() {};
+
+	VRDummyCamera.prototype.updateMatrices = function(viewMatrix, projectionMatrix)
+	{
+	    // WebVR uses Y up, Z out of screen
+	    this._viewMatrix.set(viewMatrix);
+	    this._viewMatrix.prepend(swapMatrix);
+
+	    this._projectionMatrix.set(projectionMatrix);
+	    // this._projectionMatrix.swapColums(1, 2);
+	    this._projectionMatrixDirty = false;
+
+	    // the first frame may contain invalid data (all 0s)
+	    if (this._matrix.inverseAffineOf(this._viewMatrix))
+	        this._applyMatrix();
+	};
+
+	/**
+	 * VRCamera provides a camera to use with {@linkcode VRRenderer}.
+	 */
+	function VRCamera()
+	{
+	    VRDummyCamera.call(this);
+	    this._cameraLeft = new VRDummyCamera();
+	    this._cameraRight = new VRDummyCamera();
+	    this.attach(this._cameraLeft);
+	    this.attach(this._cameraRight);
+
+	    this._frameData = new VRFrameData();
+	}
+
+	VRCamera.prototype = Object.create(VRDummyCamera.prototype, {
+	    worldMatrixLeft: {
+	        get: function() {
+	            return this._cameraLeft.worldMatrix;
+	        }
+	    },
+
+	    worldMatrixRight: {
+	        get: function() {
+	            return this._cameraRight.worldMatrix;
+	        }
+	    }
+	});
+
+	/**
+	 * @ignore
+	 */
+	VRCamera.prototype._updateVR = function()
+	{
+	    META.VR_DISPLAY.getFrameData(this._frameData);
+	    this._cameraLeft.updateMatrices(this._frameData.leftViewMatrix, this._frameData.leftProjectionMatrix);
+	    this._cameraRight.updateMatrices(this._frameData.rightViewMatrix, this._frameData.rightProjectionMatrix);
+
+	    var frustumLeft = this._cameraLeft.frustum;
+	    var frustumRight = this._cameraRight.frustum;
+	    var planes = this._frustum.planes;
+	    var corners = this._frustum.corners;
+	    var planesLeft = frustumLeft.planes;
+	    var planesRight = frustumRight.planes;
+	    var cornersLeft = frustumLeft.corners;
+	    var cornersRight = frustumRight.corners;
+
+	    // use all the left cam's planes, except the RIGHT plane
+	    planes[Frustum.PLANE_LEFT] = planesLeft[Frustum.PLANE_LEFT];
+	    planes[Frustum.PLANE_RIGHT] = planesRight[Frustum.PLANE_RIGHT];
+	    planes[Frustum.PLANE_TOP] = planesLeft[Frustum.PLANE_TOP];
+	    planes[Frustum.PLANE_BOTTOM] = planesLeft[Frustum.PLANE_BOTTOM];
+	    planes[Frustum.PLANE_NEAR] = planesLeft[Frustum.PLANE_NEAR];
+	    planes[Frustum.PLANE_FAR] = planesLeft[Frustum.PLANE_FAR];
+
+	    corners[0] = cornersLeft[0];
+	    corners[1] = cornersRight[1];
+	    corners[2] = cornersRight[2];
+	    corners[3] = cornersLeft[3];
+	    corners[4] = cornersLeft[4];
+	    corners[5] = cornersRight[5];
+	    corners[6] = cornersRight[6];
+	    corners[7] = cornersLeft[7];
+
+	    // this camera should only be used for culling, so make sure frustum doesn't get re-updated
+	    this._viewProjectionMatrixInvalid = false;
+	    this._projectionMatrixDirty = false;
+	};
+
+	/**
+	 * @ignore
+	 */
+	VRCamera.prototype.toString = function()
+	{
+	    return "[VRCamera(name=" + this._name + ")]";
 	};
 
 	/**
@@ -28891,118 +29071,6 @@
 	    }
 	};
 
-	var swapMatrix = new Matrix4x4(
-	    [
-	        1, 0, 0, 0,
-	        0, 0, -1, 0,
-	        0, 1, 0, 0,
-	        0, 0, 0, 1
-	    ]);
-
-	/**
-	 * @ignore
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function VRDummyCamera()
-	{
-	    Camera.call(this);
-	    this._projectionMatrixDirty = false;
-	}
-
-	VRDummyCamera.prototype = Object.create(Camera.prototype);
-
-	VRDummyCamera.prototype._updateProjectionMatrix = function() {};
-	VRDummyCamera.prototype._invalidateProjectionMatrix = function() {};
-
-	VRDummyCamera.prototype.updateMatrices = function(viewMatrix, projectionMatrix)
-	{
-	    // WebVR uses Y up, Z out of screen
-	    this._viewMatrix.set(viewMatrix);
-	    this._viewMatrix.prepend(swapMatrix);
-
-	    this._projectionMatrix.set(projectionMatrix);
-	    // this._projectionMatrix.swapColums(1, 2);
-	    this._projectionMatrixDirty = false;
-
-	    this._matrix.inverseOf(this._viewMatrix);
-	    this._applyMatrix();
-	};
-
-	/**
-	 * @ignore
-	 */
-	function VRCamera()
-	{
-	    VRDummyCamera.call(this);
-	    this.cameraLeft = new VRDummyCamera();
-	    this.cameraRight = new VRDummyCamera();
-	    this.attach(this.cameraLeft);
-	    this.attach(this.cameraRight);
-
-	    this._frameData = new VRFrameData();
-	}
-
-	VRCamera.prototype = Object.create(VRDummyCamera.prototype);
-
-	VRCamera.prototype.update = function(srcCamera)
-	{
-	    var dir = new Float4();
-
-	    return function (srcCamera) {
-	        // the only thing we'd like to keep from the world matrix is the position and the rotation about the Z axis
-	        var worldMatrix = srcCamera.worldMatrix;
-	        worldMatrix.getColumn(3, this.position);
-	        // use the forward vector to figure out direction
-	        worldMatrix.getColumn(1, dir);
-	        dir.z = 0;
-	        dir.add(this.position);
-	        this.lookAt(dir);
-
-	        META.VR_DISPLAY.getFrameData(this._frameData);
-	        this.cameraLeft.updateMatrices(this._frameData.leftViewMatrix, this._frameData.leftProjectionMatrix);
-	        this.cameraRight.updateMatrices(this._frameData.rightViewMatrix, this._frameData.rightProjectionMatrix);
-
-	        var frustumLeft = this.cameraLeft.frustum;
-	        var frustumRight = this.cameraRight.frustum;
-	        var planes = this._frustum.planes;
-	        var corners = this._frustum.corners;
-	        var planesLeft = frustumLeft.planes;
-	        var planesRight = frustumRight.planes;
-	        var cornersLeft = frustumLeft.corners;
-	        var cornersRight = frustumRight.corners;
-
-	        // use all the left cam's planes, except the RIGHT plane
-	        planes[Frustum.PLANE_LEFT] = planesLeft[Frustum.PLANE_LEFT];
-	        planes[Frustum.PLANE_RIGHT] = planesRight[Frustum.PLANE_RIGHT];
-	        planes[Frustum.PLANE_TOP] = planesLeft[Frustum.PLANE_TOP];
-	        planes[Frustum.PLANE_BOTTOM] = planesLeft[Frustum.PLANE_BOTTOM];
-	        planes[Frustum.PLANE_NEAR] = planesLeft[Frustum.PLANE_NEAR];
-	        planes[Frustum.PLANE_FAR] = planesLeft[Frustum.PLANE_FAR];
-
-	        corners[0] = cornersLeft[0];
-	        corners[1] = cornersRight[1];
-	        corners[2] = cornersRight[2];
-	        corners[3] = cornersLeft[3];
-	        corners[4] = cornersLeft[4];
-	        corners[5] = cornersRight[5];
-	        corners[6] = cornersRight[6];
-	        corners[7] = cornersLeft[7];
-
-	        // this camera should only be used for culling, so make sure frustum doesn't get re-updated
-	        this._viewProjectionMatrixInvalid = false;
-	        this._projectionMatrixDirty = false;
-	    }
-	}();
-
-	/**
-	 * @ignore
-	 */
-	VRCamera.prototype.toString = function()
-	{
-	    return "[VRCamera(name=" + this._name + ")]";
-	};
-
 	/**
 	 * @classdesc
 	 * VRRenderer is a renderer to WebVR. This can only be used if `HX.enableVR` is called
@@ -29015,7 +29083,6 @@
 	{
 	    Renderer.call(this);
 	    this._leftTarget = new Renderer.HDRBuffers(this._depthBuffer);
-	    this._vrCamera = new VRCamera();
 	    this._leftRect = new Rect();
 	    this._rightRect = new Rect();
 	}
@@ -29027,33 +29094,34 @@
 	 */
 	VRRenderer.prototype.render = function(camera, scene, dt)
 	{
+	    console.assert(camera instanceof VRCamera, "Must use VRCamera with VRRenderer!");
+
 	    // TODO: Render to two intermediate renderTargets
 	    META.VR_DISPLAY.depthNear = camera.nearDistance;
 	    META.VR_DISPLAY.depthFar = camera.farDistance;
 
-	    this._camera = this._vrCamera;
+	    this._camera = camera;
 	    this._scene = scene;
 
-	    this._vrCamera.update(camera);
+	    camera._updateVR();
 
-	    // TODO: Should this use the VR display resolution?
 	    this._updateSize(this._renderTarget);
-	    this._vrCamera._setRenderTargetResolution(this._width, this._height);
+	    this._camera._setRenderTargetResolution(this._width, this._height);
 
-	    this._renderCollector.collect(this._vrCamera, scene);
+	    this._renderCollector.collect(camera, scene);
 	    this._ambientColor = this._renderCollector._ambientColor;
 
 	    this._renderShadowCasters();
 
 	    // TODO: Can we set _activeCamera instead of keeping renderItem.camera?
-	    this._renderView(this._vrCamera.cameraLeft, scene, dt);
+	    this._renderView(camera._cameraLeft, scene, dt);
 
 	    // swap buffers so leftTarget contains the left target
 	    var tmp = this._leftTarget;
 	    this._leftTarget = this._hdrBack;
 	    this._hdrBack = tmp;
 
-	    this._renderView(this._vrCamera.cameraRight, scene, dt);
+	    this._renderView(camera._cameraRight, scene, dt);
 
 	    this._renderToScreen();
 	};
@@ -29818,6 +29886,9 @@
 
 	    _update: function(dt)
 	    {
+	        // when switching to VR context
+	        if (dt === 0.0) dt = 16;
+
 	        this._fpsCounter.update(dt);
 
 	        var ctx = this._context;
@@ -29926,6 +29997,7 @@
 	exports.Frustum = Frustum;
 	exports.PerspectiveCamera = PerspectiveCamera;
 	exports.OrthographicOffCenterCamera = OrthographicOffCenterCamera;
+	exports.VRCamera = VRCamera;
 	exports.FloatController = FloatController;
 	exports.OrbitController = OrbitController;
 	exports.Color = Color;

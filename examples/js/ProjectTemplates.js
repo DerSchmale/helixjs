@@ -192,7 +192,14 @@ VRProject.prototype = Object.create(SimpleProject.prototype, {
 		{
 			return this._vrRenderer;
 		}
-	}
+	},
+
+    vrCamera: {
+        get: function()
+        {
+            return this._vrCamera;
+        }
+    }
 });
 
 VRProject.prototype.init = function(canvas, initOptions)
@@ -206,6 +213,9 @@ VRProject.prototype._initRenderers = function()
 {
     this._renderer = new HX.Renderer();
     this._vrRenderer = new HX.VRRenderer();
+
+    this._vrCamera = new HX.VRCamera();
+    this._scene.attach(this._vrCamera);
 };
 
 VRProject.prototype._update = function(dt)
@@ -213,7 +223,7 @@ VRProject.prototype._update = function(dt)
     this.onUpdate(dt);
 
     if (HX.META.VR_DISPLAY)
-        this._vrRenderer.render(this._camera, this._scene, dt);
+        this._vrRenderer.render(this._vrCamera, this._scene, dt);
     else
         this._renderer.render(this._camera, this._scene, dt);
 };

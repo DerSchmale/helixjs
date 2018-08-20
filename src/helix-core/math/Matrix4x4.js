@@ -17,6 +17,26 @@ function Matrix4x4(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m
     this.set(m00, m01, m02, m03, m10, m11, m12, m13, m20, m21, m22, m23, m30, m31, m32, m33);
 }
 
+/**
+ * Adds two matrices together
+ */
+Matrix4x4.add = function(m1, m2, target)
+{
+    target = target || new Matrix4x4();
+    target.copyFrom(m1);
+    return target.add(m2);
+};
+
+/**
+ * Multiplies two matrices. The order of the parameters are the order of the multiplication. M1 is appended to M2
+ */
+Matrix4x4.multiply = function(m1, m2, target)
+{
+    target = target || new Matrix4x4();
+    target.copyFrom(m1);
+    return target.prepend(m2);
+};
+
 Matrix4x4.prototype =
 {
     /**
@@ -732,12 +752,16 @@ Matrix4x4.prototype =
     },
 
     /**
-     * Initializes as the inverse of the given matrix.
+     * Initializes as the inverse of the given matrix. If the matrix is not invertible, the method returns null and the
+     * matrix remains unchanged. Otherwise, it returns itself.
      */
     inverseOf: function (matrix)
     {
+        var determinant = matrix.determinant();
+        if (determinant === 0.0) return null;
+
         // this can be much more efficient, but I'd like to keep it readable for now. The full inverse is not required often anyway.
-        var rcpDet = 1.0 / matrix.determinant();
+        var rcpDet = 1.0 / determinant;
 
         // needs to be self-assignment-proof
         var m0 = rcpDet * matrix.cofactor(0, 0);
@@ -779,6 +803,7 @@ Matrix4x4.prototype =
 
     /**
      * Initializes as the inverse of the given matrix, assuming it is affine. It's faster than regular inverse.
+     * If the matrix is not invertible, the method returns null and the matrix remains unchanged.
      */
     inverseAffineOf: function (a)
     {
@@ -788,6 +813,9 @@ Matrix4x4.prototype =
         var m8 = mm[8], m9 = mm[9], m10 = mm[10];
         var m12 = mm[12], m13 = mm[13], m14 = mm[14];
         var determinant = m0 * (m5 * m10 - m9 * m6) - m4 * (m1 * m10 - m9 * m2) + m8 * (m1 * m6 - m5 * m2);
+
+        if (determinant === 0.0) return null;
+
         var rcpDet = 1.0 / determinant;
 
         var n0 = (m5 * m10 - m9 * m6) * rcpDet;
@@ -878,7 +906,8 @@ Matrix4x4.prototype =
     },
 
     /**
-     * Inverts the matrix.
+     * Inverts the matrix. If the matrix is not invertible, the method returns null and the matrix remains unchanged.
+     * Otherwise, it returns itself.
      */
     invert: function ()
     {
@@ -886,7 +915,8 @@ Matrix4x4.prototype =
     },
 
     /**
-     * Inverts the matrix, assuming it's affine (faster than regular inverse)
+     * Inverts the matrix, assuming it's affine (faster than regular inverse). If the matrix is not invertible, the
+     * method returns null and the matrix remains unchanged. Otherwise, it returns itself.
      */
     invertAffine: function ()
     {

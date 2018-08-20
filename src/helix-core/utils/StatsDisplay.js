@@ -51,6 +51,9 @@ StatsDisplay.prototype =
 
     _update: function(dt)
     {
+        // when switching to VR context
+        if (dt === 0.0) dt = 16;
+
         this._fpsCounter.update(dt);
 
         var ctx = this._context;

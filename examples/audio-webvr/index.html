@@ -3,7 +3,7 @@
 <head lang="en">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Helix example: Spatial Audio</title>
+    <title>Helix example: Spatial Audio (VR version)</title>
 
     <script src="../../build/helix.js"></script>
     <script src="../js/ProjectTemplates.js"></script>
@@ -16,6 +16,11 @@
     <canvas id="webglContainer">
         Canvas tag not supported by the browser!
     </canvas>
+
+    <div id="controlsField">
+        <select id="displaySelection"></select>
+        <button type="button" id="toggleVRButton" class="hidden">Toggle VR</button>
+    </div>
 
     <div id="preloader" class="vAlignContainer">
         <div id="preloaderBar" class="vAligned">

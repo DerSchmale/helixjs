@@ -62,6 +62,8 @@ FrameTicker.prototype = {
 
         this._currentTime = time;
 
+        // this happens when switching to VR
+        if (this._dt < 0) this._dt = 0;
         this.onTick.dispatch(this._dt);
     },
 

@@ -88,6 +88,7 @@ export {Camera} from "./camera/Camera";
 export {Frustum} from "./camera/Frustum";
 export {PerspectiveCamera} from "./camera/PerspectiveCamera";
 export {OrthographicOffCenterCamera} from "./camera/OrthographicOffCenterCamera";
+export {VRCamera} from "./camera/VRCamera";
 
 export {FloatController} from "./controller/FloatController";
 export {OrbitController} from "./controller/OrbitController";

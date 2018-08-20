@@ -228,11 +228,12 @@ Entity.prototype.destroy = function()
  */
 Entity.prototype.hasComponentType = function(type)
 {
-	for (var i = 0, len = this._components.length; i < len; ++i) {
-		if (this._components[i] instanceof type) return true;
-	}
+	return this._componentHash.contains(type.COMPONENT_ID);
 };
 
+/**
+ * Returns the first Component of a given type
+ */
 Entity.prototype.getFirstComponentByType = function(type)
 {
 	for (var i = 0, len = this._components.length; i < len; ++i) {
@@ -254,6 +255,18 @@ Entity.prototype.getComponentsByType = function(type)
 		if (comp instanceof type) collection.push(comp);
 	}
 	return collection;
+};
+
+/**
+ * Return the Component with a given name.
+ */
+Entity.prototype.getComponentByName = function(name)
+{
+	for (var i = 0, len = this._components.length; i < len; ++i) {
+		var comp = this._components[i];
+		if (comp.name === name) return comp;
+	}
+	return null;
 };
 
 /**

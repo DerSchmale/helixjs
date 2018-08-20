@@ -6,6 +6,8 @@ import {MorphAnimation} from "../morph/MorphAnimation";
 var nameCounter = 0;
 
 /**
+ * @classdesc
+ *
  * LayeredAnimation is a Component that combines a set of AnimationLayer objects into a single manageable animation.
  * The layer animations can act on any object, joint pose or morph pose in the hierarchy of the {@linkcode Entity} to
  * which the Component was assigned. When added to the Scene's root node, it can be seen as a global keyframe animation
@@ -16,17 +18,19 @@ var nameCounter = 0;
  * @extends Component
  *
  * @property name The name of the animation.
- * @property timeScale A value to control the playback speed.
+ * @property playbackRate A value to control the playback speed.
  * @property time The current time in milliseconds of the play head.
  * @property looping Determines whether the animation should loop or not. By default, it uses the value determined by
  * the AnimationClip, but can be overridden.
+ *
+ * @author derschmale <http://www.derschmale.com>
  */
 function LayeredAnimation()
 {
 	Component.call(this);
 	this._layers = [];
 	this._time = 0;
-	this._timeScale = 1;
+	this._playbackRate = 1;
 	this._name = "hx_layeredanimation_" + (nameCounter++);
 	this._looping = true;
 }
@@ -44,15 +48,15 @@ Component.create(LayeredAnimation, {
 		}
 	},
 
-	timeScale: {
+	playbackRate: {
 		get: function()
 		{
-			return this._timeScale;
+			return this._playbackRate;
 		},
 
 		set: function(value)
 		{
-			this._timeScale = value;
+			this._playbackRate = value;
 		}
 	},
 
@@ -127,7 +131,7 @@ LayeredAnimation.prototype.onRemoved = function()
 
 LayeredAnimation.prototype.onUpdate = function(dt)
 {
-	dt *= this._timeScale;
+	dt *= this._playbackRate;
 
 	this._time += dt;
 
@@ -142,7 +146,7 @@ LayeredAnimation.prototype.clone = function()
 	var clone = new LayeredAnimation();
 	clone.name = this.name;
 	clone.looping = this.looping;
-	clone.timeScale = this.timeScale;
+	clone.playbackRate = this.playbackRate;
 	clone.time = this.time;
 
 	for (var i = 0, len = this._layers.length; i < len; ++i) {

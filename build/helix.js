@@ -3529,6 +3529,41 @@
 
 	var WebVRPolyfill = unwrapExports(webvrPolyfill);
 
+	// Fix iOS Audio Context by Blake Kus https://gist.github.com/kus/3f01d60569eeadefe3a1
+	// MIT license
+	(function() {
+	    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+	    if (window.AudioContext) {
+	        window.hx_audioContext = new window.AudioContext();
+	    }
+	    else return;
+	    var fixAudioContext = function (e) {
+	        if (window.hx_audioContext) {
+	            // Create empty buffer
+	            var buffer = window.hx_audioContext.createBuffer(1, 1, 22050);
+	            var source = window.hx_audioContext.createBufferSource();
+	            source.buffer = buffer;
+	            // Connect to output (speakers)
+	            source.connect(window.hx_audioContext.destination);
+	            // Play sound
+	            if (source.start) {
+	                source.start(0);
+	            } else if (source.play) {
+	                source.play(0);
+	            } else if (source.noteOn) {
+	                source.noteOn(0);
+	            }
+	        }
+	        // Remove events
+	        document.removeEventListener('touchstart', fixAudioContext);
+	        document.removeEventListener('touchend', fixAudioContext);
+	    };
+	    // iOS 6-8
+	    document.addEventListener('touchstart', fixAudioContext);
+	    // iOS 9
+	    document.addEventListener('touchend', fixAudioContext);
+	})();
+
 	/**
 	 * ShaderLibrary is an object that will store shader code processed by the build process: contents of glsl files stored
 	 * in the glsl folder will be stored here and can be retrieved using their original filename.
@@ -3570,14 +3605,6 @@
 
 	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
 
-	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
-
-	ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n// really only used for clustered\nstruct HX_Probe\n{\n    int hasDiffuse;\n    int hasSpecular;\n    float numMipLevels;\n};\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
-
-	ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n    int castShadows;\n    vec4 shadowTiles[6];    // for each cube face\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    float dist = length(dir);\n    dir = mat3(light.shadowMapMatrix) * dir;\n\n    // swizzle to opengl cube map space\n    dir = dir.xzy;\n\n    vec3 absDir = abs(dir);\n    float maxDir = max(max(absDir.x, absDir.y), absDir.z);\n    vec2 uv;\n    vec4 tile;\n    if (absDir.x == maxDir) {\n        tile = dir.x > 0.0? light.shadowTiles[0]: light.shadowTiles[1];\n        // signs are important (hence division by either dir or absDir\n        uv = vec2(-dir.z / dir.x, -dir.y / absDir.x);\n    }\n    else if (absDir.y == maxDir) {\n        tile = dir.y > 0.0? light.shadowTiles[4]: light.shadowTiles[5];\n        uv = vec2(dir.x / absDir.y, dir.z / dir.y);\n    }\n    else {\n        tile = dir.z > 0.0? light.shadowTiles[2]: light.shadowTiles[3];\n        uv = vec2(dir.x / dir.z, -dir.y / absDir.z);\n    }\n\n    // match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    uv *= .95;\n\n    vec4 shadowMapCoord;\n    shadowMapCoord.xy = uv * tile.xy + tile.zw;\n    shadowMapCoord.z = dist * light.rcpRadius;\n    shadowMapCoord.w = 1.0;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
-
-	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
-
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3607,6 +3634,14 @@
 	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
+
+	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
+
+	ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n// really only used for clustered\nstruct HX_Probe\n{\n    int hasDiffuse;\n    int hasSpecular;\n    float numMipLevels;\n};\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
+
+	ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n    int castShadows;\n    vec4 shadowTiles[6];    // for each cube face\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    float dist = length(dir);\n    dir = mat3(light.shadowMapMatrix) * dir;\n\n    // swizzle to opengl cube map space\n    dir = dir.xzy;\n\n    vec3 absDir = abs(dir);\n    float maxDir = max(max(absDir.x, absDir.y), absDir.z);\n    vec2 uv;\n    vec4 tile;\n    if (absDir.x == maxDir) {\n        tile = dir.x > 0.0? light.shadowTiles[0]: light.shadowTiles[1];\n        // signs are important (hence division by either dir or absDir\n        uv = vec2(-dir.z / dir.x, -dir.y / absDir.x);\n    }\n    else if (absDir.y == maxDir) {\n        tile = dir.y > 0.0? light.shadowTiles[4]: light.shadowTiles[5];\n        uv = vec2(dir.x / absDir.y, dir.z / dir.y);\n    }\n    else {\n        tile = dir.z > 0.0? light.shadowTiles[2]: light.shadowTiles[3];\n        uv = vec2(dir.x / dir.z, -dir.y / absDir.z);\n    }\n\n    // match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    uv *= .95;\n\n    vec4 shadowMapCoord;\n    shadowMapCoord.xy = uv * tile.xy + tile.zw;\n    shadowMapCoord.z = dist * light.rcpRadius;\n    shadowMapCoord.w = 1.0;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
+
+	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
 
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvarying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef OCCLUSION_MAP\nuniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\nuniform sampler2D emissionMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying_in vec3 tangent;\n    varying_in vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n\n          #ifdef METALLIC_ROUGHNESS_MAP\n              roughnessOut -= roughnessRange * (specSample.y - .5);\n              metallicnessOut *= specSample.z;\n\n          #else\n              roughnessOut -= roughnessRange * (specSample.x - .5);\n\n              #ifdef SPECULAR_MAP\n                  specNormalReflOut *= specSample.y;\n                  metallicnessOut *= specSample.z;\n              #endif\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    emission *= texture2D(emissionMap, texCoords).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
@@ -6552,16 +6587,16 @@
 		clone: function()
 		{
 			var clone = new Transform();
-			this.copyTo(clone);
+			clone.copyFrom(this);
 			return clone;
 		},
 
 		/**
 		 * @ignore
 		 */
-		copyTo: function(target)
+		copyFrom: function(src)
 		{
-			target.matrix = this.matrix;
+			this.matrix = src.matrix;
 		}
 	};
 
@@ -11841,7 +11876,12 @@
 	        /**
 	         * The WebVR right eye parameters (if enabled)
 			 */
-			VR_RIGHT_EYE_PARAMS: null
+			VR_RIGHT_EYE_PARAMS: null,
+
+			/**
+	         * The Audio Context used for audio playback
+			 */
+			AUDIO_CONTEXT: null
 		};
 
 	/**
@@ -12253,6 +12293,7 @@
 	    if (META.INITIALIZED) throw new Error("Can only initialize Helix once!");
 
 	    META.TARGET_CANVAS = canvas;
+	    META.AUDIO_CONTEXT = window.hx_audioContext;
 
 	    _updateCanvasSize();
 
@@ -13933,16 +13974,16 @@
 	/**
 	 * @ignore
 	 */
-	SceneNode.prototype.copyTo = function(target)
+	SceneNode.prototype.copyFrom = function(src)
 	{
-	    Transform.prototype.copyTo.call(this, target);
+	    Transform.prototype.copyFrom.call(this, src);
 
-	    target.name = this.name;
-	    target.visible = this.visible;
-	    target.raycast = this.raycast;
+		this.name = src.name;
+		this.visible = src.visible;
+		this.raycast = src.raycast;
 
-		for (var i = 0, len = this._children.length; i < len; ++i) {
-			target.attach(this._children[i].clone());
+		for (var i = 0, len = src._children.length; i < len; ++i) {
+			this.attach(src._children[i].clone());
 		}
 	};
 
@@ -13952,7 +13993,7 @@
 	SceneNode.prototype.clone = function()
 	{
 	    var clone = new SceneNode();
-		this.copyTo(clone);
+		clone.copyFrom(this);
 	    return clone;
 	};
 
@@ -14031,9 +14072,8 @@
 	    contains: function(b) {
 	        var hash = this._hash;
 	        var bHash = b._hash;
-	        var l = bHash.length;
 
-	        for (var i = 0; i < l; ++i) {
+	        for (var i = 0, l = bHash.length; i < l; ++i) {
 	            var bi = bHash[i];
 	            if ((hash[i] & bi) !== bi)
 	                return false;
@@ -14866,11 +14906,12 @@
 	 */
 	Entity.prototype.hasComponentType = function(type)
 	{
-		for (var i = 0, len = this._components.length; i < len; ++i) {
-			if (this._components[i] instanceof type) return true;
-		}
+		return this._componentHash.contains(type.COMPONENT_ID);
 	};
 
+	/**
+	 * Returns the first Component of a given type
+	 */
 	Entity.prototype.getFirstComponentByType = function(type)
 	{
 		for (var i = 0, len = this._components.length; i < len; ++i) {
@@ -14892,6 +14933,18 @@
 			if (comp instanceof type) collection.push(comp);
 		}
 		return collection;
+	};
+
+	/**
+	 * Return the Component with a given name.
+	 */
+	Entity.prototype.getComponentByName = function(name)
+	{
+		for (var i = 0, len = this._components.length; i < len; ++i) {
+			var comp = this._components[i];
+			if (comp.name === name) return comp;
+		}
+		return null;
 	};
 
 	/**
@@ -14966,12 +15019,12 @@
 	/**
 	 * @ignore
 	 */
-	Entity.prototype.copyTo = function(target)
+	Entity.prototype.copyFrom = function(src)
 	{
-		SceneNode.prototype.copyTo.call(this, target);
+		SceneNode.prototype.copyFrom.call(this, src);
 
-		for (var i = 0, len = this._components.length; i < len; ++i) {
-			target.addComponent(this._components[i].clone());
+		for (var i = 0, len = src._components.length; i < len; ++i) {
+			this.addComponent(src._components[i].clone());
 		}
 	};
 
@@ -14981,7 +15034,7 @@
 	Entity.prototype.clone = function()
 	{
 		var clone = new Entity();
-		this.copyTo(clone);
+		clone.copyFrom(this);
 		return clone;
 	};
 
@@ -15070,10 +15123,10 @@
 	/**
 	 * @ignore
 	 */
-	Light.prototype.copyTo = function(target)
+	Light.prototype.copyFrom = function(src)
 	{
-		target.color = this.color;
-		target.intensity = this.intensity;
+		this.color = src.color;
+		this.intensity = src.intensity;
 	};
 
 	/**
@@ -15124,12 +15177,12 @@
 	/**
 	 * @ignore
 	 */
-	DirectLight.prototype.copyTo = function(target)
+	DirectLight.prototype.copyFrom = function(src)
 	{
-		Light.prototype.copyTo.call(this, target);
-		target.shadowQualityBias = this.shadowQualityBias;
-		target.castShadows = this.castShadows;
-		target.depthBias = this.depthBias;
+		Light.prototype.copyFrom.call(this, src);
+		this.shadowQualityBias = src.shadowQualityBias;
+		this.castShadows = src.castShadows;
+		this.depthBias = src.depthBias;
 	};
 
 	/**
@@ -15263,7 +15316,7 @@
 	DirectionalLight.prototype.clone = function()
 	{
 		var clone = new DirectionalLight();
-		this.copyTo(clone);
+		clone.copyFrom(this);
 		return clone;
 	};
 
@@ -15682,16 +15735,22 @@
 		return "[PointLight(name=" + this._name + ")]";
 	};
 
-	PointLight.prototype.copyTo = function(target)
+	/**
+	 * @ignore
+	 */
+	PointLight.prototype.copyFrom = function(src)
 	{
-		DirectLight.prototype.copyTo.call(this, target);
-		target.radius = this.radius;
+		DirectLight.prototype.copyFrom.call(this, src);
+		this.radius = src.radius;
 	};
 
+	/**
+	 * @inheritDoc
+	 */
 	PointLight.prototype.clone = function()
 	{
 		var clone = new PointLight();
-		this.copyTo(clone);
+		clone.copyFrom(this);
 		return clone;
 	};
 
@@ -15913,18 +15972,24 @@
 		return "[SpotLight(name=" + this._name + ")]";
 	};
 
-	SpotLight.prototype.copyTo = function(target)
+	/**
+	 * @ignore
+	 */
+	SpotLight.prototype.copyFrom = function(src)
 	{
-	    DirectLight.prototype.copyTo.call(this, target);
-		target.radius = this.radius;
-		target.innerAngle = this.innerAngle;
-		target.outerAngle = this.outerAngle;
+	    DirectLight.prototype.copyFrom.call(this, src);
+		this.radius = src.radius;
+		this.innerAngle = src.innerAngle;
+		this.outerAngle = src.outerAngle;
 	};
 
+	/**
+	 * @inheritDoc
+	 */
 	SpotLight.prototype.clone = function()
 	{
 		var clone = new SpotLight();
-		this.copyTo(clone);
+		clone.copyFrom(this);
 		return clone;
 	};
 
@@ -18646,11 +18711,11 @@
 	/**
 	 * @ignore
 	 */
-	Camera.prototype.copyTo = function(target)
+	Camera.prototype.copyFrom = function(src)
 	{
-		Entity.prototype.copyTo.call(this, target);
-		target.nearDistance = this.nearDistance;
-		target.farDistance = this.farDistance;
+		Entity.prototype.copyFrom.call(this, src);
+		this.nearDistance = src.nearDistance;
+		this.farDistance = src.farDistance;
 	};
 
 	/**
@@ -18735,10 +18800,10 @@
 	/**
 	 * @ignore
 	 */
-	PerspectiveCamera.prototype.copyTo = function(target)
+	PerspectiveCamera.prototype.copyFrom = function(src)
 	{
-		Camera.prototype.copyTo.call(this, target);
-		target.verticalFOV = this.verticalFOV;
+		Camera.prototype.copyFrom.call(this, src);
+		this.verticalFOV = src.verticalFOV;
 	};
 
 	/**
@@ -18747,7 +18812,7 @@
 	PerspectiveCamera.prototype.clone = function()
 	{
 		var clone = new PerspectiveCamera();
-		this.copyTo(clone);
+		clone.copyFrom(this);
 		return clone;
 	};
 
@@ -18779,16 +18844,22 @@
 
 	Skybox.prototype = Object.create(Entity.prototype);
 
-	Skybox.prototype.copyTo = function(target)
+	/**
+	 * @ignore
+	 */
+	Skybox.prototype.copyFrom = function(src)
 	{
-		Entity.prototype.copyTo.call(this, target);
+		Entity.prototype.copyFrom.call(this, src);
 
 	};
 
+	/**
+	 * @inheritDoc
+	 */
 	Skybox.prototype.clone = function()
 	{
 		var clone = new Skybox(this._meshInstance.material);
-		this.copyTo(clone);
+		clone.copyFrom(this);
 		return clone;
 	};
 
@@ -19689,7 +19760,7 @@
 	{
 	    this._clip = clip;
 	    this._time = 0;
-	    this._timeScale = 1.0;
+	    this._playbackRate = 1.0;
 	    this._isPlaying = true;
 	    this._currentFrameIndex = 0;
 	    this._timeChanged = true;
@@ -19726,8 +19797,8 @@
 	        /**
 	         * A value to control the playback speed.
 	         */
-	        get timeScale() { return this._timeScale; },
-	        set timeScale(value) { this._timeScale = value; },
+	        get playbackRate() { return this._playbackRate; },
+	        set playbackRate(value) { this._playbackRate = value; },
 
 	        /**
 	         * Determines whether the animation should loop or not. By default, it uses the value determined by the
@@ -19780,7 +19851,7 @@
 	            this._timeChanged = false;
 
 	            if (this._isPlaying) {
-	                dt *= this._timeScale;
+	                dt *= this._playbackRate;
 	                this._time += dt;
 	            }
 
@@ -20040,24 +20111,31 @@
 	var nameCounter$7 = 0;
 
 	/**
-	 * LayeredAnimation combines a bunch of AnimationLayer objects into a single manageable animation. This acts globally,
-	 * so it's not a {@linkcode Component} belonging to an {@linkcode Entity}. When added to the Scene's root node, it can
-	 * be seen as a global keyframe animation system.
+	 * @classdesc
+	 *
+	 * LayeredAnimation is a Component that combines a set of AnimationLayer objects into a single manageable animation.
+	 * The layer animations can act on any object, joint pose or morph pose in the hierarchy of the {@linkcode Entity} to
+	 * which the Component was assigned. When added to the Scene's root node, it can be seen as a global keyframe animation
+	 * system for the given scene.
 	 *
 	 * @constructor
 	 *
+	 * @extends Component
+	 *
 	 * @property name The name of the animation.
-	 * @property timeScale A value to control the playback speed.
+	 * @property playbackRate A value to control the playback speed.
 	 * @property time The current time in milliseconds of the play head.
 	 * @property looping Determines whether the animation should loop or not. By default, it uses the value determined by
 	 * the AnimationClip, but can be overridden.
+	 *
+	 * @author derschmale <http://www.derschmale.com>
 	 */
 	function LayeredAnimation()
 	{
 		Component.call(this);
 		this._layers = [];
 		this._time = 0;
-		this._timeScale = 1;
+		this._playbackRate = 1;
 		this._name = "hx_layeredanimation_" + (nameCounter$7++);
 		this._looping = true;
 	}
@@ -20075,15 +20153,15 @@
 			}
 		},
 
-		timeScale: {
+		playbackRate: {
 			get: function()
 			{
-				return this._timeScale;
+				return this._playbackRate;
 			},
 
 			set: function(value)
 			{
-				this._timeScale = value;
+				this._playbackRate = value;
 			}
 		},
 
@@ -20158,7 +20236,7 @@
 
 	LayeredAnimation.prototype.onUpdate = function(dt)
 	{
-		dt *= this._timeScale;
+		dt *= this._playbackRate;
 
 		this._time += dt;
 
@@ -20173,7 +20251,7 @@
 		var clone = new LayeredAnimation();
 		clone.name = this.name;
 		clone.looping = this.looping;
-		clone.timeScale = this.timeScale;
+		clone.playbackRate = this.playbackRate;
 		clone.time = this.time;
 
 		for (var i = 0, len = this._layers.length; i < len; ++i) {
@@ -20950,7 +21028,7 @@
 	 * A node in a SkeletonBlendTree to contain a single animation clip. An AnimationClip on its own is simply a resource and
 	 * does not contain playback state so it can be used across different animation instances. That relevant state is kept here.
 	 *
-	 * @property {number} timeScale A value to control the playback speed.
+	 * @property {number} playbackRate A value to control the playback speed.
 	 * @property {number} time The current time in milliseconds of the play head.
 	 *
 	 * @param {AnimationClip} clip The animation clip to be played.
@@ -21001,9 +21079,9 @@
 	            get: function() { return this._clip.duration; }
 	        },
 
-	        timeScale: {
-	            get: function() { return this._playhead.timeScale; },
-	            set: function(value) { this._playhead.timeScale = value; }
+	        playbackRate: {
+	            get: function() { return this._playhead.playbackRate; },
+	            set: function(value) { this._playhead.playbackRate = value; }
 	        },
 
 	        time: {
@@ -21011,7 +21089,6 @@
 	            set: function(value)
 	            {
 	                this._playhead.time = value;
-	                this._timeChanged = true;
 	            }
 	        }
 	    });
@@ -21021,7 +21098,7 @@
 	 */
 	SkeletonClipNode.prototype.play = function()
 	{
-	    this._animationClipPlayer.play();
+	    this._playhead.play();
 	};
 
 	/**
@@ -21029,7 +21106,7 @@
 	 */
 	SkeletonClipNode.prototype.stop = function()
 	{
-	    this._animationClipPlayer.stop();
+	    this._playhead.stop();
 	};
 
 	/**
@@ -21608,8 +21685,8 @@
 	        syncedDuration /= totalWeight;
 
 	    if (refChild) {
-	        var syncedTimeScale = refChild.duration / syncedDuration;
-	        var syncRatio = (refChild.time + dt * syncedTimeScale) / refChild.duration;
+	        var syncedPlaybackRate = refChild.duration / syncedDuration;
+	        var syncRatio = (refChild.time + dt * syncedPlaybackRate) / refChild.duration;
 	    }
 
 	    // we're still fading if len > 1
@@ -21622,7 +21699,7 @@
 	        childNode = child.node;
 
 	        if (child.sync) {
-	            // could also figure out a timescale to apply to dt, but assigning time and updating with dt = 0 is more
+	            // could also figure out a playbackRate to apply to dt, but assigning time and updating with dt = 0 is more
 	            // robust.
 	            childNode.time = childNode.duration * syncRatio;
 	            updated = childNode.update(0, transferRootJoint) || updated;
@@ -21694,6 +21771,412 @@
 
 	/**
 	 * @classdesc
+	 * AudioClip provides the data for audio playback.
+	 *
+	 * @constructor
+	 *
+	 * @param {AudioBuffer} [audioBuffer] The AudioBuffer object containing the binary sound data.
+	 * @param {Boolean} [looping] Whether or not the audio clip should loop.
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function AudioClip(audioBuffer, looping)
+	{
+		this._buffer = audioBuffer || null;
+		this._looping = looping || false;
+	}
+
+	AudioClip.prototype = {
+		/**
+		 * Indicates whether or not the audio clip should loop.
+		 */
+		get looping()
+		{
+			return this._looping;
+		},
+
+		set looping(value)
+		{
+			this._looping = value;
+		},
+
+		/**
+		 * The AudioBuffer object containing the data for playback.
+		 */
+		get buffer()
+		{
+			return this._buffer;
+		},
+
+		set buffer(value)
+		{
+			this._buffer = value;
+		}
+	};
+
+	/**
+	 * AudioDistanceModel determines which algorithm to use to reduce the volume of the audio source as it moves away from the listener.
+	 * @enum
+	 *
+	 * @see AudioEmitter
+	 */
+	var AudioDistanceModel = {
+	    /**
+	     *  A linear distance model: <code>1 - rolloffFactor * (distance - refDistance) / (maxDistance - refDistance)</code>
+	     */
+	    LINEAR: "linear",
+
+	    /**
+	     * An inverse distance model: <code>refDistance / (refDistance + rolloffFactor * (distance - refDistance))</code>
+	     */
+	    INVERSE: "inverse",
+
+	    /**
+	     * An exponential distance model: <code>pow(distance / refDistance, -rolloffFactor)</code>
+	     */
+	    EXPONENTIAL: "exponential"
+	};
+
+	/**
+	 * AudioPanningModel determines which spatialisation algorithm to use to position the audio in 3D space.
+	 * @enum
+	 *
+	 * @see AudioEmitter
+	 */
+	var AudioPanningModel = {
+	    /**
+	     * Represents the equal-power panning algorithm, generally regarded as simple and efficient.
+	     */
+	    EQUAL_POWER: "equalpower",
+
+	    /**
+	     * Renders a stereo output of higher quality than equalpower — it uses a convolution with measured impulse responses from human subjects.
+	     */
+	    HRTF: "HRTF"
+	};
+
+	/**
+	 * @classdesc
+	 * AudioEmitter is a {@linkcode Component} that allows playing back audio from the Entity's position. If any component
+	 * wishes to trigger playback from the Entity's origin, that Entity should have the AudioEmitter component assigned which
+	 * in turn should be retrieved from the Component triggering the playback. Most of the panning properties are wrappers for
+	 * [PannerNode]{@link https://developer.mozilla.org/en-US/docs/Web/API/PannerNode}.
+	 *
+	 * @constructor
+	 *
+	 * @param clip The audio clip to be played by this AudioEmitter. Multiple AudioClips can be added to an Entity.
+	 *
+	 * @property name Allows tagging AudioEmitters with a name. For instance: collision sounds could have the name "collision"
+	 * @property autoplay If true, playback starts when the component is added. Usually used with looping AudioClips.
+	 * @property coneInnerAngle The angle in radians (!!!) of a cone inside of which there will be no volume reduction.
+	 * @property coneOuterAngle The angle in radians (!!!) of a cone outside of which the volume will be reduced by a constant value, defined by the coneOuterGain attribute.
+	 * @property coneOuterGain The amount of volume reduction outside the cone defined by the coneOuterAngle attribute. Its default value is 0, meaning that no sound can be heard.
+	 * @property distanceModel One of {@linkcode AudioDistanceModel}, determining which algorithm to use to reduce the volume of the audio source as it moves away from the listener. Defaults to "linear".
+	 * @property maxDistance Represents the maximum distance between the audio source and the listener, after which the volume is not reduced any further.
+	 * @property panningModel One of {@linkcode AudioPanningModel}, determining which spatialisation algorithm to use to position the audio in 3D space. Defaults to "hrtf".
+	 * @property refDistance Representing the reference distance for reducing volume as the audio source moves further from the listener. {@see AudioDistanceModel}
+	 * @property rolloffFactor Describes how quickly the volume is reduced as the source moves away from the listener. This value is used by all distance models. {@see AudioDistanceModel}
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function AudioEmitter(clip)
+	{
+		Component.call(this);
+
+		this.name = "";
+		this._autoplay = false;
+		this._clip = clip;
+		this._source = null;
+	    this._gain = META.AUDIO_CONTEXT.createGain();
+	    this._panner = META.AUDIO_CONTEXT.createPanner();
+	    this._panner.connect(this._gain);
+	}
+
+	Component.create(AudioEmitter, {
+		gain: {
+			get: function() {
+				return this._gain.gain.value;
+			},
+
+			set: function(value) {
+	            this._gain.gain.value = value;
+			}
+		},
+
+		panningModel: {
+	        get: function() {
+	            return this._panner.panningModel;
+	        },
+
+	        set: function(value) {
+	            this._panner.panningModel = value;
+	        }
+		},
+
+	    coneInnerAngle: {
+	        get: function() {
+	            return this._coneInnerAngle;
+	        },
+
+	        set: function(value) {
+	        	// store a copy, so we always return exactly the same value
+	        	this._coneInnerAngle = value;
+	            this._panner.coneInnerAngle = value * MathX.RAD_TO_DEG;
+	        }
+		},
+
+	    coneOuterAngle: {
+	        get: function() {
+	            return this._coneOuterAngle;
+	        },
+
+	        set: function(value) {
+	        	// store a copy, so we always return exactly the same value
+	        	this._coneOuterAngle = value;
+	            this._panner.coneOuterAngle = value * MathX.RAD_TO_DEG;
+	        }
+		},
+
+	    coneOuterGain: {
+	        get: function() {
+	            return this._panner.coneOuterGain;
+	        },
+
+	        set: function(value) {
+	            this._panner.coneOuterGain = value;
+	        }
+		},
+
+	    distanceModel: {
+	        get: function() {
+	            return this._panner.distanceModel;
+	        },
+
+	        set: function(value) {
+	            this._panner.distanceModel = value;
+	        }
+		},
+
+	    maxDistance: {
+	        get: function() {
+	            return this._panner.maxDistance;
+	        },
+
+	        set: function(value) {
+	            this._panner.maxDistance = value;
+	        }
+		},
+
+	    panningModel: {
+	        get: function() {
+	            return this._panner.panningModel;
+	        },
+
+	        set: function(value) {
+	            this._panner.panningModel = value;
+	        }
+		},
+
+	    refDistance: {
+	        get: function() {
+	            return this._panner.refDistance;
+	        },
+
+	        set: function(value) {
+	            this._panner.refDistance = value;
+	        }
+		},
+
+	    rolloffFactor: {
+	        get: function() {
+	            return this._panner.rolloffFactor;
+	        },
+
+	        set: function(value) {
+	            this._panner.rolloffFactor = value;
+	        }
+		},
+
+		autoplay: {
+			get: function() {
+				return this._autoplay;
+			},
+
+			set: function(value) {
+				this._autoplay = value;
+			}
+		},
+
+		clip: {
+			get: function() {
+				return this._clip;
+			},
+
+			set: function(value) {
+				this._clip = value;
+			}
+		}
+	});
+
+	/**
+	 * @inheritDoc
+	 */
+	AudioEmitter.prototype.onAdded = function()
+	{
+	    this._gain.connect(META.AUDIO_CONTEXT.destination);
+
+	    if (this._autoplay)
+	        this.play();
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	AudioEmitter.prototype.onRemoved = function()
+	{
+		this.stop();
+	};
+
+
+	/**
+	 * Starts playback of the audio clip.
+	 *
+	 * @param {Number} [gain] The gain of the volume. If provided, this parameter will override the currently assigned gain of the component.
+	 */
+	AudioEmitter.prototype.play = function(gain)
+	{
+		// make sure position updates immediately
+	    var m = this._entity.worldMatrix._m;
+		var panner = this._panner;
+
+	    if (panner.positionX) {
+	        panner.positionX.value = m[12];
+	        panner.positionY.value = m[13];
+	        panner.positionZ.value = m[14];
+
+	        panner.orientationX.value = m[4];
+	        panner.orientationY.value = m[5];
+	        panner.orientationZ.value = m[6];
+	    }
+	    else {
+	        panner.setPosition(m[12], m[13], m[14]);
+	        panner.setOrientation(m[4], m[5], m[6]);
+		}
+
+		if (gain !== undefined)
+	    	this._gain.gain.value = gain;
+
+		this._source = META.AUDIO_CONTEXT.createBufferSource();
+		this._source.buffer = this._clip.buffer;
+		this._source.loop = this._clip.looping;
+		this._source.connect(this._panner);
+		this._source.start();
+	};
+
+	/**
+	 * Stops playback of the audio clip.
+	 */
+	AudioEmitter.prototype.stop = function()
+	{
+		if (this._source) {
+			this._source.stop();
+			this._source.disconnect();
+			this._source= null;
+	        this._gain.disconnect();
+	    }
+	};
+
+	/**
+	 * @inheritDoc
+	 * @returns {AudioEmitter}
+	 */
+	AudioEmitter.prototype.clone = function()
+	{
+		var emitter = new AudioEmitter(this._clip);
+		emitter.name = this.name;
+		return emitter;
+	};
+
+	AudioEmitter.prototype.onUpdate = function(dt)
+	{
+		if (!(this._source && this._source.isPlaying)) return;
+		var time = META.AUDIO_CONTEXT.currentTime;
+
+		var m = this._entity.worldMatrix._m;
+
+		var panner = this._panner;
+		if (panner.positionX) {
+			panner.positionX.setValueAtTime(m[12], time);
+			panner.positionY.setValueAtTime(m[13], time);
+			panner.positionZ.setValueAtTime(m[14], time);
+
+	        panner.orientationX.setValueAtTime(m[4], time);
+	        panner.orientationY.setValueAtTime(m[5], time);
+	        panner.orientationZ.setValueAtTime(m[6], time);
+	    }
+	    else {
+	        panner.setPosition(m[12], m[13], m[14]);
+	        panner.setOrientation(m[4], m[5], m[6]);
+		}
+	};
+
+	// keeping this here so we can use it as a test for uniqueness
+	var listener = null;
+
+	/**
+	 * @classdesc
+	 * AudioListener is a Component that defines the position of the virtual microphone in the scene. It's usually attached
+	 * to the camera
+	 *
+	 * @constructor
+	 *
+	 * @extends Component
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function AudioListener()
+	{
+		Component.call(this);
+	}
+
+	Component.create(AudioListener);
+
+	AudioListener.prototype.onAdded = function()
+	{
+		// TODO: Check it's the only listener in existence
+		console.assert(!listener, "Can only have one active AudioListener!");
+		listener = META.AUDIO_CONTEXT.listener;
+	};
+
+	AudioListener.prototype.onRemoved = function()
+	{
+		listener = null;
+	};
+
+	AudioListener.prototype.onUpdate = function(dt)
+	{
+		var time = META.AUDIO_CONTEXT.currentTime;
+		var m = this._entity.worldMatrix._m;
+
+		if (listener.positionX) {
+	        listener.positionX.setValueAtTime(m[12], time);
+	        listener.positionY.setValueAtTime(m[13], time);
+	        listener.positionZ.setValueAtTime(m[14], time);
+	        listener.forwardX.setValueAtTime(m[4], time);
+	        listener.forwardY.setValueAtTime(m[5], time);
+	        listener.forwardZ.setValueAtTime(m[6], time);
+	        listener.upX.setValueAtTime(m[8], time);
+	        listener.upY.setValueAtTime(m[9], time);
+	        listener.upZ.setValueAtTime(m[10], time);
+	    }
+	    else {
+	        listener.setPosition(m[12], m[13], m[14]);
+	        listener.setOrientation(m[4], m[5], m[6], m[8], m[9], m[10]);
+		}
+	};
+
+	/**
+	 * @classdesc
 	 * Only used for things like shadow map rendering.
 	 *
 	 * @ignore
@@ -21730,10 +22213,10 @@
 	/**
 	 * @ignore
 	 */
-	OrthographicOffCenterCamera.prototype.copyTo = function(target)
+	OrthographicOffCenterCamera.prototype.copyFrom = function(src)
 	{
-		Camera.prototype.copyTo.call(this, target);
-		target.setBounds(this._left, this._right, this._top, this._bottom);
+		Camera.prototype.copyFrom.call(this, src);
+		this.setBounds(src._left, src._right, src._top, src._bottom);
 	};
 
 	/**
@@ -21742,7 +22225,7 @@
 	OrthographicOffCenterCamera.prototype.clone = function()
 	{
 		var clone = new OrthographicOffCenterCamera();
-		this.copyTo(clone);
+		clone.copyFrom(this);
 		return clone;
 	};
 
@@ -21851,7 +22334,7 @@
 	/**
 	 * @ignore
 	 */
-	FloatController.prototype.onAdded = function(dt)
+	FloatController.prototype.onAdded = function()
 	{
 	    var self = this;
 	    this._onKeyDown = function(event) {
@@ -21932,7 +22415,7 @@
 	/**
 	 * @ignore
 	 */
-	FloatController.prototype.onRemoved = function(dt)
+	FloatController.prototype.onRemoved = function()
 	{
 	    document.removeEventListener("keydown", this._onKeyDown);
 	    document.removeEventListener("keyup", this._onKeyUp);
@@ -24183,7 +24666,7 @@
 	    JSON: 0,
 
 	    /**
-	     * An asset.
+	     * A Helix-based asset.
 	     */
 	    ASSET: 1,
 
@@ -24418,6 +24901,51 @@
 	        else
 	            this.load();
 	    }
+	};
+
+	/**
+	 * @classdesc
+	 *
+	 * AudioFile is an importer for audio files. Yields an {@see AudioClip} object.
+	 *
+	 * @constructor
+	 *
+	 * @extends Importer
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function AudioFile()
+	{
+		Importer.call(this, AudioClip, Importer.TYPE_BINARY);
+	}
+
+	AudioFile.prototype = Object.create(Importer.prototype);
+
+	/**
+	 * @ignore
+	 */
+	AudioFile.prototype.parse = function(data, target)
+	{
+		META.AUDIO_CONTEXT.decodeAudioData(data.buffer, this._onDecoded.bind(this, target), this._onFailed.bind(this));
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	AudioFile.prototype._onDecoded = function(target, buffer)
+	{
+		target.buffer = buffer;
+		this._notifyComplete(target);
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	AudioFile.prototype._onFailed = function()
+	{
+		this._notifyFailure("Failed to decode audio data");
 	};
 
 	/**
@@ -25369,7 +25897,7 @@
 	AmbientLight.prototype.clone = function()
 	{
 		var clone = new AmbientLight();
-		this.copyTo(clone);
+		clone.copyFrom(this);
 		return clone;
 	};
 
@@ -26303,6 +26831,8 @@
 	 * @classdesc
 	 * Renderer performs the actual rendering of a {@linkcode Scene} as viewed by a {@linkcode Camera} to the screen.
 	 *
+	 * @param {RenderTarget} [renderTarget] An optional render target for the Renderer to draw to.
+	 *
 	 * @constructor
 	 *
 	 * @author derschmale <http://www.derschmale.com>
@@ -27115,8 +27645,8 @@
 	    },
 
 	    /**
-	     * I know, it's not actual blitting.
 	     * @ignore
+		 * @private
 	     */
 	    _present: function()
 	    {
@@ -28371,7 +28901,8 @@
 
 	/**
 	 * @ignore
-	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
 	 */
 	function VRDummyCamera()
 	{
@@ -28472,6 +29003,14 @@
 	    return "[VRCamera(name=" + this._name + ")]";
 	};
 
+	/**
+	 * @classdesc
+	 * VRRenderer is a renderer to WebVR. This can only be used if `HX.enableVR` is called
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
 	function VRRenderer()
 	{
 	    Renderer.call(this);
@@ -28483,6 +29022,9 @@
 
 	VRRenderer.prototype = Object.create(Renderer.prototype);
 
+	/**
+	 * @inheritDoc
+	 */
 	VRRenderer.prototype.render = function(camera, scene, dt)
 	{
 	    // TODO: Render to two intermediate renderTargets
@@ -28516,6 +29058,9 @@
 	    this._renderToScreen();
 	};
 
+	/**
+	 * @ignore
+	 */
 	VRRenderer.prototype._present = function()
 	{
 	    if (this._gammaApplied) {
@@ -28534,6 +29079,9 @@
 	    GL.setViewport();
 	};
 
+	/**
+	 * @ignore
+	 */
 	VRRenderer.prototype._updateSize = function()
 	{
 	    var width, height;
@@ -29289,7 +29837,12 @@
 	    }
 	};
 
-	var webvrPolyFill = new WebVRPolyfill();
+	try {
+	    var webvrPolyFill = new WebVRPolyfill();
+	}
+	catch(err) {
+	    // probably IE's lack of Promise, just swallow the error
+	}
 
 	exports.ShaderLibrary = ShaderLibrary;
 	exports.init = init;
@@ -29364,6 +29917,11 @@
 	exports.SkeletonJointPose = SkeletonJointPose;
 	exports.SkeletonPose = SkeletonPose;
 	exports.SkeletonXFadeNode = SkeletonXFadeNode;
+	exports.AudioClip = AudioClip;
+	exports.AudioDistanceModel = AudioDistanceModel;
+	exports.AudioPanningModel = AudioPanningModel;
+	exports.AudioEmitter = AudioEmitter;
+	exports.AudioListener = AudioListener;
 	exports.Camera = Camera;
 	exports.Frustum = Frustum;
 	exports.PerspectiveCamera = PerspectiveCamera;
@@ -29388,6 +29946,7 @@
 	exports.ReinhardToneMapping = ReinhardToneMapping;
 	exports.AssetLibrary = AssetLibrary;
 	exports.AssetLoader = AssetLoader;
+	exports.AudioFile = AudioFile;
 	exports.URLLoader = URLLoader;
 	exports.HCLIP = HCLIP;
 	exports.HCM = HCM;

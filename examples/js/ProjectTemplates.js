@@ -23,6 +23,7 @@ SimpleProject.prototype =
 				HX.init(canvas, initOptions);
 			}
 			catch (err) {
+                console.error(err);
                 this.showError("It seems WebGL is not supported on this device.")
             }
 

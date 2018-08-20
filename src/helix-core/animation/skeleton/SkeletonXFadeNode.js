@@ -94,8 +94,8 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
         syncedDuration /= totalWeight;
 
     if (refChild) {
-        var syncedTimeScale = refChild.duration / syncedDuration;
-        var syncRatio = (refChild.time + dt * syncedTimeScale) / refChild.duration;
+        var syncedPlaybackRate = refChild.duration / syncedDuration;
+        var syncRatio = (refChild.time + dt * syncedPlaybackRate) / refChild.duration;
     }
 
     // we're still fading if len > 1
@@ -108,7 +108,7 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
         childNode = child.node;
 
         if (child.sync) {
-            // could also figure out a timescale to apply to dt, but assigning time and updating with dt = 0 is more
+            // could also figure out a playbackRate to apply to dt, but assigning time and updating with dt = 0 is more
             // robust.
             childNode.time = childNode.duration * syncRatio;
             updated = childNode.update(0, transferRootJoint) || updated;

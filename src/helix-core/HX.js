@@ -1,6 +1,12 @@
 import WebVRPolyfill from "webvr-polyfill";
+import "./polyfill/audio.js";
 
-var webvrPolyFill = new WebVRPolyfill();
+try {
+    var webvrPolyFill = new WebVRPolyfill();
+}
+catch(err) {
+    // probably IE's lack of Promise, just swallow the error
+}
 
 export {ShaderLibrary} from "./shader/ShaderLibrary";
 
@@ -72,6 +78,12 @@ export {SkeletonJointPose} from "./animation/skeleton/SkeletonJointPose";
 export {SkeletonPose} from "./animation/skeleton/SkeletonPose";
 export {SkeletonXFadeNode} from "./animation/skeleton/SkeletonXFadeNode";
 
+export {AudioClip} from "./audio/AudioClip";
+export {AudioDistanceModel} from "./audio/AudioDistanceModel";
+export {AudioPanningModel} from "./audio/AudioPanningModel";
+export {AudioEmitter} from "./audio/AudioEmitter";
+export {AudioListener} from "./audio/AudioListener";
+
 export {Camera} from "./camera/Camera";
 export {Frustum} from "./camera/Frustum";
 export {PerspectiveCamera} from "./camera/PerspectiveCamera";
@@ -100,6 +112,7 @@ export {ReinhardToneMapping} from "./effect/ReinhardToneMapping";
 
 export {AssetLibrary} from "./io/AssetLibrary";
 export {AssetLoader} from "./io/AssetLoader";
+export {AudioFile} from "./io/AudioFile";
 export {URLLoader} from "./io/URLLoader";
 export {HCLIP} from "./io/HCLIP";
 export {HCM} from "./io/HCM";

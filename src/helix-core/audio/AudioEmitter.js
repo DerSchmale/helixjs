@@ -1,20 +1,30 @@
 import {Component} from "../entity/Component";
-import {Float4} from "../math/Float4";
 import {META} from "../Helix";
+import {MathX} from "../math/MathX";
+import {AudioPanningModel} from "./AudioPanningModel";
+import {AudioDistanceModel} from "./AudioDistanceModel";
 
 /**
  * @classdesc
  * AudioEmitter is a {@linkcode Component} that allows playing back audio from the Entity's position. If any component
  * wishes to trigger playback from the Entity's origin, that Entity should have the AudioEmitter component assigned which
- * in turn should be retrieved from the Component triggering the playback.
+ * in turn should be retrieved from the Component triggering the playback. Most of the panning properties are wrappers for
+ * [PannerNode]{@link https://developer.mozilla.org/en-US/docs/Web/API/PannerNode}.
  *
  * @constructor
  *
  * @param clip The audio clip to be played by this AudioEmitter. Multiple AudioClips can be added to an Entity.
  *
  * @property name Allows tagging AudioEmitters with a name. For instance: collision sounds could have the name "collision"
- * @property positionOffset Allows setting an offset between the entity's position and the audio source. For example: a
  * @property autoplay If true, playback starts when the component is added. Usually used with looping AudioClips.
+ * @property coneInnerAngle The angle in radians (!!!) of a cone inside of which there will be no volume reduction.
+ * @property coneOuterAngle The angle in radians (!!!) of a cone outside of which the volume will be reduced by a constant value, defined by the coneOuterGain attribute.
+ * @property coneOuterGain The amount of volume reduction outside the cone defined by the coneOuterAngle attribute. Its default value is 0, meaning that no sound can be heard.
+ * @property distanceModel One of {@linkcode AudioDistanceModel}, determining which algorithm to use to reduce the volume of the audio source as it moves away from the listener. Defaults to "linear".
+ * @property maxDistance Represents the maximum distance between the audio source and the listener, after which the volume is not reduced any further.
+ * @property panningModel One of {@linkcode AudioPanningModel}, determining which spatialisation algorithm to use to position the audio in 3D space. Defaults to "hrtf".
+ * @property refDistance Representing the reference distance for reducing volume as the audio source moves further from the listener. {@see AudioDistanceModel}
+ * @property rolloffFactor Describes how quickly the volume is reduced as the source moves away from the listener. This value is used by all distance models. {@see AudioDistanceModel}
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -25,18 +35,115 @@ function AudioEmitter(clip)
 	this.name = "";
 	this._autoplay = false;
 	this._clip = clip;
-	this._sourceNode = null;
+	this._source = null;
+    this._gain = META.AUDIO_CONTEXT.createGain();
+    this._panner = META.AUDIO_CONTEXT.createPanner();
+    this._panner.connect(this._gain);
 }
 
 Component.create(AudioEmitter, {
-	positionOffset: {
+	gain: {
 		get: function() {
-			return this._positionOffset;
+			return this._gain.gain.value;
 		},
 
 		set: function(value) {
-			this._positionOffset = value;
+            this._gain.gain.value = value;
 		}
+	},
+
+	panningModel: {
+        get: function() {
+            return this._panner.panningModel;
+        },
+
+        set: function(value) {
+            this._panner.panningModel = value;
+        }
+	},
+
+    coneInnerAngle: {
+        get: function() {
+            return this._coneInnerAngle;
+        },
+
+        set: function(value) {
+        	// store a copy, so we always return exactly the same value
+        	this._coneInnerAngle = value;
+            this._panner.coneInnerAngle = value * MathX.RAD_TO_DEG;
+        }
+	},
+
+    coneOuterAngle: {
+        get: function() {
+            return this._coneOuterAngle;
+        },
+
+        set: function(value) {
+        	// store a copy, so we always return exactly the same value
+        	this._coneOuterAngle = value;
+            this._panner.coneOuterAngle = value * MathX.RAD_TO_DEG;
+        }
+	},
+
+    coneOuterGain: {
+        get: function() {
+            return this._panner.coneOuterGain;
+        },
+
+        set: function(value) {
+            this._panner.coneOuterGain = value;
+        }
+	},
+
+    distanceModel: {
+        get: function() {
+            return this._panner.distanceModel;
+        },
+
+        set: function(value) {
+            this._panner.distanceModel = value;
+        }
+	},
+
+    maxDistance: {
+        get: function() {
+            return this._panner.maxDistance;
+        },
+
+        set: function(value) {
+            this._panner.maxDistance = value;
+        }
+	},
+
+    panningModel: {
+        get: function() {
+            return this._panner.panningModel;
+        },
+
+        set: function(value) {
+            this._panner.panningModel = value;
+        }
+	},
+
+    refDistance: {
+        get: function() {
+            return this._panner.refDistance;
+        },
+
+        set: function(value) {
+            this._panner.refDistance = value;
+        }
+	},
+
+    rolloffFactor: {
+        get: function() {
+            return this._panner.rolloffFactor;
+        },
+
+        set: function(value) {
+            this._panner.rolloffFactor = value;
+        }
 	},
 
 	autoplay: {
@@ -65,8 +172,10 @@ Component.create(AudioEmitter, {
  */
 AudioEmitter.prototype.onAdded = function()
 {
-	if (this._autoplay)
-		this.play();
+    this._gain.connect(META.AUDIO_CONTEXT.destination);
+
+    if (this._autoplay)
+        this.play();
 };
 
 /**
@@ -80,14 +189,37 @@ AudioEmitter.prototype.onRemoved = function()
 
 /**
  * Starts playback of the audio clip.
+ *
+ * @param {Number} [gain] The gain of the volume. If provided, this parameter will override the currently assigned gain of the component.
  */
-AudioEmitter.prototype.play = function()
+AudioEmitter.prototype.play = function(gain)
 {
-	this._sourceNode = META.AUDIO_CONTEXT.createBufferSource();
-	this._sourceNode.buffer = this._clip.buffer;
-	this._sourceNode.loop = this._clip.looping;
-	this._sourceNode.connect(META.AUDIO_CONTEXT.destination);
-	this._sourceNode.start();
+	// make sure position updates immediately
+    var m = this._entity.worldMatrix._m;
+	var panner = this._panner;
+
+    if (panner.positionX) {
+        panner.positionX.value = m[12];
+        panner.positionY.value = m[13];
+        panner.positionZ.value = m[14];
+
+        panner.orientationX.value = m[4];
+        panner.orientationY.value = m[5];
+        panner.orientationZ.value = m[6];
+    }
+    else {
+        panner.setPosition(m[12], m[13], m[14]);
+        panner.setOrientation(m[4], m[5], m[6]);
+	}
+
+	if (gain !== undefined)
+    	this._gain.gain.value = gain;
+
+	this._source = META.AUDIO_CONTEXT.createBufferSource();
+	this._source.buffer = this._clip.buffer;
+	this._source.loop = this._clip.looping;
+	this._source.connect(this._panner);
+	this._source.start();
 };
 
 /**
@@ -95,11 +227,12 @@ AudioEmitter.prototype.play = function()
  */
 AudioEmitter.prototype.stop = function()
 {
-	if (this._sourceNode) {
-		this._sourceNode.stop();
-		this._sourceNode.disconnect();
-		this._sourceNode = null;
-	}
+	if (this._source) {
+		this._source.stop();
+		this._source.disconnect();
+		this._source= null;
+        this._gain.disconnect();
+    }
 };
 
 /**
@@ -115,15 +248,26 @@ AudioEmitter.prototype.clone = function()
 
 AudioEmitter.prototype.onUpdate = function(dt)
 {
-	var worldPos = new Float4();
-	return function()
-	{
-		if (this._sourceNode && this._sourceNode.isPlaying) {
-			this._entity.worldMatrix.getColumn(3, worldPos);
-			// TODO: Assign position, orientation to pannernode (doesn't exist yet)
-		}
+	if (!(this._source && this._source.isPlaying)) return;
+	var time = META.AUDIO_CONTEXT.currentTime;
+
+	var m = this._entity.worldMatrix._m;
+
+	var panner = this._panner;
+	if (panner.positionX) {
+		panner.positionX.setValueAtTime(m[12], time);
+		panner.positionY.setValueAtTime(m[13], time);
+		panner.positionZ.setValueAtTime(m[14], time);
+
+        panner.orientationX.setValueAtTime(m[4], time);
+        panner.orientationY.setValueAtTime(m[5], time);
+        panner.orientationZ.setValueAtTime(m[6], time);
+    }
+    else {
+        panner.setPosition(m[12], m[13], m[14]);
+        panner.setOrientation(m[4], m[5], m[6]);
 	}
-}();
+};
 
 
 export { AudioEmitter };

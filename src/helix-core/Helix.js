@@ -471,7 +471,7 @@ export function init(canvas, options)
     if (META.INITIALIZED) throw new Error("Can only initialize Helix once!");
 
     META.TARGET_CANVAS = canvas;
-    META.AUDIO_CONTEXT = new (window.AudioContext || window.webkitAudioContext)();
+    META.AUDIO_CONTEXT = window.hx_audioContext;
 
     _updateCanvasSize();
 

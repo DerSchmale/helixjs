@@ -23,31 +23,38 @@ function AudioListener()
 
 Component.create(AudioListener);
 
-AudioEmitter.prototype.onAdded = function()
+AudioListener.prototype.onAdded = function()
 {
 	// TODO: Check it's the only listener in existence
 	console.assert(!listener, "Can only have one active AudioListener!");
 	listener = META.AUDIO_CONTEXT.listener;
 };
 
-AudioEmitter.prototype.onRemoved = function()
+AudioListener.prototype.onRemoved = function()
 {
 	listener = null;
 };
 
-AudioEmitter.prototype.onUpdate = function(dt)
+AudioListener.prototype.onUpdate = function(dt)
 {
 	var time = META.AUDIO_CONTEXT.currentTime;
 	var m = this._entity.worldMatrix._m;
-	listener.positionX.setValueAtTime(m[12], time);
-	listener.positionY.setValueAtTime(m[13], time);
-	listener.positionZ.setValueAtTime(m[14], time);
-	listener.forwardX.setValueAtTime(m[4], time);
-	listener.forwardY.setValueAtTime(m[5], time);
-	listener.forwardZ.setValueAtTime(m[6], time);
-	listener.upX.setValueAtTime(m[8], time);
-	listener.upY.setValueAtTime(m[9], time);
-	listener.upZ.setValueAtTime(m[10], time);
+
+	if (listener.positionX) {
+        listener.positionX.setValueAtTime(m[12], time);
+        listener.positionY.setValueAtTime(m[13], time);
+        listener.positionZ.setValueAtTime(m[14], time);
+        listener.forwardX.setValueAtTime(m[4], time);
+        listener.forwardY.setValueAtTime(m[5], time);
+        listener.forwardZ.setValueAtTime(m[6], time);
+        listener.upX.setValueAtTime(m[8], time);
+        listener.upY.setValueAtTime(m[9], time);
+        listener.upZ.setValueAtTime(m[10], time);
+    }
+    else {
+        listener.setPosition(m[12], m[13], m[14]);
+        listener.setOrientation(m[4], m[5], m[6], m[8], m[9], m[10]);
+	}
 };
 
 

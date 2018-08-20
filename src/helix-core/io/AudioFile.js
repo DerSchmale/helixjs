@@ -35,7 +35,6 @@ AudioFile.prototype.parse = function(data, target)
 AudioFile.prototype._onDecoded = function(target, buffer)
 {
 	target.buffer = buffer;
-	console.log(buffer);
 	this._notifyComplete(target);
 };
 

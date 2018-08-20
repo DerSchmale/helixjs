@@ -58,14 +58,14 @@ function toggleVR()
 function initVR()
 {
     if (!navigator.getVRDisplays) {
-        project.showError("It seems like WebVR is not supported on your device.");
+        document.getElementById("controlsField").classList.add("hidden");
         return;
     }
 
     navigator.getVRDisplays().then(displays => {
         vrDisplays = displays;
         if (displays.length === 0) {
-            project.showError("It seems like you don't have any compatible VR devices.");
+            document.getElementById("controlsField").classList.add("hidden");
             return;
         }
 

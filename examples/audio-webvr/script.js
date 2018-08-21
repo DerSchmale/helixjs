@@ -146,6 +146,8 @@ function initScene(scene, assetLibrary)
 	ball.addComponent(new HX.MeshInstance(primitive, material));
 
 	var audioEmitter = new HX.AudioEmitter(assetLibrary.get("collision-sound"));
+    // set the name of the sound because it's used to trigger the sound from BounceComponent
+    audioEmitter.name = "collision";
     audioEmitter.panningModel = HX.AudioPanningModel.HRTF;
 
 	ball.addComponent(audioEmitter);

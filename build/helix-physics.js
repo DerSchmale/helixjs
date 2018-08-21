@@ -2,12 +2,12 @@
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('helix'), require('cannon')) :
 	typeof define === 'function' && define.amd ? define('HX_PHYS', ['exports', 'helix', 'cannon'], factory) :
 	(factory((global.HX_PHYS = {}),global.HX,global.CANNON));
-}(this, (function (exports,HX,CANNON$1) { 'use strict';
+}(this, (function (exports,HX$1,CANNON$1) { 'use strict';
 
 	function SubShape(shape, offset, orientation)
 	{
 		this.shape = shape;
-		this.offset = offset || new HX.Float4();
+		this.offset = offset || new HX$1.Float4();
 		this.orientation = orientation;
 	}
 
@@ -56,7 +56,7 @@
 	            var shapes = shape.shapes;
 	            for (var i = 0; i < shapes.length; ++i) {
 	                var subShape = shapes[i];
-	                var c = HX.Float4.add(this._center, subShape.offset);
+	                var c = HX$1.Float4.add(this._center, subShape.offset);
 	                var q = undefined;
 	                if (this._orientation) {
 	                    q = this._orientation.clone();
@@ -111,8 +111,8 @@
 	{
 	    Collider.call(this);
 	    if (min && max) {
-	        this._halfExtents = HX.Float4.subtract(max, min).scale(.5);
-	        this._center = HX.Float4.add(max, min).scale(.5);
+	        this._halfExtents = HX$1.Float4.subtract(max, min).scale(.5);
+	        this._center = HX$1.Float4.add(max, min).scale(.5);
 	    }
 	}
 
@@ -150,7 +150,7 @@
 	    this._radius = radius;
 	    this._center = center;
 	    if (radius !== undefined && center === undefined) {
-	        this._center = new HX.Float4();
+	        this._center = new HX$1.Float4();
 	    }
 	}
 
@@ -170,12 +170,55 @@
 
 	/**
 	 * @classdesc
+	 *
+	 * Collision contains all data to describe a collision of 2 RigidBody components.
+	 *
+	 * @property rigidBody The RigidBody that collided with the collision message emitter.
+	 * @property entity The Entity that collided with the collision message emitter.
+	 * @propety contactPoints An Array of {@linkcode Contact} objects, describing the contacts in detail.
+	 *
+	 * @constructor
+	 */
+	function Collision()
+	{
+	    /**
+	     * The RigidBody that collided with the rigid body broadcasting the collision message.
+	     */
+	    this.rigidBody = null;
+
+	    /**
+	     * The entity that collided with the rigid body broadcasting the collision message.
+	     */
+	    this.entity = null;
+
+	    /**
+	     * The world-space contact point of the collision for the rigid body broadcasting the collision message.
+	     */
+	    this.contactPoint = new HX.Float4(0, 0, 0, 1);
+
+	    /**
+	     * The contact normal of the collision, pointing out of the rigid body broadcasting the collision message.
+	     */
+	    this.contactNormal = new HX.Float4(0, 0, 0, 0);
+
+	    /**
+	     * The relative velocity between the two collisions (broadcaster.velocity - other.velocity)
+	     */
+	    this.relativeVelocity = new HX.Float4(0, 0, 0, 0);
+	}
+
+	/**
+	 * @classdesc
 	 * RigidBody is a component allowing a scene graph object to have physics simulations applied to it. Requires
 	 * {@linkcode PhysicsSystem}. At this point, entities using RigidBody need to be added to the root of the scenegraph (or
-	 * have parents without transformations)!
+	 * have parents without transformations)! Broadcasts a "collision" message on the Entity when a collision occurs with a
+	 * Collision object as parameter. This Collision object is shared across collisions and therefor is only valid in the
+	 * callback method.
 	 *
-	 * @property {boolean} ignoreRotation When set to true, the rigid body does not take on the rotation of its entity. This is useful
-	 * for a player controller camera.
+	 * @property {boolean} isKinematic When set to true, the user indicates the position of the object will be updated
+	 * manually as opposed to by the physics engine.
+	 * @property {boolean} ignoreRotation When set to true, the rigid body does not take on the rotation of its entity. This
+	 * is useful for a player controller camera.
 	 * @property {Number} ignoreRotation The mass of the target object.
 	 * @property {Number} linearDamping How much an object linear movement slows down over time
 	 * @property {Number} angularDamping How much an object rotational movement slows down over time
@@ -191,7 +234,8 @@
 	 */
 	function RigidBody(collider, mass, material)
 	{
-	    HX.Component.call(this);
+	    HX$1.Component.call(this);
+
 	    this._collider = collider;
 	    this._body = null;
 	    this._ignoreRotation = false;
@@ -202,10 +246,18 @@
 	    this._linearDamping = 0.01;
 	    this._angularDamping = 0.01;
 		this._material = material;
+
+	    this._collision = new Collision();
+
+	    this._onCollision = this._onCollision.bind(this);
 	}
 
+	/**
+	 * The name of the message broadcast by this component
+	 */
+	RigidBody.COLLISION_MESSAGE = "collision";
 
-	HX.Component.create(RigidBody, {
+	HX$1.Component.create(RigidBody, {
 		isKinematic: {
 			get: function()
 			{
@@ -341,6 +393,8 @@
 
 	RigidBody.prototype.onRemoved = function()
 	{
+	    this._body.removeEventListener("collide", this._onCollision);
+	    this._body = null;
 	};
 
 	RigidBody.prototype.prepTransform = function()
@@ -374,7 +428,7 @@
 	    var body = this._body;
 
 		if (this._collider._positionOffset)
-			HX.Float4.subtract(body.position, this._collider._positionOffset, entity.position);
+			HX$1.Float4.subtract(body.position, this._collider._positionOffset, entity.position);
 	    else
 	        entity.position = body.position;
 
@@ -386,16 +440,18 @@
 	{
 	    var entity = this._entity;
 
-	    var meshInstances = entity.getComponentsByType(HX.MeshInstance);
+	    var meshInstances = entity.getComponentsByType(HX$1.MeshInstance);
 	    var numMeshes = meshInstances.length;
 
 	    // use the same bounding type if it's the only mesh
 		var bounds = numMeshes === 1? meshInstances[0].mesh.bounds : entity.bounds;
 
 	    if (!this._collider)
-	        this._collider = bounds instanceof HX.BoundingAABB? new BoxCollider() : new SphereCollider();
+	        this._collider = bounds instanceof HX$1.BoundingAABB? new BoxCollider() : new SphereCollider();
 
 	    this._body = this._collider.createRigidBody(bounds);
+	    this._body._hx_rigidBody = this;
+	    this._body.addEventListener("collide", this._onCollision);
 
 	    if (this._isKinematic)
 			this._body.type = CANNON.Body.KINEMATIC;
@@ -427,6 +483,42 @@
 		return clone;
 	};
 
+	RigidBody.prototype._onCollision = function(event)
+	{
+	    // no use notifying about collisions
+	    if (!this.hasListeners(RigidBody.COLLISION_MESSAGE)) return;
+
+	    var collision = this._collision;
+	    var other = event.body._hx_rigidBody;
+	    var contact = event.contact;
+
+	    collision.rigidBody = other;
+	    collision.entity = other._entity;
+
+	    var b, r, v1, v2;
+	    var n = contact.ni;
+
+	    if (contact.bi === this._body) {
+	        v1 = contact.bi.velocity;
+	        v2 = contact.bj.velocity;
+	        b = contact.bi;
+	        r = contact.ri;
+	        collision.contactNormal.set(n.x, n.y, n.z);
+	    }
+	    else {
+	        v1 = contact.bj.velocity;
+	        v2 = contact.bi.velocity;
+	        b = contact.bj;
+	        r = contact.rj;
+	        collision.contactNormal.set(-n.x, -n.y, -n.z);
+	    }
+
+	    collision.relativeVelocity.set(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z, 0.0);
+	    collision.contactPoint.set(b.x + r.x, b.y + r.y, b.z + r.z, 1.0);
+
+	    this.broadcast(RigidBody.COLLISION_MESSAGE, collision);
+	};
+
 	/**
 	 * @classdesc
 	 * PhysicsSystem is an {@linkcode EntitySystem} allowing physics simulations (based on cannonjs).
@@ -438,7 +530,7 @@
 	 */
 	function PhysicsSystem()
 	{
-	    HX.EntitySystem.call(this);
+	    HX$1.EntitySystem.call(this);
 
 	    this._world = new CANNON$1.World();
 	    this._gravity = -9.81; // m/s²
@@ -453,10 +545,12 @@
 	    // this._world.quatNormalizeFast = true;
 	    // this._world.quatNormalizeSkip = 2;
 
+	    // this._world.addEventListener("collide", this._onCollision.bind(this));
+
 	    this._components = [];
 	}
 
-	PhysicsSystem.prototype = Object.create(HX.EntitySystem.prototype, {
+	PhysicsSystem.prototype = Object.create(HX$1.EntitySystem.prototype, {
 	    gravity: {
 	        get: function() {
 	            return this._gravity;
@@ -465,7 +559,7 @@
 	        set: function(value) {
 	            this._gravity = value;
 
-	            if (value instanceof HX.Float4)
+	            if (value instanceof HX$1.Float4)
 	                this._world.gravity.set(value.x, value.y, value.z);
 	            else
 	                this._world.gravity.set(0, value, 0);
@@ -557,7 +651,7 @@
 	    this._center = center;
 	    if (this._height < 2.0 * this._radius) this._height = 2.0 * this._radius;
 	    if (radius !== undefined && center === undefined) {
-	        this._center = new HX.Float4();
+	        this._center = new HX$1.Float4();
 	    }
 	}
 
@@ -578,8 +672,8 @@
 	    this._radius = this._radius || sceneBounds.getRadius();
 	    var shape = new CompoundShape();
 	    var sphere = new CANNON$1.Sphere(this._radius);
-		shape.addShape(sphere, new HX.Float4(0, 0, -cylHeight * .5));
-		shape.addShape(sphere, new HX.Float4(0, 0, cylHeight * .5));
+		shape.addShape(sphere, new HX$1.Float4(0, 0, -cylHeight * .5));
+		shape.addShape(sphere, new HX$1.Float4(0, 0, cylHeight * .5));
 		shape.addShape(new CANNON$1.Cylinder(this._radius, this._radius, cylHeight, 10));
 	    return shape;
 	};
@@ -598,7 +692,7 @@
 	function InfinitePlaneCollider(height)
 	{
 	    Collider.call(this);
-	    if (height) this._center = new HX.Float4(0, 0, height);
+	    if (height) this._center = new HX$1.Float4(0, 0, height);
 	}
 
 	InfinitePlaneCollider.prototype = Object.create(Collider.prototype);
@@ -626,7 +720,7 @@
 	{
 		Collider.call(this);
 
-		if (heightData instanceof HX.Texture2D) {
+		if (heightData instanceof HX$1.Texture2D) {
 			if (maxHeight === undefined) maxHeight = 1;
 			if (minHeight === undefined) minHeight = 0;
 
@@ -641,7 +735,7 @@
 		this._heightMapHeight = this._heightData[0].length;
 		this._worldSize = worldSize;
 		this._elementSize = this._worldSize / (this._heightMapWidth - 1);
-		this._positionOffset = new HX.Float4(-this._elementSize * this._heightMapWidth * .5, -this._elementSize * this._heightMapHeight * .5, minHeight, 0);
+		this._positionOffset = new HX$1.Float4(-this._elementSize * this._heightMapWidth * .5, -this._elementSize * this._heightMapHeight * .5, minHeight, 0);
 	}
 
 	HeightfieldCollider.prototype = Object.create(Collider.prototype);
@@ -666,25 +760,25 @@
 	{
 		var w = map.width;
 		var h = map.height;
-		var tex = new HX.Texture2D();
-		tex.initEmpty(w, h, HX.TextureFormat.RGBA, map.dataType);
-		var fbo = new HX.FrameBuffer(tex);
+		var tex = new HX$1.Texture2D();
+		tex.initEmpty(w, h, HX$1.TextureFormat.RGBA, map.dataType);
+		var fbo = new HX$1.FrameBuffer(tex);
 		fbo.init();
-		HX.GL.setRenderTarget(fbo);
-		HX.GL.clear();
-		HX.BlitTexture.execute(map);
+		HX$1.GL.setRenderTarget(fbo);
+		HX$1.GL.clear();
+		HX$1.BlitTexture.execute(map);
 
 		var len = w * h * 4;
 
 		var data;
-		if (map.dataType === HX.DataType.FLOAT)
+		if (map.dataType === HX$1.DataType.FLOAT)
 			data = new Float32Array(len);
-		else if (map.dataType === HX.DataType.UNSIGNED_BYTE)
+		else if (map.dataType === HX$1.DataType.UNSIGNED_BYTE)
 			data = new Uint8Array(len);
 		else
 			throw new Error("Invalid dataType!");
 
-		HX.GL.gl.readPixels(0, 0, w, h, HX.TextureFormat.RGBA, map.dataType, data);
+		HX$1.GL.gl.readPixels(0, 0, w, h, HX$1.TextureFormat.RGBA, map.dataType, data);
 
 		var arr = [];
 
@@ -779,8 +873,8 @@
 
 	function FPSController()
 	{
-		HX.Component.call(this);
-		this._move = new HX.Float2();
+		HX$1.Component.call(this);
+		this._move = new HX$1.Float2();
 		this._walkForce = 50.0;
 		this._runForce = 100.0;
 		this._movementForce = this._walkForce;
@@ -795,7 +889,7 @@
 		this._onKeyUp = null;
 	}
 
-	HX.Component.create(FPSController, {
+	HX$1.Component.create(FPSController, {
 		walkForce: {
 			get: function()
 			{
@@ -927,18 +1021,18 @@
 		{
 			self._mouseX = event.clientX;
 			self._mouseY = event.clientY;
-			HX.META.TARGET_CANVAS.addEventListener("mousemove", self._onMouseMove);
+			HX$1.META.TARGET_CANVAS.addEventListener("mousemove", self._onMouseMove);
 		};
 
 		this._onMouseUp = function(event)
 		{
-			HX.META.TARGET_CANVAS.removeEventListener("mousemove", self._onMouseMove);
+			HX$1.META.TARGET_CANVAS.removeEventListener("mousemove", self._onMouseMove);
 		};
 
 		document.addEventListener("keydown", this._onKeyDown);
 		document.addEventListener("keyup", this._onKeyUp);
-		HX.META.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
-		HX.META.TARGET_CANVAS.addEventListener("mouseup", this._onMouseUp);
+		HX$1.META.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
+		HX$1.META.TARGET_CANVAS.addEventListener("mouseup", this._onMouseUp);
 	};
 
 	/**
@@ -948,9 +1042,9 @@
 	{
 		document.removeEventListener("keydown", this._onKeyDown);
 		document.removeEventListener("keyup", this._onKeyUp);
-		HX.META.TARGET_CANVAS.removeEventListener("mousemove", this._onMouseMove);
-		HX.META.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
-		HX.META.TARGET_CANVAS.removeEventListener("mouseup", this._onMouseUp);
+		HX$1.META.TARGET_CANVAS.removeEventListener("mousemove", this._onMouseMove);
+		HX$1.META.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
+		HX$1.META.TARGET_CANVAS.removeEventListener("mouseup", this._onMouseUp);
 	};
 
 	/**
@@ -958,9 +1052,9 @@
 	 */
 	FPSController.prototype.onUpdate = function(dt)
 	{
-		var x = new HX.Float2();
-		var y = new HX.Float2();
-		var p = new HX.Float4();
+		var x = new HX$1.Float2();
+		var y = new HX$1.Float2();
+		var p = new HX$1.Float4();
 
 		return function(dt)
 		{
@@ -1049,6 +1143,7 @@
 	exports.HeightfieldCollider = HeightfieldCollider;
 	exports.PhysicsMaterial = PhysicsMaterial;
 	exports.FPSController = FPSController;
+	exports.Collision = Collision;
 
 	Object.defineProperty(exports, '__esModule', { value: true });
 

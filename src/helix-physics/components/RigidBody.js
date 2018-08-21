@@ -1,15 +1,20 @@
 import * as HX from "helix";
 import {BoxCollider} from "../collider/BoxCollider";
 import {SphereCollider} from "../collider/SphereCollider";
+import {Collision} from "../collision/Collision";
 
 /**
  * @classdesc
  * RigidBody is a component allowing a scene graph object to have physics simulations applied to it. Requires
  * {@linkcode PhysicsSystem}. At this point, entities using RigidBody need to be added to the root of the scenegraph (or
- * have parents without transformations)!
+ * have parents without transformations)! Broadcasts a "collision" message on the Entity when a collision occurs with a
+ * Collision object as parameter. This Collision object is shared across collisions and therefor is only valid in the
+ * callback method.
  *
- * @property {boolean} ignoreRotation When set to true, the rigid body does not take on the rotation of its entity. This is useful
- * for a player controller camera.
+ * @property {boolean} isKinematic When set to true, the user indicates the position of the object will be updated
+ * manually as opposed to by the physics engine.
+ * @property {boolean} ignoreRotation When set to true, the rigid body does not take on the rotation of its entity. This
+ * is useful for a player controller camera.
  * @property {Number} ignoreRotation The mass of the target object.
  * @property {Number} linearDamping How much an object linear movement slows down over time
  * @property {Number} angularDamping How much an object rotational movement slows down over time
@@ -26,6 +31,7 @@ import {SphereCollider} from "../collider/SphereCollider";
 function RigidBody(collider, mass, material)
 {
     HX.Component.call(this);
+
     this._collider = collider;
     this._body = null;
     this._ignoreRotation = false;
@@ -36,8 +42,16 @@ function RigidBody(collider, mass, material)
     this._linearDamping = 0.01;
     this._angularDamping = 0.01;
 	this._material = material;
+
+    this._collision = new Collision();
+
+    this._onCollision = this._onCollision.bind(this);
 }
 
+/**
+ * The name of the message broadcast by this component
+ */
+RigidBody.COLLISION_MESSAGE = "collision";
 
 HX.Component.create(RigidBody, {
 	isKinematic: {
@@ -175,6 +189,8 @@ RigidBody.prototype.onAdded = function()
 
 RigidBody.prototype.onRemoved = function()
 {
+    this._body.removeEventListener("collide", this._onCollision);
+    this._body = null;
 };
 
 RigidBody.prototype.prepTransform = function()
@@ -230,6 +246,8 @@ RigidBody.prototype._createBody = function()
         this._collider = bounds instanceof HX.BoundingAABB? new BoxCollider() : new SphereCollider();
 
     this._body = this._collider.createRigidBody(bounds);
+    this._body._hx_rigidBody = this;
+    this._body.addEventListener("collide", this._onCollision);
 
     if (this._isKinematic)
 		this._body.type = CANNON.Body.KINEMATIC;
@@ -259,6 +277,42 @@ RigidBody.prototype.clone = function()
 	clone.angularDamping = this.angularDamping;
 	clone.isKinematic = this._isKinematic;
 	return clone;
+};
+
+RigidBody.prototype._onCollision = function(event)
+{
+    // no use notifying about collisions
+    if (!this.hasListeners(RigidBody.COLLISION_MESSAGE)) return;
+
+    var collision = this._collision;
+    var other = event.body._hx_rigidBody;
+    var contact = event.contact;
+
+    collision.rigidBody = other;
+    collision.entity = other._entity;
+
+    var b, r, v1, v2;
+    var n = contact.ni;
+
+    if (contact.bi === this._body) {
+        v1 = contact.bi.velocity;
+        v2 = contact.bj.velocity;
+        b = contact.bi;
+        r = contact.ri;
+        collision.contactNormal.set(n.x, n.y, n.z);
+    }
+    else {
+        v1 = contact.bj.velocity;
+        v2 = contact.bi.velocity;
+        b = contact.bj;
+        r = contact.rj;
+        collision.contactNormal.set(-n.x, -n.y, -n.z);
+    }
+
+    collision.relativeVelocity.set(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z, 0.0);
+    collision.contactPoint.set(b.x + r.x, b.y + r.y, b.z + r.z, 1.0);
+
+    this.broadcast(RigidBody.COLLISION_MESSAGE, collision);
 };
 
 export {RigidBody};

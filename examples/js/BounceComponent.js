@@ -16,7 +16,6 @@ BounceComponent.prototype.onAdded = function()
 	this._max = this._bounds.maximum;
 	this._min.add(bounds.halfExtent);
 	this._max.subtract(bounds.halfExtent);
-	this._audio = this.entity.getFirstComponentByType(HX.AudioEmitter);
 };
 
 BounceComponent.prototype.onUpdate = function(dt)
@@ -29,7 +28,8 @@ BounceComponent.prototype.onUpdate = function(dt)
 	hit |= checkBound("y", pos, this._velocity, this._min, this._max);
 	hit |= checkBound("z", pos, this._velocity, this._min, this._max);
 
-	if (hit) this._audio.play();
+	// we've passed the name in the emitter
+	if (hit) this.broadcast(HX.AudioEmitter.PLAY_MESSAGE, "collision");
 };
 
 function checkBound(comp, pos, vel, min, max)

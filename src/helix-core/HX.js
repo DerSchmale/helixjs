@@ -97,6 +97,7 @@ export {Color} from "./core/Color";
 export {DataStream} from "./core/DataStream";
 export {GL} from "./core/GL";
 export {Signal} from "./core/Signal";
+export {Messenger} from "./core/Messenger";
 
 export {Bloom} from "./effect/Bloom";
 export {Blur} from "./effect/Blur";

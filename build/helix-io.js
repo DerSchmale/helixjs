@@ -966,7 +966,8 @@
 
         /**
          * Dispatches the signal, causing all the listening functions to be called.
-         * @param [payload] An optional object to be passed in as a parameter to the listening functions. Can be used to provide data.
+         *
+         * @param [payload] An optional amount of arguments to be passed in as a parameter to the listening functions. Can be used to provide data.
          */
         dispatch: function(payload)
         {

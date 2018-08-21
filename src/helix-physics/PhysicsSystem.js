@@ -14,7 +14,7 @@ import {RigidBody} from "./components/RigidBody";
  */
 function PhysicsSystem()
 {
-    HX.EntitySystem.call(this)
+    HX.EntitySystem.call(this);
 
     this._world = new CANNON.World();
     this._gravity = -9.81; // m/s²
@@ -28,6 +28,8 @@ function PhysicsSystem()
 
     // this._world.quatNormalizeFast = true;
     // this._world.quatNormalizeSkip = 2;
+
+    // this._world.addEventListener("collide", this._onCollision.bind(this));
 
     this._components = [];
 }

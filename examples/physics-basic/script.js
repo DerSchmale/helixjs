@@ -11,6 +11,7 @@ project.queueAssets = function(assetLibrary)
     assetLibrary.queueAsset("floor-albedo", "crytek-sponza/textures_pbr/Sponza_Ceiling_diffuse.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
     assetLibrary.queueAsset("floor-normals", "crytek-sponza/textures_pbr/Sponza_Ceiling_normal.png", HX.AssetLibrary.Type.ASSET, HX.JPG);
     assetLibrary.queueAsset("floor-specular", "crytek-sponza/textures_pbr/Sponza_Ceiling_roughness.jpg", HX.AssetLibrary.Type.ASSET, HX.JPG);
+    assetLibrary.queueAsset("collision-sound", "sound/collision.mp3", HX.AssetLibrary.Type.ASSET, HX.AudioFile);
 };
 
 project.onInit = function()
@@ -36,6 +37,7 @@ function initCamera(camera)
 {
     camera.nearDistance = .3;
     camera.farDistance = 100.0;
+    camera.addComponent(new HX.AudioListener());
 
     var orbitController = new HX.OrbitController();
     orbitController.lookAtTarget.y = 1.2;
@@ -94,22 +96,41 @@ function initScene(scene, assetLibrary)
     material = new HX.BasicMaterial();
     material.fixedLights = lights;
     material.roughness = .1;
-    primitive = new HX.BoxPrimitive({width: .25});
+    primitive = new HX.BoxPrimitive({width: .5});
 
     for (var x = -1; x <= 1; ++x) {
-        for (var z = 0; z < 10; ++z) {
+        for (var z = 0; z < 5; ++z) {
             for (var y = -1; y <= 1; ++y) {
-                var modelInstance = new HX.Entity(new HX.MeshInstance(primitive, material));
+                var entity = new HX.Entity(new HX.MeshInstance(primitive, material));
 
-                modelInstance.position.set(x + (Math.random() - .5) * .3, y + (Math.random() - .5) * .3, 1.0 + z * 2.0);
+                entity.position.set(x + (Math.random() - .5) * .3, y + (Math.random() - .5) * .3, 1.0 + z * 2.0 + Math.random() * 15);
+                entity.position.scale(5.0);
+                entity.rotation.fromEuler(Math.random(), Math.random(), Math.random());
 
                 rigidBody = new HX_PHYS.RigidBody();
                 rigidBody.linearDamping = .2;
                 rigidBody.angularDamping = .2;
-                modelInstance.addComponent(rigidBody);
+                entity.addComponent(rigidBody);
 
-                scene.attach(modelInstance);
+                var audioEmitter = new HX.AudioEmitter(assetLibrary.get("collision-sound"));
+                // set the name of the sound because it's used to trigger the sound from onHit
+                audioEmitter.name = "collision";
+                audioEmitter.panningModel = HX.AudioPanningModel.HRTF;
+                entity.addComponent(audioEmitter);
+
+                // bind a function to the collision message, provide entity as "this" param
+                entity.messenger.bind(HX_PHYS.RigidBody.COLLISION_MESSAGE, onHit, entity);
+
+                scene.attach(entity);
             }
         }
     }
+}
+
+function onHit(message, collision)
+{
+    // remember "entity" was bound as "this"
+    var gain = collision.relativeVelocity.length * .003;
+    if (gain < .001) return;
+    this.messenger.broadcast(HX.AudioEmitter.PLAY_MESSAGE, "collision", gain);
 }

@@ -3,6 +3,7 @@ import {Signal} from "../core/Signal";
 import {Bitfield} from "../core/Bitfield";
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {MeshInstance} from "../mesh/MeshInstance";
+import {Messenger} from "../core/Messenger";
 
 /**
  * @classdesc
@@ -12,6 +13,8 @@ import {MeshInstance} from "../mesh/MeshInstance";
  * @property {BoundingVolume} worldBounds The bounding volume for this node in world coordinates. This does not include
  * children
  *
+ * @property {Messenger} messenger The Messenger to which elements can listen for certain names Signals related to this Entity.
+ *
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -19,6 +22,8 @@ import {MeshInstance} from "../mesh/MeshInstance";
 function Entity(components)
 {
 	SceneNode.call(this);
+
+	this.messenger = new Messenger();
 
 	// components
 	this._componentHash = new Bitfield();

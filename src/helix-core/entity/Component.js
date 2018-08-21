@@ -127,6 +127,28 @@ Component.prototype =
 		clone: function()
 		{
 			throw new Error("Abstract method called!");
+		},
+
+        /**
+		 * Broadcasts a message dispatched by the owning Entity's onMessage Signal.
+         */
+        broadcast: function(name, args)
+		{
+            if (this._entity) {
+            	var messenger = this._entity.messenger;
+            	messenger.broadcast.apply(messenger, arguments);
+            }
+		},
+
+        /**
+		 * Tests whether the given signal is being listened to.
+         */
+        hasListeners: function(name)
+		{
+            if (this._entity) {
+				return this._entity.messenger.hasListeners(name);
+            }
+            return false;
 		}
 	};
 

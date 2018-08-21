@@ -1,15 +1,16 @@
 import {Component} from "../entity/Component";
 import {META} from "../Helix";
 import {MathX} from "../math/MathX";
-import {AudioPanningModel} from "./AudioPanningModel";
 import {AudioDistanceModel} from "./AudioDistanceModel";
 
 /**
  * @classdesc
  * AudioEmitter is a {@linkcode Component} that allows playing back audio from the Entity's position. If any component
  * wishes to trigger playback from the Entity's origin, that Entity should have the AudioEmitter component assigned which
- * in turn should be retrieved from the Component triggering the playback. Most of the panning properties are wrappers for
- * [PannerNode]{@link https://developer.mozilla.org/en-US/docs/Web/API/PannerNode}.
+ * in turn should be retrieved from the Component triggering the playback.
+ * Another way of triggering/stopping playback is broadcasting AudioEmitter.PLAY_MESSAGE or AudioEmitter.STOP_MESSAGE
+ * with the AudioEmitter's name as parameter.
+ * Most of the panning properties are wrappers for [PannerNode]{@link https://developer.mozilla.org/en-US/docs/Web/API/PannerNode}.
  *
  * @constructor
  *
@@ -40,6 +41,9 @@ function AudioEmitter(clip)
     this._panner = META.AUDIO_CONTEXT.createPanner();
     this._panner.connect(this._gain);
 }
+
+AudioEmitter.PLAY_MESSAGE = "play";
+AudioEmitter.STOP_MESSAGE = "stop";
 
 Component.create(AudioEmitter, {
 	gain: {
@@ -176,6 +180,9 @@ AudioEmitter.prototype.onAdded = function()
 
     if (this._autoplay)
         this.play();
+
+    this._entity.messenger.bind(AudioEmitter.PLAY_MESSAGE, this._onPlayMessage, this);
+    this._entity.messenger.bind(AudioEmitter.STOP_MESSAGE, this._onStopMessage, this);
 };
 
 /**
@@ -183,6 +190,8 @@ AudioEmitter.prototype.onAdded = function()
  */
 AudioEmitter.prototype.onRemoved = function()
 {
+    this._entity.messenger.unbind(AudioEmitter.PLAY_MESSAGE, this._onPlayMessage);
+    this._entity.messenger.unbind(AudioEmitter.STOP_MESSAGE, this._onStopMessage);
 	this.stop();
 };
 
@@ -269,5 +278,16 @@ AudioEmitter.prototype.onUpdate = function(dt)
 	}
 };
 
+AudioEmitter.prototype._onPlayMessage = function(message, audioName, gain)
+{
+    if (audioName === this.name)
+        this.play(gain);
+};
+
+AudioEmitter.prototype._onStopMessage = function(message, audioName)
+{
+    if (audioName === this.name)
+        this.stop();
+};
 
 export { AudioEmitter };

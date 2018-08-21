@@ -7,7 +7,7 @@ var audioListener;
 
 project.queueAssets = function(assetLibrary)
 {
-    assetLibrary.queueAsset("collision-sound", "sound/collision.mp3", HX.AssetLibrary.Type.ASSET, HX.AudioFile);
+    assetLibrary.queueAsset("collision-sound", "sound/collision.wav", HX.AssetLibrary.Type.ASSET, HX.AudioFile);
 };
 
 project.onInit = function()

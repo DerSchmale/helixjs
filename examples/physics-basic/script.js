@@ -130,7 +130,7 @@ function initScene(scene, assetLibrary)
 function onHit(message, collision)
 {
     // remember "entity" was bound as "this"
-    var gain = collision.relativeVelocity.length * .003;
+    var gain = collision.relativeVelocity.length * .006;
     if (gain < .001) return;
     this.messenger.broadcast(HX.AudioEmitter.PLAY_MESSAGE, "collision", gain);
 }

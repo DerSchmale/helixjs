@@ -14,7 +14,14 @@ function OrbitController(lookAtTarget)
 	this._mouse.map(HX.Mouse.DRAG_Y, "axisY");
 	this._mouse.map(HX.Mouse.WHEEL_Y, "zoom");
 
-    this.zoomSpeed = 1.0;
+	this._touch = new HX.Touch();
+	this._touch.sensitivityY = -1;
+	this._touch.sensitivityX = -1;
+	this._touch.map(HX.Touch.MOVE_X, "axisX");
+	this._touch.map(HX.Touch.MOVE_Y, "axisY");
+	this._touch.map(HX.Touch.PINCH, "zoom");
+
+	this.zoomSpeed = 1.0;
     this.maxRadius = 4.0;
     this.minRadius = 0.1;
     this.dampen = .9;
@@ -43,64 +50,14 @@ HX.Component.create(OrbitController,
 
 OrbitController.prototype.onAdded = function()
 {
-    var self = this;
-
 	this._input.enable(this._mouse);
-
-    this._onTouchDown = function (event)
-    {
-        self._oldMouseX = undefined;
-        self._oldMouseY = undefined;
-
-        if (event.touches.length === 2) {
-            var touch1 = event.touches[0];
-            var touch2 = event.touches[1];
-            var dx = touch1.screenX - touch2.screenX;
-            var dy = touch1.screenY - touch2.screenY;
-            self._startPitchDistance = Math.sqrt(dx*dx + dy*dy);
-            self._startZoom = self.radius;
-        }
-
-        self._isDown = true;
-    };
-
-    this._onTouchMove = function (event)
-    {
-        event.preventDefault();
-
-        if (!self._isDown) return;
-
-        var numTouches = event.touches.length;
-
-        if (numTouches === 1) {
-            var touch = event.touches[0];
-            self._updateMove(touch.screenX, touch.screenY);
-        }
-        else if (numTouches === 2) {
-            var touch1 = event.touches[0];
-            var touch2 = event.touches[1];
-            var dx = touch1.screenX - touch2.screenX;
-            var dy = touch1.screenY - touch2.screenY;
-            var dist = Math.sqrt(dx*dx + dy*dy);
-            var diff = self._startPitchDistance - dist;
-            self.radius = self._startZoom + diff * self.touchZoomSpeed;
-        }
-    };
-
-    this._onUp = function(event) { self._isDown = false; };
-
-    HX.META.TARGET_CANVAS.addEventListener("touchmove", this._onTouchMove);
-	HX.META.TARGET_CANVAS.addEventListener("touchstart", this._onTouchDown);
-	HX.META.TARGET_CANVAS.addEventListener("touchend", this._onUp);
+	this._input.enable(this._touch);
 };
 
 OrbitController.prototype.onRemoved = function()
 {
 	this._input.disable(this._mouse);
-
-	HX.META.TARGET_CANVAS.removeEventListener("touchmove", this._onTouchMove);
-	HX.META.TARGET_CANVAS.removeEventListener("touchstart", this._onTouchDown);
-	HX.META.TARGET_CANVAS.removeEventListener("touchend", this._onUp);
+	this._input.disable(this._touch);
 };
 
 OrbitController.prototype.onUpdate = function(dt)
@@ -109,7 +66,7 @@ OrbitController.prototype.onUpdate = function(dt)
 	this.setPolarImpulse(this._input.getValue("axisY"));
 
 	var zoom = this._input.getValue("zoom");
-	this.setZoomImpulse(zoom * this.zoomSpeed);
+	this.setZoomImpulse(-zoom * this.zoomSpeed);
 
     this._localVelocity.x *= this.dampen;
     this._localVelocity.y *= this.dampen;

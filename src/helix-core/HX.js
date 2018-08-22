@@ -112,6 +112,7 @@ export {ReinhardToneMapping} from "./effect/ReinhardToneMapping";
 export {Input} from "./input/Input";
 export {Keyboard} from "./input/Keyboard";
 export {Mouse} from "./input/Mouse";
+export {Touch} from "./input/Touch";
 
 export {AssetLibrary} from "./loaders/AssetLibrary";
 export {AssetLoader} from "./loaders/AssetLoader";

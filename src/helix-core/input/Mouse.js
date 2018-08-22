@@ -19,8 +19,8 @@ function Mouse()
 	InputPlugin.call(this);
 
 	this.sensitivityX = 1;
-	this.sensitivityY = 1;
-	this.sensitivityWheel = .0035;
+	this.sensitivityY = -1;	 // invert by default
+	this.sensitivityWheel = -.0035; // invert by default for zooming
 
 	this._onMouseMove = this._onMouseMove.bind(this);
 	this._onMouseDown = this._onMouseDown.bind(this);
@@ -167,11 +167,6 @@ Mouse.prototype._onMouseDown = function(event)
 	this._buttonMask = event.buttons;
 	var button = BUTTON_MAP[event.button];
 	if (!button) return;
-
-	if (button === Mouse.BUTTON_RIGHT && this.isMapped(button)) {
-		event.stopImmediatePropagation();
-	}
-
 	this.setValue(button, 1);
 };
 

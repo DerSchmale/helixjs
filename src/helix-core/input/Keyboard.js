@@ -24,14 +24,16 @@ Keyboard.prototype = Object.create(InputPlugin.prototype);
 
 /**
  * Maps two keys to represent an axis. This allows for example: "left" and "right"
- * @param negKey The key or character to represent the negative end of the axis.
- * @param posKey The key or character to represent the positive end of the axis.
+ * @param {string} negKey The key or character to represent the negative end of the axis.
+ * @param {string} posKey The key or character to represent the positive end of the axis.
  * @param action The action to map the axis on.
+ * @param {number} [range] The maximum value the key represents. Defaults to 1.
  */
-Keyboard.prototype.mapAxis = function(negKey, posKey, action)
+Keyboard.prototype.mapAxis = function(negKey, posKey, action, range)
 {
-	this._signs[negKey] = -1;
-	this._signs[posKey] = 1;
+	var range = range || 1;
+	this._signs[negKey] = -range;
+	this._signs[posKey] = range;
 	this.map(negKey, action);
 	this.map(posKey, action);
 };

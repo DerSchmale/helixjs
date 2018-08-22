@@ -24,7 +24,7 @@ project.onInit = function()
 
     scene.attach(camera1);
     scene.attach(camera2);
-    camera1.addComponent(new HX.OrbitController());
+    camera1.addComponent(new OrbitController());
 
     var bloom = new HX.Bloom(50, 5.0, 2);
     bloom.thresholdLuminance = .5;

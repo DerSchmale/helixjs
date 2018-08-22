@@ -4858,6 +4858,17 @@
 	    },
 
 	    /**
+	     * Adds a scalar multiple of another vector in place.
+	     * @param v The vector to scale and add.
+		 * @param s The scale to apply to v
+	     */
+	    addScaled: function(v, s)
+	    {
+	        this.x += v.x * s;
+	        this.y += v.y * s;
+	    },
+
+	    /**
 	     * Subtracts a vector from this one in place.
 	     */
 	    subtract: function(v)
@@ -4865,6 +4876,19 @@
 	        this.x -= v.x;
 	        this.y -= v.y;
 	    },
+
+		/**
+		 * Subtracts a scaled vector from this one in place.
+		 *
+		 * @param v The vector to scale and subtract.
+		 * @param s The scale to apply to v
+		 */
+		subtractScaled: function (v, s)
+		{
+			this.x -= v.x * s;
+			this.y -= v.y * s;
+			return this;
+		},
 
 	    /**
 	     * Multiplies the components of this vector with a scalar.
@@ -5351,6 +5375,21 @@
 				this.y -= v.y;
 				this.z -= v.z;
 				this.w -= v.w;
+				return this;
+			},
+
+			/**
+			 * Subtracts a scaled vector from this one in place.
+			 *
+			 * @param v The vector to scale and subtract.
+			 * @param s The scale to apply to v
+			 */
+			subtractScaled: function (v, s)
+			{
+				this.x -= v.x * s;
+				this.y -= v.y * s;
+				this.z -= v.z * s;
+				this.w -= v.w * s;
 				return this;
 			},
 
@@ -22522,505 +22561,6 @@
 
 	/**
 	 * @classdesc
-	 * FloatController is a {@linkcode Component} that allows moving an object (usually a camera) using mouse and keyboard (typical WASD controls) in all directions.
-	 * It uses Tait-Bryan pitch/yaw (ignoring roll) angles.
-	 *
-	 * @property {number} speed The speed at which to move.
-	 * @property {number} shiftMultiplier A speed-up factor for when the shift key is pressed.
-	 * @property {number} pitch The current orientation pitch (rotation about the X axis).
-	 * @property {number} yaw The current orientation yaw (rotation about the Y axis).
-	 * @property {number} friction The amount of friction that will cause the movement to stop when there's no input.
-	 *
-	 * @constructor
-	 *
-	 * @extends Component
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function FloatController()
-	{
-	    Component.call(this);
-	    this._speed = 1.0;
-	    this._speedMultiplier = 2.0;
-	    this._localVelocity = new Float4(0, 0, 0, 0);
-	    this._localAcceleration = new Float4(0, 0, 0, 0);
-	    this._pitch = 0.0;
-	    this._yaw = 0.0;
-	    this._mouseX = 0;
-	    this._mouseY = 0;
-
-	    this._friction = 5.0;    // 1/s
-
-	    this._maxAcceleration = this._speed;    // m/s^2
-	    this._maxVelocity = this._speed;    // m/s
-
-	    this._onKeyDown = null;
-	    this._onKeyUp = null;
-	}
-
-	Component.create(FloatController, {
-	    speed: {
-	        get: function()
-	        {
-	            return this._speed;
-	        },
-
-	        set: function(value)
-	        {
-	            this._speed = value;
-	            this._maxAcceleration = value;
-	            this._maxVelocity = value;
-	        }
-	    },
-
-	    shiftMultiplier: {
-	        get: function()
-	        {
-	            return this._speedMultiplier;
-	        },
-
-	        set: function(value)
-	        {
-	            this._speedMultiplier = value;
-	        }
-	    },
-
-	    pitch: {
-	        get: function()
-	        {
-	            return this._pitch;
-	        },
-
-	        set: function(value)
-	        {
-	            this._pitch = value;
-	        }
-	    },
-
-	    yaw: {
-	        get: function()
-	        {
-	            return this._yaw;
-	        },
-
-	        set: function(value)
-	        {
-	            this._yaw = value;
-	        }
-	    },
-
-	    friction: {
-	        get: function()
-	        {
-	            return this._friction;
-	        },
-
-	        set: function(value)
-	        {
-	            this._friction = value;
-	        }
-	    }
-	});
-
-	/**
-	 * @ignore
-	 */
-	FloatController.prototype.onAdded = function()
-	{
-	    var self = this;
-	    this._onKeyDown = function(event) {
-	        var keyCode = ("which" in event) ? event.which : event.keyCode;
-
-	        switch (keyCode) {
-	            case 16:
-	                self._maxVelocity = self._speed * self._speedMultiplier;
-	                self._maxAcceleration = self._speed * self._speedMultiplier;
-	                break;
-	            case 87:
-	                self._setForwardForce(1.0);
-	                break;
-	            case 83:
-	                self._setForwardForce(-1.0);
-	                break;
-	            case 65:
-	                self._setStrideForce(-1.0);
-	                break;
-	            case 68:
-	                self._setStrideForce(1.0);
-	                break;
-	            default:
-	                // nothing
-	        }
-	    };
-
-	    this._onKeyUp = function(event) {
-	        var keyCode = ("which" in event) ? event.which : event.keyCode;
-
-	        switch (keyCode) {
-	            case 16:
-	                self._maxVelocity = self._speed;
-	                self._maxAcceleration = self._speed;
-	                break;
-	            case 87:
-	            case 83:
-	                self._setForwardForce(0.0);
-	                break;
-	            case 65:
-	            case 68:
-	                self._setStrideForce(0.0);
-	                break;
-	            default:
-	            // nothing
-	        }
-	    };
-
-	    this._onMouseMove = function(event)
-	    {
-	        event = event || window.event;
-
-	        self._addPitch((self._mouseY-event.clientY) / 100);
-	        self._addYaw(-(self._mouseX-event.clientX) / 100);
-
-	        self._mouseX = event.clientX;
-	        self._mouseY = event.clientY;
-	    };
-
-	    this._onMouseDown = function(event)
-	    {
-	        self._mouseX = event.clientX;
-	        self._mouseY = event.clientY;
-	        META.TARGET_CANVAS.addEventListener("mousemove", self._onMouseMove);
-	    };
-
-	    this._onMouseUp = function(event)
-	    {
-	        META.TARGET_CANVAS.removeEventListener("mousemove", self._onMouseMove);
-	    };
-
-	    document.addEventListener("keydown", this._onKeyDown);
-	    document.addEventListener("keyup", this._onKeyUp);
-	    META.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
-	    META.TARGET_CANVAS.addEventListener("mouseup", this._onMouseUp);
-	};
-
-	/**
-	 * @ignore
-	 */
-	FloatController.prototype.onRemoved = function()
-	{
-	    document.removeEventListener("keydown", this._onKeyDown);
-	    document.removeEventListener("keyup", this._onKeyUp);
-	    META.TARGET_CANVAS.removeEventListener("mousemove", this._onMouseMove);
-	    META.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
-	    META.TARGET_CANVAS.removeEventListener("mouseup", this._onMouseUp);
-	};
-
-	/**
-	 * @ignore
-	 */
-	FloatController.prototype.onUpdate = function(dt)
-	{
-	    var seconds = dt * .001;
-
-	    var frictionForce = Float4.scale(this._localVelocity, this._friction*seconds);
-	    this._localVelocity.subtract(frictionForce);
-
-	    var acceleration = Float4.scale(this._localAcceleration, this._maxAcceleration*seconds);
-	    this._localVelocity.add(acceleration);
-
-	    var absVelocity = this._localVelocity.length;
-	    if (absVelocity > this._maxVelocity)
-	        this._localVelocity.scale(this._maxVelocity/absVelocity);
-
-	    if (this._pitch < -Math.PI*.5) this._pitch = -Math.PI*.5;
-	    else if (this._pitch > Math.PI*.5) this._pitch = Math.PI*.5;
-
-	    var matrix = this.entity.matrix;
-	    // the original position
-	    var position = matrix.getColumn(3);
-	    var distance = Float4.scale(this._localVelocity, seconds);
-
-	    matrix.fromRotationPitchYawRoll(this._pitch, this._yaw, 0.0);
-	    matrix.prependTranslation(distance);
-	    matrix.appendTranslation(position);
-
-	    this.entity.matrix = matrix;
-	};
-
-	/**
-	 * @ignore
-	 */
-	FloatController.prototype._setForwardForce = function(ratio)
-	{
-	    this._localAcceleration.y = ratio * this._maxAcceleration;
-	};
-
-	/**
-	 * @ignore
-	 */
-	FloatController.prototype._setStrideForce = function(ratio)
-	{
-	    this._localAcceleration.x = ratio * this._maxAcceleration;
-	};
-
-	/**
-	 * @ignore
-	 */
-	FloatController.prototype._addPitch = function(value)
-	{
-	    this._pitch += value;
-	};
-
-	/**
-	 * @ignore
-	 */
-	FloatController.prototype._addYaw = function(value)
-	{
-	    this._yaw += value;
-	};
-
-	FloatController.prototype.clone = function()
-	{
-	    var clone = new FloatController();
-	    clone.speed = this.speed;
-	    clone.shiftMultiplier = this.shiftMultiplier;
-	    clone.pitch = this.pitch;
-	    clone.yaw = this.yaw;
-	    clone.friction = this.friction;
-	    return clone;
-	};
-
-	/**
-	 * @classdesc
-	 * FloatController is a {@linkcode Component} that allows moving an object (usually a camera) using mouse or touch around a central point.
-	 *
-	 * @property {number} radius The distance between the Entity and the lookAtTarget.
-	 * @property {number} azimuth The azimuth coordinate of the object relative to the lookAtTarget.
-	 * @property {number} polar The polar coordinate of the object relative to the lookAtTarget.
-	 *
-	 * @param {Float4} target The position around which to orbit.
-	 *
-	 * @constructor
-	 *
-	 * @extends Component
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function OrbitController(lookAtTarget)
-	{
-	    Component.call(this);
-	    this._coords = new Float4(-Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
-	    this._localAcceleration = new Float4(0.0, 0.0, 0.0, 0.0);
-	    this._localVelocity = new Float4(0.0, 0.0, 0.0, 0.0);
-
-	    this.touchZoomSpeed = .01;
-	    this.zoomSpeed = 1.0;
-	    this.maxRadius = 4.0;
-	    this.minRadius = 0.1;
-	    this.dampen = .9;
-	    this.lookAtTarget = lookAtTarget || new Float4(0.0, 0.0, 0.0, 1.0);
-	    this._oldMouseX = 0;
-	    this._oldMouseY = 0;
-
-	    this._isDown = false;
-	}
-
-	Component.create(OrbitController,
-	    {
-	        radius: {
-	            get: function() { return this._coords.z; },
-	            set: function(value) { this._coords.z = value; }
-	        },
-
-	        azimuth: {
-	            get: function() { return this._coords.x; },
-	            set: function(value) { this._coords.x = value; }
-	        },
-
-	        polar: {
-	            get: function() { return this._coords.y; },
-	            set: function(value) { this._coords.y = value; }
-	        }
-	    });
-
-	/**
-	 * @ignore
-	 */
-	OrbitController.prototype.onAdded = function()
-	{
-	    var self = this;
-
-	    this._onMouseWheel = function(event)
-	    {
-	        var delta = event.detail? -120 * event.detail : event.wheelDelta;
-	        self.setZoomImpulse(-delta * self.zoomSpeed * .0001);
-	    };
-
-	    this._onMouseDown = function (event)
-	    {
-	        self._oldMouseX = undefined;
-	        self._oldMouseY = undefined;
-
-	        self._isDown = true;
-	    };
-
-	    this._onMouseMove = function(event)
-	    {
-	        if (!self._isDown) return;
-	        self._updateMove(event.screenX, event.screenY);
-	    };
-
-	    this._onTouchDown = function (event)
-	    {
-	        self._oldMouseX = undefined;
-	        self._oldMouseY = undefined;
-
-	        if (event.touches.length === 2) {
-	            var touch1 = event.touches[0];
-	            var touch2 = event.touches[1];
-	            var dx = touch1.screenX - touch2.screenX;
-	            var dy = touch1.screenY - touch2.screenY;
-	            self._startPitchDistance = Math.sqrt(dx*dx + dy*dy);
-	            self._startZoom = self.radius;
-	        }
-
-	        self._isDown = true;
-	    };
-
-	    this._onTouchMove = function (event)
-	    {
-	        event.preventDefault();
-
-	        if (!self._isDown) return;
-
-	        var numTouches = event.touches.length;
-
-	        if (numTouches === 1) {
-	            var touch = event.touches[0];
-	            self._updateMove(touch.screenX, touch.screenY);
-	        }
-	        else if (numTouches === 2) {
-	            var touch1 = event.touches[0];
-	            var touch2 = event.touches[1];
-	            var dx = touch1.screenX - touch2.screenX;
-	            var dy = touch1.screenY - touch2.screenY;
-	            var dist = Math.sqrt(dx*dx + dy*dy);
-	            var diff = self._startPitchDistance - dist;
-	            self.radius = self._startZoom + diff * self.touchZoomSpeed;
-	        }
-	    };
-
-	    this._onUp = function(event) { self._isDown = false; };
-
-	    var mousewheelevt = (/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel";
-	    META.TARGET_CANVAS.addEventListener(mousewheelevt, this._onMouseWheel);
-	    META.TARGET_CANVAS.addEventListener("mousemove", this._onMouseMove);
-	    META.TARGET_CANVAS.addEventListener("touchmove", this._onTouchMove);
-	    META.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
-	    META.TARGET_CANVAS.addEventListener("touchstart", this._onTouchDown);
-	    META.TARGET_CANVAS.addEventListener("mouseup", this._onUp);
-	    META.TARGET_CANVAS.addEventListener("touchend", this._onUp);
-	};
-
-	/**
-	 * @ignore
-	 */
-	OrbitController.prototype.onRemoved = function()
-	{
-	    var mousewheelevt = (/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel";
-	    META.TARGET_CANVAS.removeEventListener(mousewheelevt, this._onMouseWheel);
-	    META.TARGET_CANVAS.removeEventListener("mousemove", this._onMouseMove);
-	    META.TARGET_CANVAS.removeEventListener("touchmove", this._onTouchMove);
-	    META.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
-	    META.TARGET_CANVAS.removeEventListener("touchstart", this._onTouchDown);
-	    META.TARGET_CANVAS.removeEventListener("mouseup", this._onUp);
-	    META.TARGET_CANVAS.removeEventListener("touchend", this._onUp);
-	};
-
-	/**
-	 * @ignore
-	 */
-	OrbitController.prototype.onUpdate = function(dt)
-	{
-	    this._localVelocity.x *= this.dampen;
-	    this._localVelocity.y *= this.dampen;
-	    this._localVelocity.z *= this.dampen;
-	    this._localVelocity.x += this._localAcceleration.x;
-	    this._localVelocity.y += this._localAcceleration.y;
-	    this._localVelocity.z += this._localAcceleration.z;
-	    this._localAcceleration.x = 0.0;
-	    this._localAcceleration.y = 0.0;
-	    this._localAcceleration.z = 0.0;
-
-	    this._coords.add(this._localVelocity);
-	    this._coords.y = MathX.clamp(this._coords.y, 0.1, Math.PI - .1);
-	    this._coords.z = MathX.clamp(this._coords.z, this.minRadius, this.maxRadius);
-
-	    var matrix = this.entity.matrix;
-	    var pos = new Float4();
-	    pos.fromSphericalCoordinates(this._coords.z, this._coords.x, this._coords.y);
-	    pos.w = 0.0;
-	    pos.add(this.lookAtTarget);
-	    matrix.lookAt(this.lookAtTarget, pos);
-	    this.entity.matrix = matrix;
-	};
-
-	/**
-	 * @ignore
-	 */
-	OrbitController.prototype.setAzimuthImpulse  = function(value)
-	{
-	    this._localAcceleration.x = value;
-	};
-
-	/**
-	 * @ignore
-	 */
-	OrbitController.prototype.setPolarImpulse = function(value)
-	{
-	    this._localAcceleration.y = value;
-	};
-
-	/**
-	 * @ignore
-	 */
-	OrbitController.prototype.setZoomImpulse = function(value)
-	{
-	    this._localAcceleration.z = value;
-	};
-
-	/**
-	 * @ignore
-	 */
-	OrbitController.prototype._updateMove = function(x, y)
-	{
-	    if (this._oldMouseX !== undefined) {
-	        var dx = this._oldMouseX - x;
-	        var dy = this._oldMouseY - y;
-	        this.setAzimuthImpulse(dx * .0015);
-	        this.setPolarImpulse(dy * .0015);
-	    }
-	    this._oldMouseX = x;
-	    this._oldMouseY = y;
-	};
-
-	OrbitController.prototype.clone = function()
-	{
-		var clone = new OrbitController();
-		clone.radius = this.radius;
-		clone.azimuth = this.azimuth;
-		clone.polar = this.polar;
-		clone.touchZoomSpeed = this.touchZoomSpeed;
-		clone.zoomSpeed = this.zoomSpeed;
-		clone.maxRadius = this.maxRadius;
-		clone.minRadius = this.minRadius;
-		clone.dampen = this.dampen;
-		clone.lookAtTarget = this.lookAtTarget.clone();
-		return clone;
-	};
-
-	/**
-	 * @classdesc
 	 * DataStream is a wrapper for DataView which allows reading the data as a linear stream of data.
 	 * @param dataView the DataView object to read from.
 	 * @constructor
@@ -24515,6 +24055,687 @@
 	        null,
 	        extensions + ShaderLibrary.get("snippets_tonemap.glsl", defines) + "\n" + ShaderLibrary.get("tonemap_reinhard_fragment.glsl")
 	    );
+	};
+
+	/**
+	 * @classdesc
+	 *
+	 * The Input class allows mapping user input to named actions to simplify handling different input types. For example,
+	 * Mouse's movement and TouchInput's touch movements can both be used to look around. Values triggered by buttons are
+	 * 0 or 1, axes such as mouse or gamepad movement are generally in between 0 and 1.
+	 *
+	 * @property {Signal} onAction A {@linkcode Signal} that dispatches whenever an action occurs. This only happens when
+	 * the state of an input changes, so should be listened to for triggered events, not for continuous "while button down" events.
+	 *
+	 * @constructor
+	 */
+	function Input()
+	{
+		this.onAction = new Signal(/* name, value */);
+
+		this._values = {};
+		this._plugins = [];
+	}
+
+	Input.prototype =
+	{
+		/**
+		 * Enables an input plugin.
+		 */
+		enable: function(input)
+		{
+			this._plugins.push(input);
+			input._setInput(this);
+		},
+
+		/**
+		 * Disables an input plugin.
+		 */
+		disable: function(input)
+		{
+			var index = this._plugins.indexOf(input);
+			this._plugins.splice(index, 1);
+			input._setInput(null);
+		},
+
+		/**
+		 * @ignore
+		 */
+		setActionValue: function(name, value)
+		{
+			if (this._values[name] === value) return;
+			this._values[name] =  value;
+			this.onAction.dispatch(name, value);
+		},
+
+		/**
+		 * Gets the value currently associated with an action.
+		 */
+		getValue: function(name)
+		{
+			return this._values[name] || 0;
+		}
+	};
+
+	/**
+	 *
+	 * Implementation details: every button or axis has an integer index from an enum.
+	 *
+	 * @ignore
+	 */
+	function InputPlugin()
+	{
+		this._mapping = [];
+		this._input = null;
+	}
+
+	InputPlugin.prototype =
+	{
+		/**
+		 * @ignore
+		 */
+		onEnabled: function()
+		{
+			throw new Error("Abstract method called!");
+		},
+
+		/**
+		 * @ignore
+		 */
+		onDisabled: function()
+		{
+			throw new Error("Abstract method called!");
+		},
+
+		/**
+		 * Maps a given button or axis to a given action name. This value for this action name can be listened to or queried
+		 * from {@linkcode Controller}.
+		 *
+		 * @param buttonOrAxis
+		 * @param actionName
+		 */
+		map: function(buttonOrAxis, actionName)
+		{
+			this._mapping[buttonOrAxis] = actionName;
+		},
+
+		/**
+		 * Removes the mapping of a controller
+		 *
+		 * @param buttonOrAxis The button or axis. This is normally an enumerator on the Input.
+		 */
+		unmap: function(buttonOrAxis)
+		{
+			this._mapping[buttonOrAxis] = undefined;
+		},
+
+		/**
+		 * Returns whether or not the button or axis is mapped.
+		 */
+		isMapped: function(buttonOrAxis)
+		{
+			return !!this._mapping[buttonOrAxis];
+		},
+
+		/**
+		 * Called by concrete subclasses
+		 * @ignore
+		 */
+		setValue: function(buttonOrAxis, value)
+		{
+			if (!this._input) return;
+			var action = this._mapping[buttonOrAxis];
+			if (action)
+				this._input.setActionValue(action, value);
+		},
+
+		/**
+		 * @ignore
+		 * @private
+		 */
+		_setInput: function(value)
+		{
+			console.assert(!!this._input !== !!value, "Cannot enable or disable inputs twice!");
+			this._input = value;
+
+			if (value)
+				this.onEnabled();
+			else
+				this.onDisabled();
+		}
+	};
+
+	/**
+	 * @classdesc
+	 *
+	 * The Keyboard class allows mapping keystrokes to named actions. The mapped "buttons" are the key codes or the character
+	 * values.
+	 *
+	 * @property {boolean} useCode If true, the mappings apply to key codes, if false, they apply to the pressed characters.
+	 * By default it is true, making for example WASD controls work on Azerty keyboards where W = Z, A = Q.
+	 *
+	 * @constructor
+	 */
+	function Keyboard()
+	{
+		InputPlugin.call(this);
+		this.useCode = true;
+		this._onKeyUp = this._onKeyUp.bind(this);
+		this._onKeyDown = this._onKeyDown.bind(this);
+		this._signs = {};
+	}
+
+	Keyboard.prototype = Object.create(InputPlugin.prototype);
+
+	/**
+	 * Maps two keys to represent an axis. This allows for example: "left" and "right"
+	 * @param {string} negKey The key or character to represent the negative end of the axis.
+	 * @param {string} posKey The key or character to represent the positive end of the axis.
+	 * @param action The action to map the axis on.
+	 * @param {number} [range] The maximum value the key represents. Defaults to 1.
+	 */
+	Keyboard.prototype.mapAxis = function(negKey, posKey, action, range)
+	{
+		var range = range || 1;
+		this._signs[negKey] = -range;
+		this._signs[posKey] = range;
+		this.map(negKey, action);
+		this.map(posKey, action);
+	};
+
+	Keyboard.prototype.unmap = function(key)
+	{
+		InputPlugin.prototype.unmap.call(key);
+		delete this._signs[key];
+	};
+
+
+	Keyboard.prototype.onEnabled = function()
+	{
+		window.addEventListener("keydown", this._onKeyDown);
+		window.addEventListener("keyup", this._onKeyUp);
+	};
+
+	Keyboard.prototype.onDisabled = function()
+	{
+		window.removeEventListener("keydown", this._onKeyDown);
+		window.removeEventListener("keyup", this._onKeyUp);
+	};
+
+	Keyboard.prototype._onKeyDown = function(event)
+	{
+		var key = this.useCode? event.code : event.key;
+
+		if (this.isMapped(key)) {
+			this.setValue(key, this._signs[key] || 1);
+			event.preventDefault();
+		}
+	};
+
+	Keyboard.prototype._onKeyUp = function(event)
+	{
+		var key = this.useCode? event.code : event.key;
+
+		if (this.isMapped(key)) {
+			this.setValue(key, 0);
+			event.preventDefault();
+		}
+	};
+
+	/**
+	 * @classdesc
+	 *
+	 * The Mouse class allows mapping mouse input to named actions. When listening to Mouse.BUTTON_RIGHT, the context menu is
+	 * disabled. When listening to Mouse.WHEEL_X or Mouse.WHEEL_Y, scrolling is disabled.
+	 *
+	 * @property sensitivityX The horizontal mouse movement sensitivity
+	 * @property sensitivityY The vertical mouse movement sensitivity
+	 * @property sensitivityScroll The scroll wheel sensitivity
+	 *
+	 * @constructor
+	 */
+	function Mouse()
+	{
+		InputPlugin.call(this);
+
+		this.sensitivityX = 1;
+		this.sensitivityY = -1;	 // invert by default
+		this.sensitivityWheel = -.0035; // invert by default for zooming
+
+		this._onMouseMove = this._onMouseMove.bind(this);
+		this._onMouseDown = this._onMouseDown.bind(this);
+		this._onMouseWheel = this._onMouseWheel.bind(this);
+		this._onMouseUp = this._onMouseUp.bind(this);
+		this._onMouseEnter = this._onMouseEnter.bind(this);
+		this._onMouseLeave = this._onMouseLeave.bind(this);
+
+		this._previousX = undefined;
+		this._previousY = undefined;
+		this._mouseX = undefined;
+		this._mouseY = undefined;
+		this._wheelX = null;
+		this._wheelY = null;
+
+		this._buttonMask = 0;
+	}
+
+	/**
+	 * The axis name for when the mouse moves horizontally over the canvas
+	 */
+	Mouse.MOVE_X = 0;
+
+	/**
+	 * The axis name for when the mouse moves vertically over the canvas
+	 */
+	Mouse.MOVE_Y = 1;
+
+	/**
+	 * The axis name for when the mouse moves over the canvas with the left mouse button down
+	 */
+	Mouse.DRAG_X = 2;
+
+	/**
+	 * The axis name for when the mouse moves over the canvas with the left mouse button down
+	 */
+	Mouse.DRAG_Y = 3;
+
+	/**
+	 * The left button name
+	 */
+	Mouse.BUTTON_LEFT = 4;
+
+	/**
+	 * The right button name
+	 */
+	Mouse.BUTTON_RIGHT = 5;
+
+	/**
+	 * The middle (usually scroll) button name
+	 */
+	Mouse.BUTTON_MIDDLE = 6;
+
+	/**
+	 * The axis name when the horizontal scroll wheel moves
+	 */
+	Mouse.WHEEL_X = 7;
+
+	/**
+	 * The axis name when the vertical scroll wheel moves
+	 */
+	Mouse.WHEEL_Y = 8;
+
+	/**
+	 * The axis name for the mouse position on the canvas. 0 means all the way left, 1 means all the way right.
+	 */
+	Mouse.POS_X = 9;
+
+	/**
+	 * The axis name for the mouse position on the canvas. 0 means all the way to the top, 1 means all the way to the bottom.
+	 */
+	Mouse.POS_Y = 10;
+
+	Mouse.prototype = Object.create(InputPlugin.prototype);
+
+	// maps event buttons to our buttons
+	var BUTTON_MAP = {
+		0: Mouse.BUTTON_LEFT,
+		1: Mouse.BUTTON_MIDDLE,
+		2: Mouse.BUTTON_RIGHT
+	};
+
+
+	/**
+	 * @ignore
+	 */
+	Mouse.prototype.onEnabled = function()
+	{
+		onPreFrame.bind(this._onPreFrame, this);
+		document.addEventListener("mousemove", this._onMouseMove); // mouse can move over the document
+		META.TARGET_CANVAS.addEventListener("mouseenter", this._onMouseEnter);
+		META.TARGET_CANVAS.addEventListener("mouseleave", this._onMouseLeave);
+		META.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
+		document.addEventListener("mouseup", this._onMouseUp);		// mouse can go up over the document
+		META.TARGET_CANVAS.addEventListener("wheel", this._onMouseWheel);
+	};
+
+	/**
+	 * @ignore
+	 */
+	Mouse.prototype.onDisabled = function()
+	{
+		onPreFrame.unbind(this._onPreFrame);
+		document.removeEventListener("mousemove", this._onMouseMove);
+		META.TARGET_CANVAS.removeEventListener("mouseenter", this._onMouseEnter);
+		META.TARGET_CANVAS.removeEventListener("mouseleave", this._onMouseLeave);
+		META.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
+		document.removeEventListener("mouseup", this._onMouseUp);
+		META.TARGET_CANVAS.removeEventListener("wheel", this._onMouseWheel);
+
+		document.body.oncontextmenu = null;
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	Mouse.prototype.map = function(buttonOrAxis, actionName)
+	{
+		InputPlugin.prototype.map.call(this, buttonOrAxis, actionName);
+
+		// disable context menu
+		if (buttonOrAxis === Mouse.BUTTON_RIGHT)
+			document.body.oncontextmenu = function() { return false; };
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	Mouse.prototype.unmap = function(buttonOrAxis)
+	{
+		InputPlugin.prototype.unmap.call(this, buttonOrAxis);
+
+		// disable context menu
+		if (buttonOrAxis === Mouse.BUTTON_RIGHT)
+			document.body.oncontextmenu = null;
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	Mouse.prototype._onMouseDown = function(event)
+	{
+		this._buttonMask = event.buttons;
+		var button = BUTTON_MAP[event.button];
+		if (!button) return;
+		this.setValue(button, 1);
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	Mouse.prototype._onMouseUp = function(event)
+	{
+		this._buttonMask = event.buttons;
+		var button = BUTTON_MAP[event.button];
+		if (button)
+			this.setValue(button, 0);
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	Mouse.prototype._onMouseMove = function(event)
+	{
+		this._updatePos(event.clientX, event.clientY);
+	};
+
+	Mouse.prototype._updatePos = function(x, y)
+	{
+		var rect = META.TARGET_CANVAS.getBoundingClientRect();
+
+		// we're measuring mouse move over the whole document, but need the coordinates relative to the canvas
+		// clamp to 0, 1 so we don't register moves outside the canvas (need to listen to moves over the document so it
+		// won't get blocked by other DOM elements)
+		this._mouseX = MathX.saturate((x - rect.left) / rect.width);
+		this._mouseY = MathX.saturate((y - rect.top) / rect.height);
+	};
+
+	Mouse.prototype._onPreFrame = function()
+	{
+		var mouseX = this._mouseX;
+		var mouseY = this._mouseY;
+		var aspect = META.TARGET_CANVAS.width / META.TARGET_CANVAS.height;
+
+		if (this._previousX !== undefined) {
+			var dx = (mouseX - this._previousX) * this.sensitivityX;
+			var dy = (mouseY - this._previousY) * this.sensitivityY;
+
+			this.setValue(Mouse.MOVE_X, dx * aspect);
+			this.setValue(Mouse.MOVE_Y, dy);
+
+			var isDown = this._buttonMask & 1;
+			if (isDown) {
+				this.setValue(Mouse.DRAG_X, dx * aspect);
+				this.setValue(Mouse.DRAG_Y, dy);
+			}
+			else {
+				this.setValue(Mouse.DRAG_X, 0);
+				this.setValue(Mouse.DRAG_Y, 0);
+			}
+		}
+
+		this._previousX = mouseX;
+		this._previousY = mouseY;
+
+		this.setValue(Mouse.POS_X, mouseX);
+		this.setValue(Mouse.POS_Y, mouseY);
+
+		this.setValue(Mouse.WHEEL_X, this._wheelX * this.sensitivityWheel);
+		this.setValue(Mouse.WHEEL_Y, this._wheelY * this.sensitivityWheel);
+
+		this._wheelX = 0;
+		this._wheelY = 0;
+	};
+
+	Mouse.prototype._onMouseLeave = function(event)
+	{
+		this._updatePos(event.clientX, event.clientY);
+	};
+
+	Mouse.prototype._onMouseEnter = function(event)
+	{
+		this._updatePos(event.clientX, event.clientY);
+
+		var buttonMask = this._buttonMask;
+		var newButtonMask = event.buttons;
+
+		// check if a button went "up" while not over the canvas
+		if (((buttonMask & 1) !== 0) && ((newButtonMask & 1) === 0))
+			this.setValue(Mouse.BUTTON_LEFT, 0);
+
+		if (((buttonMask & 2) !== 0) && ((newButtonMask & 2) === 0))
+			this.setValue(Mouse.BUTTON_RIGHT, 0);
+
+		if (((buttonMask & 4) !== 0) && ((newButtonMask & 4) === 0))
+			this.setValue(Mouse.BUTTON_MIDDLE, 0);
+
+		this._buttonMask = newButtonMask;
+	};
+
+	Mouse.prototype._onMouseWheel = function(event)
+	{
+		if (!(this.isMapped(Mouse.WHEEL_X) || this.isMapped(Mouse.WHEEL_Y))) return;
+
+		// sadly, we're limited to binary scroll information, because Firefox broadcasts the scroll distance in lines, which
+		// is too hairy to convert.
+		this._wheelX += MathX.sign(event.deltaX);
+		this._wheelY += MathX.sign(event.deltaY);
+
+		event.preventDefault();
+	};
+
+	/**
+	 * @classdesc
+	 *
+	 * The Touch class allows mapping touch input to named actions.
+	 *
+	 * @property sensitivityX The horizontal single-finger movement sensitivity
+	 * @property sensitivityY The vertical single-finger movement sensitivity
+	 * @property sensitivityPinch The sensitivity for two-finger pinching
+	 *
+	 * @constructor
+	 */
+	function Touch()
+	{
+		// TODO: Add a way to map regions on the screen that can be tapped
+
+		// TODO: In the callback, should we always check if the first touch is in the list of target touches?
+
+		InputPlugin.call(this);
+
+		this.sensitivityX = 1;
+		this.sensitivityY = 1;
+		this.sensitivityPinch = 1;
+
+		this._onTouchMove = this._onTouchMove.bind(this);
+		this._onTouchStart = this._onTouchStart.bind(this);
+		this._onTouchEnd = this._onTouchEnd.bind(this);
+
+		this._previousX = undefined;
+		this._previousY = undefined;
+		this._touchX = undefined;
+		this._touchY = undefined;
+		this._pinchDistance = 0;
+	}
+
+	/**
+	 * The axis name for when the finger moves horizontally over the canvas
+	 */
+	Touch.MOVE_X = 0;
+
+	/**
+	 * The axis name for when the finger moves vertically over the canvas
+	 */
+	Touch.MOVE_Y = 1;
+
+	/**
+	 * The axis name for the finger position on the canvas. 0 means all the way left, 1 means all the way right.
+	 */
+	Touch.POS_X = 2;
+
+	/**
+	 * The axis name for the finger position on the canvas. 0 means all the way to the top, 1 means all the way to the bottom.
+	 */
+	Touch.POS_Y = 3;
+
+	/**
+	 * The axis name for the pinch gesture on the canvas. Positive means growth, negative means shrinkage.
+	 */
+	Touch.PINCH = 4;
+
+	Touch.prototype = Object.create(InputPlugin.prototype);
+
+	/**
+	 * @ignore
+	 */
+	Touch.prototype.onEnabled = function()
+	{
+		onPreFrame.bind(this._onPreFrame, this);
+		document.addEventListener("touchmove", this._onTouchMove); // finger can move over the document
+		document.addEventListener("touchstart", this._onTouchStart);
+		document.addEventListener("touchend", this._onTouchEnd);		// finger can go up over the document
+	};
+
+	/**
+	 * @ignore
+	 */
+	Touch.prototype.onDisabled = function()
+	{
+		onPreFrame.unbind(this._onPreFrame);
+		document.removeEventListener("touchmove", this._onTouchMove);
+		document.removeEventListener("touchstart", this._onTouchStart);
+		document.removeEventListener("touchend", this._onTouchEnd);
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	Touch.prototype._onTouchStart = function(event)
+	{
+		var numTouches = event.touches.length;
+
+		this._previousX = undefined;
+		this._previousY = undefined;
+
+		var touch1 = event.touches[0];
+		// update the main touch
+		if (numTouches === 1) {
+			this._updatePos(touch1.clientX, touch1.clientY);
+		}
+		else if (numTouches === 2) {
+			var touch2 = event.touches[1];
+			var dx = touch1.screenX - touch2.screenX;
+			var dy = touch1.screenY - touch2.screenY;
+			this._pinchDistance = Math.sqrt(dx*dx + dy*dy);
+
+			// won't be handling moves anymore
+			this._touchX = undefined;
+			this._touchY = undefined;
+		}
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	Touch.prototype._onTouchEnd = function(event)
+	{
+		this._previousX = undefined;
+		this._previousY = undefined;
+
+		var numTouches = event.touches.length;
+		var touch1 = event.touches[0];
+		if (numTouches === 0) ;
+		else if (numTouches === 1) {
+			this._updatePos(touch1.clientX, touch1.clientY);
+			this._updatePos(touch1.clientX, touch1.clientY);
+		}
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	Touch.prototype._onTouchMove = function(event)
+	{
+		event.preventDefault();
+
+		var numTouches = event.touches.length;
+		var touch1 = event.touches[0];
+
+		if (numTouches === 1) {
+			this._updatePos(touch1.clientX, touch1.clientY);
+		}
+		else if (numTouches === 2) {
+			var touch2 = event.touches[1];
+			var dx = touch1.screenX - touch2.screenX;
+			var dy = touch1.screenY - touch2.screenY;
+			var dist = Math.sqrt(dx*dx + dy*dy);
+			var diff = (dist - this._pinchDistance) / this._pinchDistance;
+			this._pinchDistance = dist;
+			this.setValue(Touch.PINCH, diff * this.sensitivityPinch);
+		}
+
+	};
+
+	Touch.prototype._updatePos = function(x, y)
+	{
+		this._touchX = x / window.innerWidth;
+		this._touchY = y / window.innerHeight;
+	};
+
+	Touch.prototype._onPreFrame = function()
+	{
+		var touchX = this._touchX;
+		var touchY = this._touchY;
+		var aspect = window.innerWidth / window.innerHeight;
+
+		if (this._previousX !== undefined) {
+			var dx = (touchX - this._previousX) * this.sensitivityX;
+			var dy = (touchY - this._previousY) * this.sensitivityY;
+
+			this.setValue(Touch.MOVE_X, dx * aspect);
+			this.setValue(Touch.MOVE_Y, dy);
+		}
+
+		this._previousX = touchX;
+		this._previousY = touchY;
+
+		this.setValue(Touch.POS_X, touchX);
+		this.setValue(Touch.POS_Y, touchY);
 	};
 
 	/**
@@ -30109,8 +30330,6 @@
 	exports.PerspectiveCamera = PerspectiveCamera;
 	exports.OrthographicOffCenterCamera = OrthographicOffCenterCamera;
 	exports.VRCamera = VRCamera;
-	exports.FloatController = FloatController;
-	exports.OrbitController = OrbitController;
 	exports.Color = Color;
 	exports.DataStream = DataStream;
 	exports.GL = GL;
@@ -30128,6 +30347,10 @@
 	exports.HBAO = HBAO;
 	exports.SSAO = SSAO;
 	exports.ReinhardToneMapping = ReinhardToneMapping;
+	exports.Input = Input;
+	exports.Keyboard = Keyboard;
+	exports.Mouse = Mouse;
+	exports.Touch = Touch;
 	exports.AssetLibrary = AssetLibrary;
 	exports.AssetLoader = AssetLoader;
 	exports.AudioFile = AudioFile;

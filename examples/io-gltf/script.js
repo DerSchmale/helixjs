@@ -27,7 +27,7 @@ project.onInit = function()
     this.camera.nearDistance = .001;
     this.camera.farDistance = 30.0;
 
-    var orbitController = new HX.OrbitController();
+    var orbitController = new OrbitController();
     orbitController.minRadius = .02;
     orbitController.zoomSpeed = .1;
     orbitController.touchZoomSpeed = .01;

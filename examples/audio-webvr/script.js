@@ -96,7 +96,7 @@ function initCamera(camera, vrCamera)
 
     camera.addComponent(audioListener);
 
-    var controller = new HX.OrbitController();
+    var controller = new OrbitController();
 	controller.radius = 0; // radius 0 turns it into a look-around controller
     camera.addComponent(controller);
 }

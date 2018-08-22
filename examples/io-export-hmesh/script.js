@@ -13,7 +13,7 @@ project.queueAssets = function(assetLibrary)
 project.onInit = function()
 {
     document.getElementById("exportInfo").style.display = "block";
-    this.camera.addComponent(new HX.OrbitController());
+    this.camera.addComponent(new OrbitController());
     initScene(this.scene, this.assetLibrary);
 };
 

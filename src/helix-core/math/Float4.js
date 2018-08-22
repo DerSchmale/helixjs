@@ -213,6 +213,21 @@ Float4.prototype =
 		},
 
 		/**
+		 * Subtracts a scaled vector from this one in place.
+		 *
+		 * @param v The vector to scale and subtract.
+		 * @param s The scale to apply to v
+		 */
+		subtractScaled: function (v, s)
+		{
+			this.x -= v.x * s;
+			this.y -= v.y * s;
+			this.z -= v.z * s;
+			this.w -= v.w * s;
+			return this;
+		},
+
+		/**
 		 * Multiplies the components of this vector with a scalar, except the w-component.
 		 */
 		scale: function (s)

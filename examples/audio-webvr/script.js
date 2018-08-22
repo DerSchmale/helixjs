@@ -5,6 +5,19 @@ var project = new VRProject();
 var vrDisplays;
 var audioListener;
 
+window.onload = function ()
+{
+    var options = new HX.InitOptions();
+    options.shadowFilter.softness = .001;
+    options.shadowFilter.dither = true;
+    options.hdr = true;
+    options.defaultLightingModel = HX.LightingModel.GGX;
+    options.numShadowCascades = 2;
+    options.shadowFilter = new HX.PCFShadowFilter();
+    project.init(document.getElementById('webglContainer'), options);
+};
+
+
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("collision-sound", "sound/collision.wav", HX.AssetLibrary.Type.ASSET, HX.AudioFile);
@@ -22,16 +35,6 @@ project.onInit = function()
 
     // displays need to be retrieved up front
     initVR();
-};
-
-window.onload = function ()
-{
-    var options = new HX.InitOptions();
-    options.hdr = true;
-    options.defaultLightingModel = HX.LightingModel.GGX;
-    options.numShadowCascades = 2;
-    options.shadowFilter = new HX.PCFShadowFilter();
-    project.init(document.getElementById('webglContainer'), options);
 };
 
 function toggleVR()

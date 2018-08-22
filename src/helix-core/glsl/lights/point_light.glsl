@@ -58,6 +58,6 @@ float hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos
     shadowMapCoord.xy = uv * tile.xy + tile.zw;
     shadowMapCoord.z = dist * light.rcpRadius;
     shadowMapCoord.w = 1.0;
-    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);
+    return  hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);
 }
 #endif

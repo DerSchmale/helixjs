@@ -11,7 +11,7 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
-    this.camera.addComponent(new HX.OrbitController());
+    this.camera.addComponent(new OrbitController());
     initScene(this.scene, this.assetLibrary);
 };
 

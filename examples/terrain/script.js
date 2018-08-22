@@ -86,9 +86,9 @@ function initCamera(camera)
     camera.nearDistance = 0.05;
     camera.farDistance = 8000.0;
 
-    var controller = new HX_PHYS.FPSController();
-    controller.walkForce = 2000.0;
-    controller.runForce = 20000.0;
+    var controller = new FPSController();
+    controller.walkAcceleration = 2000.0;
+    controller.runAcceleration = 20000.0;
     controller.jumpForce = 5.0;
     controller.yaw = Math.PI;
     camera.addComponent(controller);

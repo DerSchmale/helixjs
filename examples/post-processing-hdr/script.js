@@ -27,7 +27,7 @@ window.onload = function ()
 
 function initCamera(camera)
 {
-    camera.addComponent(new HX.OrbitController());
+    camera.addComponent(new OrbitController());
 
     // ADD POST-PROCESSING COMPONENTS:
     //camera.addComponent(new HX.FXAA());

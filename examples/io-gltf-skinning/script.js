@@ -28,7 +28,7 @@ project.onInit = function()
 
 	this.camera.farDistance = 10000;
 
-    var orbitController = new HX.OrbitController();
+    var orbitController = new OrbitController();
     orbitController.azimuth = Math.PI * .5;
     orbitController.radius = 3000.0;
     orbitController.maxRadius = 5000.0;

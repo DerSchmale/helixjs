@@ -39,7 +39,7 @@ function initCamera(camera)
     camera.farDistance = 100.0;
     camera.addComponent(new HX.AudioListener());
 
-    var orbitController = new HX.OrbitController();
+    var orbitController = new OrbitController();
     orbitController.lookAtTarget.y = 1.2;
     orbitController.speed = 10.0;
     orbitController.radius = 5.0;

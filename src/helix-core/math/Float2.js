@@ -127,6 +127,17 @@ Float2.prototype =
     },
 
     /**
+     * Adds a scalar multiple of another vector in place.
+     * @param v The vector to scale and add.
+	 * @param s The scale to apply to v
+     */
+    addScaled: function(v, s)
+    {
+        this.x += v.x * s;
+        this.y += v.y * s;
+    },
+
+    /**
      * Subtracts a vector from this one in place.
      */
     subtract: function(v)
@@ -134,6 +145,19 @@ Float2.prototype =
         this.x -= v.x;
         this.y -= v.y;
     },
+
+	/**
+	 * Subtracts a scaled vector from this one in place.
+	 *
+	 * @param v The vector to scale and subtract.
+	 * @param s The scale to apply to v
+	 */
+	subtractScaled: function (v, s)
+	{
+		this.x -= v.x * s;
+		this.y -= v.y * s;
+		return this;
+	},
 
     /**
      * Multiplies the components of this vector with a scalar.

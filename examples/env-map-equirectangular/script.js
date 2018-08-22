@@ -13,7 +13,7 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
-    var controller = new HX.OrbitController();
+    var controller = new OrbitController();
     controller.radius = 1.5;
     this.camera.addComponent(controller);
 

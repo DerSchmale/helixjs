@@ -6,5 +6,4 @@ export { SphereCollider } from "./collider/SphereCollider";
 export { InfinitePlaneCollider } from "./collider/InfinitePlaneCollider";
 export { HeightfieldCollider } from "./collider/HeightfieldCollider";
 export { PhysicsMaterial } from "./material/PhysicsMaterial";
-export { FPSController } from "./controller/FPSController";
 export { Collision } from "./collision/Collision";

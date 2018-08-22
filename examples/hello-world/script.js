@@ -18,7 +18,7 @@ window.onload = function()
     camera = new HX.PerspectiveCamera();
 
     // add a the Component OrbitController to the Camera Entity to update the camera every frame
-    var orbitController = new HX.OrbitController();
+    var orbitController = new OrbitController();
     camera.addComponent(orbitController);
 
     var material = new HX.BasicMaterial();

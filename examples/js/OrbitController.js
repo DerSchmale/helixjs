@@ -10,6 +10,7 @@ function OrbitController(lookAtTarget)
     this._mouse = new HX.Mouse();
 	this._mouse.sensitivityX = -1;
 	this._mouse.sensitivityY = -1;
+	this._mouse.sensitivityZoom = 1.2;
 	this._mouse.map(HX.Mouse.DRAG_X, "axisX");
 	this._mouse.map(HX.Mouse.DRAG_Y, "axisY");
 	this._mouse.map(HX.Mouse.WHEEL_Y, "zoom");
@@ -21,7 +22,7 @@ function OrbitController(lookAtTarget)
 	this._touch.map(HX.Touch.MOVE_Y, "axisY");
 	this._touch.map(HX.Touch.PINCH, "zoom");
 
-	this.zoomSpeed = 1.0;
+	this.zoomSpeed = 0.8;
     this.maxRadius = 4.0;
     this.minRadius = 0.1;
     this.dampen = .9;

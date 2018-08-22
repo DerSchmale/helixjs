@@ -90,9 +90,6 @@ export {PerspectiveCamera} from "./camera/PerspectiveCamera";
 export {OrthographicOffCenterCamera} from "./camera/OrthographicOffCenterCamera";
 export {VRCamera} from "./camera/VRCamera";
 
-export {FloatController} from "./controller/FloatController";
-export {OrbitController} from "./controller/OrbitController";
-
 export {Color} from "./core/Color";
 export {DataStream} from "./core/DataStream";
 export {GL} from "./core/GL";

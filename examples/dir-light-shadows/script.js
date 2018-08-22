@@ -64,7 +64,7 @@ function initCamera(camera)
     camera.nearDistance = .01;
     camera.farDistance = 50.0;
 
-    var orbitController = new HX.OrbitController();
+    var orbitController = new OrbitController();
     orbitController.radius = 10.0;
     orbitController.polar = 1.0;
     orbitController.minRadius = .3;

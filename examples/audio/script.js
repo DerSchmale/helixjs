@@ -33,7 +33,7 @@ function initCamera(camera)
     camera.farDistance = 100.0;
     camera.addComponent(new HX.AudioListener());
 
-    var controller = new HX.OrbitController();
+    var controller = new OrbitController();
 	controller.radius = 0; // radius 0 turns it into a look-around controller
     camera.addComponent(controller);
 }

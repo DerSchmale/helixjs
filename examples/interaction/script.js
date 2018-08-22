@@ -9,7 +9,7 @@ project.onInit = function()
 {
     initScene(this.scene);
 
-    this.camera.addComponent(new HX.OrbitController());
+    this.camera.addComponent(new OrbitController());
 
     var self = this;
     HX.META.TARGET_CANVAS.addEventListener("mousemove", function(evt) { self._onMouseMove.call(self, evt); });

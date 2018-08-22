@@ -14,7 +14,7 @@ var jsdoc = require("gulp-jsdoc3");
 gulp.task('package', ['glsl', 'main', 'clean']);
 
 gulp.task('default', ['glsl', 'minimize', 'clean']);
-gulp.task('docs', ['docs-core', 'docs-io', 'docs-physics']);
+gulp.task('docs', ['clean-docs', 'docs-core', 'docs-io', 'docs-physics']);
 
 // core only compiles the core game engine
 gulp.task('core', ['glsl'], function ()
@@ -103,6 +103,11 @@ gulp.task('glsl', function ()
 gulp.task('clean', ['main', 'glsl'], function ()
 {
     del('./build/tmp');
+});
+
+gulp.task('clean-docs', function ()
+{
+    del('./docs/');
 });
 
 gulp.task('docs-core', function (cb) {

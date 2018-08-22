@@ -19,7 +19,7 @@ project.onInit = function()
     this.vrButton.addEventListener("click", toggleVR);
 
     // displays need to be retrieved up front
-    initVR();
+	HX.getVRDisplays(onVRDisplaysReceived);
 };
 
 window.onload = function ()
@@ -51,31 +51,24 @@ function toggleVR()
     }
 }
 
-function initVR()
+function onVRDisplaysReceived(displays)
 {
-    if (!navigator.getVRDisplays) {
-        project.showError("It seems like WebVR is not supported on your device.");
-        return;
-    }
+	vrDisplays = displays;
+	if (displays.length === 0) {
+		document.getElementById("controlsField").classList.add("hidden");
+		return;
+	}
 
-    navigator.getVRDisplays().then(displays => {
-        vrDisplays = displays;
-        if (displays.length === 0) {
-            project.showError("It seems like you don't have any compatible VR devices.");
-            return;
-        }
+	var select = document.getElementById("displaySelection");
 
-        var select = document.getElementById("displaySelection");
+	for (var i = 0, len = displays.length; i < len; ++i) {
+		var option = document.createElement("option");
+		option.innerHTML = displays[i].displayName;
+		select.appendChild(option);
+	}
+	select.selectedIndex = 0;
 
-        for (var i = 0, len = displays.length; i < len; ++i) {
-            var option = document.createElement("option");
-            option.innerHTML = displays[i].displayName;
-            select.appendChild(option);
-        }
-        select.selectedIndex = 0;
-
-        project.vrButton.classList.remove("hidden");
-    });
+	project.vrButton.classList.remove("hidden");
 }
 
 function initCamera(camera)

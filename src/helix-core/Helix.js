@@ -63,6 +63,19 @@ export var META =
 	};
 
 /**
+ * Returns the available VR displays.
+ */
+export function getVRDisplays(callback)
+{
+    if (!navigator.getVRDisplays) {
+        callback([]);
+        return;
+	}
+
+    navigator.getVRDisplays().then(callback);
+}
+
+/**
  * The {@linkcode Signal} that dispatched before a frame renders.
  */
 export var onPreFrame = new Signal();

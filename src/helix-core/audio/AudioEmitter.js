@@ -56,16 +56,6 @@ Component.create(AudioEmitter, {
 		}
 	},
 
-	panningModel: {
-        get: function() {
-            return this._panner.panningModel;
-        },
-
-        set: function(value) {
-            this._panner.panningModel = value;
-        }
-	},
-
     coneInnerAngle: {
         get: function() {
             return this._coneInnerAngle;

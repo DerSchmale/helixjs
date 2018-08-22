@@ -2,6 +2,8 @@ import {Component} from "../entity/Component";
 import {Float4} from "../math/Float4";
 import {MathX} from "../math/MathX";
 import {META} from "../Helix";
+import {Mouse} from "../input/Mouse";
+import {Input} from "../input/Input";
 
 /**
  * @classdesc
@@ -22,18 +24,24 @@ import {META} from "../Helix";
 function OrbitController(lookAtTarget)
 {
     Component.call(this);
+
     this._coords = new Float4(-Math.PI *.5, Math.PI * .4, 1.0, 0.0);   // azimuth, polar, radius
     this._localAcceleration = new Float4(0.0, 0.0, 0.0, 0.0);
     this._localVelocity = new Float4(0.0, 0.0, 0.0, 0.0);
 
-    this.touchZoomSpeed = .01;
+    this._input = new Input();
+    this._mouse = new Mouse();
+	this._mouse.sensitivityX = -1;
+	this._mouse.sensitivityY = -1;
+	this._mouse.map(Mouse.DRAG_X, "axisX");
+	this._mouse.map(Mouse.DRAG_Y, "axisY");
+	this._mouse.map(Mouse.WHEEL_Y, "zoom");
+
     this.zoomSpeed = 1.0;
     this.maxRadius = 4.0;
     this.minRadius = 0.1;
     this.dampen = .9;
     this.lookAtTarget = lookAtTarget || new Float4(0.0, 0.0, 0.0, 1.0);
-    this._oldMouseX = 0;
-    this._oldMouseY = 0;
 
     this._isDown = false;
 }
@@ -63,25 +71,7 @@ OrbitController.prototype.onAdded = function()
 {
     var self = this;
 
-    this._onMouseWheel = function(event)
-    {
-        var delta = event.detail? -120 * event.detail : event.wheelDelta;
-        self.setZoomImpulse(-delta * self.zoomSpeed * .0001);
-    };
-
-    this._onMouseDown = function (event)
-    {
-        self._oldMouseX = undefined;
-        self._oldMouseY = undefined;
-
-        self._isDown = true;
-    };
-
-    this._onMouseMove = function(event)
-    {
-        if (!self._isDown) return;
-        self._updateMove(event.screenX, event.screenY)
-    };
+	this._input.enable(this._mouse);
 
     this._onTouchDown = function (event)
     {
@@ -125,13 +115,8 @@ OrbitController.prototype.onAdded = function()
 
     this._onUp = function(event) { self._isDown = false; };
 
-    var mousewheelevt = (/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel";
-    META.TARGET_CANVAS.addEventListener(mousewheelevt, this._onMouseWheel);
-    META.TARGET_CANVAS.addEventListener("mousemove", this._onMouseMove);
     META.TARGET_CANVAS.addEventListener("touchmove", this._onTouchMove);
-    META.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
     META.TARGET_CANVAS.addEventListener("touchstart", this._onTouchDown);
-    META.TARGET_CANVAS.addEventListener("mouseup", this._onUp);
     META.TARGET_CANVAS.addEventListener("touchend", this._onUp);
 };
 
@@ -140,13 +125,10 @@ OrbitController.prototype.onAdded = function()
  */
 OrbitController.prototype.onRemoved = function()
 {
-    var mousewheelevt = (/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel";
-    META.TARGET_CANVAS.removeEventListener(mousewheelevt, this._onMouseWheel);
-    META.TARGET_CANVAS.removeEventListener("mousemove", this._onMouseMove);
-    META.TARGET_CANVAS.removeEventListener("touchmove", this._onTouchMove);
-    META.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
+	this._input.disable(this._mouse);
+
+	META.TARGET_CANVAS.removeEventListener("touchmove", this._onTouchMove);
     META.TARGET_CANVAS.removeEventListener("touchstart", this._onTouchDown);
-    META.TARGET_CANVAS.removeEventListener("mouseup", this._onUp);
     META.TARGET_CANVAS.removeEventListener("touchend", this._onUp);
 };
 
@@ -155,6 +137,12 @@ OrbitController.prototype.onRemoved = function()
  */
 OrbitController.prototype.onUpdate = function(dt)
 {
+	this.setAzimuthImpulse(this._input.getValue("axisX"));
+	this.setPolarImpulse(this._input.getValue("axisY"));
+
+	var zoom = this._input.getValue("zoom");
+	this.setZoomImpulse(zoom * this.zoomSpeed);
+
     this._localVelocity.x *= this.dampen;
     this._localVelocity.y *= this.dampen;
     this._localVelocity.z *= this.dampen;
@@ -202,20 +190,6 @@ OrbitController.prototype.setZoomImpulse = function(value)
     this._localAcceleration.z = value;
 };
 
-/**
- * @ignore
- */
-OrbitController.prototype._updateMove = function(x, y)
-{
-    if (this._oldMouseX !== undefined) {
-        var dx = this._oldMouseX - x;
-        var dy = this._oldMouseY - y;
-        this.setAzimuthImpulse(dx * .0015);
-        this.setPolarImpulse(dy * .0015);
-    }
-    this._oldMouseX = x;
-    this._oldMouseY = y;
-};
 
 OrbitController.prototype.clone = function()
 {

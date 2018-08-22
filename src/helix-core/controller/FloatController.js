@@ -193,9 +193,6 @@ FloatController.prototype.onRemoved = function()
 {
     document.removeEventListener("keydown", this._onKeyDown);
     document.removeEventListener("keyup", this._onKeyUp);
-    META.TARGET_CANVAS.removeEventListener("mousemove", this._onMouseMove);
-    META.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
-    META.TARGET_CANVAS.removeEventListener("mouseup", this._onMouseUp);
 };
 
 /**

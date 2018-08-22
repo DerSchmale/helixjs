@@ -112,18 +112,22 @@ export {HBAO} from "./effect/HBAO";
 export {SSAO} from "./effect/SSAO";
 export {ReinhardToneMapping} from "./effect/ReinhardToneMapping";
 
-export {AssetLibrary} from "./io/AssetLibrary";
-export {AssetLoader} from "./io/AssetLoader";
-export {AudioFile} from "./io/AudioFile";
-export {URLLoader} from "./io/URLLoader";
-export {HCLIP} from "./io/HCLIP";
-export {HCM} from "./io/HCM";
-export {HMAT} from "./io/HMAT";
-export {HMESH} from "./io/HMESH";
-export {Importer} from "./io/Importer";
-export {JPG_EQUIRECTANGULAR, PNG_EQUIRECTANGULAR} from "./io/JPG_EQUIRECTANGULAR";
-export {JPG_HEIGHTMAP, PNG_HEIGHTMAP} from "./io/JPG_HEIGHTMAP";
-export {JPG, PNG} from "./io/JPG_PNG";
+export {Input} from "./input/Input";
+export {Keyboard} from "./input/Keyboard";
+export {Mouse} from "./input/Mouse";
+
+export {AssetLibrary} from "./loaders/AssetLibrary";
+export {AssetLoader} from "./loaders/AssetLoader";
+export {AudioFile} from "./loaders/AudioFile";
+export {URLLoader} from "./loaders/URLLoader";
+export {HCLIP} from "./loaders/HCLIP";
+export {HCM} from "./loaders/HCM";
+export {HMAT} from "./loaders/HMAT";
+export {HMESH} from "./loaders/HMESH";
+export {Importer} from "./loaders/Importer";
+export {JPG_EQUIRECTANGULAR, PNG_EQUIRECTANGULAR} from "./loaders/JPG_EQUIRECTANGULAR";
+export {JPG_HEIGHTMAP, PNG_HEIGHTMAP} from "./loaders/JPG_HEIGHTMAP";
+export {JPG, PNG} from "./loaders/JPG_PNG";
 
 export {AmbientLight} from "./light/AmbientLight";
 export {DirectionalLight} from "./light/DirectionalLight";

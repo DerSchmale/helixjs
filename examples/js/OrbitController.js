@@ -41,9 +41,6 @@ HX.Component.create(OrbitController,
         }
     });
 
-/**
- * @ignore
- */
 OrbitController.prototype.onAdded = function()
 {
     var self = this;
@@ -97,9 +94,6 @@ OrbitController.prototype.onAdded = function()
 	HX.META.TARGET_CANVAS.addEventListener("touchend", this._onUp);
 };
 
-/**
- * @ignore
- */
 OrbitController.prototype.onRemoved = function()
 {
 	this._input.disable(this._mouse);
@@ -109,9 +103,6 @@ OrbitController.prototype.onRemoved = function()
 	HX.META.TARGET_CANVAS.removeEventListener("touchend", this._onUp);
 };
 
-/**
- * @ignore
- */
 OrbitController.prototype.onUpdate = function(dt)
 {
 	this.setAzimuthImpulse(this._input.getValue("axisX"));
@@ -143,25 +134,16 @@ OrbitController.prototype.onUpdate = function(dt)
     this.entity.matrix = matrix;
 };
 
-/**
- * @ignore
- */
 OrbitController.prototype.setAzimuthImpulse  = function(value)
 {
     this._localAcceleration.x = value;
 };
 
-/**
- * @ignore
- */
 OrbitController.prototype.setPolarImpulse = function(value)
 {
     this._localAcceleration.y = value;
 };
 
-/**
- * @ignore
- */
 OrbitController.prototype.setZoomImpulse = function(value)
 {
     this._localAcceleration.z = value;

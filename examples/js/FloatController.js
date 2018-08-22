@@ -33,18 +33,12 @@ FloatController.prototype.onAdded = function()
 	this._input.enable(this._keyboard);
 };
 
-/**
- * @ignore
- */
 FloatController.prototype.onRemoved = function()
 {
 	this._input.disable(this._mouse);
 	this._input.disable(this._keyboard);
 };
 
-/**
- * @ignore
- */
 FloatController.prototype.onUpdate = function(dt)
 {
 	this._updateLook();

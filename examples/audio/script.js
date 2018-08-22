@@ -3,6 +3,18 @@
  */
 var project = new DemoProject();
 
+window.onload = function ()
+{
+    var options = new HX.InitOptions();
+    options.hdr = true;
+    options.defaultLightingModel = HX.LightingModel.GGX;
+    options.shadowFilter = new HX.PCFShadowFilter();
+    options.shadowFilter.softness = .001;
+    options.shadowFilter.dither = true;
+    project.init(document.getElementById('webglContainer'), options);
+};
+
+
 project.queueAssets = function(assetLibrary)
 {
     assetLibrary.queueAsset("collision-sound", "sound/collision.wav", HX.AssetLibrary.Type.ASSET, HX.AudioFile);
@@ -10,20 +22,8 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
-    // this.renderer.debugMode = HX.Renderer.DebugMode.SHADOW_MAP;
-    this.renderer.shadowMapSize = 4096;
     initCamera(this.camera);
     initScene(this.scene, this.assetLibrary);
-};
-
-window.onload = function ()
-{
-    var options = new HX.InitOptions();
-    options.hdr = true;
-    options.defaultLightingModel = HX.LightingModel.GGX;
-    options.numShadowCascades = 2;
-    options.shadowFilter = new HX.PCFShadowFilter();
-    project.init(document.getElementById('webglContainer'), options);
 };
 
 function initCamera(camera)
@@ -43,7 +43,10 @@ function initScene(scene, assetLibrary)
 	var pointLight = new HX.PointLight();
 	pointLight.castShadows = true;
 	pointLight.intensity = 10;
-	pointLight.radius = 100000;
+	pointLight.radius = 100;
+
+    lights = [ pointLight ];
+
 	pointLight = new HX.Entity(pointLight);
 	pointLight.position.set(0.0, 0.0, .9);
 
@@ -52,9 +55,11 @@ function initScene(scene, assetLibrary)
 	var ambientLight = new HX.AmbientLight();
 	ambientLight.intensity = .03;
 	scene.attach(new HX.Entity(ambientLight));
+    lights.push(ambientLight);
 
     var material = new HX.BasicMaterial();
     material.roughness = 0.45;
+    material.fixedLights = lights;
 
     var primitive = new HX.BoxPrimitive(
         {

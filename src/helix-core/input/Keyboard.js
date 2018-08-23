@@ -6,9 +6,11 @@ import {InputPlugin} from "./InputPlugin";
  * The Keyboard class enabled keyboard input in {@linkcode Input} The mapped "buttons" are the key codes or the character
  * values. Which of the two depends on the {@linkcode Keyboard#useCode} property.
  *
- * @property {boolean} useCode If true, the button mappings apply to key codes ("KeyA", "LeftShift", etc). If false,
- * they apply to the pressed characters. By default it is true, making for example WASD controls work on Azerty
- * keyboards where W = Z, A = Q.
+ * @property mode If {@linkcode Keyboard#MODE_KEY_LOCATION}, the button mappings apply to key "codes" representing the
+ * key locations on the keyboard ("KeyA", "LeftShift", etc) as specified on a QWERTY keyboard. If {Keyboard.MODE_KEY_VALUE},
+ * they apply to the pressed characters. By default it uses locations, making for example WASD controls work on
+ * Azerty keyboards where W = Z, A = Q. In either case, the old API's keycode will always be used as fallback so
+ * until the new KeyboardEvent API is implemented reliably by browsers, you should also map the old integer keyCodes.
  *
  * {@see KeyboardEvent#code}
  * {@see KeyboardEvent#key}
@@ -18,11 +20,14 @@ import {InputPlugin} from "./InputPlugin";
 function Keyboard()
 {
 	InputPlugin.call(this);
-	this.useCode = true;
+	this.mode = Keyboard.MODE_KEY_LOCATION;
 	this._onKeyUp = this._onKeyUp.bind(this);
 	this._onKeyDown = this._onKeyDown.bind(this);
 	this._signs = {};
 }
+
+Keyboard.MODE_KEY_VALUE = 0;
+Keyboard.MODE_KEY_LOCATION = 1;
 
 Keyboard.prototype = Object.create(InputPlugin.prototype);
 
@@ -75,7 +80,7 @@ Keyboard.prototype.onDisabled = function()
  */
 Keyboard.prototype._onKeyDown = function(event)
 {
-	var key = this.useCode? event.code : event.key;
+	var key = this.mode? event.code || event.keyCode : event.key || event.keyCode;
 
 	if (this.isMapped(key)) {
 		this.setValue(key, this._signs[key] || 1);
@@ -89,7 +94,7 @@ Keyboard.prototype._onKeyDown = function(event)
  */
 Keyboard.prototype._onKeyUp = function(event)
 {
-	var key = this.useCode? event.code : event.key;
+    var key = this.mode? event.code || event.keyCode : event.key || event.keyCode;
 
 	if (this.isMapped(key)) {
 		this.setValue(key, 0);

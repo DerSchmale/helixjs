@@ -21,6 +21,12 @@ function FPSController()
 	this._keyboard.map("Space", "jump");
 	this._keyboard.mapAxis("KeyA", "KeyD", "moveX");
 	this._keyboard.mapAxis("KeyS", "KeyW", "moveY");
+
+    // also support the old keyboard API
+    this._keyboard.map(16, "run");
+    this._keyboard.map(32, "jump");
+    this._keyboard.mapAxis(65, 68, "moveX");
+    this._keyboard.mapAxis(83, 87, "moveY");
 }
 
 HX.Component.create(FPSController);

@@ -149,7 +149,23 @@ Component.prototype =
 				return this._entity.messenger.hasListeners(name);
             }
             return false;
-		}
+		},
+
+        /**
+		 * Listens to the entity's messenger for a given message type.
+         */
+        bindListener: function(name, func, thisRef)
+		{
+            this._entity.messenger.bind(name, func, thisRef);
+		},
+
+        /**
+         * Listens to the entity's messenger for a given message type.
+         */
+        unbindListener: function(name, func, thisRef)
+        {
+            this._entity.messenger.unbind(name, func);
+        }
 	};
 
 

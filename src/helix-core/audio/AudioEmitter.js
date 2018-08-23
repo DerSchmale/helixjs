@@ -42,8 +42,8 @@ function AudioEmitter(clip)
     this._panner.connect(this._gain);
 }
 
-AudioEmitter.PLAY_MESSAGE = "play";
-AudioEmitter.STOP_MESSAGE = "stop";
+AudioEmitter.PLAY_MESSAGE = "hx_audioPlay";
+AudioEmitter.STOP_MESSAGE = "hx_audioStop";
 
 Component.create(AudioEmitter, {
 	gain: {
@@ -171,8 +171,8 @@ AudioEmitter.prototype.onAdded = function()
     if (this._autoplay)
         this.play();
 
-    this._entity.messenger.bind(AudioEmitter.PLAY_MESSAGE, this._onPlayMessage, this);
-    this._entity.messenger.bind(AudioEmitter.STOP_MESSAGE, this._onStopMessage, this);
+    this.bindListener(AudioEmitter.PLAY_MESSAGE, this._onPlayMessage, this);
+    this.bindListener(AudioEmitter.STOP_MESSAGE, this._onStopMessage, this);
 };
 
 /**
@@ -180,8 +180,8 @@ AudioEmitter.prototype.onAdded = function()
  */
 AudioEmitter.prototype.onRemoved = function()
 {
-    this._entity.messenger.unbind(AudioEmitter.PLAY_MESSAGE, this._onPlayMessage);
-    this._entity.messenger.unbind(AudioEmitter.STOP_MESSAGE, this._onStopMessage);
+    this.unbindListener(AudioEmitter.PLAY_MESSAGE, this._onPlayMessage);
+    this.unbindListener(AudioEmitter.STOP_MESSAGE, this._onStopMessage);
 	this.stop();
 };
 

@@ -50,49 +50,49 @@ Mouse.MOVE_X = 0;
 Mouse.MOVE_Y = 1;
 
 /**
- * The axis name for when the mouse moves over the canvas with the left mouse button down
- */
-Mouse.DRAG_X = 2;
-
-/**
- * The axis name for when the mouse moves over the canvas with the left mouse button down
- */
-Mouse.DRAG_Y = 3;
-
-/**
  * The left button name
  */
-Mouse.BUTTON_LEFT = 4;
+Mouse.BUTTON_LEFT = 2;
 
 /**
  * The right button name
  */
-Mouse.BUTTON_RIGHT = 5;
+Mouse.BUTTON_RIGHT = 3;
 
 /**
  * The middle (usually scroll) button name
  */
-Mouse.BUTTON_MIDDLE = 6;
+Mouse.BUTTON_MIDDLE = 4;
 
 /**
  * The axis name when the horizontal scroll wheel moves
  */
-Mouse.WHEEL_X = 7;
+Mouse.WHEEL_X = 5;
 
 /**
  * The axis name when the vertical scroll wheel moves
  */
-Mouse.WHEEL_Y = 8;
+Mouse.WHEEL_Y = 6;
 
 /**
  * The axis name for the mouse position on the canvas. 0 means all the way left, 1 means all the way right.
  */
-Mouse.POS_X = 9;
+Mouse.POS_X = 7;
 
 /**
  * The axis name for the mouse position on the canvas. 0 means all the way to the top, 1 means all the way to the bottom.
  */
-Mouse.POS_Y = 10;
+Mouse.POS_Y = 8;
+
+/**
+ * The axis name for when the mouse moves over the canvas with the left mouse button down
+ */
+Mouse.DRAG_X = 9;
+
+/**
+ * The axis name for when the mouse moves over the canvas with the left mouse button down
+ */
+Mouse.DRAG_Y = 10;
 
 Mouse.prototype = Object.create(InputPlugin.prototype);
 

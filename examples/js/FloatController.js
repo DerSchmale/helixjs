@@ -11,9 +11,9 @@ function FloatController()
 
 	// normally this would be defined externally and passed into the controllers
     this._input = new HX.Input();
-    this._mouse = new HX.Mouse();
-	this._mouse.map(HX.Mouse.DRAG_X, "lookX");
-	this._mouse.map(HX.Mouse.DRAG_Y, "lookY");
+    this._mouse = new HX.MouseLock();
+	this._mouse.map(HX.MouseLock.MOVE_X, "lookX");
+	this._mouse.map(HX.MouseLock.MOVE_Y, "lookY");
 	this._mouse.sensitivityX = 3;
 	this._mouse.sensitivityY = -3;
     this._keyboard = new HX.Keyboard();

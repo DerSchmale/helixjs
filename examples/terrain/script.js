@@ -161,6 +161,7 @@ function initScene(scene, camera, assetLibrary)
 	var plane = new HX.PlanePrimitive({width: 4000, height: 4000, numSegmentsW: 20, numSegmentsH: 20});
 	var water = new HX.Entity();
     water.position.z = waterLevel;
+    waterMaterial.renderOrder = 50; // make sure water renders last, since most of it will be under the terrain
 	water.addComponent(new HX.MeshInstance(plane, waterMaterial, 16));
 	water.addComponent(new CenterAtComponent(camera));
 

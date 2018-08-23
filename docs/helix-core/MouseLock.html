@@ -4,7 +4,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width">
-	<title>Documentation Namespace: ArrayUtils</title>
+	<title>Documentation Class: MouseLock</title>
 
 	<!--[if lt IE 9]>
 	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -79,14 +79,16 @@
 		<div id="main">
 			
 
-	<h1 class="page-title">Namespace: ArrayUtils</h1>
+	<h1 class="page-title">Class: MouseLock</h1>
 <section>
 
 <header>
     
         <h2>
-        ArrayUtils
+        MouseLock
         </h2>
+        
+            <div class="class-description"><p>The MouseLock enables locked-pointer mouse input in {@Input}. Before the pointer is locked, the canvas must be clicked.</p></div>
         
     
 </header>
@@ -96,90 +98,15 @@
     <div class="container-overview">
     
         
-            <div class="description"><p>Some utilities for Arrays.</p></div>
-        
-
-        
-<dl class="details">
-    
-
-	
-
-	
-
-	
-
-    
-
-    
-
-    
-
-    
-
-	
-
-	
-	<dt class="tag-author method-doc-label method-doc-details-label">Author:</dt>
-	<dd class="tag-author">
-		<ul>
-			<li>derschmale &lt;http://www.derschmale.com></li>
-			</ul>
-	</dd>
-	
-
-	
-
-	
-
-	
-
-
-
-	
-
-	
-
-	
-
-	
-</dl>
-
-
-        
-    
-    </div>
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Methods</h3>
-
-        <dl>
-            
 <hr>
 <dt>
-    <h4 class="name" id=".forEach"><span class="type-signature">&lt;static> </span>forEach()</h4>
+    <h4 class="name" id="MouseLock"><span class="type-signature"></span>new MouseLock()</h4>
     
     
 </dt>
 <dd>
 
     
-    <div class="description">
-        <p>Loops over a collection (Array or Object) and calls a function(obj, key).</p>
-    </div>
-    
 
     
 
@@ -190,6 +117,89 @@
 
     
 <dl class="details">
+    
+
+    <h5 class="subsection-title">Properties:</h5>
+
+    <dl>
+
+<table class="props table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>sensitivityX</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The horizontal mouse movement sensitivity</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>sensitivityY</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The vertical mouse movement sensitivity</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>sensitivityScroll</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The scroll wheel sensitivity</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+</dl>
+
     
 
 	
@@ -243,27 +253,37 @@
     
 </dd>
 
-        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Members</h3>
+
+        <dl>
             
 <hr>
-<dt>
-    <h4 class="name" id=".shuffle"><span class="type-signature">&lt;static> </span>shuffle()</h4>
-    
+<dt class="name" id=".BUTTON_LEFT">
+    <h4 id=".BUTTON_LEFT"><span class="type-signature">&lt;static> </span>BUTTON_LEFT<span class="type-signature"></span></h4>
+
     
 </dt>
 <dd>
-
     
     <div class="description">
-        <p>Randomizes the order of the elements in the array.</p>
+        <p>The left button name</p>
     </div>
     
 
-    
-
-    
-
-    
     
 
     
@@ -307,6 +327,34 @@
 
 
     
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".BUTTON_MIDDLE">
+    <h4 id=".BUTTON_MIDDLE"><span class="type-signature">&lt;static> </span>BUTTON_MIDDLE<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The middle (usually scroll) button name</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
 
     
 
@@ -316,12 +364,334 @@
 
     
 
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
     
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".BUTTON_RIGHT">
+    <h4 id=".BUTTON_RIGHT"><span class="type-signature">&lt;static> </span>BUTTON_RIGHT<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The right button name</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".MOVE_X">
+    <h4 id=".MOVE_X"><span class="type-signature">&lt;static> </span>MOVE_X<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The axis name for when the mouse moves horizontally over the canvas</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".MOVE_Y">
+    <h4 id=".MOVE_Y"><span class="type-signature">&lt;static> </span>MOVE_Y<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The axis name for when the mouse moves vertically over the canvas</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".WHEEL_X">
+    <h4 id=".WHEEL_X"><span class="type-signature">&lt;static> </span>WHEEL_X<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The axis name when the horizontal scroll wheel moves</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".WHEEL_Y">
+    <h4 id=".WHEEL_Y"><span class="type-signature">&lt;static> </span>WHEEL_Y<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The axis name when the vertical scroll wheel moves</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
 
     
 </dd>
 
         </dl>
+    
+
     
 
     
@@ -371,7 +741,7 @@
 <span class="jsdoc-message">
 	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a>
 	
-		on August 23rd 2018, 6:51:27 pm
+		on August 23rd 2018, 6:51:29 pm
 	
 	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
 </span>

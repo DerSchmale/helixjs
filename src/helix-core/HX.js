@@ -17,10 +17,16 @@ export {
     init, destroy, start, stop,
     META, capabilities,
     onPreFrame, onFrame,
-	getVRDisplays,
-    enableVR, disableVR,
     TextureFilter, CullMode, StencilOp, Comparison, ElementType, BlendFactor, BlendOperation, ClearMask, InitOptions, TextureFormat, DataType, BufferUsage, CubeFace
 } from "./Helix.js";
+
+export {
+    getVRDisplays, enableVR, disableVR,
+} from "./core/vr.js";
+
+export {
+    onGamepadConnected, onGamepadDisconnected, getGamepads, getGamepad
+} from "./input/gamepads.js";
 
 export {Float2} from "./math/Float2";
 export {Float4} from "./math/Float4";
@@ -36,7 +42,6 @@ export {Transform} from "./math/Transform";
 
 export {Debug} from "./debug/Debug";
 export {DebugAxes} from "./debug/DebugAxes";
-export {Profiler} from "./debug/Profiler";
 
 export {BoundingVolume} from "./scene/BoundingVolume";
 export {BoundingAABB} from "./scene/BoundingAABB";
@@ -111,6 +116,7 @@ export {SSAO} from "./effect/SSAO";
 export {ReinhardToneMapping} from "./effect/ReinhardToneMapping";
 
 export {Input} from "./input/Input";
+export {Gamepad} from "./input/Gamepad";
 export {Keyboard} from "./input/Keyboard";
 export {Mouse} from "./input/Mouse";
 export {MouseLock} from "./input/MouseLock";

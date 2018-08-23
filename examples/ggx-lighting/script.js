@@ -1,7 +1,6 @@
 /**
  * @author derschmale <http://www.derschmale.com>
  */
-
 var project = new DemoProject();
 
 project.queueAssets = function(assetLibrary)

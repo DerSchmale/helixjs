@@ -4,7 +4,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width">
-	<title>Documentation Namespace: ArrayUtils</title>
+	<title>Documentation Class: Gamepad</title>
 
 	<!--[if lt IE 9]>
 	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -79,14 +79,24 @@
 		<div id="main">
 			
 
-	<h1 class="page-title">Namespace: ArrayUtils</h1>
+	<h1 class="page-title">Class: Gamepad</h1>
 <section>
 
 <header>
     
         <h2>
-        ArrayUtils
+        Gamepad
         </h2>
+        
+            <div class="class-description"><p>The Gamepad class enables gamepad input in <a href="Input.html"><code>Input</code></a>. The Javascript Gamepad API is currently still
+experimental, hence this input type should be handled with care. Gamepad objects should not be created manually
+unless you're querying the native gamepad API directly. Otherwise, get them from <a href="global.html#getGamepads"><code>getGamepads</code></a> or <a href="global.html#onGamepadConnected"><code>onGamepadConnected</code></a>.</p>
+<p>The button names for mapping are simply their integer indexes. Similar to axes, but they start from 0x100. For
+convenience, you can use the <code>Gamepad.A</code>, <code>Gamepad.DPAD_UP</code>, ... enum. The naming of these is
+based on the default Windows (XBox) and similar controllers. This will only apply if the mapping property is &quot;standard&quot;.
+If the gamepad supports it, button &quot;touches&quot; rather than presses can also be mapped.
+If the buttons are analog, the communicated values will be between 0 and 1. Alternatively, you can also map &quot;pressed&quot;
+and &quot;touched&quot; states by providing <code>(buttonName | Gamepad.PRESS)</code> or <code>(buttonName | Gamepad.TOUCH)</code></p></div>
         
     
 </header>
@@ -96,13 +106,148 @@
     <div class="container-overview">
     
         
-            <div class="description"><p>Some utilities for Arrays.</p></div>
-        
+<hr>
+<dt>
+    <h4 class="name" id="Gamepad"><span class="type-signature"></span>new Gamepad()</h4>
+    
+    
+</dt>
+<dd>
 
-        
+    
+
+    
+
+    
+
+    
+    
+
+    
 <dl class="details">
     
 
+    <h5 class="subsection-title">Properties:</h5>
+
+    <dl>
+
+<table class="props table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>displayId</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The id of the VR display this gamepad is associated with, if any.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>id</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The gamepad's id.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>index</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The gamepad's index. This matches the index in the array returned by <a href="global.html#getGamepads"><code>getGamepads</code></a></p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>mapping</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The mapping the user agent applies to the buttons. If not &quot;standard&quot;, the input may not behave as
+expected. If this is a specific type of gamepad or controller, you may want to provide custom mapping based on its id.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>axisDeadzone</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The range for the axes to be considered &quot;0&quot;. This assumes a default controller scheme where
+every axis is a 2D stick.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+</dl>
+
+    
+
 	
 
 	
@@ -120,111 +265,29 @@
 	
 
 	
-	<dt class="tag-author method-doc-label method-doc-details-label">Author:</dt>
-	<dd class="tag-author">
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+	<dt class="tag-see method-doc-label method-doc-details-label">See:</dt>
+	<dd class="tag-see">
 		<ul>
-			<li>derschmale &lt;http://www.derschmale.com></li>
+			<li><a href="https://w3c.github.io/gamepad/#remapping">https://w3c.github.io/gamepad/#remapping</a></li>
 			</ul>
 	</dd>
 	
 
 	
-
-	
-
-	
-
-
-
-	
-
-	
-
-	
-
-	
-</dl>
-
-
-        
-    
-    </div>
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-        <h3 class="subsection-title">Methods</h3>
-
-        <dl>
-            
-<hr>
-<dt>
-    <h4 class="name" id=".forEach"><span class="type-signature">&lt;static> </span>forEach()</h4>
-    
-    
-</dt>
-<dd>
-
-    
-    <div class="description">
-        <p>Loops over a collection (Array or Object) and calls a function(obj, key).</p>
-    </div>
-    
-
-    
-
-    
-
-    
-    
-
-    
-<dl class="details">
-    
-
-	
-
-	
-
-	
-
-    
-
-    
-
-    
-
-    
-
-	
-
-	
-
-	
-
-	
-
-	
-
-
-
-	
-
-	
-
-	
-
-	
 </dl>
 
 
@@ -243,27 +306,37 @@
     
 </dd>
 
-        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Members</h3>
+
+        <dl>
             
 <hr>
-<dt>
-    <h4 class="name" id=".shuffle"><span class="type-signature">&lt;static> </span>shuffle()</h4>
-    
+<dt class="name" id=".A">
+    <h4 id=".A"><span class="type-signature">&lt;static> </span>A<span class="type-signature"></span></h4>
+
     
 </dt>
 <dd>
-
     
     <div class="description">
-        <p>Randomizes the order of the elements in the array.</p>
+        <p>The bottom button in the right cluster. On PS: Cross.</p>
     </div>
     
 
-    
-
-    
-
-    
     
 
     
@@ -307,6 +380,34 @@
 
 
     
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".B">
+    <h4 id=".B"><span class="type-signature">&lt;static> </span>B<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The right button in the right cluster. On PS: Circle.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
 
     
 
@@ -316,12 +417,1236 @@
 
     
 
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
     
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".BACK">
+    <h4 id=".BACK"><span class="type-signature">&lt;static> </span>BACK<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The back/select button.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".DPAD_DOWN">
+    <h4 id=".DPAD_DOWN"><span class="type-signature">&lt;static> </span>DPAD_DOWN<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The down button on the directional pad.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".DPAD_LEFT">
+    <h4 id=".DPAD_LEFT"><span class="type-signature">&lt;static> </span>DPAD_LEFT<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The left button on the directional pad.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".DPAD_RIGHT">
+    <h4 id=".DPAD_RIGHT"><span class="type-signature">&lt;static> </span>DPAD_RIGHT<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The right button on the directional pad.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".DPAD_UP">
+    <h4 id=".DPAD_UP"><span class="type-signature">&lt;static> </span>DPAD_UP<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The up button on the directional pad.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".L3">
+    <h4 id=".L3"><span class="type-signature">&lt;static> </span>L3<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The left analog stick pressed down.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".LB">
+    <h4 id=".LB"><span class="type-signature">&lt;static> </span>LB<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The top left trigger/bumper. On PS: L1.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".LT">
+    <h4 id=".LT"><span class="type-signature">&lt;static> </span>LT<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The bottom left trigger. On PS: L2.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".PRESS">
+    <h4 id=".PRESS"><span class="type-signature">&lt;static> </span>PRESS<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>Combine with a button name to indicate that the action is only interested in the pressed state, not the analog value:
+<code>gamepad.map(name | Gamepad.PRESSED, &quot;action&quot;)</code></p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".R3">
+    <h4 id=".R3"><span class="type-signature">&lt;static> </span>R3<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The right analog stick pressed down.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".RB">
+    <h4 id=".RB"><span class="type-signature">&lt;static> </span>RB<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The top right trigger/bumper. On PS: R1.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".RT">
+    <h4 id=".RT"><span class="type-signature">&lt;static> </span>RT<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The bottom right trigger. On PS: R2.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".START">
+    <h4 id=".START"><span class="type-signature">&lt;static> </span>START<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The start button.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".STICK_LX">
+    <h4 id=".STICK_LX"><span class="type-signature">&lt;static> </span>STICK_LX<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The horizontal axis of the left analog stick.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".STICK_LY">
+    <h4 id=".STICK_LY"><span class="type-signature">&lt;static> </span>STICK_LY<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The vertical axis of the left analog stick.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".STICK_RX">
+    <h4 id=".STICK_RX"><span class="type-signature">&lt;static> </span>STICK_RX<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The horizontal axis of the right analog stick.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".STICK_RY">
+    <h4 id=".STICK_RY"><span class="type-signature">&lt;static> </span>STICK_RY<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The vertical axis of the right analog stick.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".TOUCH">
+    <h4 id=".TOUCH"><span class="type-signature">&lt;static> </span>TOUCH<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>Combine with a button name to indicate that the action is interested in the touched state, if the gamepad supports this.
+<code>gamepad.map(name | Gamepad.TOUCHED, &quot;action&quot;)</code></p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".X">
+    <h4 id=".X"><span class="type-signature">&lt;static> </span>X<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The left button in the right cluster. On PS: Square.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id=".Y">
+    <h4 id=".Y"><span class="type-signature">&lt;static> </span>Y<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The top button in the right cluster. On PS: Triangle.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
 
     
 </dd>
 
         </dl>
+    
+
     
 
     
@@ -371,7 +1696,7 @@
 <span class="jsdoc-message">
 	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a>
 	
-		on August 23rd 2018, 6:51:27 pm
+		on August 23rd 2018, 6:51:28 pm
 	
 	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
 </span>

@@ -5,14 +5,16 @@ import {MathX} from "../math/MathX";
 /**
  * @classdesc
  *
- * The Mouse class allows mapping mouse input to named actions. When listening to Mouse.BUTTON_RIGHT, the context menu is
- * disabled. When listening to Mouse.WHEEL_X or Mouse.WHEEL_Y, scrolling is disabled.
+ * The Mouse class enables Mouse input in {@linkcode Input}. When listening to {@linkcode Mouse#BUTTON_RIGHT}, the
+ * context menu is disabled. When mapping {@linkcode Mouse#WHEEL_X} or {@linkcode Mouse#WHEEL_Y}, scrolling is disabled.
  *
  * @property sensitivityX The horizontal mouse movement sensitivity
  * @property sensitivityY The vertical mouse movement sensitivity
  * @property sensitivityScroll The scroll wheel sensitivity
  *
  * @constructor
+ *
+ * @see {Input}
  */
 function Mouse()
 {
@@ -103,7 +105,6 @@ var BUTTON_MAP = {
 	2: Mouse.BUTTON_RIGHT
 };
 
-
 /**
  * @ignore
  */
@@ -191,6 +192,10 @@ Mouse.prototype._onMouseMove = function(event)
 	this._updatePos(event.clientX, event.clientY);
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Mouse.prototype._updatePos = function(x, y)
 {
 	var rect = META.TARGET_CANVAS.getBoundingClientRect();
@@ -202,6 +207,10 @@ Mouse.prototype._updatePos = function(x, y)
 	this._mouseY = MathX.saturate((y - rect.top) / rect.height);
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Mouse.prototype._onPreFrame = function()
 {
 	var mouseX = this._mouseX;
@@ -239,11 +248,19 @@ Mouse.prototype._onPreFrame = function()
 	this._wheelY = 0;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Mouse.prototype._onMouseLeave = function(event)
 {
 	this._updatePos(event.clientX, event.clientY);
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Mouse.prototype._onMouseEnter = function(event)
 {
 	this._updatePos(event.clientX, event.clientY);
@@ -264,6 +281,10 @@ Mouse.prototype._onMouseEnter = function(event)
 	this._buttonMask = newButtonMask;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Mouse.prototype._onMouseWheel = function(event)
 {
 	if (!(this.isMapped(Mouse.WHEEL_X) || this.isMapped(Mouse.WHEEL_Y))) return;

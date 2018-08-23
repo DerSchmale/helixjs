@@ -1,5 +1,4 @@
 /**
- *
  * Implementation details: every button or axis has an integer index from an enum.
  *
  * @ignore
@@ -8,6 +7,7 @@ function InputPlugin()
 {
 	this._mapping = [];
 	this._input = null;
+    this._values = {};
 }
 
 InputPlugin.prototype =
@@ -29,11 +29,10 @@ InputPlugin.prototype =
 	},
 
 	/**
-	 * Maps a given button or axis to a given action name. This value for this action name can be listened to or queried
-	 * from {@linkcode Controller}.
+	 * Maps a button or axis to an action. The value for this action name can be listened to or queried from {@linkcode Input}.
 	 *
-	 * @param buttonOrAxis
-	 * @param actionName
+	 * @param buttonOrAxis The button or axis to map to an action. The value of this is one of the subclasses' enum properties.
+	 * @param actionName The name of the action on the {@Input} that will be targeted by the button/axis.
 	 */
 	map: function(buttonOrAxis, actionName)
 	{
@@ -41,9 +40,7 @@ InputPlugin.prototype =
 	},
 
 	/**
-	 * Removes the mapping of a controller
-	 *
-	 * @param buttonOrAxis The button or axis. This is normally an enumerator on the Input.
+	 * Removes the mapping of a button or axis.
 	 */
 	unmap: function(buttonOrAxis)
 	{
@@ -65,6 +62,12 @@ InputPlugin.prototype =
 	setValue: function(buttonOrAxis, value)
 	{
 		if (!this._input) return;
+
+        // every plugin needs to check against their own values, or it could constantly overwrite other input plugins:
+		var oldValue = this._values[buttonOrAxis];
+		if (oldValue === value) return;
+		this._values[buttonOrAxis] = value;
+
 		var action = this._mapping[buttonOrAxis];
 		if (action)
 			this._input.setActionValue(action, value);

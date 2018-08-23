@@ -5,8 +5,7 @@ import {MathX} from "../math/MathX";
 /**
  * @classdesc
  *
- * The MouseLock class allows mapping mouse input to named actions, locking the mouse pointer. Before the pointer can be
- * locked, the canvas must be clicked.
+ * The MouseLock enables locked-pointer mouse input in {@Input}. Before the pointer is locked, the canvas must be clicked.
  *
  * @property sensitivityX The horizontal mouse movement sensitivity
  * @property sensitivityY The vertical mouse movement sensitivity
@@ -152,6 +151,10 @@ MouseLock.prototype._onMouseMove = function(event)
     this._movementY = event.movementY / rect.height;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 MouseLock.prototype._onPreFrame = function()
 {
 	var canvas = META.TARGET_CANVAS;
@@ -171,6 +174,10 @@ MouseLock.prototype._onPreFrame = function()
 	this._wheelY = 0;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 MouseLock.prototype._onMouseWheel = function(event)
 {
 	if (!(this.isMapped(MouseLock.WHEEL_X) || this.isMapped(MouseLock.WHEEL_Y))) return;

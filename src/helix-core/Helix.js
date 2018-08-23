@@ -15,6 +15,8 @@ import {PoissonSphere} from "./math/PoissonSphere";
 import {Color} from "./core/Color";
 import {FrameBuffer} from "./texture/FrameBuffer";
 import {MaterialPass} from "./material/MaterialPass";
+import {initGamepads} from "./input/gamepads";
+import {disableVR, isVRPresenting} from "./core/vr";
 
 /**
  * META contains some data about the Helix engine, such as the options it was initialized with.
@@ -61,19 +63,6 @@ export var META =
 		 */
 		AUDIO_CONTEXT: null
 	};
-
-/**
- * Returns the available VR displays.
- */
-export function getVRDisplays(callback)
-{
-    if (!navigator.getVRDisplays) {
-        callback([]);
-        return;
-	}
-
-    navigator.getVRDisplays().then(callback);
-}
 
 /**
  * The {@linkcode Signal} that dispatched before a frame renders.
@@ -486,6 +475,8 @@ export function init(canvas, options)
     META.TARGET_CANVAS = canvas;
     META.AUDIO_CONTEXT = window.hx_audioContext;
 
+    initGamepads();
+
     _updateCanvasSize();
 
     META.OPTIONS = options = options || new InitOptions();
@@ -640,7 +631,7 @@ function _onFrameTick(dt)
     _clearGLStats();
 
     // VR stopped presenting (present change event doesn't seem reliable)
-    if (isVRPresenting && !META.VR_DISPLAY.isPresenting) {
+    if (isVRPresenting() && !META.VR_DISPLAY.isPresenting) {
         console.log("VR device stopped presenting, disabling VR");
 		disableVR();
 	}
@@ -698,53 +689,6 @@ export function start()
 export function stop()
 {
     frameTicker.stop();
-}
-
-
-var isVRPresenting = false;
-
-/**
- * Turns on a VR display
- */
-export function enableVR(display, onFail)
-{
-    if (META.VR_DISPLAY)
-        throw new Error("VR already enabled!");
-
-    META.VR_DISPLAY = display;
-
-    capabilities.VR_CAN_PRESENT = display.capabilities.canPresent;
-
-	if (capabilities.VR_CAN_PRESENT) {
-		META.VR_LEFT_EYE_PARAMS = display.getEyeParameters("left");
-		META.VR_RIGHT_EYE_PARAMS = display.getEyeParameters("right");
-
-		META.VR_DISPLAY.requestPresent([{
-			source: META.TARGET_CANVAS
-		}]).then(function() {
-			isVRPresenting = true;
-        }, onFail);
-
-		META.TARGET_CANVAS.width = Math.max(META.VR_LEFT_EYE_PARAMS.renderWidth, META.VR_RIGHT_EYE_PARAMS.renderWidth);
-		META.TARGET_CANVAS.height = Math.max(META.VR_LEFT_EYE_PARAMS.renderHeight, META.VR_RIGHT_EYE_PARAMS.renderHeight);
-	}
-
-    console.log("Starting VR on " + display.displayName);
-}
-
-export function disableVR()
-{
-    if (!META.VR_DISPLAY) return;
-
-	isVRPresenting = false;
-
-    if (META.VR_DISPLAY.isPresenting)
-        META.VR_DISPLAY.exitPresent();
-
-    capabilities.VR_CAN_PRESENT = false;
-    META.VR_DISPLAY = null;
-    META.VR_LEFT_EYE_PARAMS = null;
-    META.VR_RIGHT_EYE_PARAMS = null;
 }
 
 function _initDefaultSkinningTexture()
@@ -917,4 +861,3 @@ function _tryFBO(dataType)
     var fbo = new FrameBuffer(tex);
     return fbo.init(true);
 }
-

@@ -4,7 +4,7 @@ import {onPreFrame} from "../Helix";
 /**
  * @classdesc
  *
- * The Touch class allows mapping touch input to named actions.
+ * The Touch class enables touch input in {@linkcode Input}.
  *
  * @property sensitivityX The horizontal single-finger movement sensitivity
  * @property sensitivityY The vertical single-finger movement sensitivity
@@ -158,12 +158,20 @@ Touch.prototype._onTouchMove = function(event)
 
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Touch.prototype._updatePos = function(x, y)
 {
 	this._touchX = x / window.innerWidth;
 	this._touchY = y / window.innerHeight;
 };
 
+/**
+ * @ignore
+ * @private
+ */
 Touch.prototype._onPreFrame = function()
 {
 	var touchX = this._touchX;

@@ -19,6 +19,8 @@ function RenderCollector()
 
     this._renderItemPool = new ObjectPool(RenderItem);
 
+    // Opaques are stored per RenderPath because the render path defines the order of rendering.
+    // Transparents need a single list for absolute ordering.
     this._opaques = [];
     this._transparents = null;
     this._camera = null;
@@ -114,7 +116,6 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
     var skeleton = meshInstance.skeleton;
     var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
-    var camera = this._camera;
     var opaqueLists = this._opaques;
     var transparentList = this._transparents;
 

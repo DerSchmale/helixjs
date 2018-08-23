@@ -43,10 +43,11 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._writeDepth = true;
     this._writeColor = true;
     this._passes = new Array(Material.NUM_PASS_TYPES);
+    // automatic render order by engine
     this._renderOrderHint = ++MATERIAL_ID_COUNTER;
-    this._renderPath = null;
     // forced render order by user:
     this._renderOrder = 0;
+    this._renderPath = null;
     this._textures = {};
     this._uniforms = {};
     this._fixedLights = null;
@@ -134,7 +135,7 @@ Material.prototype =
     /**
      * The blend state used for this material.
      *
-     * @see {BlendState}
+     * @see {@linkcode BlendState}
      */
     get blendState()
     {

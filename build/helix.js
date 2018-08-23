@@ -3595,6 +3595,14 @@
 	    }
 	};
 
+	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
+
+	ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n// really only used for clustered\nstruct HX_Probe\n{\n    int hasDiffuse;\n    int hasSpecular;\n    float numMipLevels;\n};\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
+
+	ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n    int castShadows;\n    vec4 shadowTiles[6];    // for each cube face\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    float dist = length(dir);\n    dir = mat3(light.shadowMapMatrix) * dir;\n\n    // swizzle to opengl cube map space\n    dir = dir.xzy;\n\n    vec3 absDir = abs(dir);\n    float maxDir = max(max(absDir.x, absDir.y), absDir.z);\n    vec2 uv;\n    vec4 tile;\n    if (absDir.x == maxDir) {\n        tile = dir.x > 0.0? light.shadowTiles[0]: light.shadowTiles[1];\n        // signs are important (hence division by either dir or absDir\n        uv = vec2(-dir.z / dir.x, -dir.y / absDir.x);\n    }\n    else if (absDir.y == maxDir) {\n        tile = dir.y > 0.0? light.shadowTiles[4]: light.shadowTiles[5];\n        uv = vec2(dir.x / absDir.y, dir.z / dir.y);\n    }\n    else {\n        tile = dir.z > 0.0? light.shadowTiles[2]: light.shadowTiles[3];\n        uv = vec2(dir.x / dir.z, -dir.y / absDir.z);\n    }\n\n    // match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    uv *= .95;\n\n    vec4 shadowMapCoord;\n    shadowMapCoord.xy = uv * tile.xy + tile.zw;\n    shadowMapCoord.z = dist * light.rcpRadius;\n    shadowMapCoord.w = 1.0;\n    return  hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
+
+	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
+
 	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
 
 	ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
@@ -3604,14 +3612,6 @@
 	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
 
 	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
-
-	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
-
-	ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n// really only used for clustered\nstruct HX_Probe\n{\n    int hasDiffuse;\n    int hasSpecular;\n    float numMipLevels;\n};\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
-
-	ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n    int castShadows;\n    vec4 shadowTiles[6];    // for each cube face\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    float dist = length(dir);\n    dir = mat3(light.shadowMapMatrix) * dir;\n\n    // swizzle to opengl cube map space\n    dir = dir.xzy;\n\n    vec3 absDir = abs(dir);\n    float maxDir = max(max(absDir.x, absDir.y), absDir.z);\n    vec2 uv;\n    vec4 tile;\n    if (absDir.x == maxDir) {\n        tile = dir.x > 0.0? light.shadowTiles[0]: light.shadowTiles[1];\n        // signs are important (hence division by either dir or absDir\n        uv = vec2(-dir.z / dir.x, -dir.y / absDir.x);\n    }\n    else if (absDir.y == maxDir) {\n        tile = dir.y > 0.0? light.shadowTiles[4]: light.shadowTiles[5];\n        uv = vec2(dir.x / absDir.y, dir.z / dir.y);\n    }\n    else {\n        tile = dir.z > 0.0? light.shadowTiles[2]: light.shadowTiles[3];\n        uv = vec2(dir.x / dir.z, -dir.y / absDir.z);\n    }\n\n    // match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    uv *= .95;\n\n    vec4 shadowMapCoord;\n    shadowMapCoord.xy = uv * tile.xy + tile.zw;\n    shadowMapCoord.z = dist * light.rcpRadius;\n    shadowMapCoord.w = 1.0;\n    return  hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
-
-	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
 
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
@@ -3642,30 +3642,6 @@
 	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
-
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
-
-	ShaderLibrary._files['shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
-
-	ShaderLibrary._files['shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
-
-	ShaderLibrary._files['shadow_pcf.glsl'] = '#ifdef HX_PCF_DITHER_SHADOWS\n    uniform sampler2D hx_dither2D;\n    uniform vec2 hx_dither2DTextureScale;\n#endif\n\nuniform vec2 hx_poissonDisk[32];\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowTest = 0.0;\n\n    #ifdef HX_PCF_DITHER_SHADOWS\n        vec4 dither = hx_sampleDefaultDither(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);\n        dither = vec4(dither.x, -dither.y, dither.y, dither.x) * HX_PCF_SOFTNESS;  // add radius scale\n    #else\n        vec4 dither = vec4(HX_PCF_SOFTNESS);\n    #endif\n\n    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {\n        vec2 offset;\n        offset.x = dot(dither.xy, hx_poissonDisk[i]);\n        offset.y = dot(dither.zw, hx_poissonDisk[i]);\n        float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy + offset));\n        float diff = shadowMapCoord.z - shadowSample - depthBias;\n        shadowTest += float(diff < 0.0);\n    }\n\n    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;\n}';
-
-	ShaderLibrary._files['shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return vec4(depth, moment2, 0.0, 1.0);\n    #else\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n    #endif\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    vec2 moments = s.xy;\n    #else\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) * HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);\n}';
-
-	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
 
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvarying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef OCCLUSION_MAP\nuniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\nuniform sampler2D emissionMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying_in vec3 tangent;\n    varying_in vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n\n          #ifdef METALLIC_ROUGHNESS_MAP\n              roughnessOut -= roughnessRange * (specSample.y - .5);\n              metallicnessOut *= specSample.z;\n\n          #else\n              roughnessOut -= roughnessRange * (specSample.x - .5);\n\n              #ifdef SPECULAR_MAP\n                  specNormalReflOut *= specSample.y;\n                  metallicnessOut *= specSample.z;\n              #endif\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    emission *= texture2D(emissionMap, texCoords).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
@@ -3716,6 +3692,30 @@
 	ShaderLibrary._files['material_unlit_fragment.glsl'] = 'void main()\n{\n    HX_GeometryData data = hx_geometry();\n    hx_FragColor = data.color;\n    hx_FragColor.xyz += data.emission;\n}';
 
 	ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
+
+	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
+
+	ShaderLibrary._files['shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
+
+	ShaderLibrary._files['shadow_hard.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy));\n    float diff = shadowMapCoord.z - shadowSample - depthBias;\n    return float(diff < 0.0);\n}';
+
+	ShaderLibrary._files['shadow_pcf.glsl'] = '#ifdef HX_PCF_DITHER_SHADOWS\n    uniform sampler2D hx_dither2D;\n    uniform vec2 hx_dither2DTextureScale;\n#endif\n\nuniform vec2 hx_poissonDisk[32];\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    return hx_floatToRGBA8(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowTest = 0.0;\n\n    #ifdef HX_PCF_DITHER_SHADOWS\n        vec4 dither = hx_sampleDefaultDither(hx_dither2D, gl_FragCoord.xy * hx_dither2DTextureScale);\n        dither = vec4(dither.x, -dither.y, dither.y, dither.x) * HX_PCF_SOFTNESS;  // add radius scale\n    #else\n        vec4 dither = vec4(HX_PCF_SOFTNESS);\n    #endif\n\n    for (int i = 0; i < HX_PCF_NUM_SHADOW_SAMPLES; ++i) {\n        vec2 offset;\n        offset.x = dot(dither.xy, hx_poissonDisk[i]);\n        offset.y = dot(dither.zw, hx_poissonDisk[i]);\n        float shadowSample = hx_RGBA8ToFloat(texture2D(shadowMap, shadowMapCoord.xy + offset));\n        float diff = shadowMapCoord.z - shadowSample - depthBias;\n        shadowTest += float(diff < 0.0);\n    }\n\n    return shadowTest * HX_PCF_RCP_NUM_SHADOW_SAMPLES;\n}';
+
+	ShaderLibrary._files['shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return vec4(depth, moment2, 0.0, 1.0);\n    #else\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n    #endif\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    vec2 moments = s.xy;\n    #else\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) * HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);\n}';
+
+	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
+
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
 
@@ -11911,6 +11911,494 @@
 	    };
 
 	/**
+	 * Implementation details: every button or axis has an integer index from an enum.
+	 *
+	 * @ignore
+	 */
+	function InputPlugin()
+	{
+		this._mapping = [];
+		this._input = null;
+	    this._values = {};
+	}
+
+	InputPlugin.prototype =
+	{
+		/**
+		 * @ignore
+		 */
+		onEnabled: function()
+		{
+			throw new Error("Abstract method called!");
+		},
+
+		/**
+		 * @ignore
+		 */
+		onDisabled: function()
+		{
+			throw new Error("Abstract method called!");
+		},
+
+		/**
+		 * Maps a button or axis to an action. The value for this action name can be listened to or queried from {@linkcode Input}.
+		 *
+		 * @param buttonOrAxis The button or axis to map to an action. The value of this is one of the subclasses' enum properties.
+		 * @param actionName The name of the action on the {@Input} that will be targeted by the button/axis.
+		 */
+		map: function(buttonOrAxis, actionName)
+		{
+			this._mapping[buttonOrAxis] = actionName;
+		},
+
+		/**
+		 * Removes the mapping of a button or axis.
+		 */
+		unmap: function(buttonOrAxis)
+		{
+			this._mapping[buttonOrAxis] = undefined;
+		},
+
+		/**
+		 * Returns whether or not the button or axis is mapped.
+		 */
+		isMapped: function(buttonOrAxis)
+		{
+			return !!this._mapping[buttonOrAxis];
+		},
+
+		/**
+		 * Called by concrete subclasses
+		 * @ignore
+		 */
+		setValue: function(buttonOrAxis, value)
+		{
+			if (!this._input) return;
+
+	        // every plugin needs to check against their own values, or it could constantly overwrite other input plugins:
+			var oldValue = this._values[buttonOrAxis];
+			if (oldValue === value) return;
+			this._values[buttonOrAxis] = value;
+
+			var action = this._mapping[buttonOrAxis];
+			if (action)
+				this._input.setActionValue(action, value);
+		},
+
+		/**
+		 * @ignore
+		 * @private
+		 */
+		_setInput: function(value)
+		{
+			console.assert(!!this._input !== !!value, "Cannot enable or disable inputs twice!");
+			this._input = value;
+
+			if (value)
+				this.onEnabled();
+			else
+				this.onDisabled();
+		}
+	};
+
+	/**
+	 * @classdesc
+	 *
+	 * The Gamepad class enables gamepad input in {@linkcode Input}. The Javascript Gamepad API is currently still
+	 * experimental, hence this input type should be handled with care. Gamepad objects should not be created manually
+	 * unless you're querying the native gamepad API directly. Otherwise, get them from {@linkcode getGamepads} or {@linkcode
+	 * onGamepadConnected}.
+	 *
+	 * The button names for mapping are simply their integer indexes. Similar to axes, but they start from 0x100. For
+	 * convenience, you can use the <code>Gamepad.A</code>, <code>Gamepad.DPAD_UP</code>, ... enum. The naming of these is
+	 * based on the default Windows (XBox) and similar controllers. This will only apply if the mapping property is "standard".
+	 * If the gamepad supports it, button "touches" rather than presses can also be mapped.
+	 * If the buttons are analog, the communicated values will be between 0 and 1. Alternatively, you can also map "pressed"
+	 * and "touched" states by providing <code>(buttonName | Gamepad.PRESS)</code> or <code>(buttonName | Gamepad.TOUCH)</code>
+	 *
+	 * @property displayId The id of the VR display this gamepad is associated with, if any.
+	 * @property id The gamepad's id.
+	 * @property index The gamepad's index. This matches the index in the array returned by {@linkcode getGamepads}
+	 * @property mapping The mapping the user agent applies to the buttons. If not "standard", the input may not behave as
+	 * expected. If this is a specific type of gamepad or controller, you may want to provide custom mapping based on its id.
+	 * @property axisDeadzone The range for the axes to be considered "0". This assumes a default controller scheme where
+	 * every axis is a 2D stick.
+	 *
+	 * @see {@link https://w3c.github.io/gamepad/#remapping}
+	 *
+	 * @constructor
+	 */
+	function Gamepad(device)
+	{
+	    InputPlugin.call(this);
+
+	    this.axisDeadzone = 0.251;
+
+	    this._device = device;
+	}
+
+	/**
+	 * The bottom button in the right cluster. On PS: Cross.
+	 */
+	Gamepad.A = 0;
+
+	/**
+	 * The right button in the right cluster. On PS: Circle.
+	 */
+	Gamepad.B = 0x01;
+
+	/**
+	 * The left button in the right cluster. On PS: Square.
+	 */
+	Gamepad.X = 0x02;
+
+	/**
+	 * The top button in the right cluster. On PS: Triangle.
+	 */
+	Gamepad.Y = 0x03;
+
+	/**
+	 * The top left trigger/bumper. On PS: L1.
+	 */
+	Gamepad.LB = 0x04;
+
+	/**
+	 * The top right trigger/bumper. On PS: R1.
+	 */
+	Gamepad.RB = 0x05;
+
+	/**
+	 * The bottom left trigger. On PS: L2.
+	 */
+	Gamepad.LT = 0x06;
+
+	/**
+	 * The bottom right trigger. On PS: R2.
+	 */
+	Gamepad.RT = 0x07;
+
+	/**
+	 * The back/select button.
+	 */
+	Gamepad.BACK = 0x08;
+
+	/**
+	 * The start button.
+	 */
+	Gamepad.START = 0x09;
+
+	/**
+	 * The left analog stick pressed down.
+	 */
+	Gamepad.L3 = 0x10;
+
+	/**
+	 * The right analog stick pressed down.
+	 */
+	Gamepad.R3 = 0x11;
+
+	/**
+	 * The up button on the directional pad.
+	 */
+	Gamepad.DPAD_UP = 0x12;
+
+	/**
+	 * The down button on the directional pad.
+	 */
+	Gamepad.DPAD_DOWN = 0x13;
+
+	/**
+	 * The left button on the directional pad.
+	 */
+	Gamepad.DPAD_LEFT = 0x14;
+
+	/**
+	 * The right button on the directional pad.
+	 */
+	Gamepad.DPAD_RIGHT = 0x15;
+
+	/**
+	 * The horizontal axis of the left analog stick.
+	 */
+	Gamepad.STICK_LX = 0x100;
+
+	/**
+	 * The vertical axis of the left analog stick.
+	 */
+	Gamepad.STICK_LY = 0x101;
+
+	/**
+	 * The horizontal axis of the right analog stick.
+	 */
+	Gamepad.STICK_RX = 0x102;
+
+	/**
+	 * The vertical axis of the right analog stick.
+	 */
+	Gamepad.STICK_RY = 0x103;
+
+	/**
+	 * Combine with a button name to indicate that the action is only interested in the pressed state, not the analog value:
+	 * <code>gamepad.map(name | Gamepad.PRESSED, "action")</code>
+	 */
+	Gamepad.PRESS = 0x1000;
+
+	/**
+	 * Combine with a button name to indicate that the action is interested in the touched state, if the gamepad supports this.
+	 * <code>gamepad.map(name | Gamepad.TOUCHED, "action")</code>
+	 */
+	Gamepad.TOUCH = 0x2000;
+
+
+	Gamepad.prototype = Object.create(InputPlugin.prototype, {
+	    displayId: {
+	        get: function()
+	        {
+	            return this._device.displayId;
+	        }
+	    },
+
+	    id: {
+	        get: function()
+	        {
+	            return this._device.id;
+	        }
+	    },
+
+	    index: {
+	        get: function()
+	        {
+	            return this._device.index;
+	        }
+	    },
+
+	    mapping: {
+	        get: function()
+	        {
+	            return this._device.mapping;
+	        }
+	    }
+	});
+
+	/**
+	 * @ignore
+	 */
+	Gamepad.prototype.onEnabled = function()
+	{
+	    onPreFrame.bind(this._onPreFrame, this);
+	};
+
+	/**
+	 * @ignore
+	 */
+	Gamepad.prototype.onDisabled = function()
+	{
+	    onPreFrame.unbind(this._onPreFrame);
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	Gamepad.prototype._onPreFrame = function()
+	{
+	    var device = this._device;
+	    if (!device.connected) return;
+
+	    var buttons = device.buttons;
+	    var axes = device.axes;
+
+	    for (var i = 0, len = buttons.length; i < len; ++i) {
+	        var button = buttons[i];
+	        this.setValue(i, button.value);
+	        this.setValue(i | Gamepad.PRESS, button.pressed? 1 : 0);
+
+	        if (button.touched !== undefined)
+	            this.setValue(i | Gamepad.TOUCH, button.touched? 1 : 0);
+
+	    }
+
+	    var deadzone = this.axisDeadzone;
+
+	    var i, len;
+
+	    if (deadzone > 0) {
+	        var deadzoneSqr = deadzone * deadzone;
+	        var rcpDeadZone = 1.0 / (1.0 - deadzone); // this remaps it to 0 - 1 after applying deadzone
+
+	        // this assumes a default controller
+	        for (i = 0, len = axes.length; i < len; i += 2) {
+	            var x = axes[i];
+	            var y = axes[i | 1];
+	            var magSqr = x * x + y * y;
+	            if (magSqr > deadzoneSqr) {
+	                var mag = Math.sqrt(magSqr);
+	                var newMag = (mag - deadzone) * rcpDeadZone;
+	                var sc = newMag / mag;  // this scales to the new magnitude
+	                this.setValue(i | 0x100, x * sc);
+	                this.setValue(i | 0x101, y * sc);
+	            }
+	            else {
+	                this.setValue(i | 0x100, 0);
+	                this.setValue(i | 0x101, 0);
+	            }
+	        }
+	    }
+	    else {
+	        for (i = 0, len = axes.length; i < len; ++i) {
+	            var v = axes[i];
+	            this.setValue(i | 0x100, v);
+	        }
+	    }
+	};
+
+	var gamepads = [];
+
+	/**
+	 * Dispatched when a gamepad is connected.
+	 */
+	var onGamepadConnected = new Signal();
+
+	/**
+	 * Dispatched when a gamepad is disconnected.
+	 */
+	var onGamepadDisconnected = new Signal();
+
+	/**
+	 * Returns the connected gamepads as Gamepad objects that can be enabled in an {@linkcode Input} object. Entries
+	 * in the array may be undefined or null, depending on whether it was disconnected or not. If a gamepad is plugged in,
+	 * it's not necessarily available due to user agent security policies. You may have to interact with the pad. It will
+	 * then become available through the {@linkcode onGamepadConnected} signal.
+	 *
+	 * @see Gamepad
+	 * @see Input
+	 */
+	function getGamepads()
+	{
+	    return gamepads;
+	}
+
+	/**
+	 * Returns the gamepad with a given index.
+	 *
+	 * @see Gamepad
+	 * @see Input
+	 */
+	function getGamepad(index)
+	{
+	    return gamepads[index];
+	}
+
+	/**
+	 * @ignore
+	 */
+	function _onGamepadConnected(event)
+	{
+	    var gamepad = new Gamepad(event.gamepad);
+	    gamepads[event.gamepad.index] = gamepad;
+	    onGamepadConnected.dispatch(gamepad);
+	}
+
+	/**
+	 * @ignore
+	 */
+	function _onGamepadDisconnected(event)
+	{
+	    var index = event.gamepad.index;
+	    var gamepad = gamepads[index];
+	    // keep it sparse
+	    delete gamepads[index];
+	    onGamepadDisconnected.dispatch(gamepad);
+	}
+
+	/**
+	 * @ignore
+	 */
+	function initGamepads()
+	{
+	    // no support for gamepads
+	    if (!navigator.getGamepads)
+	        return;
+
+	    var devices = navigator.getGamepads();
+	    if (!devices) return;
+
+	    for (var i = 0, l = devices.length; i < l; ++i) {
+
+	        // keep the list sparse to match the devices list
+	        if (devices[i])
+	            gamepads[i] = new Gamepad(devices[i]);
+	    }
+
+	    window.addEventListener("gamepadconnected", _onGamepadConnected);
+	    window.addEventListener("gamepaddisconnected", _onGamepadDisconnected);
+	}
+
+	var _isVRPresenting = false;
+
+	function isVRPresenting()
+	{
+	    return _isVRPresenting;
+	}
+
+	/**
+	 * Turns on a VR display
+	 */
+	function enableVR(display, onFail)
+	{
+	    if (META.VR_DISPLAY)
+	        throw new Error("VR already enabled!");
+
+	    META.VR_DISPLAY = display;
+
+	    capabilities.VR_CAN_PRESENT = display.capabilities.canPresent;
+
+	    if (capabilities.VR_CAN_PRESENT) {
+	        META.VR_LEFT_EYE_PARAMS = display.getEyeParameters("left");
+	        META.VR_RIGHT_EYE_PARAMS = display.getEyeParameters("right");
+
+	        META.VR_DISPLAY.requestPresent([{
+	            source: META.TARGET_CANVAS
+	        }]).then(function() {
+	            _isVRPresenting = true;
+	        }, onFail);
+
+	        META.TARGET_CANVAS.width = Math.max(META.VR_LEFT_EYE_PARAMS.renderWidth, META.VR_RIGHT_EYE_PARAMS.renderWidth);
+	        META.TARGET_CANVAS.height = Math.max(META.VR_LEFT_EYE_PARAMS.renderHeight, META.VR_RIGHT_EYE_PARAMS.renderHeight);
+	    }
+
+	    console.log("Starting VR on " + display.displayName);
+	}
+
+	function disableVR()
+	{
+	    if (!META.VR_DISPLAY) return;
+
+	    _isVRPresenting = false;
+
+	    if (META.VR_DISPLAY.isPresenting)
+	        META.VR_DISPLAY.exitPresent();
+
+	    capabilities.VR_CAN_PRESENT = false;
+	    META.VR_DISPLAY = null;
+	    META.VR_LEFT_EYE_PARAMS = null;
+	    META.VR_RIGHT_EYE_PARAMS = null;
+	}
+
+	/**
+	 * Asynchronously retrieves the available VR displays and passes them into a callback function.
+	 */
+	function getVRDisplays(callback)
+	{
+	    if (!navigator.getVRDisplays) {
+	        callback([]);
+	        return;
+	    }
+
+	    navigator.getVRDisplays().then(callback);
+	}
+
+	/**
 	 * META contains some data about the Helix engine, such as the options it was initialized with.
 	 *
 	 * @namespace
@@ -11955,19 +12443,6 @@
 			 */
 			AUDIO_CONTEXT: null
 		};
-
-	/**
-	 * Returns the available VR displays.
-	 */
-	function getVRDisplays(callback)
-	{
-	    if (!navigator.getVRDisplays) {
-	        callback([]);
-	        return;
-		}
-
-	    navigator.getVRDisplays().then(callback);
-	}
 
 	/**
 	 * The {@linkcode Signal} that dispatched before a frame renders.
@@ -12380,6 +12855,8 @@
 	    META.TARGET_CANVAS = canvas;
 	    META.AUDIO_CONTEXT = window.hx_audioContext;
 
+	    initGamepads();
+
 	    _updateCanvasSize();
 
 	    META.OPTIONS = options = options || new InitOptions();
@@ -12534,7 +13011,7 @@
 	    _clearGLStats();
 
 	    // VR stopped presenting (present change event doesn't seem reliable)
-	    if (isVRPresenting && !META.VR_DISPLAY.isPresenting) {
+	    if (isVRPresenting() && !META.VR_DISPLAY.isPresenting) {
 	        console.log("VR device stopped presenting, disabling VR");
 			disableVR();
 		}
@@ -12592,53 +13069,6 @@
 	function stop()
 	{
 	    frameTicker.stop();
-	}
-
-
-	var isVRPresenting = false;
-
-	/**
-	 * Turns on a VR display
-	 */
-	function enableVR(display, onFail)
-	{
-	    if (META.VR_DISPLAY)
-	        throw new Error("VR already enabled!");
-
-	    META.VR_DISPLAY = display;
-
-	    capabilities.VR_CAN_PRESENT = display.capabilities.canPresent;
-
-		if (capabilities.VR_CAN_PRESENT) {
-			META.VR_LEFT_EYE_PARAMS = display.getEyeParameters("left");
-			META.VR_RIGHT_EYE_PARAMS = display.getEyeParameters("right");
-
-			META.VR_DISPLAY.requestPresent([{
-				source: META.TARGET_CANVAS
-			}]).then(function() {
-				isVRPresenting = true;
-	        }, onFail);
-
-			META.TARGET_CANVAS.width = Math.max(META.VR_LEFT_EYE_PARAMS.renderWidth, META.VR_RIGHT_EYE_PARAMS.renderWidth);
-			META.TARGET_CANVAS.height = Math.max(META.VR_LEFT_EYE_PARAMS.renderHeight, META.VR_RIGHT_EYE_PARAMS.renderHeight);
-		}
-
-	    console.log("Starting VR on " + display.displayName);
-	}
-
-	function disableVR()
-	{
-	    if (!META.VR_DISPLAY) return;
-
-		isVRPresenting = false;
-
-	    if (META.VR_DISPLAY.isPresenting)
-	        META.VR_DISPLAY.exitPresent();
-
-	    capabilities.VR_CAN_PRESENT = false;
-	    META.VR_DISPLAY = null;
-	    META.VR_LEFT_EYE_PARAMS = null;
-	    META.VR_RIGHT_EYE_PARAMS = null;
 	}
 
 	function _initDefaultSkinningTexture()
@@ -16798,10 +17228,11 @@
 	    this._writeDepth = true;
 	    this._writeColor = true;
 	    this._passes = new Array(Material.NUM_PASS_TYPES);
+	    // automatic render order by engine
 	    this._renderOrderHint = ++MATERIAL_ID_COUNTER;
-	    this._renderPath = null;
 	    // forced render order by user:
 	    this._renderOrder = 0;
+	    this._renderPath = null;
 	    this._textures = {};
 	    this._uniforms = {};
 	    this._fixedLights = null;
@@ -16889,7 +17320,7 @@
 	    /**
 	     * The blend state used for this material.
 	     *
-	     * @see {BlendState}
+	     * @see {@linkcode BlendState}
 	     */
 	    get blendState()
 	    {
@@ -17688,44 +18119,6 @@
 
 
 	DebugAxes.prototype = Object.create(SceneNode.prototype);
-
-	// these are some debug profiling methods used while developing
-
-	/**
-	 * Just some timing functions used for engine dev.
-	 *
-	 * @ignore
-	 * @namespace
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var Profiler = (function() {
-	    var times =  {};
-	    var startTimes = {};
-
-	    return {
-	        getTime: function (id)
-	        {
-	            return times[id];
-	        },
-
-	        startTiming: function (id)
-	        {
-	            if (!times[id]) times[id] = 0;
-	            startTimes[id] = Date.now();
-	        },
-
-	        stopTiming: function (id)
-	        {
-	            times[id] += Date.now() - startTimes[id];
-	        },
-
-	        resetTiming: function (id)
-	        {
-	            times[id] = 0;
-	        }
-	    }
-	})();
 
 	/**
 	 * EntitySet provides a way to keep collections of entities based on their Components. Collections should always
@@ -19134,6 +19527,8 @@
 
 	    this._renderItemPool = new ObjectPool(RenderItem);
 
+	    // Opaques are stored per RenderPath because the render path defines the order of rendering.
+	    // Transparents need a single list for absolute ordering.
 	    this._opaques = [];
 	    this._transparents = null;
 	    this._camera = null;
@@ -19229,7 +19624,6 @@
 	    var skeleton = meshInstance.skeleton;
 	    var skeletonMatrices = meshInstance.skeletonMatrices;
 	    var renderPool = this._renderItemPool;
-	    var camera = this._camera;
 	    var opaqueLists = this._opaques;
 	    var transparentList = this._transparents;
 
@@ -24074,11 +24468,16 @@
 	 * @classdesc
 	 *
 	 * The Input class allows mapping user input to named actions to simplify handling different input types. For example,
-	 * Mouse's movement and TouchInput's touch movements can both be used to look around. Values triggered by buttons are
-	 * 0 or 1, axes such as mouse or gamepad movement are generally in between 0 and 1.
+	 * Mouse's movement and TouchInput's touch movements can both be used to look around. This can be done by enabling their
+	 * input plugins {@linkcode Mouse} and {@linkcode Touch} while mapping their axes (for example: {@linkcode Mouse#MOVE_X},
+	 * {@linkcode Mouse#MOVE_Y}, {@linkcode Touch#MOVE_X}, {@linkcode Touch#MOVE_X}} to "actions" (usually strings or enum
+	 * values). You can then poll the actions to get the input value assigned to it from any input device.
+	 * When supporting multiple users on a single device, multiple Input classes can be created with each having their own
+	 * mappings.
 	 *
-	 * @property {Signal} onAction A {@linkcode Signal} that dispatches whenever an action occurs. This only happens when
-	 * the state of an input changes, so should be listened to for triggered events, not for continuous "while button down" events.
+	 * @property {Signal} onAction A {@linkcode Signal} that dispatches whenever an action value changes. This should be
+	 * listened to for "triggered" events, not for continuous "while button down" events. For example: jumping is normally
+	 * a triggered event, while walking is continuous and would be polled using {@linkcode Input#getValue}.
 	 *
 	 * @constructor
 	 */
@@ -24094,15 +24493,30 @@
 	{
 		/**
 		 * Enables an input plugin.
+		 *
+		 * {@see Gamepad}
+		 * {@see Keyboard}
+		 * {@see Mouse}
+		 * {@see MouseLock}
+		 * {@see Touch}
 		 */
 		enable: function(input)
 		{
+			if (this._plugins.indexOf(input) >= 0)
+				return;
+
 			this._plugins.push(input);
 			input._setInput(this);
 		},
 
 		/**
 		 * Disables an input plugin.
+		 *
+	     * {@see Gamepad}
+	     * {@see Keyboard}
+	     * {@see Mouse}
+	     * {@see MouseLock}
+	     * {@see Touch}
 		 */
 		disable: function(input)
 		{
@@ -24117,7 +24531,7 @@
 		setActionValue: function(name, value)
 		{
 			if (this._values[name] === value) return;
-			this._values[name] =  value;
+			this._values[name] = value;
 			this.onAction.dispatch(name, value);
 		},
 
@@ -24131,101 +24545,17 @@
 	};
 
 	/**
-	 *
-	 * Implementation details: every button or axis has an integer index from an enum.
-	 *
-	 * @ignore
-	 */
-	function InputPlugin()
-	{
-		this._mapping = [];
-		this._input = null;
-	}
-
-	InputPlugin.prototype =
-	{
-		/**
-		 * @ignore
-		 */
-		onEnabled: function()
-		{
-			throw new Error("Abstract method called!");
-		},
-
-		/**
-		 * @ignore
-		 */
-		onDisabled: function()
-		{
-			throw new Error("Abstract method called!");
-		},
-
-		/**
-		 * Maps a given button or axis to a given action name. This value for this action name can be listened to or queried
-		 * from {@linkcode Controller}.
-		 *
-		 * @param buttonOrAxis
-		 * @param actionName
-		 */
-		map: function(buttonOrAxis, actionName)
-		{
-			this._mapping[buttonOrAxis] = actionName;
-		},
-
-		/**
-		 * Removes the mapping of a controller
-		 *
-		 * @param buttonOrAxis The button or axis. This is normally an enumerator on the Input.
-		 */
-		unmap: function(buttonOrAxis)
-		{
-			this._mapping[buttonOrAxis] = undefined;
-		},
-
-		/**
-		 * Returns whether or not the button or axis is mapped.
-		 */
-		isMapped: function(buttonOrAxis)
-		{
-			return !!this._mapping[buttonOrAxis];
-		},
-
-		/**
-		 * Called by concrete subclasses
-		 * @ignore
-		 */
-		setValue: function(buttonOrAxis, value)
-		{
-			if (!this._input) return;
-			var action = this._mapping[buttonOrAxis];
-			if (action)
-				this._input.setActionValue(action, value);
-		},
-
-		/**
-		 * @ignore
-		 * @private
-		 */
-		_setInput: function(value)
-		{
-			console.assert(!!this._input !== !!value, "Cannot enable or disable inputs twice!");
-			this._input = value;
-
-			if (value)
-				this.onEnabled();
-			else
-				this.onDisabled();
-		}
-	};
-
-	/**
 	 * @classdesc
 	 *
-	 * The Keyboard class allows mapping keystrokes to named actions. The mapped "buttons" are the key codes or the character
-	 * values.
+	 * The Keyboard class enabled keyboard input in {@linkcode Input} The mapped "buttons" are the key codes or the character
+	 * values. Which of the two depends on the {@linkcode Keyboard#useCode} property.
 	 *
-	 * @property {boolean} useCode If true, the mappings apply to key codes, if false, they apply to the pressed characters.
-	 * By default it is true, making for example WASD controls work on Azerty keyboards where W = Z, A = Q.
+	 * @property {boolean} useCode If true, the button mappings apply to key codes ("KeyA", "LeftShift", etc). If false,
+	 * they apply to the pressed characters. By default it is true, making for example WASD controls work on Azerty
+	 * keyboards where W = Z, A = Q.
+	 *
+	 * {@see KeyboardEvent#code}
+	 * {@see KeyboardEvent#key}
 	 *
 	 * @constructor
 	 */
@@ -24241,7 +24571,7 @@
 	Keyboard.prototype = Object.create(InputPlugin.prototype);
 
 	/**
-	 * Maps two keys to represent an axis. This allows for example: "left" and "right"
+	 * Maps two keys to represent an axis. For example mapping "ArrowLeft" and "ArrowRight" can be mapped to (-1, 1).
 	 * @param {string} negKey The key or character to represent the negative end of the axis.
 	 * @param {string} posKey The key or character to represent the positive end of the axis.
 	 * @param action The action to map the axis on.
@@ -24256,25 +24586,37 @@
 		this.map(posKey, action);
 	};
 
+	/**
+	 * @inheritDoc
+	 */
 	Keyboard.prototype.unmap = function(key)
 	{
 		InputPlugin.prototype.unmap.call(key);
 		delete this._signs[key];
 	};
 
-
+	/**
+	 * @ignore
+	 */
 	Keyboard.prototype.onEnabled = function()
 	{
 		window.addEventListener("keydown", this._onKeyDown);
 		window.addEventListener("keyup", this._onKeyUp);
 	};
 
+	/**
+	 * @ignore
+	 */
 	Keyboard.prototype.onDisabled = function()
 	{
 		window.removeEventListener("keydown", this._onKeyDown);
 		window.removeEventListener("keyup", this._onKeyUp);
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	Keyboard.prototype._onKeyDown = function(event)
 	{
 		var key = this.useCode? event.code : event.key;
@@ -24285,6 +24627,10 @@
 		}
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	Keyboard.prototype._onKeyUp = function(event)
 	{
 		var key = this.useCode? event.code : event.key;
@@ -24298,14 +24644,16 @@
 	/**
 	 * @classdesc
 	 *
-	 * The Mouse class allows mapping mouse input to named actions. When listening to Mouse.BUTTON_RIGHT, the context menu is
-	 * disabled. When listening to Mouse.WHEEL_X or Mouse.WHEEL_Y, scrolling is disabled.
+	 * The Mouse class enables Mouse input in {@linkcode Input}. When listening to {@linkcode Mouse#BUTTON_RIGHT}, the
+	 * context menu is disabled. When mapping {@linkcode Mouse#WHEEL_X} or {@linkcode Mouse#WHEEL_Y}, scrolling is disabled.
 	 *
 	 * @property sensitivityX The horizontal mouse movement sensitivity
 	 * @property sensitivityY The vertical mouse movement sensitivity
 	 * @property sensitivityScroll The scroll wheel sensitivity
 	 *
 	 * @constructor
+	 *
+	 * @see {Input}
 	 */
 	function Mouse()
 	{
@@ -24396,7 +24744,6 @@
 		2: Mouse.BUTTON_RIGHT
 	};
 
-
 	/**
 	 * @ignore
 	 */
@@ -24484,6 +24831,10 @@
 		this._updatePos(event.clientX, event.clientY);
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	Mouse.prototype._updatePos = function(x, y)
 	{
 		var rect = META.TARGET_CANVAS.getBoundingClientRect();
@@ -24495,6 +24846,10 @@
 		this._mouseY = MathX.saturate((y - rect.top) / rect.height);
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	Mouse.prototype._onPreFrame = function()
 	{
 		var mouseX = this._mouseX;
@@ -24532,11 +24887,19 @@
 		this._wheelY = 0;
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	Mouse.prototype._onMouseLeave = function(event)
 	{
 		this._updatePos(event.clientX, event.clientY);
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	Mouse.prototype._onMouseEnter = function(event)
 	{
 		this._updatePos(event.clientX, event.clientY);
@@ -24557,6 +24920,10 @@
 		this._buttonMask = newButtonMask;
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	Mouse.prototype._onMouseWheel = function(event)
 	{
 		if (!(this.isMapped(Mouse.WHEEL_X) || this.isMapped(Mouse.WHEEL_Y))) return;
@@ -24572,8 +24939,7 @@
 	/**
 	 * @classdesc
 	 *
-	 * The MouseLock class allows mapping mouse input to named actions, locking the mouse pointer. Before the pointer can be
-	 * locked, the canvas must be clicked.
+	 * The MouseLock enables locked-pointer mouse input in {@Input}. Before the pointer is locked, the canvas must be clicked.
 	 *
 	 * @property sensitivityX The horizontal mouse movement sensitivity
 	 * @property sensitivityY The vertical mouse movement sensitivity
@@ -24719,6 +25085,10 @@
 	    this._movementY = event.movementY / rect.height;
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	MouseLock.prototype._onPreFrame = function()
 	{
 		var canvas = META.TARGET_CANVAS;
@@ -24738,6 +25108,10 @@
 		this._wheelY = 0;
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	MouseLock.prototype._onMouseWheel = function(event)
 	{
 		if (!(this.isMapped(MouseLock.WHEEL_X) || this.isMapped(MouseLock.WHEEL_Y))) return;
@@ -24753,7 +25127,7 @@
 	/**
 	 * @classdesc
 	 *
-	 * The Touch class allows mapping touch input to named actions.
+	 * The Touch class enables touch input in {@linkcode Input}.
 	 *
 	 * @property sensitivityX The horizontal single-finger movement sensitivity
 	 * @property sensitivityY The vertical single-finger movement sensitivity
@@ -24905,12 +25279,20 @@
 
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	Touch.prototype._updatePos = function(x, y)
 	{
 		this._touchX = x / window.innerWidth;
 		this._touchY = y / window.innerHeight;
 	};
 
+	/**
+	 * @ignore
+	 * @private
+	 */
 	Touch.prototype._onPreFrame = function()
 	{
 		var touchX = this._touchX;
@@ -30450,9 +30832,6 @@
 	exports.capabilities = capabilities;
 	exports.onPreFrame = onPreFrame;
 	exports.onFrame = onFrame;
-	exports.getVRDisplays = getVRDisplays;
-	exports.enableVR = enableVR;
-	exports.disableVR = disableVR;
 	exports.TextureFilter = TextureFilter;
 	exports.CullMode = CullMode;
 	exports.StencilOp = StencilOp;
@@ -30466,6 +30845,13 @@
 	exports.DataType = DataType;
 	exports.BufferUsage = BufferUsage;
 	exports.CubeFace = CubeFace;
+	exports.getVRDisplays = getVRDisplays;
+	exports.enableVR = enableVR;
+	exports.disableVR = disableVR;
+	exports.onGamepadConnected = onGamepadConnected;
+	exports.onGamepadDisconnected = onGamepadDisconnected;
+	exports.getGamepads = getGamepads;
+	exports.getGamepad = getGamepad;
 	exports.Float2 = Float2;
 	exports.Float4 = Float4;
 	exports.CenteredGaussianCurve = CenteredGaussianCurve;
@@ -30479,7 +30865,6 @@
 	exports.Transform = Transform;
 	exports.Debug = Debug;
 	exports.DebugAxes = DebugAxes;
-	exports.Profiler = Profiler;
 	exports.BoundingVolume = BoundingVolume;
 	exports.BoundingAABB = BoundingAABB;
 	exports.BoundingSphere = BoundingSphere;
@@ -30543,6 +30928,7 @@
 	exports.SSAO = SSAO;
 	exports.ReinhardToneMapping = ReinhardToneMapping;
 	exports.Input = Input;
+	exports.Gamepad = Gamepad;
 	exports.Keyboard = Keyboard;
 	exports.Mouse = Mouse;
 	exports.MouseLock = MouseLock;

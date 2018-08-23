@@ -43,6 +43,8 @@ export function getGamepad(index)
  */
 function _onGamepadConnected(event)
 {
+    console.log("gamepad connected " + event.gamepad.id);
+
     var gamepad = new Gamepad(event.gamepad);
     gamepads[event.gamepad.index] = gamepad;
     onGamepadConnected.dispatch(gamepad);
@@ -53,6 +55,8 @@ function _onGamepadConnected(event)
  */
 function _onGamepadDisconnected(event)
 {
+    console.log("gamepad disconnected " + event.gamepad.id);
+
     var index = event.gamepad.index;
     var gamepad = gamepads[index];
     // keep it sparse

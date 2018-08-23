@@ -22,7 +22,7 @@ import {onPreFrame} from "../Helix";
  * @property mapping The mapping the user agent applies to the buttons. If not "standard", the input may not behave as
  * expected. If this is a specific type of gamepad or controller, you may want to provide custom mapping based on its id.
  * @property axisDeadzone The range for the axes to be considered "0". This assumes a default controller scheme where
- * every axis is a 2D stick.
+ * @property hand Either {@linkcode Gamepad#HAND_LEFT} or {@linkcode Gamepad#HAND_RIGHT}. Used for VR controllers.
  *
  * @see {@link https://w3c.github.io/gamepad/#remapping}
  *
@@ -149,6 +149,8 @@ Gamepad.PRESS = 0x1000;
  */
 Gamepad.TOUCH = 0x2000;
 
+Gamepad.HAND_LEFT = "left";
+Gamepad.HAND_RIGHT = "right";
 
 Gamepad.prototype = Object.create(InputPlugin.prototype, {
     displayId: {
@@ -176,6 +178,13 @@ Gamepad.prototype = Object.create(InputPlugin.prototype, {
         get: function()
         {
             return this._device.mapping;
+        }
+    },
+
+    hand: {
+        get: function()
+        {
+            return this._device.hand;
         }
     }
 });

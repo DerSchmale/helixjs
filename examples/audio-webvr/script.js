@@ -51,6 +51,7 @@ function toggleVR()
     }
     else {
         HX.enableVR(vrDisplays[select.selectedIndex]);
+
         select.disabled = true;
 
         this.camera.removeComponent(audioListener);

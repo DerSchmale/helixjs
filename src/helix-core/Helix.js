@@ -16,7 +16,7 @@ import {Color} from "./core/Color";
 import {FrameBuffer} from "./texture/FrameBuffer";
 import {MaterialPass} from "./material/MaterialPass";
 import {initGamepads} from "./input/gamepads";
-import {disableVR, isVRPresenting} from "./core/vr";
+import {disableVR, isVRPresenting} from "./vr/vr";
 
 /**
  * META contains some data about the Helix engine, such as the options it was initialized with.
@@ -643,7 +643,7 @@ function _onFrameTick(dt)
     onFrame.dispatch(dt);
 
     if (META.VR_DISPLAY && META.VR_DISPLAY.isPresenting)
-        META.VR_DISPLAY.submitFrame();
+        META.VR_DISPLAY._display.submitFrame();
 
     frameTime = (performance || Date).now() - startTime;
 }

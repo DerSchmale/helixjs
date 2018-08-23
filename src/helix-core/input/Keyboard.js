@@ -56,8 +56,8 @@ Keyboard.prototype.unmap = function(key)
  */
 Keyboard.prototype.onEnabled = function()
 {
-	window.addEventListener("keydown", this._onKeyDown);
-	window.addEventListener("keyup", this._onKeyUp);
+    document.addEventListener("keydown", this._onKeyDown);
+    document.addEventListener("keyup", this._onKeyUp);
 };
 
 /**
@@ -65,8 +65,8 @@ Keyboard.prototype.onEnabled = function()
  */
 Keyboard.prototype.onDisabled = function()
 {
-	window.removeEventListener("keydown", this._onKeyDown);
-	window.removeEventListener("keyup", this._onKeyUp);
+    document.removeEventListener("keydown", this._onKeyDown);
+    document.removeEventListener("keyup", this._onKeyUp);
 };
 
 /**

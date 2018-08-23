@@ -26,12 +26,21 @@ function MouseLock()
 	this._onMouseWheel = this._onMouseWheel.bind(this);
 	this._onMouseUp = this._onMouseUp.bind(this);
     this._onCanvasClick = this._onCanvasClick.bind(this);
+    this._onPointerLockChange = this._onPointerLockChange.bind(this);
 
 	this._wheelX = null;
 	this._wheelY = null;
 	this._movementX = null;
 	this._movementY = null;
 }
+
+/**
+ * Returns true if the MouseLock is supported.
+ */
+MouseLock.isSupported = function()
+{
+    return !!META.TARGET_CANVAS.requestPointerLock;
+};
 
 /**
  * The axis name for when the mouse moves horizontally over the canvas
@@ -87,10 +96,12 @@ MouseLock.prototype.onEnabled = function()
     META.TARGET_CANVAS.addEventListener("click", this._onCanvasClick);
 
 	onPreFrame.bind(this._onPreFrame, this);
-	document.addEventListener("mousemove", this._onMouseMove); // mouse can move over the document
+	document.addEventListener("mousemove", this._onMouseMove);
 	META.TARGET_CANVAS.addEventListener("mousedown", this._onMouseDown);
-	document.addEventListener("mouseup", this._onMouseUp);		// mouse can go up over the document
+	document.addEventListener("mouseup", this._onMouseUp);
 	META.TARGET_CANVAS.addEventListener("wheel", this._onMouseWheel);
+	document.addEventListener("pointerlockchange", this._onPointerLockChange);
+	document.addEventListener("mozpointerlockchange", this._onPointerLockChange);
 };
 
 /**
@@ -106,11 +117,12 @@ MouseLock.prototype.onDisabled = function()
 	META.TARGET_CANVAS.removeEventListener("mousedown", this._onMouseDown);
 	document.removeEventListener("mouseup", this._onMouseUp);
 	META.TARGET_CANVAS.removeEventListener("wheel", this._onMouseWheel);
+    document.removeEventListener("pointerlockchange", this._onPointerLockChange);
+    document.removeEventListener("mozpointerlockchange", this._onPointerLockChange);
 };
 
 MouseLock.prototype._onCanvasClick = function()
 {
-    META.TARGET_CANVAS.requestPointerLock = META.TARGET_CANVAS.requestPointerLock || META.TARGET_CANVAS.mozRequestPointerLock;
     META.TARGET_CANVAS.requestPointerLock();
 };
 
@@ -188,6 +200,24 @@ MouseLock.prototype._onMouseWheel = function(event)
 	this._wheelY += MathX.sign(event.deltaY);
 
 	event.preventDefault();
+};
+
+/**
+ * @private
+ * @ignore
+ */
+MouseLock.prototype._onPointerLockChange = function(event)
+{
+	this._movementX = 0;
+	this._movementY = 0;
+
+    this.setValue(MouseLock.MOVE_X, 0);
+    this.setValue(MouseLock.MOVE_Y, 0);
+    this.setValue(MouseLock.WHEEL_X, 0);
+    this.setValue(MouseLock.WHEEL_Y, 0);
+    this.setValue(MouseLock.BUTTON_LEFT, 0);
+    this.setValue(MouseLock.BUTTON_RIGHT, 0);
+    this.setValue(MouseLock.BUTTON_MIDDLE, 0);
 };
 
 export {MouseLock};

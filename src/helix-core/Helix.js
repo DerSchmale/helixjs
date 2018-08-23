@@ -473,6 +473,7 @@ export function init(canvas, options)
     if (META.INITIALIZED) throw new Error("Can only initialize Helix once!");
 
     META.TARGET_CANVAS = canvas;
+    META.TARGET_CANVAS.requestPointerLock = META.TARGET_CANVAS.requestPointerLock || META.TARGET_CANVAS.mozRequestPointerLock;
     META.AUDIO_CONTEXT = window.hx_audioContext;
 
     initGamepads();

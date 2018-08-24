@@ -15,7 +15,7 @@ import {PoissonSphere} from "./math/PoissonSphere";
 import {Color} from "./core/Color";
 import {FrameBuffer} from "./texture/FrameBuffer";
 import {MaterialPass} from "./material/MaterialPass";
-import {initGamepads} from "./input/gamepads";
+import {initGamepads, updateGamepads} from "./input/gamepads";
 import {disableVR, isVRPresenting} from "./vr/vr";
 
 /**
@@ -476,9 +476,8 @@ export function init(canvas, options)
     META.TARGET_CANVAS.requestPointerLock = META.TARGET_CANVAS.requestPointerLock || META.TARGET_CANVAS.mozRequestPointerLock;
     META.AUDIO_CONTEXT = window.hx_audioContext;
 
-    initGamepads();
-
     _updateCanvasSize();
+    initGamepads();
 
     META.OPTIONS = options = options || new InitOptions();
 
@@ -628,8 +627,10 @@ export function init(canvas, options)
 function _onFrameTick(dt)
 {
     var startTime = (performance || Date).now();
-    onPreFrame.dispatch(dt);
+
+    updateGamepads();
     _clearGLStats();
+    onPreFrame.dispatch(dt);
 
     // VR stopped presenting (present change event doesn't seem reliable)
     if (isVRPresenting() && !META.VR_DISPLAY.isPresenting) {

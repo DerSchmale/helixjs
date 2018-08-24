@@ -1,5 +1,8 @@
 import {InputPlugin} from "./InputPlugin";
 import {onPreFrame} from "../Helix";
+import {Float4} from "../math/Float4";
+import {decreaseUsedGamepads, increaseUsedGamepads} from "./gamepads";
+import {Quaternion} from "../math/Quaternion";
 
 /**
  * @classdesc
@@ -35,6 +38,14 @@ function Gamepad(device)
     this.axisDeadzone = 0.251;
 
     this._device = device;
+    this._hasPosition = false;
+    this._hasRotation = false;
+    this._position = new Float4();
+    this._rotation = new Quaternion();
+    this._linearVelocity = new Float4(0, 0, 0, 0);
+    this._angularVelocity = new Float4(0, 0, 0, 0);
+    this._linearAcceleration = new Float4(0, 0, 0, 0);
+    this._angularAcceleration = new Float4(0, 0, 0, 0);
 }
 
 /**
@@ -153,6 +164,56 @@ Gamepad.HAND_LEFT = "left";
 Gamepad.HAND_RIGHT = "right";
 
 Gamepad.prototype = Object.create(InputPlugin.prototype, {
+    hasPosition: {
+        get: function()
+        {
+            return this._hasPosition;
+        }
+    },
+
+    hasRotation: {
+        get: function()
+        {
+            return this._hasRotation;
+        }
+    },
+
+    linearVelocity: {
+        get: function() {
+            return this._linearVelocity;
+        }
+    },
+
+    angularAcceleration: {
+        get: function() {
+            return this._angularAcceleration;
+        }
+    },
+
+    linearAcceleration: {
+        get: function() {
+            return this._linearAcceleration;
+        }
+    },
+
+    angularAcceleration: {
+        get: function() {
+            return this._angularAcceleration;
+        }
+    },
+
+    position: {
+        get: function() {
+            return this._position;
+        }
+    },
+
+    rotation: {
+        get: function() {
+            return this._rotation;
+        }
+    },
+
     displayId: {
         get: function()
         {
@@ -194,6 +255,7 @@ Gamepad.prototype = Object.create(InputPlugin.prototype, {
  */
 Gamepad.prototype.onEnabled = function()
 {
+    increaseUsedGamepads();
     onPreFrame.bind(this._onPreFrame, this);
 };
 
@@ -202,6 +264,7 @@ Gamepad.prototype.onEnabled = function()
  */
 Gamepad.prototype.onDisabled = function()
 {
+    decreaseUsedGamepads();
     onPreFrame.unbind(this._onPreFrame);
 };
 
@@ -258,6 +321,37 @@ Gamepad.prototype._onPreFrame = function()
             var v = axes[i];
             this.setValue(i | 0x100, v);
         }
+    }
+
+    var pose = this._device.pose;
+
+    if (pose) {
+        var pos = pose.position;
+        var quat = pose.orientation;
+        var lv = pose.linearVelocity;
+        var av = pose.angularVelocity;
+        var la = pose.linearAcceleration;
+        var aa = pose.angularAcceleration;
+
+        // may have to swap orientation again... (see VRCamera)
+        if (pos) {
+            this._position.set(pos[0], -pos[2], pos[1]);
+            this._hasPosition = true;
+        }
+        else
+            this._hasPosition = false;
+
+        if (quat) {
+            this._rotation.set(quat[0], -quat[2], quat[1], quat[3]);
+            this._hasRotation = true;
+        }
+        else {
+            this._hasRotation = false;
+        }
+        if (lv) this._linearVelocity.set(lv[0], -lv[2], lv[1]);
+        if (la) this._linearAcceleration.set(la[0], -la[2], la[1]);
+        if (av) this._angularVelocity.set(av[0], -av[2], av[1]);
+        if (aa) this._angularAcceleration.set(aa[0], -aa[2], aa[1]);
     }
 };
 

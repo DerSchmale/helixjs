@@ -3,7 +3,11 @@
  */
 var project = new VRProject();
 var vrDisplays;
+var activeVRDisplay;
 var audioListener;
+var leftController = null;
+var rightController = null;
+var input = new HX.Input();
 
 window.onload = function ()
 {
@@ -50,13 +54,58 @@ function toggleVR()
 
     }
     else {
-        HX.enableVR(vrDisplays[select.selectedIndex]);
+        activeVRDisplay = vrDisplays[select.selectedIndex];
+        HX.enableVR(activeVRDisplay);
 
         select.disabled = true;
 
         this.camera.removeComponent(audioListener);
         this.vrCamera.addComponent(audioListener);
+
+        // init gamepads
+        if (activeVRDisplay.gamepadLeft)
+            initController(activeVRDisplay.gamepadLeft);
+
+        if (activeVRDisplay.gamepadRight)
+            initController(activeVRDisplay.gamepadRight);
+
+        activeVRDisplay.onGamepadConnected.bind(initController);
+        activeVRDisplay.onGamepadDisconnected.unbind(destroyController);
     }
+}
+
+function initController(gamepad)
+{
+    input.enable(gamepad);
+
+    var entity = new HX.Entity();
+    var primitive = new HX.CylinderPrimitive({
+        alignment: HX.CylinderPrimitive.ALIGN_Y,
+        radius: 0.01,
+        height: 0.2
+    });
+    var material = new HX.BasicMaterial({color: 0xff80ff});
+    var meshInstance = new HX.MeshInstance(primitive, material);
+    entity.addComponent(meshInstance);
+    entity.addComponent(new HX.TrackedController(gamepad));
+
+    // this is important: the controller is relative to the VR camera
+    project.vrCamera.attach(entity);
+
+    if (gamepad.hand === HX.Gamepad.HAND_LEFT)
+        leftController = entity;
+    else if (gamepad.hand === HX.Gamepad.HAND_RIGHT)
+        rightController = entity;
+}
+
+function destroyController(gamepad)
+{
+    input.disable(gamepad);
+
+    if (gamepad.hand === HX.Gamepad.HAND_LEFT)
+        project.vrCamera.detach(leftController);
+    else if (gamepad.hand === HX.Gamepad.HAND_RIGHT)
+        project.vrCamera.detach(rightController);
 }
 
 function onVRDisplaysReceived(displays)

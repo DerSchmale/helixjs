@@ -2,6 +2,7 @@ import {Signal} from "../core/Signal";
 import {Gamepad} from "./Gamepad";
 
 var gamepads = [];
+var usedGamepadCount = 0;
 
 /**
  * Dispatched when a gamepad is connected.
@@ -85,4 +86,33 @@ export function initGamepads()
 
     window.addEventListener("gamepadconnected", _onGamepadConnected);
     window.addEventListener("gamepaddisconnected", _onGamepadDisconnected);
+}
+
+// this is required for Chrome to update its gamepad state correctly!
+export function updateGamepads()
+{
+    // don't update if we're not actually using any
+    if (!usedGamepadCount || !navigator.getGamepads)
+        return;
+
+    var devices = navigator.getGamepads();
+    if (!devices) return;
+
+    for (var i = 0, l = gamepads.length; i < l; ++i) {
+        var gamepad = gamepads[i];
+        var device = devices[i];
+
+        if (gamepad && device)
+            gamepad._device = device;
+    }
+}
+
+export function increaseUsedGamepads()
+{
+    ++usedGamepadCount;
+}
+
+export function decreaseUsedGamepads()
+{
+    --usedGamepadCount;
 }

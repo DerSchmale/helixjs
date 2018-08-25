@@ -198,5 +198,4 @@ export {Platform} from "./utils/Platform";
 export {RayCaster} from "./utils/RayCaster";
 export {StatsDisplay} from "./utils/StatsDisplay";
 
-export {TrackedController} from "./vr/TrackedController";
 export {VRDisplay} from "./vr/VRDisplay";

@@ -1,3 +1,4 @@
+import * as CANNON from "cannon";
 import * as HX from "helix";
 import {Collider} from "./Collider";
 
@@ -25,7 +26,7 @@ InfinitePlaneCollider.prototype.volume = function()
     return 0;
 };
 
-InfinitePlaneCollider.prototype.createShape = function(sceneBounds)
+InfinitePlaneCollider.prototype.createShape = function(bounds)
 {
     return new CANNON.Plane();
 };

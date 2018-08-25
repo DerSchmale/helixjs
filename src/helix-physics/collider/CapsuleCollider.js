@@ -22,9 +22,6 @@ function CapsuleCollider(radius, height, center)
     this._height = height;
     this._center = center;
     if (this._height < 2.0 * this._radius) this._height = 2.0 * this._radius;
-    if (radius !== undefined && center === undefined) {
-        this._center = new HX.Float4();
-    }
 }
 
 CapsuleCollider.prototype = Object.create(Collider.prototype);
@@ -38,10 +35,19 @@ CapsuleCollider.prototype.volume = function()
     return cylVol + sphereVol;
 };
 
-CapsuleCollider.prototype.createShape = function(sceneBounds)
+CapsuleCollider.prototype.createShape = function(bounds)
 {
+    if (!this._height)
+        this._height = bounds.halfExtents.y * 2.0;
+
 	var cylHeight = this._height - 2 * this._radius;
-    this._radius = this._radius || sceneBounds.getRadius();
+
+    if (!this._radius) {
+        var f = new HX.Float2();
+        f.set(bounds.halfExtents); // copy X and Y
+        this._radius = f.length;
+    }
+
     var shape = new CompoundShape();
     var sphere = new CANNON.Sphere(this._radius);
 	shape.addShape(sphere, new HX.Float4(0, 0, -cylHeight * .5));

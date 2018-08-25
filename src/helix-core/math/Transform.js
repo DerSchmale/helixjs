@@ -94,6 +94,26 @@ Transform.prototype =
     },
 
     /**
+     * This disables listening to the position, rotation, etc. properties. If you need to change a lot of these properties,
+     * at once, it may be worth using this.
+     */
+    disableMatrixUpdates: function()
+    {
+        this._changeListener.enabled = false;
+        this._eulerChangeListener.enabled = false;
+    },
+
+    /**
+     * This re-enables automatic matrix updates.
+     */
+    enableMatrixUpdates: function()
+    {
+        this._changeListener.enabled = true;
+        this._eulerChangeListener.enabled = true;
+        this._invalidateMatrix();
+    },
+
+    /**
      * The scale of the object.
      */
     get scale() {

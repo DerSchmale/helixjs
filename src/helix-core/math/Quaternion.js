@@ -18,6 +18,56 @@ function Quaternion(x, y, z, w)
     this.w = w === undefined? 1 : w;
 }
 
+/**
+ * Creates a new Quaternion from an axis/angle rotation.
+ */
+Quaternion.fromAxisAngle = function(axis, radians)
+{
+    var q = new Quaternion();
+    q.fromAxisAngle(axis, radians);
+    return q;
+};
+
+/**
+ * Creates a new Quaternion from pitch/yaw/roll Tait Bryan angles.
+ */
+Quaternion.fromPitchYawRoll = function(pitch, yaw, roll)
+{
+    var q = new Quaternion();
+    q.fromPitchYawRoll(pitch, yaw, roll);
+    return q;
+};
+
+/**
+ * Creates a new Quaternion from Euler angles.
+ */
+Quaternion.fromEuler = function(x, y, z)
+{
+    var q = new Quaternion();
+    q.fromEuler(x, y, z);
+    return q;
+};
+
+/**
+ * Creates a new Quaternion from a rotation matrix.
+ */
+Quaternion.fromMatrix = function(m)
+{
+    var q = new Quaternion();
+    q.fromMatrix(m);
+    return q;
+};
+
+/**
+ * Creates a new Quaternion that rotates v1 to v2
+ */
+Quaternion.fromVectors = function(v1, v2)
+{
+    var q = new Quaternion();
+    q.fromVectors(v1, v2);
+    return q;
+};
+
 Quaternion.prototype =
 {
     /**
@@ -135,6 +185,15 @@ Quaternion.prototype =
         return this;
     },
 
+    // finds the rotation matrix that rotates v1 to v2
+    fromVectors: function(v1, v2)
+    {
+        Float4.cross(v1, v2, this);
+        // not using .length saves one sqrt
+        this.w = Math.sqrt(v1.lengthSqr * v2.lengthSqr) + v1.dot(v2);
+        this.normalize();
+    },
+
     /**
      * Rotates a Float4 point.
      *
@@ -237,7 +296,21 @@ Quaternion.prototype =
     },
 
     /**
-     * inverts the quaternion.
+     * Stores the inverse of a given quaternion.
+     */
+    inverseOf: function(q)
+    {
+        var x = q.x, y = q.y, z = q.z, w = q.w;
+        var rcpSqrNorm = 1.0 / (x*x + y*y + z*z + w*w);
+        this.x = -x*rcpSqrNorm;
+        this.y = -y*rcpSqrNorm;
+        this.z = -z*rcpSqrNorm;
+        this.w = w*rcpSqrNorm;
+        return this;
+    },
+
+    /**
+     * Inverts the quaternion.
      */
     invert: function ()
     {

@@ -2,12 +2,12 @@
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('helix'), require('cannon')) :
 	typeof define === 'function' && define.amd ? define('HX_PHYS', ['exports', 'helix', 'cannon'], factory) :
 	(factory((global.HX_PHYS = {}),global.HX,global.CANNON));
-}(this, (function (exports,HX$1,CANNON$1) { 'use strict';
+}(this, (function (exports,HX,CANNON$1) { 'use strict';
 
 	function SubShape(shape, offset, orientation)
 	{
 		this.shape = shape;
-		this.offset = offset || new HX$1.Float4();
+		this.offset = offset || new HX.Float4();
 		this.orientation = orientation;
 	}
 
@@ -32,10 +32,11 @@
 	 */
 	function Collider()
 	{
-	    // these can be set by subclasses
+	    // these can optionally be set by subclasses
+	    // center is the local object space center of mass (ie: an offset of the entity's origin). When allowed to auto-calculate, it uses the bounding box center
+	    // orientation allows
 	    this._center = null;
 	    this._orientation = null;
-	    this._positionOffset = null;
 	}
 
 	Collider.prototype = {
@@ -43,20 +44,21 @@
 	    /**
 	     * @ignore
 	     */
-	    createRigidBody: function(sceneBounds)
+	    createRigidBody: function(bounds)
 	    {
-	        var shape = this.createShape(sceneBounds);
+	        if (!this._center)
+	            this._center = bounds.center;
+
+	        var shape = this.createShape(bounds);
 	        var body = new CANNON$1.Body({
 	            mass: 50 * this.volume()
 	        });
-
-	        if (!this._center) this._center = sceneBounds.center;
 
 	        if (shape instanceof CompoundShape) {
 	            var shapes = shape.shapes;
 	            for (var i = 0; i < shapes.length; ++i) {
 	                var subShape = shapes[i];
-	                var c = HX$1.Float4.add(this._center, subShape.offset);
+	                var c = HX.Float4.add(this._center, subShape.offset);
 	                var q = undefined;
 	                if (this._orientation) {
 	                    q = this._orientation.clone();
@@ -80,7 +82,7 @@
 		/**
 		 * @ignore
 	     */
-	    createShape: function(sceneBounds)
+	    createShape: function(bounds)
 	    {
 	        throw new Error("Abstract method called!");
 	    },
@@ -111,8 +113,8 @@
 	{
 	    Collider.call(this);
 	    if (min && max) {
-	        this._halfExtents = HX$1.Float4.subtract(max, min).scale(.5);
-	        this._center = HX$1.Float4.add(max, min).scale(.5);
+	        this._halfExtents = HX.Float4.subtract(max, min).scale(.5);
+	        this._center = HX.Float4.add(max, min).scale(.5);
 	    }
 	}
 
@@ -123,10 +125,10 @@
 	    return 8 * (this._halfExtents.x * this._halfExtents.y * this._halfExtents.z);
 	};
 
-	BoxCollider.prototype.createShape = function(sceneBounds)
+	BoxCollider.prototype.createShape = function(bounds)
 	{
 	    if (!this._halfExtents)
-	        this._halfExtents = sceneBounds.getHalfExtents();
+	        this._halfExtents = bounds.getHalfExtents();
 
 	    var vec3 = new CANNON$1.Vec3();
 	    vec3.copy(this._halfExtents);
@@ -149,9 +151,6 @@
 	    Collider.call(this);
 	    this._radius = radius;
 	    this._center = center;
-	    if (radius !== undefined && center === undefined) {
-	        this._center = new HX$1.Float4();
-	    }
 	}
 
 	SphereCollider.prototype = Object.create(Collider.prototype);
@@ -162,9 +161,11 @@
 	    return .75 * Math.PI * radius * radius * radius;
 	};
 
-	SphereCollider.prototype.createShape = function(sceneBounds)
+	SphereCollider.prototype.createShape = function(bounds)
 	{
-	    this._radius = this._radius || sceneBounds.getRadius();
+	    this._radius = this._radius || bounds.getRadius();
+
+	    console.log(this._radius);
 	    return new CANNON$1.Sphere(this._radius);
 	};
 
@@ -207,6 +208,9 @@
 	    this.relativeVelocity = new HX.Float4(0, 0, 0, 0);
 	}
 
+	var invMatrix = new HX.Matrix4x4();
+	var worldQuat = new HX.Quaternion();
+
 	/**
 	 * @classdesc
 	 * RigidBody is a component allowing a scene graph object to have physics simulations applied to it. Requires
@@ -223,6 +227,8 @@
 	 * @property {Number} linearDamping How much an object linear movement slows down over time
 	 * @property {Number} angularDamping How much an object rotational movement slows down over time
 	 * @property {PhysicsMaterial} material The PhysicsMaterial defining friction and restitution.
+	 * @property {Float4} angularVelocity The current angular velocity of the rigid body.
+	 * @property {Float4} linearVelocity The current linear velocity of the rigid body.
 	 *
 	 * @constructor
 	 * @param collider The Collider type describing the shape of how to object interacts with the world. If omitted, it will
@@ -234,7 +240,7 @@
 	 */
 	function RigidBody(collider, mass, material)
 	{
-	    HX$1.Component.call(this);
+	    HX.Component.call(this);
 
 	    this._collider = collider;
 	    this._body = null;
@@ -247,6 +253,9 @@
 	    this._angularDamping = 0.01;
 		this._material = material;
 
+	    this._linearVelocity = new HX.Float4();
+	    this._angularVelocity = new HX.Float4();
+
 	    this._collision = new Collision();
 
 	    this._onCollision = this._onCollision.bind(this);
@@ -257,7 +266,35 @@
 	 */
 	RigidBody.COLLISION_MESSAGE = "collision";
 
-	HX$1.Component.create(RigidBody, {
+	HX.Component.create(RigidBody, {
+	    linearVelocity: {
+	        get: function()
+	        {
+	            // change to Float4
+	            this._linearVelocity.copyFrom(this._body.velocity);
+	            return this._linearVelocity;
+	        },
+
+	        set: function(value)
+	        {
+	            this._body.velocity.set(value.x, value.y, value.z);
+	        }
+	    },
+
+	    angularVelocity: {
+	        get: function()
+	        {
+	            // change to Float4
+	            this._angularVelocity.copyFrom(this._body.angularVelocity);
+	            return this._angularVelocity;
+	        },
+
+	        set: function(value)
+	        {
+	            this._body.angularVelocity.set(value.x, value.y, value.z);
+	        }
+	    },
+
 		isKinematic: {
 			get: function()
 			{
@@ -268,10 +305,14 @@
 			{
 				this._isKinematic = value;
 
-				if (this._body)
-					this._body.type = CANNON.Body.KINEMATIC;
+				if (this._body) {
+	                this._body.type = CANNON.Body.KINEMATIC;
+	                this._body.allowSleep = false;
+	                this._body.wakeUp();
+	            }
 			}
 		},
+
 		ignoreRotation: {
 	        get: function()
 	        {
@@ -389,6 +430,7 @@
 	RigidBody.prototype.onAdded = function()
 	{
 	    this._createBody();
+	    this._body.addEventListener("collide", this._onCollision);
 	};
 
 	RigidBody.prototype.onRemoved = function()
@@ -401,60 +443,75 @@
 	{
 		var entity = this._entity;
 		var body = this._body;
+		var bodyPos = body.position;
+	    var bodyQuat = body.quaternion;
+	    var worldMatrix = entity.worldMatrix;
 
-		var p = entity.position;
+	    worldMatrix.getColumn(3, bodyPos);
 
-		var offs = this._collider._positionOffset;
-		if (offs)
-			body.position.set(p.x + offs.x, p.y + offs.y, p.z + offs.z);
-		else
-			body.position.set(p.x, p.y, p.z);
-
-		if (this._ignoreRotation) {
-			body.quaternion.set(0, 0, 0, 1);
-		}
+		if (this._ignoreRotation)
+	        bodyQuat.set(0, 0, 0, 1);
 		else {
-			var q = entity.rotation;
-			body.quaternion.set(q.x, q.y, q.z, q.w);
+	        var q;
+	        if (entity.isOnRoot)
+	            q = entity.rotation;
+	        else {
+	            q = worldQuat;
+	            q.fromMatrix(worldMatrix);
+	        }
+	        bodyQuat.copy(q);
 		}
 	};
 
 	RigidBody.prototype.applyTransform = function()
 	{
-	    if (this._mass === 0.0)
+	    var body = this._body;
+
+	    // no need to update static and kinematic objects, since they don't get moved by the physics engine
+	    // also not required to update objects if they're not "awake" (means they haven't moved)
+	    if (this._mass === 0.0 || this._isKinematic || body.sleepState !== CANNON.Body.AWAKE)
 	        return;
 
 	    var entity = this._entity;
-	    var body = this._body;
 
-		if (this._collider._positionOffset)
-			HX$1.Float4.subtract(body.position, this._collider._positionOffset, entity.position);
-	    else
+	    // let's not invalidate the whole time
+	    entity.disableMatrixUpdates();
+
+	    if (entity._isOnRoot) {
 	        entity.position = body.position;
 
-	    if (!this._ignoreRotation)
-	        entity.rotation = body.quaternion;
+	        if (!this._ignoreRotation)
+	            entity.rotation = body.quaternion;
+	    }
+	    else {
+	        invMatrix.inverseAffineOf(entity._parent.worldMatrix);
+	        invMatrix.transformPoint(body.position, entity.position);
+	        invMatrix.transformQuaternion(body.quaternion, entity.rotation);
+	    }
+
+	    entity.enableMatrixUpdates();
 	};
 
 	RigidBody.prototype._createBody = function()
 	{
 	    var entity = this._entity;
 
-	    var meshInstances = entity.getComponentsByType(HX$1.MeshInstance);
+	    var meshInstances = entity.getComponentsByType(HX.MeshInstance);
 	    var numMeshes = meshInstances.length;
 
 	    // use the same bounding type if it's the only mesh
 		var bounds = numMeshes === 1? meshInstances[0].mesh.bounds : entity.bounds;
 
 	    if (!this._collider)
-	        this._collider = bounds instanceof HX$1.BoundingAABB? new BoxCollider() : new SphereCollider();
+	        this._collider = bounds instanceof HX.BoundingAABB? new BoxCollider() : new SphereCollider();
 
 	    this._body = this._collider.createRigidBody(bounds);
 	    this._body._hx_rigidBody = this;
-	    this._body.addEventListener("collide", this._onCollision);
 
-	    if (this._isKinematic)
-			this._body.type = CANNON.Body.KINEMATIC;
+	    if (this._isKinematic) {
+	        this._body.type = CANNON.Body.KINEMATIC;
+	        this._body.allowSleep = false;
+	    }
 
 	    if (this._mass !== undefined)
 	        this._body.mass = this._mass;
@@ -501,14 +558,14 @@
 	    if (contact.bi === this._body) {
 	        v1 = contact.bi.velocity;
 	        v2 = contact.bj.velocity;
-	        b = contact.bi;
+	        b = contact.bi.position;
 	        r = contact.ri;
 	        collision.contactNormal.set(n.x, n.y, n.z);
 	    }
 	    else {
 	        v1 = contact.bj.velocity;
 	        v2 = contact.bi.velocity;
-	        b = contact.bj;
+	        b = contact.bj.position;
 	        r = contact.rj;
 	        collision.contactNormal.set(-n.x, -n.y, -n.z);
 	    }
@@ -530,7 +587,7 @@
 	 */
 	function PhysicsSystem()
 	{
-	    HX$1.EntitySystem.call(this);
+	    HX.EntitySystem.call(this);
 
 	    this._world = new CANNON$1.World();
 	    this._gravity = -9.81; // m/s²
@@ -550,7 +607,7 @@
 	    this._components = [];
 	}
 
-	PhysicsSystem.prototype = Object.create(HX$1.EntitySystem.prototype, {
+	PhysicsSystem.prototype = Object.create(HX.EntitySystem.prototype, {
 	    gravity: {
 	        get: function() {
 	            return this._gravity;
@@ -559,7 +616,7 @@
 	        set: function(value) {
 	            this._gravity = value;
 
-	            if (value instanceof HX$1.Float4)
+	            if (value instanceof HX.Float4)
 	                this._world.gravity.set(value.x, value.y, value.z);
 	            else
 	                this._world.gravity.set(0, value, 0);
@@ -573,6 +630,16 @@
 
 	        set: function(value) {
 	            this._fixedTimeStep = value;
+	        }
+	    },
+
+	    allowSleep: {
+	        get: function() {
+	            return this._world.allowSleep;
+	        },
+
+	        set: function(value) {
+	            this._world.allowSleep = value;
 	        }
 	    }
 	});
@@ -650,9 +717,6 @@
 	    this._height = height;
 	    this._center = center;
 	    if (this._height < 2.0 * this._radius) this._height = 2.0 * this._radius;
-	    if (radius !== undefined && center === undefined) {
-	        this._center = new HX$1.Float4();
-	    }
 	}
 
 	CapsuleCollider.prototype = Object.create(Collider.prototype);
@@ -666,15 +730,123 @@
 	    return cylVol + sphereVol;
 	};
 
-	CapsuleCollider.prototype.createShape = function(sceneBounds)
+	CapsuleCollider.prototype.createShape = function(bounds)
 	{
+	    if (!this._height)
+	        this._height = bounds.halfExtents.y * 2.0;
+
 		var cylHeight = this._height - 2 * this._radius;
-	    this._radius = this._radius || sceneBounds.getRadius();
+
+	    if (!this._radius) {
+	        var f = new HX.Float2();
+	        f.set(bounds.halfExtents); // copy X and Y
+	        this._radius = f.length;
+	    }
+
 	    var shape = new CompoundShape();
 	    var sphere = new CANNON$1.Sphere(this._radius);
-		shape.addShape(sphere, new HX$1.Float4(0, 0, -cylHeight * .5));
-		shape.addShape(sphere, new HX$1.Float4(0, 0, cylHeight * .5));
+		shape.addShape(sphere, new HX.Float4(0, 0, -cylHeight * .5));
+		shape.addShape(sphere, new HX.Float4(0, 0, cylHeight * .5));
 		shape.addShape(new CANNON$1.Cylinder(this._radius, this._radius, cylHeight, 10));
+	    return shape;
+	};
+
+	/**
+	 * @classdesc
+	 *
+	 * A capsule-shaped collider.
+	 *
+	 * @constructor
+	 *
+	 * @param {number} [radius] The radius of the cylinder. If omitted, will use the object bounds.
+	 * @param {number} [height] The height of the cylinder. If omitted, will use the object bounds.
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function CylinderCollider(radius, height, mainAxis, center)
+	{
+	    Collider.call(this);
+	    this._radius = radius;
+	    this._height = height;
+	    this._center = center;
+
+	    if (mainAxis) {
+	        mainAxis.normalize();
+	        this._orientation = HX.Quaternion.fromVectors(HX.Float4.Z_AXIS, mainAxis);
+	    }
+	}
+
+	CylinderCollider.prototype = Object.create(Collider.prototype);
+
+	CylinderCollider.prototype.volume = function()
+	{
+	    return Math.PI * this._radius * this._radius * this._height;
+	};
+
+	CylinderCollider.prototype.createShape = function(bounds)
+	{
+	    if (!this._radius) {
+	        var f = new HX.Float2();
+
+	        f.set(bounds.halfExtent); // copy X and Y
+	        this._radius = f.length;
+	    }
+
+	    if (!this._height)
+	        this._height = bounds.halfExtent.z * 2.0;
+
+	    return new CANNON$1.Cylinder(this._radius, this._radius, this._height, 10);
+	};
+
+	/**
+	 * @classdesc
+	 *
+	 * A box-shaped collider with the "walls" pointing to the inside
+	 *
+	 * @constructor
+	 *
+	 * @param {Float4} [thickness] The thickness of the box walls. Defaults to .1
+	 * @param {Float4} [min] The minimum coordinates of the box in local object space. If omitted, will use the object bounds.
+	 * @param {Float4} [max] The maximum coordinates of the box in local object space. If omitted, will use the object bounds.
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function InvertedBoxCollider(thickness, min, max)
+	{
+	    Collider.call(this);
+
+	    this._thickness = thickness || .1;
+
+	    if (min && max) {
+	        this._halfExtents = HX.Float4.subtract(max, min).scale(.5);
+	        this._center = HX.Float4.add(max, min).scale(.5);
+	    }
+	}
+
+	InvertedBoxCollider.prototype = Object.create(Collider.prototype);
+
+	InvertedBoxCollider.prototype.volume = function()
+	{
+	    return 8 * (this._halfExtents.x * this._halfExtents.y * this._halfExtents.z);
+	};
+
+	InvertedBoxCollider.prototype.createShape = function(bounds)
+	{
+	    if (!this._halfExtents)
+	        this._halfExtents = bounds.getHalfExtents();
+
+	    var shape = new CompoundShape();
+	    var t = this._thickness;
+	    var th = t * .5;
+	    var he = this._halfExtents;
+
+	    shape.addShape(new CANNON$1.Box(new CANNON$1.Vec3(th, he.y + t, he.z)), new CANNON$1.Vec3(he.x + th, 0, 0));         // posX
+	    shape.addShape(new CANNON$1.Box(new CANNON$1.Vec3(th, he.y + t, he.z)), new CANNON$1.Vec3(-(he.x + th), 0, 0));      // negX
+	    shape.addShape(new CANNON$1.Box(new CANNON$1.Vec3(he.x + t, th, he.z)), new CANNON$1.Vec3(0, he.y + th, 0));         // posY
+	    shape.addShape(new CANNON$1.Box(new CANNON$1.Vec3(he.x + t, th, he.z)), new CANNON$1.Vec3(0, -(he.y + th), 0));      // negY
+	    shape.addShape(new CANNON$1.Box(new CANNON$1.Vec3(he.x, he.y, th)), new CANNON$1.Vec3(0, 0, he.z + th));         // posZ
+	    shape.addShape(new CANNON$1.Box(new CANNON$1.Vec3(he.x, he.y, th)), new CANNON$1.Vec3(0, 0, -(he.z + th)));      // negZ
+
 	    return shape;
 	};
 
@@ -692,7 +864,7 @@
 	function InfinitePlaneCollider(height)
 	{
 	    Collider.call(this);
-	    if (height) this._center = new HX$1.Float4(0, 0, height);
+	    if (height) this._center = new HX.Float4(0, 0, height);
 	}
 
 	InfinitePlaneCollider.prototype = Object.create(Collider.prototype);
@@ -702,9 +874,9 @@
 	    return 0;
 	};
 
-	InfinitePlaneCollider.prototype.createShape = function(sceneBounds)
+	InfinitePlaneCollider.prototype.createShape = function(bounds)
 	{
-	    return new CANNON.Plane();
+	    return new CANNON$1.Plane();
 	};
 
 	/**
@@ -720,7 +892,7 @@
 	{
 		Collider.call(this);
 
-		if (heightData instanceof HX$1.Texture2D) {
+		if (heightData instanceof HX.Texture2D) {
 			if (maxHeight === undefined) maxHeight = 1;
 			if (minHeight === undefined) minHeight = 0;
 
@@ -735,7 +907,7 @@
 		this._heightMapHeight = this._heightData[0].length;
 		this._worldSize = worldSize;
 		this._elementSize = this._worldSize / (this._heightMapWidth - 1);
-		this._positionOffset = new HX$1.Float4(-this._elementSize * this._heightMapWidth * .5, -this._elementSize * this._heightMapHeight * .5, minHeight, 0);
+		this._center = new HX.Float4(-this._elementSize * this._heightMapWidth * .5, -this._elementSize * this._heightMapHeight * .5, minHeight, 0);
 	}
 
 	HeightfieldCollider.prototype = Object.create(Collider.prototype);
@@ -745,7 +917,7 @@
 		return 0;
 	};
 
-	HeightfieldCollider.prototype.createShape = function (sceneBounds)
+	HeightfieldCollider.prototype.createShape = function (bounds)
 	{
 		return new CANNON$1.Heightfield(this._heightData, {
 			elementSize: this._elementSize
@@ -760,25 +932,25 @@
 	{
 		var w = map.width;
 		var h = map.height;
-		var tex = new HX$1.Texture2D();
-		tex.initEmpty(w, h, HX$1.TextureFormat.RGBA, map.dataType);
-		var fbo = new HX$1.FrameBuffer(tex);
+		var tex = new HX.Texture2D();
+		tex.initEmpty(w, h, HX.TextureFormat.RGBA, map.dataType);
+		var fbo = new HX.FrameBuffer(tex);
 		fbo.init();
-		HX$1.GL.setRenderTarget(fbo);
-		HX$1.GL.clear();
-		HX$1.BlitTexture.execute(map);
+		HX.GL.setRenderTarget(fbo);
+		HX.GL.clear();
+		HX.BlitTexture.execute(map);
 
 		var len = w * h * 4;
 
 		var data;
-		if (map.dataType === HX$1.DataType.FLOAT)
+		if (map.dataType === HX.DataType.FLOAT)
 			data = new Float32Array(len);
-		else if (map.dataType === HX$1.DataType.UNSIGNED_BYTE)
+		else if (map.dataType === HX.DataType.UNSIGNED_BYTE)
 			data = new Uint8Array(len);
 		else
 			throw new Error("Invalid dataType!");
 
-		HX$1.GL.gl.readPixels(0, 0, w, h, HX$1.TextureFormat.RGBA, map.dataType, data);
+		HX.GL.gl.readPixels(0, 0, w, h, HX.TextureFormat.RGBA, map.dataType, data);
 
 		var arr = [];
 
@@ -837,7 +1009,7 @@
 	 */
 	function PhysicsMaterial(friction, restitution)
 	{
-		this._cannonMaterial = new CANNON.Material({
+		this._cannonMaterial = new CANNON$1.Material({
 			friction: friction,
 			restitution: restitution
 		});
@@ -875,6 +1047,8 @@
 	exports.RigidBody = RigidBody;
 	exports.BoxCollider = BoxCollider;
 	exports.CapsuleCollider = CapsuleCollider;
+	exports.CylinderCollider = CylinderCollider;
+	exports.InvertedBoxCollider = InvertedBoxCollider;
 	exports.SphereCollider = SphereCollider;
 	exports.InfinitePlaneCollider = InfinitePlaneCollider;
 	exports.HeightfieldCollider = HeightfieldCollider;

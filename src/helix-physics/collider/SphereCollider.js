@@ -1,4 +1,3 @@
-import * as HX from "helix";
 import * as CANNON from "cannon";
 import {Collider} from "./Collider";
 
@@ -18,9 +17,6 @@ function SphereCollider(radius, center)
     Collider.call(this);
     this._radius = radius;
     this._center = center;
-    if (radius !== undefined && center === undefined) {
-        this._center = new HX.Float4();
-    }
 }
 
 SphereCollider.prototype = Object.create(Collider.prototype);
@@ -31,9 +27,11 @@ SphereCollider.prototype.volume = function()
     return .75 * Math.PI * radius * radius * radius;
 };
 
-SphereCollider.prototype.createShape = function(sceneBounds)
+SphereCollider.prototype.createShape = function(bounds)
 {
-    this._radius = this._radius || sceneBounds.getRadius();
+    this._radius = this._radius || bounds.getRadius();
+
+    console.log(this._radius);
     return new CANNON.Sphere(this._radius);
 };
 

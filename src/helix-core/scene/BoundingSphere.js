@@ -174,6 +174,16 @@ BoundingSphere.prototype.getRadius = function()
 };
 
 /**
+ * Generates a new BoundingSphere with the transformation matrix applied.
+ */
+BoundingSphere.prototype.transform = function(matrix)
+{
+    var clone = new BoundingSphere();
+    clone.transformFrom(this, matrix);
+    return clone;
+};
+
+/**
  * @inheritDoc
  */
 BoundingSphere.prototype.transformFrom = function(sourceBound, matrix)
@@ -332,6 +342,13 @@ BoundingSphere.prototype.intersectsRay = function(ray)
 
     // larger than the radius, so cannot intersect
     return sqrDist <= radius * radius;
+};
+
+BoundingSphere.prototype.clone = function()
+{
+    var aabb = new BoundingSphere();
+    aabb.growToIncludeBound(this);
+    return aabb;
 };
 
 

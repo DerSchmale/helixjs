@@ -58,6 +58,16 @@ PhysicsSystem.prototype = Object.create(HX.EntitySystem.prototype, {
         set: function(value) {
             this._fixedTimeStep = value;
         }
+    },
+
+    allowSleep: {
+        get: function() {
+            return this._world.allowSleep;
+        },
+
+        set: function(value) {
+            this._world.allowSleep = value;
+        }
     }
 });
 

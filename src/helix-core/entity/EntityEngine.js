@@ -144,6 +144,7 @@ EntityEngine.prototype =
         for (var i = 0; i < len; ++i)
             entities[i].update(dt);
 
+        // systems update after entities, because they usually need to updated transforms from them
         var systems = this._systems;
         len = systems.length;
         for (i = 0; i < len; ++i)

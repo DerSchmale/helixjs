@@ -15,6 +15,7 @@ var nameCounter = 0;
  * @property {string} name The name of the scene node.
  * @property {SceneNode} parent The parent of this node in the scene hierarchy.
  * @property {number} numChildren The amount of children attached to this node.
+ * @property {boolean} isOnRoot Indicates whether this node is added directly to the scene root.
  * @property {boolean} visible Defines whether or not this and any children attached to this node should be rendered or not.
  * @property {boolean} raycast Defines whether or not this and any children attached to this node should be tested when raycasting.
  * @property {Matrix4x4} worldMatrix The matrix transforming from the node's local space to world space.
@@ -41,6 +42,7 @@ function SceneNode()
     this._ancestorsVisible = true;
     this._raycast = true;
     this._children = [];
+    this._isOnRoot = false;
 
     // used to determine sorting index for the render loop
     // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
@@ -64,6 +66,13 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         get: function()
         {
             return this._parent;
+        }
+    },
+
+    isOnRoot: {
+        get: function()
+        {
+            return this._isOnRoot;
         }
     },
 
@@ -134,6 +143,9 @@ SceneNode.prototype.attach = function(child)
 	}
 
     child._parent = this;
+    // this has a scene but does NOT have a parent, it means this is the root
+    // this also means the child has no world transform (useful for some performance considerations)
+    child._isOnRoot = this._scene && !!this._parent;
     child._setScene(this._scene);
     child._updateAncestorsVisible(this._visible && this._ancestorsVisible);
 
@@ -157,6 +169,7 @@ SceneNode.prototype.attachAfter = function(child, refChild)
 	}
 
 	child._parent = this;
+    child._isOnRoot = this._scene && !!this._parent;
 	child._setScene(this._scene);
 
 	var index = this._children.indexOf(refChild);
@@ -207,6 +220,7 @@ SceneNode.prototype.detach = function(child)
         throw new Error("Trying to remove a scene object that is not a child");
 
     child._parent = null;
+    child._isOnRoot = false;
     child._updateAncestorsVisible(true);
 
     this._children.splice(index, 1);

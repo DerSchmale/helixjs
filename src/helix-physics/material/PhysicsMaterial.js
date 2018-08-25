@@ -1,3 +1,5 @@
+import * as CANNON from "cannon";
+
 /**
  * PhysicsMaterial represents the physical "material" a RigidBody is made of, defining friction and restitution ("bounciness").
  * @param friction Defines how hard it is to move an object resting on this material.

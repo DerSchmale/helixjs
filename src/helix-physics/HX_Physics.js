@@ -2,6 +2,8 @@ export { PhysicsSystem } from "./PhysicsSystem";
 export { RigidBody } from "./components/RigidBody";
 export { BoxCollider } from "./collider/BoxCollider";
 export { CapsuleCollider } from "./collider/CapsuleCollider";
+export { CylinderCollider } from "./collider/CylinderCollider";
+export { InvertedBoxCollider } from "./collider/InvertedBoxCollider";
 export { SphereCollider } from "./collider/SphereCollider";
 export { InfinitePlaneCollider } from "./collider/InfinitePlaneCollider";
 export { HeightfieldCollider } from "./collider/HeightfieldCollider";

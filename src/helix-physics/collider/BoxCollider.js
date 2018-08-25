@@ -30,10 +30,10 @@ BoxCollider.prototype.volume = function()
     return 8 * (this._halfExtents.x * this._halfExtents.y * this._halfExtents.z);
 };
 
-BoxCollider.prototype.createShape = function(sceneBounds)
+BoxCollider.prototype.createShape = function(bounds)
 {
     if (!this._halfExtents)
-        this._halfExtents = sceneBounds.getHalfExtents();
+        this._halfExtents = bounds.getHalfExtents();
 
     var vec3 = new CANNON.Vec3();
     vec3.copy(this._halfExtents);

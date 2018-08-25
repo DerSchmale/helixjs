@@ -1,6 +1,7 @@
 /**
  * @author derschmale <http://www.derschmale.com>
  */
+
 var project = new VRProject();
 var vrDisplays;
 var activeVRDisplay;
@@ -8,6 +9,8 @@ var audioListener;
 var leftController = null;
 var rightController = null;
 var input = new HX.Input();
+var headCollider;
+
 
 window.onload = function ()
 {
@@ -16,8 +19,8 @@ window.onload = function ()
     options.shadowFilter.dither = true;
     options.hdr = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
-    options.numShadowCascades = 2;
     options.shadowFilter = new HX.PCFShadowFilter();
+    options.shadowFilter.softness = .0005;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -34,6 +37,12 @@ project.onInit = function()
     initCamera(this.camera, this.vrCamera);
     initScene(this.scene, this.assetLibrary);
 
+    var physics = new HX_PHYS.PhysicsSystem();
+    // no gravity
+    physics.gravity = 0.0;
+    physics.allowSleep = false; // cannon does not work well with kinematic objects if bodies are allowed to sleep
+    this.scene.startSystem(physics);
+
     this.vrButton = document.getElementById("toggleVRButton");
     this.vrButton.addEventListener("click", toggleVR.bind(this));
 
@@ -49,6 +58,7 @@ function toggleVR()
         HX.disableVR();
         select.disabled = false;
 
+        this.scene.detach(headCollider);
         this.vrCamera.removeComponent(audioListener);
         this.camera.addComponent(audioListener);
 
@@ -59,6 +69,7 @@ function toggleVR()
 
         select.disabled = true;
 
+        this.scene.attach(headCollider);
         this.camera.removeComponent(audioListener);
         this.vrCamera.addComponent(audioListener);
 
@@ -78,18 +89,30 @@ function initController(gamepad)
 {
     input.enable(gamepad);
 
+    var radius = .01;
+    var height = .2;
+
     var entity = new HX.Entity();
+    entity.name = "stick: " + gamepad.hand;
+
     var primitive = new HX.CylinderPrimitive({
         alignment: HX.CylinderPrimitive.ALIGN_Y,
-        radius: 0.01,
-        height: 0.2
+        radius: radius,
+        height: height
     });
     var material = new HX.BasicMaterial({color: 0xff80ff});
     var meshInstance = new HX.MeshInstance(primitive, material);
     entity.addComponent(meshInstance);
-    entity.addComponent(new HX.TrackedController(gamepad));
 
-    // this is important: the controller is relative to the VR camera
+    var rigidBody = new HX_PHYS.RigidBody(new HX_PHYS.CylinderCollider(radius, height, HX.Float4.Y_AXIS));
+    rigidBody.linearDamping = 0;
+    rigidBody.material = new HX_PHYS.PhysicsMaterial(0, 1);
+    entity.addComponent(rigidBody);
+
+    // need to add this AFTER RigidBody, since it requires grabbing the component from the Entity
+    entity.addComponent(new TrackedController(gamepad));
+
+    // this is important: the controller is in "VR space", which matches the VR camera
     project.vrCamera.attach(entity);
 
     if (gamepad.hand === HX.Gamepad.HAND_LEFT)
@@ -102,10 +125,14 @@ function destroyController(gamepad)
 {
     input.disable(gamepad);
 
-    if (gamepad.hand === HX.Gamepad.HAND_LEFT)
+    if (gamepad.hand === HX.Gamepad.HAND_LEFT) {
         project.vrCamera.detach(leftController);
-    else if (gamepad.hand === HX.Gamepad.HAND_RIGHT)
+        leftController = null;
+    }
+    else if (gamepad.hand === HX.Gamepad.HAND_RIGHT) {
         project.vrCamera.detach(rightController);
+        rightController = null;
+    }
 }
 
 function onVRDisplaysReceived(displays)
@@ -137,6 +164,12 @@ function initCamera(camera, vrCamera)
     camera.farDistance = 100.0;
     vrCamera.copyFrom(camera);
 
+    headCollider = new HX.Entity();
+    var headBody = new HX_PHYS.RigidBody(new HX_PHYS.SphereCollider(.07));
+    headBody.isKinematic = true;
+    headCollider.addComponent(headBody);
+    headCollider.addComponent(new TrackHMDController(vrCamera));
+
     camera.addComponent(audioListener);
 
     var controller = new OrbitController();
@@ -148,7 +181,7 @@ function initScene(scene, assetLibrary)
 {
 	var pointLight = new HX.PointLight();
 	pointLight.castShadows = true;
-	pointLight.intensity = 10;
+	pointLight.intensity = 5;
 	pointLight.radius = 100000;
 	pointLight = new HX.Entity(pointLight);
 	pointLight.position.set(0.0, 0.0, .9);
@@ -164,21 +197,27 @@ function initScene(scene, assetLibrary)
 
     var primitive = new HX.BoxPrimitive(
         {
-            width: 5,
-            height: 2,
-            deptH: 5,
+            width: 1.5,
+            height: 2.0,
+            deptH: 1.5,
             invert:true
         });
 
     var room = new HX.Entity();
+    room.name = "room";
     var meshInstance = new HX.MeshInstance(primitive, material);
 	meshInstance.castShadows = false;
 	room.addComponent(meshInstance);
+
+	var roomBody = new HX_PHYS.RigidBody(new HX_PHYS.InvertedBoxCollider(10)); // walls 10 meter thick to make sure to catch fast collisions
+    roomBody.mass = 0;
+	room.addComponent(roomBody);
+
 	scene.attach(room);
 
 	primitive = new HX.SpherePrimitive(
 		{
-			radius:.1,
+			radius:.05,
 			numSegmentsH: 10,
 			numSegmentsW: 15
 		});
@@ -188,8 +227,11 @@ function initScene(scene, assetLibrary)
 	material.roughness = 0.4;
 
 	var ball = new HX.Entity();
-	ball.position.y = 1.5;
+    ball.name = "ball";
+	ball.position.z = 0.0;
+	ball.position.y = 0.3;
 	ball.addComponent(new HX.MeshInstance(primitive, material));
+	ball.addComponent(new AudioTrigger());
 
 	var audioEmitter = new HX.AudioEmitter(assetLibrary.get("collision-sound"));
     // set the name of the sound because it's used to trigger the sound from BounceComponent
@@ -197,6 +239,6 @@ function initScene(scene, assetLibrary)
     audioEmitter.panningModel = HX.AudioPanningModel.HRTF;
 
 	ball.addComponent(audioEmitter);
-	ball.addComponent(new BounceComponent(room.worldBounds));
+	ball.addComponent(new HX_PHYS.RigidBody());
 	scene.attach(ball);
 }

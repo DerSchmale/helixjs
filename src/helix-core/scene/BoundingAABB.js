@@ -1,6 +1,7 @@
 import {BoundingVolume} from "./BoundingVolume";
 import {PlaneSide} from "../math/PlaneSide";
 import {Float4} from "../math/Float4";
+import {BoundingSphere} from "./BoundingSphere";
 
 /**
  * @classdesc
@@ -136,6 +137,16 @@ BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
     }
 
     this._updateCenterAndExtent();
+};
+
+/**
+ * Generates a new BoundingSphere with the transformation matrix applied.
+ */
+BoundingAABB.prototype.transform = function(matrix)
+{
+    var clone = new BoundingAABB();
+    clone.transformFrom(this, matrix);
+    return clone;
 };
 
 /**
@@ -355,6 +366,13 @@ BoundingAABB.prototype.getRadius = function()
 BoundingAABB.prototype.getHalfExtents = function()
 {
     return new Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0);
+};
+
+BoundingAABB.prototype.clone = function()
+{
+    var aabb = new BoundingAABB()
+    aabb.growToIncludeBound(this);
+    return aabb;
 };
 
 

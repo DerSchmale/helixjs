@@ -26,8 +26,6 @@ function VRDisplay(display)
 
     this._gamepadLeft = null;
     this._gamepadRight = null;
-
-    this._queryTimeout = undefined;
 }
 
 VRDisplay.prototype = {
@@ -45,6 +43,11 @@ VRDisplay.prototype = {
     get displayId()
     {
         return this._display.displayId;
+    },
+
+    get gamepads()
+    {
+        return this._gamepads;
     },
 
     /**
@@ -107,6 +110,7 @@ VRDisplay.prototype = {
      */
     _onGamepadConnected: function (gamepad)
     {
+        // sometimes, Chrome will notify a connected gamepad without giving the correct hand information
         if (gamepad.displayId === this.displayId) {
             // if controller is already set, it's probably a case where the gamepad query comes after the connect event
             // (although connect doesn't seem to trigger with VR controllers, can't be safe enough)
@@ -120,8 +124,6 @@ VRDisplay.prototype = {
                 this._gamepadRight = gamepad;
                 this.onGamepadConnected.dispatch(gamepad);
             }
-            else if (!gamepad.hand)
-                this.onGamepadDisconnected.dispatch(gamepad);
         }
     },
 

@@ -3,6 +3,9 @@ import {BoxCollider} from "../collider/BoxCollider";
 import {SphereCollider} from "../collider/SphereCollider";
 import {Collision} from "../collision/Collision";
 
+var invMatrix = new HX.Matrix4x4();
+var worldQuat = new HX.Quaternion();
+
 /**
  * @classdesc
  * RigidBody is a component allowing a scene graph object to have physics simulations applied to it. Requires
@@ -19,6 +22,8 @@ import {Collision} from "../collision/Collision";
  * @property {Number} linearDamping How much an object linear movement slows down over time
  * @property {Number} angularDamping How much an object rotational movement slows down over time
  * @property {PhysicsMaterial} material The PhysicsMaterial defining friction and restitution.
+ * @property {Float4} angularVelocity The current angular velocity of the rigid body.
+ * @property {Float4} linearVelocity The current linear velocity of the rigid body.
  *
  * @constructor
  * @param collider The Collider type describing the shape of how to object interacts with the world. If omitted, it will
@@ -43,6 +48,9 @@ function RigidBody(collider, mass, material)
     this._angularDamping = 0.01;
 	this._material = material;
 
+    this._linearVelocity = new HX.Float4();
+    this._angularVelocity = new HX.Float4();
+
     this._collision = new Collision();
 
     this._onCollision = this._onCollision.bind(this);
@@ -54,6 +62,34 @@ function RigidBody(collider, mass, material)
 RigidBody.COLLISION_MESSAGE = "collision";
 
 HX.Component.create(RigidBody, {
+    linearVelocity: {
+        get: function()
+        {
+            // change to Float4
+            this._linearVelocity.copyFrom(this._body.velocity);
+            return this._linearVelocity;
+        },
+
+        set: function(value)
+        {
+            this._body.velocity.set(value.x, value.y, value.z);
+        }
+    },
+
+    angularVelocity: {
+        get: function()
+        {
+            // change to Float4
+            this._angularVelocity.copyFrom(this._body.angularVelocity);
+            return this._angularVelocity;
+        },
+
+        set: function(value)
+        {
+            this._body.angularVelocity.set(value.x, value.y, value.z);
+        }
+    },
+
 	isKinematic: {
 		get: function()
 		{
@@ -64,10 +100,14 @@ HX.Component.create(RigidBody, {
 		{
 			this._isKinematic = value;
 
-			if (this._body)
-				this._body.type = CANNON.Body.KINEMATIC;
+			if (this._body) {
+                this._body.type = CANNON.Body.KINEMATIC;
+                this._body.allowSleep = false;
+                this._body.wakeUp();
+            }
 		}
 	},
+
 	ignoreRotation: {
         get: function()
         {
@@ -185,6 +225,7 @@ RigidBody.prototype.addForce = function(v, pos)
 RigidBody.prototype.onAdded = function()
 {
     this._createBody();
+    this._body.addEventListener("collide", this._onCollision);
 };
 
 RigidBody.prototype.onRemoved = function()
@@ -197,39 +238,53 @@ RigidBody.prototype.prepTransform = function()
 {
 	var entity = this._entity;
 	var body = this._body;
+	var bodyPos = body.position;
+    var bodyQuat = body.quaternion;
+    var worldMatrix = entity.worldMatrix;
 
-	var p = entity.position;
+    worldMatrix.getColumn(3, bodyPos);
 
-	var offs = this._collider._positionOffset;
-	if (offs)
-		body.position.set(p.x + offs.x, p.y + offs.y, p.z + offs.z);
-	else
-		body.position.set(p.x, p.y, p.z);
-
-	if (this._ignoreRotation) {
-		body.quaternion.set(0, 0, 0, 1);
-	}
+	if (this._ignoreRotation)
+        bodyQuat.set(0, 0, 0, 1);
 	else {
-		var q = entity.rotation;
-		body.quaternion.set(q.x, q.y, q.z, q.w);
+        var q;
+        if (entity.isOnRoot)
+            q = entity.rotation;
+        else {
+            q = worldQuat;
+            q.fromMatrix(worldMatrix);
+        }
+        bodyQuat.copy(q);
 	}
 };
 
 RigidBody.prototype.applyTransform = function()
 {
-    if (this._mass === 0.0)
+    var body = this._body;
+
+    // no need to update static and kinematic objects, since they don't get moved by the physics engine
+    // also not required to update objects if they're not "awake" (means they haven't moved)
+    if (this._mass === 0.0 || this._isKinematic || body.sleepState !== CANNON.Body.AWAKE)
         return;
 
     var entity = this._entity;
-    var body = this._body;
 
-	if (this._collider._positionOffset)
-		HX.Float4.subtract(body.position, this._collider._positionOffset, entity.position);
-    else
+    // let's not invalidate the whole time
+    entity.disableMatrixUpdates();
+
+    if (entity._isOnRoot) {
         entity.position = body.position;
 
-    if (!this._ignoreRotation)
-        entity.rotation = body.quaternion;
+        if (!this._ignoreRotation)
+            entity.rotation = body.quaternion;
+    }
+    else {
+        invMatrix.inverseAffineOf(entity._parent.worldMatrix);
+        invMatrix.transformPoint(body.position, entity.position);
+        invMatrix.transformQuaternion(body.quaternion, entity.rotation);
+    }
+
+    entity.enableMatrixUpdates();
 };
 
 RigidBody.prototype._createBody = function()
@@ -247,10 +302,11 @@ RigidBody.prototype._createBody = function()
 
     this._body = this._collider.createRigidBody(bounds);
     this._body._hx_rigidBody = this;
-    this._body.addEventListener("collide", this._onCollision);
 
-    if (this._isKinematic)
-		this._body.type = CANNON.Body.KINEMATIC;
+    if (this._isKinematic) {
+        this._body.type = CANNON.Body.KINEMATIC;
+        this._body.allowSleep = false;
+    }
 
     if (this._mass !== undefined)
         this._body.mass = this._mass;
@@ -297,14 +353,14 @@ RigidBody.prototype._onCollision = function(event)
     if (contact.bi === this._body) {
         v1 = contact.bi.velocity;
         v2 = contact.bj.velocity;
-        b = contact.bi;
+        b = contact.bi.position;
         r = contact.ri;
         collision.contactNormal.set(n.x, n.y, n.z);
     }
     else {
         v1 = contact.bj.velocity;
         v2 = contact.bi.velocity;
-        b = contact.bj;
+        b = contact.bj.position;
         r = contact.rj;
         collision.contactNormal.set(-n.x, -n.y, -n.z);
     }

@@ -1,6 +1,7 @@
 import {Float4} from './Float4';
 import {MathX} from './MathX';
 import {Transform} from './Transform';
+import {Quaternion} from "./Quaternion";
 
 /**
  * @classdec
@@ -215,6 +216,19 @@ Matrix4x4.prototype =
         target.z = m20 * x + m21 * y + m22 * z;
         target.w = 0.0;
 
+        return target;
+    },
+
+    /**
+     * Transforms a Quaternion.
+     * @param {Quaternion} q The quaternion to transform
+     * @param {Quaternion} [target] An optional target. If not provided, a new object will be created and returned.
+     */
+    transformQuaternion: function(q, target)
+    {
+        target = target || new Quaternion();
+        target.fromMatrix(this);
+        target.prepend(q);
         return target;
     },
 
@@ -1108,7 +1122,7 @@ Matrix4x4.prototype =
      */
     appendTranslation: function (x, y, z)
     {
-        if (x instanceof Float4) {
+        if (y === undefined) { // the first is a Float4
             y = x.y;
             z = x.z;
             x = x.x;
@@ -1126,7 +1140,7 @@ Matrix4x4.prototype =
      */
     prependTranslation: function (x, y, z)
     {
-        if (x instanceof Float4) {
+        if (y === undefined) {
             y = x.y;
             z = x.z;
             x = x.x;
@@ -1440,11 +1454,20 @@ Matrix4x4.prototype =
     /**
      * Initializes as an affine transformation based on a transform object
      */
-    compose: function(transform)
+    compose: function(transformOrPosition, rotation, scale)
     {
-        this.fromScale(transform.scale);
-        this.appendQuaternion(transform.rotation);
-        this.appendTranslation(transform.position);
+        // if rotation was provided, the first is a position
+        var position = rotation? transformOrPosition : transformOrPosition.position;
+        rotation = rotation || transformOrPosition.rotation;
+        scale = scale || transformOrPosition.scale;
+
+        if (scale)
+            this.fromScale(scale);
+        else
+            this.identity();
+
+        this.appendQuaternion(rotation);
+        this.appendTranslation(position);
         return this;
     },
 

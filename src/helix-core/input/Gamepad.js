@@ -184,9 +184,9 @@ Gamepad.prototype = Object.create(InputPlugin.prototype, {
         }
     },
 
-    angularAcceleration: {
+    angularVelocity: {
         get: function() {
-            return this._angularAcceleration;
+            return this._angularVelocity;
         }
     },
 

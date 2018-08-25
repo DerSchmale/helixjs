@@ -30,7 +30,7 @@ function HeightfieldCollider(heightData, worldSize, minHeight, maxHeight, rgbaEn
 	this._heightMapHeight = this._heightData[0].length;
 	this._worldSize = worldSize;
 	this._elementSize = this._worldSize / (this._heightMapWidth - 1);
-	this._positionOffset = new HX.Float4(-this._elementSize * this._heightMapWidth * .5, -this._elementSize * this._heightMapHeight * .5, minHeight, 0);
+	this._center = new HX.Float4(-this._elementSize * this._heightMapWidth * .5, -this._elementSize * this._heightMapHeight * .5, minHeight, 0);
 }
 
 HeightfieldCollider.prototype = Object.create(Collider.prototype);
@@ -40,7 +40,7 @@ HeightfieldCollider.prototype.volume = function ()
 	return 0;
 };
 
-HeightfieldCollider.prototype.createShape = function (sceneBounds)
+HeightfieldCollider.prototype.createShape = function (bounds)
 {
 	return new CANNON.Heightfield(this._heightData, {
 		elementSize: this._elementSize

@@ -203,6 +203,11 @@ BoundingVolume.prototype =
             this._maximumY + ", " +
             this._maximumZ + " ], expanse: " +
             this._expanse;
+    },
+
+    clone: function()
+    {
+        throw new Error("Abstract method called!");
     }
 };
 

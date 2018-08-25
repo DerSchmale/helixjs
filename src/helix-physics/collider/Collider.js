@@ -9,10 +9,11 @@ import {CompoundShape} from "./CompoundShape";
  */
 function Collider()
 {
-    // these can be set by subclasses
+    // these can optionally be set by subclasses
+    // center is the local object space center of mass (ie: an offset of the entity's origin). When allowed to auto-calculate, it uses the bounding box center
+    // orientation allows
     this._center = null;
     this._orientation = null;
-    this._positionOffset = null;
 }
 
 Collider.prototype = {
@@ -20,14 +21,15 @@ Collider.prototype = {
     /**
      * @ignore
      */
-    createRigidBody: function(sceneBounds)
+    createRigidBody: function(bounds)
     {
-        var shape = this.createShape(sceneBounds);
+        if (!this._center)
+            this._center = bounds.center;
+
+        var shape = this.createShape(bounds);
         var body = new CANNON.Body({
             mass: 50 * this.volume()
         });
-
-        if (!this._center) this._center = sceneBounds.center;
 
         if (shape instanceof CompoundShape) {
             var shapes = shape.shapes;
@@ -57,7 +59,7 @@ Collider.prototype = {
 	/**
 	 * @ignore
      */
-    createShape: function(sceneBounds)
+    createShape: function(bounds)
     {
         throw new Error("Abstract method called!");
     },

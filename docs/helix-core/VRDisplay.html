@@ -4,7 +4,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width">
-	<title>Documentation Class: SpatialPartitioning</title>
+	<title>Documentation Class: VRDisplay</title>
 
 	<!--[if lt IE 9]>
 	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -79,14 +79,17 @@
 		<div id="main">
 			
 
-	<h1 class="page-title">Class: SpatialPartitioning</h1>
+	<h1 class="page-title">Class: VRDisplay</h1>
 <section>
 
 <header>
     
         <h2>
-        SpatialPartitioning
+        VRDisplay
         </h2>
+        
+            <div class="class-description"><p>VRDisplay represents a VR display. It's a wrapper for the native VRDisplay class, and provides some convienence
+methods to retrieve the controllers.</p></div>
         
     
 </header>
@@ -98,18 +101,12 @@
         
 <hr>
 <dt>
-    <h4 class="name" id="SpatialPartitioning"><span class="type-signature"></span>new SpatialPartitioning()</h4>
+    <h4 class="name" id="VRDisplay"><span class="type-signature"></span>new VRDisplay()</h4>
     
     
 </dt>
 <dd>
 
-    
-    <div class="description">
-        <p>SpatialPartitioning forms a base class or template for spatial partitioning. Scene components such as MeshInstance,
-PointLightComponent, etc. Are placed in here to accelerate collection.</p>
-<p>Octrees etc can be made with this.</p>
-    </div>
     
 
     
@@ -121,6 +118,85 @@ PointLightComponent, etc. Are placed in here to accelerate collection.</p>
 
     
 <dl class="details">
+    
+
+    <h5 class="subsection-title">Properties:</h5>
+
+    <dl>
+
+<table class="props table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>onGamepadConnected</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="Signal.html">Signal</a></span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>A signal that is dispatched when a Gamepad associated with this VR display is
+connected. This only applies if controllers have hand information (otherwise, use the standard gamepad queries).</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>onGamepadDisconnected</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type"><a href="Signal.html">Signal</a></span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>A signal that is dispatched when a Gamepad associated with this VR display
+has disconnected. This only applies if controllers have hand information (otherwise, use the standard gamepad queries).</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+</dl>
+
     
 
 	
@@ -188,7 +264,393 @@ PointLightComponent, etc. Are placed in here to accelerate collection.</p>
     
 
     
+        <h3 class="subsection-title">Members</h3>
 
+        <dl>
+            
+<hr>
+<dt class="name" id="displayId">
+    <h4 id="displayId"><span class="type-signature"></span>displayId<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The display id of the VR device.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="displayName">
+    <h4 id="displayName"><span class="type-signature"></span>displayName<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The display name of the VR device.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="gamepadLeft">
+    <h4 id="gamepadLeft"><span class="type-signature"></span>gamepadLeft<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The left handed Gamepad device associated with this display, if present.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="gamepadRight">
+    <h4 id="gamepadRight"><span class="type-signature"></span>gamepadRight<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>The right handed Gamepad device associated with this display, if present.</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt class="name" id="isPresenting">
+    <h4 id="isPresenting"><span class="type-signature"></span>isPresenting<span class="type-signature"></span></h4>
+
+    
+</dt>
+<dd>
+    
+    <div class="description">
+        <p>Indicates whether or not the display is currently presenting</p>
+    </div>
+    
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+</dd>
+
+        </dl>
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        <dl>
+            
+<hr>
+<dt>
+    <h4 class="name" id="exitPresent"><span class="type-signature"></span>exitPresent()</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Stops presenting.</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dd>
+
+        </dl>
     
 
     
@@ -238,7 +700,7 @@ PointLightComponent, etc. Are placed in here to accelerate collection.</p>
 <span class="jsdoc-message">
 	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a>
 	
-		on August 26th 2018, 6:46:06 pm
+		on August 26th 2018, 6:46:07 pm
 	
 	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
 </span>

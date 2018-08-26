@@ -143,9 +143,7 @@ SceneNode.prototype.attach = function(child)
 	}
 
     child._parent = this;
-    // this has a scene but does NOT have a parent, it means this is the root
-    // this also means the child has no world transform (useful for some performance considerations)
-    child._isOnRoot = this._scene && !!this._parent;
+
     child._setScene(this._scene);
     child._updateAncestorsVisible(this._visible && this._ancestorsVisible);
 
@@ -169,7 +167,7 @@ SceneNode.prototype.attachAfter = function(child, refChild)
 	}
 
 	child._parent = this;
-    child._isOnRoot = this._scene && !!this._parent;
+    child._isOnRoot = this._scene && this._parent === this._scene._rootNode;
 	child._setScene(this._scene);
 
 	var index = this._children.indexOf(refChild);
@@ -300,6 +298,8 @@ SceneNode.prototype._setScene = function(scene)
 
     for (var i = 0; i < len; ++i)
         this._children[i]._setScene(scene);
+
+    this._isOnRoot = !!scene && this._parent === this._scene._rootNode;
 };
 
 /**

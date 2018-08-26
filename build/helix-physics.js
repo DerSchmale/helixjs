@@ -451,7 +451,7 @@
 	        bodyQuat.set(0, 0, 0, 1);
 		else {
 	        var q;
-	        if (entity.isOnRoot)
+	        if (entity._isOnRoot)
 	            q = entity.rotation;
 	        else {
 	            q = worldQuat;
@@ -484,7 +484,9 @@
 	    else {
 	        invMatrix.inverseAffineOf(entity._parent.worldMatrix);
 	        invMatrix.transformPoint(body.position, entity.position);
-	        invMatrix.transformQuaternion(body.quaternion, entity.rotation);
+
+	        // if (!this._ignoreRotation)
+	            invMatrix.transformQuaternion(body.quaternion, entity.rotation);
 	    }
 
 	    entity.enableMatrixUpdates();

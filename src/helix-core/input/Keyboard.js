@@ -23,7 +23,7 @@ function Keyboard()
 	this.mode = Keyboard.MODE_KEY_LOCATION;
 	this._onKeyUp = this._onKeyUp.bind(this);
 	this._onKeyDown = this._onKeyDown.bind(this);
-	this._signs = {};
+	this._axisMap = {};
 }
 
 Keyboard.MODE_KEY_VALUE = 0;
@@ -41,8 +41,8 @@ Keyboard.prototype = Object.create(InputPlugin.prototype);
 Keyboard.prototype.mapAxis = function(negKey, posKey, action, range)
 {
 	var range = range || 1;
-	this._signs[negKey] = -range;
-	this._signs[posKey] = range;
+	this._axisMap[negKey] = { value: -range, opposite: posKey, isDown: false };
+	this._axisMap[posKey] = { value: range, opposite: negKey, isDown: false };
 	this.map(negKey, action);
 	this.map(posKey, action);
 };
@@ -53,7 +53,7 @@ Keyboard.prototype.mapAxis = function(negKey, posKey, action, range)
 Keyboard.prototype.unmap = function(key)
 {
 	InputPlugin.prototype.unmap.call(key);
-	delete this._signs[key];
+	delete this._axisMap[key];
 };
 
 /**
@@ -83,7 +83,22 @@ Keyboard.prototype._onKeyDown = function(event)
 	var key = this.mode? event.code || event.keyCode : event.key || event.keyCode;
 
 	if (this.isMapped(key)) {
-		this.setValue(key, this._signs[key] || 1);
+		var data = this._axisMap[key];
+
+		if (data) {
+            var otherEnd = this._axisMap[data.opposite];
+            data.isDown = true;
+
+            // both ends are down, cancel eachother out
+            if (otherEnd.isDown)
+            	this.setValue(key, 0);
+            else
+                this.setValue(key, data.value);
+        }
+        else {
+            this.setValue(key, 1);
+		}
+
 		event.preventDefault();
 	}
 };
@@ -97,7 +112,20 @@ Keyboard.prototype._onKeyUp = function(event)
     var key = this.mode? event.code || event.keyCode : event.key || event.keyCode;
 
 	if (this.isMapped(key)) {
-		this.setValue(key, 0);
+        var data = this._axisMap[key];
+        if (data) {
+            var otherEnd = this._axisMap[data.opposite];
+
+            data.isDown = false;
+
+            // need to restore the other key's value if it's still down
+            if(otherEnd.isDown)
+                this.setValue(key, otherEnd.value);
+            else
+                this.setValue(key, 0);
+        }
+        else
+			this.setValue(key, 0);
 		event.preventDefault();
 	}
 };

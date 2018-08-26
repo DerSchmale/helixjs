@@ -56,9 +56,11 @@ function VRDisplay(display)
             this.roomSize = new Float2(display.stageParameters.sizeX, display.stageParameters.sizeY);
         }
     }
-    else {
+
+    // provide default
+    if (!this.sittingToStandingTransform) {
         this.sittingToStandingTransform = new Matrix4x4();
-        this.sittingToStandingTransform.fromTranslation(0, 0, META.OPTIONS.VR_USER_HEIGHT);
+        this.sittingToStandingTransform.fromTranslation(0, 0, META.OPTIONS.vrUserHeight);
     }
 }
 

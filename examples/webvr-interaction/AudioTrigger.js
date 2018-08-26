@@ -17,7 +17,7 @@ AudioTrigger.prototype.onRemoved = function()
 
 AudioTrigger.prototype.onCollision = function(message, collision)
 {
-    var gain = collision.relativeVelocity.length * .006;
+    var gain = collision.relativeVelocity.length * .5;
     if (gain < .001) return;
-    this.broadcast(HX.AudioEmitter.PLAY_MESSAGE, "collision");
+    this.broadcast(HX.AudioEmitter.PLAY_MESSAGE, "collision", gain);
 };

@@ -76,7 +76,6 @@ function toggleVR()
         this.scene.attach(headCollider);
         this.camera.removeComponent(audioListener);
         this.vrCamera.addComponent(audioListener);
-        this.vrCamera.matrix = activeVRDisplay.sittingToStandingTransform;
 
         // use room scale
         if (activeVRDisplay.sittingToStandingTransform)
@@ -200,7 +199,7 @@ function initScene(scene, assetLibrary)
 	var pointLight = new HX.PointLight();
 	pointLight.castShadows = true;
 	pointLight.intensity = 5;
-	pointLight.radius = 100000;
+	pointLight.radius = 1000;
 	pointLight = new HX.Entity(pointLight);
 	pointLight.position.set(0.0, 0.0, 1.9);
 

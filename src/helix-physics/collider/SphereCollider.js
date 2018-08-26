@@ -30,8 +30,6 @@ SphereCollider.prototype.volume = function()
 SphereCollider.prototype.createShape = function(bounds)
 {
     this._radius = this._radius || bounds.getRadius();
-
-    console.log(this._radius);
     return new CANNON.Sphere(this._radius);
 };
 

@@ -1,5 +1,6 @@
 import {Signal} from "../core/Signal";
 import {Gamepad} from "./Gamepad";
+import {META} from "../Helix";
 
 var gamepads = [];
 var usedGamepadCount = 0;
@@ -44,7 +45,7 @@ export function getGamepad(index)
  */
 function _onGamepadConnected(event)
 {
-    console.log("gamepad connected " + event.gamepad.id);
+    console.log("gamepad connected ", event.gamepad.id, event.gamepad.displayId);
 
     var gamepad = new Gamepad(event.gamepad);
     gamepads[event.gamepad.index] = gamepad;
@@ -91,19 +92,34 @@ export function initGamepads()
 // this is required for Chrome to update its gamepad state correctly!
 export function updateGamepads()
 {
+    var vrDisplay = META.VR_DISPLAY;
     // don't update if we're not actually using any
-    if (!usedGamepadCount || !navigator.getGamepads)
+    // we do need to update with VR to ensure handedness gets updated
+    if (!vrDisplay && (!usedGamepadCount || !navigator.getGamepads))
         return;
 
     var devices = navigator.getGamepads();
+
     if (!devices) return;
 
     for (var i = 0, l = gamepads.length; i < l; ++i) {
         var gamepad = gamepads[i];
         var device = devices[i];
 
-        if (gamepad && device)
+        if (gamepad && device) {
+            var vrDisplayToNotify;
+
+            // this is a hack for Chrome when it does not provide hand information straight-away
+            if (device.displayId === vrDisplay.displayId && gamepad._device.hand !== device.hand) {
+                vrDisplayToNotify = true;
+                vrDisplay._onGamepadDisconnected(gamepad);
+            }
+
             gamepad._device = device;
+
+            if (vrDisplayToNotify)
+                vrDisplay._onGamepadConnected(gamepad);
+        }
     }
 }
 

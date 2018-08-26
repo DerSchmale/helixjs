@@ -164,8 +164,6 @@
 	SphereCollider.prototype.createShape = function(bounds)
 	{
 	    this._radius = this._radius || bounds.getRadius();
-
-	    console.log(this._radius);
 	    return new CANNON$1.Sphere(this._radius);
 	};
 

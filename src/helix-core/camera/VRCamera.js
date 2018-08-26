@@ -43,7 +43,15 @@ VRDummyCamera.prototype.updateMatrices = function(viewMatrix, projectionMatrix)
 };
 
 /**
+ * @classdesc
+ *
  * VRCamera provides a camera to use with {@linkcode VRRenderer}.
+ *
+ * @property {Boolean} useRoomScale If true, the view matrices will be transformed to match the VR room scale.
+ * @property {Matrix4x4} worldMatrixLeft The left eye's world matrix.
+ * @property {Matrix4x4} worldMatrixRight The right eye's world matrix.
+ *
+ * @see VRRenderer
  */
 function VRCamera()
 {
@@ -76,8 +84,8 @@ VRCamera.prototype = Object.create(VRDummyCamera.prototype, {
 VRCamera.prototype._updateVR = function()
 {
     META.VR_DISPLAY.getFrameData(this._frameData);
-    this._cameraLeft.updateMatrices(this._frameData.leftViewMatrix, this._frameData.leftProjectionMatrix);
-    this._cameraRight.updateMatrices(this._frameData.rightViewMatrix, this._frameData.rightProjectionMatrix);
+    this._cameraLeft.updateMatrices(this._frameData.leftViewMatrix, this._frameData.leftProjectionMatrix, this.useRoomScale);
+    this._cameraRight.updateMatrices(this._frameData.rightViewMatrix, this._frameData.rightProjectionMatrix, this.useRoomScale);
 
     var frustumLeft = this._cameraLeft.frustum;
     var frustumRight = this._cameraRight.frustum;

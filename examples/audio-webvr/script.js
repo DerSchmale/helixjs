@@ -20,7 +20,7 @@ window.onload = function ()
     options.hdr = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.shadowFilter = new HX.PCFShadowFilter();
-    options.shadowFilter.softness = .0005;
+    options.shadowFilter.softness = .001;
     project.init(document.getElementById('webglContainer'), options);
 };
 
@@ -54,7 +54,10 @@ function toggleVR()
 {
     var select = document.getElementById("displaySelection");
 
-    if (HX.META.VR_DISPLAY) {
+    if (activeVRDisplay) {
+        destroyController(activeVRDisplay.gamepadLeft);
+        destroyController(activeVRDisplay.gamepadRight);
+
         HX.disableVR();
         select.disabled = false;
 
@@ -62,6 +65,7 @@ function toggleVR()
         this.vrCamera.removeComponent(audioListener);
         this.camera.addComponent(audioListener);
 
+        activeVRDisplay = null;
     }
     else {
         activeVRDisplay = vrDisplays[select.selectedIndex];
@@ -72,6 +76,11 @@ function toggleVR()
         this.scene.attach(headCollider);
         this.camera.removeComponent(audioListener);
         this.vrCamera.addComponent(audioListener);
+        this.vrCamera.matrix = activeVRDisplay.sittingToStandingTransform;
+
+        // use room scale
+        if (activeVRDisplay.sittingToStandingTransform)
+            this.vrCamera.matrix = activeVRDisplay.sittingToStandingTransform;
 
         // init gamepads
         if (activeVRDisplay.gamepadLeft)
@@ -115,21 +124,27 @@ function initController(gamepad)
     // this is important: the controller is in "VR space", which matches the VR camera
     project.vrCamera.attach(entity);
 
-    if (gamepad.hand === HX.Gamepad.HAND_LEFT)
+    if (gamepad.hand === HX.Gamepad.HAND_LEFT) {
         leftController = entity;
-    else if (gamepad.hand === HX.Gamepad.HAND_RIGHT)
+    }
+    else if (gamepad.hand === HX.Gamepad.HAND_RIGHT) {
         rightController = entity;
+    }
 }
 
 function destroyController(gamepad)
 {
+    if (!gamepad) return;
+
     input.disable(gamepad);
 
-    if (gamepad.hand === HX.Gamepad.HAND_LEFT) {
+    if (gamepad.hand === HX.Gamepad.HAND_LEFT && leftController) {
+        console.log("Destroying left");
         project.vrCamera.detach(leftController);
         leftController = null;
     }
-    else if (gamepad.hand === HX.Gamepad.HAND_RIGHT) {
+    else if (gamepad.hand === HX.Gamepad.HAND_RIGHT && rightController) {
+        console.log("Destroying right");
         project.vrCamera.detach(rightController);
         rightController = null;
     }
@@ -159,10 +174,12 @@ function initCamera(camera, vrCamera)
 {
     audioListener = new HX.AudioListener();
 
-    camera.position.set(0.0, 0.0, 0.0);
+    camera.position.set(0.0, 0.0, 1.0);
     camera.nearDistance = .1;
     camera.farDistance = 100.0;
     vrCamera.copyFrom(camera);
+
+    vrCamera.position.set(0.0, 0.0, 0.0);
 
     headCollider = new HX.Entity();
     var headBody = new HX_PHYS.RigidBody(new HX_PHYS.SphereCollider(.07));
@@ -174,6 +191,7 @@ function initCamera(camera, vrCamera)
 
     var controller = new OrbitController();
 	controller.radius = 0; // radius 0 turns it into a look-around controller
+    controller.lookAtTarget.copyFrom(camera.position);
     camera.addComponent(controller);
 }
 
@@ -184,7 +202,7 @@ function initScene(scene, assetLibrary)
 	pointLight.intensity = 5;
 	pointLight.radius = 100000;
 	pointLight = new HX.Entity(pointLight);
-	pointLight.position.set(0.0, 0.0, .9);
+	pointLight.position.set(0.0, 0.0, 1.9);
 
 	scene.attach(pointLight);
 
@@ -199,11 +217,12 @@ function initScene(scene, assetLibrary)
         {
             width: 1.5,
             height: 2.0,
-            deptH: 1.5,
+            depth: 1.5,
             invert:true
         });
 
     var room = new HX.Entity();
+    room.position.set(0.0, 0.0, 1.0); // 0 is floor
     room.name = "room";
     var meshInstance = new HX.MeshInstance(primitive, material);
 	meshInstance.castShadows = false;
@@ -228,7 +247,7 @@ function initScene(scene, assetLibrary)
 
 	var ball = new HX.Entity();
     ball.name = "ball";
-	ball.position.z = 0.0;
+	ball.position.z = 1.0;
 	ball.position.y = 0.3;
 	ball.addComponent(new HX.MeshInstance(primitive, material));
 	ball.addComponent(new AudioTrigger());

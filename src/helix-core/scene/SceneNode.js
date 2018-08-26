@@ -222,6 +222,7 @@ SceneNode.prototype.detach = function(child)
     child._parent = null;
     child._isOnRoot = false;
     child._updateAncestorsVisible(true);
+    child._setScene(null);
 
     this._children.splice(index, 1);
 };

@@ -72,8 +72,12 @@ AudioListener.prototype.onUpdate = function(dt)
             m = this._entity.worldMatrix._m;
         }
 
+        var m12 = m[12];
+        // isNaN test
+        if (m12 !== m12) return;
+
         if (listener.positionX) {
-            listener.positionX.setValueAtTime(m[12], time);
+            listener.positionX.setValueAtTime(m12, time);
             listener.positionY.setValueAtTime(m[13], time);
             listener.positionZ.setValueAtTime(m[14], time);
             listener.forwardX.setValueAtTime(m[4], time);
@@ -84,7 +88,7 @@ AudioListener.prototype.onUpdate = function(dt)
             listener.upZ.setValueAtTime(m[10], time);
         }
         else {
-            listener.setPosition(m[12], m[13], m[14]);
+            listener.setPosition(m12, m[13], m[14]);
             listener.setOrientation(m[4], m[5], m[6], m[8], m[9], m[10]);
         }
     }

@@ -458,6 +458,11 @@ export function InitOptions()
      * Indicates whether the back buffer should support transparency.
      */
     this.transparentBackground = false;
+
+    /**
+     * The default eye height for room-scale positions - in case the VR device does not support room-scale VR
+     */
+    this.vrUserHeight = 1.65;
 }
 
 /**

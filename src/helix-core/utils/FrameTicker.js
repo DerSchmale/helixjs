@@ -15,6 +15,7 @@ function FrameTicker()
     this._dt = 0;
     this._currentTime = 0;
     this._tickFunc = this._tick.bind(this);
+    this._animationFrame = undefined;
     this.onTick = new Signal();
 }
 
@@ -37,6 +38,11 @@ FrameTicker.prototype = {
      */
     stop: function() {
         this._isRunning = false;
+
+        if (META.VR_DISPLAY)
+            META.VR_DISPLAY.cancelAnimationFrame(this._animationFrame);
+        else
+            cancelAnimationFrame(this._animationFrame);
     },
 
     /**
@@ -73,9 +79,9 @@ FrameTicker.prototype = {
     _requestAnimationFrame: function()
     {
         if (capabilities.VR_CAN_PRESENT)
-            META.VR_DISPLAY.requestAnimationFrame(this._tickFunc);
+            this._animationFrame = META.VR_DISPLAY.requestAnimationFrame(this._tickFunc);
         else
-            requestAnimationFrame(this._tickFunc);
+            this._animationFrame = requestAnimationFrame(this._tickFunc);
     }
 };
 

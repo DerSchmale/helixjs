@@ -1,6 +1,10 @@
 import {Signal} from "../core/Signal";
 import {getGamepads, onGamepadConnected, onGamepadDisconnected} from "../input/gamepads";
 import {Gamepad} from "../input/Gamepad";
+import {Matrix4x4} from "../math/Matrix4x4";
+import {META} from "../Helix";
+import {Float2} from "../math/Float2";
+import {Transform} from "../math/Transform";
 
 /**
  * @classdesc
@@ -8,8 +12,10 @@ import {Gamepad} from "../input/Gamepad";
  * VRDisplay represents a VR display. It's a wrapper for the native VRDisplay class, and provides some convienence
  * methods to retrieve the controllers.
  *
- * @property {Signal} onGamepadConnected A signal that is dispatched when a Gamepad associated with this VR display is disconnected
- * @property {Signal} onGamepadDisconnected A signal that is dispatched when a Gamepad associated with this VR display has disconnected
+ * @property {Signal} onGamepadConnected A signal that is dispatched when a Gamepad associated with this VR display is
+ * connected. This only applies if controllers have hand information (otherwise, use the standard gamepad queries).
+ * @property {Signal} onGamepadDisconnected A signal that is dispatched when a Gamepad associated with this VR display
+ * has disconnected. This only applies if controllers have hand information (otherwise, use the standard gamepad queries).
  *
  * @constructor
  */
@@ -20,12 +26,40 @@ function VRDisplay(display)
     this.onGamepadDisconnected = new Signal();
 
     this.requestAnimationFrame = display.requestAnimationFrame.bind(display);
+    this.cancelAnimationFrame = display.cancelAnimationFrame.bind(display);
     this.getEyeParameters = display.getEyeParameters.bind(display);
     this.getFrameData = display.getFrameData.bind(display);
     this.capabilities = display.capabilities;
 
     this._gamepadLeft = null;
     this._gamepadRight = null;
+
+    this.sittingToStandingTransform = null;
+    this.roomSize = undefined;
+
+    if (display.stageParameters) {
+        // this is actually an inverse matrix
+        if (display.stageParameters.sittingToStandingTransform) {
+            this.sittingToStandingTransform = new Matrix4x4(display.stageParameters.sittingToStandingTransform);
+            var t = new Transform();
+            this.sittingToStandingTransform.decompose(t);
+            var temp = t.position.y;
+            t.position.y = -t.position.z;
+            t.position.z = temp;
+            temp = t.rotation.y;
+            t.rotation.y = -t.rotation.z;
+            t.rotation.z = temp;
+            this.sittingToStandingTransform.compose(t);
+        }
+
+        if (display.stageParameters.sizeX) {
+            this.roomSize = new Float2(display.stageParameters.sizeX, display.stageParameters.sizeY);
+        }
+    }
+    else {
+        this.sittingToStandingTransform = new Matrix4x4();
+        this.sittingToStandingTransform.fromTranslation(0, 0, META.OPTIONS.VR_USER_HEIGHT);
+    }
 }
 
 VRDisplay.prototype = {
@@ -134,12 +168,14 @@ VRDisplay.prototype = {
     _onGamepadDisconnected: function (gamepad)
     {
         if (gamepad.displayId === this.displayId) {
-            if (gamepad.hand === Gamepad.HAND_LEFT)
+            if (gamepad.hand === Gamepad.HAND_LEFT) {
                 this._gamepadLeft = null;
-            else if (gamepad.hand === Gamepad.HAND_RIGHT)
+                this.onGamepadDisconnected.dispatch(gamepad);
+            }
+            else if (gamepad.hand === Gamepad.HAND_RIGHT) {
                 this._gamepadRight = null;
-
-            this.onGamepadDisconnected.dispatch(gamepad);
+                this.onGamepadDisconnected.dispatch(gamepad);
+            }
         }
     }
 };

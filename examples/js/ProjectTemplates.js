@@ -6,6 +6,7 @@ function SimpleProject()
 {
     this._initialized = false;
     this._assetLibrary = new HX.AssetLibrary("../assets/");
+    this.autoStart = true;
 }
 
 SimpleProject.prototype =
@@ -44,8 +45,8 @@ SimpleProject.prototype =
 
         _onAssetsLoaded: function()
         {
-            var preloader = document.getElementById("preloader");
-            document.body.removeChild(preloader);
+            var preloaderText = document.getElementById("preloaderText");
+            preloaderText.innerHTML = "Initializing...";
 
             this._scene = new HX.Scene();
             this._camera = new HX.PerspectiveCamera();
@@ -54,7 +55,9 @@ SimpleProject.prototype =
 
             this.onInit();
             this._initialized = true;
-            this.start();
+
+            if (this.autoStart)
+                this.start();
         },
 
         queueAssets: function(assetLibrary)
@@ -64,6 +67,8 @@ SimpleProject.prototype =
 
         start: function()
         {
+            var preloader = document.getElementById("preloader");
+            document.body.removeChild(preloader);
             HX.onFrame.bind(this._update, this);
         },
 

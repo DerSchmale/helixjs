@@ -128,7 +128,9 @@ Scene.prototype = {
     },
 
 	/**
+     * Returns the set of all entities with the given components. All components must be present in an Entity to be in the set.
      *
+     * @param components An Array of components.
 	 */
 	getEntitySet: function(components)
     {

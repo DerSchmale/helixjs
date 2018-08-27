@@ -731,7 +731,7 @@ GLTF.prototype._parseScenes = function()
     }
 };
 
-GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords)
+GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords, duration)
 {
     var timesAcc = this._getAccessor(samplerDef.input);
     var valuesAcc = this._getAccessor(samplerDef.output);
@@ -746,11 +746,14 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords)
 
     var clips = [];
 
-    if (elmCount === 1)
+    if (elmCount === 1) {
         var clip = clips[0] = new HX.AnimationClip();
+        clip.duration = duration;
+    }
     else {
         for (var i = 0; i < elmCount; ++i) {
             clips[i] = new HX.AnimationClip();
+            clips[i].duration = duration;
         }
     }
 
@@ -819,8 +822,18 @@ GLTF.prototype._parseAnimations = function()
         var animDef = animDefs[i];
         var animation = new HX.LayeredAnimation();
 
-        for (var j = 0; j < animDef.channels.length; ++j) {
-            var layers = this._parseAnimationChannel(animDef.channels[j], animDef.samplers);
+        var duration = 0;
+
+        for (var j = 0; j < animDef.samplers.length; ++j) {
+            var max = this._gltf.accessors[animDef.samplers[j].input].max[0];
+            duration = Math.max(duration, max);
+        }
+
+        // milliseconds
+        duration *= 1000;
+
+        for (j = 0; j < animDef.channels.length; ++j) {
+            var layers = this._parseAnimationChannel(animDef.channels[j], animDef.samplers, duration);
             for (var k = 0; k < layers.length; ++k)
                 animation.addLayer(layers[k]);
         }
@@ -830,7 +843,7 @@ GLTF.prototype._parseAnimations = function()
     }
 };
 
-GLTF.prototype._parseAnimationChannel = function(channelDef, samplers)
+GLTF.prototype._parseAnimationChannel = function(channelDef, samplers, duration)
 {
     var target = this._nodes[channelDef.target.node];
     var targetName;
@@ -847,24 +860,24 @@ GLTF.prototype._parseAnimationChannel = function(channelDef, samplers)
 
     switch (channelDef.target.path) {
         case "translation":
-            var clips = this._parseAnimationSampler(samplers[channelDef.sampler], true);
+            var clips = this._parseAnimationSampler(samplers[channelDef.sampler], true, duration);
             layers = [ new HX.AnimationLayerFloat4(targetName, "position", clips[0]) ];
             break;
         case "rotation":
-            clips = this._parseAnimationSampler(samplers[channelDef.sampler], true);
+            clips = this._parseAnimationSampler(samplers[channelDef.sampler], true, duration);
             layers = [ new HX.AnimationLayerQuat(targetName, "rotation", clips[0]) ] ;
             break;
         case "scale":
-            clips = this._parseAnimationSampler(samplers[channelDef.sampler], false);
+            clips = this._parseAnimationSampler(samplers[channelDef.sampler], false, duration);
             layers = [ new HX.AnimationLayerFloat4(targetName, "scale", clips[0]) ];
             break;
         case "weights":
-            clips = this._parseAnimationSampler(samplers[channelDef.sampler], false);
+            clips = this._parseAnimationSampler(samplers[channelDef.sampler], false, duration);
 
             layers = [];
 
             for (var i = 0; i < clips.length; ++i)
-                layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation).name, "morphTarget_" + i, clips[i]));
+                layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation).name, "morphTarget_" + i, clip));
 
             break;
         default:

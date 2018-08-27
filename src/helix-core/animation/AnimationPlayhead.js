@@ -29,7 +29,7 @@ function AnimationPlayhead(clip)
     this.wraps = 0;
 
     /**
-     * The first before frame the playhead's current position.
+     * The first frame before the playhead's current position.
      * @type {number}
      */
     this.frame1 = 0;

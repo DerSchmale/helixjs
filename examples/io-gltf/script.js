@@ -45,7 +45,8 @@ project.onInit = function()
     var skybox = new HX.Skybox(skyboxTexture);
     this.scene.skybox = skybox;
 
-    this.gltf.materials["BoomBox_Mat"].emissiveColor = new HX.Color(2.0, 2.0, 2.0);
+    var material = this.scene.findMaterialByName("BoomBox_Mat");
+    material.emissiveColor = new HX.Color(2.0, 2.0, 2.0);
 
 
     var bloom = new HX.Bloom(100);

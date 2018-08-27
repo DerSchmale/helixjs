@@ -1,3 +1,5 @@
+import {KeyFrame} from "./KeyFrame";
+
 var nameCounter = 0;
 
 /**
@@ -11,14 +13,17 @@ var nameCounter = 0;
  * @see {@linkcode KeyFrame}
  * @see {@linkcode AnimationPlayhead}
  *
+ * @property duration The total duration of the clip, in milliseconds.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function AnimationClip()
 {
-	this._name = "hx_animationclip_" + (nameCounter++);
+    this.duration = 0;
+    this._name = "hx_animationclip_" + (nameCounter++);
     this._keyFrames = [];
-    this._duration = 0;
     this._looping = true;
+    this._framesInvalid = true;
 }
 
 AnimationClip.prototype =
@@ -58,31 +63,37 @@ AnimationClip.prototype =
     },
 
     /**
-     * The total duration of the clip, in milliseconds.
-     */
-    get duration()
-    {
-        return this._duration;
-    },
-
-    /**
      * Adds a keyframe. Last keyframe is usually the same pose as the first and serves as an "end marker"
      * @param frame A KeyFrame containing a SkeletonPose
      */
     addKeyFrame: function(frame)
     {
+        this._framesInvalid = true;
         this._keyFrames.push(frame);
-        if (frame.time > this._duration) this._duration = frame.time;
+        if (frame.time > this.duration) this.duration = frame.time;
     },
 
     /**
-     * Sorts the key frames based on their time. Only call this if for some reason the keyframes were added out of order.
+     * @ignore
      */
-    sortKeyFrames: function()
+    _updateFrames: function()
     {
         this._keyFrames.sort(function(a, b) {
             return a.time - b.time;
         });
+
+        // make sure first and last frame is 0-based by clamping
+        var first = this._keyFrames[0];
+        var last = this._keyFrames[this._keyFrames.length - 1];
+
+        if (first.time > 0)
+            this._keyFrames.unshift(new KeyFrame(0, first.value));
+
+        // this can happen if we explicitly set the duration to be longer, need to clamp final keyframe
+        if (last.time < this.duration)
+            this._keyFrames.push(new KeyFrame(this.duration, last.value));
+
+        this._framesInvalid = false;
     },
 
     /**
@@ -90,6 +101,10 @@ AnimationClip.prototype =
      */
     getKeyFrame: function(index)
     {
+        if (this._framesInvalid)
+            this._updateFrames();
+
+
         return this._keyFrames[index];
     },
 

@@ -1,7 +1,6 @@
 /**
  * @author derschmale <http://www.derschmale.com>
  */
-
 var project = new DemoProject();
 
 project.queueAssets = function(assetLibrary)
@@ -12,6 +11,8 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
+    // we don't want to start until we've added all the objects and initialized their materials
+    this.autoStart = false;
     initCamera(this.camera);
     initScene(this.scene, this.assetLibrary);
 };
@@ -72,6 +73,17 @@ function initScene(scene, assetLibrary)
     var numX = 10;
     var numY = 7;
 
+    // we're adding 70 materials at once, provide an init queue for this
+    var queue = new HX.AsyncTaskQueue();
+
+    // this will be queued
+    function queueInit(material, entity) {
+        queue.queue(function() {
+            material.init();
+            scene.attach(entity);
+        });
+    }
+
     for (var x = 0; x < numX; ++x) {
         for (var y = 0; y < numY; ++y) {
             var material = new HX.BasicMaterial();
@@ -81,12 +93,16 @@ function initScene(scene, assetLibrary)
             material.metallicness = y / (numY - 1.0);
             // material.fixedLights = [ light, lightProbe ];
 
-            var modelInstance = new HX.Entity();
-            modelInstance.addComponent(new HX.MeshInstance(primitive, material));
-            modelInstance.position.x = ((x + .5) / numX - .5) * 3.0;
-            modelInstance.position.y = 0.0;
-            modelInstance.position.z = -((y + .5) / numY - .5) * 1.5;
-            scene.attach(modelInstance);
+            var entity = new HX.Entity();
+            entity.addComponent(new HX.MeshInstance(primitive, material));
+            entity.position.x = ((x + .5) / numX - .5) * 3.0;
+            entity.position.y = 0.0;
+            entity.position.z = -((y + .5) / numY - .5) * 1.5;
+            queueInit(material, entity);
         }
     }
+
+    queue.queue(project.start.bind(project));
+
+    queue.execute();
 }

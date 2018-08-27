@@ -32,7 +32,8 @@ function VertexLayout(mesh, pass)
             external: false,
             numComponents: attribute.numComponents,
             stride: stride * 4,
-            streamIndex: attribute.streamIndex
+            streamIndex: attribute.streamIndex,
+            normalized: attribute.normalized
         };
 
         // morph attributes are handled differently because their associated vertex buffers change dynamically

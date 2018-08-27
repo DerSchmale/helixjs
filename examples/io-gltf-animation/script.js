@@ -35,9 +35,10 @@ project.onInit = function()
 
     this.camera.addComponent(orbitController);
 
-	var dirLight = new HX.Entity(new HX.DirectionalLight());
-	dirLight.lookAt(new HX.Float4(-1, -1, 1));
-	this.scene.attach(dirLight);
+    var dirLight = new HX.DirectionalLight();
+	var dirLightEntity = new HX.Entity(dirLight);
+	dirLightEntity.lookAt(new HX.Float4(-1, -1, 1));
+	this.scene.attach(dirLightEntity);
 
     var skyboxTexture = this.assetLibrary.get("skybox");
     var irradianceTexture = this.assetLibrary.get("irradiance");
@@ -49,4 +50,8 @@ project.onInit = function()
     // use the same texture as environment map
     var lightProbe = new HX.LightProbe(irradianceTexture, skyboxTexture);
     this.scene.attach(new HX.Entity(lightProbe));
+
+    var lights = [lightProbe, dirLight];
+	this.scene.findMaterialByName("inner").fixedLights = lights;
+	this.scene.findMaterialByName("outer").fixedLights = lights;
 };

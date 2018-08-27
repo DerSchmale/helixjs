@@ -432,7 +432,7 @@
 
         if (normalGenMode) {
             var normalGen = new HX.NormalTangentGenerator();
-            normalGen.generate(mesh);
+            normalGen.generate(mesh, normalGenMode);
         }
 
         if (jointIndexAcc) {

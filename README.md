@@ -85,3 +85,4 @@ Helix is divided into several modules, each having their own directory in the sr
 to prevent optional functionality bloating your Javascript includes. Currently these are the following:
 - `helix-core`: the module containing the basic game engine and essential functionality.
 - `helix-io`: the module containing non-essential importers.
+- `helix-physics`: the module containing the physics engine, which is a wrapper for cannon.js.

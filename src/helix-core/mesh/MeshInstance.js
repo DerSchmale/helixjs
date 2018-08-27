@@ -195,7 +195,7 @@ MeshInstance.prototype.updateRenderState = function(passType)
 		var buffer = this._morphPositions[i] || this._mesh._defaultMorphTarget;
 		buffer.bind();
 
-		gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+		gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, attribute.normalized, attribute.stride, attribute.offset);
 	}
 
 	if (this._morphNormals) {

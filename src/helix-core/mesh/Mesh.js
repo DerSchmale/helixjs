@@ -242,8 +242,9 @@ Mesh.prototype = {
      * @param name The name of the attribute, matching the attribute name used in the vertex shaders.
      * @param numComponents The amount of components used by the attribute value.
      * @param streamIndex [Optional] The stream index indicating which vertex buffer is used, defaults to 0
+     * @param normalized [Optional] Whether or not the input of the attribute should be normalized to [-1, 1]
      */
-    addVertexAttribute: function (name, numComponents, streamIndex)
+    addVertexAttribute: function (name, numComponents, streamIndex, normalized)
     {
         streamIndex = streamIndex || 0;
         this._numStreams = Math.max(this._numStreams, streamIndex + 1);
@@ -252,7 +253,8 @@ Mesh.prototype = {
             name: name,
             offset: offset,
             numComponents: numComponents,
-            streamIndex: streamIndex
+            streamIndex: streamIndex,
+		    normalized: normalized || false
         };
         this._vertexAttributes.push(attrib);
         this._vertexAttributesLookUp[name] = attrib;

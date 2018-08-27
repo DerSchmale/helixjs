@@ -19,6 +19,40 @@ function GLTFData()
     this.scenes = {};
 }
 
+function readFloat(dataView, offset)
+{
+    return dataView.getFloat32(offset, true);
+}
+
+function readFloat3(dataView, offset)
+{
+    var f = new HX.Float4();
+    f.x = dataView.getFloat32(offset, true);
+    f.y = dataView.getFloat32(offset + 4, true);
+    f.z = dataView.getFloat32(offset + 8, true);
+    return f;
+}
+
+function readMatrix4x4(dataView, offset)
+{
+    var m = [];
+    for (var j = 0; j < 16; ++j) {
+        m[j] = dataView.getFloat32(offset, true);
+        offset += 4;
+    }
+    return new HX.Matrix4x4(m);
+}
+
+function readQuat(dataView, offset)
+{
+    var q = new HX.Quaternion();
+    q.x = dataView.getFloat32(offset, true);
+    q.y = dataView.getFloat32(offset + 4, true);
+    q.z = dataView.getFloat32(offset + 8, true);
+    q.w = dataView.getFloat32(offset + 12, true);
+    return q;
+}
+
 /**
  * GLTF is an importer for glTF files. When loading, GLTF will immediately return a GLTFAsset containing the default
  * scene (empty scene if not specified in the glTF file), and will populate this object as it's being loaded.
@@ -101,7 +135,6 @@ GLTF.prototype._continueParsing = function()
     queue.queue(this._parseScenes.bind(this));
     queue.queue(this._parseAnimations.bind(this));
     queue.queue(this._assignAnimations.bind(this));
-    // queue.queue(this._notifyComplete.bind(this), this._target);
 
     queue.onComplete.bind(this._finalize.bind(this));
 
@@ -293,12 +326,12 @@ GLTF.prototype._parseMeshes = function()
     // locally stored by index, using gltf nomenclature (actually contains model instances)
     this._entities = [];
 
-    for (var i = 0; i < meshDefs.length; ++i) {
+    for (var i = 0, numMeshes = meshDefs.length; i < numMeshes; ++i) {
         var meshDef = meshDefs[i];
 		var entity = new HX.Entity();
 		entity.name = meshDef.name;
 
-        for (var j = 0; j < meshDef.primitives.length; ++j) {
+        for (var j = 0, numPrims = meshDef.primitives.length; j < numPrims; ++j) {
             var primDef = meshDef.primitives[j];
             this._parsePrimitive(primDef, entity);
             if (meshDef.weights) {
@@ -386,6 +419,9 @@ GLTF.prototype._parsePrimitive = function(primDef, entity)
         this._readUVData(vertexData, 10, texCoordAcc, stride);
 
     mesh.setVertexData(vertexData, 0);
+
+    if (primDef.hasOwnProperty("mode"))
+        mesh.elementType = primDef.mode;
 
     var indexAcc = this._getAccessor(primDef.indices);
     mesh.setIndexData(this._readIndices(indexAcc));
@@ -584,7 +620,7 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
         var nodeIndex = skinDef.joints[i];
         var joint = new HX.SkeletonJoint();
 
-        joint.inverseBindPose = this._readMatrix4x4(src, o);
+        joint.inverseBindPose = readMatrix4x4(src, o);
         o += 64;
 
         joint.inverseBindPose.prepend(this._flipCoord);
@@ -766,10 +802,10 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords, duratio
             case 1:
                 value = [];
                 for (i = 0; i < elmCount; ++i)
-                    value[i] = this._readFloat(valueSrc, v + i * 4);
+                    value[i] = readFloat(valueSrc, v + i * 4);
                 break;
             case 3:
-                value = this._readFloat3(valueSrc, v);
+                value = readFloat3(valueSrc, v);
                 if (flipCoords) {
                     value.x = -value.x;
                     var tmp = value.y;
@@ -778,7 +814,7 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords, duratio
                 }
                 break;
             case 4:
-                value = this._readQuat(valueSrc, v);
+                value = readQuat(valueSrc, v);
                 if (flipCoords) {
                     m.fromQuaternion(value);
                     m.prepend(this._flipCoord);
@@ -790,7 +826,7 @@ GLTF.prototype._parseAnimationSampler = function(samplerDef, flipCoords, duratio
                 throw new Error("Unsupported animation sampler type");
         }
 
-        var time = this._readFloat(timeSrc, t) * 1000.0;
+        var time = readFloat(timeSrc, t) * 1000.0;
         var keyFrame;
 
         if (elmCount === 1) {
@@ -896,40 +932,6 @@ GLTF.prototype._assignAnimations = function()
         var rootNode = entity._scene.rootNode;
         rootNode.addComponent(anim);
 	}
-};
-
-GLTF.prototype._readFloat3 = function(dataView, offset)
-{
-    var f = new HX.Float4();
-    f.x = dataView.getFloat32(offset, true);
-    f.y = dataView.getFloat32(offset + 4, true);
-    f.z = dataView.getFloat32(offset + 8, true);
-    return f;
-};
-
-GLTF.prototype._readQuat = function(dataView, offset)
-{
-    var q = new HX.Quaternion();
-    q.x = dataView.getFloat32(offset, true);
-    q.y = dataView.getFloat32(offset + 4, true);
-    q.z = dataView.getFloat32(offset + 8, true);
-    q.w = dataView.getFloat32(offset + 12, true);
-    return q;
-};
-
-GLTF.prototype._readFloat = function(dataView, offset)
-{
-    return dataView.getFloat32(offset, true);
-};
-
-GLTF.prototype._readMatrix4x4 = function(dataView, offset)
-{
-    var m = [];
-    for (var j = 0; j < 16; ++j) {
-        m[j] = dataView.getFloat32(offset, true);
-        offset += 4;
-    }
-    return new HX.Matrix4x4(m);
 };
 
 export {GLTF, GLTFData};

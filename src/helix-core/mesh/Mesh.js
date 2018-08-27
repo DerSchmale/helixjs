@@ -1,4 +1,4 @@
-import {BufferUsage, DataType} from "../Helix";
+import {BufferUsage, DataType, ElementType} from "../Helix";
 import {IndexBuffer} from "../core/IndexBuffer";
 import {VertexBuffer} from "../core/VertexBuffer";
 import {Signal} from "../core/Signal";
@@ -48,6 +48,7 @@ function Mesh()
     this._indexUsage = BufferUsage.STATIC_DRAW;
     this._numStreams = 0;
     this._numVertices = 0;
+    this._elementType = ElementType.TRIANGLES;
 
     this._vertexAttributes = [];
     this._vertexAttributesLookUp = {};
@@ -105,6 +106,19 @@ Mesh.prototype = {
 		this._bounds = value;
 		this._invalidateBounds();
 	},
+
+    /**
+     * An {@linkcode ElementType} to describe the type of elements to render.
+     */
+    get elementType()
+    {
+        return this._elementType;
+    },
+
+    set elementType(value)
+    {
+        this._elementType = value;
+    },
 
 	/**
 	 * The object-space bounding volume. Setting this value only changes the type of volume.
@@ -410,6 +424,8 @@ Mesh.prototype = {
 
         if (this._indexData)
             mesh.setIndexData(this._indexData, this._indexUsage);
+
+        mesh._elementType = this._elementType;
 
         return mesh;
     },

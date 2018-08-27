@@ -48,7 +48,6 @@ project.onInit = function()
     var material = this.scene.findMaterialByName("BoomBox_Mat");
     material.emissiveColor = new HX.Color(2.0, 2.0, 2.0);
 
-
     var bloom = new HX.Bloom(100);
     bloom.thresholdLuminance = 1.0;
     this.camera.addComponent(bloom);

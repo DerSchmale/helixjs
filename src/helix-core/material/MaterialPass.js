@@ -1,4 +1,4 @@
-import {capabilities, Comparison, CullMode, DEFAULTS, ElementType} from "../Helix";
+import {capabilities, Comparison, CullMode, DEFAULTS} from "../Helix";
 import {TextureSetter} from "../shader/TextureSetter";
 import {GL} from "../core/GL";
 import {TextureSlot} from "./TextureSlot";
@@ -20,7 +20,6 @@ function MaterialPass(shader)
     this._textureSlots = [];
     this._uniformBufferSlots = [];
     this._uniforms = {};
-    this._elementType = ElementType.TRIANGLES;
     this._cullMode = CullMode.BACK;
     this._writeColor = true;
     this._depthTest = Comparison.LESS_EQUAL;
@@ -64,16 +63,6 @@ MaterialPass.prototype =
         getShader: function ()
         {
             return this._shader;
-        },
-
-        get elementType()
-        {
-            return this._elementType;
-        },
-
-        set elementType(value)
-        {
-            this._elementType = value;
         },
 
         get depthTest()

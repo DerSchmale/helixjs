@@ -1,4 +1,4 @@
-import {CullMode, ElementType, META, BlendFactor, capabilities} from "../Helix";
+import {CullMode, META, BlendFactor, capabilities} from "../Helix";
 import {Signal} from "../core/Signal";
 import {MaterialPass} from "./MaterialPass";
 import {UnlitPass} from "./passes/UnlitPass";
@@ -38,7 +38,6 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this.onChange = new Signal();
 
 	this._name = "hx_material_" + MATERIAL_ID_COUNTER;
-    this._elementType = ElementType.TRIANGLES;
     this._cullMode = CullMode.BACK;
     this._writeDepth = true;
     this._writeColor = true;
@@ -213,23 +212,6 @@ Material.prototype =
     },
 
     /**
-     * An {@linkcode ElementType} to describe the type of elements to render.
-     */
-    get elementType()
-    {
-        return this._elementType;
-    },
-
-    set elementType(value)
-    {
-        this._elementType = value;
-        for (var i = 0; i < MaterialPass.NUM_PASS_TYPES; ++i) {
-            if (this._passes[i])
-                this._passes[i].elementType = value;
-        }
-    },
-
-    /**
      * Defines whether or not this material should write depth information.
      */
     get writeDepth()
@@ -324,7 +306,6 @@ Material.prototype =
             else
                 pass.cullMode = this._cullMode;
 
-            pass.elementType = this._elementType;
             pass.writeDepth = this._writeDepth;
             pass.writeColor = this._writeColor;
 

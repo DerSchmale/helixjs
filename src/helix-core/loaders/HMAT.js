@@ -1,5 +1,5 @@
 import {Material} from "../material/Material";
-import {Comparison, CullMode, ElementType, BlendFactor, BlendOperation} from "../Helix";
+import {Comparison, CullMode, BlendFactor, BlendOperation} from "../Helix";
 import {BlendState} from "../render/BlendState";
 import {Texture2D} from "../texture/Texture2D";
 import {JPG} from "./JPG_PNG";
@@ -148,9 +148,6 @@ HMAT.prototype._processMaterial = function(data, material)
     if (this._isClass)
         this._applyProperties(data, material);
 
-    if (data.hasOwnProperty("elementType"))
-        material.elementType = HMAT._PROPERTY_MAP[data.elementType];
-
     if (data.hasOwnProperty("cullMode"))
         material.cullMode = HMAT._PROPERTY_MAP[data.cullMode];
 
@@ -261,9 +258,6 @@ HMAT._initPropertyMap = function() {
         front: CullMode.FRONT,
         both: CullMode.ALL,
         none: null,
-        lines: ElementType.LINES,
-        points: ElementType.POINTS,
-        triangles: ElementType.TRIANGLES,
         one: BlendFactor.ONE,
         zero: BlendFactor.ZERO,
         sourceColor: BlendFactor.SOURCE_COLOR,

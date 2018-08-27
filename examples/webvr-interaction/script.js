@@ -50,6 +50,26 @@ project.onInit = function()
 	HX.getVRDisplays(onVRDisplaysReceived);
 };
 
+function onVRDisplaysReceived(displays)
+{
+	vrDisplays = displays;
+	if (displays.length === 0) {
+		project.showError("You don't have any VR devices, or VR is not supported in your browser.");
+		return;
+	}
+
+	var select = document.getElementById("displaySelection");
+
+	for (var i = 0, len = displays.length; i < len; ++i) {
+		var option = document.createElement("option");
+		option.innerHTML = displays[i].displayName;
+		select.appendChild(option);
+	}
+	select.selectedIndex = 0;
+
+	project.vrButton.classList.remove("hidden");
+}
+
 function toggleVR()
 {
     var select = document.getElementById("displaySelection");
@@ -147,26 +167,6 @@ function destroyController(gamepad)
         project.vrCamera.detach(rightController);
         rightController = null;
     }
-}
-
-function onVRDisplaysReceived(displays)
-{
-	vrDisplays = displays;
-	if (displays.length === 0) {
-		document.getElementById("controlsField").classList.add("hidden");
-		return;
-	}
-
-	var select = document.getElementById("displaySelection");
-
-	for (var i = 0, len = displays.length; i < len; ++i) {
-		var option = document.createElement("option");
-		option.innerHTML = displays[i].displayName;
-		select.appendChild(option);
-	}
-	select.selectedIndex = 0;
-
-	project.vrButton.classList.remove("hidden");
 }
 
 function initCamera(camera, vrCamera)

@@ -55,7 +55,7 @@ function onVRDisplaysReceived(displays)
 {
 	vrDisplays = displays;
 	if (displays.length === 0) {
-		document.getElementById("controlsField").classList.add("hidden");
+		project.showError("You don't have any VR devices, or VR is not supported in your browser.");
 		return;
 	}
 

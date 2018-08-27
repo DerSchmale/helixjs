@@ -49,4 +49,8 @@ project.onInit = function()
     // use the same texture as environment map
     var lightProbe = new HX.LightProbe(irradianceTexture, skyboxTexture);
     this.scene.attach(new HX.Entity(lightProbe));
+
+    var lights = [lightProbe, dirLight];
+	this.scene.findMaterialByName("inner").fixedLights = lights;
+	this.scene.findMaterialByName("outer").fixedLights = lights;
 };

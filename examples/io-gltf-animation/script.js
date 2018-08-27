@@ -31,6 +31,7 @@ project.onInit = function()
     orbitController.azimuth = -2.0;
     orbitController.radius = 5.0;
     orbitController.minRadius = 1.5;
+    orbitController.lookAtTarget.z = 1.0;
 
     this.camera.addComponent(orbitController);
 

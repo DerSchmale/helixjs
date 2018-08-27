@@ -273,6 +273,22 @@
                 ],
                 "metallicFactor": 0.0
             },
+            "extensions": {
+                "KHR_materials_pbrSpecularGlossiness": {
+                    "diffuseFactor": [
+                        0.800000011920929,
+                        0.4159420132637024,
+                        0.7952920198440552,
+                        1.0
+                    ],
+                    "specularFactor": [
+                        0.20000000298023225,
+                        0.20000000298023225,
+                        0.20000000298023225
+                    ],
+                    "glossinessFactor": 1.0
+                }
+            },
             "name": "inner"
         },
         {
@@ -284,6 +300,22 @@
                     1.0
                 ],
                 "metallicFactor": 0.0
+            },
+            "extensions": {
+                "KHR_materials_pbrSpecularGlossiness": {
+                    "diffuseFactor": [
+                        0.3016040027141571,
+                        0.5335419774055481,
+                        0.800000011920929,
+                        1.0
+                    ],
+                    "specularFactor": [
+                        0.20000000298023225,
+                        0.20000000298023225,
+                        0.20000000298023225
+                    ],
+                    "glossinessFactor": 1.0
+                }
             },
             "name": "outer"
         }
@@ -323,5 +355,8 @@
             "byteLength": 9308,
             "uri": "BoxAnimated0.bin"
         }
+    ],
+    "extensionsUsed": [
+        "KHR_materials_pbrSpecularGlossiness"
     ]
 }

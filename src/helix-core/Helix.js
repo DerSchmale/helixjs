@@ -634,8 +634,10 @@ function _onFrameTick(dt)
     var startTime = (performance || Date).now();
 
     updateGamepads();
-    _clearGLStats();
     onPreFrame.dispatch(dt);
+
+    // this needs to happen *after* preFrame, since stats are fetched on preframe
+    _clearGLStats();
 
     // VR stopped presenting (present change event doesn't seem reliable)
     if (isVRPresenting() && !META.VR_DISPLAY.isPresenting) {

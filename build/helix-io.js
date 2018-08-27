@@ -424,12 +424,8 @@
 
         mesh.setVertexData(vertexData, 0);
 
-        console.log(mesh.elementType);
-
         if (primDef.hasOwnProperty("mode"))
             mesh.elementType = primDef.mode;
-
-        console.log(mesh.elementType);
 
         var indexAcc = this._getAccessor(primDef.indices);
         mesh.setIndexData(this._readIndices(indexAcc));
@@ -593,6 +589,8 @@
             readFnc = src.getUint32;
             elmSize = 4;
         }
+        else
+            throw new Error("Unknown data type for indices!");
 
         var indexData = new collType(len);
         for (var i = 0; i < len; ++i) {

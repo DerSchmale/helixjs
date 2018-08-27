@@ -585,6 +585,8 @@ GLTF.prototype._readIndices = function(accessor)
         readFnc = src.getUint32;
         elmSize = 4;
     }
+    else
+        throw new Error("Unknown data type for indices!");
 
     var indexData = new collType(len);
     for (var i = 0; i < len; ++i) {

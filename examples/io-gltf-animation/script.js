@@ -28,7 +28,7 @@ project.onInit = function()
     this.camera.farDistance = 300.0;
 
     var orbitController = new OrbitController();
-    orbitController.azimuth = -2.0;
+    orbitController.azimuth = 1.0;
     orbitController.radius = 5.0;
     orbitController.minRadius = 1.5;
     orbitController.lookAtTarget.z = 1.0;
@@ -37,7 +37,7 @@ project.onInit = function()
 
     var dirLight = new HX.DirectionalLight();
 	var dirLightEntity = new HX.Entity(dirLight);
-	dirLightEntity.lookAt(new HX.Float4(-1, -1, 1));
+	dirLightEntity.lookAt(new HX.Float4(-2, -1, 1));
 	this.scene.attach(dirLightEntity);
 
     var skyboxTexture = this.assetLibrary.get("skybox");

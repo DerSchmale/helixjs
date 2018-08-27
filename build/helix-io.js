@@ -303,6 +303,7 @@
 
                 mat.metallicness = pbr.metallicFactor === undefined ? 1.0 : pbr.metallicFactor;
                 mat.roughness = pbr.roughnessFactor === undefined? 1.0 : pbr.roughnessFactor;
+                mat.normalSpecularReflectance = 0.04; // the default specified by GLTF spec
 
                 if (mat.specularMap) {
                     mat.roughness *= .5;

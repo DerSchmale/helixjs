@@ -103,12 +103,29 @@ GLTF.prototype._continueParsing = function()
     queue.queue(this._assignAnimations.bind(this));
     // queue.queue(this._notifyComplete.bind(this), this._target);
 
-    queue.onComplete.bind((function() {
-        this._notifyComplete(this._target);
-    }).bind(this));
+    queue.onComplete.bind(this._finalize.bind(this));
 
     queue.onProgress.bind((function(ratio) {
         this._notifyProgress(.8 + .2 * ratio);
+    }).bind(this));
+
+    queue.execute();
+};
+
+GLTF.prototype._finalize = function()
+{
+    var queue = new HX.AsyncTaskQueue();
+
+    // this just initializes materials trying not to freeze up the browser
+    // otherwise it'd all happen on first render
+
+    for (var i = 0, len = this._materials.length; i < len; ++i) {
+        var material = this._materials[i];
+        queue.queue(material.init.bind(material));
+    }
+
+    queue.onComplete.bind((function() {
+        this._notifyComplete(this._target);
     }).bind(this));
 
     queue.execute();

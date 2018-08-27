@@ -59,9 +59,21 @@ OBJ.prototype._finish = function(mtlLib)
         queue.queue(this._translateObject.bind(this), i, mtlLib);
     }
 
-    // actually, we don't need to bind to the queue's onComplete signal, can just add the notification last
-    queue.queue(this._notifyComplete.bind(this), this._target);
+    for (var m in mtlLib) {
+        // init all materials while we're in the async queue, otherwise it will all happen on first render
+        if (mtlLib.hasOwnProperty(m)) {
+            var material = mtlLib[m];
+            queue.queue(material.init.bind(material));
+        }
+    }
+
+    queue.onComplete.bind(this._onComplete, this);
     queue.execute();
+};
+
+OBJ.prototype._onComplete = function()
+{
+    this._notifyComplete(this._target);
 };
 
 OBJ.prototype._loadMTLLib = function(filename)
@@ -193,7 +205,6 @@ OBJ.prototype._translateObject = function(objectIndex, mtlLib)
     var object = this._objects[objectIndex];
     var numGroups = object.groups.length;
     if (numGroups === 0) return;
-    var materials = [];
     var entity = new HX.Entity();
 
     for (var i = 0; i < numGroups; ++i) {

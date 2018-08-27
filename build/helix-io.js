@@ -107,12 +107,29 @@
         queue.queue(this._assignAnimations.bind(this));
         // queue.queue(this._notifyComplete.bind(this), this._target);
 
-        queue.onComplete.bind((function() {
-            this._notifyComplete(this._target);
-        }).bind(this));
+        queue.onComplete.bind(this._finalize.bind(this));
 
         queue.onProgress.bind((function(ratio) {
             this._notifyProgress(.8 + .2 * ratio);
+        }).bind(this));
+
+        queue.execute();
+    };
+
+    GLTF.prototype._finalize = function()
+    {
+        var queue = new HX.AsyncTaskQueue();
+
+        // this just initializes materials trying not to freeze up the browser
+        // otherwise it'd all happen on first render
+
+        for (var i = 0, len = this._materials.length; i < len; ++i) {
+            var material = this._materials[i];
+            queue.queue(material.init.bind(material));
+        }
+
+        queue.onComplete.bind((function() {
+            this._notifyComplete(this._target);
         }).bind(this));
 
         queue.execute();
@@ -1231,9 +1248,21 @@
             queue.queue(this._translateObject.bind(this), i, mtlLib);
         }
 
-        // actually, we don't need to bind to the queue's onComplete signal, can just add the notification last
-        queue.queue(this._notifyComplete.bind(this), this._target);
+        for (var m in mtlLib) {
+            // init all materials while we're in the async queue, otherwise it will all happen on first render
+            if (mtlLib.hasOwnProperty(m)) {
+                var material = mtlLib[m];
+                queue.queue(material.init.bind(material));
+            }
+        }
+
+        queue.onComplete.bind(this._onComplete, this);
         queue.execute();
+    };
+
+    OBJ.prototype._onComplete = function()
+    {
+        this._notifyComplete(this._target);
     };
 
     OBJ.prototype._loadMTLLib = function(filename)

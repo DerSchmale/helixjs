@@ -16,9 +16,9 @@ window.onload = function ()
     options.ambientOcclusion = ssao;
 
     options.hdr = true;
-    options.numShadowCascades = 3;
+    options.numShadowCascades = HX.Platform. isMobile? 2 : 1;
     options.shadowFilter = new HX.VarianceShadowFilter();
-    options.shadowFilter.useHalfFloat = false;
+    // options.shadowFilter.useHalfFloat = false;
     options.defaultLightingModel = HX.LightingModel.GGX;
 
     project.init(document.getElementById('webglContainer'), options);
@@ -60,6 +60,8 @@ function initCamera(camera)
 
 function initScene(scene, assetLibrary)
 {
+	scene.startSystem(new HX.FixedLightsSystem());
+
     var dirLight = new HX.DirectionalLight();
     dirLight.color = new HX.Color(1.0, .95, .9);
     dirLight.intensity = 1.0;

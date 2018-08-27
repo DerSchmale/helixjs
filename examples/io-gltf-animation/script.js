@@ -1,7 +1,6 @@
 /**
  * @author derschmale <http://www.derschmale.com>
  */
-
 var project = new DemoProject();
 
 window.onload = function ()
@@ -51,7 +50,5 @@ project.onInit = function()
     var lightProbe = new HX.LightProbe(irradianceTexture, skyboxTexture);
     this.scene.attach(new HX.Entity(lightProbe));
 
-    var lights = [lightProbe, dirLight];
-	this.scene.findMaterialByName("inner").fixedLights = lights;
-	this.scene.findMaterialByName("outer").fixedLights = lights;
+	this.scene.startSystem(new HX.FixedLightsSystem());
 };

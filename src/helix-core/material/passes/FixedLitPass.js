@@ -224,7 +224,7 @@ FixedLitPass.prototype._assignSpotLights = function (camera)
         for (var i = 0; i < len; ++i) {
             var locs = this._spotLocations[i];
             var light = lights[i];
-            var worldMatrix = light.worldMatrix;
+            var worldMatrix = light.entity.worldMatrix;
             var viewMatrix = camera.viewMatrix;
             worldMatrix.getColumn(3, pos);
             viewMatrix.transformPoint(pos, pos);

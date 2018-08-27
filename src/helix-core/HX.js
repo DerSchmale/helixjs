@@ -148,6 +148,7 @@ export {LightProbe} from "./light/LightProbe";
 export {DynamicLightProbe} from "./light/DynamicLightProbe";
 export {PointLight} from "./light/PointLight";
 export {SpotLight} from "./light/SpotLight";
+export {FixedLightsSystem} from "./light/FixedLightsSystem";
 
 export {ShadowFilter} from "./light/filters/ShadowFilter";
 export {ExponentialShadowFilter} from "./light/filters/ExponentialShadowFilter";

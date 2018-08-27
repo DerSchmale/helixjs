@@ -973,6 +973,7 @@
          */
         bind: function(listener, thisRef)
         {
+            // param is an optional extra parameter for some internal functionality
             this._lookUp[listener] = this._listeners.length;
             var callback = thisRef? listener.bind(thisRef) : listener;
             this._listeners.push(callback);
@@ -1023,15 +1024,7 @@
     /**
      * AsyncTaskQueue allows queueing a bunch of functions which are executed "whenever", in order.
      *
-     * TODO: Allow dynamically adding tasks while running
-     *  -> should we have a AsyncTaskQueue.runChildQueue() which pushed that into a this._childQueues array.
-     *  _executeImpl would then first process these.
-     *  The queue itself can just be passed along the regular queued function parameters if the child methods need access to
-     *  add child queues hierarchically.
-     *
      * @classdesc
-     *
-     * @ignore
      *
      * @constructor
      */
@@ -1043,10 +1036,19 @@
         this._childQueues = [];
         this._currentIndex = 0;
         this._isRunning = false;
+    	this._timeout = undefined;
     }
 
     AsyncTaskQueue.prototype = {
-        queue: function(func, rest)
+    	/**
+    	 * Indicates whether the queue is currently running or not.
+    	 */
+    	get isRunning() { return this._isRunning },
+
+    	/**
+         * Adds a function to execute. Provide the parameters for the function as parameters after the function.
+    	 */
+    	queue: function(func, rest)
         {
             // V8 engine doesn't perform well if not copying the array first before slicing
             var args = (arguments.length === 1 ? [arguments[0]] : Array.apply(null, arguments));
@@ -1057,14 +1059,18 @@
             });
         },
 
-        // this allows adding more subtasks to tasks while running
-        // No need to call "execute" on child queues
+    	/**
+         * Adds a child queue to execute. This can be done by queued tasks while this queue is already running.
+    	 */
         addChildQueue: function(queue)
         {
             this._childQueues.push(queue);
         },
 
-        execute: function()
+    	/**
+         * Starts execution of the tasks in the queue.
+    	 */
+    	execute: function()
         {
             if (this._isRunning)
                 throw new Error("Already running!");
@@ -1075,13 +1081,37 @@
             this._executeTask();
         },
 
-        _executeTask: function()
+    	/**
+         * Cancels execution of the queue.
+    	 */
+    	cancel: function()
         {
-            setTimeout(this._executeImpl.bind(this));
+            if (!this._isRunning) return;
+            if (this._timeout !== undefined)
+                clearTimeout(this._timeout);
+
+            this._isRunning = false;
+            this._timeout = undefined;
         },
 
+    	/**
+         * @ignore
+    	 * @private
+    	 */
+    	_executeTask: function()
+        {
+            this._timeout = setTimeout(this._executeImpl.bind(this));
+        },
+
+    	/**
+    	 * @ignore
+    	 * @private
+    	 */
         _executeImpl: function()
         {
+            // cancelled
+            if (!this._isRunning) return;
+
             this.onProgress.dispatch(this._currentIndex / this._queue.length);
 
             if (this._childQueues.length > 0) {
@@ -1090,6 +1120,7 @@
                 queue.execute();
             }
             else if (this._queue.length === this._currentIndex) {
+    			this._isRunning = false;
                 this.onComplete.dispatch();
             }
             else {

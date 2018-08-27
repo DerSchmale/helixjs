@@ -30,6 +30,7 @@ Signal.prototype =
      */
     bind: function(listener, thisRef)
     {
+        // param is an optional extra parameter for some internal functionality
         this._lookUp[listener] = this._listeners.length;
         var callback = thisRef? listener.bind(thisRef) : listener;
         this._listeners.push(callback);

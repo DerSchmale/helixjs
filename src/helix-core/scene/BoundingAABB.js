@@ -286,7 +286,6 @@ BoundingAABB.prototype.intersectsRay = function(ray)
     var d = ray.direction;
     var oX = o.x, oY = o.y, oZ = o.z;
     var dirX = d.x, dirY = d.y, dirZ = d.z;
-    var rcpDirX = 1.0 / dirX, rcpDirY = 1.0 / dirY, rcpDirZ = 1.0 / dirZ;
 
     var nearT = -Infinity;
     var farT = Infinity;
@@ -296,29 +295,59 @@ BoundingAABB.prototype.intersectsRay = function(ray)
     // t = (minX - oX) / dirX
 
     if (dirX !== 0.0) {
-        t1 = (this._minimumX - oX) * rcpDirX;
-        t2 = (this._maximumX - oX) * rcpDirX;
+        var rcp = 1.0 / dirX;
+        t1 = (this._minimumX - oX) * rcp;
+        t2 = (this._maximumX - oX) * rcp;
         // near is the closest intersection factor to the ray, far the furthest
         // so [nearT - farT] is the line segment cut off by the planes
-        nearT = Math.min(t1, t2);
-        farT = Math.max(t1, t2);
+        if (t1 < t2) {
+            nearT = t1;
+            farT = t2;
+        }
+        else {
+            nearT = t2;
+            farT = t1;
+        }
     }
 
     if (dirY !== 0.0) {
-        t1 = (this._minimumY - oY) * rcpDirY;
-        t2 = (this._maximumY - oY) * rcpDirY;
+        rcp = 1.0 / dirY;
+        t1 = (this._minimumY - oY) * rcp;
+        t2 = (this._maximumY - oY) * rcp;
 
-        // slice of more from the line segment [nearT - farT]
-        nearT = Math.max(nearT, Math.min(t1, t2));
-        farT = Math.min(farT, Math.max(t1, t2));
+        // slice off more from the line segment [nearT - farT]
+        if (t1 < t2) {
+            if (t1 > nearT)
+                nearT = t1;
+            if (t2 < farT)
+                farT = t2;
+        }
+        else {
+            if (t2 > nearT)
+                nearT = t2;
+            if (t1 < farT)
+                farT = t1;
+        }
+
     }
 
     if (dirZ !== 0.0) {
-        t1 = (this._minimumZ - oZ) * rcpDirZ;
-        t2 = (this._maximumZ - oZ) * rcpDirZ;
+        rcp = 1.0 / dirZ;
+        t1 = (this._minimumZ - oZ) * rcp;
+        t2 = (this._maximumZ - oZ) * rcp;
 
-        nearT = Math.max(nearT, Math.min(t1, t2));
-        farT = Math.min(farT, Math.max(t1, t2));
+        if (t1 < t2) {
+            if (t1 > nearT)
+                nearT = t1;
+            if (t2 < farT)
+                farT = t2;
+        }
+        else {
+            if (t2 > nearT)
+                nearT = t2;
+            if (t1 < farT)
+                farT = t1;
+        }
     }
 
     return farT > 0 && farT >= nearT;

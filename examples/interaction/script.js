@@ -13,30 +13,12 @@ project.onInit = function()
 
     var self = this;
     HX.META.TARGET_CANVAS.addEventListener("mousemove", function(evt) { self._onMouseMove.call(self, evt); });
-};
 
-project._onMouseMove = function(event)
-{
-    // TODO:
-    // For now, raycasting happens manually
-    // We may want a set of interaction components
-    // fe: a simple Clickable component etc
-
-    var canvas = HX.META.TARGET_CANVAS;
-    var ray = this.camera.getRay(
-        event.clientX / canvas.clientWidth * 2.0 - 1.0,
-        -(event.clientY / canvas.clientHeight * 2.0 - 1.0)
-    );
-
-    indicator.visible = false;
-
-    var rayCaster = new HX.RayCaster();
-    var hitData = rayCaster.cast(ray, this.scene);
-
-    if (hitData) {
-        indicator.visible = true;
-        indicator.position.copyFrom(hitData.point);
-    }
+    this.input = new HX.Input();
+    var mouse = new HX.Mouse();
+    mouse.map(HX.Mouse.POS_X, "posX");
+    mouse.map(HX.Mouse.POS_Y, "posY");
+    this.input.enable(mouse);
 };
 
 window.onload = function ()
@@ -73,4 +55,26 @@ function initScene(scene)
     indicator.visible = false;
     indicator.name = "Indicator";
     scene.attach(indicator);
+}
+
+project.onUpdate = function(dt)
+{
+    // TODO:
+    // For now, raycasting happens manually
+    // We may want a set of interaction components
+    // fe: a simple Clickable component etc
+
+    var x = this.input.getValue("posX");
+    var y = this.input.getValue("posY");
+    var ray = this.camera.getRay(x * 2.0 - 1.0, -(y * 2.0 - 1.0));
+
+    indicator.visible = false;
+
+    var rayCaster = new HX.RayCaster();
+    var hitData = rayCaster.cast(ray, this.scene);
+
+    if (hitData) {
+        indicator.visible = true;
+        indicator.position.copyFrom(hitData.point);
+    }
 }

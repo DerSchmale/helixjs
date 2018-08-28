@@ -85,19 +85,6 @@ function initScene(scene, assetLibrary)
 
 	processMaterials();
 
-    var dummyLightProbe = new HX.Entity(new HX.LightProbe(skyboxIrradianceTexture));
-    scene.attach(dummyLightProbe);
-
-    var dynLightProbe = new HX.DynamicLightProbe(512, HX.capabilities.HDR_FORMAT);
-    dynLightProbe.size = 30.0;
-	var dynLightProbeEntity = new HX.Entity(dynLightProbe);
-	dynLightProbeEntity.position.set(0.0, 2.0, 0.0);
-    scene.attach(dynLightProbeEntity);
-    dynLightProbe.render();
-
-    scene.detach(dynLightProbeEntity);
-    scene.detach(dummyLightProbe);
-
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
     scene.attach(new HX.Entity(lightProbe));
 }

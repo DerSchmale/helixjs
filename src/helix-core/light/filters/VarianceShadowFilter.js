@@ -26,34 +26,15 @@ import {capabilities, CullMode, DataType, TextureFilter, TextureFormat} from "..
 function VarianceShadowFilter()
 {
     ShadowFilter.call(this);
-    this._blurRadius = 2;
-    this._lightBleedReduction = .5;
-    this._minVariance = .001;
-    this._useHalfFloat = true;
-    this.cullMode = CullMode.BACK;
+	this.lightBleedReduction = .5;
+	this.minVariance = .001;
+	this.useHalfFloat = true;
+	this._blurRadius = 2;
 }
 
 VarianceShadowFilter.prototype = Object.create(ShadowFilter.prototype,
     {
-        shadowMapFilter: {
-            get: function() {
-                return TextureFilter.BILINEAR_NOMIP;
-            }
-        },
-
-        minVariance: {
-            get: function()
-            {
-                return this._minVariance;
-            },
-
-            set: function(value)
-            {
-                this._minVariance = value;
-            }
-        },
-
-        blurRadius: {
+    	blurRadius: {
             get: function()
             {
                 return this._blurRadius;
@@ -63,30 +44,6 @@ VarianceShadowFilter.prototype = Object.create(ShadowFilter.prototype,
             {
                 this._blurRadius = value;
                 this._invalidateBlurShader();
-            }
-        },
-
-        lightBleedReduction: {
-            get: function()
-            {
-                return this._lightBleedReduction;
-            },
-
-            set: function(value)
-            {
-                this._lightBleedReduction = value;
-            }
-        },
-
-        useHalfFloat: {
-            get: function()
-            {
-                return this._useHalfFloat;
-            },
-
-            set: function(value)
-            {
-                this._useHalfFloat = value;
             }
         }
     });
@@ -100,6 +57,16 @@ VarianceShadowFilter.prototype.getGLSL = function()
     return ShaderLibrary.get("shadow_vsm.glsl", defines);
 };
 
+VarianceShadowFilter.prototype.getCullMode = function()
+{
+	return CullMode.BACK;
+};
+
+VarianceShadowFilter.prototype.getShadowMapFilter = function()
+{
+	return TextureFilter.BILINEAR_NOMIP;
+};
+
 VarianceShadowFilter.prototype.getShadowMapFormat = function()
 {
     return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT || capabilities.EXT_COLOR_BUFFER_FLOAT? TextureFormat.RG || TextureFormat.RGB : TextureFormat.RGBA;
@@ -107,7 +74,7 @@ VarianceShadowFilter.prototype.getShadowMapFormat = function()
 
 VarianceShadowFilter.prototype.getShadowMapDataType = function()
 {
-    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT && this._useHalfFloat? DataType.HALF_FLOAT :
+    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT && this.useHalfFloat? DataType.HALF_FLOAT :
             capabilities.EXT_COLOR_BUFFER_FLOAT? DataType.FLOAT : DataType.UNSIGNED_BYTE;
 };
 
@@ -124,10 +91,10 @@ VarianceShadowFilter.prototype._createBlurShader = function()
  */
 VarianceShadowFilter.prototype._getDefines = function()
 {
-    var range = 1.0 - this._lightBleedReduction;
+    var range = 1.0 - this.lightBleedReduction;
     return {
-        HX_VSM_MIN_VARIANCE: "float(" + this._minVariance + ")",
-        HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + this._lightBleedReduction + ")",
+        HX_VSM_MIN_VARIANCE: "float(" + this.minVariance + ")",
+        HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + this.lightBleedReduction + ")",
         HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE: "float(" + (1.0 / range) + ")"
     };
 };

@@ -31,7 +31,7 @@ function LightProbe(diffuseTexture, specularTexture)
     this._specularTexture = specularTexture;
     this._diffuseTexture = diffuseTexture;
     this._size = undefined;
-    this._bounds = new BoundingAABB();
+    this._bounds = new BoundingSphere();
 	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 }
 

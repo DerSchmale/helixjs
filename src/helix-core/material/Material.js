@@ -296,7 +296,7 @@ Material.prototype =
         if (pass) {
 
             if(type === MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS || type === MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS)
-                pass.cullMode = META.OPTIONS.shadowFilter.cullMode;
+                pass.cullMode = META.OPTIONS.shadowFilter.getCullMode();
             else
                 pass.cullMode = this._cullMode;
 

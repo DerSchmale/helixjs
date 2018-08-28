@@ -3599,6 +3599,12 @@
 
 	ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
+	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
+
+	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
+
+	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
+
 	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
 
 	ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n// really only used for clustered\nstruct HX_Probe\n{\n    int hasDiffuse;\n    int hasSpecular;\n    float numMipLevels;\n};\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
@@ -3606,12 +3612,6 @@
 	ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n    int castShadows;\n    vec4 shadowTiles[6];    // for each cube face\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    float dist = length(dir);\n    dir = mat3(light.shadowMapMatrix) * dir;\n\n    // swizzle to opengl cube map space\n    dir = dir.xzy;\n\n    vec3 absDir = abs(dir);\n    float maxDir = max(max(absDir.x, absDir.y), absDir.z);\n    vec2 uv;\n    vec4 tile;\n    if (absDir.x == maxDir) {\n        tile = dir.x > 0.0? light.shadowTiles[0]: light.shadowTiles[1];\n        // signs are important (hence division by either dir or absDir\n        uv = vec2(-dir.z / dir.x, -dir.y / absDir.x);\n    }\n    else if (absDir.y == maxDir) {\n        tile = dir.y > 0.0? light.shadowTiles[4]: light.shadowTiles[5];\n        uv = vec2(dir.x / absDir.y, dir.z / dir.y);\n    }\n    else {\n        tile = dir.z > 0.0? light.shadowTiles[2]: light.shadowTiles[3];\n        uv = vec2(dir.x / dir.z, -dir.y / absDir.z);\n    }\n\n    // match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    uv *= .95;\n\n    vec4 shadowMapCoord;\n    shadowMapCoord.xy = uv * tile.xy + tile.zw;\n    shadowMapCoord.z = dist * light.rcpRadius;\n    shadowMapCoord.w = 1.0;\n    return  hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
 
 	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
-
-	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
-
-	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
 
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvarying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef OCCLUSION_MAP\nuniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\nuniform sampler2D emissionMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying_in vec3 tangent;\n    varying_in vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n\n          #ifdef METALLIC_ROUGHNESS_MAP\n              roughnessOut -= roughnessRange * (specSample.y - .5);\n              metallicnessOut *= specSample.z;\n\n          #else\n              roughnessOut -= roughnessRange * (specSample.x - .5);\n\n              #ifdef SPECULAR_MAP\n                  specNormalReflOut *= specSample.y;\n                  metallicnessOut *= specSample.z;\n              #endif\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    emission *= texture2D(emissionMap, texCoords).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
@@ -3663,6 +3663,18 @@
 
 	ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
+
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3693,24 +3705,6 @@
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
 
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
-
-	ShaderLibrary._files['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    float occlusion;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)\n};';
-
-	ShaderLibrary._files['snippets_tonemap.glsl'] = 'varying_in vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    #ifdef HX_GLSL_300_ES\n    float referenceLuminance = textureLod(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #else\n    float referenceLuminance = texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #endif\n    referenceLuminance = exp(referenceLuminance) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
-
 	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
 	ShaderLibrary._files['shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
@@ -3722,6 +3716,12 @@
 	ShaderLibrary._files['shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return vec4(depth, moment2, 0.0, 1.0);\n    #else\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n    #endif\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    vec2 moments = s.xy;\n    #else\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) * HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);\n}';
 
 	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
+
+	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
+
+	ShaderLibrary._files['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    float occlusion;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)\n};';
+
+	ShaderLibrary._files['snippets_tonemap.glsl'] = 'varying_in vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    #ifdef HX_GLSL_300_ES\n    float referenceLuminance = textureLod(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #else\n    float referenceLuminance = texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #endif\n    referenceLuminance = exp(referenceLuminance) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
 
 	ShaderLibrary._files['2d_to_cube_vertex.glsl'] = '// position to write to\nvertex_attribute vec4 hx_position;\n\n// the corner of the cube map\nvertex_attribute vec3 corner;\n\nvarying_out vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
 
@@ -4600,14 +4600,19 @@
 	function ShadowFilter()
 	{
 	    this._blurShader = null;
-	    this._numBlurPasses = 1;
-	    this.cullMode = CullMode.FRONT;
+	    this.numBlurPasses = 1;
 	}
 
 	ShadowFilter.prototype =
 	{
-	    get shadowMapFilter() {
-	        return TextureFilter.NEAREST_NOMIP
+		getCullMode: function()
+	    {
+	        return CullMode.FRONT;
+	    },
+
+	    getShadowMapFilter: function()
+	    {
+			return TextureFilter.NEAREST_NOMIP;
 	    },
 
 	    getShadowMapFormat: function()
@@ -4631,17 +4636,6 @@
 	            this._blurShader = this._createBlurShader();
 
 	        return this._blurShader;
-	    },
-
-	    // only for those methods that use a blurShader
-	    get numBlurPasses()
-	    {
-	        return this._numBlurPasses;
-	    },
-
-	    set numBlurPasses(value)
-	    {
-	        this._numBlurPasses = value;
 	    },
 
 	    init: function()
@@ -12472,16 +12466,16 @@
 	    InputPlugin.call(this);
 
 	    this.axisDeadzone = 0.251;
+	    this.hasPosition = false;
+		this.hasRotation = false;
+		this.position = new Float4();
+		this.rotation = new Quaternion();
+		this.linearVelocity = new Float4(0, 0, 0, 0);
+		this.angularVelocity = new Float4(0, 0, 0, 0);
+		this.linearAcceleration = new Float4(0, 0, 0, 0);
+		this.angularAcceleration = new Float4(0, 0, 0, 0);
 
-	    this._device = device;
-	    this._hasPosition = false;
-	    this._hasRotation = false;
-	    this._position = new Float4();
-	    this._rotation = new Quaternion();
-	    this._linearVelocity = new Float4(0, 0, 0, 0);
-	    this._angularVelocity = new Float4(0, 0, 0, 0);
-	    this._linearAcceleration = new Float4(0, 0, 0, 0);
-	    this._angularAcceleration = new Float4(0, 0, 0, 0);
+		this._device = device;
 	}
 
 	/**
@@ -12600,56 +12594,6 @@
 	Gamepad.HAND_RIGHT = "right";
 
 	Gamepad.prototype = Object.create(InputPlugin.prototype, {
-	    hasPosition: {
-	        get: function()
-	        {
-	            return this._hasPosition;
-	        }
-	    },
-
-	    hasRotation: {
-	        get: function()
-	        {
-	            return this._hasRotation;
-	        }
-	    },
-
-	    linearVelocity: {
-	        get: function() {
-	            return this._linearVelocity;
-	        }
-	    },
-
-	    angularVelocity: {
-	        get: function() {
-	            return this._angularVelocity;
-	        }
-	    },
-
-	    linearAcceleration: {
-	        get: function() {
-	            return this._linearAcceleration;
-	        }
-	    },
-
-	    angularAcceleration: {
-	        get: function() {
-	            return this._angularAcceleration;
-	        }
-	    },
-
-	    position: {
-	        get: function() {
-	            return this._position;
-	        }
-	    },
-
-	    rotation: {
-	        get: function() {
-	            return this._rotation;
-	        }
-	    },
-
 	    displayId: {
 	        get: function()
 	        {
@@ -12771,23 +12715,23 @@
 
 	        // may have to swap orientation again... (see VRCamera)
 	        if (pos) {
-	            this._position.set(pos[0], -pos[2], pos[1]);
-	            this._hasPosition = true;
+	            this.position.set(pos[0], -pos[2], pos[1]);
+	            this.hasPosition = true;
 	        }
 	        else
-	            this._hasPosition = false;
+	            this.hasPosition = false;
 
 	        if (quat) {
-	            this._rotation.set(quat[0], -quat[2], quat[1], quat[3]);
-	            this._hasRotation = true;
+	            this.rotation.set(quat[0], -quat[2], quat[1], quat[3]);
+	            this.hasRotation = true;
 	        }
 	        else {
-	            this._hasRotation = false;
+	            this.hasRotation = false;
 	        }
-	        if (lv) this._linearVelocity.set(lv[0], -lv[2], lv[1]);
-	        if (la) this._linearAcceleration.set(la[0], -la[2], la[1]);
-	        if (av) this._angularVelocity.set(av[0], -av[2], av[1]);
-	        if (aa) this._angularAcceleration.set(aa[0], -aa[2], aa[1]);
+	        if (lv) this.linearVelocity.set(lv[0], -lv[2], lv[1]);
+	        if (la) this.linearAcceleration.set(la[0], -la[2], la[1]);
+	        if (av) this.angularVelocity.set(av[0], -av[2], av[1]);
+	        if (aa) this.angularAcceleration.set(aa[0], -aa[2], aa[1]);
 	    }
 	};
 
@@ -16848,7 +16792,7 @@
 	    this._specularTexture = specularTexture;
 	    this._diffuseTexture = diffuseTexture;
 	    this._size = undefined;
-	    this._bounds = new BoundingAABB();
+	    this._bounds = new BoundingSphere();
 		this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 	}
 
@@ -17947,7 +17891,7 @@
 	        if (pass) {
 
 	            if(type === MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS || type === MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS)
-	                pass.cullMode = META.OPTIONS.shadowFilter.cullMode;
+	                pass.cullMode = META.OPTIONS.shadowFilter.getCullMode();
 	            else
 	                pass.cullMode = this._cullMode;
 
@@ -27367,7 +27311,7 @@
 	        if (this._size === size) return;
 	        this._size = size;
 	        this._texture.initEmpty(size, size, META.OPTIONS.shadowFilter.getShadowMapFormat(), META.OPTIONS.shadowFilter.getShadowMapDataType());
-	        this._texture.filter = META.OPTIONS.shadowFilter.shadowMapFilter;
+	        this._texture.filter = META.OPTIONS.shadowFilter.getShadowMapFilter();
 	        if (this._texture.filter !== TextureFilter.NEAREST_NOMIP && this._texture.filter !== TextureFilter.BILINEAR_NOMIP) {
 	            // We can't use mipmap filtering because it's an *atlas*
 	            throw new Error("ShadowAtlas does not support mipmaps!");
@@ -27436,7 +27380,7 @@
 	            shader.execute(RectMesh.DEFAULT, this._texture2, 0.0, 1.0 / this._size);
 	        }
 
-	        this._texture.filter = shadowFilter.shadowMapFilter;
+	        this._texture.filter = shadowFilter.getShadowMapFilter();
 	    },
 
 	    _divideLast: function(count, flatList)
@@ -29478,211 +29422,6 @@
 	};
 
 	/**
-	 * @classdesc
-	 * ExponentialShadowFilter is a shadow filter for directional lights that provides exponential soft shadow
-	 * mapping. The implementation is highly experimental at this point.
-	 *
-	 * @property {number} blurRadius The blur radius for the soft shadows.
-	 * @property {number} darkeningFactor A darkening factor of the shadows. Counters some artifacts of the technique.
-	 * @property {number} expScaleFactor The exponential scale factor. Probably you shouldn't touch this.
-	 *
-	 * @see {@linkcode InitOptions#shadowFilter}
-	 *
-	 * @constructor
-	 *
-	 * @extends ShadowFilter
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function ExponentialShadowFilter()
-	{
-	    ShadowFilter.call(this);
-	    this._expScaleFactor = 80;
-	    this._blurRadius = 1;
-	    this._darkeningFactor = .35;
-	}
-
-
-	ExponentialShadowFilter.prototype = Object.create(ShadowFilter.prototype,
-	    {
-	        shadowMapFilter: {
-	            get: function() {
-	                return TextureFilter.BILINEAR_NOMIP;
-	            }
-	        },
-
-	        blurRadius: {
-	            get: function()
-	            {
-	                return this._blurRadius;
-	            },
-
-	            set: function(value)
-	            {
-	                this._blurRadius = value;
-	                this._invalidateBlurShader();
-	            }
-	        },
-
-	        darkeningFactor: {
-	            get: function()
-	            {
-	                return this._darkeningFactor;
-	            },
-
-	            set: function(value)
-	            {
-	                this._darkeningFactor = value;
-	            }
-	        },
-
-	        expScaleFactor: {
-	            get: function()
-	            {
-	                return this._expScaleFactor;
-	            },
-
-	            set: function(value)
-	            {
-	                this._expScaleFactor = value;
-	            }
-	        }
-	    });
-
-	/**
-	 * @ignore
-	 */
-	ExponentialShadowFilter.prototype.getShadowMapFormat = function()
-	{
-	    return TextureFormat.RG || TextureFormat.RGB;
-	};
-
-	/**
-	 * @ignore
-	 */
-	ExponentialShadowFilter.prototype.getShadowMapDataType = function()
-	{
-	    return DataType.FLOAT;
-	};
-
-	/**
-	 * @ignore
-	 */
-	ExponentialShadowFilter.prototype.getGLSL = function()
-	{
-	    var defines = this._getDefines();
-	    return ShaderLibrary.get("shadow_esm.glsl", defines);
-	};
-
-	/**
-	 * @ignore
-	 */
-	ExponentialShadowFilter.prototype._getDefines = function()
-	{
-	    return {
-	        HX_ESM_CONSTANT: "float(" + this._expScaleFactor + ")",
-	        HX_ESM_DARKENING: "float(" + this._darkeningFactor + ")"
-	    };
-	};
-
-	/**
-	 * @ignore
-	 */
-	ExponentialShadowFilter.prototype._createBlurShader = function()
-	{
-	    return new ESMBlurShader(this._blurRadius);
-	};
-
-	/**
-	 * @classdesc
-	 * PCFShadowFilter is a shadow filter that provides percentage closer soft shadow mapping. However, WebGL does not
-	 * support shadow test interpolations, so the results aren't as great as its GL/DX counterpart.
-	 *
-	 * @property {number} softness The softness of the shadows in shadow map space.
-	 * @property {number} numShadowSamples The amount of shadow samples to take.
-	 * @property {boolean} dither Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
-	 *
-	 * @see {@linkcode InitOptions#shadowFilter}
-	 *
-	 * @constructor
-	 *
-	 * @extends ShadowFilter
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function PCFShadowFilter()
-	{
-	    ShadowFilter.call(this);
-	    this._softness = .001;
-	    this._numShadowSamples = 6;
-	    this._dither = false;
-	}
-
-	PCFShadowFilter.prototype = Object.create(ShadowFilter.prototype,
-	    {
-	        softness: {
-	            get: function ()
-	            {
-	                return this._softness;
-	            },
-
-	            set: function (value)
-	            {
-	                if (this._softness !== value) {
-	                    this._softness = value;
-	                }
-	            }
-	        },
-
-	        numShadowSamples: {
-	            get: function ()
-	            {
-	                return this._numShadowSamples;
-	            },
-
-	            set: function (value)
-	            {
-	                value = MathX.clamp(value, 1, 32);
-	                if (this._numShadowSamples !== value) {
-	                    this._numShadowSamples = value;
-	                }
-	            }
-	        },
-
-	        dither: {
-	            get: function ()
-	            {
-	                return this._dither;
-	            },
-
-	            set: function (value)
-	            {
-	                if (this._dither !== value) {
-	                    this._dither = value;
-	                }
-	            }
-	        }
-	    }
-	);
-
-	/**
-	 * @ignore
-	 */
-	PCFShadowFilter.prototype.getGLSL = function ()
-	{
-	    var defines = {
-	        HX_PCF_NUM_SHADOW_SAMPLES: this._numShadowSamples,
-	        HX_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + (1.0 / this._numShadowSamples) + ")",
-	        HX_PCF_SOFTNESS: this._softness
-	    };
-
-	    if (this._dither)
-	        defines.HX_PCF_DITHER_SHADOWS = 1;
-
-	    return ShaderLibrary.get("shadow_pcf.glsl", defines);
-	};
-
-	/**
 	 * @ignore
 	 * @constructor
 	 *
@@ -29758,34 +29497,15 @@
 	function VarianceShadowFilter()
 	{
 	    ShadowFilter.call(this);
-	    this._blurRadius = 2;
-	    this._lightBleedReduction = .5;
-	    this._minVariance = .001;
-	    this._useHalfFloat = true;
-	    this.cullMode = CullMode.BACK;
+		this.lightBleedReduction = .5;
+		this.minVariance = .001;
+		this.useHalfFloat = true;
+		this._blurRadius = 2;
 	}
 
 	VarianceShadowFilter.prototype = Object.create(ShadowFilter.prototype,
 	    {
-	        shadowMapFilter: {
-	            get: function() {
-	                return TextureFilter.BILINEAR_NOMIP;
-	            }
-	        },
-
-	        minVariance: {
-	            get: function()
-	            {
-	                return this._minVariance;
-	            },
-
-	            set: function(value)
-	            {
-	                this._minVariance = value;
-	            }
-	        },
-
-	        blurRadius: {
+	    	blurRadius: {
 	            get: function()
 	            {
 	                return this._blurRadius;
@@ -29795,30 +29515,6 @@
 	            {
 	                this._blurRadius = value;
 	                this._invalidateBlurShader();
-	            }
-	        },
-
-	        lightBleedReduction: {
-	            get: function()
-	            {
-	                return this._lightBleedReduction;
-	            },
-
-	            set: function(value)
-	            {
-	                this._lightBleedReduction = value;
-	            }
-	        },
-
-	        useHalfFloat: {
-	            get: function()
-	            {
-	                return this._useHalfFloat;
-	            },
-
-	            set: function(value)
-	            {
-	                this._useHalfFloat = value;
 	            }
 	        }
 	    });
@@ -29832,6 +29528,16 @@
 	    return ShaderLibrary.get("shadow_vsm.glsl", defines);
 	};
 
+	VarianceShadowFilter.prototype.getCullMode = function()
+	{
+		return CullMode.BACK;
+	};
+
+	VarianceShadowFilter.prototype.getShadowMapFilter = function()
+	{
+		return TextureFilter.BILINEAR_NOMIP;
+	};
+
 	VarianceShadowFilter.prototype.getShadowMapFormat = function()
 	{
 	    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT || capabilities.EXT_COLOR_BUFFER_FLOAT? TextureFormat.RG || TextureFormat.RGB : TextureFormat.RGBA;
@@ -29839,7 +29545,7 @@
 
 	VarianceShadowFilter.prototype.getShadowMapDataType = function()
 	{
-	    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT && this._useHalfFloat? DataType.HALF_FLOAT :
+	    return capabilities.EXT_COLOR_BUFFER_HALF_FLOAT && this.useHalfFloat? DataType.HALF_FLOAT :
 	            capabilities.EXT_COLOR_BUFFER_FLOAT? DataType.FLOAT : DataType.UNSIGNED_BYTE;
 	};
 
@@ -29856,12 +29562,178 @@
 	 */
 	VarianceShadowFilter.prototype._getDefines = function()
 	{
-	    var range = 1.0 - this._lightBleedReduction;
+	    var range = 1.0 - this.lightBleedReduction;
 	    return {
-	        HX_VSM_MIN_VARIANCE: "float(" + this._minVariance + ")",
-	        HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + this._lightBleedReduction + ")",
+	        HX_VSM_MIN_VARIANCE: "float(" + this.minVariance + ")",
+	        HX_VSM_LIGHT_BLEED_REDUCTION: "float(" + this.lightBleedReduction + ")",
 	        HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE: "float(" + (1.0 / range) + ")"
 	    };
+	};
+
+	/**
+	 * @classdesc
+	 * ExponentialShadowFilter is a shadow filter for directional lights that provides exponential soft shadow
+	 * mapping. The implementation is highly experimental at this point.
+	 *
+	 * @property {number} blurRadius The blur radius for the soft shadows.
+	 * @property {number} darkeningFactor A darkening factor of the shadows. Counters some artifacts of the technique.
+	 * @property {number} expScaleFactor The exponential scale factor. Probably you shouldn't touch this.
+	 *
+	 * @see {@linkcode InitOptions#shadowFilter}
+	 *
+	 * @constructor
+	 *
+	 * @extends ShadowFilter
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function ExponentialShadowFilter()
+	{
+	    ShadowFilter.call(this);
+	    this.shadowMapFilter = TextureFilter.BILINEAR_NOMIP;
+	    this._expScaleFactor = 80;
+	    this._blurRadius = 1;
+	    this._darkeningFactor = .35;
+	}
+
+
+	ExponentialShadowFilter.prototype = Object.create(ShadowFilter.prototype,
+	    {
+	        blurRadius: {
+	            get: function()
+	            {
+	                return this._blurRadius;
+	            },
+
+	            set: function(value)
+	            {
+	                this._blurRadius = value;
+	                this._invalidateBlurShader();
+	            }
+	        },
+
+	        darkeningFactor: {
+	            get: function()
+	            {
+	                return this._darkeningFactor;
+	            },
+
+	            set: function(value)
+	            {
+	                this._darkeningFactor = value;
+	            }
+	        },
+
+	        expScaleFactor: {
+	            get: function()
+	            {
+	                return this._expScaleFactor;
+	            },
+
+	            set: function(value)
+	            {
+	                this._expScaleFactor = value;
+	            }
+	        }
+	    });
+
+	ExponentialShadowFilter.prototype.getCullMode = function()
+	{
+		return CullMode.BACK;
+	};
+
+	ExponentialShadowFilter.prototype.getShadowMapFilter = function()
+	{
+		return TextureFilter.BILINEAR_NOMIP;
+	};
+
+
+	/**
+	 * @ignore
+	 */
+	ExponentialShadowFilter.prototype.getShadowMapFormat = function()
+	{
+	    return TextureFormat.RG || TextureFormat.RGB;
+	};
+
+	/**
+	 * @ignore
+	 */
+	ExponentialShadowFilter.prototype.getShadowMapDataType = function()
+	{
+	    return DataType.FLOAT;
+	};
+
+	/**
+	 * @ignore
+	 */
+	ExponentialShadowFilter.prototype.getGLSL = function()
+	{
+	    var defines = this._getDefines();
+	    return ShaderLibrary.get("shadow_esm.glsl", defines);
+	};
+
+	/**
+	 * @ignore
+	 */
+	ExponentialShadowFilter.prototype._getDefines = function()
+	{
+	    return {
+	        HX_ESM_CONSTANT: "float(" + this._expScaleFactor + ")",
+	        HX_ESM_DARKENING: "float(" + this._darkeningFactor + ")"
+	    };
+	};
+
+	/**
+	 * @ignore
+	 */
+	ExponentialShadowFilter.prototype._createBlurShader = function()
+	{
+	    return new ESMBlurShader(this._blurRadius);
+	};
+
+	/**
+	 * @classdesc
+	 * PCFShadowFilter is a shadow filter that provides percentage closer soft shadow mapping. However, WebGL does not
+	 * support shadow test interpolations, so the results aren't as great as its GL/DX counterpart.
+	 *
+	 * @property {number} softness The softness of the shadows in shadow map space.
+	 * @property {number} numShadowSamples The amount of shadow samples to take.
+	 * @property {boolean} dither Whether or not the samples should be randomly rotated per screen pixel. Introduces noise but can improve the look.
+	 *
+	 * @see {@linkcode InitOptions#shadowFilter}
+	 *
+	 * @constructor
+	 *
+	 * @extends ShadowFilter
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function PCFShadowFilter()
+	{
+	    ShadowFilter.call(this);
+	    this.softness = .001;
+	    this.numShadowSamples = 6;
+	    this.dither = false;
+	}
+
+	PCFShadowFilter.prototype = Object.create(ShadowFilter.prototype);
+
+	/**
+	 * @ignore
+	 */
+	PCFShadowFilter.prototype.getGLSL = function ()
+	{
+	    var defines = {
+	        HX_PCF_NUM_SHADOW_SAMPLES: this.numShadowSamples,
+	        HX_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + (1.0 / this.numShadowSamples) + ")",
+	        HX_PCF_SOFTNESS: this.softness
+	    };
+
+	    if (this.dither)
+	        defines.HX_PCF_DITHER_SHADOWS = 1;
+
+	    return ShaderLibrary.get("shadow_pcf.glsl", defines);
 	};
 
 	/**

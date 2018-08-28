@@ -36,16 +36,16 @@ function Gamepad(device)
     InputPlugin.call(this);
 
     this.axisDeadzone = 0.251;
+    this.hasPosition = false;
+	this.hasRotation = false;
+	this.position = new Float4();
+	this.rotation = new Quaternion();
+	this.linearVelocity = new Float4(0, 0, 0, 0);
+	this.angularVelocity = new Float4(0, 0, 0, 0);
+	this.linearAcceleration = new Float4(0, 0, 0, 0);
+	this.angularAcceleration = new Float4(0, 0, 0, 0);
 
-    this._device = device;
-    this._hasPosition = false;
-    this._hasRotation = false;
-    this._position = new Float4();
-    this._rotation = new Quaternion();
-    this._linearVelocity = new Float4(0, 0, 0, 0);
-    this._angularVelocity = new Float4(0, 0, 0, 0);
-    this._linearAcceleration = new Float4(0, 0, 0, 0);
-    this._angularAcceleration = new Float4(0, 0, 0, 0);
+	this._device = device;
 }
 
 /**
@@ -164,56 +164,6 @@ Gamepad.HAND_LEFT = "left";
 Gamepad.HAND_RIGHT = "right";
 
 Gamepad.prototype = Object.create(InputPlugin.prototype, {
-    hasPosition: {
-        get: function()
-        {
-            return this._hasPosition;
-        }
-    },
-
-    hasRotation: {
-        get: function()
-        {
-            return this._hasRotation;
-        }
-    },
-
-    linearVelocity: {
-        get: function() {
-            return this._linearVelocity;
-        }
-    },
-
-    angularVelocity: {
-        get: function() {
-            return this._angularVelocity;
-        }
-    },
-
-    linearAcceleration: {
-        get: function() {
-            return this._linearAcceleration;
-        }
-    },
-
-    angularAcceleration: {
-        get: function() {
-            return this._angularAcceleration;
-        }
-    },
-
-    position: {
-        get: function() {
-            return this._position;
-        }
-    },
-
-    rotation: {
-        get: function() {
-            return this._rotation;
-        }
-    },
-
     displayId: {
         get: function()
         {
@@ -335,23 +285,23 @@ Gamepad.prototype._onPreFrame = function()
 
         // may have to swap orientation again... (see VRCamera)
         if (pos) {
-            this._position.set(pos[0], -pos[2], pos[1]);
-            this._hasPosition = true;
+            this.position.set(pos[0], -pos[2], pos[1]);
+            this.hasPosition = true;
         }
         else
-            this._hasPosition = false;
+            this.hasPosition = false;
 
         if (quat) {
-            this._rotation.set(quat[0], -quat[2], quat[1], quat[3]);
-            this._hasRotation = true;
+            this.rotation.set(quat[0], -quat[2], quat[1], quat[3]);
+            this.hasRotation = true;
         }
         else {
-            this._hasRotation = false;
+            this.hasRotation = false;
         }
-        if (lv) this._linearVelocity.set(lv[0], -lv[2], lv[1]);
-        if (la) this._linearAcceleration.set(la[0], -la[2], la[1]);
-        if (av) this._angularVelocity.set(av[0], -av[2], av[1]);
-        if (aa) this._angularAcceleration.set(aa[0], -aa[2], aa[1]);
+        if (lv) this.linearVelocity.set(lv[0], -lv[2], lv[1]);
+        if (la) this.linearAcceleration.set(la[0], -la[2], la[1]);
+        if (av) this.angularVelocity.set(av[0], -av[2], av[1]);
+        if (aa) this.angularAcceleration.set(aa[0], -aa[2], aa[1]);
     }
 };
 

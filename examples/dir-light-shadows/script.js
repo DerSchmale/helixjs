@@ -86,7 +86,6 @@ function initScene(scene, assetLibrary)
     //     light.setCascadeRatios(.5);
 	var lightEntity = new HX.Entity(light);
 	lightEntity.lookAt(new HX.Float4(0.0, 0.8, -1.0, 0.0));
-
     scene.attach(lightEntity);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
@@ -97,7 +96,7 @@ function initScene(scene, assetLibrary)
     scene.skybox = skybox;
 
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
-    scene.attach(new HX.Entity(lightProbe));
+	scene.attach(new HX.Entity(lightProbe));
 
     // textures from http://kay-vriend.blogspot.be/2014/04/tarnished-metal-first-steps-in-pbr-and.html
     var opaqueMaterial = new HX.BasicMaterial();

@@ -6,6 +6,8 @@ import {MathX} from "../math/MathX";
  * This is for example used in {@linkcode SkeletonClipNode}.
  *
  * @param {AnimationClip} clip The clip to play.
+ * @param {Boolean} looping Determines whether the animation should loop or not. By default, it uses the value determined
+ * by the AnimationClip, but can be overridden.
  *
  * @constructor
  *
@@ -22,7 +24,7 @@ function AnimationPlayhead(clip)
     this._currentFrameIndex = 0;
     this._timeChanged = true;
 
-    this._looping = clip.looping;
+    this.looping = clip.looping;
 
     /**
      * The number of times the playhead has wrapped during the last update. Useful when moving skeleton root joint, fe.
@@ -52,19 +54,12 @@ function AnimationPlayhead(clip)
 AnimationPlayhead.prototype =
     {
         /**
-         * Determines whether the animation should loop or not. By default, it uses the value determined by the
-         * AnimationClip, but can be overridden.
-         */
-        get looping() { return this._looping; },
-        set looping(value) { this._looping = value},
-
-        /**
          * The current time in milliseconds of the play head.
          */
         get time() { return this._time; },
         set time(value)
         {
-            if (!this._looping)
+            if (!this.looping)
                 value = MathX.clamp(value, 0, this._clip.duration);
 
             if (this._time === value) return;
@@ -113,7 +108,7 @@ AnimationPlayhead.prototype =
             var duration = clip.duration;
             var wraps = 0;
 
-            if (!this._looping) {
+            if (!this.looping) {
                 if (this._time > duration) {
                     this._time = duration;
                     this._isPlaying = false;
@@ -129,7 +124,7 @@ AnimationPlayhead.prototype =
             if (dt >= 0) {
                 // could replace the while loop with an if loop and calculate wrap with division, but it's usually not more
                 // than 1 anyway
-                while (this._looping && this._time >= duration) {
+                while (this.looping && this._time >= duration) {
                     // reset playhead to make sure progressive update logic works
                     this._currentFrameIndex = 0;
                     this._time -= duration;
@@ -146,7 +141,7 @@ AnimationPlayhead.prototype =
                 frameA = clip.getKeyFrame(this._currentFrameIndex);
             }
             else {
-                while (this._looping && this._time < 0) {
+                while (this.looping && this._time < 0) {
                     // reset playhead to make sure progressive update logic works
                     this._currentFrameIndex = numBaseFrames;
                     this._time += duration;

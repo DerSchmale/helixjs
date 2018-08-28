@@ -18,9 +18,6 @@ function SkeletonXFadeNode()
 	this.numJoints = 0;
 	this._children = [];
     this._clips = {};
-
-    // TODO: Add the possibility to sync times, useful for syncing walk -> run!
-    // in this case, the clips should have their timesteps recalculated
 }
 
 SkeletonXFadeNode.prototype = Object.create(SkeletonBlendNode.prototype);
@@ -144,21 +141,21 @@ SkeletonXFadeNode.prototype.update = function(dt, transferRootJoint)
 
         // work backwards, so we can just override each old state progressively
     childNode = this._children[last].node;
-    var delta = this._rootJointDeltaPosition;
-    var pose = this._pose;
-    pose.copyFrom(childNode._pose);
+    var delta = this.rootJointDeltaPosition;
+    var pose = this.pose;
+    pose.copyFrom(childNode.pose);
 
     if (transferRootJoint)
-        delta.copyFrom(childNode._rootJointDeltaPosition);
+        delta.copyFrom(childNode.rootJointDeltaPosition);
 
     for (i = last - 1; i >= 0; --i) {
         child = this._children[i];
         childNode = child.node;
 
         if (transferRootJoint)
-            delta.lerp(delta, childNode._rootJointDeltaPosition, child.weight);
+            delta.lerp(delta, childNode.rootJointDeltaPosition, child.weight);
 
-        pose.interpolate(pose, childNode._pose, child.weight);
+        pose.interpolate(pose, childNode.pose, child.weight);
     }
 
     return true;

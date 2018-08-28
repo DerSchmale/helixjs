@@ -16,8 +16,8 @@ function SkeletonBlendNode()
 {
     this.numJoints = -1;
 	this.name = null;
-	this._rootJointDeltaPosition = new Float4();
-	this._pose = new SkeletonPose();
+	this.rootJointDeltaPosition = new Float4();
+	this.pose = new SkeletonPose();
 }
 
 SkeletonBlendNode.prototype =
@@ -37,11 +37,6 @@ SkeletonBlendNode.prototype =
     update: function(dt, transferRootJoint)
     {
     },
-
-    /**
-     * @ignore
-     */
-    get rootJointDeltaPosition() { return this._rootJointDeltaPosition; },
 
     /**
      * @ignore

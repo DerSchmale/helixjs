@@ -16,16 +16,16 @@ function SkeletonFreePoseNode(skeleton)
 {
     SkeletonBlendNode.call(this);
 
-    this._skeleton = skeleton;
+    this.skeleton = skeleton;
     this._poseInvalid = true;
-    this._pose.copyBindPose(skeleton);
+    this.pose.copyBindPose(skeleton);
 
     this._poseLookUp = {};
 
     var joints = skeleton.joints;
     for (var i = 0, len = joints.length; i < len; ++i) {
         var j = joints[i];
-        this._poseLookUp[j.name] = this._pose._jointPoses[i];
+        this._poseLookUp[j.name] = this.pose._jointPoses[i];
     }
 
 	this.numJoints = joints.length;
@@ -87,7 +87,7 @@ SkeletonFreePoseNode.prototype._getJointPose = function(indexOrName)
     if (indexOrName instanceof String)
         return this._poseLookUp[indexOrName];
     else
-        return this._pose._jointPoses[indexOrName];
+        return this.pose._jointPoses[indexOrName];
 };
 
 SkeletonFreePoseNode.prototype._queryChildren = function(name)

@@ -15,6 +15,7 @@ var nameCounter = 0;
  *
  * @property duration The total duration of the clip, in milliseconds.
  * @property name The name of the animation clip.
+ * @property looping Defines whether this clip should repeat or not.
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -22,26 +23,13 @@ function AnimationClip()
 {
     this.duration = 0;
     this.name = "hx_animationclip_" + (nameCounter++);
-    this._keyFrames = [];
-    this._looping = true;
+	this.looping = true;
+	this._keyFrames = [];
     this._framesInvalid = true;
 }
 
 AnimationClip.prototype =
 {
-    /**
-     * Defines whether this clip should repeat or not.
-     */
-    get looping()
-    {
-        return this._looping;
-    },
-
-    set looping(value)
-    {
-        this._looping = value;
-    },
-
     /**
      * The amount of key frames in this clip.
      */

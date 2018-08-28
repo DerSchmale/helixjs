@@ -40,7 +40,7 @@ SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
          * AnimationClip, but can be overridden.
          */
         looping: {
-            get: function() { return this._playhead._looping; },
+            get: function() { return this._playhead.looping; },
             set: function(value) { this._playhead.looping = value; }
         },
 
@@ -91,7 +91,7 @@ SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
 
     var playhead = this._playhead;
 
-    this._pose.interpolate(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
+    this.pose.interpolate(playhead.frame1.value, playhead.frame2.value, playhead.ratio);
 
     if (transferRootJoint)
         this._transferRootJointTransform(playhead.wraps, dt);
@@ -104,9 +104,9 @@ SkeletonClipNode.prototype.update = function(dt, transferRootJoint)
  */
 SkeletonClipNode.prototype._transferRootJointTransform = function(numWraps, dt)
 {
-    var rootJointPos = this._pose._jointPoses[0].position;
+    var rootJointPos = this.pose._jointPoses[0].position;
     var rootPos = this._rootPosition;
-    var rootDelta = this._rootJointDeltaPosition;
+    var rootDelta = this.rootJointDeltaPosition;
 
     Float4.subtract(rootJointPos, rootPos, rootDelta);
 

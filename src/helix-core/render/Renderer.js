@@ -222,16 +222,16 @@ Renderer.prototype =
 
         this._renderCollector.collect(camera, scene);
 
-        this._ambientColor = this._renderCollector._ambientColor;
+		this._ambientColor = this._renderCollector._ambientColor;
 
-        this._renderShadowCasters();
+		this._renderShadowCasters();
 
-        this._renderView(camera, scene, dt);
+		this._renderView(camera, scene, dt);
 
-        this._renderToScreen();
+		this._renderToScreen();
 
-        GL.setBlendState();
-        GL.setDepthMask(true);
+		GL.setBlendState();
+		GL.setDepthMask(true);
     },
 
     _renderView: function(camera, scene, dt)

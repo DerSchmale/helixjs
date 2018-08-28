@@ -153,8 +153,8 @@ SSAO.prototype._initSamples = function()
  */
 SSAO.prototype.draw = function(dt)
 {
-    var w = this._renderer._width * this._scale;
-    var h = this._renderer._height * this._scale;
+    var w = this._renderer._width * this.scale;
+    var h = this._renderer._height * this.scale;
 
     if (TextureUtils.assureSize(w, h, this._ssaoTexture, this._fbo2)) {
         TextureUtils.assureSize(w, h, this._backTexture, this._fbo1);

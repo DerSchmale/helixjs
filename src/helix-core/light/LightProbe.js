@@ -3,7 +3,6 @@ import {Entity} from "../entity/Entity";
 import {Float4} from "../math/Float4";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {Component} from "../entity/Component";
-import {BoundingAABB} from "../scene/BoundingAABB";
 
 /**
  * @classdesc

@@ -20,21 +20,17 @@ import { MathX } from "../../math/MathX";
 function SkeletonBinaryLerpNode()
 {
     SkeletonBlendNode.call(this);
-    this._value = 0;
-    this._child1 = null;
-    this._child2 = null;
-    this._minValue = 0;
-    this._maxValue = 1;
-    this._numJoints = 0;
+	this.numJoints = 0;
+	this._value = 0;
+	this._child1 = null;
+	this._child2 = null;
+	this._minValue = 0;
+	this._maxValue = 1;
     this._t = 0;
     this._valueChanged = false;
 }
 
 SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
-    numJoints: {
-        get: function() {return this._numJoints; }
-    },
-
     minValue: {
         get: function ()
         {
@@ -85,7 +81,7 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         {
             this._child1 = value;
             if (this._child2 && value.numJoints !== this._child2.numJoints) throw new Error("Incompatible child nodes (numJoints mismatch)!");
-            this._numJoints = value.numJoints;
+            this.numJoints = value.numJoints;
         }
     },
 

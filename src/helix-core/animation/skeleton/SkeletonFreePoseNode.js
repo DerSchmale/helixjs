@@ -15,26 +15,23 @@ import {SkeletonBlendNode} from "./SkeletonBlendNode";
 function SkeletonFreePoseNode(skeleton)
 {
     SkeletonBlendNode.call(this);
+
     this._skeleton = skeleton;
     this._poseInvalid = true;
     this._pose.copyBindPose(skeleton);
 
     this._poseLookUp = {};
 
-    for (var i = 0; i < skeleton.numJoints; ++i) {
-        var j = skeleton.getJoint(i);
+    var joints = skeleton.joints;
+    for (var i = 0, len = joints.length; i < len; ++i) {
+        var j = joints[i];
         this._poseLookUp[j.name] = this._pose._jointPoses[i];
     }
+
+	this.numJoints = joints.length;
 }
 
-SkeletonFreePoseNode.prototype = Object.create(SkeletonBlendNode.prototype, {
-    /**
-     * @ignore
-     */
-    numJoints: {
-        get function() { return this._skeleton.numJoints; }
-    }
-});
+SkeletonFreePoseNode.prototype = Object.create(SkeletonBlendNode.prototype);
 
 /**
  * @ignore

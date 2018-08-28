@@ -360,7 +360,7 @@ SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
         // TODO: Could we store the 4x3 format in renderItem.skeletonMatrices?
         // no need to store actual matrices in this data
         var matrices = renderItem.skeletonMatrices;
-        var numJoints = skeleton.numJoints;
+        var numJoints = skeleton.joints.length;
         var j = 0;
 
         for (var i = 0; i < numJoints; ++i) {

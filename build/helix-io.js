@@ -634,7 +634,7 @@
             joint.inverseBindPose.append(this._flipCoord);
             joint.inverseBindPose.append(invWorldMatrix);
 
-            skeleton.addJoint(joint);
+            skeleton.joints.push(joint);
 
             var node = this._nodes[nodeIndex];
             if (node._jointIndex !== undefined) {
@@ -661,7 +661,7 @@
         for (i = 0; i < skinDef.joints.length; ++i) {
             nodeIndex = skinDef.joints[i];
             node = this._nodes[nodeIndex];
-            joint = skeleton.getJoint(i);
+            joint = skeleton.joints[i];
             joint.parentIndex = node !== skelNode && node.parent? node.parent._jointIndex : -1;
         }
 
@@ -894,7 +894,7 @@
 
         // gltf targets a node, but we need to target the joint pose
         if (target._jointIndex !== undefined) {
-    		targetName = target._skeleton.getJoint(target._jointIndex).name;
+    		targetName = target._skeleton.joints[target._jointIndex].name;
     		target = target._skeletonPose._jointPoses[target._jointIndex];
     	}
     	else {
@@ -2132,12 +2132,12 @@
 
         _writeSkeleton: function(dataStream, skeleton)
         {
-            var numJoints = skeleton? skeleton.numJoints : 0;
+            var numJoints = skeleton? skeleton.joints.length : 0;
 
             dataStream.writeUint8(numJoints);
 
             for (var i = 0; i < numJoints; ++i) {
-                var joint = skeleton.getJoint(i);
+                var joint = skeleton.joints[i];
                 if (joint.name) {
                     dataStream.writeUint8(joint.name.length);
                     dataStream.writeString(joint.name);
@@ -2183,10 +2183,10 @@
             }
 
             size += 1;  // numJoints
-            var numJoints = mesh.skeleton? mesh.skeleton.numJoints : 0;
+            var numJoints = mesh.skeleton? mesh.skeleton.joints.length : 0;
 
             for (var i = 0; i < numJoints; ++i) {
-                var joint = mesh.skeleton.getJoint(i);
+                var joint = mesh.skeleton.joints[i];
                 size += 1;  // name length
                 size += joint.name? joint.name.length : 0;  // name
                 size += 1; // parentIndex

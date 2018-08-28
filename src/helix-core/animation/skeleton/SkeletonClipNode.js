@@ -26,7 +26,7 @@ function SkeletonClipNode(clip)
     this._rootPosition = new Float4();
 
     this.name = clip.name;
-    this._numJoints = clip.getKeyFrame(0).value._jointPoses.length;
+    this.numJoints = clip.getKeyFrame(0).value._jointPoses.length;
 
     var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value._jointPoses[0].position;
     var firstFramePos = clip.getKeyFrame(0).value._jointPoses[0].position;
@@ -35,13 +35,6 @@ function SkeletonClipNode(clip)
 
 SkeletonClipNode.prototype = Object.create(SkeletonBlendNode.prototype,
     {
-        /**
-         * @ignore
-         */
-        numJoints: {
-            get: function() { return this._numJoints; }
-        },
-
         /**
          * Determines whether the animation should loop or not. By default, it uses the value determined by the
          * AnimationClip, but can be overridden.

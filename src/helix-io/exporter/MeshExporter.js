@@ -104,12 +104,12 @@ MeshExporter.prototype =
 
     _writeSkeleton: function(dataStream, skeleton)
     {
-        var numJoints = skeleton? skeleton.numJoints : 0;
+        var numJoints = skeleton? skeleton.joints.length : 0;
 
         dataStream.writeUint8(numJoints);
 
         for (var i = 0; i < numJoints; ++i) {
-            var joint = skeleton.getJoint(i);
+            var joint = skeleton.joints[i];
             if (joint.name) {
                 dataStream.writeUint8(joint.name.length);
                 dataStream.writeString(joint.name);
@@ -155,10 +155,10 @@ MeshExporter.prototype =
         }
 
         size += 1;  // numJoints
-        var numJoints = mesh.skeleton? mesh.skeleton.numJoints : 0;
+        var numJoints = mesh.skeleton? mesh.skeleton.joints.length : 0;
 
         for (var i = 0; i < numJoints; ++i) {
-            var joint = mesh.skeleton.getJoint(i);
+            var joint = mesh.skeleton.joints[i];
             size += 1;  // name length
             size += joint.name? joint.name.length : 0;  // name
             size += 1; // parentIndex

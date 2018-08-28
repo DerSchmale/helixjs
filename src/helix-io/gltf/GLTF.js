@@ -630,7 +630,7 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
         joint.inverseBindPose.append(this._flipCoord);
         joint.inverseBindPose.append(invWorldMatrix);
 
-        skeleton.addJoint(joint);
+        skeleton.joints.push(joint);
 
         var node = this._nodes[nodeIndex];
         if (node._jointIndex !== undefined) {
@@ -657,7 +657,7 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
     for (i = 0; i < skinDef.joints.length; ++i) {
         nodeIndex = skinDef.joints[i];
         node = this._nodes[nodeIndex];
-        joint = skeleton.getJoint(i);
+        joint = skeleton.joints[i];
         joint.parentIndex = node !== skelNode && node.parent? node.parent._jointIndex : -1;
     }
 
@@ -890,7 +890,7 @@ GLTF.prototype._parseAnimationChannel = function(channelDef, samplers, duration)
 
     // gltf targets a node, but we need to target the joint pose
     if (target._jointIndex !== undefined) {
-		targetName = target._skeleton.getJoint(target._jointIndex).name;
+		targetName = target._skeleton.joints[target._jointIndex].name;
 		target = target._skeletonPose._jointPoses[target._jointIndex];
 	}
 	else {

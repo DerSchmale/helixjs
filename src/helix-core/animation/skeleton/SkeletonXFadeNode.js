@@ -15,22 +15,15 @@ import {MathX} from "../../math/MathX";
 function SkeletonXFadeNode()
 {
     SkeletonBlendNode.call(this);
-    this._children = [];
-    this._numJoints = 0;
+	this.numJoints = 0;
+	this._children = [];
     this._clips = {};
 
     // TODO: Add the possibility to sync times, useful for syncing walk -> run!
     // in this case, the clips should have their timesteps recalculated
 }
 
-SkeletonXFadeNode.prototype = Object.create(SkeletonBlendNode.prototype, {
-    /**
-     * @ignore
-     */
-    numJoints: {
-        get: function() { return this._numJoints; }
-    }
-});
+SkeletonXFadeNode.prototype = Object.create(SkeletonBlendNode.prototype);
 
 /**
  * This adds a clip that can be triggered by name in fadeTo.
@@ -59,7 +52,7 @@ SkeletonXFadeNode.prototype.fadeTo = function(node, time, sync)
     if (node instanceof String) node = new SkeletonClipNode(this._clips[node]);
     else if (node instanceof AnimationClip) node = new SkeletonClipNode(node);
 
-    this._numJoints = node.numJoints;
+    this.numJoints = node.numJoints;
     // put the new one in front, it makes the update loop more efficient
     this._children.unshift({
         node: node,

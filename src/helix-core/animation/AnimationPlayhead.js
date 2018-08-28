@@ -5,17 +5,19 @@ import {MathX} from "../math/MathX";
  * AnimationPlayhead is a 'helper' class that just updates a play head. Returns the keyframes and the ratio between them.
  * This is for example used in {@linkcode SkeletonClipNode}.
  *
- * @param clip {AnimationClip} The clip to play.
+ * @param {AnimationClip} clip The clip to play.
  *
  * @constructor
+ *
+ * @propety playbackRate A value to control the playback speed.
  *
  * @author derschmale <http://www.derschmale.com>
  */
 function AnimationPlayhead(clip)
 {
-    this._clip = clip;
-    this._time = 0;
-    this._playbackRate = 1.0;
+	this.playbackRate = 1.0;
+	this._clip = clip;
+	this._time = 0;
     this._isPlaying = true;
     this._currentFrameIndex = 0;
     this._timeChanged = true;
@@ -49,12 +51,6 @@ function AnimationPlayhead(clip)
 
 AnimationPlayhead.prototype =
     {
-        /**
-         * A value to control the playback speed.
-         */
-        get playbackRate() { return this._playbackRate; },
-        set playbackRate(value) { this._playbackRate = value; },
-
         /**
          * Determines whether the animation should loop or not. By default, it uses the value determined by the
          * AnimationClip, but can be overridden.
@@ -106,7 +102,7 @@ AnimationPlayhead.prototype =
             this._timeChanged = false;
 
             if (this._isPlaying) {
-                dt *= this._playbackRate;
+                dt *= this.playbackRate;
                 this._time += dt;
             }
 

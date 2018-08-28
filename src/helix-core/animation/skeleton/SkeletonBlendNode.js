@@ -14,9 +14,10 @@ import {SkeletonPose} from "./SkeletonPose";
  */
 function SkeletonBlendNode()
 {
-    this._rootJointDeltaPosition = new Float4();
-    this._pose = new SkeletonPose();
-    this.name = null;
+    this.numJoints = -1;
+	this.name = null;
+	this._rootJointDeltaPosition = new Float4();
+	this._pose = new SkeletonPose();
 }
 
 SkeletonBlendNode.prototype =
@@ -41,11 +42,6 @@ SkeletonBlendNode.prototype =
      * @ignore
      */
     get rootJointDeltaPosition() { return this._rootJointDeltaPosition; },
-
-    /**
-     * @ignore
-     */
-    get numJoints() { return -1; },
 
     /**
      * @ignore

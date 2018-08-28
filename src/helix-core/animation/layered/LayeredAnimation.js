@@ -28,26 +28,14 @@ var nameCounter = 0;
 function LayeredAnimation()
 {
 	Component.call(this);
+	this.name = "hx_layeredanimation_" + (nameCounter++);
+	this.playbackRate = 1;
 	this._layers = [];
 	this._time = 0;
-	this._playbackRate = 1;
-	this.name = "hx_layeredanimation_" + (nameCounter++);
 	this._looping = true;
 }
 
 Component.create(LayeredAnimation, {
-	playbackRate: {
-		get: function()
-		{
-			return this._playbackRate;
-		},
-
-		set: function(value)
-		{
-			this._playbackRate = value;
-		}
-	},
-
 	time: {
 		get: function()
 		{
@@ -119,7 +107,7 @@ LayeredAnimation.prototype.onRemoved = function()
 
 LayeredAnimation.prototype.onUpdate = function(dt)
 {
-	dt *= this._playbackRate;
+	dt *= this.playbackRate;
 
 	this._time += dt;
 
@@ -179,8 +167,10 @@ LayeredAnimation.prototype._collectPotentialJoints = function(meshInstance, targ
 
 	if (!skeleton) return;
 
-	for (var i = 0, len = skeleton.numJoints; i < len; ++i) {
-		targets[skeleton.getJoint(i).name] = meshInstance.skeletonPose.getJointPose(i);
+	var joints = skeleton.joints;
+
+	for (var i = 0, len = joints.length; i < len; ++i) {
+		targets[joints[i].name] = meshInstance.skeletonPose.getJointPose(i);
 	}
 
 	return false;

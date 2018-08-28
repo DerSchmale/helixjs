@@ -26,7 +26,7 @@ function MorphAnimation(morphPose)
 {
     Component.call(this);
 
-	this._name = "hx_morphanimation_" + (nameCounter++);
+	this.name = "hx_morphanimation_" + (nameCounter++);
 
     if (morphPose) {
         this._morphPose = morphPose;
@@ -97,7 +97,7 @@ MorphAnimation.prototype._assignMorphPose = function(pose)
 MorphAnimation.prototype.clone = function()
 {
 	var clone = new MorphAnimation(this._morphPose.clone());
-	clone._name = this._name;
+	clone.name = this.name;
 	return clone;
 };
 

@@ -32,7 +32,7 @@ function SceneNode()
 {
     Transform.call(this);
     this.meta = {};
-    this._name = "hx_scenenode_" + (nameCounter++);
+    this.name = "hx_scenenode_" + (nameCounter++);
     this._matrixInvalid = true;
 	this._worldMatrix = new Matrix4x4();
     this._worldMatrixInvalid = true;
@@ -51,17 +51,6 @@ function SceneNode()
 }
 
 SceneNode.prototype = Object.create(Transform.prototype, {
-    name: {
-        get: function()
-        {
-            return this._name;
-        },
-        set: function(value)
-        {
-            this._name = value;
-        }
-    },
-
     parent: {
         get: function()
         {
@@ -265,7 +254,7 @@ SceneNode.prototype._applyMatrix = function()
  */
 SceneNode.prototype.findNodeByName = function(name)
 {
-    if (this._name === name) return this;
+    if (this.name === name) return this;
 
     var len = this._children.length;
     for (var i = 0; i < len; ++i) {
@@ -341,7 +330,7 @@ SceneNode.prototype._updateWorldMatrix = function()
  */
 SceneNode.prototype.toString = function()
 {
-    return "[SceneNode(name=" + this._name + ")]";
+    return "[SceneNode(name=" + this.name + ")]";
 };
 
 /**

@@ -30,6 +30,8 @@ var MATERIAL_ID_COUNTER = 0;
  * @param geometryFragmentShader The fragment code for the geometry stage.
  * @param [lightingModel] The {@linkcode LightingModel} to use. Defaults to what was passed in (if anything) with {@linkcode InitOptions#defaultLightingModel}.
  *
+ * @property name The name of the material.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
@@ -37,7 +39,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     // dispatched when the material's code changed and a link with a mesh may have become invalid
     this.onChange = new Signal();
 
-	this._name = "hx_material_" + MATERIAL_ID_COUNTER;
+	this.name = "hx_material_" + MATERIAL_ID_COUNTER;
     this._cullMode = CullMode.BACK;
     this._writeDepth = true;
     this._writeColor = true;
@@ -173,19 +175,6 @@ Material.prototype =
 
         this._fixedLights = value;
         this._invalidate();
-    },
-
-    /**
-     * The name of the material.
-     */
-    get name()
-    {
-        return this._name;
-    },
-
-    set name(value)
-    {
-        this._name = value;
     },
 
     /**
@@ -471,7 +460,7 @@ Material.prototype =
      */
     toString: function()
     {
-        return "[Material(name=" + this._name + ")]";
+        return "[Material(name=" + this.name + ")]";
     }
 };
 

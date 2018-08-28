@@ -123,7 +123,7 @@ VRCamera.prototype._updateVR = function()
  */
 VRCamera.prototype.toString = function()
 {
-    return "[VRCamera(name=" + this._name + ")]";
+    return "[VRCamera(name=" + this.name + ")]";
 };
 
 export { VRCamera };

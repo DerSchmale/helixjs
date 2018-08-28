@@ -25,7 +25,7 @@ function SkeletonClipNode(clip)
     this._playhead = new AnimationPlayhead(clip);
     this._rootPosition = new Float4();
 
-    this._name = clip.name;
+    this.name = clip.name;
     this._numJoints = clip.getKeyFrame(0).value._jointPoses.length;
 
     var lastFramePos = clip.getKeyFrame(clip.numKeyFrames - 1).value._jointPoses[0].position;

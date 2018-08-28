@@ -14,11 +14,13 @@ var nameCounter = 0;
  *
  * @constructor
  *
+ * @property name The name of the scene.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function Scene(rootNode)
 {
-	this._name = "hx_scene_" + (nameCounter++);
+	this.name = "hx_scene_" + (nameCounter++);
 	this._entityEngine = new EntityEngine();
 	this._partitioning = new FlatPartitioning();
 	this._rootNode = rootNode || new Entity();
@@ -28,19 +30,6 @@ function Scene(rootNode)
 }
 
 Scene.prototype = {
-	/**
-     * The name of the scene.
-	 */
-    get name()
-    {
-        return this._name;
-    },
-
-    set name(value)
-    {
-        this._name = value;
-    },
-
     /**
      * The rootnode of the scene.
      */

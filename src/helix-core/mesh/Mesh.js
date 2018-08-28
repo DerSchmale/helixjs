@@ -36,7 +36,7 @@ function Mesh()
     this.onLayoutChanged = new Signal();
     this.onMorphDataCreated = new Signal();
 	this.onSkeletonChange = new Signal();
-	this._name = "hx_mesh_" + MESH_ID_COUNTER;
+	this.name = "hx_mesh_" + MESH_ID_COUNTER;
 	this._bounds = new BoundingAABB();
 	this._boundsInvalid = true;
 	this._dynamicBounds = true;

@@ -31,23 +31,11 @@ function LayeredAnimation()
 	this._layers = [];
 	this._time = 0;
 	this._playbackRate = 1;
-	this._name = "hx_layeredanimation_" + (nameCounter++);
+	this.name = "hx_layeredanimation_" + (nameCounter++);
 	this._looping = true;
 }
 
 Component.create(LayeredAnimation, {
-	name: {
-		get: function()
-		{
-			return this._name;
-		},
-
-		set: function(value)
-		{
-			this._name = value;
-		}
-	},
-
 	playbackRate: {
 		get: function()
 		{
@@ -161,7 +149,7 @@ LayeredAnimation.prototype._collectPotentialTargets = function()
 {
 	var targets = {};
 	this._entity.applyFunction(function(node) {
-		targets[node._name] = node;
+		targets[node.name] = node;
 
 		if (node instanceof Entity) {
 			var meshInstances = node.getComponentsByType(MeshInstance);

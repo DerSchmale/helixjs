@@ -23,7 +23,7 @@ function MeshInstance(mesh, material)
 {
 	Component.call(this);
 
-	this._name = "hx_meshinstance_" + (nameCounter++);
+	this.name = "hx_meshinstance_" + (nameCounter++);
 	this._bounds = new BoundingAABB();
 	this._morphPositions = null;
 	this._morphNormals = null;

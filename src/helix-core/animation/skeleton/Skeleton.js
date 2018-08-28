@@ -4,6 +4,8 @@
  *
  * @see {@linkcode SkeletonJoint}
  *
+ * @property name The name of this Skeleton.
+ *
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -12,7 +14,7 @@ function Skeleton()
 {
     this._applyInverseBindPose = true;
     this._joints = [];
-    this._name = "";
+    this.name = "";
 }
 
 Skeleton.prototype =
@@ -55,19 +57,6 @@ Skeleton.prototype =
     getJoint: function(index)
     {
         return this._joints[index];
-    },
-
-    /**
-     * The name of this Skeleton.
-     */
-    get name()
-    {
-        return this._name;
-    },
-
-    set name(value)
-    {
-        this._name = value;
     },
 
     /**

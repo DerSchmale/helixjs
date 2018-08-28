@@ -8,37 +8,25 @@ import {SkeletonPose} from "./SkeletonPose";
  *
  * @constructor
  *
+ * @property name The name of the node, by which it can be retrieved from {@linkcode SkeletonBlendTree} and {@linkcode SkeletonAnimation}
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function SkeletonBlendNode()
 {
     this._rootJointDeltaPosition = new Float4();
     this._pose = new SkeletonPose();
-    this._name = null;
+    this.name = null;
 }
 
 SkeletonBlendNode.prototype =
 {
     /**
-     * The name of the node, by which it can be retrieved from {@linkcode SkeletonBlendTree} and {@linkcode SkeletonAnimation}
-     */
-    get name()
-    {
-        return this._name;
-    },
-
-    set name(value)
-    {
-        this._name = value;
-    },
-
-
-    /**
      * @ignore
      */
     findNode: function(name)
     {
-        if (this._name === name) return this;
+        if (this.name === name) return this;
         return this._queryChildren(name);
     },
 

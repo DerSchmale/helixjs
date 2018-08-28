@@ -247,7 +247,7 @@ Camera.prototype._updateBounds = function()
  */
 Camera.prototype.toString = function()
 {
-    return "[Camera(name=" + this._name + ")]";
+    return "[Camera(name=" + this.name + ")]";
 };
 
 /**

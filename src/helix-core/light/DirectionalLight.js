@@ -131,7 +131,7 @@ DirectionalLight.prototype._updateBounds = function()
  */
 DirectionalLight.prototype.toString = function()
 {
-	return "[DirectionalLight(name=" + this._name + ")]";
+	return "[DirectionalLight(name=" + this.name + ")]";
 };
 
 DirectionalLight.prototype.clone = function()

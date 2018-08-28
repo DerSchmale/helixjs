@@ -14,13 +14,14 @@ var nameCounter = 0;
  * @see {@linkcode AnimationPlayhead}
  *
  * @property duration The total duration of the clip, in milliseconds.
+ * @property name The name of the animation clip.
  *
  * @author derschmale <http://www.derschmale.com>
  */
 function AnimationClip()
 {
     this.duration = 0;
-    this._name = "hx_animationclip_" + (nameCounter++);
+    this.name = "hx_animationclip_" + (nameCounter++);
     this._keyFrames = [];
     this._looping = true;
     this._framesInvalid = true;
@@ -39,19 +40,6 @@ AnimationClip.prototype =
     set looping(value)
     {
         this._looping = value;
-    },
-
-    /**
-     * The name of the animation clip.
-     */
-    get name()
-    {
-        return this._name;
-    },
-
-    set name(value)
-    {
-        this._name = value;
     },
 
     /**

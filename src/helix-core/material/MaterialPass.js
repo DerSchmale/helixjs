@@ -20,11 +20,11 @@ function MaterialPass(shader)
     this._textureSlots = [];
     this._uniformBufferSlots = [];
     this._uniforms = {};
-    this._cullMode = CullMode.BACK;
-    this._writeColor = true;
-    this._depthTest = Comparison.LESS_EQUAL;
-    this._writeDepth = true;
-    this._blendState = null;
+    this.cullMode = CullMode.BACK;
+    this.writeColor = true;
+    this.depthTest = Comparison.LESS_EQUAL;
+    this.writeDepth = true;
+    this.blendState = null;
 
     this._storeUniforms();
     this._textureSettersPass = TextureSetter.getSettersPerPass(this);
@@ -60,59 +60,9 @@ MaterialPass.prototype =
     {
         constructor: MaterialPass,
 
-        getShader: function ()
+        get shader()
         {
             return this._shader;
-        },
-
-        get depthTest()
-        {
-            return this._depthTest;
-        },
-
-        set depthTest(value)
-        {
-            this._depthTest = value;
-        },
-
-        get writeColor()
-        {
-            return this._writeColor;
-        },
-
-        set writeColor(value)
-        {
-            this._writeColor = value;
-        },
-        get writeDepth()
-        {
-            return this._writeDepth;
-        },
-
-        set writeDepth(value)
-        {
-            this._writeDepth = value;
-        },
-
-        get cullMode()
-        {
-            return this._cullMode;
-        },
-
-        // use null for disabled
-        set cullMode(value)
-        {
-            this._cullMode = value;
-        },
-
-        get blendState()
-        {
-            return this._blendState;
-        },
-
-        set blendState(value)
-        {
-            this._blendState = value;
         },
 
         /**
@@ -180,7 +130,7 @@ MaterialPass.prototype =
                 buffer.bind(i);
             }
 
-            GL.setMaterialPassState(this._cullMode, this._depthTest, this._writeDepth, this._writeColor, this._blendState);
+            GL.setMaterialPassState(this.cullMode, this.depthTest, this.writeDepth, this.writeColor, this.blendState);
 
             this._shader.updatePassRenderState(camera, renderer);
         },

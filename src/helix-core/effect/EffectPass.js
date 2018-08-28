@@ -23,11 +23,11 @@ function EffectPass(vertexShader, fragmentShader)
 
     MaterialPass.call(this, shader);
 
-    this._vertexLayout = null;
-    this._cullMode = CullMode.NONE;
-    this._depthTest = Comparison.DISABLED;
-    this._writeDepth = false;
-    this.setMesh(RectMesh.DEFAULT);
+	this.cullMode = CullMode.NONE;
+	this.depthTest = Comparison.DISABLED;
+	this.writeDepth = false;
+	this._vertexLayout = null;
+	this.setMesh(RectMesh.DEFAULT);
 
     this.setTexture("hx_dither2D", DEFAULTS.DEFAULT_2D_DITHER_TEXTURE);
 }

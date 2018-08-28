@@ -69,12 +69,12 @@ CascadeShadowCasterCollector.prototype.visitMeshInstance = function (meshInstanc
 
     var skeleton = meshInstance.skeleton;
 	var skeletonMatrices = meshInstance.skeletonMatrices;
-    var entity = meshInstance._entity;
+    var entity = meshInstance.entity;
     var worldBounds = entity.worldBounds;
     this._bounds.growToIncludeBound(worldBounds);
 
     var passIndex = MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS;
-    var numCascades = META.OPTIONS.numShadowCascades;1
+    var numCascades = META.OPTIONS.numShadowCascades;
     var cameraYAxis = this._cameraYAxis;
     var cameraY_X = cameraYAxis.x, cameraY_Y = cameraYAxis.y, cameraY_Z = cameraYAxis.z;
 

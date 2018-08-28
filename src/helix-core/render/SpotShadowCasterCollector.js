@@ -28,7 +28,7 @@ SpotShadowCasterCollector.prototype.collect = function(camera, scene)
     this._camera = camera;
     this._renderList = [];
     camera.worldMatrix.getColumn(1, this._cameraYAxis);
-    this._frustumPlanes = camera.frustum._planes;
+    this._frustumPlanes = camera.frustum.planes;
     this._renderItemPool.reset();
 
     scene.acceptVisitor(this);

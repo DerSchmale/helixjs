@@ -71,7 +71,7 @@ CascadeShadowMapRenderer.prototype =
 
     _updateCollectorCamera: function(light, viewCamera)
     {
-        var corners = viewCamera.frustum._corners;
+        var corners = viewCamera.frustum.corners;
         var min = new Float4();
         var max = new Float4();
         var tmp = new Float4();
@@ -205,7 +205,7 @@ CascadeShadowMapRenderer.prototype =
     _updateCullPlanes: function(light, viewCamera)
     {
         var frustum = this._collectorCamera.frustum;
-        var planes = frustum._planes;
+        var planes = frustum.planes;
 
         for (var i = 0; i < 4; ++i)
             this._cullPlanes[i] = planes[i];
@@ -213,7 +213,7 @@ CascadeShadowMapRenderer.prototype =
         this._numCullPlanes = 4;
 
         frustum = viewCamera.frustum;
-        planes = frustum._planes;
+        planes = frustum.planes;
 
         var dir = light.direction;
 

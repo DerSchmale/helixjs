@@ -30,8 +30,8 @@ function RenderCollector()
     this._ambientColor = new Color();
     this._shadowCasters = null;
     this._effects = null;
-    this._needsNormalDepth = false;
-    this._needsBackbuffer = false;
+    this.needsNormalDepth = false;
+    this.needsBackbuffer = false;
     this._numShadowPlanes = 0;
     this._shadowPlaneBuckets = null;
 }
@@ -49,14 +49,6 @@ RenderCollector.prototype = Object.create(SceneVisitor.prototype, {
 
     ambientColor: {
         get: function() { return this._ambientColor; }
-    },
-
-    needsNormalDepth: {
-        get: function() { return this._needsNormalDepth; }
-    },
-
-    needsBackbuffer: {
-        get: function() { return this._needsBackbuffer; }
     }
 });
 
@@ -70,7 +62,7 @@ RenderCollector.prototype.collect = function(camera, scene)
 {
     this._camera = camera;
     camera.worldMatrix.getColumn(1, this._cameraYAxis);
-    this._frustumPlanes = camera.frustum._planes;
+    this._frustumPlanes = camera.frustum.planes;
     this._reset();
 
     scene.acceptVisitor(this);
@@ -101,7 +93,7 @@ RenderCollector.prototype.visitScene = function (scene)
 
 RenderCollector.prototype.visitEffect = function(effect)
 {
-	this._needsNormalDepth = this._needsNormalDepth || effect._needsNormalDepth;
+	this.needsNormalDepth = this.needsNormalDepth || effect.needsNormalDepth;
     this._effects.push(effect);
 };
 
@@ -124,8 +116,8 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
     var path = material.renderPath;
 
     // only required for the default lighting model (if not unlit)
-    this._needsNormalDepth = this._needsNormalDepth || material._needsNormalDepth;
-    this._needsBackbuffer = this._needsBackbuffer || material._needsBackbuffer;
+    this.needsNormalDepth = this.needsNormalDepth || material.needsNormalDepth;
+    this.needsBackbuffer = this.needsBackbuffer || material.needsBackbuffer;
 
     var renderItem = renderPool.getItem();
 
@@ -139,7 +131,7 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
     renderItem.worldMatrix = entity.worldMatrix;
     renderItem.worldBounds = worldBounds;
 
-    var bucket = (material.blendState || material._needsBackbuffer)? transparentList : opaqueLists[path];
+    var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];
     bucket.push(renderItem);
 };
 
@@ -175,7 +167,7 @@ RenderCollector.prototype._reset = function()
     this._lights = [];
     this._shadowCasters = [];
     this._effects = [];
-    this._needsNormalDepth = META.OPTIONS.ambientOcclusion;
+    this.needsNormalDepth = META.OPTIONS.ambientOcclusion;
     this._ambientColor.set(0, 0, 0, 1);
     this._numShadowPlanes = 0;
     this._shadowPlaneBuckets = [];

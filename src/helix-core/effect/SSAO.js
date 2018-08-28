@@ -36,7 +36,7 @@ function SSAO(numSamples)
     this._strength = 1.0;
     this._fallOffDistance = 1.0;
     this._radius = .5;
-    this._scale = .5;
+    this.scale = .5;
     this._ditherTexture = null;
 
     Effect.call(this);
@@ -80,11 +80,6 @@ SSAO.prototype = Object.create(Effect.prototype, {
             if (this._ssaoPass)
                 this._ssaoPass.setUniform("strengthPerSample", 2.0 * this._strength / this._numSamples);
         }
-    },
-
-    scale: {
-        get: function() { return this._scale; },
-        set: function(value) { this._scale = value; }
     }
 });
 

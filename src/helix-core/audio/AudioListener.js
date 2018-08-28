@@ -59,17 +59,18 @@ AudioListener.prototype.onUpdate = function(dt)
     {
         var time = META.AUDIO_CONTEXT.currentTime;
         var m;
+        var entity = this.entity;
 
         // Check it it's a VRCamera, so we need to provide a different matrix
-        if (this._entity.worldMatrixLeft) {
-            vrMatrix = Matrix4x4.add(this._entity.worldMatrixLeft, this._entity.worldMatrixRight, vrMatrix);
+        if (entity.worldMatrixLeft) {
+            vrMatrix = Matrix4x4.add(entity.worldMatrixLeft, entity.worldMatrixRight, vrMatrix);
             m = vrMatrix._m;
             m[12] *= .5;
             m[13] *= .5;
             m[14] *= .5;
         }
         else {
-            m = this._entity.worldMatrix._m;
+            m = entity.worldMatrix._m;
         }
 
         var m12 = m[12];

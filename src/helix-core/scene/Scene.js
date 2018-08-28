@@ -148,7 +148,7 @@ Scene.prototype = {
      */
     startSystem: function(system)
     {
-        system._scene = this._scene;
+        system.scene = this;
         this._entityEngine.startSystem(system);
     },
 
@@ -157,7 +157,7 @@ Scene.prototype = {
      */
     stopSystem: function(system)
     {
-        system._scene = null;
+        system.scene = null;
         this._entityEngine.stopSystem(system);
     },
 

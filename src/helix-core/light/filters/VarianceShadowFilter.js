@@ -30,7 +30,7 @@ function VarianceShadowFilter()
     this._lightBleedReduction = .5;
     this._minVariance = .001;
     this._useHalfFloat = true;
-    this._cullMode = CullMode.BACK;
+    this.cullMode = CullMode.BACK;
 }
 
 VarianceShadowFilter.prototype = Object.create(ShadowFilter.prototype,

@@ -21,31 +21,21 @@ function Blur(numSamples, radius)
     if (!radius) radius = numSamples;
     Effect.call(this);
 
-    this._blurPass = new GaussianBlurPass(radius);
-    this._blurSourceSlot = this._blurPass.getTextureSlot("sourceTexture");
-    this._radius = radius;
+	this.radius = radius;
+
+	this._blurPass = new GaussianBlurPass(radius);
+	this._blurSourceSlot = this._blurPass.getTextureSlot("sourceTexture");
     this._numSamples = numSamples;
 }
 
-Blur.prototype = Object.create(Effect.prototype,
-    {
-        radius: {
-            get: function() {
-                return this._radius;
-            },
-
-            set: function(value) {
-                this._radius = value;
-            }
-        }
-    });
+Blur.prototype = Object.create(Effect.prototype);
 
 /**
  * @ignore
  */
 Blur.prototype.draw = function(dt)
 {
-    var ratio = this._radius / this._numSamples;
+    var ratio = this.radius / this._numSamples;
     // we're manually setting source textures instead of using hx_backbuffer because the GaussianBlurPass needs to
     // handle different textures too (see bloom)
     GL.setRenderTarget(this.hdrTarget);

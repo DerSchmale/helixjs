@@ -65,7 +65,7 @@ Component.create(Terrain, {
  */
 Terrain.prototype.onAdded = function()
 {
-    this._entity.attach(this._container);
+    this.entity.attach(this._container);
 };
 
 /**
@@ -73,7 +73,7 @@ Terrain.prototype.onAdded = function()
  */
 Terrain.prototype.onRemoved = function()
 {
-	this._entity.detach(this._container);
+	this.entity.detach(this._container);
 };
 
 /**
@@ -316,7 +316,7 @@ Terrain.prototype.onUpdate = function()
     if (this._camera) {
         var cameraPos = this._camera.position;
         var containerPos = this._container.position;
-        var entityPosition = this._entity.position;
+        var entityPosition = this.entity.position;
         containerPos.x = Math.round(cameraPos.x / this._snapSize) * this._snapSize - entityPosition.x;
         containerPos.y = Math.round(cameraPos.y / this._snapSize) * this._snapSize - entityPosition.y;
 	}

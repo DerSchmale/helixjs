@@ -109,7 +109,7 @@ export {Messenger} from "./core/Messenger";
 
 export {Bloom} from "./effect/Bloom";
 export {Blur} from "./effect/Blur";
-export {CopyTexturePass} from "./effect/CommonPasses";
+export {CopyTexturePass} from "./effect/CopyTexturePass";
 export {Effect} from "./effect/Effect";
 export {EffectPass} from "./effect/EffectPass";
 export {FilmicToneMapping} from "./effect/FilmicToneMapping";

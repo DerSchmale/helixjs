@@ -62,8 +62,8 @@ Component.create(DirectionalLight,
             get: function()
             {
                 var dir = this._direction;
-                if (this._entity)
-                    this._entity.worldMatrix.getColumn(1, dir);
+                if (this.entity)
+                    this.entity.worldMatrix.getColumn(1, dir);
                 return dir;
             }
         },

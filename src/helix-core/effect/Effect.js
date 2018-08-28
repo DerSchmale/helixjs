@@ -1,7 +1,6 @@
 import {GL} from "../core/GL";
 import {Component} from "../entity/Component";
 
-
 /**
  * @classdesc
  * Effect is a {@linkcode Component} that will be picked up by the renderer for post-processing. Most effects are added
@@ -20,19 +19,13 @@ import {Component} from "../entity/Component";
 function Effect()
 {
     Component.call(this);
-    this._isSupported = true;
-    this._mesh = null;
-    this._outputsGamma = false;
-    this._needsNormalDepth = false;
+	this.needsNormalDepth = false;
+	this.outputsGamma = false;
+	this._mesh = null;
 }
 
 Component.create(Effect,
     {
-        needsNormalDepth: {
-            get: function() { return this._needsNormalDepth; },
-            set: function(value) { this._needsNormalDepth = value; }
-        },
-
         hdrTarget: {
             get: function() { return this._renderer._hdrFront.fbo; }
         },
@@ -44,16 +37,14 @@ Component.create(Effect,
 );
 
 /**
- * Returns whether this Effect is supported considering the current capabilities.
+ * Indicates whether this Effect is supported considering the current capabilities. Subclasses should overwrite this
+ * if support depends on extensions.
  */
 Effect.prototype.isSupported = function()
 {
-    return this._isSupported;
+	return true;
 };
 
-/**
- * @ignore
- */
 Effect.prototype.render = function(renderer, dt)
 {
     this._renderer = renderer;

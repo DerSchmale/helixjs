@@ -12,7 +12,7 @@
  */
 function VertexLayout(mesh, pass)
 {
-    var shader = pass.getShader();
+    var shader = pass.shader;
     this.attributes = [];
     this.morphPositionAttributes = [];
     this.morphNormalAttributes = [];

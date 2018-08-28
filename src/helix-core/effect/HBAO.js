@@ -42,7 +42,7 @@ function HBAO(numRays, numSamplesPerRay)
     this._bias = .1;
     this._fallOffDistance = 1.0;
     this._radius = .5;
-    this._scale = .5;
+    this.scale = .5;
     this._sampleDirTexture = null;
     this._ditherTexture = null;
 
@@ -101,11 +101,6 @@ HBAO.prototype = Object.create(Effect.prototype, {
             if (this._aoPass)
                 this._aoPass.setUniform("bias", this._bias);
         }
-    },
-
-    scale: {
-        get: function() { return this._scale; },
-        set: function(value) { this._scale = value; }
     }
 });
 
@@ -161,8 +156,8 @@ HBAO.prototype.getAOTexture = function()
  */
 HBAO.prototype.draw = function(dt)
 {
-    var w = this._renderer._width * this._scale;
-    var h = this._renderer._height * this._scale;
+    var w = this._renderer._width * this.scale;
+    var h = this._renderer._height * this.scale;
 
     if (TextureUtils.assureSize(w, h, this._aoTexture, this._fbo2)) {
         TextureUtils.assureSize(w, h, this._backTexture, this._fbo1);

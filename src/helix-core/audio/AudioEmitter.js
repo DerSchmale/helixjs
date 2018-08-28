@@ -34,8 +34,8 @@ function AudioEmitter(clip)
 	Component.call(this);
 
 	this.name = "";
-	this._autoplay = false;
-	this._clip = clip;
+	this.autoplay = false;
+	this.clip = clip;
 	this._source = null;
     this._gain = META.AUDIO_CONTEXT.createGain();
     this._panner = META.AUDIO_CONTEXT.createPanner();
@@ -138,26 +138,6 @@ Component.create(AudioEmitter, {
         set: function(value) {
             this._panner.rolloffFactor = value;
         }
-	},
-
-	autoplay: {
-		get: function() {
-			return this._autoplay;
-		},
-
-		set: function(value) {
-			this._autoplay = value;
-		}
-	},
-
-	clip: {
-		get: function() {
-			return this._clip;
-		},
-
-		set: function(value) {
-			this._clip = value;
-		}
 	}
 });
 
@@ -168,7 +148,7 @@ AudioEmitter.prototype.onAdded = function()
 {
     this._gain.connect(META.AUDIO_CONTEXT.destination);
 
-    if (this._autoplay)
+    if (this.autoplay)
         this.play();
 
     this.bindListener(AudioEmitter.PLAY_MESSAGE, this._onPlayMessage, this);
@@ -194,7 +174,7 @@ AudioEmitter.prototype.onRemoved = function()
 AudioEmitter.prototype.play = function(gain)
 {
 	// make sure position updates immediately
-    var m = this._entity.worldMatrix._m;
+    var m = this.entity.worldMatrix._m;
 	var panner = this._panner;
 
     if (panner.positionX) {
@@ -215,8 +195,8 @@ AudioEmitter.prototype.play = function(gain)
     	this._gain.gain.value = gain;
 
 	this._source = META.AUDIO_CONTEXT.createBufferSource();
-	this._source.buffer = this._clip.buffer;
-	this._source.loop = this._clip.looping;
+	this._source.buffer = this.clip.buffer;
+	this._source.loop = this.clip.looping;
 	this._source.connect(this._panner);
 	this._source.start();
 };
@@ -240,7 +220,7 @@ AudioEmitter.prototype.stop = function()
  */
 AudioEmitter.prototype.clone = function()
 {
-	var emitter = new AudioEmitter(this._clip);
+	var emitter = new AudioEmitter(this.clip);
 	emitter.name = this.name;
 	return emitter;
 };
@@ -250,7 +230,7 @@ AudioEmitter.prototype.onUpdate = function(dt)
 	if (!(this._source && this._source.isPlaying)) return;
 	var time = META.AUDIO_CONTEXT.currentTime;
 
-	var m = this._entity.worldMatrix._m;
+	var m = this.entity.worldMatrix._m;
 
 	var panner = this._panner;
 	if (panner.positionX) {

@@ -6,20 +6,23 @@ import {Float4} from "../math/Float4";
  *
  * @constructor
  *
+ * @property planes An Array of planes describing the frustum. The planes are in world space and point outwards.
+ * @property corners An array containing the 8 vertices of the frustum, in world space.
+ *
  * @ignore
  *
  * @author derschmale <http://www.derschmale.com>
  */
 function Frustum()
 {
-    this._planes = new Array(6);
-    this._corners = new Array(8);
+    this.planes = new Array(6);
+    this.corners = new Array(8);
 
     for (var i = 0; i < 6; ++i)
-        this._planes[i] = new Float4();
+        this.planes[i] = new Float4();
 
     for (i = 0; i < 8; ++i)
-        this._corners[i] = new Float4();
+        this.corners[i] = new Float4();
 }
 
 /**
@@ -69,16 +72,6 @@ Frustum.CLIP_SPACE_CORNERS = [
 Frustum.prototype =
     {
         /**
-         * An Array of planes describing the frustum. The planes are in world space and point outwards.
-         */
-        get planes() { return this._planes; },
-
-        /**
-         * An array containing the 8 vertices of the frustum, in world space.
-         */
-        get corners() { return this._corners; },
-
-        /**
          * @ignore
          */
         update: function(projection, inverseProjection)
@@ -90,13 +83,14 @@ Frustum.prototype =
         _updatePlanes: function(projection)
         {
             var m = projection._m;
+            var planes = this.planes;
 
-            var left = this._planes[Frustum.PLANE_LEFT];
-            var right = this._planes[Frustum.PLANE_RIGHT];
-            var top = this._planes[Frustum.PLANE_TOP];
-            var bottom = this._planes[Frustum.PLANE_BOTTOM];
-            var near = this._planes[Frustum.PLANE_NEAR];
-            var far = this._planes[Frustum.PLANE_FAR];
+            var left = planes[Frustum.PLANE_LEFT];
+            var right = planes[Frustum.PLANE_RIGHT];
+            var top = planes[Frustum.PLANE_TOP];
+            var bottom = planes[Frustum.PLANE_BOTTOM];
+            var near = planes[Frustum.PLANE_NEAR];
+            var far = planes[Frustum.PLANE_FAR];
 
             var r1x = m[0], r1y = m[4], r1z = m[8], r1w = m[12];
             var r2x = m[1], r2y = m[5], r2z = m[9], r2w = m[13];
@@ -142,8 +136,9 @@ Frustum.prototype =
 
         _updateCorners: function(inverseProjection)
         {
+            var corners = this.corners;
             for (var i = 0; i < 8; ++i) {
-                var corner = this._corners[i];
+                var corner = corners[i];
                 inverseProjection.transform(Frustum.CLIP_SPACE_CORNERS[i], corner);
                 corner.scale(1.0 / corner.w);
             }

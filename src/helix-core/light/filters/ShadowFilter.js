@@ -9,21 +9,13 @@ function ShadowFilter()
 {
     this._blurShader = null;
     this._numBlurPasses = 1;
-    this._cullMode = CullMode.FRONT;
+    this.cullMode = CullMode.FRONT;
 }
 
 ShadowFilter.prototype =
 {
     get shadowMapFilter() {
         return TextureFilter.NEAREST_NOMIP
-    },
-
-    get cullMode() {
-        return this._cullMode;
-    },
-
-    set cullMode(value) {
-        this._cullMode = value;
     },
 
     getShadowMapFormat: function()

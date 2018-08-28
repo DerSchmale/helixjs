@@ -78,7 +78,7 @@ RayCaster.prototype.qualifies = function(object)
  */
 RayCaster.prototype.visitMeshInstance = function (meshInstance)
 {
-    var entity = meshInstance._entity;
+    var entity = meshInstance.entity;
     var potential = this._potentialPool.getItem();
     potential.meshInstance = meshInstance;
     var dir = this._ray.direction;

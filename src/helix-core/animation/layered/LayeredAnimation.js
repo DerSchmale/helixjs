@@ -136,7 +136,7 @@ LayeredAnimation.prototype.clone = function()
 LayeredAnimation.prototype._collectPotentialTargets = function()
 {
 	var targets = {};
-	this._entity.applyFunction(function(node) {
+	this.entity.applyFunction(function(node) {
 		targets[node.name] = node;
 
 		if (node instanceof Entity) {

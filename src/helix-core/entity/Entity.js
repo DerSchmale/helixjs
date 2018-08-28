@@ -87,7 +87,7 @@ Entity.prototype.findMaterialByName = function(name)
  */
 Entity.prototype.addComponent = function(component)
 {
-	if (component._entity)
+	if (component.entity)
 		throw new Error("Component already added to an entity!");
 
 	var oldHash = this._componentHash;
@@ -98,7 +98,7 @@ Entity.prototype.addComponent = function(component)
 
 	this._requiresUpdates = this._requiresUpdates || (!!component.onUpdate);
 
-	component._entity = this;
+	component.entity = this;
 	if (component.enabled)
 		component.onAdded();
 
@@ -187,7 +187,7 @@ Entity.prototype.removeComponent = function(component)
 	this._onComponentsChange.dispatch(this, oldHash);
 
 	this._components = newComps;
-	component._entity = null;
+	component.entity = null;
 
 	if (component.enabled)
 		component.onRemoved();

@@ -806,7 +806,7 @@ Renderer.prototype =
      */
     _renderEffect: function (effect, dt)
     {
-        this._gammaApplied = this._gammaApplied || effect._outputsGamma;
+        this._gammaApplied = this._gammaApplied || effect.outputsGamma;
         effect.render(this, dt);
     },
 

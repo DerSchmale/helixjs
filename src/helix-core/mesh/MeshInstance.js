@@ -281,7 +281,7 @@ MeshInstance.prototype.toString = function()
  */
 MeshInstance.prototype.acceptVisitor = function(visitor)
 {
-	visitor.visitMeshInstance(this, this._entity);
+	visitor.visitMeshInstance(this, this.entity);
 };
 
 /**

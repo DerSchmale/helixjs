@@ -112,7 +112,7 @@ BoundingSphere.prototype.growToIncludeBound = function(bounds)
         this._center.x = bounds._center.x;
         this._center.y = bounds._center.y;
         this._center.z = bounds._center.z;
-        if (bounds._type === this._type) {
+        if (bounds.type === this.type) {
             this._halfExtentX = bounds._halfExtentX;
             this._halfExtentY = bounds._halfExtentY;
             this._halfExtentZ = bounds._halfExtentZ;
@@ -266,7 +266,7 @@ BoundingSphere.prototype.intersectsBound = function(bounds)
         return true;
 
     // both Spheres
-    if (bounds._type === this._type) {
+    if (bounds.type === this.type) {
         var dx = this._center.x - bounds._center.x;
         var dy = this._center.y - bounds._center.y;
         var dz = this._center.z - bounds._center.z;

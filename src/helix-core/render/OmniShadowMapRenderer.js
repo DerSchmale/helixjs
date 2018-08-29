@@ -1,6 +1,6 @@
 import {MaterialPass} from "../material/MaterialPass";
 import {GL} from "../core/GL";
-import {RenderUtils} from "./RenderUtils";
+import {renderPass} from "./RenderUtils";
 import {PerspectiveCamera} from "../camera/PerspectiveCamera";
 import {Float4} from "../math/Float4";
 import {Quaternion} from "../math/Quaternion";
@@ -57,7 +57,7 @@ OmniShadowMapRenderer.prototype =
 
                 light._shadowTiles[i].set(.5 * sx, .5 * sy, .5 * sx + tx, .5 * sy + ty);
 
-                RenderUtils.renderPass(this, camera, MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, this._casterCollector.getRenderList(i), light);
+                renderPass(this, camera, MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, this._casterCollector.getRenderList(i), light);
             }
 
             GL.setInvertCulling(false);

@@ -70,7 +70,7 @@ project.onUpdate = function(dt)
 
     indicator.visible = false;
 
-    var rayCaster = new HX.RayCaster();
+    var rayCaster = new HX.Raycaster();
     var hitData = rayCaster.cast(ray, this.scene);
 
     if (hitData) {

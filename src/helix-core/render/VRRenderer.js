@@ -39,11 +39,11 @@ VRRenderer.prototype.render = function(camera, scene, dt)
 
     camera._updateVR();
 
-    this._updateSize(this._renderTarget);
+    this._updateSize(this.renderTarget);
     this._camera._setRenderTargetResolution(this._width, this._height);
 
     this._renderCollector.collect(camera, scene);
-    this._ambientColor = this._renderCollector._ambientColor;
+    this._ambientColor = this._renderCollector.ambientColor;
 
     this._renderShadowCasters();
 
@@ -87,9 +87,9 @@ VRRenderer.prototype._present = function()
 VRRenderer.prototype._updateSize = function()
 {
     var width, height;
-    if (this._renderTarget) {
-        width = this._renderTarget.width * .5;
-        height = this._renderTarget.height;
+    if (this.renderTarget) {
+        width = this.renderTarget.width * .5;
+        height = this.renderTarget.height;
     }
 	else {
         width = META.TARGET_CANVAS.width * .5;

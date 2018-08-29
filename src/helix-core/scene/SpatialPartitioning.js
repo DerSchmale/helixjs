@@ -1,4 +1,3 @@
-import {SceneNode} from "./SceneNode";
 import {BoundingAABB} from "./BoundingAABB";
 
 /**

@@ -43,7 +43,7 @@ SpotLightingPass.prototype.updatePassRenderState = function(camera, renderer, li
         var gl = GL.gl;
         var col = light._scaledIrradiance;
 
-        gl.useProgram(this._shader._program);
+        gl.useProgram(this.shader.program);
 
         var worldMatrix = light.entity.worldMatrix;
         var viewMatrix = camera.viewMatrix;

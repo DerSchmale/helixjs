@@ -1,5 +1,4 @@
 import {META} from "../Helix";
-import {Color} from "../core/Color";
 import {Matrix4x4} from "../math/Matrix4x4";
 import {BoundingAABB} from "../scene/BoundingAABB";
 import {MaterialPass} from "../material/MaterialPass";
@@ -7,7 +6,7 @@ import {CascadeShadowCasterCollector} from "./CascadeShadowCasterCollector";
 import {OrthographicOffCenterCamera} from "../camera/OrthographicOffCenterCamera";
 import {GL} from "../core/GL";
 import {Float4} from "../math/Float4";
-import {RenderUtils} from "./RenderUtils";
+import {renderPass} from "./RenderUtils";
 
 /**
  * @ignore
@@ -20,15 +19,13 @@ import {RenderUtils} from "./RenderUtils";
 function CascadeShadowMapRenderer()
 {
     this._inverseLightMatrix = new Matrix4x4();
-    this._shadowMapCameras = null;
     this._collectorCamera = new OrthographicOffCenterCamera();
     this._maxY = 0;
     this._numCullPlanes = 0;
     this._cullPlanes = [];
     this._localBounds = new BoundingAABB();
     this._casterCollector = new CascadeShadowCasterCollector();
-
-    this._initCameras();
+    this._shadowMapCameras = initCameras();
 }
 
 CascadeShadowMapRenderer.prototype =
@@ -65,7 +62,7 @@ CascadeShadowMapRenderer.prototype =
             m.appendScale(rect.width * atlasSize, rect.height * atlasSize, 1.0);
             m.appendTranslation(rect.x * atlasSize, rect.y * atlasSize, 0.0);
 
-            RenderUtils.renderPass(this, camera, passType, this._casterCollector.getRenderList(c));
+            renderPass(this, camera, passType, this._casterCollector.getRenderList(c));
         }
     },
 
@@ -231,16 +228,17 @@ CascadeShadowMapRenderer.prototype =
         this._casterCollector.setCullPlanes(this._cullPlanes, this._numCullPlanes);
         this._casterCollector.setRenderCameras(this._shadowMapCameras);
         this._casterCollector.collect(this._collectorCamera, scene);
-    },
-
-    _initCameras: function()
-    {
-        this._shadowMapCameras = [];
-        for (var i = 0; i < META.OPTIONS.numShadowCascades; ++i)
-        {
-            this._shadowMapCameras[i] = new OrthographicOffCenterCamera();
-        }
     }
 };
+
+function initCameras()
+{
+	var shadowMapCameras = [];
+	for (var i = 0; i < META.OPTIONS.numShadowCascades; ++i)
+	{
+		shadowMapCameras[i] = new OrthographicOffCenterCamera();
+	}
+	return shadowMapCameras;
+}
 
 export { CascadeShadowMapRenderer };

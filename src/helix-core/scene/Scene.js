@@ -15,6 +15,7 @@ var nameCounter = 0;
  * @constructor
  *
  * @property name The name of the scene.
+ * @property skybox The {@linkcode Skybox} to use when rendering the scene.
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -25,7 +26,7 @@ function Scene(rootNode)
 	this._partitioning = new FlatPartitioning();
 	this._rootNode = rootNode || new Entity();
 	this._rootNode.name = "Root";
-	this._skybox = null;
+	this.skybox = null;
 	this._rootNode._setScene(this);
 }
 
@@ -34,12 +35,6 @@ Scene.prototype = {
      * The rootnode of the scene.
      */
     get rootNode() { return this._rootNode; },
-
-    /**
-     * The {@linkcode Skybox} to use when rendering the scene.
-     */
-    get skybox() { return this._skybox; },
-    set skybox(value) { this._skybox = value; },
 
     /**
      * Finds a scene node with the given name somewhere in the Scene.

@@ -134,7 +134,7 @@ SSAO.prototype._initSamples = function()
 {
     var samples = [];
     var j = 0;
-    var poissonPoints = PoissonSphere.DEFAULT.getPoints();
+    var poissonPoints = PoissonSphere.DEFAULT.points;
 
     for (var i = 0; i < this._numSamples; ++i) {
         var point = poissonPoints[i];

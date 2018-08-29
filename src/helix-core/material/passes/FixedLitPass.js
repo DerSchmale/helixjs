@@ -43,7 +43,7 @@ FixedLitPass.prototype = Object.create(MaterialPass.prototype);
 
 FixedLitPass.prototype.updatePassRenderState = function (camera, renderer)
 {
-    GL.gl.useProgram(this._shader._program);
+    GL.gl.useProgram(this.shader.program);
     this._assignDirLights(camera);
     this._assignPointLights(camera);
     this._assignSpotLights(camera);

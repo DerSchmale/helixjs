@@ -196,7 +196,7 @@ export {ImageData} from "./utils/ImageData";
 export {MergeSpecularTextures} from "./utils/MergeSpecularTextures";
 export {NormalTangentGenerator} from "./utils/NormalTangentGenerator";
 export {Platform} from "./utils/Platform";
-export {RayCaster} from "./utils/RayCaster";
+export {Raycaster} from "./utils/Raycaster";
 export {StatsDisplay} from "./utils/StatsDisplay";
 
 export {VRDisplay} from "./vr/VRDisplay";

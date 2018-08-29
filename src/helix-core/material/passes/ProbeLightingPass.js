@@ -31,7 +31,7 @@ ProbeLightingPass.prototype = Object.create(MaterialPass.prototype);
 ProbeLightingPass.prototype.updatePassRenderState = function(camera, renderer, probe)
 {
     var gl = GL.gl;
-    gl.useProgram(this._shader._program);
+    gl.useProgram(this.shader.program);
 
     // TODO: allow setting locality of probes
     this._diffuseSlot.texture = probe.diffuseTexture || DEFAULTS.DARK_CUBE_TEXTURE;

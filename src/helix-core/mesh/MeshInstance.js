@@ -24,13 +24,13 @@ function MeshInstance(mesh, material)
 	Component.call(this);
 
 	this.name = "hx_meshinstance_" + (nameCounter++);
+	this.castShadows = true;
 	this._bounds = new BoundingAABB();
 	this._morphPositions = null;
 	this._morphNormals = null;
 	this._morphWeights = null;
 	this._meshMaterialLinkInvalid = true;
 	this._vertexLayouts = null;
-	this._castShadows = true;
 	this._skeletonPose = null;
 	this._morphPose = null;
 	this.mesh = mesh;
@@ -39,18 +39,6 @@ function MeshInstance(mesh, material)
 }
 
 Component.create(MeshInstance, {
-	castShadows: {
-		get: function()
-		{
-			return this._castShadows;
-		},
-
-		set: function(value)
-		{
-			this._castShadows = value;
-		}
-	},
-
 	skeleton: {
 		get: function()
 		{

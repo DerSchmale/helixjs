@@ -1,8 +1,107 @@
-import { GLSLIncludes } from './GLSLIncludes';
-import { GL } from '../core/GL';
-import { META } from '../Helix';
+import {GLSLIncludes} from './GLSLIncludes';
+import {GL} from '../core/GL';
+import {META} from '../Helix';
 import {UniformSetter} from "./UniformSetter";
 import {Debug} from "../debug/Debug";
+
+function processExtensions(code, regEx, extension)
+{
+
+	var index = code.search(regEx);
+	if (index < 0) return code;
+	code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");
+	return code;
+}
+
+// this makes sure reserved uniforms are only used once, makes it easier to combine several snippets
+// it's quite slow, tho
+function guard(code, regEx)
+{
+	var result = code.match(regEx) || [];
+	var covered = {};
+
+	for (var i = 0; i < result.length; ++i) {
+		var occ = result[i];
+		occ = occ.replace(/(\r|\n)/g, "");
+
+		if (occ.charCodeAt(0) === 10)
+			occ = occ.substring(1);
+
+		var start = occ.indexOf("hx_");
+		var end = occ.indexOf(";");
+
+		// in case of arrays
+		var sq = occ.indexOf("[");
+		if (sq >= 0 && sq < end) end = sq;
+
+		var name = occ.substring(start, end);
+		name = name.trim();
+
+		if (covered[name]) continue;
+
+		covered[name] = true;
+
+		var defName = "HX_GUARD_" + name.toUpperCase();
+		var repl = "\n#ifndef " + defName + "\n" +
+			"#define " + defName + "\n" +
+			occ + "\n" +
+			"#endif\n";
+
+		occ = occ.replace(/\[/g, "\\[");
+		var replReg = new RegExp(occ, "g");
+		code = code.replace(replReg, repl);
+	}
+
+	return code;
+}
+
+function initShader(shader, code)
+{
+	var gl = GL.gl;
+	gl.shaderSource(shader, code);
+	gl.compileShader(shader);
+
+	// Check the compile status, return an error if failed
+	if (META.OPTIONS.debug && !gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+		console.warn(gl.getShaderInfoLog(shader));
+		Debug.printShaderCode(code);
+		return false;
+	}
+
+	return true;
+}
+
+function getShader(code, type)
+{
+	// is there a way to safely cache this so we don't have to do it over an over?
+	code = processShaderCode(code);
+
+	var shader = GL.gl.createShader(type);
+	if (!initShader(shader, code)) {
+		this.dispose();
+		if (META.OPTIONS.throwOnShaderError) {
+			throw new Error("Failed generating shader: \n" + code);
+		}
+		else {
+			console.warn("Failed generating shader");
+		}
+
+		gl.deleteShader(shader);
+		return null;
+	}
+	return shader;
+}
+
+function processShaderCode(code)
+{
+	code = processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
+	code = processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
+	code = processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
+	code = guard(code, /^\s*uniform\s+\w+\s+hx_\w+(\[\w+])?\s*;/gm);
+	code = guard(code, /^\s*attribute\s+\w+\s+hx_\w+\s*;/gm);
+	code = GLSLIncludes.VERSION + code;
+	return code;
+}
 
 /**
  * @ignore
@@ -14,203 +113,107 @@ import {Debug} from "../debug/Debug";
  */
 function Shader(vertexShaderCode, fragmentShaderCode)
 {
-    this._ready = false;
-    this._vertexShader = null;
-    this._fragmentShader = null;
-    this._program = null;
-    this._uniformSettersInstance = null;
-    this._uniformSettersPass = null;
+	this.program = null;
+	this._ready = false;
+	this._vertexShader = null;
+	this._fragmentShader = null;
+	this._uniformSettersInstance = null;
+	this._uniformSettersPass = null;
 
-    if (vertexShaderCode && fragmentShaderCode)
-        this.init(vertexShaderCode, fragmentShaderCode);
+	if (vertexShaderCode && fragmentShaderCode)
+		this.init(vertexShaderCode, fragmentShaderCode);
 }
 
 Shader.ID_COUNTER = 0;
 
 Shader.prototype = {
-    constructor: Shader,
+	constructor: Shader,
 
-    isReady: function() { return this._ready; },
+	isReady: function()
+	{
+		return this._ready;
+	},
 
-    init: function(vertexShaderCode, fragmentShaderCode)
-    {
-        var gl = GL.gl;
-        vertexShaderCode = "#define HX_VERTEX_SHADER\n" + GLSLIncludes.GENERAL + vertexShaderCode;
-        fragmentShaderCode = "#define HX_FRAGMENT_SHADER\n" + GLSLIncludes.GENERAL + fragmentShaderCode;
+	init: function(vertexShaderCode, fragmentShaderCode)
+	{
+		var gl = GL.gl;
+		vertexShaderCode = "#define HX_VERTEX_SHADER\n" + GLSLIncludes.GENERAL + vertexShaderCode;
+		fragmentShaderCode = "#define HX_FRAGMENT_SHADER\n" + GLSLIncludes.GENERAL + fragmentShaderCode;
 
-        vertexShaderCode = this._processShaderCode(vertexShaderCode);
-        fragmentShaderCode = this._processShaderCode(fragmentShaderCode);
+		this._vertexShader = getShader(vertexShaderCode, gl.VERTEX_SHADER);
+		this._fragmentShader = getShader(fragmentShaderCode, gl.FRAGMENT_SHADER);
 
-        this._vertexShader = gl.createShader(gl.VERTEX_SHADER);
-        if (!this._initShader(this._vertexShader, vertexShaderCode)) {
-            this.dispose();
-            if (META.OPTIONS.throwOnShaderError) {
-                throw new Error("Failed generating vertex shader: \n" + vertexShaderCode);
-            }
-            else {
-                console.warn("Failed generating vertex shader");
-            }
+		if (!this._vertexShader || !this._fragmentShader) {
+			this.dispose();
+			return;
+		}
 
-            return;
-        }
+		this.program = gl.createProgram();
 
-        this._fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-        if (!this._initShader(this._fragmentShader, fragmentShaderCode)) {
-            this.dispose();
-            if (META.OPTIONS.throwOnShaderError)
-                throw new Error("Failed generating fragment shader: \n" + fragmentShaderCode);
-            else
-                console.warn("Failed generating fragment shader:");
-            return;
-        }
+		gl.attachShader(this.program, this._vertexShader);
+		gl.attachShader(this.program, this._fragmentShader);
+		gl.linkProgram(this.program);
 
-        this._program = gl.createProgram();
+		if (META.OPTIONS.debug && !gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
+			var log = gl.getProgramInfoLog(this.program);
+			this.dispose();
 
-        gl.attachShader(this._program, this._vertexShader);
-        gl.attachShader(this._program, this._fragmentShader);
-        gl.linkProgram(this._program);
+			console.log("**********");
+			Debug.printShaderCode(vertexShaderCode);
+			console.log("**********");
+			Debug.printShaderCode(fragmentShaderCode);
 
-        if (META.OPTIONS.debug && !gl.getProgramParameter(this._program, gl.LINK_STATUS)) {
-            var log = gl.getProgramInfoLog(this._program);
-            this.dispose();
+			if (META.OPTIONS.throwOnShaderError)
+				throw new Error("Error in program linking:" + log);
 
-            console.log("**********");
-            Debug.printShaderCode(vertexShaderCode);
-            console.log("**********");
-            Debug.printShaderCode(fragmentShaderCode);
+			console.warn("Error in program linking:" + log);
 
-            if (META.OPTIONS.throwOnShaderError)
-                throw new Error("Error in program linking:" + log);
+			return;
+		}
 
-            console.warn("Error in program linking:" + log);
+		this._ready = true;
 
-            return;
-        }
+		// Profiler.stopTiming("Shader::init");
 
-        this._ready = true;
+		this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
+		this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
+	},
 
-        // Profiler.stopTiming("Shader::init");
+	updatePassRenderState: function(camera, renderer)
+	{
+		GL.gl.useProgram(this.program);
 
-        this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
-        this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
-    },
+		var len = this._uniformSettersPass.length;
+		for (var i = 0; i < len; ++i)
+			this._uniformSettersPass[i].execute(camera, renderer);
+	},
 
-    updatePassRenderState: function(camera, renderer)
-    {
-        GL.gl.useProgram(this._program);
+	updateInstanceRenderState: function(camera, renderItem)
+	{
+		var len = this._uniformSettersInstance.length;
+		for (var i = 0; i < len; ++i)
+			this._uniformSettersInstance[i].execute(camera, renderItem);
+	},
 
-        var len = this._uniformSettersPass.length;
-        for (var i = 0; i < len; ++i)
-            this._uniformSettersPass[i].execute(camera, renderer);
-    },
+	dispose: function()
+	{
+		var gl = GL.gl;
+		if (this._vertexShader) gl.deleteShader(this._vertexShader);
+		if (this._fragmentShader) gl.deleteShader(this._fragmentShader);
+		if (this.program) gl.deleteProgram(this.program);
 
-    updateInstanceRenderState: function(camera, renderItem)
-    {
-        var len = this._uniformSettersInstance.length;
-        for (var i = 0; i < len; ++i)
-            this._uniformSettersInstance[i].execute(camera, renderItem);
-    },
+		this._ready = false;
+	},
 
-    _initShader: function(shader, code)
-    {
-        var gl = GL.gl;
-        gl.shaderSource(shader, code);
-        gl.compileShader(shader);
+	getUniformLocation: function(name)
+	{
+		return GL.gl.getUniformLocation(this.program, name);
+	},
 
-        // Check the compile status, return an error if failed
-        if (META.OPTIONS.debug && !gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            console.warn(gl.getShaderInfoLog(shader));
-            Debug.printShaderCode(code);
-            return false;
-        }
-
-        return true;
-    },
-
-    dispose: function()
-    {
-        var gl = GL.gl;
-        gl.deleteShader(this._vertexShader);
-        gl.deleteShader(this._fragmentShader);
-        gl.deleteProgram(this._program);
-
-        this._ready = false;
-    },
-
-    getProgram: function() { return this._program; },
-
-    getUniformLocation: function(name)
-    {
-        return GL.gl.getUniformLocation(this._program, name);
-    },
-
-    getAttributeLocation: function(name)
-    {
-        return GL.gl.getAttribLocation(this._program, name);
-    },
-
-    _processShaderCode: function(code)
-    {
-        code = this._processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
-        code = this._processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
-        code = this._processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
-        code = this._guard(code, /^\s*uniform\s+\w+\s+hx_\w+(\[\w+])?\s*;/gm);
-        code = this._guard(code, /^\s*attribute\s+\w+\s+hx_\w+\s*;/gm);
-        code = GLSLIncludes.VERSION + code;
-        return code;
-    },
-
-    _processExtensions: function(code, regEx, extension)
-    {
-
-        var index = code.search(regEx);
-        if (index < 0) return code;
-        code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");
-        return code;
-    },
-
-    // this makes sure reserved uniforms are only used once, makes it easier to combine several snippets
-    // it's quite slow, tho
-    _guard: function(code, regEx)
-    {
-        var result = code.match(regEx) || [];
-        var covered = {};
-
-
-        for (var i = 0; i < result.length; ++i) {
-            var occ = result[i];
-            occ = occ.replace(/(\r|\n)/g, "");
-
-            if (occ.charCodeAt(0) === 10)
-                occ = occ.substring(1);
-
-            var start = occ.indexOf("hx_");
-            var end = occ.indexOf(";");
-
-            // in case of arrays
-            var sq = occ.indexOf("[");
-            if (sq >= 0 && sq < end) end = sq;
-
-            var name = occ.substring(start, end);
-            name = name.trim();
-
-            if (covered[name]) continue;
-
-            covered[name] = true;
-
-            var defName = "HX_GUARD_" + name.toUpperCase();
-            var repl =  "\n#ifndef " + defName + "\n" +
-                        "#define " + defName + "\n" +
-                        occ + "\n" +
-                        "#endif\n";
-
-            occ = occ.replace(/\[/g, "\\[");
-            var replReg = new RegExp(occ, "g");
-            code = code.replace(replReg, repl);
-        }
-
-        return code;
-    }
+	getAttributeLocation: function(name)
+	{
+		return GL.gl.getAttribLocation(this.program, name);
+	}
 };
 
-export { Shader };
+export {Shader};

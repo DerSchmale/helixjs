@@ -38,7 +38,7 @@ SpotShadowCasterCollector.prototype.collect = function(camera, scene)
 
 SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-    if (!meshInstance._castShadows || !meshInstance.enabled) return;
+    if (!meshInstance.castShadows || !meshInstance.enabled) return;
 
     var entity = meshInstance.entity;
     var worldBounds = entity.worldBounds;
@@ -47,11 +47,8 @@ SpotShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
     var skeleton = meshInstance.skeleton;
     var skeletonMatrices = meshInstance.skeletonMatrices;
     var renderPool = this._renderItemPool;
-    var camera = this._camera;
     var renderList = this._renderList;
-
     var material = meshInstance.material;
-
     var renderItem = renderPool.getItem();
 
     renderItem.material = material;

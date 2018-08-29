@@ -40,7 +40,7 @@ PointLightingPass.prototype.updatePassRenderState = function(camera, renderer, l
         var gl = GL.gl;
         var col = light._scaledIrradiance;
 
-        gl.useProgram(this._shader._program);
+        gl.useProgram(this.shader.program);
 
         light.entity.worldMatrix.getColumn(3, pos);
         camera.viewMatrix.transformPoint(pos, pos);

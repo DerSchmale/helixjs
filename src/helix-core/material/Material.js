@@ -31,6 +31,7 @@ var MATERIAL_ID_COUNTER = 0;
  * @param [lightingModel] The {@linkcode LightingModel} to use. Defaults to what was passed in (if anything) with {@linkcode InitOptions#defaultLightingModel}.
  *
  * @property name The name of the material.
+ * @property renderOrder A Number that can force the order in which the material is rendered. Higher values will be rendered later!
  *
  * @author derschmale <http://www.derschmale.com>
  */
@@ -47,7 +48,7 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     // automatic render order by engine
     this._renderOrderHint = ++MATERIAL_ID_COUNTER;
     // forced render order by user:
-    this._renderOrder = 0;
+    this.renderOrder = 0;
     this._renderPath = null;
     this._textures = {};
     this._uniforms = {};
@@ -190,19 +191,6 @@ Material.prototype =
     {
         this._lightingModel = value;
         this._invalidate();
-    },
-
-    /**
-     * A Number that can force the order in which the material is rendered. Higher values will be rendered later!
-     */
-    get renderOrder()
-    {
-        return this._renderOrder;
-    },
-
-    set renderOrder(value)
-    {
-        this._renderOrder = value;
     },
 
     /**

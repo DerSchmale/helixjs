@@ -45,7 +45,7 @@ GaussianBlurPass.prototype._initWeights = function(radius)
 
     var total = 0;
     for (var j = 0; j <= radius; ++j) {
-        this._weights[j] = gaussian.getValueAt(j);
+        this._weights[j] = gaussian.at(j);
         total += j > 0? this._weights[j] * 2.0 : 1.0;
     }
 

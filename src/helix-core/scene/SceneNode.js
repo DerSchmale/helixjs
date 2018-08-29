@@ -40,7 +40,7 @@ function SceneNode()
     this._scene = null;
     this._visible = true;
     this._ancestorsVisible = true;
-    this._raycast = true;
+    this.raycast = true;
     this._children = [];
     this._isOnRoot = false;
 
@@ -88,17 +88,6 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         get: function()
         {
             return this._visible && this._ancestorsVisible
-        }
-    },
-
-    raycast: {
-        get: function()
-        {
-            return this._raycast;
-        },
-        set: function(value)
-        {
-            this._raycast = value;
         }
     },
 

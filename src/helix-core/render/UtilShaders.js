@@ -16,12 +16,12 @@ function CustomCopyShader(fragmentShader)
     this.init(ShaderLibrary.get("copy_vertex.glsl"), fragmentShader);
 
     var gl = GL.gl;
-    var textureLocation = gl.getUniformLocation(this._program, "sampler");
+    var textureLocation = gl.getUniformLocation(this.program, "sampler");
 
-    this._positionAttributeLocation = gl.getAttribLocation(this._program, "hx_position");
-    this._texCoordAttributeLocation = gl.getAttribLocation(this._program, "hx_texCoord");
+    this._positionAttributeLocation = gl.getAttribLocation(this.program, "hx_position");
+    this._texCoordAttributeLocation = gl.getAttribLocation(this.program, "hx_texCoord");
 
-    gl.useProgram(this._program);
+    gl.useProgram(this.program);
     gl.uniform1i(textureLocation, 0);
 }
 
@@ -83,7 +83,7 @@ CopyChannelsShader.prototype = Object.create(CustomCopyShader.prototype);
 function BlendColorCopyShader()
 {
     CustomCopyShader.call(this, ShaderLibrary.get("blend_color_copy_fragment.glsl"));
-    this._colorLocation = GL.gl.getUniformLocation(this._program, "blendColor");
+    this._colorLocation = GL.gl.getUniformLocation(this.program, "blendColor");
     this.setBlendColor(1, 1, 1, 1);
 }
 
@@ -92,7 +92,7 @@ BlendColorCopyShader.prototype = Object.create(CustomCopyShader.prototype);
 BlendColorCopyShader.prototype.setBlendColor = function(r, g, b, a)
 {
     var gl = GL.gl;
-    gl.useProgram(this._program);
+    gl.useProgram(this.program);
     gl.uniform4f(this._colorLocation, r, g, b, a);
 };
 

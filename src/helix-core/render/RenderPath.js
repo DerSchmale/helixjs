@@ -7,8 +7,6 @@ var RenderPath = {
     // forward with fixed assigned set of lights
     FORWARD_FIXED: 1,
 
-    // WebGL 2 could use a separate render path supporting dynamic loops
-
     NUM_PATHS: 2
 };
 

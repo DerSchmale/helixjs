@@ -576,30 +576,15 @@
         var o = accessor.byteOffset;
         var src = accessor.data;
         var len = accessor.count;
-        var readFnc;
-        var collType;
-        var elmSize;
 
         if (accessor.dataType === HX.DataType.UNSIGNED_SHORT) {
-            collType = Uint16Array;
-            readFnc = src.getUint16;
-            elmSize = 2;
+            return new Uint16Array(src.buffer, o, len);
         }
         else if (accessor.dataType === HX.DataType.UNSIGNED_INT) {
-            collType = Uint32Array;
-            readFnc = src.getUint32;
-            elmSize = 4;
+    		return new Uint32Array(src.buffer, o, len);
         }
         else
             throw new Error("Unknown data type for indices!");
-
-        var indexData = new collType(len);
-        for (var i = 0; i < len; ++i) {
-            indexData[i] = readFnc.call(src, o, true);
-            o += elmSize;
-        }
-
-        return indexData;
     };
 
     GLTF.prototype._parseSkin = function(nodeDef, target)

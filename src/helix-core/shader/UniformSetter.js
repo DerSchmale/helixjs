@@ -30,7 +30,7 @@ export var UniformSetter = {
     {
         var setters = [];
         for (var uniformName in table) {
-            var location = GL.gl.getUniformLocation(shader._program, uniformName);
+            var location = GL.gl.getUniformLocation(shader.program, uniformName);
             if (!location) continue;
             var setter = new table[uniformName]();
             setters.push(setter);

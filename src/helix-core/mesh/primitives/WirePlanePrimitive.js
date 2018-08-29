@@ -1,8 +1,9 @@
 import {Primitive} from "./Primitive";
+import {ElementType} from "../../Helix";
 
 /**
  * @classdesc
- * WirePlanePrimitive provides a primitive plane {@linkcode Model} to use with line types, useful for debugging.
+ * WirePlanePrimitive provides a primitive plane {@linkcode Model} with lines, useful for debugging.
  *
  * @constructor
  * @param definition An object containing the following (optional) parameters:
@@ -21,6 +22,7 @@ import {Primitive} from "./Primitive";
 function WirePlanePrimitive(definition)
 {
     Primitive.call(this, definition);
+    this.elementType = ElementType.LINES;
 }
 
 WirePlanePrimitive.prototype = Object.create(Primitive.prototype);

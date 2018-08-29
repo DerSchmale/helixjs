@@ -43,7 +43,7 @@ DirectionalLightingPass.prototype.updatePassRenderState = function(camera, rende
         var gl = GL.gl;
         var col = light._scaledIrradiance;
 
-        gl.useProgram(this._shader._program);
+        gl.useProgram(this.shader.program);
 
         camera.viewMatrix.transformVector(light.direction, dir);
         gl.uniform3f(this._colorLocation, col.r, col.g, col.b);

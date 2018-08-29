@@ -16,7 +16,7 @@ import {UniformBuffer} from "../core/UniformBuffer";
  */
 function MaterialPass(shader)
 {
-    this._shader = shader;
+    this.shader = shader;
     this._textureSlots = [];
     this._uniformBufferSlots = [];
     this._uniforms = {};
@@ -60,11 +60,6 @@ MaterialPass.prototype =
     {
         constructor: MaterialPass,
 
-        get shader()
-        {
-            return this._shader;
-        },
-
         /**
          * Called per render item.
          */
@@ -84,7 +79,7 @@ MaterialPass.prototype =
                 }
             }
 
-            this._shader.updateInstanceRenderState(camera, renderItem);
+            this.shader.updateInstanceRenderState(camera, renderItem);
         },
 
         /**
@@ -132,19 +127,19 @@ MaterialPass.prototype =
 
             GL.setMaterialPassState(this.cullMode, this.depthTest, this.writeDepth, this.writeColor, this.blendState);
 
-            this._shader.updatePassRenderState(camera, renderer);
+            this.shader.updatePassRenderState(camera, renderer);
         },
 
         _storeUniforms: function()
         {
             var gl = GL.gl;
 
-            var len = gl.getProgramParameter(this._shader._program, gl.ACTIVE_UNIFORMS);
+            var len = gl.getProgramParameter(this.shader.program, gl.ACTIVE_UNIFORMS);
 
             for (var i = 0; i < len; ++i) {
-                var uniform = gl.getActiveUniform(this._shader._program, i);
+                var uniform = gl.getActiveUniform(this.shader.program, i);
                 var name = uniform.name;
-                var location = gl.getUniformLocation(this._shader._program, name);
+                var location = gl.getUniformLocation(this.shader.program, name);
                 this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
             }
         },
@@ -153,7 +148,7 @@ MaterialPass.prototype =
         {
             var gl = GL.gl;
             var slot = this.getUniformBufferSlot(name);
-            var program = this._shader._program;
+            var program = this.shader.program;
             var indices = gl.getActiveUniformBlockParameter(program, slot.blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES);
             var totalSize = gl.getActiveUniformBlockParameter(program, slot.blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
             var uniformBuffer = new UniformBuffer(totalSize);
@@ -161,7 +156,7 @@ MaterialPass.prototype =
             var offsets = gl.getActiveUniforms(program, indices, gl.UNIFORM_OFFSET);
 
             for (var i = 0; i < indices.length; ++i) {
-                var uniform = gl.getActiveUniform(this._shader._program, indices[i]);
+                var uniform = gl.getActiveUniform(program, indices[i]);
                 uniformBuffer.registerUniform(uniform.name, offsets[i], uniform.size, uniform.type);
             }
 
@@ -175,7 +170,7 @@ MaterialPass.prototype =
             if (!this._uniforms.hasOwnProperty(slotName)) return null;
 
             var gl = GL.gl;
-            gl.useProgram(this._shader._program);
+            gl.useProgram(this.shader.program);
 
             var uniform = this._uniforms[slotName];
 
@@ -219,9 +214,9 @@ MaterialPass.prototype =
         getUniformBufferSlot: function(slotName)
         {
             var gl = GL.gl;
-            gl.useProgram(this._shader._program);
+            gl.useProgram(this.shader.program);
 
-            var blockIndex = GL.gl.getUniformBlockIndex(this._shader._program, slotName);
+            var blockIndex = GL.gl.getUniformBlockIndex(this.shader.program, slotName);
             // seems it's returning -1 as *unsigned*
             if (blockIndex > 1000) return;
 
@@ -243,7 +238,7 @@ MaterialPass.prototype =
                 slot.name = slotName;
                 this._uniformBufferSlots.push(slot);
                 slot.blockIndex = blockIndex;
-                gl.uniformBlockBinding(this._shader._program, slot.blockIndex, slot.bindingPoint);
+                gl.uniformBlockBinding(this.shader.program, slot.blockIndex, slot.bindingPoint);
             }
 
             return slot;
@@ -286,7 +281,7 @@ MaterialPass.prototype =
 
         getAttributeLocation: function(name)
         {
-            return this._shader.getAttributeLocation(name);
+            return this.shader.getAttributeLocation(name);
         },
 
         // slow :(
@@ -311,7 +306,7 @@ MaterialPass.prototype =
 
             var uniform = this._uniforms[name];
             var gl = GL.gl;
-            gl.useProgram(this._shader._program);
+            gl.useProgram(this.shader.program);
 
             switch(uniform.type) {
                 case gl.FLOAT:
@@ -367,7 +362,7 @@ MaterialPass.prototype =
             var uniform = this._uniforms[name];
 
             var gl = GL.gl;
-            gl.useProgram(this._shader._program);
+            gl.useProgram(this.shader.program);
 
             switch(uniform.type) {
                 case gl.FLOAT:

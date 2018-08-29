@@ -19,17 +19,17 @@ export var TextureSetter = {
         return TextureSetter._findSetters(materialPass, TextureSetter._instanceTable);
     },
 
-    _findSetters: function (materialPass, table)
+    _findSetters: function (shader, table)
     {
         var setters = [];
         for (var slotName in table) {
             if (!table.hasOwnProperty(slotName)) continue;
-            var slot = materialPass.getTextureIndex(slotName);
+            var slot = shader.getTextureIndex(slotName);
             if (slot === -1) continue;
             var setter = new table[slotName]();
             setters.push(setter);
             setter.slot = slot;
-            setter.pass = materialPass;
+            setter.pass = shader;
         }
 
         return setters;

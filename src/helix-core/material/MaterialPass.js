@@ -3,6 +3,7 @@ import {TextureSetter} from "../shader/TextureSetter";
 import {GL} from "../core/GL";
 import {Texture2D} from "../texture/Texture2D";
 import {UniformBufferSetter} from "../shader/UniformBufferSetter";
+import {UniformSetter} from "../shader/UniformSetter";
 
 /**
  * @ignore
@@ -23,6 +24,8 @@ function MaterialPass(shader)
     this._textures = new Array(shader.numTextures);
 	this._uniformBuffers = new Array(shader.numUniformBuffers);
 
+	this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
+	this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
 	this._textureSettersPass = TextureSetter.getSettersPerPass(this);
     this._textureSettersInstance = TextureSetter.getSettersPerInstance(this);
 
@@ -32,6 +35,7 @@ function MaterialPass(shader)
     }
 
     this.setTexture("hx_dither2D", DEFAULTS.DEFAULT_2D_DITHER_TEXTURE);
+    this._uniformFuncs = {};
 }
 
 // these will be set upon initialization
@@ -67,6 +71,10 @@ MaterialPass.prototype =
                 this._textureSettersInstance[i].execute(renderItem);
             }
 
+			len = this._uniformSettersInstance.length;
+			for (var i = 0; i < len; ++i)
+				this._uniformSettersInstance[i].execute(camera, renderItem);
+
             if (this._uniformBufferSettersInstance) {
                 len = this._uniformBufferSettersInstance.length;
 
@@ -74,8 +82,6 @@ MaterialPass.prototype =
                     this._uniformBufferSettersInstance[i].execute(renderItem);
                 }
             }
-
-            this.shader.updateInstanceRenderState(camera, renderItem);
         },
 
         /**
@@ -83,8 +89,19 @@ MaterialPass.prototype =
          */
         updatePassRenderState: function (camera, renderer, data)
         {
-            var len = this._textureSettersPass.length;
-            var i;
+			GL.setShader(this.shader);
+
+            var len, i;
+
+			for (var key in this._uniformFuncs)
+				this._uniformFuncs[key]();
+
+			len = this._uniformSettersPass.length;
+			for (var i = 0; i < len; ++i)
+				this._uniformSettersPass[i].execute(camera, renderer);
+
+			len = this._textureSettersPass.length;
+
             for (i = 0; i < len; ++i) {
                 this._textureSettersPass[i].execute(renderer);
             }
@@ -121,8 +138,6 @@ MaterialPass.prototype =
             }
 
             GL.setMaterialPassState(this.cullMode, this.depthTest, this.writeDepth, this.writeColor, this.blendState);
-
-            this.shader.updatePassRenderState(camera, renderer);
         },
 
 		/**
@@ -171,7 +186,6 @@ MaterialPass.prototype =
 		/**
 		 * Allows getting the uniform buffer index. For textures that often change, it may be better to cache this value
 		 * and assign the textures through setUniformBufferByIndex.
-		 * and assign the textures through setUniformBufferByIndex.
 		 */
 		getUniformBufferIndex: function(name)
 		{
@@ -217,114 +231,114 @@ MaterialPass.prototype =
         {
             name += "[0]";
 
-            if (!this.shader.hasUniform(name))
-                return;
-
             var uniform = this.shader.getUniform(name);
+
+            if (!uniform) return;
             var gl = GL.gl;
-            gl.useProgram(this.shader.program);
+            var func;
 
             switch(uniform.type) {
                 case gl.FLOAT:
-                    gl.uniform1fv(uniform.location, value);
+					func = gl.uniform1fv.bind(gl, uniform.location, value);
                     break;
                 case gl.FLOAT_VEC2:
-                    gl.uniform2fv(uniform.location, value);
+					func = gl.uniform2fv.bind(gl, uniform.location, value);
                     break;
                 case gl.FLOAT_VEC3:
-                    gl.uniform3fv(uniform.location, value);
+					func = gl.uniform3fv.bind(gl, uniform.location, value);
                     break;
                 case gl.FLOAT_VEC4:
-                    gl.uniform4fv(uniform.location, value);
+					func = gl.uniform4fv.bind(gl, uniform.location, value);
                     break;
                 case gl.FLOAT_MAT4:
-                    gl.uniformMatrix4fv(uniform.location, false, value);
+					func = gl.uniformMatrix4fv.bind(gl, uniform.location, false, value);
                     break;
                 case gl.INT:
-                    gl.uniform1iv(uniform.location, value);
+					func = gl.uniform1iv.bind(gl, uniform.location, value);
                     break;
                 case gl.INT_VEC2:
-                    gl.uniform2iv(uniform.location, value);
+					func = gl.uniform2iv.bind(gl, uniform.location, value);
                     break;
                 case gl.INT_VEC3:
-                    gl.uniform3iv(uniform.location, value);
+					func = gl.uniform3iv.bind(gl, uniform.location, value);
                     break;
                 case gl.INT_VEC4:
-                    gl.uniform1iv(uniform.location, value);
+					func = gl.uniform1iv.bind(gl, uniform.location, value);
                     break;
                 case gl.BOOL:
-                    gl.uniform1bv(uniform.location, value);
+					func = gl.uniform1bv.bind(gl, uniform.location, value);
                     break;
                 case gl.BOOL_VEC2:
-                    gl.uniform2bv(uniform.location, value);
+					func = gl.uniform2bv.bind(gl, uniform.location, value);
                     break;
                 case gl.BOOL_VEC3:
-                    gl.uniform3bv(uniform.location, value);
+					func = gl.uniform3bv.bind(gl, uniform.location, value);
                     break;
                 case gl.BOOL_VEC4:
-                    gl.uniform4bv(uniform.location, value);
+					func = gl.uniform4bv.bind(gl, uniform.location, value);
                     break;
                 default:
                     throw new Error("Unsupported uniform format for setting (" + uniform.type + ") for uniform '" + name + "'. May be a todo.");
 
             }
+
+			this._uniformFuncs[name] = func;
         },
 
         setUniform: function(name, value)
         {
-            // TODO: Assign these on shader
-            if (!this.shader.hasUniform(name))
-                return;
-
             var uniform = this.shader.getUniform(name);
 
+            if (!uniform) return;
+
             var gl = GL.gl;
-            gl.useProgram(this.shader.program);
+            var func;
 
             switch(uniform.type) {
                 case gl.FLOAT:
-                    gl.uniform1f(uniform.location, value);
+					func = gl.uniform1f.bind(gl, uniform.location, value);
                     break;
                 case gl.FLOAT_VEC2:
-                    gl.uniform2f(uniform.location, value.x || value[0] || 0, value.y || value[1] || 0);
+					func = gl.uniform2f.bind(gl, uniform.location, value.x || value[0] || 0, value.y || value[1] || 0);
                     break;
                 case gl.FLOAT_VEC3:
-                    gl.uniform3f(uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0 );
+					func = gl.uniform3f.bind(gl, uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0 );
                     break;
                 case gl.FLOAT_VEC4:
-                    gl.uniform4f(uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0, value.w || value.a || value[3] || 0);
+					func = gl.uniform4f.bind(gl, uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0, value.w || value.a || value[3] || 0);
                     break;
                 case gl.INT:
-                    gl.uniform1i(uniform.location, value);
+					func = gl.uniform1i.bind(gl, uniform.location, value);
                     break;
                 case gl.INT_VEC2:
-                    gl.uniform2i(uniform.location, value.x || value[0], value.y || value[1]);
+					func = gl.uniform2i.bind(gl, uniform.location, value.x || value[0], value.y || value[1]);
                     break;
                 case gl.INT_VEC3:
-                    gl.uniform3i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
+					func = gl.uniform3i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
                     break;
                 case gl.INT_VEC4:
-                    gl.uniform4i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
+					func = gl.uniform4i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
                     break;
                 case gl.BOOL:
-                    gl.uniform1i(uniform.location, value);
+					func = gl.uniform1i.bind(gl, uniform.location, value);
                     break;
                 case gl.BOOL_VEC2:
-                    gl.uniform2i(uniform.location, value.x || value[0], value.y || value[1]);
+					func = gl.uniform2i.bind(gl, uniform.location, value.x || value[0], value.y || value[1]);
                     break;
                 case gl.BOOL_VEC3:
-                    gl.uniform3i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
+					func = gl.uniform3i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
                     break;
                 case gl.BOOL_VEC4:
-                    gl.uniform4i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
+					func = gl.uniform4i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
                     break;
                 case gl.FLOAT_MAT4:
-                    gl.uniformMatrix4fv(uniform.location, false, value._m);
+					func = gl.uniformMatrix4fv.bind(gl, uniform.location, false, value._m);
                     break;
                 default:
                     throw new Error("Unsupported uniform format for setting. May be a todo.");
-
             }
+
+			this._uniformFuncs[name] = func;
         }
     };
 

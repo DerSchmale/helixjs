@@ -17,6 +17,7 @@ import {FrameBuffer} from "./texture/FrameBuffer";
 import {MaterialPass} from "./material/MaterialPass";
 import {initGamepads, updateGamepads} from "./input/gamepads";
 import {disableVR, isVRPresenting} from "./vr/vr";
+import {ProgramCache} from "./shader/ProgramCache";
 
 /**
  * META contains some data about the Helix engine, such as the options it was initialized with.
@@ -61,7 +62,12 @@ export var META =
 		/**
          * The Audio Context used for audio playback
 		 */
-		AUDIO_CONTEXT: null
+		AUDIO_CONTEXT: null,
+
+		/**
+         * The current frame mark. Used for usage checking in cached programs.
+		 */
+		CURRENT_FRAME_MARK: 0
 	};
 
 /**
@@ -631,6 +637,10 @@ export function init(canvas, options)
 
 function _onFrameTick(dt)
 {
+	++META.CURRENT_FRAME_MARK;
+
+	ProgramCache.purge(META.CURRENT_FRAME_MARK);
+
     var startTime = (performance || Date).now();
 
     updateGamepads();

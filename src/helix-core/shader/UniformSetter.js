@@ -10,20 +10,20 @@ import {Matrix4x4} from "../math/Matrix4x4";
  */
 export var UniformSetter = {
 
-    getSettersPerInstance: function (shader)
+    getSettersPerInstance: function (materialPass)
     {
         if (UniformSetter._instanceTable === undefined)
             UniformSetter._init();
 
-        return UniformSetter._findSetters(shader, UniformSetter._instanceTable);
+        return UniformSetter._findSetters(materialPass.shader, UniformSetter._instanceTable);
     },
 
-    getSettersPerPass: function (shader)
+    getSettersPerPass: function (materialPass)
     {
         if (UniformSetter._passTable === undefined)
             UniformSetter._init();
 
-        return UniformSetter._findSetters(shader, UniformSetter._passTable);
+        return UniformSetter._findSetters(materialPass.shader, UniformSetter._passTable);
     },
 
     _findSetters: function (shader, table)

@@ -36,7 +36,7 @@ CustomCopyShader.prototype.execute = function(rect, texture)
     rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
-    this.updatePassRenderState();
+	GL.setShader(this);
 
     texture.bind(0);
 

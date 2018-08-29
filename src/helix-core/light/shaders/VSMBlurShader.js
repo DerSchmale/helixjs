@@ -44,7 +44,7 @@ VSMBlurShader.prototype.execute = function (rect, texture, dirX, dirY)
     rect._vertexBuffers[0].bind();
     rect._indexBuffer.bind();
 
-    this.updatePassRenderState();
+	GL.setShader(this);
 
     texture.bind(0);
 

@@ -3595,6 +3595,10 @@
 	    }
 	};
 
+	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
+
+	ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
+
 	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
 
 	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
@@ -3609,9 +3613,47 @@
 
 	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
 
-	ShaderLibrary._files['debug_bounds_fragment.glsl'] = 'uniform vec4 color;\n\nvoid main()\n{\n    hx_FragColor = color;\n}';
+	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
-	ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
+	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['bloom_threshold_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_backbuffer, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        hx_FragColor = color * targetLuminance / originalLuminance;\n}\n';
+
+	ShaderLibrary._files['default_post_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['fog_fragment.glsl'] = 'varying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float heightFallOff;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_normalDepthBuffer;\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox\n	if (normalDepth.z == 1.0 && normalDepth.w == 1.0) depth = 0.0;\n	float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewVec = viewDir * absViewY;\n	float fogFactor = max(length(viewVec) - startDistance, 0.0);// * exp(-heightFallOff * hx_cameraWorldPosition.y);\n//    if( abs( viewVec.y ) > 0.1 )\n//	{\n		float t = heightFallOff * (viewVec.z + hx_cameraWorldPosition.z);\n		fogFactor *= saturate(( 1.0 - exp( -t ) ) / t);\n//	}\n\n	float fog = clamp(exp(-fogFactor * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	hx_FragColor = color;\n}';
+
+	ShaderLibrary._files['fog_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = mat3(hx_cameraWorldMatrix) * hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['fxaa_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform float edgeThreshold;\nuniform float edgeThresholdMin;\nuniform float edgeSharpness;\n\nfloat luminanceHint(vec4 color)\n{\n	return .30/.59 * color.r + color.g;\n}\n\nvoid main()\n{\n	vec4 center = texture2D(hx_backbuffer, uv);\n	vec2 halfRes = vec2(hx_rcpRenderTargetResolution.x, hx_rcpRenderTargetResolution.y) * .5;\n	float topLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, halfRes.y)));\n	float bottomLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, -halfRes.y)));\n	float topRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, halfRes.y)));\n	float bottomRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, -halfRes.y)));\n\n	float centerLum = luminanceHint(center);\n	float minLum = min(min(topLeftLum, bottomLeftLum), min(topRightLum, bottomRightLum));\n	float maxLum = max(max(topLeftLum, bottomLeftLum), max(topRightLum, bottomRightLum));\n	float range = max(centerLum, maxLum) - min(centerLum, minLum);\n	float threshold = max(edgeThresholdMin, maxLum * edgeThreshold);\n	float applyFXAA = range < threshold? 0.0 : 1.0;\n\n	float diagDiff1 = bottomLeftLum - topRightLum;\n	float diagDiff2 = bottomRightLum - topLeftLum;\n	vec2 dir1 = normalize(vec2(diagDiff1 + diagDiff2, diagDiff1 - diagDiff2));\n	vec4 sampleNeg1 = texture2D(hx_backbuffer, uv - halfRes * dir1);\n	vec4 samplePos1 = texture2D(hx_backbuffer, uv + halfRes * dir1);\n\n	float minComp = min(abs(dir1.x), abs(dir1.y)) * edgeSharpness;\n	vec2 dir2 = clamp(dir1.xy / minComp, -2.0, 2.0) * 2.0;\n	vec4 sampleNeg2 = texture2D(hx_backbuffer, uv - hx_rcpRenderTargetResolution * dir2);\n	vec4 samplePos2 = texture2D(hx_backbuffer, uv + hx_rcpRenderTargetResolution * dir2);\n	vec4 tap1 = sampleNeg1 + samplePos1;\n	vec4 fxaa = (tap1 + sampleNeg2 + samplePos2) * .25;\n	float fxaaLum = luminanceHint(fxaa);\n	if ((fxaaLum < minLum) || (fxaaLum > maxLum))\n		fxaa = tap1 * .5;\n	hx_FragColor = mix(center, fxaa, applyFXAA);\n}';
+
+	ShaderLibrary._files['gaussian_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform vec2 stepSize;\n\nuniform float gaussianWeights[NUM_WEIGHTS];\n\nvoid main()\n{\n	vec4 total = texture2D(sourceTexture, uv) * gaussianWeights[0];\n    vec2 offset = vec2(0.0);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n		offset += stepSize;\n	    vec4 s = texture2D(sourceTexture, uv + offset) + texture2D(sourceTexture, uv - offset);\n		total += s * gaussianWeights[i];\n	}\n\n	hx_FragColor = total;\n}';
+
+	ShaderLibrary._files['gaussian_blur_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['post_viewpos_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['ssr_fragment.glsl'] = '#derivatives\n\n// TODO: This won\'t work anymore\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D hx_dither2D;\nuniform vec2 hx_renderTargetResolution;\n\nuniform sampler2D hx_frontbuffer;\n\nvarying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec2 ditherTextureScale;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform float hx_rcpCameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform float maxDistance;\nuniform float stepSize;\nuniform float maxRoughness;\n\n// all in viewspace\n// 0 is start, 1 is end\nfloat raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)\n{\n    vec4 dither = hx_sampleDefaultDither(hx_dither2D, uv * ditherTextureScale);\n    // Clip to the near plane\n	float rayLength = ((ray0.z + rayDir.z * maxDistance) > -hx_cameraNearPlaneDistance) ?\n						(-hx_cameraNearPlaneDistance - ray0.z) / rayDir.z : maxDistance;\n\n    vec3 ray1 = ray0 + rayDir * rayLength;\n\n    // only need the w component for perspective correct interpolation\n    // need to get adjusted ray end\'s uv value\n    vec4 hom0 = hx_projectionMatrix * vec4(ray0, 1.0);\n    vec4 hom1 = hx_projectionMatrix * vec4(ray1, 1.0);\n    float rcpW0 = 1.0 / hom0.w;\n    float rcpW1 = 1.0 / hom1.w;\n\n    hom0 *= rcpW0;\n    hom1 *= rcpW1;\n\n    // expressed in pixels, so we can snap to 1\n    // need to figure out the ratio between 1 pixel and the entire line \"width\" (if primarily vertical, it\'s actually height)\n\n    // line dimensions in pixels:\n\n    vec2 pixelSize = (hom1.xy - hom0.xy) * hx_renderTargetResolution * .5;\n\n    // line-\"width\" = max(abs(pixelSize.x), abs(pixelSize.y))\n    // ratio pixel/width = 1 / max(abs(pixelSize.x), abs(pixelSize.y))\n\n    float stepRatio = 1.0 / max(abs(pixelSize.x), abs(pixelSize.y)) * stepSize;\n\n    vec2 uvEnd = hom1.xy * .5 + .5;\n\n    vec2 dUV = (uvEnd - uv) * stepRatio;\n    hitUV = uv;\n\n    // linear depth\n    float rayDepth = (-ray0.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n    float rayPerspDepth0 = rayDepth * rcpW0;\n    float rayPerspDepth1 = (-ray1.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange * rcpW1;\n    float rayPerspDepth = rayPerspDepth0;\n    // could probably optimize this:\n    float dRayD = (rayPerspDepth1 - rayPerspDepth0) * stepRatio;\n\n    float rcpW = rcpW0;\n    float dRcpW = (rcpW1 - rcpW0) * stepRatio;\n    float sceneDepth = rayDepth;\n\n    float amount = 0.0;\n\n    hitUV += dUV * dither.z;\n    rayPerspDepth += dRayD * dither.z;\n    rcpW += dRcpW * dither.z;\n\n    float sampleCount;\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        rayDepth = rayPerspDepth / rcpW;\n\n        sceneDepth = hx_sampleLinearDepth(hx_gbufferDepth, hitUV);\n\n        if (rayDepth > sceneDepth + .001) {\n            amount = float(sceneDepth < 1.0);\n            sampleCount = float(i);\n            break;\n        }\n\n        hitUV += dUV;\n        rayPerspDepth += dRayD;\n        rcpW += dRcpW;\n    }\n\n    hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;\n\n    amount *= clamp((1.0 - (sampleCount - float(NUM_SAMPLES)) / float(NUM_SAMPLES)) * 5.0, 0.0, 1.0);\n    return amount;\n}\n\nvoid main()\n{\n    vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    vec3 normalSpecularReflectance;\n    float roughness;\n    float metallicness;\n    hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n    vec3 normal = hx_decodeNormal(texture2D(hx_gbufferNormals, uv));\n    vec3 reflDir = reflect(normalize(viewDir), normal);\n\n    vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n    // not physically correct, but attenuation is required to look good\n\n    // step for every pixel\n\n    float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n    vec3 viewSpacePos = absViewY * viewDir;\n\n    float hitY = 0.0;\n    vec2 hitUV;\n    float amount = raytrace(viewSpacePos, reflDir, hitY, hitUV);\n    float fadeFactor = 1.0 - clamp(reflDir.z * 2.0, 0.0, 1.0);\n\n    vec2 borderFactors = abs(hitUV * 2.0 - 1.0);\n    borderFactors = (1.0 - borderFactors) * 10.0;\n    fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);\n\n    float diff = viewSpacePos.y - hitY;\n    fadeFactor *= hx_linearStep(-1.0, 0.0, diff);\n    fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);\n\n    vec4 reflColor = texture2D(hx_frontbuffer, hitUV);\n\n    float amountUsed = amount * fadeFactor;\n    hx_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);\n}\n\n';
+
+	ShaderLibrary._files['ssr_stencil_fragment.glsl'] = 'uniform sampler2D hx_gbufferSpecular;\n\nvarying_in vec2 uv;\n\nuniform float maxRoughness;\n\nvoid main()\n{\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    if (specularSample.x > maxRoughness)\n        discard;\n}\n\n';
+
+	ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x = hx_getToneMapScaledColor().xyz * 16.0;\n\n    // Uncharted 2 tonemapping (http://filmicworlds.com/blog/filmic-tonemapping-operators/)\n\n	float A = 0.15;\n    float B = 0.50;\n    float C = 0.10;\n    float D = 0.20;\n    float E = 0.02;\n    float F = 0.30;\n    float W = 11.2;\n\n    hx_FragColor.xyz = hx_gammaToLinear(((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F);\n    hx_FragColor.w = 1.0;\n}';
+
+	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
+
+	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
+
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvarying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef OCCLUSION_MAP\nuniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\nuniform sampler2D emissionMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying_in vec3 tangent;\n    varying_in vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n\n          #ifdef METALLIC_ROUGHNESS_MAP\n              roughnessOut -= roughnessRange * (specSample.y - .5);\n              metallicnessOut *= specSample.z;\n\n          #else\n              roughnessOut -= roughnessRange * (specSample.x - .5);\n\n              #ifdef SPECULAR_MAP\n                  specNormalReflOut *= specSample.y;\n                  metallicnessOut *= specSample.z;\n              #endif\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    emission *= texture2D(emissionMap, texCoords).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
@@ -3663,54 +3705,6 @@
 
 	ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
-	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
-
-	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['bloom_threshold_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nuniform float threshold;\n\nvoid main()\n{\n        vec4 color = texture2D(hx_backbuffer, uv);\n        float originalLuminance = .05 + hx_luminance(color);\n        float targetLuminance = max(originalLuminance - threshold, 0.0);\n        hx_FragColor = color * targetLuminance / originalLuminance;\n}\n';
-
-	ShaderLibrary._files['default_post_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['fog_fragment.glsl'] = 'varying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec3 tint;\nuniform float density;\nuniform float startDistance;\nuniform float heightFallOff;\n\nuniform float hx_cameraFrustumRange;\nuniform float hx_cameraNearPlaneDistance;\nuniform vec3 hx_cameraWorldPosition;\n\nuniform sampler2D hx_normalDepthBuffer;\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n    vec4 normalDepth = texture2D(hx_normalDepthBuffer, uv);\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float depth = hx_decodeLinearDepth(normalDepth);\n	// do not fog up skybox\n	if (normalDepth.z == 1.0 && normalDepth.w == 1.0) depth = 0.0;\n	float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n	vec3 viewVec = viewDir * absViewY;\n	float fogFactor = max(length(viewVec) - startDistance, 0.0);// * exp(-heightFallOff * hx_cameraWorldPosition.y);\n//    if( abs( viewVec.y ) > 0.1 )\n//	{\n		float t = heightFallOff * (viewVec.z + hx_cameraWorldPosition.z);\n		fogFactor *= saturate(( 1.0 - exp( -t ) ) / t);\n//	}\n\n	float fog = clamp(exp(-fogFactor * density), 0.0, 1.0);\n	color.xyz = mix(tint, color.xyz, fog);\n	hx_FragColor = color;\n}';
-
-	ShaderLibrary._files['fog_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\nuniform mat4 hx_cameraWorldMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = mat3(hx_cameraWorldMatrix) * hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['fxaa_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\nuniform vec2 hx_rcpRenderTargetResolution;\nuniform float edgeThreshold;\nuniform float edgeThresholdMin;\nuniform float edgeSharpness;\n\nfloat luminanceHint(vec4 color)\n{\n	return .30/.59 * color.r + color.g;\n}\n\nvoid main()\n{\n	vec4 center = texture2D(hx_backbuffer, uv);\n	vec2 halfRes = vec2(hx_rcpRenderTargetResolution.x, hx_rcpRenderTargetResolution.y) * .5;\n	float topLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, halfRes.y)));\n	float bottomLeftLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(-halfRes.x, -halfRes.y)));\n	float topRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, halfRes.y)));\n	float bottomRightLum = luminanceHint(texture2D(hx_backbuffer, uv + vec2(halfRes.x, -halfRes.y)));\n\n	float centerLum = luminanceHint(center);\n	float minLum = min(min(topLeftLum, bottomLeftLum), min(topRightLum, bottomRightLum));\n	float maxLum = max(max(topLeftLum, bottomLeftLum), max(topRightLum, bottomRightLum));\n	float range = max(centerLum, maxLum) - min(centerLum, minLum);\n	float threshold = max(edgeThresholdMin, maxLum * edgeThreshold);\n	float applyFXAA = range < threshold? 0.0 : 1.0;\n\n	float diagDiff1 = bottomLeftLum - topRightLum;\n	float diagDiff2 = bottomRightLum - topLeftLum;\n	vec2 dir1 = normalize(vec2(diagDiff1 + diagDiff2, diagDiff1 - diagDiff2));\n	vec4 sampleNeg1 = texture2D(hx_backbuffer, uv - halfRes * dir1);\n	vec4 samplePos1 = texture2D(hx_backbuffer, uv + halfRes * dir1);\n\n	float minComp = min(abs(dir1.x), abs(dir1.y)) * edgeSharpness;\n	vec2 dir2 = clamp(dir1.xy / minComp, -2.0, 2.0) * 2.0;\n	vec4 sampleNeg2 = texture2D(hx_backbuffer, uv - hx_rcpRenderTargetResolution * dir2);\n	vec4 samplePos2 = texture2D(hx_backbuffer, uv + hx_rcpRenderTargetResolution * dir2);\n	vec4 tap1 = sampleNeg1 + samplePos1;\n	vec4 fxaa = (tap1 + sampleNeg2 + samplePos2) * .25;\n	float fxaaLum = luminanceHint(fxaa);\n	if ((fxaaLum < minLum) || (fxaaLum > maxLum))\n		fxaa = tap1 * .5;\n	hx_FragColor = mix(center, fxaa, applyFXAA);\n}';
-
-	ShaderLibrary._files['gaussian_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sourceTexture;\n\nuniform vec2 stepSize;\n\nuniform float gaussianWeights[NUM_WEIGHTS];\n\nvoid main()\n{\n	vec4 total = texture2D(sourceTexture, uv) * gaussianWeights[0];\n    vec2 offset = vec2(0.0);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n		offset += stepSize;\n	    vec4 s = texture2D(sourceTexture, uv + offset) + texture2D(sourceTexture, uv - offset);\n		total += s * gaussianWeights[i];\n	}\n\n	hx_FragColor = total;\n}';
-
-	ShaderLibrary._files['gaussian_blur_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	uv = hx_texCoord;\n	gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['post_viewpos_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\nvarying_out vec3 viewDir;\n\nuniform mat4 hx_inverseProjectionMatrix;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    viewDir = hx_getLinearDepthViewVector(hx_position.xy, hx_inverseProjectionMatrix);\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['ssr_fragment.glsl'] = '#derivatives\n\n// TODO: This won\'t work anymore\nuniform sampler2D hx_gbufferColor;\nuniform sampler2D hx_gbufferNormals;\nuniform sampler2D hx_gbufferSpecular;\nuniform sampler2D hx_gbufferDepth;\nuniform sampler2D hx_dither2D;\nuniform vec2 hx_renderTargetResolution;\n\nuniform sampler2D hx_frontbuffer;\n\nvarying_in vec2 uv;\nvarying_in vec3 viewDir;\n\nuniform vec2 ditherTextureScale;\nuniform float hx_cameraNearPlaneDistance;\nuniform float hx_cameraFrustumRange;\nuniform float hx_rcpCameraFrustumRange;\nuniform mat4 hx_projectionMatrix;\n\nuniform float maxDistance;\nuniform float stepSize;\nuniform float maxRoughness;\n\n// all in viewspace\n// 0 is start, 1 is end\nfloat raytrace(in vec3 ray0, in vec3 rayDir, out float hitZ, out vec2 hitUV)\n{\n    vec4 dither = hx_sampleDefaultDither(hx_dither2D, uv * ditherTextureScale);\n    // Clip to the near plane\n	float rayLength = ((ray0.z + rayDir.z * maxDistance) > -hx_cameraNearPlaneDistance) ?\n						(-hx_cameraNearPlaneDistance - ray0.z) / rayDir.z : maxDistance;\n\n    vec3 ray1 = ray0 + rayDir * rayLength;\n\n    // only need the w component for perspective correct interpolation\n    // need to get adjusted ray end\'s uv value\n    vec4 hom0 = hx_projectionMatrix * vec4(ray0, 1.0);\n    vec4 hom1 = hx_projectionMatrix * vec4(ray1, 1.0);\n    float rcpW0 = 1.0 / hom0.w;\n    float rcpW1 = 1.0 / hom1.w;\n\n    hom0 *= rcpW0;\n    hom1 *= rcpW1;\n\n    // expressed in pixels, so we can snap to 1\n    // need to figure out the ratio between 1 pixel and the entire line \"width\" (if primarily vertical, it\'s actually height)\n\n    // line dimensions in pixels:\n\n    vec2 pixelSize = (hom1.xy - hom0.xy) * hx_renderTargetResolution * .5;\n\n    // line-\"width\" = max(abs(pixelSize.x), abs(pixelSize.y))\n    // ratio pixel/width = 1 / max(abs(pixelSize.x), abs(pixelSize.y))\n\n    float stepRatio = 1.0 / max(abs(pixelSize.x), abs(pixelSize.y)) * stepSize;\n\n    vec2 uvEnd = hom1.xy * .5 + .5;\n\n    vec2 dUV = (uvEnd - uv) * stepRatio;\n    hitUV = uv;\n\n    // linear depth\n    float rayDepth = (-ray0.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange;\n    float rayPerspDepth0 = rayDepth * rcpW0;\n    float rayPerspDepth1 = (-ray1.z - hx_cameraNearPlaneDistance) * hx_rcpCameraFrustumRange * rcpW1;\n    float rayPerspDepth = rayPerspDepth0;\n    // could probably optimize this:\n    float dRayD = (rayPerspDepth1 - rayPerspDepth0) * stepRatio;\n\n    float rcpW = rcpW0;\n    float dRcpW = (rcpW1 - rcpW0) * stepRatio;\n    float sceneDepth = rayDepth;\n\n    float amount = 0.0;\n\n    hitUV += dUV * dither.z;\n    rayPerspDepth += dRayD * dither.z;\n    rcpW += dRcpW * dither.z;\n\n    float sampleCount;\n    for (int i = 0; i < NUM_SAMPLES; ++i) {\n        rayDepth = rayPerspDepth / rcpW;\n\n        sceneDepth = hx_sampleLinearDepth(hx_gbufferDepth, hitUV);\n\n        if (rayDepth > sceneDepth + .001) {\n            amount = float(sceneDepth < 1.0);\n            sampleCount = float(i);\n            break;\n        }\n\n        hitUV += dUV;\n        rayPerspDepth += dRayD;\n        rcpW += dRcpW;\n    }\n\n    hitZ = -hx_cameraNearPlaneDistance - sceneDepth * hx_cameraFrustumRange;\n\n    amount *= clamp((1.0 - (sampleCount - float(NUM_SAMPLES)) / float(NUM_SAMPLES)) * 5.0, 0.0, 1.0);\n    return amount;\n}\n\nvoid main()\n{\n    vec4 colorSample = hx_gammaToLinear(texture2D(hx_gbufferColor, uv));\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    float depth = hx_sampleLinearDepth(hx_gbufferDepth, uv);\n    vec3 normalSpecularReflectance;\n    float roughness;\n    float metallicness;\n    hx_decodeReflectionData(colorSample, specularSample, normalSpecularReflectance, roughness, metallicness);\n    vec3 normal = hx_decodeNormal(texture2D(hx_gbufferNormals, uv));\n    vec3 reflDir = reflect(normalize(viewDir), normal);\n\n    vec3 fresnel = hx_fresnel(normalSpecularReflectance, reflDir, normal);\n    // not physically correct, but attenuation is required to look good\n\n    // step for every pixel\n\n    float absViewY = hx_cameraNearPlaneDistance + depth * hx_cameraFrustumRange;\n    vec3 viewSpacePos = absViewY * viewDir;\n\n    float hitY = 0.0;\n    vec2 hitUV;\n    float amount = raytrace(viewSpacePos, reflDir, hitY, hitUV);\n    float fadeFactor = 1.0 - clamp(reflDir.z * 2.0, 0.0, 1.0);\n\n    vec2 borderFactors = abs(hitUV * 2.0 - 1.0);\n    borderFactors = (1.0 - borderFactors) * 10.0;\n    fadeFactor *= clamp(borderFactors.x, 0.0, 1.0) * clamp(borderFactors.y, 0.0, 1.0);\n\n    float diff = viewSpacePos.y - hitY;\n    fadeFactor *= hx_linearStep(-1.0, 0.0, diff);\n    fadeFactor *= hx_linearStep(maxRoughness, 0.0, roughness);\n\n    vec4 reflColor = texture2D(hx_frontbuffer, hitUV);\n\n    float amountUsed = amount * fadeFactor;\n    hx_FragColor = vec4(fresnel * reflColor.xyz, amountUsed);\n}\n\n';
-
-	ShaderLibrary._files['ssr_stencil_fragment.glsl'] = 'uniform sampler2D hx_gbufferSpecular;\n\nvarying_in vec2 uv;\n\nuniform float maxRoughness;\n\nvoid main()\n{\n    vec4 specularSample = texture2D(hx_gbufferSpecular, uv);\n    if (specularSample.x > maxRoughness)\n        discard;\n}\n\n';
-
-	ShaderLibrary._files['tonemap_filmic_fragment.glsl'] = 'void main()\n{\n	vec3 x = hx_getToneMapScaledColor().xyz * 16.0;\n\n    // Uncharted 2 tonemapping (http://filmicworlds.com/blog/filmic-tonemapping-operators/)\n\n	float A = 0.15;\n    float B = 0.50;\n    float C = 0.10;\n    float D = 0.20;\n    float E = 0.02;\n    float F = 0.30;\n    float W = 11.2;\n\n    hx_FragColor.xyz = hx_gammaToLinear(((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F);\n    hx_FragColor.w = 1.0;\n}';
-
-	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
-
-	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
-
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
-
-	ShaderLibrary._files['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    float occlusion;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)\n};';
-
-	ShaderLibrary._files['snippets_tonemap.glsl'] = 'varying_in vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    #ifdef HX_GLSL_300_ES\n    float referenceLuminance = textureLod(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #else\n    float referenceLuminance = texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #endif\n    referenceLuminance = exp(referenceLuminance) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
-
 	ShaderLibrary._files['esm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nfloat readValue(vec2 coord)\n{\n    float v = texture2D(source, coord).x;\n    return v;\n//    return exp(HX_ESM_CONSTANT * v);\n}\n\nvoid main()\n{\n    float total = readValue(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValue(uv + offset) + readValue(uv - offset);\n	}\n\n//	hx_FragColor = vec4(log(total * RCP_NUM_SAMPLES) / HX_ESM_CONSTANT);\n	hx_FragColor = vec4(total * RCP_NUM_SAMPLES);\n}';
 
 	ShaderLibrary._files['shadow_esm.glsl'] = 'vec4 hx_getShadowMapValue(float depth)\n{\n    // I wish we could write exp directly, but precision issues (can\'t encode real floats)\n    return vec4(exp(HX_ESM_CONSTANT * depth));\n// so when blurring, we\'ll need to do ln(sum(exp())\n//    return vec4(depth);\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    float shadowSample = texture2D(shadowMap, shadowMapCoord.xy).x;\n    shadowMapCoord.z += depthBias;\n//    float diff = shadowSample - shadowMapCoord.z;\n//    return saturate(HX_ESM_DARKENING * exp(HX_ESM_CONSTANT * diff));\n    return saturate(HX_ESM_DARKENING * shadowSample * exp(-HX_ESM_CONSTANT * shadowMapCoord.z));\n}';
@@ -3722,6 +3716,12 @@
 	ShaderLibrary._files['shadow_vsm.glsl'] = '#derivatives\n\nvec4 hx_getShadowMapValue(float depth)\n{\n    float dx = dFdx(depth);\n    float dy = dFdy(depth);\n    float moment2 = depth * depth + 0.25*(dx*dx + dy*dy);\n\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return vec4(depth, moment2, 0.0, 1.0);\n    #else\n    return vec4(hx_floatToRG8(depth), hx_floatToRG8(moment2));\n    #endif\n}\n\nfloat hx_readShadow(sampler2D shadowMap, vec4 shadowMapCoord, float depthBias)\n{\n    vec4 s = texture2D(shadowMap, shadowMapCoord.xy);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    vec2 moments = s.xy;\n    #else\n    vec2 moments = vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n    shadowMapCoord.z += depthBias;\n\n    float variance = moments.y - moments.x * moments.x;\n    variance = max(variance, HX_VSM_MIN_VARIANCE);\n\n    float diff = shadowMapCoord.z - moments.x;\n    float upperBound = 1.0;\n\n    // transparents could be closer to the light than casters\n    if (diff > 0.0)\n        upperBound = variance / (variance + diff*diff);\n\n    return saturate((upperBound - HX_VSM_LIGHT_BLEED_REDUCTION) * HX_VSM_RCP_LIGHT_BLEED_REDUCTION_RANGE);\n}';
 
 	ShaderLibrary._files['vsm_blur_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D source;\nuniform vec2 direction; // this is 1/pixelSize\n\nvec2 readValues(vec2 coord)\n{\n    vec4 s = texture2D(source, coord);\n    #if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    return s.xy;\n    #else\n    return vec2(hx_RG8ToFloat(s.xy), hx_RG8ToFloat(s.zw));\n    #endif\n}\n\nvoid main()\n{\n    vec2 total = readValues(uv);\n\n	for (int i = 1; i <= RADIUS; ++i) {\n	    vec2 offset = direction * float(i);\n		total += readValues(uv + offset) + readValues(uv - offset);\n	}\n\n    total *= RCP_NUM_SAMPLES;\n\n#if defined(HX_HALF_FLOAT_TEXTURES_LINEAR) || defined(HX_FLOAT_TEXTURES_LINEAR)\n    hx_FragColor = vec4(total, 0.0, 1.0);\n#else\n	hx_FragColor.xy = hx_floatToRG8(total.x);\n	hx_FragColor.zw = hx_floatToRG8(total.y);\n#endif\n}';
+
+	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
+
+	ShaderLibrary._files['snippets_geometry.glsl'] = 'struct HX_GeometryData\n{\n    vec4 color;\n    vec3 normal;\n    float metallicness;\n    float normalSpecularReflectance;\n    float roughness;\n    float occlusion;\n    vec3 emission;\n    vec4 data;  // this can be anything the lighting model requires (only works with forward rendering)\n};';
+
+	ShaderLibrary._files['snippets_tonemap.glsl'] = 'varying_in vec2 uv;\n\n#ifdef HX_ADAPTIVE\nuniform sampler2D hx_luminanceMap;\nuniform float hx_luminanceMipLevel;\n#endif\n\nuniform float hx_exposure;\nuniform float hx_key;\n\nuniform sampler2D hx_backbuffer;\n\n\nvec4 hx_getToneMapScaledColor()\n{\n    #ifdef HX_ADAPTIVE\n    #ifdef HX_GLSL_300_ES\n    float referenceLuminance = textureLod(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #else\n    float referenceLuminance = texture2DLodEXT(hx_luminanceMap, uv, hx_luminanceMipLevel).x;\n    #endif\n    referenceLuminance = exp(referenceLuminance) - 1.0;\n    referenceLuminance = clamp(referenceLuminance, .08, 1000.0);\n	float exposure = hx_key / referenceLuminance * hx_exposure;\n	#else\n	float exposure = hx_exposure;\n	#endif\n    return texture2D(hx_backbuffer, uv) * exposure;\n}';
 
 	ShaderLibrary._files['2d_to_cube_vertex.glsl'] = '// position to write to\nvertex_attribute vec4 hx_position;\n\n// the corner of the cube map\nvertex_attribute vec3 corner;\n\nvarying_out vec3 direction;\n\nvoid main()\n{\n    direction = corner;\n    gl_Position = hx_position;\n}\n';
 
@@ -4193,6 +4193,260 @@
 	 */
 	Color.WHITE = new Color(1, 1, 1, 1);
 
+	/**
+	 * @ignore
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	var GLSLIncludes = {
+
+	    GENERAL:
+	        "precision highp float;\n\n" +
+	        ShaderLibrary.get("snippets_general.glsl") + "\n\n",
+
+	    VERSION: ""
+	};
+
+	/**
+	 * @ignore
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	var Debug = {
+	    printShaderCode: function(code)
+	    {
+	        var arr = code.split("\n");
+	        var str = "";
+	        for (var i = 0; i < arr.length; ++i) {
+	            str += (i + 1) + ":\t" + arr[i] + "\n";
+	        }
+	        console.log(str);
+	    },
+
+	    printSkeletonHierarchy: function(skeleton)
+	    {
+	        var str = "Skeleton: \n";
+	        var joints = skeleton.joints;
+	        for (var i = 0, len = joints.length; i < len; ++i) {
+	            var joint = joints[i];
+	            var name = joint.name;
+	            while (joint.parentIndex !== -1) {
+	                joint = joints[joint.parentIndex];
+	                str += "\t";
+	            }
+	            str += "\t" + name + "\n";
+	        }
+	        console.log(str);
+	    },
+
+	    assert: function(bool, message)
+	    {
+	        if (!bool) throw new Error(message);
+	    }
+	};
+
+	function CachedProgram()
+	{
+		this.program = null;
+		this.frameMark = 0;
+		this.key = null;
+		this.isCached = true;
+		this.renderOrderHint = 0;
+	}
+
+	var cache = {};
+	var list = [];
+	var purgeIndex = 0;
+	var FRAMES_BEFORE_PURGE = 2000; // at 60fps this is a little over 2 minutes until a program is considered "unused"
+	var orderCounter = 0;
+
+	var ProgramCache =
+	{
+		purge: function(frameMark)
+		{
+			var cached = list[purgeIndex];
+
+			// check the amount of frames since last use of cached
+			if (frameMark - cached.frameMark > FRAMES_BEFORE_PURGE) {
+				delete cache[cached.key];
+				list.splice(purgeIndex, 1);
+				// this allows the Shader to check whether its copy is still in the cache
+				cached.isCached = false;
+			}
+			else
+				++purgeIndex;
+
+			if (purgeIndex === list.length)
+				purgeIndex = 0;
+		},
+
+		// If the cached version was dropped, but a program turns out to still have a copy, it needs to be recached or replaced
+		resolveLost: function(lost)
+		{
+			var cached = cache[lost.key];
+
+			// a new version was already created for the same cached version, we need to replace this so the old cache can be
+			// destroyed
+			if (cached)
+				return cached;
+
+			// recache if not replaced
+			cache[lost.key] = lost;
+			list.push(lost);
+			return lost;
+		},
+
+		getProgram: function(vertexShaderCode, fragmentShaderCode)
+		{
+			var key = vertexShaderCode + "///" + fragmentShaderCode;
+			var cached = cache[key];
+
+			if (cached) {
+				cached.frameMark = META.CURRENT_FRAME_MARK;
+				return cached;
+			}
+
+			var gl = GL.gl;
+			vertexShaderCode = "#define HX_VERTEX_SHADER\n" + GLSLIncludes.GENERAL + vertexShaderCode;
+			fragmentShaderCode = "#define HX_FRAGMENT_SHADER\n" + GLSLIncludes.GENERAL + fragmentShaderCode;
+
+			var vertexShader = getShader(vertexShaderCode, gl.VERTEX_SHADER);
+			var fragmentShader = getShader(fragmentShaderCode, gl.FRAGMENT_SHADER);
+
+			if (!vertexShader || !fragmentShader)
+				return;
+
+			var program = gl.createProgram();
+
+			gl.attachShader(program, vertexShader);
+			gl.attachShader(program, fragmentShader);
+			gl.linkProgram(program);
+
+			if (META.OPTIONS.debug && !gl.getProgramParameter(program, gl.LINK_STATUS)) {
+				var log = gl.getProgramInfoLog(program);
+
+				console.log("**********");
+				Debug.printShaderCode(vertexShaderCode);
+				console.log("**********");
+				Debug.printShaderCode(fragmentShaderCode);
+
+				if (META.OPTIONS.throwOnShaderError)
+					throw new Error("Error in program linking:" + log);
+
+				console.warn("Error in program linking:" + log);
+
+				return;
+			}
+
+			cached = new CachedProgram();
+			cached.program = program;
+			cached.frameMark = META.CURRENT_FRAME_MARK;
+			cached.key = key;
+			cached.isCached = true;
+			cached.renderOrderHint = orderCounter++;
+			cache[key] = cached;
+			list.push(cached);
+
+			return cached;
+		}
+	};
+
+	function processExtensions(code, regEx, extension)
+	{
+		var index = code.search(regEx);
+		if (index < 0) return code;
+		code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");
+		return code;
+	}
+
+	// this makes sure reserved uniforms are only used once, makes it easier to combine several snippets
+	// it's quite slow, tho
+	function guard(code, regEx)
+	{
+		var result = code.match(regEx) || [];
+		var covered = {};
+
+		for (var i = 0; i < result.length; ++i) {
+			var occ = result[i];
+			occ = occ.replace(/(\r|\n)/g, "");
+
+			if (occ.charCodeAt(0) === 10)
+				occ = occ.substring(1);
+
+			var start$$1 = occ.indexOf("hx_");
+			var end = occ.indexOf(";");
+
+			// in case of arrays
+			var sq = occ.indexOf("[");
+			if (sq >= 0 && sq < end) end = sq;
+
+			var name = occ.substring(start$$1, end);
+			name = name.trim();
+
+			if (covered[name]) continue;
+
+			covered[name] = true;
+
+			var defName = "HX_GUARD_" + name.toUpperCase();
+			var repl = "\n#ifndef " + defName + "\n" +
+				"#define " + defName + "\n" +
+				occ + "\n" +
+				"#endif\n";
+
+			occ = occ.replace(/\[/g, "\\[");
+			var replReg = new RegExp(occ, "g");
+			code = code.replace(replReg, repl);
+		}
+
+		return code;
+	}
+
+	function initShader(shader, code)
+	{
+		var gl = GL.gl;
+		gl.shaderSource(shader, code);
+		gl.compileShader(shader);
+
+		// Check the compile status, return an error if failed
+		if (META.OPTIONS.debug && !gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+			console.warn(gl.getShaderInfoLog(shader));
+			Debug.printShaderCode(code);
+			return false;
+		}
+
+		return true;
+	}
+
+	function getShader(code, type)
+	{
+		// is there a way to safely cache this so we don't have to do it over an over?
+		code = processShaderCode(code);
+
+		var shader = GL.gl.createShader(type);
+		if (!initShader(shader, code)) {
+			if (META.OPTIONS.throwOnShaderError) {
+				throw new Error("Failed generating shader: \n" + code);
+			}
+			else {
+				console.warn("Failed generating shader");
+			}
+
+			return null;
+		}
+		return shader;
+	}
+
+	function processShaderCode(code)
+	{
+		code = processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
+		code = processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
+		code = processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
+		code = guard(code, /^\s*uniform\s+\w+\s+hx_\w+(\[\w+])?\s*;/gm);
+		code = guard(code, /^\s*attribute\s+\w+\s+hx_\w+\s*;/gm);
+		code = GLSLIncludes.VERSION + code;
+		return code;
+	}
+
 	// Just contains some convenience methods and GL management stuff that shouldn't be called directly
 	// Will become an abstraction layer
 	// properties to keep track of render state
@@ -4205,6 +4459,7 @@
 	var _depthTest = null;
 	var _blendState = null;
 	var _renderTarget = null;
+	var _shader = null;
 
 	// this is so that effects can push states on the stack
 	// the renderer at the root just pushes one single state and invalidates that constantly
@@ -4271,6 +4526,18 @@
 	        gl.drawElements(elementType, numIndices, indexType, offset * 2);
 	    },
 
+	    setShader: function(shader)
+	    {
+	        if (_shader === shader) return;
+
+			GL.gl.useProgram(shader.program);
+
+			if (!shader._cachedProgram.isCached)
+				shader._cachedProgram = ProgramCache.resolveLost(shader._cachedProgram);
+
+			// let the cache know that we're still using the program in this frame
+			shader._cachedProgram.frameMark = META.CURRENT_FRAME_MARK;
+	    },
 
 	    /**
 	     * Sets the viewport to render into.
@@ -4710,443 +4977,488 @@
 
 	/**
 	 * @ignore
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var GLSLIncludes = {
-
-	    GENERAL:
-	        "precision highp float;\n\n" +
-	        ShaderLibrary.get("snippets_general.glsl") + "\n\n",
-
-	    VERSION: ""
-	};
-
-	/**
-	 * @classdesc
-	 * Float2 is a class describing 2-dimensional points.
-	 *
 	 * @constructor
-	 * @param x The x-coordinate
-	 * @param y The y-coordinate
 	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
-	function Float2(x, y)
+	function UniformBuffer(size)
 	{
-	    // x, y, z, w allowed to be accessed publicly for simplicity, changing this does not violate invariant. Ever.
-	    this.x = x || 0;
-	    this.y = y || 0;
+	    this._buffer = GL.gl.createBuffer();
+	    // contains { offset, type, size }
+	    this._uniforms = [];
+	    this._size = size;
 	}
 
-	/**
-	 * Adds 2 vectors.
-	 *
-	 * @param a
-	 * @param b
-	 * @param [target] An optional target object. If omitted, a new object will be created.
-	 * @returns The sum of a and b.
-	 */
-	Float2.add = function(a, b, target)
-	{
-	    target = target || new Float2();
-	    target.x = a.x + b.x;
-	    target.y = a.y + b.y;
-	    return target;
-	};
-
-	/**
-	 * Subtracts 2 vectors.
-	 *
-	 * @param a
-	 * @param b
-	 * @param [target] An optional target object. If omitted, a new object will be created.
-	 * @returns The difference of a and b.
-	 */
-	Float2.subtract = function(a, b, target)
-	{
-	    target = target || new Float2();
-	    target.x = a.x - b.x;
-	    target.y = a.y - b.y;
-	    return target;
-	};
-
-	/**
-	 * Multiplies a vector with a scalar.
-	 *
-	 * @param a
-	 * @param s
-	 * @param [target] An optional target object. If omitted, a new object will be created.
-	 * @returns The product of a * s
-	 */
-	Float2.scale = function(a, s, target)
-	{
-	    target = target || new Float2();
-	    target.x = a.x * s;
-	    target.y = a.y * s;
-	    return target;
-	};
-
-	Float2.prototype =
-	{
+	UniformBuffer.prototype = {
+	    /**
+	     * The size of the uniform buffer in bytes
+	     */
+	    get size() { return this._size; },
 
 	    /**
-	     * Sets the components explicitly.
+	     * Uploads raw data for the buffer.
+	     * @param data The data to upload, must be a Float32Array object.
+	     * @param usageHint An optional usage hint for the buffer.
 	     */
-	    set: function(x, y)
+	    uploadData: function(data, usageHint)
 	    {
-	        this.x = x;
-	        this.y = y;
+	        var gl = GL.gl;
+
+	        if (usageHint === undefined)
+	            usageHint = gl.DYNAMIC_DRAW;
+
+	        this.bind();
+	        gl.bufferData(gl.UNIFORM_BUFFER, data, usageHint);
 	    },
 
-	    /**
-	     * Returns the dot product with another vector.
-	     */
-	    dot: function(a)
+	    registerUniform: function(name, offset, size, type)
 	    {
-	        return a.x * this.x + a.y * this.y;
+	        this._uniforms[name] = {offset: offset, size: size, type: type};
 	    },
 
-	    /**
-	     * The squared length of the vector.
-	     */
-	    get lengthSqr()
+	    getUniformOffset: function(name)
 	    {
-	        return this.x * this.x + this.y * this.y;
+	        var uniform = this._uniforms[name];
+	        return uniform? uniform.offset : -1;
+	    },
+	    
+	    setUniform: function(name, data)
+	    {
+	        var gl = GL.gl;
+	        var uniform = this._uniforms[name];
+	        this.bind();
+
+	        switch(uniform.type) {
+	            case gl.FLOAT:
+	                var arr = new Float32Array(1);
+	                arr[0] = data;
+	                data = arr;
+	                break;
+	            case gl.FLOAT_VEC2:
+	                arr = new Float32Array(2);
+	                arr[0] = value.x || value[0] || 0;
+	                arr[1] = value.y || value[1] || 0;
+	                data = arr;
+	                break;
+	            case gl.FLOAT_VEC3:
+	                arr = new Float32Array(3);
+	                arr[0] = value.x || value[0] || 0;
+	                arr[1] = value.y || value[1] || 0;
+	                arr[2] = value.z || value[2] || 0;
+	                data = arr;
+	                break;
+	            case gl.FLOAT_VEC4:
+	                arr = new Float32Array(4);
+	                arr[0] = value.x || value[0] || 0;
+	                arr[1] = value.y || value[1] || 0;
+	                arr[2] = value.z || value[2] || 0;
+	                arr[3] = value.w || value[3] || 0;
+	                data = arr;
+	                break;
+	            case gl.INT:
+	            case gl.BOOL:
+	                arr = new Int32Array(1);
+	                arr[0] = value;
+	                data = arr;
+	                break;
+	            case gl.INT_VEC2:
+	            case gl.BOOL_VEC2:
+	                arr = new Int32Array(2);
+	                arr[0] = value.x || value[0] || 0;
+	                arr[1] = value.y || value[1] || 0;
+	                data = arr;
+	                break;
+	            case gl.INT_VEC3:
+	            case gl.BOOL_VEC3:
+	                arr = new Int32Array(3);
+	                arr[0] = value.x || value[0] || 0;
+	                arr[1] = value.y || value[1] || 0;
+	                arr[2] = value.z || value[2] || 0;
+	                data = arr;
+	                break;
+	            case gl.INT_VEC4:
+	            case gl.BOOL_VEC4:
+	                arr = new Int32Array(4);
+	                arr[0] = value.x || value[0] || 0;
+	                arr[1] = value.y || value[1] || 0;
+	                arr[2] = value.z || value[2] || 0;
+	                arr[3] = value.w || value[3] || 0;
+	                data = arr;
+	                break;
+	            case gl.FLOAT_MAT4:
+	                data = value;
+	                break;
+	            default:
+	                // expect data to be correct
+	        }
+
+	        // TODO: Allow setting different types
+	        gl.bufferSubData(gl.UNIFORM_BUFFER, uniform.offset, uniform.size, data);
 	    },
 
-	    /**
-	     * The length of the vector.
-	     */
-	    get length()
-	    {
-	        return Math.sqrt(this.x * this.x + this.y * this.y);
-	    },
+	    // TODO: Allow setting member uniforms by name. However, getting this requires a shader to get the definition from
+	    // Could we create a dummy material and then just grab it from there?
+	    // We would need to provide a sort of MaterialPass.createUniformBuffer
 
 	    /**
-	     * Normalizes the vector.
+	     * @private
 	     */
-	    normalize: function()
+	    bind: function(bindingPoint)
 	    {
-	        var rcpLength = 1.0/this.length;
-	        this.x *= rcpLength;
-	        this.y *= rcpLength;
-	    },
+	        var gl = GL.gl;
 
-	    /**
-	     * Returns a copy of this object.
-	     */
-	    clone: function()
-	    {
-	        return new Float2(this.x, this.y);
-	    },
-
-	    /**
-	     * Adds a vector to this one in place.
-	     */
-	    add: function(v)
-	    {
-	        this.x += v.x;
-	        this.y += v.y;
-	    },
-
-	    /**
-	     * Adds a scalar multiple of another vector in place.
-	     * @param v The vector to scale and add.
-		 * @param s The scale to apply to v
-	     */
-	    addScaled: function(v, s)
-	    {
-	        this.x += v.x * s;
-	        this.y += v.y * s;
-	    },
-
-	    /**
-	     * Subtracts a vector from this one in place.
-	     */
-	    subtract: function(v)
-	    {
-	        this.x -= v.x;
-	        this.y -= v.y;
-	    },
-
-		/**
-		 * Subtracts a scaled vector from this one in place.
-		 *
-		 * @param v The vector to scale and subtract.
-		 * @param s The scale to apply to v
-		 */
-		subtractScaled: function (v, s)
-		{
-			this.x -= v.x * s;
-			this.y -= v.y * s;
-			return this;
-		},
-
-	    /**
-	     * Multiplies the components of this vector with a scalar.
-	     */
-	    scale: function(s)
-	    {
-	        this.x *= s;
-	        this.y *= s;
-	    },
-
-	    /**
-	     * Negates the components of this vector.
-	     */
-	    negate: function()
-	    {
-	        this.x = -this.x;
-	        this.y = -this.y;
-	    },
-
-	    /**
-	     * Copies the negative of a vector
-	     */
-	    negativeOf: function(v)
-	    {
-	        this.x = -v.x;
-	        this.y = -v.y;
-	    },
-
-	    /**
-	     * Sets the components of this vector to their absolute values.
-	     */
-	    abs: function()
-	    {
-	        this.x = Math.abs(this.x);
-	        this.y = Math.abs(this.y);
-	    },
-
-	    /**
-	     * Sets the euclidian coordinates based on polar coordinates
-	     * @param radius The radius coordinate
-	     * @param angle The angle coordinate
-	     */
-	    fromPolarCoordinates: function(radius, angle)
-	    {
-	        this.x = radius*Math.cos(angle);
-	        this.y = radius*Math.sin(angle);
-	    },
-
-	    /**
-	     * Copies the values from a different Float2
-	     */
-	    copyFrom: function(b)
-	    {
-	        this.x = b.x;
-	        this.y = b.y;
-	    },
-
-	    /**
-	     * Returns the distance between this and another point.
-	     */
-	    distanceTo: function(a)
-	    {
-	        var dx = a.x - this.x;
-	        var dy = a.y - this.y;
-	        return Math.sqrt(dx * dx + dy * dy);
-	    },
-
-	    /**
-	     * Returns the squared distance between this and another point.
-	     */
-	    squareDistanceTo: function(a)
-	    {
-	        var dx = a.x - this.x;
-	        var dy = a.y - this.y;
-	        return dx * dx + dy * dy;
-	    },
-
-	    /**
-	     * Linearly interpolates two vectors.
-	     * @param {Float2} a The first vector to interpolate from.
-	     * @param {Float2} b The second vector to interpolate to.
-	     * @param {Number} t The interpolation factor.
-	     */
-	    lerp: function(a, b, t)
-	    {
-	        var ax = a.x, ay = a.y;
-
-	        this.x = ax + (b.x - ax) * t;
-	        this.y = ay + (b.y - ay) * t;
-	    },
-
-	    /**
-	     * Replaces the components' values if those of the other Float2 are higher, respectively
-	     */
-	    maximize: function(b)
-	    {
-	        if (b.x > this.x) this.x = b.x;
-	        if (b.y > this.y) this.y = b.y;
-	    },
-
-	    /**
-	     * Replaces the components' values if those of the other Float2 are lower, respectively
-	     */
-	    minimize: function(b)
-	    {
-	        if (b.x < this.x) this.x = b.x;
-	        if (b.y < this.y) this.y = b.y;
-	    },
-
-	    /**
-	     * Returns the angle between this and another vector.
-	     */
-	    angle: function(a)
-	    {
-	        return Math.acos(this.dot(a) / (this.length * a.length));
-	    },
-
-	    /**
-	     * Returns the angle between two vectors, assuming they are normalized
-	     */
-	    angleNormalized: function(a)
-	    {
-	        return Math.acos(this.dot(a));
+	        if (bindingPoint === undefined) {
+	            gl.bindBuffer(gl.UNIFORM_BUFFER, this._buffer);
+	        }
+	        else {
+	            gl.bindBufferBase(gl.UNIFORM_BUFFER, bindingPoint, this._buffer);
+	        }
 	    }
 	};
-
-	/**
-	 * A preset for the origin
-	 */
-	Float2.ZERO = new Float2(0, 0);
-
-	/**
-	 * A preset for the X-axis
-	 */
-	Float2.X_AXIS = new Float2(1, 0);
-
-	/**
-	 * A preset for the Y-axis
-	 */
-	Float2.Y_AXIS = new Float2(0, 1);
-
-	/**
-	 * @classdesc
-	 * PoissonDisk is a class that allows generating 2D points in a poisson distribution.
-	 *
-	 * @constructor
-	 * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonDisk#SQUARE}) or a circle ({@linkcode PoissonDisk#CIRCULAR}). Defaults to circular.
-	 * @param [initialDistance]
-	 * @param [decayFactor]
-	 * @param [maxTests]
-	 *
-	 * @property points An array of all points currently generated.
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function PoissonDisk(mode, initialDistance, decayFactor, maxTests)
-	{
-		this.points = null;
-		this.decayFactor = decayFactor || .99;
-		this.initialDistance = initialDistance || 1.0;
-		this.maxTests = maxTests || 20000;
-		this.mode = mode === undefined? PoissonDisk.CIRCULAR : mode;
-		this._currentDistance = 0;
-	    this.reset();
-	}
-
-	/**
-	 * Generates points in a square.
-	 */
-	PoissonDisk.SQUARE = 0;
-
-	/**
-	 * Generates points in a circle.
-	 */
-	PoissonDisk.CIRCULAR = 1;
 
 	/**
 	 * @ignore
+	 * @param vertexShaderCode
+	 * @param fragmentShaderCode
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
 	 */
-	PoissonDisk._initDefault = function()
+	function Shader(vertexShaderCode, fragmentShaderCode)
 	{
-	    PoissonDisk.DEFAULT = new PoissonDisk();
-	    PoissonDisk.DEFAULT.generatePoints(64);
-	    PoissonDisk.DEFAULT_FLOAT32 = new Float32Array(64 * 2);
+		this.program = null;
+		this.renderOrderHint = -1;
+		this._uniforms = null;
+		this._textureUniforms = null;
+		this._uniformBlocks = null;
+		this._ready = false;
 
-	    var diskPoints = PoissonDisk.DEFAULT.points;
+		if (vertexShaderCode && fragmentShaderCode)
+			this.init(vertexShaderCode, fragmentShaderCode);
+	}
 
-	    for (var i = 0; i < 64; ++i) {
-	        var p = diskPoints[i];
-	        PoissonDisk.DEFAULT_FLOAT32[i * 2] = p.x;
-	        PoissonDisk.DEFAULT_FLOAT32[i * 2 + 1] = p.y;
+	Shader.prototype = {
+		constructor: Shader,
+
+		isReady: function()
+		{
+			return this._ready;
+		},
+
+		init: function(vertexShaderCode, fragmentShaderCode)
+		{
+			this._cachedProgram = ProgramCache.getProgram(vertexShaderCode, fragmentShaderCode);
+			// program compilation error:
+			if (!this._cachedProgram) return;
+			this.program = this._cachedProgram.program;
+			this.renderOrderHint = this._cachedProgram.renderOrderHint;
+
+			this._storeUniforms();
+
+			this._ready = true;
+		},
+
+		hasUniform: function(name)
+		{
+			return this._uniforms.hasOwnProperty(name);
+		},
+
+		getUniform: function(name)
+		{
+			return this._uniforms[name];
+		},
+
+		getUniformLocation: function(name)
+		{
+			if (this.hasUniform(name))
+				return this._uniforms[name].location;
+
+			return null;
+		},
+
+		getAttributeLocation: function(name)
+		{
+			return GL.gl.getAttribLocation(this.program, name);
+		},
+
+		_storeUniforms: function()
+		{
+			this._uniforms = {};
+			this._textureUniforms = [];
+			this._uniformBlocks = [];
+
+			var textureCount = 0;
+
+			var gl = GL.gl;
+
+			gl.useProgram(this.program);
+
+			var len = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORMS);
+
+			for (var i = 0; i < len; ++i) {
+				var uniform = gl.getActiveUniform(this.program, i);
+				var name = uniform.name;
+				var location = gl.getUniformLocation(this.program, name);
+				this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
+
+				if (uniform.type === gl.SAMPLER_2D || uniform.type === gl.SAMPLER_CUBE) {
+					// this should also take care of texture arrays, right?
+					this._textureUniforms.push(uniform);
+					gl.uniform1i(location, textureCount++);
+				}
+			}
+
+			if (capabilities.WEBGL_2) {
+				len = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORM_BLOCKS);
+				for (i = 0; i < len; ++i) {
+					var name = gl.getActiveUniformBlockName(this.program, i);
+					gl.uniformBlockBinding(this.program, i, i);
+					this._uniformBlocks.push(name);
+				}
+			}
+
+		},
+
+		createUniformBuffer: function(name)
+		{
+			var gl = GL.gl;
+			var program = this.program;
+
+			var blockIndex = null;
+			for (var i = 0, len = this._uniformBlocks.length; i < len; ++i) {
+				if (this._uniformBlocks[i] === name) {
+					blockIndex = i;
+					break;
+				}
+			}
+			if (!blockIndex) return null;
+
+
+			var indices = gl.getActiveUniformBlockParameter(program, blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES);
+			var totalSize = gl.getActiveUniformBlockParameter(program, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
+			var uniformBuffer = new UniformBuffer(totalSize);
+
+			var offsets = gl.getActiveUniforms(program, indices, gl.UNIFORM_OFFSET);
+
+			for (i = 0; i < indices.length; ++i) {
+				var uniform = gl.getActiveUniform(program, indices[i]);
+				uniformBuffer.registerUniform(uniform.name, offsets[i], uniform.size, uniform.type);
+			}
+
+			uniformBuffer.uploadData(new Float32Array(totalSize / 4));
+
+			return uniformBuffer;
+		},
+
+		get numTextures()
+		{
+			return this._textureUniforms.length;
+		},
+
+		getTextureIndex: function(name)
+		{
+			for (var i = 0, len = this._textureUniforms.length; i < len; ++i) {
+				var uniform = this._textureUniforms[i];
+				if (uniform.name === name) return i;
+			}
+
+			return -1;
+		},
+
+		getUniformBufferIndex: function(name)
+		{
+			for (var i = 0, len = this._uniformBlocks.length; i < len; ++i) {
+				if (this._uniformBlocks[i] === name) return i;
+			}
+
+			return -1;
+		},
+
+		get numUniformBuffers()
+		{
+			return this._uniformBlocks.length;
+		}
+	};
+
+	/**
+	 * @param fragmentShader
+	 * @constructor
+	 * @ignore
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function CustomCopyShader(fragmentShader)
+	{
+	    Shader.call(this);
+	    this.init(ShaderLibrary.get("copy_vertex.glsl"), fragmentShader);
+
+	    var gl = GL.gl;
+	    var textureLocation = gl.getUniformLocation(this.program, "sampler");
+
+	    this._positionAttributeLocation = gl.getAttribLocation(this.program, "hx_position");
+	    this._texCoordAttributeLocation = gl.getAttribLocation(this.program, "hx_texCoord");
+
+	    gl.useProgram(this.program);
+	    gl.uniform1i(textureLocation, 0);
+	}
+
+	CustomCopyShader.prototype = Object.create(Shader.prototype);
+
+	CustomCopyShader.prototype.execute = function(rect, texture)
+	{
+	    var gl = GL.gl;
+	    GL.setDepthTest(Comparison.DISABLED);
+	    GL.setCullMode(CullMode.NONE);
+
+	    rect._vertexBuffers[0].bind();
+	    rect._indexBuffer.bind();
+
+		GL.setShader(this);
+
+	    texture.bind(0);
+
+	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
+	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
+
+	    GL.enableAttributes(2);
+
+	    GL.drawElements(ElementType.TRIANGLES, 6, 0);
+	};
+
+
+
+	/**
+	 * Copies one texture's channels (in configurable ways) to another's.
+	 * @param channel Can be either x, y, z, w or any 4-component swizzle. default is xyzw, meaning a simple copy
+	 * @constructor
+	 * @ignore
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function CopyChannelsShader(channel, copyAlpha)
+	{
+	    channel = channel || "xyzw";
+	    copyAlpha = copyAlpha === undefined? true : copyAlpha;
+
+	    var define = "#define extractChannels(src) ((src)." + channel + ")\n";
+
+	    if (copyAlpha) define += "#define COPY_ALPHA\n";
+
+	    CustomCopyShader.call(this, define + ShaderLibrary.get("copy_fragment.glsl"));
+	}
+
+	CopyChannelsShader.prototype = Object.create(CustomCopyShader.prototype);
+
+
+
+	/**
+	 * Copies one texture's channels while applying the same logic as gl.blendColor. This because it is broken for float textures.
+	 * @constructor
+	 * @ignore
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function BlendColorCopyShader()
+	{
+	    CustomCopyShader.call(this, ShaderLibrary.get("blend_color_copy_fragment.glsl"));
+	    this._colorLocation = GL.gl.getUniformLocation(this.program, "blendColor");
+	    this.setBlendColor(1, 1, 1, 1);
+	}
+
+	BlendColorCopyShader.prototype = Object.create(CustomCopyShader.prototype);
+
+	BlendColorCopyShader.prototype.setBlendColor = function(r, g, b, a)
+	{
+	    var gl = GL.gl;
+	    gl.useProgram(this.program);
+	    gl.uniform4f(this._colorLocation, r, g, b, a);
+	};
+
+
+	/**
+	 * @classdesc
+	 * Copies the texture from linear space to gamma space.
+	 *
+	 * @ignore
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function ApplyGammaShader()
+	{
+	    CustomCopyShader.call(this, ShaderLibrary.get("copy_to_gamma_fragment.glsl"));
+	}
+
+	ApplyGammaShader.prototype = Object.create(CustomCopyShader.prototype);
+
+	/**
+	 * @ignore
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function IndexBuffer()
+	{
+	    this._buffer = GL.gl.createBuffer();
+	}
+
+	IndexBuffer.prototype = {
+	    /**
+	     * Uploads data for the buffer.
+	     * @param data The data to upload, must be a Int16Array object.
+	     * @param usageHint An optional usage hint for the buffer.
+	     */
+	    uploadData: function(data, usageHint)
+	    {
+	        if (usageHint === undefined)
+	            usageHint = BufferUsage.STATIC_DRAW;
+
+	        this.bind();
+	        GL.gl.bufferData(GL.gl.ELEMENT_ARRAY_BUFFER, data, usageHint);
+	    },
+
+	    /**
+	     * @private
+	     */
+	    bind: function()
+	    {
+	        GL.gl.bindBuffer(GL.gl.ELEMENT_ARRAY_BUFFER, this._buffer);
 	    }
 	};
 
-	PoissonDisk.prototype =
+	/**
+	 * @ignore
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function VertexBuffer()
 	{
+	    this._buffer = GL.gl.createBuffer();
+	}
+
+	VertexBuffer.prototype = {
+
 	    /**
-	     * Clears all generated points.
+	     * Uploads data for the buffer.
+	     * @param data The data to upload, must be a Float32Array object.
+	     * @param usageHint An optional usage hint for the buffer.
 	     */
-	    reset : function()
+	    uploadData: function(data, usageHint)
 	    {
-			this.points = [];
-			this._currentDistance = this.initialDistance;
+	        if (usageHint === undefined)
+	            usageHint = GL.gl.STATIC_DRAW;
+
+	        this.bind();
+	        GL.gl.bufferData(GL.gl.ARRAY_BUFFER, data, usageHint);
 	    },
 
 	    /**
-	     * Generates new points and add them to the set. This does not return a set of points.
-	     * @param numPoints The amount of points to generate.
-	     */
-	    generatePoints: function(numPoints)
-	    {
-	        for (var i = 0; i < numPoints; ++i)
-	            this.generatePoint();
-	    },
-
-	    /**
-	     * Generates a single point and adds it to the set.
-	     */
-	    generatePoint: function()
-	    {
-	        for (;;) {
-	            var testCount = 0;
-	            var sqrDistance = this._currentDistance*this._currentDistance;
-
-	            while (testCount++ < this.maxTests) {
-	                var candidate = this._getCandidate();
-	                if (this._isValid(candidate, sqrDistance)) {
-	                    this.points.push(candidate);
-	                    return candidate;
-	                }
-	            }
-	            this._currentDistance *= this.decayFactor;
-	        }
-	    },
-
-	    /**
-	     * @ignore
 	     * @private
 	     */
-	    _getCandidate: function()
+	    bind: function()
 	    {
-	        for (;;) {
-	            var x = Math.random() * 2.0 - 1.0;
-	            var y = Math.random() * 2.0 - 1.0;
-	            if (this.mode === PoissonDisk.SQUARE || (x * x + y * y <= 1))
-	                return new Float2(x, y);
-	        }
-	    },
-
-	    /**
-	     * @ignore
-	     * @private
-	     */
-	    _isValid: function(candidate, sqrDistance)
-	    {
-	        var len = this.points.length;
-	        for (var i = 0; i < len; ++i) {
-	            var p = this.points[i];
-	            var dx = candidate.x - p.x;
-	            var dy = candidate.y - p.y;
-	            if (dx*dx + dy*dy < sqrDistance)
-	                return false;
-	        }
-
-	            return true;
+	        GL.gl.bindBuffer(GL.gl.ARRAY_BUFFER, this._buffer);
 	    }
 	};
 
@@ -5726,6 +6038,2346 @@
 
 	/**
 	 * @classdesc
+	 * BoundingVolume forms an abstract base class for axis-aligned bounding volumes, used in the scene hierarchy.
+	 *
+	 * @param type The type of bounding volume.
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function BoundingVolume(type)
+	{
+	    this.type = type;
+
+	    this._expanse = BoundingVolume.EXPANSE_EMPTY;
+	    this._minimumX = 0.0;
+	    this._minimumY = 0.0;
+	    this._minimumZ = 0.0;
+	    this._maximumX = 0.0;
+	    this._maximumY = 0.0;
+	    this._maximumZ = 0.0;
+	    this._halfExtentX = 0.0;
+	    this._halfExtentY = 0.0;
+	    this._halfExtentZ = 0.0;
+	    this._center = new Float4();
+	}
+
+	/**
+	 * Indicates the bounds are empty
+	 */
+	BoundingVolume.EXPANSE_EMPTY = 0;
+
+	/**
+	 * Indicates the bounds are infinitely large
+	 */
+	BoundingVolume.EXPANSE_INFINITE = 1;
+
+	/**
+	 * Indicates the bounds have a real size and position
+	 */
+	BoundingVolume.EXPANSE_FINITE = 2;
+
+	/**
+	 * Indicates the parent's bounds are used in selecting.
+	 */
+	BoundingVolume.EXPANSE_INHERIT = 3;
+
+	BoundingVolume._testAABBToSphere = function(aabb, sphere)
+	{
+	    // b = sphere var max = aabb._maximum;
+	    var maxX = sphere._maximumX;
+	    var maxY = sphere._maximumY;
+	    var maxZ = sphere._maximumZ;
+	    var minX = aabb._minimumX;
+	    var minY = aabb._minimumY;
+	    var minZ = aabb._minimumZ;
+	    var radius = sphere._halfExtentX;
+	    var centerX = sphere._center.x;
+	    var centerY = sphere._center.y;
+	    var centerZ = sphere._center.z;
+	    var dot = 0, diff;
+
+	    if (minX > centerX) {
+	        diff = centerX - minX;
+	        dot += diff * diff;
+	    }
+	    else if (maxX < centerX) {
+	        diff = centerX - maxX;
+	        dot += diff * diff;
+	    }
+
+	    if (minY > centerY) {
+	        diff = centerY - minY;
+	        dot += diff * diff;
+	    }
+	    else if (maxY < centerY) {
+	        diff = centerY - maxY;
+	        dot += diff * diff;
+	    }
+
+	    if (minZ > centerZ) {
+	        diff = centerZ - minZ;
+	        dot += diff * diff;
+	    }
+	    else if (maxZ < centerZ) {
+	        diff = centerZ - maxZ;
+	        dot += diff * diff;
+	    }
+
+	    return dot < radius * radius;
+	};
+
+	BoundingVolume.prototype =
+	{
+	    /**
+	     * Describes the size of the bounding box. {@linkcode BoundingVolume#EXPANSE_EMPTY}, {@linkcode BoundingVolume#EXPANSE_FINITE}, or {@linkcode BoundingVolume#EXPANSE_INFINITE}
+	     */
+	    get expanse() { return this._expanse; },
+
+	    growToIncludeMesh: function(mesh) { throw new Error("Abstract method!"); },
+	    growToIncludeBound: function(bounds) { throw new Error("Abstract method!"); },
+	    growToIncludeMinMax: function(min, max) { throw new Error("Abstract method!"); },
+
+	    /**
+	     * Clear the bounds.
+	     * @param expanseState The state to reset to. Either {@linkcode BoundingVolume#EXPANSE_EMPTY} or {@linkcode BoundingVolume#EXPANSE_INFINITE}.
+	     */
+	    clear: function(expanseState)
+	    {
+	        this._minimumX = this._minimumY = this._minimumZ = 0;
+	        this._maximumX = this._maximumY = this._maximumZ = 0;
+	        this._center.set(0, 0, 0);
+	        this._halfExtentX = this._halfExtentY = this._halfExtentZ = 0;
+	        this._expanse = expanseState === undefined? BoundingVolume.EXPANSE_EMPTY : expanseState;
+	    },
+
+	    /**
+	     * The minimum reach of the bounds, described as a box range.
+	     */
+	    get minimum() { return new Float4(this._minimumX, this._minimumY, this._minimumZ, 1.0); },
+
+	    /**
+	     * The maximum reach of the bounds, described as a box range.
+	     */
+	    get maximum() { return new Float4(this._maximumX, this._maximumY, this._maximumZ, 1.0); },
+
+	    /**
+	     * The center coordinate of the bounds
+	     */
+	    get center() { return this._center; },
+
+	    /**
+	     * The half extents of the bounds. These are the half-dimensions of the box encompassing the bounds from the center.
+	     */
+	    get halfExtent() { return new Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0); },
+
+	    /**
+	     * The radius of the sphere encompassing the bounds. This is implementation-dependent, because the radius is less precise for a box than for a sphere
+	     */
+	    getRadius: function() { throw new Error("Abstract method!"); },
+
+	    /**
+	     * Transforms a bounding volume and stores it in this one.
+	     * @param {BoundingVolume} sourceBound The bounds to transform.
+	     * @param {Matrix4x4} matrix The matrix containing the transformation.
+	     */
+	    transformFrom: function(sourceBound, matrix) { throw new Error("Abstract method!"); },
+
+	    /**
+	     * Tests whether the bounds intersects a given convex solid. The convex solid is described as a list of planes pointing outward. Infinite solids are also allowed (Directional Light frusta without a near plane, for example)
+	     * @param cullPlanes An Array of planes to be tested. Planes are simply Float4 objects.
+	     * @param numPlanes The amount of planes to be tested against. This so we can test less planes than are in the cullPlanes array (Directional Light frusta, for example)
+	     * @returns {boolean} Whether or not the bounds intersect the solid.
+	     */
+	    intersectsConvexSolid: function(cullPlanes, numPlanes) { throw new Error("Abstract method!"); },
+
+	    /**
+	     * Tests whether the bounds intersect another bounding volume
+	     */
+	    intersectsBound: function(bound) { throw new Error("Abstract method!"); },
+
+	    /**
+	     * Tests on which side of the plane the bounding box is (front, back or intersecting).
+	     * @param plane The plane to test against.
+	     * @return {PlaneSide} The side of the plane
+	     */
+	    classifyAgainstPlane: function(plane) { throw new Error("Abstract method!"); },
+
+	    /**
+	     * Tests whether or not this BoundingVolume intersects a ray.
+	     */
+	    intersectsRay: function(ray) { throw new Error("Abstract method!"); },
+
+	    toString: function()
+	    {
+	        return "BoundingVolume: [ " +
+	            this._minimumX + ", " +
+	            this._minimumY + ", " +
+	            this._minimumZ + " ] - [ " +
+	            this._maximumX + ", " +
+	            this._maximumY + ", " +
+	            this._maximumZ + " ], expanse: " +
+	            this._expanse;
+	    },
+
+	    clone: function()
+	    {
+	        throw new Error("Abstract method called!");
+	    }
+	};
+
+	/**
+	 * Values for classifying a point or object to a plane
+	 * @namespace
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	var PlaneSide = {
+	    /**
+	     * Entirely on the front side of the plane
+	     */
+	    FRONT: 1,
+
+	    /**
+	     * Entirely on the back side of the plane
+	     */
+	    BACK: -1,
+
+	    /**
+	     * Intersecting the plane.
+	     */
+	    INTERSECTING: 0
+	};
+
+	/**
+	 * @classdesc
+	 * BoundingAABB represents an axis-aligned bounding box.
+	 *
+	 * @constructor
+	 *
+	 * @extends BoundingVolume
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function BoundingAABB()
+	{
+	    BoundingVolume.call(this, BoundingAABB);
+	}
+
+	BoundingAABB.prototype = Object.create(BoundingVolume.prototype);
+
+	/**
+	 * @inheritDoc
+	 */
+	BoundingAABB.prototype.growToIncludeMesh = function(mesh)
+	{
+	    if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
+
+	    var attribute = mesh.getVertexAttributeByName("hx_position");
+	    var index = attribute.offset;
+	    var stride = mesh.getVertexStride(attribute.streamIndex);
+	    var vertices = mesh.getVertexData(attribute.streamIndex);
+	    var len = vertices.length;
+	    var minX, minY, minZ;
+	    var maxX, maxY, maxZ;
+
+	    if (this._expanse === BoundingVolume.EXPANSE_EMPTY) {
+	        maxX = minX = vertices[index];
+	        maxY = minY = vertices[index + 1];
+	        maxZ = minZ = vertices[index + 2];
+	        index += stride;
+	    }
+	    else {
+	        minX = this._minimumX; minY = this._minimumY; minZ = this._minimumZ;
+	        maxX = this._maximumX; maxY = this._maximumY; maxZ = this._maximumZ;
+	    }
+
+	    for (; index < len; index += stride) {
+	        var x = vertices[index];
+	        var y = vertices[index + 1];
+	        var z = vertices[index + 2];
+
+	        if (x > maxX) maxX = x;
+	        else if (x < minX) minX = x;
+	        if (y > maxY) maxY = y;
+	        else if (y < minY) minY = y;
+	        if (z > maxZ) maxZ = z;
+	        else if (z < minZ) minZ = z;
+	    }
+
+	    this._minimumX = minX; this._minimumY = minY; this._minimumZ = minZ;
+	    this._maximumX = maxX; this._maximumY = maxY; this._maximumZ = maxZ;
+	    this._expanse = BoundingVolume.EXPANSE_FINITE;
+
+	    this._updateCenterAndExtent();
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	BoundingAABB.prototype.growToIncludeBound = function(bounds)
+	{
+	    if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY ||
+	        bounds._expanse === BoundingVolume.EXPANSE_INHERIT ||
+	        this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
+
+	    if (bounds._expanse === BoundingVolume.EXPANSE_INFINITE)
+	        this._expanse = BoundingVolume.EXPANSE_INFINITE;
+
+	    else if (this._expanse === BoundingVolume.EXPANSE_EMPTY) {
+	        this._minimumX = bounds._minimumX;
+	        this._minimumY = bounds._minimumY;
+	        this._minimumZ = bounds._minimumZ;
+	        this._maximumX = bounds._maximumX;
+	        this._maximumY = bounds._maximumY;
+	        this._maximumZ = bounds._maximumZ;
+	        this._expanse = BoundingVolume.EXPANSE_FINITE;
+	    }
+	    else {
+	        if (bounds._minimumX < this._minimumX)
+	            this._minimumX = bounds._minimumX;
+	        if (bounds._minimumY < this._minimumY)
+	            this._minimumY = bounds._minimumY;
+	        if (bounds._minimumZ < this._minimumZ)
+	            this._minimumZ = bounds._minimumZ;
+	        if (bounds._maximumX > this._maximumX)
+	            this._maximumX = bounds._maximumX;
+	        if (bounds._maximumY > this._maximumY)
+	            this._maximumY = bounds._maximumY;
+	        if (bounds._maximumZ > this._maximumZ)
+	            this._maximumZ = bounds._maximumZ;
+	    }
+
+	    this._updateCenterAndExtent();
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
+	{
+	    if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
+
+	    if (this._expanse === BoundingVolume.EXPANSE_EMPTY) {
+	        this._minimumX = min.x;
+	        this._minimumY = min.y;
+	        this._minimumZ = min.z;
+	        this._maximumX = max.x;
+	        this._maximumY = max.y;
+	        this._maximumZ = max.z;
+	        this._expanse = BoundingVolume.EXPANSE_FINITE;
+	    }
+	    else {
+	        if (min.x < this._minimumX)
+	            this._minimumX = min.x;
+	        if (min.y < this._minimumY)
+	            this._minimumY = min.y;
+	        if (min.z < this._minimumZ)
+	            this._minimumZ = min.z;
+	        if (max.x > this._maximumX)
+	            this._maximumX = max.x;
+	        if (max.y > this._maximumY)
+	            this._maximumY = max.y;
+	        if (max.z > this._maximumZ)
+	            this._maximumZ = max.z;
+	    }
+
+	    this._updateCenterAndExtent();
+	};
+
+	/**
+	 * Generates a new BoundingSphere with the transformation matrix applied.
+	 */
+	BoundingAABB.prototype.transform = function(matrix)
+	{
+	    var clone = new BoundingAABB();
+	    clone.transformFrom(this, matrix);
+	    return clone;
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
+	{
+	    if (sourceBound._expanse === BoundingVolume.EXPANSE_FINITE) {
+	        var arr = matrix._m;
+	        var m00 = arr[0], m10 = arr[1], m20 = arr[2];
+	        var m01 = arr[4], m11 = arr[5], m21 = arr[6];
+	        var m02 = arr[8], m12 = arr[9], m22 = arr[10];
+
+	        var x = sourceBound._center.x;
+	        var y = sourceBound._center.y;
+	        var z = sourceBound._center.z;
+
+	        var cx = this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
+	        var cy = this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
+	        var cz = this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
+
+	        if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
+	        if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
+	        if (m02 < 0) m02 = -m02; if (m12 < 0) m12 = -m12; if (m22 < 0) m22 = -m22;
+	        x = sourceBound._halfExtentX;
+	        y = sourceBound._halfExtentY;
+	        z = sourceBound._halfExtentZ;
+
+	        var hx = this._halfExtentX = m00 * x + m01 * y + m02 * z;
+	        var hy = this._halfExtentY = m10 * x + m11 * y + m12 * z;
+	        var hz = this._halfExtentZ = m20 * x + m21 * y + m22 * z;
+
+	        this._minimumX = cx - hx;
+	        this._minimumY = cy - hy;
+	        this._minimumZ = cz - hz;
+	        this._maximumX = cx + hx;
+	        this._maximumY = cy + hy;
+	        this._maximumZ = cz + hz;
+	        this._expanse = sourceBound._expanse;
+	    }
+	    else {
+	        this.clear(sourceBound._expanse);
+	    }
+	};
+
+
+	/**
+	 * @inheritDoc
+	 */
+	BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
+	{
+	    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || this._expanse === BoundingVolume.EXPANSE_INHERIT)
+	        return true;
+	    else if (this._expanse === BoundingVolume.EXPANSE_EMPTY)
+	        return false;
+
+	    var minX = this._minimumX, minY = this._minimumY, minZ = this._minimumZ;
+	    var maxX = this._maximumX, maxY = this._maximumY, maxZ = this._maximumZ;
+
+	    for (var i = 0; i < numPlanes; ++i) {
+	        // find the point that will always have the smallest signed distance
+	        var plane = cullPlanes[i];
+	        var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
+	        var closestX = planeX > 0? minX : maxX;
+	        var closestY = planeY > 0? minY : maxY;
+	        var closestZ = planeZ > 0? minZ : maxZ;
+
+	        // classify the closest point
+	        var signedDist = planeX * closestX + planeY * closestY + planeZ * closestZ + planeW;
+	        if (signedDist > 0.0)
+	            return false;
+	    }
+
+	    return true;
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	BoundingAABB.prototype.intersectsBound = function(bound)
+	{
+	    if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
+	        return false;
+
+	    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE ||
+	        this._expanse === BoundingVolume.EXPANSE_INHERIT || bound._expanse === BoundingVolume.EXPANSE_INHERIT)
+	        return true;
+
+	    // both AABB
+	    if (bound.type === this.type) {
+	        return 	this._maximumX > bound._minimumX &&
+	            this._minimumX < bound._maximumX &&
+	            this._maximumY > bound._minimumY &&
+	            this._minimumY < bound._maximumY &&
+	            this._maximumZ > bound._minimumZ &&
+	            this._minimumZ < bound._maximumZ;
+	    }
+	    else {
+	        return BoundingVolume._testAABBToSphere(this, bound);
+	    }
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	BoundingAABB.prototype.classifyAgainstPlane = function(plane)
+	{
+	    var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
+
+	    var centerDist = planeX * this._center.x + planeY * this._center.y + planeZ * this._center.z + planeW;
+
+	    if (planeX < 0) planeX = -planeX;
+	    if (planeY < 0) planeY = -planeY;
+	    if (planeZ < 0) planeZ = -planeZ;
+
+	    var intersectionDist = planeX * this._halfExtentX + planeY * this._halfExtentY + planeZ * this._halfExtentZ;
+	    // intersectionDist is the distance to the far point
+	    // -intersectionDist is the distance to the closest point
+
+	    if (centerDist > intersectionDist)
+	        return PlaneSide.FRONT;
+	    if (centerDist < -intersectionDist)
+	        return PlaneSide.BACK;
+	    else
+	        return PlaneSide.INTERSECTING;
+	};
+
+	/**
+	 * @ignore
+	 */
+	BoundingAABB.prototype.intersectsRay = function(ray)
+	{
+	    if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return true;
+	    if (this._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INHERIT) return false;
+	    // slab method
+	    var o = ray.origin;
+	    var d = ray.direction;
+	    var oX = o.x, oY = o.y, oZ = o.z;
+	    var dirX = d.x, dirY = d.y, dirZ = d.z;
+
+	    var nearT = -Infinity;
+	    var farT = Infinity;
+
+	    var t1, t2;
+
+	    // t = (minX - oX) / dirX
+
+	    if (dirX !== 0.0) {
+	        var rcp = 1.0 / dirX;
+	        t1 = (this._minimumX - oX) * rcp;
+	        t2 = (this._maximumX - oX) * rcp;
+	        // near is the closest intersection factor to the ray, far the furthest
+	        // so [nearT - farT] is the line segment cut off by the planes
+	        if (t1 < t2) {
+	            nearT = t1;
+	            farT = t2;
+	        }
+	        else {
+	            nearT = t2;
+	            farT = t1;
+	        }
+	    }
+
+	    if (dirY !== 0.0) {
+	        rcp = 1.0 / dirY;
+	        t1 = (this._minimumY - oY) * rcp;
+	        t2 = (this._maximumY - oY) * rcp;
+
+	        // slice off more from the line segment [nearT - farT]
+	        if (t1 < t2) {
+	            if (t1 > nearT)
+	                nearT = t1;
+	            if (t2 < farT)
+	                farT = t2;
+	        }
+	        else {
+	            if (t2 > nearT)
+	                nearT = t2;
+	            if (t1 < farT)
+	                farT = t1;
+	        }
+
+	    }
+
+	    if (dirZ !== 0.0) {
+	        rcp = 1.0 / dirZ;
+	        t1 = (this._minimumZ - oZ) * rcp;
+	        t2 = (this._maximumZ - oZ) * rcp;
+
+	        if (t1 < t2) {
+	            if (t1 > nearT)
+	                nearT = t1;
+	            if (t2 < farT)
+	                farT = t2;
+	        }
+	        else {
+	            if (t2 > nearT)
+	                nearT = t2;
+	            if (t1 < farT)
+	                farT = t1;
+	        }
+	    }
+
+	    return farT > 0 && farT >= nearT;
+	};
+
+	/**
+	 * Sets the minimum and maximum explicitly using {@linkcode Float4}
+	 */
+	BoundingAABB.prototype.setExplicit = function(min, max)
+	{
+	    this._minimumX = min.x;
+	    this._minimumY = min.y;
+	    this._minimumZ = min.z;
+	    this._maximumX = max.x;
+	    this._maximumY = max.y;
+	    this._maximumZ = max.z;
+	    this._expanse = BoundingVolume.EXPANSE_FINITE;
+	    this._updateCenterAndExtent();
+	};
+
+	/**
+	 * @ignore
+	 * @private
+	 */
+	BoundingAABB.prototype._updateCenterAndExtent = function()
+	{
+	    var minX = this._minimumX, minY = this._minimumY, minZ = this._minimumZ;
+	    var maxX = this._maximumX, maxY = this._maximumY, maxZ = this._maximumZ;
+	    this._center.x = (minX + maxX) * .5;
+	    this._center.y = (minY + maxY) * .5;
+	    this._center.z = (minZ + maxZ) * .5;
+	    this._halfExtentX = (maxX - minX) * .5;
+	    this._halfExtentY = (maxY - minY) * .5;
+	    this._halfExtentZ = (maxZ - minZ) * .5;
+	};
+
+	/**
+	 * @inheritDoc
+	 */
+	BoundingAABB.prototype.getRadius = function()
+	{
+	    return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
+	};
+
+	BoundingAABB.prototype.getHalfExtents = function()
+	{
+	    return new Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0);
+	};
+
+	BoundingAABB.prototype.clone = function()
+	{
+	    var aabb = new BoundingAABB();
+	    aabb.growToIncludeBound(this);
+	    return aabb;
+	};
+
+	/**
+	 * @classdesc
+	 * MorphTarget defines the displacements per vertex that can be used to displace a Mesh. This can be used to animate
+	 * vertices between different poses. Several MorphTargets can be used in a {@linkcode MorphPose} or through a component
+	 * such as {@linkcode MorphAnimation}
+	 * A MorphTarget describes the offsets for a whole {@linkcode Model}, so several sets might be present (one for each {@linkcode Mesh}).
+	 *
+	 * @constructor
+	 *
+	 * @see {@linkcode MorphAnimation}
+	 * @see {@linkcode MorphPose}
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function MorphTarget()
+	{
+	    this.name = null;
+	    this._positionBuffer = null;
+	    this._normalBuffer = null;
+	    this._numVertices = 0;
+	}
+
+	MorphTarget.prototype =
+	{
+	    /**
+	     * Indicates whether or not vertex normals are provided in the morph target initialisation.
+	     * @returns {boolean|*}
+	     */
+	    get hasNormals()
+	    {
+	        return !!this._normalBuffer;
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    get numVertices()
+	    {
+	        return this._numVertices;
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    get positionBuffer()
+	    {
+	        return this._positionBuffer;
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    get normalBuffer()
+	    {
+	        return this._normalBuffer;
+	    },
+
+	    /**
+	     * Initializes the current MorphTarget object.
+	     * @param {Array} positions An Array of 3 floats per vertex (x, y, z), containing the displacement vectors. The size must match the vertex count of the target Mesh.
+	     * @param {Array} normals An Array of 3 floats per vertex (x, y, z), containing the normal offset vectors. The size must match the vertex count of the target Mesh.
+	     *
+	     */
+	    init: function(positions, normals)
+	    {
+	        this._numVertices = positions.length / 3;
+
+	        this._positionBuffer = new VertexBuffer();
+	        this._positionBuffer.uploadData(new Float32Array(positions));
+
+	        if (normals) {
+	            this._normalBuffer = new VertexBuffer();
+	            this._normalBuffer.uploadData(new Float32Array(normals));
+	        }
+	    }
+	};
+
+	/**
+	 * @ignore
+	 */
+	var MESH_ID_COUNTER = 0;
+
+	/**
+	 * @classdesc
+	 *
+	 * <p>Mesh contains the geometry of a renderable object. A {@linkcode MeshInstance} component is used to combine a Mesh
+	 * with a Material for rendering.
+	 *
+	 * <p>A Mesh can have vertex attributes spread out over several "streams". Every stream means a separate vertex buffer will be used.</p>
+	 *
+	 * <p>A Mesh should have its layout defined using addVertexAttribute, and initial data supplied using setVertexData,
+	 * before passing it on to a Model. These values will be used to calculate its local bounding box.
+	 * After this, setVertexData can be called to change data, but it will not change the model</p>
+	 *
+	 * @param {BufferUsage} vertexUsage A usage hint for the vertex buffer.
+	 * @param {BufferUsage} indexUsage A usage hint for the index buffer.
+	 *
+	 * @property elementType An {@linkcode ElementType} to describe the type of elements to render.
+	 *
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function Mesh()
+	{
+	    this.onBoundsChanged = new Signal();
+	    this.onLayoutChanged = new Signal();
+	    this.onMorphDataCreated = new Signal();
+		this.onSkeletonChange = new Signal();
+		this.name = "hx_mesh_" + MESH_ID_COUNTER;
+		this.elementType = ElementType.TRIANGLES;
+		this._bounds = new BoundingAABB();
+		this._boundsInvalid = true;
+		this._dynamicBounds = true;
+		this._vertexBuffers = [];
+		this._vertexStrides = [];
+		this._vertexData = [];
+		this._indexData = undefined;
+		this._vertexUsage = BufferUsage.STATIC_DRAW;
+		this._indexUsage = BufferUsage.STATIC_DRAW;
+		this._numStreams = 0;
+		this._numVertices = 0;
+
+	    this._vertexAttributes = [];
+	    this._vertexAttributesLookUp = {};
+	    this._indexBuffer = new IndexBuffer();
+
+	    this._morphTargets = {};
+		this._hasMorphNormals = false;
+		this._defaultMorphTarget = null;
+
+		this._skeleton = null;
+
+	    this._renderOrderHint = ++MESH_ID_COUNTER;
+	}
+
+	/**
+	 * The vertex stride for meshes created with {@linkcode Mesh#createDefaultEmpty}
+	 */
+	Mesh.DEFAULT_VERTEX_SIZE = 12;
+
+	/**
+	 * @ignore
+	 */
+	Mesh.ID_COUNTER = 0;
+
+	// other possible indices:
+	// hx_instanceID (used by MeshBatch)
+	// hx_jointIndices (4)
+	// hx_jointWeights (4)
+	/**
+	 * Creates an empty Mesh with a default layout.
+	 */
+	Mesh.createDefaultEmpty = function(target)
+	{
+		target = target || new Mesh();
+		target.addVertexAttribute("hx_position", 3);
+		target.addVertexAttribute("hx_normal", 3);
+		target.addVertexAttribute("hx_tangent", 4);
+		target.addVertexAttribute("hx_texCoord", 2);
+	    return target;
+	};
+
+
+	Mesh.prototype = {
+		/**
+		 * The object-space bounding volume. Setting this value only changes the type of volume.
+		 */
+		get bounds()
+		{
+			if (this._boundsInvalid) this._updateBounds();
+			return this._bounds;
+		},
+
+		set bounds(value)
+		{
+			this._bounds = value;
+			this._invalidateBounds();
+		},
+
+		/**
+		 * The object-space bounding volume. Setting this value only changes the type of volume.
+		 */
+		get dynamicBounds()
+		{
+			return this._dynamicBounds;
+		},
+
+		set dynamicBounds(value)
+		{
+			if (value === this._dynamicBounds)
+				return;
+
+			this._dynamicBounds = value;
+
+			if (value)
+				this._invalidateBounds();
+			else
+				this._boundsInvalid = false;
+		},
+
+		/**
+		 * The {@linkcode Skeleton} used for skinning animations.
+		 */
+		get skeleton()
+		{
+			return this._skeleton;
+		},
+
+		set skeleton(value)
+		{
+			this._skeleton = value;
+			this.onSkeletonChange.dispatch();
+		},
+
+	    /**
+	     * Whether or not this Mesh supports morph target animations. This is the case if {@linkcode Mesh#generateMorphData}
+	     * was called.
+	     */
+	    get hasMorphData()
+	    {
+	        return !!this._defaultMorphTarget;
+	    },
+
+	    get hasMorphNormals()
+	    {
+	        return this._hasMorphNormals;
+	    },
+
+	    /**
+	     * Returns whether or not vertex data was uploaded to the given stream index.
+	     */
+	    hasVertexData: function (streamIndex)
+	    {
+	        return !!this._vertexData[streamIndex];
+	    },
+
+	    /**
+	     * Gets the vertex data for a given stream.
+	     */
+	    getVertexData: function (streamIndex)
+	    {
+	        return this._vertexData[streamIndex];
+	    },
+
+	    /**
+	     * Uploads vertex data from an Array or a Float32Array. This method must be called after the layout for the stream
+	     * has been finalized using setVertexAttribute calls. The data in the stream should be an interleaved array of
+	     * floats, with each attribute data in the order specified with the setVertexAttribute calls.
+	     */
+	    setVertexData: function (data, streamIndex, usageHint)
+	    {
+	        streamIndex = streamIndex || 0;
+
+	        this._vertexUsage = usageHint || BufferUsage.STATIC_DRAW;
+
+	        this._vertexData[streamIndex] = data instanceof Float32Array? data : new Float32Array(data);
+	        this._vertexBuffers[streamIndex] = this._vertexBuffers[streamIndex] || new VertexBuffer();
+	        this._vertexBuffers[streamIndex].uploadData(this._vertexData[streamIndex], this._vertexUsage);
+
+	        if (streamIndex === 0)
+	            this._numVertices = data.length / this._vertexStrides[0];
+
+			this._invalidateBounds();
+	    },
+
+	    /**
+	     * Returns the index data uploaded to the index buffer.
+	     */
+	    getIndexData: function()
+	    {
+	        return this._indexData;
+	    },
+
+	    /**
+	     * Uploads index data from an Array or a Uint16Array
+	     */
+	    setIndexData: function (data, usageHint)
+	    {
+	        this._indexUsage = usageHint || BufferUsage.STATIC_DRAW;
+
+	        if (data instanceof Uint16Array) {
+	            this._indexData = data;
+	            this._indexType = DataType.UNSIGNED_SHORT;
+	        }
+	        else if (data instanceof Uint32Array) {
+	            this._indexData = data;
+	            this._indexType = DataType.UNSIGNED_INT;
+	        }
+	        else {
+	            this._indexData = new Uint16Array(data);
+	            this._indexType = DataType.UNSIGNED_SHORT;
+	        }
+	        this._numIndices = this._indexData.length;
+	        this._indexBuffer.uploadData(this._indexData, this._indexUsage);
+	    },
+
+	    /**
+	     * Adds a named vertex attribute. All properties are given manually to make it easier to support multiple streams in the future.
+	     * @param name The name of the attribute, matching the attribute name used in the vertex shaders.
+	     * @param numComponents The amount of components used by the attribute value.
+	     * @param streamIndex [Optional] The stream index indicating which vertex buffer is used, defaults to 0
+	     * @param normalized [Optional] Whether or not the input of the attribute should be normalized to [-1, 1]
+	     */
+	    addVertexAttribute: function (name, numComponents, streamIndex, normalized)
+	    {
+	        streamIndex = streamIndex || 0;
+	        this._numStreams = Math.max(this._numStreams, streamIndex + 1);
+	        var offset = this._vertexStrides[streamIndex] || 0;
+	        var attrib = {
+	            name: name,
+	            offset: offset,
+	            numComponents: numComponents,
+	            streamIndex: streamIndex,
+			    normalized: normalized || false
+	        };
+	        this._vertexAttributes.push(attrib);
+	        this._vertexAttributesLookUp[name] = attrib;
+
+	        this._vertexStrides[streamIndex] = offset + numComponents;
+
+	        this.onLayoutChanged.dispatch();
+	    },
+
+	    /**
+	     * The amount of streams (vertex buffers) used for this Mesh/
+	     */
+	    get numStreams()
+	    {
+	        return this._numStreams;
+	    },
+
+	    /**
+	     * Extracts the vertex attribute data for the given attribute name as a flat Array.
+	     */
+	    extractAttributeData: function(name)
+	    {
+	        var attrib = this.getVertexAttributeByName(name);
+	        var stride = this.getVertexStride(attrib);
+	        var data = this.getVertexData(attrib.streamIndex);
+	        var numComps = attrib.numComponents;
+	        var vertData = [];
+	        var t = 0;
+	        for (var i = attrib.offset; i < data.length; i += stride) {
+	            for (var j = 0; j < numComps; ++j) {
+	                vertData[t++] = data[i + j];
+	            }
+	        }
+	        return vertData;
+	    },
+
+	    /**
+	     * Generates the required data to support morph target animations.
+	     */
+	    generateMorphData: function(supportNormals)
+	    {
+	        var count;
+
+	        if (supportNormals) {
+	            this._hasMorphNormals = true;
+	            count = 4;
+	        }
+	        else {
+	            count = 8;
+	        }
+
+	        for (i = 0; i < count; ++i) {
+	            // these will never have data assigned to them!
+	            // append these each as a different stream
+	            this.addVertexAttribute("hx_morphPosition" + i, 3, this._numStreams);
+
+	            if (supportNormals)
+	                this.addVertexAttribute("hx_morphNormal" + i, 3, this._numStreams);
+	        }
+
+	        var data = [];
+
+	        for (var i = 0; i < this._numVertices; ++i) {
+	            data.push(0, 0, 0);
+	        }
+
+	        // this is used for both positions and normals (if needed)
+	        this._defaultMorphTarget = new VertexBuffer();
+	        this._defaultMorphTarget.uploadData(new Float32Array(data), BufferUsage.STATIC_DRAW);
+
+			this.onMorphDataCreated.dispatch();
+			this.onLayoutChanged.dispatch();
+	    },
+
+	    /**
+	     * The amount of vertices contained in the Mesh.
+	     */
+	    get numVertices()
+	    {
+	        return this._numVertices;
+	    },
+
+	    /**
+	     * The amount of face indices contained in the Mesh.
+	     */
+	    get numIndices()
+	    {
+	        return this._numIndices;
+	    },
+
+	    /**
+	     * The amount of vertex attributes contained in the Mesh.
+	     */
+	    get numVertexAttributes()
+	    {
+	        return this._vertexAttributes.length;
+	    },
+
+	    /**
+	     * Gets the vertex stride (number of components used per stream per vertex) for a given stream
+	     */
+	    getVertexStride: function(streamIndex)
+	    {
+	        return this._vertexStrides[streamIndex];
+	    },
+
+	    /**
+	     * Gets the vertex attribute data according to the attribute name.
+	     */
+	    getVertexAttributeByName: function (name)
+	    {
+	        return this._vertexAttributesLookUp[name];
+	    },
+
+	    /**
+	     * Gets the vertex attribute data according to the index.
+	     */
+	    getVertexAttributeByIndex: function (index)
+	    {
+	        return this._vertexAttributes[index];
+	    },
+
+		/**
+		 * Adds a MorphTarget object for animators to work with.
+		 */
+	    addMorphTarget: function(morphTarget)
+		{
+			this._morphTargets[morphTarget.name] = morphTarget;
+
+			if (!this._defaultMorphTarget)
+			    this.generateMorphData();
+		},
+
+		/**
+		 * Adds a MorphTarget object for animators to work with.
+		 */
+	    removeMorphTarget: function(morphTarget)
+		{
+			delete this._morphTargets[morphTarget.name];
+		},
+
+		/**
+		 * Gets the morph target by name.
+		 * @param {name} index The name of the {@linkcode MorphTarget}
+		 * @returns {MorphTarget}
+		 */
+		getMorphTarget: function(name)
+		{
+			return this._morphTargets[name];
+		},
+
+	    /**
+	     * Returns a duplicate of this Mesh.
+	     */
+	    clone: function()
+	    {
+	        var mesh = new Mesh();
+	        var numAttribs = this._vertexAttributes.length;
+
+	        for (var i = 0; i < numAttribs; ++i) {
+	            var attrib = this._vertexAttributes[i];
+	            mesh.addVertexAttribute(attrib.name, attrib.numComponents, attrib.streamIndex);
+	        }
+
+	        for (i = 0; i < this._numStreams; ++i) {
+	            if (this._vertexData[i])
+	                mesh.setVertexData(this._vertexData[i], i, this._vertexUsage);
+	        }
+
+	        if (this._indexData)
+	            mesh.setIndexData(this._indexData, this._indexUsage);
+
+	        mesh.elementType = this.elementType;
+
+	        return mesh;
+	    },
+
+	    translate: function(x, y, z)
+	    {
+	        if (x instanceof Float4) {
+	            y = x.y;
+	            z = x.z;
+	            x = x.x;
+	        }
+
+	        var attrib = this.getVertexAttributeByName("hx_position");
+	        if (!attrib) return;
+
+	        var stride = this.getVertexStride(attrib);
+	        var data = this.getVertexData(attrib.streamIndex);
+	        for (var i = attrib.offset; i < data.length; i += stride) {
+	            data[i] += x;
+	            data[i + 1] += x;
+	            data[i + 2] += x;
+	        }
+
+	        this._vertexBuffers[attrib.streamIndex].uploadData(this._vertexData[attrib.streamIndex], this._vertexUsage);
+	    },
+
+		/**
+		 * @ignore
+		 * @private
+		 */
+		_updateBounds: function()
+		{
+			this._bounds.clear();
+			this._bounds.growToIncludeMesh(this);
+			this._boundsInvalid = false;
+		},
+
+		/**
+	     * @ignore
+		 * @private
+		 */
+		_invalidateBounds: function()
+	    {
+	    	if (this._dynamicBounds) {
+				this._boundsInvalid = true;
+				this.onBoundsChanged.dispatch();
+			}
+	    }
+	};
+
+	/**
+	 * RectMesh is a util that allows creating Mesh objects for rendering 2D quads. Generally, use RectMesh.DEFAULT for
+	 * full-screen quads.
+	 *
+	 * @namespace
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	var RectMesh = {
+	    create: function()
+	    {
+	        var mesh = new Mesh();
+	        mesh.addVertexAttribute("hx_position", 2);
+	        mesh.addVertexAttribute("hx_texCoord", 2);
+	        mesh.setVertexData([-1, 1, 0, 1,
+	            1, 1, 1, 1,
+	            1, -1, 1, 0,
+	            -1, -1, 0, 0], 0);
+	        mesh.setIndexData([0, 1, 2, 0, 2, 3]);
+	        return mesh;
+	    },
+
+	    _initDefault: function()
+	    {
+	        RectMesh.DEFAULT = RectMesh.create();
+	    }
+	};
+
+	/**
+	 * @ignore
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	var TextureUtils =
+	{
+	    /**
+	     * Resizes a texture (empty) if its size doesn't match. Returns true if the size has changed.
+	     * @param width The target width
+	     * @param height The target height
+	     * @param texture The texture to be resized if necessary
+	     * @param fbo (optional) Any fbos to be reinitialized if necessary
+	     * @returns {boolean} Returns true if the texture has been resized, false otherwise.
+	     */
+	    assureSize: function(width, height, texture, fbo, format, dataType)
+	    {
+	        if (width === texture.width && height === texture.height)
+	            return false;
+
+	        texture.initEmpty(width, height, format, dataType);
+	        if (fbo) fbo.init();
+	        return true;
+	    },
+
+	    /**
+	     * Copies a texture into a Framebuffer.
+	     * @param sourceTexture The source texture to be copied.
+	     * @param destFBO The target FBO to copy into.
+	     */
+	    copy: function(sourceTexture, destFBO)
+	    {
+	        GL.setRenderTarget(destFBO);
+	        GL.clear();
+	        DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, sourceTexture);
+	        GL.setRenderTarget(null);
+	    },
+
+	    // ref: http://stackoverflow.com/questions/32633585/how-do-you-convert-to-half-floats-in-javascript
+	    encodeHalfFloat: function(val) {
+
+	        var floatView = new Float32Array(1);
+	        var int32View = new Int32Array(floatView.buffer);
+
+	        /* This method is faster than the OpenEXR implementation (very often
+	         * used, eg. in Ogre), with the additional benefit of rounding, inspired
+	         * by James Tursa?s half-precision code. */
+	        return function toHalf(val) {
+
+	            floatView[0] = val;
+	            var x = int32View[0];
+
+	            var bits = (x >> 16) & 0x8000; /* Get the sign */
+	            var m = (x >> 12) & 0x07ff; /* Keep one extra bit for rounding */
+	            var e = (x >> 23) & 0xff; /* Using int is faster here */
+
+	            /* If zero, or denormal, or exponent underflows too much for a denormal
+	             * half, return signed zero. */
+	            if (e < 103) {
+	                return bits;
+	            }
+
+	            /* If NaN, return NaN. If Inf or exponent overflow, return Inf. */
+	            if (e > 142) {
+	                bits |= 0x7c00;
+	                /* If exponent was 0xff and one mantissa bit was set, it means NaN,
+	                 * not Inf, so make sure we set one mantissa bit too. */
+	                bits |= ((e === 255) ? 0 : 1) && (x & 0x007fffff);
+	                return bits;
+	            }
+
+	            /* If exponent underflows but not too much, return a denormal */
+	            if (e < 113) {
+	                m |= 0x0800;
+	                /* Extra rounding may overflow and set mantissa to 0 and exponent
+	                 * to 1, which is OK. */
+	                bits |= (m >> (114 - e)) + ((m >> (113 - e)) & 1);
+	                return bits;
+	            }
+
+	            bits |= ((e - 112) << 10) | (m >> 1);
+	            /* Extra rounding. An overflow will set mantissa to 0 and increment
+	             * the exponent, which is OK. */
+	            bits += m & 1;
+	            return bits;
+	        };
+	    }(),
+
+	    encodeToFloat16Array: function(float32Array)
+	    {
+	        var encFun = TextureUtils.encodeHalfFloat;
+	        var arr = [];
+	        for (var i = 0; i < float32Array.length; ++i) {
+	            arr[i] = encFun(float32Array[i]);
+	        }
+	        return new Uint16Array(arr);
+	    }
+	};
+
+	var nameCounter = 0;
+
+	/**
+	 * @classdesc
+	 * Texture2D represents a 2D texture.
+	 *
+	 * @constructor
+	 *
+	 * @propety name The name of the texture.
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function Texture2D()
+	{
+	    this.name = "hx_texture2d_" + (nameCounter++);
+	    this._default = Texture2D.DEFAULT;
+	    this._texture = GL.gl.createTexture();
+	    this._width = 0;
+	    this._height = 0;
+	    this._format = null;
+	    this._dataType = null;
+
+	    this.bind();
+
+	    // set defaults
+	    this.maxAnisotropy = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
+	    this.filter = TextureFilter.DEFAULT;
+	    this.wrapMode = TextureWrapMode.DEFAULT;
+
+	    this._isReady = false;
+
+	    GL.gl.bindTexture(GL.gl.TEXTURE_2D, null);
+	}
+
+	/**
+	 * @ignore
+	 */
+	Texture2D._initDefault = function()
+	{
+	    var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
+	    Texture2D.DEFAULT = new Texture2D();
+	    Texture2D.DEFAULT.uploadData(data, 1, 1, true);
+	    Texture2D.DEFAULT.filter = TextureFilter.NEAREST_NOMIP;
+	};
+
+	Texture2D.prototype =
+	{
+	    /**
+	     * Generates a mip map chain.
+	     */
+	    generateMipmap: function()
+	    {
+	        var gl = GL.gl;
+
+	        this.bind();
+
+	        gl.generateMipmap(gl.TEXTURE_2D);
+	        gl.bindTexture(gl.TEXTURE_2D, null);
+	    },
+
+	    /**
+	     * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
+	     */
+	    get filter()
+	    {
+	        return this._filter;
+	    },
+
+	    set filter(filter)
+	    {
+	        var gl = GL.gl;
+	        this._filter = filter;
+	        this.bind();
+	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter.min);
+	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter.mag);
+	        gl.bindTexture(gl.TEXTURE_2D, null);
+
+	        if (filter === TextureFilter.NEAREST_NOMIP || filter === TextureFilter.NEAREST) {
+	            this.maxAnisotropy = 1;
+	        }
+	    },
+
+	    /**
+	     * A {@linkcode TextureWrapMode} object defining how out-of-bounds sampling should be handled.
+	     */
+	    get wrapMode()
+	    {
+	        return this._wrapMode;
+	    },
+
+	    set wrapMode(mode)
+	    {
+	        var gl = GL.gl;
+	        this._wrapMode = mode;
+	        this.bind();
+	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode.s);
+	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode.t);
+	        gl.bindTexture(gl.TEXTURE_2D, null);
+	    },
+
+	    /**
+	     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities#DEFAULT_TEXTURE_MAX_ANISOTROPY}
+	     */
+	    get maxAnisotropy()
+	    {
+	        return this._maxAnisotropy;
+	    },
+
+	    set maxAnisotropy(value)
+	    {
+	        var gl = GL.gl;
+
+	        if (value > capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY)
+	            value = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
+
+	        this._maxAnisotropy = value;
+
+	        this.bind();
+	        if (capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC)
+	            GL.gl.texParameteri(gl.TEXTURE_2D, capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
+	        gl.bindTexture(gl.TEXTURE_2D, null);
+	    },
+
+	    /**
+	     * The texture's width
+	     */
+	    get width() { return this._width; },
+
+	    /**
+	     * The texture's height
+	     */
+	    get height() { return this._height; },
+
+	    /**
+	     * The texture's format
+	     *
+	     * @see {@linkcode TextureFormat}
+	     */
+	    get format() { return this._format; },
+
+	    /**
+	     * The texture's data type
+	     *
+	     * @see {@linkcode DataType}
+	     */
+	    get dataType() { return this._dataType; },
+
+	    /**
+	     * Inits an empty texture.
+	     * @param width The width of the texture.
+	     * @param height The height of the texture.
+	     * @param {TextureFormat} format The texture's format.
+	     * @param {DataType} dataType The texture's data format.
+	     */
+	    initEmpty: function(width, height, format, dataType)
+	    {
+	        var gl = GL.gl;
+	        this._format = format = format || TextureFormat.RGBA;
+	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+
+	        this.bind();
+	        this._width = width;
+	        this._height = height;
+
+			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+	        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, dataType, null);
+
+	        this._isReady = true;
+
+	        gl.bindTexture(gl.TEXTURE_2D, null);
+	    },
+
+	    /**
+	     * Initializes the texture with the given data.
+	     * @param {*} data An typed array containing the initial data.
+	     * @param {number} width The width of the texture.
+	     * @param {number} height The height of the texture.
+	     * @param {boolean} generateMips Whether or not a mip chain should be generated.
+	     * @param {TextureFormat} format The texture's format.
+	     * @param {DataType} dataType The texture's data format.
+	     */
+	    uploadData: function(data, width, height, generateMips, format, dataType)
+	    {
+	        var gl = GL.gl;
+
+	        if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT)
+	            data = TextureUtils.encodeToFloat16Array(data);
+
+	        this._width = width;
+	        this._height = height;
+
+	        this._format = format = format || TextureFormat.RGBA;
+	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+	        generateMips = generateMips === undefined? false: generateMips;
+
+	        this.bind();
+
+	        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+
+	        var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+	        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, dataType, data);
+
+	        if (generateMips)
+	            gl.generateMipmap(gl.TEXTURE_2D);
+
+	        this._isReady = true;
+
+	        gl.bindTexture(gl.TEXTURE_2D, null);
+	    },
+
+	    /**
+	     * Initializes the texture with a given Image.
+	     * @param image The Image to upload to the texture
+	     * @param width The width of the texture.
+	     * @param height The height of the texture.
+	     * @param generateMips Whether or not a mip chain should be generated.
+	     * @param {TextureFormat} format The texture's format.
+	     * @param {DataType} dataType The texture's data format.
+	     *
+	     * TODO: Just use image.naturalWidth / image.naturalHeight ?
+	     */
+	    uploadImage: function(image, width, height, generateMips, format, dataType)
+	    {
+	        var gl = GL.gl;
+
+	        this._width = width;
+	        this._height = height;
+
+	        this._format = format = format || TextureFormat.RGBA;
+	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+	        generateMips = generateMips === undefined? true: generateMips;
+
+	        this.bind();
+
+	        if (image)
+	            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+
+			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+	        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, format, dataType, image);
+
+	        if (generateMips)
+	            gl.generateMipmap(gl.TEXTURE_2D);
+
+	        this._isReady = true;
+
+	        gl.bindTexture(gl.TEXTURE_2D, null);
+	    },
+
+	    /**
+	     * Defines whether data has been uploaded to the texture or not.
+	     */
+	    isReady: function() { return this._isReady; },
+
+	    /**
+	     * Binds a texture to a given texture unit.
+	     * @ignore
+	     */
+	    bind: function(unitIndex)
+	    {
+	        var gl = GL.gl;
+
+	        if (unitIndex !== undefined) {
+	            gl.activeTexture(gl.TEXTURE0 + unitIndex);
+	        }
+
+	        gl.bindTexture(gl.TEXTURE_2D, this._texture);
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    toString: function()
+	    {
+	        return "[Texture2D(name=" + this._name + ")]";
+	    }
+	};
+
+	var nameCounter$1 = 0;
+
+	//       +-----+
+	//       |  +Z |
+	// +-----+-----+-----+-----+
+	// |  -X |  +Y |  +X |  -Y |
+	// +-----+-----+-----+-----+
+	//       |  -Z |
+	//       +-----+
+
+	/**
+	 * @classdesc
+	 * TextureCube represents a cube map texture. The order of the textures in a cross map is as such:
+	 *
+	 * @constructor
+	 *
+	 * @property name The name of the texture.
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function TextureCube()
+	{
+		this.name = "hx_texturecube_" + (nameCounter$1++);
+	    this._default = TextureCube.DEFAULT;
+	    this._texture = GL.gl.createTexture();
+	    this._size = 0;
+	    this._format = null;
+	    this._dataType = null;
+
+	    this.bind();
+	    this.filter = TextureFilter.DEFAULT;
+	    this.maxAnisotropy = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
+
+	    this._isReady = false;
+	}
+
+	/**
+	 * @ignore
+	 */
+	TextureCube._initDefault = function()
+	{
+	    var gl = GL.gl;
+	    var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
+	    TextureCube.DEFAULT = new TextureCube();
+	    TextureCube.DEFAULT.uploadData([data, data, data, data, data, data], 1, true);
+	    TextureCube.DEFAULT.filter = TextureFilter.NEAREST_NOMIP;
+	    gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	};
+
+	TextureCube.prototype =
+	{
+	    /**
+	     * Generates a mip map chain.
+	     */
+	    generateMipmap: function()
+	    {
+	        this.bind();
+	        var gl = GL.gl;
+	        gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	    },
+
+	    /**
+	     * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
+	     */
+	    get filter()
+	    {
+	        return this._filter;
+	    },
+
+	    set filter(filter)
+	    {
+	        this._filter = filter;
+	        this.bind();
+	        var gl = GL.gl;
+	        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, filter.min);
+	        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, filter.mag);
+	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	    },
+
+	    /**
+	     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities#DEFAULT_TEXTURE_MAX_ANISOTROPY}
+	     */
+	    get maxAnisotropy()
+	    {
+	        return this._maxAnisotropy;
+	    },
+
+	    set maxAnisotropy(value)
+	    {
+	        if (value > capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY)
+	            value = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
+
+	        this._maxAnisotropy = value;
+
+	        this.bind();
+
+	        var gl = GL.gl;
+	        if (capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC)
+	            gl.texParameteri(gl.TEXTURE_CUBE_MAP, capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
+	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	    },
+
+	    /**
+	     * The cube texture's size
+	     */
+	    get size() { return this._size; },
+
+	    /**
+	     * The texture's format
+	     *
+	     * @see {@linkcode TextureFormat}
+	     */
+	    get format() { return this._format; },
+
+	    /**
+	     * The texture's data type
+	     *
+	     * @see {@linkcode DataType}
+	     */
+	    get dataType() { return this._dataType; },
+
+	    /**
+	     * Inits an empty texture.
+	     * @param size The size of the texture.
+	     * @param {TextureFormat} format The texture's format.
+	     * @param {DataType} dataType The texture's data format.
+	     */
+	    initEmpty: function(size, format, dataType)
+	    {
+	        this._format = format = format || TextureFormat.RGBA;
+	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+
+	        this._size = size;
+
+	        this.bind();
+
+	        var gl = GL.gl;
+			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+			gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
+	        gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
+	        gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
+	        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
+	        gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
+	        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
+
+	        this._isReady = true;
+
+	        gl.bindTexture(gl.TEXTURE_2D, null);
+	    },
+
+	    /**
+	     * Initializes the texture with the given data.
+	     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+	     * @param size The size of the texture.
+	     * @param generateMips Whether or not a mip chain should be generated.
+	     * @param {TextureFormat} format The texture's format.
+	     * @param {DataType} dataType The texture's data format.
+	     */
+	    uploadData: function(data, size, generateMips, format, dataType)
+	    {
+	        this._size = size;
+
+	        this._format = format = format || TextureFormat.RGBA;
+	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+	        generateMips = generateMips === undefined? true: generateMips;
+
+	        this.bind();
+
+	        var gl = GL.gl;
+	        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+
+			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+	        gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, data[0]);
+	        gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, data[1]);
+	        gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, 0, format, dataType, data[2]);
+	        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, 0, format, dataType, data[3]);
+	        gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, 0, format, dataType, data[4]);
+	        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, 0, format, dataType, data[5]);
+
+	        if (generateMips)
+	            gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+
+	        this._isReady = true;
+
+	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	    },
+
+	    /**
+	     * Initializes the texture with the given Images.
+	     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+	     * @param generateMips Whether or not a mip chain should be generated.
+	     * @param {TextureFormat} format The texture's format.
+	     * @param {DataType} dataType The texture's data format.
+	     */
+	    uploadImages: function(images, generateMips, format, dataType)
+	    {
+	        generateMips = generateMips === undefined? true: generateMips;
+
+	        this._format = format;
+	        this._dataType = dataType;
+
+	        this.uploadImagesToMipLevel(images, 0, format, dataType);
+
+	        var gl = GL.gl;
+	        if (generateMips) {
+	            this.bind();
+	            gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+	        }
+
+	        this._isReady = true;
+
+	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	    },
+
+	    /**
+	     * Initializes a miplevel with the given Images.
+	     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
+	     * @param mipLevel The mip-level to initialize.
+	     * @param {TextureFormat} format The texture's format.
+	     * @param {DataType} dataType The texture's data format.
+	     */
+	    uploadImagesToMipLevel: function(images, mipLevel, format, dataType)
+	    {
+	        var gl = GL.gl;
+	        this._format = format = format || TextureFormat.RGBA;
+	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
+
+	        if (mipLevel === 0)
+	            this._size = images[0].naturalWidth;
+
+	        this.bind();
+
+	        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+
+			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
+	        gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, format, dataType, images[0]);
+	        gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, format, dataType, images[1]);
+	        gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, format, dataType, images[2]);
+	        gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, format, dataType, images[3]);
+	        gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, format, dataType, images[4]);
+	        gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, format, dataType, images[5]);
+
+	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+	    },
+
+	    /**
+	     * Defines whether data has been uploaded to the texture or not.
+	     */
+	    isReady: function() { return this._isReady; },
+
+	    /**
+	     * Binds a texture to a given texture unit.
+	     * @ignore
+	     */
+	    bind: function(unitIndex)
+	    {
+	        var gl = GL.gl;
+
+	        if (unitIndex !== undefined)
+	            gl.activeTexture(gl.TEXTURE0 + unitIndex);
+
+	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, this._texture);
+	    },
+
+	    /**
+	     * @ignore
+	     */
+	    toString: function()
+	    {
+	        return "[TextureCube(name=" + this.name + ")]";
+	    }
+	};
+
+	/**
+	 * @classdesc
+	 * BlendState defines the blend mode the renderer should use. Default presets include BlendState.ALPHA, BlendState.ADD
+	 * and BlendState.MULTIPLY.
+	 *
+	 * @param srcFactor The source blend factor.
+	 * @param dstFactor The destination blend factor.
+	 * @param operator The blend operator.
+	 * @param color The blend color.
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function BlendState(srcFactor, dstFactor, operator, color)
+	{
+	    /**
+	     * Defines whether blending is enabled.
+	     */
+	    this.enabled = true;
+
+	    /**
+	     * The source blend factor.
+	     * @see {@linkcode BlendFactor}
+	     */
+	    this.srcFactor = srcFactor || BlendFactor.ONE;
+
+	    /**
+	     * The destination blend factor.
+	     * @see {@linkcode BlendFactor}
+	     */
+	    this.dstFactor = dstFactor || BlendFactor.ZERO;
+
+	    /**
+	     * The blend operator.
+	     * @see {@linkcode BlendOperation}
+	     */
+	    this.operator = operator || BlendOperation.ADD;
+
+	    /**
+	     * The source blend factor for the alpha.
+	     * @see {@linkcode BlendFactor}
+	     */
+	    this.alphaSrcFactor = null;
+
+	    /**
+	     * The source blend factor for the alpha.
+	     * @see {@linkcode BlendFactor}
+	     */
+	    this.alphaDstFactor = null;
+
+	    /**
+	     * The blend operator for the alpha.
+	     * @see {@linkcode BlendOperation}
+	     */
+	    this.alphaOperator = null;
+
+	    /**
+	     * The blend color.
+	     * @see {@linkcode Color}
+	     */
+	    this.color = color || null;
+	}
+
+	BlendState.prototype = {
+	    /**
+	     * Creates a copy of this BlendState.
+	     */
+	    clone: function() {
+	        return new BlendState(this.srcFactor, this.dstFactor, this.operator, this.color);
+	    }
+	};
+
+	BlendState._initDefaults = function()
+	{
+	    BlendState.ADD = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE);
+	    BlendState.ADD_NO_ALPHA = new BlendState(BlendFactor.ONE, BlendFactor.ONE);
+	    BlendState.MULTIPLY = new BlendState(BlendFactor.DESTINATION_COLOR, BlendFactor.ZERO);
+	    BlendState.ALPHA = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE_MINUS_SOURCE_ALPHA);
+	    BlendState.ALPHA.alphaSrcFactor = BlendFactor.ONE;
+	    BlendState.ALPHA.alphaDstFactor = BlendFactor.ONE_MINUS_SOURCE_ALPHA;
+	    BlendState.INV_ALPHA = new BlendState(BlendFactor.ONE_MINUS_SOURCE_ALPHA, BlendFactor.SOURCE_ALPHA);
+	};
+
+	/**
+	 * @classdesc
+	 * Float2 is a class describing 2-dimensional points.
+	 *
+	 * @constructor
+	 * @param x The x-coordinate
+	 * @param y The y-coordinate
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function Float2(x, y)
+	{
+	    // x, y, z, w allowed to be accessed publicly for simplicity, changing this does not violate invariant. Ever.
+	    this.x = x || 0;
+	    this.y = y || 0;
+	}
+
+	/**
+	 * Adds 2 vectors.
+	 *
+	 * @param a
+	 * @param b
+	 * @param [target] An optional target object. If omitted, a new object will be created.
+	 * @returns The sum of a and b.
+	 */
+	Float2.add = function(a, b, target)
+	{
+	    target = target || new Float2();
+	    target.x = a.x + b.x;
+	    target.y = a.y + b.y;
+	    return target;
+	};
+
+	/**
+	 * Subtracts 2 vectors.
+	 *
+	 * @param a
+	 * @param b
+	 * @param [target] An optional target object. If omitted, a new object will be created.
+	 * @returns The difference of a and b.
+	 */
+	Float2.subtract = function(a, b, target)
+	{
+	    target = target || new Float2();
+	    target.x = a.x - b.x;
+	    target.y = a.y - b.y;
+	    return target;
+	};
+
+	/**
+	 * Multiplies a vector with a scalar.
+	 *
+	 * @param a
+	 * @param s
+	 * @param [target] An optional target object. If omitted, a new object will be created.
+	 * @returns The product of a * s
+	 */
+	Float2.scale = function(a, s, target)
+	{
+	    target = target || new Float2();
+	    target.x = a.x * s;
+	    target.y = a.y * s;
+	    return target;
+	};
+
+	Float2.prototype =
+	{
+
+	    /**
+	     * Sets the components explicitly.
+	     */
+	    set: function(x, y)
+	    {
+	        this.x = x;
+	        this.y = y;
+	    },
+
+	    /**
+	     * Returns the dot product with another vector.
+	     */
+	    dot: function(a)
+	    {
+	        return a.x * this.x + a.y * this.y;
+	    },
+
+	    /**
+	     * The squared length of the vector.
+	     */
+	    get lengthSqr()
+	    {
+	        return this.x * this.x + this.y * this.y;
+	    },
+
+	    /**
+	     * The length of the vector.
+	     */
+	    get length()
+	    {
+	        return Math.sqrt(this.x * this.x + this.y * this.y);
+	    },
+
+	    /**
+	     * Normalizes the vector.
+	     */
+	    normalize: function()
+	    {
+	        var rcpLength = 1.0/this.length;
+	        this.x *= rcpLength;
+	        this.y *= rcpLength;
+	    },
+
+	    /**
+	     * Returns a copy of this object.
+	     */
+	    clone: function()
+	    {
+	        return new Float2(this.x, this.y);
+	    },
+
+	    /**
+	     * Adds a vector to this one in place.
+	     */
+	    add: function(v)
+	    {
+	        this.x += v.x;
+	        this.y += v.y;
+	    },
+
+	    /**
+	     * Adds a scalar multiple of another vector in place.
+	     * @param v The vector to scale and add.
+		 * @param s The scale to apply to v
+	     */
+	    addScaled: function(v, s)
+	    {
+	        this.x += v.x * s;
+	        this.y += v.y * s;
+	    },
+
+	    /**
+	     * Subtracts a vector from this one in place.
+	     */
+	    subtract: function(v)
+	    {
+	        this.x -= v.x;
+	        this.y -= v.y;
+	    },
+
+		/**
+		 * Subtracts a scaled vector from this one in place.
+		 *
+		 * @param v The vector to scale and subtract.
+		 * @param s The scale to apply to v
+		 */
+		subtractScaled: function (v, s)
+		{
+			this.x -= v.x * s;
+			this.y -= v.y * s;
+			return this;
+		},
+
+	    /**
+	     * Multiplies the components of this vector with a scalar.
+	     */
+	    scale: function(s)
+	    {
+	        this.x *= s;
+	        this.y *= s;
+	    },
+
+	    /**
+	     * Negates the components of this vector.
+	     */
+	    negate: function()
+	    {
+	        this.x = -this.x;
+	        this.y = -this.y;
+	    },
+
+	    /**
+	     * Copies the negative of a vector
+	     */
+	    negativeOf: function(v)
+	    {
+	        this.x = -v.x;
+	        this.y = -v.y;
+	    },
+
+	    /**
+	     * Sets the components of this vector to their absolute values.
+	     */
+	    abs: function()
+	    {
+	        this.x = Math.abs(this.x);
+	        this.y = Math.abs(this.y);
+	    },
+
+	    /**
+	     * Sets the euclidian coordinates based on polar coordinates
+	     * @param radius The radius coordinate
+	     * @param angle The angle coordinate
+	     */
+	    fromPolarCoordinates: function(radius, angle)
+	    {
+	        this.x = radius*Math.cos(angle);
+	        this.y = radius*Math.sin(angle);
+	    },
+
+	    /**
+	     * Copies the values from a different Float2
+	     */
+	    copyFrom: function(b)
+	    {
+	        this.x = b.x;
+	        this.y = b.y;
+	    },
+
+	    /**
+	     * Returns the distance between this and another point.
+	     */
+	    distanceTo: function(a)
+	    {
+	        var dx = a.x - this.x;
+	        var dy = a.y - this.y;
+	        return Math.sqrt(dx * dx + dy * dy);
+	    },
+
+	    /**
+	     * Returns the squared distance between this and another point.
+	     */
+	    squareDistanceTo: function(a)
+	    {
+	        var dx = a.x - this.x;
+	        var dy = a.y - this.y;
+	        return dx * dx + dy * dy;
+	    },
+
+	    /**
+	     * Linearly interpolates two vectors.
+	     * @param {Float2} a The first vector to interpolate from.
+	     * @param {Float2} b The second vector to interpolate to.
+	     * @param {Number} t The interpolation factor.
+	     */
+	    lerp: function(a, b, t)
+	    {
+	        var ax = a.x, ay = a.y;
+
+	        this.x = ax + (b.x - ax) * t;
+	        this.y = ay + (b.y - ay) * t;
+	    },
+
+	    /**
+	     * Replaces the components' values if those of the other Float2 are higher, respectively
+	     */
+	    maximize: function(b)
+	    {
+	        if (b.x > this.x) this.x = b.x;
+	        if (b.y > this.y) this.y = b.y;
+	    },
+
+	    /**
+	     * Replaces the components' values if those of the other Float2 are lower, respectively
+	     */
+	    minimize: function(b)
+	    {
+	        if (b.x < this.x) this.x = b.x;
+	        if (b.y < this.y) this.y = b.y;
+	    },
+
+	    /**
+	     * Returns the angle between this and another vector.
+	     */
+	    angle: function(a)
+	    {
+	        return Math.acos(this.dot(a) / (this.length * a.length));
+	    },
+
+	    /**
+	     * Returns the angle between two vectors, assuming they are normalized
+	     */
+	    angleNormalized: function(a)
+	    {
+	        return Math.acos(this.dot(a));
+	    }
+	};
+
+	/**
+	 * A preset for the origin
+	 */
+	Float2.ZERO = new Float2(0, 0);
+
+	/**
+	 * A preset for the X-axis
+	 */
+	Float2.X_AXIS = new Float2(1, 0);
+
+	/**
+	 * A preset for the Y-axis
+	 */
+	Float2.Y_AXIS = new Float2(0, 1);
+
+	/**
+	 * @classdesc
+	 * PoissonDisk is a class that allows generating 2D points in a poisson distribution.
+	 *
+	 * @constructor
+	 * @param [mode] Whether the points should be contained in a square ({@linkcode PoissonDisk#SQUARE}) or a circle ({@linkcode PoissonDisk#CIRCULAR}). Defaults to circular.
+	 * @param [initialDistance]
+	 * @param [decayFactor]
+	 * @param [maxTests]
+	 *
+	 * @property points An array of all points currently generated.
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function PoissonDisk(mode, initialDistance, decayFactor, maxTests)
+	{
+		this.points = null;
+		this.decayFactor = decayFactor || .99;
+		this.initialDistance = initialDistance || 1.0;
+		this.maxTests = maxTests || 20000;
+		this.mode = mode === undefined? PoissonDisk.CIRCULAR : mode;
+		this._currentDistance = 0;
+	    this.reset();
+	}
+
+	/**
+	 * Generates points in a square.
+	 */
+	PoissonDisk.SQUARE = 0;
+
+	/**
+	 * Generates points in a circle.
+	 */
+	PoissonDisk.CIRCULAR = 1;
+
+	/**
+	 * @ignore
+	 */
+	PoissonDisk._initDefault = function()
+	{
+	    PoissonDisk.DEFAULT = new PoissonDisk();
+	    PoissonDisk.DEFAULT.generatePoints(64);
+	    PoissonDisk.DEFAULT_FLOAT32 = new Float32Array(64 * 2);
+
+	    var diskPoints = PoissonDisk.DEFAULT.points;
+
+	    for (var i = 0; i < 64; ++i) {
+	        var p = diskPoints[i];
+	        PoissonDisk.DEFAULT_FLOAT32[i * 2] = p.x;
+	        PoissonDisk.DEFAULT_FLOAT32[i * 2 + 1] = p.y;
+	    }
+	};
+
+	PoissonDisk.prototype =
+	{
+	    /**
+	     * Clears all generated points.
+	     */
+	    reset : function()
+	    {
+			this.points = [];
+			this._currentDistance = this.initialDistance;
+	    },
+
+	    /**
+	     * Generates new points and add them to the set. This does not return a set of points.
+	     * @param numPoints The amount of points to generate.
+	     */
+	    generatePoints: function(numPoints)
+	    {
+	        for (var i = 0; i < numPoints; ++i)
+	            this.generatePoint();
+	    },
+
+	    /**
+	     * Generates a single point and adds it to the set.
+	     */
+	    generatePoint: function()
+	    {
+	        for (;;) {
+	            var testCount = 0;
+	            var sqrDistance = this._currentDistance*this._currentDistance;
+
+	            while (testCount++ < this.maxTests) {
+	                var candidate = this._getCandidate();
+	                if (this._isValid(candidate, sqrDistance)) {
+	                    this.points.push(candidate);
+	                    return candidate;
+	                }
+	            }
+	            this._currentDistance *= this.decayFactor;
+	        }
+	    },
+
+	    /**
+	     * @ignore
+	     * @private
+	     */
+	    _getCandidate: function()
+	    {
+	        for (;;) {
+	            var x = Math.random() * 2.0 - 1.0;
+	            var y = Math.random() * 2.0 - 1.0;
+	            if (this.mode === PoissonDisk.SQUARE || (x * x + y * y <= 1))
+	                return new Float2(x, y);
+	        }
+	    },
+
+	    /**
+	     * @ignore
+	     * @private
+	     */
+	    _isValid: function(candidate, sqrDistance)
+	    {
+	        var len = this.points.length;
+	        for (var i = 0; i < len; ++i) {
+	            var p = this.points[i];
+	            var dx = candidate.x - p.x;
+	            var dy = candidate.y - p.y;
+	            if (dx*dx + dy*dy < sqrDistance)
+	                return false;
+	        }
+
+	            return true;
+	    }
+	};
+
+	/**
+	 * @classdesc
 	 * PoissonSphere is a class that allows generating 3D points in a poisson distribution.
 	 *
 	 * @constructor
@@ -5853,6 +8505,349 @@
 
 	        return true;
 	    }
+	};
+
+	/**
+	 * @classdesc
+	 * FrameBuffer provides a render target associated with a given texture/textures.
+	 *
+	 * @param colorTextures Either a single texture, or an Array of textures (only if {@linkcode capabilities#EXT_DRAW_BUFFERS} is supported).
+	 * @param depthBuffer An optional depth buffer. This can be a {@linkcode WriteOnlyDepthBuffer} or, if readback is required, a {@linkcode Texture2D} (only available if {@linkcode capabilities#EXT_DEPTH_TEXTURE} is supported).
+	 * @param cubeFace If colorTextures is a {@linkcode TextureCube}, cubeFace should contain the relevant {@linkcode CubeFace}.
+	 * @constructor
+	 *
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	function FrameBuffer(colorTextures, depthBuffer, cubeFace)
+	{
+	    if (colorTextures && colorTextures[0] === undefined) colorTextures = [ colorTextures ];
+
+	    this._cubeFace = cubeFace;
+	    this._colorTextures = colorTextures;
+	    this._numColorTextures = this._colorTextures? this._colorTextures.length : 0;
+	    this._depthBuffer = depthBuffer;
+
+	    if (this._colorTextures && this._numColorTextures > 1) {
+
+	        this._drawBuffers = new Array(this._numColorTextures);
+	        for (var i = 0; i < this._numColorTextures; ++i) {
+	            this._drawBuffers[i] = capabilities.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i;
+	        }
+	    }
+	    else {
+	        this._drawBuffers = null;
+	    }
+
+	    this._fbo = GL.gl.createFramebuffer();
+	}
+
+	FrameBuffer.prototype = {
+	    get width() { return this._width; },
+	    get height() { return this._height; },
+
+	    /**
+	     * Initializes the framebuffer object. This needs to be called whenever the Texture2D's are resized using initEmpty.
+	     * @param silent Whether or not warnings should be printed.
+	     */
+	    init: function(silent)
+	    {
+	        var gl = GL.gl;
+	        gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
+
+	        if (this._colorTextures) {
+	            if (this._cubeFace === undefined) {
+	                this._width = this._colorTextures[0]._width;
+	                this._height = this._colorTextures[0]._height;
+	            }
+	            else {
+	                this._height = this._width = this._colorTextures[0].size;
+	            }
+	        }
+	        else  {
+	            this._width = this._depthBuffer._width;
+	            this._height = this._depthBuffer._height;
+	        }
+
+	        var target = this._cubeFace === undefined? gl.TEXTURE_2D : this._cubeFace;
+
+	        if (this._numColorTextures === 1) {
+	            var texture = this._colorTextures[0];
+	            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, target, texture._texture, 0);
+	        }
+	        else if (capabilities.EXT_DRAW_BUFFERS) {
+	            for (var i = 0; i < this._numColorTextures; ++i) {
+	                texture = this._colorTextures[i];
+	                gl.framebufferTexture2D(gl.FRAMEBUFFER, capabilities.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, target, texture._texture, 0);
+	            }
+	        }
+	        else
+	            throw new Error("Trying to bind multiple render targets without EXT_DRAW_BUFFERS support!");
+
+
+	        if (this._depthBuffer) {
+	            var attachment = this._depthBuffer.format === gl.DEPTH_STENCIL? gl.DEPTH_STENCIL_ATTACHMENT : gl.DEPTH_ATTACHMENT;
+
+	            if (this._depthBuffer instanceof Texture2D)
+	                gl.framebufferTexture2D(gl.FRAMEBUFFER, attachment, gl.TEXTURE_2D, this._depthBuffer._texture, 0);
+	            else
+	                gl.framebufferRenderbuffer(gl.FRAMEBUFFER, attachment, gl.RENDERBUFFER, this._depthBuffer._renderBuffer);
+	        }
+
+	        var status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+
+	        switch (status && !silent) {
+	            case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
+	                break;
+	            case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
+	                break;
+	            case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
+	                break;
+	            case gl.FRAMEBUFFER_UNSUPPORTED:
+	                console.warn("Failed to initialize FBO: FRAMEBUFFER_UNSUPPORTED");
+	                break;
+	            default:
+	                // nothing
+	        }
+
+	        return status === gl.FRAMEBUFFER_COMPLETE;
+	    },
+
+		/**
+	     * Retrieves pixel data from this FBO. Not recommended, as it can be slow.
+		 */
+		readPixels: function()
+	    {
+			var gl = GL.gl;
+			var texture = this._colorTextures[0];
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
+
+			var numComponents;
+			var pixels;
+			switch(texture.format) {
+	            case TextureFormat.RGB:
+					numComponents = 3;
+					break;
+	            case TextureFormat.RGBA:
+					numComponents = 4;
+					break;
+			}
+
+			var len = this.width * this.height * numComponents;
+			switch(texture.dataType) {
+	            case DataType.FLOAT:
+	            case DataType.HALF_FLOAT:
+					pixels = new Float32Array(len);
+	                break;
+	            case DataType.UNSIGNED_BYTE:
+					pixels = new Uint8Array(len);
+					break;
+	        }
+			gl.readPixels(0, 0, this.width, this.height, texture.format, texture.dataType, pixels);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	        return pixels;
+	    }
+
+	};
+
+	/**
+	 * @ignore
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	var TextureSetter = {
+	    getSettersPerPass: function (materialPass)
+	    {
+	        if (TextureSetter._passTable === undefined)
+	            TextureSetter._init();
+
+	        return TextureSetter._findSetters(materialPass, TextureSetter._passTable);
+	    },
+
+	    getSettersPerInstance: function (materialPass)
+	    {
+	        if (TextureSetter._instanceTable === undefined)
+	            TextureSetter._init();
+
+	        return TextureSetter._findSetters(materialPass, TextureSetter._instanceTable);
+	    },
+
+	    _findSetters: function (shader, table)
+	    {
+	        var setters = [];
+	        for (var slotName in table) {
+	            if (!table.hasOwnProperty(slotName)) continue;
+	            var slot = shader.getTextureIndex(slotName);
+	            if (slot === -1) continue;
+	            var setter = new table[slotName]();
+	            setters.push(setter);
+	            setter.slot = slot;
+	            setter.pass = shader;
+	        }
+
+	        return setters;
+	    },
+
+	    _init: function()
+	    {
+	        TextureSetter._passTable = {};
+	        TextureSetter._instanceTable = {};
+
+	        TextureSetter._passTable.hx_normalDepthBuffer = NormalDepthBufferSetter;
+	        TextureSetter._passTable.hx_backbuffer = BackbufferSetter;
+	        TextureSetter._passTable.hx_frontbuffer = FrontbufferSetter;
+	        TextureSetter._passTable.hx_ssao = SSAOSetter;
+	        TextureSetter._passTable.hx_shadowMap = ShadowMapSetter;
+	        TextureSetter._passTable["hx_diffuseProbes[0]"] = DiffuseProbesSetter;
+	        TextureSetter._passTable["hx_specularProbes[0]"] = SpecularProbesSetter;
+
+	        TextureSetter._instanceTable.hx_skinningTexture = SkinningTextureSetter;
+	    }
+	};
+
+
+	// Texture setters can be either per pass or per instance. The execute method gets passed eithter the renderer or the
+	// render item, respectively.
+
+	function NormalDepthBufferSetter()
+	{
+	}
+
+	NormalDepthBufferSetter.prototype.execute = function (renderer)
+	{
+	    this.pass.setTextureByIndex(this.slot, renderer._normalDepthBuffer);
+	};
+
+
+	function FrontbufferSetter()
+	{
+	}
+
+	FrontbufferSetter.prototype.execute = function (renderer)
+	{
+	    if (renderer._hdrFront)
+			this.pass.setTextureByIndex(this.slot, renderer._hdrFront.texture);
+	};
+
+	function BackbufferSetter()
+	{
+	}
+
+	BackbufferSetter.prototype.execute = function (renderer)
+	{
+	    if (renderer._hdrBack)
+			this.pass.setTextureByIndex(this.slot, renderer._hdrBack.texture);
+	};
+
+	function SSAOSetter()
+	{
+	}
+
+	SSAOSetter.prototype.execute = function (renderer)
+	{
+		this.pass.setTextureByIndex(this.slot, renderer._ssaoTexture);
+	};
+
+	function ShadowMapSetter()
+	{
+	}
+
+	ShadowMapSetter.prototype.execute = function (renderer)
+	{
+		this.pass.setTextureByIndex(this.slot, renderer._shadowAtlas.texture);
+	};
+
+	function DiffuseProbesSetter()
+	{
+	}
+
+	DiffuseProbesSetter.prototype.execute = function (renderer)
+	{
+		this.pass.setTextureArrayByIndex(this.slot, renderer._diffuseProbeArray);
+	};
+
+	function SpecularProbesSetter()
+	{
+	}
+
+	SpecularProbesSetter.prototype.execute = function (renderer)
+	{
+	    this.pass.setTextureArrayByIndex(this.slot, renderer._specularProbeArray);
+	};
+
+	function SkinningTextureSetter()
+	{
+	}
+
+	SkinningTextureSetter.prototype.execute = function (renderItem)
+	{
+		this.pass.setTextureByIndex(this.slot, renderItem.skeletonMatrices);
+	};
+
+	/**
+	 * @ignore
+	 * @author derschmale <http://www.derschmale.com>
+	 */
+	var UniformBufferSetter = {
+	    getSettersPerPass: function (materialPass)
+	    {
+	        if (UniformBufferSetter._passTable === undefined)
+	            UniformBufferSetter._init();
+
+	        return UniformBufferSetter._findSetters(materialPass, UniformBufferSetter._passTable);
+	    },
+
+	    getSettersPerInstance: function (materialPass)
+	    {
+	        if (UniformBufferSetter._instanceTable === undefined)
+	            UniformBufferSetter._init();
+
+	        return UniformBufferSetter._findSetters(materialPass, UniformBufferSetter._instanceTable);
+	    },
+
+	    _findSetters: function (materialPass, table)
+	    {
+	        var setters = [];
+	        for (var slotName in table) {
+	            if (!table.hasOwnProperty(slotName)) continue;
+	            var slot = materialPass.getUniformBufferIndex(slotName);
+	            if (slot === -1) continue;
+	            var setter = new table[slotName]();
+	            setters.push(setter);
+	            setter.slot = slot;
+	            setter.pass = materialPass;
+	        }
+
+	        return setters;
+	    },
+
+	    _init: function()
+	    {
+	        UniformBufferSetter._passTable = {};
+	        UniformBufferSetter._instanceTable = {};
+
+	        UniformBufferSetter._passTable.hx_lights = LightsSetter;
+			UniformBufferSetter._passTable.hx_lightingCells = LightingCellsSetter;
+	    }
+	};
+
+	function LightsSetter()
+	{
+	}
+
+	LightsSetter.prototype.execute = function (renderer)
+	{
+	    this.pass.setUniformBufferByIndex(this.slot, renderer._lightingUniformBuffer);
+	};
+
+	function LightingCellsSetter()
+	{
+	}
+
+	LightingCellsSetter.prototype.execute = function (renderer)
+	{
+		this.pass.setUniformBufferByIndex(this.slot, renderer._lightingCellsUniformBuffer);
 	};
 
 	var RCP_LOG_OF_2 = 1.0 / Math.log(2);
@@ -8297,20 +11292,20 @@
 	 */
 	var UniformSetter = {
 
-	    getSettersPerInstance: function (shader)
+	    getSettersPerInstance: function (materialPass)
 	    {
 	        if (UniformSetter._instanceTable === undefined)
 	            UniformSetter._init();
 
-	        return UniformSetter._findSetters(shader, UniformSetter._instanceTable);
+	        return UniformSetter._findSetters(materialPass.shader, UniformSetter._instanceTable);
 	    },
 
-	    getSettersPerPass: function (shader)
+	    getSettersPerPass: function (materialPass)
 	    {
 	        if (UniformSetter._passTable === undefined)
 	            UniformSetter._init();
 
-	        return UniformSetter._findSetters(shader, UniformSetter._passTable);
+	        return UniformSetter._findSetters(materialPass.shader, UniformSetter._passTable);
 	    },
 
 	    _findSetters: function (shader, table)
@@ -8668,2935 +11663,6 @@
 
 	/**
 	 * @ignore
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var Debug = {
-	    printShaderCode: function(code)
-	    {
-	        var arr = code.split("\n");
-	        var str = "";
-	        for (var i = 0; i < arr.length; ++i) {
-	            str += (i + 1) + ":\t" + arr[i] + "\n";
-	        }
-	        console.log(str);
-	    },
-
-	    printSkeletonHierarchy: function(skeleton)
-	    {
-	        var str = "Skeleton: \n";
-	        var joints = skeleton.joints;
-	        for (var i = 0, len = joints.length; i < len; ++i) {
-	            var joint = joints[i];
-	            var name = joint.name;
-	            while (joint.parentIndex !== -1) {
-	                joint = joints[joint.parentIndex];
-	                str += "\t";
-	            }
-	            str += "\t" + name + "\n";
-	        }
-	        console.log(str);
-	    },
-
-	    assert: function(bool, message)
-	    {
-	        if (!bool) throw new Error(message);
-	    }
-	};
-
-	/**
-	 * @ignore
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function UniformBuffer(size)
-	{
-	    this._buffer = GL.gl.createBuffer();
-	    // contains { offset, type, size }
-	    this._uniforms = [];
-	    this._size = size;
-	}
-
-	UniformBuffer.prototype = {
-	    /**
-	     * The size of the uniform buffer in bytes
-	     */
-	    get size() { return this._size; },
-
-	    /**
-	     * Uploads raw data for the buffer.
-	     * @param data The data to upload, must be a Float32Array object.
-	     * @param usageHint An optional usage hint for the buffer.
-	     */
-	    uploadData: function(data, usageHint)
-	    {
-	        var gl = GL.gl;
-
-	        if (usageHint === undefined)
-	            usageHint = gl.DYNAMIC_DRAW;
-
-	        this.bind();
-	        gl.bufferData(gl.UNIFORM_BUFFER, data, usageHint);
-	    },
-
-	    registerUniform: function(name, offset, size, type)
-	    {
-	        this._uniforms[name] = {offset: offset, size: size, type: type};
-	    },
-
-	    getUniformOffset: function(name)
-	    {
-	        var uniform = this._uniforms[name];
-	        return uniform? uniform.offset : -1;
-	    },
-	    
-	    setUniform: function(name, data)
-	    {
-	        var gl = GL.gl;
-	        var uniform = this._uniforms[name];
-	        this.bind();
-
-	        switch(uniform.type) {
-	            case gl.FLOAT:
-	                var arr = new Float32Array(1);
-	                arr[0] = data;
-	                data = arr;
-	                break;
-	            case gl.FLOAT_VEC2:
-	                arr = new Float32Array(2);
-	                arr[0] = value.x || value[0] || 0;
-	                arr[1] = value.y || value[1] || 0;
-	                data = arr;
-	                break;
-	            case gl.FLOAT_VEC3:
-	                arr = new Float32Array(3);
-	                arr[0] = value.x || value[0] || 0;
-	                arr[1] = value.y || value[1] || 0;
-	                arr[2] = value.z || value[2] || 0;
-	                data = arr;
-	                break;
-	            case gl.FLOAT_VEC4:
-	                arr = new Float32Array(4);
-	                arr[0] = value.x || value[0] || 0;
-	                arr[1] = value.y || value[1] || 0;
-	                arr[2] = value.z || value[2] || 0;
-	                arr[3] = value.w || value[3] || 0;
-	                data = arr;
-	                break;
-	            case gl.INT:
-	            case gl.BOOL:
-	                arr = new Int32Array(1);
-	                arr[0] = value;
-	                data = arr;
-	                break;
-	            case gl.INT_VEC2:
-	            case gl.BOOL_VEC2:
-	                arr = new Int32Array(2);
-	                arr[0] = value.x || value[0] || 0;
-	                arr[1] = value.y || value[1] || 0;
-	                data = arr;
-	                break;
-	            case gl.INT_VEC3:
-	            case gl.BOOL_VEC3:
-	                arr = new Int32Array(3);
-	                arr[0] = value.x || value[0] || 0;
-	                arr[1] = value.y || value[1] || 0;
-	                arr[2] = value.z || value[2] || 0;
-	                data = arr;
-	                break;
-	            case gl.INT_VEC4:
-	            case gl.BOOL_VEC4:
-	                arr = new Int32Array(4);
-	                arr[0] = value.x || value[0] || 0;
-	                arr[1] = value.y || value[1] || 0;
-	                arr[2] = value.z || value[2] || 0;
-	                arr[3] = value.w || value[3] || 0;
-	                data = arr;
-	                break;
-	            case gl.FLOAT_MAT4:
-	                data = value;
-	                break;
-	            default:
-	                // expect data to be correct
-	        }
-
-	        // TODO: Allow setting different types
-	        gl.bufferSubData(gl.UNIFORM_BUFFER, uniform.offset, uniform.size, data);
-	    },
-
-	    // TODO: Allow setting member uniforms by name. However, getting this requires a shader to get the definition from
-	    // Could we create a dummy material and then just grab it from there?
-	    // We would need to provide a sort of MaterialPass.createUniformBuffer
-
-	    /**
-	     * @private
-	     */
-	    bind: function(bindingPoint)
-	    {
-	        var gl = GL.gl;
-
-	        if (bindingPoint === undefined) {
-	            gl.bindBuffer(gl.UNIFORM_BUFFER, this._buffer);
-	        }
-	        else {
-	            gl.bindBufferBase(gl.UNIFORM_BUFFER, bindingPoint, this._buffer);
-	        }
-	    }
-	};
-
-	/**
-	 * @ignore
-	 * @param vertexShaderCode
-	 * @param fragmentShaderCode
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function Shader(vertexShaderCode, fragmentShaderCode)
-	{
-		this.program = null;
-		this._uniforms = null;
-		this._textureUniforms = null;
-		this._uniformBlocks = null;
-		this._ready = false;
-		this._vertexShader = null;
-		this._fragmentShader = null;
-		this._uniformSettersInstance = null;
-		this._uniformSettersPass = null;
-
-		if (vertexShaderCode && fragmentShaderCode)
-			this.init(vertexShaderCode, fragmentShaderCode);
-	}
-
-	Shader.ID_COUNTER = 0;
-
-	Shader.prototype = {
-		constructor: Shader,
-
-		isReady: function()
-		{
-			return this._ready;
-		},
-
-		init: function(vertexShaderCode, fragmentShaderCode)
-		{
-			var gl = GL.gl;
-			vertexShaderCode = "#define HX_VERTEX_SHADER\n" + GLSLIncludes.GENERAL + vertexShaderCode;
-			fragmentShaderCode = "#define HX_FRAGMENT_SHADER\n" + GLSLIncludes.GENERAL + fragmentShaderCode;
-
-			this._vertexShader = getShader(vertexShaderCode, gl.VERTEX_SHADER);
-			this._fragmentShader = getShader(fragmentShaderCode, gl.FRAGMENT_SHADER);
-
-			if (!this._vertexShader || !this._fragmentShader)
-				return;
-
-			this.program = gl.createProgram();
-
-			gl.attachShader(this.program, this._vertexShader);
-			gl.attachShader(this.program, this._fragmentShader);
-			gl.linkProgram(this.program);
-
-			if (META.OPTIONS.debug && !gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
-				var log = gl.getProgramInfoLog(this.program);
-
-				console.log("**********");
-				Debug.printShaderCode(vertexShaderCode);
-				console.log("**********");
-				Debug.printShaderCode(fragmentShaderCode);
-
-				if (META.OPTIONS.throwOnShaderError)
-					throw new Error("Error in program linking:" + log);
-
-				console.warn("Error in program linking:" + log);
-
-				return;
-			}
-
-			this._ready = true;
-
-			// Profiler.stopTiming("Shader::init");
-
-			this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
-			this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
-
-			this._storeUniforms();
-		},
-
-		updatePassRenderState: function(camera, renderer)
-		{
-			GL.gl.useProgram(this.program);
-
-			var len = this._uniformSettersPass.length;
-			for (var i = 0; i < len; ++i)
-				this._uniformSettersPass[i].execute(camera, renderer);
-		},
-
-		updateInstanceRenderState: function(camera, renderItem)
-		{
-			var len = this._uniformSettersInstance.length;
-			for (var i = 0; i < len; ++i)
-				this._uniformSettersInstance[i].execute(camera, renderItem);
-		},
-
-		hasUniform: function(name)
-		{
-			return this._uniforms.hasOwnProperty(name);
-		},
-
-		getUniform: function(name)
-		{
-			return this._uniforms[name];
-		},
-
-		getUniformLocation: function(name)
-		{
-			if (this.hasUniform(name))
-				return this._uniforms[name].location;
-
-			return null;
-		},
-
-		getAttributeLocation: function(name)
-		{
-			return GL.gl.getAttribLocation(this.program, name);
-		},
-
-		_storeUniforms: function()
-		{
-			this._uniforms = {};
-			this._textureUniforms = [];
-			this._uniformBlocks = [];
-
-			var textureCount = 0;
-
-			var gl = GL.gl;
-
-			gl.useProgram(this.program);
-
-			var len = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORMS);
-
-			for (var i = 0; i < len; ++i) {
-				var uniform = gl.getActiveUniform(this.program, i);
-				var name = uniform.name;
-				var location = gl.getUniformLocation(this.program, name);
-				this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
-
-				if (uniform.type === gl.SAMPLER_2D || uniform.type === gl.SAMPLER_CUBE) {
-					// this should also take care of texture arrays, right?
-					this._textureUniforms.push(uniform);
-					gl.uniform1i(location, textureCount++);
-				}
-			}
-
-			if (capabilities.WEBGL_2) {
-				len = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORM_BLOCKS);
-				for (i = 0; i < len; ++i) {
-					var name = gl.getActiveUniformBlockName(this.program, i);
-					gl.uniformBlockBinding(this.program, i, i);
-					this._uniformBlocks.push(name);
-				}
-			}
-
-		},
-
-		createUniformBuffer: function(name)
-		{
-			var gl = GL.gl;
-			var program = this.program;
-
-			var blockIndex = null;
-			for (var i = 0, len = this._uniformBlocks.length; i < len; ++i) {
-				if (this._uniformBlocks[i] === name) {
-					blockIndex = i;
-					break;
-				}
-			}
-			if (!blockIndex) return null;
-
-
-			var indices = gl.getActiveUniformBlockParameter(program, blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES);
-			var totalSize = gl.getActiveUniformBlockParameter(program, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
-			var uniformBuffer = new UniformBuffer(totalSize);
-
-			var offsets = gl.getActiveUniforms(program, indices, gl.UNIFORM_OFFSET);
-
-			for (i = 0; i < indices.length; ++i) {
-				var uniform = gl.getActiveUniform(program, indices[i]);
-				uniformBuffer.registerUniform(uniform.name, offsets[i], uniform.size, uniform.type);
-			}
-
-			uniformBuffer.uploadData(new Float32Array(totalSize / 4));
-
-			return uniformBuffer;
-		},
-
-		get numTextures()
-		{
-			return this._textureUniforms.length;
-		},
-
-		getTextureIndex: function(name)
-		{
-			for (var i = 0, len = this._textureUniforms.length; i < len; ++i) {
-				var uniform = this._textureUniforms[i];
-				if (uniform.name === name) return i;
-			}
-
-			return -1;
-		},
-
-		getUniformBufferIndex: function(name)
-		{
-			for (var i = 0, len = this._uniformBlocks.length; i < len; ++i) {
-				if (this._uniformBlocks[i] === name) return i;
-			}
-
-			return -1;
-		},
-
-		get numUniformBuffers()
-		{
-			return this._uniformBlocks.length;
-		}
-	};
-
-
-	function processExtensions(code, regEx, extension)
-	{
-		var index = code.search(regEx);
-		if (index < 0) return code;
-		code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");
-		return code;
-	}
-
-	// this makes sure reserved uniforms are only used once, makes it easier to combine several snippets
-	// it's quite slow, tho
-	function guard(code, regEx)
-	{
-		var result = code.match(regEx) || [];
-		var covered = {};
-
-		for (var i = 0; i < result.length; ++i) {
-			var occ = result[i];
-			occ = occ.replace(/(\r|\n)/g, "");
-
-			if (occ.charCodeAt(0) === 10)
-				occ = occ.substring(1);
-
-			var start$$1 = occ.indexOf("hx_");
-			var end = occ.indexOf(";");
-
-			// in case of arrays
-			var sq = occ.indexOf("[");
-			if (sq >= 0 && sq < end) end = sq;
-
-			var name = occ.substring(start$$1, end);
-			name = name.trim();
-
-			if (covered[name]) continue;
-
-			covered[name] = true;
-
-			var defName = "HX_GUARD_" + name.toUpperCase();
-			var repl = "\n#ifndef " + defName + "\n" +
-				"#define " + defName + "\n" +
-				occ + "\n" +
-				"#endif\n";
-
-			occ = occ.replace(/\[/g, "\\[");
-			var replReg = new RegExp(occ, "g");
-			code = code.replace(replReg, repl);
-		}
-
-		return code;
-	}
-
-	function initShader(shader, code)
-	{
-		var gl = GL.gl;
-		gl.shaderSource(shader, code);
-		gl.compileShader(shader);
-
-		// Check the compile status, return an error if failed
-		if (META.OPTIONS.debug && !gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-			console.warn(gl.getShaderInfoLog(shader));
-			Debug.printShaderCode(code);
-			return false;
-		}
-
-		return true;
-	}
-
-	function getShader(code, type)
-	{
-		// is there a way to safely cache this so we don't have to do it over an over?
-		code = processShaderCode(code);
-
-		var shader = GL.gl.createShader(type);
-		if (!initShader(shader, code)) {
-			if (META.OPTIONS.throwOnShaderError) {
-				throw new Error("Failed generating shader: \n" + code);
-			}
-			else {
-				console.warn("Failed generating shader");
-			}
-
-			return null;
-		}
-		return shader;
-	}
-
-	function processShaderCode(code)
-	{
-		code = processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
-		code = processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
-		code = processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
-		code = guard(code, /^\s*uniform\s+\w+\s+hx_\w+(\[\w+])?\s*;/gm);
-		code = guard(code, /^\s*attribute\s+\w+\s+hx_\w+\s*;/gm);
-		code = GLSLIncludes.VERSION + code;
-		return code;
-	}
-
-	/**
-	 * @param fragmentShader
-	 * @constructor
-	 * @ignore
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function CustomCopyShader(fragmentShader)
-	{
-	    Shader.call(this);
-	    this.init(ShaderLibrary.get("copy_vertex.glsl"), fragmentShader);
-
-	    var gl = GL.gl;
-	    var textureLocation = gl.getUniformLocation(this.program, "sampler");
-
-	    this._positionAttributeLocation = gl.getAttribLocation(this.program, "hx_position");
-	    this._texCoordAttributeLocation = gl.getAttribLocation(this.program, "hx_texCoord");
-
-	    gl.useProgram(this.program);
-	    gl.uniform1i(textureLocation, 0);
-	}
-
-	CustomCopyShader.prototype = Object.create(Shader.prototype);
-
-	CustomCopyShader.prototype.execute = function(rect, texture)
-	{
-	    var gl = GL.gl;
-	    GL.setDepthTest(Comparison.DISABLED);
-	    GL.setCullMode(CullMode.NONE);
-
-	    rect._vertexBuffers[0].bind();
-	    rect._indexBuffer.bind();
-
-	    this.updatePassRenderState();
-
-	    texture.bind(0);
-
-	    gl.vertexAttribPointer(this._positionAttributeLocation, 2, gl.FLOAT, false, 16, 0);
-	    gl.vertexAttribPointer(this._texCoordAttributeLocation, 2, gl.FLOAT, false, 16, 8);
-
-	    GL.enableAttributes(2);
-
-	    GL.drawElements(ElementType.TRIANGLES, 6, 0);
-	};
-
-
-
-	/**
-	 * Copies one texture's channels (in configurable ways) to another's.
-	 * @param channel Can be either x, y, z, w or any 4-component swizzle. default is xyzw, meaning a simple copy
-	 * @constructor
-	 * @ignore
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function CopyChannelsShader(channel, copyAlpha)
-	{
-	    channel = channel || "xyzw";
-	    copyAlpha = copyAlpha === undefined? true : copyAlpha;
-
-	    var define = "#define extractChannels(src) ((src)." + channel + ")\n";
-
-	    if (copyAlpha) define += "#define COPY_ALPHA\n";
-
-	    CustomCopyShader.call(this, define + ShaderLibrary.get("copy_fragment.glsl"));
-	}
-
-	CopyChannelsShader.prototype = Object.create(CustomCopyShader.prototype);
-
-
-
-	/**
-	 * Copies one texture's channels while applying the same logic as gl.blendColor. This because it is broken for float textures.
-	 * @constructor
-	 * @ignore
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function BlendColorCopyShader()
-	{
-	    CustomCopyShader.call(this, ShaderLibrary.get("blend_color_copy_fragment.glsl"));
-	    this._colorLocation = GL.gl.getUniformLocation(this.program, "blendColor");
-	    this.setBlendColor(1, 1, 1, 1);
-	}
-
-	BlendColorCopyShader.prototype = Object.create(CustomCopyShader.prototype);
-
-	BlendColorCopyShader.prototype.setBlendColor = function(r, g, b, a)
-	{
-	    var gl = GL.gl;
-	    gl.useProgram(this.program);
-	    gl.uniform4f(this._colorLocation, r, g, b, a);
-	};
-
-
-	/**
-	 * @classdesc
-	 * Copies the texture from linear space to gamma space.
-	 *
-	 * @ignore
-	 *
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function ApplyGammaShader()
-	{
-	    CustomCopyShader.call(this, ShaderLibrary.get("copy_to_gamma_fragment.glsl"));
-	}
-
-	ApplyGammaShader.prototype = Object.create(CustomCopyShader.prototype);
-
-	/**
-	 * @ignore
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function IndexBuffer()
-	{
-	    this._buffer = GL.gl.createBuffer();
-	}
-
-	IndexBuffer.prototype = {
-	    /**
-	     * Uploads data for the buffer.
-	     * @param data The data to upload, must be a Int16Array object.
-	     * @param usageHint An optional usage hint for the buffer.
-	     */
-	    uploadData: function(data, usageHint)
-	    {
-	        if (usageHint === undefined)
-	            usageHint = BufferUsage.STATIC_DRAW;
-
-	        this.bind();
-	        GL.gl.bufferData(GL.gl.ELEMENT_ARRAY_BUFFER, data, usageHint);
-	    },
-
-	    /**
-	     * @private
-	     */
-	    bind: function()
-	    {
-	        GL.gl.bindBuffer(GL.gl.ELEMENT_ARRAY_BUFFER, this._buffer);
-	    }
-	};
-
-	/**
-	 * @ignore
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function VertexBuffer()
-	{
-	    this._buffer = GL.gl.createBuffer();
-	}
-
-	VertexBuffer.prototype = {
-
-	    /**
-	     * Uploads data for the buffer.
-	     * @param data The data to upload, must be a Float32Array object.
-	     * @param usageHint An optional usage hint for the buffer.
-	     */
-	    uploadData: function(data, usageHint)
-	    {
-	        if (usageHint === undefined)
-	            usageHint = GL.gl.STATIC_DRAW;
-
-	        this.bind();
-	        GL.gl.bufferData(GL.gl.ARRAY_BUFFER, data, usageHint);
-	    },
-
-	    /**
-	     * @private
-	     */
-	    bind: function()
-	    {
-	        GL.gl.bindBuffer(GL.gl.ARRAY_BUFFER, this._buffer);
-	    }
-	};
-
-	/**
-	 * @classdesc
-	 * BoundingVolume forms an abstract base class for axis-aligned bounding volumes, used in the scene hierarchy.
-	 *
-	 * @param type The type of bounding volume.
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function BoundingVolume(type)
-	{
-	    this.type = type;
-
-	    this._expanse = BoundingVolume.EXPANSE_EMPTY;
-	    this._minimumX = 0.0;
-	    this._minimumY = 0.0;
-	    this._minimumZ = 0.0;
-	    this._maximumX = 0.0;
-	    this._maximumY = 0.0;
-	    this._maximumZ = 0.0;
-	    this._halfExtentX = 0.0;
-	    this._halfExtentY = 0.0;
-	    this._halfExtentZ = 0.0;
-	    this._center = new Float4();
-	}
-
-	/**
-	 * Indicates the bounds are empty
-	 */
-	BoundingVolume.EXPANSE_EMPTY = 0;
-
-	/**
-	 * Indicates the bounds are infinitely large
-	 */
-	BoundingVolume.EXPANSE_INFINITE = 1;
-
-	/**
-	 * Indicates the bounds have a real size and position
-	 */
-	BoundingVolume.EXPANSE_FINITE = 2;
-
-	/**
-	 * Indicates the parent's bounds are used in selecting.
-	 */
-	BoundingVolume.EXPANSE_INHERIT = 3;
-
-	BoundingVolume._testAABBToSphere = function(aabb, sphere)
-	{
-	    // b = sphere var max = aabb._maximum;
-	    var maxX = sphere._maximumX;
-	    var maxY = sphere._maximumY;
-	    var maxZ = sphere._maximumZ;
-	    var minX = aabb._minimumX;
-	    var minY = aabb._minimumY;
-	    var minZ = aabb._minimumZ;
-	    var radius = sphere._halfExtentX;
-	    var centerX = sphere._center.x;
-	    var centerY = sphere._center.y;
-	    var centerZ = sphere._center.z;
-	    var dot = 0, diff;
-
-	    if (minX > centerX) {
-	        diff = centerX - minX;
-	        dot += diff * diff;
-	    }
-	    else if (maxX < centerX) {
-	        diff = centerX - maxX;
-	        dot += diff * diff;
-	    }
-
-	    if (minY > centerY) {
-	        diff = centerY - minY;
-	        dot += diff * diff;
-	    }
-	    else if (maxY < centerY) {
-	        diff = centerY - maxY;
-	        dot += diff * diff;
-	    }
-
-	    if (minZ > centerZ) {
-	        diff = centerZ - minZ;
-	        dot += diff * diff;
-	    }
-	    else if (maxZ < centerZ) {
-	        diff = centerZ - maxZ;
-	        dot += diff * diff;
-	    }
-
-	    return dot < radius * radius;
-	};
-
-	BoundingVolume.prototype =
-	{
-	    /**
-	     * Describes the size of the bounding box. {@linkcode BoundingVolume#EXPANSE_EMPTY}, {@linkcode BoundingVolume#EXPANSE_FINITE}, or {@linkcode BoundingVolume#EXPANSE_INFINITE}
-	     */
-	    get expanse() { return this._expanse; },
-
-	    growToIncludeMesh: function(mesh) { throw new Error("Abstract method!"); },
-	    growToIncludeBound: function(bounds) { throw new Error("Abstract method!"); },
-	    growToIncludeMinMax: function(min, max) { throw new Error("Abstract method!"); },
-
-	    /**
-	     * Clear the bounds.
-	     * @param expanseState The state to reset to. Either {@linkcode BoundingVolume#EXPANSE_EMPTY} or {@linkcode BoundingVolume#EXPANSE_INFINITE}.
-	     */
-	    clear: function(expanseState)
-	    {
-	        this._minimumX = this._minimumY = this._minimumZ = 0;
-	        this._maximumX = this._maximumY = this._maximumZ = 0;
-	        this._center.set(0, 0, 0);
-	        this._halfExtentX = this._halfExtentY = this._halfExtentZ = 0;
-	        this._expanse = expanseState === undefined? BoundingVolume.EXPANSE_EMPTY : expanseState;
-	    },
-
-	    /**
-	     * The minimum reach of the bounds, described as a box range.
-	     */
-	    get minimum() { return new Float4(this._minimumX, this._minimumY, this._minimumZ, 1.0); },
-
-	    /**
-	     * The maximum reach of the bounds, described as a box range.
-	     */
-	    get maximum() { return new Float4(this._maximumX, this._maximumY, this._maximumZ, 1.0); },
-
-	    /**
-	     * The center coordinate of the bounds
-	     */
-	    get center() { return this._center; },
-
-	    /**
-	     * The half extents of the bounds. These are the half-dimensions of the box encompassing the bounds from the center.
-	     */
-	    get halfExtent() { return new Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0); },
-
-	    /**
-	     * The radius of the sphere encompassing the bounds. This is implementation-dependent, because the radius is less precise for a box than for a sphere
-	     */
-	    getRadius: function() { throw new Error("Abstract method!"); },
-
-	    /**
-	     * Transforms a bounding volume and stores it in this one.
-	     * @param {BoundingVolume} sourceBound The bounds to transform.
-	     * @param {Matrix4x4} matrix The matrix containing the transformation.
-	     */
-	    transformFrom: function(sourceBound, matrix) { throw new Error("Abstract method!"); },
-
-	    /**
-	     * Tests whether the bounds intersects a given convex solid. The convex solid is described as a list of planes pointing outward. Infinite solids are also allowed (Directional Light frusta without a near plane, for example)
-	     * @param cullPlanes An Array of planes to be tested. Planes are simply Float4 objects.
-	     * @param numPlanes The amount of planes to be tested against. This so we can test less planes than are in the cullPlanes array (Directional Light frusta, for example)
-	     * @returns {boolean} Whether or not the bounds intersect the solid.
-	     */
-	    intersectsConvexSolid: function(cullPlanes, numPlanes) { throw new Error("Abstract method!"); },
-
-	    /**
-	     * Tests whether the bounds intersect another bounding volume
-	     */
-	    intersectsBound: function(bound) { throw new Error("Abstract method!"); },
-
-	    /**
-	     * Tests on which side of the plane the bounding box is (front, back or intersecting).
-	     * @param plane The plane to test against.
-	     * @return {PlaneSide} The side of the plane
-	     */
-	    classifyAgainstPlane: function(plane) { throw new Error("Abstract method!"); },
-
-	    /**
-	     * Tests whether or not this BoundingVolume intersects a ray.
-	     */
-	    intersectsRay: function(ray) { throw new Error("Abstract method!"); },
-
-	    toString: function()
-	    {
-	        return "BoundingVolume: [ " +
-	            this._minimumX + ", " +
-	            this._minimumY + ", " +
-	            this._minimumZ + " ] - [ " +
-	            this._maximumX + ", " +
-	            this._maximumY + ", " +
-	            this._maximumZ + " ], expanse: " +
-	            this._expanse;
-	    },
-
-	    clone: function()
-	    {
-	        throw new Error("Abstract method called!");
-	    }
-	};
-
-	/**
-	 * Values for classifying a point or object to a plane
-	 * @namespace
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var PlaneSide = {
-	    /**
-	     * Entirely on the front side of the plane
-	     */
-	    FRONT: 1,
-
-	    /**
-	     * Entirely on the back side of the plane
-	     */
-	    BACK: -1,
-
-	    /**
-	     * Intersecting the plane.
-	     */
-	    INTERSECTING: 0
-	};
-
-	/**
-	 * @classdesc
-	 * BoundingAABB represents an axis-aligned bounding box.
-	 *
-	 * @constructor
-	 *
-	 * @extends BoundingVolume
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function BoundingAABB()
-	{
-	    BoundingVolume.call(this, BoundingAABB);
-	}
-
-	BoundingAABB.prototype = Object.create(BoundingVolume.prototype);
-
-	/**
-	 * @inheritDoc
-	 */
-	BoundingAABB.prototype.growToIncludeMesh = function(mesh)
-	{
-	    if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
-
-	    var attribute = mesh.getVertexAttributeByName("hx_position");
-	    var index = attribute.offset;
-	    var stride = mesh.getVertexStride(attribute.streamIndex);
-	    var vertices = mesh.getVertexData(attribute.streamIndex);
-	    var len = vertices.length;
-	    var minX, minY, minZ;
-	    var maxX, maxY, maxZ;
-
-	    if (this._expanse === BoundingVolume.EXPANSE_EMPTY) {
-	        maxX = minX = vertices[index];
-	        maxY = minY = vertices[index + 1];
-	        maxZ = minZ = vertices[index + 2];
-	        index += stride;
-	    }
-	    else {
-	        minX = this._minimumX; minY = this._minimumY; minZ = this._minimumZ;
-	        maxX = this._maximumX; maxY = this._maximumY; maxZ = this._maximumZ;
-	    }
-
-	    for (; index < len; index += stride) {
-	        var x = vertices[index];
-	        var y = vertices[index + 1];
-	        var z = vertices[index + 2];
-
-	        if (x > maxX) maxX = x;
-	        else if (x < minX) minX = x;
-	        if (y > maxY) maxY = y;
-	        else if (y < minY) minY = y;
-	        if (z > maxZ) maxZ = z;
-	        else if (z < minZ) minZ = z;
-	    }
-
-	    this._minimumX = minX; this._minimumY = minY; this._minimumZ = minZ;
-	    this._maximumX = maxX; this._maximumY = maxY; this._maximumZ = maxZ;
-	    this._expanse = BoundingVolume.EXPANSE_FINITE;
-
-	    this._updateCenterAndExtent();
-	};
-
-	/**
-	 * @inheritDoc
-	 */
-	BoundingAABB.prototype.growToIncludeBound = function(bounds)
-	{
-	    if (bounds._expanse === BoundingVolume.EXPANSE_EMPTY ||
-	        bounds._expanse === BoundingVolume.EXPANSE_INHERIT ||
-	        this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
-
-	    if (bounds._expanse === BoundingVolume.EXPANSE_INFINITE)
-	        this._expanse = BoundingVolume.EXPANSE_INFINITE;
-
-	    else if (this._expanse === BoundingVolume.EXPANSE_EMPTY) {
-	        this._minimumX = bounds._minimumX;
-	        this._minimumY = bounds._minimumY;
-	        this._minimumZ = bounds._minimumZ;
-	        this._maximumX = bounds._maximumX;
-	        this._maximumY = bounds._maximumY;
-	        this._maximumZ = bounds._maximumZ;
-	        this._expanse = BoundingVolume.EXPANSE_FINITE;
-	    }
-	    else {
-	        if (bounds._minimumX < this._minimumX)
-	            this._minimumX = bounds._minimumX;
-	        if (bounds._minimumY < this._minimumY)
-	            this._minimumY = bounds._minimumY;
-	        if (bounds._minimumZ < this._minimumZ)
-	            this._minimumZ = bounds._minimumZ;
-	        if (bounds._maximumX > this._maximumX)
-	            this._maximumX = bounds._maximumX;
-	        if (bounds._maximumY > this._maximumY)
-	            this._maximumY = bounds._maximumY;
-	        if (bounds._maximumZ > this._maximumZ)
-	            this._maximumZ = bounds._maximumZ;
-	    }
-
-	    this._updateCenterAndExtent();
-	};
-
-	/**
-	 * @inheritDoc
-	 */
-	BoundingAABB.prototype.growToIncludeMinMax = function(min, max)
-	{
-	    if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return;
-
-	    if (this._expanse === BoundingVolume.EXPANSE_EMPTY) {
-	        this._minimumX = min.x;
-	        this._minimumY = min.y;
-	        this._minimumZ = min.z;
-	        this._maximumX = max.x;
-	        this._maximumY = max.y;
-	        this._maximumZ = max.z;
-	        this._expanse = BoundingVolume.EXPANSE_FINITE;
-	    }
-	    else {
-	        if (min.x < this._minimumX)
-	            this._minimumX = min.x;
-	        if (min.y < this._minimumY)
-	            this._minimumY = min.y;
-	        if (min.z < this._minimumZ)
-	            this._minimumZ = min.z;
-	        if (max.x > this._maximumX)
-	            this._maximumX = max.x;
-	        if (max.y > this._maximumY)
-	            this._maximumY = max.y;
-	        if (max.z > this._maximumZ)
-	            this._maximumZ = max.z;
-	    }
-
-	    this._updateCenterAndExtent();
-	};
-
-	/**
-	 * Generates a new BoundingSphere with the transformation matrix applied.
-	 */
-	BoundingAABB.prototype.transform = function(matrix)
-	{
-	    var clone = new BoundingAABB();
-	    clone.transformFrom(this, matrix);
-	    return clone;
-	};
-
-	/**
-	 * @inheritDoc
-	 */
-	BoundingAABB.prototype.transformFrom = function(sourceBound, matrix)
-	{
-	    if (sourceBound._expanse === BoundingVolume.EXPANSE_FINITE) {
-	        var arr = matrix._m;
-	        var m00 = arr[0], m10 = arr[1], m20 = arr[2];
-	        var m01 = arr[4], m11 = arr[5], m21 = arr[6];
-	        var m02 = arr[8], m12 = arr[9], m22 = arr[10];
-
-	        var x = sourceBound._center.x;
-	        var y = sourceBound._center.y;
-	        var z = sourceBound._center.z;
-
-	        var cx = this._center.x = m00 * x + m01 * y + m02 * z + arr[12];
-	        var cy = this._center.y = m10 * x + m11 * y + m12 * z + arr[13];
-	        var cz = this._center.z = m20 * x + m21 * y + m22 * z + arr[14];
-
-	        if (m00 < 0) m00 = -m00; if (m10 < 0) m10 = -m10; if (m20 < 0) m20 = -m20;
-	        if (m01 < 0) m01 = -m01; if (m11 < 0) m11 = -m11; if (m21 < 0) m21 = -m21;
-	        if (m02 < 0) m02 = -m02; if (m12 < 0) m12 = -m12; if (m22 < 0) m22 = -m22;
-	        x = sourceBound._halfExtentX;
-	        y = sourceBound._halfExtentY;
-	        z = sourceBound._halfExtentZ;
-
-	        var hx = this._halfExtentX = m00 * x + m01 * y + m02 * z;
-	        var hy = this._halfExtentY = m10 * x + m11 * y + m12 * z;
-	        var hz = this._halfExtentZ = m20 * x + m21 * y + m22 * z;
-
-	        this._minimumX = cx - hx;
-	        this._minimumY = cy - hy;
-	        this._minimumZ = cz - hz;
-	        this._maximumX = cx + hx;
-	        this._maximumY = cy + hy;
-	        this._maximumZ = cz + hz;
-	        this._expanse = sourceBound._expanse;
-	    }
-	    else {
-	        this.clear(sourceBound._expanse);
-	    }
-	};
-
-
-	/**
-	 * @inheritDoc
-	 */
-	BoundingAABB.prototype.intersectsConvexSolid = function(cullPlanes, numPlanes)
-	{
-	    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || this._expanse === BoundingVolume.EXPANSE_INHERIT)
-	        return true;
-	    else if (this._expanse === BoundingVolume.EXPANSE_EMPTY)
-	        return false;
-
-	    var minX = this._minimumX, minY = this._minimumY, minZ = this._minimumZ;
-	    var maxX = this._maximumX, maxY = this._maximumY, maxZ = this._maximumZ;
-
-	    for (var i = 0; i < numPlanes; ++i) {
-	        // find the point that will always have the smallest signed distance
-	        var plane = cullPlanes[i];
-	        var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
-	        var closestX = planeX > 0? minX : maxX;
-	        var closestY = planeY > 0? minY : maxY;
-	        var closestZ = planeZ > 0? minZ : maxZ;
-
-	        // classify the closest point
-	        var signedDist = planeX * closestX + planeY * closestY + planeZ * closestZ + planeW;
-	        if (signedDist > 0.0)
-	            return false;
-	    }
-
-	    return true;
-	};
-
-	/**
-	 * @inheritDoc
-	 */
-	BoundingAABB.prototype.intersectsBound = function(bound)
-	{
-	    if (this._expanse === BoundingVolume.EXPANSE_EMPTY || bound._expanse === BoundingVolume.EXPANSE_EMPTY)
-	        return false;
-
-	    if (this._expanse === BoundingVolume.EXPANSE_INFINITE || bound._expanse === BoundingVolume.EXPANSE_INFINITE ||
-	        this._expanse === BoundingVolume.EXPANSE_INHERIT || bound._expanse === BoundingVolume.EXPANSE_INHERIT)
-	        return true;
-
-	    // both AABB
-	    if (bound.type === this.type) {
-	        return 	this._maximumX > bound._minimumX &&
-	            this._minimumX < bound._maximumX &&
-	            this._maximumY > bound._minimumY &&
-	            this._minimumY < bound._maximumY &&
-	            this._maximumZ > bound._minimumZ &&
-	            this._minimumZ < bound._maximumZ;
-	    }
-	    else {
-	        return BoundingVolume._testAABBToSphere(this, bound);
-	    }
-	};
-
-	/**
-	 * @inheritDoc
-	 */
-	BoundingAABB.prototype.classifyAgainstPlane = function(plane)
-	{
-	    var planeX = plane.x, planeY = plane.y, planeZ = plane.z, planeW = plane.w;
-
-	    var centerDist = planeX * this._center.x + planeY * this._center.y + planeZ * this._center.z + planeW;
-
-	    if (planeX < 0) planeX = -planeX;
-	    if (planeY < 0) planeY = -planeY;
-	    if (planeZ < 0) planeZ = -planeZ;
-
-	    var intersectionDist = planeX * this._halfExtentX + planeY * this._halfExtentY + planeZ * this._halfExtentZ;
-	    // intersectionDist is the distance to the far point
-	    // -intersectionDist is the distance to the closest point
-
-	    if (centerDist > intersectionDist)
-	        return PlaneSide.FRONT;
-	    if (centerDist < -intersectionDist)
-	        return PlaneSide.BACK;
-	    else
-	        return PlaneSide.INTERSECTING;
-	};
-
-	/**
-	 * @ignore
-	 */
-	BoundingAABB.prototype.intersectsRay = function(ray)
-	{
-	    if (this._expanse === BoundingVolume.EXPANSE_INFINITE) return true;
-	    if (this._expanse === BoundingVolume.EXPANSE_EMPTY || this._expanse === BoundingVolume.EXPANSE_INHERIT) return false;
-	    // slab method
-	    var o = ray.origin;
-	    var d = ray.direction;
-	    var oX = o.x, oY = o.y, oZ = o.z;
-	    var dirX = d.x, dirY = d.y, dirZ = d.z;
-
-	    var nearT = -Infinity;
-	    var farT = Infinity;
-
-	    var t1, t2;
-
-	    // t = (minX - oX) / dirX
-
-	    if (dirX !== 0.0) {
-	        var rcp = 1.0 / dirX;
-	        t1 = (this._minimumX - oX) * rcp;
-	        t2 = (this._maximumX - oX) * rcp;
-	        // near is the closest intersection factor to the ray, far the furthest
-	        // so [nearT - farT] is the line segment cut off by the planes
-	        if (t1 < t2) {
-	            nearT = t1;
-	            farT = t2;
-	        }
-	        else {
-	            nearT = t2;
-	            farT = t1;
-	        }
-	    }
-
-	    if (dirY !== 0.0) {
-	        rcp = 1.0 / dirY;
-	        t1 = (this._minimumY - oY) * rcp;
-	        t2 = (this._maximumY - oY) * rcp;
-
-	        // slice off more from the line segment [nearT - farT]
-	        if (t1 < t2) {
-	            if (t1 > nearT)
-	                nearT = t1;
-	            if (t2 < farT)
-	                farT = t2;
-	        }
-	        else {
-	            if (t2 > nearT)
-	                nearT = t2;
-	            if (t1 < farT)
-	                farT = t1;
-	        }
-
-	    }
-
-	    if (dirZ !== 0.0) {
-	        rcp = 1.0 / dirZ;
-	        t1 = (this._minimumZ - oZ) * rcp;
-	        t2 = (this._maximumZ - oZ) * rcp;
-
-	        if (t1 < t2) {
-	            if (t1 > nearT)
-	                nearT = t1;
-	            if (t2 < farT)
-	                farT = t2;
-	        }
-	        else {
-	            if (t2 > nearT)
-	                nearT = t2;
-	            if (t1 < farT)
-	                farT = t1;
-	        }
-	    }
-
-	    return farT > 0 && farT >= nearT;
-	};
-
-	/**
-	 * Sets the minimum and maximum explicitly using {@linkcode Float4}
-	 */
-	BoundingAABB.prototype.setExplicit = function(min, max)
-	{
-	    this._minimumX = min.x;
-	    this._minimumY = min.y;
-	    this._minimumZ = min.z;
-	    this._maximumX = max.x;
-	    this._maximumY = max.y;
-	    this._maximumZ = max.z;
-	    this._expanse = BoundingVolume.EXPANSE_FINITE;
-	    this._updateCenterAndExtent();
-	};
-
-	/**
-	 * @ignore
-	 * @private
-	 */
-	BoundingAABB.prototype._updateCenterAndExtent = function()
-	{
-	    var minX = this._minimumX, minY = this._minimumY, minZ = this._minimumZ;
-	    var maxX = this._maximumX, maxY = this._maximumY, maxZ = this._maximumZ;
-	    this._center.x = (minX + maxX) * .5;
-	    this._center.y = (minY + maxY) * .5;
-	    this._center.z = (minZ + maxZ) * .5;
-	    this._halfExtentX = (maxX - minX) * .5;
-	    this._halfExtentY = (maxY - minY) * .5;
-	    this._halfExtentZ = (maxZ - minZ) * .5;
-	};
-
-	/**
-	 * @inheritDoc
-	 */
-	BoundingAABB.prototype.getRadius = function()
-	{
-	    return Math.sqrt(this._halfExtentX * this._halfExtentX + this._halfExtentY * this._halfExtentY + this._halfExtentZ * this._halfExtentZ);
-	};
-
-	BoundingAABB.prototype.getHalfExtents = function()
-	{
-	    return new Float4(this._halfExtentX, this._halfExtentY, this._halfExtentZ, 0.0);
-	};
-
-	BoundingAABB.prototype.clone = function()
-	{
-	    var aabb = new BoundingAABB();
-	    aabb.growToIncludeBound(this);
-	    return aabb;
-	};
-
-	/**
-	 * @classdesc
-	 * MorphTarget defines the displacements per vertex that can be used to displace a Mesh. This can be used to animate
-	 * vertices between different poses. Several MorphTargets can be used in a {@linkcode MorphPose} or through a component
-	 * such as {@linkcode MorphAnimation}
-	 * A MorphTarget describes the offsets for a whole {@linkcode Model}, so several sets might be present (one for each {@linkcode Mesh}).
-	 *
-	 * @constructor
-	 *
-	 * @see {@linkcode MorphAnimation}
-	 * @see {@linkcode MorphPose}
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function MorphTarget()
-	{
-	    this.name = null;
-	    this._positionBuffer = null;
-	    this._normalBuffer = null;
-	    this._numVertices = 0;
-	}
-
-	MorphTarget.prototype =
-	{
-	    /**
-	     * Indicates whether or not vertex normals are provided in the morph target initialisation.
-	     * @returns {boolean|*}
-	     */
-	    get hasNormals()
-	    {
-	        return !!this._normalBuffer;
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    get numVertices()
-	    {
-	        return this._numVertices;
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    get positionBuffer()
-	    {
-	        return this._positionBuffer;
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    get normalBuffer()
-	    {
-	        return this._normalBuffer;
-	    },
-
-	    /**
-	     * Initializes the current MorphTarget object.
-	     * @param {Array} positions An Array of 3 floats per vertex (x, y, z), containing the displacement vectors. The size must match the vertex count of the target Mesh.
-	     * @param {Array} normals An Array of 3 floats per vertex (x, y, z), containing the normal offset vectors. The size must match the vertex count of the target Mesh.
-	     *
-	     */
-	    init: function(positions, normals)
-	    {
-	        this._numVertices = positions.length / 3;
-
-	        this._positionBuffer = new VertexBuffer();
-	        this._positionBuffer.uploadData(new Float32Array(positions));
-
-	        if (normals) {
-	            this._normalBuffer = new VertexBuffer();
-	            this._normalBuffer.uploadData(new Float32Array(normals));
-	        }
-	    }
-	};
-
-	/**
-	 * @ignore
-	 */
-	var MESH_ID_COUNTER = 0;
-
-	/**
-	 * @classdesc
-	 *
-	 * <p>Mesh contains the geometry of a renderable object. A {@linkcode MeshInstance} component is used to combine a Mesh
-	 * with a Material for rendering.
-	 *
-	 * <p>A Mesh can have vertex attributes spread out over several "streams". Every stream means a separate vertex buffer will be used.</p>
-	 *
-	 * <p>A Mesh should have its layout defined using addVertexAttribute, and initial data supplied using setVertexData,
-	 * before passing it on to a Model. These values will be used to calculate its local bounding box.
-	 * After this, setVertexData can be called to change data, but it will not change the model</p>
-	 *
-	 * @param {BufferUsage} vertexUsage A usage hint for the vertex buffer.
-	 * @param {BufferUsage} indexUsage A usage hint for the index buffer.
-	 *
-	 * @property elementType An {@linkcode ElementType} to describe the type of elements to render.
-	 *
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function Mesh()
-	{
-	    this.onBoundsChanged = new Signal();
-	    this.onLayoutChanged = new Signal();
-	    this.onMorphDataCreated = new Signal();
-		this.onSkeletonChange = new Signal();
-		this.name = "hx_mesh_" + MESH_ID_COUNTER;
-		this.elementType = ElementType.TRIANGLES;
-		this._bounds = new BoundingAABB();
-		this._boundsInvalid = true;
-		this._dynamicBounds = true;
-		this._vertexBuffers = [];
-		this._vertexStrides = [];
-		this._vertexData = [];
-		this._indexData = undefined;
-		this._vertexUsage = BufferUsage.STATIC_DRAW;
-		this._indexUsage = BufferUsage.STATIC_DRAW;
-		this._numStreams = 0;
-		this._numVertices = 0;
-
-	    this._vertexAttributes = [];
-	    this._vertexAttributesLookUp = {};
-	    this._indexBuffer = new IndexBuffer();
-
-	    this._morphTargets = {};
-		this._hasMorphNormals = false;
-		this._defaultMorphTarget = null;
-
-		this._skeleton = null;
-
-	    this._renderOrderHint = ++MESH_ID_COUNTER;
-	}
-
-	/**
-	 * The vertex stride for meshes created with {@linkcode Mesh#createDefaultEmpty}
-	 */
-	Mesh.DEFAULT_VERTEX_SIZE = 12;
-
-	/**
-	 * @ignore
-	 */
-	Mesh.ID_COUNTER = 0;
-
-	// other possible indices:
-	// hx_instanceID (used by MeshBatch)
-	// hx_jointIndices (4)
-	// hx_jointWeights (4)
-	/**
-	 * Creates an empty Mesh with a default layout.
-	 */
-	Mesh.createDefaultEmpty = function(target)
-	{
-		target = target || new Mesh();
-		target.addVertexAttribute("hx_position", 3);
-		target.addVertexAttribute("hx_normal", 3);
-		target.addVertexAttribute("hx_tangent", 4);
-		target.addVertexAttribute("hx_texCoord", 2);
-	    return target;
-	};
-
-
-	Mesh.prototype = {
-		/**
-		 * The object-space bounding volume. Setting this value only changes the type of volume.
-		 */
-		get bounds()
-		{
-			if (this._boundsInvalid) this._updateBounds();
-			return this._bounds;
-		},
-
-		set bounds(value)
-		{
-			this._bounds = value;
-			this._invalidateBounds();
-		},
-
-		/**
-		 * The object-space bounding volume. Setting this value only changes the type of volume.
-		 */
-		get dynamicBounds()
-		{
-			return this._dynamicBounds;
-		},
-
-		set dynamicBounds(value)
-		{
-			if (value === this._dynamicBounds)
-				return;
-
-			this._dynamicBounds = value;
-
-			if (value)
-				this._invalidateBounds();
-			else
-				this._boundsInvalid = false;
-		},
-
-		/**
-		 * The {@linkcode Skeleton} used for skinning animations.
-		 */
-		get skeleton()
-		{
-			return this._skeleton;
-		},
-
-		set skeleton(value)
-		{
-			this._skeleton = value;
-			this.onSkeletonChange.dispatch();
-		},
-
-	    /**
-	     * Whether or not this Mesh supports morph target animations. This is the case if {@linkcode Mesh#generateMorphData}
-	     * was called.
-	     */
-	    get hasMorphData()
-	    {
-	        return !!this._defaultMorphTarget;
-	    },
-
-	    get hasMorphNormals()
-	    {
-	        return this._hasMorphNormals;
-	    },
-
-	    /**
-	     * Returns whether or not vertex data was uploaded to the given stream index.
-	     */
-	    hasVertexData: function (streamIndex)
-	    {
-	        return !!this._vertexData[streamIndex];
-	    },
-
-	    /**
-	     * Gets the vertex data for a given stream.
-	     */
-	    getVertexData: function (streamIndex)
-	    {
-	        return this._vertexData[streamIndex];
-	    },
-
-	    /**
-	     * Uploads vertex data from an Array or a Float32Array. This method must be called after the layout for the stream
-	     * has been finalized using setVertexAttribute calls. The data in the stream should be an interleaved array of
-	     * floats, with each attribute data in the order specified with the setVertexAttribute calls.
-	     */
-	    setVertexData: function (data, streamIndex, usageHint)
-	    {
-	        streamIndex = streamIndex || 0;
-
-	        this._vertexUsage = usageHint || BufferUsage.STATIC_DRAW;
-
-	        this._vertexData[streamIndex] = data instanceof Float32Array? data : new Float32Array(data);
-	        this._vertexBuffers[streamIndex] = this._vertexBuffers[streamIndex] || new VertexBuffer();
-	        this._vertexBuffers[streamIndex].uploadData(this._vertexData[streamIndex], this._vertexUsage);
-
-	        if (streamIndex === 0)
-	            this._numVertices = data.length / this._vertexStrides[0];
-
-			this._invalidateBounds();
-	    },
-
-	    /**
-	     * Returns the index data uploaded to the index buffer.
-	     */
-	    getIndexData: function()
-	    {
-	        return this._indexData;
-	    },
-
-	    /**
-	     * Uploads index data from an Array or a Uint16Array
-	     */
-	    setIndexData: function (data, usageHint)
-	    {
-	        this._indexUsage = usageHint || BufferUsage.STATIC_DRAW;
-
-	        if (data instanceof Uint16Array) {
-	            this._indexData = data;
-	            this._indexType = DataType.UNSIGNED_SHORT;
-	        }
-	        else if (data instanceof Uint32Array) {
-	            this._indexData = data;
-	            this._indexType = DataType.UNSIGNED_INT;
-	        }
-	        else {
-	            this._indexData = new Uint16Array(data);
-	            this._indexType = DataType.UNSIGNED_SHORT;
-	        }
-	        this._numIndices = this._indexData.length;
-	        this._indexBuffer.uploadData(this._indexData, this._indexUsage);
-	    },
-
-	    /**
-	     * Adds a named vertex attribute. All properties are given manually to make it easier to support multiple streams in the future.
-	     * @param name The name of the attribute, matching the attribute name used in the vertex shaders.
-	     * @param numComponents The amount of components used by the attribute value.
-	     * @param streamIndex [Optional] The stream index indicating which vertex buffer is used, defaults to 0
-	     * @param normalized [Optional] Whether or not the input of the attribute should be normalized to [-1, 1]
-	     */
-	    addVertexAttribute: function (name, numComponents, streamIndex, normalized)
-	    {
-	        streamIndex = streamIndex || 0;
-	        this._numStreams = Math.max(this._numStreams, streamIndex + 1);
-	        var offset = this._vertexStrides[streamIndex] || 0;
-	        var attrib = {
-	            name: name,
-	            offset: offset,
-	            numComponents: numComponents,
-	            streamIndex: streamIndex,
-			    normalized: normalized || false
-	        };
-	        this._vertexAttributes.push(attrib);
-	        this._vertexAttributesLookUp[name] = attrib;
-
-	        this._vertexStrides[streamIndex] = offset + numComponents;
-
-	        this.onLayoutChanged.dispatch();
-	    },
-
-	    /**
-	     * The amount of streams (vertex buffers) used for this Mesh/
-	     */
-	    get numStreams()
-	    {
-	        return this._numStreams;
-	    },
-
-	    /**
-	     * Extracts the vertex attribute data for the given attribute name as a flat Array.
-	     */
-	    extractAttributeData: function(name)
-	    {
-	        var attrib = this.getVertexAttributeByName(name);
-	        var stride = this.getVertexStride(attrib);
-	        var data = this.getVertexData(attrib.streamIndex);
-	        var numComps = attrib.numComponents;
-	        var vertData = [];
-	        var t = 0;
-	        for (var i = attrib.offset; i < data.length; i += stride) {
-	            for (var j = 0; j < numComps; ++j) {
-	                vertData[t++] = data[i + j];
-	            }
-	        }
-	        return vertData;
-	    },
-
-	    /**
-	     * Generates the required data to support morph target animations.
-	     */
-	    generateMorphData: function(supportNormals)
-	    {
-	        var count;
-
-	        if (supportNormals) {
-	            this._hasMorphNormals = true;
-	            count = 4;
-	        }
-	        else {
-	            count = 8;
-	        }
-
-	        for (i = 0; i < count; ++i) {
-	            // these will never have data assigned to them!
-	            // append these each as a different stream
-	            this.addVertexAttribute("hx_morphPosition" + i, 3, this._numStreams);
-
-	            if (supportNormals)
-	                this.addVertexAttribute("hx_morphNormal" + i, 3, this._numStreams);
-	        }
-
-	        var data = [];
-
-	        for (var i = 0; i < this._numVertices; ++i) {
-	            data.push(0, 0, 0);
-	        }
-
-	        // this is used for both positions and normals (if needed)
-	        this._defaultMorphTarget = new VertexBuffer();
-	        this._defaultMorphTarget.uploadData(new Float32Array(data), BufferUsage.STATIC_DRAW);
-
-			this.onMorphDataCreated.dispatch();
-			this.onLayoutChanged.dispatch();
-	    },
-
-	    /**
-	     * The amount of vertices contained in the Mesh.
-	     */
-	    get numVertices()
-	    {
-	        return this._numVertices;
-	    },
-
-	    /**
-	     * The amount of face indices contained in the Mesh.
-	     */
-	    get numIndices()
-	    {
-	        return this._numIndices;
-	    },
-
-	    /**
-	     * The amount of vertex attributes contained in the Mesh.
-	     */
-	    get numVertexAttributes()
-	    {
-	        return this._vertexAttributes.length;
-	    },
-
-	    /**
-	     * Gets the vertex stride (number of components used per stream per vertex) for a given stream
-	     */
-	    getVertexStride: function(streamIndex)
-	    {
-	        return this._vertexStrides[streamIndex];
-	    },
-
-	    /**
-	     * Gets the vertex attribute data according to the attribute name.
-	     */
-	    getVertexAttributeByName: function (name)
-	    {
-	        return this._vertexAttributesLookUp[name];
-	    },
-
-	    /**
-	     * Gets the vertex attribute data according to the index.
-	     */
-	    getVertexAttributeByIndex: function (index)
-	    {
-	        return this._vertexAttributes[index];
-	    },
-
-		/**
-		 * Adds a MorphTarget object for animators to work with.
-		 */
-	    addMorphTarget: function(morphTarget)
-		{
-			this._morphTargets[morphTarget.name] = morphTarget;
-
-			if (!this._defaultMorphTarget)
-			    this.generateMorphData();
-		},
-
-		/**
-		 * Adds a MorphTarget object for animators to work with.
-		 */
-	    removeMorphTarget: function(morphTarget)
-		{
-			delete this._morphTargets[morphTarget.name];
-		},
-
-		/**
-		 * Gets the morph target by name.
-		 * @param {name} index The name of the {@linkcode MorphTarget}
-		 * @returns {MorphTarget}
-		 */
-		getMorphTarget: function(name)
-		{
-			return this._morphTargets[name];
-		},
-
-	    /**
-	     * Returns a duplicate of this Mesh.
-	     */
-	    clone: function()
-	    {
-	        var mesh = new Mesh();
-	        var numAttribs = this._vertexAttributes.length;
-
-	        for (var i = 0; i < numAttribs; ++i) {
-	            var attrib = this._vertexAttributes[i];
-	            mesh.addVertexAttribute(attrib.name, attrib.numComponents, attrib.streamIndex);
-	        }
-
-	        for (i = 0; i < this._numStreams; ++i) {
-	            if (this._vertexData[i])
-	                mesh.setVertexData(this._vertexData[i], i, this._vertexUsage);
-	        }
-
-	        if (this._indexData)
-	            mesh.setIndexData(this._indexData, this._indexUsage);
-
-	        mesh.elementType = this.elementType;
-
-	        return mesh;
-	    },
-
-	    translate: function(x, y, z)
-	    {
-	        if (x instanceof Float4) {
-	            y = x.y;
-	            z = x.z;
-	            x = x.x;
-	        }
-
-	        var attrib = this.getVertexAttributeByName("hx_position");
-	        if (!attrib) return;
-
-	        var stride = this.getVertexStride(attrib);
-	        var data = this.getVertexData(attrib.streamIndex);
-	        for (var i = attrib.offset; i < data.length; i += stride) {
-	            data[i] += x;
-	            data[i + 1] += x;
-	            data[i + 2] += x;
-	        }
-
-	        this._vertexBuffers[attrib.streamIndex].uploadData(this._vertexData[attrib.streamIndex], this._vertexUsage);
-	    },
-
-		/**
-		 * @ignore
-		 * @private
-		 */
-		_updateBounds: function()
-		{
-			this._bounds.clear();
-			this._bounds.growToIncludeMesh(this);
-			this._boundsInvalid = false;
-		},
-
-		/**
-	     * @ignore
-		 * @private
-		 */
-		_invalidateBounds: function()
-	    {
-	    	if (this._dynamicBounds) {
-				this._boundsInvalid = true;
-				this.onBoundsChanged.dispatch();
-			}
-	    }
-	};
-
-	/**
-	 * RectMesh is a util that allows creating Mesh objects for rendering 2D quads. Generally, use RectMesh.DEFAULT for
-	 * full-screen quads.
-	 *
-	 * @namespace
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var RectMesh = {
-	    create: function()
-	    {
-	        var mesh = new Mesh();
-	        mesh.addVertexAttribute("hx_position", 2);
-	        mesh.addVertexAttribute("hx_texCoord", 2);
-	        mesh.setVertexData([-1, 1, 0, 1,
-	            1, 1, 1, 1,
-	            1, -1, 1, 0,
-	            -1, -1, 0, 0], 0);
-	        mesh.setIndexData([0, 1, 2, 0, 2, 3]);
-	        return mesh;
-	    },
-
-	    _initDefault: function()
-	    {
-	        RectMesh.DEFAULT = RectMesh.create();
-	    }
-	};
-
-	/**
-	 * @ignore
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var TextureUtils =
-	{
-	    /**
-	     * Resizes a texture (empty) if its size doesn't match. Returns true if the size has changed.
-	     * @param width The target width
-	     * @param height The target height
-	     * @param texture The texture to be resized if necessary
-	     * @param fbo (optional) Any fbos to be reinitialized if necessary
-	     * @returns {boolean} Returns true if the texture has been resized, false otherwise.
-	     */
-	    assureSize: function(width, height, texture, fbo, format, dataType)
-	    {
-	        if (width === texture.width && height === texture.height)
-	            return false;
-
-	        texture.initEmpty(width, height, format, dataType);
-	        if (fbo) fbo.init();
-	        return true;
-	    },
-
-	    /**
-	     * Copies a texture into a Framebuffer.
-	     * @param sourceTexture The source texture to be copied.
-	     * @param destFBO The target FBO to copy into.
-	     */
-	    copy: function(sourceTexture, destFBO)
-	    {
-	        GL.setRenderTarget(destFBO);
-	        GL.clear();
-	        DEFAULTS.COPY_SHADER.execute(RectMesh.DEFAULT, sourceTexture);
-	        GL.setRenderTarget(null);
-	    },
-
-	    // ref: http://stackoverflow.com/questions/32633585/how-do-you-convert-to-half-floats-in-javascript
-	    encodeHalfFloat: function(val) {
-
-	        var floatView = new Float32Array(1);
-	        var int32View = new Int32Array(floatView.buffer);
-
-	        /* This method is faster than the OpenEXR implementation (very often
-	         * used, eg. in Ogre), with the additional benefit of rounding, inspired
-	         * by James Tursa?s half-precision code. */
-	        return function toHalf(val) {
-
-	            floatView[0] = val;
-	            var x = int32View[0];
-
-	            var bits = (x >> 16) & 0x8000; /* Get the sign */
-	            var m = (x >> 12) & 0x07ff; /* Keep one extra bit for rounding */
-	            var e = (x >> 23) & 0xff; /* Using int is faster here */
-
-	            /* If zero, or denormal, or exponent underflows too much for a denormal
-	             * half, return signed zero. */
-	            if (e < 103) {
-	                return bits;
-	            }
-
-	            /* If NaN, return NaN. If Inf or exponent overflow, return Inf. */
-	            if (e > 142) {
-	                bits |= 0x7c00;
-	                /* If exponent was 0xff and one mantissa bit was set, it means NaN,
-	                 * not Inf, so make sure we set one mantissa bit too. */
-	                bits |= ((e === 255) ? 0 : 1) && (x & 0x007fffff);
-	                return bits;
-	            }
-
-	            /* If exponent underflows but not too much, return a denormal */
-	            if (e < 113) {
-	                m |= 0x0800;
-	                /* Extra rounding may overflow and set mantissa to 0 and exponent
-	                 * to 1, which is OK. */
-	                bits |= (m >> (114 - e)) + ((m >> (113 - e)) & 1);
-	                return bits;
-	            }
-
-	            bits |= ((e - 112) << 10) | (m >> 1);
-	            /* Extra rounding. An overflow will set mantissa to 0 and increment
-	             * the exponent, which is OK. */
-	            bits += m & 1;
-	            return bits;
-	        };
-	    }(),
-
-	    encodeToFloat16Array: function(float32Array)
-	    {
-	        var encFun = TextureUtils.encodeHalfFloat;
-	        var arr = [];
-	        for (var i = 0; i < float32Array.length; ++i) {
-	            arr[i] = encFun(float32Array[i]);
-	        }
-	        return new Uint16Array(arr);
-	    }
-	};
-
-	var nameCounter = 0;
-
-	/**
-	 * @classdesc
-	 * Texture2D represents a 2D texture.
-	 *
-	 * @constructor
-	 *
-	 * @propety name The name of the texture.
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function Texture2D()
-	{
-	    this.name = "hx_texture2d_" + (nameCounter++);
-	    this._default = Texture2D.DEFAULT;
-	    this._texture = GL.gl.createTexture();
-	    this._width = 0;
-	    this._height = 0;
-	    this._format = null;
-	    this._dataType = null;
-
-	    this.bind();
-
-	    // set defaults
-	    this.maxAnisotropy = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
-	    this.filter = TextureFilter.DEFAULT;
-	    this.wrapMode = TextureWrapMode.DEFAULT;
-
-	    this._isReady = false;
-
-	    GL.gl.bindTexture(GL.gl.TEXTURE_2D, null);
-	}
-
-	/**
-	 * @ignore
-	 */
-	Texture2D._initDefault = function()
-	{
-	    var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
-	    Texture2D.DEFAULT = new Texture2D();
-	    Texture2D.DEFAULT.uploadData(data, 1, 1, true);
-	    Texture2D.DEFAULT.filter = TextureFilter.NEAREST_NOMIP;
-	};
-
-	Texture2D.prototype =
-	{
-	    /**
-	     * Generates a mip map chain.
-	     */
-	    generateMipmap: function()
-	    {
-	        var gl = GL.gl;
-
-	        this.bind();
-
-	        gl.generateMipmap(gl.TEXTURE_2D);
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
-
-	    /**
-	     * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
-	     */
-	    get filter()
-	    {
-	        return this._filter;
-	    },
-
-	    set filter(filter)
-	    {
-	        var gl = GL.gl;
-	        this._filter = filter;
-	        this.bind();
-	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter.min);
-	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter.mag);
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-
-	        if (filter === TextureFilter.NEAREST_NOMIP || filter === TextureFilter.NEAREST) {
-	            this.maxAnisotropy = 1;
-	        }
-	    },
-
-	    /**
-	     * A {@linkcode TextureWrapMode} object defining how out-of-bounds sampling should be handled.
-	     */
-	    get wrapMode()
-	    {
-	        return this._wrapMode;
-	    },
-
-	    set wrapMode(mode)
-	    {
-	        var gl = GL.gl;
-	        this._wrapMode = mode;
-	        this.bind();
-	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode.s);
-	        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode.t);
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
-
-	    /**
-	     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities#DEFAULT_TEXTURE_MAX_ANISOTROPY}
-	     */
-	    get maxAnisotropy()
-	    {
-	        return this._maxAnisotropy;
-	    },
-
-	    set maxAnisotropy(value)
-	    {
-	        var gl = GL.gl;
-
-	        if (value > capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY)
-	            value = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
-
-	        this._maxAnisotropy = value;
-
-	        this.bind();
-	        if (capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC)
-	            GL.gl.texParameteri(gl.TEXTURE_2D, capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
-
-	    /**
-	     * The texture's width
-	     */
-	    get width() { return this._width; },
-
-	    /**
-	     * The texture's height
-	     */
-	    get height() { return this._height; },
-
-	    /**
-	     * The texture's format
-	     *
-	     * @see {@linkcode TextureFormat}
-	     */
-	    get format() { return this._format; },
-
-	    /**
-	     * The texture's data type
-	     *
-	     * @see {@linkcode DataType}
-	     */
-	    get dataType() { return this._dataType; },
-
-	    /**
-	     * Inits an empty texture.
-	     * @param width The width of the texture.
-	     * @param height The height of the texture.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     */
-	    initEmpty: function(width, height, format, dataType)
-	    {
-	        var gl = GL.gl;
-	        this._format = format = format || TextureFormat.RGBA;
-	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-
-	        this.bind();
-	        this._width = width;
-	        this._height = height;
-
-			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-	        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, dataType, null);
-
-	        this._isReady = true;
-
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
-
-	    /**
-	     * Initializes the texture with the given data.
-	     * @param {*} data An typed array containing the initial data.
-	     * @param {number} width The width of the texture.
-	     * @param {number} height The height of the texture.
-	     * @param {boolean} generateMips Whether or not a mip chain should be generated.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     */
-	    uploadData: function(data, width, height, generateMips, format, dataType)
-	    {
-	        var gl = GL.gl;
-
-	        if (capabilities.EXT_HALF_FLOAT_TEXTURES && dataType === DataType.HALF_FLOAT)
-	            data = TextureUtils.encodeToFloat16Array(data);
-
-	        this._width = width;
-	        this._height = height;
-
-	        this._format = format = format || TextureFormat.RGBA;
-	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-	        generateMips = generateMips === undefined? false: generateMips;
-
-	        this.bind();
-
-	        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-
-	        var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-	        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, dataType, data);
-
-	        if (generateMips)
-	            gl.generateMipmap(gl.TEXTURE_2D);
-
-	        this._isReady = true;
-
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
-
-	    /**
-	     * Initializes the texture with a given Image.
-	     * @param image The Image to upload to the texture
-	     * @param width The width of the texture.
-	     * @param height The height of the texture.
-	     * @param generateMips Whether or not a mip chain should be generated.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     *
-	     * TODO: Just use image.naturalWidth / image.naturalHeight ?
-	     */
-	    uploadImage: function(image, width, height, generateMips, format, dataType)
-	    {
-	        var gl = GL.gl;
-
-	        this._width = width;
-	        this._height = height;
-
-	        this._format = format = format || TextureFormat.RGBA;
-	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-	        generateMips = generateMips === undefined? true: generateMips;
-
-	        this.bind();
-
-	        if (image)
-	            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-
-			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-	        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, format, dataType, image);
-
-	        if (generateMips)
-	            gl.generateMipmap(gl.TEXTURE_2D);
-
-	        this._isReady = true;
-
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
-
-	    /**
-	     * Defines whether data has been uploaded to the texture or not.
-	     */
-	    isReady: function() { return this._isReady; },
-
-	    /**
-	     * Binds a texture to a given texture unit.
-	     * @ignore
-	     */
-	    bind: function(unitIndex)
-	    {
-	        var gl = GL.gl;
-
-	        if (unitIndex !== undefined) {
-	            gl.activeTexture(gl.TEXTURE0 + unitIndex);
-	        }
-
-	        gl.bindTexture(gl.TEXTURE_2D, this._texture);
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    toString: function()
-	    {
-	        return "[Texture2D(name=" + this._name + ")]";
-	    }
-	};
-
-	var nameCounter$1 = 0;
-
-	//       +-----+
-	//       |  +Z |
-	// +-----+-----+-----+-----+
-	// |  -X |  +Y |  +X |  -Y |
-	// +-----+-----+-----+-----+
-	//       |  -Z |
-	//       +-----+
-
-	/**
-	 * @classdesc
-	 * TextureCube represents a cube map texture. The order of the textures in a cross map is as such:
-	 *
-	 * @constructor
-	 *
-	 * @property name The name of the texture.
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function TextureCube()
-	{
-		this.name = "hx_texturecube_" + (nameCounter$1++);
-	    this._default = TextureCube.DEFAULT;
-	    this._texture = GL.gl.createTexture();
-	    this._size = 0;
-	    this._format = null;
-	    this._dataType = null;
-
-	    this.bind();
-	    this.filter = TextureFilter.DEFAULT;
-	    this.maxAnisotropy = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
-
-	    this._isReady = false;
-	}
-
-	/**
-	 * @ignore
-	 */
-	TextureCube._initDefault = function()
-	{
-	    var gl = GL.gl;
-	    var data = new Uint8Array([0xff, 0x00, 0xff, 0xff]);
-	    TextureCube.DEFAULT = new TextureCube();
-	    TextureCube.DEFAULT.uploadData([data, data, data, data, data, data], 1, true);
-	    TextureCube.DEFAULT.filter = TextureFilter.NEAREST_NOMIP;
-	    gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	};
-
-	TextureCube.prototype =
-	{
-	    /**
-	     * Generates a mip map chain.
-	     */
-	    generateMipmap: function()
-	    {
-	        this.bind();
-	        var gl = GL.gl;
-	        gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	    },
-
-	    /**
-	     * A {@linkcode TextureFilter} object defining how the texture should be filtered during sampling.
-	     */
-	    get filter()
-	    {
-	        return this._filter;
-	    },
-
-	    set filter(filter)
-	    {
-	        this._filter = filter;
-	        this.bind();
-	        var gl = GL.gl;
-	        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, filter.min);
-	        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, filter.mag);
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	    },
-
-	    /**
-	     * The maximum anisotropy used when sampling. Limited to {@linkcode capabilities#DEFAULT_TEXTURE_MAX_ANISOTROPY}
-	     */
-	    get maxAnisotropy()
-	    {
-	        return this._maxAnisotropy;
-	    },
-
-	    set maxAnisotropy(value)
-	    {
-	        if (value > capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY)
-	            value = capabilities.DEFAULT_TEXTURE_MAX_ANISOTROPY;
-
-	        this._maxAnisotropy = value;
-
-	        this.bind();
-
-	        var gl = GL.gl;
-	        if (capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC)
-	            gl.texParameteri(gl.TEXTURE_CUBE_MAP, capabilities.EXT_TEXTURE_FILTER_ANISOTROPIC.TEXTURE_MAX_ANISOTROPY_EXT, value);
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	    },
-
-	    /**
-	     * The cube texture's size
-	     */
-	    get size() { return this._size; },
-
-	    /**
-	     * The texture's format
-	     *
-	     * @see {@linkcode TextureFormat}
-	     */
-	    get format() { return this._format; },
-
-	    /**
-	     * The texture's data type
-	     *
-	     * @see {@linkcode DataType}
-	     */
-	    get dataType() { return this._dataType; },
-
-	    /**
-	     * Inits an empty texture.
-	     * @param size The size of the texture.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     */
-	    initEmpty: function(size, format, dataType)
-	    {
-	        this._format = format = format || TextureFormat.RGBA;
-	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-
-	        this._size = size;
-
-	        this.bind();
-
-	        var gl = GL.gl;
-			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-			gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
-	        gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, null);
-	        gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
-	        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, 0, format, dataType, null);
-	        gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
-	        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, 0, format, dataType, null);
-
-	        this._isReady = true;
-
-	        gl.bindTexture(gl.TEXTURE_2D, null);
-	    },
-
-	    /**
-	     * Initializes the texture with the given data.
-	     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
-	     * @param size The size of the texture.
-	     * @param generateMips Whether or not a mip chain should be generated.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     */
-	    uploadData: function(data, size, generateMips, format, dataType)
-	    {
-	        this._size = size;
-
-	        this._format = format = format || TextureFormat.RGBA;
-	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-	        generateMips = generateMips === undefined? true: generateMips;
-
-	        this.bind();
-
-	        var gl = GL.gl;
-	        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-
-			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-	        gl.texImage2D(CubeFace.POSITIVE_X, 0, internalFormat, size, size, 0, format, dataType, data[0]);
-	        gl.texImage2D(CubeFace.NEGATIVE_X, 0, internalFormat, size, size, 0, format, dataType, data[1]);
-	        gl.texImage2D(CubeFace.POSITIVE_Y, 0, internalFormat, size, size, 0, format, dataType, data[2]);
-	        gl.texImage2D(CubeFace.NEGATIVE_Y, 0, internalFormat, size, size, 0, format, dataType, data[3]);
-	        gl.texImage2D(CubeFace.POSITIVE_Z, 0, internalFormat, size, size, 0, format, dataType, data[4]);
-	        gl.texImage2D(CubeFace.NEGATIVE_Z, 0, internalFormat, size, size, 0, format, dataType, data[5]);
-
-	        if (generateMips)
-	            gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-
-	        this._isReady = true;
-
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	    },
-
-	    /**
-	     * Initializes the texture with the given Images.
-	     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
-	     * @param generateMips Whether or not a mip chain should be generated.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     */
-	    uploadImages: function(images, generateMips, format, dataType)
-	    {
-	        generateMips = generateMips === undefined? true: generateMips;
-
-	        this._format = format;
-	        this._dataType = dataType;
-
-	        this.uploadImagesToMipLevel(images, 0, format, dataType);
-
-	        var gl = GL.gl;
-	        if (generateMips) {
-	            this.bind();
-	            gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-	        }
-
-	        this._isReady = true;
-
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	    },
-
-	    /**
-	     * Initializes a miplevel with the given Images.
-	     * @param data A array of typed arrays (per {@linkcode CubeFace}) containing the initial data.
-	     * @param mipLevel The mip-level to initialize.
-	     * @param {TextureFormat} format The texture's format.
-	     * @param {DataType} dataType The texture's data format.
-	     */
-	    uploadImagesToMipLevel: function(images, mipLevel, format, dataType)
-	    {
-	        var gl = GL.gl;
-	        this._format = format = format || TextureFormat.RGBA;
-	        this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
-
-	        if (mipLevel === 0)
-	            this._size = images[0].naturalWidth;
-
-	        this.bind();
-
-	        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-
-			var internalFormat = TextureFormat.getDefaultInternalFormat(format, dataType);
-	        gl.texImage2D(CubeFace.POSITIVE_X, mipLevel, internalFormat, format, dataType, images[0]);
-	        gl.texImage2D(CubeFace.NEGATIVE_X, mipLevel, internalFormat, format, dataType, images[1]);
-	        gl.texImage2D(CubeFace.POSITIVE_Y, mipLevel, internalFormat, format, dataType, images[2]);
-	        gl.texImage2D(CubeFace.NEGATIVE_Y, mipLevel, internalFormat, format, dataType, images[3]);
-	        gl.texImage2D(CubeFace.POSITIVE_Z, mipLevel, internalFormat, format, dataType, images[4]);
-	        gl.texImage2D(CubeFace.NEGATIVE_Z, mipLevel, internalFormat, format, dataType, images[5]);
-
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-	    },
-
-	    /**
-	     * Defines whether data has been uploaded to the texture or not.
-	     */
-	    isReady: function() { return this._isReady; },
-
-	    /**
-	     * Binds a texture to a given texture unit.
-	     * @ignore
-	     */
-	    bind: function(unitIndex)
-	    {
-	        var gl = GL.gl;
-
-	        if (unitIndex !== undefined)
-	            gl.activeTexture(gl.TEXTURE0 + unitIndex);
-
-	        gl.bindTexture(gl.TEXTURE_CUBE_MAP, this._texture);
-	    },
-
-	    /**
-	     * @ignore
-	     */
-	    toString: function()
-	    {
-	        return "[TextureCube(name=" + this.name + ")]";
-	    }
-	};
-
-	/**
-	 * @classdesc
-	 * BlendState defines the blend mode the renderer should use. Default presets include BlendState.ALPHA, BlendState.ADD
-	 * and BlendState.MULTIPLY.
-	 *
-	 * @param srcFactor The source blend factor.
-	 * @param dstFactor The destination blend factor.
-	 * @param operator The blend operator.
-	 * @param color The blend color.
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function BlendState(srcFactor, dstFactor, operator, color)
-	{
-	    /**
-	     * Defines whether blending is enabled.
-	     */
-	    this.enabled = true;
-
-	    /**
-	     * The source blend factor.
-	     * @see {@linkcode BlendFactor}
-	     */
-	    this.srcFactor = srcFactor || BlendFactor.ONE;
-
-	    /**
-	     * The destination blend factor.
-	     * @see {@linkcode BlendFactor}
-	     */
-	    this.dstFactor = dstFactor || BlendFactor.ZERO;
-
-	    /**
-	     * The blend operator.
-	     * @see {@linkcode BlendOperation}
-	     */
-	    this.operator = operator || BlendOperation.ADD;
-
-	    /**
-	     * The source blend factor for the alpha.
-	     * @see {@linkcode BlendFactor}
-	     */
-	    this.alphaSrcFactor = null;
-
-	    /**
-	     * The source blend factor for the alpha.
-	     * @see {@linkcode BlendFactor}
-	     */
-	    this.alphaDstFactor = null;
-
-	    /**
-	     * The blend operator for the alpha.
-	     * @see {@linkcode BlendOperation}
-	     */
-	    this.alphaOperator = null;
-
-	    /**
-	     * The blend color.
-	     * @see {@linkcode Color}
-	     */
-	    this.color = color || null;
-	}
-
-	BlendState.prototype = {
-	    /**
-	     * Creates a copy of this BlendState.
-	     */
-	    clone: function() {
-	        return new BlendState(this.srcFactor, this.dstFactor, this.operator, this.color);
-	    }
-	};
-
-	BlendState._initDefaults = function()
-	{
-	    BlendState.ADD = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE);
-	    BlendState.ADD_NO_ALPHA = new BlendState(BlendFactor.ONE, BlendFactor.ONE);
-	    BlendState.MULTIPLY = new BlendState(BlendFactor.DESTINATION_COLOR, BlendFactor.ZERO);
-	    BlendState.ALPHA = new BlendState(BlendFactor.SOURCE_ALPHA, BlendFactor.ONE_MINUS_SOURCE_ALPHA);
-	    BlendState.ALPHA.alphaSrcFactor = BlendFactor.ONE;
-	    BlendState.ALPHA.alphaDstFactor = BlendFactor.ONE_MINUS_SOURCE_ALPHA;
-	    BlendState.INV_ALPHA = new BlendState(BlendFactor.ONE_MINUS_SOURCE_ALPHA, BlendFactor.SOURCE_ALPHA);
-	};
-
-	/**
-	 * @classdesc
-	 * FrameBuffer provides a render target associated with a given texture/textures.
-	 *
-	 * @param colorTextures Either a single texture, or an Array of textures (only if {@linkcode capabilities#EXT_DRAW_BUFFERS} is supported).
-	 * @param depthBuffer An optional depth buffer. This can be a {@linkcode WriteOnlyDepthBuffer} or, if readback is required, a {@linkcode Texture2D} (only available if {@linkcode capabilities#EXT_DEPTH_TEXTURE} is supported).
-	 * @param cubeFace If colorTextures is a {@linkcode TextureCube}, cubeFace should contain the relevant {@linkcode CubeFace}.
-	 * @constructor
-	 *
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	function FrameBuffer(colorTextures, depthBuffer, cubeFace)
-	{
-	    if (colorTextures && colorTextures[0] === undefined) colorTextures = [ colorTextures ];
-
-	    this._cubeFace = cubeFace;
-	    this._colorTextures = colorTextures;
-	    this._numColorTextures = this._colorTextures? this._colorTextures.length : 0;
-	    this._depthBuffer = depthBuffer;
-
-	    if (this._colorTextures && this._numColorTextures > 1) {
-
-	        this._drawBuffers = new Array(this._numColorTextures);
-	        for (var i = 0; i < this._numColorTextures; ++i) {
-	            this._drawBuffers[i] = capabilities.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i;
-	        }
-	    }
-	    else {
-	        this._drawBuffers = null;
-	    }
-
-	    this._fbo = GL.gl.createFramebuffer();
-	}
-
-	FrameBuffer.prototype = {
-	    get width() { return this._width; },
-	    get height() { return this._height; },
-
-	    /**
-	     * Initializes the framebuffer object. This needs to be called whenever the Texture2D's are resized using initEmpty.
-	     * @param silent Whether or not warnings should be printed.
-	     */
-	    init: function(silent)
-	    {
-	        var gl = GL.gl;
-	        gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
-
-	        if (this._colorTextures) {
-	            if (this._cubeFace === undefined) {
-	                this._width = this._colorTextures[0]._width;
-	                this._height = this._colorTextures[0]._height;
-	            }
-	            else {
-	                this._height = this._width = this._colorTextures[0].size;
-	            }
-	        }
-	        else  {
-	            this._width = this._depthBuffer._width;
-	            this._height = this._depthBuffer._height;
-	        }
-
-	        var target = this._cubeFace === undefined? gl.TEXTURE_2D : this._cubeFace;
-
-	        if (this._numColorTextures === 1) {
-	            var texture = this._colorTextures[0];
-	            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, target, texture._texture, 0);
-	        }
-	        else if (capabilities.EXT_DRAW_BUFFERS) {
-	            for (var i = 0; i < this._numColorTextures; ++i) {
-	                texture = this._colorTextures[i];
-	                gl.framebufferTexture2D(gl.FRAMEBUFFER, capabilities.EXT_DRAW_BUFFERS.COLOR_ATTACHMENT0_WEBGL + i, target, texture._texture, 0);
-	            }
-	        }
-	        else
-	            throw new Error("Trying to bind multiple render targets without EXT_DRAW_BUFFERS support!");
-
-
-	        if (this._depthBuffer) {
-	            var attachment = this._depthBuffer.format === gl.DEPTH_STENCIL? gl.DEPTH_STENCIL_ATTACHMENT : gl.DEPTH_ATTACHMENT;
-
-	            if (this._depthBuffer instanceof Texture2D)
-	                gl.framebufferTexture2D(gl.FRAMEBUFFER, attachment, gl.TEXTURE_2D, this._depthBuffer._texture, 0);
-	            else
-	                gl.framebufferRenderbuffer(gl.FRAMEBUFFER, attachment, gl.RENDERBUFFER, this._depthBuffer._renderBuffer);
-	        }
-
-	        var status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-
-	        switch (status && !silent) {
-	            case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
-	                break;
-	            case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
-	                break;
-	            case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-	                console.warn("Failed to initialize FBO: FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
-	                break;
-	            case gl.FRAMEBUFFER_UNSUPPORTED:
-	                console.warn("Failed to initialize FBO: FRAMEBUFFER_UNSUPPORTED");
-	                break;
-	            default:
-	                // nothing
-	        }
-
-	        return status === gl.FRAMEBUFFER_COMPLETE;
-	    },
-
-		/**
-	     * Retrieves pixel data from this FBO. Not recommended, as it can be slow.
-		 */
-		readPixels: function()
-	    {
-			var gl = GL.gl;
-			var texture = this._colorTextures[0];
-			gl.bindFramebuffer(gl.FRAMEBUFFER, this._fbo);
-
-			var numComponents;
-			var pixels;
-			switch(texture.format) {
-	            case TextureFormat.RGB:
-					numComponents = 3;
-					break;
-	            case TextureFormat.RGBA:
-					numComponents = 4;
-					break;
-			}
-
-			var len = this.width * this.height * numComponents;
-			switch(texture.dataType) {
-	            case DataType.FLOAT:
-	            case DataType.HALF_FLOAT:
-					pixels = new Float32Array(len);
-	                break;
-	            case DataType.UNSIGNED_BYTE:
-					pixels = new Uint8Array(len);
-					break;
-	        }
-			gl.readPixels(0, 0, this.width, this.height, texture.format, texture.dataType, pixels);
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-	        return pixels;
-	    }
-
-	};
-
-	/**
-	 * @ignore
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var TextureSetter = {
-	    getSettersPerPass: function (materialPass)
-	    {
-	        if (TextureSetter._passTable === undefined)
-	            TextureSetter._init();
-
-	        return TextureSetter._findSetters(materialPass, TextureSetter._passTable);
-	    },
-
-	    getSettersPerInstance: function (materialPass)
-	    {
-	        if (TextureSetter._instanceTable === undefined)
-	            TextureSetter._init();
-
-	        return TextureSetter._findSetters(materialPass, TextureSetter._instanceTable);
-	    },
-
-	    _findSetters: function (materialPass, table)
-	    {
-	        var setters = [];
-	        for (var slotName in table) {
-	            if (!table.hasOwnProperty(slotName)) continue;
-	            var slot = materialPass.getTextureIndex(slotName);
-	            if (slot === -1) continue;
-	            var setter = new table[slotName]();
-	            setters.push(setter);
-	            setter.slot = slot;
-	            setter.pass = materialPass;
-	        }
-
-	        return setters;
-	    },
-
-	    _init: function()
-	    {
-	        TextureSetter._passTable = {};
-	        TextureSetter._instanceTable = {};
-
-	        TextureSetter._passTable.hx_normalDepthBuffer = NormalDepthBufferSetter;
-	        TextureSetter._passTable.hx_backbuffer = BackbufferSetter;
-	        TextureSetter._passTable.hx_frontbuffer = FrontbufferSetter;
-	        TextureSetter._passTable.hx_ssao = SSAOSetter;
-	        TextureSetter._passTable.hx_shadowMap = ShadowMapSetter;
-	        TextureSetter._passTable["hx_diffuseProbes[0]"] = DiffuseProbesSetter;
-	        TextureSetter._passTable["hx_specularProbes[0]"] = SpecularProbesSetter;
-
-	        TextureSetter._instanceTable.hx_skinningTexture = SkinningTextureSetter;
-	    }
-	};
-
-
-	// Texture setters can be either per pass or per instance. The execute method gets passed eithter the renderer or the
-	// render item, respectively.
-
-	function NormalDepthBufferSetter()
-	{
-	}
-
-	NormalDepthBufferSetter.prototype.execute = function (renderer)
-	{
-	    this.pass.setTextureByIndex(this.slot, renderer._normalDepthBuffer);
-	};
-
-
-	function FrontbufferSetter()
-	{
-	}
-
-	FrontbufferSetter.prototype.execute = function (renderer)
-	{
-	    if (renderer._hdrFront)
-			this.pass.setTextureByIndex(this.slot, renderer._hdrFront.texture);
-	};
-
-	function BackbufferSetter()
-	{
-	}
-
-	BackbufferSetter.prototype.execute = function (renderer)
-	{
-	    if (renderer._hdrBack)
-			this.pass.setTextureByIndex(this.slot, renderer._hdrBack.texture);
-	};
-
-	function SSAOSetter()
-	{
-	}
-
-	SSAOSetter.prototype.execute = function (renderer)
-	{
-		this.pass.setTextureByIndex(this.slot, renderer._ssaoTexture);
-	};
-
-	function ShadowMapSetter()
-	{
-	}
-
-	ShadowMapSetter.prototype.execute = function (renderer)
-	{
-		this.pass.setTextureByIndex(this.slot, renderer._shadowAtlas.texture);
-	};
-
-	function DiffuseProbesSetter()
-	{
-	}
-
-	DiffuseProbesSetter.prototype.execute = function (renderer)
-	{
-		this.pass.setTextureArrayByIndex(this.slot, renderer._diffuseProbeArray);
-	};
-
-	function SpecularProbesSetter()
-	{
-	}
-
-	SpecularProbesSetter.prototype.execute = function (renderer)
-	{
-	    this.pass.setTextureArrayByIndex(this.slot, renderer._specularProbeArray);
-	};
-
-	function SkinningTextureSetter()
-	{
-	}
-
-	SkinningTextureSetter.prototype.execute = function (renderItem)
-	{
-		this.pass.setTextureByIndex(this.slot, renderItem.skeletonMatrices);
-	};
-
-	/**
-	 * @ignore
-	 * @author derschmale <http://www.derschmale.com>
-	 */
-	var UniformBufferSetter = {
-	    getSettersPerPass: function (materialPass)
-	    {
-	        if (UniformBufferSetter._passTable === undefined)
-	            UniformBufferSetter._init();
-
-	        return UniformBufferSetter._findSetters(materialPass, UniformBufferSetter._passTable);
-	    },
-
-	    getSettersPerInstance: function (materialPass)
-	    {
-	        if (UniformBufferSetter._instanceTable === undefined)
-	            UniformBufferSetter._init();
-
-	        return UniformBufferSetter._findSetters(materialPass, UniformBufferSetter._instanceTable);
-	    },
-
-	    _findSetters: function (materialPass, table)
-	    {
-	        var setters = [];
-	        for (var slotName in table) {
-	            if (!table.hasOwnProperty(slotName)) continue;
-	            var slot = materialPass.getUniformBufferIndex(slotName);
-	            if (slot === -1) continue;
-	            var setter = new table[slotName]();
-	            setters.push(setter);
-	            setter.slot = slot;
-	            setter.pass = materialPass;
-	        }
-
-	        return setters;
-	    },
-
-	    _init: function()
-	    {
-	        UniformBufferSetter._passTable = {};
-	        UniformBufferSetter._instanceTable = {};
-
-	        UniformBufferSetter._passTable.hx_lights = LightsSetter;
-			UniformBufferSetter._passTable.hx_lightingCells = LightingCellsSetter;
-	    }
-	};
-
-	function LightsSetter()
-	{
-	}
-
-	LightsSetter.prototype.execute = function (renderer)
-	{
-	    this.pass.setUniformBufferByIndex(this.slot, renderer._lightingUniformBuffer);
-	};
-
-	function LightingCellsSetter()
-	{
-	}
-
-	LightingCellsSetter.prototype.execute = function (renderer)
-	{
-		this.pass.setUniformBufferByIndex(this.slot, renderer._lightingCellsUniformBuffer);
-	};
-
-	/**
-	 * @ignore
 	 * @param shader
 	 * @constructor
 	 *
@@ -11614,6 +11680,8 @@
 	    this._textures = new Array(shader.numTextures);
 		this._uniformBuffers = new Array(shader.numUniformBuffers);
 
+		this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
+		this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
 		this._textureSettersPass = TextureSetter.getSettersPerPass(this);
 	    this._textureSettersInstance = TextureSetter.getSettersPerInstance(this);
 
@@ -11623,6 +11691,7 @@
 	    }
 
 	    this.setTexture("hx_dither2D", DEFAULTS.DEFAULT_2D_DITHER_TEXTURE);
+	    this._uniformFuncs = {};
 	}
 
 	// these will be set upon initialization
@@ -11658,6 +11727,10 @@
 	                this._textureSettersInstance[i].execute(renderItem);
 	            }
 
+				len = this._uniformSettersInstance.length;
+				for (var i = 0; i < len; ++i)
+					this._uniformSettersInstance[i].execute(camera, renderItem);
+
 	            if (this._uniformBufferSettersInstance) {
 	                len = this._uniformBufferSettersInstance.length;
 
@@ -11665,8 +11738,6 @@
 	                    this._uniformBufferSettersInstance[i].execute(renderItem);
 	                }
 	            }
-
-	            this.shader.updateInstanceRenderState(camera, renderItem);
 	        },
 
 	        /**
@@ -11674,8 +11745,19 @@
 	         */
 	        updatePassRenderState: function (camera, renderer, data)
 	        {
-	            var len = this._textureSettersPass.length;
-	            var i;
+				GL.setShader(this.shader);
+
+	            var len, i;
+
+				for (var key in this._uniformFuncs)
+					this._uniformFuncs[key]();
+
+				len = this._uniformSettersPass.length;
+				for (var i = 0; i < len; ++i)
+					this._uniformSettersPass[i].execute(camera, renderer);
+
+				len = this._textureSettersPass.length;
+
 	            for (i = 0; i < len; ++i) {
 	                this._textureSettersPass[i].execute(renderer);
 	            }
@@ -11712,8 +11794,6 @@
 	            }
 
 	            GL.setMaterialPassState(this.cullMode, this.depthTest, this.writeDepth, this.writeColor, this.blendState);
-
-	            this.shader.updatePassRenderState(camera, renderer);
 	        },
 
 			/**
@@ -11762,7 +11842,6 @@
 			/**
 			 * Allows getting the uniform buffer index. For textures that often change, it may be better to cache this value
 			 * and assign the textures through setUniformBufferByIndex.
-			 * and assign the textures through setUniformBufferByIndex.
 			 */
 			getUniformBufferIndex: function(name)
 			{
@@ -11808,114 +11887,114 @@
 	        {
 	            name += "[0]";
 
-	            if (!this.shader.hasUniform(name))
-	                return;
-
 	            var uniform = this.shader.getUniform(name);
+
+	            if (!uniform) return;
 	            var gl = GL.gl;
-	            gl.useProgram(this.shader.program);
+	            var func;
 
 	            switch(uniform.type) {
 	                case gl.FLOAT:
-	                    gl.uniform1fv(uniform.location, value);
+						func = gl.uniform1fv.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.FLOAT_VEC2:
-	                    gl.uniform2fv(uniform.location, value);
+						func = gl.uniform2fv.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.FLOAT_VEC3:
-	                    gl.uniform3fv(uniform.location, value);
+						func = gl.uniform3fv.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.FLOAT_VEC4:
-	                    gl.uniform4fv(uniform.location, value);
+						func = gl.uniform4fv.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.FLOAT_MAT4:
-	                    gl.uniformMatrix4fv(uniform.location, false, value);
+						func = gl.uniformMatrix4fv.bind(gl, uniform.location, false, value);
 	                    break;
 	                case gl.INT:
-	                    gl.uniform1iv(uniform.location, value);
+						func = gl.uniform1iv.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.INT_VEC2:
-	                    gl.uniform2iv(uniform.location, value);
+						func = gl.uniform2iv.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.INT_VEC3:
-	                    gl.uniform3iv(uniform.location, value);
+						func = gl.uniform3iv.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.INT_VEC4:
-	                    gl.uniform1iv(uniform.location, value);
+						func = gl.uniform1iv.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.BOOL:
-	                    gl.uniform1bv(uniform.location, value);
+						func = gl.uniform1bv.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.BOOL_VEC2:
-	                    gl.uniform2bv(uniform.location, value);
+						func = gl.uniform2bv.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.BOOL_VEC3:
-	                    gl.uniform3bv(uniform.location, value);
+						func = gl.uniform3bv.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.BOOL_VEC4:
-	                    gl.uniform4bv(uniform.location, value);
+						func = gl.uniform4bv.bind(gl, uniform.location, value);
 	                    break;
 	                default:
 	                    throw new Error("Unsupported uniform format for setting (" + uniform.type + ") for uniform '" + name + "'. May be a todo.");
 
 	            }
+
+				this._uniformFuncs[name] = func;
 	        },
 
 	        setUniform: function(name, value)
 	        {
-	            // TODO: Assign these on shader
-	            if (!this.shader.hasUniform(name))
-	                return;
-
 	            var uniform = this.shader.getUniform(name);
 
+	            if (!uniform) return;
+
 	            var gl = GL.gl;
-	            gl.useProgram(this.shader.program);
+	            var func;
 
 	            switch(uniform.type) {
 	                case gl.FLOAT:
-	                    gl.uniform1f(uniform.location, value);
+						func = gl.uniform1f.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.FLOAT_VEC2:
-	                    gl.uniform2f(uniform.location, value.x || value[0] || 0, value.y || value[1] || 0);
+						func = gl.uniform2f.bind(gl, uniform.location, value.x || value[0] || 0, value.y || value[1] || 0);
 	                    break;
 	                case gl.FLOAT_VEC3:
-	                    gl.uniform3f(uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0 );
+						func = gl.uniform3f.bind(gl, uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0 );
 	                    break;
 	                case gl.FLOAT_VEC4:
-	                    gl.uniform4f(uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0, value.w || value.a || value[3] || 0);
+						func = gl.uniform4f.bind(gl, uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0, value.w || value.a || value[3] || 0);
 	                    break;
 	                case gl.INT:
-	                    gl.uniform1i(uniform.location, value);
+						func = gl.uniform1i.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.INT_VEC2:
-	                    gl.uniform2i(uniform.location, value.x || value[0], value.y || value[1]);
+						func = gl.uniform2i.bind(gl, uniform.location, value.x || value[0], value.y || value[1]);
 	                    break;
 	                case gl.INT_VEC3:
-	                    gl.uniform3i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
+						func = gl.uniform3i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
 	                    break;
 	                case gl.INT_VEC4:
-	                    gl.uniform4i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
+						func = gl.uniform4i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
 	                    break;
 	                case gl.BOOL:
-	                    gl.uniform1i(uniform.location, value);
+						func = gl.uniform1i.bind(gl, uniform.location, value);
 	                    break;
 	                case gl.BOOL_VEC2:
-	                    gl.uniform2i(uniform.location, value.x || value[0], value.y || value[1]);
+						func = gl.uniform2i.bind(gl, uniform.location, value.x || value[0], value.y || value[1]);
 	                    break;
 	                case gl.BOOL_VEC3:
-	                    gl.uniform3i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
+						func = gl.uniform3i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
 	                    break;
 	                case gl.BOOL_VEC4:
-	                    gl.uniform4i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
+						func = gl.uniform4i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
 	                    break;
 	                case gl.FLOAT_MAT4:
-	                    gl.uniformMatrix4fv(uniform.location, false, value._m);
+						func = gl.uniformMatrix4fv.bind(gl, uniform.location, false, value._m);
 	                    break;
 	                default:
 	                    throw new Error("Unsupported uniform format for setting. May be a todo.");
-
 	            }
+
+				this._uniformFuncs[name] = func;
 	        }
 	    };
 
@@ -12735,7 +12814,12 @@
 			/**
 	         * The Audio Context used for audio playback
 			 */
-			AUDIO_CONTEXT: null
+			AUDIO_CONTEXT: null,
+
+			/**
+	         * The current frame mark. Used for usage checking in cached programs.
+			 */
+			CURRENT_FRAME_MARK: 0
 		};
 
 	/**
@@ -13305,6 +13389,10 @@
 
 	function _onFrameTick(dt)
 	{
+		++META.CURRENT_FRAME_MARK;
+
+		ProgramCache.purge(META.CURRENT_FRAME_MARK);
+
 	    var startTime = (performance || Date).now();
 
 	    updateGamepads();
@@ -17542,10 +17630,11 @@
 	    this._writeDepth = true;
 	    this._writeColor = true;
 	    this._passes = new Array(Material.NUM_PASS_TYPES);
-	    // automatic render order by engine
-	    this._renderOrderHint = ++MATERIAL_ID_COUNTER;
-	    // forced render order by user:
-	    this.renderOrder = 0;
+
+		this.renderOrder = 0; // forced render order by user:
+	    this._renderOrderHint = MATERIAL_ID_COUNTER; // automatic render order to limit pass switches by engine
+	    this._shaderRenderOrderHint = 0; // automatic render order to limit program switches by engine
+
 	    this._renderPath = null;
 	    this._textures = {};
 	    this._uniforms = {};
@@ -17564,6 +17653,8 @@
 
 	    this.needsNormalDepth = false;
 	    this.needsBackbuffer = false;
+
+	    ++MATERIAL_ID_COUNTER;
 	}
 
 	Material.ID_COUNTER = 0;
@@ -17622,6 +17713,9 @@
 	        this.setPass(MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, new PointShadowPass(vertex, fragment));
 
 	        this.setPass(MaterialPass.NORMAL_DEPTH_PASS, new NormalDepthPass(vertex, fragment));
+
+	        // We will also need to order per shader
+	        this._shaderRenderOrderHint = this._passes[MaterialPass.BASE_PASS].shader.renderOrderHint;
 
 	        this._initialized = true;
 	    },
@@ -19174,13 +19268,21 @@
 	    sortOpaques: function(a, b)
 	    {
 	        var diff;
+	        var ma = a.material, mb = b.material;
 
-	        diff = a.material._renderOrder - b.material._renderOrder;
+	        // explicit order set by user is the most important
+	        diff = ma._renderOrder - mb._renderOrder;
 	        if (diff !== 0) return diff;
 
-	        diff = a.material._renderOrderHint - b.material._renderOrderHint;
+	        // limiting shader switches by grouping them
+	        diff = ma._shaderRenderOrderHint - mb._shaderRenderOrderHint;
 	        if (diff !== 0) return diff;
 
+	        // limiting pass state updates
+	        diff = ma._renderOrderHint - mb._renderOrderHint;
+	        if (diff !== 0) return diff;
+
+	        // limiting instance updates
 	        return a.renderOrderHint - b.renderOrderHint;
 	    },
 
@@ -26783,7 +26885,7 @@
 	        target.initEmpty(size, source.format, source.dataType);
 	        var faces = [ CubeFace.POSITIVE_X, CubeFace.NEGATIVE_X, CubeFace.POSITIVE_Y, CubeFace.NEGATIVE_Y, CubeFace.POSITIVE_Z, CubeFace.NEGATIVE_Z ];
 
-	        EquirectangularTexture._EQUI_TO_CUBE_SHADER.updatePassRenderState();
+			GL.setShader(EquirectangularTexture._EQUI_TO_CUBE_SHADER);
 
 	        var textureLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getUniformLocation("source");
 	        var posLocation = EquirectangularTexture._EQUI_TO_CUBE_SHADER.getAttributeLocation("hx_position");
@@ -29248,7 +29350,7 @@
 	    rect._vertexBuffers[0].bind();
 	    rect._indexBuffer.bind();
 
-	    this.updatePassRenderState();
+	    GL.setShader(this);
 
 	    texture.bind(0);
 
@@ -29302,7 +29404,7 @@
 	    rect._vertexBuffers[0].bind();
 	    rect._indexBuffer.bind();
 
-	    this.updatePassRenderState();
+		GL.setShader(this);
 
 	    texture.bind(0);
 

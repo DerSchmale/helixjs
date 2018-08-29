@@ -1,5 +1,6 @@
 import { capabilities, ClearMask, Comparison, CullMode, StencilOp, META } from '../Helix.js';
 import { Color } from '../core/Color.js';
+import {ProgramCache} from "../shader/ProgramCache";
 
 // Just contains some convenience methods and GL management stuff that shouldn't be called directly
 // Will become an abstraction layer
@@ -13,6 +14,7 @@ var _invertCullMode = false;
 var _depthTest = null;
 var _blendState = null;
 var _renderTarget = null;
+var _shader = null;
 
 // this is so that effects can push states on the stack
 // the renderer at the root just pushes one single state and invalidates that constantly
@@ -79,6 +81,18 @@ var GL = {
         gl.drawElements(elementType, numIndices, indexType, offset * 2);
     },
 
+    setShader: function(shader)
+    {
+        if (_shader === shader) return;
+
+		GL.gl.useProgram(shader.program);
+
+		if (!shader._cachedProgram.isCached)
+			shader._cachedProgram = ProgramCache.resolveLost(shader._cachedProgram);
+
+		// let the cache know that we're still using the program in this frame
+		shader._cachedProgram.frameMark = META.CURRENT_FRAME_MARK;
+    },
 
     /**
      * Sets the viewport to render into.

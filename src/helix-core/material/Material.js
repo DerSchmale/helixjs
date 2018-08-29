@@ -45,10 +45,11 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._writeDepth = true;
     this._writeColor = true;
     this._passes = new Array(Material.NUM_PASS_TYPES);
-    // automatic render order by engine
-    this._renderOrderHint = ++MATERIAL_ID_COUNTER;
-    // forced render order by user:
-    this.renderOrder = 0;
+
+	this.renderOrder = 0; // forced render order by user:
+    this._renderOrderHint = MATERIAL_ID_COUNTER; // automatic render order to limit pass switches by engine
+    this._shaderRenderOrderHint = 0; // automatic render order to limit program switches by engine
+
     this._renderPath = null;
     this._textures = {};
     this._uniforms = {};
@@ -67,6 +68,8 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
 
     this.needsNormalDepth = false;
     this.needsBackbuffer = false;
+
+    ++MATERIAL_ID_COUNTER;
 }
 
 Material.ID_COUNTER = 0;
@@ -125,6 +128,9 @@ Material.prototype =
         this.setPass(MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, new PointShadowPass(vertex, fragment));
 
         this.setPass(MaterialPass.NORMAL_DEPTH_PASS, new NormalDepthPass(vertex, fragment));
+
+        // We will also need to order per shader
+        this._shaderRenderOrderHint = this._passes[MaterialPass.BASE_PASS].shader.renderOrderHint;
 
         this._initialized = true;
     },

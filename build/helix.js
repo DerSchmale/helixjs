@@ -3599,6 +3599,12 @@
 
 	ShaderLibrary._files['debug_bounds_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nuniform mat4 hx_wvpMatrix;\n\nvoid main()\n{\n    gl_Position = hx_wvpMatrix * hx_position;\n}';
 
+	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
+
+	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
+
+	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
+
 	ShaderLibrary._files['directional_light.glsl'] = 'struct HX_DirectionalLight\n{\n    vec3 color;\n    vec3 direction; // in view space?\n\n    int castShadows;\n\n    mat4 shadowMapMatrices[4];\n    vec4 splitDistances;\n\n    float depthBias;\n    float maxShadowDistance;    // = light.splitDistances[light.numCascades - 1]\n};\n\nvoid hx_calculateLight(HX_DirectionalLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n	hx_brdf(geometry, light.direction, viewVector, viewPosition, light.color, normalSpecularReflectance, diffuse, specular);\n}\n\nmat4 hx_getShadowMatrix(HX_DirectionalLight light, vec3 viewPos)\n{\n    #if HX_NUM_SHADOW_CASCADES > 1\n        // not very efficient :(\n        for (int i = 0; i < HX_NUM_SHADOW_CASCADES - 1; ++i) {\n            if (viewPos.y < light.splitDistances[i])\n                return light.shadowMapMatrices[i];\n        }\n        return light.shadowMapMatrices[HX_NUM_SHADOW_CASCADES - 1];\n    #else\n        return light.shadowMapMatrices[0];\n    #endif\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_DirectionalLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    mat4 shadowMatrix = hx_getShadowMatrix(light, viewPos);\n    vec4 shadowMapCoord = shadowMatrix * vec4(viewPos, 1.0);\n    float shadow = hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n\n    // this can occur when meshInstance.castShadows = false, or using inherited bounds\n    bool isOutside = max(shadowMapCoord.x, shadowMapCoord.y) > 1.0 || min(shadowMapCoord.x, shadowMapCoord.y) < 0.0;\n    if (isOutside) shadow = 1.0;\n\n    // this makes sure that anything beyond the last cascade is unshadowed\n    return max(shadow, float(viewPos.y > light.maxShadowDistance));\n}\n#endif';
 
 	ShaderLibrary._files['light_probe.glsl'] = '#define HX_PROBE_K0 .00098\n#define HX_PROBE_K1 .9921\n\n// really only used for clustered\nstruct HX_Probe\n{\n    int hasDiffuse;\n    int hasSpecular;\n    float numMipLevels;\n};\n\n/*\nvar minRoughness = 0.0014;\nvar maxPower = 2.0 / (minRoughness * minRoughness) - 2.0;\nvar maxMipFactor = (exp2(-10.0/Math.sqrt(maxPower)) - HX_PROBE_K0)/HX_PROBE_K1;\nvar HX_PROBE_SCALE = 1.0 / maxMipFactor\n*/\n\n#define HX_PROBE_SCALE\n\nvec3 hx_calculateDiffuseProbeLight(samplerCube texture, vec3 normal)\n{\n	return hx_gammaToLinear(textureCube(texture, normal.xzy).xyz);\n}\n\nvec3 hx_calculateSpecularProbeLight(samplerCube texture, float numMips, vec3 reflectedViewDir, vec3 fresnelColor, float roughness)\n{\n    #if defined(HX_TEXTURE_LOD) || defined (HX_GLSL_300_ES)\n    // knald method:\n        float power = 2.0/(roughness * roughness) - 2.0;\n        float factor = (exp2(-10.0/sqrt(power)) - HX_PROBE_K0)/HX_PROBE_K1;\n//        float mipLevel = numMips * (1.0 - clamp(factor * HX_PROBE_SCALE, 0.0, 1.0));\n        float mipLevel = numMips * (1.0 - clamp(factor, 0.0, 1.0));\n        #ifdef HX_GLSL_300_ES\n        vec4 specProbeSample = textureLod(texture, reflectedViewDir.xzy, mipLevel);\n        #else\n        vec4 specProbeSample = textureCubeLodEXT(texture, reflectedViewDir.xzy, mipLevel);\n        #endif\n    #else\n        vec4 specProbeSample = textureCube(texture, reflectedViewDir.xzy);\n    #endif\n	return hx_gammaToLinear(specProbeSample.xyz) * fresnelColor;\n}';
@@ -3606,12 +3612,6 @@
 	ShaderLibrary._files['point_light.glsl'] = 'struct HX_PointLight\n{\n    vec3 color;\n    vec3 position;\n    float radius;\n    float rcpRadius;\n\n    float depthBias;\n    mat4 shadowMapMatrix;\n    int castShadows;\n    vec4 shadowTiles[6];    // for each cube face\n};\n\nvoid hx_calculateLight(HX_PointLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_PointLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec3 dir = viewPos - light.position;\n    // go from view space back to world space, as a vector\n    float dist = length(dir);\n    dir = mat3(light.shadowMapMatrix) * dir;\n\n    // swizzle to opengl cube map space\n    dir = dir.xzy;\n\n    vec3 absDir = abs(dir);\n    float maxDir = max(max(absDir.x, absDir.y), absDir.z);\n    vec2 uv;\n    vec4 tile;\n    if (absDir.x == maxDir) {\n        tile = dir.x > 0.0? light.shadowTiles[0]: light.shadowTiles[1];\n        // signs are important (hence division by either dir or absDir\n        uv = vec2(-dir.z / dir.x, -dir.y / absDir.x);\n    }\n    else if (absDir.y == maxDir) {\n        tile = dir.y > 0.0? light.shadowTiles[4]: light.shadowTiles[5];\n        uv = vec2(dir.x / absDir.y, dir.z / dir.y);\n    }\n    else {\n        tile = dir.z > 0.0? light.shadowTiles[2]: light.shadowTiles[3];\n        uv = vec2(dir.x / dir.z, -dir.y / absDir.z);\n    }\n\n    // match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    uv *= .95;\n\n    vec4 shadowMapCoord;\n    shadowMapCoord.xy = uv * tile.xy + tile.zw;\n    shadowMapCoord.z = dist * light.rcpRadius;\n    shadowMapCoord.w = 1.0;\n    return  hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
 
 	ShaderLibrary._files['spot_light.glsl'] = 'struct HX_SpotLight\n{\n    vec3 color;\n    vec3 position;\n    vec3 direction;\n    float radius;\n    float rcpRadius;\n\n    vec2 angleData;    // cos(inner), rcp(cos(outer) - cos(inner))\n\n    mat4 shadowMapMatrix;\n    float depthBias;\n    int castShadows;\n\n    vec4 shadowTile;    // xy = scale, zw = offset\n};\n\nvoid hx_calculateLight(HX_SpotLight light, HX_GeometryData geometry, vec3 viewVector, vec3 viewPosition, vec3 normalSpecularReflectance, out vec3 diffuse, out vec3 specular)\n{\n    vec3 direction = viewPosition - light.position;\n    float attenuation = dot(direction, direction);  // distance squared\n    float distance = sqrt(attenuation);\n    // normalize\n    direction /= distance;\n\n    float cosAngle = dot(light.direction, direction);\n\n    attenuation = max((1.0 - distance * light.rcpRadius) / attenuation, 0.0);\n    attenuation *=  saturate((cosAngle - light.angleData.x) * light.angleData.y);\n\n	hx_brdf(geometry, direction, viewVector, viewPosition, light.color * attenuation, normalSpecularReflectance, diffuse, specular);\n}\n\n#ifdef HX_FRAGMENT_SHADER\nfloat hx_calculateShadows(HX_SpotLight light, sampler2D shadowMap, vec3 viewPos)\n{\n    vec4 shadowMapCoord = light.shadowMapMatrix * vec4(viewPos, 1.0);\n    shadowMapCoord /= shadowMapCoord.w;\n    // *.9 --> match the scaling applied in the shadow map pass (used to reduce bleeding from filtering)\n    shadowMapCoord.xy = shadowMapCoord.xy * .95 * light.shadowTile.xy + light.shadowTile.zw;\n    shadowMapCoord.z = length(viewPos - light.position) * light.rcpRadius;\n    return hx_readShadow(shadowMap, shadowMapCoord, light.depthBias);\n}\n#endif';
-
-	ShaderLibrary._files['lighting_blinn_phong.glsl'] = '/*// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, float roughness, float nDotL)\n{\n	float nDotV = max(-dot(normal, viewDir), 0.0);\n	float r = roughness * roughness * 0.797896;\n	float g1 = nDotV * (1.0 - r) + r;\n	float g2 = nDotL * (1.0 - r) + r;\n    return .25 / (g1 * g2);\n}*/\n\nfloat hx_blinnPhongDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n	float roughnessSqr = clamp(roughness * roughness, 0.0001, .9999);\n//	roughnessSqr *= roughnessSqr;\n	float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n	return pow(halfDotNormal, 2.0/roughnessSqr - 2.0) / roughnessSqr;\n}\n\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n	float distribution = hx_blinnPhongDistribution(geometry.roughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	// to the 5th power\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance)*pow(cosAngle, 5.0);\n\n// / PI factor is encoded in light colour\n	diffuseColor = irradiance;\n	specularColor = irradiance * fresnel * distribution;\n\n//#ifdef HX_VISIBILITY\n//    specularColor *= hx_lightVisibility(normal, lightDir, geometry.roughness, nDotL);\n//#endif\n}';
-
-	ShaderLibrary._files['lighting_debug.glsl'] = 'void hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	diffuseColor = vec3(0.0);\n	specularColor = vec3(0.0);\n}';
-
-	ShaderLibrary._files['lighting_ggx.glsl'] = '#ifdef HX_VISIBILITY_TERM\nfloat hx_geometryTerm(vec3 normal, vec3 dir, float k)\n{\n    float d = max(-dot(normal, dir), 0.0);\n    return d / (d * (1.0 - k) + k);\n}\n\n// schlick-beckman\nfloat hx_lightVisibility(vec3 normal, vec3 viewDir, vec3 lightDir, float roughness)\n{\n	float k = roughness + 1.0;\n	k = k * k * .125;\n	return hx_geometryTerm(normal, viewDir, k) * hx_geometryTerm(normal, lightDir, k);\n}\n#endif\n\nfloat hx_ggxDistribution(float roughness, vec3 normal, vec3 halfVector)\n{\n    float roughSqr = roughness*roughness;\n    float halfDotNormal = max(-dot(halfVector, normal), 0.0);\n    float denom = (halfDotNormal * halfDotNormal) * (roughSqr - 1.0) + 1.0;\n    return roughSqr / (denom * denom);\n}\n\n// light dir is to the lit surface\n// view dir is to the lit surface\nvoid hx_brdf(in HX_GeometryData geometry, in vec3 lightDir, in vec3 viewDir, in vec3 viewPos, in vec3 lightColor, vec3 normalSpecularReflectance, out vec3 diffuseColor, out vec3 specularColor)\n{\n	float nDotL = max(-dot(lightDir, geometry.normal), 0.0);\n	vec3 irradiance = nDotL * lightColor;	// in fact irradiance / PI\n\n	vec3 halfVector = normalize(lightDir + viewDir);\n\n    float mappedRoughness =  geometry.roughness * geometry.roughness;\n\n	float distribution = hx_ggxDistribution(mappedRoughness, geometry.normal, halfVector);\n\n	float halfDotLight = max(dot(halfVector, lightDir), 0.0);\n	float cosAngle = 1.0 - halfDotLight;\n	vec3 fresnel = normalSpecularReflectance + (1.0 - normalSpecularReflectance) * pow(cosAngle, 5.0);\n\n	diffuseColor = irradiance;\n\n	specularColor = irradiance * fresnel * distribution;\n\n#ifdef HX_VISIBILITY_TERM\n    specularColor *= hx_lightVisibility(geometry.normal, viewDir, lightDir, geometry.roughness);\n#endif\n}';
 
 	ShaderLibrary._files['default_geometry_fragment.glsl'] = 'uniform vec3 color;\nuniform vec3 emissiveColor;\nuniform float alpha;\n\n#if defined(COLOR_MAP) || defined(NORMAL_MAP)|| defined(SPECULAR_MAP)|| defined(ROUGHNESS_MAP) || defined(MASK_MAP) || defined(METALLIC_ROUGHNESS_MAP) || defined(OCCLUSION_MAP) || defined(EMISSION_MAP)\nvarying_in vec2 texCoords;\n#endif\n\n#ifdef COLOR_MAP\nuniform sampler2D colorMap;\n#endif\n\n#ifdef OCCLUSION_MAP\nuniform sampler2D occlusionMap;\n#endif\n\n#ifdef EMISSION_MAP\nuniform sampler2D emissionMap;\n#endif\n\n#ifdef MASK_MAP\nuniform sampler2D maskMap;\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    varying_in vec3 normal;\n\n    #ifdef NORMAL_MAP\n    varying_in vec3 tangent;\n    varying_in vec3 bitangent;\n\n    uniform sampler2D normalMap;\n    #endif\n#endif\n\n#ifndef HX_SKIP_SPECULAR\nuniform float roughness;\nuniform float roughnessRange;\nuniform float normalSpecularReflectance;\nuniform float metallicness;\n\n#if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\nuniform sampler2D specularMap;\n#endif\n\n#endif\n\n#if defined(ALPHA_THRESHOLD)\nuniform float alphaThreshold;\n#endif\n\n#ifdef VERTEX_COLORS\nvarying_in vec3 vertexColor;\n#endif\n\nHX_GeometryData hx_geometry()\n{\n    HX_GeometryData data;\n\n    vec4 outputColor = vec4(color, alpha);\n\n    #ifdef VERTEX_COLORS\n        outputColor.xyz *= vertexColor;\n    #endif\n\n    #ifdef COLOR_MAP\n        outputColor *= texture2D(colorMap, texCoords);\n    #endif\n\n    #ifdef MASK_MAP\n        outputColor.w *= texture2D(maskMap, texCoords).x;\n    #endif\n\n    #ifdef ALPHA_THRESHOLD\n        if (outputColor.w < alphaThreshold) discard;\n    #endif\n\n    data.color = hx_gammaToLinear(outputColor);\n\n#ifndef HX_SKIP_SPECULAR\n    float metallicnessOut = metallicness;\n    float specNormalReflOut = normalSpecularReflectance;\n    float roughnessOut = roughness;\n#endif\n\n#if defined(HX_SKIP_NORMALS) && defined(NORMAL_ROUGHNESS_MAP) && !defined(HX_SKIP_SPECULAR)\n    vec4 normalSample = texture2D(normalMap, texCoords);\n    roughnessOut -= roughnessRange * (normalSample.w - .5);\n#endif\n\n#ifndef HX_SKIP_NORMALS\n    vec3 fragNormal = normal;\n\n    #ifdef NORMAL_MAP\n        vec4 normalSample = texture2D(normalMap, texCoords);\n        mat3 TBN;\n        TBN[2] = normalize(normal);\n        TBN[0] = normalize(tangent);\n        TBN[1] = normalize(bitangent);\n\n        fragNormal = TBN * (normalSample.xyz - .5);\n\n        #ifdef NORMAL_ROUGHNESS_MAP\n            roughnessOut -= roughnessRange * (normalSample.w - .5);\n        #endif\n    #endif\n\n    #ifdef DOUBLE_SIDED\n        fragNormal *= gl_FrontFacing? 1.0 : -1.0;\n    #endif\n    data.normal = normalize(fragNormal);\n#endif\n\n#ifndef HX_SKIP_SPECULAR\n    #if defined(SPECULAR_MAP) || defined(ROUGHNESS_MAP) || defined(METALLIC_ROUGHNESS_MAP)\n          vec4 specSample = texture2D(specularMap, texCoords);\n\n          #ifdef METALLIC_ROUGHNESS_MAP\n              roughnessOut -= roughnessRange * (specSample.y - .5);\n              metallicnessOut *= specSample.z;\n\n          #else\n              roughnessOut -= roughnessRange * (specSample.x - .5);\n\n              #ifdef SPECULAR_MAP\n                  specNormalReflOut *= specSample.y;\n                  metallicnessOut *= specSample.z;\n              #endif\n          #endif\n    #endif\n\n    data.metallicness = metallicnessOut;\n    data.normalSpecularReflectance = specNormalReflOut;\n    data.roughness = roughnessOut;\n#endif\n\n    data.occlusion = 1.0;\n\n#ifdef OCCLUSION_MAP\n    data.occlusion = texture2D(occlusionMap, texCoords).x;\n#endif\n\n    vec3 emission = emissiveColor;\n#ifdef EMISSION_MAP\n    emission *= texture2D(emissionMap, texCoords).xyz;\n#endif\n\n    data.emission = hx_gammaToLinear(emission);\n    return data;\n}';
 
@@ -3663,18 +3663,6 @@
 
 	ShaderLibrary._files['material_unlit_vertex.glsl'] = 'void main()\n{\n    hx_geometry();\n}';
 
-	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
-
-	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
-
-	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
-
-	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
-
-	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
-
-	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
-
 	ShaderLibrary._files['bloom_composite_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D bloomTexture;\nuniform sampler2D hx_backbuffer;\nuniform float strength;\n\nvoid main()\n{\n	hx_FragColor = texture2D(hx_backbuffer, uv) + texture2D(bloomTexture, uv) * strength;\n}';
 
 	ShaderLibrary._files['bloom_composite_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n	   uv = hx_texCoord;\n	   gl_Position = hx_position;\n}';
@@ -3704,6 +3692,18 @@
 	ShaderLibrary._files['tonemap_reference_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D hx_backbuffer;\n\nvoid main()\n{\n	vec4 color = texture2D(hx_backbuffer, uv);\n	float lum = clamp(hx_luminance(color), 0.0, 1000.0);\n	float l = log(1.0 + lum);\n	hx_FragColor = vec4(l, l, l, 1.0);\n}';
 
 	ShaderLibrary._files['tonemap_reinhard_fragment.glsl'] = 'void main()\n{\n	vec4 color = hx_getToneMapScaledColor();\n	float lum = hx_luminance(color);\n	hx_FragColor = color / (1.0 + lum);\n}';
+
+	ShaderLibrary._files['blend_color_copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nuniform vec4 blendColor;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = texture2D(sampler, uv) * blendColor;\n}\n';
+
+	ShaderLibrary._files['copy_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n    // extractChannel comes from a macro\n   hx_FragColor = vec4(extractChannels(texture2D(sampler, uv)));\n\n#ifndef COPY_ALPHA\n   hx_FragColor.a = 1.0;\n#endif\n}\n';
+
+	ShaderLibrary._files['copy_to_gamma_fragment.glsl'] = 'varying_in vec2 uv;\n\nuniform sampler2D sampler;\n\nvoid main()\n{\n   hx_FragColor = hx_linearToGamma(texture2D(sampler, uv));\n}';
+
+	ShaderLibrary._files['copy_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\nvertex_attribute vec2 hx_texCoord;\n\nvarying_out vec2 uv;\n\nvoid main()\n{\n    uv = hx_texCoord;\n    gl_Position = hx_position;\n}';
+
+	ShaderLibrary._files['null_fragment.glsl'] = 'void main()\n{\n   hx_FragColor = vec4(1.0);\n}\n';
+
+	ShaderLibrary._files['null_vertex.glsl'] = 'vertex_attribute vec4 hx_position;\n\nvoid main()\n{\n    gl_Position = hx_position;\n}';
 
 	ShaderLibrary._files['snippets_general.glsl'] = '#define HX_LOG_10 2.302585093\n\n#ifdef HX_GLSL_300_ES\n// replace some outdated function names\nvec4 texture2D(sampler2D s, vec2 uv) { return texture(s, uv); }\nvec4 textureCube(samplerCube s, vec3 uvw) { return texture(s, uvw); }\n\n#define vertex_attribute in\n#define varying_in in\n#define varying_out out\n\n#ifdef HX_FRAGMENT_SHADER\nout vec4 hx_FragColor;\n#endif\n\n#else\n\n#define vertex_attribute attribute\n#define varying_in varying\n#define varying_out varying\n#define hx_FragColor gl_FragColor\n\n#endif\n\nfloat saturate(float value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec2 saturate(vec2 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec3 saturate(vec3 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\nvec4 saturate(vec4 value)\n{\n    return clamp(value, 0.0, 1.0);\n}\n\n// Only for 0 - 1\nvec4 hx_floatToRGBA8(float value)\n{\n    vec4 enc = value * vec4(1.0, 255.0, 65025.0, 16581375.0);\n    // cannot fract first value or 1 would not be encodable\n    enc.yzw = fract(enc.yzw);\n    return enc - enc.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0);\n}\n\nfloat hx_RGBA8ToFloat(vec4 rgba)\n{\n    return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));\n}\n\nvec2 hx_floatToRG8(float value)\n{\n    vec2 enc = vec2(1.0, 255.0) * value;\n    enc.y = fract(enc.y);\n    enc.x -= enc.y / 255.0;\n    return enc;\n}\n\nfloat hx_RG8ToFloat(vec2 rg)\n{\n    return dot(rg, vec2(1.0, 1.0/255.0));\n}\n\nvec2 hx_encodeNormal(vec3 normal)\n{\n    vec2 data;\n    float p = sqrt(-normal.y*8.0 + 8.0);\n    data = normal.xz / p + .5;\n    return data;\n}\n\nvec3 hx_decodeNormal(vec4 data)\n{\n    vec3 normal;\n    data.xy = data.xy*4.0 - 2.0;\n    float f = dot(data.xy, data.xy);\n    float g = sqrt(1.0 - f * .25);\n    normal.xz = data.xy * g;\n    normal.y = -(1.0 - f * .5);\n    return normal;\n}\n\nfloat hx_log10(float val)\n{\n    return log(val) / HX_LOG_10;\n}\n\nvec4 hx_gammaToLinear(vec4 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec3 hx_gammaToLinear(vec3 color)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        color.x = pow(color.x, 2.2);\n        color.y = pow(color.y, 2.2);\n        color.z = pow(color.z, 2.2);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        color.xyz *= color.xyz;\n    #endif\n    return color;\n}\n\nvec4 hx_linearToGamma(vec4 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\nvec3 hx_linearToGamma(vec3 linear)\n{\n    #if defined(HX_GAMMA_CORRECTION_PRECISE)\n        linear.x = pow(linear.x, 0.454545);\n        linear.y = pow(linear.y, 0.454545);\n        linear.z = pow(linear.z, 0.454545);\n    #elif defined(HX_GAMMA_CORRECTION_FAST)\n        linear.xyz = sqrt(linear.xyz);\n    #endif\n    return linear;\n}\n\n/*float hx_sampleLinearDepth(sampler2D tex, vec2 uv)\n{\n    return hx_RGBA8ToFloat(texture2D(tex, uv));\n}*/\n\nfloat hx_decodeLinearDepth(vec4 samp)\n{\n    return hx_RG8ToFloat(samp.zw);\n}\n\nvec3 hx_getFrustumVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unprojNear = unprojectionMatrix * vec4(position, -1.0, 1.0);\n    vec4 unprojFar = unprojectionMatrix * vec4(position, 1.0, 1.0);\n    return unprojFar.xyz/unprojFar.w - unprojNear.xyz/unprojNear.w;\n}\n\n// view vector with z = 1, so we can use nearPlaneDist + linearDepth * (farPlaneDist - nearPlaneDist) as a scale factor to find view space position\nvec3 hx_getLinearDepthViewVector(vec2 position, mat4 unprojectionMatrix)\n{\n    vec4 unproj = unprojectionMatrix * vec4(position, 0.0, 1.0);\n    unproj /= unproj.w;\n    return unproj.xyz / unproj.y;\n}\n\n// THIS IS FOR NON_LINEAR DEPTH!\nfloat hx_depthToViewY(float depthSample, mat4 projectionMatrix)\n{\n    // View Y maps to NDC Z!!!\n    // y = projectionMatrix[3][2] / (d * 2.0 - 1.0 + projectionMatrix[1][2])\n    return projectionMatrix[3][2] / (depthSample * 2.0 - 1.0 + projectionMatrix[1][2]);\n}\n\nvec3 hx_getNormalSpecularReflectance(float metallicness, float insulatorNormalSpecularReflectance, vec3 color)\n{\n    return mix(vec3(insulatorNormalSpecularReflectance), color, metallicness);\n}\n\nvec3 hx_fresnel(vec3 normalSpecularReflectance, vec3 lightDir, vec3 halfVector)\n{\n    float cosAngle = 1.0 - max(dot(halfVector, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    return normalSpecularReflectance + (1.0 - normalSpecularReflectance) * power;\n}\n\n// https://seblagarde.wordpress.com/2011/08/17/hello-world/\nvec3 hx_fresnelProbe(vec3 normalSpecularReflectance, vec3 lightDir, vec3 normal, float roughness)\n{\n    float cosAngle = 1.0 - max(dot(normal, lightDir), 0.0);\n    // to the 5th power\n    float power = pow(cosAngle, 5.0);\n    float gloss = (1.0 - roughness) * (1.0 - roughness);\n    vec3 bound = max(vec3(gloss), normalSpecularReflectance);\n    return normalSpecularReflectance + (bound - normalSpecularReflectance) * power;\n}\n\n\nfloat hx_luminance(vec4 color)\n{\n    return dot(color.xyz, vec3(.30, 0.59, .11));\n}\n\nfloat hx_luminance(vec3 color)\n{\n    return dot(color, vec3(.30, 0.59, .11));\n}\n\n// linear variant of smoothstep\nfloat hx_linearStep(float lower, float upper, float x)\n{\n    return clamp((x - lower) / (upper - lower), 0.0, 1.0);\n}\n\nvec4 hx_sampleDefaultDither(sampler2D ditherTexture, vec2 uv)\n{\n    vec4 s = texture2D(ditherTexture, uv);\n\n    #ifndef HX_FLOAT_TEXTURES\n    s = s * 2.0 - 1.0;\n    #endif\n\n    return s;\n}\n\nvec3 hx_intersectCubeMap(vec3 rayOrigin, vec3 cubeCenter, vec3 rayDir, float cubeSize)\n{\n    vec3 t = (cubeSize * sign(rayDir) - (rayOrigin - cubeCenter)) / rayDir;\n    float minT = min(min(t.x, t.y), t.z);\n    return rayOrigin + minT * rayDir;\n}\n\n// sadly, need a parameter due to a bug in Internet Explorer / Edge. Just pass in 0.\n#ifdef HX_USE_SKINNING_TEXTURE\n#define HX_RCP_MAX_SKELETON_JOINTS 1.0 / float(HX_MAX_SKELETON_JOINTS - 1)\nmat4 hx_getSkinningMatrixImpl(vec4 weights, vec4 indices, sampler2D tex)\n{\n    mat4 m = mat4(0.0);\n    for (int i = 0; i < 4; ++i) {\n        mat4 t;\n        float index = indices[i] * HX_RCP_MAX_SKELETON_JOINTS;\n        t[0] = texture2D(tex, vec2(index, 0.0));\n        t[1] = texture2D(tex, vec2(index, 0.5));\n        t[2] = texture2D(tex, vec2(index, 1.0));\n        t[3] = vec4(0.0, 0.0, 0.0, 1.0);\n        m += weights[i] * t;\n    }\n    return m;\n}\n#define hx_getSkinningMatrix(v) hx_getSkinningMatrixImpl(hx_jointWeights, hx_jointIndices, hx_skinningTexture)\n#else\n#define hx_getSkinningMatrix(v) ( hx_jointWeights.x * mat4(hx_skinningMatrices[int(hx_jointIndices.x) * 3], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.x) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.y * mat4(hx_skinningMatrices[int(hx_jointIndices.y) * 3], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.y) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.z * mat4(hx_skinningMatrices[int(hx_jointIndices.z) * 3], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.z) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) + hx_jointWeights.w * mat4(hx_skinningMatrices[int(hx_jointIndices.w) * 3], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 1], hx_skinningMatrices[int(hx_jointIndices.w) * 3 + 2], vec4(0.0, 0.0, 0.0, 1.0)) )\n#endif';
 
@@ -16602,7 +16602,8 @@
 	);
 
 	/**
-	 * The ratios that define every cascade's split distance. 1 is at the far plane, 0 is at the near plane.
+	 * The ratios that define every cascade's split distance in relation to the near and far plane. 1 is at the far plane,
+	 * 0 is at the near plane.
 	 * @param r1
 	 * @param r2
 	 * @param r3
@@ -16657,6 +16658,9 @@
 		return "[DirectionalLight(name=" + this.name + ")]";
 	};
 
+	/**
+	 * @inheritDoc
+	 */
 	DirectionalLight.prototype.clone = function()
 	{
 		var clone = new DirectionalLight();
@@ -23126,292 +23130,331 @@
 	};
 
 	/**
+	 * @ignore
+	 */
+	var Endian =
+	{
+		BIG_ENDIAN: 0,
+		LITTLE_ENDIAN: 1
+	};
+
+	/**
+	 * Platform contains some platform-dependent utility functions.
+	 * @namespace
+	 */
+
+	var Platform =
+	{
+	    _isMobile: undefined,
+
+	    /**
+	     * Specifies whether the current platform is a mobile device or not.
+	     */
+	    get isMobile()
+	    {
+	        if (this._isMobile === undefined) {
+	            var ios = /AppleWebKit/.test(navigator.userAgent) && /Mobile\/\w+/.test(navigator.userAgent);
+	            // This is woefully incomplete. Suggestions for alternative methods welcome.
+	            this._isMobile = ios || /Android|webOS|BlackBerry|Opera Mini|Opera Mobi|IEMobile/i.test(navigator.userAgent);
+	        }
+
+	        return this._isMobile;
+	    },
+
+		/**
+	     * Returns the endianness of the system
+		 */
+		get endian()
+	    {
+			var b = new ArrayBuffer(4);
+			var a = new Uint32Array(b);
+			var c = new Uint8Array(b);
+			a[0] = 0xdeadbeef;
+			if (c[0] === 0xef) return Endian.LITTLE_ENDIAN;
+			if (c[0] === 0xde) return Endian.BIG_ENDIAN;
+	    }
+	};
+
+	/**
 	 * @classdesc
 	 * DataStream is a wrapper for DataView which allows reading the data as a linear stream of data.
 	 * @param dataView the DataView object to read from.
 	 * @constructor
 	 *
+	 * @propety offset The current byte offset into the file.
+	 * @propety endian The endianness used by the data.
+	 *
 	 * @author derschmale <http://www.derschmale.com>
 	 */
 	function DataStream(dataView)
 	{
-	    this._dataView = dataView;
-	    this._offset = 0;
-	    this._endian = DataStream.LITTLE_ENDIAN;
+		this._dataView = dataView;
+		this.offset = 0;
+		this.endian = Endian.LITTLE_ENDIAN;
+		this._hostEndian = Platform.endian;
 	}
 
-	/**
-	 * Little Endian encoding
-	 */
-	DataStream.LITTLE_ENDIAN = true;
-
-	/**
-	 * Big Endian encoding
-	 */
-	DataStream.BIG_ENDIAN = false;
-
 	DataStream.prototype =
-	{
-	    /**
-	     * The current byte offset into the file.
-	     */
-	    get offset() { return this._offset; },
-	    set offset(value) { this._offset = value; },
+		{
+			/**
+			 * The size of the data view in bytes.
+			 */
+			get byteLength () { return this._dataView.byteLength; },
 
-	    /**
-	     * The endianness used by the data.
-	     */
-	    get endian() { return this._endian; },
-	    set endian(value) { this._endian = value; },
+			/**
+			 * The amount of bytes still left in the file until EOF.
+			 */
+			get bytesAvailable() { return this._dataView.byteLength - this.offset; },
 
-	    /**
-	     * The size of the data view in bytes.
-	     */
-	    get byteLength () { return this._dataView.byteLength; },
+			/**
+			 * Reads a single 8-bit string character from the stream.
+			 */
+			getChar: function()
+			{
+				return String.fromCharCode(this.getUint8());
+			},
 
-	    /**
-	     * The amount of bytes still left in the file until EOF.
-	     */
-	    get bytesAvailable() { return this._dataView.byteLength - this._offset; },
+			/**
+			 * Reads a single unsigned byte integer from the string.
+			 */
+			getUint8: function()
+			{
+				return this._dataView.getUint8(this.offset++);
+			},
 
-	    /**
-	     * Reads a single 8-bit string character from the stream.
-	     */
-	    getChar: function()
-	    {
-	        return String.fromCharCode(this.getUint8());
-	    },
+			/**
+			 * Reads a single unsigned short integer from the string.
+			 */
+			getUint16: function()
+			{
+				var data = this._dataView.getUint16(this.offset, this.endian);
+				this.offset += 2;
+				return data;
+			},
 
-	    /**
-	     * Reads a single unsigned byte integer from the string.
-	     */
-	    getUint8: function()
-	    {
-	        return this._dataView.getUint8(this._offset++);
-	    },
+			/**
+			 * Reads a single unsigned 32-bit integer from the string.
+			 */
+			getUint32: function()
+			{
+				var data = this._dataView.getUint32(this.offset, this.endian);
+				this.offset += 4;
+				return data;
+			},
 
-	    /**
-	     * Reads a single unsigned short integer from the string.
-	     */
-	    getUint16: function()
-	    {
-	        var data = this._dataView.getUint16(this._offset, this._endian);
-	        this._offset += 2;
-	        return data;
-	    },
+			/**
+			 * Reads a single signed byte integer from the string.
+			 */
+			getInt8: function()
+			{
+				return this._dataView.getInt8(this.offset++);
+			},
 
-	    /**
-	     * Reads a single unsigned 32-bit integer from the string.
-	     */
-	    getUint32: function()
-	    {
-	        var data = this._dataView.getUint32(this._offset, this._endian);
-	        this._offset += 4;
-	        return data;
-	    },
+			/**
+			 * Reads a single signed short integer from the string.
+			 */
+			getInt16: function()
+			{
+				var data = this._dataView.getInt16(this.offset, this.endian);
+				this.offset += 2;
+				return data;
+			},
 
-	    /**
-	     * Reads a single signed byte integer from the string.
-	     */
-	    getInt8: function()
-	    {
-	        return this._dataView.getInt8(this._offset++);
-	    },
+			/**
+			 * Reads a single 32 bit integer from the string.
+			 */
+			getInt32: function()
+			{
+				var data = this._dataView.getInt32(this.offset, this.endian);
+				this.offset += 4;
+				return data;
+			},
 
-	    /**
-	     * Reads a single signed short integer from the string.
-	     */
-	    getInt16: function()
-	    {
-	        var data = this._dataView.getInt16(this._offset, this._endian);
-	        this._offset += 2;
-	        return data;
-	    },
+			/**
+			 * Reads a 64-bit integer and stores it in a Number. The read value is not necessarily the same as what's stored, but
+			 * may provide an acceptable approximation.
+			 */
+			getInt64AsFloat64: function()
+			{
+				var L, B;
+				if (this.endian === Endian.LITTLE_ENDIAN) {
+					L = this._dataView.getUint32(this.offset, this.endian);
+					B = this._dataView.getInt32(this.offset + 4, this.endian);
+				}
+				else {
+					B = this._dataView.getInt32(this.offset, this.endian);
+					L = this._dataView.getUint32(this.offset + 4, this.endian);
+				}
+				this.offset += 8;
+				return L + B * 4294967296.0;
+			},
 
-	    /**
-	     * Reads a single 32 bit integer from the string.
-	     */
-	    getInt32: function()
-	    {
-	        var data = this._dataView.getInt32(this._offset, this._endian);
-	        this._offset += 4;
-	        return data;
-	    },
+			/**
+			 * Reads a single float.
+			 */
+			getFloat32: function()
+			{
+				var data = this._dataView.getFloat32(this.offset, this.endian);
+				this.offset += 4;
+				return data;
+			},
 
-	    /**
-	     * Reads a 64-bit integer and stores it in a Number. The read value is not necessarily the same as what's stored, but
-	     * may provide an acceptable approximation.
-	     */
-	    getInt64AsFloat64: function()
-	    {
-	        var L, B;
-	        if (this._endian === DataStream.LITTLE_ENDIAN) {
-	            L = this._dataView.getUint32(this._offset, this._endian);
-	            B = this._dataView.getInt32(this._offset + 4, this._endian);
-	        }
-	        else {
-	            B = this._dataView.getInt32(this._offset, this._endian);
-	            L = this._dataView.getUint32(this._offset + 4, this._endian);
-	        }
-	        this._offset += 8;
-	        return L + B * 4294967296.0;
-	    },
+			/**
+			 * Reads a double float.
+			 */
+			getFloat64: function()
+			{
+				var data = this._dataView.getFloat64(this.offset, this.endian);
+				this.offset += 8;
+				return data;
+			},
 
-	    /**
-	     * Reads a single float.
-	     */
-	    getFloat32: function()
-	    {
-	        var data = this._dataView.getFloat32(this._offset, this._endian);
-	        this._offset += 4;
-	        return data;
-	    },
+			/**
+			 * Reads an array of unsigned bytes.
+			 *
+			 * @param len The amount of elements to read.
+			 */
+			getUint8Array: function(len)
+			{
+				return this._readArray(len, Uint8Array, 1, this.getUint8);
+			},
 
-	    /**
-	     * Reads a double float.
-	     */
-	    getFloat64: function()
-	    {
-	        var data = this._dataView.getFloat64(this._offset, this._endian);
-	        this._offset += 8;
-	        return data;
-	    },
+			/**
+			 * Reads an array of unsigned shorts.
+			 *
+			 * @param len The amount of elements to read.
+			 */
+			getUint16Array: function(len)
+			{
+				return this._readArray(len, Uint16Array, 2, this.getUint16);
+			},
 
-	    /**
-	     * Reads an array of unsigned bytes.
-	     *
-	     * @param len The amount of elements to read.
-	     */
-	    getUint8Array: function(len)
-	    {
-	        return this._readArray(len, Uint8Array, this.getUint8);
-	    },
+			/**
+			 * Reads an array of unsigned 32-bit integers.
+			 *
+			 * @param len The amount of elements to read.
+			 */
+			getUint32Array: function(len)
+			{
+				return this._readArray(len, Uint32Array, 4, this.getUint32);
+			},
 
-	    /**
-	     * Reads an array of unsigned shorts.
-	     *
-	     * @param len The amount of elements to read.
-	     */
-	    getUint16Array: function(len)
-	    {
-	        return this._readArray(len, Uint16Array, this.getUint16);
-	    },
+			/**
+			 * Reads an array of signed bytes.
+			 *
+			 * @param len The amount of elements to read.
+			 */
+			getInt8Array: function(len)
+			{
+				return this._readArray(len, Int8Array, 1, this.getInt8);
+			},
 
-	    /**
-	     * Reads an array of unsigned 32-bit integers.
-	     *
-	     * @param len The amount of elements to read.
-	     */
-	    getUint32Array: function(len)
-	    {
-	        return this._readArray(len, Uint32Array, this.getUint32);
-	    },
+			/**
+			 * Reads an array of signed shorts.
+			 *
+			 * @param len The amount of elements to read.
+			 */
+			getInt16Array: function(len)
+			{
+				return this._readArray(len, Int16Array, 2, this.getInt16);
+			},
 
-	    /**
-	     * Reads an array of signed bytes.
-	     *
-	     * @param len The amount of elements to read.
-	     */
-	    getInt8Array: function(len)
-	    {
-	        return this._readArray(len, Int8Array, this.getInt8);
-	    },
+			/**
+			 * Reads an array of signed 32-bit integers.
+			 *
+			 * @param len The amount of elements to read.
+			 */
+			getInt32Array: function(len)
+			{
+				return this._readArray(len, Int32Array, 4, this.getInt32);
+			},
 
-	    /**
-	     * Reads an array of signed shorts.
-	     *
-	     * @param len The amount of elements to read.
-	     */
-	    getInt16Array: function(len)
-	    {
-	        return this._readArray(len, Int16Array, this.getInt16);
-	    },
+			/**
+			 * Reads an array of 64-bit integers into floats.
+			 *
+			 * @param len The amount of elements to read.
+			 */
+			getInt64AsFloat64Array: function(len)
+			{
+				var arr = new Float64Array(len);
 
-	    /**
-	     * Reads an array of signed 32-bit integers.
-	     *
-	     * @param len The amount of elements to read.
-	     */
-	    getInt32Array: function(len)
-	    {
-	        return this._readArray(len, Int32Array, this.getInt32);
-	    },
+				for (var i = 0; i < len; ++i)
+					arr[i] = this.getInt64AsFloat64();
 
-	    /**
-	     * Reads an array of 64-bit integers into floats.
-	     *
-	     * @param len The amount of elements to read.
-	     */
-	    getInt64AsFloat64Array: function(len)
-	    {
-	        return this._readArray(len, Float64Array, this.getInt64AsFloat64);
-	    },
+				return arr;
+			},
 
-	    /**
-	     * Reads an array of single floats.
-	     *
-	     * @param len The amount of elements to read.
-	     */
-	    getFloat32Array: function(len)
-	    {
-	        return this._readArray(len, Float32Array, this.getFloat32);
-	    },
+			/**
+			 * Reads an array of single floats.
+			 *
+			 * @param len The amount of elements to read.
+			 */
+			getFloat32Array: function(len)
+			{
+				return this._readArray(len, Float32Array, 4, this.getFloat32);
+			},
 
-	    /**
-	     * Reads an array of double floats.
-	     *
-	     * @param len The amount of elements to read.
-	     */
-	    getFloat64Array: function(len)
-	    {
-	        return this._readArray(len, Float64Array, this.getFloat64);
-	    },
+			/**
+			 * Reads an array of double floats.
+			 *
+			 * @param len The amount of elements to read.
+			 */
+			getFloat64Array: function(len)
+			{
+				return this._readArray(len, Float64Array, 8, this.getFloat64);
+			},
 
-	    /**
-	     * Reads a string.
-	     *
-	     * @param [len] The amount of characters in the string. If omitted, it reads until (and including) it encounters a "\0" character.
-	     */
-	    getString: function(len)
-	    {
-	        if (!len) return this._get0String();
+			/**
+			 * Reads a string.
+			 *
+			 * @param [len] The amount of characters in the string. If omitted, it reads until (and including) it encounters a "\0" character.
+			 */
+			getString: function(len)
+			{
+				if (!len) return this._get0String();
 
-	        var str = "";
+				var str = "";
 
-	        for (var i = 0; i < len; ++i)
-	            str += this.getChar();
+				for (var i = 0; i < len; ++i)
+					str += this.getChar();
 
-	        return str;
-	    },
+				return str;
+			},
 
-	    /**
-	     * @ignore
-	     */
-	    _get0String: function()
-	    {
-	        var str = "";
+			/**
+			 * @ignore
+			 */
+			_get0String: function()
+			{
+				var str = "";
 
-	        do {
-	            var ch = this.getUint8();
-	            if (ch) str += String.fromCharCode(ch);
-	        } while (ch !== 0);
+				do {
+					var ch = this.getUint8();
+					if (ch) str += String.fromCharCode(ch);
+				} while (ch !== 0);
 
-	        return str;
-	    },
+				return str;
+			},
 
-	    /**
-	     * @ignore
-	     */
-	    _readArray: function(len, arrayType, func)
-	    {
-	        var arr = new arrayType(len);
+			/**
+			 * @ignore
+			 */
+			_readArray: function(len, arrayType, elmSize, readFunc)
+			{
+			    if (this.offset % elmSize === 0 && this.endian === this._hostEndian) {
+					var arr = new arrayType(this._dataView.buffer, this.offset, len);
+					this.offset += len * elmSize;
+					return arr;
+				}
 
-	        for (var i = 0; i < len; ++i)
-	            arr[i] = func.call(this);
+				var arr = new Float64Array(len);
 
-	        return arr;
-	    }
-	};
+				for (var i = 0; i < len; ++i)
+					arr[i] = readFunc.call(this);
+
+				return arr;
+			}
+		};
 
 	/**
 	 * @classdesc
@@ -25889,6 +25932,14 @@
 	 * Assets need to be queued with a given ID and loading starts when requested. When loading completes, the ID can be used
 	 * to retrieve the loaded asset.
 	 *
+	 * @property {Signal} onComplete The {@linkcode Signal} dispatched when all assets have completed loading. Its payload
+	 * object is a reference to the assetLibrary itself.
+	 * @property {Signal} onProgress The {@linkcode Signal} dispatched when all assets have completed loading. Its payload
+	 * is the ratio of loaded objects for 0 to 1.
+	 * @property {string} basePath The base path relative to which all the filenames are defined. This value is set in the
+	 * constructor.
+	 * @property {string} crossOrigin A cross origin string. This is used when loading images from a different domain.
+	 *
 	 * @example
 	 * var assetLibrary = new HX.AssetLibrary("assets/");
 	 * assetLibrary.queueAsset("some-model", "models/some-model.obj", HX.AssetLibrary.Type.ASSET, HX_IO.OBJ);
@@ -25912,15 +25963,15 @@
 
 	function AssetLibrary(basePath, crossOrigin)
 	{
-	    this.fileMap = {};
-	    this._numLoaded = 0;
-	    this._queue = [];
-	    this._assets = {};
-	    if (basePath && basePath.charAt(basePath.length - 1) !== "/") basePath += "/";
-	    this._basePath = basePath || "";
-	    this._onComplete = new Signal(/* void */);
-	    this._onProgress = new Signal(/* number */);
-	    this._crossOrigin = crossOrigin;
+		this.onComplete = new Signal(/* void */);
+		this.onProgress = new Signal(/* number */);
+		this.fileMap = {};
+		this._numLoaded = 0;
+		this._queue = [];
+		this._assets = {};
+		if (basePath && basePath.charAt(basePath.length - 1) !== "/") basePath += "/";
+		this.basePath = basePath || "";
+	    this.crossOrigin = crossOrigin;
 	}
 
 	/**
@@ -25952,42 +26003,6 @@
 	AssetLibrary.prototype =
 	{
 	    /**
-	     * The {@linkcode Signal} dispatched when all assets have completed loading. Its payload object is a reference to
-	     * the assetLibrary itself.
-	     * @see {@linkcode Signal}.
-	     */
-	    get onComplete()
-	    {
-	        return this._onComplete;
-	    },
-
-	    /**
-	     * The {@linkcode Signal} dispatched when all assets have completed loading. Its payload is the ratio of loaded
-	     * objects for 0 to 1.
-	     * @see {@linkcode Signal}
-	     */
-	    get onProgress()
-	    {
-	        return this._onProgress;
-	    },
-
-	    /**
-	     * The base path relative to which all the filenames are defined. This value is set in the constructor.
-	     */
-	    get basePath()
-	    {
-	        return this._basePath;
-	    },
-
-	    /**
-	     * The cross origin string passed to the constructor.
-	     */
-	    get crossOrigin()
-	    {
-	        return this._crossOrigin;
-	    },
-
-	    /**
 	     * Adds an asset to the loading queue.
 	     * @param {string} id The ID that will be used to retrieve the asset when loaded.
 	     * @param {string} file Either a File object or a filename relative to the base path provided in the constructor.
@@ -26001,7 +26016,7 @@
 	    {
 	        this._queue.push({
 	            id: id,
-	            file: (file instanceof Blob)? file : this._basePath + file,
+	            file: (file instanceof Blob)? file : this.basePath + file,
 	            type: type,
 	            parser: parser,
 	            options: options,
@@ -26143,7 +26158,7 @@
 	        var loader = new AssetLoader(parser);
 	        loader.fileMap = this.fileMap;
 	        loader.options = options || {};
-	        loader.options.crossOrigin = this._crossOrigin;
+	        loader.options.crossOrigin = this.crossOrigin;
 	        loader.onComplete.bind(function()
 	        {
 	            this._onAssetLoaded();
@@ -26151,7 +26166,7 @@
 
 	        loader.onProgress.bind(function(ratio)
 	        {
-	            this._onProgress.dispatch((this._numLoaded + ratio) / this._queue.length);
+	            this.onProgress.dispatch((this._numLoaded + ratio) / this._queue.length);
 	        }, this);
 
 	        this._assets[id] = loader.load(file, target);
@@ -26162,10 +26177,10 @@
 	    {
 	        ++this._numLoaded;
 
-	        this._onProgress.dispatch(this._numLoaded / this._queue.length);
+	        this.onProgress.dispatch(this._numLoaded / this._queue.length);
 
 	        if (this._numLoaded === this._queue.length)
-	            this._onComplete.dispatch(this);
+	            this.onComplete.dispatch(this);
 	        else
 	            this.load();
 	    }
@@ -27154,7 +27169,7 @@
 	};
 
 	/**
-	 * @ignore
+	 * @inheritDoc
 	 */
 	AmbientLight.prototype.clone = function()
 	{
@@ -30688,29 +30703,6 @@
 	        GL.setClearColor(Color.BLACK);
 
 	        return tex;
-	    }
-	};
-
-	/**
-	 * Platform contains some platform-dependent utility functions.
-	 * @namespace
-	 */
-	var Platform =
-	{
-	    _isMobile: undefined,
-
-	    /**
-	     * Specifies whether the current platform is a mobile device or not.
-	     */
-	    get isMobile()
-	    {
-	        if (this._isMobile === undefined) {
-	            var ios = /AppleWebKit/.test(navigator.userAgent) && /Mobile\/\w+/.test(navigator.userAgent);
-	            // This is woefully incomplete. Suggestions for alternative methods welcome.
-	            this._isMobile = ios || /Android|webOS|BlackBerry|Opera Mini|Opera Mobi|IEMobile/i.test(navigator.userAgent);
-	        }
-
-	        return this._isMobile;
 	    }
 	};
 

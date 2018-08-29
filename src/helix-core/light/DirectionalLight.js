@@ -79,7 +79,8 @@ Component.create(DirectionalLight,
 );
 
 /**
- * The ratios that define every cascade's split distance. 1 is at the far plane, 0 is at the near plane.
+ * The ratios that define every cascade's split distance in relation to the near and far plane. 1 is at the far plane,
+ * 0 is at the near plane.
  * @param r1
  * @param r2
  * @param r3
@@ -134,6 +135,9 @@ DirectionalLight.prototype.toString = function()
 	return "[DirectionalLight(name=" + this.name + ")]";
 };
 
+/**
+ * @inheritDoc
+ */
 DirectionalLight.prototype.clone = function()
 {
 	var clone = new DirectionalLight();

@@ -13,6 +13,14 @@ import {ArrayUtils} from "../utils/ArrayUtils";
  * Assets need to be queued with a given ID and loading starts when requested. When loading completes, the ID can be used
  * to retrieve the loaded asset.
  *
+ * @property {Signal} onComplete The {@linkcode Signal} dispatched when all assets have completed loading. Its payload
+ * object is a reference to the assetLibrary itself.
+ * @property {Signal} onProgress The {@linkcode Signal} dispatched when all assets have completed loading. Its payload
+ * is the ratio of loaded objects for 0 to 1.
+ * @property {string} basePath The base path relative to which all the filenames are defined. This value is set in the
+ * constructor.
+ * @property {string} crossOrigin A cross origin string. This is used when loading images from a different domain.
+ *
  * @example
  * var assetLibrary = new HX.AssetLibrary("assets/");
  * assetLibrary.queueAsset("some-model", "models/some-model.obj", HX.AssetLibrary.Type.ASSET, HX_IO.OBJ);
@@ -36,15 +44,15 @@ import {ArrayUtils} from "../utils/ArrayUtils";
 
 function AssetLibrary(basePath, crossOrigin)
 {
-    this.fileMap = {};
-    this._numLoaded = 0;
-    this._queue = [];
-    this._assets = {};
-    if (basePath && basePath.charAt(basePath.length - 1) !== "/") basePath += "/";
-    this._basePath = basePath || "";
-    this._onComplete = new Signal(/* void */);
-    this._onProgress = new Signal(/* number */);
-    this._crossOrigin = crossOrigin;
+	this.onComplete = new Signal(/* void */);
+	this.onProgress = new Signal(/* number */);
+	this.fileMap = {};
+	this._numLoaded = 0;
+	this._queue = [];
+	this._assets = {};
+	if (basePath && basePath.charAt(basePath.length - 1) !== "/") basePath += "/";
+	this.basePath = basePath || "";
+    this.crossOrigin = crossOrigin;
 }
 
 /**
@@ -76,42 +84,6 @@ AssetLibrary.Type = {
 AssetLibrary.prototype =
 {
     /**
-     * The {@linkcode Signal} dispatched when all assets have completed loading. Its payload object is a reference to
-     * the assetLibrary itself.
-     * @see {@linkcode Signal}.
-     */
-    get onComplete()
-    {
-        return this._onComplete;
-    },
-
-    /**
-     * The {@linkcode Signal} dispatched when all assets have completed loading. Its payload is the ratio of loaded
-     * objects for 0 to 1.
-     * @see {@linkcode Signal}
-     */
-    get onProgress()
-    {
-        return this._onProgress;
-    },
-
-    /**
-     * The base path relative to which all the filenames are defined. This value is set in the constructor.
-     */
-    get basePath()
-    {
-        return this._basePath;
-    },
-
-    /**
-     * The cross origin string passed to the constructor.
-     */
-    get crossOrigin()
-    {
-        return this._crossOrigin;
-    },
-
-    /**
      * Adds an asset to the loading queue.
      * @param {string} id The ID that will be used to retrieve the asset when loaded.
      * @param {string} file Either a File object or a filename relative to the base path provided in the constructor.
@@ -125,7 +97,7 @@ AssetLibrary.prototype =
     {
         this._queue.push({
             id: id,
-            file: (file instanceof Blob)? file : this._basePath + file,
+            file: (file instanceof Blob)? file : this.basePath + file,
             type: type,
             parser: parser,
             options: options,
@@ -267,7 +239,7 @@ AssetLibrary.prototype =
         var loader = new AssetLoader(parser);
         loader.fileMap = this.fileMap;
         loader.options = options || {};
-        loader.options.crossOrigin = this._crossOrigin;
+        loader.options.crossOrigin = this.crossOrigin;
         loader.onComplete.bind(function()
         {
             this._onAssetLoaded();
@@ -275,7 +247,7 @@ AssetLibrary.prototype =
 
         loader.onProgress.bind(function(ratio)
         {
-            this._onProgress.dispatch((this._numLoaded + ratio) / this._queue.length);
+            this.onProgress.dispatch((this._numLoaded + ratio) / this._queue.length);
         }, this);
 
         this._assets[id] = loader.load(file, target);
@@ -286,10 +258,10 @@ AssetLibrary.prototype =
     {
         ++this._numLoaded;
 
-        this._onProgress.dispatch(this._numLoaded / this._queue.length);
+        this.onProgress.dispatch(this._numLoaded / this._queue.length);
 
         if (this._numLoaded === this._queue.length)
-            this._onComplete.dispatch(this);
+            this.onComplete.dispatch(this);
         else
             this.load();
     }

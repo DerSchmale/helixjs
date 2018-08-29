@@ -39,7 +39,7 @@ AmbientLight.prototype._updateBounds = function()
 };
 
 /**
- * @ignore
+ * @inheritDoc
  */
 AmbientLight.prototype.clone = function()
 {

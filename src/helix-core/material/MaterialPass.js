@@ -18,7 +18,7 @@ function MaterialPass(shader)
 {
     this.shader = shader;
     this._textureSlots = shader.createTextureSlots();
-    this._uniformBufferSlots = [];
+    this._uniformBufferSlots = shader.createUniformBufferSlots();
     this.cullMode = CullMode.BACK;
     this.writeColor = true;
     this.depthTest = Comparison.LESS_EQUAL;
@@ -165,35 +165,13 @@ MaterialPass.prototype =
 
         getUniformBufferSlot: function(slotName)
         {
-            var gl = GL.gl;
-            gl.useProgram(this.shader.program);
-
-            var blockIndex = GL.gl.getUniformBlockIndex(this.shader.program, slotName);
-            // seems it's returning -1 as *unsigned*
-            if (blockIndex > 1000) return;
-
-            var slot = null;
-
-            // reuse if blockIndex is already used
-            var len = this._uniformBufferSlots.length;
-            for (var i = 0; i < len; ++i) {
-                if (this._uniformBufferSlots[i].blockIndex === blockIndex) {
-                    slot = this._uniformBufferSlots[i];
-                    break;
-                }
+            for (var i = 0, len = this._uniformBufferSlots.length; i < len; ++i) {
+                var slot = this._uniformBufferSlots[i];
+                if (slot.name === slotName)
+                    return slot;
             }
 
-            if (!slot) {
-                slot = new UniformBufferSlot();
-                // grab the next available binding point
-                slot.bindingPoint = i;
-                slot.name = slotName;
-                this._uniformBufferSlots.push(slot);
-                slot.blockIndex = blockIndex;
-                gl.uniformBlockBinding(this.shader.program, slot.blockIndex, slot.bindingPoint);
-            }
-
-            return slot;
+            return null;
         },
 
         setTexture: function(slotName, texture)

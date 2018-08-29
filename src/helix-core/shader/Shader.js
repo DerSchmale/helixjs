@@ -1,9 +1,10 @@
 import {GLSLIncludes} from './GLSLIncludes';
 import {GL} from '../core/GL';
-import {META} from '../Helix';
+import {capabilities, META} from '../Helix';
 import {UniformSetter} from "./UniformSetter";
 import {Debug} from "../debug/Debug";
 import {TextureSlot} from "../material/TextureSlot";
+import {UniformBufferSlot} from "../material/UniformBufferSlot";
 
 
 /**
@@ -19,6 +20,7 @@ function Shader(vertexShaderCode, fragmentShaderCode)
 	this.program = null;
 	this._uniforms = null;
 	this._textureUniforms = null;
+	this._uniformBlocks = null;
 	this._ready = false;
 	this._vertexShader = null;
 	this._fragmentShader = null;
@@ -139,6 +141,8 @@ Shader.prototype = {
 	{
 		this._uniforms = {};
 		this._textureUniforms = [];
+		this._uniformBlocks = [];
+
 		var textureCount = 0;
 
 		var gl = GL.gl;
@@ -159,6 +163,16 @@ Shader.prototype = {
 				gl.uniform1i(location, textureCount++);
 			}
 		}
+
+		if (capabilities.WEBGL_2) {
+			len = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORM_BLOCKS);
+			for (i = 0; i < len; ++i) {
+				var name = gl.getActiveUniformBlockName(this.program, i);
+				gl.uniformBlockBinding(this.shader.program, i, i);
+				this._uniformBlocks.push(name);
+			}
+		}
+
 	},
 
 	createTextureSlots: function()
@@ -171,6 +185,19 @@ Shader.prototype = {
 			slot.index = i;
 			slot.location = uniform.location;
 			slots[i] = slot;
+		}
+		return slots;
+	}
+
+	createUniformBufferSlots: function()
+	{
+		var slots = [];
+		for (var i = 0, len = this._uniformBlocks.length; i < len; ++i) {
+			var slot = new UniformBufferSlot();
+			slot.bindingPoint = i;
+			slot.blockIndex = i;
+			slot.name = this._uniformBlocks[i];
+			slots.push(slot);
 		}
 		return slots;
 	}

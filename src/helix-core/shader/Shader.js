@@ -5,6 +5,7 @@ import {UniformSetter} from "./UniformSetter";
 import {Debug} from "../debug/Debug";
 import {TextureSlot} from "../material/TextureSlot";
 import {UniformBufferSlot} from "../material/UniformBufferSlot";
+import {UniformBuffer} from "../core/UniformBuffer";
 
 
 /**
@@ -174,6 +175,37 @@ Shader.prototype = {
 		}
 
 	},
+
+	createUniformBuffer: function(name)
+	{
+		var gl = GL.gl;
+		var program = this.program;
+
+		var blockIndex = null;
+		for (var i = 0, len = this._uniformBlocks.length; i < len; ++i) {
+			if (this._uniformBlocks[i] === name) {
+				blockIndex = i;
+				break;
+			}
+		}
+		if (!blockIndex) return null;
+
+
+		var indices = gl.getActiveUniformBlockParameter(program, blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES);
+		var totalSize = gl.getActiveUniformBlockParameter(program, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
+		var uniformBuffer = new UniformBuffer(totalSize);
+
+		var offsets = gl.getActiveUniforms(program, indices, gl.UNIFORM_OFFSET);
+
+		for (i = 0; i < indices.length; ++i) {
+			var uniform = gl.getActiveUniform(program, indices[i]);
+			uniformBuffer.registerUniform(uniform.name, offsets[i], uniform.size, uniform.type);
+		}
+
+		uniformBuffer.uploadData(new Float32Array(totalSize / 4));
+
+		return uniformBuffer;
+	}
 
 	createTextureSlots: function()
 	{

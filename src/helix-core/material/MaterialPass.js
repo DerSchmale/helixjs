@@ -128,27 +128,6 @@ MaterialPass.prototype =
             this.shader.updatePassRenderState(camera, renderer);
         },
 
-        createUniformBufferFromShader: function(name)
-        {
-            var gl = GL.gl;
-            var slot = this.getUniformBufferSlot(name);
-            var program = this.shader.program;
-            var indices = gl.getActiveUniformBlockParameter(program, slot.blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES);
-            var totalSize = gl.getActiveUniformBlockParameter(program, slot.blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
-            var uniformBuffer = new UniformBuffer(totalSize);
-
-            var offsets = gl.getActiveUniforms(program, indices, gl.UNIFORM_OFFSET);
-
-            for (var i = 0; i < indices.length; ++i) {
-                var uniform = gl.getActiveUniform(program, indices[i]);
-                uniformBuffer.registerUniform(uniform.name, offsets[i], uniform.size, uniform.type);
-            }
-
-            uniformBuffer.uploadData(new Float32Array(totalSize / 4));
-
-            return uniformBuffer;
-        },
-
         getTextureSlot: function(slotName)
         {
 			if (!this.shader.hasUniform(slotName)) return;

@@ -32,11 +32,12 @@ function FixedLitPass(geometryVertex, geometryFragment, lightingModel, lights)
     this._diffuseLightProbes = null;
     this._specularLightProbes = null;
 
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights));
+	MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights));
 
-    this._getUniformLocations();
-
+	this._getUniformLocations();
     this._assignLightProbes();
+
+	this._MP_updatePassRenderState = MaterialPass.prototype.updatePassRenderState;
 }
 
 FixedLitPass.prototype = Object.create(MaterialPass.prototype);
@@ -49,7 +50,7 @@ FixedLitPass.prototype.updatePassRenderState = function (camera, renderer)
     this._assignSpotLights(camera);
     this._assignLightProbes(camera);
 
-    MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+	this._MP_updatePassRenderState(camera, renderer);
 };
 
 FixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragment, lightingModel, lights)

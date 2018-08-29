@@ -18,6 +18,14 @@ function DataStream(dataView)
 	this.offset = 0;
 	this.endian = Endian.LITTLE_ENDIAN;
 	this._hostEndian = Platform.endian;
+	this.getUint8 = this.getUint8.bind(this);
+	this.getUint16 = this.getUint16.bind(this);
+	this.getUint32 = this.getUint32.bind(this);
+	this.getInt8 = this.getInt8.bind(this);
+	this.getInt16 = this.getInt16.bind(this);
+	this.getInt32 = this.getInt32.bind(this);
+	this.getFloat32 = this.getFloat32.bind(this);
+	this.getFloat64 = this.getFloat64.bind(this);
 }
 
 DataStream.prototype =
@@ -276,7 +284,7 @@ DataStream.prototype =
 			var arr = new Float64Array(len);
 
 			for (var i = 0; i < len; ++i)
-				arr[i] = readFunc.call(this);
+				arr[i] = readFunc();
 
 			return arr;
 		}

@@ -26,6 +26,8 @@ function PointLightingPass(geometryVertex, geometryFragment, lightingModel)
     this._depthBiasLocation = this.getUniformLocation("hx_pointLight.depthBias");
     this._shadowMatrixLocation = this.getUniformLocation("hx_pointLight.shadowMapMatrix");
     this._shadowTilesLocation = this.getUniformLocation("hx_pointLight.shadowTiles[0]");
+
+	this._MP_updatePassRenderState = MaterialPass.prototype.updatePassRenderState;
 }
 
 PointLightingPass.prototype = Object.create(MaterialPass.prototype);
@@ -64,7 +66,7 @@ PointLightingPass.prototype.updatePassRenderState = function(camera, renderer, l
             gl.uniformMatrix4fv(this._shadowMatrixLocation, false, camera.worldMatrix._m);
         }
 
-        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+        this._MP_updatePassRenderState(camera, renderer);
     }
 }();
 

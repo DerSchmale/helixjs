@@ -11,9 +11,6 @@ project.onInit = function()
 
     this.camera.addComponent(new OrbitController());
 
-    var self = this;
-    HX.META.TARGET_CANVAS.addEventListener("mousemove", function(evt) { self._onMouseMove.call(self, evt); });
-
     this.input = new HX.Input();
     var mouse = new HX.Mouse();
     mouse.map(HX.Mouse.POS_X, "posX");

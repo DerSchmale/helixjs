@@ -23,6 +23,8 @@ function ProbeLightingPass(geometryVertex, geometryFragment, lightingModel)
     this._localLocation = this.getUniformLocation("hx_probeLocal");
     this._sizeLocation = this.getUniformLocation("hx_probeSize");
     this._positionLocation = this.getUniformLocation("hx_probePosition");
+
+	this._MP_updatePassRenderState = MaterialPass.prototype.updatePassRenderState;
 }
 
 ProbeLightingPass.prototype = Object.create(MaterialPass.prototype);
@@ -43,7 +45,8 @@ ProbeLightingPass.prototype.updatePassRenderState = function(camera, renderer, p
     gl.uniform1f(this._sizeLocation, probe._size || 0.0);
     var m = probe.entity.worldMatrix._m;
     gl.uniform3f(this._positionLocation, m[12], m[13], m[14]);
-    MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+    this._MP_updatePassRenderState(camera, renderer);
+
 };
 
 ProbeLightingPass.prototype._generateShader = function(geometryVertex, geometryFragment, lightingModel)

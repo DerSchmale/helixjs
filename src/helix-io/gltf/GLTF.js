@@ -901,7 +901,7 @@ GLTF.prototype._parseAnimationChannel = function(channelDef, samplers, duration)
             layers = [];
 
             for (var i = 0; i < clips.length; ++i)
-                layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation).name, "morphTarget_" + i, clip));
+                layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation).name, "morphTarget_" + i, clips[i]));
 
             break;
         default:

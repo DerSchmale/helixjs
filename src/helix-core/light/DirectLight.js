@@ -18,6 +18,8 @@ import {Light} from "./Light";
  */
 function DirectLight()
 {
+	this._Light_updateScaledIrradiance = Light.prototype._updateScaledIrradiance;
+
     Light.call(this);
     this.intensity = 3.1415;
 	this.depthBias = .0;
@@ -34,7 +36,7 @@ DirectLight.prototype.acceptVisitor = function (visitor)
 
 DirectLight.prototype._updateScaledIrradiance = function ()
 {
-    Light.prototype._updateScaledIrradiance.call(this);
+    this._Light_updateScaledIrradiance();
 
     // 1/PI radiance->irradiance factor
     var scale = 1 / Math.PI;

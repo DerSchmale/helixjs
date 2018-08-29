@@ -29,6 +29,8 @@ function SpotLightingPass(geometryVertex, geometryFragment, lightingModel)
     this._depthBiasLocation = this.getUniformLocation("hx_spotLight.depthBias");
     this._shadowMatrixLocation = this.getUniformLocation("hx_spotLight.shadowMapMatrix");
     this._shadowTileLocation = this.getUniformLocation("hx_spotLight.shadowTile");
+
+	this._MP_updatePassRenderState = MaterialPass.prototype.updatePassRenderState;
 }
 
 SpotLightingPass.prototype = Object.create(MaterialPass.prototype);
@@ -69,7 +71,7 @@ SpotLightingPass.prototype.updatePassRenderState = function(camera, renderer, li
             gl.uniformMatrix4fv(this._shadowMatrixLocation, false, matrix._m);
         }
 
-        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+		this._MP_updatePassRenderState(camera, renderer);
     }
 }();
 

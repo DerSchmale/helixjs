@@ -136,7 +136,8 @@ LayeredAnimation.prototype.clone = function()
 LayeredAnimation.prototype._collectPotentialTargets = function()
 {
 	var targets = {};
-	this.entity.applyFunction(function(node) {
+
+	function collect(node) {
 		targets[node.name] = node;
 
 		if (node instanceof Entity) {
@@ -152,7 +153,9 @@ LayeredAnimation.prototype._collectPotentialTargets = function()
 				targets[morphAnimations[i].name] = morphAnimations[i];
 			}
 		}
-	}, this);
+	}
+
+	this.entity.applyFunction(collect.bind(this));
 
 	return targets;
 };

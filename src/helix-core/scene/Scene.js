@@ -167,11 +167,10 @@ Scene.prototype = {
     /**
      * Applies a function recursively to all child nodes.
      * @param func The function to call (using the traversed node as argument)
-     * @param [thisRef] Optional reference to "this" in the calling function, to keep the scope of "this" in the called method.
      */
-    applyFunction: function(func, thisRef)
+    applyFunction: function(func)
     {
-        this._rootNode.applyFunction(func, thisRef);
+        this._rootNode.applyFunction(func);
     }
 };
 

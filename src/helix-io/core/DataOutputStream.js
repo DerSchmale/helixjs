@@ -13,6 +13,15 @@ function DataOutputStream(dataView)
     this._dataView = dataView;
     this._offset = 0;
     this._endian = DataOutputStream.LITTLE_ENDIAN;
+
+	this.writeInt8 = this.writeInt8.bind(this);
+	this.writeInt16 = this.writeInt16.bind(this);
+	this.writeInt32 = this.writeInt32.bind(this);
+	this.writeUint8 = this.writeUint8.bind(this);
+	this.writeUint16 = this.writeUint16.bind(this);
+	this.writeUint32 = this.writeUint32.bind(this);
+	this.writeFloat32 = this.writeFloat32.bind(this);
+	this.writeFloat64 = this.writeFloat64.bind(this);
 }
 
 /**
@@ -161,7 +170,7 @@ DataOutputStream.prototype = {
     {
         var len = val.length;
         for (var i = 0; i < len; ++i)
-            func.call(this, val[i]);
+            func(val[i]);
     }
 };
 

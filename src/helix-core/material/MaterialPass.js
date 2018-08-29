@@ -14,15 +14,16 @@ import {UniformBufferSetter} from "../shader/UniformBufferSetter";
 function MaterialPass(shader)
 {
     this.shader = shader;
-    this._textures = new Array(shader.numTextures);
-    this._uniformBufferSlots = shader.createUniformBufferSlots();
     this.cullMode = CullMode.BACK;
     this.writeColor = true;
     this.depthTest = Comparison.LESS_EQUAL;
     this.writeDepth = true;
     this.blendState = null;
 
-    this._textureSettersPass = TextureSetter.getSettersPerPass(this);
+    this._textures = new Array(shader.numTextures);
+	this._uniformBuffers = new Array(shader.numUniformBuffers);
+
+	this._textureSettersPass = TextureSetter.getSettersPerPass(this);
     this._textureSettersInstance = TextureSetter.getSettersPerInstance(this);
 
     if (capabilities.WEBGL_2) {
@@ -111,12 +112,12 @@ MaterialPass.prototype =
                     texture._default.bind(i);
             }
 
-            len = this._uniformBufferSlots.length;
+            len = this._uniformBuffers.length;
 
             for (i = 0; i < len; ++i) {
-                var slot = this._uniformBufferSlots[i];
-                var buffer = slot.buffer;
-                buffer.bind(i);
+                var buffer = this._uniformBuffers[i];
+                if (buffer)
+                    buffer.bind(i);
             }
 
             GL.setMaterialPassState(this.cullMode, this.depthTest, this.writeDepth, this.writeColor, this.blendState);
@@ -133,17 +134,6 @@ MaterialPass.prototype =
 			return this.shader.getTextureIndex(name);
         },
 
-        getUniformBufferSlot: function(name)
-        {
-            for (var i = 0, len = this._uniformBufferSlots.length; i < len; ++i) {
-                var slot = this._uniformBufferSlots[i];
-                if (slot.name === name)
-                    return slot;
-            }
-
-            return null;
-        },
-
 		hasTexture: function(name)
 		{
 			return this.getTextureIndex(name) !== -1;
@@ -151,9 +141,9 @@ MaterialPass.prototype =
 
         setTexture: function(name, texture)
         {
-            var index = this.getTextureIndex(name);
-			if (index === -1) return;
-            this._textures[index] = texture;
+            var index = this.shader.getTextureIndex(name);
+			if (index !== -1)
+                this._textures[index] = texture;
         },
 
 		setTextureByIndex: function(index, texture)
@@ -178,14 +168,29 @@ MaterialPass.prototype =
 			}
 		},
 
+		/**
+		 * Allows getting the uniform buffer index. For textures that often change, it may be better to cache this value
+		 * and assign the textures through setUniformBufferByIndex.
+		 * and assign the textures through setUniformBufferByIndex.
+		 */
+		getUniformBufferIndex: function(name)
+		{
+			return this.shader.getUniformBufferIndex(name);
+		},
+
         setUniformBuffer: function(name, buffer)
         {
-            var slot = this.getUniformBufferSlot(name);
-            if (slot)
-                slot.buffer = buffer;
+            var index = this.shader.getUniformBufferIndex(name);
+            if (index !== -1)
+                this._uniformBuffers[index] = buffer;
         },
 
-        getUniformLocation: function(name)
+		setUniformBufferByIndex: function(index, buffer)
+		{
+			this._uniformBuffers[index] = buffer;
+		},
+
+		getUniformLocation: function(name)
         {
             return this.shader.getUniformLocation(name);
         },

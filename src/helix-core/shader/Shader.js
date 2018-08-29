@@ -3,7 +3,6 @@ import {GL} from '../core/GL';
 import {capabilities, META} from '../Helix';
 import {UniformSetter} from "./UniformSetter";
 import {Debug} from "../debug/Debug";
-import {UniformBufferSlot} from "../material/UniformBufferSlot";
 import {UniformBuffer} from "../core/UniformBuffer";
 
 
@@ -208,17 +207,18 @@ Shader.prototype = {
 		return -1;
 	},
 
-	createUniformBufferSlots: function()
+	getUniformBufferIndex: function(name)
 	{
-		var slots = [];
 		for (var i = 0, len = this._uniformBlocks.length; i < len; ++i) {
-			var slot = new UniformBufferSlot();
-			slot.bindingPoint = i;
-			slot.blockIndex = i;
-			slot.name = this._uniformBlocks[i];
-			slots.push(slot);
+			if (this._uniformBlocks[i] === name) return i;
 		}
-		return slots;
+
+		return -1;
+	},
+
+	get numUniformBuffers()
+	{
+		return this._uniformBlocks.length;
 	}
 };
 

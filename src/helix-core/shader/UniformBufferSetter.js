@@ -1,6 +1,3 @@
-import {GL} from "../core/GL";
-import {UniformSetter} from "./UniformSetter";
-
 /**
  * @ignore
  * @author derschmale <http://www.derschmale.com>
@@ -27,11 +24,12 @@ export var UniformBufferSetter = {
         var setters = [];
         for (var slotName in table) {
             if (!table.hasOwnProperty(slotName)) continue;
-            var slot = materialPass.getUniformBufferSlot(slotName);
-            if (!slot) continue;
+            var slot = materialPass.getUniformBufferIndex(slotName);
+            if (slot === -1) continue;
             var setter = new table[slotName]();
             setters.push(setter);
             setter.slot = slot;
+            setter.pass = materialPass;
         }
 
         return setters;
@@ -53,7 +51,7 @@ function LightsSetter()
 
 LightsSetter.prototype.execute = function (renderer)
 {
-    this.slot.buffer = renderer._lightingUniformBuffer;
+    this.pass.setUniformBufferByIndex(this.slot, renderer._lightingUniformBuffer);
 };
 
 function LightingCellsSetter()
@@ -62,6 +60,6 @@ function LightingCellsSetter()
 
 LightingCellsSetter.prototype.execute = function (renderer)
 {
-	this.slot.buffer = renderer._lightingCellsUniformBuffer;
+	this.pass.setUniformBufferByIndex(this.slot, renderer._lightingCellsUniformBuffer);
 };
 

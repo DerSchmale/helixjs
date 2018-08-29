@@ -17,7 +17,7 @@ import {UniformBuffer} from "../core/UniformBuffer";
 function MaterialPass(shader)
 {
     this.shader = shader;
-    this._textureSlots = [];
+    this._textureSlots = shader.createTextureSlots();
     this._uniformBufferSlots = [];
     this.cullMode = CullMode.BACK;
     this.writeColor = true;
@@ -105,14 +105,14 @@ MaterialPass.prototype =
                 var texture = slot.texture;
 
                 if (!texture) {
-                    Texture2D.DEFAULT.bind(i);
+                    Texture2D.DEFAULT.bind(slot.index);
                     continue;
                 }
 
                 if (texture.isReady())
-                    texture.bind(i);
+                    texture.bind(slot.index);
                 else
-                    texture._default.bind(i);
+                    texture._default.bind(slot.index);
             }
 
             len = this._uniformBufferSlots.length;
@@ -151,48 +151,16 @@ MaterialPass.prototype =
 
         getTextureSlot: function(slotName)
         {
-            if (!this.shader.hasUniform(slotName)) return null;
+			if (!this.shader.hasUniform(slotName)) return;
 
-            var gl = GL.gl;
-            gl.useProgram(this.shader.program);
+			var slots = this._textureSlots;
 
-            var uniform = this.shader.getUniform(slotName);
-
-            if (!uniform) return;
-
-            var location = uniform.location;
-
-            var slot = null;
-
-            // reuse if location is already used
-            var len = this._textureSlots.length;
-            for (var i = 0; i < len; ++i) {
-                if (this._textureSlots[i].location === location) {
-                    slot = this._textureSlots[i];
-                    break;
-                }
+            for (var i = 0, len = slots.length; i < len; ++i) {
+                if (slots[i].name === slotName)
+                    return slots[i];
             }
 
-            if (!slot) {
-                var indices = new Int32Array(uniform.size);
-                for (var s = 0; s < uniform.size; ++s) {
-                    slot = new TextureSlot();
-                    slot.index = i;
-                    slot.name = slotName;
-                    this._textureSlots.push(slot);
-                    slot.location = location;
-                    indices[s] = i + s;
-                }
-
-                if (uniform.size === 1) {
-                    gl.uniform1i(location, i);
-                }
-                else {
-                    gl.uniform1iv(location, indices);
-                }
-            }
-
-            return slot;
+            return null;
         },
 
         getUniformBufferSlot: function(slotName)
@@ -246,6 +214,7 @@ MaterialPass.prototype =
         {
             var firstSlot = this.getTextureSlot(slotName + "[0]");
             var location = firstSlot.location;
+
             if (firstSlot) {
                 var len = textures.length;
                 for (var i = 0; i < len; ++i) {

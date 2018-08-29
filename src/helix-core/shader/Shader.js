@@ -3,6 +3,7 @@ import {GL} from '../core/GL';
 import {META} from '../Helix';
 import {UniformSetter} from "./UniformSetter";
 import {Debug} from "../debug/Debug";
+import {TextureSlot} from "../material/TextureSlot";
 
 
 /**
@@ -17,6 +18,7 @@ function Shader(vertexShaderCode, fragmentShaderCode)
 {
 	this.program = null;
 	this._uniforms = null;
+	this._textureUniforms = null;
 	this._ready = false;
 	this._vertexShader = null;
 	this._fragmentShader = null;
@@ -136,8 +138,12 @@ Shader.prototype = {
 	_storeUniforms: function()
 	{
 		this._uniforms = {};
+		this._textureUniforms = [];
+		var textureCount = 0;
 
 		var gl = GL.gl;
+
+		gl.useProgram(this.program);
 
 		var len = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORMS);
 
@@ -146,14 +152,33 @@ Shader.prototype = {
 			var name = uniform.name;
 			var location = gl.getUniformLocation(this.program, name);
 			this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
+
+			if (uniform.type === gl.SAMPLER_2D || uniform.type === gl.SAMPLER_CUBE) {
+				// this should also take care of texture arrays, right?
+				this._textureUniforms.push(uniform);
+				gl.uniform1i(location, textureCount++);
+			}
 		}
+	},
+
+	createTextureSlots: function()
+	{
+		var slots = [];
+		for (var i = 0, len = this._textureUniforms.length; i < len; ++i) {
+			var slot = new TextureSlot();
+			var uniform = this._textureUniforms[i];
+			slot.name = uniform.name;
+			slot.index = i;
+			slot.location = uniform.location;
+			slots[i] = slot;
+		}
+		return slots;
 	}
 };
 
 
 function processExtensions(code, regEx, extension)
 {
-
 	var index = code.search(regEx);
 	if (index < 0) return code;
 	code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");

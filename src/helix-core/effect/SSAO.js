@@ -103,7 +103,7 @@ SSAO.prototype.init = function()
     this._ssaoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
     this._ssaoPass.setUniform("sampleRadius", this._radius);
     this._ssaoPass.setTexture("ditherTexture", this._ditherTexture);
-    this._sourceTextureSlot = this._blurPass.getTextureSlot("source");
+    this._sourceTextureSlot = this._blurPass.getTextureIndex("source");
 
     this._ssaoTexture = new Texture2D();
     this._ssaoTexture.filter = TextureFilter.BILINEAR_NOMIP;
@@ -170,7 +170,7 @@ SSAO.prototype.draw = function(dt)
     GL.setRenderTarget(this._fbo2);
     GL.clear();
     this._blurPass.setUniform("pixelSize", {x: 1.0 / w, y: 1.0 / h});
-    this._sourceTextureSlot.texture = this._backTexture;
+    this._blurPass.setTextureByIndex(this._sourceTextureSlot, this._backTexture);
     this._drawPass(this._blurPass);
 
     GL.setClearColor(Color.BLACK);

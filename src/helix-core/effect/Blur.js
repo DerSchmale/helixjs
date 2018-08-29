@@ -24,7 +24,7 @@ function Blur(numSamples, radius)
 	this.radius = radius;
 
 	this._blurPass = new GaussianBlurPass(radius);
-	this._blurSourceSlot = this._blurPass.getTextureSlot("sourceTexture");
+	this._blurSourceSlot = this._blurPass.getTextureIndex("sourceTexture");
     this._numSamples = numSamples;
 }
 
@@ -40,7 +40,7 @@ Blur.prototype.draw = function(dt)
     // handle different textures too (see bloom)
     GL.setRenderTarget(this.hdrTarget);
     GL.clear();
-    this._blurSourceSlot.texture = this.hdrSource;
+    this._blurPass.setTextureByIndex(this._blurSourceSlot, this.hdrSource);
     this._blurPass.setUniform("stepSize", {x: ratio / this.hdrSource.width, y: 0.0});
     this._drawPass(this._blurPass);
 
@@ -48,7 +48,7 @@ Blur.prototype.draw = function(dt)
 
     GL.setRenderTarget(this.hdrTarget);
     GL.clear();
-    this._blurSourceSlot.texture = this.hdrSource;
+	this._blurPass.setTextureByIndex(this._blurSourceSlot, this.hdrSource);
     this._blurPass.setUniform("stepSize", {x: 0.0, y: ratio / this.hdrSource.height});
     this._drawPass(this._blurPass);
 };

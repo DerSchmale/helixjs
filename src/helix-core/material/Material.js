@@ -298,10 +298,10 @@ Material.prototype =
             if (type === MaterialPass.BASE_PASS)
                 pass.blendState = this._blendState;
 
-            if (pass.getTextureSlot("hx_normalDepthBuffer"))
+            if (pass.hasTexture("hx_normalDepthBuffer"))
                 this.needsNormalDepth = true;
 
-            if (pass.getTextureSlot("hx_backbuffer"))
+            if (pass.hasTexture("hx_backbuffer"))
                 this.needsBackbuffer = true;
 
             for (var slotName in this._textures) {

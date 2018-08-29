@@ -39,7 +39,7 @@ function Bloom(radius, strength, downScale, anisotropy)
     this._thresholdPass = new EffectPass(null, ShaderLibrary.get("bloom_threshold_fragment.glsl"));
     this._compositePass = new EffectPass(ShaderLibrary.get("bloom_composite_vertex.glsl"), ShaderLibrary.get("bloom_composite_fragment.glsl"));
     this._blurPass = new GaussianBlurPass(radius);
-    this._blurSourceSlot = this._blurPass.getTextureSlot("sourceTexture");
+    this._blurSourceSlot = this._blurPass.getTextureIndex("sourceTexture");
     this._thresholdWidth = -1;
     this._thresholdHeight = -1;
 
@@ -127,13 +127,13 @@ Bloom.prototype.draw = function (dt)
 
     GL.setRenderTarget(this._smallFBOs[1]);
     GL.clear();
-    this._blurSourceSlot.texture = this._thresholdMaps[0];
+    this._blurPass.setTextureByIndex(this._blurSourceSlot, this._thresholdMaps[0]);
     this._blurPass.setUniform("stepSize", {x: 1.0 / this._thresholdWidth, y: 0.0});
     this._drawPass(this._blurPass);
 
     GL.setRenderTarget(this._smallFBOs[0]);
     GL.clear();
-    this._blurSourceSlot.texture = this._thresholdMaps[1];
+	this._blurPass.setTextureByIndex(this._blurSourceSlot, this._thresholdMaps[1]);
     this._blurPass.setUniform("stepSize", {x: 0.0, y: this._anisotropy / this._thresholdHeight});
     this._drawPass(this._blurPass);
 

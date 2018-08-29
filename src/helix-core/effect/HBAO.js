@@ -128,7 +128,7 @@ HBAO.prototype.init = function()
     this._aoPass.setUniform("bias", this._bias);
     this._aoPass.setTexture("ditherTexture", this._ditherTexture);
     this._aoPass.setTexture("sampleDirTexture", this._sampleDirTexture);
-    this._sourceTextureSlot = this._blurPass.getTextureSlot("source");
+    this._sourceTextureSlot = this._blurPass.getTextureIndex("source");
 
     this._aoTexture = new Texture2D();
     this._aoTexture.filter = TextureFilter.BILINEAR_NOMIP;
@@ -173,7 +173,7 @@ HBAO.prototype.draw = function(dt)
     GL.setRenderTarget(this._fbo2);
     GL.clear();
     this._blurPass.setUniform("pixelSize", {x: 1.0 / w, y: 1.0 / h});
-    this._sourceTextureSlot.texture = this._backTexture;
+    this._blurPass.setTextureByIndex(this._sourceTextureSlot, this._backTexture);
     this._drawPass(this._blurPass);
 
     GL.setClearColor(Color.BLACK);

@@ -3,7 +3,6 @@ import {GL} from '../core/GL';
 import {capabilities, META} from '../Helix';
 import {UniformSetter} from "./UniformSetter";
 import {Debug} from "../debug/Debug";
-import {TextureSlot} from "../material/TextureSlot";
 import {UniformBufferSlot} from "../material/UniformBufferSlot";
 import {UniformBuffer} from "../core/UniformBuffer";
 
@@ -51,10 +50,8 @@ Shader.prototype = {
 		this._vertexShader = getShader(vertexShaderCode, gl.VERTEX_SHADER);
 		this._fragmentShader = getShader(fragmentShaderCode, gl.FRAGMENT_SHADER);
 
-		if (!this._vertexShader || !this._fragmentShader) {
-			this.dispose();
+		if (!this._vertexShader || !this._fragmentShader)
 			return;
-		}
 
 		this.program = gl.createProgram();
 
@@ -64,7 +61,6 @@ Shader.prototype = {
 
 		if (META.OPTIONS.debug && !gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
 			var log = gl.getProgramInfoLog(this.program);
-			this.dispose();
 
 			console.log("**********");
 			Debug.printShaderCode(vertexShaderCode);
@@ -103,16 +99,6 @@ Shader.prototype = {
 		var len = this._uniformSettersInstance.length;
 		for (var i = 0; i < len; ++i)
 			this._uniformSettersInstance[i].execute(camera, renderItem);
-	},
-
-	dispose: function()
-	{
-		var gl = GL.gl;
-		if (this._vertexShader) gl.deleteShader(this._vertexShader);
-		if (this._fragmentShader) gl.deleteShader(this._fragmentShader);
-		if (this.program) gl.deleteProgram(this.program);
-
-		this._ready = false;
 	},
 
 	hasUniform: function(name)
@@ -169,7 +155,7 @@ Shader.prototype = {
 			len = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORM_BLOCKS);
 			for (i = 0; i < len; ++i) {
 				var name = gl.getActiveUniformBlockName(this.program, i);
-				gl.uniformBlockBinding(this.shader.program, i, i);
+				gl.uniformBlockBinding(this.program, i, i);
 				this._uniformBlocks.push(name);
 			}
 		}
@@ -205,21 +191,22 @@ Shader.prototype = {
 		uniformBuffer.uploadData(new Float32Array(totalSize / 4));
 
 		return uniformBuffer;
-	}
+	},
 
-	createTextureSlots: function()
+	get numTextures()
 	{
-		var slots = [];
+		return this._textureUniforms.length;
+	},
+
+	getTextureIndex: function(name)
+	{
 		for (var i = 0, len = this._textureUniforms.length; i < len; ++i) {
-			var slot = new TextureSlot();
 			var uniform = this._textureUniforms[i];
-			slot.name = uniform.name;
-			slot.index = i;
-			slot.location = uniform.location;
-			slots[i] = slot;
+			if (uniform.name === name) return i;
 		}
-		return slots;
-	}
+
+		return -1;
+	},
 
 	createUniformBufferSlots: function()
 	{
@@ -309,7 +296,6 @@ function getShader(code, type)
 
 	var shader = GL.gl.createShader(type);
 	if (!initShader(shader, code)) {
-		this.dispose();
 		if (META.OPTIONS.throwOnShaderError) {
 			throw new Error("Failed generating shader: \n" + code);
 		}
@@ -317,7 +303,6 @@ function getShader(code, type)
 			console.warn("Failed generating shader");
 		}
 
-		gl.deleteShader(shader);
 		return null;
 	}
 	return shader;

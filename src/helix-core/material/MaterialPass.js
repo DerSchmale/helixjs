@@ -1,11 +1,8 @@
 import {capabilities, Comparison, CullMode, DEFAULTS} from "../Helix";
 import {TextureSetter} from "../shader/TextureSetter";
 import {GL} from "../core/GL";
-import {TextureSlot} from "./TextureSlot";
-import {UniformBufferSlot} from "./UniformBufferSlot";
 import {Texture2D} from "../texture/Texture2D";
 import {UniformBufferSetter} from "../shader/UniformBufferSetter";
-import {UniformBuffer} from "../core/UniformBuffer";
 
 /**
  * @ignore
@@ -17,7 +14,7 @@ import {UniformBuffer} from "../core/UniformBuffer";
 function MaterialPass(shader)
 {
     this.shader = shader;
-    this._textureSlots = shader.createTextureSlots();
+    this._textures = new Array(shader.numTextures);
     this._uniformBufferSlots = shader.createUniformBufferSlots();
     this.cullMode = CullMode.BACK;
     this.writeColor = true;
@@ -98,27 +95,26 @@ MaterialPass.prototype =
                 }
             }
 
-            len = this._textureSlots.length;
+            len = this._textures.length;
 
             for (i = 0; i < len; ++i) {
-                var slot = this._textureSlots[i];
-                var texture = slot.texture;
+                var texture = this._textures[i];
 
                 if (!texture) {
-                    Texture2D.DEFAULT.bind(slot.index);
+                    Texture2D.DEFAULT.bind(i);
                     continue;
                 }
 
                 if (texture.isReady())
-                    texture.bind(slot.index);
+                    texture.bind(i);
                 else
-                    texture._default.bind(slot.index);
+                    texture._default.bind(i);
             }
 
             len = this._uniformBufferSlots.length;
 
             for (i = 0; i < len; ++i) {
-                slot = this._uniformBufferSlots[i];
+                var slot = this._uniformBufferSlots[i];
                 var buffer = slot.buffer;
                 buffer.bind(i);
             }
@@ -128,59 +124,65 @@ MaterialPass.prototype =
             this.shader.updatePassRenderState(camera, renderer);
         },
 
-        getTextureSlot: function(slotName)
+		/**
+         * Allows getting the texture index. For textures that often change, it may be better to cache this value and
+         * assign the textures through setTextureByIndex.
+		 */
+		getTextureIndex: function(name)
         {
-			if (!this.shader.hasUniform(slotName)) return;
-
-			var slots = this._textureSlots;
-
-            for (var i = 0, len = slots.length; i < len; ++i) {
-                if (slots[i].name === slotName)
-                    return slots[i];
-            }
-
-            return null;
+			return this.shader.getTextureIndex(name);
         },
 
-        getUniformBufferSlot: function(slotName)
+        getUniformBufferSlot: function(name)
         {
             for (var i = 0, len = this._uniformBufferSlots.length; i < len; ++i) {
                 var slot = this._uniformBufferSlots[i];
-                if (slot.name === slotName)
+                if (slot.name === name)
                     return slot;
             }
 
             return null;
         },
 
-        setTexture: function(slotName, texture)
+		hasTexture: function(name)
+		{
+			return this.getTextureIndex(name) !== -1;
+		},
+
+        setTexture: function(name, texture)
         {
-            var slot = this.getTextureSlot(slotName);
-            if (slot)
-                slot.texture = texture;
+            var index = this.getTextureIndex(name);
+			if (index === -1) return;
+            this._textures[index] = texture;
         },
 
-        setUniformBuffer: function(slotName, buffer)
+		setTextureByIndex: function(index, texture)
+		{
+			this._textures[index] = texture;
+		},
+
+		setTextureArray: function(name, textures)
+		{
+			var firstIndex = this.getTextureIndex(name + "[0]");
+
+			if (firstIndex === -1) return;
+			for (var i = 0, len = textures.length; i < len; ++i) {
+				this._textures[firstIndex + i] = textures[i]
+			}
+		},
+
+		setTextureArrayByIndex: function(firstIndex, textures)
+		{
+			for (var i = 0, len = textures.length; i < len; ++i) {
+				this._textures[firstIndex + i] = textures[i]
+			}
+		},
+
+        setUniformBuffer: function(name, buffer)
         {
-            var slot = this.getUniformBufferSlot(slotName);
+            var slot = this.getUniformBufferSlot(name);
             if (slot)
                 slot.buffer = buffer;
-        },
-
-        setTextureArray: function(slotName, textures)
-        {
-            var firstSlot = this.getTextureSlot(slotName + "[0]");
-            var location = firstSlot.location;
-
-            if (firstSlot) {
-                var len = textures.length;
-                for (var i = 0; i < len; ++i) {
-                    var slot = this._textureSlots[firstSlot.index + i];
-                    // make sure we're not overshooting the array and writing to another element (larger arrays are allowed analogous to uniform arrays)
-                    if (!slot || slot.location !== location) return;
-                    slot.texture = textures[i];
-                }
-            }
         },
 
         getUniformLocation: function(name)

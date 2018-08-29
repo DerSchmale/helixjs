@@ -19,14 +19,12 @@ function MaterialPass(shader)
     this.shader = shader;
     this._textureSlots = [];
     this._uniformBufferSlots = [];
-    this._uniforms = {};
     this.cullMode = CullMode.BACK;
     this.writeColor = true;
     this.depthTest = Comparison.LESS_EQUAL;
     this.writeDepth = true;
     this.blendState = null;
 
-    this._storeUniforms();
     this._textureSettersPass = TextureSetter.getSettersPerPass(this);
     this._textureSettersInstance = TextureSetter.getSettersPerInstance(this);
 
@@ -130,20 +128,6 @@ MaterialPass.prototype =
             this.shader.updatePassRenderState(camera, renderer);
         },
 
-        _storeUniforms: function()
-        {
-            var gl = GL.gl;
-
-            var len = gl.getProgramParameter(this.shader.program, gl.ACTIVE_UNIFORMS);
-
-            for (var i = 0; i < len; ++i) {
-                var uniform = gl.getActiveUniform(this.shader.program, i);
-                var name = uniform.name;
-                var location = gl.getUniformLocation(this.shader.program, name);
-                this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
-            }
-        },
-
         createUniformBufferFromShader: function(name)
         {
             var gl = GL.gl;
@@ -167,12 +151,12 @@ MaterialPass.prototype =
 
         getTextureSlot: function(slotName)
         {
-            if (!this._uniforms.hasOwnProperty(slotName)) return null;
+            if (!this.shader.hasUniform(slotName)) return null;
 
             var gl = GL.gl;
             gl.useProgram(this.shader.program);
 
-            var uniform = this._uniforms[slotName];
+            var uniform = this.shader.getUniform(slotName);
 
             if (!uniform) return;
 
@@ -275,8 +259,7 @@ MaterialPass.prototype =
 
         getUniformLocation: function(name)
         {
-            if (this._uniforms.hasOwnProperty(name))
-                return this._uniforms[name].location;
+            return this.shader.getUniformLocation(name);
         },
 
         getAttributeLocation: function(name)
@@ -291,7 +274,7 @@ MaterialPass.prototype =
             for (var i = 0; i < len; ++i) {
                 var elm = value[i];
                 for (var key in elm) {
-                    if (elm.hasOwnProperty("key"))
+                    if (elm.hasOwnProperty(key))
                         this.setUniform(name + "[" + i + "]." + key, value);
                 }
             }
@@ -301,10 +284,10 @@ MaterialPass.prototype =
         {
             name += "[0]";
 
-            if (!this._uniforms.hasOwnProperty(name))
+            if (!this.shader.hasUniform(name))
                 return;
 
-            var uniform = this._uniforms[name];
+            var uniform = this.shader.getUniform(name);
             var gl = GL.gl;
             gl.useProgram(this.shader.program);
 
@@ -356,10 +339,11 @@ MaterialPass.prototype =
 
         setUniform: function(name, value)
         {
-            if (!this._uniforms.hasOwnProperty(name))
+            // TODO: Assign these on shader
+            if (!this.shader.hasUniform(name))
                 return;
 
-            var uniform = this._uniforms[name];
+            var uniform = this.shader.getUniform(name);
 
             var gl = GL.gl;
             gl.useProgram(this.shader.program);

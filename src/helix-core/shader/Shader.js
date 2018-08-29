@@ -16,6 +16,7 @@ import {Debug} from "../debug/Debug";
 function Shader(vertexShaderCode, fragmentShaderCode)
 {
 	this.program = null;
+	this._uniforms = null;
 	this._ready = false;
 	this._vertexShader = null;
 	this._fragmentShader = null;
@@ -79,6 +80,8 @@ Shader.prototype = {
 
 		this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
 		this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
+
+		this._storeUniforms();
 	},
 
 	updatePassRenderState: function(camera, renderer)
@@ -107,14 +110,43 @@ Shader.prototype = {
 		this._ready = false;
 	},
 
+	hasUniform: function(name)
+	{
+		return this._uniforms.hasOwnProperty(name);
+	},
+
+	getUniform: function(name)
+	{
+		return this._uniforms[name];
+	},
+
 	getUniformLocation: function(name)
 	{
-		return GL.gl.getUniformLocation(this.program, name);
+		if (this.hasUniform(name))
+			return this._uniforms[name].location;
+
+		return null;
 	},
 
 	getAttributeLocation: function(name)
 	{
 		return GL.gl.getAttribLocation(this.program, name);
+	},
+
+	_storeUniforms: function()
+	{
+		this._uniforms = {};
+
+		var gl = GL.gl;
+
+		var len = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORMS);
+
+		for (var i = 0; i < len; ++i) {
+			var uniform = gl.getActiveUniform(this.program, i);
+			var name = uniform.name;
+			var location = gl.getUniformLocation(this.program, name);
+			this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
+		}
 	}
 };
 

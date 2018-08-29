@@ -4,104 +4,6 @@ import {META} from '../Helix';
 import {UniformSetter} from "./UniformSetter";
 import {Debug} from "../debug/Debug";
 
-function processExtensions(code, regEx, extension)
-{
-
-	var index = code.search(regEx);
-	if (index < 0) return code;
-	code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");
-	return code;
-}
-
-// this makes sure reserved uniforms are only used once, makes it easier to combine several snippets
-// it's quite slow, tho
-function guard(code, regEx)
-{
-	var result = code.match(regEx) || [];
-	var covered = {};
-
-	for (var i = 0; i < result.length; ++i) {
-		var occ = result[i];
-		occ = occ.replace(/(\r|\n)/g, "");
-
-		if (occ.charCodeAt(0) === 10)
-			occ = occ.substring(1);
-
-		var start = occ.indexOf("hx_");
-		var end = occ.indexOf(";");
-
-		// in case of arrays
-		var sq = occ.indexOf("[");
-		if (sq >= 0 && sq < end) end = sq;
-
-		var name = occ.substring(start, end);
-		name = name.trim();
-
-		if (covered[name]) continue;
-
-		covered[name] = true;
-
-		var defName = "HX_GUARD_" + name.toUpperCase();
-		var repl = "\n#ifndef " + defName + "\n" +
-			"#define " + defName + "\n" +
-			occ + "\n" +
-			"#endif\n";
-
-		occ = occ.replace(/\[/g, "\\[");
-		var replReg = new RegExp(occ, "g");
-		code = code.replace(replReg, repl);
-	}
-
-	return code;
-}
-
-function initShader(shader, code)
-{
-	var gl = GL.gl;
-	gl.shaderSource(shader, code);
-	gl.compileShader(shader);
-
-	// Check the compile status, return an error if failed
-	if (META.OPTIONS.debug && !gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-		console.warn(gl.getShaderInfoLog(shader));
-		Debug.printShaderCode(code);
-		return false;
-	}
-
-	return true;
-}
-
-function getShader(code, type)
-{
-	// is there a way to safely cache this so we don't have to do it over an over?
-	code = processShaderCode(code);
-
-	var shader = GL.gl.createShader(type);
-	if (!initShader(shader, code)) {
-		this.dispose();
-		if (META.OPTIONS.throwOnShaderError) {
-			throw new Error("Failed generating shader: \n" + code);
-		}
-		else {
-			console.warn("Failed generating shader");
-		}
-
-		gl.deleteShader(shader);
-		return null;
-	}
-	return shader;
-}
-
-function processShaderCode(code)
-{
-	code = processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
-	code = processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
-	code = processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
-	code = guard(code, /^\s*uniform\s+\w+\s+hx_\w+(\[\w+])?\s*;/gm);
-	code = guard(code, /^\s*attribute\s+\w+\s+hx_\w+\s*;/gm);
-	code = GLSLIncludes.VERSION + code;
-	return code;
-}
 
 /**
  * @ignore
@@ -215,5 +117,105 @@ Shader.prototype = {
 		return GL.gl.getAttribLocation(this.program, name);
 	}
 };
+
+
+function processExtensions(code, regEx, extension)
+{
+
+	var index = code.search(regEx);
+	if (index < 0) return code;
+	code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");
+	return code;
+}
+
+// this makes sure reserved uniforms are only used once, makes it easier to combine several snippets
+// it's quite slow, tho
+function guard(code, regEx)
+{
+	var result = code.match(regEx) || [];
+	var covered = {};
+
+	for (var i = 0; i < result.length; ++i) {
+		var occ = result[i];
+		occ = occ.replace(/(\r|\n)/g, "");
+
+		if (occ.charCodeAt(0) === 10)
+			occ = occ.substring(1);
+
+		var start = occ.indexOf("hx_");
+		var end = occ.indexOf(";");
+
+		// in case of arrays
+		var sq = occ.indexOf("[");
+		if (sq >= 0 && sq < end) end = sq;
+
+		var name = occ.substring(start, end);
+		name = name.trim();
+
+		if (covered[name]) continue;
+
+		covered[name] = true;
+
+		var defName = "HX_GUARD_" + name.toUpperCase();
+		var repl = "\n#ifndef " + defName + "\n" +
+			"#define " + defName + "\n" +
+			occ + "\n" +
+			"#endif\n";
+
+		occ = occ.replace(/\[/g, "\\[");
+		var replReg = new RegExp(occ, "g");
+		code = code.replace(replReg, repl);
+	}
+
+	return code;
+}
+
+function initShader(shader, code)
+{
+	var gl = GL.gl;
+	gl.shaderSource(shader, code);
+	gl.compileShader(shader);
+
+	// Check the compile status, return an error if failed
+	if (META.OPTIONS.debug && !gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+		console.warn(gl.getShaderInfoLog(shader));
+		Debug.printShaderCode(code);
+		return false;
+	}
+
+	return true;
+}
+
+function getShader(code, type)
+{
+	// is there a way to safely cache this so we don't have to do it over an over?
+	code = processShaderCode(code);
+
+	var shader = GL.gl.createShader(type);
+	if (!initShader(shader, code)) {
+		this.dispose();
+		if (META.OPTIONS.throwOnShaderError) {
+			throw new Error("Failed generating shader: \n" + code);
+		}
+		else {
+			console.warn("Failed generating shader");
+		}
+
+		gl.deleteShader(shader);
+		return null;
+	}
+	return shader;
+}
+
+function processShaderCode(code)
+{
+	code = processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
+	code = processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
+	code = processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
+	code = guard(code, /^\s*uniform\s+\w+\s+hx_\w+(\[\w+])?\s*;/gm);
+	code = guard(code, /^\s*attribute\s+\w+\s+hx_\w+\s*;/gm);
+	code = GLSLIncludes.VERSION + code;
+	return code;
+}
 
 export {Shader};

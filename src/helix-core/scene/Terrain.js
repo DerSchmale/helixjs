@@ -6,6 +6,7 @@ import {Entity} from "../entity/Entity";
 import {SceneNode} from "./SceneNode";
 import {Component} from "../entity/Component";
 import {BoundingAABB} from "./BoundingAABB";
+import {MeshInstance} from "../mesh/MeshInstance";
 
 /**
  * Terrain provides a paged terrain engine with dynamic LOD. The heightmapping itself happens in the Material.
@@ -231,7 +232,7 @@ Terrain.prototype._initTree = function()
 Terrain.prototype._addMesh = function(x, y, level, rotation, mode)
 {
     var entity = new Entity();
-    var meshInstance = new HX.MeshInstance(this._meshes[level][mode], this._material);
+    var meshInstance = new MeshInstance(this._meshes[level][mode], this._material);
     entity.addComponent(meshInstance);
     entity.position.set(x, y, 0);
     // this rotation aligns the higher triangle strips

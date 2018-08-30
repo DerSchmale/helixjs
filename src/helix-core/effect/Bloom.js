@@ -113,7 +113,7 @@ Bloom.prototype._initTextures = function ()
 /**
  * @ignore
  */
-Bloom.prototype.draw = function (dt)
+Bloom.prototype.draw = function (renderer, dt)
 {
     if (this._renderer._width !== this._targetWidth || this._renderer._height !== this._targetHeight) {
         this._targetWidth = this._renderer._width;
@@ -123,23 +123,23 @@ Bloom.prototype.draw = function (dt)
 
     GL.setRenderTarget(this._smallFBOs[0]);
     GL.clear();
-    this._drawPass(this._thresholdPass);
+    this._thresholdPass.draw(renderer);
 
     GL.setRenderTarget(this._smallFBOs[1]);
     GL.clear();
     this._blurPass.setTextureByIndex(this._blurSourceSlot, this._thresholdMaps[0]);
     this._blurPass.setUniform("stepSize", {x: 1.0 / this._thresholdWidth, y: 0.0});
-    this._drawPass(this._blurPass);
+	this._blurPass.draw(renderer);
 
     GL.setRenderTarget(this._smallFBOs[0]);
     GL.clear();
 	this._blurPass.setTextureByIndex(this._blurSourceSlot, this._thresholdMaps[1]);
     this._blurPass.setUniform("stepSize", {x: 0.0, y: this._anisotropy / this._thresholdHeight});
-    this._drawPass(this._blurPass);
+	this._blurPass.draw(renderer);
 
     GL.setRenderTarget(this.hdrTarget);
     GL.clear();
-    this._drawPass(this._compositePass);
+	this._compositePass.draw(renderer);
 };
 
 

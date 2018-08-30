@@ -151,7 +151,7 @@ SSAO.prototype._initSamples = function()
 /**
  * @ignore
  */
-SSAO.prototype.draw = function(dt)
+SSAO.prototype.draw = function(renderer, dt)
 {
     var w = this._renderer._width * this.scale;
     var h = this._renderer._height * this.scale;
@@ -165,13 +165,13 @@ SSAO.prototype.draw = function(dt)
 
     GL.setRenderTarget(this._fbo1);
     GL.clear();
-    this._drawPass(this._ssaoPass);
+	this._ssaoPass.draw(renderer);
 
     GL.setRenderTarget(this._fbo2);
     GL.clear();
     this._blurPass.setUniform("pixelSize", {x: 1.0 / w, y: 1.0 / h});
     this._blurPass.setTextureByIndex(this._sourceTextureSlot, this._backTexture);
-    this._drawPass(this._blurPass);
+	this._blurPass.draw(renderer);
 
     GL.setClearColor(Color.BLACK);
 };

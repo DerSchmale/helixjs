@@ -33,7 +33,7 @@ Blur.prototype = Object.create(Effect.prototype);
 /**
  * @ignore
  */
-Blur.prototype.draw = function(dt)
+Blur.prototype.draw = function(renderer, dt)
 {
     var ratio = this.radius / this._numSamples;
     // we're manually setting source textures instead of using hx_backbuffer because the GaussianBlurPass needs to
@@ -42,7 +42,7 @@ Blur.prototype.draw = function(dt)
     GL.clear();
     this._blurPass.setTextureByIndex(this._blurSourceSlot, this.hdrSource);
     this._blurPass.setUniform("stepSize", {x: ratio / this.hdrSource.width, y: 0.0});
-    this._drawPass(this._blurPass);
+    this._blurPass.draw(renderer);
 
     this._swapHDRFrontAndBack();
 
@@ -50,7 +50,7 @@ Blur.prototype.draw = function(dt)
     GL.clear();
 	this._blurPass.setTextureByIndex(this._blurSourceSlot, this.hdrSource);
     this._blurPass.setUniform("stepSize", {x: 0.0, y: ratio / this.hdrSource.height});
-    this._drawPass(this._blurPass);
+    this._blurPass.draw(renderer);
 };
 
 export { Blur };

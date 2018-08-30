@@ -92,7 +92,7 @@ ToneMapEffect.prototype._createToneMapPass = function()
 };
 
 
-ToneMapEffect.prototype.draw = function(dt)
+ToneMapEffect.prototype.draw = function(renderer, dt)
 {
     if (this._adaptive) {
         var amount = this.adaptationRate > 0 ? dt / this.adaptationRate : 1.0;
@@ -102,13 +102,13 @@ ToneMapEffect.prototype.draw = function(dt)
 
         GL.setRenderTarget(this._luminanceFBO);
         // can't clear at this point
-        this._drawPass(this._extractLuminancePass);
+        this._extractLuminancePass.draw(renderer);
         this._luminanceMap.generateMipmap();
     }
 
     GL.setRenderTarget(this.hdrTarget);
     GL.clear();
-    this._drawPass(this._toneMapPass);
+    this._toneMapPass.draw(renderer);
 };
 
 export { ToneMapEffect };

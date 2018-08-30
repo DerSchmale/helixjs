@@ -8,10 +8,10 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
 
-    var ssao = new HX.SSAO(24);
+    var ssao = new HX.SSAO(16);
     ssao.strength = 3.0;
-    ssao.sampleRadius = 1.0;
-    ssao.fallOffDistance = 2.5;
+    ssao.sampleRadius = 2.0;
+    ssao.fallOffDistance = 4.0;
     options.ambientOcclusion = ssao;
     // options.debug = true;
 

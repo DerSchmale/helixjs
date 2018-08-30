@@ -45,10 +45,13 @@ Effect.prototype.isSupported = function()
 	return true;
 };
 
+/**
+ * @ignore
+ */
 Effect.prototype.render = function(renderer, dt)
 {
     this._renderer = renderer;
-    this.draw(dt);
+    this.draw(renderer, dt);
 };
 
 /**
@@ -59,14 +62,6 @@ Effect.prototype.draw = function(dt)
     throw new Error("Abstract method error!");
 };
 
-/**
- * @ignore
- */
-Effect.prototype._drawPass = function(pass)
-{
-    pass.updateRenderState(this._renderer);
-    GL.drawElements(GL.gl.TRIANGLES, 6, 0);
-};
 
 /**
  * @ignore

@@ -518,6 +518,8 @@ export function init(canvas, options)
         MaterialPass.NUM_PASS_TYPES = 4;
     }
     else {
+        // so the user can query it's not supported
+        META.OPTIONS.webgl2 = false;
         gl = canvas.getContext('webgl', webglFlags) || canvas.getContext('experimental-webgl', webglFlags);
     }
 

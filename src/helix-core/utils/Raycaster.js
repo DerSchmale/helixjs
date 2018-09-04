@@ -214,7 +214,7 @@ Raycaster.prototype._testMesh = function(ray, mesh, hitData)
         var w = (dot11 * dotp2 - dot12 * dotp1) * rcpDenom;
         var u = 1.0 - v - w;
 
-        if ((u >= 0) && (v >= 0) && (w <= 1.0)) {
+        if (u >= 0 && v >= 0 && w >= 0) {
             hitData.faceNormal.set(nx, ny, nz, 0.0);
             hitData.point.set(px, py, pz, 1.0);
             hitData.barycentric.set(u, v, w, 0.0);

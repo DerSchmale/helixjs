@@ -44,6 +44,9 @@ function Entity(components)
 	else if (components) {
 		this.addComponent(components);
 	}
+
+	this._SceneNode_invalidateWorldMatrix = SceneNode.prototype._invalidateWorldMatrix;
+	this._SceneNode_setScene = SceneNode.prototype._setScene;
 }
 
 Entity.prototype = Object.create(SceneNode.prototype, {
@@ -87,7 +90,7 @@ Entity.prototype.findMaterialByName = function(name)
  */
 Entity.prototype.addComponent = function(component)
 {
-	if (component._entity)
+	if (component.entity)
 		throw new Error("Component already added to an entity!");
 
 	var oldHash = this._componentHash;
@@ -98,7 +101,7 @@ Entity.prototype.addComponent = function(component)
 
 	this._requiresUpdates = this._requiresUpdates || (!!component.onUpdate);
 
-	component._entity = this;
+	component.entity = this;
 	if (component.enabled)
 		component.onAdded();
 
@@ -111,10 +114,15 @@ Entity.prototype.addComponent = function(component)
 /**
  * @ignore
  */
+
 Entity.prototype._invalidateWorldMatrix = function()
 {
-	SceneNode.prototype._invalidateWorldMatrix.call(this);
+	this._SceneNode_invalidateWorldMatrix();
+
 	this._invalidateWorldBounds();
+
+	if (this._scene)
+		this._scene._partitioning.markEntityForUpdate(this);
 };
 
 /**
@@ -187,7 +195,7 @@ Entity.prototype.removeComponent = function(component)
 	this._onComponentsChange.dispatch(this, oldHash);
 
 	this._components = newComps;
-	component._entity = null;
+	component.entity = null;
 
 	if (component.enabled)
 		component.onRemoved();
@@ -303,7 +311,7 @@ Entity.prototype._setScene = function(scene)
 		scene.partitioning.registerEntity(this);
 	}
 
-	SceneNode.prototype._setScene.call(this, scene);
+	this._SceneNode_setScene(scene);
 };
 
 /**
@@ -326,21 +334,6 @@ Entity.prototype.acceptVisitor = function(visitor)
 			component.acceptVisitor(visitor);
 		}
 	}
-};
-
-
-/**
- * @ignore
- */
-
-Entity.prototype._invalidateWorldMatrix = function()
-{
-	SceneNode.prototype._invalidateWorldMatrix.call(this);
-
-	this._invalidateWorldBounds();
-
-	if (this._scene)
-		this._scene._partitioning.markEntityForUpdate(this);
 };
 
 /**

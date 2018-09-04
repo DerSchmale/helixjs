@@ -10,11 +10,13 @@ var nameCounter = 0;
  *
  * @constructor
  *
+ * @propety name The name of the texture.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function Texture2D()
 {
-    this._name = "hx_texture2d_" + (nameCounter++);
+    this.name = "hx_texture2d_" + (nameCounter++);
     this._default = Texture2D.DEFAULT;
     this._texture = GL.gl.createTexture();
     this._width = 0;
@@ -47,19 +49,6 @@ Texture2D._initDefault = function()
 
 Texture2D.prototype =
 {
-    /**
-     * The name of the texture.
-     */
-    get name()
-    {
-        return this._name;
-    },
-
-    set name(value)
-    {
-        this._name = value;
-    },
-
     /**
      * Generates a mip map chain.
      */

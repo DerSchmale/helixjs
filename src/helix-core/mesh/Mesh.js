@@ -26,6 +26,9 @@ var MESH_ID_COUNTER = 0;
  *
  * @param {BufferUsage} vertexUsage A usage hint for the vertex buffer.
  * @param {BufferUsage} indexUsage A usage hint for the index buffer.
+ *
+ * @property elementType An {@linkcode ElementType} to describe the type of elements to render.
+ *
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
@@ -36,19 +39,19 @@ function Mesh()
     this.onLayoutChanged = new Signal();
     this.onMorphDataCreated = new Signal();
 	this.onSkeletonChange = new Signal();
-	this._name = "hx_mesh_" + MESH_ID_COUNTER;
+	this.name = "hx_mesh_" + MESH_ID_COUNTER;
+	this.elementType = ElementType.TRIANGLES;
 	this._bounds = new BoundingAABB();
 	this._boundsInvalid = true;
 	this._dynamicBounds = true;
-    this._vertexBuffers = [];
-    this._vertexStrides = [];
-    this._vertexData = [];
-    this._indexData = undefined;
-    this._vertexUsage = BufferUsage.STATIC_DRAW;
-    this._indexUsage = BufferUsage.STATIC_DRAW;
-    this._numStreams = 0;
-    this._numVertices = 0;
-    this._elementType = ElementType.TRIANGLES;
+	this._vertexBuffers = [];
+	this._vertexStrides = [];
+	this._vertexData = [];
+	this._indexData = undefined;
+	this._vertexUsage = BufferUsage.STATIC_DRAW;
+	this._indexUsage = BufferUsage.STATIC_DRAW;
+	this._numStreams = 0;
+	this._numVertices = 0;
 
     this._vertexAttributes = [];
     this._vertexAttributesLookUp = {};
@@ -106,19 +109,6 @@ Mesh.prototype = {
 		this._bounds = value;
 		this._invalidateBounds();
 	},
-
-    /**
-     * An {@linkcode ElementType} to describe the type of elements to render.
-     */
-    get elementType()
-    {
-        return this._elementType;
-    },
-
-    set elementType(value)
-    {
-        this._elementType = value;
-    },
 
 	/**
 	 * The object-space bounding volume. Setting this value only changes the type of volume.
@@ -242,8 +232,9 @@ Mesh.prototype = {
      * @param name The name of the attribute, matching the attribute name used in the vertex shaders.
      * @param numComponents The amount of components used by the attribute value.
      * @param streamIndex [Optional] The stream index indicating which vertex buffer is used, defaults to 0
+     * @param normalized [Optional] Whether or not the input of the attribute should be normalized to [-1, 1]
      */
-    addVertexAttribute: function (name, numComponents, streamIndex)
+    addVertexAttribute: function (name, numComponents, streamIndex, normalized)
     {
         streamIndex = streamIndex || 0;
         this._numStreams = Math.max(this._numStreams, streamIndex + 1);
@@ -252,7 +243,8 @@ Mesh.prototype = {
             name: name,
             offset: offset,
             numComponents: numComponents,
-            streamIndex: streamIndex
+            streamIndex: streamIndex,
+		    normalized: normalized || false
         };
         this._vertexAttributes.push(attrib);
         this._vertexAttributesLookUp[name] = attrib;
@@ -425,7 +417,7 @@ Mesh.prototype = {
         if (this._indexData)
             mesh.setIndexData(this._indexData, this._indexUsage);
 
-        mesh._elementType = this._elementType;
+        mesh.elementType = this.elementType;
 
         return mesh;
     },

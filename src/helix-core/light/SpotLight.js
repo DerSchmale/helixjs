@@ -143,7 +143,7 @@ SpotLight.prototype._updateBounds = function()
  */
 SpotLight.prototype.toString = function()
 {
-	return "[SpotLight(name=" + this._name + ")]";
+	return "[SpotLight(name=" + this.name + ")]";
 };
 
 /**

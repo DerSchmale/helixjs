@@ -20,45 +20,17 @@ import { MathX } from "../../math/MathX";
 function SkeletonBinaryLerpNode()
 {
     SkeletonBlendNode.call(this);
-    this._value = 0;
-    this._child1 = null;
-    this._child2 = null;
-    this._minValue = 0;
-    this._maxValue = 1;
-    this._numJoints = 0;
+	this.numJoints = 0;
+	this._value = 0;
+	this._child1 = null;
+	this._child2 = null;
+	this.minValue = 0;
+	this.maxValue = 1;
     this._t = 0;
     this._valueChanged = false;
 }
 
 SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
-    numJoints: {
-        get: function() {return this._numJoints; }
-    },
-
-    minValue: {
-        get: function ()
-        {
-            return this._minValue;
-        },
-
-        set: function (value)
-        {
-            this._minValue = value;
-        }
-    },
-
-    maxValue: {
-        get: function()
-        {
-            return this._maxValue;
-        },
-
-        set: function(value)
-        {
-            this._maxValue = value;
-        }
-    },
-
     value: {
         get: function ()
         {
@@ -67,11 +39,11 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
 
         set: function (v)
         {
-            v = MathX.clamp(v, this._minValue, this._maxValue);
+            v = MathX.clamp(v, this.minValue, this.maxValue);
             if (this._value !== v)
                 this._valueChanged = true;
             this._value = v;
-            this._t = (this._value - this._minValue) / (this._maxValue - this._minValue);
+            this._t = (this._value - this.minValue) / (this.maxValue - this.minValue);
         }
     },
 
@@ -85,7 +57,7 @@ SkeletonBinaryLerpNode.prototype = Object.create(SkeletonBlendNode.prototype, {
         {
             this._child1 = value;
             if (this._child2 && value.numJoints !== this._child2.numJoints) throw new Error("Incompatible child nodes (numJoints mismatch)!");
-            this._numJoints = value.numJoints;
+            this.numJoints = value.numJoints;
         }
     },
 
@@ -115,11 +87,11 @@ SkeletonBinaryLerpNode.prototype.update = function(dt, transferRootJoint)
     var t = this._t;
     if (updated) {
         if (t > .999)
-            this._pose.copyFrom(this._child1._pose);
+            this.pose.copyFrom(this._child1.pose);
         else if (t < .001)
-            this._pose.copyFrom(this._child2._pose);
+            this.pose.copyFrom(this._child2.pose);
         else
-            this._pose.interpolate(this._child1._pose, this._child2._pose, this._t);
+            this.pose.interpolate(this._child1.pose, this._child2.pose, this._t);
 
         this._valueChanged = false;
     }

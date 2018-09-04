@@ -11,7 +11,7 @@ import {Float4} from "../math/Float4";
  */
 function BoundingVolume(type)
 {
-    this._type = type;
+    this.type = type;
 
     this._expanse = BoundingVolume.EXPANSE_EMPTY;
     this._minimumX = 0.0;
@@ -98,11 +98,6 @@ BoundingVolume.prototype =
      */
     get expanse() { return this._expanse; },
 
-    /**
-     * @ignore
-     */
-    get type() { return this._type; },
-
     growToIncludeMesh: function(mesh) { throw new Error("Abstract method!"); },
     growToIncludeBound: function(bounds) { throw new Error("Abstract method!"); },
     growToIncludeMinMax: function(min, max) { throw new Error("Abstract method!"); },
@@ -176,22 +171,6 @@ BoundingVolume.prototype =
      * Tests whether or not this BoundingVolume intersects a ray.
      */
     intersectsRay: function(ray) { throw new Error("Abstract method!"); },
-
-    /**
-     * @ignore
-     */
-    createDebugModel: function() { throw new Error("Abstract method!"); },
-
-    /**
-     * @ignore
-     */
-    getDebugModel: function()
-    {
-        if (this._type._debugModel === undefined)
-            this._type._debugModel = this.createDebugModel();
-
-        return this._type._debugModel;
-    },
 
     toString: function()
     {

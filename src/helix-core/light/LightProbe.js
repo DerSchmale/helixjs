@@ -3,7 +3,6 @@ import {Entity} from "../entity/Entity";
 import {Float4} from "../math/Float4";
 import {BoundingSphere} from "../scene/BoundingSphere";
 import {Component} from "../entity/Component";
-import {BoundingAABB} from "../scene/BoundingAABB";
 
 /**
  * @classdesc
@@ -31,7 +30,7 @@ function LightProbe(diffuseTexture, specularTexture)
     this._specularTexture = specularTexture;
     this._diffuseTexture = diffuseTexture;
     this._size = undefined;
-    this._bounds = new BoundingAABB();
+    this._bounds = new BoundingSphere();
 	this._bounds.clear(BoundingVolume.EXPANSE_INFINITE);
 }
 

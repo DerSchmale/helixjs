@@ -299,6 +299,7 @@ GLTF.prototype._parseMaterials = function()
 
             mat.metallicness = pbr.metallicFactor === undefined ? 1.0 : pbr.metallicFactor;
             mat.roughness = pbr.roughnessFactor === undefined? 1.0 : pbr.roughnessFactor;
+            mat.normalSpecularReflectance = 0.04; // the default specified by GLTF spec
 
             if (mat.specularMap) {
                 mat.roughness *= .5;
@@ -428,7 +429,7 @@ GLTF.prototype._parsePrimitive = function(primDef, entity)
 
     if (normalGenMode) {
         var normalGen = new HX.NormalTangentGenerator();
-        normalGen.generate(mesh);
+        normalGen.generate(mesh, normalGenMode);
     }
 
     if (jointIndexAcc) {
@@ -571,30 +572,15 @@ GLTF.prototype._readIndices = function(accessor)
     var o = accessor.byteOffset;
     var src = accessor.data;
     var len = accessor.count;
-    var readFnc;
-    var collType;
-    var elmSize;
 
     if (accessor.dataType === HX.DataType.UNSIGNED_SHORT) {
-        collType = Uint16Array;
-        readFnc = src.getUint16;
-        elmSize = 2;
+        return new Uint16Array(src.buffer, o, len);
     }
     else if (accessor.dataType === HX.DataType.UNSIGNED_INT) {
-        collType = Uint32Array;
-        readFnc = src.getUint32;
-        elmSize = 4;
+		return new Uint32Array(src.buffer, o, len);
     }
     else
         throw new Error("Unknown data type for indices!");
-
-    var indexData = new collType(len);
-    for (var i = 0; i < len; ++i) {
-        indexData[i] = readFnc.call(src, o, true);
-        o += elmSize;
-    }
-
-    return indexData;
 };
 
 GLTF.prototype._parseSkin = function(nodeDef, target)
@@ -629,7 +615,7 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
         joint.inverseBindPose.append(this._flipCoord);
         joint.inverseBindPose.append(invWorldMatrix);
 
-        skeleton.addJoint(joint);
+        skeleton.joints.push(joint);
 
         var node = this._nodes[nodeIndex];
         if (node._jointIndex !== undefined) {
@@ -656,7 +642,7 @@ GLTF.prototype._parseSkin = function(nodeDef, target)
     for (i = 0; i < skinDef.joints.length; ++i) {
         nodeIndex = skinDef.joints[i];
         node = this._nodes[nodeIndex];
-        joint = skeleton.getJoint(i);
+        joint = skeleton.joints[i];
         joint.parentIndex = node !== skelNode && node.parent? node.parent._jointIndex : -1;
     }
 
@@ -889,7 +875,7 @@ GLTF.prototype._parseAnimationChannel = function(channelDef, samplers, duration)
 
     // gltf targets a node, but we need to target the joint pose
     if (target._jointIndex !== undefined) {
-		targetName = target._skeleton.getJoint(target._jointIndex).name;
+		targetName = target._skeleton.joints[target._jointIndex].name;
 		target = target._skeletonPose._jointPoses[target._jointIndex];
 	}
 	else {
@@ -915,7 +901,7 @@ GLTF.prototype._parseAnimationChannel = function(channelDef, samplers, duration)
             layers = [];
 
             for (var i = 0; i < clips.length; ++i)
-                layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation).name, "morphTarget_" + i, clip));
+                layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation).name, "morphTarget_" + i, clips[i]));
 
             break;
         default:

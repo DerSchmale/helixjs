@@ -17,12 +17,14 @@
  *
  * @see {@linkcode Entity}
  *
+ * @property entity The entity the component is assigned to.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function Component()
 {
 	// this allows notifying entities about bound changes (useful for sized components)
-	this._entity = null;
+	this.entity = null;
 	this._enabled = true;
 	this._bounds = null;
 	this._boundsInvalid = true;
@@ -78,14 +80,6 @@ Component.prototype =
 		onUpdate: null,
 
 		/**
-		 * The target entity.
-		 */
-		get entity()
-		{
-			return this._entity;
-		},
-
-		/**
 		 * Defines whether or not this component should be enabled.
 		 */
 		get enabled()
@@ -95,7 +89,7 @@ Component.prototype =
 
 		set enabled(value)
 		{
-			if (this._entity) {
+			if (this.entity) {
 				if (value)
 					this.onAdded();
 				else
@@ -117,8 +111,8 @@ Component.prototype =
 		{
 			this._boundsInvalid = true;
 
-			if (this._entity)
-				this._entity._invalidateBounds();
+			if (this.entity)
+				this.entity._invalidateBounds();
 		},
 
 		/**
@@ -134,8 +128,8 @@ Component.prototype =
          */
         broadcast: function(name, args)
 		{
-            if (this._entity) {
-            	var messenger = this._entity.messenger;
+            if (this.entity) {
+            	var messenger = this.entity.messenger;
             	messenger.broadcast.apply(messenger, arguments);
             }
 		},
@@ -145,8 +139,8 @@ Component.prototype =
          */
         hasListeners: function(name)
 		{
-            if (this._entity) {
-				return this._entity.messenger.hasListeners(name);
+            if (this.entity) {
+				return this.entity.messenger.hasListeners(name);
             }
             return false;
 		},
@@ -156,15 +150,15 @@ Component.prototype =
          */
         bindListener: function(name, func, thisRef)
 		{
-            this._entity.messenger.bind(name, func, thisRef);
+            this.entity.messenger.bind(name, func, thisRef);
 		},
 
         /**
          * Listens to the entity's messenger for a given message type.
          */
-        unbindListener: function(name, func, thisRef)
+        unbindListener: function(name, func)
         {
-            this._entity.messenger.unbind(name, func);
+            this.entity.messenger.unbind(name, func);
         }
 	};
 

@@ -16,9 +16,9 @@ window.onload = function ()
     options.ambientOcclusion = ssao;
 
     options.hdr = true;
-    options.numShadowCascades = 3;
+    options.numShadowCascades = HX.Platform. isMobile? 2 : 1;
     options.shadowFilter = new HX.VarianceShadowFilter();
-    options.shadowFilter.useHalfFloat = false;
+    // options.shadowFilter.useHalfFloat = false;
     options.defaultLightingModel = HX.LightingModel.GGX;
 
     project.init(document.getElementById('webglContainer'), options);
@@ -60,6 +60,8 @@ function initCamera(camera)
 
 function initScene(scene, assetLibrary)
 {
+	scene.startSystem(new HX.FixedLightsSystem());
+
     var dirLight = new HX.DirectionalLight();
     dirLight.color = new HX.Color(1.0, .95, .9);
     dirLight.intensity = 1.0;
@@ -82,19 +84,6 @@ function initScene(scene, assetLibrary)
 	scene.attach(sponza);
 
 	processMaterials();
-
-    var dummyLightProbe = new HX.Entity(new HX.LightProbe(skyboxIrradianceTexture));
-    scene.attach(dummyLightProbe);
-
-    var dynLightProbe = new HX.DynamicLightProbe(512, HX.capabilities.HDR_FORMAT);
-    dynLightProbe.size = 30.0;
-	var dynLightProbeEntity = new HX.Entity(dynLightProbe);
-	dynLightProbeEntity.position.set(0.0, 2.0, 0.0);
-    scene.attach(dynLightProbeEntity);
-    dynLightProbe.render();
-
-    scene.detach(dynLightProbeEntity);
-    scene.detach(dummyLightProbe);
 
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
     scene.attach(new HX.Entity(lightProbe));

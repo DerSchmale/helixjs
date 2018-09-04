@@ -23,7 +23,7 @@ window.onload = function ()
     options.webgl2 = true;
     options.hdr = true;
     options.maxDirLights = 1;
-    options.maxPointSpotLights = 100;
+    options.maxPointSpotLights = 30;
     // options.debug = true;
     options.defaultLightingModel = HX.LightingModel.GGX;
     options.shadowFilter = new HX.VarianceShadowFilter();
@@ -45,9 +45,9 @@ function initCamera(camera)
 function initScene(scene, assetLibrary)
 {
     var lights = [ ];
-    for (var i = 0; i < 100; ++i) {
+    for (var i = 0; i < HX.META.OPTIONS.maxPointSpotLights; ++i) {
         var light = new HX.PointLight();
-        light.radius = 5;
+        light.radius = 10;
         // light.castShadows = true;
 
         light.color.set(
@@ -92,15 +92,15 @@ function initScene(scene, assetLibrary)
 
     var primitive = new HX.SpherePrimitive(
         {
-            radius:.24,
+            radius:.5,
             numSegmentsH: 10,
             numSegmentsW: 15
         });
 
-    var spacing = 2;
-    for (var x = -5; x <= 5; ++x) {
-        for (var y = -5; y <= 5; ++y) {
-            for (var z = -5; z <= 5; ++z) {
+    var spacing = 3;
+    for (var x = -3; x <= 3; ++x) {
+        for (var y = -3; y <= 3; ++y) {
+            for (var z = -3; z <= 3; ++z) {
                 var instance = new HX.Entity();
                 instance.addComponent(new HX.MeshInstance(primitive, material));
                 instance.position.set(x + Math.random() *.5 -.25, y + Math.random() *.5 -.25, z + Math.random() *.5 -.25);

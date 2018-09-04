@@ -1,6 +1,4 @@
 import {Camera} from "./Camera";
-import {Entity} from "../entity/Entity";
-import {SceneNode} from "../scene/SceneNode";
 
 /**
  * @extends Camera

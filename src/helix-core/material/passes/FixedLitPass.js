@@ -32,24 +32,25 @@ function FixedLitPass(geometryVertex, geometryFragment, lightingModel, lights)
     this._diffuseLightProbes = null;
     this._specularLightProbes = null;
 
-    MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights));
+	MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment, lightingModel, lights));
 
-    this._getUniformLocations();
-
+	this._getUniformLocations();
     this._assignLightProbes();
+
+	this._MP_updatePassRenderState = MaterialPass.prototype.updatePassRenderState;
 }
 
 FixedLitPass.prototype = Object.create(MaterialPass.prototype);
 
 FixedLitPass.prototype.updatePassRenderState = function (camera, renderer)
 {
-    GL.gl.useProgram(this._shader._program);
+    GL.gl.useProgram(this.shader.program);
     this._assignDirLights(camera);
     this._assignPointLights(camera);
     this._assignSpotLights(camera);
     this._assignLightProbes(camera);
 
-    MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+	this._MP_updatePassRenderState(camera, renderer);
 };
 
 FixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragment, lightingModel, lights)
@@ -224,7 +225,7 @@ FixedLitPass.prototype._assignSpotLights = function (camera)
         for (var i = 0; i < len; ++i) {
             var locs = this._spotLocations[i];
             var light = lights[i];
-            var worldMatrix = light.worldMatrix;
+            var worldMatrix = light.entity.worldMatrix;
             var viewMatrix = camera.viewMatrix;
             worldMatrix.getColumn(3, pos);
             viewMatrix.transformPoint(pos, pos);

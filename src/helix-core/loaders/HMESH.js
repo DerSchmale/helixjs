@@ -94,7 +94,7 @@ HMESH.prototype._parseSkeleton = function(stream)
         for (var j = 0; j < 16; ++j)
             joint.inverseBindPose._m[j] = stream.getFloat32();
 
-        skeleton.addJoint(joint);
+        skeleton.joints.push(joint);
     }
 
     return skeleton;

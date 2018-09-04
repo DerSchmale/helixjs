@@ -1,4 +1,5 @@
 import {Primitive} from "./Primitive";
+import {ElementType} from "../../Helix";
 
 /**
  * @classdesc
@@ -19,6 +20,7 @@ import {Primitive} from "./Primitive";
 function WireBoxPrimitive(definition)
 {
     Primitive.call(this, definition);
+	this.elementType = ElementType.LINES;
 }
 
 WireBoxPrimitive.prototype = Object.create(Primitive.prototype);

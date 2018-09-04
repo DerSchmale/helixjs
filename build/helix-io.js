@@ -303,6 +303,7 @@
 
                 mat.metallicness = pbr.metallicFactor === undefined ? 1.0 : pbr.metallicFactor;
                 mat.roughness = pbr.roughnessFactor === undefined? 1.0 : pbr.roughnessFactor;
+                mat.normalSpecularReflectance = 0.04; // the default specified by GLTF spec
 
                 if (mat.specularMap) {
                     mat.roughness *= .5;
@@ -432,7 +433,7 @@
 
         if (normalGenMode) {
             var normalGen = new HX.NormalTangentGenerator();
-            normalGen.generate(mesh);
+            normalGen.generate(mesh, normalGenMode);
         }
 
         if (jointIndexAcc) {
@@ -575,30 +576,15 @@
         var o = accessor.byteOffset;
         var src = accessor.data;
         var len = accessor.count;
-        var readFnc;
-        var collType;
-        var elmSize;
 
         if (accessor.dataType === HX.DataType.UNSIGNED_SHORT) {
-            collType = Uint16Array;
-            readFnc = src.getUint16;
-            elmSize = 2;
+            return new Uint16Array(src.buffer, o, len);
         }
         else if (accessor.dataType === HX.DataType.UNSIGNED_INT) {
-            collType = Uint32Array;
-            readFnc = src.getUint32;
-            elmSize = 4;
+    		return new Uint32Array(src.buffer, o, len);
         }
         else
             throw new Error("Unknown data type for indices!");
-
-        var indexData = new collType(len);
-        for (var i = 0; i < len; ++i) {
-            indexData[i] = readFnc.call(src, o, true);
-            o += elmSize;
-        }
-
-        return indexData;
     };
 
     GLTF.prototype._parseSkin = function(nodeDef, target)
@@ -633,7 +619,7 @@
             joint.inverseBindPose.append(this._flipCoord);
             joint.inverseBindPose.append(invWorldMatrix);
 
-            skeleton.addJoint(joint);
+            skeleton.joints.push(joint);
 
             var node = this._nodes[nodeIndex];
             if (node._jointIndex !== undefined) {
@@ -660,7 +646,7 @@
         for (i = 0; i < skinDef.joints.length; ++i) {
             nodeIndex = skinDef.joints[i];
             node = this._nodes[nodeIndex];
-            joint = skeleton.getJoint(i);
+            joint = skeleton.joints[i];
             joint.parentIndex = node !== skelNode && node.parent? node.parent._jointIndex : -1;
         }
 
@@ -893,7 +879,7 @@
 
         // gltf targets a node, but we need to target the joint pose
         if (target._jointIndex !== undefined) {
-    		targetName = target._skeleton.getJoint(target._jointIndex).name;
+    		targetName = target._skeleton.joints[target._jointIndex].name;
     		target = target._skeletonPose._jointPoses[target._jointIndex];
     	}
     	else {
@@ -919,7 +905,7 @@
                 layers = [];
 
                 for (var i = 0; i < clips.length; ++i)
-                    layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation).name, "morphTarget_" + i, clip));
+                    layers.push(new HX.AnimationLayerMorphTarget(target.getFirstComponentByType(HX.MorphAnimation).name, "morphTarget_" + i, clips[i]));
 
                 break;
             default:
@@ -972,6 +958,7 @@
          */
         bind: function(listener, thisRef)
         {
+            // param is an optional extra parameter for some internal functionality
             this._lookUp[listener] = this._listeners.length;
             var callback = thisRef? listener.bind(thisRef) : listener;
             this._listeners.push(callback);
@@ -1022,15 +1009,7 @@
     /**
      * AsyncTaskQueue allows queueing a bunch of functions which are executed "whenever", in order.
      *
-     * TODO: Allow dynamically adding tasks while running
-     *  -> should we have a AsyncTaskQueue.runChildQueue() which pushed that into a this._childQueues array.
-     *  _executeImpl would then first process these.
-     *  The queue itself can just be passed along the regular queued function parameters if the child methods need access to
-     *  add child queues hierarchically.
-     *
      * @classdesc
-     *
-     * @ignore
      *
      * @constructor
      */
@@ -1042,10 +1021,19 @@
         this._childQueues = [];
         this._currentIndex = 0;
         this._isRunning = false;
+    	this._timeout = undefined;
     }
 
     AsyncTaskQueue.prototype = {
-        queue: function(func, rest)
+    	/**
+    	 * Indicates whether the queue is currently running or not.
+    	 */
+    	get isRunning() { return this._isRunning },
+
+    	/**
+         * Adds a function to execute. Provide the parameters for the function as parameters after the function.
+    	 */
+    	queue: function(func, rest)
         {
             // V8 engine doesn't perform well if not copying the array first before slicing
             var args = (arguments.length === 1 ? [arguments[0]] : Array.apply(null, arguments));
@@ -1056,14 +1044,18 @@
             });
         },
 
-        // this allows adding more subtasks to tasks while running
-        // No need to call "execute" on child queues
+    	/**
+         * Adds a child queue to execute. This can be done by queued tasks while this queue is already running.
+    	 */
         addChildQueue: function(queue)
         {
             this._childQueues.push(queue);
         },
 
-        execute: function()
+    	/**
+         * Starts execution of the tasks in the queue.
+    	 */
+    	execute: function()
         {
             if (this._isRunning)
                 throw new Error("Already running!");
@@ -1074,13 +1066,37 @@
             this._executeTask();
         },
 
-        _executeTask: function()
+    	/**
+         * Cancels execution of the queue.
+    	 */
+    	cancel: function()
         {
-            setTimeout(this._executeImpl.bind(this));
+            if (!this._isRunning) return;
+            if (this._timeout !== undefined)
+                clearTimeout(this._timeout);
+
+            this._isRunning = false;
+            this._timeout = undefined;
         },
 
+    	/**
+         * @ignore
+    	 * @private
+    	 */
+    	_executeTask: function()
+        {
+            this._timeout = setTimeout(this._executeImpl.bind(this));
+        },
+
+    	/**
+    	 * @ignore
+    	 * @private
+    	 */
         _executeImpl: function()
         {
+            // cancelled
+            if (!this._isRunning) return;
+
             this.onProgress.dispatch(this._currentIndex / this._queue.length);
 
             if (this._childQueues.length > 0) {
@@ -1089,6 +1105,7 @@
                 queue.execute();
             }
             else if (this._queue.length === this._currentIndex) {
+    			this._isRunning = false;
                 this.onComplete.dispatch();
             }
             else {
@@ -1685,6 +1702,15 @@
         this._dataView = dataView;
         this._offset = 0;
         this._endian = DataOutputStream.LITTLE_ENDIAN;
+
+    	this.writeInt8 = this.writeInt8.bind(this);
+    	this.writeInt16 = this.writeInt16.bind(this);
+    	this.writeInt32 = this.writeInt32.bind(this);
+    	this.writeUint8 = this.writeUint8.bind(this);
+    	this.writeUint16 = this.writeUint16.bind(this);
+    	this.writeUint32 = this.writeUint32.bind(this);
+    	this.writeFloat32 = this.writeFloat32.bind(this);
+    	this.writeFloat64 = this.writeFloat64.bind(this);
     }
 
     /**
@@ -1833,7 +1859,7 @@
         {
             var len = val.length;
             for (var i = 0; i < len; ++i)
-                func.call(this, val[i]);
+                func(val[i]);
         }
     };
 
@@ -2100,12 +2126,12 @@
 
         _writeSkeleton: function(dataStream, skeleton)
         {
-            var numJoints = skeleton? skeleton.numJoints : 0;
+            var numJoints = skeleton? skeleton.joints.length : 0;
 
             dataStream.writeUint8(numJoints);
 
             for (var i = 0; i < numJoints; ++i) {
-                var joint = skeleton.getJoint(i);
+                var joint = skeleton.joints[i];
                 if (joint.name) {
                     dataStream.writeUint8(joint.name.length);
                     dataStream.writeString(joint.name);
@@ -2151,10 +2177,10 @@
             }
 
             size += 1;  // numJoints
-            var numJoints = mesh.skeleton? mesh.skeleton.numJoints : 0;
+            var numJoints = mesh.skeleton? mesh.skeleton.joints.length : 0;
 
             for (var i = 0; i < numJoints; ++i) {
-                var joint = mesh.skeleton.getJoint(i);
+                var joint = mesh.skeleton.joints[i];
                 size += 1;  // name length
                 size += joint.name? joint.name.length : 0;  // name
                 size += 1; // parentIndex

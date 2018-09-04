@@ -4,8 +4,6 @@ import {BoxPrimitive} from "../mesh/primitives/BoxPrimitive";
 import {BoundingVolume} from "../scene/BoundingVolume";
 import {Entity} from "../entity/Entity";
 import {MeshInstance} from "../mesh/MeshInstance";
-import {PerspectiveCamera} from "../camera/PerspectiveCamera";
-import {Camera} from "../camera/Camera";
 
 
 /**

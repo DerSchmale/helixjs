@@ -10,27 +10,27 @@ import {Matrix4x4} from "../math/Matrix4x4";
  */
 export var UniformSetter = {
 
-    getSettersPerInstance: function (shader)
+    getSettersPerInstance: function (materialPass)
     {
         if (UniformSetter._instanceTable === undefined)
             UniformSetter._init();
 
-        return UniformSetter._findSetters(shader, UniformSetter._instanceTable);
+        return UniformSetter._findSetters(materialPass.shader, UniformSetter._instanceTable);
     },
 
-    getSettersPerPass: function (shader)
+    getSettersPerPass: function (materialPass)
     {
         if (UniformSetter._passTable === undefined)
             UniformSetter._init();
 
-        return UniformSetter._findSetters(shader, UniformSetter._passTable);
+        return UniformSetter._findSetters(materialPass.shader, UniformSetter._passTable);
     },
 
     _findSetters: function (shader, table)
     {
         var setters = [];
         for (var uniformName in table) {
-            var location = GL.gl.getUniformLocation(shader._program, uniformName);
+            var location = GL.gl.getUniformLocation(shader.program, uniformName);
             if (!location) continue;
             var setter = new table[uniformName]();
             setters.push(setter);
@@ -360,7 +360,7 @@ SkinningMatricesSetter.prototype.execute = function (camera, renderItem)
         // TODO: Could we store the 4x3 format in renderItem.skeletonMatrices?
         // no need to store actual matrices in this data
         var matrices = renderItem.skeletonMatrices;
-        var numJoints = skeleton.numJoints;
+        var numJoints = skeleton.joints.length;
         var j = 0;
 
         for (var i = 0; i < numJoints; ++i) {

@@ -50,7 +50,7 @@ function ToneMapEffect(adaptive)
         this._luminanceFBO = new FrameBuffer(this._luminanceMap);
         this._luminanceFBO.init();
 
-        this._adaptationRate = 500.0;
+        this.adaptationRate = 500.0;
 
         this._toneMapPass.setTexture("hx_luminanceMap", this._luminanceMap);
         this._toneMapPass.setUniform("hx_luminanceMipLevel", MathX.log2(this._luminanceMap._width));
@@ -69,8 +69,7 @@ ToneMapEffect.prototype = Object.create(Effect.prototype, {
         set: function(value)
         {
             this._exposure = value;
-            if (this._isSupported)
-                this._toneMapPass.setUniform("hx_exposure", Math.pow(2.0, value));
+            this._toneMapPass.setUniform("hx_exposure", Math.pow(2.0, value));
         }
     },
 
@@ -82,20 +81,7 @@ ToneMapEffect.prototype = Object.create(Effect.prototype, {
         set: function(value)
         {
             this._key = value;
-            if (this._isSupported)
-                this._toneMapPass.setUniform("hx_key", value);
-        }
-    },
-
-    adaptationRate: {
-        get: function()
-        {
-            return this._adaptationRate;
-        },
-
-        set: function(value)
-        {
-            this._adaptationRate = value;
+            this._toneMapPass.setUniform("hx_key", value);
         }
     }
 });
@@ -106,23 +92,23 @@ ToneMapEffect.prototype._createToneMapPass = function()
 };
 
 
-ToneMapEffect.prototype.draw = function(dt)
+ToneMapEffect.prototype.draw = function(renderer, dt)
 {
     if (this._adaptive) {
-        var amount = this._adaptationRate > 0 ? dt / this._adaptationRate : 1.0;
+        var amount = this.adaptationRate > 0 ? dt / this.adaptationRate : 1.0;
         if (amount > 1) amount = 1;
 
         this._extractLuminancePass.blendState.color.a = amount;
 
         GL.setRenderTarget(this._luminanceFBO);
         // can't clear at this point
-        this._drawPass(this._extractLuminancePass);
+        this._extractLuminancePass.draw(renderer);
         this._luminanceMap.generateMipmap();
     }
 
     GL.setRenderTarget(this.hdrTarget);
     GL.clear();
-    this._drawPass(this._toneMapPass);
+    this._toneMapPass.draw(renderer);
 };
 
 export { ToneMapEffect };

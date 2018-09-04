@@ -41,6 +41,7 @@ function Camera()
     this._nearDistance = .1;
     this._farDistance = 1000;
     this._frustum = new Frustum();
+    this._Entity_invalidateWorldMatrix = Entity.prototype._invalidateWorldMatrix;
 
     this.position.set(0.0, -1.0, 0.0);
 }
@@ -199,7 +200,7 @@ Camera.prototype._invalidateViewProjectionMatrix = function()
  */
 Camera.prototype._invalidateWorldMatrix = function()
 {
-    Entity.prototype._invalidateWorldMatrix.call(this);
+    this._Entity_invalidateWorldMatrix();
     this._invalidateViewProjectionMatrix();
 };
 
@@ -247,7 +248,7 @@ Camera.prototype._updateBounds = function()
  */
 Camera.prototype.toString = function()
 {
-    return "[Camera(name=" + this._name + ")]";
+    return "[Camera(name=" + this.name + ")]";
 };
 
 /**
@@ -340,16 +341,10 @@ Camera.prototype.copyFrom = function(src)
 /**
  * @ignore
  */
-Camera.prototype.acceptVisitorPost = function(visitor)
-{
-    Entity.prototype.acceptVisitor.call(this, visitor);
-};
+Camera.prototype.acceptVisitorPost = Entity.prototype.acceptVisitor;
 
 // don't want effects etc to be added unless it's the render camera (which is handled by acceptVisitorPost)
-Camera.prototype.acceptVisitor = function(visitor)
-{
-    return;
-};
+Camera.prototype.acceptVisitor = function(visitor) {};
 
 
 export { Camera };

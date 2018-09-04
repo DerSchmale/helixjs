@@ -1,6 +1,5 @@
 import {ShaderLibrary} from '../../shader/ShaderLibrary';
 import {ShadowFilter} from './ShadowFilter';
-import {MathX} from "../../math/MathX";
 
 /**
  * @classdesc
@@ -22,57 +21,12 @@ import {MathX} from "../../math/MathX";
 function PCFShadowFilter()
 {
     ShadowFilter.call(this);
-    this._softness = .001;
-    this._numShadowSamples = 6;
-    this._dither = false;
+    this.softness = .001;
+    this.numShadowSamples = 6;
+    this.dither = false;
 }
 
-PCFShadowFilter.prototype = Object.create(ShadowFilter.prototype,
-    {
-        softness: {
-            get: function ()
-            {
-                return this._softness;
-            },
-
-            set: function (value)
-            {
-                if (this._softness !== value) {
-                    this._softness = value;
-                }
-            }
-        },
-
-        numShadowSamples: {
-            get: function ()
-            {
-                return this._numShadowSamples;
-            },
-
-            set: function (value)
-            {
-                value = MathX.clamp(value, 1, 32);
-                if (this._numShadowSamples !== value) {
-                    this._numShadowSamples = value;
-                }
-            }
-        },
-
-        dither: {
-            get: function ()
-            {
-                return this._dither;
-            },
-
-            set: function (value)
-            {
-                if (this._dither !== value) {
-                    this._dither = value;
-                }
-            }
-        }
-    }
-);
+PCFShadowFilter.prototype = Object.create(ShadowFilter.prototype);
 
 /**
  * @ignore
@@ -80,12 +34,12 @@ PCFShadowFilter.prototype = Object.create(ShadowFilter.prototype,
 PCFShadowFilter.prototype.getGLSL = function ()
 {
     var defines = {
-        HX_PCF_NUM_SHADOW_SAMPLES: this._numShadowSamples,
-        HX_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + (1.0 / this._numShadowSamples) + ")",
-        HX_PCF_SOFTNESS: this._softness
+        HX_PCF_NUM_SHADOW_SAMPLES: this.numShadowSamples,
+        HX_PCF_RCP_NUM_SHADOW_SAMPLES: "float(" + (1.0 / this.numShadowSamples) + ")",
+        HX_PCF_SOFTNESS: this.softness
     };
 
-    if (this._dither)
+    if (this.dither)
         defines.HX_PCF_DITHER_SHADOWS = 1;
 
     return ShaderLibrary.get("shadow_pcf.glsl", defines);

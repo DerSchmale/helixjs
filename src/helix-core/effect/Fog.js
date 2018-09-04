@@ -98,11 +98,11 @@ Fog.prototype = Object.create(Effect.prototype,
 /**
  * @ignore
  */
-Fog.prototype.draw = function(dt)
+Fog.prototype.draw = function(renderer, dt)
 {
     GL.setRenderTarget(this.hdrTarget);
     GL.clear();
-    this._drawPass(this._fogPass);
+	this._fogPass.draw(renderer);
 };
 
 export { Fog };

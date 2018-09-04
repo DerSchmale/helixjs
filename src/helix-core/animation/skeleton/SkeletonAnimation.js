@@ -68,7 +68,7 @@ Component.create(SkeletonAnimation,
             set function(value)
             {
                 this._blendTree.rootNode = value;
-                if (this._entity) this._blendTree.skeleton = this._entity.skeleton;
+                if (this.entity) this._blendTree.skeleton = this.entity.skeleton;
             }
         }
     }
@@ -79,8 +79,8 @@ Component.create(SkeletonAnimation,
  */
 SkeletonAnimation.prototype.onAdded = function()
 {
-    this._blendTree.skeleton = this._entity.skeleton;
-    this._entity.skeletonPose = this._blendTree.skeletonPose;
+    this._blendTree.skeleton = this.entity.skeleton;
+    this.entity.skeletonPose = this._blendTree.skeletonPose;
 };
 
 /**
@@ -89,11 +89,11 @@ SkeletonAnimation.prototype.onAdded = function()
 SkeletonAnimation.prototype.onUpdate = function(dt)
 {
     if (this._blendTree.update(dt)) {
-        var matrix = this._entity.matrix;
+        var matrix = this.entity.matrix;
         var d = this._blendTree.rootJointDeltaPosition;
         matrix.prependTranslation(d);
-        this._entity.matrix = matrix;
-        this._entity.skeletonPose = this._blendTree.skeletonPose;
+        this.entity.matrix = matrix;
+        this.entity.skeletonPose = this._blendTree.skeletonPose;
     }
 };
 

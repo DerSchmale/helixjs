@@ -88,15 +88,16 @@ SkeletonPose.prototype = {
     copyBindPose: function (skeleton)
     {
         var m = new Matrix4x4();
-        for (var i = 0; i < skeleton.numJoints; ++i) {
-            var j = skeleton.getJoint(i);
+		var joints = skeleton.joints;
+        for (var i = 0, len = joints.length; i < len; ++i) {
+            var j = joints[i];
             var p = this._jointPoses[i] = new SkeletonJointPose();
             // global bind pose matrix
             m.inverseAffineOf(j.inverseBindPose);
 
             // local bind pose matrix
             if (j.parentIndex >= 0)
-                m.append(skeleton.getJoint(j.parentIndex).inverseBindPose);
+                m.append(joints[j.parentIndex].inverseBindPose);
 
             m.decompose(p);
         }
@@ -123,7 +124,6 @@ SkeletonPose.prototype = {
      */
     _initJointPoses: function (numJointPoses)
     {
-        this._numJoints = numJointPoses;
         this._jointPoses.length = numJointPoses;
         for (var i = 0; i < numJointPoses; ++i)
             this.setJointPose(i, new SkeletonJointPose());
@@ -150,12 +150,15 @@ SkeletonPose.prototype = {
         this._skeletonMatricesInvalid = false;
         this._skeleton = skeleton;
 
-        this._initJointPoses(skeleton.numJoints);
+        var joints = skeleton.joints;
+        var len = joints.length;
+
+        this._initJointPoses(len);
 
         var m = new HX.Matrix4x4();
 
-        for (var i = 0; i < this._jointPoses.length; ++i) {
-            m.inverseOf(skeleton.getJoint(i).inverseBindPose);
+        for (var i = 0; i < len; ++i) {
+            m.inverseOf(skeleton.joints[i].inverseBindPose);
             m.decompose(this._jointPoses[i]);
         }
 
@@ -166,7 +169,7 @@ SkeletonPose.prototype = {
 
         this._globalMatrices = [];
         this._bindMatrices = [];
-        for (i = 0; i < skeleton.numJoints; ++i) {
+        for (i = 0; i < len; ++i) {
             this._globalMatrices[i] = new Matrix4x4();
             this._bindMatrices[i] = new Matrix4x4();
         }
@@ -179,20 +182,20 @@ SkeletonPose.prototype = {
     {
         var globals = this._globalMatrices;
         var binds = this._bindMatrices;
+		var joints = skeleton.joints;
+		var len = joints.length;
 
-        if (!globals || globals.length !== skeleton.numJoints) {
+        if (!globals || globals.length !== len) {
             this._generateGlobalSkeletonData(skeleton);
             globals = this._globalMatrices;
             binds = this._bindMatrices;
         }
 
-        var len = skeleton.numJoints;
-
         for (var i = 0; i < len; ++i) {
             var pose = this._jointPoses[i];
             var global = globals[i];
 
-            var joint = skeleton.getJoint(i);
+            var joint = joints[i];
             var parentIndex = joint.parentIndex;
 
             global.compose(pose);
@@ -200,7 +203,7 @@ SkeletonPose.prototype = {
             if (parentIndex !== -1)
                 global.append(globals[parentIndex]);
 
-            if (skeleton._applyInverseBindPose)
+            if (skeleton.applyInverseBindPose)
                 binds[i].multiplyAffine(global, joint.inverseBindPose);
             else
                 binds[i].copyFrom(global);
@@ -219,7 +222,7 @@ SkeletonPose.prototype = {
         this._globalMatrices = [];
         this._bindMatrices = [];
 
-        for (var i = 0; i < skeleton.numJoints; ++i) {
+        for (var i = 0, len = skeleton.joints.length; i < len; ++i) {
             this._globalMatrices[i] = new Matrix4x4();
             this._bindMatrices[i] = new Matrix4x4();
         }

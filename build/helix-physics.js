@@ -439,7 +439,7 @@
 
 	RigidBody.prototype.prepTransform = function()
 	{
-		var entity = this._entity;
+		var entity = this.entity;
 		var body = this._body;
 		var bodyPos = body.position;
 	    var bodyQuat = body.quaternion;
@@ -470,7 +470,7 @@
 	    if (this._mass === 0.0 || this._isKinematic || body.sleepState !== CANNON.Body.AWAKE)
 	        return;
 
-	    var entity = this._entity;
+	    var entity = this.entity;
 
 	    // let's not invalidate the whole time
 	    entity.disableMatrixUpdates();
@@ -494,7 +494,7 @@
 
 	RigidBody.prototype._createBody = function()
 	{
-	    var entity = this._entity;
+	    var entity = this.entity;
 
 	    var meshInstances = entity.getComponentsByType(HX.MeshInstance);
 	    var numMeshes = meshInstances.length;
@@ -550,7 +550,7 @@
 	    var contact = event.contact;
 
 	    collision.rigidBody = other;
-	    collision.entity = other._entity;
+	    collision.entity = other.entity;
 
 	    var b, r, v1, v2;
 	    var n = contact.ni;

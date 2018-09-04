@@ -16,13 +16,15 @@ function PointShadowPass(geometryVertex, geometryFragment)
 {
     MaterialPass.call(this, this._generateShader(geometryVertex, geometryFragment));
     this._rcpRadiusLocation = this.getUniformLocation("hx_rcpRadius");
+
+    this._MP_updatePassRenderState = MaterialPass.prototype.updatePassRenderState;
 }
 
 PointShadowPass.prototype = Object.create(MaterialPass.prototype);
 
 PointShadowPass.prototype.updatePassRenderState = function(geometryVertex, geometryFragment, light)
 {
-    MaterialPass.prototype.updatePassRenderState.call(this, geometryVertex, geometryFragment);
+    this._MP_updatePassRenderState(geometryVertex, geometryFragment);
     GL.gl.uniform1f(this._rcpRadiusLocation, 1.0 / light._radius);
 };
 

@@ -93,8 +93,8 @@ DynamicLightProbe.prototype.render = function()
     this._specularTexture = DEFAULTS.DARK_CUBE_TEXTURE;
     this._diffuseTexture = DEFAULTS.DARK_CUBE_TEXTURE;
 
-    var pos = this._entity.worldMatrix.getColumn(3);
-    var scene = this._entity._scene;
+    var pos = this.entity.worldMatrix.getColumn(3);
+    var scene = this.entity._scene;
 
     GL.setInvertCulling(true);
 

@@ -28,6 +28,8 @@ function DirectionalLightingPass(geometryVertex, geometryFragment, lightingModel
     this._shadowSplitsLocation = this.getUniformLocation("hx_directionalLight.splitDistances");
     this._depthBiasLocation = this.getUniformLocation("hx_directionalLight.depthBias");
     this._maxShadowDistanceLocation = this.getUniformLocation("hx_directionalLight.maxShadowDistance");
+
+	this._MP_updatePassRenderState = MaterialPass.prototype.updatePassRenderState;
 }
 
 DirectionalLightingPass.prototype = Object.create(MaterialPass.prototype);
@@ -43,7 +45,7 @@ DirectionalLightingPass.prototype.updatePassRenderState = function(camera, rende
         var gl = GL.gl;
         var col = light._scaledIrradiance;
 
-        gl.useProgram(this._shader._program);
+        gl.useProgram(this.shader.program);
 
         camera.viewMatrix.transformVector(light.direction, dir);
         gl.uniform3f(this._colorLocation, col.r, col.g, col.b);
@@ -69,7 +71,7 @@ DirectionalLightingPass.prototype.updatePassRenderState = function(camera, rende
             gl.uniform1f(this._maxShadowDistanceLocation, splits[numCascades - 1]);
         }
 
-        MaterialPass.prototype.updatePassRenderState.call(this, camera, renderer);
+        this._MP_updatePassRenderState(camera, renderer);
     }
 }();
 

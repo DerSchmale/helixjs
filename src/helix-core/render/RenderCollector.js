@@ -26,51 +26,28 @@ function RenderCollector()
     this._camera = null;
     this._cameraYAxis = new Float4();
     this._frustumPlanes = null;
-    this._lights = null;
-    this._ambientColor = new Color();
-    this._shadowCasters = null;
-    this._effects = null;
-    this._needsNormalDepth = false;
-    this._needsBackbuffer = false;
-    this._numShadowPlanes = 0;
-    this._shadowPlaneBuckets = null;
+	this.shadowCasters = null;
+	this.lights = null;
+	this.effects = null;
+	this.ambientColor = new Color();
+	this.needsNormalDepth = false;
+    this.needsBackbuffer = false;
+    this.numShadowPlanes = 0;
+    this.shadowPlaneBuckets = null;
 }
 
 RenderCollector.MAX_SHADOW_QUALITY_BUCKETS = 4;
 
-RenderCollector.prototype = Object.create(SceneVisitor.prototype, {
-    numShadowPlanes: {
-        get: function() { return this._numShadowPlanes; }
-    },
-
-    shadowPlaneBuckets: {
-        get: function() { return this._shadowPlaneBuckets; }
-    },
-
-    ambientColor: {
-        get: function() { return this._ambientColor; }
-    },
-
-    needsNormalDepth: {
-        get: function() { return this._needsNormalDepth; }
-    },
-
-    needsBackbuffer: {
-        get: function() { return this._needsBackbuffer; }
-    }
-});
+RenderCollector.prototype = Object.create(SceneVisitor.prototype);
 
 RenderCollector.prototype.getOpaqueRenderList = function(path) { return this._opaques[path]; };
 RenderCollector.prototype.getTransparentRenderList = function() { return this._transparents; };
-RenderCollector.prototype.getLights = function() { return this._lights; };
-RenderCollector.prototype.getShadowCasters = function() { return this._shadowCasters; };
-RenderCollector.prototype.getEffects = function() { return this._effects; };
 
 RenderCollector.prototype.collect = function(camera, scene)
 {
     this._camera = camera;
     camera.worldMatrix.getColumn(1, this._cameraYAxis);
-    this._frustumPlanes = camera.frustum._planes;
+    this._frustumPlanes = camera.frustum.planes;
     this._reset();
 
     scene.acceptVisitor(this);
@@ -81,7 +58,7 @@ RenderCollector.prototype.collect = function(camera, scene)
     this._transparents.sort(RenderSortFunctions.sortTransparents);
 
     // Do lights still require sorting?
-    this._shadowCasters.sort(RenderSortFunctions.sortShadowCasters);
+    this.shadowCasters.sort(RenderSortFunctions.sortShadowCasters);
 
 	// add camera effects at the end
 	this._camera.acceptVisitorPost(this);
@@ -94,15 +71,15 @@ RenderCollector.prototype.qualifies = function(object)
 
 RenderCollector.prototype.visitScene = function (scene)
 {
-    var skybox = scene._skybox;
+    var skybox = scene.skybox;
     if (skybox)
         this.visitMeshInstance(skybox._meshInstance);
 };
 
 RenderCollector.prototype.visitEffect = function(effect)
 {
-	this._needsNormalDepth = this._needsNormalDepth || effect._needsNormalDepth;
-    this._effects.push(effect);
+	this.needsNormalDepth = this.needsNormalDepth || effect.needsNormalDepth;
+    this.effects.push(effect);
 };
 
 RenderCollector.prototype.visitMeshInstance = function (meshInstance)
@@ -124,8 +101,8 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
     var path = material.renderPath;
 
     // only required for the default lighting model (if not unlit)
-    this._needsNormalDepth = this._needsNormalDepth || material._needsNormalDepth;
-    this._needsBackbuffer = this._needsBackbuffer || material._needsBackbuffer;
+    this.needsNormalDepth = this.needsNormalDepth || material.needsNormalDepth;
+    this.needsBackbuffer = this.needsBackbuffer || material.needsBackbuffer;
 
     var renderItem = renderPool.getItem();
 
@@ -139,27 +116,27 @@ RenderCollector.prototype.visitMeshInstance = function (meshInstance)
     renderItem.worldMatrix = entity.worldMatrix;
     renderItem.worldBounds = worldBounds;
 
-    var bucket = (material.blendState || material._needsBackbuffer)? transparentList : opaqueLists[path];
+    var bucket = (material.blendState || material.needsBackbuffer)? transparentList : opaqueLists[path];
     bucket.push(renderItem);
 };
 
 RenderCollector.prototype.visitAmbientLight = function(light)
 {
     var color = light._scaledIrradiance;
-    this._ambientColor.r += color.r;
-    this._ambientColor.g += color.g;
-    this._ambientColor.b += color.b;
+    this.ambientColor.r += color.r;
+    this.ambientColor.g += color.g;
+    this.ambientColor.b += color.b;
 };
 
 RenderCollector.prototype.visitLight = function(light)
 {
-    this._lights.push(light);
-    if (light._castShadows) {
-        this._shadowCasters.push(light);
-        this._numShadowPlanes += light.numAtlasPlanes;
+    this.lights.push(light);
+    if (light.castShadows) {
+        this.shadowCasters.push(light);
+        this.numShadowPlanes += light.numAtlasPlanes;
 
         var bucketIndex = light.shadowQualityBias;
-        this._shadowPlaneBuckets[bucketIndex] += light.numAtlasPlanes;
+        this.shadowPlaneBuckets[bucketIndex] += light.numAtlasPlanes;
     }
 };
 
@@ -172,16 +149,16 @@ RenderCollector.prototype._reset = function()
 
     this._transparents = [];
 
-    this._lights = [];
-    this._shadowCasters = [];
-    this._effects = [];
-    this._needsNormalDepth = META.OPTIONS.ambientOcclusion;
-    this._ambientColor.set(0, 0, 0, 1);
-    this._numShadowPlanes = 0;
-    this._shadowPlaneBuckets = [];
+    this.lights = [];
+    this.shadowCasters = [];
+    this.effects = [];
+    this.needsNormalDepth = META.OPTIONS.ambientOcclusion;
+    this.ambientColor.set(0, 0, 0, 1);
+    this.numShadowPlanes = 0;
+    this.shadowPlaneBuckets = [];
 
     for (i = 0; i < RenderCollector.MAX_SHADOW_QUALITY_BUCKETS; ++i) {
-        this._shadowPlaneBuckets[i] = 0;
+        this.shadowPlaneBuckets[i] = 0;
     }
 
 };

@@ -1,7 +1,6 @@
 import {BoundingVolume} from "./BoundingVolume";
 import {PlaneSide} from "../math/PlaneSide";
 import {Float4} from "../math/Float4";
-import {BoundingSphere} from "./BoundingSphere";
 
 /**
  * @classdesc
@@ -236,7 +235,7 @@ BoundingAABB.prototype.intersectsBound = function(bound)
         return true;
 
     // both AABB
-    if (bound._type === this._type) {
+    if (bound.type === this.type) {
         return 	this._maximumX > bound._minimumX &&
             this._minimumX < bound._maximumX &&
             this._maximumY > bound._minimumY &&

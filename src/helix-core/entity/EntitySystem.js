@@ -9,25 +9,19 @@
  *
  * @constructor
  *
+ * @property scene The scene the EntitySystem is running on.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function EntitySystem()
 {
     this._entityEngine = null;
     this._sets = [];
-    this._scene = null;
+    this.scene = null;
 }
 
 EntitySystem.prototype =
 {
-    /**
-     * The scene the EntitySystem is running on.
-     */
-    get scene()
-    {
-        return this._scene;
-    },
-
     /**
      * Called when a system is started.
      */

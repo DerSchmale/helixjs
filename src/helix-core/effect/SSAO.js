@@ -36,7 +36,7 @@ function SSAO(numSamples)
     this._strength = 1.0;
     this._fallOffDistance = 1.0;
     this._radius = .5;
-    this._scale = .5;
+    this.scale = .5;
     this._ditherTexture = null;
 
     Effect.call(this);
@@ -80,11 +80,6 @@ SSAO.prototype = Object.create(Effect.prototype, {
             if (this._ssaoPass)
                 this._ssaoPass.setUniform("strengthPerSample", 2.0 * this._strength / this._numSamples);
         }
-    },
-
-    scale: {
-        get: function() { return this._scale; },
-        set: function(value) { this._scale = value; }
     }
 });
 
@@ -108,7 +103,7 @@ SSAO.prototype.init = function()
     this._ssaoPass.setUniform("rcpFallOffDistance", 1.0 / this._fallOffDistance);
     this._ssaoPass.setUniform("sampleRadius", this._radius);
     this._ssaoPass.setTexture("ditherTexture", this._ditherTexture);
-    this._sourceTextureSlot = this._blurPass.getTextureSlot("source");
+    this._sourceTextureSlot = this._blurPass.getTextureIndex("source");
 
     this._ssaoTexture = new Texture2D();
     this._ssaoTexture.filter = TextureFilter.BILINEAR_NOMIP;
@@ -139,7 +134,7 @@ SSAO.prototype._initSamples = function()
 {
     var samples = [];
     var j = 0;
-    var poissonPoints = PoissonSphere.DEFAULT.getPoints();
+    var poissonPoints = PoissonSphere.DEFAULT.points;
 
     for (var i = 0; i < this._numSamples; ++i) {
         var point = poissonPoints[i];
@@ -156,10 +151,10 @@ SSAO.prototype._initSamples = function()
 /**
  * @ignore
  */
-SSAO.prototype.draw = function(dt)
+SSAO.prototype.draw = function(renderer, dt)
 {
-    var w = this._renderer._width * this._scale;
-    var h = this._renderer._height * this._scale;
+    var w = this._renderer._width * this.scale;
+    var h = this._renderer._height * this.scale;
 
     if (TextureUtils.assureSize(w, h, this._ssaoTexture, this._fbo2)) {
         TextureUtils.assureSize(w, h, this._backTexture, this._fbo1);
@@ -170,13 +165,13 @@ SSAO.prototype.draw = function(dt)
 
     GL.setRenderTarget(this._fbo1);
     GL.clear();
-    this._drawPass(this._ssaoPass);
+	this._ssaoPass.draw(renderer);
 
     GL.setRenderTarget(this._fbo2);
     GL.clear();
     this._blurPass.setUniform("pixelSize", {x: 1.0 / w, y: 1.0 / h});
-    this._sourceTextureSlot.texture = this._backTexture;
-    this._drawPass(this._blurPass);
+    this._blurPass.setTextureByIndex(this._sourceTextureSlot, this._backTexture);
+	this._blurPass.draw(renderer);
 
     GL.setClearColor(Color.BLACK);
 };

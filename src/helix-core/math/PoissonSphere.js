@@ -10,16 +10,18 @@ import {Float4} from "./Float4";
  * @param [decayFactor]
  * @param [maxTests]
  *
+ * @property points An array of all points currently generated.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function PoissonSphere(mode, initialDistance, decayFactor, maxTests)
 {
-    this._mode = mode === undefined? PoissonSphere.SPHERICAL : mode;
-    this._initialDistance = initialDistance || 1.0;
-    this._decayFactor = decayFactor || .99;
-    this._maxTests = maxTests || 20000;
-    this._currentDistance = 0;
-    this._points = null;
+	this.points = null;
+	this.mode = mode === undefined? PoissonSphere.SPHERICAL : mode;
+	this.initialDistance = initialDistance || 1.0;
+	this.decayFactor = decayFactor || .99;
+	this.maxTests = maxTests || 20000;
+	this._currentDistance = 0;
     this.reset();
 }
 
@@ -43,7 +45,7 @@ PoissonSphere._initDefault = function()
     PoissonSphere.DEFAULT.generatePoints(64);
     PoissonSphere.DEFAULT_FLOAT32 = new Float32Array(64 * 3);
 
-    var spherePoints = PoissonSphere.DEFAULT.getPoints();
+    var spherePoints = PoissonSphere.DEFAULT.points;
 
     for (var i = 0; i < 64; ++i) {
         var p = spherePoints[i];
@@ -53,23 +55,14 @@ PoissonSphere._initDefault = function()
     }
 };
 
-PoissonSphere.prototype =
-
-    /**
-     * Gets all points currently generated.
-     */{
-    getPoints: function()
-    {
-        return this._points;
-    },
-
+PoissonSphere.prototype = {
     /**
      * Clears all generated points.
      */
     reset : function()
     {
-        this._currentDistance = this._initialDistance;
-        this._points = [];
+        this._currentDistance = this.initialDistance;
+        this.points = [];
     },
 
     /**
@@ -91,14 +84,14 @@ PoissonSphere.prototype =
             var testCount = 0;
             var sqrDistance = this._currentDistance*this._currentDistance;
 
-            while (testCount++ < this._maxTests) {
+            while (testCount++ < this.maxTests) {
                 var candidate = this._getCandidate();
                 if (this._isValid(candidate, sqrDistance)) {
-                    this._points.push(candidate);
+                    this.points.push(candidate);
                     return candidate;
                 }
             }
-            this._currentDistance *= this._decayFactor;
+            this._currentDistance *= this.decayFactor;
         }
     },
 
@@ -112,7 +105,7 @@ PoissonSphere.prototype =
             var x = Math.random() * 2.0 - 1.0;
             var y = Math.random() * 2.0 - 1.0;
             var z = Math.random() * 2.0 - 1.0;
-            if (this._mode === PoissonSphere.BOX || (x * x + y * y + z * z <= 1))
+            if (this.mode === PoissonSphere.BOX || (x * x + y * y + z * z <= 1))
                 return new Float4(x, y, z, 0.0);
         }
     },
@@ -123,9 +116,10 @@ PoissonSphere.prototype =
      */
     _isValid: function(candidate, sqrDistance)
     {
-        var len = this._points.length;
+        var pts = this.points;
+        var len = pts.length;
         for (var i = 0; i < len; ++i) {
-            var p = this._points[i];
+            var p = pts[i];
             var dx = candidate.x - p.x;
             var dy = candidate.y - p.y;
             var dz = candidate.z - p.z;

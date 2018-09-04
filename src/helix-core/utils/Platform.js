@@ -2,6 +2,8 @@
  * Platform contains some platform-dependent utility functions.
  * @namespace
  */
+import {Endian} from "./Endian";
+
 var Platform =
 {
     _isMobile: undefined,
@@ -18,6 +20,19 @@ var Platform =
         }
 
         return this._isMobile;
+    },
+
+	/**
+     * Returns the endianness of the system
+	 */
+	get endian()
+    {
+		var b = new ArrayBuffer(4);
+		var a = new Uint32Array(b);
+		var c = new Uint8Array(b);
+		a[0] = 0xdeadbeef;
+		if (c[0] === 0xef) return Endian.LITTLE_ENDIAN;
+		if (c[0] === 0xde) return Endian.BIG_ENDIAN;
     }
 };
 

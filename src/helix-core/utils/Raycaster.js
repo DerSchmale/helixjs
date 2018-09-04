@@ -31,11 +31,11 @@ function Potential()
 /**
  * @classdec
  *
- * RayCaster sends a ray through the scene and finds the closest intersector.
+ * Raycaster sends a ray through the scene and finds the closest intersector.
  *
  * @constructor
  */
-function RayCaster()
+function Raycaster()
 {
     SceneVisitor.call(this);
     this._potentials = null;
@@ -43,7 +43,7 @@ function RayCaster()
     this._localRay = new Ray();
 }
 
-RayCaster.prototype = Object.create(SceneVisitor.prototype);
+Raycaster.prototype = Object.create(SceneVisitor.prototype);
 
 /**
  * Finds the closest intersection point in the scene for the ray.
@@ -52,7 +52,7 @@ RayCaster.prototype = Object.create(SceneVisitor.prototype);
  *
  * TODO: Should also be able to provide a set of objects instead of the scene?
  */
-RayCaster.prototype.cast = function(ray, scene)
+Raycaster.prototype.cast = function(ray, scene)
 {
     this._potentials = [];
     this._ray = ray;
@@ -73,7 +73,7 @@ RayCaster.prototype.cast = function(ray, scene)
 /**
  * @ignore
  */
-RayCaster.prototype.qualifies = function(object)
+Raycaster.prototype.qualifies = function(object)
 {
     return object.raycast && object.visible && object.worldBounds.intersectsRay(this._ray);
 };
@@ -81,9 +81,9 @@ RayCaster.prototype.qualifies = function(object)
 /**
  * @ignore
  */
-RayCaster.prototype.visitMeshInstance = function (meshInstance)
+Raycaster.prototype.visitMeshInstance = function (meshInstance)
 {
-    var entity = meshInstance._entity;
+    var entity = meshInstance.entity;
     var potential = this._potentialPool.getItem();
     potential.meshInstance = meshInstance;
     var dir = this._ray.direction;
@@ -110,7 +110,7 @@ RayCaster.prototype.visitMeshInstance = function (meshInstance)
     this._potentials.push(potential);
 };
 
-RayCaster.prototype._findClosest = function()
+Raycaster.prototype._findClosest = function()
 {
     var set = this._potentials;
     var len = set.length;
@@ -143,7 +143,7 @@ RayCaster.prototype._findClosest = function()
     return hitData;
 };
 
-RayCaster.prototype._testMesh = function(ray, mesh, hitData)
+Raycaster.prototype._testMesh = function(ray, mesh, hitData)
 {
     // to we need to closest position from the others?
     var dir = ray.direction;
@@ -229,9 +229,9 @@ RayCaster.prototype._testMesh = function(ray, mesh, hitData)
     return updated;
 };
 
-RayCaster.prototype._sortPotentialFunc = function(a, b)
+Raycaster.prototype._sortPotentialFunc = function(a, b)
 {
     return a.closestDistanceSqr - b.closestDistanceSqr;
 };
 
-export {IntersectionData, RayCaster};
+export {IntersectionData, Raycaster};

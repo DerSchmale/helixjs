@@ -7,7 +7,7 @@ import {RectMesh} from "../mesh/RectMesh";
 import {TextureFormat, TextureFilter, TextureWrapMode, META, capabilities} from "../Helix";
 import {FrameBuffer} from "../texture/FrameBuffer";
 import {GL} from "../core/GL";
-import {RenderUtils} from "./RenderUtils";
+import {renderPass} from "./RenderUtils";
 import {WriteOnlyDepthBuffer} from "../texture/WriteOnlyDepthBuffer";
 import {DirectionalLight} from "../light/DirectionalLight";
 import {PointLight} from "../light/PointLight";
@@ -30,17 +30,22 @@ import {UniformBuffer} from "../core/UniformBuffer";
  *
  * @param {RenderTarget} [renderTarget] An optional render target for the Renderer to draw to.
  *
+ * @property debugMode One of {Renderer.DebugMode}. Causes debug data to be rendered instead of the normal view.
+ * @property depthPrepass Defines whether or not a depth pre-pass needs to be performed when rendering. This may improve
+ * rendering by spending less time calculating lighting on invisible fragments.
+ * @property renderTarget A render target for the Renderer to draw to. If not provided, it will render to the backbuffer.
+ *
  * @constructor
  *
  * @author derschmale <http://www.derschmale.com>
  */
 function Renderer(renderTarget)
 {
-    this._renderTarget = renderTarget || null;
+    this.renderTarget = renderTarget || null;
     this._width = 0;
     this._height = 0;
 
-    this._depthPrepass = false;
+    this.depthPrepass = false;
     this._gammaApplied = false;
 
     this._copyTextureShader = new CopyChannelsShader("xyzw", true);
@@ -60,7 +65,7 @@ function Renderer(renderTarget)
 
     this._backgroundColor = Color.BLACK.clone();
     //this._previousViewProjection = new Matrix4x4();
-    this._debugMode = Renderer.DebugMode.NONE;
+    this.debugMode = Renderer.DebugMode.NONE;
     this._ssaoTexture = null;
 
     this._cascadeShadowRenderer = new CascadeShadowMapRenderer();
@@ -132,19 +137,6 @@ Renderer.HDRBuffers.prototype =
 Renderer.prototype =
 {
     /**
-     * One of {Renderer.DebugMode}
-     */
-    get debugMode()
-    {
-        return this._debugMode;
-    },
-
-    set debugMode(value)
-    {
-        this._debugMode = value;
-    },
-
-    /**
      * The size of the shadow atlas texture.
      */
     get shadowMapSize()
@@ -155,30 +147,6 @@ Renderer.prototype =
     set shadowMapSize(value)
     {
         this._shadowAtlas.resize(value, value);
-    },
-
-    /**
-     * Defines whether or not a depth pre-pass needs to be performed when rendering. This may improve rendering by
-     * spending less time calculating lighting on invisible fragments.
-     */
-    get depthPrepass()
-    {
-        return this._depthPrepass;
-    },
-
-    set depthPrepass(value)
-    {
-        this._depthPrepass = value;
-    },
-
-    get renderTarget()
-    {
-        return this._renderTarget;
-    },
-
-    set renderTarget(value)
-    {
-        this._renderTarget = value;
     },
 
     /**
@@ -217,21 +185,21 @@ Renderer.prototype =
         this._camera = camera;
         this._scene = scene;
 
-        this._updateSize(this._renderTarget);
+        this._updateSize(this.renderTarget);
         camera._setRenderTargetResolution(this._width, this._height);
 
         this._renderCollector.collect(camera, scene);
 
-        this._ambientColor = this._renderCollector._ambientColor;
+		this._ambientColor = this._renderCollector.ambientColor;
 
-        this._renderShadowCasters();
+		this._renderShadowCasters();
 
-        this._renderView(camera, scene, dt);
+		this._renderView(camera, scene, dt);
 
-        this._renderToScreen();
+		this._renderToScreen();
 
-        GL.setBlendState();
-        GL.setDepthMask(true);
+		GL.setBlendState();
+		GL.setDepthMask(true);
     },
 
     _renderView: function(camera, scene, dt)
@@ -279,14 +247,14 @@ Renderer.prototype =
         if (!this._depthPrepass) return;
 
         GL.lockColorMask(false);
-        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
-        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
+        renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+        renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
         GL.unlockColorMask(true);
     },
 
     _renderClustered: function()
     {
-        var lights = this._renderCollector.getLights();
+        var lights = this._renderCollector.lights;
         var numLights = lights.length;
         var data = this._lightingDataView;
         var cells = this._cellData;
@@ -353,14 +321,14 @@ Renderer.prototype =
         this._lightingUniformBuffer.uploadData(this._lightingDataView);
         this._lightingCellsUniformBuffer.uploadData(this._cellData);
 
-        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
-        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
+        renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+        renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC));
 
 		if (this._renderCollector.needsBackbuffer)
 			this._copyBackbuffer();
 
-        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_FIXED));
-        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC));
+        renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_FIXED));
+        renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getTransparentRenderList(RenderPath.FORWARD_DYNAMIC));
     },
 
     /**
@@ -618,7 +586,7 @@ Renderer.prototype =
      */
     _renderForwardOpaque: function()
     {
-        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
+        renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_FIXED));
 
         var list = this._renderCollector.getOpaqueRenderList(RenderPath.FORWARD_DYNAMIC);
         if (list.length === 0) return;
@@ -628,9 +596,9 @@ Renderer.prototype =
 
     _renderOpaqueDynamicMultipass: function(list)
     {
-        RenderUtils.renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, list);
+        renderPass(this, this._activeCamera, MaterialPass.BASE_PASS, list);
 
-        var lights = this._renderCollector.getLights();
+        var lights = this._renderCollector.lights;
         var numLights = lights.length;
 
         for (var i = 0; i < numLights; ++i) {
@@ -639,11 +607,11 @@ Renderer.prototype =
             // I don't like type checking, but lighting support is such a core thing...
             // maybe we can work in a more plug-in like light system
             if (light instanceof LightProbe) {
-                RenderUtils.renderPass(this, this._activeCamera, MaterialPass.LIGHT_PROBE_PASS, list, light);
+                renderPass(this, this._activeCamera, MaterialPass.LIGHT_PROBE_PASS, list, light);
             }
             else if (light instanceof DirectionalLight) {
                 // PASS IN LIGHT AS DATA, so the material can update it
-                RenderUtils.renderPass(this, this._activeCamera, MaterialPass.DIR_LIGHT_PASS, list, light);
+                renderPass(this, this._activeCamera, MaterialPass.DIR_LIGHT_PASS, list, light);
             }
             else if (light instanceof PointLight) {
                 // cannot just use renderPass, need to do intersection tests
@@ -657,7 +625,7 @@ Renderer.prototype =
 
     _renderForwardTransparent: function()
     {
-        var lights = this._renderCollector.getLights();
+        var lights = this._renderCollector.lights;
         var numLights = lights.length;
 
         var list = this._renderCollector.getTransparentRenderList();
@@ -731,7 +699,7 @@ Renderer.prototype =
         pass.updateInstanceRenderState(this._activeCamera, renderItem, light);
 		meshInstance.updateRenderState(passType);
         var mesh = meshInstance._mesh;
-        GL.drawElements(mesh._elementType, mesh._numIndices, 0, mesh._indexType);
+        GL.drawElements(mesh.elementType, mesh._numIndices, 0, mesh._indexType);
     },
 
     /**
@@ -748,8 +716,8 @@ Renderer.prototype =
             GL.setRenderTarget(this._normalDepthFBO);
             GL.setClearColor(Color.BLUE);
             GL.clear();
-            RenderUtils.renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, dynamic, null);
-            RenderUtils.renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, fixed, null);
+            renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, dynamic, null);
+            renderPass(this, this._activeCamera, MaterialPass.NORMAL_DEPTH_PASS, fixed, null);
         }
     },
 
@@ -774,7 +742,7 @@ Renderer.prototype =
     {
         this._shadowAtlas.initRects(this._renderCollector.shadowPlaneBuckets, this._renderCollector.numShadowPlanes);
 
-        var casters = this._renderCollector.getShadowCasters();
+        var casters = this._renderCollector.shadowCasters;
         var len = casters.length;
 
         GL.setRenderTarget(this._shadowAtlas.fbo);
@@ -806,7 +774,7 @@ Renderer.prototype =
      */
     _renderEffect: function (effect, dt)
     {
-        this._gammaApplied = this._gammaApplied || effect._outputsGamma;
+        this._gammaApplied = this._gammaApplied || effect.outputsGamma;
         effect.render(this, dt);
     },
 
@@ -816,12 +784,12 @@ Renderer.prototype =
      */
     _renderToScreen: function ()
     {
-        GL.setRenderTarget(this._renderTarget);
+        GL.setRenderTarget(this.renderTarget);
         GL.clear();
 
-        if (this._debugMode) {
+        if (this.debugMode) {
             var tex;
-            switch (this._debugMode) {
+            switch (this.debugMode) {
                 case Renderer.DebugMode.NORMAL_DEPTH:
                     tex = this._normalDepthBuffer;
                     break;
@@ -859,7 +827,7 @@ Renderer.prototype =
      */
     _renderEffects: function (dt)
     {
-        var effects = this._renderCollector.getEffects();
+        var effects = this._renderCollector.effects;
         if (!effects) return;
 
         var len = effects.length;
@@ -880,9 +848,9 @@ Renderer.prototype =
     _updateSize: function ()
     {
         var width, height;
-        if (this._renderTarget) {
-            width = this._renderTarget.width;
-            height = this._renderTarget.height;
+        if (this.renderTarget) {
+            width = this.renderTarget.width;
+            height = this.renderTarget.height;
         }
         else {
             width = META.TARGET_CANVAS.width;

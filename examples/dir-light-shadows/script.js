@@ -8,10 +8,10 @@ window.onload = function ()
 {
     var options = new HX.InitOptions();
 
-    var ssao = new HX.SSAO(24);
+    var ssao = new HX.SSAO(16);
     ssao.strength = 3.0;
-    ssao.sampleRadius = 1.0;
-    ssao.fallOffDistance = 2.5;
+    ssao.sampleRadius = 2.0;
+    ssao.fallOffDistance = 4.0;
     options.ambientOcclusion = ssao;
     // options.debug = true;
 
@@ -86,7 +86,6 @@ function initScene(scene, assetLibrary)
     //     light.setCascadeRatios(.5);
 	var lightEntity = new HX.Entity(light);
 	lightEntity.lookAt(new HX.Float4(0.0, 0.8, -1.0, 0.0));
-
     scene.attach(lightEntity);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
@@ -97,7 +96,7 @@ function initScene(scene, assetLibrary)
     scene.skybox = skybox;
 
     var lightProbe = new HX.LightProbe(skyboxIrradianceTexture, skyboxSpecularTexture);
-    scene.attach(new HX.Entity(lightProbe));
+	scene.attach(new HX.Entity(lightProbe));
 
     // textures from http://kay-vriend.blogspot.be/2014/04/tarnished-metal-first-steps-in-pbr-and.html
     var opaqueMaterial = new HX.BasicMaterial();

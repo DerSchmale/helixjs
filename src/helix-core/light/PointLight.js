@@ -83,7 +83,7 @@ PointLight.prototype._updateBounds = function()
  */
 PointLight.prototype.toString = function()
 {
-	return "[PointLight(name=" + this._name + ")]";
+	return "[PointLight(name=" + this.name + ")]";
 };
 
 /**

@@ -9,30 +9,19 @@ import {Signal} from "./Signal";
  *
  * @ignore
  *
+ * @property enabled If false, prevents the PropertyListener from dispatching change events.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function PropertyListener()
 {
-    this._enabled = true;
+    this.enabled = true;
     this.onChange = new Signal();
     this._targets = [];
 }
 
 PropertyListener.prototype =
 {
-    /**
-     * If false, prevents the PropertyListener from dispatching change events.
-     */
-    get enabled()
-    {
-        return this._enabled;
-    },
-
-    set enabled(value)
-    {
-        this._enabled = value;
-    },
-
     /**
      * Starts listening to changes for an object's property for changes.
      * @param targetObj The target object to monitor.
@@ -58,7 +47,7 @@ PropertyListener.prototype =
             set: function(val) {
                 if (val !== target.value) {
                     target.value = val;
-                    if (wrapper._enabled)
+                    if (wrapper.enabled)
                         wrapper.onChange.dispatch();
                 }
             }

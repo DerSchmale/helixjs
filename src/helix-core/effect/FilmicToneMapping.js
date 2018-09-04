@@ -16,7 +16,7 @@ import {EffectPass} from "./EffectPass";
 function FilmicToneMapping(adaptive)
 {
     ToneMapEffect.call(this, adaptive);
-    this._outputsGamma = true;
+    this.outputsGamma = true;
 
 }
 

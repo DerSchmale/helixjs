@@ -24,7 +24,7 @@ Component.create(CompositeComponent);
  */
 CompositeComponent.prototype.addComponent = function(comp)
 {
-    if (comp._entity)
+    if (comp.entity)
         throw new Error("Component already added to an entity!");
 
     this._subs.push(comp);
@@ -47,7 +47,7 @@ CompositeComponent.prototype.onAdded = function()
 {
     for (var i = 0; i < this._subs.length; ++i) {
         var comp = this._subs[i];
-        comp._entity = this._entity;
+        comp.entity = this.entity;
         comp.onAdded();
     }
 };
@@ -60,7 +60,7 @@ CompositeComponent.prototype.onRemoved = function()
     for (var i = 0; i < this._subs.length; ++i) {
         var comp = this._subs[i];
         comp.onRemoved();
-        comp._entity = null;
+        comp.entity = null;
     }
 };
 

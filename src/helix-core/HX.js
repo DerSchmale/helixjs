@@ -109,7 +109,7 @@ export {Messenger} from "./core/Messenger";
 
 export {Bloom} from "./effect/Bloom";
 export {Blur} from "./effect/Blur";
-export {CopyTexturePass} from "./effect/CommonPasses";
+export {CopyTexturePass} from "./effect/CopyTexturePass";
 export {Effect} from "./effect/Effect";
 export {EffectPass} from "./effect/EffectPass";
 export {FilmicToneMapping} from "./effect/FilmicToneMapping";
@@ -148,6 +148,7 @@ export {LightProbe} from "./light/LightProbe";
 export {DynamicLightProbe} from "./light/DynamicLightProbe";
 export {PointLight} from "./light/PointLight";
 export {SpotLight} from "./light/SpotLight";
+export {FixedLightsSystem} from "./light/FixedLightsSystem";
 
 export {ShadowFilter} from "./light/filters/ShadowFilter";
 export {ExponentialShadowFilter} from "./light/filters/ExponentialShadowFilter";
@@ -195,7 +196,7 @@ export {ImageData} from "./utils/ImageData";
 export {MergeSpecularTextures} from "./utils/MergeSpecularTextures";
 export {NormalTangentGenerator} from "./utils/NormalTangentGenerator";
 export {Platform} from "./utils/Platform";
-export {RayCaster} from "./utils/RayCaster";
+export {Raycaster} from "./utils/Raycaster";
 export {StatsDisplay} from "./utils/StatsDisplay";
 
 export {VRDisplay} from "./vr/VRDisplay";

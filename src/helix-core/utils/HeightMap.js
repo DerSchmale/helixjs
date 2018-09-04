@@ -47,8 +47,8 @@ export var HeightMap =
             target.generateMipmap();
 
         var smooth = new CustomCopyShader(ShaderLibrary.get("smooth_heightmap_fragment.glsl"));
-        var textureLocation = gl.getUniformLocation(smooth._program, "reference");
-        var offsetLocation = gl.getUniformLocation(smooth._program, "stepSize");
+        var textureLocation = gl.getUniformLocation(smooth.program, "reference");
+        var offsetLocation = gl.getUniformLocation(smooth.program, "stepSize");
         gl.uniform1i(textureLocation, 1);
 
         texture.bind(1);

@@ -63,7 +63,7 @@ OmniShadowCasterCollector.prototype.collect = function(cameras, scene)
 
 OmniShadowCasterCollector.prototype.visitMeshInstance = function (meshInstance)
 {
-	if (!meshInstance._castShadows || !meshInstance.enabled) return;
+	if (!meshInstance.castShadows || !meshInstance.enabled) return;
 
 	var entity = meshInstance.entity;
 	var worldBounds = entity.worldBounds;
@@ -104,10 +104,7 @@ OmniShadowCasterCollector.prototype._addTo = function(meshInstance, cubeFace, wo
     var camPos = this._cameraPos;
     var camPosX = camPos.x, camPosY = camPos.y, camPosZ = camPos.z;
     var renderList = this._renderLists[cubeFace];
-    var camera = this._cameras[cubeFace];
-
     var material = meshInstance.material;
-
     var renderItem = renderPool.getItem();
 
     renderItem.material = material;

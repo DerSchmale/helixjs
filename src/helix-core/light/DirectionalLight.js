@@ -62,8 +62,8 @@ Component.create(DirectionalLight,
             get: function()
             {
                 var dir = this._direction;
-                if (this._entity)
-                    this._entity.worldMatrix.getColumn(1, dir);
+                if (this.entity)
+                    this.entity.worldMatrix.getColumn(1, dir);
                 return dir;
             }
         },
@@ -79,7 +79,8 @@ Component.create(DirectionalLight,
 );
 
 /**
- * The ratios that define every cascade's split distance. 1 is at the far plane, 0 is at the near plane.
+ * The ratios that define every cascade's split distance in relation to the near and far plane. 1 is at the far plane,
+ * 0 is at the near plane.
  * @param r1
  * @param r2
  * @param r3
@@ -131,9 +132,12 @@ DirectionalLight.prototype._updateBounds = function()
  */
 DirectionalLight.prototype.toString = function()
 {
-	return "[DirectionalLight(name=" + this._name + ")]";
+	return "[DirectionalLight(name=" + this.name + ")]";
 };
 
+/**
+ * @inheritDoc
+ */
 DirectionalLight.prototype.clone = function()
 {
 	var clone = new DirectionalLight();

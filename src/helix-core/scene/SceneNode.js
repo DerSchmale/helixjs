@@ -32,7 +32,7 @@ function SceneNode()
 {
     Transform.call(this);
     this.meta = {};
-    this._name = "hx_scenenode_" + (nameCounter++);
+    this.name = "hx_scenenode_" + (nameCounter++);
     this._matrixInvalid = true;
 	this._worldMatrix = new Matrix4x4();
     this._worldMatrixInvalid = true;
@@ -40,7 +40,7 @@ function SceneNode()
     this._scene = null;
     this._visible = true;
     this._ancestorsVisible = true;
-    this._raycast = true;
+    this.raycast = true;
     this._children = [];
     this._isOnRoot = false;
 
@@ -48,20 +48,12 @@ function SceneNode()
     // models can use this to store distance to camera for more efficient rendering, lights use this to sort based on
     // intersection with near plane, etc
     this._renderOrderHint = 0.0;
+
+	this._Transform_applyMatrix = Transform.prototype._applyMatrix;
+	this._Transform_invalidateMatrix = Transform.prototype._invalidateMatrix;
 }
 
 SceneNode.prototype = Object.create(Transform.prototype, {
-    name: {
-        get: function()
-        {
-            return this._name;
-        },
-        set: function(value)
-        {
-            this._name = value;
-        }
-    },
-
     parent: {
         get: function()
         {
@@ -99,17 +91,6 @@ SceneNode.prototype = Object.create(Transform.prototype, {
         get: function()
         {
             return this._visible && this._ancestorsVisible
-        }
-    },
-
-    raycast: {
-        get: function()
-        {
-            return this._raycast;
-        },
-        set: function(value)
-        {
-            this._raycast = value;
         }
     },
 
@@ -256,7 +237,7 @@ SceneNode.prototype.destroy = function()
  */
 SceneNode.prototype._applyMatrix = function()
 {
-    Transform.prototype._applyMatrix.call(this);
+    this._Transform_applyMatrix();
     this._invalidateWorldMatrix();
 };
 
@@ -265,7 +246,7 @@ SceneNode.prototype._applyMatrix = function()
  */
 SceneNode.prototype.findNodeByName = function(name)
 {
-    if (this._name === name) return this;
+    if (this.name === name) return this;
 
     var len = this._children.length;
     for (var i = 0; i < len; ++i) {
@@ -307,7 +288,7 @@ SceneNode.prototype._setScene = function(scene)
  */
 SceneNode.prototype._invalidateMatrix = function ()
 {
-    Transform.prototype._invalidateMatrix.call(this);
+    this._Transform_invalidateMatrix();
     this._invalidateWorldMatrix();
 };
 
@@ -341,46 +322,34 @@ SceneNode.prototype._updateWorldMatrix = function()
  */
 SceneNode.prototype.toString = function()
 {
-    return "[SceneNode(name=" + this._name + ")]";
+    return "[SceneNode(name=" + this.name + ")]";
 };
 
 /**
  * Applies a function recursively to all child nodes.
  * @param func The function to call (using the traversed node as argument)
- * @param [thisRef] Optional reference to "this" in the calling function, to keep the scope of "this" in the called method.
  */
-SceneNode.prototype.applyFunction = function(func, thisRef)
+SceneNode.prototype.applyFunction = function(func)
 {
-    if (thisRef)
-        func.call(thisRef, this);
-    else
     // Heehee, this line amuses me:
-        func(this);
+    func(this);
 
     var len = this._children.length;
     for (var i = 0; i < len; ++i)
-        this._children[i].applyFunction(func, thisRef);
+        this._children[i].applyFunction(func);
 };
 
 /**
  * Applies a function recursively to all child nodes while the passed function returns true
  * @param func The function to call (using the traversed node as argument)
- * @param [thisRef] Optional reference to "this" in the calling function, to keep the scope of "this" in the called method.
  */
-SceneNode.prototype.applyFunctionConditional = function(func, thisRef)
+SceneNode.prototype.applyFunctionConditional = function(func)
 {
-    var result;
-    if (thisRef)
-		result = func.call(thisRef, this);
-    else
-    // Heehee, this line amuses me:
-		result = func(this);
-
-    if (!result) return;
+    if (!func(this)) return;
 
     var len = this._children.length;
     for (var i = 0; i < len; ++i)
-        this._children[i].applyFunction(func, thisRef);
+        this._children[i].applyFunctionConditional(func);
 };
 
 /**

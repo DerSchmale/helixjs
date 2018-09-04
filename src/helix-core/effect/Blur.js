@@ -21,46 +21,36 @@ function Blur(numSamples, radius)
     if (!radius) radius = numSamples;
     Effect.call(this);
 
-    this._blurPass = new GaussianBlurPass(radius);
-    this._blurSourceSlot = this._blurPass.getTextureSlot("sourceTexture");
-    this._radius = radius;
+	this.radius = radius;
+
+	this._blurPass = new GaussianBlurPass(radius);
+	this._blurSourceSlot = this._blurPass.getTextureIndex("sourceTexture");
     this._numSamples = numSamples;
 }
 
-Blur.prototype = Object.create(Effect.prototype,
-    {
-        radius: {
-            get: function() {
-                return this._radius;
-            },
-
-            set: function(value) {
-                this._radius = value;
-            }
-        }
-    });
+Blur.prototype = Object.create(Effect.prototype);
 
 /**
  * @ignore
  */
-Blur.prototype.draw = function(dt)
+Blur.prototype.draw = function(renderer, dt)
 {
-    var ratio = this._radius / this._numSamples;
+    var ratio = this.radius / this._numSamples;
     // we're manually setting source textures instead of using hx_backbuffer because the GaussianBlurPass needs to
     // handle different textures too (see bloom)
     GL.setRenderTarget(this.hdrTarget);
     GL.clear();
-    this._blurSourceSlot.texture = this.hdrSource;
+    this._blurPass.setTextureByIndex(this._blurSourceSlot, this.hdrSource);
     this._blurPass.setUniform("stepSize", {x: ratio / this.hdrSource.width, y: 0.0});
-    this._drawPass(this._blurPass);
+    this._blurPass.draw(renderer);
 
     this._swapHDRFrontAndBack();
 
     GL.setRenderTarget(this.hdrTarget);
     GL.clear();
-    this._blurSourceSlot.texture = this.hdrSource;
+	this._blurPass.setTextureByIndex(this._blurSourceSlot, this.hdrSource);
     this._blurPass.setUniform("stepSize", {x: 0.0, y: ratio / this.hdrSource.height});
-    this._drawPass(this._blurPass);
+    this._blurPass.draw(renderer);
 };
 
 export { Blur };

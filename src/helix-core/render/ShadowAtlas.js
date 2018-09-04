@@ -32,7 +32,7 @@ ShadowAtlas.prototype =
         if (this._size === size) return;
         this._size = size;
         this._texture.initEmpty(size, size, META.OPTIONS.shadowFilter.getShadowMapFormat(), META.OPTIONS.shadowFilter.getShadowMapDataType());
-        this._texture.filter = META.OPTIONS.shadowFilter.shadowMapFilter;
+        this._texture.filter = META.OPTIONS.shadowFilter.getShadowMapFilter();
         if (this._texture.filter !== TextureFilter.NEAREST_NOMIP && this._texture.filter !== TextureFilter.BILINEAR_NOMIP) {
             // We can't use mipmap filtering because it's an *atlas*
             throw new Error("ShadowAtlas does not support mipmaps!");
@@ -101,7 +101,7 @@ ShadowAtlas.prototype =
             shader.execute(RectMesh.DEFAULT, this._texture2, 0.0, 1.0 / this._size);
         }
 
-        this._texture.filter = shadowFilter.shadowMapFilter;
+        this._texture.filter = shadowFilter.getShadowMapFilter();
     },
 
     _divideLast: function(count, flatList)

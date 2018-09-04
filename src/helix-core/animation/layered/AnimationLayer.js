@@ -17,7 +17,7 @@ var nameCounter = 0;
  */
 function AnimationLayer(targetName, propertyName, clip)
 {
-    this._name = "hx_animationlayer_" + (nameCounter++);
+    this.name = "hx_animationlayer_" + (nameCounter++);
     this._clip = clip;
     this._playhead = new AnimationPlayhead(clip);
     this._targetName = targetName;

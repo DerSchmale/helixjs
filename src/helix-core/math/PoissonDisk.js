@@ -10,17 +10,18 @@ import {Float2} from "./Float2";
  * @param [decayFactor]
  * @param [maxTests]
  *
+ * @property points An array of all points currently generated.
  *
  * @author derschmale <http://www.derschmale.com>
  */
 function PoissonDisk(mode, initialDistance, decayFactor, maxTests)
 {
-    this._mode = mode === undefined? PoissonDisk.CIRCULAR : mode;
-    this._initialDistance = initialDistance || 1.0;
-    this._decayFactor = decayFactor || .99;
-    this._maxTests = maxTests || 20000;
-    this._currentDistance = 0;
-    this._points = null;
+	this.points = null;
+	this.decayFactor = decayFactor || .99;
+	this.initialDistance = initialDistance || 1.0;
+	this.maxTests = maxTests || 20000;
+	this.mode = mode === undefined? PoissonDisk.CIRCULAR : mode;
+	this._currentDistance = 0;
     this.reset();
 }
 
@@ -43,7 +44,7 @@ PoissonDisk._initDefault = function()
     PoissonDisk.DEFAULT.generatePoints(64);
     PoissonDisk.DEFAULT_FLOAT32 = new Float32Array(64 * 2);
 
-    var diskPoints = PoissonDisk.DEFAULT.getPoints();
+    var diskPoints = PoissonDisk.DEFAULT.points;
 
     for (var i = 0; i < 64; ++i) {
         var p = diskPoints[i];
@@ -55,20 +56,12 @@ PoissonDisk._initDefault = function()
 PoissonDisk.prototype =
 {
     /**
-     * Gets all points currently generated.
-     */
-    getPoints: function()
-    {
-        return this._points;
-    },
-
-    /**
      * Clears all generated points.
      */
     reset : function()
     {
-        this._currentDistance = this._initialDistance;
-        this._points = [];
+		this.points = [];
+		this._currentDistance = this.initialDistance;
     },
 
     /**
@@ -90,14 +83,14 @@ PoissonDisk.prototype =
             var testCount = 0;
             var sqrDistance = this._currentDistance*this._currentDistance;
 
-            while (testCount++ < this._maxTests) {
+            while (testCount++ < this.maxTests) {
                 var candidate = this._getCandidate();
                 if (this._isValid(candidate, sqrDistance)) {
-                    this._points.push(candidate);
+                    this.points.push(candidate);
                     return candidate;
                 }
             }
-            this._currentDistance *= this._decayFactor;
+            this._currentDistance *= this.decayFactor;
         }
     },
 
@@ -110,7 +103,7 @@ PoissonDisk.prototype =
         for (;;) {
             var x = Math.random() * 2.0 - 1.0;
             var y = Math.random() * 2.0 - 1.0;
-            if (this._mode === PoissonDisk.SQUARE || (x * x + y * y <= 1))
+            if (this.mode === PoissonDisk.SQUARE || (x * x + y * y <= 1))
                 return new Float2(x, y);
         }
     },
@@ -121,9 +114,9 @@ PoissonDisk.prototype =
      */
     _isValid: function(candidate, sqrDistance)
     {
-        var len = this._points.length;
+        var len = this.points.length;
         for (var i = 0; i < len; ++i) {
-            var p = this._points[i];
+            var p = this.points[i];
             var dx = candidate.x - p.x;
             var dy = candidate.y - p.y;
             if (dx*dx + dy*dy < sqrDistance)

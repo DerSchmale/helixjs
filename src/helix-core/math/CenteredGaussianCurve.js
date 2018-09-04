@@ -18,7 +18,7 @@ CenteredGaussianCurve.prototype =
     /**
      * Gets the y-value of the curve at the given x-coordinate.
      */
-    getValueAt: function(x)
+    at: function(x)
     {
         return this._amplitude * Math.pow(Math.E, x*x*this._expScale);
     }

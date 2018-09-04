@@ -30,6 +30,9 @@ var MATERIAL_ID_COUNTER = 0;
  * @param geometryFragmentShader The fragment code for the geometry stage.
  * @param [lightingModel] The {@linkcode LightingModel} to use. Defaults to what was passed in (if anything) with {@linkcode InitOptions#defaultLightingModel}.
  *
+ * @property name The name of the material.
+ * @property renderOrder A Number that can force the order in which the material is rendered. Higher values will be rendered later!
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
@@ -37,15 +40,16 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     // dispatched when the material's code changed and a link with a mesh may have become invalid
     this.onChange = new Signal();
 
-	this._name = "hx_material_" + MATERIAL_ID_COUNTER;
+	this.name = "hx_material_" + MATERIAL_ID_COUNTER;
     this._cullMode = CullMode.BACK;
     this._writeDepth = true;
     this._writeColor = true;
     this._passes = new Array(Material.NUM_PASS_TYPES);
-    // automatic render order by engine
-    this._renderOrderHint = ++MATERIAL_ID_COUNTER;
-    // forced render order by user:
-    this._renderOrder = 0;
+
+	this.renderOrder = 0; // forced render order by user:
+    this._renderOrderHint = MATERIAL_ID_COUNTER; // automatic render order to limit pass switches by engine
+    this._shaderRenderOrderHint = 0; // automatic render order to limit program switches by engine
+
     this._renderPath = null;
     this._textures = {};
     this._uniforms = {};
@@ -61,8 +65,11 @@ function Material(geometryVertexShader, geometryFragmentShader, lightingModel)
     this._initialized = false;
     this._blendState = null;
     this._additiveBlendState = BlendState.ADD;    // additive blend state is used for dynamic lighting
-    this._needsNormalDepth = false;
-    this._needsBackbuffer = false;
+
+    this.needsNormalDepth = false;
+    this.needsBackbuffer = false;
+
+    ++MATERIAL_ID_COUNTER;
 }
 
 Material.ID_COUNTER = 0;
@@ -77,8 +84,8 @@ Material.prototype =
         if (this._initialized || !this._geometryVertexShader || !this._geometryFragmentShader)
             return;
 
-        this._needsNormalDepth = false;
-        this._needsBackbuffer = false;
+        this.needsNormalDepth = false;
+        this.needsBackbuffer = false;
 
         var vertex = this._geometryVertexShader;
         var fragment = this._geometryFragmentShader;
@@ -121,6 +128,9 @@ Material.prototype =
         this.setPass(MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS, new PointShadowPass(vertex, fragment));
 
         this.setPass(MaterialPass.NORMAL_DEPTH_PASS, new NormalDepthPass(vertex, fragment));
+
+        // We will also need to order per shader
+        this._shaderRenderOrderHint = this._passes[MaterialPass.BASE_PASS].shader.renderOrderHint;
 
         this._initialized = true;
     },
@@ -167,21 +177,12 @@ Material.prototype =
 
     set fixedLights(value)
     {
+        // passed the same array again
+        if (this._fixedLights === value)
+            return;
+
         this._fixedLights = value;
         this._invalidate();
-    },
-
-    /**
-     * The name of the material.
-     */
-    get name()
-    {
-        return this._name;
-    },
-
-    set name(value)
-    {
-        this._name = value;
     },
 
     /**
@@ -196,19 +197,6 @@ Material.prototype =
     {
         this._lightingModel = value;
         this._invalidate();
-    },
-
-    /**
-     * A Number that can force the order in which the material is rendered. Higher values will be rendered later!
-     */
-    get renderOrder()
-    {
-        return this._renderOrder;
-    },
-
-    set renderOrder(value)
-    {
-        this._renderOrder = value;
     },
 
     /**
@@ -302,7 +290,7 @@ Material.prototype =
         if (pass) {
 
             if(type === MaterialPass.DIR_LIGHT_SHADOW_MAP_PASS || type === MaterialPass.POINT_LIGHT_SHADOW_MAP_PASS)
-                pass.cullMode = META.OPTIONS.shadowFilter.cullMode;
+                pass.cullMode = META.OPTIONS.shadowFilter.getCullMode();
             else
                 pass.cullMode = this._cullMode;
 
@@ -316,11 +304,11 @@ Material.prototype =
             if (type === MaterialPass.BASE_PASS)
                 pass.blendState = this._blendState;
 
-            if (pass.getTextureSlot("hx_normalDepthBuffer"))
-                this._needsNormalDepth = true;
+            if (pass.hasTexture("hx_normalDepthBuffer"))
+                this.needsNormalDepth = true;
 
-            if (pass.getTextureSlot("hx_backbuffer"))
-                this._needsBackbuffer = true;
+            if (pass.hasTexture("hx_backbuffer"))
+                this.needsBackbuffer = true;
 
             for (var slotName in this._textures) {
                 if (this._textures.hasOwnProperty(slotName)) {
@@ -467,7 +455,7 @@ Material.prototype =
      */
     toString: function()
     {
-        return "[Material(name=" + this._name + ")]";
+        return "[Material(name=" + this.name + ")]";
     }
 };
 

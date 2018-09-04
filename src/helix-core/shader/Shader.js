@@ -1,8 +1,8 @@
-import { GLSLIncludes } from './GLSLIncludes';
-import { GL } from '../core/GL';
-import { META } from '../Helix';
-import {UniformSetter} from "./UniformSetter";
-import {Debug} from "../debug/Debug";
+import {GL} from '../core/GL';
+import {capabilities, META} from '../Helix';
+import {UniformBuffer} from "../core/UniformBuffer";
+import {ProgramCache} from "./ProgramCache";
+
 
 /**
  * @ignore
@@ -14,203 +14,158 @@ import {Debug} from "../debug/Debug";
  */
 function Shader(vertexShaderCode, fragmentShaderCode)
 {
-    this._ready = false;
-    this._vertexShader = null;
-    this._fragmentShader = null;
-    this._program = null;
-    this._uniformSettersInstance = null;
-    this._uniformSettersPass = null;
+	this.program = null;
+	this.renderOrderHint = -1;
+	this._uniforms = null;
+	this._textureUniforms = null;
+	this._uniformBlocks = null;
+	this._ready = false;
 
-    if (vertexShaderCode && fragmentShaderCode)
-        this.init(vertexShaderCode, fragmentShaderCode);
+	if (vertexShaderCode && fragmentShaderCode)
+		this.init(vertexShaderCode, fragmentShaderCode);
 }
 
-Shader.ID_COUNTER = 0;
-
 Shader.prototype = {
-    constructor: Shader,
+	constructor: Shader,
 
-    isReady: function() { return this._ready; },
+	isReady: function()
+	{
+		return this._ready;
+	},
 
-    init: function(vertexShaderCode, fragmentShaderCode)
-    {
-        var gl = GL.gl;
-        vertexShaderCode = "#define HX_VERTEX_SHADER\n" + GLSLIncludes.GENERAL + vertexShaderCode;
-        fragmentShaderCode = "#define HX_FRAGMENT_SHADER\n" + GLSLIncludes.GENERAL + fragmentShaderCode;
+	init: function(vertexShaderCode, fragmentShaderCode)
+	{
+		this._cachedProgram = ProgramCache.getProgram(vertexShaderCode, fragmentShaderCode);
+		// program compilation error:
+		if (!this._cachedProgram) return;
+		this.program = this._cachedProgram.program;
+		this.renderOrderHint = this._cachedProgram.renderOrderHint;
 
-        vertexShaderCode = this._processShaderCode(vertexShaderCode);
-        fragmentShaderCode = this._processShaderCode(fragmentShaderCode);
+		this._storeUniforms();
 
-        this._vertexShader = gl.createShader(gl.VERTEX_SHADER);
-        if (!this._initShader(this._vertexShader, vertexShaderCode)) {
-            this.dispose();
-            if (META.OPTIONS.throwOnShaderError) {
-                throw new Error("Failed generating vertex shader: \n" + vertexShaderCode);
-            }
-            else {
-                console.warn("Failed generating vertex shader");
-            }
+		this._ready = true;
+	},
 
-            return;
-        }
+	hasUniform: function(name)
+	{
+		return this._uniforms.hasOwnProperty(name);
+	},
 
-        this._fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-        if (!this._initShader(this._fragmentShader, fragmentShaderCode)) {
-            this.dispose();
-            if (META.OPTIONS.throwOnShaderError)
-                throw new Error("Failed generating fragment shader: \n" + fragmentShaderCode);
-            else
-                console.warn("Failed generating fragment shader:");
-            return;
-        }
+	getUniform: function(name)
+	{
+		return this._uniforms[name];
+	},
 
-        this._program = gl.createProgram();
+	getUniformLocation: function(name)
+	{
+		if (this.hasUniform(name))
+			return this._uniforms[name].location;
 
-        gl.attachShader(this._program, this._vertexShader);
-        gl.attachShader(this._program, this._fragmentShader);
-        gl.linkProgram(this._program);
+		return null;
+	},
 
-        if (META.OPTIONS.debug && !gl.getProgramParameter(this._program, gl.LINK_STATUS)) {
-            var log = gl.getProgramInfoLog(this._program);
-            this.dispose();
+	getAttributeLocation: function(name)
+	{
+		return GL.gl.getAttribLocation(this.program, name);
+	},
 
-            console.log("**********");
-            Debug.printShaderCode(vertexShaderCode);
-            console.log("**********");
-            Debug.printShaderCode(fragmentShaderCode);
+	_storeUniforms: function()
+	{
+		this._uniforms = {};
+		this._textureUniforms = [];
+		this._uniformBlocks = [];
 
-            if (META.OPTIONS.throwOnShaderError)
-                throw new Error("Error in program linking:" + log);
+		var textureCount = 0;
 
-            console.warn("Error in program linking:" + log);
+		var gl = GL.gl;
 
-            return;
-        }
+		gl.useProgram(this.program);
 
-        this._ready = true;
+		var len = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORMS);
 
-        // Profiler.stopTiming("Shader::init");
+		for (var i = 0; i < len; ++i) {
+			var uniform = gl.getActiveUniform(this.program, i);
+			var name = uniform.name;
+			var location = gl.getUniformLocation(this.program, name);
+			this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
 
-        this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
-        this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
-    },
+			if (uniform.type === gl.SAMPLER_2D || uniform.type === gl.SAMPLER_CUBE) {
+				// this should also take care of texture arrays, right?
+				this._textureUniforms.push(uniform);
+				gl.uniform1i(location, textureCount++);
+			}
+		}
 
-    updatePassRenderState: function(camera, renderer)
-    {
-        GL.gl.useProgram(this._program);
+		if (capabilities.WEBGL_2) {
+			len = gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORM_BLOCKS);
+			for (i = 0; i < len; ++i) {
+				var name = gl.getActiveUniformBlockName(this.program, i);
+				gl.uniformBlockBinding(this.program, i, i);
+				this._uniformBlocks.push(name);
+			}
+		}
 
-        var len = this._uniformSettersPass.length;
-        for (var i = 0; i < len; ++i)
-            this._uniformSettersPass[i].execute(camera, renderer);
-    },
+	},
 
-    updateInstanceRenderState: function(camera, renderItem)
-    {
-        var len = this._uniformSettersInstance.length;
-        for (var i = 0; i < len; ++i)
-            this._uniformSettersInstance[i].execute(camera, renderItem);
-    },
+	createUniformBuffer: function(name)
+	{
+		var gl = GL.gl;
+		var program = this.program;
 
-    _initShader: function(shader, code)
-    {
-        var gl = GL.gl;
-        gl.shaderSource(shader, code);
-        gl.compileShader(shader);
-
-        // Check the compile status, return an error if failed
-        if (META.OPTIONS.debug && !gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            console.warn(gl.getShaderInfoLog(shader));
-            Debug.printShaderCode(code);
-            return false;
-        }
-
-        return true;
-    },
-
-    dispose: function()
-    {
-        var gl = GL.gl;
-        gl.deleteShader(this._vertexShader);
-        gl.deleteShader(this._fragmentShader);
-        gl.deleteProgram(this._program);
-
-        this._ready = false;
-    },
-
-    getProgram: function() { return this._program; },
-
-    getUniformLocation: function(name)
-    {
-        return GL.gl.getUniformLocation(this._program, name);
-    },
-
-    getAttributeLocation: function(name)
-    {
-        return GL.gl.getAttribLocation(this._program, name);
-    },
-
-    _processShaderCode: function(code)
-    {
-        code = this._processExtensions(code, /^\s*#derivatives\s*$/gm, "GL_OES_standard_derivatives");
-        code = this._processExtensions(code, /^\s*#texturelod\s*$/gm, "GL_EXT_shader_texture_lod");
-        code = this._processExtensions(code, /^\s*#drawbuffers\s*$/gm, "GL_EXT_draw_buffers");
-        code = this._guard(code, /^\s*uniform\s+\w+\s+hx_\w+(\[\w+])?\s*;/gm);
-        code = this._guard(code, /^\s*attribute\s+\w+\s+hx_\w+\s*;/gm);
-        code = GLSLIncludes.VERSION + code;
-        return code;
-    },
-
-    _processExtensions: function(code, regEx, extension)
-    {
-
-        var index = code.search(regEx);
-        if (index < 0) return code;
-        code = "#extension " + extension + " : enable\n" + code.replace(regEx, "");
-        return code;
-    },
-
-    // this makes sure reserved uniforms are only used once, makes it easier to combine several snippets
-    // it's quite slow, tho
-    _guard: function(code, regEx)
-    {
-        var result = code.match(regEx) || [];
-        var covered = {};
+		var blockIndex = null;
+		for (var i = 0, len = this._uniformBlocks.length; i < len; ++i) {
+			if (this._uniformBlocks[i] === name) {
+				blockIndex = i;
+				break;
+			}
+		}
+		if (!blockIndex) return null;
 
 
-        for (var i = 0; i < result.length; ++i) {
-            var occ = result[i];
-            occ = occ.replace(/(\r|\n)/g, "");
+		var indices = gl.getActiveUniformBlockParameter(program, blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES);
+		var totalSize = gl.getActiveUniformBlockParameter(program, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
+		var uniformBuffer = new UniformBuffer(totalSize);
 
-            if (occ.charCodeAt(0) === 10)
-                occ = occ.substring(1);
+		var offsets = gl.getActiveUniforms(program, indices, gl.UNIFORM_OFFSET);
 
-            var start = occ.indexOf("hx_");
-            var end = occ.indexOf(";");
+		for (i = 0; i < indices.length; ++i) {
+			var uniform = gl.getActiveUniform(program, indices[i]);
+			uniformBuffer.registerUniform(uniform.name, offsets[i], uniform.size, uniform.type);
+		}
 
-            // in case of arrays
-            var sq = occ.indexOf("[");
-            if (sq >= 0 && sq < end) end = sq;
+		uniformBuffer.uploadData(new Float32Array(totalSize / 4));
 
-            var name = occ.substring(start, end);
-            name = name.trim();
+		return uniformBuffer;
+	},
 
-            if (covered[name]) continue;
+	get numTextures()
+	{
+		return this._textureUniforms.length;
+	},
 
-            covered[name] = true;
+	getTextureIndex: function(name)
+	{
+		for (var i = 0, len = this._textureUniforms.length; i < len; ++i) {
+			var uniform = this._textureUniforms[i];
+			if (uniform.name === name) return i;
+		}
 
-            var defName = "HX_GUARD_" + name.toUpperCase();
-            var repl =  "\n#ifndef " + defName + "\n" +
-                        "#define " + defName + "\n" +
-                        occ + "\n" +
-                        "#endif\n";
+		return -1;
+	},
 
-            occ = occ.replace(/\[/g, "\\[");
-            var replReg = new RegExp(occ, "g");
-            code = code.replace(replReg, repl);
-        }
+	getUniformBufferIndex: function(name)
+	{
+		for (var i = 0, len = this._uniformBlocks.length; i < len; ++i) {
+			if (this._uniformBlocks[i] === name) return i;
+		}
 
-        return code;
-    }
+		return -1;
+	},
+
+	get numUniformBuffers()
+	{
+		return this._uniformBlocks.length;
+	}
 };
 
-export { Shader };
+export {Shader};

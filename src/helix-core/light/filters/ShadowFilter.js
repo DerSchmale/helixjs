@@ -8,22 +8,19 @@ import {CullMode, DataType, TextureFilter, TextureFormat} from '../../Helix';
 function ShadowFilter()
 {
     this._blurShader = null;
-    this._numBlurPasses = 1;
-    this._cullMode = CullMode.FRONT;
+    this.numBlurPasses = 1;
 }
 
 ShadowFilter.prototype =
 {
-    get shadowMapFilter() {
-        return TextureFilter.NEAREST_NOMIP
+	getCullMode: function()
+    {
+        return CullMode.FRONT;
     },
 
-    get cullMode() {
-        return this._cullMode;
-    },
-
-    set cullMode(value) {
-        this._cullMode = value;
+    getShadowMapFilter: function()
+    {
+		return TextureFilter.NEAREST_NOMIP;
     },
 
     getShadowMapFormat: function()
@@ -47,17 +44,6 @@ ShadowFilter.prototype =
             this._blurShader = this._createBlurShader();
 
         return this._blurShader;
-    },
-
-    // only for those methods that use a blurShader
-    get numBlurPasses()
-    {
-        return this._numBlurPasses;
-    },
-
-    set numBlurPasses(value)
-    {
-        this._numBlurPasses = value;
     },
 
     init: function()

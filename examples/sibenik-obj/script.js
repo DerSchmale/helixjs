@@ -72,4 +72,6 @@ function initScene(scene, camera, assetLibrary)
     scene.attach(ambientEntity);
 
     scene.attach(assetLibrary.get("model"));
+
+	scene.startSystem(new HX.FixedLightsSystem());
 }

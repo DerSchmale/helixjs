@@ -1,11 +1,9 @@
 import {capabilities, Comparison, CullMode, DEFAULTS} from "../Helix";
 import {TextureSetter} from "../shader/TextureSetter";
 import {GL} from "../core/GL";
-import {TextureSlot} from "./TextureSlot";
-import {UniformBufferSlot} from "./UniformBufferSlot";
 import {Texture2D} from "../texture/Texture2D";
 import {UniformBufferSetter} from "../shader/UniformBufferSetter";
-import {UniformBuffer} from "../core/UniformBuffer";
+import {UniformSetter} from "../shader/UniformSetter";
 
 /**
  * @ignore
@@ -16,18 +14,19 @@ import {UniformBuffer} from "../core/UniformBuffer";
  */
 function MaterialPass(shader)
 {
-    this._shader = shader;
-    this._textureSlots = [];
-    this._uniformBufferSlots = [];
-    this._uniforms = {};
-    this._cullMode = CullMode.BACK;
-    this._writeColor = true;
-    this._depthTest = Comparison.LESS_EQUAL;
-    this._writeDepth = true;
-    this._blendState = null;
+    this.shader = shader;
+    this.cullMode = CullMode.BACK;
+    this.writeColor = true;
+    this.depthTest = Comparison.LESS_EQUAL;
+    this.writeDepth = true;
+    this.blendState = null;
 
-    this._storeUniforms();
-    this._textureSettersPass = TextureSetter.getSettersPerPass(this);
+    this._textures = new Array(shader.numTextures);
+	this._uniformBuffers = new Array(shader.numUniformBuffers);
+
+	this._uniformSettersInstance = UniformSetter.getSettersPerInstance(this);
+	this._uniformSettersPass = UniformSetter.getSettersPerPass(this);
+	this._textureSettersPass = TextureSetter.getSettersPerPass(this);
     this._textureSettersInstance = TextureSetter.getSettersPerInstance(this);
 
     if (capabilities.WEBGL_2) {
@@ -36,6 +35,7 @@ function MaterialPass(shader)
     }
 
     this.setTexture("hx_dither2D", DEFAULTS.DEFAULT_2D_DITHER_TEXTURE);
+    this._uniformFuncs = {};
 }
 
 // these will be set upon initialization
@@ -60,61 +60,6 @@ MaterialPass.prototype =
     {
         constructor: MaterialPass,
 
-        getShader: function ()
-        {
-            return this._shader;
-        },
-
-        get depthTest()
-        {
-            return this._depthTest;
-        },
-
-        set depthTest(value)
-        {
-            this._depthTest = value;
-        },
-
-        get writeColor()
-        {
-            return this._writeColor;
-        },
-
-        set writeColor(value)
-        {
-            this._writeColor = value;
-        },
-        get writeDepth()
-        {
-            return this._writeDepth;
-        },
-
-        set writeDepth(value)
-        {
-            this._writeDepth = value;
-        },
-
-        get cullMode()
-        {
-            return this._cullMode;
-        },
-
-        // use null for disabled
-        set cullMode(value)
-        {
-            this._cullMode = value;
-        },
-
-        get blendState()
-        {
-            return this._blendState;
-        },
-
-        set blendState(value)
-        {
-            this._blendState = value;
-        },
-
         /**
          * Called per render item.
          */
@@ -126,6 +71,10 @@ MaterialPass.prototype =
                 this._textureSettersInstance[i].execute(renderItem);
             }
 
+			len = this._uniformSettersInstance.length;
+			for (var i = 0; i < len; ++i)
+				this._uniformSettersInstance[i].execute(camera, renderItem);
+
             if (this._uniformBufferSettersInstance) {
                 len = this._uniformBufferSettersInstance.length;
 
@@ -133,8 +82,6 @@ MaterialPass.prototype =
                     this._uniformBufferSettersInstance[i].execute(renderItem);
                 }
             }
-
-            this._shader.updateInstanceRenderState(camera, renderItem);
         },
 
         /**
@@ -142,8 +89,19 @@ MaterialPass.prototype =
          */
         updatePassRenderState: function (camera, renderer, data)
         {
-            var len = this._textureSettersPass.length;
-            var i;
+			GL.setShader(this.shader);
+
+            var len, i;
+
+			for (var key in this._uniformFuncs)
+				this._uniformFuncs[key]();
+
+			len = this._uniformSettersPass.length;
+			for (var i = 0; i < len; ++i)
+				this._uniformSettersPass[i].execute(camera, renderer);
+
+			len = this._textureSettersPass.length;
+
             for (i = 0; i < len; ++i) {
                 this._textureSettersPass[i].execute(renderer);
             }
@@ -155,11 +113,10 @@ MaterialPass.prototype =
                 }
             }
 
-            len = this._textureSlots.length;
+            len = this._textures.length;
 
             for (i = 0; i < len; ++i) {
-                var slot = this._textureSlots[i];
-                var texture = slot.texture;
+                var texture = this._textures[i];
 
                 if (!texture) {
                     Texture2D.DEFAULT.bind(i);
@@ -172,171 +129,89 @@ MaterialPass.prototype =
                     texture._default.bind(i);
             }
 
-            len = this._uniformBufferSlots.length;
+            len = this._uniformBuffers.length;
 
             for (i = 0; i < len; ++i) {
-                slot = this._uniformBufferSlots[i];
-                var buffer = slot.buffer;
-                buffer.bind(i);
+                var buffer = this._uniformBuffers[i];
+                if (buffer)
+                    buffer.bind(i);
             }
 
-            GL.setMaterialPassState(this._cullMode, this._depthTest, this._writeDepth, this._writeColor, this._blendState);
-
-            this._shader.updatePassRenderState(camera, renderer);
+            GL.setMaterialPassState(this.cullMode, this.depthTest, this.writeDepth, this.writeColor, this.blendState);
         },
 
-        _storeUniforms: function()
+		/**
+         * Allows getting the texture index. For textures that often change, it may be better to cache this value and
+         * assign the textures through setTextureByIndex.
+		 */
+		getTextureIndex: function(name)
         {
-            var gl = GL.gl;
-
-            var len = gl.getProgramParameter(this._shader._program, gl.ACTIVE_UNIFORMS);
-
-            for (var i = 0; i < len; ++i) {
-                var uniform = gl.getActiveUniform(this._shader._program, i);
-                var name = uniform.name;
-                var location = gl.getUniformLocation(this._shader._program, name);
-                this._uniforms[name] = {type: uniform.type, location: location, size: uniform.size};
-            }
+			return this.shader.getTextureIndex(name);
         },
 
-        createUniformBufferFromShader: function(name)
+		hasTexture: function(name)
+		{
+			return this.getTextureIndex(name) !== -1;
+		},
+
+        setTexture: function(name, texture)
         {
-            var gl = GL.gl;
-            var slot = this.getUniformBufferSlot(name);
-            var program = this._shader._program;
-            var indices = gl.getActiveUniformBlockParameter(program, slot.blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES);
-            var totalSize = gl.getActiveUniformBlockParameter(program, slot.blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
-            var uniformBuffer = new UniformBuffer(totalSize);
-
-            var offsets = gl.getActiveUniforms(program, indices, gl.UNIFORM_OFFSET);
-
-            for (var i = 0; i < indices.length; ++i) {
-                var uniform = gl.getActiveUniform(this._shader._program, indices[i]);
-                uniformBuffer.registerUniform(uniform.name, offsets[i], uniform.size, uniform.type);
-            }
-
-            uniformBuffer.uploadData(new Float32Array(totalSize / 4));
-
-            return uniformBuffer;
+            var index = this.shader.getTextureIndex(name);
+			if (index !== -1)
+                this._textures[index] = texture;
         },
 
-        getTextureSlot: function(slotName)
+		setTextureByIndex: function(index, texture)
+		{
+			this._textures[index] = texture;
+		},
+
+		setTextureArray: function(name, textures)
+		{
+			var firstIndex = this.getTextureIndex(name + "[0]");
+
+			if (firstIndex === -1) return;
+			for (var i = 0, len = textures.length; i < len; ++i) {
+				this._textures[firstIndex + i] = textures[i]
+			}
+		},
+
+		setTextureArrayByIndex: function(firstIndex, textures)
+		{
+			for (var i = 0, len = textures.length; i < len; ++i) {
+				this._textures[firstIndex + i] = textures[i]
+			}
+		},
+
+		/**
+		 * Allows getting the uniform buffer index. For textures that often change, it may be better to cache this value
+		 * and assign the textures through setUniformBufferByIndex.
+		 */
+		getUniformBufferIndex: function(name)
+		{
+			return this.shader.getUniformBufferIndex(name);
+		},
+
+        setUniformBuffer: function(name, buffer)
         {
-            if (!this._uniforms.hasOwnProperty(slotName)) return null;
-
-            var gl = GL.gl;
-            gl.useProgram(this._shader._program);
-
-            var uniform = this._uniforms[slotName];
-
-            if (!uniform) return;
-
-            var location = uniform.location;
-
-            var slot = null;
-
-            // reuse if location is already used
-            var len = this._textureSlots.length;
-            for (var i = 0; i < len; ++i) {
-                if (this._textureSlots[i].location === location) {
-                    slot = this._textureSlots[i];
-                    break;
-                }
-            }
-
-            if (!slot) {
-                var indices = new Int32Array(uniform.size);
-                for (var s = 0; s < uniform.size; ++s) {
-                    slot = new TextureSlot();
-                    slot.index = i;
-                    slot.name = slotName;
-                    this._textureSlots.push(slot);
-                    slot.location = location;
-                    indices[s] = i + s;
-                }
-
-                if (uniform.size === 1) {
-                    gl.uniform1i(location, i);
-                }
-                else {
-                    gl.uniform1iv(location, indices);
-                }
-            }
-
-            return slot;
+            var index = this.shader.getUniformBufferIndex(name);
+            if (index !== -1)
+                this._uniformBuffers[index] = buffer;
         },
 
-        getUniformBufferSlot: function(slotName)
+		setUniformBufferByIndex: function(index, buffer)
+		{
+			this._uniformBuffers[index] = buffer;
+		},
+
+		getUniformLocation: function(name)
         {
-            var gl = GL.gl;
-            gl.useProgram(this._shader._program);
-
-            var blockIndex = GL.gl.getUniformBlockIndex(this._shader._program, slotName);
-            // seems it's returning -1 as *unsigned*
-            if (blockIndex > 1000) return;
-
-            var slot = null;
-
-            // reuse if blockIndex is already used
-            var len = this._uniformBufferSlots.length;
-            for (var i = 0; i < len; ++i) {
-                if (this._uniformBufferSlots[i].blockIndex === blockIndex) {
-                    slot = this._uniformBufferSlots[i];
-                    break;
-                }
-            }
-
-            if (!slot) {
-                slot = new UniformBufferSlot();
-                // grab the next available binding point
-                slot.bindingPoint = i;
-                slot.name = slotName;
-                this._uniformBufferSlots.push(slot);
-                slot.blockIndex = blockIndex;
-                gl.uniformBlockBinding(this._shader._program, slot.blockIndex, slot.bindingPoint);
-            }
-
-            return slot;
-        },
-
-        setTexture: function(slotName, texture)
-        {
-            var slot = this.getTextureSlot(slotName);
-            if (slot)
-                slot.texture = texture;
-        },
-
-        setUniformBuffer: function(slotName, buffer)
-        {
-            var slot = this.getUniformBufferSlot(slotName);
-            if (slot)
-                slot.buffer = buffer;
-        },
-
-        setTextureArray: function(slotName, textures)
-        {
-            var firstSlot = this.getTextureSlot(slotName + "[0]");
-            var location = firstSlot.location;
-            if (firstSlot) {
-                var len = textures.length;
-                for (var i = 0; i < len; ++i) {
-                    var slot = this._textureSlots[firstSlot.index + i];
-                    // make sure we're not overshooting the array and writing to another element (larger arrays are allowed analogous to uniform arrays)
-                    if (!slot || slot.location !== location) return;
-                    slot.texture = textures[i];
-                }
-            }
-        },
-
-        getUniformLocation: function(name)
-        {
-            if (this._uniforms.hasOwnProperty(name))
-                return this._uniforms[name].location;
+            return this.shader.getUniformLocation(name);
         },
 
         getAttributeLocation: function(name)
         {
-            return this._shader.getAttributeLocation(name);
+            return this.shader.getAttributeLocation(name);
         },
 
         // slow :(
@@ -346,7 +221,7 @@ MaterialPass.prototype =
             for (var i = 0; i < len; ++i) {
                 var elm = value[i];
                 for (var key in elm) {
-                    if (elm.hasOwnProperty("key"))
+                    if (elm.hasOwnProperty(key))
                         this.setUniform(name + "[" + i + "]." + key, value);
                 }
             }
@@ -356,113 +231,114 @@ MaterialPass.prototype =
         {
             name += "[0]";
 
-            if (!this._uniforms.hasOwnProperty(name))
-                return;
+            var uniform = this.shader.getUniform(name);
 
-            var uniform = this._uniforms[name];
+            if (!uniform) return;
             var gl = GL.gl;
-            gl.useProgram(this._shader._program);
+            var func;
 
             switch(uniform.type) {
                 case gl.FLOAT:
-                    gl.uniform1fv(uniform.location, value);
+					func = gl.uniform1fv.bind(gl, uniform.location, value);
                     break;
                 case gl.FLOAT_VEC2:
-                    gl.uniform2fv(uniform.location, value);
+					func = gl.uniform2fv.bind(gl, uniform.location, value);
                     break;
                 case gl.FLOAT_VEC3:
-                    gl.uniform3fv(uniform.location, value);
+					func = gl.uniform3fv.bind(gl, uniform.location, value);
                     break;
                 case gl.FLOAT_VEC4:
-                    gl.uniform4fv(uniform.location, value);
+					func = gl.uniform4fv.bind(gl, uniform.location, value);
                     break;
                 case gl.FLOAT_MAT4:
-                    gl.uniformMatrix4fv(uniform.location, false, value);
+					func = gl.uniformMatrix4fv.bind(gl, uniform.location, false, value);
                     break;
                 case gl.INT:
-                    gl.uniform1iv(uniform.location, value);
+					func = gl.uniform1iv.bind(gl, uniform.location, value);
                     break;
                 case gl.INT_VEC2:
-                    gl.uniform2iv(uniform.location, value);
+					func = gl.uniform2iv.bind(gl, uniform.location, value);
                     break;
                 case gl.INT_VEC3:
-                    gl.uniform3iv(uniform.location, value);
+					func = gl.uniform3iv.bind(gl, uniform.location, value);
                     break;
                 case gl.INT_VEC4:
-                    gl.uniform1iv(uniform.location, value);
+					func = gl.uniform1iv.bind(gl, uniform.location, value);
                     break;
                 case gl.BOOL:
-                    gl.uniform1bv(uniform.location, value);
+					func = gl.uniform1bv.bind(gl, uniform.location, value);
                     break;
                 case gl.BOOL_VEC2:
-                    gl.uniform2bv(uniform.location, value);
+					func = gl.uniform2bv.bind(gl, uniform.location, value);
                     break;
                 case gl.BOOL_VEC3:
-                    gl.uniform3bv(uniform.location, value);
+					func = gl.uniform3bv.bind(gl, uniform.location, value);
                     break;
                 case gl.BOOL_VEC4:
-                    gl.uniform4bv(uniform.location, value);
+					func = gl.uniform4bv.bind(gl, uniform.location, value);
                     break;
                 default:
                     throw new Error("Unsupported uniform format for setting (" + uniform.type + ") for uniform '" + name + "'. May be a todo.");
 
             }
+
+			this._uniformFuncs[name] = func;
         },
 
         setUniform: function(name, value)
         {
-            if (!this._uniforms.hasOwnProperty(name))
-                return;
+            var uniform = this.shader.getUniform(name);
 
-            var uniform = this._uniforms[name];
+            if (!uniform) return;
 
             var gl = GL.gl;
-            gl.useProgram(this._shader._program);
+            var func;
 
             switch(uniform.type) {
                 case gl.FLOAT:
-                    gl.uniform1f(uniform.location, value);
+					func = gl.uniform1f.bind(gl, uniform.location, value);
                     break;
                 case gl.FLOAT_VEC2:
-                    gl.uniform2f(uniform.location, value.x || value[0] || 0, value.y || value[1] || 0);
+					func = gl.uniform2f.bind(gl, uniform.location, value.x || value[0] || 0, value.y || value[1] || 0);
                     break;
                 case gl.FLOAT_VEC3:
-                    gl.uniform3f(uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0 );
+					func = gl.uniform3f.bind(gl, uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0 );
                     break;
                 case gl.FLOAT_VEC4:
-                    gl.uniform4f(uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0, value.w || value.a || value[3] || 0);
+					func = gl.uniform4f.bind(gl, uniform.location, value.x || value.r || value[0] || 0, value.y || value.g || value[1] || 0, value.z || value.b || value[2] || 0, value.w || value.a || value[3] || 0);
                     break;
                 case gl.INT:
-                    gl.uniform1i(uniform.location, value);
+					func = gl.uniform1i.bind(gl, uniform.location, value);
                     break;
                 case gl.INT_VEC2:
-                    gl.uniform2i(uniform.location, value.x || value[0], value.y || value[1]);
+					func = gl.uniform2i.bind(gl, uniform.location, value.x || value[0], value.y || value[1]);
                     break;
                 case gl.INT_VEC3:
-                    gl.uniform3i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
+					func = gl.uniform3i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
                     break;
                 case gl.INT_VEC4:
-                    gl.uniform4i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
+					func = gl.uniform4i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
                     break;
                 case gl.BOOL:
-                    gl.uniform1i(uniform.location, value);
+					func = gl.uniform1i.bind(gl, uniform.location, value);
                     break;
                 case gl.BOOL_VEC2:
-                    gl.uniform2i(uniform.location, value.x || value[0], value.y || value[1]);
+					func = gl.uniform2i.bind(gl, uniform.location, value.x || value[0], value.y || value[1]);
                     break;
                 case gl.BOOL_VEC3:
-                    gl.uniform3i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
+					func = gl.uniform3i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2]);
                     break;
                 case gl.BOOL_VEC4:
-                    gl.uniform4i(uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
+					func = gl.uniform4i.bind(gl, uniform.location, value.x || value[0], value.y || value[1], value.z || value[2], value.w || value[3]);
                     break;
                 case gl.FLOAT_MAT4:
-                    gl.uniformMatrix4fv(uniform.location, false, value._m);
+					func = gl.uniformMatrix4fv.bind(gl, uniform.location, false, value._m);
                     break;
                 default:
                     throw new Error("Unsupported uniform format for setting. May be a todo.");
-
             }
+
+			this._uniformFuncs[name] = func;
         }
     };
 

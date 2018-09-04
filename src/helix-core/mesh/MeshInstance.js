@@ -23,14 +23,14 @@ function MeshInstance(mesh, material)
 {
 	Component.call(this);
 
-	this._name = "hx_meshinstance_" + (nameCounter++);
+	this.name = "hx_meshinstance_" + (nameCounter++);
+	this.castShadows = true;
 	this._bounds = new BoundingAABB();
 	this._morphPositions = null;
 	this._morphNormals = null;
 	this._morphWeights = null;
 	this._meshMaterialLinkInvalid = true;
 	this._vertexLayouts = null;
-	this._castShadows = true;
 	this._skeletonPose = null;
 	this._morphPose = null;
 	this.mesh = mesh;
@@ -39,18 +39,6 @@ function MeshInstance(mesh, material)
 }
 
 Component.create(MeshInstance, {
-	castShadows: {
-		get: function()
-		{
-			return this._castShadows;
-		},
-
-		set: function(value)
-		{
-			this._castShadows = value;
-		}
-	},
-
 	skeleton: {
 		get: function()
 		{
@@ -195,7 +183,7 @@ MeshInstance.prototype.updateRenderState = function(passType)
 		var buffer = this._morphPositions[i] || this._mesh._defaultMorphTarget;
 		buffer.bind();
 
-		gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, false, attribute.stride, attribute.offset);
+		gl.vertexAttribPointer(attribute.index, attribute.numComponents, gl.FLOAT, attribute.normalized, attribute.stride, attribute.offset);
 	}
 
 	if (this._morphNormals) {
@@ -281,7 +269,7 @@ MeshInstance.prototype.toString = function()
  */
 MeshInstance.prototype.acceptVisitor = function(visitor)
 {
-	visitor.visitMeshInstance(this, this._entity);
+	visitor.visitMeshInstance(this, this.entity);
 };
 
 /**

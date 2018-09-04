@@ -14,43 +14,27 @@ var nameCounter = 0;
  *
  * @constructor
  *
+ * @property name The name of the scene.
+ * @property skybox The {@linkcode Skybox} to use when rendering the scene.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function Scene(rootNode)
 {
-	this._name = "hx_scene_" + (nameCounter++);
+	this.name = "hx_scene_" + (nameCounter++);
 	this._entityEngine = new EntityEngine();
 	this._partitioning = new FlatPartitioning();
 	this._rootNode = rootNode || new Entity();
 	this._rootNode.name = "Root";
-	this._skybox = null;
+	this.skybox = null;
 	this._rootNode._setScene(this);
 }
 
 Scene.prototype = {
-	/**
-     * The name of the scene.
-	 */
-    get name()
-    {
-        return this._name;
-    },
-
-    set name(value)
-    {
-        this._name = value;
-    },
-
     /**
      * The rootnode of the scene.
      */
     get rootNode() { return this._rootNode; },
-
-    /**
-     * The {@linkcode Skybox} to use when rendering the scene.
-     */
-    get skybox() { return this._skybox; },
-    set skybox(value) { this._skybox = value; },
 
     /**
      * Finds a scene node with the given name somewhere in the Scene.
@@ -159,7 +143,7 @@ Scene.prototype = {
      */
     startSystem: function(system)
     {
-        system._scene = this._scene;
+        system.scene = this;
         this._entityEngine.startSystem(system);
     },
 
@@ -168,7 +152,7 @@ Scene.prototype = {
      */
     stopSystem: function(system)
     {
-        system._scene = null;
+        system.scene = null;
         this._entityEngine.stopSystem(system);
     },
 
@@ -183,11 +167,10 @@ Scene.prototype = {
     /**
      * Applies a function recursively to all child nodes.
      * @param func The function to call (using the traversed node as argument)
-     * @param [thisRef] Optional reference to "this" in the calling function, to keep the scope of "this" in the called method.
      */
-    applyFunction: function(func, thisRef)
+    applyFunction: function(func)
     {
-        this._rootNode.applyFunction(func, thisRef);
+        this._rootNode.applyFunction(func);
     }
 };
 

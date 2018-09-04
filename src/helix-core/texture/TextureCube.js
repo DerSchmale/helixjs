@@ -17,11 +17,13 @@ var nameCounter = 0;
  *
  * @constructor
  *
+ * @property name The name of the texture.
+ *
  * @author derschmale <http://www.derschmale.com>
  */
 function TextureCube()
 {
-	this._name = "hx_texturecube_" + (nameCounter++);
+	this.name = "hx_texturecube_" + (nameCounter++);
     this._default = TextureCube.DEFAULT;
     this._texture = GL.gl.createTexture();
     this._size = 0;
@@ -50,19 +52,6 @@ TextureCube._initDefault = function()
 
 TextureCube.prototype =
 {
-    /**
-     * The name of the texture.
-     */
-    get name()
-    {
-        return this._name;
-    },
-
-    set name(value)
-    {
-        this._name = value;
-    },
-
     /**
      * Generates a mip map chain.
      */
@@ -282,7 +271,7 @@ TextureCube.prototype =
      */
     toString: function()
     {
-        return "[TextureCube(name=" + this._name + ")]";
+        return "[TextureCube(name=" + this.name + ")]";
     }
 };
 

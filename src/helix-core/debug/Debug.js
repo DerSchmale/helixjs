@@ -17,11 +17,12 @@ export var Debug = {
     printSkeletonHierarchy: function(skeleton)
     {
         var str = "Skeleton: \n";
-        for (var i = 0; i < skeleton.numJoints; ++i) {
-            var joint = skeleton.getJoint(i);
+        var joints = skeleton.joints;
+        for (var i = 0, len = joints.length; i < len; ++i) {
+            var joint = joints[i];
             var name = joint.name;
             while (joint.parentIndex !== -1) {
-                joint = skeleton.getJoint(joint.parentIndex);
+                joint = joints[joint.parentIndex];
                 str += "\t";
             }
             str += "\t" + name + "\n";

@@ -11,6 +11,11 @@ function IntersectionData()
     this.point = new Float4();
     this.faceNormal = new Float4();
     this.t = Infinity;
+
+    // used to interpolate more data if needed
+    this.mesh = null;
+    this.barycentric = new Float4();    // the barycentric coordinate of the hit
+    this.faceIndex = -1;                // the index into the index buffer where the face starts.
 }
 
 function Potential()
@@ -212,7 +217,10 @@ RayCaster.prototype._testMesh = function(ray, mesh, hitData)
         if ((u >= 0) && (v >= 0) && (w <= 1.0)) {
             hitData.faceNormal.set(nx, ny, nz, 0.0);
             hitData.point.set(px, py, pz, 1.0);
+            hitData.barycentric.set(u, v, w, 0.0);
+            hitData.mesh = mesh;
             hitData.t = t;
+            hitData.faceIndex = i;
             updated = true;
         }
     }

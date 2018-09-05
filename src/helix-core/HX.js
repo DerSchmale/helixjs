@@ -134,7 +134,7 @@ export {URLLoader} from "./loaders/URLLoader";
 export {HCLIP} from "./loaders/HCLIP";
 export {HCM} from "./loaders/HCM";
 export {HMAT} from "./loaders/HMAT";
-export {HMESH} from "./loaders/HMESH";
+export {HX} from "./loaders/HX";
 export {Importer} from "./loaders/Importer";
 export {JPG_EQUIRECTANGULAR, PNG_EQUIRECTANGULAR} from "./loaders/JPG_EQUIRECTANGULAR";
 export {JPG_HEIGHTMAP, PNG_HEIGHTMAP} from "./loaders/JPG_HEIGHTMAP";

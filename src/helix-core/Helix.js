@@ -156,7 +156,11 @@ export var TextureFilter = {};
  * @property REPEAT The fractional part of the coordinate will be used as the coordinate, causing the texture to repeat.
  * @property CLAMP The coordinates will be clamped to 0 and 1.
  */
-export var TextureWrapMode = {};
+export var TextureWrapMode = {
+	REPEAT: {s: 10497, t: 10497},
+	CLAMP: {s: 33071, t: 33071},
+	DEFAULT: {s: 10497, t: 10497}
+};
 
 /**
  * CullMode defines the type of face culling used when rendering.
@@ -191,7 +195,16 @@ export var CullMode = {
  *
  * @see {@linkcode StencilState}
  */
-export var StencilOp = {};
+export var StencilOp = {
+	KEEP: 7680,
+    ZERO: 0,
+    REPLACE: 7681,
+    INCREMENT: 7682,
+    INCREMENT_WRAP: 34055,
+    DECREMENT: 7683,
+    DECREMENT_WRAP: 34056,
+    INVERT: 5386
+};
 
 /**
  * Comparison represents comparison modes used in depth tests, stencil tests, etc
@@ -208,7 +221,17 @@ export var StencilOp = {};
  * @property GREATER_EQUAL Greater than or equal.
  * @property NOT_EQUAL Not equal.
  */
-export var Comparison = {};
+export var Comparison = {
+	DISABLED: null,
+    NEVER: 512,
+    LESS: 513,
+    EQUAL: 514,
+    LESS_EQUAL: 515,
+    GREATER: 516,
+    NOT_EQUAL: 517,
+    GREATER_EQUAL: 518,
+	ALWAYS: 519
+};
 
 /**
  * ElementType described the type of geometry is described by the index buffer.
@@ -223,7 +246,16 @@ export var Comparison = {};
  * @property TRIANGLE_STRIP The indices represent a set of connected triangles, in such a way that any consecutive 3 indices form a triangle.
  * @property TRIANGLE_FAN The indices represent a set of connected triangles, fanning out with the first index shared.
  */
-export var ElementType = {};
+export var ElementType = {
+	POINTS: 0,
+    LINES: 1,
+	LINE_LOOP: 2,
+	LINE_STRIP: 3,
+    TRIANGLES: 4,
+    TRIANGLE_STRIP: 5,
+    TRIANGLE_FAN: 6
+
+};
 
 /**
  * BlendFactor define the factors used by {@linkcode BlendState} to multiply with the source and destination colors.
@@ -246,7 +278,21 @@ export var ElementType = {};
  *
  * @see {@linkcode BlendState}
  */
-export var BlendFactor = {};
+export var BlendFactor = {
+	ZERO: 0,
+    ONE: 1,
+    SOURCE_COLOR: 768,
+    ONE_MINUS_SOURCE_COLOR: 769,
+	SOURCE_ALPHA: 770,
+	ONE_MINUS_SOURCE_ALPHA: 771,
+	DESTINATION_ALPHA: 772,
+	ONE_MINUS_DESTINATION_ALPHA: 773,
+	DESTINATION_COLOR: 774,
+	ONE_MINUS_DESTINATION_COLOR: 775,
+    SOURCE_ALPHA_SATURATE: 776,
+    CONSTANT_ALPHA: 32771,
+    ONE_MINUS_CONSTANT_ALPHA: 32772
+};
 
 /**
  * BlendOperation defines the operation used to combine the multiplied source and destination colors.
@@ -258,7 +304,11 @@ export var BlendFactor = {};
  *
  * @see {@linkcode BlendState}
  */
-export var BlendOperation = {};
+export var BlendOperation = {
+	ADD: 32774,
+    SUBTRACT: 32778,
+    REVERSE_SUBTRACT: 32779
+};
 
 /**
  * ClearMask defines which data needs to be cleared when calling {@linkcode GL#clear}
@@ -272,7 +322,12 @@ export var BlendOperation = {};
  *
  * @see {@linkcode GL#clear}
  */
-export var ClearMask = {};
+export var ClearMask = {
+	COLOR: 16384,
+    STENCIL: 1024,
+    DEPTH: 256,
+    COMPLETE: 16384 | 1024 | 256
+};
 
 /**
  * TextureFormat defines which texture channels are used by a texture.
@@ -325,7 +380,13 @@ export var TextureFormat = {
  * @property UNSIGNED_INT Unsigned short (32 bit integer)
  * @property FLOAT Floating point (32 bit float)
  */
-export var DataType = {};
+export var DataType = {
+	UNSIGNED_BYTE: 5121,
+    UNSIGNED_SHORT: 5123,
+    UNSIGNED_INT: 5125,
+    FLOAT: 5126,
+    HALF_FLOAT: undefined    // possibly set later, if supported
+};
 
 /**
  * BufferUsage describes the type of cpu <-> gpu interaction a vertex or index buffer requires.
@@ -338,7 +399,10 @@ export var DataType = {};
  * @see {@linkcode Mesh#vertexUsage}
  * @see {@linkcode Mesh#indexUsage}
  */
-export var BufferUsage = {};
+export var BufferUsage = {
+	STATIC_DRAW: 35044,
+    DYNAMIC_DRAW: 35048
+};
 
 /**
  * CubeFace represents the sides of a cube, for example the faces of a cube texture.
@@ -352,7 +416,15 @@ export var BufferUsage = {};
  * @property POSITIVE_Z The positive Z side.
  * @property NEGATIVE_Z The negative Z side.
  */
-export var CubeFace = {};
+export var CubeFace = {
+	// notice that cube face has Y and Z flipped wrt opengl to match with Helix' RH Z-up coordinate system
+	POSITIVE_X: 34069,
+    NEGATIVE_X: 34070,
+    POSITIVE_Y: 34073,
+    NEGATIVE_Y: 34074,
+    POSITIVE_Z: 34071,
+    NEGATIVE_Z: 34072
+};
 
 /**
  * @classdesc
@@ -733,7 +805,6 @@ function _initDefaultSkinningTexture()
 
 function _init2DDitherTexture(width, height)
 {
-    var gl = GL.gl;
     var len = width * height;
     var minValue = 1.0 / len;
     var data = [];
@@ -795,84 +866,11 @@ function _initGLProperties()
 
     TextureFilter.NEAREST_NOMIP = {min: gl.NEAREST, mag: gl.NEAREST};
     TextureFilter.BILINEAR_NOMIP = {min: gl.LINEAR, mag: gl.LINEAR};
-
-    TextureWrapMode.REPEAT = {s: gl.REPEAT, t: gl.REPEAT};
-    TextureWrapMode.CLAMP = {s: gl.CLAMP_TO_EDGE, t: gl.CLAMP_TO_EDGE};
-
-    // default settings:
-    TextureWrapMode.DEFAULT = TextureWrapMode.REPEAT;
     TextureFilter.DEFAULT = TextureFilter.TRILINEAR;
-
-    StencilOp.KEEP = gl.KEEP;
-    StencilOp.ZERO = gl.ZERO;
-    StencilOp.REPLACE = gl.REPLACE;
-    StencilOp.INCREMENT = gl.INCR;
-    StencilOp.INCREMENT_WRAP = gl.INCR_WRAP;
-    StencilOp.DECREMENT = gl.DECR;
-    StencilOp.DECREMENT_WRAP = gl.DECR_WRAP;
-    StencilOp.INVERT = gl.INVERT;
-
-    Comparison.DISABLED = null;
-    Comparison.ALWAYS = gl.ALWAYS;
-    Comparison.NEVER = gl.NEVER;
-    Comparison.LESS = gl.LESS;
-    Comparison.EQUAL = gl.EQUAL;
-    Comparison.LESS_EQUAL = gl.LEQUAL;
-    Comparison.GREATER = gl.GREATER;
-    Comparison.NOT_EQUAL = gl.NOTEQUAL;
-    Comparison.GREATER_EQUAL = gl.GEQUAL;
-
-    ElementType.POINTS = gl.POINTS;
-    ElementType.LINES = gl.LINES;
-    ElementType.LINE_STRIP = gl.LINE_STRIP;
-    ElementType.LINE_LOOP = gl.LINE_LOOP;
-    ElementType.TRIANGLES = gl.TRIANGLES;
-    ElementType.TRIANGLE_STRIP = gl.TRIANGLE_STRIP;
-    ElementType.TRIANGLE_FAN = gl.TRIANGLE_FAN;
-
-    BlendFactor.ZERO = gl.ZERO;
-    BlendFactor.ONE = gl.ONE;
-    BlendFactor.SOURCE_COLOR = gl.SRC_COLOR;
-    BlendFactor.ONE_MINUS_SOURCE_COLOR = gl.ONE_MINUS_SRC_COLOR;
-    BlendFactor.DESTINATION_COLOR = gl.DST_COLOR;
-    BlendFactor.ONE_MINUS_DESTINATION_COLOR = gl.ONE_MINUS_DST_COLOR;
-    BlendFactor.SOURCE_ALPHA = gl.SRC_ALPHA;
-    BlendFactor.ONE_MINUS_SOURCE_ALPHA = gl.ONE_MINUS_SRC_ALPHA;
-    BlendFactor.DESTINATION_ALPHA = gl.DST_ALPHA;
-    BlendFactor.ONE_MINUS_DESTINATION_ALPHA = gl.ONE_MINUS_DST_ALPHA;
-    BlendFactor.SOURCE_ALPHA_SATURATE = gl.SRC_ALPHA_SATURATE;
-    BlendFactor.CONSTANT_ALPHA = gl.CONSTANT_ALPHA;
-    BlendFactor.ONE_MINUS_CONSTANT_ALPHA = gl.ONE_MINUS_CONSTANT_ALPHA;
-
-    BlendOperation.ADD = gl.FUNC_ADD;
-    BlendOperation.SUBTRACT = gl.FUNC_SUBTRACT;
-    BlendOperation.REVERSE_SUBTRACT = gl.FUNC_REVERSE_SUBTRACT;
-
-    ClearMask.COLOR = gl.COLOR_BUFFER_BIT;
-    ClearMask.STENCIL = gl.STENCIL_BUFFER_BIT;
-    ClearMask.DEPTH = gl.DEPTH_BUFFER_BIT;
-    ClearMask.COMPLETE = gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT;
 
     TextureFormat.RGBA = gl.RGBA;
     TextureFormat.RGB = gl.RGB;
     TextureFormat.RG = gl.RG;   // only assigned if available (WebGL 2)
-
-    DataType.UNSIGNED_BYTE = gl.UNSIGNED_BYTE;
-    DataType.UNSIGNED_SHORT = gl.UNSIGNED_SHORT;
-    DataType.UNSIGNED_INT = gl.UNSIGNED_INT;
-    DataType.FLOAT = gl.FLOAT;
-    DataType.HALF_FLOAT = gl.HALF_FLOAT;    // possibly set later, if supported
-
-    BufferUsage.STATIC_DRAW = gl.STATIC_DRAW;
-    BufferUsage.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;
-
-    // notice that cube face has Y and Z flipped to match with Helix' RH Z-up coordinate system
-    CubeFace.POSITIVE_X = gl.TEXTURE_CUBE_MAP_POSITIVE_X;
-    CubeFace.NEGATIVE_X = gl.TEXTURE_CUBE_MAP_NEGATIVE_X;
-    CubeFace.POSITIVE_Y = gl.TEXTURE_CUBE_MAP_POSITIVE_Z;
-    CubeFace.NEGATIVE_Y = gl.TEXTURE_CUBE_MAP_NEGATIVE_Z;
-    CubeFace.POSITIVE_Z = gl.TEXTURE_CUBE_MAP_POSITIVE_Y;
-    CubeFace.NEGATIVE_Z = gl.TEXTURE_CUBE_MAP_NEGATIVE_Y;
 }
 
 function _tryFBO(dataType)

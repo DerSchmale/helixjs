@@ -144,6 +144,16 @@ DataStream.prototype =
 		},
 
 		/**
+		 * Skips the offset into the buffer so it becomes aligned with the bytes. This allows reading data as a typed
+		 * array more efficiently.
+		 */
+		skipAlign: function(bytes)
+		{
+			while (this.offset % bytes)
+				++this.offset;
+		},
+
+		/**
 		 * Reads an array of unsigned bytes.
 		 *
 		 * @param len The amount of elements to read.

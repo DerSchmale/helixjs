@@ -628,7 +628,7 @@ export function init(canvas, options)
 
     // try webgl 2 extension first (will return null if no webgl 2 context is present anyway)
     capabilities.EXT_COLOR_BUFFER_FLOAT = _getExtension("EXT_color_buffer_float") || _getExtension('WEBGL_color_buffer_float');
-    capabilities.EXT_COLOR_BUFFER_HALF_FLOAT = _getExtension('EXT_color_buffer_float') || _getExtension('EXT_color_buffer_half_float');
+    capabilities.EXT_COLOR_BUFFER_HALF_FLOAT = _getExtension('EXT_color_buffer_half_float') || capabilities.EXT_COLOR_BUFFER_FLOAT;
     capabilities.EXT_DEPTH_TEXTURE = _getExtension('WEBGL_depth_texture');
     capabilities.EXT_STANDARD_DERIVATIVES = _getExtension('OES_standard_derivatives');
     capabilities.EXT_SHADER_TEXTURE_LOD = _getExtension('EXT_shader_texture_lod');

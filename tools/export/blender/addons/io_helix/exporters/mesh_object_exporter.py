@@ -11,9 +11,10 @@ def write(object, file, object_map):
     mesh_ids = object_map.get_mapped_indices(object.data)
 
     for i, mesh_id in enumerate(mesh_ids):
-        material_id = object_map.get_mapped_indices(object.data.materials[i])[0]
+        material = object.data.materials[i]
+        material_id = object_map.get_mapped_indices(material)[0]
         mesh_instance_id = data.start_object(file, object_types.MESH_INSTANCE, object_map)
-        # data.write_uint8_prop(file, property_types.CAST_SHADOWS, 1)
+        data.write_uint8_prop(file, property_types.CAST_SHADOWS, int(material.use_cast_shadows))
         data.end_object(file)
         object_map.link(mesh_instance_id, mesh_id)
         object_map.link(entity_id, mesh_instance_id)

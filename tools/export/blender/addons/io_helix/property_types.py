@@ -38,4 +38,8 @@ INTENSITY = 40              # float32
 RADIUS = 41                 # float32
 SPOT_ANGLES = 42            # 2 float32: inner and outer angles
 
-# mesh instance properties
+# texture properties
+WRAP_MODE = 50              # uint8: 0 = clamp, 1 = wrap
+FILTER = 51                 # uint8: 0 = nearest, 2 = bilinear, 3 = trilinear, 4, anisotropic
+                            # 5 = nearest no mip, 6 = bilinear no mip
+

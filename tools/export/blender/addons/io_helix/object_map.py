@@ -31,5 +31,5 @@ class ObjectMap:
     # MeshInstance) they can both be written to the file, but then the child needs to have this called with the Blender
     # object that was the parent
     # returns the new index
-    def link(self, parent_index, child_index):
-        self.links.append((parent_index, child_index))
+    def link(self, parent_index, child_index, meta=0):
+        self.links.append((parent_index, child_index, meta))

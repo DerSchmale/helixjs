@@ -3,7 +3,7 @@ import {URLLoader} from "./URLLoader";
 import {DataStream} from "../core/DataStream";
 import {Scene} from "../scene/Scene";
 import {Mesh} from "../mesh/Mesh";
-import {DataType, ElementType} from "../Helix";
+import {DataType, ElementType, TextureFilter, TextureWrapMode} from "../Helix";
 import {BasicMaterial} from "../material/BasicMaterial";
 import {Material} from "../material/Material";
 import {Entity} from "../entity/Entity";
@@ -20,6 +20,9 @@ import {Float4} from "../math/Float4";
 import {LightingModel} from "../render/LightingModel";
 import {AmbientLight} from "../light/AmbientLight";
 import {LightProbe} from "../light/LightProbe";
+import {Texture2D} from "../texture/Texture2D";
+import {AssetLibrary} from "./AssetLibrary";
+import {JPG} from "./JPG_PNG";
 
 /**
  * The data provided by the HX loader
@@ -63,7 +66,9 @@ var ObjectTypes = {
 	AMBIENT_LIGHT: 11,
 	LIGHT_PROBE: 12,
 	PERSPECTIVE_CAMERA: 13,
-	ORTHOGRAPHIC_CAMERA: 14		// not currently supported
+	ORTHOGRAPHIC_CAMERA: 14,		// not currently supported
+	TEXTURE_2D: 15,
+	TEXTURE_CUBE: 16
 };
 
 var ObjectTypeMap = {
@@ -112,9 +117,21 @@ var PropertyTypes = {
 	// Light data
 	INTENSITY: 40,
 	RADIUS: 41,
-	SPOT_ANGLES: 42
+	SPOT_ANGLES: 42,
+
+	// texture data
+	WRAP_MODE: 50,
+	FILTER: 51
 };
 
+var MaterialLinkMetaProp = {
+	0: "colorMap",
+	1: "normalMap",
+	2: "specularMap",
+	3: "occlusionMap",
+	4: "emissionMap",
+	5: "maskMap"
+};
 
 /**
  * @classdesc
@@ -136,6 +153,7 @@ function HX()
 	this._version = null;
 	this._generator = null;
 	this._lights = null;
+	this._dependencyLib = null;
 }
 
 HX.prototype = Object.create(Importer.prototype);
@@ -144,28 +162,42 @@ HX.VERSION = "0.1.0";
 
 HX.prototype.parse = function(data, target)
 {
-	var stream = new DataStream(data);
+	this._target = target;
+	this._stream = new DataStream(data);
 
-	var hash = stream.getString(2);
+	var hash = this._stream.getString(2);
 	if (hash !== "HX")
 		throw new Error("Invalid file hash!");
 
 	this._defaultSceneIndex = 0;
 	this._objects = [];
 	this._scenes = [];
+	this._lights = null;
+	this._dependencyLib = new AssetLibrary(null, this.options.crossOrigin);
 
-	this._parseHeader(stream);
-	this._parseObjectList(stream, target);
-	this._parseLinkList(stream);
+	this._parseHeader();
+
+	// TODO: Should we make this asynchronous somehow?
+	this._parseObjectList();
 
 	target.scenes = this._scenes;
 	target.defaultScene = this._scenes[this._defaultSceneIndex];
-	this._notifyComplete(target);
+
+	this._dependencyLib.onComplete.bind(this._onDependenciesLoaded, this);
+	this._dependencyLib.onProgress.bind(this._notifyProgress, this);
+	this._dependencyLib.load();
 };
 
-HX.prototype._parseHeader = function(data)
+HX.prototype._onDependenciesLoaded = function()
+{
+	this._parseLinkList();
+	this._notifyComplete(this._target);
+};
+
+HX.prototype._parseHeader = function()
 {
 	var type;
+	var data = this._stream;
 	do {
 		type = data.getUint32();
 
@@ -194,20 +226,24 @@ HX.prototype._parseHeader = function(data)
 		throw new Error("Incompatible file version!");
 };
 
-HX.prototype._parseObjectList = function(data)
+HX.prototype._parseObjectList = function()
 {
 	var type, object;
+	var data = this._stream;
 
 	do {
 		type = data.getUint32();
 
 		switch (type) {
 			case ObjectTypes.SCENE:
-				object = parseObject(Scene, data, this);
+				object = this._parseObject(Scene, data);
 				this._scenes.push(object);
 				break;
 			case ObjectTypes.MATERIAL:
-				object = parseMaterial(data, this);
+				object = this._parseMaterial(data);
+				break;
+			case ObjectTypes.TEXTURE_2D:
+				object = this._parseTexture2D(data);
 				break;
 			case ObjectTypes.NULL:
 				return;
@@ -216,19 +252,18 @@ HX.prototype._parseObjectList = function(data)
 			case ObjectTypes.SPOT_LIGHT:
 			case ObjectTypes.AMBIENT_LIGHT:
 			case ObjectTypes.LIGHT_PROBE:
-				object = parseObject(ObjectTypeMap[type], data, this);
-				if (this._lights)
+				object = this._parseObject(ObjectTypeMap[type], data);
+				if (this._lights && object)
 					this._lights.push(object);
-
-				console.log(object);
 				break;
 			default:
 				var classType = ObjectTypeMap[type];
 				if (classType)
-					object = parseObject(classType, data, this);
+					object = this._parseObject(classType, data);
 				else
 					throw new Error("Unknown object type " + type + " at 0x" + (data.offset - 4).toString(16));
 		}
+
 
 		if (object)
 			this._objects.push(object);
@@ -236,11 +271,13 @@ HX.prototype._parseObjectList = function(data)
 	} while (type !== ObjectTypes.NULL);
 };
 
-HX.prototype._parseLinkList = function(data)
+HX.prototype._parseLinkList = function()
 {
+	var data = this._stream;
 	while (data.bytesAvailable) {
 		var parentId = data.getUint32();
 		var childId = data.getUint32();
+		var meta = data.getUint8();
 		var parent = this._objects[parentId];
 		var child = this._objects[childId];
 
@@ -252,31 +289,45 @@ HX.prototype._parseLinkList = function(data)
 			parent.attach(child);
 		else if (child instanceof Component)
 			parent.addComponent(child);
+		else if (child instanceof Texture2D) {
+			if (parent instanceof BasicMaterial) {
+				parent[MaterialLinkMetaProp[meta]] = child;
+			}
+			else
+				console.warn("Only BasicMaterial is currently supported. How did you even get in here?");
+		}
 	}
 };
 
-function parseObject(type, data, parser)
+HX.prototype._parseObject = function(type, data)
 {
 	var scene = new type();
-	readProperties(data, scene, parser);
+	this._readProperties(data, scene);
 	return scene;
+};
+
+HX.prototype._parseTexture2D = function(data)
+{
+	var texture = new Texture2D();
+	this._readProperties(data, texture);
+	return texture;
 }
 
-function parseMaterial(data, parser)
+HX.prototype._parseMaterial = function(data)
 {
 	// TODO: May have to add to this in case it's a custom material
 	var material = new BasicMaterial();
 	material.roughness = .5;
-	if (parser._lightingMode) {
+	if (this._lightingMode) {
 		material.lightingModel = LightingModel.GGX;
 		// if fixed, lights !== null
-		material.fixedLights = parser._lights;
+		material.fixedLights = this._lights;
 	}
-	readProperties(data, material, parser);
+	this._readProperties(data, material);
 	return material;
-}
+};
 
-function readProperties(data, target, parser)
+HX.prototype._readProperties = function(data, target)
 {
 	var type;
 	do {
@@ -285,6 +336,9 @@ function readProperties(data, target, parser)
 		switch (type) {
 			case PropertyTypes.NAME:
 				target.name = data.getString();
+				break;
+			case PropertyTypes.URL:
+				this._handleURL(data.getString(), target);
 				break;
 			case PropertyTypes.CAST_SHADOWS:
 				target.castShadows = !!data.getUint8();
@@ -299,7 +353,7 @@ function readProperties(data, target, parser)
 				target._indexType = dataTypeLook[data.getUint8()];
 				break;
 			case PropertyTypes.INDEX_DATA:
-				parseIndexData(data, target, parser);
+				parseIndexData(data, target, this);
 				break;
 			case PropertyTypes.ELEMENT_TYPE:
 				target.elementType = elementTypeLookUp[data.getUint8()];
@@ -308,7 +362,7 @@ function readProperties(data, target, parser)
 				parseVertexAttribute(data, target);
 				break;
 			case PropertyTypes.VERTEX_STREAM_DATA:
-				parseVertexStreamData(data, target, parser);
+				parseVertexStreamData(data, target, this);
 				break;
 			case PropertyTypes.POSITION:
 				parseVector3(data, target.position);
@@ -332,9 +386,34 @@ function readProperties(data, target, parser)
 				target.innerAngle = data.getFloat32();
 				target.outerAngle = data.getFloat32();
 				break;
+			case PropertyTypes.WRAP_MODE:
+				target.wrapMode = data.getUint8()? TextureWrapMode.REPEAT : TextureWrapMode.CLAMP;
+				break;
+			case PropertyTypes.FILTER:
+				target.filter = [
+					TextureFilter.NEAREST, TextureFilter.BILINEAR, TextureFilter.TRILINEAR,
+					TextureFilter.TRILINEAR_ANISOTROPIC || TextureFilter.TRILINEAR,
+					TextureFilter.NEAREST_NOMIP, TextureFilter.BILINEAR_NOMIP
+				][data.getUint8()];
+				break;
 		}
 	} while (type !== PropertyTypes.NULL)
-}
+};
+
+HX.prototype._handleURL = function(url, target)
+{
+	var ext = url.toLowerCase().substr(url.lastIndexOf(".") + 1);
+	var dependencyType;
+
+	switch (ext) {
+		case "jpg":
+		case "jpeg":
+		case "png":
+			dependencyType = JPG;
+	}
+
+	this._dependencyLib.queueAsset(name, this._correctURL(url), AssetLibrary.Type.ASSET, dependencyType, null, target);
+};
 
 function parseColor(data, target)
 {

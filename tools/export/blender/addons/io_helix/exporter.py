@@ -1,7 +1,12 @@
 HX_VERSION = "0.1.0"
 
 import bpy, struct
-from .exporters import scene_exporter, material_exporter, mesh_exporter, mesh_object_exporter, light_exporter
+from .exporters import scene_exporter
+from .exporters import material_exporter
+from .exporters import mesh_exporter
+from .exporters import mesh_object_exporter
+from .exporters import light_exporter
+from .exporters import texture_exporter
 from . import data, object_map, property_types
 
 
@@ -22,6 +27,11 @@ def write_header(file, lighting_mode):
 def write_meshes(file, obj_map):
     for mesh in bpy.data.meshes:
         mesh_exporter.write(mesh, file, obj_map)
+
+
+def write_textures(file, obj_map, filepath):
+    for tex in bpy.data.textures:
+        texture_exporter.write(tex, file, obj_map, filepath)
 
 
 def write_materials(file, obj_map):
@@ -54,26 +64,25 @@ def write_scene_graphs(file, obj_map):
 
 def write_links(file, obj_map):
     for link in obj_map.links:
-        file.write(struct.pack("<LL", link[0], link[1]))
+        file.write(struct.pack("<LLB", link[0], link[1], link[2]))
 
 
-def write_hx(context, file_path, lighting_mode="FIXED"):
+def write_hx(context, filepath, lighting_mode="FIXED"):
     print("Writing Helix file...")
-    f = open(file_path, 'wb')
+    f = open(filepath, 'wb')
 
     obj_map = object_map.ObjectMap()
+    data.reset()
 
     write_header(f, lighting_mode)
     write_meshes(f, obj_map)
+    write_textures(f, obj_map, filepath)
     write_materials(f, obj_map)
     write_scene_graphs(f, obj_map)
 
     data.end_object_list(f)
 
     write_links(f, obj_map)
-
-
-    # TODO: Write links
 
     f.close()
 

@@ -16,7 +16,7 @@ class SubMesh:
     def get_vertex_hash(self, pos, normal, uvs):
         vertex_hash = "/" + str(pos) + "/" + str(normal) + "/"
         for i in range(0, self.num_uvs):
-            vertex_hash = str(uvs[i]) + "/"
+            vertex_hash = vertex_hash + str(uvs[i]) + "/"
         return vertex_hash
 
     def add_vertex(self, pos, normal, uvs):

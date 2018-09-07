@@ -6,6 +6,13 @@ num_started = 0
 num_ended = 0
 
 
+def reset():
+    global num_started
+    global num_ended
+    num_started = 0
+    num_ended = 0
+
+
 # returns the index of the current object
 def start_object(file, type, object_map):
     global num_started

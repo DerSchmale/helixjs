@@ -14,6 +14,7 @@ project.onInit = function()
     var controller = new OrbitController();
     controller.radius = 10;
     controller.maxRadius = 40;
+    controller.zoomSpeed = 5;
     this.camera.addComponent(controller);
     this.camera.nearDistance = .01;
     this.camera.farDistance = 100.0;

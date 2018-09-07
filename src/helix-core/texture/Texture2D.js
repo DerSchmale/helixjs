@@ -1,6 +1,7 @@
 import {GL} from "../core/GL";
 import {DataType, TextureFormat, TextureFilter, TextureWrapMode, capabilities} from "../Helix";
 import {TextureUtils} from "./TextureUtils";
+import {MathX} from "../math/MathX";
 
 var nameCounter = 0;
 
@@ -234,6 +235,18 @@ Texture2D.prototype =
         this._dataType = dataType = dataType || DataType.UNSIGNED_BYTE;
         generateMips = generateMips === undefined? true: generateMips;
 
+        if (!(MathX.isPowerOfTwo(width) && MathX.isPowerOfTwo(height))) {
+			generateMips = false;
+			if (this.filter === TextureFilter.NEAREST)
+			    this.filter = TextureFilter.NEAREST_NOMIP;
+			else if (this.filter === TextureFilter.BILINEAR)
+				this.filter = TextureFilter.BILINEAR_NOMIP;
+			else if (this.filter === TextureFilter.TRILINEAR || this.filter === TextureFilter.TRILINEAR_ANISOTROPIC)
+				this.filter = TextureFilter.BILINEAR_NOMIP;
+
+			this.wrapMode = TextureWrapMode.CLAMP;
+		}
+
         this.bind();
 
         if (image)
@@ -275,7 +288,7 @@ Texture2D.prototype =
      */
     toString: function()
     {
-        return "[Texture2D(name=" + this._name + ")]";
+        return "[Texture2D(name=" + this.name + ")]";
     }
 };
 

@@ -11,7 +11,7 @@ def write(object, file, object_map):
     light_data = object.data
     quat = None
 
-    if light_data.type == "SPOT" or light_data.type == "POINT":
+    if light_data.type == "SPOT" or light_data.type == "SUN":
         # TODO: Light points DOWN (-Z) by default. In Helix, it points "forward" (+Y)
         # Need to pass a matrix/quaternion to entity_exporter that transforms the rotation
         quat = mathutils.Quaternion([1, 0, 0], radians(-90.0))

@@ -11,25 +11,22 @@ project.queueAssets = function(assetLibrary)
 
 project.onInit = function()
 {
-    var controller = new OrbitController();
-    controller.radius = 10;
-    controller.maxRadius = 40;
-    controller.zoomSpeed = 5;
-    this.camera.addComponent(controller);
-    this.camera.nearDistance = .01;
-    this.camera.farDistance = 100.0;
     initScene(this.scene, this.assetLibrary);
 };
 
 window.onload = function ()
 {
 	var options = new HX.InitOptions();
+	options.defaultLightingModel = HX.LightingModel.GGX_FULL;
 	options.hdr = true;
     project.init(document.getElementById('webglContainer'), options);
 };
 
 function initScene(scene, assetLibrary)
 {
-    var scene = assetLibrary.get("scenes").defaultScene;
-    project.scene = scene;
+    var scenes = assetLibrary.get("scenes");
+    project.scene = scenes.defaultScene;
+    project.camera = scenes.defaultCamera;
+    var controller = new FloatController();
+	project.camera.addComponent(controller);
 }

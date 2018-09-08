@@ -43,8 +43,8 @@ function initCamera(camera)
     camera.nearDistance = .1;
     camera.farDistance = 100.0;
 
+	camera.euler.z = -Math.PI * .5;
     var floatController = new FloatController();
-    floatController.yaw = Math.PI * .5;
     camera.addComponent(floatController);
 
     // var bloom = new HX.Bloom(250, .5, 8);

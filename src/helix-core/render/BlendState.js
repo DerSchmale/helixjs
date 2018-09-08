@@ -68,7 +68,11 @@ BlendState.prototype = {
      * Creates a copy of this BlendState.
      */
     clone: function() {
-        return new BlendState(this.srcFactor, this.dstFactor, this.operator, this.color);
+        var blendState = new BlendState(this.srcFactor, this.dstFactor, this.operator, this.color);
+        blendState.alphaDstFactor = this.alphaDstFactor;
+        blendState.alphaSrcFactor = this.alphaSrcFactor;
+        blendState.alphaOperator = this.alphaOperator;
+        return blendState;
     }
 };
 

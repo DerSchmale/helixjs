@@ -5,7 +5,8 @@ from .. import data, object_types, property_types
 from . import entity_exporter
 from math import radians
 
-def write(object, file, object_map):
+
+def write(object, file, object_map, visible, export_shadows):
     #write the basic entity data
 
     light_data = object.data
@@ -17,7 +18,7 @@ def write(object, file, object_map):
         quat = mathutils.Quaternion([1, 0, 0], radians(-90.0))
         pass
 
-    entity_id = entity_exporter.write(object, file, object_map, quat)
+    entity_id = entity_exporter.write(object, file, object_map, orientation=quat, visible=visible)
 
     if light_data.type == "SUN":
         light_id = data.start_object(file, object_types.DIR_LIGHT, object_map)
@@ -34,10 +35,11 @@ def write(object, file, object_map):
         print("Unsupported light type: " + light_data.type + ". Creating empty placeholder Entity.")
         return entity_id
 
+    data.write_string_prop(file, property_types.NAME, light_data.name)
     data.write_color_prop(file, property_types.COLOR, light_data.color)
     data.write_float32_prop(file, property_types.INTENSITY, light_data.energy * 3.1415 * 2.0)
 
-    if light_data.use_shadow:
+    if export_shadows and light_data.use_shadow:
         data.write_uint8_prop(file, property_types.CAST_SHADOWS, 1)
 
     data.end_object(file)

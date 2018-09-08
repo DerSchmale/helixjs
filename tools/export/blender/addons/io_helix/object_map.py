@@ -15,14 +15,10 @@ class ObjectMap:
     # for example useful when we encounter a Mesh, to link it to the various HX.Mesh objects
     def map(self, src_object, target_index):
         key = str(src_object)
-        print("mapping " + key + " to " + str(target_index))
         if key in self.obj_map:
             self.obj_map[key].append(target_index)
         else:
             self.obj_map[key] = [target_index]
-
-        print(str(list(self.obj_map[key])))
-
 
     def get_mapped_indices(self, src_object):
         return self.obj_map[str(src_object)]
@@ -31,5 +27,5 @@ class ObjectMap:
     # MeshInstance) they can both be written to the file, but then the child needs to have this called with the Blender
     # object that was the parent
     # returns the new index
-    def link(self, parent_index, child_index, meta=0):
+    def link(self, parent_index: int, child_index: int, meta: int=0):
         self.links.append((parent_index, child_index, meta))

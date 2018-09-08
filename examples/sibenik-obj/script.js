@@ -45,7 +45,7 @@ function initCamera(camera)
     camera.farDistance = 200.0;
 
     var floatController = new FloatController();
-	floatController.yaw = Math.PI * .5;
+	camera.euler.z = -Math.PI * .5;
     camera.addComponent(floatController);
 }
 

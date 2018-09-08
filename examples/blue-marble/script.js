@@ -101,11 +101,12 @@ function initCamera(camera)
     camera.farDistance = 1000.0;
 
     var controller = new FloatController();
-    controller.maxSpeed = .002;
-    controller.shiftMultiplier = 3.0;
-    controller.pitch = 0.15;
-    controller.yaw = 0.6484073464101978;
-    camera.addComponent(controller);
+	camera.addComponent(controller);
+
+	controller.maxSpeed = .002;
+	controller.shiftMultiplier = 3.0;
+	controller.pitch = -0.15;
+	controller.yaw = -0.6484073464101978;
 
     camera.addComponents(settings.effects);
 }

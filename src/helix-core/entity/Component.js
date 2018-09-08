@@ -23,6 +23,7 @@
  */
 function Component()
 {
+	this.name = "";
 	// this allows notifying entities about bound changes (useful for sized components)
 	this.entity = null;
 	this._enabled = true;

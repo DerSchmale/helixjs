@@ -26,7 +26,7 @@ function OrbitController(lookAtTarget)
     this.maxRadius = 4.0;
     this.minRadius = 0.1;
     this.dampen = .9;
-    this.lookAtTarget = lookAtTarget || new HX.Float4(0.0, 0.0, 0.0, 1.0);
+    this.lookAtTarget = lookAtTarget;
 
     this._isDown = false;
 }
@@ -121,4 +121,9 @@ OrbitController.prototype.clone = function()
 	clone.dampen = this.dampen;
 	clone.lookAtTarget = this.lookAtTarget.clone();
 	return clone;
+};
+
+OrbitController.prototype._guessLookAtTarget = function()
+{
+
 };

@@ -437,11 +437,11 @@ Matrix4x4.prototype =
      */
     fromRotationPitchYawRoll: function (pitch, yaw, roll)
     {
-        var cosP = Math.cos(-pitch);
-        var cosY = Math.cos(-yaw);
+        var cosP = Math.cos(pitch);
+        var cosY = Math.cos(yaw);
         var cosR = Math.cos(roll);
-        var sinP = Math.sin(-pitch);
-        var sinY = Math.sin(-yaw);
+        var sinP = Math.sin(pitch);
+        var sinY = Math.sin(yaw);
         var sinR = Math.sin(roll);
 
         var yAxisX = -sinY * cosP;

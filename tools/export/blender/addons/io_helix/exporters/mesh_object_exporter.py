@@ -2,9 +2,9 @@ from .. import data, object_types, property_types
 from . import entity_exporter
 
 
-def write(object, file, object_map):
+def write(object, file, object_map, visible):
     #write the basic entity data
-    entity_id = entity_exporter.write(object, file, object_map)
+    entity_id = entity_exporter.write(object, file, object_map, visible=visible)
 
     # write the mesh instance components
     # we sorted the submesh list by their material indices, so the order should match that in the materials list

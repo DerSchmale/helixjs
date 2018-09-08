@@ -138,6 +138,10 @@ FixedLitPass.prototype._assignDirLights = function (camera)
             var locs = this._dirLocations[i];
             camera.viewMatrix.transformVector(light.direction, dir);
 
+            if (!light.entity.hierarchyVisible) {
+				gl.uniform3f(locs.color, 0, 0, 0);
+				continue;
+            }
             var col = light._scaledIrradiance;
             gl.uniform3f(locs.color, col.r, col.g, col.b);
             gl.uniform3f(locs.direction, dir.x, dir.y, dir.z);
@@ -182,9 +186,14 @@ FixedLitPass.prototype._assignPointLights = function (camera) {
         for (var i = 0; i < len; ++i) {
             var locs = this._pointLocations[i];
             var light = lights[i];
-            light.entity.worldMatrix.getColumn(3, pos);
+            var entity = light.entity;
+            entity.worldMatrix.getColumn(3, pos);
             camera.viewMatrix.transformPoint(pos, pos);
 
+			if (!entity.hierarchyVisible) {
+				gl.uniform3f(locs.color, 0, 0, 0);
+				continue;
+            }
             var col = light._scaledIrradiance;
             gl.uniform3f(locs.color, col.r, col.g, col.b);
             gl.uniform3f(locs.position, pos.x, pos.y, pos.z);
@@ -231,10 +240,16 @@ FixedLitPass.prototype._assignSpotLights = function (camera)
         for (var i = 0; i < len; ++i) {
             var locs = this._spotLocations[i];
             var light = lights[i];
-            var worldMatrix = light.entity.worldMatrix;
+            var entity = light.entity;
+            var worldMatrix = entity.worldMatrix;
             var viewMatrix = camera.viewMatrix;
             worldMatrix.getColumn(3, pos);
             viewMatrix.transformPoint(pos, pos);
+
+            if (!entity.hierarchyVisible) {
+				gl.uniform3f(locs.color, 0, 0, 0);
+				continue;
+			}
 
             var col = light._scaledIrradiance;
             gl.uniform3f(locs.color, col.r, col.g, col.b);
@@ -270,10 +285,12 @@ FixedLitPass.prototype._assignLightProbes = function () {
     var probes = this._diffuseLightProbes;
     var len = probes.length;
     var probe;
+
     for (var i = 0; i < len; ++i) {
         probe = probes[i];
         diffuseMaps[i] = probe.diffuseTexture;
-		diffIntensities[i] = probe.intensity;
+		var visible = probe.entity.hierarchyVisible? 1 : 0;
+		diffIntensities[i] = probe.intensity * visible;
 	}
 
 	var specIntensities = this._specProbeIntensityData;
@@ -285,7 +302,8 @@ FixedLitPass.prototype._assignLightProbes = function () {
         var tex = probe.specularTexture;
         specularMaps[i] = tex;
         mips[i] = Math.floor(MathX.log2(tex.size));
-        specIntensities[i] = probe.intensity;
+		var visible = probe.entity.hierarchyVisible? 1 : 0;
+        specIntensities[i] = probe.intensity * visible;
     }
 
     if (diffuseMaps.length > 0) {

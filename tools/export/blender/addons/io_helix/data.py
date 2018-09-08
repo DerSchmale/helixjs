@@ -97,8 +97,16 @@ def write_vector_prop(file, prop, vec):
     file.write(struct.pack("<Lfff", prop, vec.x, vec.y, vec.z))
 
 
+def write_quat_prop(file, prop, quat):
+    file.write(struct.pack("<Lffff", prop, quat.x, quat.y, quat.z, quat.w))
+
+
 def write_color_prop(file, prop, col):
     file.write(struct.pack("<Lfff", prop, col.r, col.g, col.b))
+
+
+def write_color_alpha_prop(file, prop, col, alpha):
+    file.write(struct.pack("<Lffff", prop, col.r, col.g, col.b, alpha))
 
 
 def end_object(file):

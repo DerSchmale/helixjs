@@ -1,45 +1,70 @@
-# when values are strings, they need to be 0-ended
+# see loaders/HX.js for the values that are expected for each type
 
 # common properties
-NULL = 0            # end of property list
-NAME = 1            # name of an object, value = string
-URL = 2             # link to an external file defining the contents of the object, value = string
-CAST_SHADOWS = 3    # used by lights and meshes
-COLOR = 4           # used by lights, materials, ...
+NULL = 0
+NAME = 1
+URL = 2
+CAST_SHADOWS = 3
+COLOR = 4
+COLOR_ALPHA = 5
 
 # header (meta) properties
-VERSION = 10                # string
-GENERATOR = 11              # string
-PAD_ARRAYS = 12             # uint8, 0 or 1, optional. If omitted, 1 is assumed. Indicates that all typed arrays are
-                            # preceded with 0-bytes so the start of the array is aligned to its element size.
-DEFAULT_SCENE_INDEX = 13    # uint8, once parsed, yields the default index. Defaults to 0.
-LIGHTING_MODE = 14          # uint8: 0: OFF, 1: FIXED, 2: DYNAMIC
+VERSION = 10
+GENERATOR = 11
+PAD_ARRAYS = 12
+DEFAULT_SCENE_INDEX = 13
+LIGHTING_MODE = 14
 
 # mesh properties
-NUM_VERTICES = 20           # uint32
-NUM_INDICES = 21            # uint32
-ELEMENT_TYPE = 22           # uint8: optional, if omitted, should use TRIANGLES as default
-INDEX_TYPE = 23             # uint8, either data_types.uint16 or data_types.uint32 (short vs long)
-INDEX_DATA = 24             # list: length = numIndices, type defined by INDEX_TYPE.
-                            # Must come after NUM_INDICES and INDEX_TYPES
-VERTEX_ATTRIBUTE = 25       # value is <name [string], numComponents [uint8], componentType [uint8: data_types], uint8 streamIndex>
-                            # loaders are free to use the most optimal way to put this in vertex buffers
-                            # componentType in this version will always be float32!
-VERTEX_STREAM_DATA = 26     # raw data list, length depends on all the attributes for the current stream. Must come
-                            # after NUM_VERTICES and all VERTEX_ATTRIBUTE fields
+NUM_VERTICES = 20
+NUM_INDICES = 21
+ELEMENT_TYPE = 22
+INDEX_TYPE = 23
+INDEX_DATA = 24
+VERTEX_ATTRIBUTE = 25
+VERTEX_STREAM_DATA = 26
 
 # scene node / entity properties
-POSITION = 30               # 3 float32
-ROTATION = 31               # 3 float32 (quaternion, w component is calculated)
-SCALE = 32                  # 3 float32
+POSITION = 30
+ROTATION = 31
+SCALE = 32
+VISIBLE = 33
 
 # light properties
-INTENSITY = 40              # float32
-RADIUS = 41                 # float32
-SPOT_ANGLES = 42            # 2 float32: inner and outer angles
+INTENSITY = 40
+RADIUS = 41
+SPOT_ANGLES = 42
 
 # texture properties
-WRAP_MODE = 50              # uint8: 0 = clamp, 1 = wrap
-FILTER = 51                 # uint8: 0 = nearest, 2 = bilinear, 3 = trilinear, 4, anisotropic
-                            # 5 = nearest no mip, 6 = bilinear no mip
+WRAP_MODE = 50
+FILTER = 51
 
+# material properties
+# COLOR = 4
+USE_VERTEX_COLORS = 60
+ALPHA = 61
+EMISSIVE_COLOR = 62
+SPECULAR_MAP_MODE = 63
+METALLICNESS = 64
+SPECULAR_REFLECTANCE = 65
+ROUGHNESS = 66
+ROUGHNESS_RANGE = 67
+ALPHA_THRESHOLD = 68
+LIGHTING_MODEL = 69
+CULL_MODE = 70
+BLEND_STATE = 71
+WRITE_DEPTH = 72
+WRITE_COLOR = 73
+
+# blend state properties
+BLEND_STATE_SRC_FACTOR = 80
+BLEND_STATE_DST_FACTOR = 81
+BLEND_STATE_OPERATOR = 82
+BLEND_STATE_SRC_FACTOR_ALPHA = 83
+BLEND_STATE_DST_FACTOR_ALPHA = 84
+BLEND_STATE_OPERATOR_ALPHA = 85
+BLEND_COLOR = 86
+
+# camera properties
+CLIP_DISTANCES = 90
+FOV = 91

@@ -34,6 +34,12 @@ class ExportHelix(Operator, ExportHelper):
         default="FIXED"
     )
 
+    export_shadows = bpy.props.BoolProperty(
+        name="Export shadows",
+        description="Defines whether shadow casters are exported",
+        default=False
+    )
+
     def execute(self, context):
         lighting_mode_index = 0
         if self.lighting_mode == "FIXED":
@@ -43,6 +49,7 @@ class ExportHelix(Operator, ExportHelper):
 
         return exporter.write_hx(context, self.filepath,
                                  lighting_mode=lighting_mode_index,
+                                 export_shadows=self.export_shadows
                                  )
 
     def draw(self, context):

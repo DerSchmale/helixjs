@@ -1,4 +1,3 @@
-NULL = 0
 INT8 = 10
 INT16 = 11
 INT32 = 12

@@ -41,6 +41,10 @@ HX.Component.create(FloatController);
 
 FloatController.prototype.onAdded = function()
 {
+	var m = this.entity.matrix._m;
+	this.yaw = Math.atan2(m[1], m[0]);	// the angle in the XY plane
+	this.pitch = Math.atan2(m[9], m[10]); 	// the angle in the YZ plane
+
 	this._input.enable(this._mouse);
 	this._input.enable(this._keyboard);
 };
@@ -97,8 +101,8 @@ FloatController.prototype._updateVelocity = function(seconds)
 
 FloatController.prototype._updateLook = function()
 {
-	var axisX = this._input.getValue("lookX");
-	var axisY = this._input.getValue("lookY");
+	var axisX = -this._input.getValue("lookX");
+	var axisY = -this._input.getValue("lookY");
 	this.yaw += axisX;
 	this.pitch = HX.MathX.clamp(this.pitch + axisY, -Math.PI*.5, Math.PI*.5);
 };

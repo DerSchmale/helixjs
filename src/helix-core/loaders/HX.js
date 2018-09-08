@@ -3,7 +3,7 @@ import {URLLoader} from "./URLLoader";
 import {DataStream} from "../core/DataStream";
 import {Scene} from "../scene/Scene";
 import {Mesh} from "../mesh/Mesh";
-import {DataType, ElementType, TextureFilter, TextureWrapMode} from "../Helix";
+import {BlendFactor, BlendOperation, CullMode, DataType, ElementType, TextureFilter, TextureWrapMode} from "../Helix";
 import {BasicMaterial} from "../material/BasicMaterial";
 import {Material} from "../material/Material";
 import {Entity} from "../entity/Entity";
@@ -23,6 +23,8 @@ import {LightProbe} from "../light/LightProbe";
 import {Texture2D} from "../texture/Texture2D";
 import {AssetLibrary} from "./AssetLibrary";
 import {JPG} from "./JPG_PNG";
+import {BlendState} from "../render/BlendState";
+import {Quaternion} from "../math/Quaternion";
 
 /**
  * The data provided by the HX loader
@@ -31,25 +33,40 @@ import {JPG} from "./JPG_PNG";
 function HXData()
 {
 	this.defaultScene = null;
+	this.defaultCamera = null;
 	this.scenes = [];
 }
 
-var elementTypeLookUp = {
-	1: ElementType.POINTS,
-	2: ElementType.LINES,
-	3: ElementType.LINE_STRIP,
-	4: ElementType.LINE_LOOP,
-	5: ElementType.TRIANGLES,
-	6: ElementType.TRIANGLE_STRIP,
-	7: ElementType.TRIANGLE_FAN
-};
+var elementTypeLookUp = [
+	ElementType.POINTS,
+	ElementType.LINES,
+	ElementType.LINE_STRIP,
+	ElementType.LINE_LOOP,
+	ElementType.TRIANGLES,
+	ElementType.TRIANGLE_STRIP,
+	ElementType.TRIANGLE_FAN
+];
 
-var dataTypeLook = {
+var dataTypeLookUp = {
 	20: DataType.UNSIGNED_BYTE,
 	21: DataType.UNSIGNED_SHORT,
 	22: DataType.UNSIGNED_INT,
 	30: DataType.FLOAT
 };
+
+var cullModes = [CullMode.NONE, CullMode.FRONT, CullMode.BACK, CullMode.ALL];
+var blendStates = [null, BlendState.ADD, BlendState.MULTIPLY, BlendState.ALPHA];
+var blendFactors = [
+	BlendFactor.ZERO, BlendFactor.ONE,
+	BlendFactor.SOURCE_COLOR, BlendFactor.ONE_MINUS_SOURCE_COLOR,
+	BlendFactor.SOURCE_ALPHA, BlendFactor.ONE_MINUS_SOURCE_ALPHA,
+	BlendFactor.DESTINATION_ALPHA, BlendFactor.ONE_MINUS_DESTINATION_ALPHA,
+	BlendFactor.DESTINATION_COLOR, BlendFactor.ONE_MINUS_DESTINATION_COLOR,
+	BlendFactor.SOURCE_ALPHA_SATURATE, BlendFactor.CONSTANT_ALPHA, BlendFactor.ONE_MINUS_CONSTANT_ALPHA
+];
+var blendOps = [
+	BlendOperation.ADD, BlendOperation.SUBTRACT, BlendOperation.REVERSE_SUBTRACT
+];
 
 var ObjectTypes = {
 	NULL: 0, 	// used as an end-of-list marker
@@ -68,7 +85,8 @@ var ObjectTypes = {
 	PERSPECTIVE_CAMERA: 13,
 	ORTHOGRAPHIC_CAMERA: 14,		// not currently supported
 	TEXTURE_2D: 15,
-	TEXTURE_CUBE: 16
+	TEXTURE_CUBE: 16,
+	BLEND_STATE: 17
 };
 
 var ObjectTypeMap = {
@@ -82,46 +100,80 @@ var ObjectTypeMap = {
 	10: PointLight,
 	11: AmbientLight,
 	12: LightProbe,
-	13: PerspectiveCamera
+	13: PerspectiveCamera,
+	17: BlendState
 };
 
+// most ommitted properties take on their default value in Helix.
 var PropertyTypes = {
-	// Common props
-	NULL: 0, // used as an end-of-list marker
-	NAME: 1,
-	URL: 2,
-	CAST_SHADOWS: 3,
-	COLOR: 4,
+	// Common props						// value types (all string end with \0, bool are 0 or 1 uint8s)
+	NULL: 0, 							// used as an end-of-list marker
+	NAME: 1,							// string
+	URL: 2,								// string, used to link to external assets (fe: textures)
+	CAST_SHADOWS: 3,					// bool
+	COLOR: 4,							// 3 floats: rgb
+	COLOR_ALPHA: 5,						// 4 floats: rgba
 
 	// header (meta) props
-	VERSION: 10,
-	GENERATOR: 11,
-	PAD_ARRAYS: 12,
-	DEFAULT_SCENE_INDEX: 13,
-	LIGHTING_MODE: 14,
+	VERSION: 10,						// string formatted as "#.#.#"
+	GENERATOR: 11,						// string
+	PAD_ARRAYS: 12,						// bool, indicates whether or not typed array data is aligned in memory to its own element size (pre-padded with 0s)
+	DEFAULT_SCENE_INDEX: 13,			// uint8
+	LIGHTING_MODE: 14,					// uint8: 0: OFF, 1: FIXED, 2: DYNAMIC
 
 	// Mesh data
-	NUM_VERTICES: 20,
-	NUM_INDICES: 21,
-	ELEMENT_TYPE: 22,
-	INDEX_TYPE: 23,
-	INDEX_DATA: 24,
-	VERTEX_ATTRIBUTE: 25,
-	VERTEX_STREAM_DATA: 26,
+	NUM_VERTICES: 20,					// uint32
+	NUM_INDICES: 21,					// uint32
+	ELEMENT_TYPE: 22,					// uint8: index of elementTypeLookUp: if omitted, set to TRIANGLES
+	INDEX_TYPE: 23,						// uint8, either 21 (uint16) or 22 (uint32) as defined by dataTypeLookUp
+	INDEX_DATA: 24,						// list of length = numIndices and type defined by INDEX_TYPE. Must come after NUM_INDICES and INDEX_TYPES
+	VERTEX_ATTRIBUTE: 25,				// value is tuplet <string name, uint8 numComponents, uint8 componentType [see data_types], uint8 streamIndex>
+	VERTEX_STREAM_DATA: 26,				// raw data list, length depends on all the attributes for the current stream. Must come after NUM_VERTICES and all VERTEX_ATTRIBUTE fields and appear in order of their stream index.
 
 	// Scene Node / Entity data
-	POSITION: 30,
-	ROTATION: 31,
-	SCALE: 32,
+	POSITION: 30,						// 3 float32 (xyz)
+	ROTATION: 31,						// 4 float32 (xyzw quaternion)
+	SCALE: 32,							// 3 float32 (xyz)
+	VISIBLE: 33,						// bool
 
 	// Light data
-	INTENSITY: 40,
-	RADIUS: 41,
-	SPOT_ANGLES: 42,
+	INTENSITY: 40,						// float32
+	RADIUS: 41,							// float32
+	SPOT_ANGLES: 42,					// 2 float32: inner and outer angle
 
 	// texture data
-	WRAP_MODE: 50,
-	FILTER: 51
+	WRAP_MODE: 50,						// uint8: 0 = clamp, 1 = wrap
+	FILTER: 51,							// uint8: 0 = nearest, 2 = bilinear, 3 = trilinear, 4, anisotropic, 5 = nearest no mip, 6 = bilinear no mip
+
+	// material properties
+	// COLOR: 4
+	USE_VERTEX_COLORS: 60,				// bool
+	ALPHA: 61,							// float32
+	EMISSIVE_COLOR: 62,					// 3 float32 (rgb)
+	SPECULAR_MAP_MODE: 63,				// uint8: 1 = roughness, 2 = roughness/normal reflectance/metallicness, 3 = share normal map, 4 = metallic/roughness
+	METALLICNESS: 64,					// float32
+	SPECULAR_REFLECTANCE: 65,			// float32
+	ROUGHNESS: 66,						// float32
+	ROUGHNESS_RANGE: 67,				// float32
+	ALPHA_THRESHOLD: 68,				// float32
+	LIGHTING_MODEL: 69,					// uint8: 0 = UNLIT, 1 = GGX, 2 = GGX_FULL, 3 = BLINN_PHONG. If omitted, uses InitOptions default
+	CULL_MODE: 70,						// uint8: 0 = None, 1 = front, 2 = back, 3 = all
+	BLEND_STATE: 71,					// uint8: 0 = None, 2 = Add, 3 = Multiply, 4 = Alpha. If omitted, blend state can still be linked from an object definition
+	WRITE_DEPTH: 72,					// bool
+	WRITE_COLOR: 73,					// bool
+
+	// blend state properties
+	BLEND_STATE_SRC_FACTOR: 80,			// uint8, see blendFactors index below
+	BLEND_STATE_DST_FACTOR: 81,			// uint8, see blendFactors index below
+	BLEND_STATE_OPERATOR: 82,			// uint8, see blendOperators index below
+	BLEND_STATE_SRC_FACTOR_ALPHA: 83,  // uint8
+	BLEND_STATE_DST_FACTOR_ALPHA: 84,	// uint8
+	BLEND_STATE_OPERATOR_ALPHA: 85,		// uint8
+	// COLOR_ALPHA: 4
+
+	// camera properties:
+	CLIP_DISTANCES: 90,					// 2 float32: near, far
+	FOV: 91,							// float32: vertical fov
 };
 
 var MaterialLinkMetaProp = {
@@ -285,8 +337,12 @@ HX.prototype._parseLinkList = function()
 			parent.material = child;
 		else if (child instanceof Mesh)
 			parent.mesh = child;
-		else if (child instanceof Entity)
+		else if (child instanceof Entity) {
 			parent.attach(child);
+			if (parent === this._target.defaultScene && meta === 1) {
+				this._target.defaultCamera = child;
+			}
+		}
 		else if (child instanceof Component)
 			parent.addComponent(child);
 		else if (child instanceof Texture2D) {
@@ -319,8 +375,6 @@ HX.prototype._parseMaterial = function(data)
 	var material = new BasicMaterial();
 	material.roughness = .5;
 	if (this._lightingMode) {
-		material.lightingModel = LightingModel.GGX;
-		// if fixed, lights !== null
 		material.fixedLights = this._lights;
 	}
 	this._readProperties(data, material);
@@ -350,7 +404,7 @@ HX.prototype._readProperties = function(data, target)
 				target._numIndices = data.getUint32();
 				break;
 			case PropertyTypes.INDEX_TYPE:
-				target._indexType = dataTypeLook[data.getUint8()];
+				target._indexType = dataTypeLookUp[data.getUint8()];
 				break;
 			case PropertyTypes.INDEX_DATA:
 				parseIndexData(data, target, this);
@@ -373,8 +427,14 @@ HX.prototype._readProperties = function(data, target)
 			case PropertyTypes.SCALE:
 				parseVector3(data, target.scale);
 				break;
+			case PropertyTypes.VISIBLE:
+				target.visible = !!data.getUint8();
+				break;
 			case PropertyTypes.COLOR:
 				target.color = parseColor(data);
+				break;
+			case PropertyTypes.COLOR_ALPHA:
+				target.color = parseColorRGBA(data);
 				break;
 			case PropertyTypes.INTENSITY:
 				target.intensity = data.getFloat32();
@@ -396,6 +456,73 @@ HX.prototype._readProperties = function(data, target)
 					TextureFilter.NEAREST_NOMIP, TextureFilter.BILINEAR_NOMIP
 				][data.getUint8()];
 				break;
+			case PropertyTypes.USE_VERTEX_COLORS:
+				target.useVertexColors = !!data.getUint8();
+				break;
+			case PropertyTypes.ALPHA:
+				target.alpha = data.getFloat32();
+				break;
+			case PropertyTypes.EMISSIVE_COLOR:
+				target.emissiveColor = parseColor(data);
+				break;
+			case PropertyTypes.SPECULAR_MAP_MODE:
+				target.specularMapMode = data.getUint8();
+				break;
+			case PropertyTypes.METALLICNESS:
+				target.metallicness = data.getFloat32();
+				break;
+			case PropertyTypes.SPECULAR_REFLECTANCE:
+				target.normalSpecularReflectance = data.getFloat32();
+				break;
+			case PropertyTypes.ROUGHNESS:
+				target.roughness = data.getFloat32();
+				break;
+			case PropertyTypes.ROUGHNESS_RANGE:
+				target.roughnessRange = data.getFloat32();
+				break;
+			case PropertyTypes.ALPHA_THRESHOLD:
+				target.alphaThreshold = data.getFloat32();
+				break;
+			case PropertyTypes.LIGHTING_MODEL:
+				target.lightingModel = parseLightingModel(data);
+				break;
+			case PropertyTypes.CULL_MODE:
+				target.cullMode = cullModes[data.getUint8()];
+				break;
+			case PropertyTypes.BLEND_STATE:
+				target.blendState = blendStates[data.getUint8()];
+				break;
+			case PropertyTypes.WRITE_DEPTH:
+				target.writeDepth = !!data.getUint8();
+				break;
+			case PropertyTypes.WRITE_COLOR:
+				target.writeColor = !!data.getUint8();
+				break;
+			case PropertyTypes.BLEND_STATE_SRC_FACTOR:
+				target.srcFactor = blendFactors[data.getUint8()];
+				break;
+			case PropertyTypes.BLEND_STATE_DST_FACTOR:
+				target.dstFactor = blendFactors[data.getUint8()];
+				break;
+			case PropertyTypes.BLEND_STATE_OPERATOR:
+				target.operator = blendOps[data.getUint8()];
+				break;
+			case PropertyTypes.BLEND_STATE_SRC_FACTOR_ALPHA:
+				target.alphaSrcFactor = blendFactors[data.getUint8()];
+				break;
+			case PropertyTypes.BLEND_STATE_DST_FACTOR_ALPHA:
+				target.alphaDstFactor = blendFactors[data.getUint8()];
+				break;
+			case PropertyTypes.BLEND_STATE_OPERATOR_ALPHA:
+				target.alphaOperator = blendOps[data.getUint8()];
+				break;
+			case PropertyTypes.CLIP_DISTANCES:
+				target.nearDistance = data.getFloat32();
+				target.farDistance = data.getFloat32();
+				break;
+			case PropertyTypes.FOV:
+				target.verticalFOV = data.getFloat32();
+				break;
 		}
 	} while (type !== PropertyTypes.NULL)
 };
@@ -415,10 +542,26 @@ HX.prototype._handleURL = function(url, target)
 	this._dependencyLib.queueAsset(name, this._correctURL(url), AssetLibrary.Type.ASSET, dependencyType, null, target);
 };
 
+function parseLightingModel(data)
+{
+	var id = data.getUint8();
+	if (id === 0) return LightingModel.Unlit;
+	if (id === 1) return LightingModel.GGX;
+	if (id === 2) return LightingModel.GGX_FULL;
+	if (id === 3) return LightingModel.BlinnPhong;
+}
+
 function parseColor(data, target)
 {
 	target = target || new Color();
 	target.set(data.getFloat32(), data.getFloat32(), data.getFloat32());
+	return target;
+}
+
+function parseColorRGBA(data, target)
+{
+	target = parseColor(data, target);
+	target.a = data.getFloat32();
 	return target;
 }
 
@@ -431,8 +574,9 @@ function parseVector3(data, target)
 
 function parseQuaternion(data, target)
 {
-	target.set(data.getFloat32(), data.getFloat32(), data.getFloat32(), 0.0);
-	target.w = Math.sqrt(1.0 - target.x * target.x + target.y * target.y + target.z * target.z);
+	target = target || new Quaternion();
+	target.set(data.getFloat32(), data.getFloat32(), data.getFloat32(), data.getFloat32());
+	return target;
 }
 
 function parseIndexData(data, target, parser)
@@ -454,7 +598,7 @@ function parseVertexAttribute(data, target)
 {
 	var name = data.getString();
 	var numComponents = data.getUint8();
-	var dataType = dataTypeLook[data.getUint8()];
+	var dataType = dataTypeLookUp[data.getUint8()];
 	var streamIndex = data.getUint8();
 	console.assert(dataType === DataType.FLOAT, "HX only supports float32 vertex attribute data");
 	target.addVertexAttribute(name, numComponents, streamIndex, name === "hx_normal" || name === "hx_tangent");

@@ -504,6 +504,8 @@ Renderer.prototype =
         else {
             target.setUint32(offset + 4, 0, true);
         }
+
+		target.setUint32(offset + 12, light.intensity, true);
     },
 
     /**

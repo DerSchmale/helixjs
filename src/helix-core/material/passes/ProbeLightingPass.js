@@ -20,6 +20,7 @@ function ProbeLightingPass(geometryVertex, geometryFragment, lightingModel)
     this._diffuseSlot = this.getTextureIndex("hx_diffuseProbeMap");
     this._specularSlot = this.getTextureIndex("hx_specularProbeMap");
     this._numMipsLocation = this.getUniformLocation("hx_specularProbeNumMips");
+    this._intensityLocation = this.getUniformLocation("hx_probeIntensity");
     this._localLocation = this.getUniformLocation("hx_probeLocal");
     this._sizeLocation = this.getUniformLocation("hx_probeSize");
     this._positionLocation = this.getUniformLocation("hx_probePosition");
@@ -42,6 +43,7 @@ ProbeLightingPass.prototype.updatePassRenderState = function(camera, renderer, p
     this._textures[this._specularSlot] = specularTex;
     gl.uniform1f(this._numMipsLocation, Math.floor(MathX.log2(specularTex.size)));
     gl.uniform1f(this._localLocation, probe._size? 1.0 : 0.0);
+    gl.uniform1f(this._intensityLocation, probe.intensity);
     gl.uniform1f(this._sizeLocation, probe._size || 0.0);
     var m = probe.entity.worldMatrix._m;
     gl.uniform3f(this._positionLocation, m[12], m[13], m[14]);

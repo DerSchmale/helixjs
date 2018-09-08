@@ -12,6 +12,7 @@ import {Component} from "../entity/Component";
  *
  * @property {TextureCube} diffuseTexture A cube map texture containing diffuse global illumination information
  * @property {TextureCube} specularTexture A cube map texture containing specular global illumination information
+ * @property {number} intensity Defines the intensity of the environment map.
  * @property {number} size Defines the virtual size of the environment map box. Useful for local reflections. Leave undefined for a traditional environment map "at infinity"
  *
  * @see {@linkcode https://www.knaldtech.com/lys/} for an example tool to generate the required images.
@@ -27,6 +28,7 @@ import {Component} from "../entity/Component";
 function LightProbe(diffuseTexture, specularTexture)
 {
     Component.call(this);
+    this.intensity = 1.0;
     this._specularTexture = specularTexture;
     this._diffuseTexture = diffuseTexture;
     this._size = undefined;
@@ -78,6 +80,7 @@ LightProbe.prototype.clone = function()
 {
 	var clone = new LightProbe(this._diffuseTexture, this._specularTexture);
 	clone.size = this.size;
+	clone.intensity = this.intensity;
 	return clone;
 };
 

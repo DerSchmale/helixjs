@@ -15,6 +15,7 @@ uniform sampler2D hx_ssao;
 uniform float hx_probeSize;
 uniform vec3 hx_probePosition;
 uniform float hx_probeLocal;
+uniform float hx_probeIntensity;
 
 void main()
 {
@@ -34,8 +35,8 @@ void main()
     vec3 specRay = hx_intersectCubeMap(hx_worldPosition, hx_probePosition, reflectedViewDir, hx_probeSize);
     diffRay = mix(worldNormal, diffRay, hx_probeLocal);
     specRay = mix(reflectedViewDir, specRay, hx_probeLocal);
-    vec3 diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, diffRay);
-    vec3 specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, specRay, fresnel, data.roughness);
+    vec3 diffuse = hx_calculateDiffuseProbeLight(hx_diffuseProbeMap, diffRay) * hx_probeIntensity;
+    vec3 specular = hx_calculateSpecularProbeLight(hx_specularProbeMap, hx_specularProbeNumMips, specRay, fresnel, data.roughness) * hx_probeIntensity;
 
     hx_FragColor = vec4((diffuse * data.color.xyz + specular) * data.occlusion, data.color.w);
 

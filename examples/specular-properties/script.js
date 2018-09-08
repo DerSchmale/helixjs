@@ -49,9 +49,9 @@ function initScene(scene, assetLibrary)
     light.intensity = .3;
 
     // convert component to entity
-	light = new HX.Entity(light);
-    light.lookAt(new HX.Float4(0.0, -0.3, -1.0, 0.0));
-	scene.attach(light);
+	var lightEntity = new HX.Entity(light);
+	lightEntity.lookAt(new HX.Float4(0.0, -1.0, -0.3, 0.0));
+	scene.attach(lightEntity);
 
     var skyboxSpecularTexture = assetLibrary.get("skybox-specular");
     var skyboxIrradianceTexture = assetLibrary.get("skybox-irradiance");
@@ -79,7 +79,7 @@ function initScene(scene, assetLibrary)
             material.color = gold;
             material.roughness = x / (numX - 1.0);
             material.metallicness = y / (numY - 1.0);
-            // material.fixedLights = [ light, lightProbe ];
+            material.fixedLights = [ light, lightProbe ];
 
             var entity = new HX.Entity();
             entity.addComponent(new HX.MeshInstance(primitive, material));

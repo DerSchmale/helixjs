@@ -7,6 +7,7 @@ struct HX_Probe
     int hasDiffuse;
     int hasSpecular;
     float numMipLevels;
+    float intensity;
 };
 
 /*

@@ -85,13 +85,19 @@ FixedLitPass.prototype._generateShader = function (geometryVertex, geometryFragm
 
     var extensions = [];
 
+    var numDiffProbes = this._diffuseLightProbes.length;
+    var numSpecProbes = this._specularLightProbes.length;
     var defines = {
         HX_NUM_DIR_LIGHTS: this._dirLights.length,
         HX_NUM_POINT_LIGHTS: this._pointLights.length,
         HX_NUM_SPOT_LIGHTS: this._spotLights.length,
-        HX_NUM_DIFFUSE_PROBES: this._diffuseLightProbes.length,
-        HX_NUM_SPECULAR_PROBES: this._specularLightProbes.length
+        HX_NUM_DIFFUSE_PROBES: numDiffProbes,
+        HX_NUM_SPECULAR_PROBES: numSpecProbes
     };
+
+	this._diffProbeIntensityData = new Float32Array(numDiffProbes);
+	this._specProbeIntensityData = new Float32Array(numSpecProbes);
+	this._specProbeMipData = new Float32Array(numSpecProbes);
 
     if (capabilities.EXT_SHADER_TEXTURE_LOD) {
         extensions += "#texturelod\n";
@@ -260,23 +266,36 @@ FixedLitPass.prototype._assignLightProbes = function () {
     var diffuseMaps = [];
     var specularMaps = [];
 
+    var diffIntensities = this._diffProbeIntensityData;
     var probes = this._diffuseLightProbes;
     var len = probes.length;
-    for (var i = 0; i < len; ++i)
-        diffuseMaps[i] = probes[i].diffuseTexture;
+    var probe;
+    for (var i = 0; i < len; ++i) {
+        probe = probes[i];
+        diffuseMaps[i] = probe.diffuseTexture;
+		diffIntensities[i] = probe.intensity;
+	}
 
+	var specIntensities = this._specProbeIntensityData;
     probes = this._specularLightProbes;
     len = probes.length;
-    var mips = [];
+    var mips = this._specProbeMipData;
     for (i = 0; i < len; ++i) {
-        specularMaps[i] = probes[i].specularTexture;
-        mips[i] = Math.floor(MathX.log2(specularMaps[i].size));
+        probe = probes[i];
+        var tex = probe.specularTexture;
+        specularMaps[i] = tex;
+        mips[i] = Math.floor(MathX.log2(tex.size));
+        specIntensities[i] = probe.intensity;
     }
 
-    if (diffuseMaps.length > 0) this.setTextureArray("hx_diffuseProbeMaps", diffuseMaps);
+    if (diffuseMaps.length > 0) {
+        this.setTextureArray("hx_diffuseProbeMaps", diffuseMaps);
+		this.setUniformArray("hx_diffuseProbeIntensities", diffIntensities);
+	}
     if (specularMaps.length > 0) {
         this.setTextureArray("hx_specularProbeMaps", specularMaps);
-        this.setUniformArray("hx_specularProbeNumMips", new Float32Array(mips));
+        this.setUniformArray("hx_specularProbeNumMips", mips);
+        this.setUniformArray("hx_specularProbeIntensities", specIntensities);
     }
 };
 

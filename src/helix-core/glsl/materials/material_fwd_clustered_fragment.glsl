@@ -154,10 +154,10 @@ void main()
             // this is a bit icky, but since the cube textures need to indexed using a literal, we can't loop over hx_numLightProbes
             if (i < hx_numLightProbes) {
                 if (hx_probes[i].hasDiffuse == 1)
-                    diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbes[i], worldNormal) * ao;
+                    diffuseAccum += hx_calculateDiffuseProbeLight(hx_diffuseProbes[i], worldNormal) * ao * hx_probes[i].intensity;
 
                 if (hx_probes[i].hasSpecular == 1)
-                    specularAccum += hx_calculateSpecularProbeLight(hx_specularProbes[i], hx_probes[i].numMipLevels, reflectedViewDir, fresnel, data.roughness) * ao;
+                    specularAccum += hx_calculateSpecularProbeLight(hx_specularProbes[i], hx_probes[i].numMipLevels, reflectedViewDir, fresnel, data.roughness) * ao * hx_probes[i].intensity;
             }
         }
     #endif
